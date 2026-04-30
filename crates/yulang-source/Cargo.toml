@@ -1,0 +1,10 @@
+[package]
+name = "yulang-source"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+rowan = "0.15"
+yulang-parser = { path = "../yulang-parser" }
+yulang-core-ir = { path = "../yulang-core-ir" }

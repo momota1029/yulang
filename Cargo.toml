@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/chasa",
+  "crates/reborrow-generic",
+  "crates/reborrow-generic-derive",
+  "crates/yulang-parser",
+  "crates/yulang",
+  "crates/yulang-source",
+  "crates/yulang-core-ir",
+  "crates/yulang-runtime",
+  "crates/yulang-wasm",
+  "crates/yulang-infer",
+]

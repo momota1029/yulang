@@ -1,0 +1,16 @@
+{
+  "name": "yulang-playground",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build:wasm": "RUSTFLAGS='-C link-arg=-z -C link-arg=stack-size=67108864' wasm-pack build ../../crates/yulang-wasm --target web --release --no-opt --out-dir ../../web/playground/src/wasm",
+    "build": "npm run build:wasm && vite build",
+    "deploy:dir": "npm run build && sh -c 'test -n \"$YULANG_PLAYGROUND_DEPLOY_DIR\" || { echo \"set YULANG_PLAYGROUND_DEPLOY_DIR\" >&2; exit 2; }; mkdir -p \"$YULANG_PLAYGROUND_DEPLOY_DIR\" && rsync -a --delete dist/ \"$YULANG_PLAYGROUND_DEPLOY_DIR\"'",
+    "dev": "npm run build:wasm && vite --host 127.0.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}

@@ -1,0 +1,1478 @@
+use super::*;
+use rowan::SyntaxNode;
+use yulang_parser::sink::YulangLanguage;
+
+fn run_with_large_stack<T>(f: impl FnOnce() -> T + Send + 'static) -> T
+where
+    T: Send + 'static,
+{
+    let handle = std::thread::Builder::new()
+        .name("infer-lib-test".to_string())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(f)
+        .expect("spawn test thread");
+    handle.join().expect("test thread panicked")
+}
+
+fn parse_and_lower(src: &str) -> LowerState {
+    let green = yulang_parser::parse_module_to_green(src);
+    let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
+    let mut state = LowerState::new();
+    lower_root(&mut state, &root);
+    state
+}
+
+#[test]
+fn simple_binding() {
+    let state = parse_and_lower("my x = 42");
+    // x が locals か module に登録されているはず
+    let name = symbols::Name("x".to_string());
+    let found = state.ctx.resolve_value(&name);
+    assert!(found.is_some(), "x should be registered");
+}
+
+#[test]
+fn path_sep_lookup() {
+    let state = parse_and_lower("our foo = 1\nmy y = foo");
+    let name = symbols::Name("foo".to_string());
+    assert!(
+        state.ctx.resolve_value(&name).is_some(),
+        "foo should be in module"
+    );
+}
+
+#[test]
+fn function_def_args() {
+    // my f x = x は Lam(x_def, Var(x_def)) に lower されるはず
+    let state = parse_and_lower("my f x = x");
+    let f = symbols::Name("f".to_string());
+    assert!(
+        state.ctx.resolve_value(&f).is_some(),
+        "f should be registered"
+    );
+}
+
+#[test]
+fn with_block_our_defs_scope_over_body_not_module() {
+    let state = parse_and_lower("my x = y with:\n  our y = 1\n");
+    assert!(
+        state
+            .ctx
+            .resolve_value(&symbols::Name("x".to_string()))
+            .is_some(),
+        "x should be registered"
+    );
+    assert!(
+        state
+            .ctx
+            .resolve_value(&symbols::Name("y".to_string()))
+            .is_none(),
+        "with `our` y should stay local to the synthetic with module"
+    );
+    assert!(
+        !state.ctx.refs.unresolved().iter().any(|(_, unresolved)| {
+            unresolved.path.segments == vec![symbols::Name("y".to_string())]
+        }),
+        "the body should resolve y through the following with `our` binding"
+    );
+}
+
+#[test]
+fn with_block_my_defs_do_not_scope_over_body() {
+    let state = parse_and_lower("my x = y with:\n  my y = 1\n");
+    assert!(
+        state
+            .ctx
+            .resolve_value(&symbols::Name("x".to_string()))
+            .is_some(),
+        "x should be registered"
+    );
+    assert!(
+        state
+            .ctx
+            .resolve_value(&symbols::Name("y".to_string()))
+            .is_none(),
+        "with `my` y should stay local to the with block"
+    );
+    assert!(
+        state.ctx.refs.unresolved().iter().any(|(_, unresolved)| {
+            unresolved.path.segments == vec![symbols::Name("y".to_string())]
+        }),
+        "the body should not see a following with `my` binding"
+    );
+}
+
+#[test]
+fn annotated_applyc_header_is_treated_as_function_binding() {
+    let state = parse_and_lower("my f(x: [_] _) = x");
+    let f_def = state
+        .ctx
+        .resolve_value(&symbols::Name("f".to_string()))
+        .unwrap();
+    let f_tv = state.def_tvs[&f_def];
+    let lowers = state.infer.lowers_of(f_tv);
+    assert!(
+        lowers.iter().any(|p| matches!(p, Pos::Fun { .. })),
+        "annotated ApplyC header should still lower as a function binding",
+    );
+}
+
+#[test]
+fn constraints_emitted() {
+    // `my x = 42` で:
+    // - 42 の tv に Pos::Con("int") が lower として入る
+    // - x の def_tv に 42.tv が lower として入る（body.tv <: def_tv）
+    let state = parse_and_lower("my x = 42");
+    let x_name = symbols::Name("x".to_string());
+    let x_def = state.ctx.resolve_value(&x_name).expect("x should exist");
+    let x_tv = state.def_tvs[&x_def];
+
+    // x_tv には lower bound が少なくとも 1 つある（42.tv <: x_tv）
+    let lowers = state.infer.lowers_of(x_tv);
+    assert!(
+        !lowers.is_empty(),
+        "x's def_tv should have a lower bound from body"
+    );
+}
+
+#[test]
+fn effectful_value_binding_still_gets_value_lower_bound() {
+    let state = parse_and_lower("act undet:\n  our bool: () -> bool\n\nmy y = undet::bool()");
+    let y_def = state
+        .ctx
+        .resolve_value(&symbols::Name("y".to_string()))
+        .unwrap();
+    let y_tv = state.def_tvs[&y_def];
+    let lowers = state.infer.lowers_of(y_tv);
+    assert!(
+        !lowers.is_empty(),
+        "effectful binding should still keep value lower bounds, got {:?}",
+        lowers,
+    );
+}
+
+#[test]
+fn binding_type_annotation_mismatch_surfaces_type_error() {
+    let state = parse_and_lower("my x: bool = 1");
+    let errors = state.infer.type_errors();
+    assert_eq!(
+        errors.len(),
+        1,
+        "expected one deduplicated error, got {errors:?}"
+    );
+    assert!(
+        errors.iter().any(|error| {
+            error.cause.reason == ConstraintReason::Annotation
+                && error.kind == TypeErrorKind::ConstructorMismatch
+        }),
+        "binding annotation mismatch should surface an annotation error, got {errors:?}",
+    );
+}
+
+#[test]
+fn int_binding_can_widen_to_float_annotation() {
+    let state = parse_and_lower("my x: float = 1");
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.is_empty(),
+        "int <: float annotation should be accepted, got {errors:?}",
+    );
+}
+
+#[test]
+fn tuple_binding_can_widen_to_float_annotation() {
+    let mut state = parse_and_lower("my t: (float, float) = (1, 2)");
+    state.finalize_compact_results();
+    let exported = export_principal_bindings(&mut state);
+    let binding = exported
+        .iter()
+        .find(|binding| binding.name.segments.last().map(|n| n.0.as_str()) == Some("t"))
+        .expect("t binding");
+    assert_eq!(
+        binding.scheme.body,
+        yulang_core_ir::Type::Tuple(vec![
+            yulang_core_ir::Type::Named {
+                path: yulang_core_ir::Path::from_name(yulang_core_ir::Name("float".to_string(),)),
+                args: vec![],
+            },
+            yulang_core_ir::Type::Named {
+                path: yulang_core_ir::Path::from_name(yulang_core_ir::Name("float".to_string(),)),
+                args: vec![],
+            },
+        ]),
+    );
+}
+
+#[test]
+fn record_binding_can_widen_to_float_annotation() {
+    let mut state = parse_and_lower("my r: {x: float, y: float} = {x: 1, y: 2}");
+    state.finalize_compact_results();
+    let exported = export_principal_bindings(&mut state);
+    let binding = exported
+        .iter()
+        .find(|binding| binding.name.segments.last().map(|n| n.0.as_str()) == Some("r"))
+        .expect("r binding");
+    assert_eq!(
+        binding.scheme.body,
+        yulang_core_ir::Type::Record(yulang_core_ir::RecordType {
+            fields: vec![
+                yulang_core_ir::RecordField {
+                    name: yulang_core_ir::Name("x".to_string()),
+                    value: yulang_core_ir::Type::Named {
+                        path: yulang_core_ir::Path::from_name(yulang_core_ir::Name(
+                            "float".to_string(),
+                        )),
+                        args: vec![],
+                    },
+                    optional: false,
+                },
+                yulang_core_ir::RecordField {
+                    name: yulang_core_ir::Name("y".to_string()),
+                    value: yulang_core_ir::Type::Named {
+                        path: yulang_core_ir::Path::from_name(yulang_core_ir::Name(
+                            "float".to_string(),
+                        )),
+                        args: vec![],
+                    },
+                    optional: false,
+                },
+            ],
+            spread: None,
+        }),
+    );
+}
+
+#[test]
+fn concrete_role_constraint_without_impl_surfaces_missing_impl() {
+    let mut state =
+        parse_and_lower("role Display 'a:\n  our a.display: string\n\nmy shown = 1.display\n");
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::MissingImpl { role, args }
+                if role == "Display" && args == &vec!["int".to_string()]
+        )),
+        "expected missing impl error, got {errors:?}",
+    );
+}
+
+#[test]
+fn concrete_role_method_call_without_impl_surfaces_missing_impl_during_selection() {
+    let mut state =
+        parse_and_lower("role Display 'a:\n  our a.display: string\n\nmy shown = 1.display\n");
+    state.refresh_selection_environment();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::MissingImpl { role, args }
+                if role == "Display" && args == &vec!["int".to_string()]
+        )),
+        "expected missing impl error from role method selection, got {errors:?}",
+    );
+}
+
+#[test]
+fn duplicate_impls_surface_ambiguous_impl_error() {
+    let mut state = parse_and_lower(
+        "role Display 'a:\n  our a.display: string\n\n\
+             impl Display int;\n\
+             impl Display int;\n\
+             my shown = 1.display\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::AmbiguousImpl {
+                role,
+                args,
+                candidates,
+                ..
+            } if role == "Display" && args == &vec!["int".to_string()] && *candidates == 2
+        )),
+        "expected ambiguous impl error, got {errors:?}",
+    );
+}
+
+#[test]
+fn duplicate_role_method_impls_surface_ambiguous_impl_during_selection() {
+    let mut state = parse_and_lower(
+        "role Display 'a:\n  our a.display: string\n\n\
+             impl Display int:\n  our x.display = \"a\"\n\
+             impl Display int:\n  our x.display = \"b\"\n\
+             my shown = 1.display\n",
+    );
+    state.refresh_selection_environment();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::AmbiguousImpl {
+                role,
+                args,
+                candidates,
+                ..
+            } if role == "Display" && args == &vec!["int".to_string()] && *candidates == 2
+        )),
+        "expected ambiguous impl error from role method selection, got {errors:?}",
+    );
+}
+
+#[test]
+fn concrete_multi_arg_role_constraint_without_impl_surfaces_missing_impl() {
+    let mut state = parse_and_lower(
+        "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+             my shown: string = 1.index true\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::MissingImpl { role, args }
+                if role == "Index"
+                    && args == &vec![
+                        "int".to_string(),
+                        "bool".to_string(),
+                        "value = std::str::str".to_string(),
+                    ]
+        )),
+        "expected missing multi-arg impl error, got {errors:?}",
+    );
+}
+
+#[test]
+fn duplicate_multi_arg_impls_surface_ambiguous_impl_error() {
+    let mut state = parse_and_lower(
+        "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+             impl Index int bool:\n  type value = string\n\
+             impl Index int bool:\n  type value = string\n\
+             my shown: string = 1.index true\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::AmbiguousImpl {
+                role,
+                args,
+                candidates,
+                ..
+            } if role == "Index"
+                && args == &vec![
+                    "int".to_string(),
+                    "bool".to_string(),
+                    "value = std::str::str".to_string(),
+                ]
+                && *candidates == 2
+        )),
+        "expected ambiguous multi-arg impl error, got {errors:?}",
+    );
+}
+
+#[test]
+fn where_clause_in_binding_body_adds_role_constraint_from_header_type_scope() {
+    let state = parse_and_lower(
+        "role Add 'a:\n  our a.add: 'a -> 'a\n\n\
+             my twice(x: 'a) =\n  where 'a: Add\n  x.add x\n",
+    );
+    let twice_def = state
+        .ctx
+        .resolve_value(&symbols::Name("twice".to_string()))
+        .unwrap();
+    let constraints = state.infer.role_constraints_of(twice_def);
+    assert!(
+        constraints.iter().any(|constraint| {
+            constraint.role
+                == symbols::Path {
+                    segments: vec![symbols::Name("Add".to_string())],
+                }
+                && constraint.args.len() == 1
+        }),
+        "binding-body where clause should add Add<'a> to the binding owner, got {constraints:?}",
+    );
+}
+
+#[test]
+fn where_clause_in_role_body_is_inherited_by_role_methods() {
+    let state = parse_and_lower(
+        "role Display 'a:\n  our a.display: string\n\n\
+             role Show 'a:\n  where 'a: Display\n  our a.show: string\n",
+    );
+    let show_def = state
+        .ctx
+        .resolve_path_value(&symbols::Path {
+            segments: vec![
+                symbols::Name("Show".to_string()),
+                symbols::Name("show".to_string()),
+            ],
+        })
+        .unwrap();
+    let constraints = state.infer.role_constraints_of(show_def);
+    assert!(
+        constraints.iter().any(|constraint| {
+            constraint.role
+                == symbols::Path {
+                    segments: vec![symbols::Name("Display".to_string())],
+                }
+                && constraint.args.len() == 1
+        }),
+        "role-body where clause should be inherited by role methods, got {constraints:?}",
+    );
+    assert!(
+        constraints.iter().any(|constraint| {
+            constraint.role
+                == symbols::Path {
+                    segments: vec![symbols::Name("Show".to_string())],
+                }
+                && constraint.args.len() == 1
+        }),
+        "role method should still keep its own role constraint, got {constraints:?}",
+    );
+}
+
+#[test]
+fn impl_body_where_enables_candidate_when_prerequisite_impl_exists() {
+    let mut state = parse_and_lower(
+        "role Display 'a:\n  our a.display: string\n\n\
+             role Wrap 'a:\n  our a.wrap: string\n\n\
+             impl Display int;\n\
+             impl Wrap 'a:\n  where 'a: Display\n\n\
+             my shown = 1.wrap\n",
+    );
+    state.finalize_compact_results();
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    let shown = rendered
+        .iter()
+        .find(|(name, _)| name == "shown")
+        .expect("shown should be rendered");
+    assert_eq!(shown.1, "std::str::str");
+    assert!(
+        !state
+            .infer
+            .type_errors()
+            .iter()
+            .any(|error| matches!(error.kind, TypeErrorKind::MissingImpl { .. })),
+        "prerequisite impl should make Wrap<int> viable, got {:?}",
+        state.infer.type_errors(),
+    );
+}
+
+#[test]
+fn impl_body_where_filters_out_candidate_when_prerequisite_impl_is_missing() {
+    let mut state = parse_and_lower(
+        "role Display 'a:\n  our a.display: string\n\n\
+             role Wrap 'a:\n  our a.wrap: string\n\n\
+             impl Wrap 'a:\n  where 'a: Display\n\n\
+             my shown = 1.wrap\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::MissingImplPrerequisite {
+                role,
+                args,
+                prerequisite_role,
+                prerequisite_args,
+            }
+                if role == "Wrap"
+                    && args == &vec!["int".to_string()]
+                    && prerequisite_role == "Display"
+                    && prerequisite_args == &vec!["int".to_string()]
+        )),
+        "candidate with unsatisfied prerequisite should be filtered out, got {errors:?}",
+    );
+}
+
+#[test]
+fn impl_body_reports_missing_required_member() {
+    let mut state = parse_and_lower(
+        "role Pair 'a:\n  our a.first: int\n  our a.second: int\n\n\
+             impl Pair int:\n  our x.first = 1\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::MissingImplMember { role, member }
+                if role == "Pair" && member == "second"
+        )),
+        "missing impl member should surface, got {errors:?}",
+    );
+}
+
+#[test]
+fn impl_body_reports_unknown_member() {
+    let mut state = parse_and_lower(
+        "role Score 'a:\n  our a.score: int\n\n\
+             impl Score int:\n  our x.other = 1\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::UnknownImplMember { role, member }
+                if role == "Score" && member == "other"
+        )),
+        "unknown impl member should surface, got {errors:?}",
+    );
+}
+
+#[test]
+fn impl_body_checks_member_body_against_role_signature() {
+    let mut state = parse_and_lower(
+        "role Show 'a:\n  our a.show: string\n\n\
+             impl Show int:\n  our x.show = 1\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| {
+            error.cause.reason == ConstraintReason::ImplMember
+                && error.kind == TypeErrorKind::ConstructorMismatch
+        }),
+        "impl member body should be checked against role signature, got {errors:?}",
+    );
+}
+
+#[test]
+fn impl_body_allows_my_helpers_used_by_our_members() {
+    let mut state = parse_and_lower(
+        "role Score 'a:\n  our a.score: int\n\n\
+             impl Score int:\n  my helper = 1\n  our x.score = helper\n\n\
+             my shown = 1.score\n",
+    );
+    state.finalize_compact_results();
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    let shown = rendered
+        .iter()
+        .find(|(name, _)| name == "shown")
+        .expect("shown should be rendered");
+    assert_eq!(shown.1, "int");
+    assert!(
+        !state.infer.type_errors().iter().any(|error| {
+            matches!(
+                error.kind,
+                TypeErrorKind::MissingImplMember { .. }
+                    | TypeErrorKind::UnknownImplMember { .. }
+                    | TypeErrorKind::MissingImpl { .. }
+            )
+        }),
+        "my helper should be usable inside our impl member, got {:?}",
+        state.infer.type_errors(),
+    );
+}
+
+#[test]
+fn generic_impl_resolves_associated_output_from_input_substitution() {
+    let mut state = parse_and_lower(
+        "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+             impl Index (list 'a) int:\n  type value = 'a\n\
+             my get(xs: list bool) = xs.index 0\n",
+    );
+    state.finalize_compact_results();
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    let get = rendered
+        .iter()
+        .find(|(name, _)| name == "get")
+        .expect("get should be rendered");
+    assert!(
+        get.1.contains("bool") && !get.1.contains("Index"),
+        "associated output should resolve through generic impl, got {}",
+        get.1,
+    );
+}
+
+#[test]
+fn impl_body_check_resolves_associated_output_in_expected_signature() {
+    let mut state = parse_and_lower(
+        "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+             impl Index int bool:\n  type value = str\n  our x.index y = \"ok\"\n\n\
+             my shown = 1.index true\n",
+    );
+    state.finalize_compact_results();
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    let shown = rendered
+        .iter()
+        .find(|(name, _)| name == "shown")
+        .expect("shown should be rendered");
+    assert_eq!(shown.1, "std::str::str");
+    assert!(
+        !state
+            .infer
+            .type_errors()
+            .iter()
+            .any(|error| error.cause.reason == ConstraintReason::ImplMember),
+        "associated output should be substituted before impl member checking, got {:?}",
+        state.infer.type_errors(),
+    );
+}
+
+#[test]
+fn concrete_impl_beats_generic_impl_overlap() {
+    let mut state = parse_and_lower(
+        "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+             impl Index 'a bool:\n  type value = int\n\
+             impl Index int bool:\n  type value = string\n\
+             my shown = 1.index true\n",
+    );
+    state.finalize_compact_results();
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    let shown = rendered
+        .iter()
+        .find(|(name, _)| name == "shown")
+        .expect("shown should be rendered");
+    assert_eq!(shown.1, "std::str::str");
+    assert!(
+        !state
+            .infer
+            .type_errors()
+            .iter()
+            .any(|error| matches!(error.kind, TypeErrorKind::AmbiguousImpl { .. })),
+        "more specific concrete impl should win, got {:?}",
+        state.infer.type_errors(),
+    );
+}
+
+#[test]
+fn more_specific_generic_impl_beats_broader_generic_impl() {
+    let mut state = parse_and_lower(
+        "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+             impl Index 'a int:\n  type value = bool\n\
+             impl Index (list 'a) int:\n  type value = 'a\n\
+             my get(xs: list string) = xs.index 0\n",
+    );
+    state.finalize_compact_results();
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    let get = rendered
+        .iter()
+        .find(|(name, _)| name == "get")
+        .expect("get should be rendered");
+    assert!(
+        get.1.contains("std::str::str") && !get.1.contains("bool"),
+        "more specific generic impl should win, got {}",
+        get.1,
+    );
+}
+
+#[test]
+fn incomparable_overlapping_impls_stay_ambiguous() {
+    let mut state = parse_and_lower(
+        "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+             impl Index int 'a:\n  type value = string\n\
+             impl Index 'a bool:\n  type value = int\n\
+             my shown = 1.index true\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::AmbiguousImpl {
+                role,
+                candidates,
+                ..
+            } if role == "Index"
+                && *candidates == 2
+        )),
+        "incomparable overlaps should stay ambiguous, got {errors:?}",
+    );
+}
+
+#[test]
+fn debug_effectful_value_binding_compact_scheme() {
+    let mut state = parse_and_lower("act undet:\n  our bool: () -> bool\n\nmy y = undet::bool()");
+    let y_def = state
+        .ctx
+        .resolve_value(&symbols::Name("y".to_string()))
+        .unwrap();
+    state.finalize_compact_results();
+    assert!(
+        state.compact_scheme_of(y_def).is_some(),
+        "effectful binding should compact"
+    );
+}
+
+#[test]
+fn top_level_bindings_do_not_compact_during_lowering() {
+    let state = parse_and_lower("my x = 42\nmy y = x");
+    let x_def = state
+        .ctx
+        .resolve_value(&symbols::Name("x".to_string()))
+        .unwrap();
+    let y_def = state
+        .ctx
+        .resolve_value(&symbols::Name("y".to_string()))
+        .unwrap();
+
+    assert!(
+        state.infer.compact_schemes.borrow().get(&x_def).is_none(),
+        "top-level x should stay un-compacted until finalize"
+    );
+    assert!(
+        state.infer.compact_schemes.borrow().get(&y_def).is_none(),
+        "top-level y should stay un-compacted until finalize"
+    );
+}
+
+#[test]
+fn act_operation_signature_creates_fun_lower_bound() {
+    let state = parse_and_lower("act undet:\n  our bool: () -> bool");
+    let op_def = state
+        .ctx
+        .resolve_path_value(&symbols::Path {
+            segments: vec![
+                symbols::Name("undet".to_string()),
+                symbols::Name("bool".to_string()),
+            ],
+        })
+        .unwrap();
+    let op_tv = state.def_tvs[&op_def];
+    let lowers = state.infer.lowers_of(op_tv);
+    assert!(
+        lowers.iter().any(|p| matches!(p, Pos::Fun { .. })),
+        "operation should have Fun lower bound, got {:?}",
+        lowers,
+    );
+}
+
+#[test]
+fn lambda_creates_fun_constraint() {
+    // `my f x = x` で f の def_tv に Fun 型の lower bound が入るはず
+    let state = parse_and_lower("my f x = x");
+    let f_def = state
+        .ctx
+        .resolve_value(&symbols::Name("f".to_string()))
+        .unwrap();
+    let f_tv = state.def_tvs[&f_def];
+    let lowers = state.infer.lowers_of(f_tv);
+    let has_fun = lowers.iter().any(|p| matches!(p, Pos::Fun { .. }));
+    assert!(has_fun, "f's def_tv should have a Fun lower bound");
+}
+
+// ── 「まだ SCC 辺がない」テスト ───────────────────────────────────────────
+
+#[test]
+fn frozen_references_record_dependency_edges() {
+    // provisional frozen scheme を参照した binding は finalize 順を守るため
+    // lowering 時点で component edge を持つ。
+    let state = parse_and_lower("my x = 1\nmy y = x");
+    let x_def = state
+        .ctx
+        .resolve_value(&symbols::Name("x".to_string()))
+        .unwrap();
+    let y_def = state
+        .ctx
+        .resolve_value(&symbols::Name("y".to_string()))
+        .unwrap();
+    let x_component = state.infer.def_to_component[&x_def];
+    let y_component = state.infer.def_to_component[&y_def];
+
+    assert!(
+        state.infer.component_edges[y_component]
+            .borrow()
+            .contains(&x_component),
+        "y should depend on x via component edge",
+    );
+}
+
+#[test]
+fn same_owner_param_refs_do_not_enter_ref_table() {
+    let state = parse_and_lower("my id x = x");
+    assert!(
+        state.ctx.refs.resolved().is_empty(),
+        "same-owner param refs should alias directly without resolved ref tracking",
+    );
+}
+
+// ── ブロックエフェクト伝播テスト ──────────────────────────────────────────
+
+#[test]
+fn block_eff_collects_stmt_effs() {
+    // `our foo =\n  my x = 1\n  x`
+    // → block の eff に `my x = 1` の eff と tail `x` の eff が合流するはず
+    let src = "our foo =\n  my x = 1\n  x";
+    let state = parse_and_lower(src);
+
+    // foo の body は IndentBlock として lower される
+    let foo_def = state
+        .ctx
+        .resolve_value(&symbols::Name("foo".to_string()))
+        .unwrap();
+    let foo_tv = state.def_tvs[&foo_def];
+
+    // foo_tv に lower bound が入っている（body.tv <: foo_tv）
+    let lowers = state.infer.lowers_of(foo_tv);
+    assert!(
+        !lowers.is_empty(),
+        "foo should have lower bounds from its body"
+    );
+}
+
+// ── Lambda がエフェクトを封じるテスト ────────────────────────────────────
+
+#[test]
+fn lambda_seals_effects() {
+    // `my f x = x` を lower する。
+    // f の Lam 式自体の eff には `[] <: eff_lam` が入るはず（生成は純粋）。
+    // 一方で f の def_tv の Fun lower bound の ret_eff は body.eff を指す Var。
+    let state = parse_and_lower("my f x = x");
+    let f_def = state
+        .ctx
+        .resolve_value(&symbols::Name("f".to_string()))
+        .unwrap();
+    let f_tv = state.def_tvs[&f_def];
+
+    // Fun lower bound を探す
+    let lowers = state.infer.lowers_of(f_tv);
+    let fun = lowers
+        .iter()
+        .find(|p| matches!(p, Pos::Fun { .. }))
+        .expect("f should have Fun lower bound");
+
+    // Fun の ret_eff は Var（body.eff を指す）であり、Atom 等の具体的エフェクトではない
+    if let Pos::Fun { ret_eff, .. } = fun {
+        assert!(
+            matches!(state.infer.arena.get_pos(*ret_eff), Pos::Var(_)),
+            "ret_eff should be a TypeVar (effect of body), not a concrete effect: {:?}",
+            ret_eff
+        );
+    }
+
+    // f の def_tv 自体は body_expr.tv を経由して保持するので、Var lower が混ざってよい。
+    // 少なくとも raw effect row を直接持たないことだけを確認する。
+    let has_raw_row = lowers.iter().any(|p| matches!(p, Pos::Row(..)));
+    assert!(
+        !has_raw_row,
+        "f's def_tv should not have raw effect-row lower bounds"
+    );
+}
+
+#[test]
+fn wildcard_effect_annotation_does_not_mark_arg_effect_through() {
+    let state = parse_and_lower("my f(x: [_] _) = x");
+    let f_def = state
+        .ctx
+        .resolve_value(&symbols::Name("f".to_string()))
+        .unwrap();
+    let f_tv = state.def_tvs[&f_def];
+    let lowers = state.infer.lowers_of(f_tv);
+    let fun = lowers
+        .iter()
+        .find(|p| matches!(p, Pos::Fun { .. }))
+        .expect("f should have Fun lower bound");
+
+    let arg_eff_tv = match fun {
+        Pos::Fun { arg_eff, .. } => match state.infer.arena.get_neg(*arg_eff) {
+            Neg::Var(tv) => tv,
+            other => panic!("expected arg_eff var, got {:?}", other),
+        },
+        _ => unreachable!(),
+    };
+
+    assert!(
+        !state.infer.is_through(arg_eff_tv),
+        "[_] should not mark the function argument effect slot as through",
+    );
+}
+
+#[test]
+fn row_effect_annotation_marks_only_tail_var_through() {
+    let state = parse_and_lower("my g(x: [io; e] _) = x");
+    let g_def = state
+        .ctx
+        .resolve_value(&symbols::Name("g".to_string()))
+        .unwrap();
+    let g_tv = state.def_tvs[&g_def];
+    let lowers = state.infer.lowers_of(g_tv);
+    let fun = lowers
+        .iter()
+        .find(|p| matches!(p, Pos::Fun { .. }))
+        .expect("g should have Fun lower bound");
+
+    let arg_eff_tv = match fun {
+        Pos::Fun { arg_eff, .. } => match state.infer.arena.get_neg(*arg_eff) {
+            Neg::Var(tv) => tv,
+            other => panic!("expected arg_eff var, got {:?}", other),
+        },
+        _ => unreachable!(),
+    };
+
+    assert!(
+        !state.infer.is_through(arg_eff_tv),
+        "[io; e] should constrain the argument effect slot rather than mark it through",
+    );
+
+    let has_tail_var = state
+        .infer
+        .lowers_of(arg_eff_tv)
+        .into_iter()
+        .find_map(|bound| match bound {
+            Pos::Row(_, tail) => match state.infer.arena.get_pos(tail) {
+                Pos::Var(_) => Some(()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .is_some();
+
+    assert!(
+        has_tail_var,
+        "row annotation should contribute a row lower bound with a tail var",
+    );
+}
+
+#[test]
+fn non_through_lower_clears_through_on_var_propagation() {
+    let infer = solve::Infer::new();
+    let a = fresh_type_var();
+    let b = fresh_type_var();
+
+    infer.register_level(a, 0);
+    infer.register_level(b, 0);
+    infer.mark_through(b);
+
+    infer.constrain(Pos::Var(a), Neg::Var(b));
+
+    assert!(
+        !infer.is_through(b),
+        "through should be cleared by a non-through lower bound"
+    );
+}
+
+#[test]
+fn pure_function_passes_argument_effect_to_return_effect() {
+    let infer = solve::Infer::new();
+    let arg_l = fresh_type_var();
+    let arg_r = fresh_type_var();
+    let ret_l = fresh_type_var();
+    let ret_r = fresh_type_var();
+    let body_eff = fresh_type_var();
+    let arg_eff = fresh_type_var();
+    let ret_eff = fresh_type_var();
+
+    for tv in [arg_l, arg_r, ret_l, ret_r, body_eff, arg_eff, ret_eff] {
+        infer.register_level(tv, 0);
+    }
+
+    infer.constrain(
+        Pos::Fun {
+            arg: infer.alloc_neg(Neg::Var(arg_l)),
+            arg_eff: infer.alloc_neg(Neg::Row(vec![], infer.arena.top)),
+            ret_eff: infer.alloc_pos(Pos::Var(body_eff)),
+            ret: infer.alloc_pos(Pos::Var(ret_l)),
+        },
+        Neg::Fun {
+            arg: infer.alloc_pos(Pos::Var(arg_r)),
+            arg_eff: infer.alloc_pos(Pos::Var(arg_eff)),
+            ret_eff: infer.alloc_neg(Neg::Var(ret_eff)),
+            ret: infer.alloc_neg(Neg::Var(ret_r)),
+        },
+    );
+
+    let ret_eff_lowers = infer.lowers_of(ret_eff);
+    assert!(
+        ret_eff_lowers.contains(&Pos::Var(body_eff)),
+        "body effect should flow into return effect"
+    );
+    assert!(
+        ret_eff_lowers.contains(&Pos::Var(arg_eff)),
+        "argument effect should also flow into return effect for pure functions"
+    );
+}
+
+#[test]
+fn resolve_pending_refs_builds_refid_to_defid_map() {
+    let mut ctx = lower::ctx::LowerCtx::new();
+    let module = ctx.enter_module(symbols::Name("foo".to_string()));
+    let def = fresh_def_id();
+    ctx.modules
+        .insert_value(ctx.current_module, symbols::Name("bar".to_string()), def);
+    ctx.leave_module(module);
+
+    let ref_id = fresh_ref_id();
+    ctx.refs.push_unresolved(
+        ref_id,
+        ref_table::UnresolvedRef {
+            path: symbols::Path {
+                segments: vec![
+                    symbols::Name("foo".to_string()),
+                    symbols::Name("bar".to_string()),
+                ],
+            },
+            module: ctx.current_module,
+            use_paths: ctx.current_use_paths(),
+            ref_tv: fresh_type_var(),
+            owner: None,
+        },
+    );
+
+    ctx.resolve_pending_refs();
+
+    assert_eq!(ctx.refs.get(ref_id), Some(def));
+    assert!(
+        ctx.refs.unresolved().is_empty(),
+        "resolved refs should be removed from unresolved"
+    );
+}
+
+#[test]
+fn resolve_value_candidates_keep_shadowing_order() {
+    let mut ctx = lower::ctx::LowerCtx::new();
+    let root_def = fresh_def_id();
+    let local_def = fresh_def_id();
+    let name = symbols::Name("x".to_string());
+    ctx.modules
+        .insert_value(ctx.current_module, name.clone(), root_def);
+    ctx.push_local();
+    ctx.bind_local(name.clone(), local_def);
+
+    assert_eq!(
+        ctx.resolve_value_candidates(&name),
+        vec![local_def, root_def],
+        "candidate resolver should keep local before module binding",
+    );
+    assert_eq!(ctx.resolve_value(&name), Some(local_def));
+}
+
+#[test]
+fn resolve_path_value_candidates_keep_use_order() {
+    let mut ctx = lower::ctx::LowerCtx::new();
+    let left_parent = ctx.enter_module(symbols::Name("left".to_string()));
+    let left_mod = ctx.current_module;
+    ctx.enter_module(symbols::Name("ops".to_string()));
+    let left_ops = ctx.current_module;
+    let left_def = fresh_def_id();
+    ctx.modules
+        .insert_value(left_ops, symbols::Name("target".to_string()), left_def);
+    ctx.leave_module(left_mod);
+    ctx.leave_module(left_parent);
+
+    let right_parent = ctx.enter_module(symbols::Name("right".to_string()));
+    let right_mod = ctx.current_module;
+    ctx.enter_module(symbols::Name("ops".to_string()));
+    let right_ops = ctx.current_module;
+    let right_def = fresh_def_id();
+    ctx.modules
+        .insert_value(right_ops, symbols::Name("target".to_string()), right_def);
+    ctx.leave_module(right_mod);
+    ctx.leave_module(right_parent);
+
+    ctx.add_use(&symbols::Path {
+        segments: vec![symbols::Name("left".to_string())],
+    })
+    .unwrap();
+    ctx.add_use(&symbols::Path {
+        segments: vec![symbols::Name("right".to_string())],
+    })
+    .unwrap();
+
+    let candidates = ctx.resolve_path_value_candidates(&symbols::Path {
+        segments: vec![
+            symbols::Name("ops".to_string()),
+            symbols::Name("target".to_string()),
+        ],
+    });
+    assert_eq!(candidates, vec![left_def, right_def]);
+    assert_eq!(
+        ctx.resolve_path_value(&symbols::Path {
+            segments: vec![
+                symbols::Name("ops".to_string()),
+                symbols::Name("target".to_string()),
+            ],
+        }),
+        Some(left_def)
+    );
+}
+
+#[test]
+fn resolve_value_candidates_skip_inaccessible_private_parent_binding() {
+    let mut ctx = lower::ctx::LowerCtx::new();
+    let private_def = fresh_def_id();
+    let public_def = fresh_def_id();
+    let name = symbols::Name("x".to_string());
+    ctx.modules.insert_value_with_visibility(
+        ctx.current_module,
+        name.clone(),
+        private_def,
+        symbols::Visibility::My,
+    );
+    ctx.modules.insert_value(
+        ctx.current_module,
+        symbols::Name("y".to_string()),
+        public_def,
+    );
+
+    let root = ctx.current_module;
+    ctx.enter_module(symbols::Name("child".to_string()));
+    assert_eq!(
+        ctx.resolve_value_candidates(&name),
+        Vec::<DefId>::new(),
+        "child module should not see parent's private binding",
+    );
+    assert_eq!(ctx.resolve_value(&name), None);
+    ctx.leave_module(root);
+}
+
+#[test]
+fn resolve_value_candidates_keep_accessible_our_parent_binding() {
+    let mut ctx = lower::ctx::LowerCtx::new();
+    let shared_def = fresh_def_id();
+    let name = symbols::Name("x".to_string());
+    ctx.modules.insert_value_with_visibility(
+        ctx.current_module,
+        name.clone(),
+        shared_def,
+        symbols::Visibility::Our,
+    );
+
+    let root = ctx.current_module;
+    ctx.enter_module(symbols::Name("child".to_string()));
+    assert_eq!(ctx.resolve_value_candidates(&name), vec![shared_def]);
+    assert_eq!(ctx.resolve_value(&name), Some(shared_def));
+    ctx.leave_module(root);
+}
+
+#[test]
+fn deferred_selection_resolves_from_type_lower_bound() {
+    let mut infer = solve::Infer::new();
+    let mut modules = symbols::ModuleTable::default();
+    let root = modules.new_module();
+    let owner_def = fresh_def_id();
+    let point_type = fresh_def_id();
+    let x_method = fresh_def_id();
+    let recv_tv = fresh_type_var();
+    let recv_eff = fresh_type_var();
+    let result_tv = fresh_type_var();
+    let result_eff = fresh_type_var();
+    let method_tv = fresh_type_var();
+
+    infer.register_def(owner_def);
+    infer.register_def(x_method);
+    infer.register_level(recv_tv, 0);
+    infer.register_level(recv_eff, 0);
+    infer.register_level(result_tv, 0);
+    infer.register_level(result_eff, 0);
+    infer.register_level(method_tv, 0);
+
+    modules.insert_type(root, symbols::Name("point".to_string()), point_type);
+    let point_companion = modules.new_module();
+    modules.insert_module(root, symbols::Name("point".to_string()), point_companion);
+    modules.insert_value(point_companion, symbols::Name("x".to_string()), x_method);
+
+    infer.register_def_tv(x_method, method_tv);
+
+    infer.add_lower(
+        recv_tv,
+        Pos::Con(
+            symbols::Path {
+                segments: vec![symbols::Name("point".to_string())],
+            },
+            vec![],
+        ),
+    );
+    infer
+        .deferred_selections
+        .borrow_mut()
+        .entry(recv_tv)
+        .or_default()
+        .push(solve::DeferredSelection {
+            name: symbols::Name("x".to_string()),
+            module: root,
+            recv_eff,
+            result_tv,
+            result_eff,
+            owner: Some(owner_def),
+            cause: ConstraintCause::unknown(),
+        });
+    infer.increment_pending_selection(owner_def);
+
+    infer.rebuild_type_methods(&modules);
+    infer.resolve_deferred_selections();
+
+    assert!(
+        infer
+            .uppers_of(method_tv)
+            .iter()
+            .any(|upper| matches!(upper, Neg::Fun { .. })),
+        "resolved method def should be applied to receiver and selection result",
+    );
+    assert!(
+        infer.deferred_selections.borrow().get(&recv_tv).is_none(),
+        "resolved selection should be removed from deferred queue",
+    );
+    assert_eq!(
+        *infer.component_pending_selections[infer.def_to_component[&owner_def]].borrow(),
+        0,
+        "resolved selection should decrement pending count",
+    );
+    assert!(
+        infer.component_edges[infer.def_to_component[&owner_def]]
+            .borrow()
+            .contains(&infer.def_to_component[&x_method]),
+        "resolved selection should add an SCC edge to the selected method",
+    );
+}
+
+#[test]
+fn constrain_immediately_resolves_deferred_selection_when_type_is_known() {
+    let mut infer = solve::Infer::new();
+    let mut modules = symbols::ModuleTable::default();
+    let root = modules.new_module();
+    let owner_def = fresh_def_id();
+    let point_type = fresh_def_id();
+    let x_method = fresh_def_id();
+    let recv_tv = fresh_type_var();
+    let recv_eff = fresh_type_var();
+    let result_tv = fresh_type_var();
+    let result_eff = fresh_type_var();
+    let method_tv = fresh_type_var();
+
+    infer.register_def(owner_def);
+    infer.register_def(x_method);
+    infer.register_level(recv_tv, 0);
+    infer.register_level(recv_eff, 0);
+    infer.register_level(result_tv, 0);
+    infer.register_level(result_eff, 0);
+    infer.register_level(method_tv, 0);
+    infer.register_def_tv(x_method, method_tv);
+
+    modules.insert_type(root, symbols::Name("point".to_string()), point_type);
+    let point_companion = modules.new_module();
+    modules.insert_module(root, symbols::Name("point".to_string()), point_companion);
+    modules.insert_value(point_companion, symbols::Name("x".to_string()), x_method);
+
+    infer.rebuild_type_methods(&modules);
+    infer
+        .deferred_selections
+        .borrow_mut()
+        .entry(recv_tv)
+        .or_default()
+        .push(solve::DeferredSelection {
+            name: symbols::Name("x".to_string()),
+            module: root,
+            recv_eff,
+            result_tv,
+            result_eff,
+            owner: Some(owner_def),
+            cause: ConstraintCause::unknown(),
+        });
+    infer.increment_pending_selection(owner_def);
+
+    infer.constrain(
+        Pos::Con(
+            symbols::Path {
+                segments: vec![symbols::Name("point".to_string())],
+            },
+            vec![],
+        ),
+        Neg::Var(recv_tv),
+    );
+
+    assert!(
+        infer
+            .uppers_of(method_tv)
+            .iter()
+            .any(|upper| matches!(upper, Neg::Fun { .. })),
+        "selection should apply method when constrain adds a concrete receiver lower bound",
+    );
+    assert!(infer.deferred_selections.borrow().get(&recv_tv).is_none());
+    assert_eq!(
+        *infer.component_pending_selections[infer.def_to_component[&owner_def]].borrow(),
+        0,
+    );
+    assert!(
+        infer.component_edges[infer.def_to_component[&owner_def]]
+            .borrow()
+            .contains(&infer.def_to_component[&x_method]),
+    );
+}
+
+#[test]
+fn deferred_selection_resolves_from_global_extension_method_fallback() {
+    let mut infer = solve::Infer::new();
+    let root = symbols::ModuleId(0);
+    let owner_def = fresh_def_id();
+    let list_method = fresh_def_id();
+    let recv_tv = fresh_type_var();
+    let recv_eff = fresh_type_var();
+    let result_tv = fresh_type_var();
+    let result_eff = fresh_type_var();
+    let method_tv = fresh_type_var();
+
+    infer.register_def(owner_def);
+    infer.register_def(list_method);
+    infer.register_level(recv_tv, 0);
+    infer.register_level(recv_eff, 0);
+    infer.register_level(result_tv, 0);
+    infer.register_level(result_eff, 0);
+    infer.register_level(method_tv, 0);
+    infer.register_def_tv(list_method, method_tv);
+    infer.register_extension_method(ExtensionMethodInfo {
+        name: symbols::Name("list".to_string()),
+        def: list_method,
+        module: root,
+        visibility: symbols::Visibility::Pub,
+        receiver_expects_computation: false,
+    });
+
+    infer
+        .deferred_selections
+        .borrow_mut()
+        .entry(recv_tv)
+        .or_default()
+        .push(solve::DeferredSelection {
+            name: symbols::Name("list".to_string()),
+            module: root,
+            recv_eff,
+            result_tv,
+            result_eff,
+            owner: Some(owner_def),
+            cause: ConstraintCause::unknown(),
+        });
+    infer.increment_pending_selection(owner_def);
+    infer.resolve_deferred_selections();
+
+    assert!(
+        infer
+            .uppers_of(method_tv)
+            .iter()
+            .any(|upper| matches!(upper, Neg::Fun { .. })),
+        "global extension method should be applied to receiver and selection result",
+    );
+    assert!(infer.deferred_selections.borrow().get(&recv_tv).is_none());
+}
+
+#[test]
+fn finalize_compact_results_stores_observable_scheme() {
+    let mut state = parse_and_lower("my x = 42");
+    let x_def = state
+        .ctx
+        .resolve_value(&symbols::Name("x".to_string()))
+        .unwrap();
+
+    let finalized = state.finalize_compact_results();
+    let scheme = state.compact_scheme_of(x_def);
+
+    assert!(finalized.contains(&x_def));
+    assert!(
+        scheme.is_some(),
+        "finalize should store a compact scheme for ready defs"
+    );
+}
+
+#[test]
+fn constrained_function_reference_keeps_owner_role_constraint() {
+    run_with_large_stack(|| {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my pick xs = xs.fold 0 (\\_ x -> x)\n\
+                 my a = pick\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("source should lower");
+        let state = &mut lowered.state;
+        let pick_def = state
+            .ctx
+            .resolve_value(&symbols::Name("pick".to_string()))
+            .expect("pick should resolve");
+        let a_def = state
+            .ctx
+            .resolve_value(&symbols::Name("a".to_string()))
+            .expect("a should resolve");
+
+        let pick_constraints = state.infer.role_constraints_of(pick_def);
+        let a_constraints = state.infer.role_constraints_of(a_def);
+        assert!(
+            !pick_constraints.is_empty(),
+            "pick should carry Fold constraint, got {pick_constraints:?}",
+        );
+        assert!(
+            !a_constraints.is_empty(),
+            "a should inherit role constraint from pick ref, got {a_constraints:?}",
+        );
+
+        state.finalize_compact_results();
+        assert!(
+            state.compact_scheme_of(a_def).is_some(),
+            "a should compact after inheriting pick constraint",
+        );
+    });
+}
+
+#[test]
+fn global_extension_method_hidden_def_keeps_opaque_receiver_effect() {
+    run_with_large_stack(|| {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "use std::undet::*\n\
+                 pub (x: [_] _).collect_list = undet::list x\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("source should lower");
+        let state = &mut lowered.state;
+        state.finalize_compact_results();
+        let ext_def = state
+            .infer
+            .resolve_extension_method_def(&symbols::Name("collect_list".to_string()))
+            .expect("collect_list extension method should resolve");
+        let scheme = state.compact_scheme_of(ext_def).unwrap_or_else(|| {
+            crate::scheme::freeze_type_var_with_non_generic(
+                &state.infer,
+                state.def_tvs[&ext_def],
+                &state.infer.non_generic_vars_of(ext_def),
+            )
+            .compact
+            .clone()
+        });
+        assert_eq!(
+            crate::display::format::format_coalesced_scheme(&scheme),
+            "α [std::undet::undet; β] -> [β] std::list::list<α>"
+        );
+    });
+}
+
+#[test]
+fn effect_method_selection_resolves_from_receiver_effect_in_source_lowering() {
+    run_with_large_stack(|| {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            "use std::undet::*\n\
+                 my collect(x: [undet; _] _) = x.list\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("source should lower");
+        assert!(
+            lowered.state.infer.deferred_selections.borrow().is_empty(),
+            "effect method selections should resolve during source lowering, got {:?}",
+            lowered.state.infer.deferred_selections.borrow(),
+        );
+    });
+}

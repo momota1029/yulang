@@ -1,0 +1,87 @@
+use std::opt::*
+use std::fold::*
+use std::index::*
+use std::range::*
+
+enum list_view 'a = empty | leaf 'a | node(list 'a, list 'a)
+
+type list 'a with:
+    our xs.append ys = std::list::append xs ys
+    our xs.splice r ys = std::list::splice xs r ys
+    our &xs.push x = &xs = $xs.append [x]
+
+impl Index (list 'a) int:
+    type value = 'a
+    our xs.index i = std::list::index_raw xs i
+
+impl Index (list 'a) range:
+    type value = list 'a
+    our xs.index r = std::list::index_range xs r
+
+my fold_impl xs z f = case std::list::view_raw xs:
+    list_view::empty -> z
+    list_view::leaf x -> f z x
+    list_view::node(left, right) -> fold_impl(right, fold_impl left z f, f)
+
+impl Fold (list 'a):
+    type item = 'a
+    our xs.fold z f = fold_impl xs z f
+
+pub empty(): list 'a = []
+
+pub singleton(x: 'a): list 'a = [x]
+
+pub is_empty(xs: list 'a): bool = std::int::eq(std::list::len xs, 0)
+
+pub cons(x: 'a, xs: list 'a): list 'a = std::list::merge(singleton x, xs)
+
+pub uncons(xs: list 'a): opt ('a, list 'a) =
+    my n = std::list::len(xs)
+    if std::int::eq(n, 0):
+        std::opt::opt::nil
+    else:
+        std::opt::opt::just (std::list::index_raw xs 0, std::list::index_range_raw xs 1 n)
+
+pub fold xs z f = fold_impl xs z f
+
+pub rev(xs: list 'a): list 'a = case std::list::view_raw xs:
+    list_view::empty -> empty()
+    list_view::leaf x -> singleton x
+    list_view::node(left, right) -> append(rev(right), rev(left))
+
+pub map(xs: list 'a, f: 'a -> 'b): list 'b = case std::list::view_raw xs:
+    list_view::empty -> empty(),
+    list_view::leaf x -> singleton(f(x))
+    list_view::node(left, right) -> append(map(left, f), map(right, f))
+
+pub filter(xs: list 'a, pred: 'a -> bool): list 'a = case std::list::view_raw xs:
+    list_view::empty -> empty()
+    list_view::leaf x ->
+        if pred x: singleton x else empty()
+    list_view::node(left, right) -> append(filter(left, pred), filter(right, pred))
+
+pub append(xs: list 'a, ys: list 'a): list 'a = std::list::merge xs ys
+
+pub first(xs: list 'a): opt 'a = case uncons xs:
+    std::opt::opt::nil -> std::opt::opt::nil
+    std::opt::opt::just (head, _) -> std::opt::opt::just head
+
+pub last(xs: list 'a): opt 'a = case uncons xs:
+    std::opt::opt::nil -> std::opt::opt::nil
+    std::opt::opt::just (head, tail) ->
+        if is_empty tail: std::opt::opt::just head
+        else: last tail
+
+my sort_split xs x = case std::list::view_raw xs:
+    list_view::empty -> ([], [])
+    list_view::leaf y if y <= x -> ([y], [])
+    list_view::leaf y -> ([], [y])
+    list_view::node(l,r) ->
+        my ((ll, lr), (rl, rr)) = (sort_split l x, sort_split r x)
+        (ll + rl, lr + rr)
+
+pub sort xs = case xs:
+    [] -> []
+    [x,..xs] ->
+        my (l,r) = sort_split xs x
+        [..sort l, x, ..sort r]

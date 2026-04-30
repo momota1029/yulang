@@ -1,0 +1,30 @@
+# Rust / Cargo
+/target/
+**/*.rs.bk
+
+# Playground build output
+/web/playground/dist/
+/web/playground/src/wasm/
+/web/playground/node_modules/
+
+# Local environment
+.env
+.env.*
+!.env.example
+/web/playground/.env*.local
+
+# Local scratch files
+*.log
+*.tmp
+test.txt
+test.yu
+test.ym
+
+# Local editor and agent metadata
+/.claude/
+/.codex/
+/.temp/
+/.zed/
+.rules
+AGENTS.md
+CLAUDE.md

@@ -1,0 +1,14 @@
+[package]
+name = "yulang-infer"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+smallvec = "1"
+dashmap = "6"
+rustc-hash = "2"
+rowan = "0.15"
+yulang-core-ir = { path = "../yulang-core-ir" }
+yulang-parser = { path = "../yulang-parser" }
+yulang-source = { path = "../yulang-source" }

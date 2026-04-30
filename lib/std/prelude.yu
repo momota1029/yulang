@@ -1,0 +1,159 @@
+use std::str::*
+
+pub nullfix (..) = std::range::full()
+
+pub prefix (..) 8.0.0 = std::range::to_included
+pub prefix (..<) 8.0.0 = std::range::to_excluded
+
+pub suffix (..) 8.0.0 = std::range::from_included
+pub suffix (<..) 8.0.0 = std::range::from_excluded
+
+pub infix (..) 4.0.0 4.0.0 = std::range::inclusive
+pub infix (..<) 4.0.0 4.0.0 = std::range::range
+pub infix (<..) 4.0.0 4.0.0 = std::range::from_exclusive_to_inclusive
+pub infix (<..<) 4.0.0 4.0.0 = std::range::exclusive
+
+pub use std::int::*
+pub use std::str::*
+pub use std::fold::Fold
+pub use std::list::*
+pub use std::opt::*
+pub use std::range::*
+pub use std::index::Index
+pub use std::var::*
+pub use std::junction::*
+pub use std::flow::LoopLabel
+
+pub role Eq 'a:
+    our a.eq: 'a -> bool
+
+pub role Ord 'a:
+    our a.lt: 'a -> bool
+    our a.le: 'a -> bool
+    our a.gt: 'a -> bool
+    our a.ge: 'a -> bool
+
+pub role Add 'a:
+    our a.add: 'a -> 'a
+
+pub role Sub 'a:
+    our a.sub: 'a -> 'a
+
+pub role Mul 'a:
+    our a.mul: 'a -> 'a
+
+pub role Div 'a:
+    our a.div: 'a -> 'a
+
+pub role Len 'a:
+    our a.len: int
+
+pub role Display 'a:
+    our a.show: str
+
+pub role LowerHex 'a:
+    our a.lower_hex: str
+
+pub role UpperHex 'a:
+    our a.upper_hex: str
+
+impl Add int:
+    our x.add y = std::int::add x y
+
+impl Sub int:
+    our x.sub y = std::int::sub x y
+
+impl Mul int:
+    our x.mul y = std::int::mul x y
+
+impl Div int:
+    our x.div y = std::int::div x y
+
+impl Eq int:
+    our x.eq y = std::int::eq x y
+
+impl Ord int:
+    our x.lt y = std::int::lt x y
+    our x.le y = std::int::le x y
+    our x.gt y = std::int::gt x y
+    our x.ge y = std::int::ge x y
+
+impl Display int:
+    our x.show = std::int::to_string x
+
+impl LowerHex int:
+    our x.lower_hex = std::int::to_hex x
+
+impl UpperHex int:
+    our x.upper_hex = std::int::to_upper_hex x
+
+impl Add float:
+    our x.add y = std::float::add x y
+
+impl Sub float:
+    our x.sub y = std::float::sub x y
+
+impl Mul float:
+    our x.mul y = std::float::mul x y
+
+impl Div float:
+    our x.div y = std::float::div x y
+
+impl Eq float:
+    our x.eq y = std::float::eq x y
+
+impl Ord float:
+    our x.lt y = std::float::lt x y
+    our x.le y = std::float::le x y
+    our x.gt y = std::float::gt x y
+    our x.ge y = std::float::ge x y
+
+impl Display float:
+    our x.show = std::float::to_string x
+
+impl Eq bool:
+    our x.eq y = std::bool::eq x y
+
+impl Display bool:
+    our x.show = std::bool::to_string x
+
+impl Add str:
+    our x.add y = std::str::concat x y
+
+impl Add (list 'a):
+    our xs.add ys = std::list::merge xs ys
+
+impl Display str:
+    our x.show = x
+
+impl Len str:
+    our s.len = std::str::len s
+
+impl Len (list 'a):
+    our xs.len = std::list::len xs
+
+pub prefix(not) 8.0.0 = std::bool::not
+
+pub len x = x.len
+
+pub id x = x
+
+pub compose f g x = f (g x)
+
+my loop_last() = std::flow::loop::last()
+my loop_next() = std::flow::loop::next()
+my loop_redo() = std::flow::loop::redo()
+my label_last(label) = label.last()
+my label_next(label) = label.next()
+my label_redo(label) = label.redo()
+
+pub nullfix(last) = loop_last()
+pub nullfix(next) = loop_next()
+pub nullfix(redo) = loop_redo()
+
+pub prefix(last) 8.0.0 = label_last
+pub prefix(next) 8.0.0 = label_next
+pub prefix(redo) 8.0.0 = label_redo
+pub prefix(return) 8.0.0 = std::flow::sub::return
+
+pub use std::list::*

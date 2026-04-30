@@ -1,0 +1,25 @@
+use std::flow::*
+use std::fold::*
+
+pub act junction:
+    my or: () -> bool
+    my and: () -> bool
+    my ret: bool -> never
+
+    pub any xs = sub::sub:
+        xs.fold (): \() x -> case or():
+            true -> sub::return x
+            false -> ()
+        ret false
+    pub all xs = sub::sub:
+        xs.fold (): \() x -> case and():
+            true -> sub::return x
+            false -> ()
+        ret true
+    pub junction(x: [_] _) = catch x:
+        or(), k -> junction(k true) or junction(k false)
+        and(), k -> junction(k true) and junction(k false)
+        ret b, _ -> b
+
+pub any xs = junction::any xs
+pub all xs = junction::all xs

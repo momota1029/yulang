@@ -1,0 +1,15 @@
+[package]
+name = "yulang-parser"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+chasa = { path = "../chasa" }
+im = "15.1.0"
+smallvec = "1.13.2"
+unicode-ident = "1.0.12"
+reborrow-generic = { path = "../reborrow-generic" }
+qp-trie = "0.8.1"
+rowan = "0.15"
+either = "1.13.0"

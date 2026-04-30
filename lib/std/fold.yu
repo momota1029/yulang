@@ -1,0 +1,13 @@
+use std::opt::*
+
+pub role Fold 'container:
+    type item
+    our container.fold: 'acc -> ('acc -> ['e] item -> ['e] 'acc) -> ['e] 'acc
+    our container.find f = std::sub::sub:
+        my nil = std::opt::opt::nil
+        container.fold nil: \_ x -> if f x { std::sub::return:std::opt::opt::just x } else { nil }
+    our container.contains: item -> bool = \target ->
+        my found = container.find: \x -> x == target
+        case found:
+            opt::nil -> false
+            opt::just _ -> true

@@ -1,0 +1,216 @@
+use super::*;
+
+pub(super) fn binding_info_generality(info: &BindingInfo) -> usize {
+    info.type_params.len()
+}
+
+pub(super) fn require_same_hir_type(
+    expected: &RuntimeType,
+    actual: &RuntimeType,
+    source: TypeSource,
+) -> RuntimeResult<()> {
+    match (expected, actual) {
+        (RuntimeType::Core(expected), RuntimeType::Core(actual)) => {
+            require_same_type(expected, actual, source)
+        }
+        (RuntimeType::Core(expected), actual @ RuntimeType::Fun { .. })
+        | (actual @ RuntimeType::Fun { .. }, RuntimeType::Core(expected)) => {
+            require_same_type(expected, &diagnostic_core_type(actual), source)
+        }
+        (RuntimeType::Core(expected), RuntimeType::Thunk { value, .. }) => {
+            require_same_type(expected, &diagnostic_core_type(value), source)
+        }
+        (
+            RuntimeType::Fun {
+                param: expected_param,
+                ret: expected_ret,
+            },
+            RuntimeType::Fun {
+                param: actual_param,
+                ret: actual_ret,
+            },
+        ) => {
+            require_same_hir_type(expected_param, actual_param, source)?;
+            require_same_hir_type(expected_ret, actual_ret, source)
+        }
+        (
+            RuntimeType::Thunk {
+                effect: expected_effect,
+                value: expected_value,
+            },
+            RuntimeType::Thunk {
+                effect: actual_effect,
+                value: actual_value,
+            },
+        ) => {
+            if !effect_compatible(expected_effect, actual_effect) {
+                return Err(RuntimeError::TypeMismatch {
+                    expected: expected_effect.clone(),
+                    actual: actual_effect.clone(),
+                    source,
+                });
+            }
+            require_same_hir_type(expected_value, actual_value, source)
+        }
+        (RuntimeType::Thunk { value, .. }, actual) => require_same_hir_type(value, actual, source),
+        (expected, actual)
+            if core_types_compatible(
+                &diagnostic_core_type(expected),
+                &diagnostic_core_type(actual),
+            ) =>
+        {
+            Ok(())
+        }
+        (expected, actual) => Err(RuntimeError::TypeMismatch {
+            expected: diagnostic_core_type(expected),
+            actual: diagnostic_core_type(actual),
+            source,
+        }),
+    }
+}
+
+pub(super) fn validate_hir_type_no_any(ty: &RuntimeType, source: TypeSource) -> RuntimeResult<()> {
+    match ty {
+        RuntimeType::Core(ty) => validate_core_type_no_any(ty, source),
+        RuntimeType::Fun { param, ret } => {
+            validate_hir_type_no_any(param, source)?;
+            validate_hir_type_no_any(ret, source)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            validate_effect_type_no_any(effect, source)?;
+            validate_hir_type_no_any(value, source)
+        }
+    }
+}
+
+pub(super) fn validate_effect_type_no_any(
+    ty: &core_ir::Type,
+    source: TypeSource,
+) -> RuntimeResult<()> {
+    if contains_non_runtime_effect_type(ty) {
+        return Err(RuntimeError::NonRuntimeType {
+            ty: ty.clone(),
+            source,
+        });
+    }
+    Ok(())
+}
+
+pub(super) fn validate_substitution_type_no_any(
+    ty: &core_ir::Type,
+    source: TypeSource,
+) -> RuntimeResult<()> {
+    if contains_non_runtime_type(ty) && contains_non_runtime_effect_type(ty) {
+        return Err(RuntimeError::NonRuntimeType {
+            ty: ty.clone(),
+            source,
+        });
+    }
+    Ok(())
+}
+
+pub(super) fn validate_core_type_no_any(
+    ty: &core_ir::Type,
+    source: TypeSource,
+) -> RuntimeResult<()> {
+    if contains_non_runtime_type(ty) {
+        return Err(RuntimeError::NonRuntimeType {
+            ty: ty.clone(),
+            source,
+        });
+    }
+    Ok(())
+}
+
+pub(super) fn hir_value_core_type(ty: &RuntimeType) -> &core_ir::Type {
+    match ty {
+        RuntimeType::Core(ty) => ty,
+        RuntimeType::Thunk { value, .. } => core_type(value),
+        RuntimeType::Fun { .. } => core_type(ty),
+    }
+}
+
+pub(super) fn is_constructor_path_for_type(path: &core_ir::Path, ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Core(core_ir::Type::Named {
+            path: type_path, ..
+        }) => constructor_parent_matches(path, type_path, "nil"),
+        RuntimeType::Fun { ret, .. } => {
+            let RuntimeType::Core(core_ir::Type::Named {
+                path: type_path, ..
+            }) = ret.as_ref()
+            else {
+                return false;
+            };
+            constructor_parent_matches(path, type_path, "just")
+        }
+        _ => false,
+    }
+}
+
+pub(super) fn constructor_parent_matches(
+    path: &core_ir::Path,
+    type_path: &core_ir::Path,
+    tag: &str,
+) -> bool {
+    path.segments.len() == type_path.segments.len() + 1
+        && path.segments.last().is_some_and(|name| name.0 == tag)
+        && path
+            .segments
+            .iter()
+            .zip(&type_path.segments)
+            .all(|(left, right)| left == right)
+}
+
+pub(super) fn bool_type() -> core_ir::Type {
+    core_ir::Type::Named {
+        path: core_ir::Path::from_name(core_ir::Name("bool".to_string())),
+        args: Vec::new(),
+    }
+}
+
+pub(super) fn effect_id_type() -> core_ir::Type {
+    core_ir::Type::Named {
+        path: core_ir::Path::from_name(core_ir::Name("__effect_id".to_string())),
+        args: Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ir::{Expr, ExprKind, Module, Root, Type};
+
+    #[test]
+    fn thunk_type_allows_effect_row() {
+        let value_ty = bool_type();
+        let effect = core_ir::Type::Row {
+            items: vec![named_type("junction")],
+            tail: Box::new(core_ir::Type::Never),
+        };
+        let inner = Expr::typed(ExprKind::Lit(core_ir::Lit::Bool(true)), value_ty.clone());
+        let thunk_ty = Type::thunk(effect.clone(), Type::core(value_ty.clone()));
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![Expr::typed(
+                ExprKind::Thunk {
+                    effect,
+                    value: Type::core(value_ty),
+                    expr: Box::new(inner),
+                },
+                thunk_ty,
+            )],
+            roots: vec![Root::Expr(0)],
+        };
+
+        validate_module(&module).expect("valid thunk row");
+    }
+
+    fn named_type(name: &str) -> core_ir::Type {
+        core_ir::Type::Named {
+            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+            args: Vec::new(),
+        }
+    }
+}

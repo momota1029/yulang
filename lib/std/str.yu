@@ -1,0 +1,15 @@
+use std::index::*
+use std::range::*
+
+type str with:
+    our s.splice r insert = std::str::splice s r insert
+
+impl Index str int:
+    type value = str
+    our s.index i = std::str::index_raw s i
+
+impl Index str range:
+    type value = str
+    our s.index r = std::str::index_range s r
+
+pub len(s: str): int = std::str::len s

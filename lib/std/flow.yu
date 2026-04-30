@@ -1,0 +1,71 @@
+pub act sub 'a:
+    pub return: 'a -> never
+    pub struct label {
+        return: 'a -> [sub 'a] never
+    }
+    our control_label = sub::label {return: sub::return}
+    pub sub(x: [_] _) = catch x:
+        return a, _ -> a
+        a -> a
+
+pub act loop:
+    our last: () -> never
+    our next: () -> never
+    our redo: () -> never
+
+    my act last:
+        our break: () -> never
+        our judge(x: [_] _) = catch x { break(), _ -> true, _ -> false }
+        our sub(x: [_] _) = catch x { break(), _ -> (), _ -> () }
+    my act next = last
+    my act redo = last
+
+    our for_in(xs, f: _ -> [loop] _) =
+        last::sub:xs.fold (): \() x -> next::sub:loop true with:
+            our loop b = if b: loop:redo::judge:catch f x:
+                last(), _ -> last::break()
+                next(), _ -> next::break()
+                redo(), _ -> redo::break()
+                loop::last(), _ -> last::break()
+                loop::next(), _ -> next::break()
+                loop::redo(), _ -> redo::break()
+
+pub role LoopLabel 'a:
+    our a.last: () -> [_] never
+    our a.next: () -> [_] never
+    our a.redo: () -> [_] never
+
+pub act label_loop:
+    our last: () -> never
+    our next: () -> never
+    our redo: () -> never
+
+    pub struct label {
+        last: () -> [label_loop] never,
+        next: () -> [label_loop] never,
+        redo: () -> [label_loop] never
+    }
+
+    my act last:
+        our break: () -> never
+        our judge(x: [_] _) = catch x { break(), _ -> true, _ -> false }
+        our sub(x: [_] _) = catch x { break(), _ -> (), _ -> () }
+    my act next = last
+    my act redo = last
+
+    my control_label = label_loop::label {last: label_loop::last, next: label_loop::next, redo: label_loop::redo}
+
+    impl std::flow::LoopLabel label:
+        our x.last = label::last(x)
+        our x.next = label::next(x)
+        our x.redo = label::redo(x)
+
+    our for_in(xs, f) =
+        last::sub:xs.fold (): \() x -> next::sub:loop true with:
+            our loop b = if b: loop:redo::judge:catch f control_label x:
+                last(), _ -> last::break()
+                next(), _ -> next::break()
+                redo(), _ -> redo::break()
+                loop::last(), _ -> last::break()
+                loop::next(), _ -> next::break()
+                loop::redo(), _ -> redo::break()

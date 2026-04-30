@@ -1,0 +1,42 @@
+use std::flow::*
+use std::fold::*
+
+pub act undet:
+    pub branch: () -> bool
+    pub fail: () -> never
+    pub guard b = if b { () } else { fail() }
+    pub each xs = sub::sub {
+        xs.fold (): \() x -> if branch() { sub::return x } else ()
+        fail()
+    }
+    pub list(x: [_] _) = catch x:
+        branch(), k -> std::list::merge list(k true) list(k false)
+        fail(), _ -> []
+        v -> [v]
+
+    pub logic(x: [_] _) = loop x [] [] with:
+        our loop(x: [_] _, queue, res) = catch x:
+            branch(), k -> loop(k true, queue + [k], res)
+            fail(), _ -> case std::list::uncons queue:
+                std::opt::opt::nil -> res
+                std::opt::opt::just (k, queue) -> loop(k false, queue, res)
+            v -> case std::list::uncons queue:
+                std::opt::opt::nil -> res + [v]
+                std::opt::opt::just (k, queue) -> loop(k false, queue, res + [v])
+
+
+    // 何個も解が要らないときにつかう
+    pub once(x: [_] _) = loop x [] with:
+        our loop(x: [_] _, queue) = catch x:
+            branch(), k -> loop(k true, queue + [k])
+            fail(), _ -> case std::list::uncons queue:
+                std::opt::opt::nil -> std::opt::opt::nil
+                std::opt::opt::just (k, queue) -> loop(k false, queue)
+            v -> std::opt::opt::just v
+
+
+    pub (x: [_] _).list = list x
+    pub (x: [_] _).logic = logic x
+    pub (x: [_] _).once = once x
+
+pub use std::undet::undet::*

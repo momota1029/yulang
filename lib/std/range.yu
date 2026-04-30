@@ -1,0 +1,66 @@
+use std::fold::*
+
+enum bound = unbounded | included int | excluded int
+
+enum range = within (bound, bound)
+
+pub range(start: int, end: int): range =
+    range::within (bound::included start, bound::excluded end)
+
+pub inclusive(start: int, end: int): range =
+    range::within (bound::included start, bound::included end)
+
+pub exclusive(start: int, end: int): range =
+    range::within (bound::excluded start, bound::excluded end)
+
+pub from_exclusive_to_inclusive(start: int, end: int): range =
+    range::within (bound::excluded start, bound::included end)
+
+pub from_included(start: int): range =
+    range::within (bound::included start, bound::unbounded)
+
+pub from_excluded(start: int): range =
+    range::within (bound::excluded start, bound::unbounded)
+
+pub to_included(end: int): range =
+    range::within (bound::unbounded, bound::included end)
+
+pub to_excluded(end: int): range =
+    range::within (bound::unbounded, bound::excluded end)
+
+pub full(): range =
+    range::within (bound::unbounded, bound::unbounded)
+
+pub start(r: range): bound = case r:
+    range::within (start, _) -> start
+
+pub end(r: range): bound = case r:
+    range::within (_, end) -> end
+
+my first_int(b: bound): int = case b:
+    bound::unbounded -> 0
+    bound::included x -> x
+    bound::excluded x -> x + 1
+
+my last_exclusive_int(b: bound): int = case b:
+    bound::unbounded -> 0
+    bound::included x -> x + 1
+    bound::excluded x -> x
+
+my fold_ints(f, i: int, end: int, acc) =
+    if i < end:
+        fold_ints(f, i + 1, end, f acc i)
+    else:
+        acc
+
+my fold_from(f, i: int, acc) =
+    if true:
+        fold_from(f, i + 1, f acc i)
+    else:
+        acc
+
+impl Fold range:
+    type item = int
+    our r.fold z f = case r:
+        range::within (start, bound::unbounded) -> fold_from(f, first_int start, z)
+        range::within (start, end) -> fold_ints(f, first_int start, last_exclusive_int end, z)

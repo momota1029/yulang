@@ -1,0 +1,132 @@
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+
+use yulang_core_ir as core_ir;
+
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::ir::{
+    Binding, Expr, ExprKind, HandleArm, MatchArm, Module, Pattern, RecordExprField,
+    RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, ResumeBinding, Root, Stmt,
+    Type as RuntimeType, TypeInstantiation,
+};
+use crate::refine::refine_module_types;
+use crate::types::{
+    BoundsChoice, choose_bounds_type, choose_hir_bounds_type, collect_expr_type_vars,
+    collect_hir_type_vars, collect_type_vars as collect_core_type_vars, core_type_has_vars,
+    effect_is_empty, effect_paths, effect_paths_match, hir_type_has_vars, hir_type_is_hole,
+    infer_effectful_type_substitutions, infer_type_substitutions,
+    is_nullary_constructor_path_for_type, project_runtime_effect,
+    project_runtime_hir_type_with_vars, project_runtime_type_with_vars, should_thunk_effect,
+    substitute_apply_evidence, substitute_join_evidence, substitute_scheme, substitute_type,
+    type_compatible, type_path_last_is,
+};
+use crate::validate::validate_module;
+
+mod canonicalize;
+mod locals;
+mod normalize;
+mod reachability;
+mod residual_roles;
+mod rewrite;
+mod shape;
+mod specialize;
+mod substitute;
+
+use canonicalize::*;
+use locals::*;
+use normalize::*;
+use reachability::*;
+use residual_roles::*;
+use rewrite::*;
+use shape::*;
+use specialize::*;
+use substitute::*;
+
+pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
+    let mut lowered = rewrite_monomorphic_uses(module, false);
+    lowered = refine_module_types(lowered)?;
+    lowered = rewrite_monomorphic_uses(lowered, false);
+    lowered = refine_module_types(lowered)?;
+    lowered = rewrite_monomorphic_uses(lowered, false);
+    lowered = refine_module_types(lowered)?;
+    lowered = refresh_closed_specialized_schemes(lowered);
+    lowered = canonicalize_equivalent_specializations(lowered);
+    lowered = inline_polymorphic_nullary_constructors(lowered);
+    lowered = resolve_specialized_residual_associated_bindings(lowered);
+    lowered = resolve_residual_role_method_calls(lowered);
+    lowered = prune_unreachable_bindings(lowered);
+    lowered = resolve_residual_associated_bindings(lowered);
+    ensure_monomorphic_bindings(&lowered)?;
+    validate_module(&lowered)?;
+    Ok(lowered)
+}
+
+fn rewrite_monomorphic_uses(module: Module, prune: bool) -> Module {
+    let mut monomorphizer = Monomorphizer::new(&module);
+    let original_len = module.bindings.len();
+    let reachable_originals =
+        reachable_binding_paths(&module.bindings, &module.root_exprs, &module.roots);
+    let mut lowered = Module {
+        path: module.path,
+        bindings: module.bindings,
+        root_exprs: module.root_exprs,
+        roots: module.roots,
+    };
+    for _ in 0..64 {
+        let mut changed = false;
+
+        let root_exprs = monomorphizer.rewrite_exprs(lowered.root_exprs.clone());
+        if root_exprs != lowered.root_exprs {
+            lowered.root_exprs = root_exprs;
+            changed = true;
+        }
+
+        let current_len = lowered.bindings.len();
+        for index in 0..current_len {
+            if !should_rewrite_binding(
+                index,
+                original_len,
+                &reachable_originals,
+                &lowered.bindings[index],
+            ) {
+                continue;
+            }
+            let body = lowered.bindings[index].body.clone();
+            let body_ty = body.ty.clone();
+            let rewritten = monomorphizer.rewrite_expr_with_expected(body, Some(&body_ty));
+            if rewritten != lowered.bindings[index].body {
+                lowered.bindings[index].body = rewritten;
+                changed = true;
+            }
+        }
+
+        let specialized = std::mem::take(&mut monomorphizer.specialized);
+        if !specialized.is_empty() {
+            lowered.bindings.extend(specialized);
+            changed = true;
+        }
+
+        if !changed {
+            break;
+        }
+    }
+    if prune {
+        prune_unreachable_bindings(lowered)
+    } else {
+        lowered
+    }
+}
+
+fn should_rewrite_binding(
+    index: usize,
+    original_len: usize,
+    reachable_originals: &HashSet<core_ir::Path>,
+    binding: &Binding,
+) -> bool {
+    if index >= original_len {
+        return true;
+    }
+    if !reachable_originals.contains(&binding.name) {
+        return false;
+    }
+    binding.type_params.is_empty() || is_specialized_path(&binding.name)
+}

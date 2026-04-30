@@ -1,0 +1,17 @@
+[package]
+name = "yulang"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+yulang-core-ir = { path = "../yulang-core-ir" }
+yulang-runtime = { path = "../yulang-runtime" }
+yulang-parser = { path = "../yulang-parser" }
+yulang-infer = { path = "../yulang-infer" }
+chasa = { path = "../chasa" }
+either = "1.13.0"
+im = "15.1.0"
+reborrow-generic = { path = "../reborrow-generic" }
+rowan = "0.15"
+pprof = { version = "0.14", features = ["flamegraph"] }

@@ -1,0 +1,10 @@
+[package]
+name = "chasa"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+reborrow-generic = { version = "0.1.2", features = ["derive"], path = "../reborrow-generic" }
+copy-range = "0.1.1"
+seq-macro = "0.3"

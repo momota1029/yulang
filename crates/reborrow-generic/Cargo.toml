@@ -1,0 +1,14 @@
+[package]
+name = "reborrow-generic"
+version = "0.1.2"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+description = "Generalized reborrowing traits and an optional derive macro."
+
+[features]
+derive = ["dep:reborrow-generic-derive"]
+
+[dependencies]
+seq-macro = "0.3.6"
+reborrow-generic-derive = { version = "0.1.1", optional = true, path = "../reborrow-generic-derive" }

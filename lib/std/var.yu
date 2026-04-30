@@ -1,0 +1,25 @@
+act ref_update 'a:
+    our update: 'a -> 'a
+
+type ref 'e 'a with:
+    struct self:
+        get: () -> ['e] 'a
+        update_effect: () -> [ref_update 'a; 'e] ()
+    our r.update f =
+        my loop(x: [_] _) = catch x:
+            ref_update::update v, k -> loop:k:f v
+        loop:r.update_effect()
+
+
+act var 't:
+    our get: () -> 't
+    our set: 't -> ()
+
+    my var_ref() = ref {
+        get: \() -> get(),
+        update_effect: \() -> set:ref_update::update:get()
+    }
+
+    my run(v, x: [_] _) = catch x:
+        get(), k -> run v: k v
+        set v, k -> run v: k()
