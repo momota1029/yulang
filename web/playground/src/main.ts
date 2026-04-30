@@ -45,7 +45,15 @@ type ColorizeOutput = {
   diagnostics: Diagnostic[];
 };
 
-const initialSource = `// A compact tour of Yulang's current shape.
+type Example = {
+  label: string;
+  source: string;
+};
+
+const examples: Example[] = [
+  {
+    label: "Tour",
+    source: `// A compact tour of Yulang's current shape.
 
 use std::undet::*
 
@@ -76,12 +84,117 @@ sub:
 
     point { x: 3, y: y } .norm2
 }).once
-`;
+`,
+  },
+  {
+    label: "Struct",
+    source: `// Attach a method to a struct with with:.
+
+struct point { x: int, y: int } with:
+    our p.norm2 = p.x * p.x + p.y * p.y
+
+point { x: 3, y: 4 } .norm2
+`,
+  },
+  {
+    label: "Optional Args",
+    source: `// Record pattern defaults act like optional named arguments.
+
+my area({width = 1, height = 2}) = width * height
+
+area { width: 3 }
+area {}
+area { width: 3, height: 4 }
+`,
+  },
+  {
+    label: "References",
+    source: `// References are explicit: $x reads, &x = value writes.
+
+{
+    my $x = 10
+    &x = $x + 1
+    $x
+}
+`,
+  },
+  {
+    label: "List Update",
+    source: `// A list element can be updated through a child reference.
+
+{
+    my $xs = [2, 3, 4]
+    &xs[1] = 6
+    $xs
+}
+`,
+  },
+  {
+    label: "Sub Return",
+    source: `// sub: catches return and turns early exit into a value.
+
+sub:
+    for x in 0..:
+        if x == 5: return x
+        else: ()
+    0
+`,
+  },
+  {
+    label: "Nondet List",
+    source: `// each chooses values. .list collects every result.
+
+use std::undet::*
+
+(each [1, 2, 3] + each [4, 5, 6]).list
+`,
+  },
+  {
+    label: "Nondet Once",
+    source: `// .once returns the first useful result as opt.
+
+use std::undet::*
+
+({
+    my a = each 1..
+    my b = each 1..
+    my c = each 1..
+
+    guard: a <= b
+    guard: b <= c
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
+}).once
+`,
+  },
+  {
+    label: "Junction",
+    source: `// all and any make if conditions effectful.
+
+if all [1, 2, 3] < any [2, 3, 4]:
+    1
+else:
+    0
+`,
+  },
+  {
+    label: "Types",
+    source: `// our and pub bindings are shown in the Types pane.
+
+our twice x = x + x
+pub answer = twice 21
+
+answer
+`,
+  },
+];
 
 const sourceInput = document.querySelector<HTMLTextAreaElement>("#source");
 const runButton = document.querySelector<HTMLButtonElement>("#run-button");
 const result = document.querySelector<HTMLPreElement>("#result");
 const types = document.querySelector<HTMLPreElement>("#types");
+const exampleButtons = document.querySelector<HTMLDivElement>("#example-buttons");
 const editorSurface = document.querySelector<HTMLDivElement>(".editor-surface");
 const editorHighlight =
   document.querySelector<HTMLPreElement>("#editor-highlight");
@@ -94,6 +207,7 @@ if (
   !runButton ||
   !result ||
   !types ||
+  !exampleButtons ||
   !editorSurface ||
   !editorHighlight ||
   !editorHighlightContent
@@ -101,9 +215,13 @@ if (
   throw new Error("playground DOM is incomplete");
 }
 
+let pendingRenderColor = 0;
+let activeExampleIndex = 0;
+
 await init();
 
-sourceInput.value = initialSource;
+setupExampleButtons();
+loadExample(0);
 renderColor();
 runSource();
 
@@ -127,7 +245,37 @@ sourceInput.addEventListener("scroll", keepSourceScrollAtOrigin);
 window.addEventListener("resize", syncEditorLayout);
 runButton.addEventListener("click", runSource);
 
-let pendingRenderColor = 0;
+function setupExampleButtons(): void {
+  examples.forEach((example, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "example-button";
+    button.textContent = example.label;
+    button.addEventListener("click", () => {
+      loadExample(index);
+      renderColor();
+      runSource();
+      sourceInput.focus();
+    });
+    exampleButtons.append(button);
+  });
+  updateExampleButtonState();
+}
+
+function loadExample(index: number): void {
+  activeExampleIndex = index;
+  sourceInput.value = examples[index].source;
+  editorSurface.scrollTop = 0;
+  editorSurface.scrollLeft = 0;
+  keepSourceScrollAtOrigin();
+  updateExampleButtonState();
+}
+
+function updateExampleButtonState(): void {
+  exampleButtons.querySelectorAll("button").forEach((button, index) => {
+    button.classList.toggle("is-active", index === activeExampleIndex);
+  });
+}
 
 function runSource(): void {
   const output = run(sourceInput.value) as RunOutput;

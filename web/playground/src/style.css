@@ -123,6 +123,65 @@ h2 {
   background: #185d56;
 }
 
+.examples-panel {
+  max-width: 1320px;
+  margin: 18px auto 0;
+  border: 1px solid #d5cdc0;
+  border-radius: 8px;
+  background: #fffdf8;
+  overflow: hidden;
+}
+
+.examples-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #d5cdc0;
+}
+
+.examples-head h2 {
+  padding: 0;
+  font-size: 15px;
+}
+
+.examples-head p {
+  margin: 0;
+  color: #5f635f;
+  font-size: 13px;
+}
+
+.example-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.example-button {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid #b9afa0;
+  border-radius: 6px;
+  color: #304d49;
+  background: #faf5ec;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.example-button:hover {
+  border-color: #1f6f66;
+  color: #1f6f66;
+  background: #edf6f3;
+}
+
+.example-button.is-active {
+  border-color: #1f6f66;
+  color: #ffffff;
+  background: #1f6f66;
+}
+
 .editor-surface {
   position: relative;
   min-height: 0;
@@ -457,6 +516,14 @@ code {
 
   .cheatsheet-table {
     min-width: 760px;
+  }
+
+  .examples-head {
+    display: block;
+  }
+
+  .examples-head p {
+    margin-top: 6px;
   }
 
   .guide-grid {
