@@ -63,6 +63,7 @@ sub:
 - `crates/yulang-infer`: type inference and principal-type export.
 - `crates/yulang-runtime`: runtime IR, monomorphization, and interpreter.
 - `crates/yulang-wasm`: WebAssembly API used by the playground.
+- `examples`: executable examples for the current language implementation.
 - `lib/std`: standard library written in Yulang.
 - `web/playground`: Vite-based browser playground.
 
@@ -77,6 +78,9 @@ use std::undet::*
 
 (each [1, 2, 3] + each [4, 5, 6]).once
 YU
+
+cargo run -q -p yulang -- --run examples/06_undet_once.yu
+cargo run -q -p yulang -- --infer examples/08_types.yu
 
 cd web/playground
 npm ci

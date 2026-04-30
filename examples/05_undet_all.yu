@@ -1,0 +1,7 @@
+// Nondeterminism: collect every result.
+// The playground imports `std::undet::*` implicitly, but files should import it.
+
+use std::undet::*
+
+(each [1, 2, 3] + each [4, 5, 6]).list
+

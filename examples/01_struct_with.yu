@@ -1,0 +1,7 @@
+// Attach a method to a struct with `with:`.
+
+struct point { x: int, y: int } with:
+    our p.norm2 = p.x * p.x + p.y * p.y
+
+point { x: 3, y: 4 } .norm2
+

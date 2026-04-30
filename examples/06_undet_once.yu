@@ -1,0 +1,15 @@
+// Nondeterminism: search for the first Pythagorean triple.
+
+use std::undet::*
+
+{
+    my a = each 1..
+    my b = each 1..
+    my c = each 1..
+
+    guard: a <= b
+    guard: b <= c
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
+}.once

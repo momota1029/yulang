@@ -1,0 +1,11 @@
+// References are explicit: `$x` reads, `&x = value` writes.
+
+{
+    my $x = 10
+    my $y = 20
+
+    &x = $x + 1
+    &y = $y + 1
+
+    ($x, $y)
+}

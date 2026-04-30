@@ -22,7 +22,7 @@ test.ym
 
 # Local editor and agent metadata
 /.claude/
-/.codex/
+/.codex
 /.temp/
 /.zed/
 .rules

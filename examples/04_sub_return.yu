@@ -1,0 +1,8 @@
+// `sub:` catches `return x`, so a loop can stop with a value.
+
+sub:
+    for x in 0..:
+        if x == 5: return x
+        else: ()
+    0
+
