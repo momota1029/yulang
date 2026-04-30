@@ -173,6 +173,27 @@ for x in 0..:
     }
 
     #[test]
+    fn vm_runs_source_ref_list_index_assignment_example() {
+        let results = eval_source_with_std(
+            r#"{
+    my $xs = [2, 3, 4]
+    &xs[1] = 6
+    $xs
+}
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::List(vec![
+                TestValue::Int("2".to_string()),
+                TestValue::Int("6".to_string()),
+                TestValue::Int("4".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_bool_and_comparison_examples() {
         let results = eval_source_with_std(
             "my a = not false\n\
