@@ -83,6 +83,32 @@ h2 {
   font-weight: 650;
 }
 
+.pane-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.repo-link {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid #b9afa0;
+  border-radius: 6px;
+  color: #304d49;
+  background: #faf5ec;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.repo-link:hover {
+  border-color: #1f6f66;
+  color: #1f6f66;
+  background: #edf6f3;
+}
+
 #run-button {
   height: 34px;
   padding: 0 16px;
