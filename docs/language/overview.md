@@ -179,9 +179,12 @@ Patterns can match variants:
 
 ```yulang
 case value:
-    opt::just x -> x
-    opt::nil -> 0
+    just x -> x
+    nil -> 0
 ```
+
+The standard prelude re-exports `std::opt::*`, so ordinary files can use
+`just` and `nil` without the `opt::` prefix.
 
 ### Nominal `type`
 

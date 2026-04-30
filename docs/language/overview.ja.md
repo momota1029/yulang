@@ -179,9 +179,12 @@ variant は pattern で match できる。
 
 ```yulang
 case value:
-    opt::just x -> x
-    opt::nil -> 0
+    just x -> x
+    nil -> 0
 ```
+
+標準 prelude は `std::opt::*` を re-export しているので、普通の file では
+`opt::` prefix なしで `just` と `nil` を使える。
 
 ### nominal `type`
 
