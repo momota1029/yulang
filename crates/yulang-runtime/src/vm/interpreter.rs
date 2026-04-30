@@ -249,6 +249,30 @@ impl<'m> VmInterpreter<'m> {
         }
     }
 
+    pub(super) fn bind_pattern(
+        &mut self,
+        pattern: &Pattern,
+        value: VmValue,
+        env: &mut Env,
+    ) -> Result<(), VmError> {
+        bind_pattern_with_defaults(pattern, value, env, &mut |default, env| {
+            self.eval_pattern_default(default, env)
+        })
+    }
+
+    fn eval_pattern_default(&mut self, expr: &Expr, env: &Env) -> Result<VmValue, VmError> {
+        match self.eval_expr(expr, env)? {
+            VmResult::Value(VmValue::Thunk(thunk)) => {
+                match self.bind_here(VmValue::Thunk(thunk))? {
+                    VmResult::Value(value) => Ok(value),
+                    VmResult::Request(request) => Err(VmError::UnexpectedRequest(request.effect)),
+                }
+            }
+            VmResult::Value(value) => Ok(value),
+            VmResult::Request(request) => Err(VmError::UnexpectedRequest(request.effect)),
+        }
+    }
+
     pub(super) fn bind_here(&mut self, value: VmValue) -> Result<VmResult, VmError> {
         let VmValue::Thunk(thunk) = value else {
             return Ok(VmResult::Value(value));
@@ -469,7 +493,10 @@ impl<'m> VmInterpreter<'m> {
         };
         for arm in arms {
             let mut arm_env = env.clone();
-            if bind_pattern(&arm.pattern, value.clone(), &mut arm_env).is_err() {
+            if self
+                .bind_pattern(&arm.pattern, value.clone(), &mut arm_env)
+                .is_err()
+            {
                 continue;
             }
             if let Some(guard) = &arm.guard {
@@ -501,7 +528,7 @@ impl<'m> VmInterpreter<'m> {
             Stmt::Let { pattern, value } => match self.eval_expr(&value, &env)? {
                 VmResult::Value(mut value) => {
                     value = make_recursive_local_value(&pattern, value);
-                    bind_pattern(&pattern, value, &mut env)?;
+                    self.bind_pattern(&pattern, value, &mut env)?;
                     self.eval_block(stmts, tail, env)
                 }
                 VmResult::Request(request) => Ok(VmResult::Request(push_frame(
@@ -583,7 +610,10 @@ impl<'m> VmInterpreter<'m> {
     ) -> Result<VmResult, VmError> {
         for arm in arms.iter().filter(|arm| arm.effect.segments.is_empty()) {
             let mut arm_env = env.clone();
-            if bind_pattern(&arm.payload, value.clone(), &mut arm_env).is_err() {
+            if self
+                .bind_pattern(&arm.payload, value.clone(), &mut arm_env)
+                .is_err()
+            {
                 continue;
             }
             return self.eval_expr(&arm.body, &arm_env);
@@ -610,7 +640,7 @@ impl<'m> VmInterpreter<'m> {
         };
         let outer = request.continuation.clone().outside_handle(id);
         let mut arm_env = env.clone();
-        bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
+        self.bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
         if let Some(resume) = &arm.resume {
             arm_env.insert(
                 core_ir::Path::from_name(resume.name.clone()),
@@ -746,7 +776,7 @@ impl<'m> VmInterpreter<'m> {
                 tail,
                 mut env,
             } => {
-                bind_pattern(&pattern, value, &mut env)?;
+                self.bind_pattern(&pattern, value, &mut env)?;
                 let result = self.eval_block(remaining, tail, env)?;
                 self.continue_result(result, continuation)
             }

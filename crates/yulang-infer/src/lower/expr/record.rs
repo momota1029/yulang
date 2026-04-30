@@ -9,9 +9,6 @@ use super::lower_expr;
 
 pub(super) fn lower_record_literal(state: &mut LowerState, node: &SyntaxNode) -> Option<TypedExpr> {
     let lowered = lower_record_literal_fields(state, node)?;
-    if lowered.fields.is_empty() && lowered.spread.is_none() {
-        return None;
-    }
 
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
@@ -74,6 +71,12 @@ fn lower_record_literal_fields(
         .children()
         .filter(|child| child.kind() == SyntaxKind::Expr)
         .collect::<Vec<_>>();
+    if exprs.is_empty() {
+        return Some(LoweredRecordLiteral {
+            fields: Vec::new(),
+            spread: None,
+        });
+    }
     if !has_colon && !exprs.iter().any(|expr| is_record_spread_expr(expr)) {
         return None;
     }

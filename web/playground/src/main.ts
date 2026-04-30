@@ -45,7 +45,13 @@ type ColorizeOutput = {
   diagnostics: Diagnostic[];
 };
 
-const initialSource = `// struct methods, references, junctions, and nondeterminism
+const initialSource = `// optional record fields make compact named arguments
+my area({width = 1, height = 2}) = width * height
+
+area { width: 3 }
+area {}
+
+// struct methods, references, junctions, and nondeterminism
 use std::undet::*
 
 struct point { x: int, y: int } with:

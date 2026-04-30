@@ -1,14 +1,16 @@
 use super::*;
 
 pub(super) fn lower_pattern(
+    lowerer: &mut Lowerer<'_>,
     pattern: core_ir::Pattern,
     ty: &core_ir::Type,
     locals: &mut HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<Pattern> {
-    lower_hir_pattern(pattern, &RuntimeType::core(ty.clone()), locals)
+    lower_hir_pattern(lowerer, pattern, &RuntimeType::core(ty.clone()), locals)
 }
 
 pub(super) fn lower_hir_pattern(
+    lowerer: &mut Lowerer<'_>,
     pattern: core_ir::Pattern,
     ty: &RuntimeType,
     locals: &mut HashMap<core_ir::Path, RuntimeType>,
@@ -23,12 +25,12 @@ pub(super) fn lower_hir_pattern(
             })
         }
         core_ir::Pattern::Or { left, right } => Ok(Pattern::Or {
-            left: Box::new(lower_hir_pattern(*left, ty, locals)?),
-            right: Box::new(lower_hir_pattern(*right, ty, locals)?),
+            left: Box::new(lower_hir_pattern(lowerer, *left, ty, locals)?),
+            right: Box::new(lower_hir_pattern(lowerer, *right, ty, locals)?),
             ty: ty.clone(),
         }),
         core_ir::Pattern::As { pattern, name } => {
-            let pattern = lower_hir_pattern(*pattern, ty, locals)?;
+            let pattern = lower_hir_pattern(lowerer, *pattern, ty, locals)?;
             locals.insert(core_ir::Path::from_name(name.clone()), ty.clone());
             Ok(Pattern::As {
                 pattern: Box::new(pattern),
@@ -43,12 +45,13 @@ pub(super) fn lower_hir_pattern(
                     ty: diagnostic_core_type(ty),
                 });
             };
-            lower_core_pattern(pattern, core_ty, locals)
+            lower_core_pattern(lowerer, pattern, core_ty, locals)
         }
     }
 }
 
 pub(super) fn lower_core_pattern(
+    lowerer: &mut Lowerer<'_>,
     pattern: core_ir::Pattern,
     ty: &core_ir::Type,
     locals: &mut HashMap<core_ir::Path, RuntimeType>,
@@ -96,7 +99,7 @@ pub(super) fn lower_core_pattern(
             let items = items
                 .into_iter()
                 .zip(item_tys)
-                .map(|(item, item_ty)| lower_pattern(item, item_ty, locals))
+                .map(|(item, item_ty)| lower_pattern(lowerer, item, item_ty, locals))
                 .collect::<RuntimeResult<Vec<_>>>()?;
             Ok(Pattern::Tuple {
                 items,
@@ -116,14 +119,14 @@ pub(super) fn lower_core_pattern(
                 })?;
             let prefix = prefix
                 .into_iter()
-                .map(|item| lower_pattern(item, &item_ty, locals))
+                .map(|item| lower_pattern(lowerer, item, &item_ty, locals))
                 .collect::<RuntimeResult<Vec<_>>>()?;
             let spread = spread
-                .map(|spread| lower_pattern(*spread, ty, locals).map(Box::new))
+                .map(|spread| lower_pattern(lowerer, *spread, ty, locals).map(Box::new))
                 .transpose()?;
             let suffix = suffix
                 .into_iter()
-                .map(|item| lower_pattern(item, &item_ty, locals))
+                .map(|item| lower_pattern(lowerer, item, &item_ty, locals))
                 .collect::<RuntimeResult<Vec<_>>>()?;
             Ok(Pattern::List {
                 prefix,
@@ -136,17 +139,13 @@ pub(super) fn lower_core_pattern(
             let fields = fields
                 .into_iter()
                 .map(|field| {
-                    let field_ty = match ty {
+                    let record_field_ty = match ty {
                         core_ir::Type::Record(record) => record
                             .fields
                             .iter()
                             .find(|candidate| candidate.name == field.name)
-                            .map(|candidate| candidate.value.clone())
-                            .ok_or_else(|| RuntimeError::UnsupportedPatternShape {
-                                pattern: "record field",
-                                ty: ty.clone(),
-                            })?,
-                        core_ir::Type::Any => core_ir::Type::Any,
+                            .map(|candidate| candidate.value.clone()),
+                        core_ir::Type::Any => Some(core_ir::Type::Any),
                         _ => {
                             return Err(RuntimeError::UnsupportedPatternShape {
                                 pattern: "record",
@@ -154,15 +153,48 @@ pub(super) fn lower_core_pattern(
                             });
                         }
                     };
+                    let default = match (field.default, record_field_ty.as_ref()) {
+                        (Some(default), Some(field_ty)) => Some(
+                            force_value_expr(lowerer.lower_expr(
+                                default,
+                                Some(&RuntimeType::core(field_ty.clone())),
+                                locals,
+                                TypeSource::Expected,
+                            )?)
+                            .0,
+                        ),
+                        (Some(default), None) => {
+                            let default = force_value_expr(lowerer.lower_expr(
+                                default,
+                                None,
+                                locals,
+                                TypeSource::Expected,
+                            )?)
+                            .0;
+                            Some(default)
+                        }
+                        (None, Some(_)) => None,
+                        (None, None) => {
+                            return Err(RuntimeError::UnsupportedPatternShape {
+                                pattern: "record field",
+                                ty: ty.clone(),
+                            });
+                        }
+                    };
+                    let field_ty = record_field_ty.unwrap_or_else(|| {
+                        default
+                            .as_ref()
+                            .map_or(core_ir::Type::Any, |expr| core_type(&expr.ty).clone())
+                    });
                     Ok(RecordPatternField {
                         name: field.name,
-                        pattern: lower_pattern(field.pattern, &field_ty, locals)?,
-                        default: None,
+                        pattern: lower_pattern(lowerer, field.pattern, &field_ty, locals)?,
+                        default,
                     })
                 })
                 .collect::<RuntimeResult<Vec<_>>>()?;
             let spread = spread
-                .map(|spread| lower_record_spread_pattern(spread, ty, locals))
+                .map(|spread| lower_record_spread_pattern(lowerer, spread, ty, locals))
                 .transpose()?;
             Ok(Pattern::Record {
                 fields,
@@ -176,7 +208,7 @@ pub(super) fn lower_core_pattern(
                 .map(|value| {
                     let erased_payload = core_ir::Type::Any;
                     let payload_ty = payload_ty.as_ref().unwrap_or(&erased_payload);
-                    lower_pattern(*value, payload_ty, locals).map(Box::new)
+                    lower_pattern(lowerer, *value, payload_ty, locals).map(Box::new)
                 })
                 .transpose()?;
             Ok(Pattern::Variant {
@@ -186,12 +218,12 @@ pub(super) fn lower_core_pattern(
             })
         }
         core_ir::Pattern::Or { left, right } => Ok(Pattern::Or {
-            left: Box::new(lower_pattern(*left, ty, locals)?),
-            right: Box::new(lower_pattern(*right, ty, locals)?),
+            left: Box::new(lower_pattern(lowerer, *left, ty, locals)?),
+            right: Box::new(lower_pattern(lowerer, *right, ty, locals)?),
             ty: ty.clone().into(),
         }),
         core_ir::Pattern::As { pattern, name } => {
-            let pattern = lower_pattern(*pattern, ty, locals)?;
+            let pattern = lower_pattern(lowerer, *pattern, ty, locals)?;
             locals.insert(core_ir::Path::from_name(name.clone()), ty.clone().into());
             Ok(Pattern::As {
                 pattern: Box::new(pattern),
@@ -217,16 +249,17 @@ pub(super) fn pattern_shape_name(pattern: &core_ir::Pattern) -> &'static str {
 }
 
 pub(super) fn lower_record_spread_pattern(
+    lowerer: &mut Lowerer<'_>,
     spread: core_ir::RecordSpreadPattern,
     ty: &core_ir::Type,
     locals: &mut HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<RecordSpreadPattern> {
     match spread {
         core_ir::RecordSpreadPattern::Head(pattern) => Ok(RecordSpreadPattern::Head(Box::new(
-            lower_pattern(*pattern, ty, locals)?,
+            lower_pattern(lowerer, *pattern, ty, locals)?,
         ))),
         core_ir::RecordSpreadPattern::Tail(pattern) => Ok(RecordSpreadPattern::Tail(Box::new(
-            lower_pattern(*pattern, ty, locals)?,
+            lower_pattern(lowerer, *pattern, ty, locals)?,
         ))),
     }
 }

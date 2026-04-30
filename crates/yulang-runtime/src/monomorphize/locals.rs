@@ -15,6 +15,7 @@ pub(super) fn remove_dead_lambda_lets(stmts: Vec<Stmt>, tail: Option<&Expr>) -> 
                 {
                     continue;
                 }
+                collect_pattern_default_vars(&pattern, &mut used);
                 remove_pattern_binds(&pattern, &mut used);
                 collect_expr_vars(&value, &mut used);
                 kept.push(Stmt::Let { pattern, value });
@@ -243,6 +244,7 @@ pub(super) fn collect_expr_vars(expr: &Expr, vars: &mut HashSet<core_ir::Path>) 
         } => {
             collect_expr_vars(scrutinee, vars);
             for arm in arms {
+                collect_pattern_default_vars(&arm.pattern, vars);
                 if let Some(guard) = &arm.guard {
                     collect_expr_vars(guard, vars);
                 }
@@ -260,6 +262,7 @@ pub(super) fn collect_expr_vars(expr: &Expr, vars: &mut HashSet<core_ir::Path>) 
         ExprKind::Handle { body, arms, .. } => {
             collect_expr_vars(body, vars);
             for arm in arms {
+                collect_pattern_default_vars(&arm.payload, vars);
                 if let Some(guard) = &arm.guard {
                     collect_expr_vars(guard, vars);
                 }
@@ -283,8 +286,65 @@ pub(super) fn collect_expr_vars(expr: &Expr, vars: &mut HashSet<core_ir::Path>) 
 
 pub(super) fn collect_stmt_vars(stmt: &Stmt, vars: &mut HashSet<core_ir::Path>) {
     match stmt {
-        Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
+        Stmt::Let { pattern, value } => {
+            collect_pattern_default_vars(pattern, vars);
             collect_expr_vars(value, vars);
         }
+        Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
+            collect_expr_vars(value, vars);
+        }
+    }
+}
+
+fn collect_pattern_default_vars(pattern: &Pattern, vars: &mut HashSet<core_ir::Path>) {
+    match pattern {
+        Pattern::Tuple { items, .. } => {
+            for item in items {
+                collect_pattern_default_vars(item, vars);
+            }
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix {
+                collect_pattern_default_vars(item, vars);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_default_vars(spread, vars);
+            }
+            for item in suffix {
+                collect_pattern_default_vars(item, vars);
+            }
+        }
+        Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                if let Some(default) = &field.default {
+                    collect_expr_vars(default, vars);
+                }
+                collect_pattern_default_vars(&field.pattern, vars);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpreadPattern::Head(pattern) | RecordSpreadPattern::Tail(pattern) => {
+                        collect_pattern_default_vars(pattern, vars);
+                    }
+                }
+            }
+        }
+        Pattern::Variant {
+            value: Some(value), ..
+        } => collect_pattern_default_vars(value, vars),
+        Pattern::Or { left, right, .. } => {
+            collect_pattern_default_vars(left, vars);
+            collect_pattern_default_vars(right, vars);
+        }
+        Pattern::As { pattern, .. } => collect_pattern_default_vars(pattern, vars),
+        Pattern::Wildcard { .. }
+        | Pattern::Bind { .. }
+        | Pattern::Lit { .. }
+        | Pattern::Variant { value: None, .. } => {}
     }
 }

@@ -65,14 +65,14 @@ pub(super) fn type_compatible_inner(
         }
         (core_ir::Type::Record(record), core_ir::Type::Record(actual_record)) => {
             record.fields.iter().all(|field| {
-                actual_record
+                match actual_record
                     .fields
                     .iter()
                     .find(|actual| actual.name == field.name)
-                    .is_some_and(|actual| {
-                        field.optional
-                            || type_compatible_inner(&field.value, &actual.value, depth - 1)
-                    })
+                {
+                    Some(actual) => type_compatible_inner(&field.value, &actual.value, depth - 1),
+                    None => field.optional,
+                }
             })
         }
         (core_ir::Type::Variant(variant), core_ir::Type::Variant(actual_variant)) => {

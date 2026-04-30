@@ -128,6 +128,35 @@ for x in 0..:
     }
 
     #[test]
+    fn vm_runs_source_optional_record_argument_defaults() {
+        let results = eval_source_with_std(
+            "my area({width = 1, height = 2}) = width * height\n\
+             area { width: 3 }\n\
+             area {}\n\
+             area { width: 3, height: 4 }\n",
+        );
+
+        assert_eq!(
+            results,
+            vec![
+                TestValue::Int("6".to_string()),
+                TestValue::Int("2".to_string()),
+                TestValue::Int("12".to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn vm_runs_source_optional_record_default_can_use_previous_field() {
+        let results = eval_source_with_std(
+            "my area({width = 2, height = width + 1}) = width * height\n\
+             area { width: 3 }\n",
+        );
+
+        assert_eq!(results, vec![TestValue::Int("12".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_bool_and_comparison_examples() {
         let results = eval_source_with_std(
             "my a = not false\n\

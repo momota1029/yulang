@@ -164,6 +164,11 @@
                 <td>pattern では <code>{ width = 1, ..rest }</code> のように default/spread も使える。</td>
               </tr>
               <tr>
+                <td>省略可能引数</td>
+                <td><code>my area({width = 1, height = 2}) = width * height</code></td>
+                <td>record pattern の default を使う。<code>area { width: 3 }</code> や <code>area {}</code> のように呼べる。</td>
+              </tr>
+              <tr>
                 <td>struct with</td>
                 <td><code>struct point { x: int } with: our p.double = p.x + p.x</code></td>
                 <td>データ型と method をまとめて定義する。<code>point { x: 3 }.double</code> のように呼べる。</td>

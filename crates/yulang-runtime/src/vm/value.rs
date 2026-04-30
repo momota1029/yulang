@@ -1,9 +1,10 @@
 use super::*;
 
-pub(super) fn bind_pattern(
+pub(super) fn bind_pattern_with_defaults(
     pattern: &Pattern,
     value: VmValue,
     env: &mut Env,
+    eval_default: &mut impl FnMut(&Expr, &Env) -> Result<VmValue, VmError>,
 ) -> Result<(), VmError> {
     match pattern {
         Pattern::Wildcard { .. } => Ok(()),
@@ -21,7 +22,7 @@ pub(super) fn bind_pattern(
                 return Err(VmError::PatternMismatch);
             }
             for (item, value) in items.iter().zip(values) {
-                bind_pattern(item, value, env)?;
+                bind_pattern_with_defaults(item, value, env, eval_default)?;
             }
             Ok(())
         }
@@ -41,21 +42,23 @@ pub(super) fn bind_pattern(
                 return Err(VmError::PatternMismatch);
             }
             match (pattern_value, actual_value) {
-                (Some(pattern), Some(value)) => bind_pattern(pattern, *value, env),
+                (Some(pattern), Some(value)) => {
+                    bind_pattern_with_defaults(pattern, *value, env, eval_default)
+                }
                 (None, None) => Ok(()),
                 _ => Err(VmError::PatternMismatch),
             }
         }
         Pattern::Or { left, right, .. } => {
             let snapshot = env.clone();
-            if bind_pattern(left, value.clone(), env).is_ok() {
+            if bind_pattern_with_defaults(left, value.clone(), env, eval_default).is_ok() {
                 return Ok(());
             }
             *env = snapshot;
-            bind_pattern(right, value, env)
+            bind_pattern_with_defaults(right, value, env, eval_default)
         }
         Pattern::As { pattern, name, .. } => {
-            bind_pattern(pattern, value.clone(), env)?;
+            bind_pattern_with_defaults(pattern, value.clone(), env, eval_default)?;
             env.insert(core_ir::Path::from_name(name.clone()), value);
             Ok(())
         }
@@ -68,10 +71,11 @@ pub(super) fn bind_pattern(
                     let Some(default) = &field.default else {
                         return Err(VmError::PatternMismatch);
                     };
-                    bind_pattern(&field.pattern, value_from_default(default)?, env)?;
+                    let value = eval_default(default, env)?;
+                    bind_pattern_with_defaults(&field.pattern, value, env, eval_default)?;
                     continue;
                 };
-                bind_pattern(&field.pattern, value, env)?;
+                bind_pattern_with_defaults(&field.pattern, value, env, eval_default)?;
             }
             Ok(())
         }
@@ -94,7 +98,7 @@ pub(super) fn bind_pattern(
                 let Some(value) = values.index(index) else {
                     return Err(VmError::PatternMismatch);
                 };
-                bind_pattern(pattern, (*value).clone(), env)?;
+                bind_pattern_with_defaults(pattern, (*value).clone(), env, eval_default)?;
             }
             if let Some(spread) = spread {
                 let start = prefix.len();
@@ -102,22 +106,18 @@ pub(super) fn bind_pattern(
                 let Some(slice) = values.index_range(start, end) else {
                     return Err(VmError::PatternMismatch);
                 };
-                bind_pattern(spread, VmValue::List(slice), env)?;
+                bind_pattern_with_defaults(spread, VmValue::List(slice), env, eval_default)?;
             }
             let suffix_start = values.len() - suffix.len();
             for (offset, pattern) in suffix.iter().enumerate() {
                 let Some(value) = values.index(suffix_start + offset) else {
                     return Err(VmError::PatternMismatch);
                 };
-                bind_pattern(pattern, (*value).clone(), env)?;
+                bind_pattern_with_defaults(pattern, (*value).clone(), env, eval_default)?;
             }
             Ok(())
         }
     }
-}
-
-pub(super) fn value_from_default(_expr: &Expr) -> Result<VmValue, VmError> {
-    Err(VmError::PatternMismatch)
 }
 
 pub(super) fn value_from_lit(lit: &core_ir::Lit) -> VmValue {

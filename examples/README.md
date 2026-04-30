@@ -12,6 +12,7 @@ Or run the smaller examples one by one:
 
 ```bash
 cargo run -q -p yulang -- --run examples/01_struct_with.yu
+cargo run -q -p yulang -- --run examples/09_optional_record_args.yu
 ```
 
 Print inferred public types with:

@@ -556,7 +556,8 @@ impl Lowerer<'_> {
                     .into_iter()
                     .map(|arm| {
                         let mut arm_locals = locals.clone();
-                        let pattern = lower_pattern(arm.pattern, &scrutinee_ty, &mut arm_locals)?;
+                        let pattern =
+                            lower_pattern(self, arm.pattern, &scrutinee_ty, &mut arm_locals)?;
                         let guard = arm
                             .guard
                             .map(|guard| {
@@ -765,7 +766,7 @@ impl Lowerer<'_> {
             core_ir::Stmt::Let { pattern, value } => {
                 let value = self.lower_expr(value, None, locals, TypeSource::Expected)?;
                 let (value, value_ty) = force_value_expr(value);
-                let pattern = lower_hir_pattern(pattern, &value_ty, locals)?;
+                let pattern = lower_hir_pattern(self, pattern, &value_ty, locals)?;
                 Ok(Stmt::Let { pattern, value })
             }
             core_ir::Stmt::Expr(expr) => {
@@ -797,7 +798,7 @@ impl Lowerer<'_> {
             infer_handle_payload_type(&arm.payload, arm.guard.as_ref(), &arm.body, result_ty)
                 .unwrap_or(core_ir::Type::Any)
         };
-        let payload = lower_pattern(arm.payload, &payload_ty, &mut arm_locals)?;
+        let payload = lower_pattern(self, arm.payload, &payload_ty, &mut arm_locals)?;
         let resume_ty = arm.resume.as_ref().map(|resume| {
             let param_ty = infer_resume_param_type(resume, arm.guard.as_ref(), &arm.body)
                 .unwrap_or(core_ir::Type::Any);
