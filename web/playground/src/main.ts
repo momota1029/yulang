@@ -45,53 +45,27 @@ type ColorizeOutput = {
   diagnostics: Diagnostic[];
 };
 
-const initialSource = `// struct with: attach methods to a data type
+const initialSource = `// struct methods, references, junctions, and nondeterminism
+use std::undet::*
+
 struct point { x: int, y: int } with:
-    our p.norm2 = p.x * p.x + p.y * p.y
+    our pt.norm2: int = pt.x * pt.x + pt.y * pt.y
 
-point { x: 3, y: 4 } .norm2
+{
+    my chosen = ({
+        if all [1, 2, 3] < any [2, 3, 4]:
+            each [3, 4, 5]
+        else:
+            2
+    }).once
 
-// references: read with $, write with &
-({
-    my $x = 10
-    my $y = 20
-
-    &x = $x + 1
-    &y = $y + 1
-
-    ($x, $y)
-})
-
-// for + last: break out of an infinite range
-({
-    for x in 0..:
-        if x == 5: last
-        else: ()
-    5
-})
-
-// sub + return: stop a loop with a value
-sub:
-    for x in 0..:
-        if x == 5: return x
-        else: ()
-    0
-
-// nondeterminism: all results
-(each [1, 2, 3] + each [4, 5, 6]).list
-
-// nondeterminism: first useful result
-({
-    my a = each 1..
-    my b = each 1..
-    my c = each 1..
-
-    guard: a <= b
-    guard: b <= c
-    guard: a * a + b * b == c * c
-
-    (a, b, c)
-}).once
+    case chosen:
+        opt::just y ->
+            my $current = point { x: 3, y: 2 }
+            &current = point { x: 3, y: y }
+            $current .norm2
+        opt::nil -> 0
+}
 `;
 
 const sourceInput = document.querySelector<HTMLTextAreaElement>("#source");

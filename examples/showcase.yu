@@ -1,0 +1,22 @@
+// A compact tour: struct methods, references, junctions, and nondeterminism.
+
+use std::undet::*
+
+struct point { x: int, y: int } with:
+    our pt.norm2: int = pt.x * pt.x + pt.y * pt.y
+
+{
+    my chosen = ({
+        if all [1, 2, 3] < any [2, 3, 4]:
+            each [3, 4, 5]
+        else:
+            2
+    }).once
+
+    case chosen:
+        opt::just y ->
+            my $current = point { x: 3, y: 2 }
+            &current = point { x: 3, y: y }
+            $current .norm2
+        opt::nil -> 0
+}
