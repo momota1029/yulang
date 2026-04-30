@@ -147,7 +147,7 @@ fn lower_self_struct_fields(
         state
             .infer
             .register_type_field(type_path.clone(), field_name.clone(), field_def);
-        field_defs.push((field_def, field_name.clone()));
+        field_defs.push((field_name.clone(), field_def, field_tv));
         state.infer.constrain(
             state.pos_fun(
                 state.neg_con(
@@ -170,14 +170,14 @@ fn lower_self_struct_fields(
         type_path.clone(),
         ctor_def,
         field_defs
-            .into_iter()
-            .map(|(def, name)| (name, def))
+            .iter()
+            .map(|(name, def, _)| (name.clone(), *def))
             .collect(),
     );
 
     let ctor_record = fields
-        .into_iter()
-        .map(|(name, _, neg)| crate::types::RecordField::required(name, neg))
+        .iter()
+        .map(|(name, _, neg)| crate::types::RecordField::required(name.clone(), neg.clone()))
         .collect::<Vec<_>>();
     state.infer.constrain(
         state.pos_fun(
@@ -196,6 +196,29 @@ fn lower_self_struct_fields(
         crate::scheme::freeze_type_var(&state.infer, ctor_tv),
     );
     state.infer.mark_frozen_ref_committed(ctor_def);
+
+    let ctor_body = super::super::synthetic_struct_constructor_body(state, ctor_def);
+    state.principal_bodies.insert(ctor_def, ctor_body.clone());
+    state
+        .infer
+        .constrain(Pos::Var(ctor_body.tv), Neg::Var(ctor_tv));
+    state
+        .infer
+        .constrain(Pos::Var(ctor_tv), Neg::Var(ctor_body.tv));
+
+    for (field_name, field_def, field_tv) in field_defs {
+        let body = super::super::synthetic_struct_field_body(
+            state,
+            type_path,
+            type_arg_tvs,
+            &fields,
+            field_def,
+            &field_name,
+        );
+        state.principal_bodies.insert(field_def, body.clone());
+        state.infer.constrain(Pos::Var(body.tv), Neg::Var(field_tv));
+        state.infer.constrain(Pos::Var(field_tv), Neg::Var(body.tv));
+    }
 }
 
 pub(crate) fn lower_type_with_bindings(

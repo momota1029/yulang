@@ -3,6 +3,7 @@ use super::*;
 pub(super) fn validate_pattern(
     pattern: &Pattern,
     expected: &core_ir::Type,
+    type_arg_kinds: &TypeArgKinds,
     locals: &mut HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     require_same_type(
@@ -31,7 +32,7 @@ pub(super) fn validate_pattern(
                 }
             };
             for (item, item_ty) in items.iter().zip(item_tys) {
-                validate_pattern(item, item_ty, locals)?;
+                validate_pattern(item, item_ty, type_arg_kinds, locals)?;
             }
         }
         Pattern::List {
@@ -46,10 +47,10 @@ pub(super) fn validate_pattern(
                 } else {
                     core_type(pattern_ty(item))
                 };
-                validate_pattern(item, item_ty, locals)?;
+                validate_pattern(item, item_ty, type_arg_kinds, locals)?;
             }
             if let Some(spread) = spread {
-                validate_pattern(spread, expected, locals)?;
+                validate_pattern(spread, expected, type_arg_kinds, locals)?;
             }
         }
         Pattern::Record { fields, spread, .. } => {
@@ -76,24 +77,24 @@ pub(super) fn validate_pattern(
                         });
                     }
                 };
-                validate_pattern(&field.pattern, field_ty, locals)?;
+                validate_pattern(&field.pattern, field_ty, type_arg_kinds, locals)?;
                 if let Some(default) = &field.default {
                     require_same_type(field_ty, core_type(&default.ty), TypeSource::Expected)?;
                 }
             }
-            validate_record_spread_pattern(spread, expected, locals)?;
+            validate_record_spread_pattern(spread, expected, type_arg_kinds, locals)?;
         }
         Pattern::Variant { value, .. } => {
             if let Some(value) = value {
-                validate_pattern(value, core_type(pattern_ty(value)), locals)?;
+                validate_pattern(value, core_type(pattern_ty(value)), type_arg_kinds, locals)?;
             }
         }
         Pattern::Or { left, right, .. } => {
-            validate_pattern(left, expected, locals)?;
-            validate_pattern(right, expected, locals)?;
+            validate_pattern(left, expected, type_arg_kinds, locals)?;
+            validate_pattern(right, expected, type_arg_kinds, locals)?;
         }
         Pattern::As { pattern, name, ty } => {
-            validate_pattern(pattern, expected, locals)?;
+            validate_pattern(pattern, expected, type_arg_kinds, locals)?;
             locals.insert(core_ir::Path::from_name(name.clone()), ty.clone());
         }
     }
@@ -103,6 +104,7 @@ pub(super) fn validate_pattern(
 pub(super) fn validate_hir_pattern(
     pattern: &Pattern,
     expected: &RuntimeType,
+    type_arg_kinds: &TypeArgKinds,
     locals: &mut HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     require_same_hir_type(expected, pattern_ty(pattern), TypeSource::Validation)?;
@@ -113,11 +115,11 @@ pub(super) fn validate_hir_pattern(
             Ok(())
         }
         Pattern::Or { left, right, .. } => {
-            validate_hir_pattern(left, expected, locals)?;
-            validate_hir_pattern(right, expected, locals)
+            validate_hir_pattern(left, expected, type_arg_kinds, locals)?;
+            validate_hir_pattern(right, expected, type_arg_kinds, locals)
         }
         Pattern::As { pattern, name, ty } => {
-            validate_hir_pattern(pattern, expected, locals)?;
+            validate_hir_pattern(pattern, expected, type_arg_kinds, locals)?;
             locals.insert(core_ir::Path::from_name(name.clone()), ty.clone());
             Ok(())
         }
@@ -128,7 +130,7 @@ pub(super) fn validate_hir_pattern(
                     ty: diagnostic_core_type(expected),
                 });
             };
-            validate_pattern(pattern, expected, locals)
+            validate_pattern(pattern, expected, type_arg_kinds, locals)
         }
     }
 }
@@ -136,11 +138,12 @@ pub(super) fn validate_hir_pattern(
 pub(super) fn validate_record_spread_expr(
     spread: &Option<RecordSpreadExpr>,
     bindings: &HashMap<core_ir::Path, BindingInfo>,
+    type_arg_kinds: &TypeArgKinds,
     locals: &mut HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     match spread {
         Some(RecordSpreadExpr::Head(expr)) | Some(RecordSpreadExpr::Tail(expr)) => {
-            validate_expr(expr, bindings, locals)
+            validate_expr(expr, bindings, type_arg_kinds, locals)
         }
         None => Ok(()),
     }
@@ -149,11 +152,12 @@ pub(super) fn validate_record_spread_expr(
 pub(super) fn validate_record_spread_pattern(
     spread: &Option<RecordSpreadPattern>,
     expected: &core_ir::Type,
+    type_arg_kinds: &TypeArgKinds,
     locals: &mut HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     match spread {
         Some(RecordSpreadPattern::Head(pattern)) | Some(RecordSpreadPattern::Tail(pattern)) => {
-            validate_pattern(pattern, expected, locals)
+            validate_pattern(pattern, expected, type_arg_kinds, locals)
         }
         None => Ok(()),
     }

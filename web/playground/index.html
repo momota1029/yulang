@@ -212,6 +212,87 @@
           </table>
         </div>
       </section>
+      <section class="language-guide" aria-labelledby="language-guide-title">
+        <div class="language-guide-head">
+          <h2 id="language-guide-title">Language Guide</h2>
+          <p>
+            Yulang は型推論、role、代数的 effect を中心にした実験的な言語です。
+            この playground で試すときに特に重要な見方を短くまとめています。
+          </p>
+        </div>
+        <div class="guide-grid">
+          <article class="guide-section">
+            <h3>読む順番</h3>
+            <p>
+              まずは左の editor で小さな式を書き、Result と Types を見ます。
+              <code>our</code> や <code>pub</code> の binding は Types に推論結果が表示されます。
+            </p>
+            <pre><code>our twice x = x + x
+twice 21</code></pre>
+          </article>
+          <article class="guide-section">
+            <h3>型と role</h3>
+            <p>
+              <code>+</code> や <code>&lt;=</code> は固定の組み込み演算ではなく、prelude の role method として解決されます。
+              多相な binding では <code>Add&lt;α&gt;</code> のような requirement が型に残ります。
+            </p>
+            <pre><code>our twice x = x + x
+// twice: Add&lt;α&gt; =&gt; α -&gt; α</code></pre>
+          </article>
+          <article class="guide-section">
+            <h3>制御は effect で見える</h3>
+            <p>
+              <code>sub:</code>、<code>return</code>、<code>for</code>、<code>last</code> は、標準ライブラリの effect handler と専用の lowering がつながって動きます。
+            </p>
+            <pre><code>sub:
+    for x in 0..:
+        if x == 5: return x
+        else: ()
+    0</code></pre>
+          </article>
+          <article class="guide-section">
+            <h3>参照は明示的</h3>
+            <p>
+              <code>$x</code> は read、<code>&amp;x = value</code> は write です。
+              通常の変数再代入ではなく、局所的な effect scope として実装されています。
+            </p>
+            <pre><code>{
+    my $x = 10
+    &amp;x = $x + 1
+    $x
+}</code></pre>
+          </article>
+          <article class="guide-section">
+            <h3>非決定性</h3>
+            <p>
+              <code>each</code> は候補を選び、<code>.list</code> や <code>.once</code> が計算を実行します。
+              playground では <code>std::undet::*</code> が暗黙に使えます。
+            </p>
+            <pre><code>(each [1, 2, 3] + each [4, 5, 6]).list</code></pre>
+          </article>
+          <article class="guide-section">
+            <h3>詳しい文書</h3>
+            <p>
+              もう少し広い説明は repository の overview にあります。
+              現在の文書は実装に合わせて更新中で、安定仕様ではありません。
+            </p>
+            <p class="guide-links">
+              <a href="https://github.com/momota1029/yulang/blob/main/docs/language/overview.md">English overview</a>
+              <a href="https://github.com/momota1029/yulang/blob/main/docs/language/overview.ja.md">日本語 overview</a>
+            </p>
+          </article>
+        </div>
+        <details class="guide-details">
+          <summary>Short English summary</summary>
+          <p>
+            Yulang is an experimental expression-oriented language built around type inference,
+            structural types, roles, and algebraic effects. Many control-flow features are
+            expressed by the standard library, while syntax such as <code>sub:</code>,
+            <code>for</code>, <code>$x</code>, and effectful <code>if</code> conditions connect
+            user code to those library-defined handlers.
+          </p>
+        </details>
+      </section>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

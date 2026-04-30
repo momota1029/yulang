@@ -29,6 +29,7 @@ pub(crate) fn collect_canonical_binding_paths(state: &LowerState) -> HashMap<Def
 pub(crate) fn complete_referenced_binding_closure(
     state: &mut LowerState,
     bindings: &mut Vec<core_ir::PrincipalBinding>,
+    extra_exprs: &[core_ir::Expr],
 ) {
     let all_paths = collect_canonical_binding_paths(state)
         .into_iter()
@@ -40,6 +41,9 @@ pub(crate) fn complete_referenced_binding_closure(
         .collect::<HashSet<_>>();
     loop {
         let mut referenced = HashSet::new();
+        for expr in extra_exprs {
+            collect_expr_binding_refs(expr, &mut referenced);
+        }
         for binding in bindings.iter() {
             collect_expr_binding_refs(&binding.body, &mut referenced);
         }

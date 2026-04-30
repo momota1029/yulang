@@ -132,6 +132,9 @@ impl RefineRewriter {
                     }
                     body = forced_body;
                 }
+                if let Some(refined) = refine_lambda_type_from_body(&ty, &body) {
+                    ty = refined;
+                }
                 ExprKind::Lambda {
                     param,
                     param_effect_annotation,
@@ -148,6 +151,10 @@ impl RefineRewriter {
                 let arg = self.expr(*arg, None);
                 let callee_expected = RuntimeType::fun(arg.ty.clone(), ty.clone());
                 let callee = self.expr(*callee, Some(&callee_expected));
+                let arg = match function_param_type(&callee.ty) {
+                    Some(param) => bind_thunk_for_expected(self.expr(arg, Some(&param)), &param),
+                    None => arg,
+                };
                 let actual_ty = function_result_type(&callee.ty).unwrap_or_else(|| ty.clone());
                 let apply = Expr {
                     ty: actual_ty,
@@ -252,6 +259,9 @@ impl RefineRewriter {
                     })
                     .collect();
                 let tail = tail.map(|tail| Box::new(self.expr(*tail, Some(&ty))));
+                if let Some(tail) = tail.as_deref() {
+                    ty = refine_type_from_tail(ty, &tail.ty);
+                }
                 self.locals = saved;
                 ExprKind::Block { stmts, tail }
             }
@@ -321,9 +331,11 @@ impl RefineRewriter {
                     ),
                 };
                 let expr = self.expr(*expr, Some(&value));
+                let (effect, value, expr) = flatten_nested_thunk_body(effect, value, expr);
+                ty = RuntimeType::thunk(effect.clone(), value.clone());
                 ExprKind::Thunk {
                     effect,
-                    value: value.clone(),
+                    value,
                     expr: Box::new(expr),
                 }
             }
@@ -333,11 +345,15 @@ impl RefineRewriter {
             },
             ExprKind::PeekId => ExprKind::PeekId,
             ExprKind::FindId { id } => ExprKind::FindId { id },
-            ExprKind::AddId { id, allowed, thunk } => ExprKind::AddId {
-                id,
-                allowed: substitute_type(&allowed, &self.substitutions),
-                thunk: Box::new(self.expr(*thunk, Some(&ty))),
-            },
+            ExprKind::AddId { id, allowed, thunk } => {
+                let thunk = self.expr(*thunk, Some(&ty));
+                ty = thunk.ty.clone();
+                ExprKind::AddId {
+                    id,
+                    allowed: substitute_type(&allowed, &self.substitutions),
+                    thunk: Box::new(thunk),
+                }
+            }
             ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
                 from: substitute_type(&from, &self.substitutions),
                 to: substitute_type(&to, &self.substitutions),

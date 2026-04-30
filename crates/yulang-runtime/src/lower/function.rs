@@ -77,6 +77,7 @@ pub(super) fn function_parts(ty: &RuntimeType) -> RuntimeResult<FunctionParts> {
             let ty = project_runtime_hir_type_with_vars(core, &BTreeSet::new());
             function_parts(&ty)
         }
+        RuntimeType::Thunk { value, .. } => function_parts(value),
         other => Err(RuntimeError::NonFunctionCallee {
             ty: diagnostic_core_type(other),
         }),
@@ -212,8 +213,14 @@ pub(super) fn require_same_type(
     actual: &core_ir::Type,
     source: TypeSource,
 ) -> RuntimeResult<()> {
-    if core_types_compatible(expected, actual) || effect_compatible(expected, actual) {
+    if core_types_compatible(expected, actual)
+        || effect_compatible(expected, actual)
+        || effect_compatible(actual, expected)
+    {
         return Ok(());
+    }
+    if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
+        eprintln!("lower require_same_type {source:?}: {expected:?} / {actual:?}");
     }
     Err(RuntimeError::TypeMismatch {
         expected: expected.clone(),
@@ -287,7 +294,9 @@ pub(super) fn require_same_hir_type(
                 value: actual_value,
             },
         ) => {
-            if !effect_compatible(expected_effect, actual_effect) {
+            if !effect_compatible(expected_effect, actual_effect)
+                && !effect_compatible(actual_effect, expected_effect)
+            {
                 return Err(RuntimeError::TypeMismatch {
                     expected: expected_effect.clone(),
                     actual: actual_effect.clone(),
@@ -310,5 +319,36 @@ pub(super) fn require_same_hir_type(
             actual: diagnostic_core_type(actual),
             source,
         }),
+    }
+}
+
+pub(super) fn require_apply_arg_compatible(
+    expected: &RuntimeType,
+    actual: &RuntimeType,
+    source: TypeSource,
+) -> RuntimeResult<()> {
+    match (expected, actual) {
+        (
+            RuntimeType::Thunk {
+                effect: expected_effect,
+                value: expected_value,
+            },
+            RuntimeType::Thunk {
+                effect: actual_effect,
+                value: actual_value,
+            },
+        ) => {
+            if !effect_compatible(expected_effect, actual_effect)
+                && !effect_compatible(actual_effect, expected_effect)
+            {
+                return Err(RuntimeError::TypeMismatch {
+                    expected: expected_effect.clone(),
+                    actual: actual_effect.clone(),
+                    source,
+                });
+            }
+            require_same_hir_type(expected_value, actual_value, source)
+        }
+        _ => require_same_hir_type(expected, actual, source),
     }
 }

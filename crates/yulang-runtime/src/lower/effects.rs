@@ -34,36 +34,6 @@ pub(super) fn handler_consumes_from_body_type(ty: &RuntimeType) -> core_ir::Type
     }
 }
 
-pub(super) fn handler_consumes_from_expected_type(ty: &RuntimeType) -> Option<core_ir::Type> {
-    match ty {
-        RuntimeType::Thunk { effect, .. } => Some(project_runtime_effect(effect)),
-        _ => None,
-    }
-}
-
-pub(super) fn constrain_handler_body_effect(expr: Expr, handled: &core_ir::Type) -> Expr {
-    let handled = project_runtime_effect(handled);
-    if !should_thunk_effect(&handled) {
-        return expr;
-    }
-    let RuntimeType::Thunk { effect, value } = expr.ty else {
-        return expr;
-    };
-    let value = *value;
-    let residual = handler_body_residual(&effect, &handled);
-    let ty = RuntimeType::thunk(residual.clone(), value.clone());
-    let kind = match expr.kind {
-        ExprKind::Thunk { value: _, expr, .. } => ExprKind::Thunk {
-            effect: residual,
-            value,
-            expr,
-        },
-        ExprKind::Var(path) => ExprKind::Var(path),
-        kind => kind,
-    };
-    Expr { ty, kind }
-}
-
 pub(super) fn handler_body_residual(
     effect: &core_ir::Type,
     handled: &core_ir::Type,

@@ -265,22 +265,31 @@ fn project_core_type(
         core_ir::Type::Var(var) => relevant_vars
             .contains(&var)
             .then_some(core_ir::Type::Var(var)),
-        core_ir::Type::Named { .. } => Some(ty),
+        core_ir::Type::Named { path, args } => Some(core_ir::Type::Named {
+            path,
+            args: args
+                .into_iter()
+                .map(|arg| project_type_arg(arg, relevant_vars))
+                .collect(),
+        }),
         core_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
             ret,
         } => Some(core_ir::Type::Fun {
-            param: Box::new(project_core_type(*param, relevant_vars)?),
-            param_effect: Box::new(project_core_type(*param_effect, relevant_vars)?),
-            ret_effect: Box::new(project_core_type(*ret_effect, relevant_vars)?),
-            ret: Box::new(project_core_type(*ret, relevant_vars)?),
+            param: Box::new(project_core_value_type_or_any(*param, relevant_vars)),
+            param_effect: Box::new(project_core_effect_type_or_any(
+                *param_effect,
+                relevant_vars,
+            )),
+            ret_effect: Box::new(project_core_effect_type_or_any(*ret_effect, relevant_vars)),
+            ret: Box::new(project_core_value_type_or_any(*ret, relevant_vars)),
         }),
         core_ir::Type::Tuple(items) => {
             let items = items
                 .into_iter()
-                .filter_map(|item| project_core_type(item, relevant_vars))
+                .map(|item| project_core_value_type_or_any(item, relevant_vars))
                 .collect::<Vec<_>>();
             (!items.is_empty()).then_some(core_ir::Type::Tuple(items))
         }
@@ -288,14 +297,10 @@ fn project_core_type(
             let fields = record
                 .fields
                 .into_iter()
-                .filter_map(|field| {
-                    project_core_type(field.value, relevant_vars).map(|value| {
-                        core_ir::RecordField {
-                            name: field.name,
-                            value,
-                            optional: field.optional,
-                        }
-                    })
+                .map(|field| core_ir::RecordField {
+                    name: field.name,
+                    value: project_core_value_type_or_any(field.value, relevant_vars),
+                    optional: field.optional,
                 })
                 .collect::<Vec<_>>();
             let spread = record.spread.and_then(|spread| match spread {
@@ -312,16 +317,16 @@ fn project_core_type(
             let cases = variant
                 .cases
                 .into_iter()
-                .filter_map(|case| {
+                .map(|case| {
                     let payloads = case
                         .payloads
                         .into_iter()
-                        .filter_map(|payload| project_core_type(payload, relevant_vars))
+                        .map(|payload| project_core_value_type_or_any(payload, relevant_vars))
                         .collect::<Vec<_>>();
-                    (!payloads.is_empty()).then_some(core_ir::VariantCase {
+                    core_ir::VariantCase {
                         name: case.name,
                         payloads,
-                    })
+                    }
                 })
                 .collect::<Vec<_>>();
             let tail = variant
@@ -351,6 +356,41 @@ fn project_core_type(
                 var,
                 body: Box::new(body),
             })
+        }
+    }
+}
+
+fn project_core_value_type_or_any(
+    ty: core_ir::Type,
+    relevant_vars: &BTreeSet<core_ir::TypeVar>,
+) -> core_ir::Type {
+    project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Any)
+}
+
+fn project_core_effect_type_or_any(
+    ty: core_ir::Type,
+    relevant_vars: &BTreeSet<core_ir::TypeVar>,
+) -> core_ir::Type {
+    project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Any)
+}
+
+fn project_type_arg(
+    arg: core_ir::TypeArg,
+    relevant_vars: &BTreeSet<core_ir::TypeVar>,
+) -> core_ir::TypeArg {
+    match arg {
+        core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(
+            project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Any),
+        ),
+        core_ir::TypeArg::Bounds(bounds) => {
+            let bounds = project_type_bounds(bounds, relevant_vars);
+            match (&bounds.lower, &bounds.upper) {
+                (Some(lower), Some(upper)) if lower == upper => {
+                    core_ir::TypeArg::Type((**lower).clone())
+                }
+                (None, None) => core_ir::TypeArg::Type(core_ir::Type::Any),
+                _ => core_ir::TypeArg::Bounds(bounds),
+            }
         }
     }
 }

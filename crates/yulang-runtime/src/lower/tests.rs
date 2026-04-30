@@ -547,10 +547,7 @@ mod tests {
             panic!("resume should be a function");
         };
         assert_eq!(**param, RuntimeType::core(bool_type()));
-        assert_eq!(
-            **ret,
-            RuntimeType::thunk(handled_effect, RuntimeType::core(bool_type()))
-        );
+        assert_eq!(**ret, RuntimeType::core(bool_type()));
     }
 
     #[test]
@@ -684,7 +681,13 @@ mod tests {
         };
 
         let module = lower_core_program(program).expect("lowered");
-        let ExprKind::Apply { callee, .. } = &module.root_exprs[0].kind else {
+        let ExprKind::BindHere { expr } = &module.root_exprs[0].kind else {
+            panic!("missing bind_here");
+        };
+        let ExprKind::Thunk { expr, .. } = &expr.kind else {
+            panic!("missing thunk");
+        };
+        let ExprKind::Apply { callee, .. } = &expr.kind else {
             panic!("missing apply");
         };
         assert!(matches!(&callee.kind, ExprKind::EffectOp(path) if path == &effect_path));

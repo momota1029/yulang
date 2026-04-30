@@ -75,6 +75,10 @@ fn collect_lambda_capture_effs(
             collect_lambda_capture_effs(state, callee, local_defs, out);
             collect_lambda_capture_effs(state, arg, local_defs, out);
         }
+        ExprKind::RefSet { reference, value } => {
+            collect_lambda_capture_effs(state, reference, local_defs, out);
+            collect_lambda_capture_effs(state, value, local_defs, out);
+        }
         ExprKind::Lam(_, _) | ExprKind::PackForall(_, _) => {}
         ExprKind::Tuple(items) => {
             for item in items {

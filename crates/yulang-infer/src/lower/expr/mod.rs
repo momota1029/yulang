@@ -61,7 +61,7 @@ use catch::{debug_dump_effect_tv, lower_catch};
 use chain::lower_expr_chain;
 use control::{lower_case, lower_if};
 pub(super) use effect_rows::{neg_id_is_pure_row, pos_id_is_empty_row};
-use lambda::{lower_lambda, make_const_lambda};
+use lambda::lower_lambda;
 use list::lower_list_expr;
 use literal::{lower_number_token, lower_string_lit};
 use operator::{infix_op_name, infix_op_ref, prefix_op_ref, suffix_op_ref};

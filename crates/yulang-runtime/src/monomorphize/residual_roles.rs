@@ -17,9 +17,7 @@ pub(super) fn resolve_residual_role_method_calls(mut module: Module) -> Module {
         module.root_exprs = root_exprs;
 
         for binding in &mut module.bindings {
-            if !binding.type_params.is_empty()
-                || unspecialized_path(&binding.name).is_some_and(|path| is_role_method_path(&path))
-            {
+            if !binding.type_params.is_empty() && !is_specialized_path(&binding.name) {
                 continue;
             }
             let rewritten = rewrite_expr(&mut monomorphizer, binding.body.clone());
@@ -58,13 +56,16 @@ fn rewrite_expr(monomorphizer: &mut Monomorphizer, expr: Expr) -> Expr {
             mut instantiation,
         } => {
             let mut callee = rewrite_expr(monomorphizer, *callee);
-            let arg = rewrite_expr(monomorphizer, *arg);
+            let mut arg = rewrite_expr(monomorphizer, *arg);
             let result_ty = apply_result_type(&callee.ty).unwrap_or_else(|| ty.clone());
             if monomorphizer.resolve_role_callee_from_call(&mut callee, &arg.ty, &result_ty) {
                 instantiation = None;
             }
             if let Some(ret) = apply_result_type(&callee.ty) {
                 ty = ret;
+            }
+            if let Some(param) = function_param_type(&callee.ty) {
+                arg = force_arg_for_param(arg, &param);
             }
             ExprKind::Apply {
                 callee: Box::new(callee),
@@ -84,6 +85,9 @@ fn rewrite_expr(monomorphizer: &mut Monomorphizer, expr: Expr) -> Expr {
                 .map(|param_ty| monomorphizer.locals.insert(local.clone(), param_ty));
             let body = rewrite_expr(monomorphizer, *body);
             restore_local_type(&mut monomorphizer.locals, local, previous);
+            if let Some(refined) = refine_lambda_type_from_body(&ty, &body) {
+                ty = refined;
+            }
             ExprKind::Lambda {
                 param,
                 param_effect_annotation,
@@ -149,13 +153,17 @@ fn rewrite_expr(monomorphizer: &mut Monomorphizer, expr: Expr) -> Expr {
                 .collect(),
             evidence,
         },
-        ExprKind::Block { stmts, tail } => ExprKind::Block {
-            stmts: stmts
+        ExprKind::Block { stmts, tail } => {
+            let stmts = stmts
                 .into_iter()
                 .map(|stmt| rewrite_stmt(monomorphizer, stmt))
-                .collect(),
-            tail: tail.map(|tail| Box::new(rewrite_expr(monomorphizer, *tail))),
-        },
+                .collect();
+            let tail = tail.map(|tail| Box::new(rewrite_expr(monomorphizer, *tail)));
+            if let Some(tail) = tail.as_deref() {
+                ty = refine_block_type_from_tail(ty, &tail.ty);
+            }
+            ExprKind::Block { stmts, tail }
+        }
         ExprKind::Handle {
             body,
             arms,
@@ -183,11 +191,17 @@ fn rewrite_expr(monomorphizer: &mut Monomorphizer, expr: Expr) -> Expr {
             effect,
             value,
             expr,
-        } => ExprKind::Thunk {
-            effect,
-            value,
-            expr: Box::new(rewrite_expr(monomorphizer, *expr)),
-        },
+        } => {
+            let expr = rewrite_expr(monomorphizer, *expr);
+            let (effect, body_ty, expr) = flatten_nested_thunk_body(effect, expr);
+            let value = refine_thunk_value_from_body(value, &body_ty);
+            ty = RuntimeType::thunk(effect.clone(), value.clone());
+            ExprKind::Thunk {
+                effect,
+                value,
+                expr: Box::new(expr),
+            }
+        }
         ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
             id,
             body: Box::new(rewrite_expr(monomorphizer, *body)),

@@ -33,6 +33,18 @@ pub(super) fn function_result_type(ty: &RuntimeType) -> Option<RuntimeType> {
     }
 }
 
+pub(super) fn function_param_type(ty: &RuntimeType) -> Option<RuntimeType> {
+    match ty {
+        RuntimeType::Fun { param, .. } => Some(param.as_ref().clone()),
+        RuntimeType::Core(core_ir::Type::Fun {
+            param,
+            param_effect,
+            ..
+        }) => Some(effected_core_as_hir_type(param, param_effect)),
+        _ => None,
+    }
+}
+
 pub(super) fn effected_core_as_hir_type(
     value: &core_ir::Type,
     effect: &core_ir::Type,
@@ -124,6 +136,96 @@ pub(super) fn refine_expected_expr_type(
         return actual.clone();
     }
     expected.clone()
+}
+
+pub(super) fn refine_type_from_tail(current: RuntimeType, tail: &RuntimeType) -> RuntimeType {
+    if hir_type_is_core_never(tail) {
+        return current;
+    }
+    if !hir_type_has_vars(tail)
+        && !hir_type_compatible(&current, tail)
+        && !hir_type_compatible(tail, &current)
+    {
+        tail.clone()
+    } else {
+        current
+    }
+}
+
+pub(super) fn refine_lambda_type_from_body(
+    lambda_ty: &RuntimeType,
+    body: &Expr,
+) -> Option<RuntimeType> {
+    let RuntimeType::Fun { param, ret } = lambda_ty else {
+        return None;
+    };
+    if hir_type_is_core_never(&body.ty) {
+        return None;
+    }
+    if !hir_type_has_vars(&body.ty)
+        && !hir_type_compatible(ret, &body.ty)
+        && !hir_type_compatible(&body.ty, ret)
+    {
+        Some(RuntimeType::fun(param.as_ref().clone(), body.ty.clone()))
+    } else {
+        None
+    }
+}
+
+pub(super) fn flatten_nested_thunk_body(
+    effect: core_ir::Type,
+    value: RuntimeType,
+    body: Expr,
+) -> (core_ir::Type, RuntimeType, Expr) {
+    let RuntimeType::Thunk {
+        effect: inner_effect,
+        value: inner_value,
+    } = &body.ty
+    else {
+        return (effect, value, body);
+    };
+    let effect = merge_refined_effects(effect, inner_effect.clone());
+    let value = inner_value.as_ref().clone();
+    let body = Expr {
+        ty: value.clone(),
+        kind: ExprKind::BindHere {
+            expr: Box::new(body),
+        },
+    };
+    (effect, value, body)
+}
+
+fn merge_refined_effects(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
+    if effect_is_empty(&left) {
+        return right;
+    }
+    if effect_is_empty(&right) || left == right {
+        return left;
+    }
+    match (left, right) {
+        (
+            core_ir::Type::Row {
+                mut items,
+                tail: left_tail,
+            },
+            core_ir::Type::Row {
+                items: right_items,
+                tail: right_tail,
+            },
+        ) if matches!(
+            (left_tail.as_ref(), right_tail.as_ref()),
+            (core_ir::Type::Never, core_ir::Type::Never)
+        ) =>
+        {
+            for item in right_items {
+                if !items.contains(&item) {
+                    items.push(item);
+                }
+            }
+            effect_row(items, core_ir::Type::Never)
+        }
+        (left, right) => core_ir::Type::Union(vec![left, right]),
+    }
 }
 
 pub(super) fn hir_type_is_core_never(ty: &RuntimeType) -> bool {

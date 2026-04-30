@@ -12,9 +12,9 @@ use crate::refine::refine_module_types;
 use crate::types::{
     BoundsChoice, choose_bounds_type, choose_hir_bounds_type, collect_expr_type_vars,
     collect_hir_type_vars, collect_type_vars as collect_core_type_vars, core_type_has_vars,
-    effect_is_empty, effect_paths, effect_paths_match, hir_type_has_vars, hir_type_is_hole,
-    infer_effectful_type_substitutions, infer_type_substitutions,
-    is_nullary_constructor_path_for_type, project_runtime_effect,
+    core_types_compatible, diagnostic_core_type, effect_is_empty, effect_paths, effect_paths_match,
+    hir_type_has_vars, hir_type_is_hole, infer_effectful_type_substitutions,
+    infer_type_substitutions, is_nullary_constructor_path_for_type, project_runtime_effect,
     project_runtime_hir_type_with_vars, project_runtime_type_with_vars, should_thunk_effect,
     substitute_apply_evidence, substitute_join_evidence, substitute_scheme, substitute_type,
     type_compatible, type_path_last_is,
@@ -53,7 +53,27 @@ pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     lowered = inline_polymorphic_nullary_constructors(lowered);
     lowered = resolve_specialized_residual_associated_bindings(lowered);
     lowered = resolve_residual_role_method_calls(lowered);
+    lowered = rewrite_monomorphic_uses(lowered, false);
+    lowered = refine_module_types(lowered)?;
+    lowered = refresh_closed_specialized_schemes(lowered);
+    lowered = rewrite_monomorphic_uses(lowered, false);
+    lowered = refine_module_types(lowered)?;
+    lowered = resolve_residual_role_method_calls(lowered);
+    lowered = rewrite_monomorphic_uses(lowered, false);
+    lowered = refine_module_types(lowered)?;
+    lowered = refresh_closed_specialized_schemes(lowered);
+    lowered = resolve_residual_role_method_calls(lowered);
+    lowered = rewrite_monomorphic_uses(lowered, false);
+    lowered = refine_module_types(lowered)?;
+    lowered = refresh_closed_specialized_schemes(lowered);
+    lowered = resolve_residual_role_method_calls(lowered);
+    lowered = refine_module_types(lowered)?;
+    lowered = refresh_closed_specialized_schemes(lowered);
     lowered = prune_unreachable_bindings(lowered);
+    lowered = resolve_residual_role_method_calls(lowered);
+    lowered = rewrite_monomorphic_uses(lowered, false);
+    lowered = refine_module_types(lowered)?;
+    lowered = refresh_closed_specialized_schemes(lowered);
     lowered = resolve_residual_associated_bindings(lowered);
     ensure_monomorphic_bindings(&lowered)?;
     validate_module(&lowered)?;

@@ -75,6 +75,7 @@ impl<'a> ExprExporter<'a> {
                     role_method: self.is_role_method_callee(callee),
                 }),
             },
+            ExprKind::RefSet { reference, value } => self.export_ref_set(expr, reference, value),
             ExprKind::Lam(def, body) => {
                 let param = self.local_name_for_def(*def);
                 let param_effect_annotation =
@@ -230,6 +231,8 @@ impl<'a> ExprExporter<'a> {
         let unit_get = core_ir::Name(format!("__ref_field_get_unit_t{}", expr.tv.0));
         let unit_update = core_ir::Name(format!("__ref_field_update_unit_t{}", expr.tv.0));
         let old_name = core_ir::Name(format!("__ref_field_old_t{}", expr.tv.0));
+        let resume_name = core_ir::Name(format!("__ref_field_resume_t{}", expr.tv.0));
+        let new_field_name = core_ir::Name(format!("__ref_field_new_t{}", expr.tv.0));
 
         let get_body = apply_expr(
             core_ir::Expr::Var(self.path_for_def(projection.field.def)),
@@ -239,18 +242,39 @@ impl<'a> ExprExporter<'a> {
             )),
         );
 
-        let update_body = apply_expr(
-            apply_expr(
-                core_ir::Expr::Var(std_var_ref_update_path()),
+        let update_body = core_ir::Expr::Handle {
+            body: Box::new(apply_unit(apply_expr(
+                core_ir::Expr::Var(std_var_ref_update_effect_path()),
                 local_var(&parent_name),
-            ),
-            core_ir::Expr::Lambda {
-                param: old_name.clone(),
-                param_effect_annotation: None,
-                param_function_allowed_effects: None,
-                body: Box::new(self.export_ref_field_reconstruction(projection, name, &old_name)),
-            },
-        );
+            ))),
+            arms: vec![core_ir::HandleArm {
+                effect: std_ref_update_update_path(),
+                payload: core_ir::Pattern::Bind(old_name.clone()),
+                resume: Some(resume_name.clone()),
+                guard: None,
+                body: core_ir::Expr::Block {
+                    stmts: vec![core_ir::Stmt::Let {
+                        pattern: core_ir::Pattern::Bind(new_field_name.clone()),
+                        value: apply_expr(
+                            core_ir::Expr::Var(std_ref_update_update_path()),
+                            self.export_ref_field_old_value(projection, name, &old_name),
+                        ),
+                    }],
+                    tail: Some(Box::new(apply_expr(
+                        local_var(&resume_name),
+                        self.export_ref_field_reconstruction(
+                            projection,
+                            name,
+                            &old_name,
+                            local_var(&new_field_name),
+                        ),
+                    ))),
+                },
+            }],
+            evidence: Some(core_ir::JoinEvidence {
+                result: core_ir::TypeBounds::exact(core_unit_type()),
+            }),
+        };
 
         let child_ref = apply_expr(
             core_ir::Expr::Var(std_var_ref_path()),
@@ -288,11 +312,45 @@ impl<'a> ExprExporter<'a> {
         }
     }
 
+    fn export_ref_set(
+        &mut self,
+        expr: &TypedExpr,
+        reference: &TypedExpr,
+        value: &TypedExpr,
+    ) -> core_ir::Expr {
+        let ref_name = core_ir::Name(format!("__ref_set_ref_t{}", expr.tv.0));
+        let old_name = core_ir::Name(format!("__ref_set_old_t{}", expr.tv.0));
+        let resume_name = core_ir::Name(format!("__ref_set_resume_t{}", expr.tv.0));
+        core_ir::Expr::Block {
+            stmts: vec![core_ir::Stmt::Let {
+                pattern: core_ir::Pattern::Bind(ref_name.clone()),
+                value: self.export_expr(reference),
+            }],
+            tail: Some(Box::new(core_ir::Expr::Handle {
+                body: Box::new(apply_unit(apply_expr(
+                    core_ir::Expr::Var(std_var_ref_update_effect_path()),
+                    local_var(&ref_name),
+                ))),
+                arms: vec![core_ir::HandleArm {
+                    effect: std_ref_update_update_path(),
+                    payload: core_ir::Pattern::Bind(old_name),
+                    resume: Some(resume_name.clone()),
+                    guard: None,
+                    body: apply_expr(local_var(&resume_name), self.export_expr(value)),
+                }],
+                evidence: Some(core_ir::JoinEvidence {
+                    result: core_ir::TypeBounds::exact(core_unit_type()),
+                }),
+            })),
+        }
+    }
+
     fn export_ref_field_reconstruction(
         &mut self,
         projection: &RefFieldProjection,
         target_name: &Name,
         old_name: &core_ir::Name,
+        target_value: core_ir::Expr,
     ) -> core_ir::Expr {
         let old = local_var(old_name);
         let mut fields = Vec::new();
@@ -302,10 +360,7 @@ impl<'a> ExprExporter<'a> {
                 old.clone(),
             );
             let value = if field.name == *target_name {
-                apply_expr(
-                    core_ir::Expr::Var(std_ref_update_update_path()),
-                    selected_old_field,
-                )
+                target_value.clone()
             } else {
                 selected_old_field
             };
@@ -321,6 +376,21 @@ impl<'a> ExprExporter<'a> {
                 spread: None,
             },
         )
+    }
+
+    fn export_ref_field_old_value(
+        &mut self,
+        projection: &RefFieldProjection,
+        target_name: &Name,
+        old_name: &core_ir::Name,
+    ) -> core_ir::Expr {
+        let old = local_var(old_name);
+        let field = projection
+            .fields
+            .iter()
+            .find(|field| field.name == *target_name)
+            .unwrap_or(&projection.field);
+        apply_expr(core_ir::Expr::Var(self.path_for_def(field.def)), old)
     }
 
     fn export_block(&mut self, block: &TypedBlock) -> core_ir::Expr {
@@ -663,6 +733,13 @@ fn local_var(name: &core_ir::Name) -> core_ir::Expr {
     core_ir::Expr::Var(core_ir::Path::from_name(name.clone()))
 }
 
+fn core_unit_type() -> core_ir::Type {
+    core_ir::Type::Named {
+        path: core_ir::Path::from_name(core_ir::Name("unit".to_string())),
+        args: Vec::new(),
+    }
+}
+
 fn std_var_ref_path() -> core_ir::Path {
     core_ir::Path::new(vec![
         core_ir::Name("std".to_string()),
@@ -680,12 +757,12 @@ fn std_var_ref_get_path() -> core_ir::Path {
     ])
 }
 
-fn std_var_ref_update_path() -> core_ir::Path {
+fn std_var_ref_update_effect_path() -> core_ir::Path {
     core_ir::Path::new(vec![
         core_ir::Name("std".to_string()),
         core_ir::Name("var".to_string()),
         core_ir::Name("ref".to_string()),
-        core_ir::Name("update".to_string()),
+        core_ir::Name("update_effect".to_string()),
     ])
 }
 

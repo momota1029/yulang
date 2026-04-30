@@ -30,9 +30,9 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
         .filter(|(_, def)| target_defs.contains(def))
         .cloned()
         .collect::<Vec<_>>();
-    let mut bindings = export_bindings_for_paths(state, &selected_paths);
-    refine_runtime_binding_scheme_bodies(state, &selected_paths, &mut bindings);
     let root_exprs = export_root_exprs(state);
+    let mut bindings = export_bindings_for_paths(state, &selected_paths, &root_exprs);
+    refine_runtime_binding_scheme_bodies(state, &selected_paths, &mut bindings);
     let roots = (0..root_exprs.len())
         .map(core_ir::PrincipalRoot::Expr)
         .collect();
@@ -92,7 +92,7 @@ pub fn export_principal_module(state: &mut LowerState) -> core_ir::PrincipalModu
     let root_exprs = export_root_exprs(state);
     core_ir::PrincipalModule {
         path: core_ir::Path::default(),
-        bindings: export_bindings_for_paths(state, &paths),
+        bindings: export_bindings_for_paths(state, &paths, &root_exprs),
         roots: (0..root_exprs.len())
             .map(core_ir::PrincipalRoot::Expr)
             .collect(),
@@ -107,7 +107,7 @@ pub fn export_principal_bindings(state: &mut LowerState) -> Vec<core_ir::Princip
     target_defs.extend(state.top_level_expr_owners.iter().copied());
     state.finalize_compact_results_for_defs(&target_defs);
     state.refresh_selection_environment();
-    export_bindings_for_paths(state, &paths)
+    export_bindings_for_paths(state, &paths, &[])
 }
 
 fn collect_user_observable_binding_paths(state: &LowerState) -> Vec<(Path, DefId)> {
@@ -139,6 +139,7 @@ fn collect_user_observable_binding_paths(state: &LowerState) -> Vec<(Path, DefId
 fn export_bindings_for_paths(
     state: &mut LowerState,
     paths: &[(Path, DefId)],
+    extra_exprs: &[core_ir::Expr],
 ) -> Vec<core_ir::PrincipalBinding> {
     let canonical = collect_canonical_binding_paths(state);
     let mut bindings = canonical
@@ -146,7 +147,7 @@ fn export_bindings_for_paths(
         .filter(|(def, _)| paths.iter().any(|(_, path_def)| path_def == def))
         .filter_map(|(def, path)| export_principal_binding(state, &path, def))
         .collect::<Vec<_>>();
-    complete_referenced_binding_closure(state, &mut bindings);
+    complete_referenced_binding_closure(state, &mut bindings, extra_exprs);
     bindings.sort_by(|lhs, rhs| lhs.name.segments.cmp(&rhs.name.segments));
     dedup_bindings_by_runtime_path(&mut bindings);
     bindings
@@ -452,6 +453,10 @@ fn extend_target_defs_from_expr(
             }
             extend_target_defs_from_expr(state, callee, exportable_defs, target_defs, pending);
             extend_target_defs_from_expr(state, arg, exportable_defs, target_defs, pending);
+        }
+        ExprKind::RefSet { reference, value } => {
+            extend_target_defs_from_expr(state, reference, exportable_defs, target_defs, pending);
+            extend_target_defs_from_expr(state, value, exportable_defs, target_defs, pending);
         }
         ExprKind::Lam(_, body)
         | ExprKind::Coerce { expr: body, .. }

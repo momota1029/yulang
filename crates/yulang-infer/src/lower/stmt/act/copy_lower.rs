@@ -165,8 +165,10 @@ fn try_copy_lowered_act_body(
                 state,
                 &source_body,
                 &copied_def_subst,
+                subst.as_slice(),
                 &copy.source_path,
                 dest_path,
+                dest_args,
             );
             state.principal_bodies.insert(def, body);
         }

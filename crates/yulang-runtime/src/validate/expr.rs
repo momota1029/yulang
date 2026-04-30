@@ -3,9 +3,10 @@ use super::*;
 pub(super) fn validate_expr(
     expr: &Expr,
     bindings: &HashMap<core_ir::Path, BindingInfo>,
+    type_arg_kinds: &TypeArgKinds,
     locals: &mut HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
-    validate_hir_type_no_any(&expr.ty, TypeSource::Validation)?;
+    validate_hir_type_no_any(&expr.ty, TypeSource::Validation, type_arg_kinds)?;
     match &expr.kind {
         ExprKind::Var(path) => {
             if let Some(expected) = locals
@@ -29,7 +30,7 @@ pub(super) fn validate_expr(
             let (param_ty, ret) = validate_lambda_type(&expr.ty)?;
             let local = core_ir::Path::from_name(param.clone());
             let previous = locals.insert(local.clone(), param_ty);
-            validate_expr(body, bindings, locals)?;
+            validate_expr(body, bindings, type_arg_kinds, locals)?;
             require_same_hir_type(&ret, &body.ty, TypeSource::Expected)?;
             restore_local(locals, local, previous);
         }
@@ -39,15 +40,21 @@ pub(super) fn validate_expr(
             evidence,
             instantiation,
         } => {
-            validate_expr(callee, bindings, locals)?;
-            validate_expr(arg, bindings, locals)?;
+            validate_expr(callee, bindings, type_arg_kinds, locals)?;
+            validate_expr(arg, bindings, type_arg_kinds, locals)?;
             if let Some(instantiation) = instantiation {
-                validate_type_instantiation(instantiation, bindings)?;
+                validate_type_instantiation(instantiation, bindings, type_arg_kinds)?;
             }
             match &callee.ty {
                 RuntimeType::Fun { param, ret } => {
-                    require_same_hir_type(param, &arg.ty, TypeSource::ApplyEvidence)?;
-                    require_same_hir_type(ret, &expr.ty, TypeSource::ApplyEvidence)?;
+                    require_apply_arg_hir_type(param, &arg.ty, TypeSource::ApplyEvidence)?;
+                    if let Err(err) =
+                        require_apply_result_hir_type(ret, &expr.ty, TypeSource::ApplyEvidence)
+                    {
+                        if !apply_evidence_result_matches(evidence.as_ref(), &expr.ty)? {
+                            return Err(err);
+                        }
+                    }
                 }
                 RuntimeType::Core(core_ir::Type::Fun { param, ret, .. }) => {
                     require_same_type(param, core_type(&arg.ty), TypeSource::ApplyEvidence)?;
@@ -92,38 +99,38 @@ pub(super) fn validate_expr(
             else_branch,
             ..
         } => {
-            validate_expr(cond, bindings, locals)?;
+            validate_expr(cond, bindings, type_arg_kinds, locals)?;
             require_same_type(&bool_type(), core_type(&cond.ty), TypeSource::Expected)?;
-            validate_expr(then_branch, bindings, locals)?;
-            validate_expr(else_branch, bindings, locals)?;
+            validate_expr(then_branch, bindings, type_arg_kinds, locals)?;
+            validate_expr(else_branch, bindings, type_arg_kinds, locals)?;
             require_same_hir_type(&expr.ty, &then_branch.ty, TypeSource::JoinEvidence)?;
             require_same_hir_type(&expr.ty, &else_branch.ty, TypeSource::JoinEvidence)?;
         }
         ExprKind::Tuple(items) => {
             for item in items {
-                validate_expr(item, bindings, locals)?;
+                validate_expr(item, bindings, type_arg_kinds, locals)?;
             }
         }
         ExprKind::Record { fields, spread } => {
             for field in fields {
-                validate_expr(&field.value, bindings, locals)?;
+                validate_expr(&field.value, bindings, type_arg_kinds, locals)?;
             }
-            validate_record_spread_expr(spread, bindings, locals)?;
+            validate_record_spread_expr(spread, bindings, type_arg_kinds, locals)?;
         }
         ExprKind::Variant { value, .. } => {
             if let Some(value) = value {
-                validate_expr(value, bindings, locals)?;
+                validate_expr(value, bindings, type_arg_kinds, locals)?;
             }
         }
         ExprKind::Select { base, .. } => {
-            validate_expr(base, bindings, locals)?;
+            validate_expr(base, bindings, type_arg_kinds, locals)?;
         }
         ExprKind::Match {
             scrutinee,
             arms,
             evidence,
         } => {
-            validate_expr(scrutinee, bindings, locals)?;
+            validate_expr(scrutinee, bindings, type_arg_kinds, locals)?;
             require_same_type(
                 &evidence.result,
                 hir_value_core_type(&expr.ty),
@@ -135,6 +142,7 @@ pub(super) fn validate_expr(
                     hir_value_core_type(&scrutinee.ty),
                     hir_value_core_type(&expr.ty),
                     bindings,
+                    type_arg_kinds,
                     locals,
                 )?;
             }
@@ -143,14 +151,19 @@ pub(super) fn validate_expr(
             let mut block_locals = locals.clone();
             for stmt in stmts {
                 if let Stmt::Let { pattern, .. } = stmt {
-                    validate_hir_pattern(pattern, pattern_ty(pattern), &mut block_locals)?;
+                    validate_hir_pattern(
+                        pattern,
+                        pattern_ty(pattern),
+                        type_arg_kinds,
+                        &mut block_locals,
+                    )?;
                 }
             }
             for stmt in stmts {
-                validate_stmt(stmt, bindings, &mut block_locals)?;
+                validate_stmt(stmt, bindings, type_arg_kinds, &mut block_locals)?;
             }
             if let Some(tail) = tail {
-                validate_expr(tail, bindings, &mut block_locals)?;
+                validate_expr(tail, bindings, type_arg_kinds, &mut block_locals)?;
                 require_same_hir_type(&expr.ty, &tail.ty, TypeSource::Expected)?;
             }
         }
@@ -160,7 +173,7 @@ pub(super) fn validate_expr(
             evidence,
             handler,
         } => {
-            validate_expr(body, bindings, locals)?;
+            validate_expr(body, bindings, type_arg_kinds, locals)?;
             require_same_type(
                 &evidence.result,
                 hir_value_core_type(&expr.ty),
@@ -173,15 +186,20 @@ pub(super) fn validate_expr(
                     hir_value_core_type(&body.ty),
                     hir_value_core_type(&expr.ty),
                     bindings,
+                    type_arg_kinds,
                     locals,
                 )?;
             }
         }
         ExprKind::BindHere { expr: inner } => {
-            validate_expr(inner, bindings, locals)?;
+            validate_expr(inner, bindings, type_arg_kinds, locals)?;
             match &inner.ty {
                 RuntimeType::Thunk { value, .. } => {
-                    require_same_hir_type(&expr.ty, value, TypeSource::Expected)?;
+                    if let Err(err) = require_same_hir_type(&expr.ty, value, TypeSource::Expected) {
+                        if !expr_evidence_result_matches(inner, &expr.ty)? {
+                            return Err(err);
+                        }
+                    }
                 }
                 _ => {
                     return Err(RuntimeError::ExpectedThunk {
@@ -195,7 +213,7 @@ pub(super) fn validate_expr(
             value,
             expr: inner,
         } => {
-            validate_expr(inner, bindings, locals)?;
+            validate_expr(inner, bindings, type_arg_kinds, locals)?;
             require_same_hir_type(value, &inner.ty, TypeSource::Expected)?;
             require_same_hir_type(
                 &expr.ty,
@@ -204,7 +222,7 @@ pub(super) fn validate_expr(
             )?;
         }
         ExprKind::LocalPushId { body, .. } => {
-            validate_expr(body, bindings, locals)?;
+            validate_expr(body, bindings, type_arg_kinds, locals)?;
             require_same_hir_type(&expr.ty, &body.ty, TypeSource::Expected)?;
         }
         ExprKind::PeekId => {
@@ -218,26 +236,26 @@ pub(super) fn validate_expr(
             require_same_type(&bool_type(), core_type(&expr.ty), TypeSource::Expected)?;
         }
         ExprKind::AddId { allowed, thunk, .. } => {
-            validate_expr(thunk, bindings, locals)?;
+            validate_expr(thunk, bindings, type_arg_kinds, locals)?;
             if !matches!(thunk.ty, RuntimeType::Thunk { .. }) {
                 return Err(RuntimeError::ExpectedThunk {
                     ty: diagnostic_core_type(&thunk.ty),
                 });
             }
             require_same_hir_type(&expr.ty, &thunk.ty, TypeSource::Expected)?;
-            validate_effect_type_no_any(allowed, TypeSource::Validation)?;
+            validate_effect_type_no_any(allowed, TypeSource::Validation, type_arg_kinds)?;
         }
         ExprKind::Coerce {
             from,
             to,
             expr: inner,
         } => {
-            validate_expr(inner, bindings, locals)?;
+            validate_expr(inner, bindings, type_arg_kinds, locals)?;
             require_same_type(from, core_type(&inner.ty), TypeSource::Validation)?;
             require_same_type(to, core_type(&expr.ty), TypeSource::Validation)?;
         }
         ExprKind::Pack { expr: inner, .. } => {
-            validate_expr(inner, bindings, locals)?;
+            validate_expr(inner, bindings, type_arg_kinds, locals)?;
         }
     }
     Ok(())
@@ -246,19 +264,51 @@ pub(super) fn validate_expr(
 pub(super) fn validate_stmt(
     stmt: &Stmt,
     bindings: &HashMap<core_ir::Path, BindingInfo>,
+    type_arg_kinds: &TypeArgKinds,
     locals: &mut HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     match stmt {
         Stmt::Let { pattern, value } => {
-            validate_expr(value, bindings, locals)?;
-            validate_hir_pattern(pattern, &value.ty, locals)
+            validate_expr(value, bindings, type_arg_kinds, locals)?;
+            validate_hir_pattern(pattern, &value.ty, type_arg_kinds, locals)
         }
-        Stmt::Expr(expr) => validate_expr(expr, bindings, locals),
+        Stmt::Expr(expr) => validate_expr(expr, bindings, type_arg_kinds, locals),
         Stmt::Module { def, body } => {
-            validate_expr(body, bindings, locals)?;
+            validate_expr(body, bindings, type_arg_kinds, locals)?;
             locals.insert(def.clone(), body.ty.clone());
             Ok(())
         }
+    }
+}
+
+fn apply_evidence_result_matches(
+    evidence: Option<&core_ir::ApplyEvidence>,
+    actual: &RuntimeType,
+) -> RuntimeResult<bool> {
+    let Some(evidence) = evidence else {
+        return Ok(false);
+    };
+    let Some(result_ty) = choose_bounds_type(&evidence.result, BoundsChoice::ValidationEvidence)
+    else {
+        return Ok(false);
+    };
+    match require_same_type(
+        &result_ty,
+        hir_value_core_type(actual),
+        TypeSource::ApplyEvidence,
+    ) {
+        Ok(()) => Ok(true),
+        Err(RuntimeError::TypeMismatch { .. }) => Ok(false),
+        Err(err) => Err(err),
+    }
+}
+
+fn expr_evidence_result_matches(expr: &Expr, actual: &RuntimeType) -> RuntimeResult<bool> {
+    match &expr.kind {
+        ExprKind::Apply { evidence, .. } => {
+            apply_evidence_result_matches(evidence.as_ref(), actual)
+        }
+        _ => Ok(false),
     }
 }
 
@@ -267,15 +317,16 @@ pub(super) fn validate_match_arm(
     scrutinee_ty: &core_ir::Type,
     result_ty: &core_ir::Type,
     bindings: &HashMap<core_ir::Path, BindingInfo>,
+    type_arg_kinds: &TypeArgKinds,
     locals: &HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     let mut arm_locals = locals.clone();
-    validate_pattern(&arm.pattern, scrutinee_ty, &mut arm_locals)?;
+    validate_pattern(&arm.pattern, scrutinee_ty, type_arg_kinds, &mut arm_locals)?;
     if let Some(guard) = &arm.guard {
-        validate_expr(guard, bindings, &mut arm_locals)?;
+        validate_expr(guard, bindings, type_arg_kinds, &mut arm_locals)?;
         require_same_type(&bool_type(), core_type(&guard.ty), TypeSource::Expected)?;
     }
-    validate_expr(&arm.body, bindings, &mut arm_locals)?;
+    validate_expr(&arm.body, bindings, type_arg_kinds, &mut arm_locals)?;
     require_same_type(
         result_ty,
         &diagnostic_core_type(&arm.body.ty),
@@ -288,6 +339,7 @@ pub(super) fn validate_handle_arm(
     body_ty: &core_ir::Type,
     result_ty: &core_ir::Type,
     bindings: &HashMap<core_ir::Path, BindingInfo>,
+    type_arg_kinds: &TypeArgKinds,
     locals: &HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     let mut arm_locals = locals.clone();
@@ -296,7 +348,7 @@ pub(super) fn validate_handle_arm(
     } else {
         core_ir::Type::Any
     };
-    validate_pattern(&arm.payload, &payload_ty, &mut arm_locals)?;
+    validate_pattern(&arm.payload, &payload_ty, type_arg_kinds, &mut arm_locals)?;
     if let Some(resume) = &arm.resume {
         validate_resume_binding(resume, body_ty)?;
         arm_locals.insert(
@@ -305,10 +357,10 @@ pub(super) fn validate_handle_arm(
         );
     }
     if let Some(guard) = &arm.guard {
-        validate_expr(guard, bindings, &mut arm_locals)?;
+        validate_expr(guard, bindings, type_arg_kinds, &mut arm_locals)?;
         require_same_type(&bool_type(), core_type(&guard.ty), TypeSource::Expected)?;
     }
-    validate_expr(&arm.body, bindings, &mut arm_locals)?;
+    validate_expr(&arm.body, bindings, type_arg_kinds, &mut arm_locals)?;
     require_same_type(
         result_ty,
         &diagnostic_core_type(&arm.body.ty),
@@ -364,11 +416,16 @@ pub(super) fn validate_lambda_type(ty: &RuntimeType) -> RuntimeResult<(RuntimeTy
 pub(super) fn validate_type_instantiation(
     instantiation: &TypeInstantiation,
     bindings: &HashMap<core_ir::Path, BindingInfo>,
+    type_arg_kinds: &TypeArgKinds,
 ) -> RuntimeResult<()> {
     let Some(info) = bindings.get(&instantiation.target) else {
         if is_qualified_runtime_path(&instantiation.target) {
             for arg in &instantiation.args {
-                validate_substitution_type_no_any(&arg.ty, TypeSource::ApplyEvidence)?;
+                validate_substitution_type_no_any(
+                    &arg.ty,
+                    TypeSource::ApplyEvidence,
+                    type_arg_kinds,
+                )?;
             }
             return Ok(());
         }
@@ -380,8 +437,18 @@ pub(super) fn validate_type_instantiation(
     for arg in &instantiation.args {
         if !info.type_params.contains(&arg.var) {
             if info.type_params.is_empty() {
-                validate_substitution_type_no_any(&arg.ty, TypeSource::ApplyEvidence)?;
+                validate_substitution_type_no_any(
+                    &arg.ty,
+                    TypeSource::ApplyEvidence,
+                    type_arg_kinds,
+                )?;
                 continue;
+            }
+            if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
+                eprintln!(
+                    "validate instantiation {:?}: {:?} / {:?}",
+                    instantiation.target, info.ty, arg.ty
+                );
             }
             return Err(RuntimeError::TypeMismatch {
                 expected: diagnostic_core_type(&info.ty),
@@ -389,7 +456,7 @@ pub(super) fn validate_type_instantiation(
                 source: TypeSource::ApplyEvidence,
             });
         }
-        validate_substitution_type_no_any(&arg.ty, TypeSource::ApplyEvidence)?;
+        validate_substitution_type_no_any(&arg.ty, TypeSource::ApplyEvidence, type_arg_kinds)?;
         substitutions.insert(arg.var.clone(), arg.ty.clone());
     }
     let _ = substitutions;

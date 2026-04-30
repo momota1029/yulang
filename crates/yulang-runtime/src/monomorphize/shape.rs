@@ -47,7 +47,11 @@ pub(super) fn variant_payload_expected(
     }
 }
 
-pub(super) fn specialize_constructor_apply(callee: &mut Expr, arg: &Expr) -> Option<RuntimeType> {
+pub(super) fn specialize_constructor_apply(
+    callee: &mut Expr,
+    arg: &Expr,
+    expected_result: &RuntimeType,
+) -> Option<RuntimeType> {
     let ExprKind::Var(path) = &callee.kind else {
         return None;
     };
@@ -59,11 +63,14 @@ pub(super) fn specialize_constructor_apply(callee: &mut Expr, arg: &Expr) -> Opt
     if !type_path_last_is(&type_path, "opt") {
         return None;
     }
+    let payload = named_type_first_arg(expected_result, &type_path)
+        .filter(|payload| !core_type_has_vars(payload) && !matches!(payload, core_ir::Type::Any))
+        .unwrap_or_else(|| core_value_type(&arg.ty));
     let ret = RuntimeType::core(core_ir::Type::Named {
         path: type_path,
-        args: vec![core_ir::TypeArg::Type(core_value_type(&arg.ty))],
+        args: vec![core_ir::TypeArg::Type(payload.clone())],
     });
-    callee.ty = RuntimeType::fun(arg.ty.clone(), ret.clone());
+    callee.ty = RuntimeType::fun(RuntimeType::core(payload), ret.clone());
     Some(ret)
 }
 
@@ -148,6 +155,13 @@ pub(super) fn refine_lambda_type_from_body(
             Some(RuntimeType::fun(param.as_ref().clone(), body_ty.clone()))
         }
         expected if hir_type_has_vars(expected) && !hir_type_has_vars(body_ty) => {
+            Some(RuntimeType::fun(param.as_ref().clone(), body_ty.clone()))
+        }
+        expected
+            if !hir_type_has_vars(body_ty)
+                && !hir_type_compatible(expected, body_ty)
+                && !hir_type_compatible(body_ty, expected) =>
+        {
             Some(RuntimeType::fun(param.as_ref().clone(), body_ty.clone()))
         }
         _ => None,
@@ -242,10 +256,31 @@ pub(super) fn apply_result_expected(callee_ret: RuntimeType, fallback: RuntimeTy
     {
         return callee_ret;
     }
+    if let (
+        RuntimeType::Thunk {
+            value: callee_value,
+            ..
+        },
+        RuntimeType::Thunk {
+            value: fallback_value,
+            ..
+        },
+    ) = (&callee_ret, &fallback)
+        && !core_types_compatible(
+            &diagnostic_core_type(callee_value),
+            &diagnostic_core_type(fallback_value),
+        )
+    {
+        return fallback;
+    }
     if is_function_like(&callee_ret) && !is_function_like(&fallback) {
         return callee_ret;
     }
     if hir_type_has_vars(&callee_ret) && !hir_type_has_vars(&fallback) {
+        return fallback;
+    }
+    if !hir_type_compatible(&callee_ret, &fallback) && !hir_type_compatible(&fallback, &callee_ret)
+    {
         return fallback;
     }
     callee_ret
@@ -256,6 +291,267 @@ pub(super) fn is_function_like(ty: &RuntimeType) -> bool {
         ty,
         RuntimeType::Fun { .. } | RuntimeType::Core(core_ir::Type::Fun { .. })
     )
+}
+
+pub(super) fn refine_local_occurrence_type(
+    local_ty: RuntimeType,
+    expected: Option<&RuntimeType>,
+) -> RuntimeType {
+    let Some(expected) = expected.filter(|expected| !hir_type_is_hole(expected)) else {
+        return local_ty;
+    };
+    if hir_type_contains_any(expected)
+        && hir_type_compatible(expected, &local_ty)
+        && hir_type_information_score(&local_ty) > hir_type_information_score(expected)
+    {
+        return local_ty;
+    }
+    if hir_type_is_hole(&local_ty)
+        || hir_type_has_vars(&local_ty)
+        || hir_type_compatible(expected, &local_ty)
+    {
+        expected.clone()
+    } else {
+        local_ty
+    }
+}
+
+fn hir_type_information_score(ty: &RuntimeType) -> usize {
+    match ty {
+        RuntimeType::Core(ty) => core_type_information_score(ty),
+        RuntimeType::Fun { param, ret } => {
+            1 + hir_type_information_score(param) + hir_type_information_score(ret)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            1 + core_type_information_score(effect) + hir_type_information_score(value)
+        }
+    }
+}
+
+fn core_type_information_score(ty: &core_ir::Type) -> usize {
+    match ty {
+        core_ir::Type::Any | core_ir::Type::Var(_) => 0,
+        core_ir::Type::Never => 1,
+        core_ir::Type::Named { args, .. } => {
+            1 + args
+                .iter()
+                .map(core_type_arg_information_score)
+                .sum::<usize>()
+        }
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            1 + core_type_information_score(param)
+                + core_type_information_score(param_effect)
+                + core_type_information_score(ret_effect)
+                + core_type_information_score(ret)
+        }
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            1 + items.iter().map(core_type_information_score).sum::<usize>()
+        }
+        core_ir::Type::Record(record) => {
+            1 + record
+                .fields
+                .iter()
+                .map(|field| core_type_information_score(&field.value))
+                .sum::<usize>()
+                + record
+                    .spread
+                    .as_ref()
+                    .map(|spread| match spread {
+                        core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                            core_type_information_score(ty)
+                        }
+                    })
+                    .unwrap_or(0)
+        }
+        core_ir::Type::Variant(variant) => {
+            1 + variant
+                .cases
+                .iter()
+                .map(|case| {
+                    case.payloads
+                        .iter()
+                        .map(core_type_information_score)
+                        .sum::<usize>()
+                })
+                .sum::<usize>()
+                + variant
+                    .tail
+                    .as_ref()
+                    .map(|tail| core_type_information_score(tail))
+                    .unwrap_or(0)
+        }
+        core_ir::Type::Row { items, tail } => {
+            1 + items.iter().map(core_type_information_score).sum::<usize>()
+                + core_type_information_score(tail)
+        }
+        core_ir::Type::Recursive { body, .. } => 1 + core_type_information_score(body),
+    }
+}
+
+fn core_type_arg_information_score(arg: &core_ir::TypeArg) -> usize {
+    match arg {
+        core_ir::TypeArg::Type(ty) => core_type_information_score(ty),
+        core_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_deref()
+                .map(core_type_information_score)
+                .unwrap_or(0)
+                + bounds
+                    .upper
+                    .as_deref()
+                    .map(core_type_information_score)
+                    .unwrap_or(0)
+        }
+    }
+}
+
+pub(super) fn hir_type_contains_any(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Core(ty) => core_type_contains_any(ty),
+        RuntimeType::Fun { param, ret } => {
+            hir_type_contains_any(param) || hir_type_contains_any(ret)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            core_type_contains_any(effect) || hir_type_contains_any(value)
+        }
+    }
+}
+
+fn core_type_contains_any(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Any => true,
+        core_ir::Type::Never | core_ir::Type::Var(_) => false,
+        core_ir::Type::Named { args, .. } => args.iter().any(core_type_arg_contains_any),
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_contains_any(param)
+                || core_type_contains_any(param_effect)
+                || core_type_contains_any(ret_effect)
+                || core_type_contains_any(ret)
+        }
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().any(core_type_contains_any)
+        }
+        core_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| core_type_contains_any(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                        core_type_contains_any(ty)
+                    }
+                })
+        }
+        core_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(core_type_contains_any))
+                || variant
+                    .tail
+                    .as_ref()
+                    .is_some_and(|tail| core_type_contains_any(tail))
+        }
+        core_ir::Type::Row { items, tail } => {
+            items.iter().any(core_type_contains_any) || core_type_contains_any(tail)
+        }
+        core_ir::Type::Recursive { body, .. } => core_type_contains_any(body),
+    }
+}
+
+fn core_type_arg_contains_any(arg: &core_ir::TypeArg) -> bool {
+    match arg {
+        core_ir::TypeArg::Type(ty) => core_type_contains_any(ty),
+        core_ir::TypeArg::Bounds(bounds) => {
+            bounds.lower.as_deref().is_some_and(core_type_contains_any)
+                || bounds.upper.as_deref().is_some_and(core_type_contains_any)
+        }
+    }
+}
+
+pub(super) fn refine_thunk_value_from_body(
+    expected_value: RuntimeType,
+    body_ty: &RuntimeType,
+) -> RuntimeType {
+    if matches!(body_ty, RuntimeType::Core(core_ir::Type::Never)) {
+        return expected_value;
+    }
+    if !hir_type_has_vars(body_ty)
+        && !hir_type_compatible(&expected_value, body_ty)
+        && !hir_type_compatible(body_ty, &expected_value)
+    {
+        body_ty.clone()
+    } else {
+        expected_value
+    }
+}
+
+pub(super) fn flatten_nested_thunk_body(
+    effect: core_ir::Type,
+    body: Expr,
+) -> (core_ir::Type, RuntimeType, Expr) {
+    let RuntimeType::Thunk {
+        effect: inner_effect,
+        value,
+    } = &body.ty
+    else {
+        return (effect, body.ty.clone(), body);
+    };
+    let mut effects = Vec::new();
+    collect_concrete_effects_from_effect(&effect, &mut effects);
+    collect_concrete_effects_from_effect(inner_effect, &mut effects);
+    let effect = mono_effect_row(effects);
+    let value = value.as_ref().clone();
+    let body = Expr {
+        ty: value.clone(),
+        kind: ExprKind::BindHere {
+            expr: Box::new(body),
+        },
+    };
+    (effect, value, body)
+}
+
+pub(super) fn refine_block_type_from_tail(
+    block_ty: RuntimeType,
+    tail_ty: &RuntimeType,
+) -> RuntimeType {
+    if matches!(tail_ty, RuntimeType::Core(core_ir::Type::Never)) {
+        return block_ty;
+    }
+    if !hir_type_has_vars(tail_ty)
+        && !hir_type_compatible(&block_ty, tail_ty)
+        && !hir_type_compatible(tail_ty, &block_ty)
+    {
+        tail_ty.clone()
+    } else {
+        block_ty
+    }
+}
+
+fn named_type_first_arg(ty: &RuntimeType, expected_path: &core_ir::Path) -> Option<core_ir::Type> {
+    let RuntimeType::Core(core_ir::Type::Named { path, args }) = ty else {
+        return None;
+    };
+    if path != expected_path {
+        return None;
+    }
+    match args.first()? {
+        core_ir::TypeArg::Type(ty) => Some(ty.clone()),
+        core_ir::TypeArg::Bounds(bounds) => {
+            choose_bounds_type(bounds, BoundsChoice::MonomorphicExpected)
+        }
+    }
 }
 
 pub(super) fn rewrite_child_expected(

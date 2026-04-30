@@ -5,19 +5,38 @@ pub(super) fn reachable_binding_paths(
     root_exprs: &[Expr],
     roots: &[Root],
 ) -> HashSet<core_ir::Path> {
+    reachable_binding_paths_inner(bindings, root_exprs, roots, true)
+}
+
+fn reachable_expr_binding_paths(
+    bindings: &[Binding],
+    root_exprs: &[Expr],
+    roots: &[Root],
+) -> HashSet<core_ir::Path> {
+    reachable_binding_paths_inner(bindings, root_exprs, roots, false)
+}
+
+fn reachable_binding_paths_inner(
+    bindings: &[Binding],
+    root_exprs: &[Expr],
+    roots: &[Root],
+    include_binding_roots: bool,
+) -> HashSet<core_ir::Path> {
     let bindings_by_path = bindings
         .iter()
         .map(|binding| (binding.name.clone(), binding))
         .collect::<HashMap<_, _>>();
     let mut reachable = HashSet::new();
     let mut stack = Vec::new();
-    for root in roots {
-        if let Root::Binding(path) = root {
-            if bindings_by_path
-                .get(path)
-                .is_some_and(|binding| !binding_needs_monomorphization(binding))
-            {
-                stack.push(path.clone());
+    if include_binding_roots {
+        for root in roots {
+            if let Root::Binding(path) = root {
+                if bindings_by_path
+                    .get(path)
+                    .is_some_and(|binding| !binding_needs_monomorphization(binding))
+                {
+                    stack.push(path.clone());
+                }
             }
         }
     }
@@ -41,7 +60,8 @@ pub(super) fn reachable_binding_paths(
 }
 
 pub(super) fn prune_unreachable_bindings(module: Module) -> Module {
-    let reachable = reachable_binding_paths(&module.bindings, &module.root_exprs, &module.roots);
+    let reachable =
+        reachable_expr_binding_paths(&module.bindings, &module.root_exprs, &module.roots);
     let bindings = module
         .bindings
         .into_iter()

@@ -140,19 +140,45 @@ pub(super) fn require_apply_result_compatible(
     actual: &RuntimeType,
     source: TypeSource,
 ) -> RuntimeResult<()> {
-    if core_types_compatible(
-        &diagnostic_core_type(expected),
-        &diagnostic_core_type(actual),
-    ) || hir_type_compatible(expected, actual)
+    let expected_core = diagnostic_core_type(expected);
+    let actual_core = diagnostic_core_type(actual);
+    if core_types_compatible(&expected_core, &actual_core)
+        || effect_compatible(&expected_core, &actual_core)
+        || effect_compatible(&actual_core, &expected_core)
+        || apply_result_includes_expected(expected, actual)
+        || hir_type_compatible(expected, actual)
         || hir_type_compatible(expected, value_hir_type(actual))
     {
         Ok(())
     } else {
+        if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
+            eprintln!("lower apply result {source:?}: {expected:?} / {actual:?}");
+        }
         Err(RuntimeError::TypeMismatch {
             expected: diagnostic_core_type(expected),
             actual: diagnostic_core_type(actual),
             source,
         })
+    }
+}
+
+fn apply_result_includes_expected(expected: &RuntimeType, actual: &RuntimeType) -> bool {
+    match (expected, actual) {
+        (
+            RuntimeType::Thunk {
+                effect: expected_effect,
+                value: expected_value,
+            },
+            RuntimeType::Thunk {
+                effect: actual_effect,
+                value: actual_value,
+            },
+        ) => {
+            effect_compatible(actual_effect, expected_effect)
+                && hir_type_compatible(expected_value, actual_value)
+        }
+        (expected, RuntimeType::Thunk { value, .. }) => hir_type_compatible(expected, value),
+        _ => false,
     }
 }
 

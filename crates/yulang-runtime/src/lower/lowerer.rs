@@ -134,7 +134,8 @@ impl Lowerer<'_> {
                 let expected = expected
                     .cloned()
                     .map(|ty| self.normalize_expected_hir_type(ty));
-                let (param_ty, ret_expected) = match expected.as_ref() {
+                let expected_value = expected.as_ref().map(value_hir_type);
+                let (param_ty, ret_expected) = match expected_value {
                     Some(RuntimeType::Fun { param, ret }) => {
                         ((**param).clone(), Some(ret.as_ref()))
                     }
@@ -187,12 +188,23 @@ impl Lowerer<'_> {
             } => {
                 let mut callee_expr = Some(*callee);
                 let mut arg_expr = Some(*arg);
-                let evidence_callee = evidence
+                let callee_is_effect_operation = callee_expr
                     .as_ref()
-                    .and_then(|evidence| self.tir_evidence_runtime_hir_type(&evidence.callee));
+                    .is_some_and(|expr| self.core_expr_is_effect_operation(expr, locals));
+                let evidence_callee = evidence.as_ref().and_then(|evidence| {
+                    if callee_is_effect_operation {
+                        self.tir_declared_runtime_hir_type(&evidence.callee)
+                    } else {
+                        self.tir_evidence_runtime_hir_type(&evidence.callee)
+                    }
+                });
                 let evidence_arg = evidence
                     .as_ref()
                     .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.arg))
+                    .map(RuntimeType::core);
+                let evidence_arg_lower = evidence
+                    .as_ref()
+                    .and_then(|evidence| self.tir_argument_runtime_type(&evidence.arg))
                     .map(RuntimeType::core);
                 let evidence_result = evidence
                     .as_ref()
@@ -302,9 +314,34 @@ impl Lowerer<'_> {
                 let arg = match arg {
                     Some(arg) => arg,
                     None => {
-                        let expected_arg = if matches!(arg_ty, RuntimeType::Thunk { .. }) {
+                        let expected_arg = if callee_is_effect_operation
+                            && matches!(arg_ty, RuntimeType::Thunk { .. })
+                        {
+                            let value_arg_ty = value_hir_type(&arg_ty);
+                            if hir_type_has_type_vars(value_arg_ty) {
+                                None
+                            } else {
+                                Some(value_arg_ty)
+                            }
+                        } else if matches!(arg_ty, RuntimeType::Thunk { .. }) {
                             Some(&arg_ty)
-                        } else if hir_type_has_type_vars(&arg_ty) {
+                        } else if let Some(lower_arg_ty) =
+                            evidence_arg_lower.as_ref().filter(|_| {
+                                can_push_expected_arg_through(
+                                    arg_expr
+                                        .as_ref()
+                                        .expect("arg should be present before lowering"),
+                                )
+                            })
+                        {
+                            Some(lower_arg_ty)
+                        } else if hir_type_has_type_vars(&arg_ty)
+                            && !can_push_expected_arg_through(
+                                arg_expr
+                                    .as_ref()
+                                    .expect("arg should be present before lowering"),
+                            )
+                        {
                             None
                         } else {
                             Some(&arg_ty)
@@ -339,15 +376,27 @@ impl Lowerer<'_> {
                     &result_ty,
                 );
                 let mut final_fun_parts = function_parts(&callee.ty).unwrap_or(final_fun_parts);
-                let arg = prepare_expr_for_expected(
-                    arg,
+                let arg = if matches!(callee.kind, ExprKind::EffectOp(_)) {
+                    prepare_effect_operation_arg(
+                        arg,
+                        &final_fun_parts.param,
+                        TypeSource::ApplyEvidence,
+                    )?
+                } else {
+                    prepare_expr_for_expected(
+                        arg,
+                        &final_fun_parts.param,
+                        TypeSource::ApplyEvidence,
+                    )?
+                };
+                require_apply_arg_compatible(
                     &final_fun_parts.param,
+                    &arg.ty,
                     TypeSource::ApplyEvidence,
                 )?;
-                require_same_hir_type(&final_fun_parts.param, &arg.ty, TypeSource::ApplyEvidence)?;
                 if let ExprKind::EffectOp(path) = &callee.kind
                     && let Some(effect) =
-                        effect_operation_effect(path, core_type(&final_fun_parts.param))
+                        effect_operation_effect(path, core_type(value_hir_type(&arg.ty)))
                     && let RuntimeType::Thunk { value, .. } = &final_fun_parts.ret
                 {
                     final_fun_parts.ret = RuntimeType::thunk(effect, value.as_ref().clone());
@@ -356,7 +405,7 @@ impl Lowerer<'_> {
                 }
                 let effect_operation = match &callee.kind {
                     ExprKind::EffectOp(path) => {
-                        Some((path.clone(), core_type(&final_fun_parts.param).clone()))
+                        Some((path.clone(), core_type(value_hir_type(&arg.ty)).clone()))
                     }
                     _ => None,
                 };
@@ -607,10 +656,7 @@ impl Lowerer<'_> {
                     _ => None,
                 });
                 let stmt_expected = expected.and_then(|ty| match ty {
-                    RuntimeType::Thunk { effect, .. } => Some(RuntimeType::thunk(
-                        effect.clone(),
-                        RuntimeType::core(unit_type()),
-                    )),
+                    RuntimeType::Thunk { .. } => Some(RuntimeType::core(unit_type())),
                     _ => None,
                 });
                 let stmts = stmts
@@ -623,10 +669,16 @@ impl Lowerer<'_> {
                         )
                     })
                     .collect::<RuntimeResult<Vec<_>>>()?;
+                let tail_expected = expected.map(|ty| value_hir_type(ty).clone());
                 let tail = tail
                     .map(|tail| {
-                        self.lower_expr(*tail, expected, &mut block_locals, expected_source)
-                            .map(Box::new)
+                        self.lower_expr(
+                            *tail,
+                            tail_expected.as_ref(),
+                            &mut block_locals,
+                            expected_source,
+                        )
+                        .map(Box::new)
                     })
                     .transpose()?;
                 let ty = tail
@@ -653,13 +705,13 @@ impl Lowerer<'_> {
                     result_hint
                 };
                 let body = self.lower_expr(*body, None, locals, TypeSource::Expected)?;
-                let handled = expected
-                    .and_then(handler_consumes_from_expected_type)
-                    .filter(should_thunk_effect)
+                let handled = handler_consumes_from_core_arms(&arms, &result_ty)
                     .unwrap_or_else(|| handler_consumes_from_body_type(&body.ty));
-                let resume_effect = expr_forced_effect(&body).or_else(|| thunk_effect(&body.ty));
-                let body = constrain_handler_body_effect(body, &handled);
-                let body_effect = expr_forced_effect(&body).or_else(|| thunk_effect(&body.ty));
+                let body_effect_before =
+                    expr_forced_effect(&body).or_else(|| thunk_effect(&body.ty));
+                let resume_effect = body_effect_before
+                    .as_ref()
+                    .map(|effect| handler_body_residual(effect, &handled));
                 let arms = arms
                     .into_iter()
                     .map(|arm| {
@@ -672,7 +724,7 @@ impl Lowerer<'_> {
                         )
                     })
                     .collect::<RuntimeResult<Vec<_>>>()?;
-                let handler = handle_effect_for_arms(&arms, body_effect, handled);
+                let handler = handle_effect_for_arms(&arms, body_effect_before, handled);
                 let expr = Expr::typed(
                     ExprKind::Handle {
                         body: Box::new(body),
@@ -934,12 +986,44 @@ impl Lowerer<'_> {
             .map(|ty| project_runtime_type_with_vars(&ty, &self.principal_vars))
     }
 
+    pub(super) fn tir_argument_runtime_type(
+        &self,
+        bounds: &core_ir::TypeBounds,
+    ) -> Option<core_ir::Type> {
+        choose_bounds_type(bounds, BoundsChoice::MonomorphicExpected)
+            .map(|ty| project_runtime_type_with_vars(&ty, &self.principal_vars))
+    }
+
     pub(super) fn tir_evidence_runtime_hir_type(
         &self,
         bounds: &core_ir::TypeBounds,
     ) -> Option<RuntimeType> {
         choose_bounds_type(bounds, BoundsChoice::TirEvidence)
             .map(|ty| project_runtime_hir_type_with_vars(&ty, &self.principal_vars))
+    }
+
+    pub(super) fn tir_declared_runtime_hir_type(
+        &self,
+        bounds: &core_ir::TypeBounds,
+    ) -> Option<RuntimeType> {
+        choose_bounds_type(bounds, BoundsChoice::MonomorphicExpected)
+            .map(|ty| project_runtime_hir_type_with_vars(&ty, &self.principal_vars))
+    }
+
+    pub(super) fn core_expr_is_effect_operation(
+        &self,
+        expr: &core_ir::Expr,
+        locals: &HashMap<core_ir::Path, RuntimeType>,
+    ) -> bool {
+        let core_ir::Expr::Var(path) = expr else {
+            return false;
+        };
+        if locals.contains_key(path) {
+            return false;
+        }
+        let resolved_path = self.resolve_alias_path(path);
+        self.runtime_symbol_kind(&resolved_path)
+            == Some(core_ir::RuntimeSymbolKind::EffectOperation)
     }
 
     pub(super) fn visible_principal_bounds_type(
@@ -1176,4 +1260,71 @@ impl Lowerer<'_> {
         callee.ty = substituted_ty;
         Some(TypeInstantiation { target, args })
     }
+}
+
+fn handler_consumes_from_core_arms(
+    arms: &[core_ir::HandleArm],
+    result_ty: &core_ir::Type,
+) -> Option<core_ir::Type> {
+    let items = arms
+        .iter()
+        .filter_map(|arm| consumed_effect_from_core_arm(arm, result_ty))
+        .collect::<Vec<_>>();
+    (!items.is_empty()).then(|| effect_row_from_items(items))
+}
+
+fn consumed_effect_from_core_arm(
+    arm: &core_ir::HandleArm,
+    result_ty: &core_ir::Type,
+) -> Option<core_ir::Type> {
+    if arm.effect.segments.is_empty() {
+        return None;
+    }
+    let effect_path = core_ir::Path {
+        segments: arm
+            .effect
+            .segments
+            .iter()
+            .take(arm.effect.segments.len().saturating_sub(1))
+            .cloned()
+            .collect(),
+    };
+    if effect_path.segments.is_empty() {
+        return None;
+    }
+    let payload_ty =
+        infer_handle_payload_type(&arm.payload, arm.guard.as_ref(), &arm.body, result_ty);
+    let args = payload_ty
+        .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
+        .map(|ty| vec![core_ir::TypeArg::Type(ty)])
+        .unwrap_or_default();
+    Some(core_ir::Type::Named {
+        path: effect_path,
+        args,
+    })
+}
+
+fn prepare_effect_operation_arg(
+    arg: Expr,
+    expected: &RuntimeType,
+    source: TypeSource,
+) -> RuntimeResult<Expr> {
+    match (expected, &arg.ty) {
+        (
+            RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_)),
+            RuntimeType::Thunk { .. },
+        ) => Ok(force_value_expr(arg).0),
+        _ => prepare_expr_for_expected(arg, expected, source),
+    }
+}
+
+fn can_push_expected_arg_through(expr: &core_ir::Expr) -> bool {
+    matches!(
+        expr,
+        core_ir::Expr::Lambda { .. }
+            | core_ir::Expr::Tuple(_)
+            | core_ir::Expr::Record { .. }
+            | core_ir::Expr::Variant { .. }
+            | core_ir::Expr::Block { .. }
+    )
 }

@@ -319,6 +319,9 @@ impl<'m> VmInterpreter<'m> {
         env: &Env,
         delay_arg: bool,
     ) -> Result<VmResult, VmError> {
+        if let VmValue::Thunk(_) = callee {
+            return self.force_apply_callee(callee, arg.clone(), env.clone(), delay_arg);
+        }
         if delay_arg {
             return self.apply(
                 callee,
@@ -335,6 +338,26 @@ impl<'m> VmInterpreter<'m> {
             VmResult::Request(request) => Ok(VmResult::Request(push_frame(
                 request,
                 Frame::ApplyArg { callee },
+            ))),
+        }
+    }
+
+    pub(super) fn force_apply_callee(
+        &mut self,
+        callee: VmValue,
+        arg: Expr,
+        env: Env,
+        delay_arg: bool,
+    ) -> Result<VmResult, VmError> {
+        match self.bind_here(callee)? {
+            VmResult::Value(callee) => self.continue_apply_arg(callee, &arg, &env, delay_arg),
+            VmResult::Request(request) => Ok(VmResult::Request(push_frame(
+                request,
+                Frame::ApplyCallee {
+                    arg,
+                    env,
+                    delay_arg,
+                },
             ))),
         }
     }
@@ -526,6 +549,24 @@ impl<'m> VmInterpreter<'m> {
         let stmt = stmts.remove(0);
         match stmt {
             Stmt::Let { pattern, value } => match self.eval_expr(&value, &env)? {
+                VmResult::Value(VmValue::Thunk(thunk)) => {
+                    match self.bind_here(VmValue::Thunk(thunk))? {
+                        VmResult::Value(mut value) => {
+                            value = make_recursive_local_value(&pattern, value);
+                            self.bind_pattern(&pattern, value, &mut env)?;
+                            self.eval_block(stmts, tail, env)
+                        }
+                        VmResult::Request(request) => Ok(VmResult::Request(push_frame(
+                            request,
+                            Frame::BlockLet {
+                                pattern,
+                                remaining: stmts,
+                                tail,
+                                env,
+                            },
+                        ))),
+                    }
+                }
                 VmResult::Value(mut value) => {
                     value = make_recursive_local_value(&pattern, value);
                     self.bind_pattern(&pattern, value, &mut env)?;

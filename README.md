@@ -27,6 +27,11 @@ inferred public types.
 - Reference syntax with explicit read/write forms such as `$x` and `&x = value`.
 - A `:` block/application form that reduces parentheses in nested calls.
 
+For a broader user-facing introduction, see the language overview:
+
+- [English](docs/language/overview.md)
+- [日本語](docs/language/overview.ja.md)
+
 Example:
 
 ```yulang

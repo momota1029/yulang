@@ -3,6 +3,7 @@ use super::*;
 pub(super) struct Monomorphizer {
     pub(super) originals: HashMap<core_ir::Path, Binding>,
     pub(super) cache: HashMap<String, core_ir::Path>,
+    pub(super) failed_specializations: HashSet<String>,
     pub(super) specialized_types: HashMap<core_ir::Path, RuntimeType>,
     pub(super) specialized: Vec<Binding>,
     pub(super) locals: HashMap<core_ir::Path, RuntimeType>,
@@ -30,6 +31,7 @@ impl Monomorphizer {
                 })
                 .collect(),
             cache: HashMap::new(),
+            failed_specializations: HashSet::new(),
             specialized_types: HashMap::new(),
             specialized: Vec::new(),
             locals: HashMap::new(),
@@ -73,12 +75,16 @@ impl Monomorphizer {
                 let evidence_result_ty = evidence
                     .as_ref()
                     .and_then(|evidence| bounds_hir_type(&evidence.result));
+                let evidence_callee_ty = evidence.as_ref().and_then(|evidence| {
+                    choose_hir_bounds_type(&evidence.callee, BoundsChoice::ValidationEvidence)
+                });
                 let evidence_arg_ty = evidence
                     .as_ref()
                     .and_then(|evidence| bounds_hir_type(&evidence.arg));
                 let fallback_result_ty =
                     rewrite_child_expected(evidence_result_ty.clone(), expected, &ty);
-                let mut callee = self.rewrite_expr(*callee);
+                let mut callee =
+                    self.rewrite_expr_with_expected(*callee, evidence_callee_ty.as_ref());
                 let mut instantiation = instantiation;
                 let param_expected = self.callee_param_expected(&callee);
                 let concrete_param_expected = param_expected
@@ -97,8 +103,10 @@ impl Monomorphizer {
                     None => fallback_result_ty,
                 };
                 ty = call_result_ty.clone();
-                if let Some(ret) = specialize_constructor_apply(&mut callee, &arg) {
-                    ty = ret;
+                if let Some(ret) = specialize_constructor_apply(&mut callee, &arg, &call_result_ty)
+                {
+                    ty = ret.clone();
+                    self.specialize_callee_from_call(&mut callee, &arg.ty, &ret);
                     instantiation = None;
                 } else if let Some(ret) = specialize_primitive_apply(&mut callee, &arg) {
                     ty = ret;
@@ -117,11 +125,7 @@ impl Monomorphizer {
                     }
                 }
                 if let Some(ret) = apply_result_type(&callee.ty) {
-                    ty = if hir_type_has_vars(&ret) && !hir_type_has_vars(&call_result_ty) {
-                        call_result_ty
-                    } else {
-                        ret
-                    };
+                    ty = apply_result_expected(ret, call_result_ty);
                 }
                 if let Some(param) = function_param_type(&callee.ty) {
                     arg = force_arg_for_param(arg, &param);
@@ -273,6 +277,9 @@ impl Monomorphizer {
                 }
                 let rewritten_tail =
                     tail.map(|tail| Box::new(self.rewrite_expr_with_expected(*tail, Some(&ty))));
+                if let Some(tail) = rewritten_tail.as_deref() {
+                    ty = refine_block_type_from_tail(ty, &tail.ty);
+                }
                 self.locals = saved_locals;
                 ExprKind::Block {
                     stmts: remove_dead_lambda_lets(stmts, rewritten_tail.as_deref()),
@@ -328,32 +335,78 @@ impl Monomorphizer {
                     handler,
                 }
             }
-            ExprKind::BindHere { expr } => ExprKind::BindHere {
-                expr: Box::new({
-                    let inner_expected = bind_here_inner_expected(&expr.ty, expected);
-                    self.rewrite_expr_with_expected(*expr, inner_expected.as_ref())
-                }),
-            },
+            ExprKind::BindHere { expr } => {
+                let expected_value = expected
+                    .filter(|expected| !hir_type_is_hole(expected))
+                    .filter(|expected| !matches!(expected, RuntimeType::Thunk { .. }))
+                    .cloned();
+                let inner_expected = bind_here_inner_expected(&expr.ty, expected_value.as_ref());
+                let mut inner = self.rewrite_expr_with_expected(*expr, inner_expected.as_ref());
+                if let (Some(expected_value), RuntimeType::Thunk { effect, .. }) =
+                    (&expected_value, &inner.ty)
+                {
+                    let expected_inner = RuntimeType::thunk(effect.clone(), expected_value.clone());
+                    if !hir_type_compatible(&inner.ty, &expected_inner) {
+                        inner = self.rewrite_expr_with_expected(inner, Some(&expected_inner));
+                    }
+                }
+                if let RuntimeType::Thunk { value, .. } = &inner.ty {
+                    ty = value.as_ref().clone();
+                }
+                ExprKind::BindHere {
+                    expr: Box::new(inner),
+                }
+            }
             ExprKind::Thunk {
                 effect,
                 value,
                 expr,
-            } => ExprKind::Thunk {
-                effect,
-                value: value.clone(),
-                expr: Box::new(self.rewrite_expr_with_expected(*expr, Some(&value))),
-            },
-            ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
-                id,
-                body: Box::new(self.rewrite_expr(*body)),
-            },
+            } => {
+                let (effect, expected_value) = match expected {
+                    Some(RuntimeType::Thunk { effect, value }) => {
+                        (effect.clone(), value.as_ref().clone())
+                    }
+                    _ => (effect, value.clone()),
+                };
+                let rewritten = self.rewrite_expr_with_expected(*expr, Some(&expected_value));
+                let (effect, body_ty, rewritten) = flatten_nested_thunk_body(effect, rewritten);
+                let value = refine_thunk_value_from_body(expected_value, &body_ty);
+                let effect = specialize_sub_effect_payload_from_value(effect, &value);
+                ty = RuntimeType::thunk(effect.clone(), value.clone());
+                ExprKind::Thunk {
+                    effect,
+                    value,
+                    expr: Box::new(rewritten),
+                }
+            }
+            ExprKind::LocalPushId { id, body } => {
+                let body = self.rewrite_expr(*body);
+                ty = body.ty.clone();
+                ExprKind::LocalPushId {
+                    id,
+                    body: Box::new(body),
+                }
+            }
             ExprKind::PeekId => ExprKind::PeekId,
             ExprKind::FindId { id } => ExprKind::FindId { id },
-            ExprKind::AddId { id, allowed, thunk } => ExprKind::AddId {
-                id,
-                allowed,
-                thunk: Box::new(self.rewrite_expr(*thunk)),
-            },
+            ExprKind::AddId { id, allowed, thunk } => {
+                let thunk_expected = expected
+                    .filter(|expected| matches!(expected, RuntimeType::Thunk { .. }))
+                    .cloned();
+                let thunk = self.rewrite_expr_with_expected(*thunk, thunk_expected.as_ref());
+                let allowed = match &thunk.ty {
+                    RuntimeType::Thunk { value, .. } => {
+                        specialize_sub_effect_payload_from_value(allowed, value)
+                    }
+                    _ => allowed,
+                };
+                ty = thunk.ty.clone();
+                ExprKind::AddId {
+                    id,
+                    allowed,
+                    thunk: Box::new(thunk),
+                }
+            }
             ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
                 from,
                 to,
@@ -365,7 +418,7 @@ impl Monomorphizer {
             },
             ExprKind::Var(path) => {
                 let is_local = if let Some(local_ty) = self.locals.get(&path).cloned() {
-                    ty = local_ty;
+                    ty = refine_local_occurrence_type(local_ty, expected);
                     true
                 } else {
                     false

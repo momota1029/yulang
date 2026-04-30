@@ -157,6 +157,22 @@ for x in 0..:
     }
 
     #[test]
+    fn vm_runs_source_ref_field_assignment_example() {
+        let results = eval_source_with_std(
+            r#"struct point { x: int, y: int } with:
+    our p.norm2: int = p.x * p.x + p.y * p.y
+{
+    my $p = point { x: 3, y: 2 }
+    &p.y = 4
+    $p.norm2
+}
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("25".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_bool_and_comparison_examples() {
         let results = eval_source_with_std(
             "my a = not false\n\

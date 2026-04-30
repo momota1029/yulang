@@ -28,6 +28,10 @@ pub enum ExprKind {
     Var(DefId),
     Ref(RefId),
     App(Box<TypedExpr>, Box<TypedExpr>),
+    RefSet {
+        reference: Box<TypedExpr>,
+        value: Box<TypedExpr>,
+    },
     Lam(DefId, Box<TypedExpr>),
     Tuple(Vec<TypedExpr>),
     Record {

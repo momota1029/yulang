@@ -41,12 +41,15 @@ impl Monomorphizer {
             return None;
         }
         let key = specialization_key(&instantiation);
+        if self.failed_specializations.contains(&key) {
+            return None;
+        }
         if let Some(path) = self.cache.get(&key) {
             return Some(path.clone());
         }
 
         let path = self.fresh_specialized_path(&instantiation.target);
-        self.cache.insert(key, path.clone());
+        self.cache.insert(key.clone(), path.clone());
 
         let substitutions = instantiation
             .args
@@ -86,14 +89,17 @@ impl Monomorphizer {
         binding.body = self.rewrite_expr_with_expected(binding.body, Some(&body_ty));
         refresh_binding_type_params(&mut binding);
         binding = fill_residual_effect_params(binding);
+        refresh_binding_type_params(&mut binding);
+        if !binding.type_params.is_empty() {
+            self.cache.remove(&key);
+            self.failed_specializations.insert(key);
+            return None;
+        }
         refresh_specialized_scheme_from_body(&mut binding);
         self.specialized_types.insert(
             path.clone(),
             normalize_hir_function_type(binding.body.ty.clone()),
         );
-        if !binding.type_params.is_empty() {
-            self.originals.insert(path.clone(), binding.clone());
-        }
         self.specialized.push(binding);
         Some(path)
     }
@@ -181,13 +187,6 @@ impl Monomorphizer {
         let Some((target, _)) = applied_head(callee) else {
             return false;
         };
-        if target
-            .segments
-            .last()
-            .is_none_or(|name| name.0.as_str() != "fold")
-        {
-            return false;
-        }
         if !is_role_method_path(&target) {
             return false;
         }
@@ -257,7 +256,7 @@ impl Monomorphizer {
             return None;
         }
         let instantiation = TypeInstantiation {
-            target,
+            target: target.clone(),
             args: original
                 .type_params
                 .iter()
@@ -306,10 +305,15 @@ impl Monomorphizer {
         fill_call_effect_substitutions(&mut substitutions, &effect_params, &[arg_ty, result_ty]);
         normalize_call_substitutions(&mut substitutions, &effect_params);
         if substitutions.is_empty() {
-            return None;
+            return self.specialized_path_for_compatible_call(
+                &target,
+                applied_args,
+                arg_ty,
+                result_ty,
+            );
         }
         let instantiation = TypeInstantiation {
-            target,
+            target: target.clone(),
             args: original
                 .type_params
                 .iter()
@@ -323,7 +327,36 @@ impl Monomorphizer {
                 })
                 .collect(),
         };
-        self.specialize(&instantiation)
+        self.specialize(&instantiation).or_else(|| {
+            self.specialized_path_for_compatible_call(&target, applied_args, arg_ty, result_ty)
+        })
+    }
+
+    fn specialized_path_for_compatible_call(
+        &self,
+        target: &core_ir::Path,
+        applied_args: usize,
+        arg_ty: &RuntimeType,
+        result_ty: &RuntimeType,
+    ) -> Option<core_ir::Path> {
+        let base = unspecialized_path(target).unwrap_or_else(|| target.clone());
+        let actual = RuntimeType::fun(arg_ty.clone(), result_ty.clone());
+        self.specialized_types
+            .iter()
+            .filter(|(path, ty)| {
+                *path != target
+                    && unspecialized_path(path).is_some_and(|candidate| candidate == base)
+                    && !hir_type_has_vars(ty)
+            })
+            .filter_map(|(path, ty)| {
+                let template = unapplied_hir_type(ty, applied_args)?;
+                (hir_type_compatible(&template, &actual)
+                    || hir_type_compatible(&actual, &template)
+                    || (applied_args == 0 && receiver_type_matches(template, arg_ty)))
+                .then(|| (role_method_candidate_score(template, &actual), path.clone()))
+            })
+            .max_by_key(|(score, path)| (*score, path_key(path)))
+            .map(|(_, path)| path)
     }
 
     pub(super) fn replace_instantiated_head(
@@ -460,9 +493,9 @@ impl Monomorphizer {
         if hir_type_is_hole(arg_ty) {
             return None;
         }
-        if receiver_ty.is_some_and(hir_type_has_vars) {
-            return None;
-        }
+        let concrete_receiver_ty = receiver_ty
+            .filter(|receiver_ty| !hir_type_has_vars(receiver_ty))
+            .filter(|receiver_ty| !hir_type_contains_any(receiver_ty));
         let method = target.segments.last()?.clone();
         let actual = RuntimeType::fun(arg_ty.clone(), result_ty.clone());
         let mut candidates = self
@@ -478,7 +511,7 @@ impl Monomorphizer {
         let mut best = None;
         for (candidate, binding) in candidates {
             let binding_ty = binding_principal_hir_type(&binding);
-            if let Some(receiver_ty) = receiver_ty
+            if let Some(receiver_ty) = concrete_receiver_ty
                 && !binding_receiver_matches(&binding_ty, receiver_ty)
             {
                 continue;

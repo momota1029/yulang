@@ -209,10 +209,7 @@ pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<core_ir::T
         | ExprKind::Coerce { expr, .. }
         | ExprKind::Pack { expr, .. } => collect_expr_type_vars(expr, vars),
         ExprKind::LocalPushId { body, .. } => collect_expr_type_vars(body, vars),
-        ExprKind::AddId { allowed, thunk, .. } => {
-            collect_type_vars(allowed, vars);
-            collect_expr_type_vars(thunk, vars);
-        }
+        ExprKind::AddId { thunk, .. } => collect_expr_type_vars(thunk, vars),
         ExprKind::EffectOp(_)
         | ExprKind::PrimitiveOp(_)
         | ExprKind::Lit(_)

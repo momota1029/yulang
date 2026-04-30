@@ -72,34 +72,6 @@ pub(super) fn lower_lambda(state: &mut LowerState, node: &SyntaxNode) -> TypedEx
     super::super::stmt::wrap_header_lambdas(state, raw_body, arg_pats)
 }
 
-pub(super) fn make_const_lambda(state: &mut LowerState, body: TypedExpr) -> TypedExpr {
-    let tv = state.fresh_tv();
-    let eff = state.fresh_exact_pure_eff_tv();
-    let def = state.fresh_def();
-    let param_tv = state.fresh_tv();
-    let arg_eff_tv = state.fresh_exact_pure_eff_tv();
-
-    state.register_def_tv(def, param_tv);
-    if let Some(owner) = state.current_owner {
-        state.register_def_owner(def, owner);
-    }
-
-    state.infer.constrain(
-        state.pos_fun(
-            Neg::Var(param_tv),
-            Neg::Var(arg_eff_tv),
-            Pos::Var(body.eff),
-            Pos::Var(body.tv),
-        ),
-        Neg::Var(tv),
-    );
-    TypedExpr {
-        tv,
-        eff,
-        kind: ExprKind::Lam(def, Box::new(body)),
-    }
-}
-
 fn lower_single_arg_lambda(
     state: &mut LowerState,
     node: &SyntaxNode,

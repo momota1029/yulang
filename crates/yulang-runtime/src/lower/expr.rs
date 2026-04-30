@@ -31,7 +31,7 @@ pub(super) fn prepare_expr_for_expected(
     match expected {
         RuntimeType::Thunk { effect, value } => match &expr.ty {
             RuntimeType::Thunk { .. } => {
-                require_same_hir_type(expected, &expr.ty, source)?;
+                require_apply_arg_compatible(expected, &expr.ty, source)?;
                 Ok(expr)
             }
             _ => {
@@ -144,10 +144,7 @@ pub(super) fn effect_operation_effect(
     path: &core_ir::Path,
     arg_ty: &core_ir::Type,
 ) -> Option<core_ir::Type> {
-    let operation_name = path.segments.last()?;
-    if operation_name.0 != "return" {
-        return None;
-    }
+    path.segments.last()?;
     let effect_path = core_ir::Path {
         segments: path
             .segments
@@ -159,7 +156,7 @@ pub(super) fn effect_operation_effect(
     if effect_path.segments.is_empty() {
         return None;
     }
-    let args = (!matches!(arg_ty, core_ir::Type::Any))
+    let args = (!matches!(arg_ty, core_ir::Type::Any) && arg_ty != &unit_type())
         .then(|| vec![core_ir::TypeArg::Type(arg_ty.clone())])
         .unwrap_or_default();
     Some(core_ir::Type::Row {

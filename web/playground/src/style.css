@@ -291,6 +291,121 @@ h2 {
   width: 38%;
 }
 
+.language-guide {
+  max-width: 1320px;
+  margin: 18px auto 0;
+  border: 1px solid #d5cdc0;
+  border-radius: 8px;
+  background: #fffdf8;
+  overflow: hidden;
+}
+
+.language-guide-head {
+  padding: 16px;
+  border-bottom: 1px solid #d5cdc0;
+}
+
+.language-guide-head h2 {
+  padding: 0;
+  font-size: 15px;
+}
+
+.language-guide-head p {
+  max-width: 820px;
+  margin: 6px 0 0;
+  color: #5f635f;
+  font-size: 13px;
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+}
+
+.guide-section {
+  min-width: 0;
+  padding: 14px 16px;
+  border-right: 1px solid #ebe4d9;
+  border-bottom: 1px solid #ebe4d9;
+}
+
+.guide-section:nth-child(3n) {
+  border-right: 0;
+}
+
+.guide-section h3 {
+  margin: 0 0 7px;
+  color: #304d49;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.guide-section p {
+  margin: 0;
+  color: #3f453f;
+  font-size: 13px;
+}
+
+.guide-section pre {
+  margin: 10px 0 0;
+  padding: 10px;
+  overflow-x: auto;
+  border: 1px solid #ebe4d9;
+  border-radius: 6px;
+  background: #faf5ec;
+  color: #202124;
+  font-family: var(--editor-font);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.guide-section pre code {
+  padding: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.guide-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px !important;
+}
+
+.guide-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid #1f6f66;
+  border-radius: 6px;
+  color: #1f6f66;
+  text-decoration: none;
+}
+
+.guide-links a:hover {
+  background: #edf6f3;
+}
+
+.guide-details {
+  padding: 12px 16px 14px;
+  color: #3f453f;
+  font-size: 13px;
+}
+
+.guide-details summary {
+  cursor: pointer;
+  color: #304d49;
+  font-weight: 650;
+}
+
+.guide-details p {
+  max-width: 880px;
+  margin: 8px 0 0;
+}
+
 code {
   padding: 1px 4px;
   border-radius: 4px;
@@ -316,5 +431,14 @@ code {
 
   .cheatsheet-table {
     min-width: 760px;
+  }
+
+  .guide-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guide-section,
+  .guide-section:nth-child(3n) {
+    border-right: 0;
   }
 }

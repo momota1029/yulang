@@ -1,9 +1,11 @@
 use yulang_parser::lex::SyntaxKind;
 
-use super::{lower_expr, make_app, make_const_lambda, resolve_path_expr, unit_expr};
+use super::{lower_expr, make_app, neg_prim_type, prim_type, resolve_path_expr, unit_expr};
 use crate::ast::expr::{ExprKind, TypedExpr};
+use crate::ids::TypeVar;
 use crate::lower::{LowerState, SyntaxNode};
-use crate::symbols::Name;
+use crate::symbols::{Name, Path};
+use crate::types::{Neg, Pos};
 
 pub(super) fn lower_var_read_expr(state: &mut LowerState, sigil: &str) -> TypedExpr {
     let Some(raw) = sigil.strip_prefix('$') else {
@@ -64,18 +66,7 @@ pub(super) fn lower_var_assignment(
         return make_app(state, set, rhs);
     }
 
-    let update = resolve_path_expr(
-        state,
-        vec![
-            Name("std".to_string()),
-            Name("var".to_string()),
-            Name("ref".to_string()),
-            Name("update".to_string()),
-        ],
-    );
-    let update_ref = make_app(state, update, reference);
-    let replacement = make_const_lambda(state, rhs);
-    make_app(state, update_ref, replacement)
+    lower_ref_set_assignment(state, reference, rhs)
 }
 
 fn resolve_var_assignment_set(state: &mut LowerState, reference: &TypedExpr) -> Option<TypedExpr> {
@@ -104,4 +95,70 @@ fn resolve_var_assignment_set(state: &mut LowerState, reference: &TypedExpr) -> 
         state,
         vec![act_name, Name("set".to_string())],
     ))
+}
+
+fn lower_ref_set_assignment(
+    state: &mut LowerState,
+    reference: TypedExpr,
+    value: TypedExpr,
+) -> TypedExpr {
+    let tv = state.fresh_tv();
+    let eff = state.fresh_tv();
+    let ref_eff = state.fresh_tv();
+    constrain_ref_set_assignment(state, tv, eff, ref_eff, &reference, &value);
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::RefSet {
+            reference: Box::new(reference),
+            value: Box::new(value),
+        },
+    }
+}
+
+fn constrain_ref_set_assignment(
+    state: &mut LowerState,
+    tv: TypeVar,
+    eff: TypeVar,
+    ref_eff: TypeVar,
+    reference: &TypedExpr,
+    value: &TypedExpr,
+) {
+    state.infer.constrain(prim_type("unit"), Neg::Var(tv));
+    state.infer.constrain(Pos::Var(tv), neg_prim_type("unit"));
+    state
+        .infer
+        .constrain(Pos::Var(reference.eff), Neg::Var(eff));
+    state.infer.constrain(Pos::Var(value.eff), Neg::Var(eff));
+    state.infer.constrain(Pos::Var(ref_eff), Neg::Var(eff));
+
+    let ref_args = invariant_ref_args(state, &[(ref_eff, ref_eff), (value.tv, value.tv)]);
+    state.infer.constrain(
+        Pos::Con(std_var_ref_path(), ref_args),
+        Neg::Var(reference.tv),
+    );
+}
+
+fn invariant_ref_args(
+    state: &LowerState,
+    tvs: &[(TypeVar, TypeVar)],
+) -> Vec<(crate::ids::PosId, crate::ids::NegId)> {
+    tvs.iter()
+        .map(|&(lower, upper)| {
+            (
+                state.infer.alloc_pos(Pos::Var(lower)),
+                state.infer.alloc_neg(Neg::Var(upper)),
+            )
+        })
+        .collect()
+}
+
+fn std_var_ref_path() -> Path {
+    Path {
+        segments: vec![
+            Name("std".to_string()),
+            Name("var".to_string()),
+            Name("ref".to_string()),
+        ],
+    }
 }
