@@ -40,7 +40,15 @@ use std::undet::*
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
 
-point { x: 3, y: 4 } .norm2
+my inflate({base = 1, extra = base + 1}) = base + extra
+
+inflate { base: 3 }
+
+{
+    my $xs = [2, 3, 4]
+    &xs[1] = 6
+    $xs
+}
 
 sub:
     for x in 0..:
@@ -49,15 +57,12 @@ sub:
     0
 
 ({
-    my a = each 1..
-    my b = each 1..
-    my c = each 1..
+    my y = if all [1, 2, 3] < any [2, 3, 4]:
+        each [3, 4, 5]
+    else:
+        2
 
-    guard: a <= b
-    guard: b <= c
-    guard: a * a + b * b == c * c
-
-    (a, b, c)
+    point { x: 3, y: y } .norm2
 }).once
 ```
 

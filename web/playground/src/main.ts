@@ -45,33 +45,37 @@ type ColorizeOutput = {
   diagnostics: Diagnostic[];
 };
 
-const initialSource = `// optional record fields make compact named arguments
-my area({width = 1, height = 2}) = width * height
+const initialSource = `// A compact tour of Yulang's current shape.
 
-area { width: 3 }
-area {}
-
-// struct methods, references, junctions, and nondeterminism
 use std::undet::*
 
 struct point { x: int, y: int } with:
-    our pt.norm2: int = pt.x * pt.x + pt.y * pt.y
+    our p.norm2: int = p.x * p.x + p.y * p.y
+
+my inflate({base = 1, extra = base + 1}) = base + extra
+
+inflate { base: 3 }
 
 {
-    my chosen = ({
-        if all [1, 2, 3] < any [2, 3, 4]:
-            each [3, 4, 5]
-        else:
-            2
-    }).once
-
-    case chosen:
-        opt::just y ->
-            my $current = point { x: 3, y: 2 }
-            &current = point { x: 3, y: y }
-            $current .norm2
-        opt::nil -> 0
+    my $xs = [2, 3, 4]
+    &xs[1] = 6
+    $xs
 }
+
+sub:
+    for x in 0..:
+        if x == 5: return x
+        else: ()
+    0
+
+({
+    my y = if all [1, 2, 3] < any [2, 3, 4]:
+        each [3, 4, 5]
+    else:
+        2
+
+    point { x: 3, y: y } .norm2
+}).once
 `;
 
 const sourceInput = document.querySelector<HTMLTextAreaElement>("#source");

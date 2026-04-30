@@ -106,6 +106,37 @@ for x in 0..:
 }).once
 "#;
 
+    const SHOWCASE_SOURCE: &str = r#"use std::undet::*
+
+struct point { x: int, y: int } with:
+    our p.norm2: int = p.x * p.x + p.y * p.y
+
+my inflate({base = 1, extra = base + 1}) = base + extra
+
+inflate { base: 3 }
+
+{
+    my $xs = [2, 3, 4]
+    &xs[1] = 6
+    $xs
+}
+
+sub:
+    for x in 0..:
+        if x == 5: return x
+        else: ()
+    0
+
+({
+    my y = if all [1, 2, 3] < any [2, 3, 4]:
+        each [3, 4, 5]
+    else:
+        2
+
+    point { x: 3, y: y } .norm2
+}).once
+"#;
+
     #[test]
     fn vm_runs_source_primitive_int_add_sugar_example() {
         let results = eval_source_with_std("my x = 1 + 2\nx\n");
@@ -154,6 +185,28 @@ for x in 0..:
         );
 
         assert_eq!(results, vec![TestValue::Int("12".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_source_showcase_example() {
+        let results = eval_source_with_std(SHOWCASE_SOURCE);
+
+        assert_eq!(
+            results,
+            vec![
+                TestValue::Int("7".to_string()),
+                TestValue::List(vec![
+                    TestValue::Int("2".to_string()),
+                    TestValue::Int("6".to_string()),
+                    TestValue::Int("4".to_string()),
+                ]),
+                TestValue::Int("5".to_string()),
+                TestValue::Variant {
+                    tag: "just".to_string(),
+                    value: Some(Box::new(TestValue::Int("18".to_string()))),
+                },
+            ]
+        );
     }
 
     #[test]
