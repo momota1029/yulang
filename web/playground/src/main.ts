@@ -188,6 +188,22 @@ pub answer = twice 21
 answer
 `,
   },
+  {
+    label: "Effects",
+    source: `// Algebraic effects appear in inferred function types.
+// The handler removes the effect from handled.
+
+act console:
+    our read: () -> int
+
+our ask() = console::read()
+
+our handled = catch ask():
+    console::read(), k -> k 42
+
+handled
+`,
+  },
 ];
 
 const sourceInput = document.querySelector<HTMLTextAreaElement>("#source");
