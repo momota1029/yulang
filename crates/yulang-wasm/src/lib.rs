@@ -157,4 +157,25 @@ g
             .join()
             .unwrap();
     }
+
+    #[test]
+    fn reports_runtime_type_mismatch_without_internal_type_dump() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner("1 + true\n");
+                assert!(!output.ok);
+                let message = &output.diagnostics[0].message;
+                assert!(
+                    message.contains("type mismatch while applying a function"),
+                    "{message}"
+                );
+                assert!(message.contains("expected bool -> bool"), "{message}");
+                assert!(message.contains("got int -> int"), "{message}");
+                assert!(!message.contains("Named {"), "{message}");
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
 }
