@@ -190,18 +190,18 @@ answer
   },
   {
     label: "Effects",
-    source: `// Algebraic effects appear in inferred function types.
-// The handler removes the effect from handled.
+    source: `// A handler removes one effect and leaves the others.
 
 act console:
     our read: () -> int
 
 our ask() = console::read()
 
-our handled = catch ask():
-    console::read(), k -> k 42
+our run_console(action: [console] _) = catch action:
+    console::read(), k -> run_console(k 42)
 
-handled
+run_console:
+    ask()
 `,
   },
 ];

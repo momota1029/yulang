@@ -259,7 +259,7 @@ twice 21</code></pre>
             <h3>制御は effect で見える</h3>
             <p>
               <code>sub:</code>、<code>return</code>、<code>for</code>、<code>last</code> は、標準ライブラリの effect handler と専用の lowering がつながって動きます。
-              <code>Examples</code> の <code>Effects</code> では、<code>unit -&gt; [console] int</code> のような型と handler 後の型を見られます。
+              <code>Examples</code> の <code>Effects</code> では、handler が特定の effect だけを消して外側の effect を残す型を見られます。
             </p>
             <pre><code>sub:
     for x in 0..:
