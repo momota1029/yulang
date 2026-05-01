@@ -780,3 +780,20 @@ New risk noticed:
   The next layer must instantiate generic schemes with fresh monomorphization
   holes and check the body, otherwise `_` inside a binding's own annotation will
   not be solved by local body information.
+
+### 2026-05-01: Demand-hole unifier started
+
+- Added `DemandUnifier` and `DemandSubstitution`.
+- It solves demand holes without turning them back into `Any`.
+- Value/core/effect holes have separate substitution maps, so an effect wildcard
+  cannot accidentally become a value witness.
+- Added tests for:
+  - function value holes solved by concrete argument/result types
+  - effect holes solved only in the effect substitution map
+
+New risk noticed:
+
+- This unifier is still structural and intentionally small.  It does not yet
+  understand subtyping, role requirements, row reordering, or `never <: unit`.
+  Those rules should be added as explicit solver rules, not by falling back to
+  whole-tree rewrite passes.

@@ -13,8 +13,10 @@ use yulang_core_ir as core_ir;
 use crate::ir::Type as RuntimeType;
 
 mod collect;
+mod solve;
 
 pub use collect::*;
+pub use solve::*;
 
 #[derive(Debug, Default, Clone)]
 pub struct DemandQueue {
