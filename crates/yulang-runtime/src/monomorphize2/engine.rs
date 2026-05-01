@@ -115,11 +115,11 @@ impl<'a> DemandEngine<'a> {
                 Err(error) => {
                     if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
                         eprintln!(
-                            "demand check failed for {:?}: {:?}",
-                            demand.target, demand.key.signature
+                            "demand rejected for {:?}: {:?}: {:?}",
+                            demand.target, demand.key.signature, error
                         );
                     }
-                    return Err(error);
+                    continue;
                 }
             };
             self.specializations.intern(&checked);

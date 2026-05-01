@@ -404,6 +404,90 @@ mod tests {
         validate_module(&module).expect("valid thunk row");
     }
 
+    #[test]
+    fn record_pattern_default_allows_missing_expected_field() {
+        let int = named_type("int");
+        let value_ty = core_ir::Type::Record(core_ir::RecordType {
+            fields: vec![core_ir::RecordField {
+                name: core_ir::Name("base".to_string()),
+                value: int.clone(),
+                optional: false,
+            }],
+            spread: None,
+        });
+        let pattern_ty = Type::core(core_ir::Type::Record(core_ir::RecordType {
+            fields: vec![
+                core_ir::RecordField {
+                    name: core_ir::Name("base".to_string()),
+                    value: int.clone(),
+                    optional: false,
+                },
+                core_ir::RecordField {
+                    name: core_ir::Name("extra".to_string()),
+                    value: int.clone(),
+                    optional: true,
+                },
+            ],
+            spread: None,
+        }));
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![Expr::typed(
+                ExprKind::Block {
+                    stmts: vec![crate::ir::Stmt::Let {
+                        pattern: crate::ir::Pattern::Record {
+                            fields: vec![
+                                crate::ir::RecordPatternField {
+                                    name: core_ir::Name("base".to_string()),
+                                    pattern: crate::ir::Pattern::Bind {
+                                        name: core_ir::Name("base".to_string()),
+                                        ty: Type::core(int.clone()),
+                                    },
+                                    default: None,
+                                },
+                                crate::ir::RecordPatternField {
+                                    name: core_ir::Name("extra".to_string()),
+                                    pattern: crate::ir::Pattern::Bind {
+                                        name: core_ir::Name("extra".to_string()),
+                                        ty: Type::core(int.clone()),
+                                    },
+                                    default: Some(Expr::typed(
+                                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                                        Type::core(int.clone()),
+                                    )),
+                                },
+                            ],
+                            spread: None,
+                            ty: pattern_ty,
+                        },
+                        value: Expr::typed(
+                            ExprKind::Record {
+                                fields: vec![crate::ir::RecordExprField {
+                                    name: core_ir::Name("base".to_string()),
+                                    value: Expr::typed(
+                                        ExprKind::Lit(core_ir::Lit::Int("3".to_string())),
+                                        Type::core(int.clone()),
+                                    ),
+                                }],
+                                spread: None,
+                            },
+                            Type::core(value_ty),
+                        ),
+                    }],
+                    tail: Some(Box::new(Expr::typed(
+                        ExprKind::Var(core_ir::Path::from_name(core_ir::Name("extra".to_string()))),
+                        Type::core(int.clone()),
+                    ))),
+                },
+                Type::core(int),
+            )],
+            roots: vec![Root::Expr(0)],
+        };
+
+        validate_module(&module).expect("valid record default pattern");
+    }
+
     fn named_type(name: &str) -> core_ir::Type {
         core_ir::Type::Named {
             path: core_ir::Path::from_name(core_ir::Name(name.to_string())),

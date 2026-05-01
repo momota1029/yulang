@@ -140,14 +140,13 @@ impl<'a> ExprChecker<'a> {
             } => self.synth_coerce(expr, from, inner, expected),
             ExprKind::Pack { expr: inner, .. } => self.synth_expr(inner, expected),
             ExprKind::Apply { callee, arg, .. } => {
-                if let Some((target, args)) = applied_call(expr)
+                if let Some((target, head, args)) = applied_call_with_head(expr)
                     && self.generic_bindings.contains(target)
                 {
                     let ret = expected
                         .cloned()
                         .unwrap_or_else(|| self.signature_from_type(&expr.ty));
-                    let param_hints =
-                        self.curried_param_signatures_from_type(&callee.ty, args.len());
+                    let param_hints = self.curried_param_signatures_from_type(&head.ty, args.len());
                     let mut arg_signatures = Vec::with_capacity(args.len());
                     for (arg, hint) in args.iter().zip(param_hints) {
                         if let Some(hint) = hint {
@@ -166,11 +165,24 @@ impl<'a> ExprChecker<'a> {
                     return Ok(ret);
                 }
                 let callee = self.synth_expr(callee, None)?;
-                let DemandSignature::Fun { param, ret } = callee else {
-                    return Ok(self.signature_from_type(&expr.ty));
-                };
-                self.check_expr(arg, &param)?;
-                Ok(*ret)
+                match callee {
+                    DemandSignature::Fun { param, ret } => {
+                        self.check_expr(arg, &param)?;
+                        Ok(*ret)
+                    }
+                    DemandSignature::Core(DemandCoreType::Fun {
+                        param,
+                        param_effect,
+                        ret_effect,
+                        ret,
+                    }) => {
+                        let param = effected_core_signature(*param, *param_effect);
+                        let ret = effected_core_signature(*ret, *ret_effect);
+                        self.check_expr(arg, &param)?;
+                        Ok(ret)
+                    }
+                    _ => Ok(self.signature_from_type(&expr.ty)),
+                }
             }
             ExprKind::Var(path) => Ok(self
                 .locals
@@ -617,12 +629,27 @@ impl<'a> ExprChecker<'a> {
         ty: &RuntimeType,
         handled_body_ty: &DemandSignature,
     ) -> DemandSignature {
-        let RuntimeType::Fun { param, .. } = ty else {
-            return self.signature_from_type(ty);
-        };
-        DemandSignature::Fun {
-            param: Box::new(self.signature_from_type(param)),
-            ret: Box::new(handled_body_ty.clone()),
+        match ty {
+            RuntimeType::Fun { param, .. } => DemandSignature::Fun {
+                param: Box::new(self.signature_from_type(param)),
+                ret: Box::new(handled_body_ty.clone()),
+            },
+            RuntimeType::Core(core_ir::Type::Fun {
+                param,
+                param_effect,
+                ..
+            }) => {
+                let param_signature = self.signature_from_type(&RuntimeType::core(*param.clone()));
+                let param_effect = self.effect_from_core_type(param_effect);
+                DemandSignature::Fun {
+                    param: Box::new(effected_core_signature(
+                        signature_core_value(&param_signature),
+                        param_effect,
+                    )),
+                    ret: Box::new(handled_body_ty.clone()),
+                }
+            }
+            _ => self.signature_from_type(ty),
         }
     }
 
@@ -720,45 +747,22 @@ impl<'a> ExprChecker<'a> {
     }
 }
 
-fn signature_core_value(signature: &DemandSignature) -> DemandCoreType {
-    match signature {
-        DemandSignature::Hole(id) => DemandCoreType::Hole(*id),
-        DemandSignature::Core(ty) => ty.clone(),
-        DemandSignature::Fun { param, ret } => {
-            let (param, param_effect) = signature_effected_core_value(param);
-            let (ret, ret_effect) = signature_effected_core_value(ret);
-            DemandCoreType::Fun {
-                param: Box::new(param),
-                param_effect: Box::new(param_effect),
-                ret_effect: Box::new(ret_effect),
-                ret: Box::new(ret),
+fn applied_call_with_head(expr: &Expr) -> Option<(&core_ir::Path, &Expr, Vec<&Expr>)> {
+    let mut head = expr;
+    let mut args = Vec::new();
+    loop {
+        match &head.kind {
+            ExprKind::Apply {
+                callee: next, arg, ..
+            } => {
+                args.push(arg.as_ref());
+                head = next;
             }
-        }
-        DemandSignature::Thunk { value, .. } => signature_core_value(value),
-    }
-}
-
-fn signature_value(signature: &DemandSignature) -> DemandSignature {
-    match signature {
-        DemandSignature::Thunk { value, .. } => signature_value(value),
-        other => other.clone(),
-    }
-}
-
-fn signature_effected_core_value(signature: &DemandSignature) -> (DemandCoreType, DemandEffect) {
-    match signature {
-        DemandSignature::Thunk { effect, value } => (signature_core_value(value), effect.clone()),
-        other => (signature_core_value(other), DemandEffect::Empty),
-    }
-}
-
-fn effected_core_signature(ty: DemandCoreType, effect: DemandEffect) -> DemandSignature {
-    if matches!(effect, DemandEffect::Empty) {
-        DemandSignature::Core(ty)
-    } else {
-        DemandSignature::Thunk {
-            effect,
-            value: Box::new(DemandSignature::Core(ty)),
+            ExprKind::Var(target) => {
+                args.reverse();
+                return Some((target, head, args));
+            }
+            _ => return None,
         }
     }
 }
@@ -795,18 +799,6 @@ fn single_payload_from_type_args(args: &[DemandTypeArg]) -> Option<DemandCoreTyp
             upper: None,
         } => None,
     }
-}
-
-pub(super) fn curried_signatures(
-    args: &[DemandSignature],
-    ret: DemandSignature,
-) -> DemandSignature {
-    args.iter()
-        .rev()
-        .fold(ret, |ret, arg| DemandSignature::Fun {
-            param: Box::new(arg.clone()),
-            ret: Box::new(ret),
-        })
 }
 
 fn restore_local(
@@ -1143,6 +1135,74 @@ mod tests {
                 ret: Box::new(DemandSignature::Core(named_demand("int"))),
             }
         );
+    }
+
+    #[test]
+    fn checker_uses_head_type_for_curried_generic_call_hints() {
+        let run = path("run");
+        let cell = named("cell");
+        let value = RuntimeType::core(named("int"));
+        let thunk = RuntimeType::thunk(cell.clone(), value.clone());
+        let run_ty = RuntimeType::fun(
+            value.clone(),
+            RuntimeType::fun(thunk.clone(), value.clone()),
+        );
+        let module = module_with_binding(binding(
+            run.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            run_ty.clone(),
+            ExprKind::Lambda {
+                param: core_ir::Name("v".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Lambda {
+                        param: core_ir::Name("x".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Apply {
+                                callee: Box::new(Expr::typed(
+                                    ExprKind::Apply {
+                                        callee: Box::new(Expr::typed(
+                                            ExprKind::Var(run.clone()),
+                                            run_ty.clone(),
+                                        )),
+                                        arg: Box::new(Expr::typed(
+                                            ExprKind::Var(path("v")),
+                                            RuntimeType::core(core_ir::Type::Any),
+                                        )),
+                                        evidence: None,
+                                        instantiation: None,
+                                    },
+                                    RuntimeType::fun(thunk.clone(), value.clone()),
+                                )),
+                                arg: Box::new(Expr::typed(
+                                    ExprKind::Thunk {
+                                        effect: cell.clone(),
+                                        value: value.clone(),
+                                        expr: Box::new(Expr::typed(
+                                            ExprKind::Var(path("v")),
+                                            RuntimeType::core(core_ir::Type::Any),
+                                        )),
+                                    },
+                                    thunk.clone(),
+                                )),
+                                evidence: None,
+                                instantiation: None,
+                            },
+                            value.clone(),
+                        )),
+                    },
+                    RuntimeType::fun(thunk.clone(), value.clone()),
+                )),
+            },
+        ));
+        let demand = Demand::new(run, run_ty);
+
+        DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked curried recursive call");
     }
 
     #[test]
@@ -1697,6 +1757,103 @@ mod tests {
     }
 
     #[test]
+    fn checker_uses_handled_body_type_for_core_resume_result() {
+        let f = path("f");
+        let io = named("io");
+        let resume_ty = core_ir::Type::Fun {
+            param: Box::new(named("bool")),
+            param_effect: Box::new(core_ir::Type::Never),
+            ret_effect: Box::new(io.clone()),
+            ret: Box::new(core_ir::Type::Any),
+        };
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Handle {
+                        body: Box::new(Expr::typed(
+                            ExprKind::Var(path("x")),
+                            RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                        )),
+                        arms: vec![HandleArm {
+                            effect: core_ir::Path::from_name(core_ir::Name("op".to_string())),
+                            payload: Pattern::Wildcard {
+                                ty: RuntimeType::core(named("unit")),
+                            },
+                            resume: Some(crate::ir::ResumeBinding {
+                                name: core_ir::Name("k".to_string()),
+                                ty: RuntimeType::core(resume_ty.clone()),
+                            }),
+                            guard: None,
+                            body: Expr::typed(
+                                ExprKind::BindHere {
+                                    expr: Box::new(Expr::typed(
+                                        ExprKind::Apply {
+                                            callee: Box::new(Expr::typed(
+                                                ExprKind::Var(path("k")),
+                                                RuntimeType::core(resume_ty),
+                                            )),
+                                            arg: Box::new(Expr::typed(
+                                                ExprKind::Lit(core_ir::Lit::Bool(true)),
+                                                RuntimeType::core(named("bool")),
+                                            )),
+                                            evidence: None,
+                                            instantiation: None,
+                                        },
+                                        RuntimeType::core(core_ir::Type::Any),
+                                    )),
+                                },
+                                RuntimeType::core(core_ir::Type::Any),
+                            ),
+                        }],
+                        evidence: crate::ir::JoinEvidence {
+                            result: core_ir::Type::Any,
+                        },
+                        handler: crate::ir::HandleEffect {
+                            consumes: vec![core_ir::Path::from_name(core_ir::Name(
+                                "op".to_string(),
+                            ))],
+                            residual_before: Some(io.clone()),
+                            residual_after: None,
+                        },
+                    },
+                    RuntimeType::core(core_ir::Type::Any),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(
+                RuntimeType::thunk(io, RuntimeType::core(core_ir::Type::Any)),
+                RuntimeType::core(named("int")),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked core handle resume");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Thunk {
+                    effect: DemandEffect::Atom(named_demand("io")),
+                    value: Box::new(DemandSignature::Core(named_demand("int"))),
+                }),
+                ret: Box::new(DemandSignature::Core(named_demand("int"))),
+            }
+        );
+    }
+
+    #[test]
     fn checker_checks_coerce_inner_against_from_type() {
         let f = path("f");
         let from = core_ir::Type::Record(core_ir::RecordType {
@@ -1823,6 +1980,72 @@ mod tests {
                     ret_effect: Box::new(DemandEffect::Atom(named_demand("io"))),
                     ret: Box::new(named_demand("int")),
                 })),
+            }
+        );
+    }
+
+    #[test]
+    fn checker_applies_core_function_value_with_result_effect() {
+        let f = path("f");
+        let io = named("io");
+        let core_fun = core_ir::Type::Fun {
+            param: Box::new(named("unit")),
+            param_effect: Box::new(core_ir::Type::Never),
+            ret_effect: Box::new(io.clone()),
+            ret: Box::new(core_ir::Type::Any),
+        };
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::core(core_fun.clone()),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("k".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::BindHere {
+                        expr: Box::new(Expr::typed(
+                            ExprKind::Apply {
+                                callee: Box::new(Expr::typed(
+                                    ExprKind::Var(path("k")),
+                                    RuntimeType::core(core_fun.clone()),
+                                )),
+                                arg: Box::new(Expr::typed(
+                                    ExprKind::Lit(core_ir::Lit::Unit),
+                                    RuntimeType::core(named("unit")),
+                                )),
+                                evidence: None,
+                                instantiation: None,
+                            },
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                    },
+                    RuntimeType::core(core_ir::Type::Any),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(RuntimeType::core(core_fun), RuntimeType::core(named("int"))),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked core function application");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(DemandCoreType::Fun {
+                    param: Box::new(named_demand("unit")),
+                    param_effect: Box::new(DemandEffect::Empty),
+                    ret_effect: Box::new(DemandEffect::Atom(named_demand("io"))),
+                    ret: Box::new(named_demand("int")),
+                })),
+                ret: Box::new(DemandSignature::Core(named_demand("int"))),
             }
         );
     }

@@ -57,15 +57,21 @@ pub(super) fn validate_pattern(
             for field in fields {
                 let erased_field_ty;
                 let field_ty = match expected {
-                    core_ir::Type::Record(record) => record
+                    core_ir::Type::Record(record) => match record
                         .fields
                         .iter()
                         .find(|candidate| candidate.name == field.name)
                         .map(|field| &field.value)
-                        .ok_or_else(|| RuntimeError::UnsupportedPatternShape {
-                            pattern: "record field",
-                            ty: expected.clone(),
-                        })?,
+                    {
+                        Some(field_ty) => field_ty,
+                        None if field.default.is_some() => core_type(pattern_ty(&field.pattern)),
+                        None => {
+                            return Err(RuntimeError::UnsupportedPatternShape {
+                                pattern: "record field",
+                                ty: expected.clone(),
+                            });
+                        }
+                    },
                     core_ir::Type::Any => {
                         erased_field_ty = core_ir::Type::Any;
                         &erased_field_ty

@@ -1127,3 +1127,34 @@ New risk noticed:
   call needs a thunk argument while the checker sees a plain list value.  That
   is likely in the handler/resume path for local reference effects and should
   be investigated separately from constructor/coerce typing.
+
+### 2026-05-01: Demand collection keeps effectful call boundaries
+
+- Fixed curried generic-call checking so parameter hints come from the call
+  head, not from the partially applied callee expression.  This removes the
+  shifted-argument bug in recursive calls such as `(&run v) (k ())`.
+- Moved shared demand-signature helpers into the `monomorphize2` module so
+  collection and checking use the same value/function/thunk projection rules.
+- Demand collection now records structural signatures for record arguments and
+  lambda fields instead of relying only on the already-erased expression type.
+- Demand collection also preserves effectful expression boundaries from:
+  - effect operation application
+  - `bind_here`
+  - `add_id`
+  - `local_push_id`
+  - `coerce` / `pack`
+- The demand engine now treats failed candidate demands as rejected candidates
+  and continues with the rest of the queue.  The collector is intentionally
+  broad; the checker is the validator for which demands are actually usable.
+- Runtime validation now accepts record pattern fields with defaults even when
+  the expected record type does not contain that field.  This matches optional
+  record pattern execution and lets demand-emitted `showcase` code validate.
+- `examples/showcase.yu` now gets real demand-specialization progress:
+  multiple rounds add closed specializations and the program still executes.
+
+New risk noticed:
+
+- Debug output now shows many rejected candidate demands.  That is acceptable
+  as an intermediate shape, but the next algorithmic cleanup should classify
+  rejection causes and avoid queueing obviously impossible candidates, especially
+  pure-looking thunk demands and effect rows with synthetic effect arguments.

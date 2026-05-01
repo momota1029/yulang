@@ -53,8 +53,17 @@ impl DemandCollector {
                 if let Some((target, args)) = applied_call(expr)
                     && self.generic_bindings.contains(target)
                 {
-                    self.queue
-                        .push(target.clone(), curried_call_type(&args, expr.ty.clone()));
+                    let expected = curried_call_type(&args, expr.ty.clone());
+                    let ret = expr_signature(expr);
+                    let arg_signatures = args
+                        .iter()
+                        .map(|arg| expr_signature(arg))
+                        .collect::<Vec<_>>();
+                    self.queue.push_signature(
+                        target.clone(),
+                        expected,
+                        curried_signatures(&arg_signatures, ret),
+                    );
                     for arg in args {
                         self.collect_expr(arg);
                     }
@@ -172,6 +181,126 @@ pub(super) fn curried_call_type(args: &[&Expr], ret: RuntimeType) -> RuntimeType
     args.iter()
         .rev()
         .fold(ret, |ret, arg| RuntimeType::fun(arg.ty.clone(), ret))
+}
+
+fn expr_signature(expr: &Expr) -> DemandSignature {
+    match &expr.kind {
+        ExprKind::Lambda { body, .. } => {
+            let body = expr_signature(body);
+            match DemandSignature::from_runtime_type(&expr.ty) {
+                DemandSignature::Fun { param, .. } => DemandSignature::Fun {
+                    param,
+                    ret: Box::new(body),
+                },
+                DemandSignature::Core(DemandCoreType::Fun {
+                    param,
+                    param_effect,
+                    ..
+                }) => {
+                    let (ret, ret_effect) = signature_effected_core_value(&body);
+                    DemandSignature::Core(DemandCoreType::Fun {
+                        param,
+                        param_effect,
+                        ret_effect: Box::new(ret_effect),
+                        ret: Box::new(ret),
+                    })
+                }
+                other => other,
+            }
+        }
+        ExprKind::Apply { callee, arg, .. } if matches!(callee.kind, ExprKind::EffectOp(_)) => {
+            let ExprKind::EffectOp(path) = &callee.kind else {
+                unreachable!();
+            };
+            let value = signature_core_value(&DemandSignature::from_runtime_type(&expr.ty));
+            let payload = signature_core_value(&expr_signature(arg));
+            effected_core_signature(value, effect_operation_signature(path, payload))
+        }
+        ExprKind::Apply {
+            evidence: Some(evidence),
+            ..
+        } => apply_evidence_signature(evidence)
+            .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty)),
+        ExprKind::BindHere { expr }
+        | ExprKind::LocalPushId { body: expr, .. }
+        | ExprKind::AddId { thunk: expr, .. }
+        | ExprKind::Coerce { expr, .. }
+        | ExprKind::Pack { expr, .. } => expr_signature(expr),
+        ExprKind::Block {
+            tail: Some(tail), ..
+        } => expr_signature(tail),
+        ExprKind::Record {
+            fields,
+            spread: None,
+        } => DemandSignature::Core(DemandCoreType::Record(
+            fields
+                .iter()
+                .map(|field| DemandRecordField {
+                    name: field.name.clone(),
+                    value: signature_core_value(&expr_signature(&field.value)),
+                    optional: false,
+                })
+                .collect(),
+        )),
+        _ => DemandSignature::from_runtime_type(&expr.ty),
+    }
+}
+
+fn apply_evidence_signature(evidence: &core_ir::ApplyEvidence) -> Option<DemandSignature> {
+    if let Some(core_ir::Type::Fun {
+        ret_effect, ret, ..
+    }) = bounds_type(&evidence.callee)
+    {
+        let mut next_hole = 0;
+        let ret = DemandSignature::from_runtime_type_with_holes(
+            &RuntimeType::core(ret.as_ref().clone()),
+            &mut next_hole,
+        );
+        let ret_effect = DemandEffect::from_core_type_with_holes(ret_effect, &mut next_hole);
+        return Some(effected_core_signature(
+            signature_core_value(&ret),
+            ret_effect,
+        ));
+    }
+    bounds_type(&evidence.result)
+        .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())))
+}
+
+fn bounds_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
+    bounds.lower.as_deref().or(bounds.upper.as_deref())
+}
+
+fn effect_operation_signature(path: &core_ir::Path, payload: DemandCoreType) -> DemandEffect {
+    let effect_path = core_ir::Path {
+        segments: path
+            .segments
+            .iter()
+            .take(path.segments.len().saturating_sub(1))
+            .cloned()
+            .collect(),
+    };
+    if effect_path.segments.is_empty() {
+        return DemandEffect::Empty;
+    }
+    let args = if is_unit_or_hole(&payload) {
+        Vec::new()
+    } else {
+        vec![DemandTypeArg::Type(payload)]
+    };
+    DemandEffect::Atom(DemandCoreType::Named {
+        path: effect_path,
+        args,
+    })
+}
+
+fn is_unit_or_hole(ty: &DemandCoreType) -> bool {
+    match ty {
+        DemandCoreType::Hole(_) => true,
+        DemandCoreType::Named { path, args } => {
+            path.segments.len() == 1 && path.segments[0].0 == "unit" && args.is_empty()
+        }
+        _ => false,
+    }
 }
 
 #[cfg(test)]

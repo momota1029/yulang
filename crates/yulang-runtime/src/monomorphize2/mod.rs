@@ -634,6 +634,63 @@ impl SignatureBuilder {
     }
 }
 
+pub(super) fn curried_signatures(
+    args: &[DemandSignature],
+    ret: DemandSignature,
+) -> DemandSignature {
+    args.iter()
+        .rev()
+        .fold(ret, |ret, arg| DemandSignature::Fun {
+            param: Box::new(arg.clone()),
+            ret: Box::new(ret),
+        })
+}
+
+pub(super) fn signature_core_value(signature: &DemandSignature) -> DemandCoreType {
+    match signature {
+        DemandSignature::Hole(id) => DemandCoreType::Hole(*id),
+        DemandSignature::Core(ty) => ty.clone(),
+        DemandSignature::Fun { param, ret } => {
+            let (param, param_effect) = signature_effected_core_value(param);
+            let (ret, ret_effect) = signature_effected_core_value(ret);
+            DemandCoreType::Fun {
+                param: Box::new(param),
+                param_effect: Box::new(param_effect),
+                ret_effect: Box::new(ret_effect),
+                ret: Box::new(ret),
+            }
+        }
+        DemandSignature::Thunk { value, .. } => signature_core_value(value),
+    }
+}
+
+pub(super) fn signature_value(signature: &DemandSignature) -> DemandSignature {
+    match signature {
+        DemandSignature::Thunk { value, .. } => signature_value(value),
+        other => other.clone(),
+    }
+}
+
+pub(super) fn signature_effected_core_value(
+    signature: &DemandSignature,
+) -> (DemandCoreType, DemandEffect) {
+    match signature {
+        DemandSignature::Thunk { effect, value } => (signature_core_value(value), effect.clone()),
+        other => (signature_core_value(other), DemandEffect::Empty),
+    }
+}
+
+pub(super) fn effected_core_signature(ty: DemandCoreType, effect: DemandEffect) -> DemandSignature {
+    if matches!(effect, DemandEffect::Empty) {
+        DemandSignature::Core(ty)
+    } else {
+        DemandSignature::Thunk {
+            effect,
+            value: Box::new(DemandSignature::Core(ty)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
