@@ -28,8 +28,10 @@ mod cast;
 mod constraints;
 mod effects;
 mod locals;
+mod pattern;
 mod rewrite;
 mod shape;
+mod stmt;
 mod thunk_force;
 mod type_context;
 

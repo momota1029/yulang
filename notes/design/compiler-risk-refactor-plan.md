@@ -479,3 +479,16 @@ New risk noticed:
 - The same binding/local priority also exists in nearby monomorphization
   rewrite code.  It is not identical, but the two rules should be compared
   before changing method resolution or constructor handling again.
+
+### 2026-05-01: Refinement pattern and statement visitors split out
+
+- Moved pattern refinement into `refine/pattern.rs`.
+- Moved statement refinement into `refine/stmt.rs`.
+- `refine/rewrite.rs` now has a clearer role: module/binding/expression
+  traversal plus expression-form-specific rewrites.
+
+New risk noticed:
+
+- Record pattern defaults can call back into expression refinement.  That is
+  correct today, but optional-record work should keep this path in mind because
+  defaults are not a purely pattern-local concern.
