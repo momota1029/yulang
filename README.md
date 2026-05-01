@@ -1,15 +1,21 @@
 # Yulang
 
-Yulang is an experimental language that integrates algebraic effects and
-handlers into a Simple-Sub-style subtyping inference engine. Effect rows are
-represented and solved in the same constraint system as value types, role
-constraints, and subtyping, so handlers can remove consumed effects while the
-remaining effects still flow through inferred types.
+Yulang is an experimental programming language that tries to make algebraic
+effects and handlers the ordinary control mechanism of the language, without
+making the surface feel like a special-purpose effect calculus.
 
-At the surface level, Yulang aims to put an OCaml-like typed expression core
-behind Ruby-style receiver-oriented syntax and Perl/Raku-style pragmatic
-notation. Features that often look like built-in control flow or mutation are
-mostly expressed through effects, handlers, roles, and standard library code.
+The language looks like a small, expression-oriented scripting language: it has
+receiver-oriented method syntax, compact block/application notation, structs,
+enums, roles, user-defined operators, loops, early return, references, and
+library-defined control abstractions. The unusual part is that features that
+would usually be built into the core language are mostly expressed through
+effects, handlers, roles, and standard library code.
+
+Under the hood, Yulang integrates algebraic effects and handlers into a
+Simple-Sub-style subtyping inference engine. Effect rows are represented and
+solved in the same constraint system as value types, role constraints, and
+subtyping, so handlers can remove consumed effects while the remaining effects
+still flow through inferred types.
 
 The implementation is still changing quickly. The repository is public so the
 current compiler, standard library, tests, and WebAssembly playground can be
@@ -19,8 +25,32 @@ read together, not because the language is stable.
 
 Suggested short description:
 
-> Experimental language with Simple-Sub-style inference, algebraic effects,
-> effect rows, roles, and Ruby/Perl/Raku-inspired syntax.
+> Experimental language where everyday control flow is built from algebraic
+> effects, handlers, roles, and Simple-Sub-style inference.
+
+## What Makes It Different
+
+Yulang is not mainly an "algebraic effects demo language." The goal is closer
+to replacing the usual built-in control machinery of a lightweight language with
+algebraic effects and handlers, then exposing that machinery through syntax that
+still feels close to ordinary code.
+
+For example, `return`, `for`, `last`, `next`, `redo`, local references,
+nondeterministic choice, and effectful boolean conditions are not isolated
+experimental features. They are examples of the same design rule: the language
+surface may give them direct syntax, but their behavior is mostly supplied by
+typed effects, handlers, roles, and library definitions.
+
+This matters for library authors. A handler in Yulang only handles effects that
+are explicit in the inferred effect type of the computation it receives. In
+other words, handlers are hygienic with respect to type inference: they do not
+silently catch unrelated operations just because those operations have the same
+shape somewhere else in the program. Consumed effects are removed from the type,
+and residual effects remain visible to callers.
+
+The ambition is therefore not that Yulang has a uniquely powerful individual
+effect feature. It is that ordinary language features can be factored into a
+small typed effect core while staying usable through familiar notation.
 
 ## Playground
 
