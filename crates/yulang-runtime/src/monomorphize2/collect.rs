@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::*;
 use crate::ir::{Expr, ExprKind, Module, Stmt};
@@ -6,6 +6,7 @@ use crate::ir::{Expr, ExprKind, Module, Stmt};
 #[derive(Debug, Clone)]
 pub struct DemandCollector {
     generic_bindings: HashSet<core_ir::Path>,
+    generic_role_impls: HashMap<core_ir::Name, Vec<core_ir::Path>>,
     queue: DemandQueue,
 }
 
@@ -17,8 +18,25 @@ impl DemandCollector {
             .filter(|binding| !binding.type_params.is_empty())
             .map(|binding| binding.name.clone())
             .collect();
+        let mut generic_role_impls: HashMap<core_ir::Name, Vec<core_ir::Path>> = HashMap::new();
+        for binding in &module.bindings {
+            if binding.type_params.is_empty() || !is_impl_method_path(&binding.name) {
+                continue;
+            }
+            let Some(method) = binding.name.segments.last() else {
+                continue;
+            };
+            generic_role_impls
+                .entry(method.clone())
+                .or_default()
+                .push(binding.name.clone());
+        }
+        for candidates in generic_role_impls.values_mut() {
+            candidates.sort_by_key(path_key);
+        }
         Self {
             generic_bindings,
+            generic_role_impls,
             queue: DemandQueue::default(),
         }
     }
@@ -64,6 +82,30 @@ impl DemandCollector {
                         expected,
                         curried_signatures(&arg_signatures, ret),
                     );
+                    for arg in args {
+                        self.collect_expr(arg);
+                    }
+                    return;
+                }
+                if let Some((target, args)) = applied_call(expr)
+                    && is_role_method_path(target)
+                    && let Some(method) = target.segments.last()
+                    && let Some(candidates) = self.generic_role_impls.get(method)
+                {
+                    let expected = curried_call_type(&args, expr.ty.clone());
+                    let ret = expr_signature(expr);
+                    let arg_signatures = args
+                        .iter()
+                        .map(|arg| expr_signature(arg))
+                        .collect::<Vec<_>>();
+                    let signature = curried_signatures(&arg_signatures, ret);
+                    for candidate in candidates {
+                        self.queue.push_signature(
+                            candidate.clone(),
+                            expected.clone(),
+                            signature.clone(),
+                        );
+                    }
                     for arg in args {
                         self.collect_expr(arg);
                     }
@@ -155,6 +197,27 @@ impl DemandCollector {
             }
         }
     }
+}
+
+pub(super) fn is_role_method_path(path: &core_ir::Path) -> bool {
+    let Some(role) = path.segments.iter().rev().nth(1) else {
+        return false;
+    };
+    role.0.chars().next().is_some_and(char::is_uppercase)
+}
+
+pub(super) fn is_impl_method_path(path: &core_ir::Path) -> bool {
+    path.segments
+        .iter()
+        .any(|segment| segment.0.starts_with("&impl#"))
+}
+
+fn path_key(path: &core_ir::Path) -> String {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
 }
 
 pub(super) fn applied_call(expr: &Expr) -> Option<(&core_ir::Path, Vec<&Expr>)> {
@@ -440,6 +503,50 @@ mod tests {
     }
 
     #[test]
+    fn collector_enqueues_generic_role_impl_candidates() {
+        let role_add = path_segments(&["std", "prelude", "Add", "add"]);
+        let impl_add = path_segments(&["std", "prelude", "&impl#1", "add"]);
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![generic_binding(impl_add.clone())],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Var(role_add),
+                        RuntimeType::fun(
+                            RuntimeType::core(named("int")),
+                            RuntimeType::core(named("int")),
+                        ),
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                        RuntimeType::core(named("int")),
+                    )),
+                    evidence: None,
+                    instantiation: None::<TypeInstantiation>,
+                },
+                RuntimeType::core(named("int")),
+            )],
+            roots: vec![Root::Expr(0)],
+        };
+
+        let mut collector = DemandCollector::from_module(&module);
+        collector.collect_module(&module);
+        let mut queue = collector.into_queue();
+        let demand = queue.pop_front().expect("role impl demand");
+
+        assert_eq!(demand.target, impl_add);
+        assert_eq!(
+            demand.key.signature,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(named_demand("int"))),
+                ret: Box::new(DemandSignature::Core(named_demand("int"))),
+            }
+        );
+        assert!(queue.is_empty());
+    }
+
+    #[test]
     fn collector_keeps_runtime_thunk_when_apply_evidence_is_value_only() {
         let f = path("f");
         let io = named("io");
@@ -540,5 +647,14 @@ mod tests {
 
     fn path(name: &str) -> core_ir::Path {
         core_ir::Path::from_name(core_ir::Name(name.to_string()))
+    }
+
+    fn path_segments(segments: &[&str]) -> core_ir::Path {
+        core_ir::Path {
+            segments: segments
+                .iter()
+                .map(|segment| core_ir::Name((*segment).to_string()))
+                .collect(),
+        }
     }
 }

@@ -1270,3 +1270,29 @@ New risk noticed:
   run through the old tree-rewrite pipeline.  The next migration step should
   move role-method demand resolution into the demand engine so `rewrite-uses`
   can stop being responsible for creating new specializations.
+
+### 2026-05-01: Role-method demands enter monomorphize2
+
+- The demand collector now indexes generic impl-method bindings and, when it
+  sees a role-method call such as `Fold::fold`, enqueues matching generic impl
+  candidates by method name.
+- The demand emitter can rewrite a role-method call to an already emitted impl
+  specialization when the impl specialization has a compatible closed demand
+  signature.
+- Demand unification now treats `Thunk[Empty, a]` as a value boundary.  This
+  keeps pure thunk wrappers from blocking otherwise identical call signatures
+  while preserving non-empty effect rows.
+
+Measured on `examples/showcase.yu`:
+
+- still about `0.9s`, 32 passes, 54 specializations
+
+New risk noticed:
+
+- The role-method demand path is now wired, but the main `Fold::fold` showcase
+  calls still reject before they can close.  The concrete blocker is inside
+  demand checking of generic child calls such as `fold_impl`: the checker still
+  uses the callee template as a hard expected type, so callback effect rows can
+  be forced back to empty.  The next step should make generic child-call
+  checking build a child demand from the actual argument signature without
+  accepting value-shape mismatches such as `int` where `list<_>` is required.

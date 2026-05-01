@@ -197,6 +197,20 @@ impl DemandUnifier {
                 self.effect(expected_effect, actual_effect)?;
                 self.signature(expected_value, actual_value)
             }
+            (
+                DemandSignature::Thunk {
+                    effect,
+                    value: expected_value,
+                },
+                actual,
+            ) if demand_effect_is_empty(effect) => self.signature(expected_value, actual),
+            (
+                expected,
+                DemandSignature::Thunk {
+                    effect,
+                    value: actual_value,
+                },
+            ) if demand_effect_is_empty(effect) => self.signature(expected, actual_value),
             _ => Err(DemandUnifyError::SignatureMismatch {
                 expected: expected.clone(),
                 actual: actual.clone(),
@@ -802,6 +816,14 @@ pub enum DemandHoleNamespace {
     Effect,
 }
 
+fn demand_effect_is_empty(effect: &DemandEffect) -> bool {
+    match effect {
+        DemandEffect::Empty => true,
+        DemandEffect::Row(items) => items.iter().all(demand_effect_is_empty),
+        DemandEffect::Hole(_) | DemandEffect::Atom(_) => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -827,6 +849,24 @@ mod tests {
         );
         assert_eq!(
             substitutions.values.get(&1),
+            Some(&DemandSignature::Core(named("int")))
+        );
+    }
+
+    #[test]
+    fn unifier_treats_empty_thunk_as_value_boundary() {
+        let substitutions = DemandUnifier::new()
+            .unify_signature(
+                &DemandSignature::Thunk {
+                    effect: DemandEffect::Empty,
+                    value: Box::new(DemandSignature::Hole(0)),
+                },
+                &DemandSignature::Core(named("int")),
+            )
+            .expect("empty thunk unifies with its value");
+
+        assert_eq!(
+            substitutions.values.get(&0),
             Some(&DemandSignature::Core(named("int")))
         );
     }

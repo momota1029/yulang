@@ -523,9 +523,12 @@ impl<'a> BodyEmitter<'a> {
                     .unwrap_or(signature)
             })
             .collect::<Vec<_>>();
-        let key =
-            DemandKey::from_signature(target.clone(), curried_signatures(&arg_signatures, ret));
-        let Some(specialization) = self.find_specialization(&key) else {
+        let signature = curried_signatures(&arg_signatures, ret);
+        let key = DemandKey::from_signature(target.clone(), signature);
+        let Some(specialization) = self
+            .find_specialization(&key)
+            .or_else(|| self.find_role_impl_specialization(target, &key.signature))
+        else {
             return Ok(None);
         };
         let mut callee_signature = specialization.solved.clone();
@@ -565,6 +568,41 @@ impl<'a> BodyEmitter<'a> {
                 specialization.target == key.target
                     && DemandUnifier::new()
                         .unify_signature(&key.signature, &specialization.key.signature)
+                        .is_ok()
+            })
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [] => None,
+            [specialization] => Some(*specialization),
+            [first, rest @ ..]
+                if rest
+                    .iter()
+                    .all(|specialization| specialization.key.signature == first.key.signature) =>
+            {
+                Some(*first)
+            }
+            _ => most_specific_specialization(&matches),
+        }
+    }
+
+    fn find_role_impl_specialization(
+        &self,
+        target: &core_ir::Path,
+        signature: &DemandSignature,
+    ) -> Option<&'a DemandSpecialization> {
+        if !is_role_method_path(target) {
+            return None;
+        }
+        let method = target.segments.last()?;
+        let matches = self
+            .specializations
+            .values()
+            .copied()
+            .filter(|specialization| {
+                specialization.target.segments.last() == Some(method)
+                    && is_impl_method_path(&specialization.target)
+                    && DemandUnifier::new()
+                        .unify_signature(signature, &specialization.key.signature)
                         .is_ok()
             })
             .collect::<Vec<_>>();
