@@ -1219,7 +1219,7 @@ std::flow::sub::sub:
         T: Send + 'static,
     {
         thread::Builder::new()
-            .stack_size(32 * 1024 * 1024)
+            .stack_size(128 * 1024 * 1024)
             .spawn(f)
             .expect("spawn large-stack runtime VM test thread")
             .join()

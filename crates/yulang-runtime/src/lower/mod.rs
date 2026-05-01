@@ -17,8 +17,8 @@ use crate::types::{
     effect_row_from_items, hir_type_hole_count, hir_type_is_hole, infer_type_substitutions,
     is_qualified_runtime_path, needs_runtime_coercion, project_runtime_bounds,
     project_runtime_effect, project_runtime_hir_type_with_vars, project_runtime_type_with_vars,
-    should_thunk_effect, strict_core_type as core_type, substitute_hir_type, substitute_type,
-    thunk_effect, type_compatible,
+    runtime_core_type, should_thunk_effect, strict_core_type as core_type, substitute_hir_type,
+    substitute_type, thunk_effect, type_compatible,
 };
 use crate::validate::validate_module;
 

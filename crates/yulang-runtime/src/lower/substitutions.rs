@@ -173,6 +173,11 @@ pub(super) fn refine_lambda_param_type(
         {
             expected.clone()
         }
+        (expected, actual @ RuntimeType::Thunk { value, .. })
+            if hir_type_compatible(expected, value) =>
+        {
+            actual.clone()
+        }
         _ => refine_anonymous_hir_type(expected, actual),
     }
 }

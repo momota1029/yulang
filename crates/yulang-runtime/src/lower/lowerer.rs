@@ -17,8 +17,8 @@ impl Lowerer<'_> {
         require_same_hir_type(&body_ty, &body.ty, TypeSource::BindingScheme)?;
         let type_params = principal_hir_type_params(&body.ty);
         let mut scheme = binding.scheme;
-        if alias_runtime_ty.is_some() {
-            scheme.body = diagnostic_core_type(&body.ty);
+        if alias_runtime_ty.is_some() || has_added_wildcard_thunk(&body_ty, &body.ty) {
+            scheme.body = runtime_core_type(&body.ty);
         }
         self.env.insert(binding.name.clone(), body.ty.clone());
         self.binding_infos.insert(
@@ -1259,6 +1259,48 @@ impl Lowerer<'_> {
         }
         callee.ty = substituted_ty;
         Some(TypeInstantiation { target, args })
+    }
+}
+
+fn has_added_wildcard_thunk(expected: &RuntimeType, actual: &RuntimeType) -> bool {
+    match (expected, actual) {
+        (
+            RuntimeType::Fun {
+                param: expected_param,
+                ret: expected_ret,
+            },
+            RuntimeType::Fun {
+                param: actual_param,
+                ret: actual_ret,
+            },
+        ) => {
+            has_added_wildcard_thunk(expected_param, actual_param)
+                || has_added_wildcard_thunk(expected_ret, actual_ret)
+        }
+        (
+            expected,
+            RuntimeType::Thunk {
+                effect,
+                value: actual_value,
+            },
+        ) if !matches!(expected, RuntimeType::Thunk { .. })
+            && matches!(effect, core_ir::Type::Any)
+            && (hir_type_compatible(expected, actual_value)
+                || hir_type_compatible(actual_value, expected)) =>
+        {
+            true
+        }
+        (
+            RuntimeType::Thunk {
+                value: expected_value,
+                ..
+            },
+            RuntimeType::Thunk {
+                value: actual_value,
+                ..
+            },
+        ) => has_added_wildcard_thunk(expected_value, actual_value),
+        _ => false,
     }
 }
 

@@ -140,19 +140,78 @@ pub(super) fn fill_residual_effect_params(mut binding: Binding) -> Binding {
 
 pub(super) fn binding_principal_hir_type(binding: &Binding) -> RuntimeType {
     let vars = binding.type_params.iter().cloned().collect::<BTreeSet<_>>();
-    normalize_hir_function_type(project_runtime_hir_type_with_vars(
+    let scheme_ty = normalize_hir_function_type(project_runtime_hir_type_with_vars(
         &binding.scheme.body,
         &vars,
-    ))
+    ));
+    preserve_runtime_thunk_shape(scheme_ty, &binding.body.ty)
 }
 
 pub(super) fn refresh_binding_body_type_from_scheme(binding: &mut Binding) {
     let mut vars = BTreeSet::new();
     collect_core_type_vars(&binding.scheme.body, &mut vars);
-    binding.body.ty = normalize_hir_function_type(project_runtime_hir_type_with_vars(
+    let scheme_ty = normalize_hir_function_type(project_runtime_hir_type_with_vars(
         &binding.scheme.body,
         &vars,
     ));
+    binding.body.ty = preserve_runtime_thunk_shape(scheme_ty, &binding.body.ty);
+}
+
+fn preserve_runtime_thunk_shape(scheme: RuntimeType, body: &RuntimeType) -> RuntimeType {
+    match (scheme, body) {
+        (
+            RuntimeType::Fun {
+                param: scheme_param,
+                ret: scheme_ret,
+            },
+            RuntimeType::Fun {
+                param: body_param,
+                ret: body_ret,
+            },
+        ) => RuntimeType::fun(
+            preserve_runtime_thunk_shape(*scheme_param, body_param),
+            preserve_runtime_thunk_shape(*scheme_ret, body_ret),
+        ),
+        (
+            RuntimeType::Thunk {
+                effect: scheme_effect,
+                value: scheme_value,
+            },
+            RuntimeType::Thunk {
+                effect: body_effect,
+                value: body_value,
+            },
+        ) => RuntimeType::thunk(
+            choose_runtime_thunk_effect(scheme_effect, body_effect),
+            preserve_runtime_thunk_shape(*scheme_value, body_value),
+        ),
+        (
+            scheme,
+            RuntimeType::Thunk {
+                effect: body_effect,
+                value: body_value,
+            },
+        ) if hir_type_compatible(&scheme, body_value)
+            || hir_type_compatible(body_value, &scheme) =>
+        {
+            RuntimeType::thunk(
+                body_effect.clone(),
+                preserve_runtime_thunk_shape(scheme, body_value),
+            )
+        }
+        (scheme, _) => scheme,
+    }
+}
+
+fn choose_runtime_thunk_effect(
+    scheme_effect: core_ir::Type,
+    body_effect: &core_ir::Type,
+) -> core_ir::Type {
+    if effect_is_empty(&scheme_effect) && !effect_is_empty(body_effect) {
+        body_effect.clone()
+    } else {
+        scheme_effect
+    }
 }
 
 pub(super) fn refresh_specialized_scheme_from_body(binding: &mut Binding) {
