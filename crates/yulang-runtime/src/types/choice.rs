@@ -84,14 +84,11 @@ pub(crate) fn choose_core_type_candidate(
 }
 
 pub(crate) fn core_type_is_hole(ty: &core_ir::Type) -> bool {
-    matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_))
+    core_type_is_inference_hole(ty)
 }
 
 pub(crate) fn hir_type_is_hole(ty: &RuntimeType) -> bool {
-    matches!(
-        ty,
-        RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_))
-    )
+    runtime_type_is_inference_hole(ty)
 }
 
 pub(crate) fn type_hole_count(ty: &core_ir::Type) -> usize {

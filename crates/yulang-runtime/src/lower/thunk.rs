@@ -39,7 +39,7 @@ pub(super) fn allowed_effect_for_param(
 ) -> Option<core_ir::Type> {
     if let Some(allowed) = function_allowed_effects {
         return Some(match allowed {
-            core_ir::FunctionSigAllowedEffects::Wildcard => core_ir::Type::Any,
+            core_ir::FunctionSigAllowedEffects::Wildcard => wildcard_effect_type(),
             core_ir::FunctionSigAllowedEffects::Effects(paths) => core_ir::Type::Row {
                 items: paths
                     .iter()
@@ -54,7 +54,7 @@ pub(super) fn allowed_effect_for_param(
         });
     }
     match annotation {
-        Some(core_ir::ParamEffectAnnotation::Wildcard) => Some(core_ir::Type::Any),
+        Some(core_ir::ParamEffectAnnotation::Wildcard) => Some(wildcard_effect_type()),
         Some(core_ir::ParamEffectAnnotation::Region(_)) => thunk_effect(param_ty),
         None if returns_thunk(param_ty) => Some(empty_row()),
         None => None,

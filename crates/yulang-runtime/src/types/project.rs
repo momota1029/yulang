@@ -107,12 +107,16 @@ impl<'a> RuntimeTypeProjector<'a> {
                     .as_ref()
                     .map(|tail| Box::new(self.project(tail))),
             }),
-            core_ir::Type::Union(items) => self.project_choice(items).unwrap_or(core_ir::Type::Any),
-            core_ir::Type::Inter(items) => self.project_choice(items).unwrap_or(core_ir::Type::Any),
-            core_ir::Type::Row { .. } => core_ir::Type::Any,
+            core_ir::Type::Union(items) => self
+                .project_choice(items)
+                .unwrap_or_else(runtime_projection_fallback_type),
+            core_ir::Type::Inter(items) => self
+                .project_choice(items)
+                .unwrap_or_else(runtime_projection_fallback_type),
+            core_ir::Type::Row { .. } => runtime_projection_fallback_type(),
             core_ir::Type::Recursive { var, body } => {
                 if !self.stack.insert(var.clone()) {
-                    return core_ir::Type::Any;
+                    return runtime_projection_fallback_type();
                 }
                 let body = self.project(body);
                 self.stack.remove(var);
@@ -157,9 +161,10 @@ impl<'a> RuntimeTypeProjector<'a> {
     pub(super) fn project_arg(&mut self, arg: &core_ir::TypeArg) -> core_ir::TypeArg {
         match arg {
             core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(self.project(ty)),
-            core_ir::TypeArg::Bounds(bounds) => {
-                core_ir::TypeArg::Type(self.project_bounds(bounds).unwrap_or(core_ir::Type::Any))
-            }
+            core_ir::TypeArg::Bounds(bounds) => core_ir::TypeArg::Type(
+                self.project_bounds(bounds)
+                    .unwrap_or_else(runtime_projection_fallback_type),
+            ),
         }
     }
 
@@ -190,7 +195,7 @@ impl<'a> RuntimeTypeProjector<'a> {
             core_ir::Type::Var(var) if self.allowed_vars.contains(var) => {
                 core_ir::Type::Var(var.clone())
             }
-            core_ir::Type::Var(_) => core_ir::Type::Any,
+            core_ir::Type::Var(_) => runtime_projection_fallback_type(),
             core_ir::Type::Named { path, args } if is_never_path(path) && args.is_empty() => {
                 core_ir::Type::Never
             }
@@ -207,7 +212,7 @@ impl<'a> RuntimeTypeProjector<'a> {
             core_ir::Type::Inter(items) => self.project_effect_intersection(items),
             core_ir::Type::Recursive { var, body } => {
                 if !self.stack.insert(var.clone()) {
-                    return core_ir::Type::Any;
+                    return runtime_projection_fallback_type();
                 }
                 let body = self.project_effect(body);
                 self.stack.remove(var);

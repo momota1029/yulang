@@ -27,7 +27,7 @@ use crate::types::{
     is_qualified_runtime_path, needs_runtime_coercion, project_runtime_bounds,
     project_runtime_effect, project_runtime_hir_type_with_vars, project_runtime_type_with_vars,
     runtime_core_type, should_thunk_effect, strict_core_type as core_type, substitute_hir_type,
-    substitute_type, thunk_effect, type_compatible,
+    substitute_type, thunk_effect, type_compatible, wildcard_effect_type,
 };
 use crate::validate::validate_module;
 

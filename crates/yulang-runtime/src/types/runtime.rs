@@ -105,7 +105,7 @@ pub(super) fn push_unique_effect(out: &mut Vec<core_ir::Type>, effect: core_ir::
 }
 
 pub(super) fn is_runtime_hole(ty: &core_ir::Type) -> bool {
-    matches!(ty, core_ir::Type::Any)
+    core_type_is_runtime_projection_fallback(ty)
 }
 
 pub(super) fn is_runtime_floor(ty: &core_ir::Type) -> bool {

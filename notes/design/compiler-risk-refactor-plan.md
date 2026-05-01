@@ -693,3 +693,21 @@ New risk noticed:
 - Reachability is recomputed inside the rewrite loop.  That is simple and safer
   than rewriting every generated binding, but it may be worth caching adjacency
   if large examples show this becoming hot.
+
+### 2026-05-01: Unknown type meanings named
+
+- Added named helpers for the main remaining `Any` meanings:
+  - inference holes, where `Any` and principal vars are both incomplete
+  - runtime projection fallback, where only `Any` means "erased fallback"
+  - wildcard effect annotations, which are still represented as `Any`
+- Kept the representation unchanged and routed existing hole helpers through
+  the explicit names.
+- Replaced a few direct `Any` constructions in thunk lowering and runtime
+  projection with the named constructors.
+
+New risk noticed:
+
+- The representation is still shared.  This makes the code easier to audit, but
+  it does not yet prevent a caller from passing a wildcard effect into a value
+  position.  The next step should narrow more direct `Type::Any` use sites or
+  add boundary checks where runtime execution begins.
