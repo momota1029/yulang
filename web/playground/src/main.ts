@@ -45,14 +45,54 @@ type ColorizeOutput = {
   diagnostics: Diagnostic[];
 };
 
+type Lang = "ja" | "en";
+
 type Example = {
-  label: string;
+  label: Record<Lang, string>;
   source: string;
+};
+
+type MessageKey =
+  | "run"
+  | "result"
+  | "types"
+  | "typesAria"
+  | "examples"
+  | "examplesLead"
+  | "noOutput"
+  | "noExportedTypes"
+  | "resultLine";
+
+const messages: Record<Lang, Record<MessageKey, string>> = {
+  ja: {
+    run: "実行",
+    result: "結果",
+    types: "型",
+    typesAria: "型推論",
+    examples: "例",
+    examplesLead:
+      "気になる機能を選ぶと editor に読み込まれて、そのまま実行されます。",
+    noOutput: "(出力なし)",
+    noExportedTypes: "(公開された型なし)",
+    resultLine: "結果",
+  },
+  en: {
+    run: "Run",
+    result: "Result",
+    types: "Types",
+    typesAria: "Type inference",
+    examples: "Examples",
+    examplesLead:
+      "Choose an example to load it into the editor and run it immediately.",
+    noOutput: "(no output)",
+    noExportedTypes: "(no exported types)",
+    resultLine: "Result",
+  },
 };
 
 const examples: Example[] = [
   {
-    label: "Tour",
+    label: { ja: "ツアー", en: "Tour" },
     source: `// A compact tour of Yulang's current shape.
 
 use std::undet::*
@@ -87,7 +127,7 @@ sub:
 `,
   },
   {
-    label: "Struct",
+    label: { ja: "構造体", en: "Struct" },
     source: `// Attach a method to a struct with with:.
 
 struct point { x: int, y: int } with:
@@ -97,7 +137,7 @@ point { x: 3, y: 4 } .norm2
 `,
   },
   {
-    label: "Optional Args",
+    label: { ja: "省略可能引数", en: "Optional Args" },
     source: `// Record pattern defaults act like optional named arguments.
 
 my area({width = 1, height = 2}) = width * height
@@ -108,7 +148,7 @@ area { width: 3, height: 4 }
 `,
   },
   {
-    label: "References",
+    label: { ja: "参照", en: "References" },
     source: `// References are explicit: $x reads, &x = value writes.
 
 {
@@ -119,7 +159,7 @@ area { width: 3, height: 4 }
 `,
   },
   {
-    label: "List Update",
+    label: { ja: "リスト更新", en: "List Update" },
     source: `// A list element can be updated through a child reference.
 
 {
@@ -130,7 +170,7 @@ area { width: 3, height: 4 }
 `,
   },
   {
-    label: "Sub Return",
+    label: { ja: "sub return", en: "Sub Return" },
     source: `// sub: catches return and turns early exit into a value.
 
 sub:
@@ -141,7 +181,7 @@ sub:
 `,
   },
   {
-    label: "Nondet List",
+    label: { ja: "非決定 list", en: "Nondet List" },
     source: `// each chooses values. .list collects every result.
 
 use std::undet::*
@@ -150,7 +190,7 @@ use std::undet::*
 `,
   },
   {
-    label: "Nondet Once",
+    label: { ja: "非決定 once", en: "Nondet Once" },
     source: `// .once returns the first useful result as opt.
 
 use std::undet::*
@@ -169,7 +209,7 @@ use std::undet::*
 `,
   },
   {
-    label: "Junction",
+    label: { ja: "junction", en: "Junction" },
     source: `// all and any make if conditions effectful.
 
 if all [1, 2, 3] < any [2, 3, 4]:
@@ -179,7 +219,7 @@ else:
 `,
   },
   {
-    label: "Types",
+    label: { ja: "型", en: "Types" },
     source: `// our and pub bindings are shown in the Types pane.
 
 our twice x = x + x
@@ -189,7 +229,7 @@ answer
 `,
   },
   {
-    label: "Effects",
+    label: { ja: "effect", en: "Effects" },
     source: `// A handler removes one effect and leaves the others.
 
 act console:
@@ -206,33 +246,29 @@ run_console:
   },
 ];
 
-const sourceInput = document.querySelector<HTMLTextAreaElement>("#source");
-const runButton = document.querySelector<HTMLButtonElement>("#run-button");
-const result = document.querySelector<HTMLPreElement>("#result");
-const types = document.querySelector<HTMLPreElement>("#types");
-const exampleButtons = document.querySelector<HTMLDivElement>("#example-buttons");
-const editorSurface = document.querySelector<HTMLDivElement>(".editor-surface");
-const editorHighlight =
-  document.querySelector<HTMLPreElement>("#editor-highlight");
-const editorHighlightContent = document.querySelector<HTMLElement>(
+const sourceInput = requireElement<HTMLTextAreaElement>("#source");
+const runButton = requireElement<HTMLButtonElement>("#run-button");
+const result = requireElement<HTMLPreElement>("#result");
+const types = requireElement<HTMLPreElement>("#types");
+const exampleButtons = requireElement<HTMLDivElement>("#example-buttons");
+const editorSurface = requireElement<HTMLDivElement>(".editor-surface");
+const editorHighlight = requireElement<HTMLPreElement>("#editor-highlight");
+const editorHighlightContent = requireElement<HTMLElement>(
   "#editor-highlight-content",
 );
-
-if (
-  !sourceInput ||
-  !runButton ||
-  !result ||
-  !types ||
-  !exampleButtons ||
-  !editorSurface ||
-  !editorHighlight ||
-  !editorHighlightContent
-) {
-  throw new Error("playground DOM is incomplete");
-}
+const languageButtons =
+  document.querySelectorAll<HTMLButtonElement>("[data-language-choice]");
+const translatableNodes =
+  document.querySelectorAll<HTMLElement>("[data-i18n]");
+const translatableAriaNodes =
+  document.querySelectorAll<HTMLElement>("[data-i18n-aria]");
 
 let pendingRenderColor = 0;
 let activeExampleIndex = 0;
+let activeLang = resolveInitialLang();
+let latestRunOutput: RunOutput | undefined;
+
+setupI18n();
 
 await init();
 
@@ -261,12 +297,58 @@ sourceInput.addEventListener("scroll", keepSourceScrollAtOrigin);
 window.addEventListener("resize", syncEditorLayout);
 runButton.addEventListener("click", runSource);
 
+function setupI18n(): void {
+  languageButtons.forEach((button) => {
+    const lang = button.dataset.languageChoice;
+    if (lang !== "ja" && lang !== "en") {
+      return;
+    }
+    button.addEventListener("click", () => {
+      setLanguage(lang);
+    });
+  });
+  applyLanguage();
+}
+
+function setLanguage(lang: Lang): void {
+  if (activeLang === lang) {
+    return;
+  }
+  activeLang = lang;
+  localStorage.setItem("yulang-playground-lang", lang);
+  applyLanguage();
+  updateExampleButtonState();
+  renderRunOutput();
+}
+
+function applyLanguage(): void {
+  document.documentElement.lang = activeLang;
+  document.documentElement.dataset.lang = activeLang;
+  translatableNodes.forEach((node) => {
+    const key = node.dataset.i18n;
+    if (isMessageKey(key)) {
+      node.textContent = t(key);
+    }
+  });
+  translatableAriaNodes.forEach((node) => {
+    const key = node.dataset.i18nAria;
+    if (isMessageKey(key)) {
+      node.setAttribute("aria-label", t(key));
+    }
+  });
+  languageButtons.forEach((button) => {
+    const isActive = button.dataset.languageChoice === activeLang;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
 function setupExampleButtons(): void {
   examples.forEach((example, index) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "example-button";
-    button.textContent = example.label;
+    button.textContent = example.label[activeLang];
     button.addEventListener("click", () => {
       loadExample(index);
       renderColor();
@@ -289,12 +371,21 @@ function loadExample(index: number): void {
 
 function updateExampleButtonState(): void {
   exampleButtons.querySelectorAll("button").forEach((button, index) => {
+    button.textContent = examples[index].label[activeLang];
     button.classList.toggle("is-active", index === activeExampleIndex);
   });
 }
 
 function runSource(): void {
-  const output = run(sourceInput.value) as RunOutput;
+  latestRunOutput = run(sourceInput.value) as RunOutput;
+  renderRunOutput();
+}
+
+function renderRunOutput(): void {
+  if (!latestRunOutput) {
+    return;
+  }
+  const output = latestRunOutput;
   result.classList.toggle("is-error", !output.ok);
   types.classList.toggle("is-error", !output.ok);
   if (output.ok) {
@@ -308,16 +399,16 @@ function runSource(): void {
 
 function formatResults(results: RunResult[]): string {
   if (results.length === 0) {
-    return "(no output)";
+    return t("noOutput");
   }
   return results
-    .map((item) => `Result ${item.index + 1}: ${item.value}`)
+    .map((item) => `${t("resultLine")} ${item.index + 1}: ${item.value}`)
     .join("\n");
 }
 
 function formatTypes(types: TypeResult[]): string {
   if (types.length === 0) {
-    return "(no exported types)";
+    return t("noExportedTypes");
   }
   return types.map((item) => `${item.name}: ${item.ty}`).join("\n");
 }
@@ -392,6 +483,30 @@ function highlightSource(source: string, spans: HighlightSpan[]): string {
 
 function formatDiagnostic(diagnostic: Diagnostic): string {
   return `${diagnostic.severity}: ${diagnostic.message}`;
+}
+
+function resolveInitialLang(): Lang {
+  const stored = localStorage.getItem("yulang-playground-lang");
+  if (stored === "ja" || stored === "en") {
+    return stored;
+  }
+  return navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en";
+}
+
+function t(key: MessageKey): string {
+  return messages[activeLang][key] ?? messages.en[key];
+}
+
+function isMessageKey(key: string | undefined): key is MessageKey {
+  return key !== undefined && key in messages.en;
+}
+
+function requireElement<T extends Element>(selector: string): T {
+  const element = document.querySelector<T>(selector);
+  if (!element) {
+    throw new Error(`playground DOM is incomplete: ${selector}`);
+  }
+  return element;
 }
 
 function escapeHtml(text: string): string {

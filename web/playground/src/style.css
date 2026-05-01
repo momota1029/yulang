@@ -89,6 +89,43 @@ h2 {
   gap: 10px;
 }
 
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 1px solid #b9afa0;
+  border-radius: 6px;
+  background: #faf5ec;
+}
+
+.language-button {
+  min-width: 72px;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 4px;
+  color: #304d49;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.language-button:hover {
+  color: #1f6f66;
+  background: #edf6f3;
+}
+
+.language-button.is-active {
+  color: #ffffff;
+  background: #1f6f66;
+}
+
+html[data-lang="ja"] .lang-en,
+html[data-lang="en"] .lang-ja {
+  display: none;
+}
+
 .repo-link {
   display: inline-flex;
   align-items: center;
@@ -524,6 +561,15 @@ code {
 
   .examples-head p {
     margin-top: 6px;
+  }
+
+  .pane-head {
+    align-items: flex-start;
+  }
+
+  .pane-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .guide-grid {

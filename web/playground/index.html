@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja">
+<html lang="ja" data-lang="ja">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -19,7 +19,25 @@
                 rel="noreferrer"
                 >GitHub</a
               >
-              <button id="run-button" type="button">Run</button>
+              <div class="language-switch" aria-label="Language">
+                <button
+                  class="language-button"
+                  type="button"
+                  data-language-choice="ja"
+                  lang="ja"
+                >
+                  日本語
+                </button>
+                <button
+                  class="language-button"
+                  type="button"
+                  data-language-choice="en"
+                  lang="en"
+                >
+                  English
+                </button>
+              </div>
+              <button id="run-button" type="button" data-i18n="run">Run</button>
             </div>
           </div>
           <div class="editor-surface">
@@ -35,26 +53,28 @@
           </div>
         </div>
         <div class="side-pane">
-          <section class="output-pane" aria-label="Result">
-            <h2>Result</h2>
+          <section class="output-pane" aria-label="Result" data-i18n-aria="result">
+            <h2 data-i18n="result">Result</h2>
             <pre id="result"></pre>
           </section>
-          <section class="output-pane" aria-label="Type inference">
-            <h2>Types</h2>
+          <section class="output-pane" aria-label="Type inference" data-i18n-aria="typesAria">
+            <h2 data-i18n="types">Types</h2>
             <pre id="types"></pre>
           </section>
         </div>
       </section>
       <section class="examples-panel" aria-labelledby="examples-title">
         <div class="examples-head">
-          <h2 id="examples-title">Examples</h2>
-          <p>気になる機能を選ぶと editor に読み込まれて、そのまま実行されます。</p>
+          <h2 id="examples-title" data-i18n="examples">Examples</h2>
+          <p data-i18n="examplesLead">
+            気になる機能を選ぶと editor に読み込まれて、そのまま実行されます。
+          </p>
         </div>
         <div id="example-buttons" class="example-buttons"></div>
       </section>
-      <section class="cheatsheet" aria-labelledby="cheatsheet-title">
+      <section class="cheatsheet i18n-block lang-ja" aria-labelledby="cheatsheet-title-ja">
         <div class="cheatsheet-head">
-          <h2 id="cheatsheet-title">Cheat Sheet</h2>
+          <h2 id="cheatsheet-title-ja">チートシート</h2>
           <p>
             Playground は <code>std::prelude</code> と <code>std::undet::*</code> を暗黙 import している。
           </p>
@@ -228,9 +248,186 @@
           </table>
         </div>
       </section>
-      <section class="language-guide" aria-labelledby="language-guide-title">
+      <section class="cheatsheet i18n-block lang-en" aria-labelledby="cheatsheet-title-en" lang="en">
+        <div class="cheatsheet-head">
+          <h2 id="cheatsheet-title-en">Cheat Sheet</h2>
+          <p>
+            The playground implicitly imports <code>std::prelude</code> and
+            <code>std::undet::*</code>.
+          </p>
+        </div>
+        <div class="cheatsheet-table-wrap">
+          <table class="cheatsheet-table">
+            <thead>
+              <tr>
+                <th scope="col">Group</th>
+                <th scope="col">Form</th>
+                <th scope="col">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Values</td>
+                <td><code>1</code>, <code>2.0</code>, <code>true</code>, <code>"text"</code></td>
+                <td>Integers, floats, booleans, and strings.</td>
+              </tr>
+              <tr>
+                <td>Bindings</td>
+                <td><code>my x = 1 + 2</code></td>
+                <td>Create a local name.</td>
+              </tr>
+              <tr>
+                <td>Public bindings</td>
+                <td><code>our f x = x + 1</code>, <code>pub answer = 42</code></td>
+                <td><code>our</code> and <code>pub</code> also appear in the Types pane, which is useful for small examples.</td>
+              </tr>
+              <tr>
+                <td>References</td>
+                <td><code>my $x = 10</code>, <code>$x</code>, <code>&amp;x = 11</code></td>
+                <td><code>$</code> reads and <code>&amp;</code> writes. Reference access is explicit instead of normal reassignment.</td>
+              </tr>
+              <tr>
+                <td>Functions</td>
+                <td><code>my id x = x</code>, <code>\x -> x + 1</code></td>
+                <td>Named functions and lambdas.</td>
+              </tr>
+              <tr>
+                <td>Blocks</td>
+                <td><code>({ my x = 1; x + 1 })</code></td>
+                <td>Group statements and use the final expression as the value. Indented blocks and brace groups both work.</td>
+              </tr>
+              <tr>
+                <td>Conditionals</td>
+                <td><code>if x == 1: "one" else: "other"</code></td>
+                <td>Choose a value by condition.</td>
+              </tr>
+              <tr>
+                <td>Patterns</td>
+                <td><code>case xs: [] -> 0; [x,..xs] -> x</code></td>
+                <td>Branch on lists, enums, and records.</td>
+              </tr>
+              <tr>
+                <td>Lists</td>
+                <td><code>[1, 2, 3]</code>, <code>[..xs, x]</code></td>
+                <td>List literals and spread.</td>
+              </tr>
+              <tr>
+                <td>List functions</td>
+                <td><code>map(xs, f)</code>, <code>filter(xs, pred)</code>, <code>sort(xs)</code></td>
+                <td><code>empty</code>, <code>singleton</code>, <code>cons</code>, <code>uncons</code>, <code>fold</code>, <code>rev</code>, <code>first</code>, and <code>last</code> are also available.</td>
+              </tr>
+              <tr>
+                <td>Addition</td>
+                <td><code>1 + 2</code>, <code>"a" + "b"</code>, <code>[1] + [2]</code></td>
+                <td>The <code>Add</code> role works for ints, floats, strings, and lists.</td>
+              </tr>
+              <tr>
+                <td>Comparison</td>
+                <td><code>x == y</code>, <code>x &lt;= y</code></td>
+                <td>The <code>Eq</code> and <code>Ord</code> roles mainly target ints and floats.</td>
+              </tr>
+              <tr>
+                <td>Length</td>
+                <td><code>[1, 2, 3].len</code>, <code>"abc".len</code>, <code>len xs</code></td>
+                <td>The <code>Len</code> role is implemented for lists and strings. Method and function-call forms both work.</td>
+              </tr>
+              <tr>
+                <td>Ranges</td>
+                <td><code>1..3</code>, <code>1..&lt;3</code>, <code>..3</code>, <code>1..</code></td>
+                <td>Create <code>range</code> values. They combine with list/string indexing, and finite ranges can also use <code>Fold</code>.</td>
+              </tr>
+              <tr>
+                <td>Range fold</td>
+                <td><code>(((0..&lt;5).fold) 0) (\acc i -> acc + i)</code></td>
+                <td>Fold a finite range as an int sequence. This example computes <code>0 + 1 + 2 + 3 + 4</code>.</td>
+              </tr>
+              <tr>
+                <td>Index</td>
+                <td><code>xs[0]</code>, <code>xs[1..3]</code>, <code>s[0]</code>, <code>s[1..3]</code></td>
+                <td>The <code>Index</code> role also supports method calls like <code>xs.index 0</code>.</td>
+              </tr>
+              <tr>
+                <td>Opt</td>
+                <td><code>nil</code>, <code>just x</code></td>
+                <td>Returned by <code>first</code>, <code>last</code>, <code>uncons</code>, <code>.once</code>, and similar APIs.</td>
+              </tr>
+              <tr>
+                <td>Nondeterminism</td>
+                <td><code>each [1, 2, 3]</code></td>
+                <td>The playground implicitly imports <code>std::undet::*</code>.</td>
+              </tr>
+              <tr>
+                <td>Guard</td>
+                <td><code>guard (x == 3)</code></td>
+                <td><code>std::undet::guard</code> calls <code>fail()</code> when the condition is false, so it can filter candidates from <code>each</code>.</td>
+              </tr>
+              <tr>
+                <td>Nondet handlers</td>
+                <td><code>(each [1, 2] + each [4, 5]).list</code></td>
+                <td><code>.list</code> collects all solutions, <code>.logic</code> keeps search order, and <code>.once</code> returns the first solution.</td>
+              </tr>
+              <tr>
+                <td>Junctions</td>
+                <td><code>if all [1, 2, 3] &lt; any [2, 3, 4]: 1 else: 0</code></td>
+                <td><code>any</code> and <code>all</code> branch comparison expressions.</td>
+              </tr>
+              <tr>
+                <td>Records</td>
+                <td><code>{ width: 1, height: 2 }</code></td>
+                <td>Patterns can use defaults and spread, such as <code>{ width = 1, ..rest }</code>.</td>
+              </tr>
+              <tr>
+                <td>Optional args</td>
+                <td><code>my area({width = 1, height = 2}) = width * height</code></td>
+                <td>Use record-pattern defaults. Calls like <code>area { width: 3 }</code> and <code>area {}</code> work.</td>
+              </tr>
+              <tr>
+                <td>struct with</td>
+                <td><code>struct point { x: int } with: our p.double = p.x + p.x</code></td>
+                <td>Define a data type and its methods together. Call it like <code>point { x: 3 }.double</code>.</td>
+              </tr>
+              <tr>
+                <td>enum / case</td>
+                <td><code>enum color = red | blue</code>, <code>case c: color::red -> 1</code></td>
+                <td>Branch with constructor patterns. Variants with payloads are supported too.</td>
+              </tr>
+              <tr>
+                <td>Roles</td>
+                <td><code>role Display 'a: our a.show: str</code></td>
+                <td>Add methods with implementations like <code>impl Display int: our x.show = ...</code>.</td>
+              </tr>
+              <tr>
+                <td>Effects</td>
+                <td><code>act io: our read: () -> int</code></td>
+                <td>Catch operations with handlers such as <code>catch io::read(): io::read(), k -> k 1</code>.</td>
+              </tr>
+              <tr>
+                <td>catch</td>
+                <td><code>catch action: effect::op(x), k -> k x</code></td>
+                <td>Handle an effect operation and its continuation <code>k</code>. Unhandled effects remain outside.</td>
+              </tr>
+              <tr>
+                <td>do</td>
+                <td><code>my x = f do</code></td>
+                <td>Not Haskell do-notation. It marks where the rest of the current block is passed into a control function.</td>
+              </tr>
+              <tr>
+                <td>for control</td>
+                <td><code>for x in xs: if x == 2: next else: ()</code></td>
+                <td><code>for</code> uses <code>std::flow::loop::for_in</code>. <code>last</code> breaks, <code>next</code> continues, and <code>redo</code> retries the same element.</td>
+              </tr>
+              <tr>
+                <td>sub return</td>
+                <td><code>sub: for x in 0..: if x == 5: return x else: ()</code></td>
+                <td><code>sub:</code> catches prefixed <code>return x</code> and turns early exit into value <code>x</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="language-guide i18n-block lang-ja" aria-labelledby="language-guide-title-ja">
         <div class="language-guide-head">
-          <h2 id="language-guide-title">Language Guide</h2>
+          <h2 id="language-guide-title-ja">言語ガイド</h2>
           <p>
             Yulang は型推論、role、代数的 effect を中心にした実験的な言語です。
             この playground で試すときに特に重要な見方を短くまとめています。
@@ -300,7 +497,7 @@ twice 21</code></pre>
           </article>
         </div>
         <details class="guide-details">
-          <summary>Short English summary</summary>
+          <summary>短い英語まとめ</summary>
           <p>
             Yulang is an experimental expression-oriented language built around type inference,
             structural types, roles, and algebraic effects. Many control-flow features are
@@ -309,6 +506,81 @@ twice 21</code></pre>
             user code to those library-defined handlers.
           </p>
         </details>
+      </section>
+      <section class="language-guide i18n-block lang-en" aria-labelledby="language-guide-title-en" lang="en">
+        <div class="language-guide-head">
+          <h2 id="language-guide-title-en">Language Guide</h2>
+          <p>
+            Yulang is an experimental language centered on type inference, roles,
+            and algebraic effects. This guide highlights the parts that matter most
+            while trying it in the playground.
+          </p>
+        </div>
+        <div class="guide-grid">
+          <article class="guide-section">
+            <h3>Reading order</h3>
+            <p>
+              Start with a small expression in the editor, then inspect Result and Types.
+              Bindings marked with <code>our</code> or <code>pub</code> show inferred types in Types.
+            </p>
+            <pre><code>our twice x = x + x
+twice 21</code></pre>
+          </article>
+          <article class="guide-section">
+            <h3>Types and roles</h3>
+            <p>
+              Operators like <code>+</code> and <code>&lt;=</code> are resolved as prelude role methods,
+              not as fixed built-ins. Polymorphic bindings can keep requirements such as
+              <code>Add&lt;α&gt;</code> in their inferred types.
+            </p>
+            <pre><code>our twice x = x + x
+// twice: Add&lt;α&gt; =&gt; α -&gt; α</code></pre>
+          </article>
+          <article class="guide-section">
+            <h3>Control via effects</h3>
+            <p>
+              <code>sub:</code>, <code>return</code>, <code>for</code>, and <code>last</code> are connected
+              to standard-library effect handlers through dedicated lowering.
+              The Effects example shows a handler removing one effect while leaving others.
+            </p>
+            <pre><code>sub:
+    for x in 0..:
+        if x == 5: return x
+        else: ()
+    0</code></pre>
+          </article>
+          <article class="guide-section">
+            <h3>Explicit references</h3>
+            <p>
+              <code>$x</code> reads and <code>&amp;x = value</code> writes.
+              This is implemented as a local effect scope rather than normal variable reassignment.
+            </p>
+            <pre><code>{
+    my $x = 10
+    &amp;x = $x + 1
+    $x
+}</code></pre>
+          </article>
+          <article class="guide-section">
+            <h3>Nondeterminism</h3>
+            <p>
+              <code>each</code> chooses candidates, and <code>.list</code> or <code>.once</code>
+              runs the computation. The playground implicitly imports <code>std::undet::*</code>.
+            </p>
+            <pre><code>(each [1, 2, 3] + each [4, 5, 6]).list</code></pre>
+          </article>
+          <article class="guide-section">
+            <h3>More docs</h3>
+            <p>
+              The repository overview has a broader explanation.
+              The current docs are being updated along with the implementation and are not a stable spec.
+            </p>
+            <p class="guide-links">
+              <a href="https://github.com/momota1029/yulang/blob/main/docs/language/overview.md">English overview</a>
+              <a href="https://github.com/momota1029/yulang/blob/main/docs/language/overview.ja.md">Japanese overview</a>
+            </p>
+          </article>
+        </div>
       </section>
     </main>
     <script type="module" src="/src/main.ts"></script>
