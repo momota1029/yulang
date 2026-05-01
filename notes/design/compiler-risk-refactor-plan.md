@@ -1241,3 +1241,32 @@ New risk noticed:
   abstraction: demand signatures need access to type-argument kinds.  The
   general version should project effect-kind type arguments as effect rows from
   the start, not recover them from constructor record fields.
+
+### 2026-05-01: Monomorphization reuses specialization state across rounds
+
+- `Monomorphizer::new` now indexes closed `__mono` bindings already present in
+  the module.  Later old-pipeline passes can reuse prior specializations instead
+  of rediscovering them only from freshly created in-memory state.
+- Direct instantiation specialization now checks existing closed specialization
+  body types before minting a fresh path.
+- The fixed-point runner keeps the rewrite specialization cache across rounds.
+  This preserves exact demand keys while a single fixed point is running, so
+  handler-heavy helpers such as `sub` and loop control no longer get cloned
+  every round just because their effect parameters are hard to reconstruct from
+  the closed body type.
+- Fixed-point convergence now checks the actual module after each round.  This
+  avoids running to the hard limit when a pass reports local rewrites that settle
+  back to the same module.
+
+Measured on `examples/showcase.yu`:
+
+- before: `monomorphize` about 4.4s, 76 passes, 259 specializations
+- after: `monomorphize` about 1.0s, 32 passes, 54 specializations
+
+New risk noticed:
+
+- This is still not a full `monomorphize2` replacement.  It removes a large
+  source of old-pipeline churn, but role resolution and final type repair still
+  run through the old tree-rewrite pipeline.  The next migration step should
+  move role-method demand resolution into the demand engine so `rewrite-uses`
+  can stop being responsible for creating new specializations.

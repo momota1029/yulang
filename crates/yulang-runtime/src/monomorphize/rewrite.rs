@@ -19,20 +19,24 @@ impl Monomorphizer {
             .max()
             .map(|suffix| suffix + 1)
             .unwrap_or(0);
+        let originals = module
+            .bindings
+            .iter()
+            .map(|binding| {
+                (
+                    binding.name.clone(),
+                    binding_with_complete_type_params(binding.clone()),
+                )
+            })
+            .collect();
+        let mut cache = HashMap::new();
+        let mut specialized_types = HashMap::new();
+        seed_existing_specializations(module, &originals, &mut cache, &mut specialized_types);
         Self {
-            originals: module
-                .bindings
-                .iter()
-                .map(|binding| {
-                    (
-                        binding.name.clone(),
-                        binding_with_complete_type_params(binding.clone()),
-                    )
-                })
-                .collect(),
-            cache: HashMap::new(),
+            originals,
+            cache,
             failed_specializations: HashSet::new(),
-            specialized_types: HashMap::new(),
+            specialized_types,
             specialized: Vec::new(),
             locals: HashMap::new(),
             next_specialization,
@@ -488,4 +492,83 @@ impl Monomorphizer {
             },
         }
     }
+}
+
+fn seed_existing_specializations(
+    module: &Module,
+    originals: &HashMap<core_ir::Path, Binding>,
+    cache: &mut HashMap<String, core_ir::Path>,
+    specialized_types: &mut HashMap<core_ir::Path, RuntimeType>,
+) {
+    for binding in &module.bindings {
+        if !is_specialized_path(&binding.name) || hir_type_has_vars(&binding.body.ty) {
+            continue;
+        }
+        specialized_types.insert(
+            binding.name.clone(),
+            normalize_hir_function_type(binding.body.ty.clone()),
+        );
+        let Some(base) = unspecialized_path(&binding.name) else {
+            continue;
+        };
+        let Some(original) = originals.get(&base) else {
+            continue;
+        };
+        let Some(key) = existing_specialization_key(&base, original, binding) else {
+            continue;
+        };
+        if std::env::var_os("YULANG_DEBUG_MONO_SPECIALIZE").is_some() {
+            eprintln!("mono seed {key} -> {}", canonical_path(&binding.name));
+        }
+        cache.entry(key).or_insert_with(|| binding.name.clone());
+    }
+}
+
+fn existing_specialization_key(
+    base: &core_ir::Path,
+    original: &Binding,
+    specialized: &Binding,
+) -> Option<String> {
+    if original.type_params.is_empty() {
+        return None;
+    }
+    let mut substitutions = BTreeMap::new();
+    infer_hir_type_substitutions(
+        &original.body.ty,
+        &specialized.body.ty,
+        &original.type_params,
+        &mut substitutions,
+    );
+    if substitutions.is_empty() {
+        let principal = binding_principal_hir_type(original);
+        infer_hir_type_substitutions(
+            &principal,
+            &specialized.body.ty,
+            &original.type_params,
+            &mut substitutions,
+        );
+    }
+    infer_role_requirement_substitutions(
+        &original.scheme.requirements,
+        &original.type_params.iter().cloned().collect(),
+        &mut substitutions,
+    );
+    let effect_params = effect_position_vars(&original.scheme.body);
+    let instantiation = TypeInstantiation {
+        target: base.clone(),
+        args: original
+            .type_params
+            .iter()
+            .filter_map(|var| {
+                substitutions
+                    .get(var)
+                    .map(|ty| crate::ir::TypeSubstitution {
+                        var: var.clone(),
+                        ty: ty.clone(),
+                    })
+            })
+            .collect(),
+    };
+    let instantiation = normalize_type_instantiation(&instantiation, &effect_params)?;
+    Some(specialization_key(&instantiation))
 }

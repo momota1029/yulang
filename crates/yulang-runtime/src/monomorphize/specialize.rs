@@ -47,8 +47,15 @@ impl Monomorphizer {
         if let Some(path) = self.cache.get(&key) {
             return Some(path.clone());
         }
+        if let Some(path) = self.specialized_path_for_instantiation(&original, &instantiation) {
+            self.cache.insert(key, path.clone());
+            return Some(path);
+        }
 
         let path = self.fresh_specialized_path(&instantiation.target);
+        if std::env::var_os("YULANG_DEBUG_MONO_SPECIALIZE").is_some() {
+            eprintln!("mono specialize {key} -> {}", canonical_path(&path));
+        }
         self.cache.insert(key.clone(), path.clone());
 
         let substitutions = instantiation
@@ -359,6 +366,37 @@ impl Monomorphizer {
             .map(|(_, path)| path)
     }
 
+    fn specialized_path_for_instantiation(
+        &self,
+        original: &Binding,
+        instantiation: &TypeInstantiation,
+    ) -> Option<core_ir::Path> {
+        let substitutions = instantiation
+            .args
+            .iter()
+            .map(|arg| (arg.var.clone(), arg.ty.clone()))
+            .collect::<BTreeMap<_, _>>();
+        let expected_from_body = substitute_hir_type(original.body.ty.clone(), &substitutions);
+        let expected_from_scheme =
+            substitute_hir_type(binding_principal_hir_type(original), &substitutions);
+        self.specialized_types
+            .iter()
+            .filter(|(path, ty)| {
+                unspecialized_path(path).is_some_and(|base| base == instantiation.target)
+                    && !hir_type_has_vars(ty)
+            })
+            .filter_map(|(path, ty)| {
+                let score = specialization_type_reuse_score(
+                    ty,
+                    &expected_from_body,
+                    &expected_from_scheme,
+                )?;
+                Some((score, path.clone()))
+            })
+            .max_by_key(|(score, path)| (*score, path_key(path)))
+            .map(|(_, path)| path)
+    }
+
     pub(super) fn replace_instantiated_head(
         &self,
         expr: &mut Expr,
@@ -590,6 +628,27 @@ impl Monomorphizer {
         }
         path
     }
+}
+
+fn specialization_type_reuse_score(
+    candidate: &RuntimeType,
+    expected_from_body: &RuntimeType,
+    expected_from_scheme: &RuntimeType,
+) -> Option<usize> {
+    if candidate == expected_from_body || candidate == expected_from_scheme {
+        return Some(3);
+    }
+    if hir_type_compatible(candidate, expected_from_body)
+        && hir_type_compatible(expected_from_body, candidate)
+    {
+        return Some(2);
+    }
+    if hir_type_compatible(candidate, expected_from_scheme)
+        && hir_type_compatible(expected_from_scheme, candidate)
+    {
+        return Some(1);
+    }
+    None
 }
 
 pub(super) fn is_impl_method_path(path: &core_ir::Path, method: &core_ir::Name) -> bool {

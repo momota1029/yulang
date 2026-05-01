@@ -280,6 +280,42 @@ fn run_profiled_mono_pass(
     Ok(step)
 }
 
+fn run_profiled_mono_pass_with_rewrite_cache(
+    module: Module,
+    pass: MonoPass,
+    rewrite_cache: &mut HashMap<String, core_ir::Path>,
+    profile: &mut MonomorphizeProfile,
+    debug: bool,
+) -> RuntimeResult<MonoStep> {
+    if pass != MonoPass::RewriteUses {
+        return run_profiled_mono_pass(module, pass, profile, debug);
+    }
+    let before = MonoStats::from_module(&module);
+    let step = rewrite_monomorphic_uses(module, false, Some(rewrite_cache));
+    let after = MonoStats::from_module(&step.module);
+    let progress = step.progress.to_public();
+    profile.passes.push(MonomorphizePassProfile {
+        name: pass.name(),
+        bindings_before: before.bindings,
+        bindings_after: after.bindings,
+        roots_before: before.roots,
+        roots_after: after.roots,
+        progress,
+    });
+    if debug {
+        eprintln!(
+            "mono pass {:>38}: bindings {} -> {}, roots {} -> {}, progress {}",
+            pass.name(),
+            before.bindings,
+            after.bindings,
+            before.roots,
+            after.roots,
+            step.progress.format()
+        );
+    }
+    Ok(step)
+}
+
 fn run_mono_fixpoint(
     mut module: Module,
     name: &'static str,
@@ -288,16 +324,29 @@ fn run_mono_fixpoint(
     profile: &mut MonomorphizeProfile,
     debug: bool,
 ) -> RuntimeResult<Module> {
+    let mut rewrite_cache = HashMap::new();
     for round in 0..limit {
+        let before_round = module.clone();
         let mut round_progress = MonoProgress::default();
         for pass in passes {
-            let step = run_profiled_mono_pass(module, *pass, profile, debug)?;
+            let step = run_profiled_mono_pass_with_rewrite_cache(
+                module,
+                *pass,
+                &mut rewrite_cache,
+                profile,
+                debug,
+            )?;
             module = step.module;
             round_progress.merge(step.progress);
         }
-        if !round_progress.changed() {
+        if module == before_round {
             if debug {
                 eprintln!("mono fixpoint {name} converged after {round} rounds");
+            }
+            return Ok(module);
+        } else if !round_progress.changed() {
+            if debug {
+                eprintln!("mono fixpoint {name} reached unreported progress after {round} rounds");
             }
             return Ok(module);
         } else if debug {
@@ -316,7 +365,7 @@ fn run_mono_fixpoint(
 fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
     match pass {
         MonoPass::DemandSpecialize => demand_specialize_module(module),
-        MonoPass::RewriteUses => Ok(rewrite_monomorphic_uses(module, false)),
+        MonoPass::RewriteUses => Ok(rewrite_monomorphic_uses(module, false, None)),
         MonoPass::RefineTypes => refine_module_types_for_mono(module),
         MonoPass::RefreshClosedSchemes => {
             run_tracked_infallible_pass(module, refresh_closed_specialized_schemes)
@@ -478,8 +527,13 @@ fn refine_module_types_for_mono(module: Module) -> RuntimeResult<MonoStep> {
     })
 }
 
-fn rewrite_monomorphic_uses(module: Module, prune: bool) -> MonoStep {
+fn rewrite_monomorphic_uses(
+    module: Module,
+    prune: bool,
+    mut shared_cache: Option<&mut HashMap<String, core_ir::Path>>,
+) -> MonoStep {
     let mut monomorphizer = Monomorphizer::new(&module);
+    seed_shared_rewrite_cache(&module, &mut monomorphizer, shared_cache.as_deref());
     let original_len = module.bindings.len();
     let mut progress = MonoProgress::default();
     let mut lowered = Module {
@@ -535,7 +589,51 @@ fn rewrite_monomorphic_uses(module: Module, prune: bool) -> MonoStep {
     } else {
         lowered
     };
+    if let Some(shared_cache) = shared_cache.as_mut() {
+        save_shared_rewrite_cache(&module, &monomorphizer, shared_cache);
+    }
     MonoStep { module, progress }
+}
+
+fn seed_shared_rewrite_cache(
+    module: &Module,
+    monomorphizer: &mut Monomorphizer,
+    shared_cache: Option<&HashMap<String, core_ir::Path>>,
+) {
+    let Some(shared_cache) = shared_cache else {
+        return;
+    };
+    let binding_names = module
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<HashSet<_>>();
+    for (key, path) in shared_cache {
+        if binding_names.contains(path) {
+            monomorphizer
+                .cache
+                .entry(key.clone())
+                .or_insert(path.clone());
+        }
+    }
+}
+
+fn save_shared_rewrite_cache(
+    module: &Module,
+    monomorphizer: &Monomorphizer,
+    shared_cache: &mut HashMap<String, core_ir::Path>,
+) {
+    let binding_names = module
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<HashSet<_>>();
+    shared_cache.retain(|_, path| binding_names.contains(path));
+    for (key, path) in &monomorphizer.cache {
+        if binding_names.contains(path) {
+            shared_cache.insert(key.clone(), path.clone());
+        }
+    }
 }
 
 fn should_rewrite_binding(
