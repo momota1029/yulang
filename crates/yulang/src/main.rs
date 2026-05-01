@@ -75,6 +75,7 @@ struct CliOptions {
     run_vm: bool,
     verbose_ir: bool,
     infer_phase_timings: bool,
+    runtime_phase_timings: bool,
     path: Option<String>,
     no_prelude: bool,
     std_root: Option<String>,
@@ -101,6 +102,7 @@ fn parse_args() -> CliOptions {
     let mut run_vm = false;
     let mut verbose_ir = false;
     let mut infer_phase_timings = false;
+    let mut runtime_phase_timings = false;
     let mut path = None;
     let mut no_prelude = false;
     let mut std_root = None;
@@ -126,6 +128,7 @@ fn parse_args() -> CliOptions {
             "--run" => run_vm = true,
             "--verbose-ir" => verbose_ir = true,
             "--infer-phase-timings" => infer_phase_timings = true,
+            "--runtime-phase-timings" => runtime_phase_timings = true,
             "--no-prelude" => no_prelude = true,
             "--std-root" => {
                 let Some(value) = args.next() else {
@@ -191,6 +194,7 @@ fn parse_args() -> CliOptions {
         run_vm,
         verbose_ir,
         infer_phase_timings,
+        runtime_phase_timings,
         path,
         no_prelude,
         std_root,
@@ -221,7 +225,7 @@ fn read_source(path: Option<&str>) -> String {
 
 fn print_usage() {
     eprintln!(
-        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--verbose-ir] [--infer-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
+        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
     );
     eprintln!("       (no path = read from stdin)");
     eprintln!("       --cst         also print the CST before types");
@@ -237,6 +241,9 @@ fn print_usage() {
     eprintln!("       --run         execute the program and print results");
     eprintln!("       --verbose-ir  include detailed graph/evidence sections in IR dumps");
     eprintln!("       --infer-phase-timings  print coarse timing breakdown for the infer pipeline");
+    eprintln!(
+        "       --runtime-phase-timings  print coarse timing breakdown for runtime lowering/VM"
+    );
     eprintln!("       --no-prelude  do not implicitly import std::prelude");
     eprintln!("       --std-root <path>  use an alternate std source root");
     eprintln!("       --profile-flamegraph <svg>  write a CPU flamegraph SVG with pprof");
@@ -560,65 +567,55 @@ fn run_infer_views(
                 println!();
             }
             println!("runtime-ir:");
-            let module =
-                match runtime::lower_core_program(infer_program.clone().expect("core program"))
-                    .and_then(runtime::monomorphize_module)
-                {
-                    Ok(module) => module,
-                    Err(err) => {
-                        eprintln!("failed to lower runtime IR: {err}");
-                        process::exit(1);
-                    }
-                };
-            print_runtime_module(&module, options.verbose_ir);
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+            );
+            print_runtime_module(&lowered.module, options.verbose_ir);
         }
         if options.hygiene_ir {
             if options.infer || options.core_ir || options.runtime_ir {
                 println!();
             }
             println!("hygiene-ir:");
-            let module =
-                match runtime::lower_core_program(infer_program.clone().expect("core program"))
-                    .and_then(runtime::monomorphize_module)
-                {
-                    Ok(module) => module,
-                    Err(err) => {
-                        eprintln!("failed to lower runtime IR: {err}");
-                        process::exit(1);
-                    }
-                };
-            print!("{}", runtime::format_hygiene_module(&module));
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+            );
+            print!("{}", runtime::format_hygiene_module(&lowered.module));
         }
         if options.run_vm {
             if options.infer || options.core_ir || options.runtime_ir || options.hygiene_ir {
                 println!();
             }
-            let module =
-                match runtime::lower_core_program(infer_program.clone().expect("core program"))
-                    .and_then(runtime::monomorphize_module)
-                {
-                    Ok(module) => match runtime::compile_vm_module(module) {
-                        Ok(module) => module,
-                        Err(err) => {
-                            eprintln!("failed to compile runtime IR: {err}");
-                            process::exit(1);
-                        }
-                    },
-                    Err(err) => {
-                        eprintln!("failed to lower runtime IR: {err}");
-                        process::exit(1);
-                    }
-                };
-            for (index, result) in match module.eval_roots() {
+            let lowered =
+                lower_runtime_module_or_exit(infer_program.as_ref().expect("core program"), false);
+            let compile_start = Instant::now();
+            let module = match runtime::compile_vm_module(lowered.module) {
+                Ok(module) => module,
+                Err(err) => {
+                    eprintln!("failed to compile runtime IR: {err}");
+                    process::exit(1);
+                }
+            };
+            let compile_duration = compile_start.elapsed();
+            let eval_start = Instant::now();
+            let results = match module.eval_roots() {
                 Ok(results) => results,
                 Err(err) => {
                     eprintln!("failed to evaluate runtime IR: {err}");
                     process::exit(1);
                 }
+            };
+            let eval_duration = eval_start.elapsed();
+            if options.runtime_phase_timings {
+                print_runtime_phase_timings(
+                    &lowered.profile,
+                    Some(compile_duration),
+                    Some(eval_duration),
+                );
             }
-            .iter()
-            .enumerate()
-            {
+            for (index, result) in results.iter().enumerate() {
                 println!("[{index}] {}", format_runtime_vm_result(result));
             }
         }
@@ -633,6 +630,68 @@ fn run_infer_views(
                 quantified_counts.as_ref().expect("quantified counts"),
             );
         }
+    }
+}
+
+struct RuntimeLowerOutput {
+    module: runtime::Module,
+    profile: RuntimePhaseProfile,
+}
+
+#[derive(Default)]
+struct RuntimePhaseProfile {
+    lower: Duration,
+    monomorphize: Duration,
+}
+
+fn lower_runtime_module_or_exit(
+    program: &core_ir::CoreProgram,
+    print_timings: bool,
+) -> RuntimeLowerOutput {
+    let lower_start = Instant::now();
+    let module = match runtime::lower_core_program(program.clone()) {
+        Ok(module) => module,
+        Err(err) => {
+            eprintln!("failed to lower runtime IR: {err}");
+            process::exit(1);
+        }
+    };
+    let lower = lower_start.elapsed();
+    let mono_start = Instant::now();
+    let module = match runtime::monomorphize_module(module) {
+        Ok(module) => module,
+        Err(err) => {
+            eprintln!("failed to lower runtime IR: {err}");
+            process::exit(1);
+        }
+    };
+    let monomorphize = mono_start.elapsed();
+    let profile = RuntimePhaseProfile {
+        lower,
+        monomorphize,
+    };
+    if print_timings {
+        print_runtime_phase_timings(&profile, None, None);
+    }
+    RuntimeLowerOutput { module, profile }
+}
+
+fn print_runtime_phase_timings(
+    profile: &RuntimePhaseProfile,
+    vm_compile: Option<Duration>,
+    vm_eval: Option<Duration>,
+) {
+    eprintln!("runtime phase timings:");
+    eprintln!("    runtime_lower: {}", format_duration(profile.lower));
+    eprintln!(
+        "    monomorphize: {}",
+        format_duration(profile.monomorphize)
+    );
+    if let Some(duration) = vm_compile {
+        eprintln!("    vm_compile: {}", format_duration(duration));
+    }
+    if let Some(duration) = vm_eval {
+        eprintln!("    vm_eval: {}", format_duration(duration));
     }
 }
 
@@ -2726,6 +2785,7 @@ mod tests {
             run_vm: false,
             verbose_ir: false,
             infer_phase_timings: false,
+            runtime_phase_timings: false,
             path: None,
             no_prelude: true,
             std_root: None,

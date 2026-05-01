@@ -611,3 +611,19 @@ New risk noticed:
 - The diagnostic still prints raw `TypeVar("a")` debug output.  That is enough
   for compiler debugging, but user-facing diagnostics should eventually render
   these variables with the same compact formatter used by inferred types.
+
+### 2026-05-01: Runtime phase timings exposed
+
+- Added `--runtime-phase-timings` to the `yulang` CLI.
+- The flag reports:
+  - runtime lowering
+  - monomorphization
+  - VM compile, when `--run` is used
+  - VM eval, when `--run` is used
+- Verified it with `examples/01_struct_with.yu`.
+
+New risk noticed:
+
+- The timing output is still ad hoc text.  For guardrails, this should later
+  become a reusable profile object or snapshot command so examples can be
+  compared across commits.
