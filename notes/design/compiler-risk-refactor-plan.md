@@ -940,3 +940,23 @@ New risk noticed:
   language-aware rules for subtyping and effect rows so two semantically equal
   rows with different ordering or representation do not split into separate
   specializations.
+
+### 2026-05-01: Demand checker learned thunk, bind, and handle basics
+
+- Added explicit checking rules for:
+  - `Thunk`: checks the inner expression against the thunk value demand
+  - `BindHere`: checks the forced expression as a thunk whose value is the
+    expected result demand
+  - `Handle`: checks handler arms against the expected result demand and binds
+    value-arm payloads from the handled body value
+  - `LocalPushId`, `AddId`, `Coerce`, and `Pack`: forward demand to their body
+    where that is semantically transparent for the current skeleton
+- Pattern-local introduction now passes `DemandSignature` values directly
+  instead of converting value holes into core holes.
+
+New risk noticed:
+
+- Handler checking is still structural.  It does not yet subtract consumed
+  effects or validate resume effects with the full handler hygiene model.  That
+  should be added as explicit effect-row solving, not inferred from handler
+  names.

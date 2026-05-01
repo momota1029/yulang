@@ -178,6 +178,20 @@ pub enum DemandEffect {
 }
 
 impl DemandEffect {
+    pub fn from_core_type(ty: &core_ir::Type) -> Self {
+        let mut next_hole = 0;
+        Self::from_core_type_with_holes(ty, &mut next_hole)
+    }
+
+    pub fn from_core_type_with_holes(ty: &core_ir::Type, next_hole: &mut u32) -> Self {
+        let mut builder = SignatureBuilder {
+            next_hole: *next_hole,
+        };
+        let effect = builder.effect_type(ty);
+        *next_hole = builder.next_hole;
+        effect
+    }
+
     pub fn next_hole_after(&self) -> u32 {
         match self {
             DemandEffect::Empty => 0,
