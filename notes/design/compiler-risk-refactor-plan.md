@@ -492,3 +492,24 @@ New risk noticed:
 - Record pattern defaults can call back into expression refinement.  That is
   correct today, but optional-record work should keep this path in mind because
   defaults are not a purely pattern-local concern.
+
+### 2026-05-01: Runtime lowering thunk helpers split out
+
+- Created `lower/thunk.rs`.
+- Moved the main thunking helpers there:
+  - `prepare_expr_for_expected`
+  - `finalize_effectful_expr`
+  - `finalize_handler_expr`
+  - `attach_forced_effect`
+  - `attach_expr_effect`
+  - `add_id_to_created_thunks`
+  - `add_id_with_peek_if_needed`
+  - `contains_peek_add_id`
+- Moved effect-operation effect construction into `lower/effects.rs`, keeping
+  operation-effect extraction separate from thunk wrapping.
+
+New risk noticed:
+
+- `apply_param_allowed_effect` still lives in `lower/function.rs`, although it
+  creates thunk parameter types.  It should move into `lower/thunk.rs` with the
+  rest of the thunk-boundary rules.

@@ -141,6 +141,34 @@ pub(super) fn stmt_forced_effect(stmt: &Stmt) -> Option<core_ir::Type> {
     }
 }
 
+pub(super) fn effect_operation_effect(
+    path: &core_ir::Path,
+    arg_ty: &core_ir::Type,
+) -> Option<core_ir::Type> {
+    path.segments.last()?;
+    let effect_path = core_ir::Path {
+        segments: path
+            .segments
+            .iter()
+            .take(path.segments.len().saturating_sub(1))
+            .cloned()
+            .collect(),
+    };
+    if effect_path.segments.is_empty() {
+        return None;
+    }
+    let args = (!matches!(arg_ty, core_ir::Type::Any) && arg_ty != &unit_type())
+        .then(|| vec![core_ir::TypeArg::Type(arg_ty.clone())])
+        .unwrap_or_default();
+    Some(core_ir::Type::Row {
+        items: vec![core_ir::Type::Named {
+            path: effect_path,
+            args,
+        }],
+        tail: Box::new(core_ir::Type::Never),
+    })
+}
+
 pub(super) fn merge_effects(
     left: Option<core_ir::Type>,
     right: Option<core_ir::Type>,

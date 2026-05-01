@@ -41,6 +41,7 @@ mod lowerer;
 mod patterns;
 mod std_types;
 mod substitutions;
+mod thunk;
 
 use diagnostics::*;
 use effects::*;
@@ -51,6 +52,7 @@ use hints::*;
 use patterns::*;
 use std_types::*;
 use substitutions::*;
+use thunk::*;
 
 pub fn lower_core_program(program: core_ir::CoreProgram) -> RuntimeResult<Module> {
     let graph = program.graph;
