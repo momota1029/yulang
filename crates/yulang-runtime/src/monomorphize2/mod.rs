@@ -167,6 +167,15 @@ impl DemandSignature {
     pub fn canonicalize_holes(&self) -> Self {
         HoleCanonicalizer::default().signature(self)
     }
+
+    pub fn is_closed(&self) -> bool {
+        match self {
+            DemandSignature::Hole(_) => false,
+            DemandSignature::Core(ty) => ty.is_closed(),
+            DemandSignature::Fun { param, ret } => param.is_closed() && ret.is_closed(),
+            DemandSignature::Thunk { effect, value } => effect.is_closed() && value.is_closed(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -202,6 +211,15 @@ impl DemandEffect {
                 .map(DemandEffect::next_hole_after)
                 .max()
                 .unwrap_or(0),
+        }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        match self {
+            DemandEffect::Empty => true,
+            DemandEffect::Hole(_) => false,
+            DemandEffect::Atom(ty) => ty.is_closed(),
+            DemandEffect::Row(items) => items.iter().all(DemandEffect::is_closed),
         }
     }
 }
@@ -278,6 +296,35 @@ impl DemandCoreType {
             DemandCoreType::Recursive { body, .. } => body.next_hole_after(),
         }
     }
+
+    pub fn is_closed(&self) -> bool {
+        match self {
+            DemandCoreType::Never => true,
+            DemandCoreType::Hole(_) => false,
+            DemandCoreType::Named { args, .. } => args.iter().all(DemandTypeArg::is_closed),
+            DemandCoreType::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => {
+                param.is_closed()
+                    && param_effect.is_closed()
+                    && ret_effect.is_closed()
+                    && ret.is_closed()
+            }
+            DemandCoreType::Tuple(items)
+            | DemandCoreType::Union(items)
+            | DemandCoreType::Inter(items) => items.iter().all(DemandCoreType::is_closed),
+            DemandCoreType::Record(fields) => fields.iter().all(|field| field.value.is_closed()),
+            DemandCoreType::Variant(cases) => cases
+                .iter()
+                .flat_map(|case| case.payloads.iter())
+                .all(DemandCoreType::is_closed),
+            DemandCoreType::RowAsValue(items) => items.iter().all(DemandEffect::is_closed),
+            DemandCoreType::Recursive { body, .. } => body.is_closed(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -299,6 +346,15 @@ impl DemandTypeArg {
                 .map(DemandCoreType::next_hole_after)
                 .max()
                 .unwrap_or(0),
+        }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        match self {
+            DemandTypeArg::Type(ty) => ty.is_closed(),
+            DemandTypeArg::Bounds { lower, upper } => {
+                lower.iter().chain(upper).all(|ty| ty.is_closed())
+            }
         }
     }
 }
@@ -698,6 +754,27 @@ mod tests {
                 effect: DemandEffect::Hole(0),
                 value: Box::new(DemandSignature::Core(DemandCoreType::Hole(0))),
             }
+        );
+    }
+
+    #[test]
+    fn demand_signature_reports_whether_it_is_closed() {
+        assert!(
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(DemandCoreType::Named {
+                    path: path("int"),
+                    args: Vec::new(),
+                })),
+                ret: Box::new(DemandSignature::Core(DemandCoreType::Never)),
+            }
+            .is_closed()
+        );
+        assert!(
+            !DemandSignature::Thunk {
+                effect: DemandEffect::Hole(0),
+                value: Box::new(DemandSignature::Core(DemandCoreType::Never)),
+            }
+            .is_closed()
         );
     }
 

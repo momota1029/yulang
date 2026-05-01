@@ -11,11 +11,45 @@ pub fn demand_monomorphize_module(
             profile: DemandMonomorphizeProfile::default(),
         });
     }
-    let emitted = engine_output.emit_bindings(&module)?;
-    let mut module = DemandEmitter::rewrite_module_uses_with_specializations(
-        module,
-        &engine_output.specializations,
-    )?;
+    let specializations = engine_output
+        .specializations
+        .iter()
+        .filter(|specialization| specialization.solved.is_closed())
+        .cloned()
+        .collect::<Vec<_>>();
+    if specializations.is_empty() {
+        return Ok(DemandMonomorphizeOutput {
+            module,
+            profile: DemandMonomorphizeProfile::default(),
+        });
+    }
+    if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
+        for specialization in &engine_output.specializations {
+            let status = if specialization.solved.is_closed() {
+                "closed"
+            } else {
+                "open"
+            };
+            eprintln!(
+                "demand specialization {status} {:?} -> {:?}: {:?}",
+                specialization.target, specialization.path, specialization.solved
+            );
+        }
+    }
+    let emitted = DemandEngineOutput {
+        checked: engine_output.checked,
+        specializations: specializations.clone(),
+    }
+    .emit_bindings(&module)?;
+    let rewrite =
+        DemandEmitter::rewrite_module_uses_with_specializations_report(module, &specializations)?;
+    if rewrite.changed_roots == 0 && rewrite.changed_bindings == 0 {
+        return Ok(DemandMonomorphizeOutput {
+            module: rewrite.module,
+            profile: DemandMonomorphizeProfile::default(),
+        });
+    }
+    let mut module = rewrite.module;
     let emitted_count = emitted.len();
     module.bindings.extend(emitted);
     Ok(DemandMonomorphizeOutput {

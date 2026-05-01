@@ -1041,3 +1041,26 @@ New risk noticed:
 - Nominal self types can still appear as records in actual runtime bodies.
   That needs a principled bridge from nominal runtime type information to the
   structural body shape rather than a one-off named-vs-record exception.
+
+### 2026-05-01: Demand pass only emits closed, used specializations
+
+- Added `is_closed` checks for demand signatures, core types, effect rows, and
+  type arguments.
+- The connected demand pass now filters out open specializations before emit,
+  so unresolved holes are not lowered into runtime HIR.
+- Root and monomorphic binding rewrite now skip open expected signatures.
+- Emitted bindings are appended only if at least one call site was actually
+  rewritten.
+- Demand emit errors now carry specialization / root / binding context, which
+  makes fallback reasons auditable under `YULANG_DEBUG_MONO_PIPELINE`.
+- Lambda checking now reads the body even when the lambda has no external
+  expected demand but already has a function-shaped runtime type.
+- Local module statements now enter the demand environment, which lets `with:`
+  helper functions and recursive local helpers participate in demand checking.
+
+New risk noticed:
+
+- Some useful polymorphic functions, especially handlers such as `undet.once`,
+  still produce open solved signatures because child-demand solutions are not
+  propagated back into the parent demand.  That should be solved with a real
+  dependency graph between checked demands, not by guessing inside emit.

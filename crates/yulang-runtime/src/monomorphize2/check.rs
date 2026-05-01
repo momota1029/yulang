@@ -175,20 +175,21 @@ impl<'a> ExprChecker<'a> {
         body: &Expr,
         expected: Option<&DemandSignature>,
     ) -> Result<DemandSignature, DemandCheckError> {
-        let Some(
-            expected @ DemandSignature::Fun {
-                param: param_ty,
-                ret,
-            },
-        ) = expected
+        let expected = expected
+            .cloned()
+            .unwrap_or_else(|| self.signature_from_type(&expr.ty));
+        let DemandSignature::Fun {
+            param: param_ty,
+            ret,
+        } = &expected
         else {
-            return Ok(self.signature_from_type(&expr.ty));
+            return Ok(expected);
         };
         let local = core_ir::Path::from_name(param.clone());
         let previous = self.locals.insert(local.clone(), param_ty.as_ref().clone());
         self.check_expr(body, ret)?;
         restore_local(&mut self.locals, local, previous);
-        Ok(expected.clone())
+        Ok(expected)
     }
 
     fn synth_if(
@@ -301,6 +302,15 @@ impl<'a> ExprChecker<'a> {
                 && let Some(payload) = case.payloads.first()
             {
                 self.check_expr(value, &DemandSignature::Core(payload.clone()))?;
+            }
+            return Ok(expected.clone());
+        }
+        if let Some(expected @ DemandSignature::Core(DemandCoreType::Named { args, .. })) = expected
+        {
+            if let Some(value) = value
+                && let Some(payload) = single_payload_from_type_args(args)
+            {
+                self.check_expr(value, &DemandSignature::Core(payload))?;
             }
             return Ok(expected.clone());
         }
@@ -508,9 +518,13 @@ impl<'a> ExprChecker<'a> {
                 self.synth_expr(expr, None)?;
                 Ok(Vec::new())
             }
-            Stmt::Module { body, .. } => {
-                self.synth_expr(body, None)?;
-                Ok(Vec::new())
+            Stmt::Module { def, body } => {
+                let local = def.clone();
+                let placeholder = self.signature_from_type(&body.ty);
+                let previous = self.locals.insert(local.clone(), placeholder);
+                let body = self.synth_expr(body, None)?;
+                self.locals.insert(local.clone(), body);
+                Ok(vec![(local, previous)])
             }
         }
     }
@@ -664,6 +678,26 @@ fn named_core(name: &str) -> DemandCoreType {
     DemandCoreType::Named {
         path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
         args: Vec::new(),
+    }
+}
+
+fn single_payload_from_type_args(args: &[DemandTypeArg]) -> Option<DemandCoreType> {
+    let [arg] = args else {
+        return None;
+    };
+    match arg {
+        DemandTypeArg::Type(ty) => Some(ty.clone()),
+        DemandTypeArg::Bounds {
+            lower: Some(ty), ..
+        }
+        | DemandTypeArg::Bounds {
+            lower: None,
+            upper: Some(ty),
+        } => Some(ty.clone()),
+        DemandTypeArg::Bounds {
+            lower: None,
+            upper: None,
+        } => None,
     }
 }
 
@@ -1382,6 +1416,53 @@ mod tests {
                 param: Box::new(DemandSignature::Core(named_demand("int"))),
                 ret: Box::new(DemandSignature::Core(named_demand("int"))),
             }
+        );
+    }
+
+    #[test]
+    fn checker_pushes_named_variant_type_arg_into_payload() {
+        let f = path("f");
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Variant {
+                        tag: core_ir::Name("just".to_string()),
+                        value: Some(Box::new(Expr::typed(
+                            ExprKind::Var(path("x")),
+                            RuntimeType::core(core_ir::Type::Any),
+                        ))),
+                    },
+                    RuntimeType::core(core_ir::Type::Any),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(
+                RuntimeType::core(named("int")),
+                RuntimeType::core(core_ir::Type::Named {
+                    path: path("opt"),
+                    args: vec![core_ir::TypeArg::Type(named("int"))],
+                }),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked named variant");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::from_runtime_type(&demand.expected)
         );
     }
 

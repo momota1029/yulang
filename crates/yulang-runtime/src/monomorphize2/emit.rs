@@ -37,7 +37,7 @@ impl<'a> DemandEmitter<'a> {
     }
 
     pub fn rewrite_module_uses(&self, module: Module) -> Result<Module, DemandEmitError> {
-        rewrite_module_uses_with_map(module, &self.specializations)
+        rewrite_module_uses_with_map(module, &self.specializations).map(|output| output.module)
     }
 
     pub fn rewrite_module_uses_with_specializations(
@@ -48,10 +48,33 @@ impl<'a> DemandEmitter<'a> {
             .iter()
             .map(|specialization| (specialization.key.clone(), specialization))
             .collect::<HashMap<_, _>>();
+        rewrite_module_uses_with_map(module, &specializations).map(|output| output.module)
+    }
+
+    pub fn rewrite_module_uses_with_specializations_report(
+        module: Module,
+        specializations: &'a [DemandSpecialization],
+    ) -> Result<DemandRewriteOutput, DemandEmitError> {
+        let specializations = specializations
+            .iter()
+            .map(|specialization| (specialization.key.clone(), specialization))
+            .collect::<HashMap<_, _>>();
         rewrite_module_uses_with_map(module, &specializations)
     }
 
     pub fn emit(&self, specialization: &DemandSpecialization) -> Result<Binding, DemandEmitError> {
+        self.emit_inner(specialization)
+            .map_err(|source| DemandEmitError::Specialization {
+                target: specialization.target.clone(),
+                path: specialization.path.clone(),
+                source: Box::new(source),
+            })
+    }
+
+    fn emit_inner(
+        &self,
+        specialization: &DemandSpecialization,
+    ) -> Result<Binding, DemandEmitError> {
         let original = self
             .bindings
             .get(&specialization.target)
@@ -73,25 +96,58 @@ impl<'a> DemandEmitter<'a> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DemandRewriteOutput {
+    pub module: Module,
+    pub changed_roots: usize,
+    pub changed_bindings: usize,
+}
+
 fn rewrite_module_uses_with_map(
     module: Module,
     specializations: &HashMap<DemandKey, &DemandSpecialization>,
-) -> Result<Module, DemandEmitError> {
-    let root_exprs = module
-        .root_exprs
-        .into_iter()
-        .map(|expr| rewrite_root_expr(expr, specializations))
-        .collect::<Result<Vec<_>, _>>()?;
-    let bindings = module
-        .bindings
-        .into_iter()
-        .map(|binding| rewrite_binding_uses(binding, specializations))
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(Module {
-        path: module.path,
-        bindings,
-        root_exprs,
-        roots: module.roots,
+) -> Result<DemandRewriteOutput, DemandEmitError> {
+    let mut changed_roots = 0;
+    let mut root_exprs = Vec::with_capacity(module.root_exprs.len());
+    for (index, expr) in module.root_exprs.into_iter().enumerate() {
+        let rewritten = rewrite_root_expr(expr.clone(), specializations).map_err(|source| {
+            DemandEmitError::RootRewrite {
+                index,
+                source: Box::new(source),
+            }
+        })?;
+        if rewritten != expr {
+            changed_roots += 1;
+        }
+        root_exprs.push(rewritten);
+    }
+
+    let mut changed_bindings = 0;
+    let mut bindings = Vec::with_capacity(module.bindings.len());
+    for binding in module.bindings.into_iter() {
+        let path = binding.name.clone();
+        let rewritten =
+            rewrite_binding_uses(binding.clone(), specializations).map_err(|source| {
+                DemandEmitError::BindingRewrite {
+                    path,
+                    source: Box::new(source),
+                }
+            })?;
+        if rewritten != binding {
+            changed_bindings += 1;
+        }
+        bindings.push(rewritten);
+    }
+
+    Ok(DemandRewriteOutput {
+        module: Module {
+            path: module.path,
+            bindings,
+            root_exprs,
+            roots: module.roots,
+        },
+        changed_roots,
+        changed_bindings,
     })
 }
 
@@ -100,6 +156,9 @@ fn rewrite_root_expr(
     specializations: &HashMap<DemandKey, &DemandSpecialization>,
 ) -> Result<Expr, DemandEmitError> {
     let expected = DemandSignature::from_runtime_type(&expr.ty);
+    if !expected.is_closed() {
+        return Ok(expr);
+    }
     let mut rewriter = BodyEmitter::new(specializations);
     rewriter.rewrite_expr(&expr, Some(&expected))
 }
@@ -112,6 +171,9 @@ fn rewrite_binding_uses(
         return Ok(binding);
     }
     let expected = DemandSignature::from_runtime_type(&binding.body.ty);
+    if !expected.is_closed() {
+        return Ok(binding);
+    }
     let mut rewriter = BodyEmitter::new(specializations);
     let body = rewriter.rewrite_expr(&binding.body, Some(&expected))?;
     Ok(Binding { body, ..binding })
@@ -124,6 +186,19 @@ pub enum DemandEmitError {
     UnresolvedCoreHole(u32),
     UnresolvedEffectHole(u32),
     NonFunctionCall(DemandSignature),
+    RootRewrite {
+        index: usize,
+        source: Box<DemandEmitError>,
+    },
+    BindingRewrite {
+        path: core_ir::Path,
+        source: Box<DemandEmitError>,
+    },
+    Specialization {
+        target: core_ir::Path,
+        path: core_ir::Path,
+        source: Box<DemandEmitError>,
+    },
 }
 
 struct BodyEmitter<'a> {
@@ -769,7 +844,14 @@ mod tests {
 
         let error = emitter.emit(&specialization).expect_err("unresolved hole");
 
-        assert_eq!(error, DemandEmitError::UnresolvedValueHole(3));
+        assert_eq!(
+            error,
+            DemandEmitError::Specialization {
+                target: id,
+                path: path("id__ddmono0"),
+                source: Box::new(DemandEmitError::UnresolvedValueHole(3)),
+            }
+        );
     }
 
     fn generic_identity(name: core_ir::Path) -> Binding {
