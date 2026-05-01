@@ -1158,3 +1158,26 @@ New risk noticed:
   as an intermediate shape, but the next algorithmic cleanup should classify
   rejection causes and avoid queueing obviously impossible candidates, especially
   pure-looking thunk demands and effect rows with synthetic effect arguments.
+
+### 2026-05-01: Demand candidate signatures tightened
+
+- Demand collection now treats `bind_here` as a force operation.  The signature
+  exposed to a generic callee is the forced value, not the thunk that was forced.
+- Apply evidence no longer erases an outer runtime thunk boundary.  When the
+  lowered expression type says the call returns a thunk but the source evidence
+  only describes the value, the collector keeps the runtime thunk signature.
+- Effect atom unification now accepts the local-effect shape mismatch where one
+  side is payloadless and the other side only contains unsolved payload holes.
+  The holes are closed to `Never` instead of rejecting the demand.
+- These changes removed two noisy false candidates from the showcase path:
+  `bind_here`-forced list indexing and synthetic local-reference effects with
+  hole payloads.
+
+New risk noticed:
+
+- The remaining rejected showcase candidates are now concentrated around real
+  effect subtraction boundaries: `sub`, `junction`, loop effects, and some
+  bound-vs-type-argument normalization around `uncons`.  The next algorithmic
+  step should model already-lowered handler effect metadata explicitly in demand
+  checking/collection, rather than guessing from handler arms or repeatedly
+  repairing the tree after the fact.

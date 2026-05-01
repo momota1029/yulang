@@ -341,7 +341,7 @@ impl DemandUnifier {
             (expected, DemandEffect::Hole(id)) => self.bind_effect(*id, expected.clone()),
             (DemandEffect::Empty, DemandEffect::Empty) => Ok(()),
             (DemandEffect::Atom(expected), DemandEffect::Atom(actual)) => {
-                self.core(expected, actual)
+                self.effect_atom(expected, actual)
             }
             (DemandEffect::Row(expected), DemandEffect::Row(actual)) => {
                 self.effect_row(expected, actual)
@@ -410,6 +410,38 @@ impl DemandUnifier {
             self.bind_effect(hole, DemandEffect::Empty)?;
         }
         Ok(())
+    }
+
+    fn effect_atom(
+        &mut self,
+        expected: &DemandCoreType,
+        actual: &DemandCoreType,
+    ) -> Result<(), DemandUnifyError> {
+        if let Some(with_args) = single_effect_payload_side(expected, actual) {
+            for arg in with_args {
+                self.close_effect_payload_holes(arg)?;
+            }
+            return Ok(());
+        }
+        self.core(expected, actual)
+    }
+
+    fn close_effect_payload_holes(&mut self, arg: &DemandTypeArg) -> Result<(), DemandUnifyError> {
+        match arg {
+            DemandTypeArg::Type(DemandCoreType::Hole(id)) => {
+                self.bind_core(*id, DemandCoreType::Never)
+            }
+            DemandTypeArg::Bounds { lower, upper } => {
+                if let Some(DemandCoreType::Hole(id)) = lower {
+                    self.bind_core(*id, DemandCoreType::Never)?;
+                }
+                if let Some(DemandCoreType::Hole(id)) = upper {
+                    self.bind_core(*id, DemandCoreType::Never)?;
+                }
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 
     fn find_unifiable_effect(
@@ -561,6 +593,48 @@ fn remove_shared_effect_holes(expected: &mut Vec<u32>, actual: &mut Vec<u32>) {
             true
         }
     });
+}
+
+fn single_effect_payload_side<'a>(
+    left: &'a DemandCoreType,
+    right: &'a DemandCoreType,
+) -> Option<&'a [DemandTypeArg]> {
+    let (
+        DemandCoreType::Named {
+            path: left_path,
+            args: left_args,
+        },
+        DemandCoreType::Named {
+            path: right_path,
+            args: right_args,
+        },
+    ) = (left, right)
+    else {
+        return None;
+    };
+    if left_path != right_path {
+        return None;
+    }
+    match (left_args.as_slice(), right_args.as_slice()) {
+        ([], args) if args.iter().all(is_payload_hole_arg) => Some(args),
+        (args, []) if args.iter().all(is_payload_hole_arg) => Some(args),
+        _ => None,
+    }
+}
+
+fn is_payload_hole_arg(arg: &DemandTypeArg) -> bool {
+    match arg {
+        DemandTypeArg::Type(DemandCoreType::Hole(_)) => true,
+        DemandTypeArg::Bounds { lower, upper } => {
+            lower
+                .as_ref()
+                .is_none_or(|ty| matches!(ty, DemandCoreType::Hole(_)))
+                && upper
+                    .as_ref()
+                    .is_none_or(|ty| matches!(ty, DemandCoreType::Hole(_)))
+        }
+        _ => false,
+    }
 }
 
 fn effect_from_row_items(items: Vec<DemandEffect>) -> DemandEffect {
@@ -771,6 +845,27 @@ mod tests {
     }
 
     #[test]
+    fn unifier_matches_payloadless_effect_with_hole_payload_effect() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Atom(named("local")),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Atom(named_with_args(
+                "local",
+                vec![DemandTypeArg::Type(DemandCoreType::Hole(0))],
+            )),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        let substitutions = DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("unified local effect payload hole");
+
+        assert_eq!(substitutions.cores.get(&0), Some(&DemandCoreType::Never));
+    }
+
+    #[test]
     fn unifier_solves_effect_hole_inside_row() {
         let expected = DemandSignature::Thunk {
             effect: DemandEffect::Row(vec![DemandEffect::Hole(0), DemandEffect::Atom(named("io"))]),
@@ -945,9 +1040,13 @@ mod tests {
     }
 
     fn named(name: &str) -> DemandCoreType {
+        named_with_args(name, Vec::new())
+    }
+
+    fn named_with_args(name: &str, args: Vec<DemandTypeArg>) -> DemandCoreType {
         DemandCoreType::Named {
             path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
-            args: Vec::new(),
+            args,
         }
     }
 

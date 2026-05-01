@@ -219,10 +219,20 @@ fn expr_signature(expr: &Expr) -> DemandSignature {
         ExprKind::Apply {
             evidence: Some(evidence),
             ..
-        } => apply_evidence_signature(evidence)
-            .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty)),
-        ExprKind::BindHere { expr }
-        | ExprKind::LocalPushId { body: expr, .. }
+        } => {
+            let fallback = DemandSignature::from_runtime_type(&expr.ty);
+            match (apply_evidence_signature(evidence), &fallback) {
+                (Some(evidence), DemandSignature::Thunk { .. })
+                    if !matches!(evidence, DemandSignature::Thunk { .. }) =>
+                {
+                    fallback
+                }
+                (Some(evidence), _) => evidence,
+                (None, _) => fallback,
+            }
+        }
+        ExprKind::BindHere { expr } => signature_value(&expr_signature(expr)),
+        ExprKind::LocalPushId { body: expr, .. }
         | ExprKind::AddId { thunk: expr, .. }
         | ExprKind::Coerce { expr, .. }
         | ExprKind::Pack { expr, .. } => expr_signature(expr),
@@ -451,6 +461,61 @@ mod tests {
             }
         );
         assert!(queue.is_empty());
+    }
+
+    #[test]
+    fn collector_keeps_runtime_thunk_when_apply_evidence_is_value_only() {
+        let f = path("f");
+        let io = named("io");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![generic_binding(f.clone())],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Var(f.clone()),
+                        RuntimeType::fun(
+                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(core_ir::Type::Any),
+                        ),
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(core_ir::Lit::Unit),
+                        RuntimeType::core(named("unit")),
+                    )),
+                    evidence: Some(core_ir::ApplyEvidence {
+                        callee: core_ir::TypeBounds::exact(core_ir::Type::Fun {
+                            param: Box::new(named("unit")),
+                            param_effect: Box::new(core_ir::Type::Never),
+                            ret_effect: Box::new(core_ir::Type::Never),
+                            ret: Box::new(named("int")),
+                        }),
+                        arg: core_ir::TypeBounds::exact(named("unit")),
+                        result: core_ir::TypeBounds::exact(named("int")),
+                        role_method: false,
+                    }),
+                    instantiation: None::<TypeInstantiation>,
+                },
+                RuntimeType::thunk(io, RuntimeType::core(named("int"))),
+            )],
+            roots: vec![Root::Expr(0)],
+        };
+
+        let mut collector = DemandCollector::from_module(&module);
+        collector.collect_module(&module);
+        let mut queue = collector.into_queue();
+        let demand = queue.pop_front().expect("direct call demand");
+
+        assert_eq!(
+            demand.key.signature,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(named_demand("unit"))),
+                ret: Box::new(DemandSignature::Thunk {
+                    effect: DemandEffect::Atom(named_demand("io")),
+                    value: Box::new(DemandSignature::Core(named_demand("int"))),
+                }),
+            }
+        );
     }
 
     fn generic_binding(name: core_ir::Path) -> Binding {
