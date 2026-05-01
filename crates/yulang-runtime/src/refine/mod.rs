@@ -31,6 +31,7 @@ mod locals;
 mod rewrite;
 mod shape;
 mod thunk_force;
+mod type_context;
 
 use constraints::*;
 use effects::*;

@@ -463,3 +463,19 @@ New risk noticed:
   That logic is where local variables, binding types, constructor expectation,
   and expected-type propagation meet.  It should be extracted next before
   changing any rule around function arguments or handlers.
+
+### 2026-05-01: Refinement type context split out
+
+- Moved initial expression type selection into `refine/type_context.rs`.
+- The priority order is now named in one place:
+  - nullary constructor expected by context
+  - local variable type
+  - known binding type
+  - expected type propagation when compatible
+- This keeps the main expression visitor focused on syntax traversal.
+
+New risk noticed:
+
+- The same binding/local priority also exists in nearby monomorphization
+  rewrite code.  It is not identical, but the two rules should be compared
+  before changing method resolution or constructor handling again.

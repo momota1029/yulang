@@ -74,54 +74,7 @@ impl RefineRewriter {
     }
 
     pub(super) fn expr(&mut self, expr: Expr, expected: Option<&RuntimeType>) -> Expr {
-        let original_ty = substitute_hir_type(&expr.ty, &self.substitutions);
-        let constructor_expected = match (&expr.kind, expected) {
-            (ExprKind::Var(path), Some(expected)) => {
-                is_nullary_constructor_path_for_type(path, expected)
-            }
-            _ => false,
-        };
-        let local_ty = match &expr.kind {
-            ExprKind::Var(path) => self.locals.get(path).cloned(),
-            _ => None,
-        };
-        let binding_ty = match &expr.kind {
-            ExprKind::Var(path) if !constructor_expected && !is_data_constructor_path(path) => {
-                local_ty
-                    .is_none()
-                    .then(|| self.binding_types.get(path).cloned())
-                    .flatten()
-            }
-            _ => None,
-        };
-        let original_ty = local_ty
-            .clone()
-            .or(binding_ty.clone())
-            .unwrap_or(original_ty);
-        let mut ty = if constructor_expected {
-            expected
-                .map(|expected| substitute_hir_type(expected, &self.substitutions))
-                .unwrap_or(original_ty)
-        } else if binding_ty.as_ref().is_some_and(hir_type_has_vars) {
-            expected
-                .map(|expected| substitute_hir_type(expected, &self.substitutions))
-                .filter(|expected| {
-                    !hir_type_has_vars(expected) && !hir_type_is_core_never(expected)
-                })
-                .unwrap_or(original_ty)
-        } else if binding_ty.is_some() {
-            original_ty
-        } else {
-            expected
-                .map(|expected| substitute_hir_type(expected, &self.substitutions))
-                .filter(|expected| {
-                    !hir_type_has_vars(expected)
-                        && !hir_type_is_core_never(&original_ty)
-                        && hir_type_compatible(expected, &original_ty)
-                })
-                .map(|expected| refine_expected_expr_type(&expected, &original_ty))
-                .unwrap_or(original_ty)
-        };
+        let mut ty = self.initial_expr_type(&expr, expected);
 
         let kind = match expr.kind {
             ExprKind::Lambda {
