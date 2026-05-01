@@ -12,6 +12,10 @@ use yulang_core_ir as core_ir;
 
 use crate::ir::Type as RuntimeType;
 
+mod collect;
+
+pub use collect::*;
+
 #[derive(Debug, Default, Clone)]
 pub struct DemandQueue {
     queue: VecDeque<Demand>,

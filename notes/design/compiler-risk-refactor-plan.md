@@ -748,3 +748,20 @@ New risk noticed:
 - This is only the demand-key layer.  The next step must add the body checker
   skeleton, otherwise this will remain a clean wrapper around the old problem
   rather than a replacement for the fixed-point rewrite loop.
+
+### 2026-05-01: Direct-call demand collection started
+
+- Added `DemandCollector` to `monomorphize2`.
+- The collector builds a registry of generic bindings and walks root /
+  monomorphic binding bodies.
+- Direct calls to generic bindings now enqueue a demand of the shape
+  `arg_type -> result_type`.
+- Added tests for:
+  - direct generic calls enqueueing one demand
+  - monomorphic calls being ignored
+
+New risk noticed:
+
+- This only handles the simple `f x` shape.  Curried calls such as `f x y`,
+  role calls, constructor calls, and effect operations need explicit demand
+  rules rather than being recovered by recursive tree rewrites.
