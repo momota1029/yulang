@@ -481,11 +481,28 @@ impl DemandUnifier {
                 self.optional_core(expected_lower.as_ref(), actual_lower.as_ref())?;
                 self.optional_core(expected_upper.as_ref(), actual_upper.as_ref())
             }
-            _ => Err(DemandUnifyError::TypeArgMismatch {
-                expected: expected.clone(),
-                actual: actual.clone(),
-            }),
+            (DemandTypeArg::Bounds { lower, upper }, DemandTypeArg::Type(actual)) => {
+                self.type_arg_bounds_with_type(lower.as_ref(), upper.as_ref(), actual)
+            }
+            (DemandTypeArg::Type(expected), DemandTypeArg::Bounds { lower, upper }) => {
+                self.type_arg_bounds_with_type(lower.as_ref(), upper.as_ref(), expected)
+            }
         }
+    }
+
+    fn type_arg_bounds_with_type(
+        &mut self,
+        lower: Option<&DemandCoreType>,
+        upper: Option<&DemandCoreType>,
+        ty: &DemandCoreType,
+    ) -> Result<(), DemandUnifyError> {
+        if let Some(lower) = lower {
+            self.core(lower, ty)?;
+        }
+        if let Some(upper) = upper {
+            self.core(upper, ty)?;
+        }
+        Ok(())
     }
 
     fn optional_core(
@@ -971,6 +988,27 @@ mod tests {
         DemandUnifier::new()
             .unify_signature(&expected, &actual)
             .expect("variant cases unified by name");
+    }
+
+    #[test]
+    fn unifier_checks_type_arg_bounds_against_concrete_type() {
+        let expected = DemandSignature::Core(named_with_args(
+            "box",
+            vec![DemandTypeArg::Bounds {
+                lower: Some(named("int")),
+                upper: Some(DemandCoreType::Hole(0)),
+            }],
+        ));
+        let actual = DemandSignature::Core(named_with_args(
+            "box",
+            vec![DemandTypeArg::Type(named("int"))],
+        ));
+
+        let substitutions = DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("concrete type satisfies bounds");
+
+        assert_eq!(substitutions.cores.get(&0), Some(&named("int")));
     }
 
     #[test]

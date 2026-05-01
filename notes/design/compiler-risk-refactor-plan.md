@@ -1181,3 +1181,29 @@ New risk noticed:
   step should model already-lowered handler effect metadata explicitly in demand
   checking/collection, rather than guessing from handler arms or repeatedly
   repairing the tree after the fact.
+
+### 2026-05-01: Demand checker uses visible boundary facts
+
+- Type-argument unification now accepts a concrete type against a bounded type
+  argument by checking the concrete type against the visible lower/upper
+  boundaries.  This removes the showcase `std::list::uncons` rejected candidate
+  that came only from `Bounds` versus `Type` representation drift.
+- Handler checking now checks arm bodies against the value produced by the
+  handler expression, not against the full outer thunk.  This matches lowered
+  runtime IR where residual effects are represented by the handle expression's
+  thunk boundary, while arms produce the handled value.
+- `case` checking now pushes a non-`Any` pattern type into the scrutinee.  This
+  gives generic scrutinee calls a concrete demand such as `unit -> bool` when
+  the pattern already tells us the scrutinee type.
+
+New risk noticed:
+
+- Handler body value and handler result value are not the same in general:
+  nondeterminism handlers such as `once` transform `int` into `opt<int>`.  So
+  demand checking must not infer the handled body value from the handle result.
+  Future handler work should distinguish three types explicitly: body
+  computation value, arm result value, and residual-effect wrapper.
+- Remaining showcase rejections are now mostly:
+  - effect subtraction for `sub` and `junction`
+  - loop effect family normalization around `last` / `next` / `redo`
+  - synthetic reference constructor/update effects

@@ -394,7 +394,13 @@ impl<'a> ExprChecker<'a> {
         arms: &[crate::ir::MatchArm],
         expected: Option<&DemandSignature>,
     ) -> Result<DemandSignature, DemandCheckError> {
-        let scrutinee_ty = self.synth_expr(scrutinee, None)?;
+        let scrutinee_hint = self.match_scrutinee_hint(arms);
+        let scrutinee_ty = if let Some(hint) = scrutinee_hint {
+            self.check_expr(scrutinee, &hint)?;
+            hint
+        } else {
+            self.synth_expr(scrutinee, None)?
+        };
         let result_ty = expected
             .cloned()
             .unwrap_or_else(|| self.signature_from_type(&expr.ty));
@@ -414,6 +420,11 @@ impl<'a> ExprChecker<'a> {
             }
         }
         Ok(result_ty)
+    }
+
+    fn match_scrutinee_hint(&mut self, arms: &[crate::ir::MatchArm]) -> Option<DemandSignature> {
+        let ty = pattern_runtime_type(&arms.first()?.pattern);
+        (!runtime_type_is_any(ty)).then(|| self.signature_from_type(ty))
     }
 
     fn synth_block(
@@ -455,8 +466,9 @@ impl<'a> ExprChecker<'a> {
         let result_ty = expected
             .cloned()
             .unwrap_or_else(|| self.signature_from_type(&expr.ty));
+        let arm_result_ty = signature_value(&result_ty);
         for arm in arms {
-            self.check_handle_arm(arm, &body_ty, &result_ty)?;
+            self.check_handle_arm(arm, &body_ty, &arm_result_ty)?;
         }
         Ok(result_ty)
     }
@@ -799,6 +811,24 @@ fn single_payload_from_type_args(args: &[DemandTypeArg]) -> Option<DemandCoreTyp
             upper: None,
         } => None,
     }
+}
+
+fn pattern_runtime_type(pattern: &Pattern) -> &RuntimeType {
+    match pattern {
+        Pattern::Wildcard { ty }
+        | Pattern::Bind { ty, .. }
+        | Pattern::Lit { ty, .. }
+        | Pattern::Tuple { ty, .. }
+        | Pattern::List { ty, .. }
+        | Pattern::Record { ty, .. }
+        | Pattern::Variant { ty, .. }
+        | Pattern::Or { ty, .. }
+        | Pattern::As { ty, .. } => ty,
+    }
+}
+
+fn runtime_type_is_any(ty: &RuntimeType) -> bool {
+    matches!(ty, RuntimeType::Core(core_ir::Type::Any))
 }
 
 fn restore_local(
@@ -2178,6 +2208,81 @@ mod tests {
     }
 
     #[test]
+    fn checker_pushes_match_pattern_type_into_generic_scrutinee() {
+        let f = path("f");
+        let g = path("g");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![
+                binding(
+                    f.clone(),
+                    vec![core_ir::TypeVar("a".to_string())],
+                    RuntimeType::core(core_ir::Type::Any),
+                    ExprKind::Match {
+                        scrutinee: Box::new(Expr::typed(
+                            ExprKind::Apply {
+                                callee: Box::new(Expr::typed(
+                                    ExprKind::Var(g.clone()),
+                                    RuntimeType::fun(
+                                        RuntimeType::core(named("unit")),
+                                        RuntimeType::core(core_ir::Type::Any),
+                                    ),
+                                )),
+                                arg: Box::new(Expr::typed(
+                                    ExprKind::Lit(core_ir::Lit::Unit),
+                                    RuntimeType::core(named("unit")),
+                                )),
+                                evidence: None,
+                                instantiation: None,
+                            },
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                        arms: vec![bool_match_arm(true, 1), bool_match_arm(false, 0)],
+                        evidence: crate::ir::JoinEvidence {
+                            result: named("int"),
+                        },
+                    },
+                ),
+                binding(
+                    g.clone(),
+                    vec![core_ir::TypeVar("b".to_string())],
+                    RuntimeType::fun(
+                        RuntimeType::core(named("unit")),
+                        RuntimeType::core(core_ir::Type::Any),
+                    ),
+                    ExprKind::Lambda {
+                        param: core_ir::Name("_".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Lit(core_ir::Lit::Bool(true)),
+                            RuntimeType::core(named("bool")),
+                        )),
+                    },
+                ),
+            ],
+            root_exprs: Vec::new(),
+            roots: vec![Root::Binding(f.clone())],
+        };
+        let demand = Demand::new(f, RuntimeType::core(named("int")));
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked match scrutinee");
+        let mut child_demands = checked.child_demands;
+        let child = child_demands.pop_front().expect("generic scrutinee demand");
+
+        assert_eq!(child.target, g);
+        assert_eq!(
+            child.key.signature,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(named_demand("unit"))),
+                ret: Box::new(DemandSignature::Core(named_demand("bool"))),
+            }
+        );
+    }
+
+    #[test]
     fn checker_pushes_named_variant_type_arg_into_payload() {
         let f = path("f");
         let module = module_with_binding(binding(
@@ -2261,6 +2366,20 @@ mod tests {
         DemandCoreType::Named {
             path: path(name),
             args: Vec::new(),
+        }
+    }
+
+    fn bool_match_arm(value: bool, result: i64) -> crate::ir::MatchArm {
+        crate::ir::MatchArm {
+            pattern: Pattern::Lit {
+                lit: core_ir::Lit::Bool(value),
+                ty: RuntimeType::core(named("bool")),
+            },
+            guard: None,
+            body: Expr::typed(
+                ExprKind::Lit(core_ir::Lit::Int(result.to_string())),
+                RuntimeType::core(named("int")),
+            ),
         }
     }
 
