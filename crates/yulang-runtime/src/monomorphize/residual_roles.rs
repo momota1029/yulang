@@ -1,7 +1,8 @@
 use super::*;
 
-pub(super) fn resolve_residual_role_method_calls(mut module: Module) -> Module {
+pub(super) fn resolve_residual_role_method_calls_with_progress(mut module: Module) -> MonoStep {
     let mut monomorphizer = Monomorphizer::new(&module);
+    let mut progress = MonoProgress::default();
     for _ in 0..32 {
         let mut changed = false;
 
@@ -12,6 +13,7 @@ pub(super) fn resolve_residual_role_method_calls(mut module: Module) -> Module {
             .map(|expr| rewrite_expr(&mut monomorphizer, expr))
             .collect::<Vec<_>>();
         if root_exprs != original_root_exprs {
+            progress.changed_roots += changed_item_count(&original_root_exprs, &root_exprs);
             changed = true;
         }
         module.root_exprs = root_exprs;
@@ -23,12 +25,15 @@ pub(super) fn resolve_residual_role_method_calls(mut module: Module) -> Module {
             let rewritten = rewrite_expr(&mut monomorphizer, binding.body.clone());
             if rewritten != binding.body {
                 binding.body = rewritten;
+                progress.changed_bindings += 1;
                 changed = true;
             }
         }
 
         let specialized = std::mem::take(&mut monomorphizer.specialized);
         if !specialized.is_empty() {
+            progress.added_specializations += specialized.len();
+            progress.changed_bindings += specialized.len();
             module.bindings.extend(specialized);
             changed = true;
         }
@@ -37,7 +42,7 @@ pub(super) fn resolve_residual_role_method_calls(mut module: Module) -> Module {
             break;
         }
     }
-    module
+    MonoStep { module, progress }
 }
 
 fn rewrite_expr(monomorphizer: &mut Monomorphizer, expr: Expr) -> Expr {

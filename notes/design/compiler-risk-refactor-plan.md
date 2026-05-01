@@ -434,3 +434,18 @@ New risk noticed:
   visitor.  A later split should separate plain substitution, expected-type
   propagation, thunk forcing, and cast insertion so each rule has a smaller
   surface.
+
+### 2026-05-01: Residual role pass reports local progress
+
+- `resolve-residual-role-methods` now reports changed roots, changed bindings,
+  and newly emitted specializations directly.
+- The stabilization loop now gets explicit progress from all passes that are
+  most likely to run repeatedly: `rewrite-uses`, `refine-types`, and residual
+  role method resolution.
+
+New risk noticed:
+
+- Residual associated binding resolution still uses wrapper-level module
+  comparison.  It is outside the stabilization loop, so it is less urgent, but
+  it should still get a direct report if it starts participating in fixed-point
+  behavior.

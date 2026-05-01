@@ -152,7 +152,7 @@ fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
             run_tracked_infallible_pass(module, resolve_specialized_residual_associated_bindings)
         }
         MonoPass::ResolveResidualRoleMethods => {
-            run_tracked_infallible_pass(module, resolve_residual_role_method_calls)
+            Ok(resolve_residual_role_method_calls_with_progress(module))
         }
         MonoPass::Stabilize => run_stabilization_loop(module),
         MonoPass::PruneUnreachable => {
