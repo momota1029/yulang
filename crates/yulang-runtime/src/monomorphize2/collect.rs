@@ -148,7 +148,7 @@ impl DemandCollector {
     }
 }
 
-fn applied_call(expr: &Expr) -> Option<(&core_ir::Path, Vec<&Expr>)> {
+pub(super) fn applied_call(expr: &Expr) -> Option<(&core_ir::Path, Vec<&Expr>)> {
     let mut callee = expr;
     let mut args = Vec::new();
     loop {
@@ -168,7 +168,7 @@ fn applied_call(expr: &Expr) -> Option<(&core_ir::Path, Vec<&Expr>)> {
     }
 }
 
-fn curried_call_type(args: &[&Expr], ret: RuntimeType) -> RuntimeType {
+pub(super) fn curried_call_type(args: &[&Expr], ret: RuntimeType) -> RuntimeType {
     args.iter()
         .rev()
         .fold(ret, |ret, arg| RuntimeType::fun(arg.ty.clone(), ret))

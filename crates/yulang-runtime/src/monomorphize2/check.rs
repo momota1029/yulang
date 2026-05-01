@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::*;
 use crate::ir::{Binding, Expr, ExprKind, Module};
 
 pub struct DemandChecker<'a> {
     bindings: HashMap<core_ir::Path, &'a Binding>,
+    generic_bindings: HashSet<core_ir::Path>,
 }
 
 impl<'a> DemandChecker<'a> {
@@ -15,6 +16,12 @@ impl<'a> DemandChecker<'a> {
                 .iter()
                 .map(|binding| (binding.name.clone(), binding))
                 .collect(),
+            generic_bindings: module
+                .bindings
+                .iter()
+                .filter(|binding| !binding.type_params.is_empty())
+                .map(|binding| binding.name.clone())
+                .collect(),
         }
     }
 
@@ -24,15 +31,16 @@ impl<'a> DemandChecker<'a> {
             .get(&demand.target)
             .copied()
             .ok_or_else(|| DemandCheckError::MissingBinding(demand.target.clone()))?;
-        let mut checker = ExprChecker::default();
+        let mut checker = ExprChecker::new(&self.generic_bindings);
         let actual = checker.check_expr(&binding.body, &demand.key.signature)?;
-        let substitutions = checker.finish();
+        let (substitutions, child_demands) = checker.finish();
         Ok(CheckedDemand {
             target: demand.target.clone(),
             expected: demand.key.signature.clone(),
             actual,
             solved: substitutions.apply_signature(&demand.key.signature),
             substitutions,
+            child_demands,
         })
     }
 }
@@ -44,6 +52,7 @@ pub struct CheckedDemand {
     pub actual: DemandSignature,
     pub solved: DemandSignature,
     pub substitutions: DemandSubstitution,
+    pub child_demands: DemandQueue,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,13 +67,23 @@ impl From<DemandUnifyError> for DemandCheckError {
     }
 }
 
-#[derive(Default)]
-struct ExprChecker {
+struct ExprChecker<'a> {
+    generic_bindings: &'a HashSet<core_ir::Path>,
     locals: HashMap<core_ir::Path, DemandSignature>,
     unifier: DemandUnifier,
+    child_demands: DemandQueue,
 }
 
-impl ExprChecker {
+impl<'a> ExprChecker<'a> {
+    fn new(generic_bindings: &'a HashSet<core_ir::Path>) -> Self {
+        Self {
+            generic_bindings,
+            locals: HashMap::new(),
+            unifier: DemandUnifier::new(),
+            child_demands: DemandQueue::default(),
+        }
+    }
+
     fn check_expr(
         &mut self,
         expr: &Expr,
@@ -83,6 +102,23 @@ impl ExprChecker {
         match &expr.kind {
             ExprKind::Lambda { param, body, .. } => self.synth_lambda(expr, param, body, expected),
             ExprKind::Apply { callee, arg, .. } => {
+                if let Some((target, args)) = applied_call(expr)
+                    && self.generic_bindings.contains(target)
+                {
+                    let ret = expected
+                        .cloned()
+                        .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty));
+                    let signature = curried_call_signature(&args, ret.clone());
+                    self.child_demands.push_signature(
+                        target.clone(),
+                        curried_call_type(&args, expr.ty.clone()),
+                        signature,
+                    );
+                    for arg in args {
+                        self.synth_expr(arg, None)?;
+                    }
+                    return Ok(ret);
+                }
                 let callee = self.synth_expr(callee, None)?;
                 let DemandSignature::Fun { param, ret } = callee else {
                     return Ok(DemandSignature::from_runtime_type(&expr.ty));
@@ -123,9 +159,18 @@ impl ExprChecker {
         Ok(expected.clone())
     }
 
-    fn finish(self) -> DemandSubstitution {
-        self.unifier.finish()
+    fn finish(self) -> (DemandSubstitution, DemandQueue) {
+        (self.unifier.finish(), self.child_demands)
     }
+}
+
+fn curried_call_signature(args: &[&Expr], ret: DemandSignature) -> DemandSignature {
+    args.iter()
+        .rev()
+        .fold(ret, |ret, arg| DemandSignature::Fun {
+            param: Box::new(DemandSignature::from_runtime_type(&arg.ty)),
+            ret: Box::new(ret),
+        })
 }
 
 fn restore_local(
@@ -282,6 +327,90 @@ mod tests {
         DemandChecker::from_module(&module)
             .check_demand(&demand)
             .expect("checked application");
+    }
+
+    #[test]
+    fn checker_emits_child_demand_for_generic_call_in_body() {
+        let id = path("id");
+        let use_id = path("use_id");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![
+                binding(
+                    id.clone(),
+                    vec![core_ir::TypeVar("a".to_string())],
+                    RuntimeType::fun(
+                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(core_ir::Type::Any),
+                    ),
+                    ExprKind::Lambda {
+                        param: core_ir::Name("x".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Var(path("x")),
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                    },
+                ),
+                binding(
+                    use_id.clone(),
+                    vec![core_ir::TypeVar("a".to_string())],
+                    RuntimeType::fun(
+                        RuntimeType::core(named("int")),
+                        RuntimeType::core(named("int")),
+                    ),
+                    ExprKind::Lambda {
+                        param: core_ir::Name("x".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Apply {
+                                callee: Box::new(Expr::typed(
+                                    ExprKind::Var(id.clone()),
+                                    RuntimeType::fun(
+                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(core_ir::Type::Any),
+                                    ),
+                                )),
+                                arg: Box::new(Expr::typed(
+                                    ExprKind::Var(path("x")),
+                                    RuntimeType::core(named("int")),
+                                )),
+                                evidence: None,
+                                instantiation: None,
+                            },
+                            RuntimeType::core(named("int")),
+                        )),
+                    },
+                ),
+            ],
+            root_exprs: Vec::new(),
+            roots: vec![Root::Binding(use_id.clone())],
+        };
+        let demand = Demand::new(
+            use_id,
+            RuntimeType::fun(
+                RuntimeType::core(named("int")),
+                RuntimeType::core(named("int")),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked demand");
+        let mut child_demands = checked.child_demands;
+        let child = child_demands.pop_front().expect("child demand");
+
+        assert_eq!(child.target, id);
+        assert_eq!(
+            child.key.signature,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(named_demand("int"))),
+                ret: Box::new(DemandSignature::Core(named_demand("int"))),
+            }
+        );
+        assert!(child_demands.is_empty());
     }
 
     fn module_with_binding(binding: Binding) -> Module {

@@ -14,13 +14,15 @@ use crate::ir::Type as RuntimeType;
 
 mod check;
 mod collect;
+mod engine;
 mod solve;
 
 pub use check::*;
 pub use collect::*;
+pub use engine::*;
 pub use solve::*;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct DemandQueue {
     queue: VecDeque<Demand>,
     seen: HashSet<DemandKey>,
@@ -29,6 +31,20 @@ pub struct DemandQueue {
 impl DemandQueue {
     pub fn push(&mut self, target: core_ir::Path, expected: RuntimeType) -> bool {
         let demand = Demand::new(target, expected);
+        self.push_demand(demand)
+    }
+
+    pub fn push_signature(
+        &mut self,
+        target: core_ir::Path,
+        expected: RuntimeType,
+        signature: DemandSignature,
+    ) -> bool {
+        let demand = Demand::with_signature(target, expected, signature);
+        self.push_demand(demand)
+    }
+
+    fn push_demand(&mut self, demand: Demand) -> bool {
         if !self.seen.insert(demand.key.clone()) {
             return false;
         }
@@ -65,6 +81,19 @@ impl Demand {
             key,
         }
     }
+
+    pub fn with_signature(
+        target: core_ir::Path,
+        expected: RuntimeType,
+        signature: DemandSignature,
+    ) -> Self {
+        let key = DemandKey::from_signature(target.clone(), signature);
+        Self {
+            target,
+            expected,
+            key,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -79,6 +108,10 @@ impl DemandKey {
             target,
             signature: DemandSignature::from_runtime_type(expected),
         }
+    }
+
+    pub fn from_signature(target: core_ir::Path, signature: DemandSignature) -> Self {
+        Self { target, signature }
     }
 }
 

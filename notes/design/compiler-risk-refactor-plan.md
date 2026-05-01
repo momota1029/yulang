@@ -817,3 +817,37 @@ New risk noticed:
   long-term behavior.  The next steps should add explicit rules for block,
   tuple, if/match, thunk/bind, and direct generic call demand emission inside
   checked bodies.
+
+### 2026-05-01: Checked bodies emit child demands
+
+- `DemandChecker` now knows which bindings are generic.
+- When a checked body calls a generic binding directly, the checker enqueues a
+  child demand instead of rewriting the call.
+- Curried child calls are represented as a single demand signature, just like
+  root-level direct calls.
+- Added a test where checking `use_id x = id x` emits the child demand
+  `id : int -> int`.
+
+New risk noticed:
+
+- Child demands are only collected; they are not processed by a driver yet.
+  The next step should add a small deterministic `DemandEngine` loop that pops
+  a demand, checks it, appends child demands, and records checked outputs.
+
+### 2026-05-01: Demand engine loop started
+
+- Added `DemandEngine`.
+- It initializes the queue from `DemandCollector`, then repeatedly:
+  - pops one demand
+  - checks it with `DemandChecker`
+  - appends child demands emitted by the checked body
+  - records the checked result
+- Added a test where root demand collection reaches `id` through a monomorphic
+  helper body.
+
+New risk noticed:
+
+- The engine currently records checked demand metadata only.  It does not emit
+  specialized bindings yet.  The next step should add a specialization table
+  keyed by `DemandKey` and produce deterministic specialized paths before
+  rewriting call sites.
