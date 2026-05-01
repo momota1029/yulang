@@ -1026,3 +1026,18 @@ New risk noticed:
   because optional record rows, handler effect subtraction, references, and a
   few nominal/variant shapes still need explicit demand rules.  Removing the
   fallback should be the milestone that proves the replacement is complete.
+
+### 2026-05-01: Demand unifier learned structural records and variants
+
+- Added core demand rules for:
+  - `never` as a bottom value
+  - records unified by field name rather than field order
+  - variants unified by case name rather than case order
+- These rules remove several early false failures from the connected
+  `demand-specialize` pass.
+
+New risk noticed:
+
+- Nominal self types can still appear as records in actual runtime bodies.
+  That needs a principled bridge from nominal runtime type information to the
+  structural body shape rather than a one-off named-vs-record exception.

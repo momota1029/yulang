@@ -212,7 +212,7 @@ impl DemandUnifier {
         match (expected, actual) {
             (DemandCoreType::Hole(id), actual) => self.bind_core(*id, actual.clone()),
             (expected, DemandCoreType::Hole(id)) => self.bind_core(*id, expected.clone()),
-            (DemandCoreType::Never, DemandCoreType::Never) => Ok(()),
+            (_, DemandCoreType::Never) => Ok(()),
             (
                 DemandCoreType::Named {
                     path: expected_path,
@@ -257,6 +257,12 @@ impl DemandUnifier {
                 }
                 Ok(())
             }
+            (DemandCoreType::Record(expected), DemandCoreType::Record(actual)) => {
+                self.record(expected, actual)
+            }
+            (DemandCoreType::Variant(expected), DemandCoreType::Variant(actual)) => {
+                self.variant(expected, actual)
+            }
             (DemandCoreType::RowAsValue(expected), DemandCoreType::RowAsValue(actual))
                 if expected.len() == actual.len() =>
             {
@@ -270,6 +276,59 @@ impl DemandUnifier {
                 actual: actual.clone(),
             }),
         }
+    }
+
+    fn record(
+        &mut self,
+        expected: &[DemandRecordField],
+        actual: &[DemandRecordField],
+    ) -> Result<(), DemandUnifyError> {
+        if expected.len() != actual.len() {
+            return Err(DemandUnifyError::CoreMismatch {
+                expected: DemandCoreType::Record(expected.to_vec()),
+                actual: DemandCoreType::Record(actual.to_vec()),
+            });
+        }
+        for expected_field in expected {
+            let Some(actual_field) = actual.iter().find(|field| {
+                field.name == expected_field.name && field.optional == expected_field.optional
+            }) else {
+                return Err(DemandUnifyError::CoreMismatch {
+                    expected: DemandCoreType::Record(expected.to_vec()),
+                    actual: DemandCoreType::Record(actual.to_vec()),
+                });
+            };
+            self.core(&expected_field.value, &actual_field.value)?;
+        }
+        Ok(())
+    }
+
+    fn variant(
+        &mut self,
+        expected: &[DemandVariantCase],
+        actual: &[DemandVariantCase],
+    ) -> Result<(), DemandUnifyError> {
+        if expected.len() != actual.len() {
+            return Err(DemandUnifyError::CoreMismatch {
+                expected: DemandCoreType::Variant(expected.to_vec()),
+                actual: DemandCoreType::Variant(actual.to_vec()),
+            });
+        }
+        for expected_case in expected {
+            let Some(actual_case) = actual.iter().find(|case| {
+                case.name == expected_case.name
+                    && case.payloads.len() == expected_case.payloads.len()
+            }) else {
+                return Err(DemandUnifyError::CoreMismatch {
+                    expected: DemandCoreType::Variant(expected.to_vec()),
+                    actual: DemandCoreType::Variant(actual.to_vec()),
+                });
+            };
+            for (expected, actual) in expected_case.payloads.iter().zip(&actual_case.payloads) {
+                self.core(expected, actual)?;
+            }
+        }
+        Ok(())
     }
 
     fn effect(
@@ -680,6 +739,48 @@ mod tests {
     }
 
     #[test]
+    fn unifier_accepts_never_as_bottom_core_type() {
+        DemandUnifier::new()
+            .unify_signature(
+                &DemandSignature::Core(named("unit")),
+                &DemandSignature::Core(DemandCoreType::Never),
+            )
+            .expect("never is a bottom value");
+    }
+
+    #[test]
+    fn unifier_matches_record_fields_by_name() {
+        let expected = DemandSignature::Core(DemandCoreType::Record(vec![
+            field("x", named("int")),
+            field("y", named("bool")),
+        ]));
+        let actual = DemandSignature::Core(DemandCoreType::Record(vec![
+            field("y", named("bool")),
+            field("x", named("int")),
+        ]));
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("record fields unified by name");
+    }
+
+    #[test]
+    fn unifier_matches_variant_cases_by_name() {
+        let expected = DemandSignature::Core(DemandCoreType::Variant(vec![
+            case("nil", Vec::new()),
+            case("just", vec![named("int")]),
+        ]));
+        let actual = DemandSignature::Core(DemandCoreType::Variant(vec![
+            case("just", vec![named("int")]),
+            case("nil", Vec::new()),
+        ]));
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("variant cases unified by name");
+    }
+
+    #[test]
     fn unifier_rejects_recursive_value_hole() {
         let error = DemandUnifier::new()
             .unify_signature(
@@ -749,6 +850,21 @@ mod tests {
         DemandCoreType::Named {
             path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
             args: Vec::new(),
+        }
+    }
+
+    fn field(name: &str, value: DemandCoreType) -> DemandRecordField {
+        DemandRecordField {
+            name: core_ir::Name(name.to_string()),
+            value,
+            optional: false,
+        }
+    }
+
+    fn case(name: &str, payloads: Vec<DemandCoreType>) -> DemandVariantCase {
+        DemandVariantCase {
+            name: core_ir::Name(name.to_string()),
+            payloads,
         }
     }
 }
