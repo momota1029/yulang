@@ -960,3 +960,19 @@ New risk noticed:
   effects or validate resume effects with the full handler hygiene model.  That
   should be added as explicit effect-row solving, not inferred from handler
   names.
+
+### 2026-05-01: Demand checker learned records, selection, variants, and match
+
+- Added explicit checking/synthesis for:
+  - record literals
+  - field selection from synthesized record demand
+  - variant construction
+  - match arms with pattern-local bindings
+- Added tests where record selection and variant match payloads recover `int`
+  from context even though intermediate expressions carry stale `Any`.
+
+New risk noticed:
+
+- Record spread and open rows are still only traversed, not solved.  Optional
+  records will need a real row-demand rule so missing/default fields are handled
+  by the same algorithm rather than by post-hoc expression repair.

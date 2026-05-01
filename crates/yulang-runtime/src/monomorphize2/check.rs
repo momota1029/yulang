@@ -111,6 +111,14 @@ impl<'a> ExprChecker<'a> {
                 ..
             } => self.synth_if(cond, then_branch, else_branch, expected),
             ExprKind::Tuple(items) => self.synth_tuple(items, expected),
+            ExprKind::Record { fields, spread } => self.synth_record(fields, spread, expected),
+            ExprKind::Variant { tag, value } => {
+                self.synth_variant(expr, tag, value.as_deref(), expected)
+            }
+            ExprKind::Select { base, field } => self.synth_select(expr, base, field, expected),
+            ExprKind::Match {
+                scrutinee, arms, ..
+            } => self.synth_match(expr, scrutinee, arms, expected),
             ExprKind::Block { stmts, tail } => self.synth_block(stmts, tail.as_deref(), expected),
             ExprKind::Handle { body, arms, .. } => self.synth_handle(expr, body, arms, expected),
             ExprKind::BindHere { expr: inner } => self.synth_bind_here(expr, inner, expected),
@@ -224,6 +232,146 @@ impl<'a> ExprChecker<'a> {
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(DemandSignature::Core(DemandCoreType::Tuple(items)))
+    }
+
+    fn synth_record(
+        &mut self,
+        fields: &[crate::ir::RecordExprField],
+        spread: &Option<crate::ir::RecordSpreadExpr>,
+        expected: Option<&DemandSignature>,
+    ) -> Result<DemandSignature, DemandCheckError> {
+        if let Some(expected @ DemandSignature::Core(DemandCoreType::Record(expected_fields))) =
+            expected
+        {
+            for field in fields {
+                if let Some(expected_field) = expected_fields
+                    .iter()
+                    .find(|expected| expected.name == field.name)
+                {
+                    self.check_expr(
+                        &field.value,
+                        &DemandSignature::Core(expected_field.value.clone()),
+                    )?;
+                } else {
+                    self.synth_expr(&field.value, None)?;
+                }
+            }
+            self.synth_record_spread(spread)?;
+            return Ok(expected.clone());
+        }
+        let fields = fields
+            .iter()
+            .map(|field| {
+                Ok(DemandRecordField {
+                    name: field.name.clone(),
+                    value: signature_core_value(&self.synth_expr(&field.value, None)?),
+                    optional: false,
+                })
+            })
+            .collect::<Result<Vec<_>, DemandCheckError>>()?;
+        self.synth_record_spread(spread)?;
+        Ok(DemandSignature::Core(DemandCoreType::Record(fields)))
+    }
+
+    fn synth_record_spread(
+        &mut self,
+        spread: &Option<crate::ir::RecordSpreadExpr>,
+    ) -> Result<(), DemandCheckError> {
+        if let Some(spread) = spread {
+            match spread {
+                crate::ir::RecordSpreadExpr::Head(expr)
+                | crate::ir::RecordSpreadExpr::Tail(expr) => {
+                    self.synth_expr(expr, None)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn synth_variant(
+        &mut self,
+        expr: &Expr,
+        tag: &core_ir::Name,
+        value: Option<&Expr>,
+        expected: Option<&DemandSignature>,
+    ) -> Result<DemandSignature, DemandCheckError> {
+        if let Some(expected @ DemandSignature::Core(DemandCoreType::Variant(cases))) = expected {
+            if let Some(value) = value
+                && let Some(case) = cases.iter().find(|case| case.name == *tag)
+                && let Some(payload) = case.payloads.first()
+            {
+                self.check_expr(value, &DemandSignature::Core(payload.clone()))?;
+            }
+            return Ok(expected.clone());
+        }
+        let payloads = value
+            .map(|value| {
+                self.synth_expr(value, None)
+                    .map(|ty| vec![signature_core_value(&ty)])
+            })
+            .transpose()?
+            .unwrap_or_default();
+        if payloads.is_empty() && value.is_some() {
+            return Ok(self.signature_from_type(&expr.ty));
+        }
+        Ok(DemandSignature::Core(DemandCoreType::Variant(vec![
+            DemandVariantCase {
+                name: tag.clone(),
+                payloads,
+            },
+        ])))
+    }
+
+    fn synth_select(
+        &mut self,
+        expr: &Expr,
+        base: &Expr,
+        field: &core_ir::Name,
+        expected: Option<&DemandSignature>,
+    ) -> Result<DemandSignature, DemandCheckError> {
+        let base_ty = self.synth_expr(base, None)?;
+        if let DemandSignature::Core(DemandCoreType::Record(fields)) = base_ty
+            && let Some(field) = fields.iter().find(|candidate| candidate.name == *field)
+        {
+            let actual = DemandSignature::Core(field.value.clone());
+            if let Some(expected) = expected {
+                self.unifier.unify(expected, &actual)?;
+                return Ok(expected.clone());
+            }
+            return Ok(actual);
+        }
+        Ok(expected
+            .cloned()
+            .unwrap_or_else(|| self.signature_from_type(&expr.ty)))
+    }
+
+    fn synth_match(
+        &mut self,
+        expr: &Expr,
+        scrutinee: &Expr,
+        arms: &[crate::ir::MatchArm],
+        expected: Option<&DemandSignature>,
+    ) -> Result<DemandSignature, DemandCheckError> {
+        let scrutinee_ty = self.synth_expr(scrutinee, None)?;
+        let result_ty = expected
+            .cloned()
+            .unwrap_or_else(|| self.signature_from_type(&expr.ty));
+        for arm in arms {
+            let mut inserted = Vec::new();
+            self.push_pattern_bindings(
+                &arm.pattern,
+                Some(&signature_value(&scrutinee_ty)),
+                &mut inserted,
+            );
+            if let Some(guard) = &arm.guard {
+                self.check_expr(guard, &DemandSignature::Core(named_core("bool")))?;
+            }
+            self.check_expr(&arm.body, &result_ty)?;
+            for (local, previous) in inserted.into_iter().rev() {
+                restore_local(&mut self.locals, local, previous);
+            }
+        }
+        Ok(result_ty)
     }
 
     fn synth_block(
@@ -426,9 +574,17 @@ impl<'a> ExprChecker<'a> {
                     self.push_pattern_bindings(&field.pattern, expected_field.as_ref(), inserted);
                 }
             }
-            Pattern::Variant { value, .. } => {
+            Pattern::Variant { tag, value, .. } => {
+                let expected_payload = expected.and_then(|expected| match expected {
+                    DemandSignature::Core(DemandCoreType::Variant(cases)) => cases
+                        .iter()
+                        .find(|case| case.name == *tag)
+                        .and_then(|case| case.payloads.first())
+                        .map(|payload| DemandSignature::Core(payload.clone())),
+                    _ => None,
+                });
                 if let Some(value) = value {
-                    self.push_pattern_bindings(value, None, inserted);
+                    self.push_pattern_bindings(value, expected_payload.as_ref(), inserted);
                 }
             }
             Pattern::As { pattern, name, ty } => {
@@ -1092,6 +1248,133 @@ mod tests {
         let checked = DemandChecker::from_module(&module)
             .check_demand(&demand)
             .expect("checked handle");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(named_demand("int"))),
+                ret: Box::new(DemandSignature::Core(named_demand("int"))),
+            }
+        );
+    }
+
+    #[test]
+    fn checker_tracks_record_field_selection() {
+        let f = path("f");
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Select {
+                        base: Box::new(Expr::typed(
+                            ExprKind::Record {
+                                fields: vec![crate::ir::RecordExprField {
+                                    name: core_ir::Name("value".to_string()),
+                                    value: Expr::typed(
+                                        ExprKind::Var(path("x")),
+                                        RuntimeType::core(core_ir::Type::Any),
+                                    ),
+                                }],
+                                spread: None,
+                            },
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                        field: core_ir::Name("value".to_string()),
+                    },
+                    RuntimeType::core(core_ir::Type::Any),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(
+                RuntimeType::core(named("int")),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked record select");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(named_demand("int"))),
+                ret: Box::new(DemandSignature::Core(named_demand("int"))),
+            }
+        );
+    }
+
+    #[test]
+    fn checker_tracks_variant_match_payload() {
+        let f = path("f");
+        let tag = core_ir::Name("just".to_string());
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Match {
+                        scrutinee: Box::new(Expr::typed(
+                            ExprKind::Variant {
+                                tag: tag.clone(),
+                                value: Some(Box::new(Expr::typed(
+                                    ExprKind::Var(path("x")),
+                                    RuntimeType::core(core_ir::Type::Any),
+                                ))),
+                            },
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                        arms: vec![crate::ir::MatchArm {
+                            pattern: Pattern::Variant {
+                                tag,
+                                value: Some(Box::new(Pattern::Bind {
+                                    name: core_ir::Name("y".to_string()),
+                                    ty: RuntimeType::core(core_ir::Type::Any),
+                                })),
+                                ty: RuntimeType::core(core_ir::Type::Any),
+                            },
+                            guard: None,
+                            body: Expr::typed(
+                                ExprKind::Var(path("y")),
+                                RuntimeType::core(core_ir::Type::Any),
+                            ),
+                        }],
+                        evidence: crate::ir::JoinEvidence {
+                            result: core_ir::Type::Any,
+                        },
+                    },
+                    RuntimeType::core(core_ir::Type::Any),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(
+                RuntimeType::core(named("int")),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked match");
 
         assert_eq!(
             checked.solved,
