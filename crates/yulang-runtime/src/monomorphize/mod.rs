@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use yulang_core_ir as core_ir;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::invariant::{RuntimeStage, check_runtime_invariants};
 use crate::ir::{
     Binding, Expr, ExprKind, HandleArm, MatchArm, Module, Pattern, RecordExprField,
     RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, ResumeBinding, Root, Stmt,
@@ -76,6 +77,7 @@ pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     lowered = refresh_closed_specialized_schemes(lowered);
     lowered = resolve_residual_associated_bindings(lowered);
     ensure_monomorphic_bindings(&lowered)?;
+    check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
     validate_module(&lowered)?;
     Ok(lowered)
 }

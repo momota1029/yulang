@@ -56,6 +56,11 @@ pub enum RuntimeError {
         path: core_ir::Path,
         vars: Vec<core_ir::TypeVar>,
     },
+    InvariantViolation {
+        stage: &'static str,
+        context: String,
+        message: &'static str,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -162,6 +167,14 @@ This usually means a name, field, method, or operator could not be resolved."
                 "binding {} is still polymorphic after runtime specialization: {:?}",
                 display_path(path),
                 vars
+            ),
+            RuntimeError::InvariantViolation {
+                stage,
+                context,
+                message,
+            } => write!(
+                f,
+                "runtime invariant failed after {stage} at {context}: {message}"
             ),
         }
     }

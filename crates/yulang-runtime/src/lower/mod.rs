@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use yulang_core_ir as core_ir;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult, TypeSource};
+use crate::invariant::{RuntimeStage, check_runtime_invariants};
 use crate::ir::{
     Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence,
     MatchArm, Module, Pattern, RecordExprField, RecordPatternField, RecordSpreadExpr,
@@ -129,6 +130,7 @@ pub fn lower_principal_module_with_graph(
         root_exprs,
         roots,
     };
+    check_runtime_invariants(&module, RuntimeStage::Lowered)?;
     validate_module(&module)?;
     Ok(module)
 }

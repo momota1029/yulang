@@ -336,3 +336,23 @@ Start with the smallest useful refactor:
 This first task is low risk and directly protects the bug class that just
 appeared around wildcard thunk preservation.
 
+## Progress Log
+
+### 2026-05-01: Runtime invariant checker started
+
+- Added a dedicated runtime invariant layer separate from type validation.
+- First checks:
+  - `BindHere` must force a thunk.
+  - `Thunk` node type must match its effect/value payload.
+  - `AddId` must wrap a thunk and must not use an empty allowed effect.
+  - effectful `Handle` bodies must be thunks.
+- Wired the checker after runtime lowering, after monomorphization, and before
+  VM erase.
+- Added negative tests for malformed `BindHere`, `Thunk`, and `AddId`.
+
+New risk noticed:
+
+- Some invariants are semantic, not merely structural.  For example, handler
+  body thunking is only required when the handler actually consumes effects.
+  Future checks should keep this distinction, or they will reject valid
+  value-only `catch` forms.

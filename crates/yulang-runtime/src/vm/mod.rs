@@ -4,6 +4,8 @@ use std::rc::Rc;
 
 use yulang_core_ir as core_ir;
 
+use crate::diagnostic::RuntimeError;
+use crate::invariant::{RuntimeStage, check_runtime_invariants};
 use crate::ir::{
     Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, MatchArm, Module, Pattern,
     RecordExprField, RecordSpreadExpr, Stmt, Type,
@@ -34,6 +36,7 @@ impl VmModule {
 }
 
 pub fn compile_vm_module(module: Module) -> Result<VmModule, VmError> {
+    check_runtime_invariants(&module, RuntimeStage::BeforeVm).map_err(VmError::Runtime)?;
     let effects = EffectPathResolver::collect(&module);
     Ok(VmModule {
         module: erase_module(module, &effects)?,
@@ -42,6 +45,7 @@ pub fn compile_vm_module(module: Module) -> Result<VmModule, VmError> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VmError {
+    Runtime(RuntimeError),
     ResidualPolymorphicBinding {
         path: core_ir::Path,
         vars: Vec<core_ir::TypeVar>,
