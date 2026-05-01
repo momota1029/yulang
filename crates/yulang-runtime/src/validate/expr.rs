@@ -80,7 +80,7 @@ pub(super) fn validate_expr(
                         {
                             require_same_type(
                                 &result_ty,
-                                hir_value_core_type(&expr.ty),
+                                hir_value_core_type(&expr.ty).as_ref(),
                                 TypeSource::ApplyEvidence,
                             )?;
                         }
@@ -133,14 +133,14 @@ pub(super) fn validate_expr(
             validate_expr(scrutinee, bindings, type_arg_kinds, locals)?;
             require_same_type(
                 &evidence.result,
-                hir_value_core_type(&expr.ty),
+                hir_value_core_type(&expr.ty).as_ref(),
                 TypeSource::JoinEvidence,
             )?;
             for arm in arms {
                 validate_match_arm(
                     arm,
-                    hir_value_core_type(&scrutinee.ty),
-                    hir_value_core_type(&expr.ty),
+                    hir_value_core_type(&scrutinee.ty).as_ref(),
+                    hir_value_core_type(&expr.ty).as_ref(),
                     bindings,
                     type_arg_kinds,
                     locals,
@@ -176,15 +176,15 @@ pub(super) fn validate_expr(
             validate_expr(body, bindings, type_arg_kinds, locals)?;
             require_same_type(
                 &evidence.result,
-                hir_value_core_type(&expr.ty),
+                hir_value_core_type(&expr.ty).as_ref(),
                 TypeSource::JoinEvidence,
             )?;
             validate_handle_effect(handler, arms)?;
             for arm in arms {
                 validate_handle_arm(
                     arm,
-                    hir_value_core_type(&body.ty),
-                    hir_value_core_type(&expr.ty),
+                    hir_value_core_type(&body.ty).as_ref(),
+                    hir_value_core_type(&expr.ty).as_ref(),
                     bindings,
                     type_arg_kinds,
                     locals,
@@ -294,7 +294,7 @@ fn apply_evidence_result_matches(
     };
     match require_same_type(
         &result_ty,
-        hir_value_core_type(actual),
+        hir_value_core_type(actual).as_ref(),
         TypeSource::ApplyEvidence,
     ) {
         Ok(()) => Ok(true),
@@ -387,9 +387,11 @@ pub(super) fn validate_resume_binding(
     body_ty: &core_ir::Type,
 ) -> RuntimeResult<()> {
     match &resume.ty {
-        RuntimeType::Fun { ret, .. } => {
-            require_same_type(body_ty, hir_value_core_type(ret), TypeSource::Expected)
-        }
+        RuntimeType::Fun { ret, .. } => require_same_type(
+            body_ty,
+            hir_value_core_type(ret).as_ref(),
+            TypeSource::Expected,
+        ),
         RuntimeType::Core(core_ir::Type::Fun { ret, .. }) => {
             require_same_type(body_ty, ret, TypeSource::Expected)
         }

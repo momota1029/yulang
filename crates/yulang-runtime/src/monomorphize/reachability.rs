@@ -113,6 +113,20 @@ pub(super) fn type_bounds_have_vars(bounds: &core_ir::TypeBounds) -> bool {
 pub(super) fn ensure_monomorphic_bindings(module: &Module) -> RuntimeResult<()> {
     for binding in &module.bindings {
         if !binding.type_params.is_empty() {
+            if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
+                let mut referrers = Vec::new();
+                for candidate in &module.bindings {
+                    let mut vars = HashSet::new();
+                    collect_expr_vars(&candidate.body, &mut vars);
+                    if vars.contains(&binding.name) {
+                        referrers.push(candidate.name.clone());
+                    }
+                }
+                eprintln!(
+                    "residual polymorphic binding {:?} is referenced by {:?}",
+                    binding.name, referrers
+                );
+            }
             return Err(RuntimeError::ResidualPolymorphicBinding {
                 path: binding.name.clone(),
                 vars: binding.type_params.clone(),

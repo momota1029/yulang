@@ -6,11 +6,13 @@ use crate::ir::{Binding, Expr, ExprKind, HandleArm, Module, Pattern, Stmt, Type 
 pub struct DemandChecker<'a> {
     bindings: HashMap<core_ir::Path, &'a Binding>,
     generic_bindings: HashSet<core_ir::Path>,
+    pure_handler_bindings: HashMap<core_ir::Path, Vec<core_ir::Path>>,
 }
 
 impl<'a> DemandChecker<'a> {
     pub fn from_module(module: &'a Module) -> Self {
         Self {
+            pure_handler_bindings: pure_handler_bindings(module),
             bindings: module
                 .bindings
                 .iter()
@@ -31,14 +33,21 @@ impl<'a> DemandChecker<'a> {
             .get(&demand.target)
             .copied()
             .ok_or_else(|| DemandCheckError::MissingBinding(demand.target.clone()))?;
-        let mut checker = ExprChecker::new(&self.generic_bindings);
+        let consumed_effects = self
+            .pure_handler_bindings
+            .get(&demand.target)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let mut checker = ExprChecker::new(&self.generic_bindings, consumed_effects);
         let actual = checker.check_expr(&binding.body, &demand.key.signature)?;
         let (substitutions, child_demands) = checker.finish();
+        let solved =
+            close_constructor_effect_args(substitutions.apply_signature(&demand.key.signature));
         Ok(CheckedDemand {
             target: demand.target.clone(),
             expected: demand.key.signature.clone(),
             actual,
-            solved: substitutions.apply_signature(&demand.key.signature),
+            solved,
             substitutions,
             child_demands,
         })
@@ -69,6 +78,7 @@ impl From<DemandUnifyError> for DemandCheckError {
 
 struct ExprChecker<'a> {
     generic_bindings: &'a HashSet<core_ir::Path>,
+    consumed_effects: &'a [core_ir::Path],
     locals: HashMap<core_ir::Path, DemandSignature>,
     next_hole: u32,
     unifier: DemandUnifier,
@@ -82,9 +92,13 @@ struct PendingChildDemand {
 }
 
 impl<'a> ExprChecker<'a> {
-    fn new(generic_bindings: &'a HashSet<core_ir::Path>) -> Self {
+    fn new(
+        generic_bindings: &'a HashSet<core_ir::Path>,
+        consumed_effects: &'a [core_ir::Path],
+    ) -> Self {
         Self {
             generic_bindings,
+            consumed_effects,
             locals: HashMap::new(),
             next_hole: 0,
             unifier: DemandUnifier::new(),
@@ -99,8 +113,24 @@ impl<'a> ExprChecker<'a> {
     ) -> Result<DemandSignature, DemandCheckError> {
         self.next_hole = self.next_hole.max(expected.next_hole_after());
         let actual = self.synth_expr(expr, Some(expected))?;
+        if !matches!(expected, DemandSignature::Thunk { .. })
+            && let Some(value) = self.consumed_thunk_value(&actual)
+        {
+            self.unifier.unify(expected, value)?;
+            return Ok(actual);
+        }
         self.unifier.unify(expected, &actual)?;
         Ok(actual)
+    }
+
+    fn consumed_thunk_value<'b>(
+        &self,
+        signature: &'b DemandSignature,
+    ) -> Option<&'b DemandSignature> {
+        let DemandSignature::Thunk { effect, value } = signature else {
+            return None;
+        };
+        demand_effect_is_consumed(effect, self.consumed_effects).then_some(value.as_ref())
     }
 
     fn synth_expr(
@@ -139,13 +169,24 @@ impl<'a> ExprChecker<'a> {
                 from, expr: inner, ..
             } => self.synth_coerce(expr, from, inner, expected),
             ExprKind::Pack { expr: inner, .. } => self.synth_expr(inner, expected),
-            ExprKind::Apply { callee, arg, .. } => {
+            ExprKind::Apply {
+                callee,
+                arg,
+                evidence,
+                ..
+            } => {
                 if let Some((target, head, args)) = applied_call_with_head(expr)
                     && self.generic_bindings.contains(target)
                 {
-                    let ret = expected
-                        .cloned()
-                        .unwrap_or_else(|| self.signature_from_type(&expr.ty));
+                    let ret = expected.cloned().unwrap_or_else(|| {
+                        let fallback = self.signature_from_type(&expr.ty);
+                        evidence
+                            .as_ref()
+                            .map(|evidence| {
+                                apply_evidence_merged_signature(evidence, fallback.clone())
+                            })
+                            .unwrap_or(fallback)
+                    });
                     let param_hints = self.curried_param_signatures_from_type(&head.ty, args.len());
                     let mut arg_signatures = Vec::with_capacity(args.len());
                     for (arg, hint) in args.iter().zip(param_hints) {
@@ -829,6 +870,237 @@ fn pattern_runtime_type(pattern: &Pattern) -> &RuntimeType {
 
 fn runtime_type_is_any(ty: &RuntimeType) -> bool {
     matches!(ty, RuntimeType::Core(core_ir::Type::Any))
+}
+
+fn pure_handler_bindings(module: &Module) -> HashMap<core_ir::Path, Vec<core_ir::Path>> {
+    module
+        .bindings
+        .iter()
+        .filter_map(|binding| {
+            expr_pure_handler_consumes(&binding.body)
+                .map(|consumes| (binding.name.clone(), consumes))
+        })
+        .collect()
+}
+
+fn expr_pure_handler_consumes(expr: &Expr) -> Option<Vec<core_ir::Path>> {
+    match &expr.kind {
+        ExprKind::Handle { handler, .. }
+            if handler
+                .residual_after
+                .as_ref()
+                .is_some_and(core_effect_is_empty) =>
+        {
+            Some(handler.consumes.clone())
+        }
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::Thunk { expr: body, .. }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => expr_pure_handler_consumes(body),
+        ExprKind::Block {
+            tail: Some(tail), ..
+        } => expr_pure_handler_consumes(tail),
+        ExprKind::Block { stmts, tail: None } => match stmts.last() {
+            Some(Stmt::Expr(expr)) => expr_pure_handler_consumes(expr),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn core_effect_is_empty(effect: &core_ir::Type) -> bool {
+    matches!(effect, core_ir::Type::Never)
+        || matches!(
+            effect,
+            core_ir::Type::Row { items, tail }
+                if items.is_empty() && core_effect_is_empty(tail)
+        )
+}
+
+fn demand_effect_is_consumed(effect: &DemandEffect, consumed: &[core_ir::Path]) -> bool {
+    match effect {
+        DemandEffect::Empty | DemandEffect::Hole(_) => false,
+        DemandEffect::Atom(ty) => demand_core_effect_path(ty).is_some_and(|path| {
+            consumed
+                .iter()
+                .any(|consume| effect_paths_match(consume, path))
+        }),
+        DemandEffect::Row(items) => items
+            .iter()
+            .any(|item| demand_effect_is_consumed(item, consumed)),
+    }
+}
+
+fn demand_core_effect_path(ty: &DemandCoreType) -> Option<&core_ir::Path> {
+    match ty {
+        DemandCoreType::Named { path, .. } => Some(path),
+        _ => None,
+    }
+}
+
+fn effect_paths_match(left: &core_ir::Path, right: &core_ir::Path) -> bool {
+    left == right
+}
+
+fn close_constructor_effect_args(signature: DemandSignature) -> DemandSignature {
+    let DemandSignature::Fun { param, ret } = signature else {
+        return signature;
+    };
+    let mut param = *param;
+    let mut ret = *ret;
+    if let Some(value_arg) = ref_ret_value_arg(&ret) {
+        param = close_ref_constructor_param(param, &value_arg);
+    }
+    ret = close_ref_constructor_effect_arg(&param, ret);
+    DemandSignature::Fun {
+        param: Box::new(param),
+        ret: Box::new(ret),
+    }
+}
+
+fn close_ref_constructor_effect_arg(
+    param: &DemandSignature,
+    ret: DemandSignature,
+) -> DemandSignature {
+    let Some(effect_arg) = ref_record_effect_arg(param) else {
+        return ret;
+    };
+    let DemandSignature::Core(DemandCoreType::Named { path, mut args }) = ret else {
+        return ret;
+    };
+    if !is_std_var_ref_path(&path) || args.is_empty() {
+        return DemandSignature::Core(DemandCoreType::Named { path, args });
+    }
+    if type_arg_can_accept_closed_effect(&args[0]) {
+        args[0] = DemandTypeArg::Type(effect_arg);
+    }
+    DemandSignature::Core(DemandCoreType::Named { path, args })
+}
+
+fn ref_ret_value_arg(ret: &DemandSignature) -> Option<DemandCoreType> {
+    let DemandSignature::Core(DemandCoreType::Named { path, args }) = ret else {
+        return None;
+    };
+    if !is_std_var_ref_path(path) {
+        return None;
+    }
+    match args.get(1)? {
+        DemandTypeArg::Type(ty) if ty.is_closed() => Some(ty.clone()),
+        DemandTypeArg::Bounds {
+            lower: Some(ty), ..
+        }
+        | DemandTypeArg::Bounds {
+            lower: None,
+            upper: Some(ty),
+        } if ty.is_closed() => Some(ty.clone()),
+        _ => None,
+    }
+}
+
+fn close_ref_constructor_param(
+    param: DemandSignature,
+    value_arg: &DemandCoreType,
+) -> DemandSignature {
+    let DemandSignature::Core(DemandCoreType::Record(fields)) = param else {
+        return param;
+    };
+    DemandSignature::Core(DemandCoreType::Record(
+        fields
+            .into_iter()
+            .map(|field| close_ref_constructor_field(field, value_arg))
+            .collect(),
+    ))
+}
+
+fn close_ref_constructor_field(
+    mut field: DemandRecordField,
+    value_arg: &DemandCoreType,
+) -> DemandRecordField {
+    let DemandCoreType::Fun {
+        ret_effect, ret, ..
+    } = &mut field.value
+    else {
+        return field;
+    };
+    if matches!(ret.as_ref(), DemandCoreType::Hole(_)) {
+        *ret = Box::new(value_arg.clone());
+    }
+    close_ref_update_effect_holes(ret_effect, value_arg);
+    field
+}
+
+fn close_ref_update_effect_holes(effect: &mut DemandEffect, value_arg: &DemandCoreType) {
+    match effect {
+        DemandEffect::Atom(ty) => close_ref_update_atom_holes(ty, value_arg),
+        DemandEffect::Row(items) => {
+            for item in items {
+                close_ref_update_effect_holes(item, value_arg);
+            }
+        }
+        DemandEffect::Empty | DemandEffect::Hole(_) => {}
+    }
+}
+
+fn close_ref_update_atom_holes(ty: &mut DemandCoreType, value_arg: &DemandCoreType) {
+    let DemandCoreType::Named { path, args } = ty else {
+        return;
+    };
+    if !path
+        .segments
+        .iter()
+        .map(|name| name.0.as_str())
+        .eq(["std", "var", "ref_update"])
+    {
+        return;
+    }
+    if matches!(
+        args.first(),
+        Some(DemandTypeArg::Type(DemandCoreType::Hole(_)))
+    ) {
+        args[0] = DemandTypeArg::Type(value_arg.clone());
+    }
+}
+
+fn ref_record_effect_arg(param: &DemandSignature) -> Option<DemandCoreType> {
+    let DemandSignature::Core(DemandCoreType::Record(fields)) = param else {
+        return None;
+    };
+    fields
+        .iter()
+        .filter_map(|field| match &field.value {
+            DemandCoreType::Fun { ret_effect, .. } if ret_effect.is_closed() => {
+                Some(effect_core_arg(ret_effect.as_ref()))
+            }
+            _ => None,
+        })
+        .find(|effect| !matches!(effect, DemandCoreType::Never))
+}
+
+fn effect_core_arg(effect: &DemandEffect) -> DemandCoreType {
+    match effect {
+        DemandEffect::Empty => DemandCoreType::Never,
+        DemandEffect::Row(items) if items.is_empty() => DemandCoreType::Never,
+        DemandEffect::Row(items) => DemandCoreType::RowAsValue(items.clone()),
+        other => DemandCoreType::RowAsValue(vec![other.clone()]),
+    }
+}
+
+fn type_arg_can_accept_closed_effect(arg: &DemandTypeArg) -> bool {
+    match arg {
+        DemandTypeArg::Type(DemandCoreType::Hole(_)) => true,
+        DemandTypeArg::Bounds { lower, upper } => lower.is_none() && upper.is_none(),
+        _ => false,
+    }
+}
+
+fn is_std_var_ref_path(path: &core_ir::Path) -> bool {
+    path.segments
+        .iter()
+        .map(|name| name.0.as_str())
+        .eq(["std", "var", "ref"])
 }
 
 fn restore_local(
@@ -1880,6 +2152,84 @@ mod tests {
                 }),
                 ret: Box::new(DemandSignature::Core(named_demand("int"))),
             }
+        );
+    }
+
+    #[test]
+    fn checker_accepts_consumed_thunk_inside_pure_handler_binding() {
+        let f = path("f");
+        let io = path("io");
+        let io_ty = core_ir::Type::Named {
+            path: io.clone(),
+            args: Vec::new(),
+        };
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::thunk(io_ty.clone(), RuntimeType::core(core_ir::Type::Any)),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Handle {
+                        body: Box::new(Expr::typed(
+                            ExprKind::Var(path("x")),
+                            RuntimeType::thunk(
+                                io_ty.clone(),
+                                RuntimeType::core(core_ir::Type::Any),
+                            ),
+                        )),
+                        arms: vec![HandleArm {
+                            effect: core_ir::Path::default(),
+                            payload: Pattern::Wildcard {
+                                ty: RuntimeType::core(core_ir::Type::Any),
+                            },
+                            resume: None,
+                            guard: None,
+                            body: Expr::typed(
+                                ExprKind::Thunk {
+                                    effect: io_ty.clone(),
+                                    value: RuntimeType::core(named("bool")),
+                                    expr: Box::new(Expr::typed(
+                                        ExprKind::Lit(core_ir::Lit::Bool(true)),
+                                        RuntimeType::core(named("bool")),
+                                    )),
+                                },
+                                RuntimeType::thunk(io_ty.clone(), RuntimeType::core(named("bool"))),
+                            ),
+                        }],
+                        evidence: crate::ir::JoinEvidence {
+                            result: core_ir::Type::Any,
+                        },
+                        handler: crate::ir::HandleEffect {
+                            consumes: vec![io.clone()],
+                            residual_before: Some(io_ty.clone()),
+                            residual_after: Some(core_ir::Type::Never),
+                        },
+                    },
+                    RuntimeType::core(core_ir::Type::Any),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(
+                RuntimeType::thunk(io_ty, RuntimeType::core(named("bool"))),
+                RuntimeType::core(named("bool")),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked pure handler consumed thunk");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::from_runtime_type(&demand.expected)
         );
     }
 

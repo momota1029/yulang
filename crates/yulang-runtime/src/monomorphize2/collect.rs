@@ -221,14 +221,14 @@ fn expr_signature(expr: &Expr) -> DemandSignature {
             ..
         } => {
             let fallback = DemandSignature::from_runtime_type(&expr.ty);
-            match (apply_evidence_signature(evidence), &fallback) {
-                (Some(evidence), DemandSignature::Thunk { .. })
+            let merged = apply_evidence_merged_signature(evidence, fallback.clone());
+            match (&merged, &fallback) {
+                (evidence, DemandSignature::Thunk { .. })
                     if !matches!(evidence, DemandSignature::Thunk { .. }) =>
                 {
                     fallback
                 }
-                (Some(evidence), _) => evidence,
-                (None, _) => fallback,
+                _ => merged,
             }
         }
         ExprKind::BindHere { expr } => signature_value(&expr_signature(expr)),
@@ -254,30 +254,6 @@ fn expr_signature(expr: &Expr) -> DemandSignature {
         )),
         _ => DemandSignature::from_runtime_type(&expr.ty),
     }
-}
-
-fn apply_evidence_signature(evidence: &core_ir::ApplyEvidence) -> Option<DemandSignature> {
-    if let Some(core_ir::Type::Fun {
-        ret_effect, ret, ..
-    }) = bounds_type(&evidence.callee)
-    {
-        let mut next_hole = 0;
-        let ret = DemandSignature::from_runtime_type_with_holes(
-            &RuntimeType::core(ret.as_ref().clone()),
-            &mut next_hole,
-        );
-        let ret_effect = DemandEffect::from_core_type_with_holes(ret_effect, &mut next_hole);
-        return Some(effected_core_signature(
-            signature_core_value(&ret),
-            ret_effect,
-        ));
-    }
-    bounds_type(&evidence.result)
-        .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())))
-}
-
-fn bounds_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
-    bounds.lower.as_deref().or(bounds.upper.as_deref())
 }
 
 fn effect_operation_signature(path: &core_ir::Path, payload: DemandCoreType) -> DemandEffect {

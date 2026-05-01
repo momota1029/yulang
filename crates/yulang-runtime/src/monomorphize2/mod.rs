@@ -691,6 +691,50 @@ pub(super) fn effected_core_signature(ty: DemandCoreType, effect: DemandEffect) 
     }
 }
 
+pub(super) fn apply_evidence_merged_signature(
+    evidence: &core_ir::ApplyEvidence,
+    fallback: DemandSignature,
+) -> DemandSignature {
+    let Some(evidence) = apply_evidence_signature(evidence) else {
+        return fallback;
+    };
+    merge_signature_hint(fallback, evidence)
+}
+
+fn apply_evidence_signature(evidence: &core_ir::ApplyEvidence) -> Option<DemandSignature> {
+    if let Some(core_ir::Type::Fun {
+        ret_effect, ret, ..
+    }) = evidence_bounds_type(&evidence.callee)
+    {
+        let mut next_hole = 0;
+        let ret = DemandSignature::from_runtime_type_with_holes(
+            &RuntimeType::core(ret.as_ref().clone()),
+            &mut next_hole,
+        );
+        let ret_effect = DemandEffect::from_core_type_with_holes(ret_effect, &mut next_hole);
+        return Some(effected_core_signature(
+            signature_core_value(&ret),
+            ret_effect,
+        ));
+    }
+    evidence_bounds_type(&evidence.result)
+        .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())))
+}
+
+fn evidence_bounds_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
+    bounds.lower.as_deref().or(bounds.upper.as_deref())
+}
+
+pub(super) fn merge_signature_hint(
+    fallback: DemandSignature,
+    hint: DemandSignature,
+) -> DemandSignature {
+    let Ok(substitutions) = DemandUnifier::new().unify_signature(&fallback, &hint) else {
+        return fallback;
+    };
+    substitutions.apply_signature(&fallback)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

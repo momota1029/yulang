@@ -17,7 +17,7 @@ use crate::ir::{
 use crate::types::{
     BoundsChoice, choose_bounds_type, collect_type_vars, core_types_compatible,
     diagnostic_core_type, effect_compatible, is_qualified_runtime_path,
-    project_runtime_hir_type_with_vars, strict_core_type as core_type,
+    project_runtime_hir_type_with_vars, runtime_core_type, strict_core_type as core_type,
 };
 
 mod expr;

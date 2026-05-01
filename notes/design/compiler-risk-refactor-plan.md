@@ -1207,3 +1207,37 @@ New risk noticed:
   - effect subtraction for `sub` and `junction`
   - loop effect family normalization around `last` / `next` / `redo`
   - synthetic reference constructor/update effects
+
+### 2026-05-01: Demand emitter preserves executable boundaries
+
+- Effect-row unification now treats a concrete actual row as a subset of the
+  expected allowed row.  This lets `Thunk[undet, a]` satisfy a demand that
+  allows `undet` plus another effect, without inventing `Top` or widening the
+  runtime shape.
+- Copied loop-control effects are recognized as one runtime family for demand
+  matching.  This covers lowered `last` / `next` / `redo` paths that share one
+  handler implementation after copying.
+- Pure handlers now carry their consumed-effect paths into demand checking.
+  When the principal handler metadata says the handled effect is removed,
+  checker comparison uses the produced value at that boundary instead of
+  deriving information from handler arms.
+- Runtime validation now computes value core views for nested `Thunk`/function
+  values instead of panicking on non-core runtime types.
+- Demand emission now:
+  - rewrites inside non-generic bindings even when the outer binding type still
+    contains recovery `Any`;
+  - uses apply evidence together with the expression type, so one side can
+    supply effect information while the other supplies value information;
+  - rewrites self-recursive demand-specialized calls by choosing the unique or
+    most-specific closed specialization compatible with the local demand key.
+- Synthetic `std::var::ref` constructor demands now close the visible effect
+  type argument from the record field effects, and close record field value
+  holes from the returned `ref` value argument.  This keeps local reference
+  constructors from leaving their original polymorphic binding reachable.
+
+New risk noticed:
+
+- The `std::var::ref` repair is still a local bridge over a larger missing
+  abstraction: demand signatures need access to type-argument kinds.  The
+  general version should project effect-kind type arguments as effect rows from
+  the start, not recover them from constructor record fields.

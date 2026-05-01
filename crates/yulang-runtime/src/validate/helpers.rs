@@ -1,4 +1,5 @@
 use super::*;
+use std::borrow::Cow;
 
 pub(super) fn binding_info_generality(info: &BindingInfo) -> usize {
     info.type_params.len()
@@ -319,11 +320,14 @@ fn same_runtime_value_choice(
         })
 }
 
-pub(super) fn hir_value_core_type(ty: &RuntimeType) -> &core_ir::Type {
+pub(super) fn hir_value_core_type(ty: &RuntimeType) -> Cow<'_, core_ir::Type> {
     match ty {
-        RuntimeType::Core(ty) => ty,
-        RuntimeType::Thunk { value, .. } => core_type(value),
-        RuntimeType::Fun { .. } => core_type(ty),
+        RuntimeType::Core(ty) => Cow::Borrowed(ty),
+        RuntimeType::Thunk { value, .. } => match value.as_ref() {
+            RuntimeType::Core(ty) => Cow::Borrowed(ty),
+            other => Cow::Owned(runtime_core_type(other)),
+        },
+        RuntimeType::Fun { .. } => Cow::Owned(runtime_core_type(ty)),
     }
 }
 

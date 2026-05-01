@@ -171,11 +171,9 @@ fn rewrite_binding_uses(
         return Ok(binding);
     }
     let expected = DemandSignature::from_runtime_type(&binding.body.ty);
-    if !expected.is_closed() {
-        return Ok(binding);
-    }
+    let expected = expected.is_closed().then_some(expected);
     let mut rewriter = BodyEmitter::new(specializations);
-    let body = rewriter.rewrite_expr(&binding.body, Some(&expected))?;
+    let body = rewriter.rewrite_expr(&binding.body, expected.as_ref())?;
     Ok(Binding { body, ..binding })
 }
 
@@ -461,7 +459,24 @@ impl<'a> BodyEmitter<'a> {
             },
         ) = expected
         else {
-            return self.clone_with_type(expr, None);
+            let ExprKind::Lambda {
+                param,
+                param_effect_annotation,
+                param_function_allowed_effects,
+                body,
+            } = &expr.kind
+            else {
+                unreachable!();
+            };
+            return Ok(Expr::typed(
+                ExprKind::Lambda {
+                    param: param.clone(),
+                    param_effect_annotation: param_effect_annotation.clone(),
+                    param_function_allowed_effects: param_function_allowed_effects.clone(),
+                    body: Box::new(self.rewrite_expr(body, None)?),
+                },
+                expr.ty.clone(),
+            ));
         };
         let local = core_ir::Path::from_name(param.clone());
         let previous = self.locals.insert(local.clone(), param_ty.as_ref().clone());
@@ -492,19 +507,25 @@ impl<'a> BodyEmitter<'a> {
         expr: &Expr,
         expected: Option<&DemandSignature>,
     ) -> Result<Option<Expr>, DemandEmitError> {
-        let Some((target, args)) = applied_call(expr) else {
+        let Some((target, head, args)) = applied_call_with_head(expr) else {
             return Ok(None);
         };
         let ret = expected
             .cloned()
             .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty));
+        let param_hints = curried_param_signatures_from_type(&head.ty, args.len());
         let arg_signatures = args
             .iter()
-            .map(|arg| self.expr_signature(arg))
+            .zip(param_hints)
+            .map(|(arg, hint)| {
+                let signature = self.expr_signature(arg);
+                hint.map(|hint| merge_signature_hint(hint, signature.clone()))
+                    .unwrap_or(signature)
+            })
             .collect::<Vec<_>>();
         let key =
             DemandKey::from_signature(target.clone(), curried_signatures(&arg_signatures, ret));
-        let Some(specialization) = self.specializations.get(&key) else {
+        let Some(specialization) = self.find_specialization(&key) else {
             return Ok(None);
         };
         let mut callee_signature = specialization.solved.clone();
@@ -530,6 +551,35 @@ impl<'a> BodyEmitter<'a> {
             callee_signature = *ret;
         }
         Ok(Some(call))
+    }
+
+    fn find_specialization(&self, key: &DemandKey) -> Option<&'a DemandSpecialization> {
+        if let Some(specialization) = self.specializations.get(key) {
+            return Some(*specialization);
+        }
+        let matches = self
+            .specializations
+            .values()
+            .copied()
+            .filter(|specialization| {
+                specialization.target == key.target
+                    && DemandUnifier::new()
+                        .unify_signature(&key.signature, &specialization.key.signature)
+                        .is_ok()
+            })
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [] => None,
+            [specialization] => Some(*specialization),
+            [first, rest @ ..]
+                if rest
+                    .iter()
+                    .all(|specialization| specialization.key.signature == first.key.signature) =>
+            {
+                Some(*first)
+            }
+            _ => most_specific_specialization(&matches),
+        }
     }
 
     fn rewrite_apply(&mut self, expr: &Expr) -> Result<Expr, DemandEmitError> {
@@ -560,6 +610,13 @@ impl<'a> BodyEmitter<'a> {
                 .get(path)
                 .cloned()
                 .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty)),
+            ExprKind::Apply {
+                evidence: Some(evidence),
+                ..
+            } => apply_evidence_merged_signature(
+                evidence,
+                DemandSignature::from_runtime_type(&expr.ty),
+            ),
             _ => DemandSignature::from_runtime_type(&expr.ty),
         }
     }
@@ -592,16 +649,6 @@ impl<'a> BodyEmitter<'a> {
         })
     }
 
-    fn clone_with_type(
-        &mut self,
-        expr: &Expr,
-        expected: Option<&DemandSignature>,
-    ) -> Result<Expr, DemandEmitError> {
-        let mut cloned = expr.clone();
-        cloned.ty = self.expr_type(expr, expected)?;
-        Ok(cloned)
-    }
-
     fn expr_type(
         &self,
         expr: &Expr,
@@ -611,6 +658,134 @@ impl<'a> BodyEmitter<'a> {
             .map(runtime_type)
             .transpose()
             .map(|ty| ty.unwrap_or_else(|| expr.ty.clone()))
+    }
+}
+
+fn applied_call_with_head(expr: &Expr) -> Option<(&core_ir::Path, &Expr, Vec<&Expr>)> {
+    let mut callee = expr;
+    let mut args = Vec::new();
+    loop {
+        match &callee.kind {
+            ExprKind::Apply {
+                callee: next, arg, ..
+            } => {
+                args.push(arg.as_ref());
+                callee = next;
+            }
+            ExprKind::Var(target) => {
+                args.reverse();
+                return Some((target, callee, args));
+            }
+            _ => return None,
+        }
+    }
+}
+
+fn curried_param_signatures_from_type(
+    ty: &RuntimeType,
+    arity: usize,
+) -> Vec<Option<DemandSignature>> {
+    let mut out = Vec::with_capacity(arity);
+    let mut current = DemandSignature::from_runtime_type(ty);
+    for _ in 0..arity {
+        match current {
+            DemandSignature::Fun { param, ret } => {
+                out.push(Some(*param));
+                current = *ret;
+            }
+            DemandSignature::Core(DemandCoreType::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            }) => {
+                out.push(Some(effected_core_signature(*param, *param_effect)));
+                current = effected_core_signature(*ret, *ret_effect);
+            }
+            _ => out.push(None),
+        }
+    }
+    out
+}
+
+fn most_specific_specialization<'a>(
+    candidates: &[&'a DemandSpecialization],
+) -> Option<&'a DemandSpecialization> {
+    let min = candidates
+        .iter()
+        .map(|candidate| signature_hole_count(&candidate.key.signature))
+        .min()?;
+    let mut best = candidates
+        .iter()
+        .copied()
+        .filter(|candidate| signature_hole_count(&candidate.key.signature) == min);
+    let first = best.next()?;
+    best.next().is_none().then_some(first)
+}
+
+fn signature_hole_count(signature: &DemandSignature) -> usize {
+    match signature {
+        DemandSignature::Hole(_) => 1,
+        DemandSignature::Core(ty) => core_hole_count(ty),
+        DemandSignature::Fun { param, ret } => {
+            signature_hole_count(param) + signature_hole_count(ret)
+        }
+        DemandSignature::Thunk { effect, value } => {
+            effect_hole_count(effect) + signature_hole_count(value)
+        }
+    }
+}
+
+fn effect_hole_count(effect: &DemandEffect) -> usize {
+    match effect {
+        DemandEffect::Empty => 0,
+        DemandEffect::Hole(_) => 1,
+        DemandEffect::Atom(ty) => core_hole_count(ty),
+        DemandEffect::Row(items) => items.iter().map(effect_hole_count).sum(),
+    }
+}
+
+fn core_hole_count(ty: &DemandCoreType) -> usize {
+    match ty {
+        DemandCoreType::Never => 0,
+        DemandCoreType::Hole(_) => 1,
+        DemandCoreType::Named { args, .. } => args.iter().map(type_arg_hole_count).sum(),
+        DemandCoreType::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_hole_count(param)
+                + effect_hole_count(param_effect)
+                + effect_hole_count(ret_effect)
+                + core_hole_count(ret)
+        }
+        DemandCoreType::Tuple(items)
+        | DemandCoreType::Union(items)
+        | DemandCoreType::Inter(items) => items.iter().map(core_hole_count).sum(),
+        DemandCoreType::Record(fields) => fields
+            .iter()
+            .map(|field| core_hole_count(&field.value))
+            .sum(),
+        DemandCoreType::Variant(cases) => cases
+            .iter()
+            .flat_map(|case| &case.payloads)
+            .map(core_hole_count)
+            .sum(),
+        DemandCoreType::RowAsValue(items) => items.iter().map(effect_hole_count).sum(),
+        DemandCoreType::Recursive { body, .. } => core_hole_count(body),
+    }
+}
+
+fn type_arg_hole_count(arg: &DemandTypeArg) -> usize {
+    match arg {
+        DemandTypeArg::Type(ty) => core_hole_count(ty),
+        DemandTypeArg::Bounds { lower, upper } => lower
+            .iter()
+            .chain(upper)
+            .map(|ty| core_hole_count(ty))
+            .sum(),
     }
 }
 

@@ -384,13 +384,9 @@ impl DemandUnifier {
         }
 
         if !unmatched_expected.is_empty() {
-            let Some(hole) = actual_holes.pop() else {
-                return Err(DemandUnifyError::EffectMismatch {
-                    expected: DemandEffect::Row(expected),
-                    actual: DemandEffect::Row(actual),
-                });
-            };
-            self.bind_effect(hole, effect_from_row_items(unmatched_expected))?;
+            if let Some(hole) = actual_holes.pop() {
+                self.bind_effect(hole, effect_from_row_items(unmatched_expected))?;
+            }
         }
 
         if !actual_fixed.is_empty() {
@@ -417,6 +413,9 @@ impl DemandUnifier {
         expected: &DemandCoreType,
         actual: &DemandCoreType,
     ) -> Result<(), DemandUnifyError> {
+        if copied_loop_control_effects_match(expected, actual) {
+            return Ok(());
+        }
         if let Some(with_args) = single_effect_payload_side(expected, actual) {
             for arg in with_args {
                 self.close_effect_payload_holes(arg)?;
@@ -635,6 +634,37 @@ fn single_effect_payload_side<'a>(
     match (left_args.as_slice(), right_args.as_slice()) {
         ([], args) if args.iter().all(is_payload_hole_arg) => Some(args),
         (args, []) if args.iter().all(is_payload_hole_arg) => Some(args),
+        _ => None,
+    }
+}
+
+fn copied_loop_control_effects_match(left: &DemandCoreType, right: &DemandCoreType) -> bool {
+    let (Some(left), Some(right)) = (
+        named_effect_path_without_args(left),
+        named_effect_path_without_args(right),
+    ) else {
+        return false;
+    };
+    copied_loop_control_family(left)
+        .is_some_and(|family| Some(family) == copied_loop_control_family(right))
+}
+
+fn named_effect_path_without_args(ty: &DemandCoreType) -> Option<&core_ir::Path> {
+    match ty {
+        DemandCoreType::Named { path, args } if args.is_empty() => Some(path),
+        _ => None,
+    }
+}
+
+fn copied_loop_control_family(path: &core_ir::Path) -> Option<&'static str> {
+    let segments = path
+        .segments
+        .iter()
+        .map(|name| name.0.as_str())
+        .collect::<Vec<_>>();
+    match segments.as_slice() {
+        ["std", "flow", "loop", "last" | "next" | "redo"] => Some("std::flow::loop"),
+        ["std", "flow", "label_loop", "last" | "next" | "redo"] => Some("std::flow::label_loop"),
         _ => None,
     }
 }
@@ -949,6 +979,60 @@ mod tests {
     }
 
     #[test]
+    fn unifier_accepts_actual_effect_subset_of_expected_row() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![
+                DemandEffect::Atom(named("sub")),
+                DemandEffect::Atom(named("undet")),
+            ]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![DemandEffect::Atom(named("undet"))]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("actual effect row is a subset of expected effects");
+    }
+
+    #[test]
+    fn unifier_rejects_actual_effect_outside_expected_row() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![DemandEffect::Atom(named("io"))]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![
+                DemandEffect::Atom(named("io")),
+                DemandEffect::Atom(named("undet")),
+            ]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect_err("actual has an effect that expected does not allow");
+    }
+
+    #[test]
+    fn unifier_matches_copied_loop_control_effects() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Atom(named_path(&["std", "flow", "loop", "last"])),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Atom(named_path(&["std", "flow", "loop", "next"])),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("copied loop control effects share one implementation family");
+    }
+
+    #[test]
     fn unifier_accepts_never_as_bottom_core_type() {
         DemandUnifier::new()
             .unify_signature(
@@ -1079,6 +1163,18 @@ mod tests {
 
     fn named(name: &str) -> DemandCoreType {
         named_with_args(name, Vec::new())
+    }
+
+    fn named_path(segments: &[&str]) -> DemandCoreType {
+        DemandCoreType::Named {
+            path: core_ir::Path {
+                segments: segments
+                    .iter()
+                    .map(|segment| core_ir::Name((*segment).to_string()))
+                    .collect(),
+            },
+            args: Vec::new(),
+        }
     }
 
     fn named_with_args(name: &str, args: Vec<DemandTypeArg>) -> DemandCoreType {

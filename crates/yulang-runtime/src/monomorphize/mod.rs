@@ -188,6 +188,7 @@ const MONO_PIPELINE: &[MonoStage] = &[
         limit: 8,
     },
     MonoStage::Pass(MonoPass::ResolveResidualAssociated),
+    MonoStage::Pass(MonoPass::PruneUnreachable),
 ];
 
 fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfile)> {
