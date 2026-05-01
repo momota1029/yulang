@@ -55,6 +55,7 @@ pub enum RuntimeError {
     ResidualPolymorphicBinding {
         path: core_ir::Path,
         vars: Vec<core_ir::TypeVar>,
+        source: ResidualPolymorphicSource,
     },
     InvariantViolation {
         stage: &'static str,
@@ -75,6 +76,21 @@ pub enum TypeSource {
     Literal,
     Structural,
     Validation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResidualPolymorphicSource {
+    TypeParams,
+    RuntimeTypes,
+}
+
+impl ResidualPolymorphicSource {
+    fn description(self) -> &'static str {
+        match self {
+            ResidualPolymorphicSource::TypeParams => "binding type parameters",
+            ResidualPolymorphicSource::RuntimeTypes => "runtime body, scheme, or role requirements",
+        }
+    }
 }
 
 impl fmt::Display for RuntimeError {
@@ -162,12 +178,16 @@ This usually means a name, field, method, or operator could not be resolved."
                     display_type(ty)
                 )
             }
-            RuntimeError::ResidualPolymorphicBinding { path, vars } => write!(
-                f,
-                "binding {} is still polymorphic after runtime specialization: {:?}",
-                display_path(path),
-                vars
-            ),
+            RuntimeError::ResidualPolymorphicBinding { path, vars, source } => {
+                write!(
+                    f,
+                    "binding {} is still polymorphic after runtime specialization \
+                     (remaining in {}): {:?}",
+                    display_path(path),
+                    source.description(),
+                    vars
+                )
+            }
             RuntimeError::InvariantViolation {
                 stage,
                 context,
@@ -345,6 +365,22 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "could not determine the type of expression #0. This usually means a name, field, method, or operator could not be resolved."
+        );
+    }
+
+    #[test]
+    fn displays_residual_polymorphic_source() {
+        let error = RuntimeError::ResidualPolymorphicBinding {
+            path: core_ir::Path::from_name(core_ir::Name("f".to_string())),
+            vars: vec![core_ir::TypeVar("a".to_string())],
+            source: ResidualPolymorphicSource::RuntimeTypes,
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "binding f is still polymorphic after runtime specialization \
+             (remaining in runtime body, scheme, or role requirements): \
+             [TypeVar(\"a\")]"
         );
     }
 

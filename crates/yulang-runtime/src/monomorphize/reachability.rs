@@ -116,6 +116,7 @@ pub(super) fn ensure_monomorphic_bindings(module: &Module) -> RuntimeResult<()> 
             return Err(RuntimeError::ResidualPolymorphicBinding {
                 path: binding.name.clone(),
                 vars: binding.type_params.clone(),
+                source: crate::diagnostic::ResidualPolymorphicSource::TypeParams,
             });
         }
         let mut vars = BTreeSet::new();
@@ -140,6 +141,7 @@ pub(super) fn ensure_monomorphic_bindings(module: &Module) -> RuntimeResult<()> 
             return Err(RuntimeError::ResidualPolymorphicBinding {
                 path: binding.name.clone(),
                 vars: vars.into_iter().collect(),
+                source: crate::diagnostic::ResidualPolymorphicSource::RuntimeTypes,
             });
         }
     }

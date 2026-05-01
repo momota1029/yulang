@@ -597,3 +597,17 @@ New risk noticed:
   `apply` and `lambda`, which are useful for nesting but still noisy.  If this
   becomes hard to read on real handler examples, add a compact mode that prints
   only hygiene operations plus path breadcrumbs.
+
+### 2026-05-01: Residual polymorphic diagnostics name the source
+
+- Split residual polymorphic runtime errors by source:
+  - remaining binding type parameters
+  - remaining runtime body, scheme, or role-requirement variables
+- Updated the error message to say where the residual variable was found.
+- Added a display test for the new message.
+
+New risk noticed:
+
+- The diagnostic still prints raw `TypeVar("a")` debug output.  That is enough
+  for compiler debugging, but user-facing diagnostics should eventually render
+  these variables with the same compact formatter used by inferred types.
