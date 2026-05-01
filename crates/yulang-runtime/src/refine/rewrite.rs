@@ -8,23 +8,39 @@ pub(super) struct RefineRewriter {
 }
 
 impl RefineRewriter {
-    pub(super) fn module(&mut self, module: Module) -> Module {
+    pub(super) fn module(&mut self, module: Module) -> RefineModuleOutput {
+        let mut report = RefineReport::default();
         let bindings = module
             .bindings
             .into_iter()
-            .map(|binding| self.binding(binding))
+            .map(|binding| {
+                let original = binding.clone();
+                let refined = self.binding(binding);
+                if refined != original {
+                    report.changed_bindings += 1;
+                }
+                refined
+            })
             .collect();
         let root_exprs = module
             .root_exprs
             .into_iter()
-            .map(|expr| self.expr(expr, None))
+            .map(|expr| {
+                let original = expr.clone();
+                let refined = self.expr(expr, None);
+                if refined != original {
+                    report.changed_roots += 1;
+                }
+                refined
+            })
             .collect();
-        Module {
+        let module = Module {
             path: module.path,
             bindings,
             root_exprs,
             roots: module.roots,
-        }
+        };
+        RefineModuleOutput { module, report }
     }
 
     pub(super) fn binding(&mut self, binding: Binding) -> Binding {

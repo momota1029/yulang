@@ -17,7 +17,7 @@ use crate::ir::{
     RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, ResumeBinding, Root, Stmt,
     Type as RuntimeType, TypeInstantiation,
 };
-use crate::refine::refine_module_types;
+use crate::refine::refine_module_types_with_report;
 use crate::types::{
     BoundsChoice, choose_bounds_type, choose_hir_bounds_type, collect_expr_type_vars,
     collect_hir_type_vars, collect_type_vars as collect_core_type_vars, core_type_has_vars,
@@ -138,7 +138,7 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<Module> {
 fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
     match pass {
         MonoPass::RewriteUses => Ok(rewrite_monomorphic_uses(module, false)),
-        MonoPass::RefineTypes => run_tracked_pass(module, refine_module_types),
+        MonoPass::RefineTypes => refine_module_types_for_mono(module),
         MonoPass::RefreshClosedSchemes => {
             run_tracked_infallible_pass(module, refresh_closed_specialized_schemes)
         }
@@ -290,6 +290,19 @@ where
     F: FnOnce(Module) -> Module,
 {
     run_tracked_pass(module, |module| Ok(f(module)))
+}
+
+fn refine_module_types_for_mono(module: Module) -> RuntimeResult<MonoStep> {
+    let output = refine_module_types_with_report(module)?;
+    let progress = MonoProgress {
+        changed_bindings: output.report.changed_bindings,
+        changed_roots: output.report.changed_roots,
+        added_specializations: 0,
+    };
+    Ok(MonoStep {
+        module: output.module,
+        progress,
+    })
 }
 
 fn rewrite_monomorphic_uses(module: Module, prune: bool) -> MonoStep {

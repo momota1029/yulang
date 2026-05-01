@@ -419,3 +419,18 @@ New risk noticed:
   module.  That is centralized now, but the next cleanup should make the hot
   passes report their own local changes directly, especially type refinement and
   residual role resolution.
+
+### 2026-05-01: Type refinement reports local progress
+
+- Kept the public `refine_module_types` API unchanged.
+- Added an internal `refine_module_types_with_report` path for the
+  monomorphization pipeline.
+- `refine-types` now reports changed bindings and roots while it rewrites them,
+  instead of cloning and comparing the full module in the pipeline wrapper.
+
+New risk noticed:
+
+- `RefineRewriter` still rewrites and refines many syntactic forms in one
+  visitor.  A later split should separate plain substitution, expected-type
+  propagation, thunk forcing, and cast insertion so each rule has a smaller
+  surface.

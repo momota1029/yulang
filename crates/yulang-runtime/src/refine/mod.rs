@@ -37,6 +37,10 @@ use rewrite::*;
 use shape::*;
 
 pub fn refine_module_types(module: Module) -> RuntimeResult<Module> {
+    Ok(refine_module_types_with_report(module)?.module)
+}
+
+pub(crate) fn refine_module_types_with_report(module: Module) -> RuntimeResult<RefineModuleOutput> {
     let mut constraints = TypeConstraints::new(&module);
     for binding in &module.bindings {
         if is_principal_polymorphic_binding(binding) {
@@ -61,6 +65,17 @@ pub fn refine_module_types(module: Module) -> RuntimeResult<Module> {
         pure_handler_bindings: pure_handler_bindings(&module),
     };
     Ok(rewriter.module(module))
+}
+
+pub(crate) struct RefineModuleOutput {
+    pub(crate) module: Module,
+    pub(crate) report: RefineReport,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct RefineReport {
+    pub(crate) changed_bindings: usize,
+    pub(crate) changed_roots: usize,
 }
 
 pub(super) fn is_principal_polymorphic_binding(binding: &Binding) -> bool {
