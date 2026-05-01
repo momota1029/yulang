@@ -9,6 +9,7 @@ use crate::ir::{
 
 mod choice;
 mod compat;
+mod core_view;
 mod effect;
 mod project;
 mod runtime;
@@ -17,6 +18,7 @@ mod substitution;
 
 pub(crate) use choice::*;
 pub(crate) use compat::*;
+pub(crate) use core_view::*;
 pub(crate) use effect::*;
 pub(crate) use project::*;
 pub(crate) use runtime::*;

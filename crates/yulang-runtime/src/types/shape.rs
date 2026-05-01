@@ -1,49 +1,5 @@
 use super::*;
 
-pub(crate) fn strict_core_type(ty: &RuntimeType) -> &core_ir::Type {
-    ty.as_core()
-        .expect("runtime IR expected a first-order core type")
-}
-
-pub(crate) fn diagnostic_core_type(ty: &RuntimeType) -> core_ir::Type {
-    match ty {
-        RuntimeType::Core(ty) => ty.clone(),
-        RuntimeType::Fun { param, ret } => core_ir::Type::Fun {
-            param: Box::new(diagnostic_core_type(param)),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Never),
-            ret: Box::new(diagnostic_core_type(ret)),
-        },
-        RuntimeType::Thunk { value, .. } => diagnostic_core_type(value),
-    }
-}
-
-pub(crate) fn runtime_core_type(ty: &RuntimeType) -> core_ir::Type {
-    match ty {
-        RuntimeType::Core(ty) => ty.clone(),
-        RuntimeType::Fun { param, ret } => runtime_core_function_type(param, ret),
-        RuntimeType::Thunk { value, .. } => runtime_core_type(value),
-    }
-}
-
-fn runtime_effected_core_type(ty: &RuntimeType) -> (core_ir::Type, core_ir::Type) {
-    match ty {
-        RuntimeType::Thunk { effect, value } => (runtime_core_type(value), effect.clone()),
-        other => (runtime_core_type(other), core_ir::Type::Never),
-    }
-}
-
-fn runtime_core_function_type(param: &RuntimeType, ret: &RuntimeType) -> core_ir::Type {
-    let (param, param_effect) = runtime_effected_core_type(param);
-    let (ret, ret_effect) = runtime_effected_core_type(ret);
-    core_ir::Type::Fun {
-        param: Box::new(param),
-        param_effect: Box::new(param_effect),
-        ret_effect: Box::new(ret_effect),
-        ret: Box::new(ret),
-    }
-}
-
 pub(crate) fn core_types_compatible(expected: &core_ir::Type, actual: &core_ir::Type) -> bool {
     if type_compatible(expected, actual) || (effect_is_empty(expected) && effect_is_empty(actual)) {
         return true;

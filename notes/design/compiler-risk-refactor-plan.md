@@ -356,3 +356,19 @@ New risk noticed:
   body thunking is only required when the handler actually consumes effects.
   Future checks should keep this distinction, or they will reject valid
   value-only `catch` forms.
+
+### 2026-05-01: Core type views split out
+
+- Moved runtime/core conversion helpers into `types/core_view.rs`.
+- Kept the distinction explicit:
+  - diagnostic core view erases thunk effects
+  - runtime core view preserves function parameter/return effect slots
+  - strict core view is only for first-order runtime core types
+- Added tests that lock the difference between diagnostic and runtime views.
+
+New risk noticed:
+
+- The same `core_ir::Type::Fun` shape is used both for diagnostic display and
+  for runtime-preserving function effect slots.  Future refactors should avoid
+  passing a bare `core_ir::Type` when the caller really needs one of these
+  specific views.
