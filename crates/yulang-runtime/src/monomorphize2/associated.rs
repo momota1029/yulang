@@ -4,6 +4,9 @@ pub(super) fn close_known_associated_type_signature(
     target: &core_ir::Path,
     signature: DemandSignature,
 ) -> DemandSignature {
+    if path_ends_with(target, &["std", "flow", "loop", "for_in"]) {
+        return close_for_in_signature(signature);
+    }
     let Some(name) = target.segments.last() else {
         return signature;
     };
@@ -11,6 +14,42 @@ pub(super) fn close_known_associated_type_signature(
         return signature;
     }
     close_fold_signature(signature, name.0 == "fold_impl")
+}
+
+fn close_for_in_signature(signature: DemandSignature) -> DemandSignature {
+    let (mut args, ret) = uncurried_signatures(signature);
+    if args.len() < 2 {
+        return curried_signatures(&args, ret);
+    }
+    let Some(item) = fold_item_signature(&args[0]) else {
+        return curried_signatures(&args, ret);
+    };
+    args[1] = close_for_in_callback(args[1].clone(), &item);
+    curried_signatures(&args, ret)
+}
+
+fn close_for_in_callback(callback: DemandSignature, item: &DemandSignature) -> DemandSignature {
+    match callback {
+        DemandSignature::Thunk { effect, value } => DemandSignature::Thunk {
+            effect,
+            value: Box::new(close_for_in_callback(*value, item)),
+        },
+        DemandSignature::Fun { param, ret } => DemandSignature::Fun {
+            param: Box::new(prefer_signature(item, *param)),
+            ret: Box::new(close_ignored_callback_return(*ret)),
+        },
+        other => other,
+    }
+}
+
+fn close_ignored_callback_return(ret: DemandSignature) -> DemandSignature {
+    match ret {
+        DemandSignature::Thunk { effect, .. } => DemandSignature::Thunk {
+            effect,
+            value: Box::new(DemandSignature::Ignored),
+        },
+        other => other,
+    }
 }
 
 fn close_fold_signature(signature: DemandSignature, thunk_callback: bool) -> DemandSignature {
@@ -22,9 +61,12 @@ fn close_fold_signature(signature: DemandSignature, thunk_callback: bool) -> Dem
         return curried_signatures(&args, ret);
     };
     let acc = signature_value(&args[1]);
-    args[2] = close_fold_callback(args[2].clone(), &acc, &item);
+    let result_effect = fold_result_effect(&ret);
+    args[2] = close_fold_callback(args[2].clone(), &acc, &item, result_effect.as_ref());
+    let ret = close_fold_return(ret, &acc);
     if thunk_callback {
         args[2] = ensure_empty_thunk_signature(args[2].clone());
+        return curried_signatures_with_intermediate_ret_thunks(&args, ret);
     }
     curried_signatures(&args, ret)
 }
@@ -50,6 +92,26 @@ fn uncurried_signatures(signature: DemandSignature) -> (Vec<DemandSignature>, De
             }
             ret => return (args, ret),
         }
+    }
+}
+
+fn curried_signatures_with_intermediate_ret_thunks(
+    args: &[DemandSignature],
+    ret: DemandSignature,
+) -> DemandSignature {
+    match args {
+        [] => ret,
+        [last] => DemandSignature::Fun {
+            param: Box::new(last.clone()),
+            ret: Box::new(ret),
+        },
+        [first, rest @ ..] => DemandSignature::Fun {
+            param: Box::new(first.clone()),
+            ret: Box::new(DemandSignature::Thunk {
+                effect: DemandEffect::Empty,
+                value: Box::new(curried_signatures_with_intermediate_ret_thunks(rest, ret)),
+            }),
+        },
     }
 }
 
@@ -92,15 +154,19 @@ fn close_fold_callback(
     callback: DemandSignature,
     acc: &DemandSignature,
     item: &DemandSignature,
+    result_effect: Option<&DemandEffect>,
 ) -> DemandSignature {
     match callback {
         DemandSignature::Thunk { effect, value } => DemandSignature::Thunk {
             effect,
-            value: Box::new(close_fold_callback(*value, acc, item)),
+            value: Box::new(close_fold_callback(*value, acc, item, result_effect)),
         },
         DemandSignature::Fun { param, ret } => DemandSignature::Fun {
             param: Box::new(prefer_signature(acc, *param)),
-            ret: Box::new(close_fold_callback_item(*ret, acc, item)),
+            ret: Box::new(ensure_result_effect_thunk(
+                close_fold_callback_item(*ret, acc, item, result_effect),
+                result_effect,
+            )),
         },
         other => other,
     }
@@ -110,21 +176,45 @@ fn close_fold_callback_item(
     callback: DemandSignature,
     acc: &DemandSignature,
     item: &DemandSignature,
+    result_effect: Option<&DemandEffect>,
 ) -> DemandSignature {
     match callback {
         DemandSignature::Thunk { effect, value } => DemandSignature::Thunk {
-            effect,
-            value: Box::new(close_fold_callback_item(*value, acc, item)),
+            effect: prefer_effect(result_effect, effect),
+            value: Box::new(close_fold_callback_item(*value, acc, item, result_effect)),
         },
         DemandSignature::Fun { param, ret } => DemandSignature::Fun {
             param: Box::new(prefer_signature(item, *param)),
-            ret: Box::new(close_fold_callback_return(*ret, acc)),
+            ret: Box::new(close_fold_callback_return(*ret, acc, result_effect)),
         },
         other => other,
     }
 }
 
-fn close_fold_callback_return(ret: DemandSignature, acc: &DemandSignature) -> DemandSignature {
+fn close_fold_callback_return(
+    ret: DemandSignature,
+    acc: &DemandSignature,
+    result_effect: Option<&DemandEffect>,
+) -> DemandSignature {
+    match ret {
+        DemandSignature::Thunk { effect, value } => DemandSignature::Thunk {
+            effect: prefer_effect(result_effect, effect),
+            value: Box::new(prefer_signature(acc, *value)),
+        },
+        other => {
+            let value = prefer_signature(acc, other);
+            match result_effect {
+                Some(effect) if !matches!(effect, DemandEffect::Empty) => DemandSignature::Thunk {
+                    effect: effect.clone(),
+                    value: Box::new(value),
+                },
+                _ => value,
+            }
+        }
+    }
+}
+
+fn close_fold_return(ret: DemandSignature, acc: &DemandSignature) -> DemandSignature {
     match ret {
         DemandSignature::Thunk { effect, value } => DemandSignature::Thunk {
             effect,
@@ -145,6 +235,38 @@ fn prefer_signature(preferred: &DemandSignature, current: DemandSignature) -> De
         preferred.clone()
     } else {
         current
+    }
+}
+
+fn fold_result_effect(ret: &DemandSignature) -> Option<DemandEffect> {
+    match ret {
+        DemandSignature::Thunk { effect, .. } if !matches!(effect, DemandEffect::Empty) => {
+            Some(effect.clone())
+        }
+        _ => None,
+    }
+}
+
+fn ensure_result_effect_thunk(
+    signature: DemandSignature,
+    result_effect: Option<&DemandEffect>,
+) -> DemandSignature {
+    match (signature, result_effect) {
+        (thunk @ DemandSignature::Thunk { .. }, _) => thunk,
+        (signature, Some(effect)) if !matches!(effect, DemandEffect::Empty) => {
+            DemandSignature::Thunk {
+                effect: effect.clone(),
+                value: Box::new(signature),
+            }
+        }
+        (signature, _) => signature,
+    }
+}
+
+fn prefer_effect(preferred: Option<&DemandEffect>, current: DemandEffect) -> DemandEffect {
+    match (preferred, &current) {
+        (Some(preferred), DemandEffect::Empty) => preferred.clone(),
+        _ => current,
     }
 }
 

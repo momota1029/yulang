@@ -128,6 +128,7 @@ impl DemandKey {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DemandSignature {
+    Ignored,
     Hole(u32),
     Core(DemandCoreType),
     Fun {
@@ -157,6 +158,7 @@ impl DemandSignature {
 
     pub fn next_hole_after(&self) -> u32 {
         match self {
+            DemandSignature::Ignored => 0,
             DemandSignature::Hole(id) => id + 1,
             DemandSignature::Core(ty) => ty.next_hole_after(),
             DemandSignature::Fun { param, ret } => {
@@ -174,6 +176,7 @@ impl DemandSignature {
 
     pub fn is_closed(&self) -> bool {
         match self {
+            DemandSignature::Ignored => true,
             DemandSignature::Hole(_) => false,
             DemandSignature::Core(ty) => ty.is_closed(),
             DemandSignature::Fun { param, ret } => param.is_closed() && ret.is_closed(),
@@ -230,6 +233,7 @@ impl DemandEffect {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DemandCoreType {
+    Any,
     Never,
     Hole(u32),
     Named {
@@ -257,6 +261,7 @@ pub enum DemandCoreType {
 impl DemandCoreType {
     pub fn next_hole_after(&self) -> u32 {
         match self {
+            DemandCoreType::Any => 0,
             DemandCoreType::Never => 0,
             DemandCoreType::Hole(id) => id + 1,
             DemandCoreType::Named { args, .. } => args
@@ -303,6 +308,7 @@ impl DemandCoreType {
 
     pub fn is_closed(&self) -> bool {
         match self {
+            DemandCoreType::Any => true,
             DemandCoreType::Never => true,
             DemandCoreType::Hole(_) => false,
             DemandCoreType::Named { args, .. } => args.iter().all(DemandTypeArg::is_closed),
@@ -376,6 +382,7 @@ struct HoleCanonicalizer {
 impl HoleCanonicalizer {
     fn signature(&mut self, signature: &DemandSignature) -> DemandSignature {
         match signature {
+            DemandSignature::Ignored => DemandSignature::Ignored,
             DemandSignature::Hole(id) => DemandSignature::Hole(self.value_hole(*id)),
             DemandSignature::Core(ty) => DemandSignature::Core(self.core_type(ty)),
             DemandSignature::Fun { param, ret } => DemandSignature::Fun {
@@ -391,6 +398,7 @@ impl HoleCanonicalizer {
 
     fn core_type(&mut self, ty: &DemandCoreType) -> DemandCoreType {
         match ty {
+            DemandCoreType::Any => DemandCoreType::Any,
             DemandCoreType::Never => DemandCoreType::Never,
             DemandCoreType::Hole(id) => DemandCoreType::Hole(self.core_hole(*id)),
             DemandCoreType::Named { path, args } => DemandCoreType::Named {
@@ -651,6 +659,7 @@ pub(super) fn curried_signatures(
 
 pub(super) fn signature_core_value(signature: &DemandSignature) -> DemandCoreType {
     match signature {
+        DemandSignature::Ignored => DemandCoreType::Any,
         DemandSignature::Hole(id) => DemandCoreType::Hole(*id),
         DemandSignature::Core(ty) => ty.clone(),
         DemandSignature::Fun { param, ret } => {
@@ -911,9 +920,12 @@ mod tests {
             *param,
             DemandSignature::Fun {
                 param: Box::new(unit_signature()),
-                ret: Box::new(DemandSignature::Fun {
-                    param: Box::new(int_signature()),
-                    ret: Box::new(unit_thunk()),
+                ret: Box::new(DemandSignature::Thunk {
+                    effect: undet_effect(),
+                    value: Box::new(DemandSignature::Fun {
+                        param: Box::new(int_signature()),
+                        ret: Box::new(unit_thunk()),
+                    }),
                 }),
             }
         );
@@ -936,8 +948,14 @@ mod tests {
         let DemandSignature::Fun { ret, .. } = demand.key.signature else {
             panic!("expected fold_impl function");
         };
+        let DemandSignature::Thunk { value: ret, .. } = *ret else {
+            panic!("expected fold_impl rest thunk");
+        };
         let DemandSignature::Fun { ret, .. } = *ret else {
             panic!("expected z function");
+        };
+        let DemandSignature::Thunk { value: ret, .. } = *ret else {
+            panic!("expected callback rest thunk");
         };
         let DemandSignature::Fun { param, .. } = *ret else {
             panic!("expected callback function");
@@ -949,9 +967,12 @@ mod tests {
                 effect: DemandEffect::Empty,
                 value: Box::new(DemandSignature::Fun {
                     param: Box::new(unit_signature()),
-                    ret: Box::new(DemandSignature::Fun {
-                        param: Box::new(int_signature()),
-                        ret: Box::new(unit_thunk()),
+                    ret: Box::new(DemandSignature::Thunk {
+                        effect: undet_effect(),
+                        value: Box::new(DemandSignature::Fun {
+                            param: Box::new(int_signature()),
+                            ret: Box::new(unit_thunk()),
+                        }),
                     }),
                 }),
             }
@@ -996,9 +1017,63 @@ mod tests {
             *param,
             DemandSignature::Fun {
                 param: Box::new(unit_signature()),
-                ret: Box::new(DemandSignature::Fun {
-                    param: Box::new(int_signature()),
-                    ret: Box::new(unit_thunk()),
+                ret: Box::new(DemandSignature::Thunk {
+                    effect: undet_effect(),
+                    value: Box::new(DemandSignature::Fun {
+                        param: Box::new(int_signature()),
+                        ret: Box::new(unit_thunk()),
+                    }),
+                }),
+            }
+        );
+    }
+
+    #[test]
+    fn for_in_demand_marks_callback_result_as_ignored() {
+        let demand = Demand::with_signature(
+            path_segments(&["std", "flow", "loop", "for_in"]),
+            RuntimeType::core(core_ir::Type::Any),
+            curried_signatures(
+                &[
+                    DemandSignature::Core(DemandCoreType::Named {
+                        path: path_segments(&["std", "range", "range"]),
+                        args: Vec::new(),
+                    }),
+                    DemandSignature::Fun {
+                        param: Box::new(DemandSignature::Hole(0)),
+                        ret: Box::new(DemandSignature::Thunk {
+                            effect: DemandEffect::Atom(DemandCoreType::Named {
+                                path: path_segments(&["std", "flow", "loop"]),
+                                args: Vec::new(),
+                            }),
+                            value: Box::new(DemandSignature::Hole(1)),
+                        }),
+                    },
+                ],
+                DemandSignature::Thunk {
+                    effect: DemandEffect::Empty,
+                    value: Box::new(unit_signature()),
+                },
+            ),
+        );
+
+        let DemandSignature::Fun { ret, .. } = demand.key.signature else {
+            panic!("expected for_in function");
+        };
+        let DemandSignature::Fun { param, .. } = *ret else {
+            panic!("expected callback argument");
+        };
+
+        assert_eq!(
+            *param,
+            DemandSignature::Fun {
+                param: Box::new(int_signature()),
+                ret: Box::new(DemandSignature::Thunk {
+                    effect: DemandEffect::Atom(DemandCoreType::Named {
+                        path: path_segments(&["std", "flow", "loop"]),
+                        args: Vec::new(),
+                    }),
+                    value: Box::new(DemandSignature::Ignored),
                 }),
             }
         );
@@ -1023,12 +1098,16 @@ mod tests {
 
     fn unit_thunk() -> DemandSignature {
         DemandSignature::Thunk {
-            effect: DemandEffect::Atom(DemandCoreType::Named {
-                path: path_segments(&["std", "undet", "undet"]),
-                args: Vec::new(),
-            }),
+            effect: undet_effect(),
             value: Box::new(unit_signature()),
         }
+    }
+
+    fn undet_effect() -> DemandEffect {
+        DemandEffect::Atom(DemandCoreType::Named {
+            path: path_segments(&["std", "undet", "undet"]),
+            args: Vec::new(),
+        })
     }
 
     fn unit_signature() -> DemandSignature {

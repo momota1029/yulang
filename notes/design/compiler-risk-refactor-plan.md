@@ -1338,3 +1338,77 @@ New risk noticed:
   Closing it by guessing the callback return value as `unit` made specialization
   counts worse, so the remaining fix needs a more precise "ignored callback
   result" representation rather than another local rewrite.
+
+### 2026-05-01: Ignored callback results enter demand signatures
+
+- Added a closed `DemandSignature::Ignored` marker for value positions where
+  runtime semantics discards the value.  It emits as runtime `Any`, but it is
+  not produced from source `Any` and should only be introduced by a known
+  ignored-value boundary.
+- `std::flow::loop::for_in` now closes the loop callback parameter from
+  `Fold::item` and marks the callback result value as `Ignored` instead of
+  leaving it as a monomorphization hole.
+- `Fold::fold` now also closes its result value to the accumulator type.  This
+  moves another part of the Fold role contract into demand signatures instead
+  of waiting for later type refinement.
+- Demand emission now forces thunk arguments with `bind_here` when a
+  demand-specialized call expects a value.  This mirrors a fact previously left
+  to later refinement, while keeping ordinary non-specialized calls unchanged.
+- Demand checking now treats `bind_here` operands strictly: a value can no
+  longer satisfy a `Thunk[Empty, ...]` operand just because empty thunks and
+  values unify elsewhere.
+
+Measured:
+
+- `examples/03_for_last.yu`: `monomorphize` about 300ms, 32 passes,
+  14 specializations
+- `examples/05_undet_all.yu`: `monomorphize` about 235ms, 30 passes,
+  11 specializations
+- `examples/showcase.yu`: `monomorphize` about 1.1s, 32 passes,
+  51 specializations
+
+New risk noticed:
+
+- Extending thunk-forcing to every ordinary apply made `examples/showcase.yu`
+  explode to about 7s and 36 passes.  The rule is currently limited to
+  demand-specialized calls.  The general version needs better effect-hole
+  closure before it can replace old `rewrite-uses`/`refine-types`.
+
+### 2026-05-01: Fold implementation thunks move into demand emission
+
+- Demand checking now solves from the requested demand shape plus preserved
+  operational wrappers, instead of blindly replacing the demand with the whole
+  synthesized source shape.  This keeps source-only thunk boundaries without
+  widening every specialization key.
+- Lambda parameters preserve runtime thunk shape when the lowered body uses the
+  parameter through `bind_here`.  This fixed the closed `fold_from` demand that
+  previously emitted an invalid function-valued `bind_here` operand.
+- `Fold::fold` propagates the fold result effect into callback result thunks:
+  `acc -> [e] item -> [e] acc` is represented as
+  `acc -> Thunk[e, item -> Thunk[e, acc]]` in demand signatures.
+- Internal `fold_impl` signatures now preserve the lowered recursive-call
+  shape by thunking intermediate curried returns.  This matches the existing
+  `bind_here (fold_impl xs)` / `bind_here ((fold_impl xs) z)` structure instead
+  of repairing it later.
+- Demand emission now:
+  - forces thunked callees with `bind_here` before applying the next argument,
+  - recomputes ordinary apply result types from the rewritten callee,
+  - wraps lambdas in thunks when the expected demand is `Thunk[..., Fun...]`,
+  - keeps self-recursive calls on the current specialization.
+
+Measured:
+
+- `examples/03_for_last.yu`: no demand-specialize validation skip, 30 passes,
+  11 specializations
+- `examples/05_undet_all.yu`: 32 passes, 20 specializations
+- `examples/showcase.yu`: no demand-specialize validation skip, 32 passes,
+  68 specializations
+
+New risk noticed:
+
+- The `fold_impl` operational shape is now represented explicitly, but it is
+  still path-specific.  The next larger step is to move these facts out of
+  ad-hoc path checks and into a small role/lowering evidence table.
+- `showcase` now migrates more inference into monomorphize2, but the
+  specialization count rose.  The follow-up should canonicalize equivalent
+  thunked callback signatures before chasing more rules.

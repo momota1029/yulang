@@ -41,8 +41,8 @@ impl<'a> DemandChecker<'a> {
         let mut checker = ExprChecker::new(&self.generic_bindings, consumed_effects);
         let actual = checker.check_expr(&binding.body, &demand.key.signature)?;
         let (substitutions, child_demands) = checker.finish();
-        let solved =
-            close_constructor_effect_args(substitutions.apply_signature(&demand.key.signature));
+        let solved_shape = preserve_operational_shapes(&demand.key.signature, &actual);
+        let solved = close_constructor_effect_args(substitutions.apply_signature(&solved_shape));
         Ok(CheckedDemand {
             target: demand.target.clone(),
             expected: demand.key.signature.clone(),
@@ -278,11 +278,13 @@ impl<'a> ExprChecker<'a> {
             ),
             _ => return Ok(expected),
         };
+        let param_ty = preserve_lambda_param_runtime_shape(&expr.ty, param_ty);
+        let actual = lambda_actual_signature(&expected, param_ty.clone(), ret.clone());
         let local = core_ir::Path::from_name(param.clone());
         let previous = self.locals.insert(local.clone(), param_ty);
         self.check_expr(body, &ret)?;
         restore_local(&mut self.locals, local, previous);
-        Ok(expected)
+        Ok(actual)
     }
 
     fn synth_if(
@@ -576,12 +578,27 @@ impl<'a> ExprChecker<'a> {
                 effect,
                 value: Box::new(expected.clone()),
             };
-            self.check_expr(inner, &thunk)?;
+            let actual = self.synth_expr(inner, Some(&thunk))?;
+            if !matches!(actual, DemandSignature::Thunk { .. }) {
+                return Err(DemandUnifyError::SignatureMismatch {
+                    expected: thunk,
+                    actual,
+                }
+                .into());
+            }
+            self.unifier.unify(&thunk, &actual)?;
             return Ok(expected.clone());
         }
         match self.synth_expr(inner, None)? {
             DemandSignature::Thunk { value, .. } => Ok(*value),
-            _ => Ok(self.signature_from_type(&expr.ty)),
+            actual => {
+                let expected = DemandSignature::Thunk {
+                    effect: thunk_effect_signature(&inner.ty)
+                        .unwrap_or_else(|| DemandEffect::Hole(self.fresh_hole())),
+                    value: Box::new(self.signature_from_type(&expr.ty)),
+                };
+                Err(DemandUnifyError::SignatureMismatch { expected, actual }.into())
+            }
         }
     }
 
@@ -864,6 +881,136 @@ fn thunk_effect_signature(ty: &RuntimeType) -> Option<DemandEffect> {
     match ty {
         RuntimeType::Thunk { effect, .. } => Some(DemandEffect::from_core_type(effect)),
         _ => None,
+    }
+}
+
+fn preserve_lambda_param_runtime_shape(
+    lambda_ty: &RuntimeType,
+    expected_param: DemandSignature,
+) -> DemandSignature {
+    let RuntimeType::Fun { param, .. } = lambda_ty else {
+        return expected_param;
+    };
+    preserve_param_runtime_shape(param, expected_param)
+}
+
+fn lambda_actual_signature(
+    expected: &DemandSignature,
+    param: DemandSignature,
+    ret: DemandSignature,
+) -> DemandSignature {
+    match expected {
+        DemandSignature::Core(DemandCoreType::Fun { .. }) => {
+            let (param, param_effect) = signature_effected_core_value(&param);
+            let (ret, ret_effect) = signature_effected_core_value(&ret);
+            DemandSignature::Core(DemandCoreType::Fun {
+                param: Box::new(param),
+                param_effect: Box::new(param_effect),
+                ret_effect: Box::new(ret_effect),
+                ret: Box::new(ret),
+            })
+        }
+        _ => DemandSignature::Fun {
+            param: Box::new(param),
+            ret: Box::new(ret),
+        },
+    }
+}
+
+fn preserve_operational_shapes(
+    expected: &DemandSignature,
+    actual: &DemandSignature,
+) -> DemandSignature {
+    match (expected, actual) {
+        (
+            DemandSignature::Fun {
+                param: expected_param,
+                ret: expected_ret,
+            },
+            DemandSignature::Fun {
+                param: actual_param,
+                ret: actual_ret,
+            },
+        ) => DemandSignature::Fun {
+            param: Box::new(preserve_operational_shapes(expected_param, actual_param)),
+            ret: Box::new(preserve_operational_shapes(expected_ret, actual_ret)),
+        },
+        (
+            DemandSignature::Core(DemandCoreType::Fun {
+                param: expected_param,
+                param_effect: expected_param_effect,
+                ret_effect: expected_ret_effect,
+                ret: expected_ret,
+            }),
+            DemandSignature::Core(DemandCoreType::Fun {
+                param: actual_param,
+                param_effect: actual_param_effect,
+                ret_effect: actual_ret_effect,
+                ret: actual_ret,
+            }),
+        ) => {
+            let expected_param =
+                effected_core_signature(*expected_param.clone(), *expected_param_effect.clone());
+            let actual_param =
+                effected_core_signature(*actual_param.clone(), *actual_param_effect.clone());
+            let expected_ret =
+                effected_core_signature(*expected_ret.clone(), *expected_ret_effect.clone());
+            let actual_ret =
+                effected_core_signature(*actual_ret.clone(), *actual_ret_effect.clone());
+            let param = preserve_operational_shapes(&expected_param, &actual_param);
+            let ret = preserve_operational_shapes(&expected_ret, &actual_ret);
+            let (param, param_effect) = signature_effected_core_value(&param);
+            let (ret, ret_effect) = signature_effected_core_value(&ret);
+            DemandSignature::Core(DemandCoreType::Fun {
+                param: Box::new(param),
+                param_effect: Box::new(param_effect),
+                ret_effect: Box::new(ret_effect),
+                ret: Box::new(ret),
+            })
+        }
+        (
+            expected,
+            DemandSignature::Thunk {
+                effect: actual_effect,
+                value: actual_value,
+            },
+        ) if !matches!(expected, DemandSignature::Thunk { .. })
+            && DemandUnifier::new()
+                .unify_signature(expected, actual_value)
+                .is_ok() =>
+        {
+            DemandSignature::Thunk {
+                effect: actual_effect.clone(),
+                value: Box::new(preserve_operational_shapes(expected, actual_value)),
+            }
+        }
+        _ => expected.clone(),
+    }
+}
+
+fn preserve_param_runtime_shape(
+    source: &RuntimeType,
+    expected: DemandSignature,
+) -> DemandSignature {
+    match source {
+        RuntimeType::Thunk { effect, value }
+            if !matches!(expected, DemandSignature::Thunk { .. }) =>
+        {
+            let source_value = DemandSignature::from_runtime_type(value);
+            let value = if DemandUnifier::new()
+                .unify_signature(&source_value, &expected)
+                .is_ok()
+            {
+                expected
+            } else {
+                source_value
+            };
+            DemandSignature::Thunk {
+                effect: DemandEffect::from_core_type(effect),
+                value: Box::new(value),
+            }
+        }
+        _ => expected,
     }
 }
 

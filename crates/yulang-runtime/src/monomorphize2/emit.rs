@@ -225,6 +225,19 @@ impl<'a> BodyEmitter<'a> {
         expr: &Expr,
         expected: Option<&DemandSignature>,
     ) -> Result<Expr, DemandEmitError> {
+        if matches!(expr.kind, ExprKind::Lambda { .. })
+            && let Some(DemandSignature::Thunk { effect, value }) = expected
+        {
+            let value_ty = runtime_type(value)?;
+            return Ok(Expr::typed(
+                ExprKind::Thunk {
+                    effect: effect_type(effect)?,
+                    value: value_ty.clone(),
+                    expr: Box::new(self.rewrite_expr(expr, Some(value))?),
+                },
+                RuntimeType::thunk(effect_type(effect)?, value_ty),
+            ));
+        }
         match &expr.kind {
             ExprKind::Lambda { param, body, .. } => {
                 self.rewrite_lambda(expr, param, body, expected)
@@ -372,12 +385,17 @@ impl<'a> BodyEmitter<'a> {
                 },
                 self.expr_type(expr, expected)?,
             )),
-            ExprKind::BindHere { expr: inner } => Ok(Expr::typed(
-                ExprKind::BindHere {
-                    expr: Box::new(self.rewrite_expr(inner, None)?),
-                },
-                self.expr_type(expr, expected)?,
-            )),
+            ExprKind::BindHere { expr: inner } => {
+                let inner =
+                    self.rewrite_expr(inner, bind_here_inner_expected(inner, expected).as_ref())?;
+                let ty = bind_here_result_type(expr, &inner, expected)?;
+                Ok(Expr::typed(
+                    ExprKind::BindHere {
+                        expr: Box::new(inner),
+                    },
+                    ty,
+                ))
+            }
             ExprKind::Thunk {
                 effect,
                 value,
@@ -545,10 +563,20 @@ impl<'a> BodyEmitter<'a> {
             runtime_type(&callee_signature)?,
         );
         for arg in args {
+            while let DemandSignature::Thunk { value, .. } = callee_signature {
+                let value_ty = runtime_type(&value)?;
+                call = Expr::typed(
+                    ExprKind::BindHere {
+                        expr: Box::new(call),
+                    },
+                    value_ty,
+                );
+                callee_signature = *value;
+            }
             let DemandSignature::Fun { param, ret } = callee_signature else {
                 return Err(DemandEmitError::NonFunctionCall(callee_signature));
             };
-            let arg = self.rewrite_expr(arg, Some(&param))?;
+            let arg = force_arg_to_expected_value(self.rewrite_expr(arg, Some(&param))?, &param)?;
             let ret_ty = runtime_type(&ret)?;
             call = Expr::typed(
                 ExprKind::Apply {
@@ -567,9 +595,6 @@ impl<'a> BodyEmitter<'a> {
     fn find_specialization(&self, key: &DemandKey) -> Option<&'a DemandSpecialization> {
         if let Some(specialization) = self.current_specialization
             && specialization.target == key.target
-            && DemandUnifier::new()
-                .unify_signature(&key.signature, &specialization.key.signature)
-                .is_ok()
         {
             return Some(specialization);
         }
@@ -646,14 +671,17 @@ impl<'a> BodyEmitter<'a> {
         else {
             unreachable!();
         };
+        let callee = self.rewrite_expr(callee, None)?;
+        let arg = self.rewrite_expr(arg, None)?;
+        let ty = apply_result_runtime_type(&callee).unwrap_or_else(|| expr.ty.clone());
         Ok(Expr::typed(
             ExprKind::Apply {
-                callee: Box::new(self.rewrite_expr(callee, None)?),
-                arg: Box::new(self.rewrite_expr(arg, None)?),
+                callee: Box::new(callee),
+                arg: Box::new(arg),
                 evidence: evidence.clone(),
                 instantiation: instantiation.clone(),
             },
-            expr.ty.clone(),
+            ty,
         ))
     }
 
@@ -779,6 +807,7 @@ fn most_specific_specialization<'a>(
 
 fn signature_hole_count(signature: &DemandSignature) -> usize {
     match signature {
+        DemandSignature::Ignored => 0,
         DemandSignature::Hole(_) => 1,
         DemandSignature::Core(ty) => core_hole_count(ty),
         DemandSignature::Fun { param, ret } => {
@@ -801,6 +830,7 @@ fn effect_hole_count(effect: &DemandEffect) -> usize {
 
 fn core_hole_count(ty: &DemandCoreType) -> usize {
     match ty {
+        DemandCoreType::Any => 0,
         DemandCoreType::Never => 0,
         DemandCoreType::Hole(_) => 1,
         DemandCoreType::Named { args, .. } => args.iter().map(type_arg_hole_count).sum(),
@@ -919,8 +949,84 @@ fn single_payload_arg(args: &[DemandTypeArg]) -> Option<DemandCoreType> {
     }
 }
 
+fn bind_here_inner_expected(
+    inner: &Expr,
+    expected: Option<&DemandSignature>,
+) -> Option<DemandSignature> {
+    let expected = expected?;
+    Some(DemandSignature::Thunk {
+        effect: thunk_effect_signature(&inner.ty).unwrap_or(DemandEffect::Empty),
+        value: Box::new(expected.clone()),
+    })
+}
+
+fn thunk_effect_signature(ty: &RuntimeType) -> Option<DemandEffect> {
+    match ty {
+        RuntimeType::Thunk { effect, .. } => Some(DemandEffect::from_core_type(effect)),
+        _ => None,
+    }
+}
+
+fn bind_here_result_type(
+    original: &Expr,
+    inner: &Expr,
+    expected: Option<&DemandSignature>,
+) -> Result<RuntimeType, DemandEmitError> {
+    if let Some(expected) = expected {
+        return runtime_type(expected);
+    }
+    match &inner.ty {
+        RuntimeType::Thunk { value, .. } => Ok(*value.clone()),
+        _ => Ok(original.ty.clone()),
+    }
+}
+
+fn apply_result_runtime_type(callee: &Expr) -> Option<RuntimeType> {
+    match &callee.ty {
+        RuntimeType::Fun { ret, .. } => Some(*ret.clone()),
+        RuntimeType::Core(core_ir::Type::Fun {
+            ret, ret_effect, ..
+        }) => Some(effected_runtime_type(*ret.clone(), *ret_effect.clone())),
+        _ => None,
+    }
+}
+
+fn effected_runtime_type(value: core_ir::Type, effect: core_ir::Type) -> RuntimeType {
+    if matches!(effect, core_ir::Type::Never) {
+        RuntimeType::core(value)
+    } else {
+        RuntimeType::thunk(effect, RuntimeType::core(value))
+    }
+}
+
+fn force_arg_to_expected_value(
+    arg: Expr,
+    expected: &DemandSignature,
+) -> Result<Expr, DemandEmitError> {
+    if matches!(expected, DemandSignature::Thunk { .. }) {
+        return Ok(arg);
+    }
+    let RuntimeType::Thunk { value, .. } = &arg.ty else {
+        return Ok(arg);
+    };
+    let actual_value = DemandSignature::from_runtime_type(value);
+    if DemandUnifier::new()
+        .unify_signature(expected, &actual_value)
+        .is_err()
+    {
+        return Ok(arg);
+    }
+    Ok(Expr::typed(
+        ExprKind::BindHere {
+            expr: Box::new(arg),
+        },
+        runtime_type(expected)?,
+    ))
+}
+
 fn runtime_type(signature: &DemandSignature) -> Result<RuntimeType, DemandEmitError> {
     Ok(match signature {
+        DemandSignature::Ignored => RuntimeType::core(core_ir::Type::Any),
         DemandSignature::Hole(id) => return Err(DemandEmitError::UnresolvedValueHole(*id)),
         DemandSignature::Core(ty) => RuntimeType::core(core_type(ty)?),
         DemandSignature::Fun { param, ret } => {
@@ -934,6 +1040,7 @@ fn runtime_type(signature: &DemandSignature) -> Result<RuntimeType, DemandEmitEr
 
 fn core_type(ty: &DemandCoreType) -> Result<core_ir::Type, DemandEmitError> {
     Ok(match ty {
+        DemandCoreType::Any => core_ir::Type::Any,
         DemandCoreType::Never => core_ir::Type::Never,
         DemandCoreType::Hole(id) => return Err(DemandEmitError::UnresolvedCoreHole(*id)),
         DemandCoreType::Named { path, args } => core_ir::Type::Named {

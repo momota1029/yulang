@@ -12,6 +12,7 @@ pub struct DemandSubstitution {
 impl DemandSubstitution {
     pub fn apply_signature(&self, signature: &DemandSignature) -> DemandSignature {
         match signature {
+            DemandSignature::Ignored => DemandSignature::Ignored,
             DemandSignature::Hole(id) => self
                 .values
                 .get(id)
@@ -31,6 +32,7 @@ impl DemandSubstitution {
 
     pub fn apply_core_type(&self, ty: &DemandCoreType) -> DemandCoreType {
         match ty {
+            DemandCoreType::Any => DemandCoreType::Any,
             DemandCoreType::Hole(id) => self
                 .cores
                 .get(id)
@@ -166,6 +168,7 @@ impl DemandUnifier {
         actual: &DemandSignature,
     ) -> Result<(), DemandUnifyError> {
         match (expected, actual) {
+            (DemandSignature::Ignored, _) | (_, DemandSignature::Ignored) => Ok(()),
             (DemandSignature::Hole(id), actual) => self.bind_value(*id, actual.clone()),
             (expected, DemandSignature::Hole(id)) => self.bind_value(*id, expected.clone()),
             (DemandSignature::Core(expected), DemandSignature::Core(actual)) => {
@@ -224,6 +227,7 @@ impl DemandUnifier {
         actual: &DemandCoreType,
     ) -> Result<(), DemandUnifyError> {
         match (expected, actual) {
+            (DemandCoreType::Any, _) | (_, DemandCoreType::Any) => Ok(()),
             (DemandCoreType::Hole(id), actual) => self.bind_core(*id, actual.clone()),
             (expected, DemandCoreType::Hole(id)) => self.bind_core(*id, expected.clone()),
             (_, DemandCoreType::Never) => Ok(()),
@@ -708,6 +712,7 @@ fn effect_from_row_items(items: Vec<DemandEffect>) -> DemandEffect {
 
 fn signature_contains_value_hole(signature: &DemandSignature, id: u32) -> bool {
     match signature {
+        DemandSignature::Ignored => false,
         DemandSignature::Hole(candidate) => *candidate == id,
         DemandSignature::Core(_) => false,
         DemandSignature::Fun { param, ret } => {
@@ -719,6 +724,7 @@ fn signature_contains_value_hole(signature: &DemandSignature, id: u32) -> bool {
 
 fn core_contains_core_hole(ty: &DemandCoreType, id: u32) -> bool {
     match ty {
+        DemandCoreType::Any => false,
         DemandCoreType::Never => false,
         DemandCoreType::Hole(candidate) => *candidate == id,
         DemandCoreType::Named { args, .. } => {
