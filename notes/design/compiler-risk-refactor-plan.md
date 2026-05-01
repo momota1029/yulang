@@ -908,3 +908,19 @@ New risk noticed:
   equality still depends on syntactic hole numbers for partially unknown
   demands.  Before wiring this path into real compilation, keys with holes
   should be canonicalized so equivalent unknown shapes deduplicate reliably.
+
+### 2026-05-01: Demand checker learned block, tuple, and if
+
+- Added explicit demand-checking rules for:
+  - block statements and tail expressions
+  - simple `let` bindings with local variable introduction
+  - tuple item synthesis
+  - `if` branch checking / branch unification
+- Added tests where stale `Any` annotations on local variables are ignored in
+  favor of context-derived demand signatures.
+
+New risk noticed:
+
+- Pattern support in block `let` is intentionally narrow and only binds simple
+  names.  Record/list/tuple patterns need their own local-introduction rules so
+  destructuring does not fall back to old expression annotations.
