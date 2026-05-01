@@ -372,3 +372,17 @@ New risk noticed:
   for runtime-preserving function effect slots.  Future refactors should avoid
   passing a bare `core_ir::Type` when the caller really needs one of these
   specific views.
+
+### 2026-05-01: Monomorphization pass sequence named
+
+- Replaced the hand-written top-level sequence in `monomorphize_module` with a
+  named `MonoPass` pipeline.
+- Kept the old pass order exactly, so this is a structure-only change.
+- Added `YULANG_DEBUG_MONO_PIPELINE` output for coarse pass progress:
+  binding count and root count before/after each pass.
+
+New risk noticed:
+
+- The current pipeline still repeats rewrite/refine/refresh by fixed count.  Now
+  that each pass has a name, the next step should replace the fixed list with a
+  progress-aware loop and report which pass stopped making progress.

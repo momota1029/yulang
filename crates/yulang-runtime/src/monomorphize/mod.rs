@@ -51,43 +51,131 @@ use specialize::*;
 use substitute::*;
 
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
-    let mut lowered = rewrite_monomorphic_uses(module, false);
-    lowered = refine_module_types(lowered)?;
-    lowered = rewrite_monomorphic_uses(lowered, false);
-    lowered = refine_module_types(lowered)?;
-    lowered = rewrite_monomorphic_uses(lowered, false);
-    lowered = refine_module_types(lowered)?;
-    lowered = refresh_closed_specialized_schemes(lowered);
-    lowered = canonicalize_equivalent_specializations(lowered);
-    lowered = inline_polymorphic_nullary_constructors(lowered);
-    lowered = resolve_specialized_residual_associated_bindings(lowered);
-    lowered = resolve_residual_role_method_calls(lowered);
-    lowered = rewrite_monomorphic_uses(lowered, false);
-    lowered = refine_module_types(lowered)?;
-    lowered = refresh_closed_specialized_schemes(lowered);
-    lowered = rewrite_monomorphic_uses(lowered, false);
-    lowered = refine_module_types(lowered)?;
-    lowered = resolve_residual_role_method_calls(lowered);
-    lowered = rewrite_monomorphic_uses(lowered, false);
-    lowered = refine_module_types(lowered)?;
-    lowered = refresh_closed_specialized_schemes(lowered);
-    lowered = resolve_residual_role_method_calls(lowered);
-    lowered = rewrite_monomorphic_uses(lowered, false);
-    lowered = refine_module_types(lowered)?;
-    lowered = refresh_closed_specialized_schemes(lowered);
-    lowered = resolve_residual_role_method_calls(lowered);
-    lowered = refine_module_types(lowered)?;
-    lowered = refresh_closed_specialized_schemes(lowered);
-    lowered = prune_unreachable_bindings(lowered);
-    lowered = resolve_residual_role_method_calls(lowered);
-    lowered = rewrite_monomorphic_uses(lowered, false);
-    lowered = refine_module_types(lowered)?;
-    lowered = refresh_closed_specialized_schemes(lowered);
-    lowered = resolve_residual_associated_bindings(lowered);
+    let lowered = run_mono_pipeline(module)?;
     ensure_monomorphic_bindings(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
     validate_module(&lowered)?;
     Ok(lowered)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MonoPass {
+    RewriteUses,
+    RefineTypes,
+    RefreshClosedSchemes,
+    CanonicalizeSpecializations,
+    InlineNullaryConstructors,
+    ResolveSpecializedResidualAssociated,
+    ResolveResidualRoleMethods,
+    PruneUnreachable,
+    ResolveResidualAssociated,
+}
+
+impl MonoPass {
+    fn name(self) -> &'static str {
+        match self {
+            MonoPass::RewriteUses => "rewrite-uses",
+            MonoPass::RefineTypes => "refine-types",
+            MonoPass::RefreshClosedSchemes => "refresh-closed-schemes",
+            MonoPass::CanonicalizeSpecializations => "canonicalize-specializations",
+            MonoPass::InlineNullaryConstructors => "inline-nullary-constructors",
+            MonoPass::ResolveSpecializedResidualAssociated => {
+                "resolve-specialized-residual-associated"
+            }
+            MonoPass::ResolveResidualRoleMethods => "resolve-residual-role-methods",
+            MonoPass::PruneUnreachable => "prune-unreachable",
+            MonoPass::ResolveResidualAssociated => "resolve-residual-associated",
+        }
+    }
+}
+
+const MONO_PIPELINE: &[MonoPass] = &[
+    MonoPass::RewriteUses,
+    MonoPass::RefineTypes,
+    MonoPass::RewriteUses,
+    MonoPass::RefineTypes,
+    MonoPass::RewriteUses,
+    MonoPass::RefineTypes,
+    MonoPass::RefreshClosedSchemes,
+    MonoPass::CanonicalizeSpecializations,
+    MonoPass::InlineNullaryConstructors,
+    MonoPass::ResolveSpecializedResidualAssociated,
+    MonoPass::ResolveResidualRoleMethods,
+    MonoPass::RewriteUses,
+    MonoPass::RefineTypes,
+    MonoPass::RefreshClosedSchemes,
+    MonoPass::RewriteUses,
+    MonoPass::RefineTypes,
+    MonoPass::ResolveResidualRoleMethods,
+    MonoPass::RewriteUses,
+    MonoPass::RefineTypes,
+    MonoPass::RefreshClosedSchemes,
+    MonoPass::ResolveResidualRoleMethods,
+    MonoPass::RewriteUses,
+    MonoPass::RefineTypes,
+    MonoPass::RefreshClosedSchemes,
+    MonoPass::ResolveResidualRoleMethods,
+    MonoPass::RefineTypes,
+    MonoPass::RefreshClosedSchemes,
+    MonoPass::PruneUnreachable,
+    MonoPass::ResolveResidualRoleMethods,
+    MonoPass::RewriteUses,
+    MonoPass::RefineTypes,
+    MonoPass::RefreshClosedSchemes,
+    MonoPass::ResolveResidualAssociated,
+];
+
+fn run_mono_pipeline(module: Module) -> RuntimeResult<Module> {
+    let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
+    let mut module = module;
+    for pass in MONO_PIPELINE {
+        let before = debug.then(|| MonoStats::from_module(&module));
+        module = apply_mono_pass(module, *pass)?;
+        if let Some(before) = before {
+            let after = MonoStats::from_module(&module);
+            eprintln!(
+                "mono pass {:>38}: bindings {} -> {}, roots {} -> {}",
+                pass.name(),
+                before.bindings,
+                after.bindings,
+                before.roots,
+                after.roots
+            );
+        }
+    }
+    Ok(module)
+}
+
+fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<Module> {
+    match pass {
+        MonoPass::RewriteUses => Ok(rewrite_monomorphic_uses(module, false)),
+        MonoPass::RefineTypes => refine_module_types(module),
+        MonoPass::RefreshClosedSchemes => Ok(refresh_closed_specialized_schemes(module)),
+        MonoPass::CanonicalizeSpecializations => {
+            Ok(canonicalize_equivalent_specializations(module))
+        }
+        MonoPass::InlineNullaryConstructors => Ok(inline_polymorphic_nullary_constructors(module)),
+        MonoPass::ResolveSpecializedResidualAssociated => {
+            Ok(resolve_specialized_residual_associated_bindings(module))
+        }
+        MonoPass::ResolveResidualRoleMethods => Ok(resolve_residual_role_method_calls(module)),
+        MonoPass::PruneUnreachable => Ok(prune_unreachable_bindings(module)),
+        MonoPass::ResolveResidualAssociated => Ok(resolve_residual_associated_bindings(module)),
+    }
+}
+
+struct MonoStats {
+    bindings: usize,
+    roots: usize,
+}
+
+impl MonoStats {
+    fn from_module(module: &Module) -> Self {
+        Self {
+            bindings: module.bindings.len(),
+            roots: module.root_exprs.len(),
+        }
+    }
 }
 
 fn rewrite_monomorphic_uses(module: Module, prune: bool) -> Module {
