@@ -4,6 +4,7 @@ use crate::ir::Module;
 pub struct DemandEngine<'a> {
     checker: DemandChecker<'a>,
     queue: DemandQueue,
+    specializations: SpecializationTable,
     checked: Vec<CheckedDemand>,
 }
 
@@ -14,6 +15,7 @@ impl<'a> DemandEngine<'a> {
         Self {
             checker: DemandChecker::from_module(module),
             queue: collector.into_queue(),
+            specializations: SpecializationTable::default(),
             checked: Vec::new(),
         }
     }
@@ -21,6 +23,7 @@ impl<'a> DemandEngine<'a> {
     pub fn run(mut self) -> Result<DemandEngineOutput, DemandCheckError> {
         while let Some(demand) = self.queue.pop_front() {
             let checked = self.checker.check_demand(&demand)?;
+            self.specializations.intern(&checked);
             let mut child_demands = checked.child_demands.clone();
             while let Some(child) = child_demands.pop_front() {
                 self.queue
@@ -30,6 +33,7 @@ impl<'a> DemandEngine<'a> {
         }
         Ok(DemandEngineOutput {
             checked: self.checked,
+            specializations: self.specializations.into_specializations(),
         })
     }
 }
@@ -37,6 +41,7 @@ impl<'a> DemandEngine<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DemandEngineOutput {
     pub checked: Vec<CheckedDemand>,
+    pub specializations: Vec<DemandSpecialization>,
 }
 
 #[cfg(test)]
@@ -131,6 +136,11 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(checked_targets, vec![id]);
+        assert_eq!(output.specializations.len(), 1);
+        assert_eq!(
+            output.specializations[0].path,
+            core_ir::Path::from_name(core_ir::Name("id__ddmono0".to_string()))
+        );
     }
 
     fn binding(

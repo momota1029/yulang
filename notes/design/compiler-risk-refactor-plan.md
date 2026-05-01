@@ -851,3 +851,20 @@ New risk noticed:
   specialized bindings yet.  The next step should add a specialization table
   keyed by `DemandKey` and produce deterministic specialized paths before
   rewriting call sites.
+
+### 2026-05-01: Demand specialization table added
+
+- Added `SpecializationTable`.
+- Each checked demand now receives a deterministic specialized path such as
+  `id__ddmono0`.
+- The table is keyed by `DemandKey`, so repeated identical demands reuse the
+  same specialized path.
+- `DemandEngineOutput` now includes the checked demand list and the planned
+  specializations.
+
+New risk noticed:
+
+- The specialization table is metadata only.  The next step should create
+  actual `Binding` values with substituted runtime types, then make call-site
+  rewriting a targeted replacement from `DemandKey` to specialized path rather
+  than a full tree fixed-point pass.

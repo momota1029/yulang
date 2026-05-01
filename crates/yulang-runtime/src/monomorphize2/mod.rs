@@ -16,11 +16,13 @@ mod check;
 mod collect;
 mod engine;
 mod solve;
+mod specialize;
 
 pub use check::*;
 pub use collect::*;
 pub use engine::*;
 pub use solve::*;
+pub use specialize::*;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct DemandQueue {
