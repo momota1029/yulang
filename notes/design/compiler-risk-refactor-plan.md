@@ -711,3 +711,21 @@ New risk noticed:
   it does not yet prevent a caller from passing a wildcard effect into a value
   position.  The next step should narrow more direct `Type::Any` use sites or
   add boundary checks where runtime execution begins.
+
+### 2026-05-01: Strict runtime value-type audit added
+
+- Added an opt-in strict runtime value-type checker.
+- It currently rejects the two places where the VM really uses type witnesses
+  operationally:
+  - thunk value types
+  - cast/coerce source and target types
+- Kept the checker out of normal VM compilation for now.
+
+New risk noticed:
+
+- Enabling the strict checker globally exposed real residual `_` in existing
+  generated IR, especially loop handler thunks and nondeterminism continuation
+  queues.  Those examples still run because the current VM mostly erases type
+  metadata, but they are not ready for a fully typed VM boundary.  The next
+  cleanup should eliminate those residuals by improving specialization, not by
+  weakening the strict check.

@@ -20,7 +20,7 @@ pub mod vm;
 
 pub use diagnostic::{RuntimeError, RuntimeResult, TypeSource};
 pub use hygiene::{format_hygiene_expr, format_hygiene_module};
-pub use invariant::{RuntimeStage, check_runtime_invariants};
+pub use invariant::{RuntimeStage, check_runtime_invariants, check_strict_runtime_value_types};
 pub use ir::{
     Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence,
     MatchArm, Module, Pattern, RecordExprField, RecordPatternField, RecordSpreadExpr,

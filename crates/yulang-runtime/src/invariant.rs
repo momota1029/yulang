@@ -5,7 +5,7 @@ use crate::ir::{
     Expr, ExprKind, MatchArm, Module, Pattern, RecordExprField, RecordPatternField,
     RecordSpreadExpr, RecordSpreadPattern, Stmt, Type as RuntimeType,
 };
-use crate::types::effect_is_empty;
+use crate::types::{core_type_is_runtime_projection_fallback, effect_is_empty};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeStage {
@@ -25,7 +25,10 @@ impl RuntimeStage {
 }
 
 pub fn check_runtime_invariants(module: &Module, stage: RuntimeStage) -> RuntimeResult<()> {
-    let mut checker = InvariantChecker { stage };
+    let mut checker = InvariantChecker {
+        stage,
+        strict_value_types: false,
+    };
     for binding in &module.bindings {
         if matches!(stage, RuntimeStage::BeforeVm) && !binding.type_params.is_empty() {
             return Err(RuntimeError::InvariantViolation {
@@ -45,8 +48,26 @@ pub fn check_runtime_invariants(module: &Module, stage: RuntimeStage) -> Runtime
     Ok(())
 }
 
+pub fn check_strict_runtime_value_types(module: &Module, stage: RuntimeStage) -> RuntimeResult<()> {
+    let mut checker = InvariantChecker {
+        stage,
+        strict_value_types: true,
+    };
+    for binding in &module.bindings {
+        checker.expr(
+            &binding.body,
+            format!("binding {}", path_name(&binding.name)),
+        )?;
+    }
+    for (index, expr) in module.root_exprs.iter().enumerate() {
+        checker.expr(expr, format!("root #{index}"))?;
+    }
+    Ok(())
+}
+
 struct InvariantChecker {
     stage: RuntimeStage,
+    strict_value_types: bool,
 }
 
 impl InvariantChecker {
@@ -137,6 +158,15 @@ impl InvariantChecker {
                 value,
                 expr: inner,
             } => {
+                if self.strict_value_types
+                    && matches!(self.stage, RuntimeStage::BeforeVm)
+                    && runtime_type_has_runtime_fallback_in_value_position(value)
+                {
+                    return self.fail(
+                        context,
+                        "VM thunk value type must not contain runtime fallback Any",
+                    );
+                }
                 match &expr.ty {
                     RuntimeType::Thunk {
                         effect: ty_effect,
@@ -162,7 +192,23 @@ impl InvariantChecker {
                     self.fail(context, "add_id must wrap a thunk")
                 }
             }
-            ExprKind::Coerce { expr: inner, .. } => self.expr(inner, format!("{context}/coerce")),
+            ExprKind::Coerce {
+                expr: inner,
+                from,
+                to,
+            } => {
+                if self.strict_value_types
+                    && matches!(self.stage, RuntimeStage::BeforeVm)
+                    && (core_type_has_runtime_fallback_in_value_position(from, false)
+                        || core_type_has_runtime_fallback_in_value_position(to, false))
+                {
+                    return self.fail(
+                        context,
+                        "VM coerce type must not contain runtime fallback Any",
+                    );
+                }
+                self.expr(inner, format!("{context}/coerce"))
+            }
             ExprKind::Pack { expr: inner, .. } => self.expr(inner, format!("{context}/pack")),
             ExprKind::Var(_)
             | ExprKind::EffectOp(_)
@@ -282,6 +328,86 @@ fn path_name(path: &core_ir::Path) -> String {
         .join("::")
 }
 
+fn runtime_type_has_runtime_fallback_in_value_position(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Core(ty) => core_type_has_runtime_fallback_in_value_position(ty, false),
+        RuntimeType::Fun { param, ret } => {
+            runtime_type_has_runtime_fallback_in_value_position(param)
+                || runtime_type_has_runtime_fallback_in_value_position(ret)
+        }
+        RuntimeType::Thunk { value, .. } => {
+            runtime_type_has_runtime_fallback_in_value_position(value)
+        }
+    }
+}
+
+fn core_type_has_runtime_fallback_in_value_position(ty: &core_ir::Type, effect_slot: bool) -> bool {
+    match ty {
+        core_ir::Type::Any => !effect_slot && core_type_is_runtime_projection_fallback(ty),
+        core_ir::Type::Named { args, .. } => {
+            args.iter().any(|arg| match arg {
+                core_ir::TypeArg::Type(ty) => {
+                    core_type_has_runtime_fallback_in_value_position(ty, false)
+                }
+                core_ir::TypeArg::Bounds(bounds) => {
+                    bounds.lower.as_deref().is_some_and(|ty| {
+                        core_type_has_runtime_fallback_in_value_position(ty, false)
+                    }) || bounds.upper.as_deref().is_some_and(|ty| {
+                        core_type_has_runtime_fallback_in_value_position(ty, false)
+                    })
+                }
+            })
+        }
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_has_runtime_fallback_in_value_position(param, false)
+                || core_type_has_runtime_fallback_in_value_position(param_effect, true)
+                || core_type_has_runtime_fallback_in_value_position(ret_effect, true)
+                || core_type_has_runtime_fallback_in_value_position(ret, false)
+        }
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items
+                .iter()
+                .any(|item| core_type_has_runtime_fallback_in_value_position(item, false))
+        }
+        core_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| core_type_has_runtime_fallback_in_value_position(&field.value, false))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                        core_type_has_runtime_fallback_in_value_position(ty, false)
+                    }
+                })
+        }
+        core_ir::Type::Variant(variant) => {
+            variant.cases.iter().any(|case| {
+                case.payloads
+                    .iter()
+                    .any(|payload| core_type_has_runtime_fallback_in_value_position(payload, false))
+            }) || variant
+                .tail
+                .as_deref()
+                .is_some_and(|tail| core_type_has_runtime_fallback_in_value_position(tail, false))
+        }
+        core_ir::Type::Row { items, tail } => {
+            items
+                .iter()
+                .any(|item| core_type_has_runtime_fallback_in_value_position(item, true))
+                || core_type_has_runtime_fallback_in_value_position(tail, true)
+        }
+        core_ir::Type::Recursive { body, .. } => {
+            core_type_has_runtime_fallback_in_value_position(body, effect_slot)
+        }
+        core_ir::Type::Var(_) | core_ir::Type::Never => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -362,6 +488,50 @@ mod tests {
             err,
             RuntimeError::InvariantViolation {
                 message: "VM input binding must be monomorphic",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_any_thunk_value_type_before_vm() {
+        let module = module_with_expr(Expr::typed(
+            ExprKind::Thunk {
+                effect: named("io"),
+                value: RuntimeType::core(core_ir::Type::Any),
+                expr: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit())),
+            },
+            RuntimeType::thunk(named("io"), RuntimeType::core(core_ir::Type::Any)),
+        ));
+
+        let err = check_strict_runtime_value_types(&module, RuntimeStage::BeforeVm).unwrap_err();
+
+        assert!(matches!(
+            err,
+            RuntimeError::InvariantViolation {
+                message: "VM thunk value type must not contain runtime fallback Any",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_any_coerce_type_before_vm() {
+        let module = module_with_expr(Expr::typed(
+            ExprKind::Coerce {
+                from: unit(),
+                to: core_ir::Type::Any,
+                expr: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit())),
+            },
+            unit(),
+        ));
+
+        let err = check_strict_runtime_value_types(&module, RuntimeStage::BeforeVm).unwrap_err();
+
+        assert!(matches!(
+            err,
+            RuntimeError::InvariantViolation {
+                message: "VM coerce type must not contain runtime fallback Any",
                 ..
             }
         ));
