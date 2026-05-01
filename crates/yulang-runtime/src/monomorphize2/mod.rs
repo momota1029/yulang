@@ -13,6 +13,7 @@ use yulang_core_ir as core_ir;
 
 use crate::ir::Type as RuntimeType;
 
+mod associated;
 mod check;
 mod collect;
 mod emit;
@@ -20,6 +21,7 @@ mod engine;
 mod solve;
 mod specialize;
 
+use associated::*;
 pub use check::*;
 pub use collect::*;
 pub use emit::*;
@@ -92,6 +94,7 @@ impl Demand {
         expected: RuntimeType,
         signature: DemandSignature,
     ) -> Self {
+        let signature = close_known_associated_type_signature(&target, signature);
         let key = DemandKey::from_signature(target.clone(), signature);
         Self {
             target,
@@ -880,6 +883,168 @@ mod tests {
         );
     }
 
+    #[test]
+    fn fold_demand_closes_list_item_and_accumulator_callback_types() {
+        let demand = Demand::with_signature(
+            path_segments(&["std", "list", "&impl#187", "fold"]),
+            RuntimeType::core(core_ir::Type::Any),
+            fold_signature(DemandSignature::Fun {
+                param: Box::new(DemandSignature::Hole(0)),
+                ret: Box::new(DemandSignature::Fun {
+                    param: Box::new(DemandSignature::Hole(0)),
+                    ret: Box::new(unit_thunk()),
+                }),
+            }),
+        );
+
+        let DemandSignature::Fun { ret, .. } = demand.key.signature else {
+            panic!("expected fold function");
+        };
+        let DemandSignature::Fun { ret, .. } = *ret else {
+            panic!("expected z function");
+        };
+        let DemandSignature::Fun { param, .. } = *ret else {
+            panic!("expected callback function");
+        };
+
+        assert_eq!(
+            *param,
+            DemandSignature::Fun {
+                param: Box::new(unit_signature()),
+                ret: Box::new(DemandSignature::Fun {
+                    param: Box::new(int_signature()),
+                    ret: Box::new(unit_thunk()),
+                }),
+            }
+        );
+    }
+
+    #[test]
+    fn fold_impl_demand_wraps_callback_in_empty_thunk() {
+        let demand = Demand::with_signature(
+            path_segments(&["std", "list", "fold_impl"]),
+            RuntimeType::core(core_ir::Type::Any),
+            fold_signature(DemandSignature::Fun {
+                param: Box::new(DemandSignature::Hole(0)),
+                ret: Box::new(DemandSignature::Fun {
+                    param: Box::new(DemandSignature::Hole(0)),
+                    ret: Box::new(unit_thunk()),
+                }),
+            }),
+        );
+
+        let DemandSignature::Fun { ret, .. } = demand.key.signature else {
+            panic!("expected fold_impl function");
+        };
+        let DemandSignature::Fun { ret, .. } = *ret else {
+            panic!("expected z function");
+        };
+        let DemandSignature::Fun { param, .. } = *ret else {
+            panic!("expected callback function");
+        };
+
+        assert_eq!(
+            *param,
+            DemandSignature::Thunk {
+                effect: DemandEffect::Empty,
+                value: Box::new(DemandSignature::Fun {
+                    param: Box::new(unit_signature()),
+                    ret: Box::new(DemandSignature::Fun {
+                        param: Box::new(int_signature()),
+                        ret: Box::new(unit_thunk()),
+                    }),
+                }),
+            }
+        );
+    }
+
+    #[test]
+    fn fold_demand_closes_range_item_as_int() {
+        let demand = Demand::with_signature(
+            path_segments(&["std", "range", "&impl#120", "fold"]),
+            RuntimeType::core(core_ir::Type::Any),
+            curried_signatures(
+                &[
+                    DemandSignature::Core(DemandCoreType::Named {
+                        path: path_segments(&["std", "range", "range"]),
+                        args: Vec::new(),
+                    }),
+                    unit_signature(),
+                    DemandSignature::Fun {
+                        param: Box::new(DemandSignature::Hole(0)),
+                        ret: Box::new(DemandSignature::Fun {
+                            param: Box::new(DemandSignature::Hole(0)),
+                            ret: Box::new(unit_thunk()),
+                        }),
+                    },
+                ],
+                unit_thunk(),
+            ),
+        );
+
+        let DemandSignature::Fun { ret, .. } = demand.key.signature else {
+            panic!("expected fold function");
+        };
+        let DemandSignature::Fun { ret, .. } = *ret else {
+            panic!("expected z function");
+        };
+        let DemandSignature::Fun { param, .. } = *ret else {
+            panic!("expected callback function");
+        };
+
+        assert_eq!(
+            *param,
+            DemandSignature::Fun {
+                param: Box::new(unit_signature()),
+                ret: Box::new(DemandSignature::Fun {
+                    param: Box::new(int_signature()),
+                    ret: Box::new(unit_thunk()),
+                }),
+            }
+        );
+    }
+
+    fn fold_signature(callback: DemandSignature) -> DemandSignature {
+        curried_signatures(
+            &[
+                DemandSignature::Core(DemandCoreType::Named {
+                    path: path_segments(&["std", "list", "list"]),
+                    args: vec![DemandTypeArg::Type(DemandCoreType::Named {
+                        path: path("int"),
+                        args: Vec::new(),
+                    })],
+                }),
+                unit_signature(),
+                callback,
+            ],
+            unit_thunk(),
+        )
+    }
+
+    fn unit_thunk() -> DemandSignature {
+        DemandSignature::Thunk {
+            effect: DemandEffect::Atom(DemandCoreType::Named {
+                path: path_segments(&["std", "undet", "undet"]),
+                args: Vec::new(),
+            }),
+            value: Box::new(unit_signature()),
+        }
+    }
+
+    fn unit_signature() -> DemandSignature {
+        DemandSignature::Core(DemandCoreType::Named {
+            path: path("unit"),
+            args: Vec::new(),
+        })
+    }
+
+    fn int_signature() -> DemandSignature {
+        DemandSignature::Core(DemandCoreType::Named {
+            path: path("int"),
+            args: Vec::new(),
+        })
+    }
+
     fn named(name: &str) -> core_ir::Type {
         core_ir::Type::Named {
             path: path(name),
@@ -889,5 +1054,14 @@ mod tests {
 
     fn path(name: &str) -> core_ir::Path {
         core_ir::Path::from_name(core_ir::Name(name.to_string()))
+    }
+
+    fn path_segments(segments: &[&str]) -> core_ir::Path {
+        core_ir::Path {
+            segments: segments
+                .iter()
+                .map(|segment| core_ir::Name((*segment).to_string()))
+                .collect(),
+        }
     }
 }

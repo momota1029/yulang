@@ -1296,3 +1296,45 @@ New risk noticed:
   be forced back to empty.  The next step should make generic child-call
   checking build a child demand from the actual argument signature without
   accepting value-shape mismatches such as `int` where `list<_>` is required.
+
+### 2026-05-01: Fold demand signatures close associated item types
+
+- Generic call collection now starts from the callee head type and unifies it
+  with actual argument/result signatures.  If an argument fails only because
+  effect rows differ, the collector keeps the callee value shape and merges the
+  actual effect row into the demand signature.
+- Demand checking of generic child calls now uses the callee hint first, then
+  falls back to the synthesized argument signature only on effect mismatch.
+  Value-shape mismatches still reject, so a list impl is not accepted for an
+  `int` argument.
+- `Fold::fold` / `fold_impl` demand keys now close the callback shape from the
+  known `Fold::item` relation:
+  - `list<T>` gives callback item `T`
+  - `range` gives callback item `int`
+  - `fold_impl` represents the callback as `Thunk[Empty, ...]`, matching the
+    lowered body that forces `f` with `bind_here`
+- Demand emission now prefers the current specialization for compatible
+  self-recursive calls.  This avoids choosing a sibling specialization with a
+  different effect row inside recursive helpers such as `fold_impl`.
+- The associated-type closure code now lives in `monomorphize2/associated.rs`
+  so it can be replaced later by a real associated-type evidence table.
+
+Measured:
+
+- `examples/05_undet_all.yu`: `monomorphize` about 220ms, 30 passes,
+  11 specializations
+- `examples/showcase.yu`: `monomorphize` about 1.0s, 32 passes,
+  50 specializations
+- `examples/03_for_last.yu`: still 32 passes, 21 specializations
+
+New risk noticed:
+
+- The current associated-type closure is still partly hard-coded to `Fold`.
+  That is better than deriving from handler bodies or display types, but it is
+  not the final shape.  The demand engine should eventually receive role
+  associated-type evidence from runtime lowering, so `Fold`, `Index`, and later
+  user roles use one table instead of local path rules.
+- `std::flow::loop::for_in` still stays open during demand specialization.
+  Closing it by guessing the callback return value as `unit` made specialization
+  counts worse, so the remaining fix needs a more precise "ignored callback
+  result" representation rather than another local rewrite.

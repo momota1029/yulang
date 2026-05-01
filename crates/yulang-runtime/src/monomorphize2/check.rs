@@ -79,6 +79,7 @@ impl From<DemandUnifyError> for DemandCheckError {
 struct ExprChecker<'a> {
     generic_bindings: &'a HashSet<core_ir::Path>,
     consumed_effects: &'a [core_ir::Path],
+    enclosing_thunk_effects: Vec<DemandEffect>,
     locals: HashMap<core_ir::Path, DemandSignature>,
     next_hole: u32,
     unifier: DemandUnifier,
@@ -99,6 +100,7 @@ impl<'a> ExprChecker<'a> {
         Self {
             generic_bindings,
             consumed_effects,
+            enclosing_thunk_effects: Vec::new(),
             locals: HashMap::new(),
             next_hole: 0,
             unifier: DemandUnifier::new(),
@@ -119,6 +121,11 @@ impl<'a> ExprChecker<'a> {
             self.unifier.unify(expected, value)?;
             return Ok(actual);
         }
+        if !matches!(expected, DemandSignature::Thunk { .. })
+            && self.accept_enclosed_thunk_value(expected, &actual)
+        {
+            return Ok(actual);
+        }
         self.unifier.unify(expected, &actual)?;
         Ok(actual)
     }
@@ -131,6 +138,24 @@ impl<'a> ExprChecker<'a> {
             return None;
         };
         demand_effect_is_consumed(effect, self.consumed_effects).then_some(value.as_ref())
+    }
+
+    fn accept_enclosed_thunk_value(
+        &mut self,
+        expected: &DemandSignature,
+        actual: &DemandSignature,
+    ) -> bool {
+        let DemandSignature::Thunk { .. } = actual else {
+            return false;
+        };
+        let Some(effect) = self.enclosing_thunk_effects.last().cloned() else {
+            return false;
+        };
+        let expected_thunk = DemandSignature::Thunk {
+            effect,
+            value: Box::new(expected.clone()),
+        };
+        self.unifier.unify(&expected_thunk, actual).is_ok()
     }
 
     fn synth_expr(
@@ -190,12 +215,7 @@ impl<'a> ExprChecker<'a> {
                     let param_hints = self.curried_param_signatures_from_type(&head.ty, args.len());
                     let mut arg_signatures = Vec::with_capacity(args.len());
                     for (arg, hint) in args.iter().zip(param_hints) {
-                        if let Some(hint) = hint {
-                            self.check_expr(arg, &hint)?;
-                            arg_signatures.push(hint);
-                        } else {
-                            arg_signatures.push(self.synth_expr(arg, None)?);
-                        }
+                        arg_signatures.push(self.generic_arg_signature(arg, hint)?);
                     }
                     let signature = curried_signatures(&arg_signatures, ret.clone());
                     self.child_demands.push(PendingChildDemand {
@@ -592,13 +612,16 @@ impl<'a> ExprChecker<'a> {
             value: Box::new(self.signature_from_type(value)),
         });
         let DemandSignature::Thunk {
-            effect: _,
+            effect,
             value: expected_value,
         } = &expected
         else {
             return Ok(self.signature_from_type(&expr.ty));
         };
-        self.check_expr(inner, expected_value)?;
+        self.enclosing_thunk_effects.push(effect.clone());
+        let result = self.check_expr(inner, expected_value);
+        self.enclosing_thunk_effects.pop();
+        result?;
         Ok(expected)
     }
 
@@ -675,6 +698,23 @@ impl<'a> ExprChecker<'a> {
             }
         }
         out
+    }
+
+    fn generic_arg_signature(
+        &mut self,
+        arg: &Expr,
+        hint: Option<DemandSignature>,
+    ) -> Result<DemandSignature, DemandCheckError> {
+        let Some(hint) = hint else {
+            return self.synth_expr(arg, None);
+        };
+        match self.check_expr(arg, &hint) {
+            Ok(_) => Ok(hint),
+            Err(DemandCheckError::Unify(DemandUnifyError::EffectMismatch { .. })) => {
+                self.synth_expr(arg, None)
+            }
+            Err(error) => Err(error),
+        }
     }
 
     fn resume_signature_from_context(

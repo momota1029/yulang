@@ -68,15 +68,11 @@ impl DemandCollector {
                 evidence: _,
                 instantiation: _,
             } => {
-                if let Some((target, args)) = applied_call(expr)
+                if let Some((target, head, args)) = applied_call_with_head(expr)
                     && self.generic_bindings.contains(target)
                 {
                     let expected = curried_call_type(&args, expr.ty.clone());
-                    let ret = expr_signature(expr);
-                    let arg_signatures = args
-                        .iter()
-                        .map(|arg| expr_signature(arg))
-                        .collect::<Vec<_>>();
+                    let (arg_signatures, ret) = call_signatures_from_head(head, &args, expr);
                     self.queue.push_signature(
                         target.clone(),
                         expected,
@@ -87,17 +83,13 @@ impl DemandCollector {
                     }
                     return;
                 }
-                if let Some((target, args)) = applied_call(expr)
+                if let Some((target, head, args)) = applied_call_with_head(expr)
                     && is_role_method_path(target)
                     && let Some(method) = target.segments.last()
                     && let Some(candidates) = self.generic_role_impls.get(method)
                 {
                     let expected = curried_call_type(&args, expr.ty.clone());
-                    let ret = expr_signature(expr);
-                    let arg_signatures = args
-                        .iter()
-                        .map(|arg| expr_signature(arg))
-                        .collect::<Vec<_>>();
+                    let (arg_signatures, ret) = call_signatures_from_head(head, &args, expr);
                     let signature = curried_signatures(&arg_signatures, ret);
                     for candidate in candidates {
                         self.queue.push_signature(
@@ -220,20 +212,20 @@ fn path_key(path: &core_ir::Path) -> String {
         .join("::")
 }
 
-pub(super) fn applied_call(expr: &Expr) -> Option<(&core_ir::Path, Vec<&Expr>)> {
-    let mut callee = expr;
+fn applied_call_with_head(expr: &Expr) -> Option<(&core_ir::Path, &Expr, Vec<&Expr>)> {
+    let mut head = expr;
     let mut args = Vec::new();
     loop {
-        match &callee.kind {
+        match &head.kind {
             ExprKind::Apply {
                 callee: next, arg, ..
             } => {
                 args.push(arg.as_ref());
-                callee = next;
+                head = next;
             }
             ExprKind::Var(target) => {
                 args.reverse();
-                return Some((target, args));
+                return Some((target, head, args));
             }
             _ => return None,
         }
@@ -244,6 +236,175 @@ pub(super) fn curried_call_type(args: &[&Expr], ret: RuntimeType) -> RuntimeType
     args.iter()
         .rev()
         .fold(ret, |ret, arg| RuntimeType::fun(arg.ty.clone(), ret))
+}
+
+fn call_signatures_from_head(
+    head: &Expr,
+    args: &[&Expr],
+    expr: &Expr,
+) -> (Vec<DemandSignature>, DemandSignature) {
+    let fallback_args = args
+        .iter()
+        .map(|arg| expr_signature(arg))
+        .collect::<Vec<_>>();
+    let fallback_ret = expr_signature(expr);
+    let Some((hints, ret_hint)) = curried_signatures_from_type(&head.ty, args.len()) else {
+        return (fallback_args, fallback_ret);
+    };
+    let mut unifier = DemandUnifier::new();
+    let mut failed_args = vec![false; hints.len()];
+    for (index, (hint, actual)) in hints.iter().zip(&fallback_args).enumerate() {
+        if unifier.unify(hint, actual).is_err() {
+            failed_args[index] = true;
+        }
+    }
+    let _ = unifier.unify(&ret_hint, &fallback_ret);
+    let substitutions = unifier.finish();
+    let args = hints
+        .iter()
+        .zip(&fallback_args)
+        .zip(failed_args)
+        .map(|((hint, actual), failed)| {
+            let hint = substitutions.apply_signature(hint);
+            if failed {
+                merge_effects_from_actual(hint, actual)
+            } else {
+                hint
+            }
+        })
+        .collect();
+    let ret = return_effect_from_args(substitutions.apply_signature(&ret_hint), &fallback_args);
+    (args, ret)
+}
+
+fn curried_signatures_from_type(
+    ty: &RuntimeType,
+    arity: usize,
+) -> Option<(Vec<DemandSignature>, DemandSignature)> {
+    let mut out = Vec::with_capacity(arity);
+    let mut current = DemandSignature::from_runtime_type(ty);
+    for _ in 0..arity {
+        match current {
+            DemandSignature::Fun { param, ret } => {
+                out.push(*param);
+                current = *ret;
+            }
+            DemandSignature::Core(DemandCoreType::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            }) => {
+                out.push(effected_core_signature(*param, *param_effect));
+                current = effected_core_signature(*ret, *ret_effect);
+            }
+            _ => return None,
+        }
+    }
+    Some((out, current))
+}
+
+fn merge_effects_from_actual(hint: DemandSignature, actual: &DemandSignature) -> DemandSignature {
+    match (hint, actual) {
+        (
+            DemandSignature::Fun { param, ret },
+            DemandSignature::Fun {
+                param: actual_param,
+                ret: actual_ret,
+            },
+        ) => DemandSignature::Fun {
+            param: Box::new(merge_effects_from_actual(*param, actual_param)),
+            ret: Box::new(merge_effects_from_actual(*ret, actual_ret)),
+        },
+        (
+            DemandSignature::Thunk { effect, value },
+            DemandSignature::Thunk {
+                effect: actual_effect,
+                value: actual_value,
+            },
+        ) => DemandSignature::Thunk {
+            effect: merge_empty_effect(effect, actual_effect),
+            value: Box::new(merge_effects_from_actual(*value, actual_value)),
+        },
+        (DemandSignature::Core(hint), actual) => {
+            let actual = signature_core_value(actual);
+            DemandSignature::Core(merge_core_effects_from_actual(hint, &actual))
+        }
+        (hint, _) => hint,
+    }
+}
+
+fn merge_core_effects_from_actual(hint: DemandCoreType, actual: &DemandCoreType) -> DemandCoreType {
+    match (hint, actual) {
+        (
+            DemandCoreType::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            },
+            DemandCoreType::Fun {
+                param: actual_param,
+                param_effect: actual_param_effect,
+                ret_effect: actual_ret_effect,
+                ret: actual_ret,
+            },
+        ) => DemandCoreType::Fun {
+            param: Box::new(merge_core_effects_from_actual(*param, actual_param)),
+            param_effect: Box::new(merge_empty_effect(*param_effect, actual_param_effect)),
+            ret_effect: Box::new(merge_empty_effect(*ret_effect, actual_ret_effect)),
+            ret: Box::new(merge_core_effects_from_actual(*ret, actual_ret)),
+        },
+        (hint, _) => hint,
+    }
+}
+
+fn merge_empty_effect(hint: DemandEffect, actual: &DemandEffect) -> DemandEffect {
+    match (&hint, actual) {
+        (DemandEffect::Empty, actual) if !matches!(actual, DemandEffect::Empty) => actual.clone(),
+        _ => hint,
+    }
+}
+
+fn return_effect_from_args(ret: DemandSignature, args: &[DemandSignature]) -> DemandSignature {
+    args.iter()
+        .rev()
+        .find_map(|arg| effectful_return_matching_value(arg, &ret))
+        .unwrap_or(ret)
+}
+
+fn effectful_return_matching_value(
+    signature: &DemandSignature,
+    value: &DemandSignature,
+) -> Option<DemandSignature> {
+    match signature {
+        DemandSignature::Fun { ret, .. } => effectful_return_matching_value(ret, value),
+        DemandSignature::Thunk {
+            effect,
+            value: thunk_value,
+        } if DemandUnifier::new()
+            .unify_signature(value, thunk_value)
+            .is_ok() =>
+        {
+            Some(DemandSignature::Thunk {
+                effect: effect.clone(),
+                value: thunk_value.clone(),
+            })
+        }
+        DemandSignature::Core(DemandCoreType::Fun {
+            ret_effect, ret, ..
+        }) if !matches!(ret_effect.as_ref(), DemandEffect::Empty)
+            && DemandUnifier::new()
+                .unify_signature(value, &DemandSignature::Core(ret.as_ref().clone()))
+                .is_ok() =>
+        {
+            Some(DemandSignature::Thunk {
+                effect: ret_effect.as_ref().clone(),
+                value: Box::new(DemandSignature::Core(ret.as_ref().clone())),
+            })
+        }
+        _ => None,
+    }
 }
 
 fn expr_signature(expr: &Expr) -> DemandSignature {

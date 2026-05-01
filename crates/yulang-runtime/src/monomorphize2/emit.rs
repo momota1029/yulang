@@ -81,7 +81,8 @@ impl<'a> DemandEmitter<'a> {
             .copied()
             .ok_or_else(|| DemandEmitError::MissingBinding(specialization.target.clone()))?;
         let solved_ty = runtime_type(&specialization.solved)?;
-        let mut rewriter = BodyEmitter::new(&self.specializations);
+        let mut rewriter =
+            BodyEmitter::new(&self.specializations).with_current_specialization(specialization);
         let mut body = rewriter.rewrite_expr(&original.body, Some(&specialization.solved))?;
         body.ty = solved_ty;
         Ok(Binding {
@@ -201,6 +202,7 @@ pub enum DemandEmitError {
 
 struct BodyEmitter<'a> {
     specializations: &'a HashMap<DemandKey, &'a DemandSpecialization>,
+    current_specialization: Option<&'a DemandSpecialization>,
     locals: HashMap<core_ir::Path, DemandSignature>,
 }
 
@@ -208,8 +210,14 @@ impl<'a> BodyEmitter<'a> {
     fn new(specializations: &'a HashMap<DemandKey, &'a DemandSpecialization>) -> Self {
         Self {
             specializations,
+            current_specialization: None,
             locals: HashMap::new(),
         }
+    }
+
+    fn with_current_specialization(mut self, specialization: &'a DemandSpecialization) -> Self {
+        self.current_specialization = Some(specialization);
+        self
     }
 
     fn rewrite_expr(
@@ -557,6 +565,14 @@ impl<'a> BodyEmitter<'a> {
     }
 
     fn find_specialization(&self, key: &DemandKey) -> Option<&'a DemandSpecialization> {
+        if let Some(specialization) = self.current_specialization
+            && specialization.target == key.target
+            && DemandUnifier::new()
+                .unify_signature(&key.signature, &specialization.key.signature)
+                .is_ok()
+        {
+            return Some(specialization);
+        }
         if let Some(specialization) = self.specializations.get(key) {
             return Some(*specialization);
         }
