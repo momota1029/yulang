@@ -989,3 +989,17 @@ New risk noticed:
 - This is still a closed-row rule.  Open effect rows and effect subtraction for
   handlers need a dedicated representation of residual row variables; otherwise
   handler typing will drift back toward ad-hoc repair.
+
+### 2026-05-01: Demand unifier gained occurs checks
+
+- Added occurs checks for value, core, and effect holes.
+- Binding a hole to itself is a no-op, but binding it to a shape that contains
+  itself now fails with an explicit namespace-tagged error.
+- This protects the new solver from turning a bad demand into recursive
+  substitution and stack overflow.
+
+New risk noticed:
+
+- The substitution applier still assumes stored substitutions are acyclic.  The
+  occurs check should preserve that invariant, but debug invariant tests should
+  eventually assert it directly for imported or constructed substitutions.

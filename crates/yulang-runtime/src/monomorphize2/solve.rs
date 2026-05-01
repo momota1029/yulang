@@ -382,6 +382,16 @@ impl DemandUnifier {
     }
 
     fn bind_value(&mut self, id: u32, actual: DemandSignature) -> Result<(), DemandUnifyError> {
+        let actual = self.substitutions.apply_signature(&actual);
+        if actual == DemandSignature::Hole(id) {
+            return Ok(());
+        }
+        if signature_contains_value_hole(&actual, id) {
+            return Err(DemandUnifyError::Occurs {
+                namespace: DemandHoleNamespace::Value,
+                id,
+            });
+        }
         if let Some(existing) = self.substitutions.values.get(&id).cloned() {
             return self.signature(&existing, &actual);
         }
@@ -390,6 +400,16 @@ impl DemandUnifier {
     }
 
     fn bind_core(&mut self, id: u32, actual: DemandCoreType) -> Result<(), DemandUnifyError> {
+        let actual = self.substitutions.apply_core_type(&actual);
+        if actual == DemandCoreType::Hole(id) {
+            return Ok(());
+        }
+        if core_contains_core_hole(&actual, id) {
+            return Err(DemandUnifyError::Occurs {
+                namespace: DemandHoleNamespace::Core,
+                id,
+            });
+        }
         if let Some(existing) = self.substitutions.cores.get(&id).cloned() {
             return self.core(&existing, &actual);
         }
@@ -398,6 +418,16 @@ impl DemandUnifier {
     }
 
     fn bind_effect(&mut self, id: u32, actual: DemandEffect) -> Result<(), DemandUnifyError> {
+        let actual = self.substitutions.apply_effect(&actual);
+        if actual == DemandEffect::Hole(id) {
+            return Ok(());
+        }
+        if effect_contains_effect_hole(&actual, id) {
+            return Err(DemandUnifyError::Occurs {
+                namespace: DemandHoleNamespace::Effect,
+                id,
+            });
+        }
         if let Some(existing) = self.substitutions.effects.get(&id).cloned() {
             return self.effect(&existing, &actual);
         }
@@ -426,6 +456,84 @@ fn push_flat_effect(effect: &DemandEffect, out: &mut Vec<DemandEffect>) {
     }
 }
 
+fn signature_contains_value_hole(signature: &DemandSignature, id: u32) -> bool {
+    match signature {
+        DemandSignature::Hole(candidate) => *candidate == id,
+        DemandSignature::Core(_) => false,
+        DemandSignature::Fun { param, ret } => {
+            signature_contains_value_hole(param, id) || signature_contains_value_hole(ret, id)
+        }
+        DemandSignature::Thunk { value, .. } => signature_contains_value_hole(value, id),
+    }
+}
+
+fn core_contains_core_hole(ty: &DemandCoreType, id: u32) -> bool {
+    match ty {
+        DemandCoreType::Never => false,
+        DemandCoreType::Hole(candidate) => *candidate == id,
+        DemandCoreType::Named { args, .. } => {
+            args.iter().any(|arg| type_arg_contains_core_hole(arg, id))
+        }
+        DemandCoreType::Fun {
+            param,
+            ret,
+            param_effect,
+            ret_effect,
+        } => {
+            core_contains_core_hole(param, id)
+                || core_contains_core_hole(ret, id)
+                || effect_contains_core_hole(param_effect, id)
+                || effect_contains_core_hole(ret_effect, id)
+        }
+        DemandCoreType::Tuple(items)
+        | DemandCoreType::Union(items)
+        | DemandCoreType::Inter(items) => {
+            items.iter().any(|item| core_contains_core_hole(item, id))
+        }
+        DemandCoreType::Record(fields) => fields
+            .iter()
+            .any(|field| core_contains_core_hole(&field.value, id)),
+        DemandCoreType::Variant(cases) => cases
+            .iter()
+            .flat_map(|case| case.payloads.iter())
+            .any(|payload| core_contains_core_hole(payload, id)),
+        DemandCoreType::RowAsValue(items) => items
+            .iter()
+            .any(|effect| effect_contains_core_hole(effect, id)),
+        DemandCoreType::Recursive { body, .. } => core_contains_core_hole(body, id),
+    }
+}
+
+fn type_arg_contains_core_hole(arg: &DemandTypeArg, id: u32) -> bool {
+    match arg {
+        DemandTypeArg::Type(ty) => core_contains_core_hole(ty, id),
+        DemandTypeArg::Bounds { lower, upper } => lower
+            .iter()
+            .chain(upper)
+            .any(|ty| core_contains_core_hole(ty, id)),
+    }
+}
+
+fn effect_contains_core_hole(effect: &DemandEffect, id: u32) -> bool {
+    match effect {
+        DemandEffect::Empty | DemandEffect::Hole(_) => false,
+        DemandEffect::Atom(ty) => core_contains_core_hole(ty, id),
+        DemandEffect::Row(items) => items
+            .iter()
+            .any(|effect| effect_contains_core_hole(effect, id)),
+    }
+}
+
+fn effect_contains_effect_hole(effect: &DemandEffect, id: u32) -> bool {
+    match effect {
+        DemandEffect::Empty | DemandEffect::Atom(_) => false,
+        DemandEffect::Hole(candidate) => *candidate == id,
+        DemandEffect::Row(items) => items
+            .iter()
+            .any(|effect| effect_contains_effect_hole(effect, id)),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DemandUnifyError {
     SignatureMismatch {
@@ -445,6 +553,17 @@ pub enum DemandUnifyError {
         actual: DemandTypeArg,
     },
     OptionalBoundMismatch,
+    Occurs {
+        namespace: DemandHoleNamespace,
+        id: u32,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DemandHoleNamespace {
+    Value,
+    Core,
+    Effect,
 }
 
 #[cfg(test)]
@@ -557,6 +676,72 @@ mod tests {
         assert_eq!(
             substitutions.effects.get(&0),
             Some(&DemandEffect::Atom(named("undet")))
+        );
+    }
+
+    #[test]
+    fn unifier_rejects_recursive_value_hole() {
+        let error = DemandUnifier::new()
+            .unify_signature(
+                &DemandSignature::Hole(0),
+                &DemandSignature::Fun {
+                    param: Box::new(DemandSignature::Hole(0)),
+                    ret: Box::new(DemandSignature::Core(named("int"))),
+                },
+            )
+            .expect_err("recursive value hole");
+
+        assert_eq!(
+            error,
+            DemandUnifyError::Occurs {
+                namespace: DemandHoleNamespace::Value,
+                id: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn unifier_rejects_recursive_core_hole() {
+        let error = DemandUnifier::new()
+            .unify_signature(
+                &DemandSignature::Core(DemandCoreType::Hole(0)),
+                &DemandSignature::Core(DemandCoreType::Tuple(vec![DemandCoreType::Hole(0)])),
+            )
+            .expect_err("recursive core hole");
+
+        assert_eq!(
+            error,
+            DemandUnifyError::Occurs {
+                namespace: DemandHoleNamespace::Core,
+                id: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn unifier_rejects_recursive_effect_hole() {
+        let error = DemandUnifier::new()
+            .unify_signature(
+                &DemandSignature::Thunk {
+                    effect: DemandEffect::Hole(0),
+                    value: Box::new(DemandSignature::Core(named("unit"))),
+                },
+                &DemandSignature::Thunk {
+                    effect: DemandEffect::Row(vec![
+                        DemandEffect::Hole(0),
+                        DemandEffect::Atom(named("io")),
+                    ]),
+                    value: Box::new(DemandSignature::Core(named("unit"))),
+                },
+            )
+            .expect_err("recursive effect hole");
+
+        assert_eq!(
+            error,
+            DemandUnifyError::Occurs {
+                namespace: DemandHoleNamespace::Effect,
+                id: 0,
+            }
         );
     }
 
