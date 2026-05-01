@@ -1,3 +1,10 @@
+//! Erase runtime IR features that the VM does not execute directly.
+//!
+//! This is the final boundary before interpretation.  The input should already
+//! be monomorphic, invariant-checked runtime IR.  This stage may erase type
+//! parameters and resolve effect-operation paths, but it should not repair
+//! missing thunk boundaries or unresolved polymorphism.
+
 use super::*;
 
 pub(super) fn erase_module(

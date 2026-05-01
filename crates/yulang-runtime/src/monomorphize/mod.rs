@@ -1,3 +1,11 @@
+//! Specialize runtime IR until it is executable by the VM.
+//!
+//! This stage may clone bindings at concrete use sites, refine runtime types,
+//! resolve residual role calls, and remove unreachable helpers.  It should not
+//! invent new source semantics.  In particular, thunk shape and effect hygiene
+//! introduced by runtime lowering must be preserved rather than reconstructed
+//! from erased value types.
+
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use yulang_core_ir as core_ir;

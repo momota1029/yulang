@@ -1,3 +1,11 @@
+//! Export principal inference results into core IR.
+//!
+//! This stage is the boundary between source-oriented inference data and the
+//! runtime pipeline.  It should preserve principal schemes, role evidence,
+//! join evidence, and effect annotations that later stages cannot safely
+//! rediscover from syntax.  It should not perform VM-oriented thunk repair or
+//! monomorphization.
+
 pub mod expr;
 pub mod names;
 pub(crate) mod paths;

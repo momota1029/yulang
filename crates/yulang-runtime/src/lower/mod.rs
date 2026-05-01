@@ -1,3 +1,11 @@
+//! Lower principal core IR into typed runtime IR.
+//!
+//! This stage consumes principal schemes and local evidence from `yulang-infer`
+//! and introduces runtime constructs such as thunks, `bind_here`, effect id
+//! administration, and runtime coercions.  Later stages may specialize and
+//! preserve these constructs, but should not need to rediscover why they were
+//! introduced.
+
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use yulang_core_ir as core_ir;

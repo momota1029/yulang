@@ -1,3 +1,10 @@
+//! Refine runtime IR types from already-lowered expressions.
+//!
+//! This stage propagates concrete information through runtime IR after
+//! specialization or rewriting.  It is allowed to make existing runtime types
+//! more precise, but it should not add new control-flow constructs or erase
+//! semantic thunk/effect boundaries.
+
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use yulang_core_ir as core_ir;

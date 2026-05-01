@@ -1,3 +1,10 @@
+//! Validate typed runtime IR.
+//!
+//! Validation checks type consistency, binding availability, runtime type
+//! representability, and residual unknowns.  It complements `invariant`: this
+//! module checks typed relationships, while `invariant` checks structural
+//! promises such as `AddId` wrapping a thunk.
+
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use yulang_core_ir as core_ir;
