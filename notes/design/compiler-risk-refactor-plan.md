@@ -1457,3 +1457,45 @@ New risk noticed:
   are still hole-like in helper paths.  The next useful migration step is to
   close list helper item facts from the container argument as aggressively as
   range helpers now do.
+
+### 2026-05-01: Range Fold demand path closed through `fold_ints`
+
+- Demand checking now accepts a pure value where `Thunk[e, value]` is expected.
+  This is the general rule needed for branches such as `fold_ints` returning
+  the accumulator directly in the base case.
+- Demand emission mirrors that rule by wrapping pure value expressions in an
+  explicit `Thunk` when the expected signature is a closed thunk.
+- Plain callee-position thunked functions are now forced with `bind_here`
+  before application.  This is not limited to specialized calls; it also covers
+  local parameters such as the range fold callback.
+- The demand emitter now keeps open local hints and open expected thunk
+  metadata out of emitted runtime types.  Closed hints still refine emitted
+  types, but open holes fall back to the existing runtime shape instead of
+  aborting the whole demand-specialization pass.
+- Fresh demand-specialized bindings are emitted with all known closed
+  specializations in scope, so sibling helpers created in the same demand round
+  can call each other.
+- Added focused regression tests for:
+  - checker-side pure value acceptance under expected thunks,
+  - emitter-side pure branch lifting,
+  - callee-position thunk forcing,
+  - range `fold_from` call spines split by `bind_here`.
+
+Measured:
+
+- `examples/03_for_last.yu`: runtime IR now reaches
+  `for_in__ddmono0 -> fold__ddmono6 -> fold_from__ddmono8 / fold_ints__ddmono9`.
+- `examples/03_for_last.yu`: VM output remains `[0] 5`.
+- `examples/05_undet_all.yu`, `examples/06_undet_once.yu`, and
+  `examples/10_effect_handler.yu` still run after the new demand-emitter rules.
+
+New risk noticed:
+
+- `std::flow::loop::last::sub` can still remain on the old `__mono` path in the
+  final IR even after a closed demand specialization is discovered.  It is no
+  longer blocking range fold, but it shows that late demand specializations are
+  not always propagated back into already-emitted parent bodies.
+- Pure expression lifting is now explicit in monomorphize2, but the boundary
+  between "value expression" and "control expression already producing a thunk"
+  should eventually move into a small expression-shape helper instead of living
+  as emitter-local choices.

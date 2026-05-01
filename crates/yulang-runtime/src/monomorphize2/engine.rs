@@ -155,7 +155,12 @@ pub struct DemandEngineOutput {
 
 impl DemandEngineOutput {
     pub fn emit_bindings(&self, module: &Module) -> Result<Vec<Binding>, DemandEmitError> {
-        DemandEmitter::from_module(module, &self.fresh_specializations).emit_all()
+        DemandEmitter::from_module_with_known(
+            module,
+            &self.fresh_specializations,
+            &self.specializations,
+        )
+        .emit_all()
     }
 }
 

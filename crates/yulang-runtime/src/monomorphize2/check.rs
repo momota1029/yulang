@@ -124,6 +124,12 @@ impl<'a> ExprChecker<'a> {
     ) -> Result<DemandSignature, DemandCheckError> {
         self.next_hole = self.next_hole.max(expected.next_hole_after());
         let actual = self.synth_expr(expr, Some(expected))?;
+        if let DemandSignature::Thunk { value, .. } = expected
+            && !matches!(actual, DemandSignature::Thunk { .. })
+        {
+            self.unifier.unify(value, &actual)?;
+            return Ok(expected.clone());
+        }
         if !matches!(expected, DemandSignature::Thunk { .. })
             && let Some(value) = self.consumed_thunk_value(&actual)
         {
@@ -596,8 +602,7 @@ impl<'a> ExprChecker<'a> {
         expected: Option<&DemandSignature>,
     ) -> Result<DemandSignature, DemandCheckError> {
         if let Some(expected) = expected {
-            let effect = thunk_effect_signature(&inner.ty)
-                .unwrap_or_else(|| DemandEffect::Hole(self.fresh_hole()));
+            let effect = self.bind_here_effect(inner);
             let thunk = DemandSignature::Thunk {
                 effect,
                 value: Box::new(expected.clone()),
@@ -617,13 +622,24 @@ impl<'a> ExprChecker<'a> {
             DemandSignature::Thunk { value, .. } => Ok(*value),
             actual => {
                 let expected = DemandSignature::Thunk {
-                    effect: thunk_effect_signature(&inner.ty)
-                        .unwrap_or_else(|| DemandEffect::Hole(self.fresh_hole())),
+                    effect: self.bind_here_effect(inner),
                     value: Box::new(self.signature_from_type(&expr.ty)),
                 };
                 Err(DemandUnifyError::SignatureMismatch { expected, actual }.into())
             }
         }
+    }
+
+    fn bind_here_effect(&mut self, inner: &Expr) -> DemandEffect {
+        if let Some(effect) = thunk_effect_signature(&inner.ty)
+            && !demand_effect_is_empty(&effect)
+        {
+            return effect;
+        }
+        self.enclosing_thunk_effects
+            .last()
+            .cloned()
+            .unwrap_or_else(|| DemandEffect::Hole(self.fresh_hole()))
     }
 
     fn synth_coerce(
@@ -1001,6 +1017,14 @@ fn thunk_effect_signature(ty: &RuntimeType) -> Option<DemandEffect> {
     match ty {
         RuntimeType::Thunk { effect, .. } => Some(DemandEffect::from_core_type(effect)),
         _ => None,
+    }
+}
+
+fn demand_effect_is_empty(effect: &DemandEffect) -> bool {
+    match effect {
+        DemandEffect::Empty => true,
+        DemandEffect::Row(items) => items.iter().all(demand_effect_is_empty),
+        DemandEffect::Hole(_) | DemandEffect::Atom(_) => false,
     }
 }
 
@@ -2123,6 +2147,66 @@ mod tests {
         let checked = DemandChecker::from_module(&module)
             .check_demand(&demand)
             .expect("checked thunk");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::from_runtime_type(&demand.expected)
+        );
+    }
+
+    #[test]
+    fn checker_accepts_pure_value_for_expected_thunk() {
+        let f = path("f");
+        let io = named("io");
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::If {
+                        cond: Box::new(Expr::typed(
+                            ExprKind::Lit(core_ir::Lit::Bool(true)),
+                            RuntimeType::core(named("bool")),
+                        )),
+                        then_branch: Box::new(Expr::typed(
+                            ExprKind::Thunk {
+                                effect: io.clone(),
+                                value: RuntimeType::core(core_ir::Type::Any),
+                                expr: Box::new(Expr::typed(
+                                    ExprKind::Var(path("x")),
+                                    RuntimeType::core(core_ir::Type::Any),
+                                )),
+                            },
+                            RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                        )),
+                        else_branch: Box::new(Expr::typed(
+                            ExprKind::Var(path("x")),
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                        evidence: None,
+                    },
+                    RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(
+                RuntimeType::core(named("int")),
+                RuntimeType::thunk(io, RuntimeType::core(named("int"))),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked pure value branch");
 
         assert_eq!(
             checked.solved,

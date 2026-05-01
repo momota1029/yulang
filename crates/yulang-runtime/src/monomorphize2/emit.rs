@@ -15,14 +15,22 @@ pub struct DemandEmitter<'a> {
 
 impl<'a> DemandEmitter<'a> {
     pub fn from_module(module: &'a Module, specializations: &'a [DemandSpecialization]) -> Self {
+        Self::from_module_with_known(module, specializations, specializations)
+    }
+
+    pub fn from_module_with_known(
+        module: &'a Module,
+        emit_specializations: &'a [DemandSpecialization],
+        known_specializations: &'a [DemandSpecialization],
+    ) -> Self {
         Self {
             bindings: module
                 .bindings
                 .iter()
                 .map(|binding| (binding.name.clone(), binding))
                 .collect(),
-            ordered_specializations: specializations,
-            specializations: specializations
+            ordered_specializations: emit_specializations,
+            specializations: known_specializations
                 .iter()
                 .map(|specialization| (specialization.key.clone(), specialization))
                 .collect(),
@@ -203,6 +211,7 @@ pub enum DemandEmitError {
 struct BodyEmitter<'a> {
     specializations: &'a HashMap<DemandKey, &'a DemandSpecialization>,
     current_specialization: Option<&'a DemandSpecialization>,
+    enclosing_thunk_effects: Vec<DemandEffect>,
     locals: HashMap<core_ir::Path, DemandSignature>,
 }
 
@@ -211,6 +220,7 @@ impl<'a> BodyEmitter<'a> {
         Self {
             specializations,
             current_specialization: None,
+            enclosing_thunk_effects: Vec::new(),
             locals: HashMap::new(),
         }
     }
@@ -238,20 +248,24 @@ impl<'a> BodyEmitter<'a> {
                 RuntimeType::thunk(effect_type(effect)?, value_ty),
             ));
         }
-        match &expr.kind {
+        let rewritten = match &expr.kind {
             ExprKind::Lambda { param, body, .. } => {
                 self.rewrite_lambda(expr, param, body, expected)
             }
             ExprKind::Apply { .. } => {
-                if let Some(call) = self.rewrite_specialized_call(expr, expected)? {
-                    return Ok(call);
+                if let Some(call) = self.rewrite_enclosed_thunk_call(expr, expected)? {
+                    Ok(call)
+                } else if let Some(call) = self.rewrite_specialized_call(expr, expected)? {
+                    Ok(call)
+                } else {
+                    self.rewrite_apply(expr)
                 }
-                self.rewrite_apply(expr)
             }
             ExprKind::Var(path) => {
                 let ty = self
                     .locals
                     .get(path)
+                    .filter(|signature| signature.is_closed())
                     .map(runtime_type)
                     .transpose()?
                     .unwrap_or_else(|| expr.ty.clone());
@@ -278,7 +292,7 @@ impl<'a> BodyEmitter<'a> {
                         .map(|item| self.rewrite_expr(item, None))
                         .collect::<Result<Vec<_>, _>>()?,
                 ),
-                self.expr_type(expr, expected)?,
+                self.value_expr_type(expr, expected)?,
             )),
             ExprKind::Record { fields, spread } => Ok(Expr::typed(
                 ExprKind::Record {
@@ -296,7 +310,7 @@ impl<'a> BodyEmitter<'a> {
                         .map(|spread| self.rewrite_record_spread(spread))
                         .transpose()?,
                 },
-                self.expr_type(expr, expected)?,
+                self.value_expr_type(expr, expected)?,
             )),
             ExprKind::Variant { tag, value } => Ok(Expr::typed(
                 ExprKind::Variant {
@@ -309,14 +323,14 @@ impl<'a> BodyEmitter<'a> {
                         })
                         .transpose()?,
                 },
-                self.expr_type(expr, expected)?,
+                self.value_expr_type(expr, expected)?,
             )),
             ExprKind::Select { base, field } => Ok(Expr::typed(
                 ExprKind::Select {
                     base: Box::new(self.rewrite_expr(base, None)?),
                     field: field.clone(),
                 },
-                self.expr_type(expr, expected)?,
+                self.value_expr_type(expr, expected)?,
             )),
             ExprKind::Match {
                 scrutinee,
@@ -386,8 +400,8 @@ impl<'a> BodyEmitter<'a> {
                 self.expr_type(expr, expected)?,
             )),
             ExprKind::BindHere { expr: inner } => {
-                let inner =
-                    self.rewrite_expr(inner, bind_here_inner_expected(inner, expected).as_ref())?;
+                let inner_expected = self.bind_here_inner_expected(inner, expected);
+                let inner = self.rewrite_expr(inner, inner_expected.as_ref())?;
                 let ty = bind_here_result_type(expr, &inner, expected)?;
                 Ok(Expr::typed(
                     ExprKind::BindHere {
@@ -401,21 +415,38 @@ impl<'a> BodyEmitter<'a> {
                 value,
                 expr: inner,
             } => {
-                let (effect, value, inner_expected) =
-                    if let Some(DemandSignature::Thunk { effect, value }) = expected {
-                        (
-                            effect_type(effect)?,
-                            runtime_type(value)?,
-                            Some(value.as_ref()),
-                        )
-                    } else {
-                        (effect.clone(), value.clone(), None)
-                    };
+                let (effect, value, inner_expected) = if let Some(DemandSignature::Thunk {
+                    effect: expected_effect,
+                    value: expected_value,
+                }) = expected
+                {
+                    (
+                        if expected_effect.is_closed() {
+                            effect_type(expected_effect)?
+                        } else {
+                            effect.clone()
+                        },
+                        if expected_value.is_closed() {
+                            runtime_type(expected_value)?
+                        } else {
+                            value.clone()
+                        },
+                        expected_value
+                            .is_closed()
+                            .then_some(expected_value.as_ref()),
+                    )
+                } else {
+                    (effect.clone(), value.clone(), None)
+                };
+                self.enclosing_thunk_effects
+                    .push(DemandEffect::from_core_type(&effect));
+                let inner = self.rewrite_expr(inner, inner_expected)?;
+                self.enclosing_thunk_effects.pop();
                 Ok(Expr::typed(
                     ExprKind::Thunk {
                         effect,
                         value,
-                        expr: Box::new(self.rewrite_expr(inner, inner_expected)?),
+                        expr: Box::new(inner),
                     },
                     self.expr_type(expr, expected)?,
                 ))
@@ -450,7 +481,7 @@ impl<'a> BodyEmitter<'a> {
                         to,
                         expr: Box::new(self.rewrite_expr(inner, Some(&from_signature))?),
                     },
-                    self.expr_type(expr, expected)?,
+                    self.value_expr_type(expr, expected)?,
                 ))
             }
             ExprKind::Pack { var, expr: inner } => Ok(Expr::typed(
@@ -458,29 +489,30 @@ impl<'a> BodyEmitter<'a> {
                     var: var.clone(),
                     expr: Box::new(self.rewrite_expr(inner, expected)?),
                 },
-                self.expr_type(expr, expected)?,
+                self.value_expr_type(expr, expected)?,
             )),
             ExprKind::EffectOp(path) => Ok(Expr::typed(
                 ExprKind::EffectOp(path.clone()),
-                self.expr_type(expr, expected)?,
+                self.value_expr_type(expr, expected)?,
             )),
             ExprKind::PrimitiveOp(op) => Ok(Expr::typed(
                 ExprKind::PrimitiveOp(op.clone()),
-                self.expr_type(expr, expected)?,
+                self.value_expr_type(expr, expected)?,
             )),
             ExprKind::Lit(lit) => Ok(Expr::typed(
                 ExprKind::Lit(lit.clone()),
-                self.expr_type(expr, expected)?,
+                self.value_expr_type(expr, expected)?,
             )),
             ExprKind::PeekId => Ok(Expr::typed(
                 ExprKind::PeekId,
-                self.expr_type(expr, expected)?,
+                self.value_expr_type(expr, expected)?,
             )),
             ExprKind::FindId { id } => Ok(Expr::typed(
                 ExprKind::FindId { id: *id },
-                self.expr_type(expr, expected)?,
+                self.value_expr_type(expr, expected)?,
             )),
-        }
+        }?;
+        self.lift_value_to_expected_thunk(rewritten, expected)
     }
 
     fn rewrite_lambda(
@@ -536,7 +568,11 @@ impl<'a> BodyEmitter<'a> {
                 param_function_allowed_effects: param_function_allowed_effects.clone(),
                 body: Box::new(body),
             },
-            runtime_type(expected)?,
+            if expected.is_closed() {
+                runtime_type(expected)?
+            } else {
+                expr.ty.clone()
+            },
         ))
     }
 
@@ -602,6 +638,41 @@ impl<'a> BodyEmitter<'a> {
             callee_signature = *ret;
         }
         Ok(Some(call))
+    }
+
+    fn rewrite_enclosed_thunk_call(
+        &mut self,
+        expr: &Expr,
+        expected: Option<&DemandSignature>,
+    ) -> Result<Option<Expr>, DemandEmitError> {
+        let Some(expected) = expected else {
+            return Ok(None);
+        };
+        if matches!(expected, DemandSignature::Thunk { .. }) {
+            return Ok(None);
+        }
+        let Some(effect) = self.enclosing_thunk_effects.last().cloned() else {
+            return Ok(None);
+        };
+        if demand_effect_is_empty(&effect) {
+            return Ok(None);
+        }
+        let expected_thunk = DemandSignature::Thunk {
+            effect,
+            value: Box::new(expected.clone()),
+        };
+        let Some(call) = self.rewrite_specialized_call(expr, Some(&expected_thunk))? else {
+            return Ok(None);
+        };
+        if !matches!(call.ty, RuntimeType::Thunk { .. }) {
+            return Ok(Some(call));
+        }
+        Ok(Some(Expr::typed(
+            ExprKind::BindHere {
+                expr: Box::new(call),
+            },
+            runtime_type(expected)?,
+        )))
     }
 
     fn closed_call_param_hints(
@@ -711,8 +782,12 @@ impl<'a> BodyEmitter<'a> {
         else {
             unreachable!();
         };
-        let callee = self.rewrite_expr(callee, None)?;
-        let arg = self.rewrite_expr(arg, None)?;
+        let callee = force_thunk_callee_to_function(self.rewrite_expr(callee, None)?)?;
+        let arg = if let Some(param) = apply_param_signature(&callee.ty) {
+            force_arg_to_expected_value(self.rewrite_expr(arg, Some(&param))?, &param)?
+        } else {
+            self.rewrite_expr(arg, None)?
+        };
         let ty = apply_result_runtime_type(&callee).unwrap_or_else(|| expr.ty.clone());
         Ok(Expr::typed(
             ExprKind::Apply {
@@ -777,9 +852,86 @@ impl<'a> BodyEmitter<'a> {
         expected: Option<&DemandSignature>,
     ) -> Result<RuntimeType, DemandEmitError> {
         expected
+            .filter(|signature| signature.is_closed())
             .map(runtime_type)
             .transpose()
             .map(|ty| ty.unwrap_or_else(|| expr.ty.clone()))
+    }
+
+    fn value_expr_type(
+        &self,
+        expr: &Expr,
+        expected: Option<&DemandSignature>,
+    ) -> Result<RuntimeType, DemandEmitError> {
+        if matches!(expected, Some(DemandSignature::Thunk { .. })) {
+            return Ok(expr.ty.clone());
+        }
+        self.expr_type(expr, expected)
+    }
+
+    fn bind_here_inner_expected(
+        &self,
+        inner: &Expr,
+        expected: Option<&DemandSignature>,
+    ) -> Option<DemandSignature> {
+        let expected = expected?;
+        let effect = self.bind_here_effect(inner);
+        Some(DemandSignature::Thunk {
+            effect,
+            value: Box::new(expected.clone()),
+        })
+    }
+
+    fn bind_here_effect(&self, inner: &Expr) -> DemandEffect {
+        if let Some(effect) = thunk_effect_signature(&inner.ty)
+            && !demand_effect_is_empty(&effect)
+        {
+            return effect;
+        }
+        self.enclosing_thunk_effects
+            .last()
+            .cloned()
+            .unwrap_or(DemandEffect::Empty)
+    }
+
+    fn lift_value_to_expected_thunk(
+        &self,
+        expr: Expr,
+        expected: Option<&DemandSignature>,
+    ) -> Result<Expr, DemandEmitError> {
+        let Some(DemandSignature::Thunk { effect, value }) = expected else {
+            return Ok(expr);
+        };
+        if matches!(expr.ty, RuntimeType::Thunk { .. }) {
+            return Ok(expr);
+        }
+        let actual = DemandSignature::from_runtime_type(&expr.ty);
+        if DemandUnifier::new()
+            .unify_signature(value, &actual)
+            .is_err()
+        {
+            return Ok(expr);
+        }
+        if !effect.is_closed() {
+            return Ok(expr);
+        }
+        let value = if value.is_closed() {
+            value.as_ref().clone()
+        } else if actual.is_closed() {
+            actual
+        } else {
+            return Ok(expr);
+        };
+        let effect_ty = effect_type(effect)?;
+        let value_ty = runtime_type(&value)?;
+        Ok(Expr::typed(
+            ExprKind::Thunk {
+                effect: effect_ty.clone(),
+                value: value_ty.clone(),
+                expr: Box::new(expr),
+            },
+            RuntimeType::thunk(effect_ty, value_ty),
+        ))
     }
 }
 
@@ -793,6 +945,9 @@ fn applied_call_with_head(expr: &Expr) -> Option<(&core_ir::Path, &Expr, Vec<&Ex
             } => {
                 args.push(arg.as_ref());
                 callee = next;
+            }
+            ExprKind::BindHere { expr } => {
+                callee = expr;
             }
             ExprKind::Var(target) => {
                 args.reverse();
@@ -1015,21 +1170,18 @@ fn single_payload_arg(args: &[DemandTypeArg]) -> Option<DemandCoreType> {
     }
 }
 
-fn bind_here_inner_expected(
-    inner: &Expr,
-    expected: Option<&DemandSignature>,
-) -> Option<DemandSignature> {
-    let expected = expected?;
-    Some(DemandSignature::Thunk {
-        effect: thunk_effect_signature(&inner.ty).unwrap_or(DemandEffect::Empty),
-        value: Box::new(expected.clone()),
-    })
-}
-
 fn thunk_effect_signature(ty: &RuntimeType) -> Option<DemandEffect> {
     match ty {
         RuntimeType::Thunk { effect, .. } => Some(DemandEffect::from_core_type(effect)),
         _ => None,
+    }
+}
+
+fn demand_effect_is_empty(effect: &DemandEffect) -> bool {
+    match effect {
+        DemandEffect::Empty => true,
+        DemandEffect::Row(items) => items.iter().all(demand_effect_is_empty),
+        DemandEffect::Hole(_) | DemandEffect::Atom(_) => false,
     }
 }
 
@@ -1044,6 +1196,50 @@ fn bind_here_result_type(
     match &inner.ty {
         RuntimeType::Thunk { value, .. } => Ok(*value.clone()),
         _ => Ok(original.ty.clone()),
+    }
+}
+
+fn force_thunk_callee_to_function(mut callee: Expr) -> Result<Expr, DemandEmitError> {
+    loop {
+        let RuntimeType::Thunk { value, .. } = &callee.ty else {
+            return Ok(callee);
+        };
+        if !runtime_type_is_function(value) {
+            return Ok(callee);
+        }
+        let value_ty = value.as_ref().clone();
+        callee = Expr::typed(
+            ExprKind::BindHere {
+                expr: Box::new(callee),
+            },
+            value_ty,
+        );
+    }
+}
+
+fn runtime_type_is_function(ty: &RuntimeType) -> bool {
+    matches!(
+        ty,
+        RuntimeType::Fun { .. } | RuntimeType::Core(core_ir::Type::Fun { .. })
+    )
+}
+
+fn apply_param_signature(ty: &RuntimeType) -> Option<DemandSignature> {
+    match ty {
+        RuntimeType::Fun { param, .. } => Some(DemandSignature::from_runtime_type(param)),
+        RuntimeType::Core(core_ir::Type::Fun {
+            param,
+            param_effect,
+            ..
+        }) => {
+            let param =
+                DemandSignature::from_runtime_type(&RuntimeType::core(param.as_ref().clone()));
+            Some(effected_core_signature(
+                signature_core_value(&param),
+                DemandEffect::from_core_type(param_effect),
+            ))
+        }
+        _ => None,
     }
 }
 
@@ -1069,8 +1265,8 @@ fn force_arg_to_expected_value(
     arg: Expr,
     expected: &DemandSignature,
 ) -> Result<Expr, DemandEmitError> {
-    if matches!(expected, DemandSignature::Thunk { .. }) {
-        return Ok(arg);
+    if let DemandSignature::Thunk { effect, value } = expected {
+        return wrap_arg_in_empty_thunk(arg, effect, value);
     }
     let RuntimeType::Thunk { value, .. } = &arg.ty else {
         return Ok(arg);
@@ -1087,6 +1283,32 @@ fn force_arg_to_expected_value(
             expr: Box::new(arg),
         },
         runtime_type(expected)?,
+    ))
+}
+
+fn wrap_arg_in_empty_thunk(
+    arg: Expr,
+    effect: &DemandEffect,
+    expected_value: &DemandSignature,
+) -> Result<Expr, DemandEmitError> {
+    if !matches!(effect, DemandEffect::Empty) || matches!(arg.ty, RuntimeType::Thunk { .. }) {
+        return Ok(arg);
+    }
+    let actual = DemandSignature::from_runtime_type(&arg.ty);
+    if DemandUnifier::new()
+        .unify_signature(expected_value, &actual)
+        .is_err()
+    {
+        return Ok(arg);
+    }
+    let value_ty = runtime_type(expected_value)?;
+    Ok(Expr::typed(
+        ExprKind::Thunk {
+            effect: core_ir::Type::Never,
+            value: value_ty.clone(),
+            expr: Box::new(arg),
+        },
+        RuntimeType::thunk(core_ir::Type::Never, value_ty),
     ))
 }
 
@@ -1318,6 +1540,39 @@ mod tests {
     }
 
     #[test]
+    fn emitter_uses_known_specializations_when_emitting_fresh_binding() {
+        let id = path("id");
+        let use_id = path("use_id");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![
+                generic_identity(id.clone()),
+                generic_use_id(use_id.clone(), id.clone()),
+            ],
+            root_exprs: Vec::new(),
+            roots: vec![Root::Binding(use_id.clone())],
+        };
+        let id_spec = specialization(&id, "id__ddmono0", fun(core("int"), core("int")));
+        let use_id_spec = specialization(&use_id, "use_id__ddmono1", fun(core("int"), core("int")));
+        let known = vec![id_spec, use_id_spec.clone()];
+        let emit = vec![use_id_spec.clone()];
+        let emitter = DemandEmitter::from_module_with_known(&module, &emit, &known);
+
+        let emitted = emitter.emit(&use_id_spec).expect("emitted binding");
+
+        let ExprKind::Lambda { body, .. } = &emitted.body.kind else {
+            panic!("expected lambda");
+        };
+        let ExprKind::Apply { callee, .. } = &body.kind else {
+            panic!("expected apply");
+        };
+        let ExprKind::Var(callee_path) = &callee.kind else {
+            panic!("expected specialized callee");
+        };
+        assert_eq!(callee_path, &path("id__ddmono0"));
+    }
+
+    #[test]
     fn emitter_does_not_use_full_specialization_for_partial_call() {
         let f = path("f");
         let root = Expr::typed(
@@ -1425,6 +1680,478 @@ mod tests {
         };
 
         assert_eq!(callee_path, &path("f__ddmono0"));
+    }
+
+    #[test]
+    fn emitter_wraps_value_arg_for_empty_thunk_parameter() {
+        let id = path("id");
+        let use_id = path("use_id");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![Binding {
+                name: use_id.clone(),
+                type_params: vec![core_ir::TypeVar("a".to_string())],
+                scheme: core_ir::Scheme {
+                    requirements: Vec::new(),
+                    body: core_ir::Type::Any,
+                },
+                body: Expr::typed(
+                    ExprKind::Lambda {
+                        param: core_ir::Name("x".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Apply {
+                                callee: Box::new(Expr::typed(
+                                    ExprKind::Var(id.clone()),
+                                    RuntimeType::fun(
+                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(core_ir::Type::Any),
+                                    ),
+                                )),
+                                arg: Box::new(Expr::typed(
+                                    ExprKind::Var(path("x")),
+                                    RuntimeType::core(named("int")),
+                                )),
+                                evidence: None,
+                                instantiation: None,
+                            },
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                    },
+                    RuntimeType::fun(
+                        RuntimeType::core(named("int")),
+                        RuntimeType::core(named("int")),
+                    ),
+                ),
+            }],
+            root_exprs: Vec::new(),
+            roots: vec![Root::Binding(use_id.clone())],
+        };
+        let id_spec = specialization(
+            &id,
+            "id__ddmono0",
+            fun(thunk(DemandEffect::Empty, core("int")), core("int")),
+        );
+        let use_id_spec = specialization(&use_id, "use_id__ddmono1", fun(core("int"), core("int")));
+        let specializations = vec![id_spec, use_id_spec.clone()];
+        let emitter = DemandEmitter::from_module(&module, &specializations);
+
+        let emitted = emitter.emit(&use_id_spec).expect("emitted binding");
+
+        let ExprKind::Lambda { body, .. } = &emitted.body.kind else {
+            panic!("expected lambda");
+        };
+        let ExprKind::Apply { arg, .. } = &body.kind else {
+            panic!("expected apply");
+        };
+        assert!(matches!(arg.kind, ExprKind::Thunk { .. }));
+        assert_eq!(
+            arg.ty,
+            RuntimeType::thunk(core_ir::Type::Never, RuntimeType::core(named("int")))
+        );
+    }
+
+    #[test]
+    fn emitter_lifts_pure_branch_to_expected_thunk() {
+        let io = named("io");
+        let root = Expr::typed(
+            ExprKind::If {
+                cond: Box::new(Expr::typed(
+                    ExprKind::Lit(core_ir::Lit::Bool(true)),
+                    RuntimeType::core(named("bool")),
+                )),
+                then_branch: Box::new(Expr::typed(
+                    ExprKind::Thunk {
+                        effect: io.clone(),
+                        value: RuntimeType::core(named("unit")),
+                        expr: Box::new(Expr::typed(
+                            ExprKind::Lit(core_ir::Lit::Unit),
+                            RuntimeType::core(named("unit")),
+                        )),
+                    },
+                    RuntimeType::thunk(io.clone(), RuntimeType::core(named("unit"))),
+                )),
+                else_branch: Box::new(Expr::typed(
+                    ExprKind::Lit(core_ir::Lit::Unit),
+                    RuntimeType::core(named("unit")),
+                )),
+                evidence: None,
+            },
+            RuntimeType::thunk(io.clone(), RuntimeType::core(named("unit"))),
+        );
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+        };
+
+        let rewrite = DemandEmitter::rewrite_module_uses_with_specializations_report(module, &[])
+            .expect("rewritten module");
+
+        let ExprKind::If { else_branch, .. } = &rewrite.module.root_exprs[0].kind else {
+            panic!("expected if");
+        };
+        assert!(matches!(else_branch.kind, ExprKind::Thunk { .. }));
+        assert_eq!(
+            else_branch.ty,
+            RuntimeType::thunk(io, RuntimeType::core(named("unit")))
+        );
+    }
+
+    #[test]
+    fn emitter_forces_thunk_function_callee() {
+        let f = path("f");
+        let thunked_fun = RuntimeType::thunk(
+            core_ir::Type::Never,
+            RuntimeType::fun(
+                RuntimeType::core(named("unit")),
+                RuntimeType::core(named("int")),
+            ),
+        );
+        let root = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(ExprKind::Var(f), thunked_fun)),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(core_ir::Lit::Unit),
+                    RuntimeType::core(named("unit")),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::core(named("int")),
+        );
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+        };
+
+        let rewrite = DemandEmitter::rewrite_module_uses_with_specializations_report(module, &[])
+            .expect("rewritten module");
+
+        let ExprKind::Apply { callee, .. } = &rewrite.module.root_exprs[0].kind else {
+            panic!("expected apply");
+        };
+        assert!(matches!(callee.kind, ExprKind::BindHere { .. }));
+    }
+
+    #[test]
+    fn emitter_rewrites_range_fold_from_with_thunked_callback_parameter() {
+        let fold_from = path_segments(&["std", "range", "fold_from"]);
+        let last = named_path(&["std", "flow", "loop", "last"]);
+        let callback_sig = fun(
+            core("unit"),
+            thunk(
+                DemandEffect::Atom(DemandCoreType::Named {
+                    path: path_segments(&["std", "flow", "loop", "last"]),
+                    args: Vec::new(),
+                }),
+                fun(
+                    core("int"),
+                    thunk(
+                        DemandEffect::Atom(DemandCoreType::Named {
+                            path: path_segments(&["std", "flow", "loop", "last"]),
+                            args: Vec::new(),
+                        }),
+                        core("unit"),
+                    ),
+                ),
+            ),
+        );
+        let root = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Apply {
+                        callee: Box::new(Expr::typed(
+                            ExprKind::Apply {
+                                callee: Box::new(Expr::typed(
+                                    ExprKind::Var(fold_from.clone()),
+                                    RuntimeType::fun(
+                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::fun(
+                                            RuntimeType::core(named("int")),
+                                            RuntimeType::fun(
+                                                RuntimeType::core(named("unit")),
+                                                RuntimeType::thunk(
+                                                    last.clone(),
+                                                    RuntimeType::core(named("unit")),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                )),
+                                arg: Box::new(Expr::typed(
+                                    ExprKind::Var(path("f")),
+                                    runtime_type(&callback_sig).expect("callback type"),
+                                )),
+                                evidence: None,
+                                instantiation: None,
+                            },
+                            RuntimeType::fun(
+                                RuntimeType::core(named("int")),
+                                RuntimeType::fun(
+                                    RuntimeType::core(named("unit")),
+                                    RuntimeType::thunk(
+                                        last.clone(),
+                                        RuntimeType::core(named("unit")),
+                                    ),
+                                ),
+                            ),
+                        )),
+                        arg: Box::new(Expr::typed(
+                            ExprKind::Lit(core_ir::Lit::Int("0".to_string())),
+                            RuntimeType::core(named("int")),
+                        )),
+                        evidence: None,
+                        instantiation: None,
+                    },
+                    RuntimeType::fun(
+                        RuntimeType::core(named("unit")),
+                        RuntimeType::thunk(last.clone(), RuntimeType::core(named("unit"))),
+                    ),
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(core_ir::Lit::Unit),
+                    RuntimeType::core(named("unit")),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::thunk(last, RuntimeType::core(named("unit"))),
+        );
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+        };
+        let spec = specialization(
+            &fold_from,
+            "fold_from__ddmono0",
+            fun(
+                thunk(DemandEffect::Empty, callback_sig),
+                fun(
+                    core("int"),
+                    fun(
+                        core("unit"),
+                        thunk(
+                            DemandEffect::Atom(DemandCoreType::Named {
+                                path: path_segments(&["std", "flow", "loop", "last"]),
+                                args: Vec::new(),
+                            }),
+                            core("unit"),
+                        ),
+                    ),
+                ),
+            ),
+        );
+
+        let rewrite =
+            DemandEmitter::rewrite_module_uses_with_specializations_report(module, &[spec])
+                .expect("rewritten module");
+        let Some((target, _, args)) = applied_call_with_head(&rewrite.module.root_exprs[0]) else {
+            panic!("expected specialized call");
+        };
+
+        assert_eq!(target, &path("fold_from__ddmono0"));
+        assert!(matches!(args[0].kind, ExprKind::Thunk { .. }));
+    }
+
+    #[test]
+    fn emitter_forces_enclosed_effectful_specialized_call() {
+        let fold_from = path_segments(&["std", "range", "fold_from"]);
+        let last = named_path(&["std", "flow", "loop", "last"]);
+        let last_effect = DemandEffect::Atom(DemandCoreType::Named {
+            path: path_segments(&["std", "flow", "loop", "last"]),
+            args: Vec::new(),
+        });
+        let callback_sig = fun(
+            core("unit"),
+            thunk(
+                last_effect.clone(),
+                fun(core("int"), thunk(last_effect.clone(), core("unit"))),
+            ),
+        );
+        let call = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Apply {
+                        callee: Box::new(Expr::typed(
+                            ExprKind::Apply {
+                                callee: Box::new(Expr::typed(
+                                    ExprKind::Var(fold_from.clone()),
+                                    RuntimeType::fun(
+                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::fun(
+                                            RuntimeType::core(named("int")),
+                                            RuntimeType::fun(
+                                                RuntimeType::core(named("unit")),
+                                                RuntimeType::thunk(
+                                                    core_ir::Type::Never,
+                                                    RuntimeType::core(named("unit")),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                )),
+                                arg: Box::new(Expr::typed(
+                                    ExprKind::Var(path("f")),
+                                    runtime_type(&callback_sig).expect("callback type"),
+                                )),
+                                evidence: None,
+                                instantiation: None,
+                            },
+                            RuntimeType::fun(
+                                RuntimeType::core(named("int")),
+                                RuntimeType::fun(
+                                    RuntimeType::core(named("unit")),
+                                    RuntimeType::thunk(
+                                        core_ir::Type::Never,
+                                        RuntimeType::core(named("unit")),
+                                    ),
+                                ),
+                            ),
+                        )),
+                        arg: Box::new(Expr::typed(
+                            ExprKind::Lit(core_ir::Lit::Int("0".to_string())),
+                            RuntimeType::core(named("int")),
+                        )),
+                        evidence: None,
+                        instantiation: None,
+                    },
+                    RuntimeType::fun(
+                        RuntimeType::core(named("unit")),
+                        RuntimeType::thunk(core_ir::Type::Never, RuntimeType::core(named("unit"))),
+                    ),
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(core_ir::Lit::Unit),
+                    RuntimeType::core(named("unit")),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::thunk(core_ir::Type::Never, RuntimeType::core(named("unit"))),
+        );
+        let root = Expr::typed(
+            ExprKind::Thunk {
+                effect: last.clone(),
+                value: RuntimeType::core(named("unit")),
+                expr: Box::new(call),
+            },
+            RuntimeType::thunk(last.clone(), RuntimeType::core(named("unit"))),
+        );
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+        };
+        let spec = specialization(
+            &fold_from,
+            "fold_from__ddmono0",
+            fun(
+                thunk(DemandEffect::Empty, callback_sig),
+                fun(
+                    core("int"),
+                    fun(core("unit"), thunk(last_effect, core("unit"))),
+                ),
+            ),
+        );
+
+        let rewrite =
+            DemandEmitter::rewrite_module_uses_with_specializations_report(module, &[spec])
+                .expect("rewritten module");
+        let ExprKind::Thunk { expr: body, .. } = &rewrite.module.root_exprs[0].kind else {
+            panic!("expected thunk root");
+        };
+        let ExprKind::BindHere { expr: inner } = &body.kind else {
+            panic!("expected enclosed call to be forced");
+        };
+        let Some((target, _, args)) = applied_call_with_head(inner) else {
+            panic!("expected specialized call");
+        };
+
+        assert_eq!(target, &path("fold_from__ddmono0"));
+        assert!(matches!(args[0].kind, ExprKind::Thunk { .. }));
+    }
+
+    #[test]
+    fn emitter_reads_call_spine_through_forced_partial_application() {
+        let f = path("f");
+        let root = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::BindHere {
+                        expr: Box::new(Expr::typed(
+                            ExprKind::Apply {
+                                callee: Box::new(Expr::typed(
+                                    ExprKind::Var(f.clone()),
+                                    RuntimeType::fun(
+                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::thunk(
+                                            core_ir::Type::Never,
+                                            RuntimeType::fun(
+                                                RuntimeType::core(core_ir::Type::Any),
+                                                RuntimeType::core(core_ir::Type::Any),
+                                            ),
+                                        ),
+                                    ),
+                                )),
+                                arg: Box::new(Expr::typed(
+                                    ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                                    RuntimeType::core(named("int")),
+                                )),
+                                evidence: None,
+                                instantiation: None,
+                            },
+                            RuntimeType::thunk(
+                                core_ir::Type::Never,
+                                RuntimeType::fun(
+                                    RuntimeType::core(named("int")),
+                                    RuntimeType::core(named("int")),
+                                ),
+                            ),
+                        )),
+                    },
+                    RuntimeType::fun(
+                        RuntimeType::core(named("int")),
+                        RuntimeType::core(named("int")),
+                    ),
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(core_ir::Lit::Int("2".to_string())),
+                    RuntimeType::core(named("int")),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::core(named("int")),
+        );
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+        };
+        let spec = specialization(
+            &f,
+            "f__ddmono0",
+            fun(core("int"), fun(core("int"), core("int"))),
+        );
+
+        let rewrite =
+            DemandEmitter::rewrite_module_uses_with_specializations_report(module, &[spec])
+                .expect("rewritten module");
+        let Some((target, _, args)) = applied_call_with_head(&rewrite.module.root_exprs[0]) else {
+            panic!("expected specialized call");
+        };
+
+        assert_eq!(target, &path("f__ddmono0"));
+        assert_eq!(args.len(), 2);
     }
 
     #[test]
@@ -1729,6 +2456,13 @@ mod tests {
         })
     }
 
+    fn thunk(effect: DemandEffect, value: DemandSignature) -> DemandSignature {
+        DemandSignature::Thunk {
+            effect,
+            value: Box::new(value),
+        }
+    }
+
     fn rt_fun(param: &str, ret: &str) -> RuntimeType {
         RuntimeType::fun(
             RuntimeType::core(named(param)),
@@ -1745,5 +2479,21 @@ mod tests {
 
     fn path(name: &str) -> core_ir::Path {
         core_ir::Path::from_name(core_ir::Name(name.to_string()))
+    }
+
+    fn path_segments(segments: &[&str]) -> core_ir::Path {
+        core_ir::Path {
+            segments: segments
+                .iter()
+                .map(|segment| core_ir::Name((*segment).to_string()))
+                .collect(),
+        }
+    }
+
+    fn named_path(segments: &[&str]) -> core_ir::Type {
+        core_ir::Type::Named {
+            path: path_segments(segments),
+            args: Vec::new(),
+        }
     }
 }
