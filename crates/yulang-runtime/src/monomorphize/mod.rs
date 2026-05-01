@@ -446,8 +446,6 @@ fn refine_module_types_for_mono(module: Module) -> RuntimeResult<MonoStep> {
 fn rewrite_monomorphic_uses(module: Module, prune: bool) -> MonoStep {
     let mut monomorphizer = Monomorphizer::new(&module);
     let original_len = module.bindings.len();
-    let reachable_originals =
-        reachable_binding_paths(&module.bindings, &module.root_exprs, &module.roots);
     let mut progress = MonoProgress::default();
     let mut lowered = Module {
         path: module.path,
@@ -465,14 +463,11 @@ fn rewrite_monomorphic_uses(module: Module, prune: bool) -> MonoStep {
             changed = true;
         }
 
+        let reachable =
+            reachable_binding_paths(&lowered.bindings, &lowered.root_exprs, &lowered.roots);
         let current_len = lowered.bindings.len();
         for index in 0..current_len {
-            if !should_rewrite_binding(
-                index,
-                original_len,
-                &reachable_originals,
-                &lowered.bindings[index],
-            ) {
+            if !should_rewrite_binding(index, original_len, &reachable, &lowered.bindings[index]) {
                 continue;
             }
             let body = lowered.bindings[index].body.clone();
@@ -511,14 +506,14 @@ fn rewrite_monomorphic_uses(module: Module, prune: bool) -> MonoStep {
 fn should_rewrite_binding(
     index: usize,
     original_len: usize,
-    reachable_originals: &HashSet<core_ir::Path>,
+    reachable: &HashSet<core_ir::Path>,
     binding: &Binding,
 ) -> bool {
+    if !reachable.contains(&binding.name) {
+        return false;
+    }
     if index >= original_len {
         return true;
-    }
-    if !reachable_originals.contains(&binding.name) {
-        return false;
     }
     binding.type_params.is_empty() || is_specialized_path(&binding.name)
 }

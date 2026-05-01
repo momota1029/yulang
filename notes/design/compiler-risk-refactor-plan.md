@@ -677,3 +677,19 @@ New risk noticed:
   That is intentional for now because full fixed-point specialization can grow
   unreachable bindings before pruning.  The next cleanup should make
   specialization progress distinguish reachable from unreachable output.
+
+### 2026-05-01: Rewrite pass skips unreachable specializations
+
+- `rewrite-uses` now recomputes reachability each internal round.
+- Added specialized bindings are only rewritten when they are reachable from
+  roots or root expressions.
+- This avoids spending work on specialization chains that pruning would later
+  discard.
+- Verified `examples/01_struct_with.yu` still runs and keeps the same generated
+  specialization count.
+
+New risk noticed:
+
+- Reachability is recomputed inside the rewrite loop.  That is simple and safer
+  than rewriting every generated binding, but it may be worth caching adjacency
+  if large examples show this becoming hot.
