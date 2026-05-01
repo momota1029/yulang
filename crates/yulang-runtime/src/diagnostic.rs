@@ -182,10 +182,10 @@ This usually means a name, field, method, or operator could not be resolved."
                 write!(
                     f,
                     "binding {} is still polymorphic after runtime specialization \
-                     (remaining in {}): {:?}",
+                     (remaining in {}): {}",
                     display_path(path),
                     source.description(),
-                    vars
+                    display_type_vars(vars)
                 )
             }
             RuntimeError::InvariantViolation {
@@ -208,6 +208,16 @@ fn display_path(path: &core_ir::Path) -> String {
         .map(|segment| segment.0.as_str())
         .collect::<Vec<_>>()
         .join("::")
+}
+
+fn display_type_vars(vars: &[core_ir::TypeVar]) -> String {
+    if vars.is_empty() {
+        return "<none>".to_string();
+    }
+    vars.iter()
+        .map(|var| var.0.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn display_type(ty: &core_ir::Type) -> String {
@@ -380,7 +390,7 @@ mod tests {
             error.to_string(),
             "binding f is still polymorphic after runtime specialization \
              (remaining in runtime body, scheme, or role requirements): \
-             [TypeVar(\"a\")]"
+             a"
         );
     }
 

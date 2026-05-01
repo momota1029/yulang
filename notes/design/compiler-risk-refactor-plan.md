@@ -645,3 +645,15 @@ New risk noticed:
   before the stabilization loop.  The profile now makes that visible, but a
   later pass should convert the whole pipeline into a smaller fixed-point driver
   instead of keeping both approaches.
+
+### 2026-05-01: Residual type variables render compactly
+
+- Updated residual polymorphic runtime diagnostics to print type variables as
+  `a, b` instead of Rust debug output like `TypeVar("a")`.
+- Kept the diagnostic source added in the previous pass.
+
+New risk noticed:
+
+- Runtime diagnostics and infer diagnostics still use separate formatting code.
+  A shared small formatter for paths, type variables, and common type fragments
+  would reduce future drift.
