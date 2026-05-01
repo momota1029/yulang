@@ -530,3 +530,19 @@ New risk noticed:
   Its body is now small, but it is still the place where function boundaries
   introduce hygiene administration.  That boundary should get a dedicated test
   or a named helper before changing effect hygiene again.
+
+### 2026-05-01: Thunk lowering contract documented
+
+- Added a module-level contract to `lower/thunk.rs`.
+- The contract states when lowering may:
+  - wrap a value as `Thunk`
+  - force a thunk with `BindHere`
+  - attach forced expression effects
+  - add `AddId[peek, effect]`
+  - skip administrative thunks for pure effects
+
+New risk noticed:
+
+- This contract now exists for lowering, but `preserve_runtime_thunk_shape` in
+  monomorphization still has no local contract tying it back to lowering.  It
+  should be documented or moved next so preservation does not look like creation.

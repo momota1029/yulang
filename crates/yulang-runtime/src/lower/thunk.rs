@@ -1,3 +1,18 @@
+//! Runtime thunk construction rules used by core-to-runtime lowering.
+//!
+//! This module owns the places where lowering deliberately changes a value
+//! expression into `Thunk[effect, value]` or forces a thunk with `BindHere`.
+//! Later passes may preserve, specialize, or refine these shapes, but they
+//! should not rediscover thunk boundaries from erased display types.
+//!
+//! The intended rules are:
+//!
+//! - an expected thunk type wraps a compatible value expression in `Thunk`;
+//! - an expected value type forces a compatible thunk with `BindHere`;
+//! - forced effects from expression forms are attached once with `Thunk`;
+//! - function-boundary hygiene protects created thunks with `AddId[peek, effect]`;
+//! - pure or empty effects are left as values, not administrative thunks.
+
 use super::*;
 
 pub(super) fn apply_param_allowed_effect(
