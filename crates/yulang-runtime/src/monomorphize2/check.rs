@@ -135,9 +135,10 @@ impl<'a> ExprChecker<'a> {
             } => self.synth_thunk(expr, effect, value, inner, expected),
             ExprKind::LocalPushId { body, .. } => self.synth_expr(body, expected),
             ExprKind::AddId { thunk, .. } => self.synth_expr(thunk, expected),
-            ExprKind::Coerce { expr: inner, .. } | ExprKind::Pack { expr: inner, .. } => {
-                self.synth_expr(inner, expected)
-            }
+            ExprKind::Coerce {
+                from, expr: inner, ..
+            } => self.synth_coerce(expr, from, inner, expected),
+            ExprKind::Pack { expr: inner, .. } => self.synth_expr(inner, expected),
             ExprKind::Apply { callee, arg, .. } => {
                 if let Some((target, args)) = applied_call(expr)
                     && self.generic_bindings.contains(target)
@@ -145,10 +146,17 @@ impl<'a> ExprChecker<'a> {
                     let ret = expected
                         .cloned()
                         .unwrap_or_else(|| self.signature_from_type(&expr.ty));
-                    let arg_signatures = args
-                        .iter()
-                        .map(|arg| self.synth_expr(arg, None))
-                        .collect::<Result<Vec<_>, _>>()?;
+                    let param_hints =
+                        self.curried_param_signatures_from_type(&callee.ty, args.len());
+                    let mut arg_signatures = Vec::with_capacity(args.len());
+                    for (arg, hint) in args.iter().zip(param_hints) {
+                        if let Some(hint) = hint {
+                            self.check_expr(arg, &hint)?;
+                            arg_signatures.push(hint);
+                        } else {
+                            arg_signatures.push(self.synth_expr(arg, None)?);
+                        }
+                    }
                     let signature = curried_signatures(&arg_signatures, ret.clone());
                     self.child_demands.push(PendingChildDemand {
                         target: target.clone(),
@@ -184,16 +192,22 @@ impl<'a> ExprChecker<'a> {
         let expected = expected
             .cloned()
             .unwrap_or_else(|| self.signature_from_type(&expr.ty));
-        let DemandSignature::Fun {
-            param: param_ty,
-            ret,
-        } = &expected
-        else {
-            return Ok(expected);
+        let (param_ty, ret) = match &expected {
+            DemandSignature::Fun { param, ret } => (param.as_ref().clone(), ret.as_ref().clone()),
+            DemandSignature::Core(DemandCoreType::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            }) => (
+                effected_core_signature(param.as_ref().clone(), param_effect.as_ref().clone()),
+                effected_core_signature(ret.as_ref().clone(), ret_effect.as_ref().clone()),
+            ),
+            _ => return Ok(expected),
         };
         let local = core_ir::Path::from_name(param.clone());
-        let previous = self.locals.insert(local.clone(), param_ty.as_ref().clone());
-        self.check_expr(body, ret)?;
+        let previous = self.locals.insert(local.clone(), param_ty);
+        self.check_expr(body, &ret)?;
         restore_local(&mut self.locals, local, previous);
         Ok(expected)
     }
@@ -486,6 +500,20 @@ impl<'a> ExprChecker<'a> {
         }
     }
 
+    fn synth_coerce(
+        &mut self,
+        expr: &Expr,
+        from: &core_ir::Type,
+        inner: &Expr,
+        expected: Option<&DemandSignature>,
+    ) -> Result<DemandSignature, DemandCheckError> {
+        let inner_expected = self.signature_from_type(&RuntimeType::core(from.clone()));
+        self.check_expr(inner, &inner_expected)?;
+        Ok(expected
+            .cloned()
+            .unwrap_or_else(|| self.signature_from_type(&expr.ty)))
+    }
+
     fn synth_thunk(
         &mut self,
         expr: &Expr,
@@ -554,6 +582,34 @@ impl<'a> ExprChecker<'a> {
 
     fn effect_from_core_type(&mut self, ty: &core_ir::Type) -> DemandEffect {
         DemandEffect::from_core_type_with_holes(ty, &mut self.next_hole)
+    }
+
+    fn curried_param_signatures_from_type(
+        &mut self,
+        ty: &RuntimeType,
+        arity: usize,
+    ) -> Vec<Option<DemandSignature>> {
+        let mut out = Vec::with_capacity(arity);
+        let mut current = self.signature_from_type(ty);
+        for _ in 0..arity {
+            match current {
+                DemandSignature::Fun { param, ret } => {
+                    out.push(Some(*param));
+                    current = *ret;
+                }
+                DemandSignature::Core(DemandCoreType::Fun {
+                    param,
+                    param_effect,
+                    ret_effect,
+                    ret,
+                }) => {
+                    out.push(Some(effected_core_signature(*param, *param_effect)));
+                    current = effected_core_signature(*ret, *ret_effect);
+                }
+                _ => out.push(None),
+            }
+        }
+        out
     }
 
     fn resume_signature_from_context(
@@ -693,6 +749,17 @@ fn signature_effected_core_value(signature: &DemandSignature) -> (DemandCoreType
     match signature {
         DemandSignature::Thunk { effect, value } => (signature_core_value(value), effect.clone()),
         other => (signature_core_value(other), DemandEffect::Empty),
+    }
+}
+
+fn effected_core_signature(ty: DemandCoreType, effect: DemandEffect) -> DemandSignature {
+    if matches!(effect, DemandEffect::Empty) {
+        DemandSignature::Core(ty)
+    } else {
+        DemandSignature::Thunk {
+            effect,
+            value: Box::new(DemandSignature::Core(ty)),
+        }
     }
 }
 
@@ -1625,6 +1692,137 @@ mod tests {
                     value: Box::new(DemandSignature::Core(named_demand("int"))),
                 }),
                 ret: Box::new(DemandSignature::Core(named_demand("int"))),
+            }
+        );
+    }
+
+    #[test]
+    fn checker_checks_coerce_inner_against_from_type() {
+        let f = path("f");
+        let from = core_ir::Type::Record(core_ir::RecordType {
+            fields: vec![core_ir::RecordField {
+                name: core_ir::Name("value".to_string()),
+                value: named("int"),
+                optional: false,
+            }],
+            spread: None,
+        });
+        let to = named("box");
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Coerce {
+                        from: from.clone(),
+                        to: to.clone(),
+                        expr: Box::new(Expr::typed(
+                            ExprKind::Record {
+                                fields: vec![crate::ir::RecordExprField {
+                                    name: core_ir::Name("value".to_string()),
+                                    value: Expr::typed(
+                                        ExprKind::Var(path("x")),
+                                        RuntimeType::core(core_ir::Type::Any),
+                                    ),
+                                }],
+                                spread: None,
+                            },
+                            RuntimeType::core(from),
+                        )),
+                    },
+                    RuntimeType::core(to.clone()),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(RuntimeType::core(named("int")), RuntimeType::core(to)),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked coerce");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(named_demand("int"))),
+                ret: Box::new(DemandSignature::Core(named_demand("box"))),
+            }
+        );
+    }
+
+    #[test]
+    fn checker_reads_lambda_body_for_expected_core_function() {
+        let f = path("f");
+        let io = named("io");
+        let core_fun = core_ir::Type::Fun {
+            param: Box::new(named("unit")),
+            param_effect: Box::new(core_ir::Type::Never),
+            ret_effect: Box::new(io.clone()),
+            ret: Box::new(named("int")),
+        };
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Lambda {
+                        param: core_ir::Name("u".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Thunk {
+                                effect: io,
+                                value: RuntimeType::core(core_ir::Type::Any),
+                                expr: Box::new(Expr::typed(
+                                    ExprKind::Var(path("x")),
+                                    RuntimeType::core(core_ir::Type::Any),
+                                )),
+                            },
+                            RuntimeType::thunk(named("io"), RuntimeType::core(core_ir::Type::Any)),
+                        )),
+                    },
+                    RuntimeType::core(core_ir::Type::Any),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(
+                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(core_fun),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked core function lambda");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(named_demand("int"))),
+                ret: Box::new(DemandSignature::Core(DemandCoreType::Fun {
+                    param: Box::new(named_demand("unit")),
+                    param_effect: Box::new(DemandEffect::Empty),
+                    ret_effect: Box::new(DemandEffect::Atom(named_demand("io"))),
+                    ret: Box::new(named_demand("int")),
+                })),
             }
         );
     }

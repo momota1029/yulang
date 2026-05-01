@@ -1107,3 +1107,23 @@ New risk noticed:
   emitted-body validation is becoming the main safety net.  The next useful
   hardening step is to keep adding small emit invariants for every expression
   form that has an internal type boundary like `Coerce`.
+
+### 2026-05-01: Generic call demands use callee contracts
+
+- Fixed demand checking for `Coerce` so the inner expression is checked against
+  the `from` representation type, matching the emitter rule.
+- Demand checking now reads lambda bodies when the expected type is a core
+  function value with parameter/result effects, not only when it is already a
+  runtime HIR function.
+- Generic call child demands now start from the callee's parameter contract and
+  check actual arguments against it.  This prevents effectful record fields from
+  being flattened into pure-looking argument records before the generic target
+  is checked.
+
+New risk noticed:
+
+- The showcase now gets past `std::var::ref` record-vs-nominal checking, but
+  still falls back at the synthetic reference runner `&xs::run`: a recursive
+  call needs a thunk argument while the checker sees a plain list value.  That
+  is likely in the handler/resume path for local reference effects and should
+  be investigated separately from constructor/coerce typing.

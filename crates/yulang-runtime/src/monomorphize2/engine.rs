@@ -110,7 +110,18 @@ impl<'a> DemandEngine<'a> {
 
     pub fn run(mut self) -> Result<DemandEngineOutput, DemandCheckError> {
         while let Some(demand) = self.queue.pop_front() {
-            let checked = self.checker.check_demand(&demand)?;
+            let checked = match self.checker.check_demand(&demand) {
+                Ok(checked) => checked,
+                Err(error) => {
+                    if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
+                        eprintln!(
+                            "demand check failed for {:?}: {:?}",
+                            demand.target, demand.key.signature
+                        );
+                    }
+                    return Err(error);
+                }
+            };
             self.specializations.intern(&checked);
             let mut child_demands = checked.child_demands.clone();
             while let Some(child) = child_demands.pop_front() {
