@@ -57,7 +57,11 @@ pub(super) fn validate_expr(
                     }
                 }
                 RuntimeType::Core(core_ir::Type::Fun { param, ret, .. }) => {
-                    require_same_type(param, core_type(&arg.ty), TypeSource::ApplyEvidence)?;
+                    require_same_type(
+                        param,
+                        hir_value_core_type(&arg.ty).as_ref(),
+                        TypeSource::ApplyEvidence,
+                    )?;
                     require_same_type(
                         ret,
                         &diagnostic_core_type(&expr.ty),

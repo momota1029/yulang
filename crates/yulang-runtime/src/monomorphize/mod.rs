@@ -155,6 +155,7 @@ const INITIAL_FIXPOINT: &[MonoPass] = &[MonoPass::DemandSpecialize, MonoPass::Re
 
 const SPECIALIZATION_FIXPOINT: &[MonoPass] = &[
     MonoPass::RewriteUses,
+    MonoPass::DemandSpecialize,
     MonoPass::RefineTypes,
     MonoPass::RefreshClosedSchemes,
     MonoPass::ResolveResidualRoleMethods,
@@ -163,6 +164,7 @@ const SPECIALIZATION_FIXPOINT: &[MonoPass] = &[
 const FINAL_FIXPOINT: &[MonoPass] = &[
     MonoPass::ResolveResidualRoleMethods,
     MonoPass::RewriteUses,
+    MonoPass::DemandSpecialize,
     MonoPass::RefineTypes,
     MonoPass::RefreshClosedSchemes,
 ];

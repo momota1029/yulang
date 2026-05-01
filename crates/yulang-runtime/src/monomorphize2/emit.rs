@@ -584,10 +584,11 @@ impl<'a> BodyEmitter<'a> {
         let Some((target, head, args)) = applied_call_with_head(expr) else {
             return Ok(None);
         };
+        let demand_target = demand_call_target(target);
         let ret = expected
             .cloned()
             .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty));
-        let param_hints = self.closed_call_param_hints(target, head, &args, ret.clone());
+        let param_hints = self.closed_call_param_hints(&demand_target, head, &args, ret.clone());
         let arg_signatures = args
             .iter()
             .zip(param_hints)
@@ -598,10 +599,10 @@ impl<'a> BodyEmitter<'a> {
             })
             .collect::<Vec<_>>();
         let signature = curried_signatures(&arg_signatures, ret);
-        let key = DemandKey::from_signature(target.clone(), signature);
+        let key = DemandKey::from_signature(demand_target.clone(), signature);
         let Some(specialization) = self
             .find_specialization(&key)
-            .or_else(|| self.find_role_impl_specialization(target, &key.signature))
+            .or_else(|| self.find_role_impl_specialization(&demand_target, &key.signature))
         else {
             return Ok(None);
         };
@@ -1190,7 +1191,7 @@ fn bind_here_result_type(
     inner: &Expr,
     expected: Option<&DemandSignature>,
 ) -> Result<RuntimeType, DemandEmitError> {
-    if let Some(expected) = expected {
+    if let Some(expected) = expected.filter(|signature| signature.is_closed()) {
         return runtime_type(expected);
     }
     match &inner.ty {
@@ -1570,6 +1571,69 @@ mod tests {
             panic!("expected specialized callee");
         };
         assert_eq!(callee_path, &path("id__ddmono0"));
+    }
+
+    #[test]
+    fn emitter_rewrites_legacy_mono_call_to_demand_specialization() {
+        let id = path("id");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Var(path("id__mono3")),
+                        rt_fun("int", "int"),
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                        RuntimeType::core(named("int")),
+                    )),
+                    evidence: None,
+                    instantiation: None,
+                },
+                RuntimeType::core(named("int")),
+            )],
+            roots: Vec::new(),
+        };
+        let specialization = specialization(&id, "id__ddmono0", fun(core("int"), core("int")));
+
+        let rewrite = DemandEmitter::rewrite_module_uses_with_specializations_report(
+            module,
+            std::slice::from_ref(&specialization),
+        )
+        .expect("rewritten module");
+
+        assert_eq!(rewrite.changed_roots, 1);
+        let ExprKind::Apply { callee, .. } = &rewrite.module.root_exprs[0].kind else {
+            panic!("expected apply");
+        };
+        let ExprKind::Var(callee_path) = &callee.kind else {
+            panic!("expected specialized callee");
+        };
+        assert_eq!(callee_path, &path("id__ddmono0"));
+    }
+
+    #[test]
+    fn bind_here_result_type_ignores_open_expected_signature() {
+        let original = Expr::typed(
+            ExprKind::BindHere {
+                expr: Box::new(Expr::typed(
+                    ExprKind::Var(path("action")),
+                    RuntimeType::thunk(core_ir::Type::Never, RuntimeType::core(named("int"))),
+                )),
+            },
+            RuntimeType::core(core_ir::Type::Any),
+        );
+        let inner = Expr::typed(
+            ExprKind::Var(path("action")),
+            RuntimeType::thunk(core_ir::Type::Never, RuntimeType::core(named("int"))),
+        );
+
+        let ty = bind_here_result_type(&original, &inner, Some(&DemandSignature::Hole(0)))
+            .expect("bind_here type");
+
+        assert_eq!(ty, RuntimeType::core(named("int")));
     }
 
     #[test]

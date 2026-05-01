@@ -77,6 +77,12 @@ impl SpecializationTable {
     }
 }
 
+pub(super) fn demand_call_target(path: &core_ir::Path) -> core_ir::Path {
+    unspecialized_demand_path(path)
+        .or_else(|| unspecialized_legacy_mono_path(path))
+        .unwrap_or_else(|| path.clone())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpecializationOutput {
     pub known: Vec<DemandSpecialization>,
@@ -181,6 +187,14 @@ fn unspecialized_demand_path(path: &core_ir::Path) -> Option<core_ir::Path> {
     Some(base)
 }
 
+fn unspecialized_legacy_mono_path(path: &core_ir::Path) -> Option<core_ir::Path> {
+    let mut base = path.clone();
+    let name = &mut base.segments.last_mut()?.0;
+    let index = name.find("__mono")?;
+    name.truncate(index);
+    Some(base)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -206,6 +220,13 @@ mod tests {
 
         assert_eq!(first, path("id__ddmono0"));
         assert_eq!(second, path("id__ddmono1"));
+    }
+
+    #[test]
+    fn demand_call_target_strips_demand_and_legacy_suffixes() {
+        assert_eq!(demand_call_target(&path("id__ddmono12")), path("id"));
+        assert_eq!(demand_call_target(&path("id__mono3")), path("id"));
+        assert_eq!(demand_call_target(&path("id")), path("id"));
     }
 
     fn checked(name: &str, signature: DemandSignature) -> CheckedDemand {

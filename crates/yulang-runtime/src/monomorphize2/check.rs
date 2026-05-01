@@ -42,7 +42,10 @@ impl<'a> DemandChecker<'a> {
         let actual = checker.check_expr(&binding.body, &demand.key.signature)?;
         let (substitutions, child_demands) = checker.finish();
         let solved_shape = preserve_operational_shapes(&demand.key.signature, &actual);
-        let solved = close_constructor_effect_args(substitutions.apply_signature(&solved_shape));
+        let solved = close_pure_handler_result(
+            close_constructor_effect_args(substitutions.apply_signature(&solved_shape)),
+            consumed_effects,
+        );
         Ok(CheckedDemand {
             target: demand.target.clone(),
             expected: demand.key.signature.clone(),
@@ -1262,6 +1265,27 @@ fn demand_effect_is_consumed(effect: &DemandEffect, consumed: &[core_ir::Path]) 
         DemandEffect::Row(items) => items
             .iter()
             .any(|item| demand_effect_is_consumed(item, consumed)),
+    }
+}
+
+fn close_pure_handler_result(
+    signature: DemandSignature,
+    consumed: &[core_ir::Path],
+) -> DemandSignature {
+    if consumed.is_empty() {
+        return signature;
+    }
+    match signature {
+        DemandSignature::Fun { param, ret } => DemandSignature::Fun {
+            param,
+            ret: Box::new(close_pure_handler_result(*ret, consumed)),
+        },
+        DemandSignature::Thunk { effect, value }
+            if demand_effect_is_consumed(&effect, consumed) =>
+        {
+            *value
+        }
+        other => other,
     }
 }
 
@@ -2621,6 +2645,83 @@ mod tests {
         assert_eq!(
             checked.solved,
             DemandSignature::from_runtime_type(&demand.expected)
+        );
+    }
+
+    #[test]
+    fn checker_removes_consumed_effect_from_pure_handler_result() {
+        let f = path("f");
+        let io = path("io");
+        let io_ty = core_ir::Type::Named {
+            path: io.clone(),
+            args: Vec::new(),
+        };
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::thunk(io_ty.clone(), RuntimeType::core(core_ir::Type::Any)),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Handle {
+                        body: Box::new(Expr::typed(
+                            ExprKind::Var(path("x")),
+                            RuntimeType::thunk(
+                                io_ty.clone(),
+                                RuntimeType::core(core_ir::Type::Any),
+                            ),
+                        )),
+                        arms: vec![HandleArm {
+                            effect: core_ir::Path::default(),
+                            payload: Pattern::Wildcard {
+                                ty: RuntimeType::core(core_ir::Type::Any),
+                            },
+                            resume: None,
+                            guard: None,
+                            body: Expr::typed(
+                                ExprKind::Lit(core_ir::Lit::Bool(true)),
+                                RuntimeType::core(named("bool")),
+                            ),
+                        }],
+                        evidence: crate::ir::JoinEvidence {
+                            result: core_ir::Type::Any,
+                        },
+                        handler: crate::ir::HandleEffect {
+                            consumes: vec![io.clone()],
+                            residual_before: Some(io_ty.clone()),
+                            residual_after: Some(core_ir::Type::Never),
+                        },
+                    },
+                    RuntimeType::core(core_ir::Type::Any),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(
+                RuntimeType::thunk(io_ty.clone(), RuntimeType::core(named("bool"))),
+                RuntimeType::thunk(io_ty, RuntimeType::core(named("bool"))),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked pure handler");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Thunk {
+                    effect: DemandEffect::Atom(named_demand("io")),
+                    value: Box::new(DemandSignature::Core(named_demand("bool"))),
+                }),
+                ret: Box::new(DemandSignature::Core(named_demand("bool"))),
+            }
         );
     }
 
