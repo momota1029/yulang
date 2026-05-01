@@ -386,3 +386,17 @@ New risk noticed:
 - The current pipeline still repeats rewrite/refine/refresh by fixed count.  Now
   that each pass has a name, the next step should replace the fixed list with a
   progress-aware loop and report which pass stopped making progress.
+
+### 2026-05-01: Monomorphization stabilization loop introduced
+
+- Replaced the repeated late rewrite/refine/refresh/role-resolution block with
+  a bounded stabilization loop.
+- The loop exits when a full round makes no IR change.
+- Kept a hard limit to avoid accidental infinite compiler loops.
+
+New risk noticed:
+
+- The loop currently compares whole `Module` values.  That is simple and safe
+  for behavior, but it is not the final performance shape.  A later cleanup
+  should make each pass report its own progress instead of relying on full
+  structural comparison.

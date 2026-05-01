@@ -67,6 +67,7 @@ enum MonoPass {
     InlineNullaryConstructors,
     ResolveSpecializedResidualAssociated,
     ResolveResidualRoleMethods,
+    Stabilize,
     PruneUnreachable,
     ResolveResidualAssociated,
 }
@@ -83,6 +84,7 @@ impl MonoPass {
                 "resolve-specialized-residual-associated"
             }
             MonoPass::ResolveResidualRoleMethods => "resolve-residual-role-methods",
+            MonoPass::Stabilize => "stabilize",
             MonoPass::PruneUnreachable => "prune-unreachable",
             MonoPass::ResolveResidualAssociated => "resolve-residual-associated",
         }
@@ -101,22 +103,7 @@ const MONO_PIPELINE: &[MonoPass] = &[
     MonoPass::InlineNullaryConstructors,
     MonoPass::ResolveSpecializedResidualAssociated,
     MonoPass::ResolveResidualRoleMethods,
-    MonoPass::RewriteUses,
-    MonoPass::RefineTypes,
-    MonoPass::RefreshClosedSchemes,
-    MonoPass::RewriteUses,
-    MonoPass::RefineTypes,
-    MonoPass::ResolveResidualRoleMethods,
-    MonoPass::RewriteUses,
-    MonoPass::RefineTypes,
-    MonoPass::RefreshClosedSchemes,
-    MonoPass::ResolveResidualRoleMethods,
-    MonoPass::RewriteUses,
-    MonoPass::RefineTypes,
-    MonoPass::RefreshClosedSchemes,
-    MonoPass::ResolveResidualRoleMethods,
-    MonoPass::RefineTypes,
-    MonoPass::RefreshClosedSchemes,
+    MonoPass::Stabilize,
     MonoPass::PruneUnreachable,
     MonoPass::ResolveResidualRoleMethods,
     MonoPass::RewriteUses,
@@ -159,9 +146,38 @@ fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<Module> {
             Ok(resolve_specialized_residual_associated_bindings(module))
         }
         MonoPass::ResolveResidualRoleMethods => Ok(resolve_residual_role_method_calls(module)),
+        MonoPass::Stabilize => run_stabilization_loop(module),
         MonoPass::PruneUnreachable => Ok(prune_unreachable_bindings(module)),
         MonoPass::ResolveResidualAssociated => Ok(resolve_residual_associated_bindings(module)),
     }
+}
+
+const STABILIZATION_ROUND: &[MonoPass] = &[
+    MonoPass::RewriteUses,
+    MonoPass::RefineTypes,
+    MonoPass::RefreshClosedSchemes,
+    MonoPass::ResolveResidualRoleMethods,
+];
+
+fn run_stabilization_loop(module: Module) -> RuntimeResult<Module> {
+    let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
+    let mut module = module;
+    for round in 0..8 {
+        let before = module.clone();
+        for pass in STABILIZATION_ROUND {
+            module = apply_mono_pass(module, *pass)?;
+        }
+        if module == before {
+            if debug {
+                eprintln!("mono stabilize converged after {round} rounds");
+            }
+            return Ok(module);
+        }
+    }
+    if debug {
+        eprintln!("mono stabilize reached round limit");
+    }
+    Ok(module)
 }
 
 struct MonoStats {
