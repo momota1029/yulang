@@ -157,63 +157,6 @@ pub(super) fn refresh_binding_body_type_from_scheme(binding: &mut Binding) {
     binding.body.ty = preserve_runtime_thunk_shape(scheme_ty, &binding.body.ty);
 }
 
-fn preserve_runtime_thunk_shape(scheme: RuntimeType, body: &RuntimeType) -> RuntimeType {
-    match (scheme, body) {
-        (
-            RuntimeType::Fun {
-                param: scheme_param,
-                ret: scheme_ret,
-            },
-            RuntimeType::Fun {
-                param: body_param,
-                ret: body_ret,
-            },
-        ) => RuntimeType::fun(
-            preserve_runtime_thunk_shape(*scheme_param, body_param),
-            preserve_runtime_thunk_shape(*scheme_ret, body_ret),
-        ),
-        (
-            RuntimeType::Thunk {
-                effect: scheme_effect,
-                value: scheme_value,
-            },
-            RuntimeType::Thunk {
-                effect: body_effect,
-                value: body_value,
-            },
-        ) => RuntimeType::thunk(
-            choose_runtime_thunk_effect(scheme_effect, body_effect),
-            preserve_runtime_thunk_shape(*scheme_value, body_value),
-        ),
-        (
-            scheme,
-            RuntimeType::Thunk {
-                effect: body_effect,
-                value: body_value,
-            },
-        ) if hir_type_compatible(&scheme, body_value)
-            || hir_type_compatible(body_value, &scheme) =>
-        {
-            RuntimeType::thunk(
-                body_effect.clone(),
-                preserve_runtime_thunk_shape(scheme, body_value),
-            )
-        }
-        (scheme, _) => scheme,
-    }
-}
-
-fn choose_runtime_thunk_effect(
-    scheme_effect: core_ir::Type,
-    body_effect: &core_ir::Type,
-) -> core_ir::Type {
-    if effect_is_empty(&scheme_effect) && !effect_is_empty(body_effect) {
-        body_effect.clone()
-    } else {
-        scheme_effect
-    }
-}
-
 pub(super) fn refresh_specialized_scheme_from_body(binding: &mut Binding) {
     if hir_type_has_vars(&binding.body.ty) {
         return;

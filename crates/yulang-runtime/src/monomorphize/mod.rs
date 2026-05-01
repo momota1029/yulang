@@ -39,6 +39,7 @@ mod rewrite;
 mod shape;
 mod specialize;
 mod substitute;
+mod thunk_shape;
 
 use canonicalize::*;
 use locals::*;
@@ -49,6 +50,7 @@ use rewrite::*;
 use shape::*;
 use specialize::*;
 use substitute::*;
+use thunk_shape::*;
 
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     let lowered = run_mono_pipeline(module)?;

@@ -546,3 +546,21 @@ New risk noticed:
 - This contract now exists for lowering, but `preserve_runtime_thunk_shape` in
   monomorphization still has no local contract tying it back to lowering.  It
   should be documented or moved next so preservation does not look like creation.
+
+### 2026-05-01: Monomorphization thunk preservation isolated
+
+- Created `monomorphize/thunk_shape.rs`.
+- Moved `preserve_runtime_thunk_shape` out of general normalization.
+- Documented that this helper preserves thunk boundaries introduced by runtime
+  lowering; it must not be treated as a second thunk-creation mechanism.
+- Added tests for:
+  - preserving a body-side thunk around a compatible scheme value
+  - keeping a non-empty body effect when a refreshed scheme effect is empty
+  - recursively preserving parameter and return thunks in function types
+
+New risk noticed:
+
+- Thunk preservation currently depends on `hir_type_compatible` both ways for
+  the value shape.  That is acceptable as a preservation gate, but future
+  changes to compatibility could accidentally broaden thunk preservation.  Keep
+  this test set close to any compatibility refactor.
