@@ -135,7 +135,30 @@ pub enum DemandSignature {
 
 impl DemandSignature {
     pub fn from_runtime_type(ty: &RuntimeType) -> Self {
-        SignatureBuilder::default().runtime_type(ty)
+        let mut next_hole = 0;
+        Self::from_runtime_type_with_holes(ty, &mut next_hole)
+    }
+
+    pub fn from_runtime_type_with_holes(ty: &RuntimeType, next_hole: &mut u32) -> Self {
+        let mut builder = SignatureBuilder {
+            next_hole: *next_hole,
+        };
+        let signature = builder.runtime_type(ty);
+        *next_hole = builder.next_hole;
+        signature
+    }
+
+    pub fn next_hole_after(&self) -> u32 {
+        match self {
+            DemandSignature::Hole(id) => id + 1,
+            DemandSignature::Core(ty) => ty.next_hole_after(),
+            DemandSignature::Fun { param, ret } => {
+                param.next_hole_after().max(ret.next_hole_after())
+            }
+            DemandSignature::Thunk { effect, value } => {
+                effect.next_hole_after().max(value.next_hole_after())
+            }
+        }
     }
 }
 
@@ -145,6 +168,21 @@ pub enum DemandEffect {
     Hole(u32),
     Atom(DemandCoreType),
     Row(Vec<DemandEffect>),
+}
+
+impl DemandEffect {
+    pub fn next_hole_after(&self) -> u32 {
+        match self {
+            DemandEffect::Empty => 0,
+            DemandEffect::Hole(id) => id + 1,
+            DemandEffect::Atom(ty) => ty.next_hole_after(),
+            DemandEffect::Row(items) => items
+                .iter()
+                .map(DemandEffect::next_hole_after)
+                .max()
+                .unwrap_or(0),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -173,6 +211,54 @@ pub enum DemandCoreType {
     },
 }
 
+impl DemandCoreType {
+    pub fn next_hole_after(&self) -> u32 {
+        match self {
+            DemandCoreType::Never => 0,
+            DemandCoreType::Hole(id) => id + 1,
+            DemandCoreType::Named { args, .. } => args
+                .iter()
+                .map(DemandTypeArg::next_hole_after)
+                .max()
+                .unwrap_or(0),
+            DemandCoreType::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => param
+                .next_hole_after()
+                .max(param_effect.next_hole_after())
+                .max(ret_effect.next_hole_after())
+                .max(ret.next_hole_after()),
+            DemandCoreType::Tuple(items)
+            | DemandCoreType::Union(items)
+            | DemandCoreType::Inter(items) => items
+                .iter()
+                .map(DemandCoreType::next_hole_after)
+                .max()
+                .unwrap_or(0),
+            DemandCoreType::Record(fields) => fields
+                .iter()
+                .map(|field| field.value.next_hole_after())
+                .max()
+                .unwrap_or(0),
+            DemandCoreType::Variant(cases) => cases
+                .iter()
+                .flat_map(|case| case.payloads.iter())
+                .map(DemandCoreType::next_hole_after)
+                .max()
+                .unwrap_or(0),
+            DemandCoreType::RowAsValue(items) => items
+                .iter()
+                .map(DemandEffect::next_hole_after)
+                .max()
+                .unwrap_or(0),
+            DemandCoreType::Recursive { body, .. } => body.next_hole_after(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DemandTypeArg {
     Type(DemandCoreType),
@@ -180,6 +266,20 @@ pub enum DemandTypeArg {
         lower: Option<DemandCoreType>,
         upper: Option<DemandCoreType>,
     },
+}
+
+impl DemandTypeArg {
+    pub fn next_hole_after(&self) -> u32 {
+        match self {
+            DemandTypeArg::Type(ty) => ty.next_hole_after(),
+            DemandTypeArg::Bounds { lower, upper } => lower
+                .iter()
+                .chain(upper)
+                .map(DemandCoreType::next_hole_after)
+                .max()
+                .unwrap_or(0),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -385,6 +485,30 @@ mod tests {
         assert!(queue.push(target.clone(), RuntimeType::core(named("int"))));
         assert!(queue.push(target, RuntimeType::core(named("str"))));
         assert_eq!(queue.len(), 2);
+    }
+
+    #[test]
+    fn demand_signature_can_continue_hole_numbering() {
+        let first = RuntimeType::fun(
+            RuntimeType::core(core_ir::Type::Any),
+            RuntimeType::core(core_ir::Type::Any),
+        );
+        let mut next_hole = 0;
+        let first = DemandSignature::from_runtime_type_with_holes(&first, &mut next_hole);
+        let second = DemandSignature::from_runtime_type_with_holes(
+            &RuntimeType::core(core_ir::Type::Any),
+            &mut next_hole,
+        );
+
+        assert_eq!(
+            first,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Hole(0)),
+                ret: Box::new(DemandSignature::Hole(1)),
+            }
+        );
+        assert_eq!(second, DemandSignature::Hole(2));
+        assert_eq!(next_hole, 3);
     }
 
     fn named(name: &str) -> core_ir::Type {

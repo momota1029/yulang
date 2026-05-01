@@ -891,3 +891,20 @@ New risk noticed:
   not understand yet.  The next step should make block/if/tuple/thunk/bind/catch
   checking produce explicit expected signatures so emission does not need to
   trust stale expression annotations.
+
+### 2026-05-01: Demand checker hole allocation made local to checking
+
+- Added `DemandSignature::from_runtime_type_with_holes`.
+- Demand signatures can now continue hole numbering from an existing expected
+  signature instead of restarting at hole `0`.
+- `DemandChecker` now allocates fresh holes through one checker-local counter
+  while checking a demand.
+- Child demand signatures now use context-solved argument signatures even when
+  the original argument expression still carries an `Any` annotation.
+
+New risk noticed:
+
+- Hole allocation is now sane within one checked demand, but `DemandKey`
+  equality still depends on syntactic hole numbers for partially unknown
+  demands.  Before wiring this path into real compilation, keys with holes
+  should be canonicalized so equivalent unknown shapes deduplicate reliably.

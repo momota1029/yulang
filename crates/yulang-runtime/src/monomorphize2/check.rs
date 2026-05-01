@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::*;
-use crate::ir::{Binding, Expr, ExprKind, Module};
+use crate::ir::{Binding, Expr, ExprKind, Module, Type as RuntimeType};
 
 pub struct DemandChecker<'a> {
     bindings: HashMap<core_ir::Path, &'a Binding>,
@@ -70,6 +70,7 @@ impl From<DemandUnifyError> for DemandCheckError {
 struct ExprChecker<'a> {
     generic_bindings: &'a HashSet<core_ir::Path>,
     locals: HashMap<core_ir::Path, DemandSignature>,
+    next_hole: u32,
     unifier: DemandUnifier,
     child_demands: DemandQueue,
 }
@@ -79,6 +80,7 @@ impl<'a> ExprChecker<'a> {
         Self {
             generic_bindings,
             locals: HashMap::new(),
+            next_hole: 0,
             unifier: DemandUnifier::new(),
             child_demands: DemandQueue::default(),
         }
@@ -89,6 +91,7 @@ impl<'a> ExprChecker<'a> {
         expr: &Expr,
         expected: &DemandSignature,
     ) -> Result<DemandSignature, DemandCheckError> {
+        self.next_hole = self.next_hole.max(expected.next_hole_after());
         let actual = self.synth_expr(expr, Some(expected))?;
         self.unifier.unify(expected, &actual)?;
         Ok(actual)
@@ -107,7 +110,7 @@ impl<'a> ExprChecker<'a> {
                 {
                     let ret = expected
                         .cloned()
-                        .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty));
+                        .unwrap_or_else(|| self.signature_from_type(&expr.ty));
                     let arg_signatures = args
                         .iter()
                         .map(|arg| self.synth_expr(arg, None))
@@ -122,7 +125,7 @@ impl<'a> ExprChecker<'a> {
                 }
                 let callee = self.synth_expr(callee, None)?;
                 let DemandSignature::Fun { param, ret } = callee else {
-                    return Ok(DemandSignature::from_runtime_type(&expr.ty));
+                    return Ok(self.signature_from_type(&expr.ty));
                 };
                 self.check_expr(arg, &param)?;
                 Ok(*ret)
@@ -131,9 +134,9 @@ impl<'a> ExprChecker<'a> {
                 .locals
                 .get(path)
                 .cloned()
-                .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty))),
-            ExprKind::Lit(_) => Ok(DemandSignature::from_runtime_type(&expr.ty)),
-            _ => Ok(DemandSignature::from_runtime_type(&expr.ty)),
+                .unwrap_or_else(|| self.signature_from_type(&expr.ty))),
+            ExprKind::Lit(_) => Ok(self.signature_from_type(&expr.ty)),
+            _ => Ok(self.signature_from_type(&expr.ty)),
         }
     }
 
@@ -151,7 +154,7 @@ impl<'a> ExprChecker<'a> {
             },
         ) = expected
         else {
-            return Ok(DemandSignature::from_runtime_type(&expr.ty));
+            return Ok(self.signature_from_type(&expr.ty));
         };
         let local = core_ir::Path::from_name(param.clone());
         let previous = self.locals.insert(local.clone(), param_ty.as_ref().clone());
@@ -162,6 +165,10 @@ impl<'a> ExprChecker<'a> {
 
     fn finish(self) -> (DemandSubstitution, DemandQueue) {
         (self.unifier.finish(), self.child_demands)
+    }
+
+    fn signature_from_type(&mut self, ty: &RuntimeType) -> DemandSignature {
+        DemandSignature::from_runtime_type_with_holes(ty, &mut self.next_hole)
     }
 }
 
@@ -379,7 +386,7 @@ mod tests {
                                 )),
                                 arg: Box::new(Expr::typed(
                                     ExprKind::Var(path("x")),
-                                    RuntimeType::core(named("int")),
+                                    RuntimeType::core(core_ir::Type::Any),
                                 )),
                                 evidence: None,
                                 instantiation: None,
