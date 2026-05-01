@@ -400,3 +400,22 @@ New risk noticed:
   for behavior, but it is not the final performance shape.  A later cleanup
   should make each pass report its own progress instead of relying on full
   structural comparison.
+
+### 2026-05-01: Monomorphization progress made explicit
+
+- Added `MonoStep` / `MonoProgress` to the pipeline runner.
+- `rewrite-uses` now reports:
+  - rewritten root expressions
+  - rewritten binding bodies
+  - newly created specializations
+- The stabilization loop now stops from pass progress rather than a whole-round
+  `Module` equality check.
+- `YULANG_DEBUG_MONO_PIPELINE` now prints progress details, not only before/after
+  binding and root counts.
+
+New risk noticed:
+
+- Several passes still derive progress by comparing their input and output
+  module.  That is centralized now, but the next cleanup should make the hot
+  passes report their own local changes directly, especially type refinement and
+  residual role resolution.

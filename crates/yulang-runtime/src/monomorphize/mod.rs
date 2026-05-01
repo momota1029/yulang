@@ -117,38 +117,50 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<Module> {
     let mut module = module;
     for pass in MONO_PIPELINE {
         let before = debug.then(|| MonoStats::from_module(&module));
-        module = apply_mono_pass(module, *pass)?;
+        let step = apply_mono_pass(module, *pass)?;
+        module = step.module;
         if let Some(before) = before {
             let after = MonoStats::from_module(&module);
             eprintln!(
-                "mono pass {:>38}: bindings {} -> {}, roots {} -> {}",
+                "mono pass {:>38}: bindings {} -> {}, roots {} -> {}, progress {}",
                 pass.name(),
                 before.bindings,
                 after.bindings,
                 before.roots,
-                after.roots
+                after.roots,
+                step.progress.format()
             );
         }
     }
     Ok(module)
 }
 
-fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<Module> {
+fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
     match pass {
         MonoPass::RewriteUses => Ok(rewrite_monomorphic_uses(module, false)),
-        MonoPass::RefineTypes => refine_module_types(module),
-        MonoPass::RefreshClosedSchemes => Ok(refresh_closed_specialized_schemes(module)),
+        MonoPass::RefineTypes => run_tracked_pass(module, refine_module_types),
+        MonoPass::RefreshClosedSchemes => {
+            run_tracked_infallible_pass(module, refresh_closed_specialized_schemes)
+        }
         MonoPass::CanonicalizeSpecializations => {
-            Ok(canonicalize_equivalent_specializations(module))
+            run_tracked_infallible_pass(module, canonicalize_equivalent_specializations)
         }
-        MonoPass::InlineNullaryConstructors => Ok(inline_polymorphic_nullary_constructors(module)),
+        MonoPass::InlineNullaryConstructors => {
+            run_tracked_infallible_pass(module, inline_polymorphic_nullary_constructors)
+        }
         MonoPass::ResolveSpecializedResidualAssociated => {
-            Ok(resolve_specialized_residual_associated_bindings(module))
+            run_tracked_infallible_pass(module, resolve_specialized_residual_associated_bindings)
         }
-        MonoPass::ResolveResidualRoleMethods => Ok(resolve_residual_role_method_calls(module)),
+        MonoPass::ResolveResidualRoleMethods => {
+            run_tracked_infallible_pass(module, resolve_residual_role_method_calls)
+        }
         MonoPass::Stabilize => run_stabilization_loop(module),
-        MonoPass::PruneUnreachable => Ok(prune_unreachable_bindings(module)),
-        MonoPass::ResolveResidualAssociated => Ok(resolve_residual_associated_bindings(module)),
+        MonoPass::PruneUnreachable => {
+            run_tracked_infallible_pass(module, prune_unreachable_bindings)
+        }
+        MonoPass::ResolveResidualAssociated => {
+            run_tracked_infallible_pass(module, resolve_residual_associated_bindings)
+        }
     }
 }
 
@@ -159,25 +171,40 @@ const STABILIZATION_ROUND: &[MonoPass] = &[
     MonoPass::ResolveResidualRoleMethods,
 ];
 
-fn run_stabilization_loop(module: Module) -> RuntimeResult<Module> {
+fn run_stabilization_loop(module: Module) -> RuntimeResult<MonoStep> {
     let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
     let mut module = module;
+    let mut total_progress = MonoProgress::default();
     for round in 0..8 {
-        let before = module.clone();
+        let mut round_progress = MonoProgress::default();
         for pass in STABILIZATION_ROUND {
-            module = apply_mono_pass(module, *pass)?;
+            let step = apply_mono_pass(module, *pass)?;
+            module = step.module;
+            round_progress.merge(step.progress);
         }
-        if module == before {
+        total_progress.merge(round_progress);
+        if !round_progress.changed() {
             if debug {
                 eprintln!("mono stabilize converged after {round} rounds");
             }
-            return Ok(module);
+            return Ok(MonoStep {
+                module,
+                progress: total_progress,
+            });
+        } else if debug {
+            eprintln!(
+                "mono stabilize round {round}: progress {}",
+                round_progress.format()
+            );
         }
     }
     if debug {
         eprintln!("mono stabilize reached round limit");
     }
-    Ok(module)
+    Ok(MonoStep {
+        module,
+        progress: total_progress,
+    })
 }
 
 struct MonoStats {
@@ -194,11 +221,83 @@ impl MonoStats {
     }
 }
 
-fn rewrite_monomorphic_uses(module: Module, prune: bool) -> Module {
+struct MonoStep {
+    module: Module,
+    progress: MonoProgress,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct MonoProgress {
+    changed_bindings: usize,
+    changed_roots: usize,
+    added_specializations: usize,
+}
+
+impl MonoProgress {
+    fn changed(self) -> bool {
+        self.changed_bindings > 0 || self.changed_roots > 0 || self.added_specializations > 0
+    }
+
+    fn merge(&mut self, other: Self) {
+        self.changed_bindings += other.changed_bindings;
+        self.changed_roots += other.changed_roots;
+        self.added_specializations += other.added_specializations;
+    }
+
+    fn from_modules(before: &Module, after: &Module) -> Self {
+        let changed_roots = changed_item_count(&before.root_exprs, &after.root_exprs);
+        let changed_bindings = changed_item_count(&before.bindings, &after.bindings);
+        Self {
+            changed_bindings,
+            changed_roots,
+            added_specializations: after.bindings.len().saturating_sub(before.bindings.len()),
+        }
+    }
+
+    fn format(self) -> String {
+        if !self.changed() {
+            return "none".to_string();
+        }
+        format!(
+            "bindings={}, roots={}, new-specializations={}",
+            self.changed_bindings, self.changed_roots, self.added_specializations
+        )
+    }
+}
+
+fn changed_item_count<T: PartialEq>(before: &[T], after: &[T]) -> usize {
+    let pair_changes = before
+        .iter()
+        .zip(after.iter())
+        .filter(|(before, after)| before != after)
+        .count();
+    let length_delta = before.len().abs_diff(after.len());
+    pair_changes + length_delta
+}
+
+fn run_tracked_pass<F>(module: Module, f: F) -> RuntimeResult<MonoStep>
+where
+    F: FnOnce(Module) -> RuntimeResult<Module>,
+{
+    let before = module.clone();
+    let module = f(module)?;
+    let progress = MonoProgress::from_modules(&before, &module);
+    Ok(MonoStep { module, progress })
+}
+
+fn run_tracked_infallible_pass<F>(module: Module, f: F) -> RuntimeResult<MonoStep>
+where
+    F: FnOnce(Module) -> Module,
+{
+    run_tracked_pass(module, |module| Ok(f(module)))
+}
+
+fn rewrite_monomorphic_uses(module: Module, prune: bool) -> MonoStep {
     let mut monomorphizer = Monomorphizer::new(&module);
     let original_len = module.bindings.len();
     let reachable_originals =
         reachable_binding_paths(&module.bindings, &module.root_exprs, &module.roots);
+    let mut progress = MonoProgress::default();
     let mut lowered = Module {
         path: module.path,
         bindings: module.bindings,
@@ -211,6 +310,7 @@ fn rewrite_monomorphic_uses(module: Module, prune: bool) -> Module {
         let root_exprs = monomorphizer.rewrite_exprs(lowered.root_exprs.clone());
         if root_exprs != lowered.root_exprs {
             lowered.root_exprs = root_exprs;
+            progress.changed_roots += 1;
             changed = true;
         }
 
@@ -229,12 +329,15 @@ fn rewrite_monomorphic_uses(module: Module, prune: bool) -> Module {
             let rewritten = monomorphizer.rewrite_expr_with_expected(body, Some(&body_ty));
             if rewritten != lowered.bindings[index].body {
                 lowered.bindings[index].body = rewritten;
+                progress.changed_bindings += 1;
                 changed = true;
             }
         }
 
         let specialized = std::mem::take(&mut monomorphizer.specialized);
         if !specialized.is_empty() {
+            progress.added_specializations += specialized.len();
+            progress.changed_bindings += specialized.len();
             lowered.bindings.extend(specialized);
             changed = true;
         }
@@ -243,11 +346,15 @@ fn rewrite_monomorphic_uses(module: Module, prune: bool) -> Module {
             break;
         }
     }
-    if prune {
-        prune_unreachable_bindings(lowered)
+    let module = if prune {
+        let before_prune = lowered.clone();
+        let pruned = prune_unreachable_bindings(lowered);
+        progress.merge(MonoProgress::from_modules(&before_prune, &pruned));
+        pruned
     } else {
         lowered
-    }
+    };
+    MonoStep { module, progress }
 }
 
 fn should_rewrite_binding(
