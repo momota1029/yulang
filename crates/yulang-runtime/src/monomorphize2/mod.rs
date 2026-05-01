@@ -12,9 +12,11 @@ use yulang_core_ir as core_ir;
 
 use crate::ir::Type as RuntimeType;
 
+mod check;
 mod collect;
 mod solve;
 
+pub use check::*;
 pub use collect::*;
 pub use solve::*;
 

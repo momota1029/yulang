@@ -797,3 +797,23 @@ New risk noticed:
   understand subtyping, role requirements, row reordering, or `never <: unit`.
   Those rules should be added as explicit solver rules, not by falling back to
   whole-tree rewrite passes.
+
+### 2026-05-01: Demand checker skeleton started
+
+- Added `DemandChecker` beside the fixed-point monomorphizer.
+- The checker currently handles:
+  - literals
+  - local variables
+  - lambda checking against an expected function demand
+  - simple application checking
+- Lambda body checking can now solve a return hole from the body itself.  For
+  example, a demand shaped like `unit -> _` over a lambda returning `int` solves
+  to `unit -> int`.
+
+New risk noticed:
+
+- The checker still falls back to existing expression type witnesses for
+  unsupported syntax.  This is fine for the skeleton, but it must not become the
+  long-term behavior.  The next steps should add explicit rules for block,
+  tuple, if/match, thunk/bind, and direct generic call demand emission inside
+  checked bodies.

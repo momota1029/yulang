@@ -9,6 +9,126 @@ pub struct DemandSubstitution {
     pub effects: BTreeMap<u32, DemandEffect>,
 }
 
+impl DemandSubstitution {
+    pub fn apply_signature(&self, signature: &DemandSignature) -> DemandSignature {
+        match signature {
+            DemandSignature::Hole(id) => self
+                .values
+                .get(id)
+                .map(|signature| self.apply_signature(signature))
+                .unwrap_or(DemandSignature::Hole(*id)),
+            DemandSignature::Core(ty) => DemandSignature::Core(self.apply_core_type(ty)),
+            DemandSignature::Fun { param, ret } => DemandSignature::Fun {
+                param: Box::new(self.apply_signature(param)),
+                ret: Box::new(self.apply_signature(ret)),
+            },
+            DemandSignature::Thunk { effect, value } => DemandSignature::Thunk {
+                effect: self.apply_effect(effect),
+                value: Box::new(self.apply_signature(value)),
+            },
+        }
+    }
+
+    pub fn apply_core_type(&self, ty: &DemandCoreType) -> DemandCoreType {
+        match ty {
+            DemandCoreType::Hole(id) => self
+                .cores
+                .get(id)
+                .map(|ty| self.apply_core_type(ty))
+                .unwrap_or(DemandCoreType::Hole(*id)),
+            DemandCoreType::Named { path, args } => DemandCoreType::Named {
+                path: path.clone(),
+                args: args.iter().map(|arg| self.apply_type_arg(arg)).collect(),
+            },
+            DemandCoreType::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => DemandCoreType::Fun {
+                param: Box::new(self.apply_core_type(param)),
+                param_effect: Box::new(self.apply_effect(param_effect)),
+                ret_effect: Box::new(self.apply_effect(ret_effect)),
+                ret: Box::new(self.apply_core_type(ret)),
+            },
+            DemandCoreType::Tuple(items) => DemandCoreType::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.apply_core_type(item))
+                    .collect(),
+            ),
+            DemandCoreType::Record(fields) => DemandCoreType::Record(
+                fields
+                    .iter()
+                    .map(|field| DemandRecordField {
+                        name: field.name.clone(),
+                        value: self.apply_core_type(&field.value),
+                        optional: field.optional,
+                    })
+                    .collect(),
+            ),
+            DemandCoreType::Variant(cases) => DemandCoreType::Variant(
+                cases
+                    .iter()
+                    .map(|case| DemandVariantCase {
+                        name: case.name.clone(),
+                        payloads: case
+                            .payloads
+                            .iter()
+                            .map(|payload| self.apply_core_type(payload))
+                            .collect(),
+                    })
+                    .collect(),
+            ),
+            DemandCoreType::RowAsValue(items) => DemandCoreType::RowAsValue(
+                items.iter().map(|item| self.apply_effect(item)).collect(),
+            ),
+            DemandCoreType::Union(items) => DemandCoreType::Union(
+                items
+                    .iter()
+                    .map(|item| self.apply_core_type(item))
+                    .collect(),
+            ),
+            DemandCoreType::Inter(items) => DemandCoreType::Inter(
+                items
+                    .iter()
+                    .map(|item| self.apply_core_type(item))
+                    .collect(),
+            ),
+            DemandCoreType::Recursive { var, body } => DemandCoreType::Recursive {
+                var: var.clone(),
+                body: Box::new(self.apply_core_type(body)),
+            },
+            DemandCoreType::Never => DemandCoreType::Never,
+        }
+    }
+
+    pub fn apply_effect(&self, effect: &DemandEffect) -> DemandEffect {
+        match effect {
+            DemandEffect::Hole(id) => self
+                .effects
+                .get(id)
+                .map(|effect| self.apply_effect(effect))
+                .unwrap_or(DemandEffect::Hole(*id)),
+            DemandEffect::Atom(ty) => DemandEffect::Atom(self.apply_core_type(ty)),
+            DemandEffect::Row(items) => {
+                DemandEffect::Row(items.iter().map(|item| self.apply_effect(item)).collect())
+            }
+            DemandEffect::Empty => DemandEffect::Empty,
+        }
+    }
+
+    fn apply_type_arg(&self, arg: &DemandTypeArg) -> DemandTypeArg {
+        match arg {
+            DemandTypeArg::Type(ty) => DemandTypeArg::Type(self.apply_core_type(ty)),
+            DemandTypeArg::Bounds { lower, upper } => DemandTypeArg::Bounds {
+                lower: lower.as_ref().map(|ty| self.apply_core_type(ty)),
+                upper: upper.as_ref().map(|ty| self.apply_core_type(ty)),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct DemandUnifier {
     substitutions: DemandSubstitution,
@@ -24,8 +144,20 @@ impl DemandUnifier {
         expected: &DemandSignature,
         actual: &DemandSignature,
     ) -> Result<DemandSubstitution, DemandUnifyError> {
-        self.signature(expected, actual)?;
+        self.unify(expected, actual)?;
         Ok(self.substitutions)
+    }
+
+    pub fn unify(
+        &mut self,
+        expected: &DemandSignature,
+        actual: &DemandSignature,
+    ) -> Result<(), DemandUnifyError> {
+        self.signature(expected, actual)
+    }
+
+    pub fn finish(self) -> DemandSubstitution {
+        self.substitutions
     }
 
     fn signature(
