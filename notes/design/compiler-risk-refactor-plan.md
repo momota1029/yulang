@@ -924,3 +924,19 @@ New risk noticed:
 - Pattern support in block `let` is intentionally narrow and only binds simple
   names.  Record/list/tuple patterns need their own local-introduction rules so
   destructuring does not fall back to old expression annotations.
+
+### 2026-05-01: Demand keys canonicalize holes
+
+- `DemandKey` now canonicalizes value/core/effect holes before entering the
+  queue or specialization cache.
+- Equivalent partially unknown demand shapes deduplicate even if they were
+  produced with different local hole ids.
+- Value, core, and effect holes are still canonicalized in separate namespaces,
+  so an effect wildcard cannot be confused with a value wildcard.
+
+New risk noticed:
+
+- Canonicalization only solves cache identity.  The checker still needs
+  language-aware rules for subtyping and effect rows so two semantically equal
+  rows with different ordering or representation do not split into separate
+  specializations.

@@ -6,7 +6,7 @@
 //! signature, and `_` / `Any` becomes a monomorphization hole instead of a VM
 //! type witness.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use yulang_core_ir as core_ir;
 
@@ -110,12 +110,15 @@ impl DemandKey {
     pub fn new(target: core_ir::Path, expected: &RuntimeType) -> Self {
         Self {
             target,
-            signature: DemandSignature::from_runtime_type(expected),
+            signature: DemandSignature::from_runtime_type(expected).canonicalize_holes(),
         }
     }
 
     pub fn from_signature(target: core_ir::Path, signature: DemandSignature) -> Self {
-        Self { target, signature }
+        Self {
+            target,
+            signature: signature.canonicalize_holes(),
+        }
     }
 }
 
@@ -159,6 +162,10 @@ impl DemandSignature {
                 effect.next_hole_after().max(value.next_hole_after())
             }
         }
+    }
+
+    pub fn canonicalize_holes(&self) -> Self {
+        HoleCanonicalizer::default().signature(self)
     }
 }
 
@@ -280,6 +287,135 @@ impl DemandTypeArg {
                 .unwrap_or(0),
         }
     }
+}
+
+#[derive(Debug, Default)]
+struct HoleCanonicalizer {
+    values: HashMap<u32, u32>,
+    cores: HashMap<u32, u32>,
+    effects: HashMap<u32, u32>,
+    next_value: u32,
+    next_core: u32,
+    next_effect: u32,
+}
+
+impl HoleCanonicalizer {
+    fn signature(&mut self, signature: &DemandSignature) -> DemandSignature {
+        match signature {
+            DemandSignature::Hole(id) => DemandSignature::Hole(self.value_hole(*id)),
+            DemandSignature::Core(ty) => DemandSignature::Core(self.core_type(ty)),
+            DemandSignature::Fun { param, ret } => DemandSignature::Fun {
+                param: Box::new(self.signature(param)),
+                ret: Box::new(self.signature(ret)),
+            },
+            DemandSignature::Thunk { effect, value } => DemandSignature::Thunk {
+                effect: self.effect(effect),
+                value: Box::new(self.signature(value)),
+            },
+        }
+    }
+
+    fn core_type(&mut self, ty: &DemandCoreType) -> DemandCoreType {
+        match ty {
+            DemandCoreType::Never => DemandCoreType::Never,
+            DemandCoreType::Hole(id) => DemandCoreType::Hole(self.core_hole(*id)),
+            DemandCoreType::Named { path, args } => DemandCoreType::Named {
+                path: path.clone(),
+                args: args.iter().map(|arg| self.type_arg(arg)).collect(),
+            },
+            DemandCoreType::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => DemandCoreType::Fun {
+                param: Box::new(self.core_type(param)),
+                param_effect: Box::new(self.effect(param_effect)),
+                ret_effect: Box::new(self.effect(ret_effect)),
+                ret: Box::new(self.core_type(ret)),
+            },
+            DemandCoreType::Tuple(items) => {
+                DemandCoreType::Tuple(items.iter().map(|item| self.core_type(item)).collect())
+            }
+            DemandCoreType::Record(fields) => DemandCoreType::Record(
+                fields
+                    .iter()
+                    .map(|field| DemandRecordField {
+                        name: field.name.clone(),
+                        value: self.core_type(&field.value),
+                        optional: field.optional,
+                    })
+                    .collect(),
+            ),
+            DemandCoreType::Variant(cases) => DemandCoreType::Variant(
+                cases
+                    .iter()
+                    .map(|case| DemandVariantCase {
+                        name: case.name.clone(),
+                        payloads: case
+                            .payloads
+                            .iter()
+                            .map(|payload| self.core_type(payload))
+                            .collect(),
+                    })
+                    .collect(),
+            ),
+            DemandCoreType::RowAsValue(items) => {
+                DemandCoreType::RowAsValue(items.iter().map(|item| self.effect(item)).collect())
+            }
+            DemandCoreType::Union(items) => {
+                DemandCoreType::Union(items.iter().map(|item| self.core_type(item)).collect())
+            }
+            DemandCoreType::Inter(items) => {
+                DemandCoreType::Inter(items.iter().map(|item| self.core_type(item)).collect())
+            }
+            DemandCoreType::Recursive { var, body } => DemandCoreType::Recursive {
+                var: var.clone(),
+                body: Box::new(self.core_type(body)),
+            },
+        }
+    }
+
+    fn effect(&mut self, effect: &DemandEffect) -> DemandEffect {
+        match effect {
+            DemandEffect::Empty => DemandEffect::Empty,
+            DemandEffect::Hole(id) => DemandEffect::Hole(self.effect_hole(*id)),
+            DemandEffect::Atom(ty) => DemandEffect::Atom(self.core_type(ty)),
+            DemandEffect::Row(items) => {
+                DemandEffect::Row(items.iter().map(|item| self.effect(item)).collect())
+            }
+        }
+    }
+
+    fn type_arg(&mut self, arg: &DemandTypeArg) -> DemandTypeArg {
+        match arg {
+            DemandTypeArg::Type(ty) => DemandTypeArg::Type(self.core_type(ty)),
+            DemandTypeArg::Bounds { lower, upper } => DemandTypeArg::Bounds {
+                lower: lower.as_ref().map(|ty| self.core_type(ty)),
+                upper: upper.as_ref().map(|ty| self.core_type(ty)),
+            },
+        }
+    }
+
+    fn value_hole(&mut self, id: u32) -> u32 {
+        canonical_hole(&mut self.values, &mut self.next_value, id)
+    }
+
+    fn core_hole(&mut self, id: u32) -> u32 {
+        canonical_hole(&mut self.cores, &mut self.next_core, id)
+    }
+
+    fn effect_hole(&mut self, id: u32) -> u32 {
+        canonical_hole(&mut self.effects, &mut self.next_effect, id)
+    }
+}
+
+fn canonical_hole(map: &mut HashMap<u32, u32>, next: &mut u32, id: u32) -> u32 {
+    *map.entry(id).or_insert_with(|| {
+        let canonical = *next;
+        *next += 1;
+        canonical
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -509,6 +645,46 @@ mod tests {
         );
         assert_eq!(second, DemandSignature::Hole(2));
         assert_eq!(next_hole, 3);
+    }
+
+    #[test]
+    fn demand_keys_canonicalize_hole_numbers() {
+        let target = path("id");
+        let left = DemandKey::from_signature(
+            target.clone(),
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Hole(20)),
+                ret: Box::new(DemandSignature::Hole(30)),
+            },
+        );
+        let right = DemandKey::from_signature(
+            target,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Hole(0)),
+                ret: Box::new(DemandSignature::Hole(1)),
+            },
+        );
+
+        assert_eq!(left, right);
+    }
+
+    #[test]
+    fn demand_key_hole_canonicalization_keeps_namespaces_separate() {
+        let key = DemandKey::from_signature(
+            path("f"),
+            DemandSignature::Thunk {
+                effect: DemandEffect::Hole(8),
+                value: Box::new(DemandSignature::Core(DemandCoreType::Hole(8))),
+            },
+        );
+
+        assert_eq!(
+            key.signature,
+            DemandSignature::Thunk {
+                effect: DemandEffect::Hole(0),
+                value: Box::new(DemandSignature::Core(DemandCoreType::Hole(0))),
+            }
+        );
     }
 
     fn named(name: &str) -> core_ir::Type {
