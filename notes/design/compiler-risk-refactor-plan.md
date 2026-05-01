@@ -729,3 +729,22 @@ New risk noticed:
   metadata, but they are not ready for a fully typed VM boundary.  The next
   cleanup should eliminate those residuals by improving specialization, not by
   weakening the strict check.
+
+### 2026-05-01: Demand-driven monomorphization plan started
+
+- Added a separate plan for replacing the current fixed-point monomorphizer
+  with a demand-driven algorithm.
+- Started `monomorphize2` beside the old implementation.
+- First slice:
+  - `DemandQueue`
+  - `Demand`
+  - `DemandKey`
+  - `DemandSignature`
+- Demand signatures now convert `Any` in value and effect slots into
+  monomorphization holes instead of treating `Any` as a runtime type witness.
+
+New risk noticed:
+
+- This is only the demand-key layer.  The next step must add the body checker
+  skeleton, otherwise this will remain a clean wrapper around the old problem
+  rather than a replacement for the fixed-point rewrite loop.

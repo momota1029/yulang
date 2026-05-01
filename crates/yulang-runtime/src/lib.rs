@@ -12,6 +12,7 @@ pub mod invariant;
 pub mod ir;
 pub mod lower;
 pub mod monomorphize;
+pub mod monomorphize2;
 pub mod refine;
 pub mod runtime;
 pub mod types;
