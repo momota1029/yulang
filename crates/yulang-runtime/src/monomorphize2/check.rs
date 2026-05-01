@@ -108,15 +108,16 @@ impl<'a> ExprChecker<'a> {
                     let ret = expected
                         .cloned()
                         .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty));
-                    let signature = curried_call_signature(&args, ret.clone());
+                    let arg_signatures = args
+                        .iter()
+                        .map(|arg| self.synth_expr(arg, None))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let signature = curried_signatures(&arg_signatures, ret.clone());
                     self.child_demands.push_signature(
                         target.clone(),
                         curried_call_type(&args, expr.ty.clone()),
                         signature,
                     );
-                    for arg in args {
-                        self.synth_expr(arg, None)?;
-                    }
                     return Ok(ret);
                 }
                 let callee = self.synth_expr(callee, None)?;
@@ -164,11 +165,14 @@ impl<'a> ExprChecker<'a> {
     }
 }
 
-fn curried_call_signature(args: &[&Expr], ret: DemandSignature) -> DemandSignature {
+pub(super) fn curried_signatures(
+    args: &[DemandSignature],
+    ret: DemandSignature,
+) -> DemandSignature {
     args.iter()
         .rev()
         .fold(ret, |ret, arg| DemandSignature::Fun {
-            param: Box::new(DemandSignature::from_runtime_type(&arg.ty)),
+            param: Box::new(arg.clone()),
             ret: Box::new(ret),
         })
 }

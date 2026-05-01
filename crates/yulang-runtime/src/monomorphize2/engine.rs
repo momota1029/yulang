@@ -44,6 +44,15 @@ pub struct DemandEngineOutput {
     pub specializations: Vec<DemandSpecialization>,
 }
 
+impl DemandEngineOutput {
+    pub fn emit_bindings(
+        &self,
+        module: &Module,
+    ) -> Result<Vec<crate::ir::Binding>, DemandEmitError> {
+        DemandEmitter::from_module(module, &self.specializations).emit_all()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,6 +150,10 @@ mod tests {
             output.specializations[0].path,
             core_ir::Path::from_name(core_ir::Name("id__ddmono0".to_string()))
         );
+        let emitted = output.emit_bindings(&module).expect("emitted bindings");
+        assert_eq!(emitted.len(), 1);
+        assert_eq!(emitted[0].name, path("id__ddmono0"));
+        assert!(emitted[0].type_params.is_empty());
     }
 
     fn binding(

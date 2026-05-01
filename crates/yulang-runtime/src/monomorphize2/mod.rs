@@ -14,12 +14,14 @@ use crate::ir::Type as RuntimeType;
 
 mod check;
 mod collect;
+mod emit;
 mod engine;
 mod solve;
 mod specialize;
 
 pub use check::*;
 pub use collect::*;
+pub use emit::*;
 pub use engine::*;
 pub use solve::*;
 pub use specialize::*;

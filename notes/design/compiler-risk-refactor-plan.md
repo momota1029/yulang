@@ -868,3 +868,26 @@ New risk noticed:
   actual `Binding` values with substituted runtime types, then make call-site
   rewriting a targeted replacement from `DemandKey` to specialized path rather
   than a full tree fixed-point pass.
+
+### 2026-05-01: Demand specialized binding emission started
+
+- Added `DemandEmitter`.
+- The emitter turns a solved demand signature back into a runtime HIR type and
+  rejects unresolved value/core/effect holes instead of materializing `Any`.
+- Specialized bindings now:
+  - receive deterministic `__ddmonoN` paths from the specialization table
+  - clear type parameters and role requirements
+  - get a runtime-preserving scheme body
+  - retag lambda locals from the solved demand signature
+- Direct generic child calls are rewritten by exact `DemandKey` lookup, not by
+  repeated whole-tree refinement.
+- Fixed an important early bug: child demand signatures must use the type known
+  from the checking context, such as a lambda parameter solved to `int`, rather
+  than the original `Any` witness stored on the argument expression.
+
+New risk noticed:
+
+- Body emission still has fallback paths for syntax that the demand checker does
+  not understand yet.  The next step should make block/if/tuple/thunk/bind/catch
+  checking produce explicit expected signatures so emission does not need to
+  trust stale expression annotations.
