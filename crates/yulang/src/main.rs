@@ -642,6 +642,7 @@ struct RuntimeLowerOutput {
 struct RuntimePhaseProfile {
     lower: Duration,
     monomorphize: Duration,
+    monomorphize_profile: runtime::MonomorphizeProfile,
 }
 
 fn lower_runtime_module_or_exit(
@@ -658,8 +659,8 @@ fn lower_runtime_module_or_exit(
     };
     let lower = lower_start.elapsed();
     let mono_start = Instant::now();
-    let module = match runtime::monomorphize_module(module) {
-        Ok(module) => module,
+    let (module, monomorphize_profile) = match runtime::monomorphize_module_profiled(module) {
+        Ok(output) => output,
         Err(err) => {
             eprintln!("failed to lower runtime IR: {err}");
             process::exit(1);
@@ -669,6 +670,7 @@ fn lower_runtime_module_or_exit(
     let profile = RuntimePhaseProfile {
         lower,
         monomorphize,
+        monomorphize_profile,
     };
     if print_timings {
         print_runtime_phase_timings(&profile, None, None);
@@ -686,6 +688,11 @@ fn print_runtime_phase_timings(
     eprintln!(
         "    monomorphize: {}",
         format_duration(profile.monomorphize)
+    );
+    eprintln!(
+        "    mono_passes: {}, specializations: {}",
+        profile.monomorphize_profile.pass_count(),
+        profile.monomorphize_profile.added_specializations()
     );
     if let Some(duration) = vm_compile {
         eprintln!("    vm_compile: {}", format_duration(duration));

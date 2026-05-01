@@ -627,3 +627,21 @@ New risk noticed:
 - The timing output is still ad hoc text.  For guardrails, this should later
   become a reusable profile object or snapshot command so examples can be
   compared across commits.
+
+### 2026-05-01: Monomorphization profile exposed
+
+- Added `monomorphize_module_profiled`.
+- Added public profile structs for:
+  - pass count
+  - per-pass binding/root counts
+  - per-pass progress
+  - generated specialization count
+- `--runtime-phase-timings` now reports monomorphization pass count and total
+  generated specializations.
+
+New risk noticed:
+
+- The top-level pipeline still has fixed initial repeated rewrite/refine passes
+  before the stabilization loop.  The profile now makes that visible, but a
+  later pass should convert the whole pipeline into a smaller fixed-point driver
+  instead of keeping both approaches.

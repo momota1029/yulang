@@ -53,11 +53,53 @@ use substitute::*;
 use thunk_shape::*;
 
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
-    let lowered = run_mono_pipeline(module)?;
+    let (lowered, _) = monomorphize_module_profiled(module)?;
+    Ok(lowered)
+}
+
+pub fn monomorphize_module_profiled(
+    module: Module,
+) -> RuntimeResult<(Module, MonomorphizeProfile)> {
+    let (lowered, profile) = run_mono_pipeline(module)?;
     ensure_monomorphic_bindings(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
     validate_module(&lowered)?;
-    Ok(lowered)
+    Ok((lowered, profile))
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct MonomorphizeProfile {
+    pub passes: Vec<MonomorphizePassProfile>,
+}
+
+impl MonomorphizeProfile {
+    pub fn pass_count(&self) -> usize {
+        self.passes.len()
+    }
+
+    pub fn added_specializations(&self) -> usize {
+        self.passes
+            .iter()
+            .map(|pass| pass.progress.added_specializations)
+            .sum()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MonomorphizePassProfile {
+    pub name: &'static str,
+    pub bindings_before: usize,
+    pub bindings_after: usize,
+    pub roots_before: usize,
+    pub roots_after: usize,
+    pub progress: MonomorphizeProgress,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct MonomorphizeProgress {
+    pub changed_bindings: usize,
+    pub changed_roots: usize,
+    pub added_specializations: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,15 +156,25 @@ const MONO_PIPELINE: &[MonoPass] = &[
     MonoPass::ResolveResidualAssociated,
 ];
 
-fn run_mono_pipeline(module: Module) -> RuntimeResult<Module> {
+fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfile)> {
     let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
     let mut module = module;
+    let mut profile = MonomorphizeProfile::default();
     for pass in MONO_PIPELINE {
-        let before = debug.then(|| MonoStats::from_module(&module));
+        let before = MonoStats::from_module(&module);
         let step = apply_mono_pass(module, *pass)?;
         module = step.module;
-        if let Some(before) = before {
-            let after = MonoStats::from_module(&module);
+        let after = MonoStats::from_module(&module);
+        let progress = step.progress.to_public();
+        profile.passes.push(MonomorphizePassProfile {
+            name: pass.name(),
+            bindings_before: before.bindings,
+            bindings_after: after.bindings,
+            roots_before: before.roots,
+            roots_after: after.roots,
+            progress,
+        });
+        if debug {
             eprintln!(
                 "mono pass {:>38}: bindings {} -> {}, roots {} -> {}, progress {}",
                 pass.name(),
@@ -134,7 +186,7 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<Module> {
             );
         }
     }
-    Ok(module)
+    Ok((module, profile))
 }
 
 fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
@@ -264,6 +316,14 @@ impl MonoProgress {
             "bindings={}, roots={}, new-specializations={}",
             self.changed_bindings, self.changed_roots, self.added_specializations
         )
+    }
+
+    fn to_public(self) -> MonomorphizeProgress {
+        MonomorphizeProgress {
+            changed_bindings: self.changed_bindings,
+            changed_roots: self.changed_roots,
+            added_specializations: self.added_specializations,
+        }
     }
 }
 
