@@ -284,7 +284,10 @@ impl<'a> BodyEmitter<'a> {
                     tag: tag.clone(),
                     value: value
                         .as_ref()
-                        .map(|value| self.rewrite_expr(value, None).map(Box::new))
+                        .map(|value| {
+                            let payload = variant_payload_signature(tag, expected);
+                            self.rewrite_expr(value, payload.as_ref()).map(Box::new)
+                        })
                         .transpose()?,
                 },
                 self.expr_type(expr, expected)?,
@@ -400,14 +403,20 @@ impl<'a> BodyEmitter<'a> {
                 from,
                 to,
                 expr: inner,
-            } => Ok(Expr::typed(
-                ExprKind::Coerce {
-                    from: from.clone(),
-                    to: to.clone(),
-                    expr: Box::new(self.rewrite_expr(inner, expected)?),
-                },
-                self.expr_type(expr, expected)?,
-            )),
+            } => {
+                let from = coerce_from_type(from, expected)?;
+                let to = coerce_to_type(to, expected)?;
+                let from_signature =
+                    DemandSignature::from_runtime_type(&RuntimeType::core(from.clone()));
+                Ok(Expr::typed(
+                    ExprKind::Coerce {
+                        from,
+                        to,
+                        expr: Box::new(self.rewrite_expr(inner, Some(&from_signature))?),
+                    },
+                    self.expr_type(expr, expected)?,
+                ))
+            }
             ExprKind::Pack { var, expr: inner } => Ok(Expr::typed(
                 ExprKind::Pack {
                     var: var.clone(),
@@ -602,6 +611,82 @@ impl<'a> BodyEmitter<'a> {
             .map(runtime_type)
             .transpose()
             .map(|ty| ty.unwrap_or_else(|| expr.ty.clone()))
+    }
+}
+
+fn variant_payload_signature(
+    tag: &core_ir::Name,
+    expected: Option<&DemandSignature>,
+) -> Option<DemandSignature> {
+    match expected {
+        Some(DemandSignature::Core(DemandCoreType::Variant(cases))) => cases
+            .iter()
+            .find(|case| case.name == *tag)
+            .and_then(|case| case.payloads.first())
+            .cloned()
+            .map(DemandSignature::Core),
+        Some(DemandSignature::Core(DemandCoreType::Named { args, .. })) => {
+            single_payload_arg(args).map(DemandSignature::Core)
+        }
+        _ => None,
+    }
+}
+
+fn coerce_from_type(
+    from: &core_ir::Type,
+    expected: Option<&DemandSignature>,
+) -> Result<core_ir::Type, DemandEmitError> {
+    let Some(DemandSignature::Core(DemandCoreType::Named { args, .. })) = expected else {
+        return Ok(from.clone());
+    };
+    let Some(payload) = single_payload_arg(args) else {
+        return Ok(from.clone());
+    };
+    let core_ir::Type::Variant(variant) = from else {
+        return Ok(from.clone());
+    };
+    let [case] = variant.cases.as_slice() else {
+        return Ok(from.clone());
+    };
+    if case.payloads.len() != 1 {
+        return Ok(from.clone());
+    }
+    Ok(core_ir::Type::Variant(core_ir::VariantType {
+        cases: vec![core_ir::VariantCase {
+            name: case.name.clone(),
+            payloads: vec![core_type(&payload)?],
+        }],
+        tail: variant.tail.clone(),
+    }))
+}
+
+fn coerce_to_type(
+    to: &core_ir::Type,
+    expected: Option<&DemandSignature>,
+) -> Result<core_ir::Type, DemandEmitError> {
+    match expected {
+        Some(DemandSignature::Core(ty)) => core_type(ty),
+        _ => Ok(to.clone()),
+    }
+}
+
+fn single_payload_arg(args: &[DemandTypeArg]) -> Option<DemandCoreType> {
+    let [arg] = args else {
+        return None;
+    };
+    match arg {
+        DemandTypeArg::Type(ty) => Some(ty.clone()),
+        DemandTypeArg::Bounds {
+            lower: Some(ty), ..
+        }
+        | DemandTypeArg::Bounds {
+            lower: None,
+            upper: Some(ty),
+        } => Some(ty.clone()),
+        DemandTypeArg::Bounds {
+            lower: None,
+            upper: None,
+        } => None,
     }
 }
 
@@ -851,6 +936,191 @@ mod tests {
                 path: path("id__ddmono0"),
                 source: Box::new(DemandEmitError::UnresolvedValueHole(3)),
             }
+        );
+    }
+
+    #[test]
+    fn emitter_preserves_coerce_inner_from_type() {
+        let make = path("make");
+        let enum_ty = core_ir::Type::Variant(core_ir::VariantType {
+            cases: vec![core_ir::VariantCase {
+                name: core_ir::Name("included".to_string()),
+                payloads: vec![named("int")],
+            }],
+            tail: None,
+        });
+        let bound_ty = named("bound");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![Binding {
+                name: make.clone(),
+                type_params: vec![core_ir::TypeVar("a".to_string())],
+                scheme: core_ir::Scheme {
+                    requirements: Vec::new(),
+                    body: core_ir::Type::Any,
+                },
+                body: Expr::typed(
+                    ExprKind::Lambda {
+                        param: core_ir::Name("value".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Coerce {
+                                from: enum_ty.clone(),
+                                to: bound_ty.clone(),
+                                expr: Box::new(Expr::typed(
+                                    ExprKind::Variant {
+                                        tag: core_ir::Name("included".to_string()),
+                                        value: Some(Box::new(Expr::typed(
+                                            ExprKind::Var(path("value")),
+                                            RuntimeType::core(core_ir::Type::Any),
+                                        ))),
+                                    },
+                                    RuntimeType::core(enum_ty.clone()),
+                                )),
+                            },
+                            RuntimeType::core(bound_ty.clone()),
+                        )),
+                    },
+                    RuntimeType::fun(
+                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(core_ir::Type::Any),
+                    ),
+                ),
+            }],
+            root_exprs: Vec::new(),
+            roots: Vec::new(),
+        };
+        let specialization = specialization(
+            &make,
+            "make__ddmono0",
+            fun(
+                core("int"),
+                DemandSignature::Core(DemandCoreType::Named {
+                    path: path("bound"),
+                    args: Vec::new(),
+                }),
+            ),
+        );
+        let emitter = DemandEmitter::from_module(&module, std::slice::from_ref(&specialization));
+
+        let emitted = emitter.emit(&specialization).expect("emitted binding");
+        let ExprKind::Lambda { body, .. } = &emitted.body.kind else {
+            panic!("expected lambda");
+        };
+        let ExprKind::Coerce { expr: inner, .. } = &body.kind else {
+            panic!("expected coerce");
+        };
+
+        assert_eq!(inner.ty, RuntimeType::core(enum_ty));
+    }
+
+    #[test]
+    fn emitter_specializes_coerce_variant_payload_from_nominal_result() {
+        let make = path("make");
+        let original_enum_ty = core_ir::Type::Variant(core_ir::VariantType {
+            cases: vec![core_ir::VariantCase {
+                name: core_ir::Name("just".to_string()),
+                payloads: vec![core_ir::Type::Any],
+            }],
+            tail: None,
+        });
+        let original_opt_ty = core_ir::Type::Named {
+            path: path("opt"),
+            args: vec![core_ir::TypeArg::Type(core_ir::Type::Any)],
+        };
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![Binding {
+                name: make.clone(),
+                type_params: vec![core_ir::TypeVar("a".to_string())],
+                scheme: core_ir::Scheme {
+                    requirements: Vec::new(),
+                    body: core_ir::Type::Any,
+                },
+                body: Expr::typed(
+                    ExprKind::Lambda {
+                        param: core_ir::Name("value".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Coerce {
+                                from: original_enum_ty,
+                                to: original_opt_ty,
+                                expr: Box::new(Expr::typed(
+                                    ExprKind::Variant {
+                                        tag: core_ir::Name("just".to_string()),
+                                        value: Some(Box::new(Expr::typed(
+                                            ExprKind::Var(path("value")),
+                                            RuntimeType::core(core_ir::Type::Any),
+                                        ))),
+                                    },
+                                    RuntimeType::core(core_ir::Type::Any),
+                                )),
+                            },
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                    },
+                    RuntimeType::fun(
+                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(core_ir::Type::Any),
+                    ),
+                ),
+            }],
+            root_exprs: Vec::new(),
+            roots: Vec::new(),
+        };
+        let opt_int = DemandCoreType::Named {
+            path: path("opt"),
+            args: vec![DemandTypeArg::Type(DemandCoreType::Named {
+                path: path("int"),
+                args: Vec::new(),
+            })],
+        };
+        let specialization = specialization(
+            &make,
+            "make__ddmono0",
+            fun(core("int"), DemandSignature::Core(opt_int)),
+        );
+        let emitter = DemandEmitter::from_module(&module, std::slice::from_ref(&specialization));
+
+        let emitted = emitter.emit(&specialization).expect("emitted binding");
+        let ExprKind::Lambda { body, .. } = &emitted.body.kind else {
+            panic!("expected lambda");
+        };
+        let ExprKind::Coerce {
+            from,
+            to,
+            expr: inner,
+        } = &body.kind
+        else {
+            panic!("expected coerce");
+        };
+        let ExprKind::Variant { value, .. } = &inner.kind else {
+            panic!("expected variant");
+        };
+
+        assert_eq!(
+            from,
+            &core_ir::Type::Variant(core_ir::VariantType {
+                cases: vec![core_ir::VariantCase {
+                    name: core_ir::Name("just".to_string()),
+                    payloads: vec![named("int")],
+                }],
+                tail: None,
+            })
+        );
+        assert_eq!(
+            to,
+            &core_ir::Type::Named {
+                path: path("opt"),
+                args: vec![core_ir::TypeArg::Type(named("int"))],
+            }
+        );
+        assert_eq!(inner.ty, RuntimeType::core(from.clone()));
+        assert_eq!(
+            value.as_ref().expect("payload").ty,
+            RuntimeType::core(named("int"))
         );
     }
 

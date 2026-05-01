@@ -1087,3 +1087,23 @@ New risk noticed:
   closed specializations can violate runtime validation around range/list/variant
   shapes.  The next step should audit emitted specialized bodies against the
   validator error, rather than adding more checker-side guesses.
+
+### 2026-05-01: Demand emit preserves coercion boundaries
+
+- Added debug-only validation context so `YULANG_DEBUG_MONO_PIPELINE` reports
+  the binding or root where runtime validation fails.
+- Fixed demand emit for `Coerce`:
+  - the inner expression is rewritten against the `from` representation type
+  - the outer expression can still take the demanded result type
+  - nominal enum constructor coercions specialize both `from` and `to`
+- Fixed demand emit for `Variant` payloads so expected variant payload types
+  are pushed into the payload expression.
+- This removed the validation fallback for `examples/06_undet_once.yu`; the
+  demand pass now applies across multiple rounds on that example.
+
+New risk noticed:
+
+- The demand path is now capable of rewriting more real programs, which means
+  emitted-body validation is becoming the main safety net.  The next useful
+  hardening step is to keep adding small emit invariants for every expression
+  form that has an internal type boundary like `Coerce`.

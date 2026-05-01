@@ -74,10 +74,20 @@ pub fn validate_module(module: &Module) -> RuntimeResult<()> {
         }
     }
     for binding in &module.bindings {
-        validate_binding(binding, &bindings, &type_arg_kinds)?;
+        if let Err(error) = validate_binding(binding, &bindings, &type_arg_kinds) {
+            if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
+                eprintln!("runtime validation failed in binding {:?}", binding.name);
+            }
+            return Err(error);
+        }
     }
-    for expr in &module.root_exprs {
-        validate_expr(expr, &bindings, &type_arg_kinds, &mut HashMap::new())?;
+    for (index, expr) in module.root_exprs.iter().enumerate() {
+        if let Err(error) = validate_expr(expr, &bindings, &type_arg_kinds, &mut HashMap::new()) {
+            if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
+                eprintln!("runtime validation failed in root expression {index}");
+            }
+            return Err(error);
+        }
     }
     Ok(())
 }
