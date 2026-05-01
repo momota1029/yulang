@@ -409,6 +409,18 @@ fn demand_specialize_module(module: Module) -> RuntimeResult<MonoStep> {
         if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
             eprintln!("mono pass demand-specialize rejected by validation: {error:?}");
         }
+        if std::env::var_os("YULANG_DEBUG_MONO_DUMP_REJECTED").is_some() {
+            for binding in &output.module.bindings {
+                if binding
+                    .name
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0.contains("__ddmono"))
+                {
+                    eprintln!("{binding:#?}");
+                }
+            }
+        }
         return Ok(MonoStep {
             module: before,
             progress: MonoProgress::default(),

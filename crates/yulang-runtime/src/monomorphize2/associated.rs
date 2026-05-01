@@ -11,6 +11,12 @@ pub(super) fn close_known_associated_type_signature(
         return signature;
     };
     if name.0 != "fold" && name.0 != "fold_impl" {
+        if path_ends_with(target, &["std", "range", "fold_from"]) {
+            return close_range_fold_helper_signature(signature, 3);
+        }
+        if path_ends_with(target, &["std", "range", "fold_ints"]) {
+            return close_range_fold_helper_signature(signature, 4);
+        }
         return signature;
     }
     close_fold_signature(signature, name.0 == "fold_impl")
@@ -222,6 +228,44 @@ fn close_fold_return(ret: DemandSignature, acc: &DemandSignature) -> DemandSigna
         },
         other => prefer_signature(acc, other),
     }
+}
+
+fn close_range_fold_helper_signature(signature: DemandSignature, arity: usize) -> DemandSignature {
+    let (mut args, ret) = uncurried_signatures(signature);
+    if args.len() < arity {
+        return curried_signatures(&args, ret);
+    }
+    let f_index = 0;
+    let acc_index = arity - 1;
+    let acc = signature_value(&args[acc_index]);
+    let item = DemandSignature::Core(DemandCoreType::Named {
+        path: core_ir::Path::from_name(core_ir::Name("int".to_string())),
+        args: Vec::new(),
+    });
+    let result_effect = fold_callback_effect(&args[f_index]).or_else(|| fold_result_effect(&ret));
+    args[f_index] = ensure_empty_thunk_signature(close_fold_callback(
+        args[f_index].clone(),
+        &acc,
+        &item,
+        result_effect.as_ref(),
+    ));
+    let ret = close_fold_callback_return(ret, &acc, result_effect.as_ref());
+    curried_signatures(&args, ret)
+}
+
+fn fold_callback_effect(signature: &DemandSignature) -> Option<DemandEffect> {
+    match signature {
+        DemandSignature::Thunk { effect, value } => (!effect_is_empty(effect))
+            .then(|| effect.clone())
+            .or_else(|| fold_callback_effect(value)),
+        DemandSignature::Fun { ret, .. } => fold_callback_effect(ret),
+        _ => None,
+    }
+}
+
+fn effect_is_empty(effect: &DemandEffect) -> bool {
+    matches!(effect, DemandEffect::Empty)
+        || matches!(effect, DemandEffect::Row(items) if items.iter().all(effect_is_empty))
 }
 
 fn prefer_signature(preferred: &DemandSignature, current: DemandSignature) -> DemandSignature {

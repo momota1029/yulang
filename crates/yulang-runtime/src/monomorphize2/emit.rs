@@ -400,14 +400,26 @@ impl<'a> BodyEmitter<'a> {
                 effect,
                 value,
                 expr: inner,
-            } => Ok(Expr::typed(
-                ExprKind::Thunk {
-                    effect: effect.clone(),
-                    value: value.clone(),
-                    expr: Box::new(self.rewrite_expr(inner, None)?),
-                },
-                self.expr_type(expr, expected)?,
-            )),
+            } => {
+                let (effect, value, inner_expected) =
+                    if let Some(DemandSignature::Thunk { effect, value }) = expected {
+                        (
+                            effect_type(effect)?,
+                            runtime_type(value)?,
+                            Some(value.as_ref()),
+                        )
+                    } else {
+                        (effect.clone(), value.clone(), None)
+                    };
+                Ok(Expr::typed(
+                    ExprKind::Thunk {
+                        effect,
+                        value,
+                        expr: Box::new(self.rewrite_expr(inner, inner_expected)?),
+                    },
+                    self.expr_type(expr, expected)?,
+                ))
+            }
             ExprKind::LocalPushId { id, body } => Ok(Expr::typed(
                 ExprKind::LocalPushId {
                     id: *id,
@@ -539,7 +551,7 @@ impl<'a> BodyEmitter<'a> {
         let ret = expected
             .cloned()
             .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty));
-        let param_hints = curried_param_signatures_from_type(&head.ty, args.len());
+        let param_hints = self.closed_call_param_hints(target, head, &args, ret.clone());
         let arg_signatures = args
             .iter()
             .zip(param_hints)
@@ -592,9 +604,34 @@ impl<'a> BodyEmitter<'a> {
         Ok(Some(call))
     }
 
+    fn closed_call_param_hints(
+        &self,
+        target: &core_ir::Path,
+        head: &Expr,
+        args: &[&Expr],
+        ret: DemandSignature,
+    ) -> Vec<Option<DemandSignature>> {
+        let param_hints = curried_param_signatures_from_type(&head.ty, args.len());
+        let provisional_args = param_hints
+            .iter()
+            .zip(args)
+            .map(|(hint, arg)| hint.clone().unwrap_or_else(|| self.expr_signature(arg)))
+            .collect::<Vec<_>>();
+        let closed = close_known_associated_type_signature(
+            target,
+            curried_signatures(&provisional_args, ret),
+        );
+        let (closed_args, _) = uncurried_emit_signatures(closed);
+        if closed_args.len() == args.len() {
+            return closed_args.into_iter().map(Some).collect();
+        }
+        param_hints
+    }
+
     fn find_specialization(&self, key: &DemandKey) -> Option<&'a DemandSpecialization> {
         if let Some(specialization) = self.current_specialization
             && specialization.target == key.target
+            && signature_arity(&key.signature) == signature_arity(&specialization.key.signature)
         {
             return Some(specialization);
         }
@@ -607,6 +644,8 @@ impl<'a> BodyEmitter<'a> {
             .copied()
             .filter(|specialization| {
                 specialization.target == key.target
+                    && signature_arity(&key.signature)
+                        == signature_arity(&specialization.key.signature)
                     && DemandUnifier::new()
                         .unify_signature(&key.signature, &specialization.key.signature)
                         .is_ok()
@@ -642,6 +681,7 @@ impl<'a> BodyEmitter<'a> {
             .filter(|specialization| {
                 specialization.target.segments.last() == Some(method)
                     && is_impl_method_path(&specialization.target)
+                    && signature_arity(signature) == signature_arity(&specialization.key.signature)
                     && DemandUnifier::new()
                         .unify_signature(signature, &specialization.key.signature)
                         .is_ok()
@@ -763,6 +803,22 @@ fn applied_call_with_head(expr: &Expr) -> Option<(&core_ir::Path, &Expr, Vec<&Ex
     }
 }
 
+fn uncurried_emit_signatures(
+    signature: DemandSignature,
+) -> (Vec<DemandSignature>, DemandSignature) {
+    let mut args = Vec::new();
+    let mut current = signature;
+    loop {
+        match current {
+            DemandSignature::Fun { param, ret } => {
+                args.push(*param);
+                current = *ret;
+            }
+            ret => return (args, ret),
+        }
+    }
+}
+
 fn curried_param_signatures_from_type(
     ty: &RuntimeType,
     arity: usize,
@@ -817,6 +873,16 @@ fn signature_hole_count(signature: &DemandSignature) -> usize {
             effect_hole_count(effect) + signature_hole_count(value)
         }
     }
+}
+
+fn signature_arity(signature: &DemandSignature) -> usize {
+    let mut arity = 0;
+    let mut current = signature;
+    while let DemandSignature::Fun { ret, .. } = current {
+        arity += 1;
+        current = ret;
+    }
+    arity
 }
 
 fn effect_hole_count(effect: &DemandEffect) -> usize {
@@ -1249,6 +1315,116 @@ mod tests {
         };
         assert_eq!(callee_path, &path("id__ddmono0"));
         assert_eq!(callee.ty, rt_fun("int", "int"));
+    }
+
+    #[test]
+    fn emitter_does_not_use_full_specialization_for_partial_call() {
+        let f = path("f");
+        let root = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Var(f.clone()),
+                    RuntimeType::fun(
+                        RuntimeType::core(named("int")),
+                        RuntimeType::thunk(
+                            core_ir::Type::Never,
+                            RuntimeType::fun(
+                                RuntimeType::core(named("int")),
+                                RuntimeType::core(named("int")),
+                            ),
+                        ),
+                    ),
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                    RuntimeType::core(named("int")),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::thunk(
+                core_ir::Type::Never,
+                RuntimeType::fun(
+                    RuntimeType::core(named("int")),
+                    RuntimeType::core(named("int")),
+                ),
+            ),
+        );
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+        };
+        let spec = specialization(
+            &f,
+            "f__ddmono0",
+            fun(core("int"), fun(core("int"), core("int"))),
+        );
+
+        let rewrite =
+            DemandEmitter::rewrite_module_uses_with_specializations_report(module, &[spec])
+                .expect("rewritten module");
+        let ExprKind::Apply { callee, .. } = &rewrite.module.root_exprs[0].kind else {
+            panic!("expected apply");
+        };
+        let ExprKind::Var(callee_path) = &callee.kind else {
+            panic!("expected original callee");
+        };
+
+        assert_eq!(callee_path, &f);
+    }
+
+    #[test]
+    fn emitter_can_use_full_specialization_for_plain_partial_call() {
+        let f = path("f");
+        let root = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(Expr::typed(
+                    ExprKind::Var(f.clone()),
+                    RuntimeType::fun(
+                        RuntimeType::core(named("int")),
+                        RuntimeType::fun(
+                            RuntimeType::core(named("int")),
+                            RuntimeType::core(named("int")),
+                        ),
+                    ),
+                )),
+                arg: Box::new(Expr::typed(
+                    ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                    RuntimeType::core(named("int")),
+                )),
+                evidence: None,
+                instantiation: None,
+            },
+            RuntimeType::fun(
+                RuntimeType::core(named("int")),
+                RuntimeType::core(named("int")),
+            ),
+        );
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![root],
+            roots: vec![Root::Expr(0)],
+        };
+        let spec = specialization(
+            &f,
+            "f__ddmono0",
+            fun(core("int"), fun(core("int"), core("int"))),
+        );
+
+        let rewrite =
+            DemandEmitter::rewrite_module_uses_with_specializations_report(module, &[spec])
+                .expect("rewritten module");
+        let ExprKind::Apply { callee, .. } = &rewrite.module.root_exprs[0].kind else {
+            panic!("expected apply");
+        };
+        let ExprKind::Var(callee_path) = &callee.kind else {
+            panic!("expected original callee");
+        };
+
+        assert_eq!(callee_path, &path("f__ddmono0"));
     }
 
     #[test]

@@ -1412,3 +1412,48 @@ New risk noticed:
 - `showcase` now migrates more inference into monomorphize2, but the
   specialization count rose.  The follow-up should canonicalize equivalent
   thunked callback signatures before chasing more rules.
+
+### 2026-05-01: Range Fold demand specialization advanced
+
+- Existing `__ddmono` bindings are now seeded into the demand-specialization
+  cache.  Repeated demand rounds can reuse earlier closed specializations
+  instead of allocating equivalent aliases.
+- Demand checking now reads lambda bodies even when the expected shape is
+  `Thunk[..., Fun ...]`.  This matches demand emission, where such lambdas are
+  wrapped as runtime thunks.
+- Generic-call argument hints are closed through the same known-associated
+  signature rules used by the demand queue.  When a hint only fails because a
+  value-function view met a thunked runtime function shape, the checker rolls
+  back that tentative read and uses the actual argument shape.
+- `std::range::fold_from` and `std::range::fold_ints` now propagate callback
+  effects into their helper result types, so the range `Fold` implementation
+  can be specialized by monomorphize2 instead of immediately falling back to
+  old `rewrite-uses`.
+- Demand emission now substitutes explicit `Thunk` node effect/value metadata
+  from the expected demand shape.  This prevents emitted bodies from keeping
+  stale principal variables inside an otherwise monomorphic thunk.
+- Specialization lookup now requires matching arity, including self-recursive
+  current-specialization lookup.  A full specialization is no longer applied to
+  a partial call such as `fold_from f`.
+- Added `YULANG_DEBUG_MONO_DUMP_REJECTED` to dump demand-specialized bindings
+  when validation rejects a demand-specialize pass.
+
+Measured:
+
+- `examples/03_for_last.yu`: `std::flow::loop::for_in`,
+  `std::range::&impl#120::fold`, and `std::range::fold_from` now get closed
+  `__ddmono` specializations before old monomorphization runs.
+- `examples/05_undet_all.yu`: still runs after the stricter lookup/hint rules.
+- `examples/showcase.yu`: still runs after the stricter lookup/hint rules.
+
+New risk noticed:
+
+- `std::range::fold_ints` is still rejected in the demand checker when the
+  recursive branch expects an effectful thunk result and the base branch returns
+  the accumulator directly.  This looks like the next place where expression
+  effects from `case`/branch joins must be represented directly in
+  monomorphize2 instead of relying on old refinement.
+- Several `std::list::fold_impl` demands remain open because list element types
+  are still hole-like in helper paths.  The next useful migration step is to
+  close list helper item facts from the container argument as aggressively as
+  range helpers now do.

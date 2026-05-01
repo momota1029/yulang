@@ -36,9 +36,16 @@ pub fn demand_monomorphize_module(
             );
         }
     }
+    let fresh_specializations = engine_output
+        .fresh_specializations
+        .iter()
+        .filter(|specialization| specialization.solved.is_closed())
+        .cloned()
+        .collect::<Vec<_>>();
     let emitted = DemandEngineOutput {
         checked: engine_output.checked,
         specializations: specializations.clone(),
+        fresh_specializations,
     }
     .emit_bindings(&module)?;
     let rewrite =
@@ -103,7 +110,7 @@ impl<'a> DemandEngine<'a> {
         Self {
             checker: DemandChecker::from_module(module),
             queue: collector.into_queue(),
-            specializations: SpecializationTable::default(),
+            specializations: SpecializationTable::from_module(module),
             checked: Vec::new(),
         }
     }
@@ -130,9 +137,11 @@ impl<'a> DemandEngine<'a> {
             }
             self.checked.push(checked);
         }
+        let specializations = self.specializations.into_output();
         Ok(DemandEngineOutput {
             checked: self.checked,
-            specializations: self.specializations.into_specializations(),
+            specializations: specializations.known,
+            fresh_specializations: specializations.fresh,
         })
     }
 }
@@ -141,11 +150,12 @@ impl<'a> DemandEngine<'a> {
 pub struct DemandEngineOutput {
     pub checked: Vec<CheckedDemand>,
     pub specializations: Vec<DemandSpecialization>,
+    pub fresh_specializations: Vec<DemandSpecialization>,
 }
 
 impl DemandEngineOutput {
     pub fn emit_bindings(&self, module: &Module) -> Result<Vec<Binding>, DemandEmitError> {
-        DemandEmitter::from_module(module, &self.specializations).emit_all()
+        DemandEmitter::from_module(module, &self.fresh_specializations).emit_all()
     }
 }
 
