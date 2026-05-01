@@ -71,6 +71,7 @@ struct CliOptions {
     infer: bool,
     core_ir: bool,
     runtime_ir: bool,
+    hygiene_ir: bool,
     run_vm: bool,
     verbose_ir: bool,
     infer_phase_timings: bool,
@@ -96,6 +97,7 @@ fn parse_args() -> CliOptions {
     let mut infer = false;
     let mut core_ir = false;
     let mut runtime_ir = false;
+    let mut hygiene_ir = false;
     let mut run_vm = false;
     let mut verbose_ir = false;
     let mut infer_phase_timings = false;
@@ -120,6 +122,7 @@ fn parse_args() -> CliOptions {
             "--infer" => infer = true,
             "--core-ir" => core_ir = true,
             "--runtime-ir" => runtime_ir = true,
+            "--hygiene-ir" => hygiene_ir = true,
             "--run" => run_vm = true,
             "--verbose-ir" => verbose_ir = true,
             "--infer-phase-timings" => infer_phase_timings = true,
@@ -168,7 +171,14 @@ fn parse_args() -> CliOptions {
             }
         }
     }
-    if parse_mode.is_none() && !show_cst && !infer && !core_ir && !runtime_ir && !run_vm {
+    if parse_mode.is_none()
+        && !show_cst
+        && !infer
+        && !core_ir
+        && !runtime_ir
+        && !hygiene_ir
+        && !run_vm
+    {
         infer = true;
     }
     CliOptions {
@@ -177,6 +187,7 @@ fn parse_args() -> CliOptions {
         infer,
         core_ir,
         runtime_ir,
+        hygiene_ir,
         run_vm,
         verbose_ir,
         infer_phase_timings,
@@ -210,7 +221,7 @@ fn read_source(path: Option<&str>) -> String {
 
 fn print_usage() {
     eprintln!(
-        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--run] [--verbose-ir] [--infer-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
+        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--verbose-ir] [--infer-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
     );
     eprintln!("       (no path = read from stdin)");
     eprintln!("       --cst         also print the CST before types");
@@ -222,6 +233,7 @@ fn print_usage() {
     eprintln!("       --infer       print inferred principal types");
     eprintln!("       --core-ir     print principal core-ir exported from yulang-infer");
     eprintln!("       --runtime-ir  print strict typed runtime IR lowered from principal core-ir");
+    eprintln!("       --hygiene-ir  print runtime effect-id hygiene operations");
     eprintln!("       --run         execute the program and print results");
     eprintln!("       --verbose-ir  include detailed graph/evidence sections in IR dumps");
     eprintln!("       --infer-phase-timings  print coarse timing breakdown for the infer pipeline");
@@ -253,7 +265,12 @@ fn run(options: &CliOptions) {
             println!();
         }
 
-        if options.infer || options.core_ir || options.runtime_ir || options.run_vm {
+        if options.infer
+            || options.core_ir
+            || options.runtime_ir
+            || options.hygiene_ir
+            || options.run_vm
+        {
             run_infer_views(
                 options.path.as_deref(),
                 &root,
@@ -504,7 +521,7 @@ fn run_infer_views(
     };
 
     let infer_program = if surface_diagnostics.is_empty()
-        && (options.core_ir || options.runtime_ir || options.run_vm)
+        && (options.core_ir || options.runtime_ir || options.hygiene_ir || options.run_vm)
     {
         Some(export_core_program(&mut state))
     } else {
@@ -519,7 +536,7 @@ fn run_infer_views(
             print_infer_surface_diagnostic(diagnostic, &diagnostic_source);
         }
         if !surface_diagnostics.is_empty()
-            && (options.core_ir || options.runtime_ir || options.run_vm)
+            && (options.core_ir || options.runtime_ir || options.hygiene_ir || options.run_vm)
         {
             process::exit(1);
         }
@@ -555,8 +572,25 @@ fn run_infer_views(
                 };
             print_runtime_module(&module, options.verbose_ir);
         }
-        if options.run_vm {
+        if options.hygiene_ir {
             if options.infer || options.core_ir || options.runtime_ir {
+                println!();
+            }
+            println!("hygiene-ir:");
+            let module =
+                match runtime::lower_core_program(infer_program.clone().expect("core program"))
+                    .and_then(runtime::monomorphize_module)
+                {
+                    Ok(module) => module,
+                    Err(err) => {
+                        eprintln!("failed to lower runtime IR: {err}");
+                        process::exit(1);
+                    }
+                };
+            print!("{}", runtime::format_hygiene_module(&module));
+        }
+        if options.run_vm {
+            if options.infer || options.core_ir || options.runtime_ir || options.hygiene_ir {
                 println!();
             }
             let module =
@@ -2688,6 +2722,7 @@ mod tests {
             infer: true,
             core_ir: false,
             runtime_ir: false,
+            hygiene_ir: false,
             run_vm: false,
             verbose_ir: false,
             infer_phase_timings: false,

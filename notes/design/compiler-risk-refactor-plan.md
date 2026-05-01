@@ -583,3 +583,17 @@ New risk noticed:
 - This is currently a library helper, not a CLI flag.  It makes tests and
   debugging possible, but the next step should expose it through the CLI or
   runtime debug path so failing examples can print hygiene without ad hoc code.
+
+### 2026-05-01: Hygiene formatter exposed in CLI
+
+- Added `--hygiene-ir` to the `yulang` CLI.
+- The flag lowers and monomorphizes runtime IR, then prints the focused hygiene
+  view from `runtime::format_hygiene_module`.
+- Verified it on `examples/01_struct_with.yu`.
+
+New risk noticed:
+
+- The hygiene output currently includes generic structural lines such as
+  `apply` and `lambda`, which are useful for nesting but still noisy.  If this
+  becomes hard to read on real handler examples, add a compact mode that prints
+  only hygiene operations plus path breadcrumbs.
