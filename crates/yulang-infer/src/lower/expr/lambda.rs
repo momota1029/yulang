@@ -171,11 +171,16 @@ fn lower_single_arg_lambda(
         connect_pat_shape_and_locals(state, &pat, body.eff);
     }
     state.ctx.pop_local();
+    let ret_eff_tv = if matches!(body.kind, ExprKind::Lam(_, _)) {
+        state.fresh_exact_pure_eff_tv()
+    } else {
+        body.eff
+    };
     state.infer.constrain(
         state.pos_fun(
             Neg::Var(param_tv),
             Neg::Var(arg_eff_tv),
-            Pos::Var(body.eff),
+            Pos::Var(ret_eff_tv),
             Pos::Var(body.tv),
         ),
         Neg::Var(tv),

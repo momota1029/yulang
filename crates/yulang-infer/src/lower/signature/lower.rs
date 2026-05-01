@@ -601,10 +601,14 @@ fn lower_function_sig_ret_eff(
     if row.items.is_empty() {
         if let Some(tail) = &row.tail {
             let tv = sig_var(state, vars, tail);
+            let is_wildcard_tail = tail.name == "_";
+            if is_wildcard_tail {
+                state.infer.mark_through(tv);
+            }
             return (
                 state.infer.alloc_pos(Pos::Var(tv)),
                 state.infer.alloc_neg(Neg::Var(tv)),
-                false,
+                is_wildcard_tail,
             );
         }
         return (

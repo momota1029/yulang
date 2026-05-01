@@ -1,7 +1,7 @@
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
-use yulang_infer::{export_core_program, lower_source_set};
+use yulang_infer::{collect_surface_diagnostics, export_core_program, lower_source_set};
 use yulang_runtime as runtime;
 use yulang_source::{SourceOptions, collect_inline_source_files_with_options};
 
@@ -53,6 +53,14 @@ fn compile_and_run(source: &str) -> Result<(Vec<RunResult>, Vec<TypeResult>), St
         .into_iter()
         .map(|(name, ty)| TypeResult { name, ty })
         .collect();
+    let surface_diagnostics = collect_surface_diagnostics(&lowered.state);
+    if !surface_diagnostics.is_empty() {
+        return Err(surface_diagnostics
+            .into_iter()
+            .map(|diagnostic| diagnostic.message)
+            .collect::<Vec<_>>()
+            .join("\n"));
+    }
     let program = export_core_program(&mut lowered.state);
     let module = runtime::lower_core_program(program)
         .and_then(runtime::monomorphize_module)
@@ -173,6 +181,47 @@ g
                 assert!(message.contains("expected bool -> bool"), "{message}");
                 assert!(message.contains("got int -> int"), "{message}");
                 assert!(!message.contains("Named {"), "{message}");
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn reports_undefined_name_before_runtime_lowering() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner("x\n");
+                assert!(!output.ok);
+                let message = &output.diagnostics[0].message;
+                assert!(message.contains("undefined name `x`"), "{message}");
+                assert!(
+                    !message.contains("could not determine the type"),
+                    "{message}"
+                );
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn reports_unresolved_method_before_runtime_lowering() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner("1.foo\n");
+                assert!(!output.ok);
+                let message = &output.diagnostics[0].message;
+                assert!(
+                    message.contains("no field or method named `.foo` could be resolved"),
+                    "{message}"
+                );
+                assert!(
+                    !message.contains("could not determine the type"),
+                    "{message}"
+                );
             })
             .unwrap()
             .join()

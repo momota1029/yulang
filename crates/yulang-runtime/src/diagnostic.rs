@@ -99,7 +99,11 @@ This usually means a name, field, method, or operator could not be resolved."
                 write!(f, "expected a function, but got {}", display_type(ty))
             }
             RuntimeError::ExpectedThunk { ty } => {
-                write!(f, "expected an effectful computation, but got {}", display_type(ty))
+                write!(
+                    f,
+                    "expected an effectful computation, but got {}",
+                    display_type(ty)
+                )
             }
             RuntimeError::TypeMismatch {
                 expected,
@@ -211,7 +215,11 @@ fn display_type(ty: &core_ir::Type) -> String {
         }
         core_ir::Type::Tuple(items) => format!(
             "({})",
-            items.iter().map(display_type).collect::<Vec<_>>().join(", ")
+            items
+                .iter()
+                .map(display_type)
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
         core_ir::Type::Record(record) => {
             let mut parts = record
@@ -266,12 +274,16 @@ fn display_type(ty: &core_ir::Type) -> String {
             parts.push(format!("..{}", display_type(tail)));
             format!("[{}]", parts.join("; "))
         }
-        core_ir::Type::Union(items) => {
-            items.iter().map(display_type).collect::<Vec<_>>().join(" | ")
-        }
-        core_ir::Type::Inter(items) => {
-            items.iter().map(display_type).collect::<Vec<_>>().join(" & ")
-        }
+        core_ir::Type::Union(items) => items
+            .iter()
+            .map(display_type)
+            .collect::<Vec<_>>()
+            .join(" | "),
+        core_ir::Type::Inter(items) => items
+            .iter()
+            .map(display_type)
+            .collect::<Vec<_>>()
+            .join(" & "),
         core_ir::Type::Recursive { var, body } => {
             format!("rec {}. {}", var.0, display_type(body))
         }

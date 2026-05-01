@@ -3106,6 +3106,74 @@ fn default_fold_contains_uses_associated_item_type() {
     });
 }
 
+#[test]
+fn header_lambda_does_not_move_prior_argument_effect_to_next_argument() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "our hold(x: [_] _, y) = (x, y)\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+        assert_eq!(rendered_type(&rendered, "hold"), "α [γ] -> β -> [γ] (α, β)");
+    });
+}
+
+#[test]
+fn multi_argument_handler_subtracts_handled_effect_with_result_annotation() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "pub act out:\n  pub say: str -> ()\n\n\
+             our listen(x: [_] _, log: str): (_, str) = catch x:\n  out::say o, k -> listen(k (), log + o + \"\\n\")\n  v -> (v, log)\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+        assert_eq!(
+            rendered_type(&rendered, "listen"),
+            "α [out; β] -> std::str::str -> [β] (α, std::str::str)"
+        );
+    });
+}
+
+#[test]
+fn unannotated_second_header_arg_stays_value_arg_after_effectful_first_arg() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "pub act out:\n  pub say: str -> ()\n\n\
+             our listen(x: [_] _, log) = catch x:\n  out::say o, k -> listen(k (), log + o + \"\\n\")\n  v -> (v, log)\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+        assert_eq!(
+            rendered_type(&rendered, "listen"),
+            "Add<std::str::str | α> => α [out; δ] -> β -> [δ] γ | (α, β | std::str::str)"
+        );
+    });
+}
+
 fn temp_root(name: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)

@@ -56,24 +56,7 @@ impl<'a> ExprExporter<'a> {
             ExprKind::App(callee, arg) => core_ir::Expr::Apply {
                 callee: Box::new(self.export_expr(callee)),
                 arg: Box::new(self.export_expr(arg)),
-                evidence: Some(core_ir::ApplyEvidence {
-                    callee: export_relevant_type_bounds_for_tv(
-                        &self.state.infer,
-                        callee.tv,
-                        &self.relevant_vars,
-                    ),
-                    arg: export_relevant_type_bounds_for_tv(
-                        &self.state.infer,
-                        arg.tv,
-                        &self.relevant_vars,
-                    ),
-                    result: export_relevant_type_bounds_for_tv(
-                        &self.state.infer,
-                        expr.tv,
-                        &self.relevant_vars,
-                    ),
-                    role_method: self.is_role_method_callee(callee),
-                }),
+                evidence: Some(self.export_apply_evidence(callee, arg, expr)),
             },
             ExprKind::RefSet { reference, value } => self.export_ref_set(expr, reference, value),
             ExprKind::Lam(def, body) => {
@@ -309,6 +292,33 @@ impl<'a> ExprExporter<'a> {
                 value: self.export_expr(recv),
             }],
             tail: Some(Box::new(child_ref)),
+        }
+    }
+
+    fn export_apply_evidence(
+        &self,
+        callee: &TypedExpr,
+        arg: &TypedExpr,
+        result: &TypedExpr,
+    ) -> core_ir::ApplyEvidence {
+        let role_method = self.is_role_method_callee(callee);
+        core_ir::ApplyEvidence {
+            callee: if self.relevant_vars.is_empty() && !role_method {
+                core_ir::TypeBounds::default()
+            } else {
+                export_relevant_type_bounds_for_tv(
+                    &self.state.infer,
+                    callee.tv,
+                    &self.relevant_vars,
+                )
+            },
+            arg: export_relevant_type_bounds_for_tv(&self.state.infer, arg.tv, &self.relevant_vars),
+            result: export_relevant_type_bounds_for_tv(
+                &self.state.infer,
+                result.tv,
+                &self.relevant_vars,
+            ),
+            role_method,
         }
     }
 

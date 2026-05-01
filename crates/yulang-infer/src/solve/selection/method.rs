@@ -388,11 +388,15 @@ impl Infer {
         let call_eff = fresh_type_var();
         let level = self.level_of(selection.result_eff);
         self.register_level(call_eff, level);
+        let receiver_arg_eff = match receiver_style {
+            SelectedReceiverStyle::Value => pure_pos_row(self),
+            SelectedReceiverStyle::Computation => self.alloc_pos(Pos::Var(selection.recv_eff)),
+        };
         self.constrain_with_cause(
             self.alloc_pos(Pos::Var(method_tv)),
             self.alloc_neg(Neg::Fun {
                 arg: self.alloc_pos(Pos::Var(recv_tv)),
-                arg_eff: self.alloc_pos(Pos::Var(selection.recv_eff)),
+                arg_eff: receiver_arg_eff,
                 ret_eff: self.alloc_neg(Neg::Var(call_eff)),
                 ret: self.alloc_neg(Neg::Var(selection.result_tv)),
             }),

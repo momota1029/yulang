@@ -23,9 +23,10 @@ impl<'a> SigParser<'a> {
         self.skip_ws();
         let start = self.i;
         let lhs = self.parse_apply()?;
+        let ret_eff_before_arrow = self.parse_row_if_present();
         self.skip_ws();
         if self.consume_str("->") {
-            let ret_eff = self.parse_row_if_present();
+            let ret_eff = ret_eff_before_arrow.or_else(|| self.parse_row_if_present());
             let rhs = self.parse_type()?;
             let span = self.range(start, self.offset_of(rhs.span().end()));
             Some(SigType::Fun {
@@ -34,6 +35,8 @@ impl<'a> SigParser<'a> {
                 ret: Box::new(rhs),
                 span,
             })
+        } else if ret_eff_before_arrow.is_some() {
+            None
         } else {
             Some(lhs)
         }

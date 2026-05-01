@@ -7,11 +7,42 @@ use crate::types::{Neg, Pos};
 
 pub(crate) fn direct_param_source_eff_tv(body: &TypedExpr, param_def: DefId) -> Option<TypeVar> {
     match &body.kind {
+        ExprKind::Lit(_) | ExprKind::PrimitiveOp(_) | ExprKind::Ref(_) => None,
         ExprKind::Coerce { expr, .. } => direct_param_source_eff_tv(expr, param_def),
+        ExprKind::Tuple(items) => items
+            .iter()
+            .find_map(|item| direct_param_source_eff_tv(item, param_def)),
+        ExprKind::Record { fields, spread } => fields
+            .iter()
+            .find_map(|(_, field)| direct_param_source_eff_tv(field, param_def))
+            .or_else(|| {
+                spread.as_ref().and_then(|spread| match spread {
+                    RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+                        direct_param_source_eff_tv(expr, param_def)
+                    }
+                })
+            }),
+        ExprKind::PolyVariant(_, items) => items
+            .iter()
+            .find_map(|item| direct_param_source_eff_tv(item, param_def)),
         ExprKind::Block(block) => block
-            .tail
-            .as_deref()
-            .and_then(|tail| direct_param_source_eff_tv(tail, param_def)),
+            .stmts
+            .iter()
+            .find_map(|stmt| match stmt {
+                TypedStmt::Let(_, expr) | TypedStmt::Expr(expr) => {
+                    direct_param_source_eff_tv(expr, param_def)
+                }
+                TypedStmt::Module(_, block) => block
+                    .tail
+                    .as_deref()
+                    .and_then(|tail| direct_param_source_eff_tv(tail, param_def)),
+            })
+            .or_else(|| {
+                block
+                    .tail
+                    .as_deref()
+                    .and_then(|tail| direct_param_source_eff_tv(tail, param_def))
+            }),
         ExprKind::Match(scrutinee, arms) => direct_param_source_eff_tv(scrutinee, param_def)
             .or_else(|| {
                 arms.iter().find_map(|arm| {
@@ -23,6 +54,7 @@ pub(crate) fn direct_param_source_eff_tv(body: &TypedExpr, param_def: DefId) -> 
             }),
         ExprKind::App(callee, arg) => match &arg.kind {
             ExprKind::Var(def) if *def == param_def => Some(arg.eff),
+            _ if matches!(&callee.kind, ExprKind::Var(def) if *def == param_def) => Some(body.eff),
             _ => direct_param_source_eff_tv(callee, param_def)
                 .or_else(|| direct_param_source_eff_tv(arg, param_def)),
         },
@@ -30,11 +62,29 @@ pub(crate) fn direct_param_source_eff_tv(body: &TypedExpr, param_def: DefId) -> 
             ExprKind::Var(def) if *def == param_def => Some(recv.eff),
             _ => direct_param_source_eff_tv(recv, param_def),
         },
-        ExprKind::Var(def) if *def == param_def => Some(body.eff),
+        ExprKind::RefSet { reference, value } => direct_param_source_eff_tv(reference, param_def)
+            .or_else(|| direct_param_source_eff_tv(value, param_def)),
         ExprKind::Catch(comp, _) if matches!(&comp.kind, ExprKind::Var(def) if *def == param_def) => {
             Some(comp.eff)
         }
-        _ => None,
+        ExprKind::Catch(comp, arms) => direct_param_source_eff_tv(comp, param_def).or_else(|| {
+            arms.iter().find_map(|arm| {
+                arm.guard
+                    .as_ref()
+                    .and_then(|guard| direct_param_source_eff_tv(guard, param_def))
+                    .or_else(|| match &arm.kind {
+                        CatchArmKind::Value(_, body) | CatchArmKind::Effect { body, .. } => {
+                            direct_param_source_eff_tv(body, param_def)
+                        }
+                    })
+            })
+        }),
+        ExprKind::Lam(def, body) if *def != param_def => {
+            direct_param_source_eff_tv(body, param_def)
+        }
+        ExprKind::Lam(_, _) | ExprKind::PackForall(_, _) => None,
+        ExprKind::Var(def) if *def == param_def => Some(body.eff),
+        ExprKind::Var(_) => None,
     }
 }
 

@@ -40,7 +40,7 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
             Neg::Var(fun_tv),
         );
         ret_tv = fun_tv;
-        ret_eff = state.fresh_tv();
+        ret_eff = state.fresh_exact_pure_eff_tv();
     }
 
     state.infer.constrain(Pos::Var(owner_tv), Neg::Var(ret_tv));

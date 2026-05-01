@@ -40,9 +40,12 @@ pub(crate) fn make_app_with_cause(
         state.infer.add_non_generic_var(owner, call_eff);
         state.infer.add_non_generic_var(owner, eff);
     }
+    let pure_argument_slot = func_accepts_pure_argument(state, &func)
+        || matches!(func.kind, ExprKind::Select { .. })
+        || selected_value_method_accepts_pure_next_arg(state, &func);
     let anf_arg = matches!(passing_style, ArgumentPassingStyle::Value)
         && matches!(arg.kind, ExprKind::App(_, _));
-    let arg_eff_for_slot = if anf_arg {
+    let arg_eff_for_slot = if pure_argument_slot || anf_arg {
         state.fresh_exact_pure_eff_tv()
     } else {
         arg.eff
@@ -94,12 +97,12 @@ pub(crate) fn make_app_with_cause(
         ),
         cause,
     );
-    if func_accepts_pure_argument(state, &func) {
+    if pure_argument_slot {
         state.infer.constrain(Pos::Var(arg.eff), Neg::Var(call_eff));
     }
     state.infer.constrain(Pos::Var(func.eff), Neg::Var(eff));
     state.infer.constrain(Pos::Var(call_eff), Neg::Var(eff));
-    if anf_arg {
+    if pure_argument_slot || anf_arg {
         state.infer.constrain(Pos::Var(arg.eff), Neg::Var(eff));
     }
     if matches!(&func.kind, ExprKind::Var(def) if state.is_continuation_def(*def)) {
@@ -256,6 +259,43 @@ fn func_accepts_pure_argument(state: &LowerState, func: &TypedExpr) -> bool {
         .lowers_of(func.tv)
         .into_iter()
         .any(|lower| lower_has_pure_fun_arg(state, &lower, &mut seen))
+}
+
+fn selected_value_method_accepts_pure_next_arg(state: &LowerState, func: &TypedExpr) -> bool {
+    let ExprKind::Select { recv, name } = &func.kind else {
+        return false;
+    };
+    let Some(def) = state.infer.resolve_selection_def(recv.tv, name) else {
+        return false;
+    };
+    let Some(mut body) = state.principal_bodies.get(&def) else {
+        return false;
+    };
+    for _ in 0..2 {
+        match &body.kind {
+            ExprKind::Coerce { expr, .. } | ExprKind::PackForall(_, expr) => {
+                body = expr;
+            }
+            _ => break,
+        }
+    }
+    let ExprKind::Lam(_, recv_body) = &body.kind else {
+        return false;
+    };
+    let mut body = recv_body.as_ref();
+    loop {
+        match &body.kind {
+            ExprKind::Coerce { expr, .. } | ExprKind::PackForall(_, expr) => {
+                body = expr;
+            }
+            ExprKind::Lam(param_def, _) => {
+                return !state
+                    .lambda_param_effect_annotations
+                    .contains_key(param_def);
+            }
+            _ => return false,
+        }
+    }
 }
 
 fn def_expects_computation_argument(state: &LowerState, def: crate::ids::DefId) -> bool {

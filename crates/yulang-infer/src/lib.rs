@@ -11,6 +11,7 @@ pub mod scheme;
 pub mod simplify;
 pub mod solve;
 pub mod source;
+pub mod surface_diagnostic;
 pub mod symbols;
 pub mod types;
 
@@ -45,6 +46,7 @@ pub use source::{
     lower_source_set, lower_source_set_profiled, lower_virtual_source_with_options,
     lower_virtual_source_with_options_profiled,
 };
+pub use surface_diagnostic::{SurfaceDiagnostic, collect_surface_diagnostics};
 pub use symbols::{
     ModuleId, ModuleNode, ModuleTable, Name, Namespace, OperatorFixity, Path, Reexport, Visibility,
 };

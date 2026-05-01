@@ -12,6 +12,17 @@ pub(crate) fn wrap_header_lambdas(
     arg_pats: Vec<ArgPatInfo>,
 ) -> TypedExpr {
     let start = Instant::now();
+    let header_local_defs = arg_pats
+        .iter()
+        .flat_map(|arg_pat| {
+            std::iter::once(arg_pat.def).chain(
+                arg_pat
+                    .local_bindings
+                    .iter()
+                    .map(|(_, local_def)| *local_def),
+            )
+        })
+        .collect::<Vec<_>>();
     let result = arg_pats.into_iter().rev().fold(raw_body, |body, arg_pat| {
         let def = arg_pat.def;
         let param_tv = arg_pat.tv;
@@ -64,11 +75,16 @@ pub(crate) fn wrap_header_lambdas(
                 .infer
                 .constrain(Pos::Var(arg_eff_tv), Neg::Var(source_eff));
         }
+        let ret_eff_tv = if matches!(body.kind, ExprKind::Lam(_, _)) {
+            state.fresh_exact_pure_eff_tv()
+        } else {
+            body.eff
+        };
         state.infer.constrain(
             state.pos_fun(
                 Neg::Var(param_tv),
                 Neg::Var(arg_eff_tv),
-                Pos::Var(body.eff),
+                Pos::Var(ret_eff_tv),
                 Pos::Var(body.tv),
             ),
             Neg::Var(tv),
@@ -80,6 +96,7 @@ pub(crate) fn wrap_header_lambdas(
                 .iter()
                 .map(|(_, local_def)| *local_def),
         );
+        local_defs.extend(header_local_defs.iter().copied());
         let eff = lambda_expr_eff_tv(state, &body, &local_defs);
         TypedExpr {
             tv,

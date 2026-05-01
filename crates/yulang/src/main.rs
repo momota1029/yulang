@@ -20,9 +20,10 @@ use yulang_infer::ids::{NegId as InferNegId, PosId as InferPosId};
 use yulang_infer::{
     ExpectedShape as InferExpectedShape, FinalizeCompactProfile as InferFinalizeCompactProfile,
     LowerState as InferLowerState, Neg as InferNeg, Path as InferPath, Pos as InferPos,
-    SourceLowerProfile as InferSourceLowerProfile, SourceOptions, TypeError as InferTypeError,
+    SourceLowerProfile as InferSourceLowerProfile, SourceOptions,
+    SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
     TypeErrorKind as InferTypeErrorKind, collect_compact_results as collect_infer_compact_results,
-    export_core_program,
+    collect_surface_diagnostics as collect_infer_surface_diagnostics, export_core_program,
     lower_entry_with_options_profiled as lower_infer_entry_with_options_profiled,
     lower_virtual_source_with_options_profiled as lower_infer_virtual_source_with_options_profiled,
 };
@@ -472,6 +473,7 @@ fn run_infer_views(
 
     let error_start = Instant::now();
     let errors = state.infer.type_errors();
+    let surface_diagnostics = collect_infer_surface_diagnostics(&state);
     let error_duration = error_start.elapsed();
 
     let (rendered, render_duration, binding_names, quantified_counts) = if options.infer {
@@ -501,7 +503,9 @@ fn run_infer_views(
         (None, Duration::ZERO, None, None)
     };
 
-    let infer_program = if options.core_ir || options.runtime_ir || options.run_vm {
+    let infer_program = if surface_diagnostics.is_empty()
+        && (options.core_ir || options.runtime_ir || options.run_vm)
+    {
         Some(export_core_program(&mut state))
     } else {
         None
@@ -510,6 +514,14 @@ fn run_infer_views(
     if emit_output {
         for error in errors {
             print_infer_type_error(&state, &error, &diagnostic_source);
+        }
+        for diagnostic in &surface_diagnostics {
+            print_infer_surface_diagnostic(diagnostic, &diagnostic_source);
+        }
+        if !surface_diagnostics.is_empty()
+            && (options.core_ir || options.runtime_ir || options.run_vm)
+        {
+            process::exit(1);
         }
         if let Some(rendered) = rendered {
             for (name, scheme) in rendered {
@@ -975,6 +987,16 @@ fn print_infer_type_error(state: &InferLowerState, error: &InferTypeError, sourc
                 }
             }
         }
+    }
+}
+
+fn print_infer_surface_diagnostic(diagnostic: &InferSurfaceDiagnostic, source: &str) {
+    eprintln!("error: {}", diagnostic.message);
+    if let Some(span) = diagnostic.span {
+        let (line, col) = line_col(source, u32::from(span.start()) as usize);
+        eprintln!("  at {line}:{col}");
+    } else {
+        eprintln!("  at <unknown>");
     }
 }
 

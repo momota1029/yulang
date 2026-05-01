@@ -1,0 +1,15 @@
+pub act out:
+    pub say: str -> ()
+
+our add_and_say() =
+    my a = 1 + 2
+    out::say a.show
+    my b = a + 3
+    out::say b.show
+    a + b
+
+our listen(x: [_] _, log: str): (_, str) = catch x:
+    out::say o, k -> listen(k (), log + o + "\n")
+    v -> (v, log)
+
+listen add_and_say() ""

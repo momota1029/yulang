@@ -44,7 +44,7 @@ pub fn compact_scheme_to_type(scheme: &CompactTypeScheme) -> Type {
     if let Some(fun) = coalesce_root_fun(&mut ctx, &root, true) {
         return simplify_root_type(fun);
     }
-    simplify_type(ctx.coalesce_type(&root.lower, true))
+    simplify_root_type(ctx.coalesce_type(&root.lower, true))
 }
 
 pub fn compact_side_to_type(
@@ -497,7 +497,515 @@ fn simplify_type(ty: Type) -> Type {
 
 fn simplify_root_type(ty: Type) -> Type {
     let ty = simplify_type(ty);
+    let generated_local_effect_vars = generated_local_effect_tail_vars(&ty);
+    let ty = strip_generated_local_effects_from_fun_effects(ty, &generated_local_effect_vars);
+    let ty = simplify_type(ty);
     normalize_root_curried_fun_effect_chain(ty)
+}
+
+fn generated_local_effect_tail_vars(ty: &Type) -> HashSet<TypeVar> {
+    let mut vars = HashSet::new();
+    collect_generated_local_effect_tail_vars(ty, &mut vars);
+    vars
+}
+
+fn collect_generated_local_effect_tail_vars(ty: &Type, out: &mut HashSet<TypeVar>) {
+    match ty {
+        Type::Con(path, args) if is_generated_local_effect_path(path) => {
+            for arg in args {
+                collect_compact_bounds_vars(arg, out);
+            }
+        }
+        Type::Con(_, args) => {
+            for arg in args {
+                collect_compact_bounds_generated_local_effect_tail_vars(arg, out);
+            }
+        }
+        Type::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_generated_local_effect_tail_vars(arg, out);
+            collect_generated_local_effect_tail_vars(arg_eff, out);
+            collect_generated_local_effect_tail_vars(ret_eff, out);
+            collect_generated_local_effect_tail_vars(ret, out);
+        }
+        Type::Record(fields) => {
+            for field in fields {
+                collect_generated_local_effect_tail_vars(&field.value, out);
+            }
+        }
+        Type::RecordTailSpread { fields, tail } | Type::RecordHeadSpread { fields, tail } => {
+            for field in fields {
+                collect_generated_local_effect_tail_vars(&field.value, out);
+            }
+            collect_generated_local_effect_tail_vars(tail, out);
+        }
+        Type::Variant(cases) => {
+            for (_, payloads) in cases {
+                for payload in payloads {
+                    collect_generated_local_effect_tail_vars(payload, out);
+                }
+            }
+        }
+        Type::Tuple(items) => {
+            for item in items {
+                collect_generated_local_effect_tail_vars(item, out);
+            }
+        }
+        Type::Union(items) | Type::Inter(items) => {
+            let has_generated_local = items.iter().any(type_contains_generated_local_effect);
+            for item in items {
+                collect_generated_local_effect_tail_vars(item, out);
+            }
+            if has_generated_local {
+                for item in items {
+                    collect_type_vars(item, out);
+                }
+            }
+        }
+        Type::Row(items, tail) => {
+            let has_generated_local = items.iter().any(type_contains_generated_local_effect);
+            for item in items {
+                collect_generated_local_effect_tail_vars(item, out);
+            }
+            collect_generated_local_effect_tail_vars(tail, out);
+            if has_generated_local {
+                for item in items {
+                    collect_type_vars(item, out);
+                }
+                collect_type_vars(tail, out);
+            }
+        }
+        Type::Rec(_, body) => collect_generated_local_effect_tail_vars(body, out),
+        Type::Var(_) | Type::Prim(_) | Type::Bot | Type::Top => {}
+    }
+}
+
+fn collect_compact_bounds_generated_local_effect_tail_vars(
+    bounds: &CompactBounds,
+    out: &mut HashSet<TypeVar>,
+) {
+    collect_compact_type_generated_local_effect_tail_vars(&bounds.lower, out);
+    collect_compact_type_generated_local_effect_tail_vars(&bounds.upper, out);
+}
+
+fn collect_compact_type_generated_local_effect_tail_vars(
+    ty: &CompactType,
+    out: &mut HashSet<TypeVar>,
+) {
+    for con in &ty.cons {
+        if is_generated_local_effect_path(&con.path) {
+            for arg in &con.args {
+                collect_compact_bounds_vars(arg, out);
+            }
+        } else {
+            for arg in &con.args {
+                collect_compact_bounds_generated_local_effect_tail_vars(arg, out);
+            }
+        }
+    }
+    for fun in &ty.funs {
+        collect_compact_type_generated_local_effect_tail_vars(&fun.arg, out);
+        collect_compact_type_generated_local_effect_tail_vars(&fun.arg_eff, out);
+        collect_compact_type_generated_local_effect_tail_vars(&fun.ret_eff, out);
+        collect_compact_type_generated_local_effect_tail_vars(&fun.ret, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_compact_type_generated_local_effect_tail_vars(&field.value, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_compact_type_generated_local_effect_tail_vars(&field.value, out);
+        }
+        collect_compact_type_generated_local_effect_tail_vars(&spread.tail, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_compact_type_generated_local_effect_tail_vars(payload, out);
+            }
+        }
+    }
+    for items in &ty.tuples {
+        for item in items {
+            collect_compact_type_generated_local_effect_tail_vars(item, out);
+        }
+    }
+    for row in &ty.rows {
+        let has_generated_local = row
+            .items
+            .iter()
+            .any(compact_type_contains_generated_local_effect);
+        for item in &row.items {
+            collect_compact_type_generated_local_effect_tail_vars(item, out);
+        }
+        collect_compact_type_generated_local_effect_tail_vars(&row.tail, out);
+        if has_generated_local {
+            for item in &row.items {
+                collect_compact_type_vars(item, out);
+            }
+            collect_compact_type_vars(&row.tail, out);
+        }
+    }
+}
+
+fn collect_type_vars(ty: &Type, out: &mut HashSet<TypeVar>) {
+    match ty {
+        Type::Var(var) => {
+            out.insert(*var);
+        }
+        Type::Con(_, args) => {
+            for arg in args {
+                collect_compact_bounds_vars(arg, out);
+            }
+        }
+        Type::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            collect_type_vars(arg, out);
+            collect_type_vars(arg_eff, out);
+            collect_type_vars(ret_eff, out);
+            collect_type_vars(ret, out);
+        }
+        Type::Record(fields) => {
+            for field in fields {
+                collect_type_vars(&field.value, out);
+            }
+        }
+        Type::RecordTailSpread { fields, tail } | Type::RecordHeadSpread { fields, tail } => {
+            for field in fields {
+                collect_type_vars(&field.value, out);
+            }
+            collect_type_vars(tail, out);
+        }
+        Type::Variant(cases) => {
+            for (_, payloads) in cases {
+                for payload in payloads {
+                    collect_type_vars(payload, out);
+                }
+            }
+        }
+        Type::Tuple(items) | Type::Union(items) | Type::Inter(items) => {
+            for item in items {
+                collect_type_vars(item, out);
+            }
+        }
+        Type::Row(items, tail) => {
+            for item in items {
+                collect_type_vars(item, out);
+            }
+            collect_type_vars(tail, out);
+        }
+        Type::Rec(var, body) => {
+            out.insert(*var);
+            collect_type_vars(body, out);
+        }
+        Type::Prim(_) | Type::Bot | Type::Top => {}
+    }
+}
+
+fn collect_compact_bounds_vars(bounds: &CompactBounds, out: &mut HashSet<TypeVar>) {
+    collect_compact_type_vars(&bounds.lower, out);
+    collect_compact_type_vars(&bounds.upper, out);
+}
+
+fn collect_compact_type_vars(ty: &CompactType, out: &mut HashSet<TypeVar>) {
+    out.extend(ty.vars.iter().copied());
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_compact_bounds_vars(arg, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_compact_type_vars(&fun.arg, out);
+        collect_compact_type_vars(&fun.arg_eff, out);
+        collect_compact_type_vars(&fun.ret_eff, out);
+        collect_compact_type_vars(&fun.ret, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_compact_type_vars(&field.value, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_compact_type_vars(&field.value, out);
+        }
+        collect_compact_type_vars(&spread.tail, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_compact_type_vars(payload, out);
+            }
+        }
+    }
+    for items in &ty.tuples {
+        for item in items {
+            collect_compact_type_vars(item, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_compact_type_vars(item, out);
+        }
+        collect_compact_type_vars(&row.tail, out);
+    }
+}
+
+fn strip_generated_local_effects_from_fun_effects(ty: Type, tainted: &HashSet<TypeVar>) -> Type {
+    match ty {
+        Type::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => Type::Fun {
+            arg: Box::new(strip_generated_local_effects_from_fun_effects(
+                *arg, tainted,
+            )),
+            arg_eff: Box::new(strip_generated_local_effect_type(*arg_eff, tainted)),
+            ret_eff: Box::new(strip_generated_local_effect_type(*ret_eff, tainted)),
+            ret: Box::new(strip_generated_local_effects_from_fun_effects(
+                *ret, tainted,
+            )),
+        },
+        Type::Record(fields) => Type::Record(
+            fields
+                .into_iter()
+                .map(|field| RecordField {
+                    name: field.name,
+                    value: strip_generated_local_effects_from_fun_effects(field.value, tainted),
+                    optional: field.optional,
+                })
+                .collect(),
+        ),
+        Type::RecordTailSpread { fields, tail } => Type::RecordTailSpread {
+            fields: fields
+                .into_iter()
+                .map(|field| RecordField {
+                    name: field.name,
+                    value: strip_generated_local_effects_from_fun_effects(field.value, tainted),
+                    optional: field.optional,
+                })
+                .collect(),
+            tail: Box::new(strip_generated_local_effects_from_fun_effects(
+                *tail, tainted,
+            )),
+        },
+        Type::RecordHeadSpread { tail, fields } => Type::RecordHeadSpread {
+            tail: Box::new(strip_generated_local_effects_from_fun_effects(
+                *tail, tainted,
+            )),
+            fields: fields
+                .into_iter()
+                .map(|field| RecordField {
+                    name: field.name,
+                    value: strip_generated_local_effects_from_fun_effects(field.value, tainted),
+                    optional: field.optional,
+                })
+                .collect(),
+        },
+        Type::Variant(cases) => Type::Variant(
+            cases
+                .into_iter()
+                .map(|(name, payloads)| {
+                    (
+                        name,
+                        payloads
+                            .into_iter()
+                            .map(|payload| {
+                                strip_generated_local_effects_from_fun_effects(payload, tainted)
+                            })
+                            .collect(),
+                    )
+                })
+                .collect(),
+        ),
+        Type::Tuple(items) => Type::Tuple(
+            items
+                .into_iter()
+                .map(|item| strip_generated_local_effects_from_fun_effects(item, tainted))
+                .collect(),
+        ),
+        Type::Union(items) => Type::Union(
+            items
+                .into_iter()
+                .map(|item| strip_generated_local_effects_from_fun_effects(item, tainted))
+                .collect(),
+        ),
+        Type::Inter(items) => Type::Inter(
+            items
+                .into_iter()
+                .map(|item| strip_generated_local_effects_from_fun_effects(item, tainted))
+                .collect(),
+        ),
+        Type::Row(items, tail) => Type::Row(
+            items
+                .into_iter()
+                .map(|item| strip_generated_local_effects_from_fun_effects(item, tainted))
+                .collect(),
+            Box::new(strip_generated_local_effects_from_fun_effects(
+                *tail, tainted,
+            )),
+        ),
+        Type::Rec(var, body) => Type::Rec(
+            var,
+            Box::new(strip_generated_local_effects_from_fun_effects(
+                *body, tainted,
+            )),
+        ),
+        other => other,
+    }
+}
+
+fn strip_generated_local_effect_type(ty: Type, tainted: &HashSet<TypeVar>) -> Type {
+    match ty {
+        Type::Var(var) if tainted.contains(&var) => Type::Bot,
+        Type::Con(path, _) if is_generated_local_effect_path(&path) => Type::Bot,
+        Type::Row(items, tail) => {
+            let items = items
+                .into_iter()
+                .map(|item| strip_generated_local_effect_type(item, tainted))
+                .filter(|item| !is_empty_effect_placeholder(item))
+                .collect();
+            let tail = strip_generated_local_effect_type(*tail, tainted);
+            Type::Row(items, Box::new(tail))
+        }
+        Type::Union(items) => Type::Union(
+            items
+                .into_iter()
+                .map(|item| strip_generated_local_effect_type(item, tainted))
+                .filter(|item| !is_empty_effect_placeholder(item))
+                .collect(),
+        ),
+        Type::Inter(items) => Type::Inter(
+            items
+                .into_iter()
+                .map(|item| strip_generated_local_effect_type(item, tainted))
+                .filter(|item| !is_empty_effect_placeholder(item))
+                .collect(),
+        ),
+        Type::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => Type::Fun {
+            arg: Box::new(strip_generated_local_effects_from_fun_effects(
+                *arg, tainted,
+            )),
+            arg_eff: Box::new(strip_generated_local_effect_type(*arg_eff, tainted)),
+            ret_eff: Box::new(strip_generated_local_effect_type(*ret_eff, tainted)),
+            ret: Box::new(strip_generated_local_effects_from_fun_effects(
+                *ret, tainted,
+            )),
+        },
+        other => strip_generated_local_effects_from_fun_effects(other, tainted),
+    }
+}
+
+fn type_contains_generated_local_effect(ty: &Type) -> bool {
+    match ty {
+        Type::Con(path, args) => {
+            is_generated_local_effect_path(path)
+                || args
+                    .iter()
+                    .any(compact_bounds_contains_generated_local_effect)
+        }
+        Type::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            type_contains_generated_local_effect(arg)
+                || type_contains_generated_local_effect(arg_eff)
+                || type_contains_generated_local_effect(ret_eff)
+                || type_contains_generated_local_effect(ret)
+        }
+        Type::Record(fields) => fields
+            .iter()
+            .any(|field| type_contains_generated_local_effect(&field.value)),
+        Type::RecordTailSpread { fields, tail } | Type::RecordHeadSpread { fields, tail } => {
+            fields
+                .iter()
+                .any(|field| type_contains_generated_local_effect(&field.value))
+                || type_contains_generated_local_effect(tail)
+        }
+        Type::Variant(cases) => cases
+            .iter()
+            .any(|(_, payloads)| payloads.iter().any(type_contains_generated_local_effect)),
+        Type::Tuple(items) | Type::Union(items) | Type::Inter(items) => {
+            items.iter().any(type_contains_generated_local_effect)
+        }
+        Type::Row(items, tail) => {
+            items.iter().any(type_contains_generated_local_effect)
+                || type_contains_generated_local_effect(tail)
+        }
+        Type::Rec(_, body) => type_contains_generated_local_effect(body),
+        Type::Var(_) | Type::Prim(_) | Type::Bot | Type::Top => false,
+    }
+}
+
+fn compact_bounds_contains_generated_local_effect(bounds: &CompactBounds) -> bool {
+    compact_type_contains_generated_local_effect(&bounds.lower)
+        || compact_type_contains_generated_local_effect(&bounds.upper)
+}
+
+fn compact_type_contains_generated_local_effect(ty: &CompactType) -> bool {
+    ty.cons.iter().any(|con| {
+        is_generated_local_effect_path(&con.path)
+            || con
+                .args
+                .iter()
+                .any(compact_bounds_contains_generated_local_effect)
+    }) || ty.funs.iter().any(|fun| {
+        compact_type_contains_generated_local_effect(&fun.arg)
+            || compact_type_contains_generated_local_effect(&fun.arg_eff)
+            || compact_type_contains_generated_local_effect(&fun.ret_eff)
+            || compact_type_contains_generated_local_effect(&fun.ret)
+    }) || ty.records.iter().any(|record| {
+        record
+            .fields
+            .iter()
+            .any(|field| compact_type_contains_generated_local_effect(&field.value))
+    }) || ty.record_spreads.iter().any(|spread| {
+        spread
+            .fields
+            .iter()
+            .any(|field| compact_type_contains_generated_local_effect(&field.value))
+            || compact_type_contains_generated_local_effect(&spread.tail)
+    }) || ty.variants.iter().any(|variant| {
+        variant.items.iter().any(|(_, payloads)| {
+            payloads
+                .iter()
+                .any(compact_type_contains_generated_local_effect)
+        })
+    }) || ty.tuples.iter().any(|items| {
+        items
+            .iter()
+            .any(compact_type_contains_generated_local_effect)
+    }) || ty.rows.iter().any(|row| {
+        row.items
+            .iter()
+            .any(compact_type_contains_generated_local_effect)
+            || compact_type_contains_generated_local_effect(&row.tail)
+    })
+}
+
+fn is_generated_local_effect_path(path: &Path) -> bool {
+    path.segments
+        .first()
+        .is_some_and(|segment| segment.0.starts_with('&'))
 }
 
 fn normalize_root_curried_fun_effect_chain(ty: Type) -> Type {
@@ -506,7 +1014,7 @@ fn normalize_root_curried_fun_effect_chain(ty: Type) -> Type {
     };
 
     clear_prefix_latent_effects_before_effectful_arg(&mut chain);
-
+    clear_unshared_intermediate_ret_effect_vars(&mut chain, &tail);
     let latent = common_non_empty_root_ret_effect(&chain);
     if let Some(effect) = latent {
         let last = chain.len().saturating_sub(1);
@@ -520,6 +1028,140 @@ fn normalize_root_curried_fun_effect_chain(ty: Type) -> Type {
     }
 
     rebuild_root_fun_chain(chain, tail)
+}
+
+fn clear_unshared_intermediate_ret_effect_vars(chain: &mut [RootFunLink], tail: &Type) {
+    if chain.len() < 2 {
+        return;
+    }
+    for idx in 0..chain.len() - 1 {
+        let Some(var) = bare_or_empty_row_tail_var(&chain[idx].2) else {
+            continue;
+        };
+        if root_fun_var_is_used_outside_ret_eff(var, chain, tail, idx) {
+            continue;
+        }
+        chain[idx].2 = Box::new(empty_fun_effect_placeholder());
+    }
+}
+
+fn bare_or_empty_row_tail_var(ty: &Type) -> Option<TypeVar> {
+    match ty {
+        Type::Var(var) => Some(*var),
+        Type::Row(items, tail) if items.is_empty() => match tail.as_ref() {
+            Type::Var(var) => Some(*var),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn root_fun_var_is_used_outside_ret_eff(
+    var: TypeVar,
+    chain: &[RootFunLink],
+    tail: &Type,
+    ret_eff_idx: usize,
+) -> bool {
+    for (idx, (arg, arg_eff, ret_eff)) in chain.iter().enumerate() {
+        if type_contains_var(arg, var) || type_contains_var(arg_eff, var) {
+            return true;
+        }
+        if idx != ret_eff_idx && type_contains_var(ret_eff, var) {
+            return true;
+        }
+    }
+    type_contains_var(tail, var)
+}
+
+fn type_contains_var(ty: &Type, var: TypeVar) -> bool {
+    match ty {
+        Type::Var(tv) => *tv == var,
+        Type::Con(_, args) => args.iter().any(|arg| compact_bounds_contains_var(arg, var)),
+        Type::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        } => {
+            type_contains_var(arg, var)
+                || type_contains_var(arg_eff, var)
+                || type_contains_var(ret_eff, var)
+                || type_contains_var(ret, var)
+        }
+        Type::Record(fields) => fields
+            .iter()
+            .any(|field| type_contains_var(&field.value, var)),
+        Type::RecordTailSpread { fields, tail } | Type::RecordHeadSpread { tail, fields } => {
+            fields
+                .iter()
+                .any(|field| type_contains_var(&field.value, var))
+                || type_contains_var(tail, var)
+        }
+        Type::Variant(cases) => cases.iter().any(|(_, payloads)| {
+            payloads
+                .iter()
+                .any(|payload| type_contains_var(payload, var))
+        }),
+        Type::Tuple(items) | Type::Union(items) | Type::Inter(items) => {
+            items.iter().any(|item| type_contains_var(item, var))
+        }
+        Type::Row(items, tail) => {
+            items.iter().any(|item| type_contains_var(item, var)) || type_contains_var(tail, var)
+        }
+        Type::Rec(tv, body) => *tv == var || type_contains_var(body, var),
+        Type::Prim(_) | Type::Bot | Type::Top => false,
+    }
+}
+
+fn compact_bounds_contains_var(bounds: &CompactBounds, var: TypeVar) -> bool {
+    compact_type_contains_var_for_render(&bounds.lower, var)
+        || compact_type_contains_var_for_render(&bounds.upper, var)
+}
+
+fn compact_type_contains_var_for_render(ty: &CompactType, var: TypeVar) -> bool {
+    ty.vars.contains(&var)
+        || ty.cons.iter().any(|con| {
+            con.args
+                .iter()
+                .any(|arg| compact_bounds_contains_var(arg, var))
+        })
+        || ty.funs.iter().any(|fun| {
+            compact_type_contains_var_for_render(&fun.arg, var)
+                || compact_type_contains_var_for_render(&fun.arg_eff, var)
+                || compact_type_contains_var_for_render(&fun.ret_eff, var)
+                || compact_type_contains_var_for_render(&fun.ret, var)
+        })
+        || ty.records.iter().any(|record| {
+            record
+                .fields
+                .iter()
+                .any(|field| compact_type_contains_var_for_render(&field.value, var))
+        })
+        || ty.record_spreads.iter().any(|spread| {
+            spread
+                .fields
+                .iter()
+                .any(|field| compact_type_contains_var_for_render(&field.value, var))
+                || compact_type_contains_var_for_render(&spread.tail, var)
+        })
+        || ty.variants.iter().any(|variant| {
+            variant.items.iter().any(|(_, payloads)| {
+                payloads
+                    .iter()
+                    .any(|payload| compact_type_contains_var_for_render(payload, var))
+            })
+        })
+        || ty.tuples.iter().any(|items| {
+            items
+                .iter()
+                .any(|item| compact_type_contains_var_for_render(item, var))
+        })
+        || ty.rows.iter().any(|row| {
+            row.items
+                .iter()
+                .any(|item| compact_type_contains_var_for_render(item, var))
+                || compact_type_contains_var_for_render(&row.tail, var)
+        })
 }
 
 fn clear_prefix_latent_effects_before_effectful_arg(chain: &mut [RootFunLink]) {
@@ -1477,6 +2119,10 @@ fn is_var_only_compact(ty: &CompactType) -> bool {
 
 fn is_empty_row(ty: &Type) -> bool {
     matches!(ty, Type::Row(items, tail) if items.is_empty() && matches!(tail.as_ref(), Type::Bot))
+}
+
+fn is_empty_effect_placeholder(ty: &Type) -> bool {
+    matches!(ty, Type::Bot | Type::Top) || is_empty_row(ty)
 }
 
 fn path_string(path: &Path) -> String {
