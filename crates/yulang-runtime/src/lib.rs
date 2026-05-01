@@ -7,6 +7,7 @@
 //! observation-only variables are erased before validation.
 
 pub mod diagnostic;
+pub mod hygiene;
 pub mod invariant;
 pub mod ir;
 pub mod lower;
@@ -18,6 +19,7 @@ pub mod validate;
 pub mod vm;
 
 pub use diagnostic::{RuntimeError, RuntimeResult, TypeSource};
+pub use hygiene::{format_hygiene_expr, format_hygiene_module};
 pub use invariant::{RuntimeStage, check_runtime_invariants};
 pub use ir::{
     Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence,

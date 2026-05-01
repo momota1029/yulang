@@ -564,3 +564,22 @@ New risk noticed:
   the value shape.  That is acceptable as a preservation gate, but future
   changes to compatibility could accidentally broaden thunk preservation.  Keep
   this test set close to any compatibility refactor.
+
+### 2026-05-01: Hygiene formatter started
+
+- Added `crates/yulang-runtime/src/hygiene.rs`.
+- Exposed:
+  - `format_hygiene_expr`
+  - `format_hygiene_module`
+- The formatter shows:
+  - `LocalPushId` scopes
+  - `AddId[peek, effect]`
+  - `PeekId` / `FindId`
+  - handler consumed effects and residual effect summary
+- Added tests that lock the output for local id scopes and handler summaries.
+
+New risk noticed:
+
+- This is currently a library helper, not a CLI flag.  It makes tests and
+  debugging possible, but the next step should expose it through the CLI or
+  runtime debug path so failing examples can print hygiene without ad hoc code.
