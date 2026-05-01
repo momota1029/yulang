@@ -72,7 +72,13 @@ struct ExprChecker<'a> {
     locals: HashMap<core_ir::Path, DemandSignature>,
     next_hole: u32,
     unifier: DemandUnifier,
-    child_demands: DemandQueue,
+    child_demands: Vec<PendingChildDemand>,
+}
+
+struct PendingChildDemand {
+    target: core_ir::Path,
+    expected: RuntimeType,
+    signature: DemandSignature,
 }
 
 impl<'a> ExprChecker<'a> {
@@ -82,7 +88,7 @@ impl<'a> ExprChecker<'a> {
             locals: HashMap::new(),
             next_hole: 0,
             unifier: DemandUnifier::new(),
-            child_demands: DemandQueue::default(),
+            child_demands: Vec::new(),
         }
     }
 
@@ -144,11 +150,11 @@ impl<'a> ExprChecker<'a> {
                         .map(|arg| self.synth_expr(arg, None))
                         .collect::<Result<Vec<_>, _>>()?;
                     let signature = curried_signatures(&arg_signatures, ret.clone());
-                    self.child_demands.push_signature(
-                        target.clone(),
-                        curried_call_type(&args, expr.ty.clone()),
+                    self.child_demands.push(PendingChildDemand {
+                        target: target.clone(),
+                        expected: curried_call_type(&args, expr.ty.clone()),
                         signature,
-                    );
+                    });
                     return Ok(ret);
                 }
                 let callee = self.synth_expr(callee, None)?;
@@ -444,7 +450,7 @@ impl<'a> ExprChecker<'a> {
         self.push_pattern_bindings(&arm.payload, payload_hint.as_ref(), &mut inserted);
         if let Some(resume) = &arm.resume {
             let local = core_ir::Path::from_name(resume.name.clone());
-            let ty = self.signature_from_type(&resume.ty);
+            let ty = self.resume_signature_from_context(&resume.ty, handled_body_ty);
             let previous = self.locals.insert(local.clone(), ty);
             inserted.push((local, previous));
         }
@@ -530,7 +536,16 @@ impl<'a> ExprChecker<'a> {
     }
 
     fn finish(self) -> (DemandSubstitution, DemandQueue) {
-        (self.unifier.finish(), self.child_demands)
+        let substitutions = self.unifier.finish();
+        let mut child_demands = DemandQueue::default();
+        for child in self.child_demands {
+            child_demands.push_signature(
+                child.target,
+                child.expected,
+                substitutions.apply_signature(&child.signature),
+            );
+        }
+        (substitutions, child_demands)
     }
 
     fn signature_from_type(&mut self, ty: &RuntimeType) -> DemandSignature {
@@ -539,6 +554,20 @@ impl<'a> ExprChecker<'a> {
 
     fn effect_from_core_type(&mut self, ty: &core_ir::Type) -> DemandEffect {
         DemandEffect::from_core_type_with_holes(ty, &mut self.next_hole)
+    }
+
+    fn resume_signature_from_context(
+        &mut self,
+        ty: &RuntimeType,
+        handled_body_ty: &DemandSignature,
+    ) -> DemandSignature {
+        let RuntimeType::Fun { param, .. } = ty else {
+            return self.signature_from_type(ty);
+        };
+        DemandSignature::Fun {
+            param: Box::new(self.signature_from_type(param)),
+            ret: Box::new(handled_body_ty.clone()),
+        }
     }
 
     fn fresh_hole(&mut self) -> u32 {
@@ -954,6 +983,208 @@ mod tests {
     }
 
     #[test]
+    fn checker_applies_local_substitutions_before_emitting_child_demand() {
+        let run = path("run");
+        let use_run = path("use_run");
+        let io = named("io");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![
+                binding(
+                    run.clone(),
+                    vec![core_ir::TypeVar("a".to_string())],
+                    RuntimeType::fun(
+                        RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                        RuntimeType::core(core_ir::Type::Any),
+                    ),
+                    ExprKind::Lambda {
+                        param: core_ir::Name("x".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Lit(core_ir::Lit::Unit),
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                    },
+                ),
+                binding(
+                    use_run.clone(),
+                    vec![core_ir::TypeVar("a".to_string())],
+                    RuntimeType::fun(
+                        RuntimeType::core(named("int")),
+                        RuntimeType::core(named("int")),
+                    ),
+                    ExprKind::Lambda {
+                        param: core_ir::Name("x".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Apply {
+                                callee: Box::new(Expr::typed(
+                                    ExprKind::Var(run.clone()),
+                                    RuntimeType::fun(
+                                        RuntimeType::thunk(
+                                            io.clone(),
+                                            RuntimeType::core(core_ir::Type::Any),
+                                        ),
+                                        RuntimeType::core(core_ir::Type::Any),
+                                    ),
+                                )),
+                                arg: Box::new(Expr::typed(
+                                    ExprKind::Thunk {
+                                        effect: io.clone(),
+                                        value: RuntimeType::core(core_ir::Type::Any),
+                                        expr: Box::new(Expr::typed(
+                                            ExprKind::Var(path("x")),
+                                            RuntimeType::core(core_ir::Type::Any),
+                                        )),
+                                    },
+                                    RuntimeType::thunk(io, RuntimeType::core(core_ir::Type::Any)),
+                                )),
+                                evidence: None,
+                                instantiation: None,
+                            },
+                            RuntimeType::core(named("int")),
+                        )),
+                    },
+                ),
+            ],
+            root_exprs: Vec::new(),
+            roots: vec![Root::Binding(use_run.clone())],
+        };
+        let demand = Demand::new(
+            use_run,
+            RuntimeType::fun(
+                RuntimeType::core(named("int")),
+                RuntimeType::core(named("int")),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked demand");
+        let mut child_demands = checked.child_demands;
+        let child = child_demands.pop_front().expect("child demand");
+
+        assert_eq!(
+            child.key.signature,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Thunk {
+                    effect: DemandEffect::Atom(named_demand("io")),
+                    value: Box::new(DemandSignature::Core(named_demand("int"))),
+                }),
+                ret: Box::new(DemandSignature::Core(named_demand("int"))),
+            }
+        );
+    }
+
+    #[test]
+    fn checker_applies_late_substitutions_before_emitting_child_demand() {
+        let id = path("id");
+        let use_id = path("use_id");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![
+                binding(
+                    id.clone(),
+                    vec![core_ir::TypeVar("a".to_string())],
+                    RuntimeType::fun(
+                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(core_ir::Type::Any),
+                    ),
+                    ExprKind::Lambda {
+                        param: core_ir::Name("x".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Var(path("x")),
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                    },
+                ),
+                binding(
+                    use_id.clone(),
+                    vec![core_ir::TypeVar("a".to_string())],
+                    RuntimeType::fun(
+                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(core_ir::Type::Any),
+                    ),
+                    ExprKind::Lambda {
+                        param: core_ir::Name("x".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(Expr::typed(
+                            ExprKind::Block {
+                                stmts: vec![Stmt::Let {
+                                    pattern: Pattern::Bind {
+                                        name: core_ir::Name("y".to_string()),
+                                        ty: RuntimeType::core(core_ir::Type::Any),
+                                    },
+                                    value: Expr::typed(
+                                        ExprKind::Apply {
+                                            callee: Box::new(Expr::typed(
+                                                ExprKind::Var(id.clone()),
+                                                RuntimeType::fun(
+                                                    RuntimeType::core(core_ir::Type::Any),
+                                                    RuntimeType::core(core_ir::Type::Any),
+                                                ),
+                                            )),
+                                            arg: Box::new(Expr::typed(
+                                                ExprKind::Var(path("x")),
+                                                RuntimeType::core(core_ir::Type::Any),
+                                            )),
+                                            evidence: None,
+                                            instantiation: None,
+                                        },
+                                        RuntimeType::core(core_ir::Type::Any),
+                                    ),
+                                }],
+                                tail: Some(Box::new(Expr::typed(
+                                    ExprKind::Tuple(vec![
+                                        Expr::typed(
+                                            ExprKind::Var(path("y")),
+                                            RuntimeType::core(core_ir::Type::Any),
+                                        ),
+                                        Expr::typed(
+                                            ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                                            RuntimeType::core(named("int")),
+                                        ),
+                                    ]),
+                                    RuntimeType::core(core_ir::Type::Any),
+                                ))),
+                            },
+                            RuntimeType::core(core_ir::Type::Any),
+                        )),
+                    },
+                ),
+            ],
+            root_exprs: Vec::new(),
+            roots: vec![Root::Binding(use_id.clone())],
+        };
+        let demand = Demand::new(
+            use_id,
+            RuntimeType::fun(
+                RuntimeType::core(named("int")),
+                RuntimeType::core(core_ir::Type::Tuple(vec![named("int"), named("int")])),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked demand");
+        let mut child_demands = checked.child_demands;
+        let child = child_demands.pop_front().expect("child demand");
+
+        assert_eq!(
+            child.key.signature,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(named_demand("int"))),
+                ret: Box::new(DemandSignature::Core(named_demand("int"))),
+            }
+        );
+    }
+
+    #[test]
     fn checker_solves_block_tail_from_let_binding() {
         let f = path("f");
         let module = module_with_binding(binding(
@@ -1287,6 +1518,112 @@ mod tests {
             checked.solved,
             DemandSignature::Fun {
                 param: Box::new(DemandSignature::Core(named_demand("int"))),
+                ret: Box::new(DemandSignature::Core(named_demand("int"))),
+            }
+        );
+    }
+
+    #[test]
+    fn checker_uses_handled_body_type_for_resume_result() {
+        let f = path("f");
+        let io = named("io");
+        let module = module_with_binding(binding(
+            f.clone(),
+            vec![core_ir::TypeVar("a".to_string())],
+            RuntimeType::fun(
+                RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                RuntimeType::core(core_ir::Type::Any),
+            ),
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Handle {
+                        body: Box::new(Expr::typed(
+                            ExprKind::Var(path("x")),
+                            RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                        )),
+                        arms: vec![HandleArm {
+                            effect: core_ir::Path::from_name(core_ir::Name("op".to_string())),
+                            payload: Pattern::Wildcard {
+                                ty: RuntimeType::core(named("unit")),
+                            },
+                            resume: Some(crate::ir::ResumeBinding {
+                                name: core_ir::Name("k".to_string()),
+                                ty: RuntimeType::fun(
+                                    RuntimeType::core(named("bool")),
+                                    RuntimeType::thunk(
+                                        io.clone(),
+                                        RuntimeType::core(core_ir::Type::Any),
+                                    ),
+                                ),
+                            }),
+                            guard: None,
+                            body: Expr::typed(
+                                ExprKind::BindHere {
+                                    expr: Box::new(Expr::typed(
+                                        ExprKind::Apply {
+                                            callee: Box::new(Expr::typed(
+                                                ExprKind::Var(path("k")),
+                                                RuntimeType::fun(
+                                                    RuntimeType::core(named("bool")),
+                                                    RuntimeType::thunk(
+                                                        io.clone(),
+                                                        RuntimeType::core(core_ir::Type::Any),
+                                                    ),
+                                                ),
+                                            )),
+                                            arg: Box::new(Expr::typed(
+                                                ExprKind::Lit(core_ir::Lit::Bool(true)),
+                                                RuntimeType::core(named("bool")),
+                                            )),
+                                            evidence: None,
+                                            instantiation: None,
+                                        },
+                                        RuntimeType::thunk(
+                                            io.clone(),
+                                            RuntimeType::core(core_ir::Type::Any),
+                                        ),
+                                    )),
+                                },
+                                RuntimeType::core(core_ir::Type::Any),
+                            ),
+                        }],
+                        evidence: crate::ir::JoinEvidence {
+                            result: core_ir::Type::Any,
+                        },
+                        handler: crate::ir::HandleEffect {
+                            consumes: vec![core_ir::Path::from_name(core_ir::Name(
+                                "op".to_string(),
+                            ))],
+                            residual_before: Some(io.clone()),
+                            residual_after: None,
+                        },
+                    },
+                    RuntimeType::core(core_ir::Type::Any),
+                )),
+            },
+        ));
+        let demand = Demand::new(
+            f,
+            RuntimeType::fun(
+                RuntimeType::thunk(io, RuntimeType::core(core_ir::Type::Any)),
+                RuntimeType::core(named("int")),
+            ),
+        );
+
+        let checked = DemandChecker::from_module(&module)
+            .check_demand(&demand)
+            .expect("checked handle resume");
+
+        assert_eq!(
+            checked.solved,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Thunk {
+                    effect: DemandEffect::Atom(named_demand("io")),
+                    value: Box::new(DemandSignature::Core(named_demand("int"))),
+                }),
                 ret: Box::new(DemandSignature::Core(named_demand("int"))),
             }
         );

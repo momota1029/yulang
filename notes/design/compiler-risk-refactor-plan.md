@@ -1064,3 +1064,26 @@ New risk noticed:
   still produce open solved signatures because child-demand solutions are not
   propagated back into the parent demand.  That should be solved with a real
   dependency graph between checked demands, not by guessing inside emit.
+
+### 2026-05-01: Child demands delayed until parent substitutions settle
+
+- Replaced immediate child-demand queueing inside the demand checker with
+  pending child demands.
+- A checked binding now applies its final substitutions to every child demand
+  before exposing those demands to the engine.
+- Added tests for:
+  - substitutions known before the child call is seen
+  - substitutions learned later from a block tail
+- Resume bindings in handlers now derive their result from the handled body
+  demand, not only from the lowered resume annotation.
+- Effect row holes now behave like residual row slots:
+  - `[io; e]` can unify with `[io]` by solving `e = empty`
+  - `[io]` can unify with `[io; e]` by solving `e = empty`
+  - `[io; e]` can also absorb an unmatched concrete effect into `e`
+
+New risk noticed:
+
+- `undet.once` still falls back after demand emission because the emitted
+  closed specializations can violate runtime validation around range/list/variant
+  shapes.  The next step should audit emitted specialized bodies against the
+  validator error, rather than adding more checker-side guesses.

@@ -365,21 +365,49 @@ impl DemandUnifier {
         actual: &[DemandEffect],
     ) -> Result<(), DemandUnifyError> {
         let expected = flatten_effect_row(expected);
-        let mut actual = flatten_effect_row(actual);
-        if expected.len() != actual.len() {
-            return Err(DemandUnifyError::EffectMismatch {
-                expected: DemandEffect::Row(expected),
-                actual: DemandEffect::Row(actual),
-            });
+        let actual = flatten_effect_row(actual);
+        let mut expected_holes = Vec::new();
+        let mut expected_fixed = Vec::new();
+        let mut actual_holes = Vec::new();
+        let mut actual_fixed = Vec::new();
+        split_effect_row(expected.clone(), &mut expected_holes, &mut expected_fixed);
+        split_effect_row(actual.clone(), &mut actual_holes, &mut actual_fixed);
+        remove_shared_effect_holes(&mut expected_holes, &mut actual_holes);
+
+        let mut unmatched_expected = Vec::new();
+        for expected in expected_fixed {
+            if let Some(index) = self.find_unifiable_effect(&expected, &actual_fixed) {
+                actual_fixed.remove(index);
+            } else {
+                unmatched_expected.push(expected);
+            }
         }
-        for expected in expected {
-            let Some(index) = self.find_unifiable_effect(&expected, &actual) else {
+
+        if !unmatched_expected.is_empty() {
+            let Some(hole) = actual_holes.pop() else {
                 return Err(DemandUnifyError::EffectMismatch {
-                    expected,
+                    expected: DemandEffect::Row(expected),
                     actual: DemandEffect::Row(actual),
                 });
             };
-            actual.remove(index);
+            self.bind_effect(hole, effect_from_row_items(unmatched_expected))?;
+        }
+
+        if !actual_fixed.is_empty() {
+            let Some(hole) = expected_holes.pop() else {
+                return Err(DemandUnifyError::EffectMismatch {
+                    expected: DemandEffect::Row(expected),
+                    actual: DemandEffect::Row(actual),
+                });
+            };
+            self.bind_effect(hole, effect_from_row_items(actual_fixed))?;
+        }
+
+        for hole in expected_holes {
+            self.bind_effect(hole, DemandEffect::Empty)?;
+        }
+        for hole in actual_holes {
+            self.bind_effect(hole, DemandEffect::Empty)?;
         }
         Ok(())
     }
@@ -512,6 +540,34 @@ fn push_flat_effect(effect: &DemandEffect, out: &mut Vec<DemandEffect>) {
             }
         }
         effect => out.push(effect.clone()),
+    }
+}
+
+fn split_effect_row(items: Vec<DemandEffect>, holes: &mut Vec<u32>, fixed: &mut Vec<DemandEffect>) {
+    for item in items {
+        match item {
+            DemandEffect::Hole(id) => holes.push(id),
+            item => fixed.push(item),
+        }
+    }
+}
+
+fn remove_shared_effect_holes(expected: &mut Vec<u32>, actual: &mut Vec<u32>) {
+    expected.retain(|expected_id| {
+        if let Some(index) = actual.iter().position(|actual_id| actual_id == expected_id) {
+            actual.remove(index);
+            false
+        } else {
+            true
+        }
+    });
+}
+
+fn effect_from_row_items(items: Vec<DemandEffect>) -> DemandEffect {
+    match items.as_slice() {
+        [] => DemandEffect::Empty,
+        [item] => item.clone(),
+        _ => DemandEffect::Row(items),
     }
 }
 
@@ -731,6 +787,48 @@ mod tests {
         let substitutions = DemandUnifier::new()
             .unify_signature(&expected, &actual)
             .expect("unified row hole");
+
+        assert_eq!(
+            substitutions.effects.get(&0),
+            Some(&DemandEffect::Atom(named("undet")))
+        );
+    }
+
+    #[test]
+    fn unifier_closes_extra_effect_row_hole_to_empty() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![DemandEffect::Atom(named("io")), DemandEffect::Hole(0)]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![DemandEffect::Atom(named("io"))]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        let substitutions = DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("unified row hole as empty");
+
+        assert_eq!(substitutions.effects.get(&0), Some(&DemandEffect::Empty));
+    }
+
+    #[test]
+    fn unifier_actual_effect_row_hole_can_absorb_expected_effect() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![
+                DemandEffect::Atom(named("io")),
+                DemandEffect::Atom(named("undet")),
+            ]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![DemandEffect::Atom(named("io")), DemandEffect::Hole(0)]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        let substitutions = DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("unified actual row hole");
 
         assert_eq!(
             substitutions.effects.get(&0),

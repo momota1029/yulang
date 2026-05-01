@@ -1,10 +1,11 @@
 //! Demand-driven monomorphization prototype.
 //!
-//! This module is intentionally not wired into the compiler path yet.  It is
-//! the new algorithmic core being built beside the fixed-point monomorphizer:
-//! concrete use sites create demands, demands are deduplicated by a runtime
-//! signature, and `_` / `Any` becomes a monomorphization hole instead of a VM
-//! type witness.
+//! This module is wired as an early monomorphization pass and still falls back
+//! to the older fixed-point path when a demand-specialized module does not pass
+//! validation.  It is the new algorithmic core being built beside that older
+//! path: concrete use sites create demands, demands are deduplicated by a
+//! runtime signature, and `_` / `Any` becomes a monomorphization hole instead
+//! of a VM type witness.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
