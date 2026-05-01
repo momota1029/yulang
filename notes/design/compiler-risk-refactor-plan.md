@@ -976,3 +976,16 @@ New risk noticed:
 - Record spread and open rows are still only traversed, not solved.  Optional
   records will need a real row-demand rule so missing/default fields are handled
   by the same algorithm rather than by post-hoc expression repair.
+
+### 2026-05-01: Demand unifier learned unordered effect rows
+
+- Effect rows now unify independent of item ordering.
+- Singleton rows can unify with plain effect atoms.
+- Effect holes inside a closed row can be solved by matching remaining row
+  items.
+
+New risk noticed:
+
+- This is still a closed-row rule.  Open effect rows and effect subtraction for
+  handlers need a dedicated representation of residual row variables; otherwise
+  handler typing will drift back toward ad-hoc repair.

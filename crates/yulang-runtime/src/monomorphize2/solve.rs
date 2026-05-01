@@ -284,19 +284,60 @@ impl DemandUnifier {
             (DemandEffect::Atom(expected), DemandEffect::Atom(actual)) => {
                 self.core(expected, actual)
             }
-            (DemandEffect::Row(expected), DemandEffect::Row(actual))
-                if expected.len() == actual.len() =>
-            {
-                for (expected, actual) in expected.iter().zip(actual) {
-                    self.effect(expected, actual)?;
-                }
-                Ok(())
+            (DemandEffect::Row(expected), DemandEffect::Row(actual)) => {
+                self.effect_row(expected, actual)
+            }
+            (DemandEffect::Row(expected), actual) => {
+                self.effect_row(expected, std::slice::from_ref(actual))
+            }
+            (expected, DemandEffect::Row(actual)) => {
+                self.effect_row(std::slice::from_ref(expected), actual)
             }
             _ => Err(DemandUnifyError::EffectMismatch {
                 expected: expected.clone(),
                 actual: actual.clone(),
             }),
         }
+    }
+
+    fn effect_row(
+        &mut self,
+        expected: &[DemandEffect],
+        actual: &[DemandEffect],
+    ) -> Result<(), DemandUnifyError> {
+        let expected = flatten_effect_row(expected);
+        let mut actual = flatten_effect_row(actual);
+        if expected.len() != actual.len() {
+            return Err(DemandUnifyError::EffectMismatch {
+                expected: DemandEffect::Row(expected),
+                actual: DemandEffect::Row(actual),
+            });
+        }
+        for expected in expected {
+            let Some(index) = self.find_unifiable_effect(&expected, &actual) else {
+                return Err(DemandUnifyError::EffectMismatch {
+                    expected,
+                    actual: DemandEffect::Row(actual),
+                });
+            };
+            actual.remove(index);
+        }
+        Ok(())
+    }
+
+    fn find_unifiable_effect(
+        &mut self,
+        expected: &DemandEffect,
+        actual: &[DemandEffect],
+    ) -> Option<usize> {
+        for (index, candidate) in actual.iter().enumerate() {
+            let snapshot = self.substitutions.clone();
+            if self.effect(expected, candidate).is_ok() {
+                return Some(index);
+            }
+            self.substitutions = snapshot;
+        }
+        None
     }
 
     fn type_arg(
@@ -362,6 +403,26 @@ impl DemandUnifier {
         }
         self.substitutions.effects.insert(id, actual);
         Ok(())
+    }
+}
+
+fn flatten_effect_row(items: &[DemandEffect]) -> Vec<DemandEffect> {
+    let mut out = Vec::new();
+    for item in items {
+        push_flat_effect(item, &mut out);
+    }
+    out
+}
+
+fn push_flat_effect(effect: &DemandEffect, out: &mut Vec<DemandEffect>) {
+    match effect {
+        DemandEffect::Empty => {}
+        DemandEffect::Row(items) => {
+            for item in items {
+                push_flat_effect(item, out);
+            }
+        }
+        effect => out.push(effect.clone()),
     }
 }
 
@@ -435,6 +496,68 @@ mod tests {
             Some(&DemandEffect::Atom(named("io")))
         );
         assert!(substitutions.values.is_empty());
+    }
+
+    #[test]
+    fn unifier_matches_effect_rows_without_ordering() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![
+                DemandEffect::Atom(named("io")),
+                DemandEffect::Atom(named("undet")),
+            ]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![
+                DemandEffect::Atom(named("undet")),
+                DemandEffect::Atom(named("io")),
+            ]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("unified row order");
+    }
+
+    #[test]
+    fn unifier_matches_single_effect_atom_with_singleton_row() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Atom(named("io")),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![DemandEffect::Atom(named("io"))]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("unified singleton row");
+    }
+
+    #[test]
+    fn unifier_solves_effect_hole_inside_row() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![DemandEffect::Hole(0), DemandEffect::Atom(named("io"))]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![
+                DemandEffect::Atom(named("undet")),
+                DemandEffect::Atom(named("io")),
+            ]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        let substitutions = DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("unified row hole");
+
+        assert_eq!(
+            substitutions.effects.get(&0),
+            Some(&DemandEffect::Atom(named("undet")))
+        );
     }
 
     fn named(name: &str) -> DemandCoreType {
