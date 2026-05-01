@@ -513,3 +513,20 @@ New risk noticed:
 - `apply_param_allowed_effect` still lives in `lower/function.rs`, although it
   creates thunk parameter types.  It should move into `lower/thunk.rs` with the
   rest of the thunk-boundary rules.
+
+### 2026-05-01: Parameter allowed-effect thunking moved
+
+- Moved `apply_param_allowed_effect` into `lower/thunk.rs`.
+- Moved its direct helpers too:
+  - `allowed_effect_for_param`
+  - `returns_thunk`
+  - `empty_row`
+- `lower/function.rs` now keeps function-shape utilities instead of owning
+  parameter thunk construction.
+
+New risk noticed:
+
+- `protect_function_body` still lives as a `Lowerer` method in `lowerer.rs`.
+  Its body is now small, but it is still the place where function boundaries
+  introduce hygiene administration.  That boundary should get a dedicated test
+  or a named helper before changing effect hygiene again.

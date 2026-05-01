@@ -6,67 +6,6 @@ pub(super) struct FunctionParts {
     pub(super) ret: RuntimeType,
 }
 
-pub(super) fn apply_param_allowed_effect(
-    param_ty: RuntimeType,
-    annotation: Option<&core_ir::ParamEffectAnnotation>,
-    function_allowed_effects: Option<&core_ir::FunctionSigAllowedEffects>,
-) -> RuntimeType {
-    if function_allowed_effects.is_none()
-        && let Some(allowed) = allowed_effect_for_param(annotation, None, &param_ty)
-            .map(|allowed| project_runtime_effect(&allowed))
-    {
-        return match param_ty {
-            RuntimeType::Thunk { .. } => param_ty,
-            value => RuntimeType::thunk(allowed, value),
-        };
-    }
-    param_ty
-}
-
-pub(super) fn allowed_effect_for_param(
-    annotation: Option<&core_ir::ParamEffectAnnotation>,
-    function_allowed_effects: Option<&core_ir::FunctionSigAllowedEffects>,
-    param_ty: &RuntimeType,
-) -> Option<core_ir::Type> {
-    if let Some(allowed) = function_allowed_effects {
-        return Some(match allowed {
-            core_ir::FunctionSigAllowedEffects::Wildcard => core_ir::Type::Any,
-            core_ir::FunctionSigAllowedEffects::Effects(paths) => core_ir::Type::Row {
-                items: paths
-                    .iter()
-                    .cloned()
-                    .map(|path| core_ir::Type::Named {
-                        path,
-                        args: Vec::new(),
-                    })
-                    .collect(),
-                tail: Box::new(core_ir::Type::Never),
-            },
-        });
-    }
-    match annotation {
-        Some(core_ir::ParamEffectAnnotation::Wildcard) => Some(core_ir::Type::Any),
-        Some(core_ir::ParamEffectAnnotation::Region(_)) => thunk_effect(param_ty),
-        None if returns_thunk(param_ty) => Some(empty_row()),
-        None => None,
-    }
-}
-
-pub(super) fn returns_thunk(ty: &RuntimeType) -> bool {
-    match ty {
-        RuntimeType::Thunk { .. } => true,
-        RuntimeType::Fun { ret, .. } => returns_thunk(ret),
-        _ => false,
-    }
-}
-
-pub(super) fn empty_row() -> core_ir::Type {
-    core_ir::Type::Row {
-        items: Vec::new(),
-        tail: Box::new(core_ir::Type::Never),
-    }
-}
-
 pub(super) fn function_parts(ty: &RuntimeType) -> RuntimeResult<FunctionParts> {
     match ty {
         RuntimeType::Fun { param, ret } => Ok(FunctionParts {
