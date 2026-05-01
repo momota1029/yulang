@@ -657,3 +657,23 @@ New risk noticed:
 - Runtime diagnostics and infer diagnostics still use separate formatting code.
   A shared small formatter for paths, type variables, and common type fragments
   would reduce future drift.
+
+### 2026-05-01: Monomorphization pipeline stages introduced
+
+- Replaced the single flat pass list with `MonoStage`.
+- The pipeline now distinguishes:
+  - bounded repeat warmup for early rewrite/refine
+  - fixed-point role specialization
+  - fixed-point final cleanup
+  - one-shot cleanup passes
+- Kept the early warmup bounded to avoid generating unreachable specializations
+  before pruning.
+- Verified `examples/01_struct_with.yu` still generates 11 specializations and
+  runs successfully.
+
+New risk noticed:
+
+- The early warmup is still a bounded repeat rather than a true fixed point.
+  That is intentional for now because full fixed-point specialization can grow
+  unreachable bindings before pruning.  The next cleanup should make
+  specialization progress distinguish reachable from unreachable output.

@@ -111,7 +111,6 @@ enum MonoPass {
     InlineNullaryConstructors,
     ResolveSpecializedResidualAssociated,
     ResolveResidualRoleMethods,
-    Stabilize,
     PruneUnreachable,
     ResolveResidualAssociated,
 }
@@ -128,65 +127,186 @@ impl MonoPass {
                 "resolve-specialized-residual-associated"
             }
             MonoPass::ResolveResidualRoleMethods => "resolve-residual-role-methods",
-            MonoPass::Stabilize => "stabilize",
             MonoPass::PruneUnreachable => "prune-unreachable",
             MonoPass::ResolveResidualAssociated => "resolve-residual-associated",
         }
     }
 }
 
-const MONO_PIPELINE: &[MonoPass] = &[
-    MonoPass::RewriteUses,
-    MonoPass::RefineTypes,
-    MonoPass::RewriteUses,
-    MonoPass::RefineTypes,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MonoStage {
+    Pass(MonoPass),
+    Repeat {
+        name: &'static str,
+        passes: &'static [MonoPass],
+        times: usize,
+    },
+    Fixpoint {
+        name: &'static str,
+        passes: &'static [MonoPass],
+        limit: usize,
+    },
+}
+
+const INITIAL_FIXPOINT: &[MonoPass] = &[MonoPass::RewriteUses, MonoPass::RefineTypes];
+
+const SPECIALIZATION_FIXPOINT: &[MonoPass] = &[
     MonoPass::RewriteUses,
     MonoPass::RefineTypes,
     MonoPass::RefreshClosedSchemes,
-    MonoPass::CanonicalizeSpecializations,
-    MonoPass::InlineNullaryConstructors,
-    MonoPass::ResolveSpecializedResidualAssociated,
     MonoPass::ResolveResidualRoleMethods,
-    MonoPass::Stabilize,
-    MonoPass::PruneUnreachable,
+];
+
+const FINAL_FIXPOINT: &[MonoPass] = &[
     MonoPass::ResolveResidualRoleMethods,
     MonoPass::RewriteUses,
     MonoPass::RefineTypes,
     MonoPass::RefreshClosedSchemes,
-    MonoPass::ResolveResidualAssociated,
+];
+
+const MONO_PIPELINE: &[MonoStage] = &[
+    MonoStage::Repeat {
+        name: "initial-specialization",
+        passes: INITIAL_FIXPOINT,
+        times: 3,
+    },
+    MonoStage::Pass(MonoPass::CanonicalizeSpecializations),
+    MonoStage::Pass(MonoPass::InlineNullaryConstructors),
+    MonoStage::Pass(MonoPass::ResolveSpecializedResidualAssociated),
+    MonoStage::Fixpoint {
+        name: "role-specialization",
+        passes: SPECIALIZATION_FIXPOINT,
+        limit: 8,
+    },
+    MonoStage::Pass(MonoPass::PruneUnreachable),
+    MonoStage::Fixpoint {
+        name: "final-cleanup",
+        passes: FINAL_FIXPOINT,
+        limit: 8,
+    },
+    MonoStage::Pass(MonoPass::ResolveResidualAssociated),
 ];
 
 fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfile)> {
     let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
     let mut module = module;
     let mut profile = MonomorphizeProfile::default();
-    for pass in MONO_PIPELINE {
-        let before = MonoStats::from_module(&module);
-        let step = apply_mono_pass(module, *pass)?;
-        module = step.module;
-        let after = MonoStats::from_module(&module);
-        let progress = step.progress.to_public();
-        profile.passes.push(MonomorphizePassProfile {
-            name: pass.name(),
-            bindings_before: before.bindings,
-            bindings_after: after.bindings,
-            roots_before: before.roots,
-            roots_after: after.roots,
-            progress,
-        });
-        if debug {
-            eprintln!(
-                "mono pass {:>38}: bindings {} -> {}, roots {} -> {}, progress {}",
-                pass.name(),
-                before.bindings,
-                after.bindings,
-                before.roots,
-                after.roots,
-                step.progress.format()
-            );
+    for stage in MONO_PIPELINE {
+        match *stage {
+            MonoStage::Pass(pass) => {
+                let step = run_profiled_mono_pass(module, pass, &mut profile, debug)?;
+                module = step.module;
+            }
+            MonoStage::Repeat {
+                name,
+                passes,
+                times,
+            } => {
+                module = run_mono_repeat(module, name, passes, times, &mut profile, debug)?;
+            }
+            MonoStage::Fixpoint {
+                name,
+                passes,
+                limit,
+            } => {
+                module = run_mono_fixpoint(module, name, passes, limit, &mut profile, debug)?;
+            }
         }
     }
     Ok((module, profile))
+}
+
+fn run_mono_repeat(
+    mut module: Module,
+    name: &'static str,
+    passes: &'static [MonoPass],
+    times: usize,
+    profile: &mut MonomorphizeProfile,
+    debug: bool,
+) -> RuntimeResult<Module> {
+    for round in 0..times {
+        let mut round_progress = MonoProgress::default();
+        for pass in passes {
+            let step = run_profiled_mono_pass(module, *pass, profile, debug)?;
+            module = step.module;
+            round_progress.merge(step.progress);
+        }
+        if debug {
+            eprintln!(
+                "mono repeat {name} round {round}: progress {}",
+                round_progress.format()
+            );
+        }
+        if !round_progress.changed() {
+            break;
+        }
+    }
+    Ok(module)
+}
+
+fn run_profiled_mono_pass(
+    module: Module,
+    pass: MonoPass,
+    profile: &mut MonomorphizeProfile,
+    debug: bool,
+) -> RuntimeResult<MonoStep> {
+    let before = MonoStats::from_module(&module);
+    let step = apply_mono_pass(module, pass)?;
+    let after = MonoStats::from_module(&step.module);
+    let progress = step.progress.to_public();
+    profile.passes.push(MonomorphizePassProfile {
+        name: pass.name(),
+        bindings_before: before.bindings,
+        bindings_after: after.bindings,
+        roots_before: before.roots,
+        roots_after: after.roots,
+        progress,
+    });
+    if debug {
+        eprintln!(
+            "mono pass {:>38}: bindings {} -> {}, roots {} -> {}, progress {}",
+            pass.name(),
+            before.bindings,
+            after.bindings,
+            before.roots,
+            after.roots,
+            step.progress.format()
+        );
+    }
+    Ok(step)
+}
+
+fn run_mono_fixpoint(
+    mut module: Module,
+    name: &'static str,
+    passes: &'static [MonoPass],
+    limit: usize,
+    profile: &mut MonomorphizeProfile,
+    debug: bool,
+) -> RuntimeResult<Module> {
+    for round in 0..limit {
+        let mut round_progress = MonoProgress::default();
+        for pass in passes {
+            let step = run_profiled_mono_pass(module, *pass, profile, debug)?;
+            module = step.module;
+            round_progress.merge(step.progress);
+        }
+        if !round_progress.changed() {
+            if debug {
+                eprintln!("mono fixpoint {name} converged after {round} rounds");
+            }
+            return Ok(module);
+        } else if debug {
+            eprintln!(
+                "mono fixpoint {name} round {round}: progress {}",
+                round_progress.format()
+            );
+        }
+    }
+    if debug {
+        eprintln!("mono fixpoint {name} reached round limit");
+    }
+    Ok(module)
 }
 
 fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
@@ -208,7 +328,6 @@ fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
         MonoPass::ResolveResidualRoleMethods => {
             Ok(resolve_residual_role_method_calls_with_progress(module))
         }
-        MonoPass::Stabilize => run_stabilization_loop(module),
         MonoPass::PruneUnreachable => {
             run_tracked_infallible_pass(module, prune_unreachable_bindings)
         }
@@ -216,49 +335,6 @@ fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
             run_tracked_infallible_pass(module, resolve_residual_associated_bindings)
         }
     }
-}
-
-const STABILIZATION_ROUND: &[MonoPass] = &[
-    MonoPass::RewriteUses,
-    MonoPass::RefineTypes,
-    MonoPass::RefreshClosedSchemes,
-    MonoPass::ResolveResidualRoleMethods,
-];
-
-fn run_stabilization_loop(module: Module) -> RuntimeResult<MonoStep> {
-    let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
-    let mut module = module;
-    let mut total_progress = MonoProgress::default();
-    for round in 0..8 {
-        let mut round_progress = MonoProgress::default();
-        for pass in STABILIZATION_ROUND {
-            let step = apply_mono_pass(module, *pass)?;
-            module = step.module;
-            round_progress.merge(step.progress);
-        }
-        total_progress.merge(round_progress);
-        if !round_progress.changed() {
-            if debug {
-                eprintln!("mono stabilize converged after {round} rounds");
-            }
-            return Ok(MonoStep {
-                module,
-                progress: total_progress,
-            });
-        } else if debug {
-            eprintln!(
-                "mono stabilize round {round}: progress {}",
-                round_progress.format()
-            );
-        }
-    }
-    if debug {
-        eprintln!("mono stabilize reached round limit");
-    }
-    Ok(MonoStep {
-        module,
-        progress: total_progress,
-    })
 }
 
 struct MonoStats {
