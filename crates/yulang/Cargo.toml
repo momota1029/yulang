@@ -3,6 +3,7 @@ name = "yulang"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+description = "Experimental language with Simple-Sub-style inference, algebraic effects, effect rows, roles, and Ruby/Perl/Raku-inspired syntax."
 
 [dependencies]
 yulang-core-ir = { path = "../yulang-core-ir" }

@@ -1,11 +1,26 @@
 # Yulang
 
-Yulang is an experimental programming language focused on type inference,
-subtyping, algebraic effects, and compact syntax for small DSL-like programs.
+Yulang is an experimental language that integrates algebraic effects and
+handlers into a Simple-Sub-style subtyping inference engine. Effect rows are
+represented and solved in the same constraint system as value types, role
+constraints, and subtyping, so handlers can remove consumed effects while the
+remaining effects still flow through inferred types.
+
+At the surface level, Yulang aims to put an OCaml-like typed expression core
+behind Ruby-style receiver-oriented syntax and Perl/Raku-style pragmatic
+notation. Features that often look like built-in control flow or mutation are
+mostly expressed through effects, handlers, roles, and standard library code.
 
 The implementation is still changing quickly. The repository is public so the
 current compiler, standard library, tests, and WebAssembly playground can be
 read together, not because the language is stable.
+
+## GitHub About
+
+Suggested short description:
+
+> Experimental language with Simple-Sub-style inference, algebraic effects,
+> effect rows, roles, and Ruby/Perl/Raku-inspired syntax.
 
 ## Playground
 
@@ -18,13 +33,14 @@ inferred public types.
 
 ## Language Highlights
 
-- Simple-sub-inspired type inference with subtyping.
-- Algebraic effects and handlers, including `sub:` / `return x` for early
-  return-like control flow.
+- Simple-Sub-style type inference with subtyping and row-like effect types.
+- Algebraic effects and handlers whose residual effects are inferred.
 - `for` loops built on effects, with `last`, `next`, and `redo`.
 - Nondeterministic computation through `std::undet`.
 - Structs, enums, roles, implementations, methods, and user-defined operators.
 - Reference syntax with explicit read/write forms such as `$x` and `&x = value`.
+- Receiver-oriented selection where `x.foo` may resolve to a field, method,
+  role method, reference receiver method, or effect-oriented method.
 - A `:` block/application form that reduces parentheses in nested calls.
 
 For a broader user-facing introduction, see the language overview:

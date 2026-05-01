@@ -3,6 +3,7 @@ name = "yulang-infer"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+description = "Type inference engine for Yulang, including Simple-Sub-style subtyping and row-like algebraic effect inference."
 
 [dependencies]
 smallvec = "1"
