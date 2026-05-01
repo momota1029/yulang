@@ -50,13 +50,15 @@ impl DemandCollector {
                 evidence: _,
                 instantiation: _,
             } => {
-                if let ExprKind::Var(target) = &callee.kind
+                if let Some((target, args)) = applied_call(expr)
                     && self.generic_bindings.contains(target)
                 {
-                    self.queue.push(
-                        target.clone(),
-                        RuntimeType::fun(arg.ty.clone(), expr.ty.clone()),
-                    );
+                    self.queue
+                        .push(target.clone(), curried_call_type(&args, expr.ty.clone()));
+                    for arg in args {
+                        self.collect_expr(arg);
+                    }
+                    return;
                 }
                 self.collect_expr(callee);
                 self.collect_expr(arg);
@@ -146,6 +148,32 @@ impl DemandCollector {
     }
 }
 
+fn applied_call(expr: &Expr) -> Option<(&core_ir::Path, Vec<&Expr>)> {
+    let mut callee = expr;
+    let mut args = Vec::new();
+    loop {
+        match &callee.kind {
+            ExprKind::Apply {
+                callee: next, arg, ..
+            } => {
+                args.push(arg.as_ref());
+                callee = next;
+            }
+            ExprKind::Var(target) => {
+                args.reverse();
+                return Some((target, args));
+            }
+            _ => return None,
+        }
+    }
+}
+
+fn curried_call_type(args: &[&Expr], ret: RuntimeType) -> RuntimeType {
+    args.iter()
+        .rev()
+        .fold(ret, |ret, arg| RuntimeType::fun(arg.ty.clone(), ret))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -233,6 +261,69 @@ mod tests {
         assert!(collector.queue().is_empty());
     }
 
+    #[test]
+    fn collector_enqueues_curried_generic_call_as_one_demand() {
+        let f = path("f");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![generic_binding(f.clone())],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Apply {
+                            callee: Box::new(Expr::typed(
+                                ExprKind::Var(f.clone()),
+                                RuntimeType::fun(
+                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::fun(
+                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(core_ir::Type::Any),
+                                    ),
+                                ),
+                            )),
+                            arg: Box::new(Expr::typed(
+                                ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                                RuntimeType::core(named("int")),
+                            )),
+                            evidence: None,
+                            instantiation: None::<TypeInstantiation>,
+                        },
+                        RuntimeType::fun(
+                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(core_ir::Type::Any),
+                        ),
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(core_ir::Lit::String("x".to_string())),
+                        RuntimeType::core(named("str")),
+                    )),
+                    evidence: None,
+                    instantiation: None::<TypeInstantiation>,
+                },
+                RuntimeType::core(named("bool")),
+            )],
+            roots: vec![Root::Expr(0)],
+        };
+
+        let mut collector = DemandCollector::from_module(&module);
+        collector.collect_module(&module);
+        let mut queue = collector.into_queue();
+        let demand = queue.pop_front().expect("curried call demand");
+
+        assert_eq!(demand.target, f);
+        assert_eq!(
+            demand.key.signature,
+            DemandSignature::Fun {
+                param: Box::new(DemandSignature::Core(named_demand("int"))),
+                ret: Box::new(DemandSignature::Fun {
+                    param: Box::new(DemandSignature::Core(named_demand("str"))),
+                    ret: Box::new(DemandSignature::Core(named_demand("bool"))),
+                }),
+            }
+        );
+        assert!(queue.is_empty());
+    }
+
     fn generic_binding(name: core_ir::Path) -> Binding {
         Binding {
             name,
@@ -265,6 +356,13 @@ mod tests {
 
     fn named(name: &str) -> core_ir::Type {
         core_ir::Type::Named {
+            path: path(name),
+            args: Vec::new(),
+        }
+    }
+
+    fn named_demand(name: &str) -> DemandCoreType {
+        DemandCoreType::Named {
             path: path(name),
             args: Vec::new(),
         }

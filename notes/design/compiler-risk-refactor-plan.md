@@ -765,3 +765,18 @@ New risk noticed:
 - This only handles the simple `f x` shape.  Curried calls such as `f x y`,
   role calls, constructor calls, and effect operations need explicit demand
   rules rather than being recovered by recursive tree rewrites.
+
+### 2026-05-01: Curried direct-call demands added
+
+- Extended `DemandCollector` to recognize applied call chains.
+- A call such as `f x y` now enqueues one demand shaped like
+  `x_type -> y_type -> result_type`.
+- The collector avoids enqueuing an extra partial-application demand for the
+  inner `f x` in this direct generic-call case.
+
+New risk noticed:
+
+- The collector still only sees demand shapes already present in runtime IR.
+  The next layer must instantiate generic schemes with fresh monomorphization
+  holes and check the body, otherwise `_` inside a binding's own annotation will
+  not be solved by local body information.
