@@ -1,5 +1,59 @@
 use super::*;
-use crate::ir::Module;
+use crate::ir::{Binding, Module};
+
+pub fn demand_monomorphize_module(
+    module: Module,
+) -> Result<DemandMonomorphizeOutput, DemandMonomorphizeError> {
+    let engine_output = DemandEngine::from_module(&module).run()?;
+    if engine_output.specializations.is_empty() {
+        return Ok(DemandMonomorphizeOutput {
+            module,
+            profile: DemandMonomorphizeProfile::default(),
+        });
+    }
+    let emitted = engine_output.emit_bindings(&module)?;
+    let mut module = DemandEmitter::rewrite_module_uses_with_specializations(
+        module,
+        &engine_output.specializations,
+    )?;
+    let emitted_count = emitted.len();
+    module.bindings.extend(emitted);
+    Ok(DemandMonomorphizeOutput {
+        module,
+        profile: DemandMonomorphizeProfile {
+            specializations: emitted_count,
+        },
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DemandMonomorphizeOutput {
+    pub module: Module,
+    pub profile: DemandMonomorphizeProfile,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct DemandMonomorphizeProfile {
+    pub specializations: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DemandMonomorphizeError {
+    Check(DemandCheckError),
+    Emit(DemandEmitError),
+}
+
+impl From<DemandCheckError> for DemandMonomorphizeError {
+    fn from(error: DemandCheckError) -> Self {
+        Self::Check(error)
+    }
+}
+
+impl From<DemandEmitError> for DemandMonomorphizeError {
+    fn from(error: DemandEmitError) -> Self {
+        Self::Emit(error)
+    }
+}
 
 pub struct DemandEngine<'a> {
     checker: DemandChecker<'a>,
@@ -45,10 +99,7 @@ pub struct DemandEngineOutput {
 }
 
 impl DemandEngineOutput {
-    pub fn emit_bindings(
-        &self,
-        module: &Module,
-    ) -> Result<Vec<crate::ir::Binding>, DemandEmitError> {
+    pub fn emit_bindings(&self, module: &Module) -> Result<Vec<Binding>, DemandEmitError> {
         DemandEmitter::from_module(module, &self.specializations).emit_all()
     }
 }
@@ -154,6 +205,65 @@ mod tests {
         assert_eq!(emitted.len(), 1);
         assert_eq!(emitted[0].name, path("id__ddmono0"));
         assert!(emitted[0].type_params.is_empty());
+    }
+
+    #[test]
+    fn demand_monomorphize_rewrites_root_call_to_specialization() {
+        let id = path("id");
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: vec![binding(
+                id.clone(),
+                vec![core_ir::TypeVar("a".to_string())],
+                RuntimeType::fun(
+                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(core_ir::Type::Any),
+                ),
+                ExprKind::Lambda {
+                    param: core_ir::Name("x".to_string()),
+                    param_effect_annotation: None,
+                    param_function_allowed_effects: None,
+                    body: Box::new(Expr::typed(
+                        ExprKind::Var(path("x")),
+                        RuntimeType::core(core_ir::Type::Any),
+                    )),
+                },
+            )],
+            root_exprs: vec![Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(Expr::typed(
+                        ExprKind::Var(id),
+                        RuntimeType::fun(
+                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(core_ir::Type::Any),
+                        ),
+                    )),
+                    arg: Box::new(Expr::typed(
+                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                        RuntimeType::core(named("int")),
+                    )),
+                    evidence: None,
+                    instantiation: None,
+                },
+                RuntimeType::core(named("int")),
+            )],
+            roots: vec![Root::Expr(0)],
+        };
+
+        let output = demand_monomorphize_module(module).expect("demand monomorphized");
+
+        assert_eq!(output.profile.specializations, 1);
+        assert_eq!(output.module.bindings.len(), 2);
+        let ExprKind::Apply { callee, .. } = &output.module.root_exprs[0].kind else {
+            panic!("expected rewritten root call");
+        };
+        let ExprKind::Var(path) = &callee.kind else {
+            panic!("expected specialized callee");
+        };
+        assert_eq!(
+            path,
+            &core_ir::Path::from_name(core_ir::Name("id__ddmono0".to_string()))
+        );
     }
 
     fn binding(

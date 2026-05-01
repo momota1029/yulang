@@ -36,6 +36,21 @@ impl<'a> DemandEmitter<'a> {
             .collect()
     }
 
+    pub fn rewrite_module_uses(&self, module: Module) -> Result<Module, DemandEmitError> {
+        rewrite_module_uses_with_map(module, &self.specializations)
+    }
+
+    pub fn rewrite_module_uses_with_specializations(
+        module: Module,
+        specializations: &'a [DemandSpecialization],
+    ) -> Result<Module, DemandEmitError> {
+        let specializations = specializations
+            .iter()
+            .map(|specialization| (specialization.key.clone(), specialization))
+            .collect::<HashMap<_, _>>();
+        rewrite_module_uses_with_map(module, &specializations)
+    }
+
     pub fn emit(&self, specialization: &DemandSpecialization) -> Result<Binding, DemandEmitError> {
         let original = self
             .bindings
@@ -56,6 +71,50 @@ impl<'a> DemandEmitter<'a> {
             body,
         })
     }
+}
+
+fn rewrite_module_uses_with_map(
+    module: Module,
+    specializations: &HashMap<DemandKey, &DemandSpecialization>,
+) -> Result<Module, DemandEmitError> {
+    let root_exprs = module
+        .root_exprs
+        .into_iter()
+        .map(|expr| rewrite_root_expr(expr, specializations))
+        .collect::<Result<Vec<_>, _>>()?;
+    let bindings = module
+        .bindings
+        .into_iter()
+        .map(|binding| rewrite_binding_uses(binding, specializations))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Module {
+        path: module.path,
+        bindings,
+        root_exprs,
+        roots: module.roots,
+    })
+}
+
+fn rewrite_root_expr(
+    expr: Expr,
+    specializations: &HashMap<DemandKey, &DemandSpecialization>,
+) -> Result<Expr, DemandEmitError> {
+    let expected = DemandSignature::from_runtime_type(&expr.ty);
+    let mut rewriter = BodyEmitter::new(specializations);
+    rewriter.rewrite_expr(&expr, Some(&expected))
+}
+
+fn rewrite_binding_uses(
+    binding: Binding,
+    specializations: &HashMap<DemandKey, &DemandSpecialization>,
+) -> Result<Binding, DemandEmitError> {
+    if !binding.type_params.is_empty() {
+        return Ok(binding);
+    }
+    let expected = DemandSignature::from_runtime_type(&binding.body.ty);
+    let mut rewriter = BodyEmitter::new(specializations);
+    let body = rewriter.rewrite_expr(&binding.body, Some(&expected))?;
+    Ok(Binding { body, ..binding })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

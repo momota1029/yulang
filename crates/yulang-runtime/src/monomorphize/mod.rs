@@ -17,6 +17,7 @@ use crate::ir::{
     RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, ResumeBinding, Root, Stmt,
     Type as RuntimeType, TypeInstantiation,
 };
+use crate::monomorphize2::demand_monomorphize_module;
 use crate::refine::refine_module_types_with_report;
 use crate::types::{
     BoundsChoice, choose_bounds_type, choose_hir_bounds_type, collect_expr_type_vars,
@@ -104,6 +105,7 @@ pub struct MonomorphizeProgress {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MonoPass {
+    DemandSpecialize,
     RewriteUses,
     RefineTypes,
     RefreshClosedSchemes,
@@ -118,6 +120,7 @@ enum MonoPass {
 impl MonoPass {
     fn name(self) -> &'static str {
         match self {
+            MonoPass::DemandSpecialize => "demand-specialize",
             MonoPass::RewriteUses => "rewrite-uses",
             MonoPass::RefineTypes => "refine-types",
             MonoPass::RefreshClosedSchemes => "refresh-closed-schemes",
@@ -148,7 +151,7 @@ enum MonoStage {
     },
 }
 
-const INITIAL_FIXPOINT: &[MonoPass] = &[MonoPass::RewriteUses, MonoPass::RefineTypes];
+const INITIAL_FIXPOINT: &[MonoPass] = &[MonoPass::DemandSpecialize, MonoPass::RefineTypes];
 
 const SPECIALIZATION_FIXPOINT: &[MonoPass] = &[
     MonoPass::RewriteUses,
@@ -311,6 +314,7 @@ fn run_mono_fixpoint(
 
 fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
     match pass {
+        MonoPass::DemandSpecialize => demand_specialize_module(module),
         MonoPass::RewriteUses => Ok(rewrite_monomorphic_uses(module, false)),
         MonoPass::RefineTypes => refine_module_types_for_mono(module),
         MonoPass::RefreshClosedSchemes => {
@@ -335,6 +339,36 @@ fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
             run_tracked_infallible_pass(module, resolve_residual_associated_bindings)
         }
     }
+}
+
+fn demand_specialize_module(module: Module) -> RuntimeResult<MonoStep> {
+    let before = module.clone();
+    let output = match demand_monomorphize_module(module) {
+        Ok(output) => output,
+        Err(error) => {
+            if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
+                eprintln!("mono pass demand-specialize skipped: {error:?}");
+            }
+            return Ok(MonoStep {
+                module: before,
+                progress: MonoProgress::default(),
+            });
+        }
+    };
+    if let Err(error) = validate_module(&output.module) {
+        if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
+            eprintln!("mono pass demand-specialize rejected by validation: {error:?}");
+        }
+        return Ok(MonoStep {
+            module: before,
+            progress: MonoProgress::default(),
+        });
+    }
+    let progress = MonoProgress::from_modules(&before, &output.module);
+    Ok(MonoStep {
+        module: output.module,
+        progress,
+    })
 }
 
 struct MonoStats {

@@ -1003,3 +1003,26 @@ New risk noticed:
 - The substitution applier still assumes stored substitutions are acyclic.  The
   occurs check should preserve that invariant, but debug invariant tests should
   eventually assert it directly for imported or constructed substitutions.
+
+### 2026-05-01: Demand monomorphization wired into the pipeline
+
+- Added a public `demand_monomorphize_module` entrypoint.
+- The demand path now:
+  - runs the demand engine
+  - emits specialized bindings
+  - rewrites root and monomorphic binding call sites to specialized paths
+  - appends emitted `__ddmonoN` bindings to the runtime module
+- Added a `demand-specialize` monomorphization pass at the start of the normal
+  runtime monomorphization pipeline.
+- The pass is currently best-effort: if demand checking/emission fails, or if
+  the produced module fails validation, the old pipeline continues from the
+  original module.
+- Added a test proving a root call to a generic binding is rewritten to its
+  demand-specialized binding.
+
+New risk noticed:
+
+- The pass is connected but not yet authoritative.  The fallback is necessary
+  because optional record rows, handler effect subtraction, references, and a
+  few nominal/variant shapes still need explicit demand rules.  Removing the
+  fallback should be the milestone that proves the replacement is complete.
