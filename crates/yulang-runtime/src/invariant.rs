@@ -27,6 +27,13 @@ impl RuntimeStage {
 pub fn check_runtime_invariants(module: &Module, stage: RuntimeStage) -> RuntimeResult<()> {
     let mut checker = InvariantChecker { stage };
     for binding in &module.bindings {
+        if matches!(stage, RuntimeStage::BeforeVm) && !binding.type_params.is_empty() {
+            return Err(RuntimeError::InvariantViolation {
+                stage: stage.name(),
+                context: format!("binding {}", path_name(&binding.name)),
+                message: "VM input binding must be monomorphic",
+            });
+        }
         checker.expr(
             &binding.body,
             format!("binding {}", path_name(&binding.name)),
@@ -339,6 +346,22 @@ mod tests {
             err,
             RuntimeError::InvariantViolation {
                 message: "thunk node type must match thunk payload",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_polymorphic_binding_before_vm() {
+        let mut module = module_with_expr(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit()));
+        module.bindings[0].type_params = vec![core_ir::TypeVar("a".to_string())];
+
+        let err = check_runtime_invariants(&module, RuntimeStage::BeforeVm).unwrap_err();
+
+        assert!(matches!(
+            err,
+            RuntimeError::InvariantViolation {
+                message: "VM input binding must be monomorphic",
                 ..
             }
         ));
