@@ -449,3 +449,17 @@ New risk noticed:
   comparison.  It is outside the stabilization loop, so it is less urgent, but
   it should still get a direct report if it starts participating in fixed-point
   behavior.
+
+### 2026-05-01: Refinement cast and thunk forcing split out
+
+- Split runtime type-refinement cast insertion into `refine/cast.rs`.
+- Split protected thunk forcing into `refine/thunk_force.rs`.
+- Kept `refine/rewrite.rs` focused on traversal and syntax-directed expected
+  type propagation.
+
+New risk noticed:
+
+- The `expr` visitor still computes the initial refined expression type inline.
+  That logic is where local variables, binding types, constructor expectation,
+  and expected-type propagation meet.  It should be extracted next before
+  changing any rule around function arguments or handlers.

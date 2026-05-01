@@ -24,11 +24,13 @@ use crate::types::{
     substitute_scheme, substitute_type, thunk_effect, type_compatible,
 };
 
+mod cast;
 mod constraints;
 mod effects;
 mod locals;
 mod rewrite;
 mod shape;
+mod thunk_force;
 
 use constraints::*;
 use effects::*;

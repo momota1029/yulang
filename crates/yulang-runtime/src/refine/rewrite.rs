@@ -388,97 +388,6 @@ impl RefineRewriter {
         self.cast_if_needed(Expr { ty, kind }, expected)
     }
 
-    pub(super) fn force_protected_thunk_result(&self, expr: Expr) -> Option<Expr> {
-        let RuntimeType::Thunk { value, .. } = &expr.ty else {
-            return None;
-        };
-        let expected_value = value.as_ref();
-        match expr.kind {
-            ExprKind::LocalPushId { id, body } => {
-                let body = self.force_protected_thunk_body(*body, expected_value)?;
-                Some(Expr {
-                    ty: body.ty.clone(),
-                    kind: ExprKind::LocalPushId {
-                        id,
-                        body: Box::new(body),
-                    },
-                })
-            }
-            _ => None,
-        }
-    }
-
-    pub(super) fn force_protected_thunk_body(
-        &self,
-        expr: Expr,
-        expected_value: &RuntimeType,
-    ) -> Option<Expr> {
-        match expr.kind {
-            ExprKind::Block {
-                stmts,
-                tail: Some(tail),
-            } => {
-                let forced = self.force_protected_thunk_expr(*tail, expected_value)?;
-                let ty = forced.ty.clone();
-                Some(Expr {
-                    ty,
-                    kind: ExprKind::Block {
-                        stmts,
-                        tail: Some(Box::new(forced)),
-                    },
-                })
-            }
-            ExprKind::Block { mut stmts, tail } if tail.is_none() => {
-                let last = stmts.pop()?;
-                let Stmt::Expr(last) = last else {
-                    return None;
-                };
-                let forced = self.force_protected_thunk_expr(last, expected_value)?;
-                let ty = forced.ty.clone();
-                stmts.push(Stmt::Expr(forced));
-                Some(Expr {
-                    ty,
-                    kind: ExprKind::Block { stmts, tail: None },
-                })
-            }
-            _ => self.force_protected_thunk_expr(expr, expected_value),
-        }
-    }
-
-    pub(super) fn force_protected_thunk_expr(
-        &self,
-        expr: Expr,
-        expected_value: &RuntimeType,
-    ) -> Option<Expr> {
-        let ExprKind::AddId { allowed, thunk, .. } = &expr.kind else {
-            return None;
-        };
-        let RuntimeType::Thunk { value, .. } = &thunk.ty else {
-            return None;
-        };
-        if !hir_type_compatible(expected_value, value) {
-            return None;
-        }
-        let ExprKind::Thunk { expr: inner, .. } = &thunk.kind else {
-            return None;
-        };
-        let head = applied_head_path(inner)?;
-        let consumed = self.pure_handler_bindings.get(&head)?;
-        let allowed = effect_paths(allowed);
-        if !effect_path_sets_intersect(&allowed, consumed) {
-            return None;
-        }
-        if !hir_type_produces_value(&inner.ty, expected_value) {
-            return None;
-        }
-        Some(Expr {
-            ty: expected_value.clone(),
-            kind: ExprKind::BindHere {
-                expr: Box::new(expr),
-            },
-        })
-    }
-
     pub(super) fn stmt(&mut self, stmt: Stmt) -> Stmt {
         match stmt {
             Stmt::Let { pattern, value } => {
@@ -561,33 +470,6 @@ impl RefineRewriter {
                 pattern: Box::new(self.pattern(*pattern)),
                 name,
                 ty: substitute_hir_type(&ty, &self.substitutions),
-            },
-        }
-    }
-
-    pub(super) fn cast_if_needed(&self, expr: Expr, expected: Option<&RuntimeType>) -> Expr {
-        let Some(expected) = expected else {
-            return expr;
-        };
-        let expected = substitute_hir_type(expected, &self.substitutions);
-        let (expected_core, actual_core) = match (&expected, &expr.ty) {
-            (RuntimeType::Core(expected_core), RuntimeType::Core(actual_core)) => {
-                (expected_core.clone(), actual_core.clone())
-            }
-            _ => return expr,
-        };
-        if expected_core == actual_core || type_compatible(&expected_core, &actual_core) {
-            return expr;
-        }
-        if !needs_runtime_coercion(&expected_core, &actual_core) {
-            return expr;
-        }
-        Expr {
-            ty: expected,
-            kind: ExprKind::Coerce {
-                from: actual_core,
-                to: expected_core,
-                expr: Box::new(expr),
             },
         }
     }
