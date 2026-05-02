@@ -120,10 +120,11 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 
 ## Immediate Next Steps
 
-1. `substitution-specialize` が `examples/10_effect_handler.yu` と `test.yu` で余計な specialization を作る理由を debug し、benefit がない場合は call site 単位で fallback できるようにする。
-2. `examples/07_junction.yu` でまだ旧 demand が作っている 7 specialization の内訳を見て、`fold_impl` / `view_raw` / role impl を型代入 pass へ移す。
-3. 新パスが作った `__mono` を旧 demand の seed として扱う変更は入れた。次は `__mono` body を旧 demand が再 rewrite して wrapper 化する量を減らす。
-4. role-specialization の新規 specialization が 0 になった場合、role fixpoint 自体を短絡できるか計測する。
+1. `substitution-specialize` は、既定では self-recursive / leaf specialization と arg shape adaptation をしないように絞った。`examples/10_effect_handler.yu` は 14 passes / 2 specializations から 10 passes / 1 specialization へ戻り、`test.yu` は 38 passes / 23 specializations になった。
+2. `examples/07_junction.yu` では `list<int>` と `list<int <: _>` の違いを exact-ish に扱うことで `all__mono0` / `any__mono1` は作れるようになった。ただし旧 demand がそれらを再処理するため、全体はまだ 14 passes / 10 specializations のまま。
+3. 次は `all__mono0` / `any__mono1` が旧 demand で `all__ddmono` / `any__ddmono` へ再ラップされる経路を止める。候補は、`__mono` binding を demand collection の対象から外す、または substitution specialization の出力型を旧 demand の closed signature と同じ canonical key にそろえること。
+4. その後、`examples/07_junction.yu` でまだ旧 demand が作っている `fold_impl` / `view_raw` / role impl を型代入 pass へ移す。
+5. role-specialization の新規 specialization が 0 になった場合、role fixpoint 自体を短絡できるか計測する。
 
 ## Notes
 

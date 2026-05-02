@@ -304,6 +304,13 @@ impl SubstitutionSpecializer {
             }
             params
         };
+        if std::env::var_os("YULANG_SUBST_SPECIALIZE_ADAPT_ARGS").is_none()
+            && !args_already_match_params(&spine.args, &params)
+        {
+            self.bump("skip-arg-adaptation");
+            debug_arg_mismatch(spine.target, &spine.args, &params);
+            return None;
+        }
         let mut adapted_args = adapt_args_to_params(&spine.args, &params);
         if adapted_args.is_none() {
             for (arg, param) in spine.args.iter().zip(&params) {
@@ -338,7 +345,7 @@ impl SubstitutionSpecializer {
             return None;
         };
 
-        let path = self.intern_specialization(original, binding_substitutions);
+        let path = self.intern_specialization(original, binding_substitutions)?;
         self.bump("rewrite");
         let mut call = Expr::typed(ExprKind::Var(path), RuntimeType::core(callee_ty.clone()));
         let mut current = callee_ty;
@@ -367,10 +374,20 @@ impl SubstitutionSpecializer {
         &mut self,
         original: Binding,
         substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    ) -> core_ir::Path {
+    ) -> Option<core_ir::Path> {
         let key = substitution_key(&original.name, &substitutions);
         if let Some(path) = self.specializations.get(&key) {
-            return path.clone();
+            return Some(path.clone());
+        }
+        if std::env::var_os("YULANG_SUBST_SPECIALIZE_LEAF").is_none()
+            && !binding_body_has_generic_apply(
+                &original.body,
+                &self.generic_bindings,
+                Some(&original.name),
+            )
+        {
+            self.bump("skip-leaf-specialization");
+            return None;
         }
         let path = substitution_specialized_path(&original.name, self.next_index);
         self.next_index += 1;
@@ -380,7 +397,7 @@ impl SubstitutionSpecializer {
         binding.type_params.clear();
         binding.body = self.rewrite_expr(binding.body);
         self.emitted.push(binding);
-        path
+        Some(path)
     }
 }
 
@@ -426,6 +443,113 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
         evidence: selected_evidence,
         instantiation: selected_instantiation,
     })
+}
+
+fn binding_body_has_generic_apply(
+    expr: &Expr,
+    generic_bindings: &HashMap<core_ir::Path, Binding>,
+    ignored_target: Option<&core_ir::Path>,
+) -> bool {
+    if apply_spine(expr).is_some_and(|spine| {
+        generic_bindings.contains_key(spine.target) && ignored_target != Some(spine.target)
+    }) {
+        return true;
+    }
+    match &expr.kind {
+        ExprKind::Apply { callee, arg, .. } => {
+            binding_body_has_generic_apply(callee, generic_bindings, ignored_target)
+                || binding_body_has_generic_apply(arg, generic_bindings, ignored_target)
+        }
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::Thunk { expr: body, .. }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => {
+            binding_body_has_generic_apply(body, generic_bindings, ignored_target)
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            binding_body_has_generic_apply(cond, generic_bindings, ignored_target)
+                || binding_body_has_generic_apply(then_branch, generic_bindings, ignored_target)
+                || binding_body_has_generic_apply(else_branch, generic_bindings, ignored_target)
+        }
+        ExprKind::Tuple(items) => items
+            .iter()
+            .any(|item| binding_body_has_generic_apply(item, generic_bindings, ignored_target)),
+        ExprKind::Record { fields, spread } => {
+            fields.iter().any(|field| {
+                binding_body_has_generic_apply(&field.value, generic_bindings, ignored_target)
+            }) || spread.as_ref().is_some_and(|spread| match spread {
+                RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
+                    binding_body_has_generic_apply(expr, generic_bindings, ignored_target)
+                }
+            })
+        }
+        ExprKind::Variant { value, .. } => value.as_ref().is_some_and(|value| {
+            binding_body_has_generic_apply(value, generic_bindings, ignored_target)
+        }),
+        ExprKind::Select { base, .. } => {
+            binding_body_has_generic_apply(base, generic_bindings, ignored_target)
+        }
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            binding_body_has_generic_apply(scrutinee, generic_bindings, ignored_target)
+                || arms.iter().any(|arm| {
+                    arm.guard.as_ref().is_some_and(|guard| {
+                        binding_body_has_generic_apply(guard, generic_bindings, ignored_target)
+                    }) || binding_body_has_generic_apply(
+                        &arm.body,
+                        generic_bindings,
+                        ignored_target,
+                    )
+                })
+        }
+        ExprKind::Block { stmts, tail } => {
+            stmts
+                .iter()
+                .any(|stmt| stmt_has_generic_apply(stmt, generic_bindings, ignored_target))
+                || tail.as_ref().is_some_and(|tail| {
+                    binding_body_has_generic_apply(tail, generic_bindings, ignored_target)
+                })
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            binding_body_has_generic_apply(body, generic_bindings, ignored_target)
+                || arms.iter().any(|arm| {
+                    arm.guard.as_ref().is_some_and(|guard| {
+                        binding_body_has_generic_apply(guard, generic_bindings, ignored_target)
+                    }) || binding_body_has_generic_apply(
+                        &arm.body,
+                        generic_bindings,
+                        ignored_target,
+                    )
+                })
+        }
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => false,
+    }
+}
+
+fn stmt_has_generic_apply(
+    stmt: &Stmt,
+    generic_bindings: &HashMap<core_ir::Path, Binding>,
+    ignored_target: Option<&core_ir::Path>,
+) -> bool {
+    match stmt {
+        Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
+            binding_body_has_generic_apply(value, generic_bindings, ignored_target)
+        }
+    }
 }
 
 fn substitutions_from_instantiation(
@@ -540,6 +664,116 @@ fn adapt_args_to_params(args: &[&Expr], params: &[core_ir::Type]) -> Option<Vec<
         out.push(adapt_value_to_core((*arg).clone(), param)?);
     }
     Some(out)
+}
+
+fn args_already_match_params(args: &[&Expr], params: &[core_ir::Type]) -> bool {
+    args.iter()
+        .zip(params)
+        .all(|(arg, param)| type_matches_exact_bounds(&runtime_core_type(&arg.ty), param))
+}
+
+fn type_matches_exact_bounds(actual: &core_ir::Type, expected: &core_ir::Type) -> bool {
+    if actual == expected {
+        return true;
+    }
+    match (actual, expected) {
+        (
+            core_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+            core_ir::Type::Named {
+                path: expected_path,
+                args: expected_args,
+            },
+        ) => {
+            actual_path == expected_path
+                && actual_args.len() == expected_args.len()
+                && actual_args
+                    .iter()
+                    .zip(expected_args)
+                    .all(|(actual, expected)| type_arg_matches_exact_bounds(actual, expected))
+        }
+        (
+            core_ir::Type::Fun {
+                param: actual_param,
+                param_effect: actual_param_effect,
+                ret_effect: actual_ret_effect,
+                ret: actual_ret,
+            },
+            core_ir::Type::Fun {
+                param: expected_param,
+                param_effect: expected_param_effect,
+                ret_effect: expected_ret_effect,
+                ret: expected_ret,
+            },
+        ) => {
+            type_matches_exact_bounds(actual_param, expected_param)
+                && type_matches_exact_bounds(actual_param_effect, expected_param_effect)
+                && type_matches_exact_bounds(actual_ret_effect, expected_ret_effect)
+                && type_matches_exact_bounds(actual_ret, expected_ret)
+        }
+        (core_ir::Type::Tuple(actual), core_ir::Type::Tuple(expected))
+        | (core_ir::Type::Union(actual), core_ir::Type::Union(expected))
+        | (core_ir::Type::Inter(actual), core_ir::Type::Inter(expected)) => {
+            type_list_matches_exact_bounds(actual, expected)
+        }
+        (
+            core_ir::Type::Row { items, tail },
+            core_ir::Type::Row {
+                items: expected_items,
+                tail: expected_tail,
+            },
+        ) => {
+            type_list_matches_exact_bounds(items, expected_items)
+                && type_matches_exact_bounds(tail, expected_tail)
+        }
+        _ => false,
+    }
+}
+
+fn type_list_matches_exact_bounds(actual: &[core_ir::Type], expected: &[core_ir::Type]) -> bool {
+    actual.len() == expected.len()
+        && actual
+            .iter()
+            .zip(expected)
+            .all(|(actual, expected)| type_matches_exact_bounds(actual, expected))
+}
+
+fn type_arg_matches_exact_bounds(actual: &core_ir::TypeArg, expected: &core_ir::TypeArg) -> bool {
+    if actual == expected {
+        return true;
+    }
+    match (actual, expected) {
+        (core_ir::TypeArg::Type(actual), core_ir::TypeArg::Bounds(expected)) => {
+            bounds_are_exact_type(expected, actual)
+        }
+        (core_ir::TypeArg::Bounds(actual), core_ir::TypeArg::Type(expected)) => {
+            bounds_are_exact_type(actual, expected)
+        }
+        (core_ir::TypeArg::Bounds(actual), core_ir::TypeArg::Bounds(expected)) => {
+            match (
+                exact_type_from_bounds(actual),
+                exact_type_from_bounds(expected),
+            ) {
+                (Some(actual), Some(expected)) => type_matches_exact_bounds(actual, expected),
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+fn bounds_are_exact_type(bounds: &core_ir::TypeBounds, ty: &core_ir::Type) -> bool {
+    exact_type_from_bounds(bounds).is_some_and(|exact| type_matches_exact_bounds(exact, ty))
+}
+
+fn exact_type_from_bounds(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
+    match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
+        (Some(lower), None) => Some(lower),
+        (Some(lower), Some(upper)) if type_matches_exact_bounds(lower, upper) => Some(lower),
+        _ => None,
+    }
 }
 
 fn empty_module() -> Module {
