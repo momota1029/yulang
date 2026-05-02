@@ -54,25 +54,25 @@ pub(super) fn apply_principal_substitutions(
         return Vec::new();
     }
 
-    let mut substitutions = BTreeMap::new();
+    let mut unifier = PrincipalSubstitutionUnifier::new(&params);
     let slot_types = apply_slot_monomorphic_types(infer, callee_tv, arg_tv, result_tv);
     if let Some(arg_ty) = slot_types.arg {
-        infer_core_type_substitutions(param, &arg_ty, &params, &mut substitutions);
+        unifier.infer(param, &arg_ty);
     }
     if let Some(result_ty) = slot_types.result {
-        infer_core_type_substitutions(ret, &result_ty, &params, &mut substitutions);
+        unifier.infer(ret, &result_ty);
     }
-    if substitutions.is_empty() {
+    if unifier.is_empty() {
         if let Some(arg_ty) = export_monomorphic_type_for_tv(infer, arg_tv) {
-            infer_core_type_substitutions(param, &arg_ty, &params, &mut substitutions);
+            unifier.infer(param, &arg_ty);
         }
         if let Some(result_ty) = export_monomorphic_type_for_tv(infer, result_tv) {
-            infer_core_type_substitutions(ret, &result_ty, &params, &mut substitutions);
+            unifier.infer(ret, &result_ty);
         }
     }
 
-    substitutions
-        .into_iter()
+    unifier
+        .into_substitutions()
         .filter(|(_, ty)| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
         .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
         .collect()
@@ -129,95 +129,132 @@ fn export_monomorphic_type_for_tv(infer: &Infer, tv: TypeVar) -> Option<core_ir:
         .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
 }
 
-fn infer_core_type_substitutions(
-    template: &core_ir::Type,
-    actual: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) {
-    match (template, actual) {
-        (core_ir::Type::Var(var), actual) if params.contains(var) => {
-            substitutions
-                .entry(var.clone())
-                .or_insert_with(|| actual.clone());
-        }
-        (
-            core_ir::Type::Named { path, args },
-            core_ir::Type::Named {
-                path: actual_path,
-                args: actual_args,
-            },
-        ) if path == actual_path && args.len() == actual_args.len() => {
-            for (template_arg, actual_arg) in args.iter().zip(actual_args) {
-                infer_core_type_arg_substitutions(template_arg, actual_arg, params, substitutions);
-            }
-        }
-        (
-            core_ir::Type::Fun { param, ret, .. },
-            core_ir::Type::Fun {
-                param: actual_param,
-                ret: actual_ret,
-                ..
-            },
-        ) => {
-            infer_core_type_substitutions(param, actual_param, params, substitutions);
-            infer_core_type_substitutions(ret, actual_ret, params, substitutions);
-        }
-        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items))
-            if items.len() == actual_items.len() =>
-        {
-            for (item, actual_item) in items.iter().zip(actual_items) {
-                infer_core_type_substitutions(item, actual_item, params, substitutions);
-            }
-        }
-        (core_ir::Type::Record(record), core_ir::Type::Record(actual_record)) => {
-            for field in &record.fields {
-                if let Some(actual_field) = actual_record
-                    .fields
-                    .iter()
-                    .find(|actual| actual.name == field.name)
-                {
-                    infer_core_type_substitutions(
-                        &field.value,
-                        &actual_field.value,
-                        params,
-                        substitutions,
-                    );
-                }
-            }
-        }
-        (core_ir::Type::Union(items) | core_ir::Type::Inter(items), actual) => {
-            for item in items {
-                infer_core_type_substitutions(item, actual, params, substitutions);
-            }
-        }
-        (core_ir::Type::Recursive { var, body }, actual) => {
-            let mut params = params.clone();
-            params.remove(var);
-            infer_core_type_substitutions(body, actual, &params, substitutions);
-        }
-        _ => {}
-    }
+struct PrincipalSubstitutionUnifier<'a> {
+    params: &'a BTreeSet<core_ir::TypeVar>,
+    substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: BTreeSet<core_ir::TypeVar>,
 }
 
-fn infer_core_type_arg_substitutions(
-    template: &core_ir::TypeArg,
-    actual: &core_ir::TypeArg,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) {
-    match (template, actual) {
-        (core_ir::TypeArg::Type(template), core_ir::TypeArg::Type(actual)) => {
-            infer_core_type_substitutions(template, actual, params, substitutions);
+impl<'a> PrincipalSubstitutionUnifier<'a> {
+    fn new(params: &'a BTreeSet<core_ir::TypeVar>) -> Self {
+        Self {
+            params,
+            substitutions: BTreeMap::new(),
+            conflicts: BTreeSet::new(),
         }
-        (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
-            if let (Some(template), Some(actual)) = (&template.lower, &actual.lower) {
-                infer_core_type_substitutions(template, actual, params, substitutions);
+    }
+
+    fn is_empty(&self) -> bool {
+        self.substitutions.is_empty()
+    }
+
+    fn into_substitutions(self) -> impl Iterator<Item = (core_ir::TypeVar, core_ir::Type)> {
+        let conflicts = self.conflicts;
+        self.substitutions
+            .into_iter()
+            .filter(move |(var, _)| !conflicts.contains(var))
+    }
+
+    fn infer(&mut self, template: &core_ir::Type, actual: &core_ir::Type) {
+        match (template, actual) {
+            (core_ir::Type::Var(var), actual) if self.params.contains(var) => {
+                self.bind(var, actual);
             }
-            if let (Some(template), Some(actual)) = (&template.upper, &actual.upper) {
-                infer_core_type_substitutions(template, actual, params, substitutions);
+            (
+                core_ir::Type::Named { path, args },
+                core_ir::Type::Named {
+                    path: actual_path,
+                    args: actual_args,
+                },
+            ) if path == actual_path && args.len() == actual_args.len() => {
+                for (template_arg, actual_arg) in args.iter().zip(actual_args) {
+                    self.infer_arg(template_arg, actual_arg);
+                }
+            }
+            (
+                core_ir::Type::Fun {
+                    param,
+                    param_effect,
+                    ret_effect,
+                    ret,
+                },
+                core_ir::Type::Fun {
+                    param: actual_param,
+                    param_effect: actual_param_effect,
+                    ret_effect: actual_ret_effect,
+                    ret: actual_ret,
+                },
+            ) => {
+                self.infer(param, actual_param);
+                self.infer(param_effect, actual_param_effect);
+                self.infer(ret_effect, actual_ret_effect);
+                self.infer(ret, actual_ret);
+            }
+            (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items))
+                if items.len() == actual_items.len() =>
+            {
+                for (item, actual_item) in items.iter().zip(actual_items) {
+                    self.infer(item, actual_item);
+                }
+            }
+            (core_ir::Type::Record(record), core_ir::Type::Record(actual_record)) => {
+                for field in &record.fields {
+                    if let Some(actual_field) = actual_record
+                        .fields
+                        .iter()
+                        .find(|actual| actual.name == field.name)
+                    {
+                        self.infer(&field.value, &actual_field.value);
+                    }
+                }
+            }
+            (core_ir::Type::Union(items) | core_ir::Type::Inter(items), actual) => {
+                for item in items {
+                    self.infer(item, actual);
+                }
+            }
+            (core_ir::Type::Recursive { var, body }, actual) => {
+                if !self.params.contains(var) {
+                    self.infer(body, actual);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn infer_arg(&mut self, template: &core_ir::TypeArg, actual: &core_ir::TypeArg) {
+        match (template, actual) {
+            (core_ir::TypeArg::Type(template), core_ir::TypeArg::Type(actual)) => {
+                self.infer(template, actual);
+            }
+            (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
+                if let (Some(template), Some(actual)) = (&template.lower, &actual.lower) {
+                    self.infer(template, actual);
+                }
+                if let (Some(template), Some(actual)) = (&template.upper, &actual.upper) {
+                    self.infer(template, actual);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn bind(&mut self, var: &core_ir::TypeVar, actual: &core_ir::Type) {
+        if matches!(actual, core_ir::Type::Any | core_ir::Type::Var(_)) {
+            return;
+        }
+        if self.conflicts.contains(var) {
+            return;
+        }
+        match self.substitutions.get(var) {
+            Some(existing) if existing == actual => {}
+            Some(_) => {
+                self.substitutions.remove(var);
+                self.conflicts.insert(var.clone());
+            }
+            None => {
+                self.substitutions.insert(var.clone(), actual.clone());
             }
         }
-        _ => {}
     }
 }
