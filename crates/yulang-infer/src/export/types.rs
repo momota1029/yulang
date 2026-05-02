@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use yulang_core_ir as core_ir;
 use yulang_core_ir::normalize_union_members;
@@ -6,11 +6,16 @@ use yulang_core_ir::normalize_union_members;
 use crate::FrozenScheme;
 use crate::display::format::{Type as DisplayType, compact_scheme_to_type, compact_side_to_type};
 use crate::ids::TypeVar;
-use crate::simplify::compact::compact_type_var;
-use crate::simplify::compact::{CompactBounds, CompactType, CompactTypeScheme};
-use crate::simplify::cooccur::{CompactRoleConstraint, coalesce_by_co_occurrence};
+use crate::simplify::compact::{
+    CompactBounds, CompactType, CompactTypeScheme, merge_compact_bounds,
+};
+use crate::simplify::compact::{compact_type_var, compact_type_vars_in_order};
+use crate::simplify::cooccur::{
+    CompactRoleConstraint, coalesce_by_co_occurrence,
+    coalesce_by_co_occurrence_with_role_constraints_report,
+};
 use crate::solve::Infer;
-use crate::symbols::Name;
+use crate::symbols::{Name, Path};
 use crate::types::RecordField;
 
 use super::names::{export_name, export_path};
@@ -77,6 +82,198 @@ pub fn export_relevant_type_bounds_for_tv(
 ) -> core_ir::TypeBounds {
     let bounds = export_type_bounds_for_tv(infer, tv);
     project_type_bounds(bounds, relevant_vars)
+}
+
+pub fn export_coalesced_apply_evidence_bounds(
+    infer: &Infer,
+    callee_tv: TypeVar,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+    relevant_vars: &BTreeSet<core_ir::TypeVar>,
+) -> (
+    core_ir::TypeBounds,
+    core_ir::TypeBounds,
+    core_ir::TypeBounds,
+) {
+    let schemes = compact_type_vars_in_order(infer, &[callee_tv, arg_tv, result_tv]);
+    let mut rec_vars = HashMap::new();
+    let mut cty = CompactBounds::default();
+    for scheme in &schemes {
+        cty = merge_compact_bounds(true, cty, scheme.cty.clone());
+        rec_vars.extend(scheme.rec_vars.clone());
+    }
+
+    let evidence_constraint = CompactRoleConstraint {
+        role: Path {
+            segments: vec![Name("__apply_evidence".to_string())],
+        },
+        args: schemes.iter().map(|scheme| scheme.cty.clone()).collect(),
+    };
+    let host = CompactTypeScheme { cty, rec_vars };
+    let output = coalesce_by_co_occurrence_with_role_constraints_report(
+        &host,
+        std::slice::from_ref(&evidence_constraint),
+    );
+    let args = output
+        .constraints
+        .iter()
+        .find(|constraint| {
+            constraint.role == evidence_constraint.role
+                && constraint.args.len() == evidence_constraint.args.len()
+        })
+        .map(|constraint| constraint.args.as_slice())
+        .unwrap_or(evidence_constraint.args.as_slice());
+
+    (
+        project_type_bounds(export_type_bounds(&output.scheme, &args[0]), relevant_vars),
+        project_type_bounds(export_type_bounds(&output.scheme, &args[1]), relevant_vars),
+        project_type_bounds(export_type_bounds(&output.scheme, &args[2]), relevant_vars),
+    )
+}
+
+pub fn export_apply_substitutions(
+    infer: &Infer,
+    principal_callee: &core_ir::Type,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+) -> Vec<core_ir::TypeSubstitution> {
+    let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
+        return Vec::new();
+    };
+    let mut params = BTreeSet::new();
+    collect_core_type_vars(principal_callee, &mut params);
+    if params.is_empty() {
+        return Vec::new();
+    }
+
+    let mut substitutions = BTreeMap::new();
+    if let Some(arg_ty) = export_monomorphic_type_for_tv(infer, arg_tv) {
+        infer_core_type_substitutions(param, &arg_ty, &params, &mut substitutions);
+    }
+    if let Some(result_ty) = export_monomorphic_type_for_tv(infer, result_tv) {
+        infer_core_type_substitutions(ret, &result_ty, &params, &mut substitutions);
+    }
+
+    substitutions
+        .into_iter()
+        .filter(|(_, ty)| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
+        .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
+        .collect()
+}
+
+fn principal_fun_param_ret(ty: &core_ir::Type) -> Option<(&core_ir::Type, &core_ir::Type)> {
+    match ty {
+        core_ir::Type::Fun { param, ret, .. } => Some((param, ret)),
+        core_ir::Type::Recursive { body, .. } => principal_fun_param_ret(body),
+        core_ir::Type::Inter(items) | core_ir::Type::Union(items) => {
+            items.iter().find_map(principal_fun_param_ret)
+        }
+        _ => None,
+    }
+}
+
+fn export_monomorphic_type_for_tv(infer: &Infer, tv: TypeVar) -> Option<core_ir::Type> {
+    let bounds = export_type_bounds_for_tv(infer, tv);
+    bounds
+        .lower
+        .as_deref()
+        .or(bounds.upper.as_deref())
+        .cloned()
+        .map(|ty| project_core_value_type_or_any(ty, &BTreeSet::new()))
+        .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
+}
+
+fn infer_core_type_substitutions(
+    template: &core_ir::Type,
+    actual: &core_ir::Type,
+    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) {
+    match (template, actual) {
+        (core_ir::Type::Var(var), actual) if params.contains(var) => {
+            substitutions
+                .entry(var.clone())
+                .or_insert_with(|| actual.clone());
+        }
+        (
+            core_ir::Type::Named { path, args },
+            core_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+        ) if path == actual_path && args.len() == actual_args.len() => {
+            for (template_arg, actual_arg) in args.iter().zip(actual_args) {
+                infer_core_type_arg_substitutions(template_arg, actual_arg, params, substitutions);
+            }
+        }
+        (
+            core_ir::Type::Fun { param, ret, .. },
+            core_ir::Type::Fun {
+                param: actual_param,
+                ret: actual_ret,
+                ..
+            },
+        ) => {
+            infer_core_type_substitutions(param, actual_param, params, substitutions);
+            infer_core_type_substitutions(ret, actual_ret, params, substitutions);
+        }
+        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items))
+            if items.len() == actual_items.len() =>
+        {
+            for (item, actual_item) in items.iter().zip(actual_items) {
+                infer_core_type_substitutions(item, actual_item, params, substitutions);
+            }
+        }
+        (core_ir::Type::Record(record), core_ir::Type::Record(actual_record)) => {
+            for field in &record.fields {
+                if let Some(actual_field) = actual_record
+                    .fields
+                    .iter()
+                    .find(|actual| actual.name == field.name)
+                {
+                    infer_core_type_substitutions(
+                        &field.value,
+                        &actual_field.value,
+                        params,
+                        substitutions,
+                    );
+                }
+            }
+        }
+        (core_ir::Type::Union(items) | core_ir::Type::Inter(items), actual) => {
+            for item in items {
+                infer_core_type_substitutions(item, actual, params, substitutions);
+            }
+        }
+        (core_ir::Type::Recursive { var, body }, actual) => {
+            let mut params = params.clone();
+            params.remove(var);
+            infer_core_type_substitutions(body, actual, &params, substitutions);
+        }
+        _ => {}
+    }
+}
+
+fn infer_core_type_arg_substitutions(
+    template: &core_ir::TypeArg,
+    actual: &core_ir::TypeArg,
+    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) {
+    match (template, actual) {
+        (core_ir::TypeArg::Type(template), core_ir::TypeArg::Type(actual)) => {
+            infer_core_type_substitutions(template, actual, params, substitutions);
+        }
+        (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
+            if let (Some(template), Some(actual)) = (&template.lower, &actual.lower) {
+                infer_core_type_substitutions(template, actual, params, substitutions);
+            }
+            if let (Some(template), Some(actual)) = (&template.upper, &actual.upper) {
+                infer_core_type_substitutions(template, actual, params, substitutions);
+            }
+        }
+        _ => {}
+    }
 }
 
 pub fn export_role_requirement(

@@ -17,7 +17,9 @@ use super::names::{export_name, export_path};
 use super::paths::collect_canonical_binding_paths;
 use super::roles::canonical_runtime_export_def;
 use super::spine::{collect_apply_spine, strip_transparent_wrappers};
-use super::types::export_relevant_type_bounds_for_tv;
+use super::types::{
+    export_coalesced_apply_evidence_bounds, export_relevant_type_bounds_for_tv, export_scheme_body,
+};
 
 pub fn export_expr(
     state: &LowerState,
@@ -128,6 +130,8 @@ impl<'a> ExprExporter<'a> {
                                 expr.tv,
                                 &self.relevant_vars,
                             ),
+                            principal_callee: None,
+                            substitutions: Vec::new(),
                             role_method: false,
                         }),
                     }
@@ -153,6 +157,8 @@ impl<'a> ExprExporter<'a> {
                                 expr.tv,
                                 &self.relevant_vars,
                             ),
+                            principal_callee: None,
+                            substitutions: Vec::new(),
                             role_method: false,
                         }),
                     }
@@ -302,7 +308,24 @@ impl<'a> ExprExporter<'a> {
         result: &TypedExpr,
     ) -> core_ir::ApplyEvidence {
         let role_method = self.is_role_method_callee(callee);
-        core_ir::ApplyEvidence {
+        if std::env::var_os("YULANG_COALESCE_APPLY_EVIDENCE").is_some() {
+            let (callee_bounds, arg, result) = export_coalesced_apply_evidence_bounds(
+                &self.state.infer,
+                callee.tv,
+                arg.tv,
+                result.tv,
+                &self.relevant_vars,
+            );
+            return core_ir::ApplyEvidence {
+                callee: callee_bounds,
+                arg,
+                result,
+                principal_callee: None,
+                substitutions: Vec::new(),
+                role_method,
+            };
+        }
+        let mut evidence = core_ir::ApplyEvidence {
             callee: if self.relevant_vars.is_empty() && !role_method {
                 core_ir::TypeBounds::default()
             } else {
@@ -318,8 +341,46 @@ impl<'a> ExprExporter<'a> {
                 result.tv,
                 &self.relevant_vars,
             ),
+            principal_callee: None,
+            substitutions: Vec::new(),
             role_method,
+        };
+        if std::env::var_os("YULANG_EXPORT_APPLY_SUBSTITUTIONS").is_some()
+            && let Some(principal_callee) = self.principal_callee_type(callee)
+        {
+            evidence.substitutions = super::types::export_apply_substitutions(
+                &self.state.infer,
+                &principal_callee,
+                arg.tv,
+                result.tv,
+            );
+            if !evidence.substitutions.is_empty() {
+                evidence.principal_callee = Some(principal_callee);
+            }
         }
+        evidence
+    }
+
+    fn principal_callee_type(&self, callee: &TypedExpr) -> Option<core_ir::Type> {
+        let def = match &callee.kind {
+            ExprKind::Var(def) => Some(canonical_runtime_export_def(self.state, *def)),
+            ExprKind::Ref(ref_id) => self
+                .state
+                .ctx
+                .refs
+                .get(*ref_id)
+                .map(|def| canonical_runtime_export_def(self.state, def)),
+            _ => None,
+        }?;
+        self.state
+            .runtime_export_schemes
+            .get(&def)
+            .map(|scheme| scheme.body.clone())
+            .or_else(|| {
+                self.state
+                    .compact_scheme_of(def)
+                    .map(|scheme| export_scheme_body(&scheme))
+            })
     }
 
     fn export_ref_set(

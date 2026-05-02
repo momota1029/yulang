@@ -86,6 +86,8 @@ pub struct ApplyEvidence {
     pub callee: crate::types::TypeBounds,
     pub arg: crate::types::TypeBounds,
     pub result: crate::types::TypeBounds,
+    pub principal_callee: Option<crate::types::Type>,
+    pub substitutions: Vec<crate::types::TypeSubstitution>,
     pub role_method: bool,
 }
 

@@ -4052,6 +4052,8 @@ mod tests {
                                         callee: core_ir::TypeBounds::exact(singleton_int_ty),
                                         arg: core_ir::TypeBounds::exact(named("int")),
                                         result: core_ir::TypeBounds::exact(list_int.clone()),
+                                        principal_callee: None,
+                                        substitutions: Vec::new(),
                                         role_method: false,
                                     }),
                                     instantiation: None,

@@ -1362,6 +1362,8 @@ mod tests {
                         }),
                         arg: core_ir::TypeBounds::exact(named("unit")),
                         result: core_ir::TypeBounds::exact(named("int")),
+                        principal_callee: None,
+                        substitutions: Vec::new(),
                         role_method: false,
                     }),
                     instantiation: None::<TypeInstantiation>,

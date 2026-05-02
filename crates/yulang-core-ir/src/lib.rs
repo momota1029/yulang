@@ -22,5 +22,5 @@ pub use type_order::{
 };
 pub use types::{
     RecordField, RecordSpread, RecordType, RoleRequirement, RoleRequirementArg, Scheme, Type,
-    TypeArg, TypeBounds, TypeVar, VariantCase, VariantType,
+    TypeArg, TypeBounds, TypeSubstitution, TypeVar, VariantCase, VariantType,
 };

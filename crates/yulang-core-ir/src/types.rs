@@ -7,6 +7,12 @@ pub struct Scheme {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeSubstitution {
+    pub var: TypeVar,
+    pub ty: Type,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordType {
     pub fields: Vec<RecordField<Type>>,
     pub spread: Option<RecordSpread>,

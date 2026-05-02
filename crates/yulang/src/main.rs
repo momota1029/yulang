@@ -1838,12 +1838,31 @@ fn format_core_lit(lit: &core_ir::Lit) -> String {
 }
 
 fn format_apply_evidence(evidence: &core_ir::ApplyEvidence) -> String {
-    format!(
+    let mut out = format!(
         "apply[callee={}, arg={}, result={}]",
         format_core_bounds(&evidence.callee),
         format_core_bounds(&evidence.arg),
         format_core_bounds(&evidence.result)
-    )
+    );
+    if let Some(principal) = &evidence.principal_callee {
+        out.push_str(&format!(", principal={}", format_core_type(principal)));
+    }
+    if !evidence.substitutions.is_empty() {
+        let substitutions = evidence
+            .substitutions
+            .iter()
+            .map(|substitution| {
+                format!(
+                    "{} := {}",
+                    substitution.var.0,
+                    format_core_type(&substitution.ty)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!(", subst=[{substitutions}]"));
+    }
+    out
 }
 
 fn format_join_evidence(evidence: &core_ir::JoinEvidence) -> String {
@@ -2967,6 +2986,8 @@ mod tests {
                     args: vec![],
                 })),
             },
+            principal_callee: None,
+            substitutions: Vec::new(),
             role_method: false,
         };
 

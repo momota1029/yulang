@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 mod analysis;
 mod group;
 mod passes;
+mod representative;
 
 use crate::ids::TypeVar;
 use crate::solve::effect_row::normalize_rewritten_bounds;
@@ -12,7 +13,7 @@ use crate::types::RecordField;
 
 use super::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRow, CompactType,
-    CompactTypeScheme, CompactVariant, merge_compact_bounds,
+    CompactTypeScheme, CompactVariant, merge_compact_bounds, merge_compact_types,
 };
 use super::polar::apply_polar_variable_removal;
 use super::role_constraints::rewrite_role_constraints;
@@ -23,6 +24,7 @@ use passes::{
     apply_group_co_occurrence_substitutions, apply_one_sided_exact_alias_collapse,
     apply_shadow_var_collapse,
 };
+use representative::lower_representatives_for_subst;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct CoOccurrences {
@@ -82,8 +84,29 @@ pub fn coalesce_by_co_occurrence_with_role_constraints(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
 ) -> (CompactTypeScheme, Vec<CompactRoleConstraint>) {
+    let output = coalesce_by_co_occurrence_with_role_constraints_report(scheme, constraints);
+    (output.scheme, output.constraints)
+}
+
+pub fn coalesce_by_co_occurrence_with_role_constraints_report(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+) -> CoalesceOutput {
+    coalesce_by_co_occurrence_with_role_constraints_report_inner(
+        scheme,
+        constraints,
+        std::env::var_os("YULANG_USE_COALESCE_REPRESENTATIVES").is_some(),
+    )
+}
+
+fn coalesce_by_co_occurrence_with_role_constraints_report_inner(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    use_representatives: bool,
+) -> CoalesceOutput {
     let mut current_scheme = scheme.clone();
     let mut current_constraints = constraints.to_vec();
+    let mut rounds = Vec::new();
 
     loop {
         let protected_vars = centered_constraint_vars(&current_constraints);
@@ -123,17 +146,64 @@ pub fn coalesce_by_co_occurrence_with_role_constraints(
         apply_shadow_var_collapse(&all_vars, &analysis, &protected_vars, &mut subst);
         apply_one_sided_exact_alias_collapse(&all_vars, &analysis, &protected_vars, &mut subst);
 
-        let rewritten_scheme = rewrite_scheme(&current_scheme, &rec_vars, &subst);
-        let rewritten_constraints =
-            rewrite_role_constraints(&rewritten_scheme, &current_constraints, &subst);
+        let representatives = lower_representatives_for_subst(
+            &current_scheme,
+            &current_constraints,
+            &rec_vars,
+            &subst,
+        );
+        let rewritten_scheme = if use_representatives {
+            rewrite_scheme_with_representatives(
+                &current_scheme,
+                &rec_vars,
+                &subst,
+                &representatives,
+            )
+        } else {
+            rewrite_scheme(&current_scheme, &rec_vars, &subst)
+        };
+        let rewritten_constraints = if use_representatives {
+            rewrite_constraints_with_representatives(
+                &rewritten_scheme,
+                &current_constraints,
+                &subst,
+                &representatives,
+            )
+        } else {
+            rewrite_role_constraints(&rewritten_scheme, &current_constraints, &subst)
+        };
 
         if rewritten_scheme == current_scheme && rewritten_constraints == current_constraints {
-            return (rewritten_scheme, rewritten_constraints);
+            return CoalesceOutput {
+                scheme: rewritten_scheme,
+                constraints: rewritten_constraints,
+                rounds,
+            };
+        }
+
+        if !subst.is_empty() {
+            rounds.push(CoalesceRound {
+                subst,
+                representatives,
+            });
         }
 
         current_scheme = rewritten_scheme;
         current_constraints = rewritten_constraints;
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoalesceOutput {
+    pub scheme: CompactTypeScheme,
+    pub constraints: Vec<CompactRoleConstraint>,
+    pub rounds: Vec<CoalesceRound>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoalesceRound {
+    pub subst: HashMap<TypeVar, Option<TypeVar>>,
+    pub representatives: HashMap<TypeVar, CompactType>,
 }
 
 fn centered_constraint_vars(constraints: &[CompactRoleConstraint]) -> HashSet<TypeVar> {
@@ -188,6 +258,15 @@ fn rewrite_scheme(
     rec_vars: &HashMap<TypeVar, CompactBounds>,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
 ) -> CompactTypeScheme {
+    rewrite_scheme_with_representatives(scheme, rec_vars, subst, &HashMap::new())
+}
+
+fn rewrite_scheme_with_representatives(
+    scheme: &CompactTypeScheme,
+    rec_vars: &HashMap<TypeVar, CompactBounds>,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    representatives: &HashMap<TypeVar, CompactType>,
+) -> CompactTypeScheme {
     let mut rewritten_rec_vars = HashMap::new();
     let mut rec_vars = rec_vars.iter().collect::<Vec<_>>();
     rec_vars.sort_by_key(|(tv, _)| tv.0);
@@ -198,7 +277,7 @@ fn rewrite_scheme(
         let Some(key) = rewrite_var(tv, subst) else {
             continue;
         };
-        let rewritten = rewrite_bounds(bounds, subst);
+        let rewritten = rewrite_bounds_with_representatives(bounds, subst, representatives);
         rewritten_rec_vars
             .entry(key)
             .and_modify(|existing: &mut CompactBounds| {
@@ -208,7 +287,7 @@ fn rewrite_scheme(
     }
 
     CompactTypeScheme {
-        cty: rewrite_bounds(&scheme.cty, subst),
+        cty: rewrite_bounds_with_representatives(&scheme.cty, subst, representatives),
         rec_vars: rewritten_rec_vars,
     }
 }
@@ -217,22 +296,60 @@ pub(crate) fn rewrite_bounds(
     bounds: &CompactBounds,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
 ) -> CompactBounds {
+    rewrite_bounds_with_representatives(bounds, subst, &HashMap::new())
+}
+
+fn rewrite_constraints_with_representatives(
+    scheme: &CompactTypeScheme,
+    constraints: &[CompactRoleConstraint],
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    representatives: &HashMap<TypeVar, CompactType>,
+) -> Vec<CompactRoleConstraint> {
+    let rewritten = constraints
+        .iter()
+        .map(|constraint| CompactRoleConstraint {
+            role: constraint.role.clone(),
+            args: constraint
+                .args
+                .iter()
+                .map(|arg| rewrite_bounds_with_representatives(arg, subst, representatives))
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+    rewrite_role_constraints(scheme, &rewritten, &HashMap::new())
+}
+
+fn rewrite_bounds_with_representatives(
+    bounds: &CompactBounds,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    representatives: &HashMap<TypeVar, CompactType>,
+) -> CompactBounds {
     normalize_rewritten_bounds(CompactBounds {
         self_var: bounds.self_var.and_then(|tv| rewrite_var(tv, subst)),
-        lower: rewrite_compact_type(&bounds.lower, subst),
-        upper: rewrite_compact_type(&bounds.upper, subst),
+        lower: rewrite_compact_type(&bounds.lower, subst, representatives),
+        upper: rewrite_compact_type(&bounds.upper, subst, representatives),
     })
 }
 
 fn rewrite_compact_type(
     ty: &CompactType,
     subst: &HashMap<TypeVar, Option<TypeVar>>,
+    representatives: &HashMap<TypeVar, CompactType>,
 ) -> CompactType {
-    let vars = ty
-        .vars
-        .iter()
-        .filter_map(|&tv| rewrite_var(tv, subst))
-        .collect();
+    let mut vars = HashSet::new();
+    let mut representative_parts = CompactType::default();
+    for &tv in &ty.vars {
+        match rewrite_var_with_representative(tv, subst, representatives) {
+            VarRewrite::Keep(tv) => {
+                vars.insert(tv);
+            }
+            VarRewrite::Representative(representative) => {
+                representative_parts =
+                    merge_compact_types(true, representative_parts, representative);
+            }
+            VarRewrite::Remove => {}
+        }
+    }
     let cons = ty
         .cons
         .iter()
@@ -241,7 +358,7 @@ fn rewrite_compact_type(
             args: con
                 .args
                 .iter()
-                .map(|arg| rewrite_bounds(arg, subst))
+                .map(|arg| rewrite_bounds_with_representatives(arg, subst, representatives))
                 .collect(),
         })
         .collect();
@@ -249,10 +366,10 @@ fn rewrite_compact_type(
         .funs
         .iter()
         .map(|fun| CompactFun {
-            arg: rewrite_compact_type(&fun.arg, subst),
-            arg_eff: rewrite_compact_type(&fun.arg_eff, subst),
-            ret_eff: rewrite_compact_type(&fun.ret_eff, subst),
-            ret: rewrite_compact_type(&fun.ret, subst),
+            arg: rewrite_compact_type(&fun.arg, subst, representatives),
+            arg_eff: rewrite_compact_type(&fun.arg_eff, subst, representatives),
+            ret_eff: rewrite_compact_type(&fun.ret_eff, subst, representatives),
+            ret: rewrite_compact_type(&fun.ret, subst, representatives),
         })
         .collect();
     let records = ty
@@ -264,7 +381,7 @@ fn rewrite_compact_type(
                 .iter()
                 .map(|field| RecordField {
                     name: field.name.clone(),
-                    value: rewrite_compact_type(&field.value, subst),
+                    value: rewrite_compact_type(&field.value, subst, representatives),
                     optional: field.optional,
                 })
                 .collect(),
@@ -282,7 +399,7 @@ fn rewrite_compact_type(
                         name.clone(),
                         payloads
                             .iter()
-                            .map(|payload| rewrite_compact_type(payload, subst))
+                            .map(|payload| rewrite_compact_type(payload, subst, representatives))
                             .collect(),
                     )
                 })
@@ -295,7 +412,7 @@ fn rewrite_compact_type(
         .map(|tuple| {
             tuple
                 .iter()
-                .map(|item| rewrite_compact_type(item, subst))
+                .map(|item| rewrite_compact_type(item, subst, representatives))
                 .collect()
         })
         .collect();
@@ -306,12 +423,12 @@ fn rewrite_compact_type(
             items: row
                 .items
                 .iter()
-                .map(|item| rewrite_compact_type(item, subst))
+                .map(|item| rewrite_compact_type(item, subst, representatives))
                 .collect(),
-            tail: Box::new(rewrite_compact_type(&row.tail, subst)),
+            tail: Box::new(rewrite_compact_type(&row.tail, subst, representatives)),
         })
         .collect();
-    CompactType {
+    let rewritten = CompactType {
         vars,
         prims: ty.prims.clone(),
         cons,
@@ -326,18 +443,63 @@ fn rewrite_compact_type(
                     .iter()
                     .map(|field| RecordField {
                         name: field.name.clone(),
-                        value: rewrite_compact_type(&field.value, subst),
+                        value: rewrite_compact_type(&field.value, subst, representatives),
                         optional: field.optional,
                     })
                     .collect(),
-                tail: Box::new(rewrite_compact_type(&spread.tail, subst)),
+                tail: Box::new(rewrite_compact_type(&spread.tail, subst, representatives)),
                 tail_wins: spread.tail_wins,
             })
             .collect(),
         variants,
         tuples,
         rows,
+    };
+    merge_compact_types(true, rewritten, representative_parts)
+}
+
+enum VarRewrite {
+    Keep(TypeVar),
+    Representative(CompactType),
+    Remove,
+}
+
+fn rewrite_var_with_representative(
+    tv: TypeVar,
+    subst: &HashMap<TypeVar, Option<TypeVar>>,
+    representatives: &HashMap<TypeVar, CompactType>,
+) -> VarRewrite {
+    let mut cur = tv;
+    let mut seen = HashSet::new();
+    while let Some(next) = subst.get(&cur) {
+        if let Some(representative) = representatives
+            .get(&cur)
+            .or_else(|| representatives.get(&tv))
+            .cloned()
+        {
+            return VarRewrite::Representative(representative);
+        }
+        if !seen.insert(cur) {
+            break;
+        }
+        match *next {
+            Some(next) if next != cur => cur = next,
+            Some(_) => break,
+            None => {
+                return representatives
+                    .get(&tv)
+                    .cloned()
+                    .map(VarRewrite::Representative)
+                    .unwrap_or(VarRewrite::Remove);
+            }
+        }
     }
+    representatives
+        .get(&cur)
+        .or_else(|| representatives.get(&tv))
+        .cloned()
+        .map(VarRewrite::Representative)
+        .unwrap_or(VarRewrite::Keep(cur))
 }
 
 fn rewrite_var(tv: TypeVar, subst: &HashMap<TypeVar, Option<TypeVar>>) -> Option<TypeVar> {
@@ -510,7 +672,8 @@ mod tests {
     use super::{
         AlongItem, ExactKeyKind, analyze_co_occurrences,
         analyze_group_co_occurrences_with_role_constraints, coalesce_by_co_occurrence,
-        exact_occurrences,
+        coalesce_by_co_occurrence_with_role_constraints_report,
+        coalesce_by_co_occurrence_with_role_constraints_report_inner, exact_occurrences,
     };
     use crate::fresh_type_var;
     use crate::simplify::compact::merge_compact_types;
@@ -603,6 +766,10 @@ mod tests {
         assert_eq!(coalesced.cty.lower.funs.len(), 1);
         assert_eq!(coalesced.cty.lower.funs[0].arg.vars.len(), 1);
         assert_eq!(coalesced.cty.lower.funs[0].ret.vars.len(), 1);
+
+        let report = coalesce_by_co_occurrence_with_role_constraints_report(&scheme, &[]);
+        assert_eq!(report.rounds.len(), 1);
+        assert_eq!(report.rounds[0].subst.get(&b), Some(&Some(a)));
     }
 
     #[test]
@@ -622,6 +789,82 @@ mod tests {
 
         let coalesced = coalesce_by_co_occurrence(&scheme);
         assert!(coalesced.cty.lower.vars.is_empty());
+
+        let report = coalesce_by_co_occurrence_with_role_constraints_report(&scheme, &[]);
+        assert_eq!(report.rounds.len(), 1);
+        assert_eq!(report.rounds[0].subst.get(&a), Some(&None));
+    }
+
+    #[test]
+    fn coalesce_report_records_lower_representative_for_removed_var() {
+        let a = fresh_type_var();
+        let int_path = Path {
+            segments: vec![Name("int".to_string())],
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    vars: HashSet::from([a]),
+                    prims: HashSet::from([int_path.clone()]),
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        };
+
+        let report = coalesce_by_co_occurrence_with_role_constraints_report(&scheme, &[]);
+        assert_eq!(report.rounds.len(), 1);
+        assert_eq!(report.rounds[0].subst.get(&a), Some(&None));
+        assert_eq!(
+            report.rounds[0].representatives.get(&a),
+            Some(&CompactType {
+                prims: HashSet::from([int_path]),
+                ..CompactType::default()
+            })
+        );
+    }
+
+    #[test]
+    fn coalesce_rewrites_removed_var_to_lower_representative() {
+        let a = fresh_type_var();
+        let int_path = Path {
+            segments: vec![Name("int".to_string())],
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    vars: HashSet::from([a]),
+                    prims: HashSet::from([int_path.clone()]),
+                    funs: vec![crate::simplify::compact::CompactFun {
+                        arg: CompactType::default(),
+                        arg_eff: CompactType::default(),
+                        ret_eff: CompactType::default(),
+                        ret: CompactType {
+                            vars: HashSet::from([a]),
+                            ..CompactType::default()
+                        },
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        };
+
+        let coalesced =
+            coalesce_by_co_occurrence_with_role_constraints_report_inner(&scheme, &[], true).scheme;
+        assert!(coalesced.cty.lower.vars.is_empty());
+        assert_eq!(coalesced.cty.lower.funs.len(), 1);
+        assert_eq!(
+            coalesced.cty.lower.funs[0].ret,
+            CompactType {
+                prims: HashSet::from([int_path]),
+                ..CompactType::default()
+            }
+        );
     }
 
     #[test]

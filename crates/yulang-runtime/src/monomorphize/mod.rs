@@ -5,11 +5,12 @@
 //! type witness.  The public pipeline in `pipeline` adds validation, cleanup,
 //! profiling, and final invariant checks around this demand core.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 use yulang_core_ir as core_ir;
 
 use crate::ir::Type as RuntimeType;
+use crate::types::substitute_type;
 
 mod associated;
 mod check;
@@ -949,8 +950,8 @@ pub(super) fn apply_evidence_merged_signature(
 pub(super) fn apply_evidence_callee_signature(
     evidence: &core_ir::ApplyEvidence,
 ) -> Option<DemandSignature> {
-    evidence_bounds_type(&evidence.callee)
-        .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())))
+    apply_evidence_callee_type(evidence)
+        .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty)))
 }
 
 pub(super) fn apply_evidence_arg_signature(
@@ -963,14 +964,14 @@ pub(super) fn apply_evidence_arg_signature(
 fn apply_evidence_signature(evidence: &core_ir::ApplyEvidence) -> Option<DemandSignature> {
     if let Some(core_ir::Type::Fun {
         ret_effect, ret, ..
-    }) = evidence_bounds_type(&evidence.callee)
+    }) = apply_evidence_callee_type(evidence)
     {
         let mut next_hole = 0;
         let ret = DemandSignature::from_runtime_type_with_holes(
             &RuntimeType::core(ret.as_ref().clone()),
             &mut next_hole,
         );
-        let ret_effect = DemandEffect::from_core_type_with_holes(ret_effect, &mut next_hole);
+        let ret_effect = DemandEffect::from_core_type_with_holes(&ret_effect, &mut next_hole);
         return Some(effected_core_signature(
             signature_core_value(&ret),
             ret_effect,
@@ -982,6 +983,21 @@ fn apply_evidence_signature(evidence: &core_ir::ApplyEvidence) -> Option<DemandS
 
 fn evidence_bounds_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
     bounds.lower.as_deref().or(bounds.upper.as_deref())
+}
+
+fn apply_evidence_callee_type(evidence: &core_ir::ApplyEvidence) -> Option<core_ir::Type> {
+    if std::env::var_os("YULANG_USE_APPLY_SUBSTITUTIONS").is_some()
+        && let Some(principal_callee) = &evidence.principal_callee
+        && !evidence.substitutions.is_empty()
+    {
+        let substitutions = evidence
+            .substitutions
+            .iter()
+            .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
+            .collect::<BTreeMap<_, _>>();
+        return Some(substitute_type(principal_callee, &substitutions));
+    }
+    evidence_bounds_type(&evidence.callee).cloned()
 }
 
 pub(super) fn merge_signature_hint(

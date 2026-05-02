@@ -174,6 +174,17 @@ pub(crate) fn substitute_apply_evidence(
         callee: substitute_bounds(evidence.callee, substitutions),
         arg: substitute_bounds(evidence.arg, substitutions),
         result: substitute_bounds(evidence.result, substitutions),
+        principal_callee: evidence
+            .principal_callee
+            .map(|ty| substitute_type(&ty, substitutions)),
+        substitutions: evidence
+            .substitutions
+            .into_iter()
+            .map(|substitution| core_ir::TypeSubstitution {
+                var: substitution.var,
+                ty: substitute_type(&substitution.ty, substitutions),
+            })
+            .collect(),
         role_method: evidence.role_method,
     }
 }
