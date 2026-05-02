@@ -126,7 +126,9 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 4. `substitution-specialize` は、binding の `type_params` だけでなく scheme/body に残る型変数も substitution 対象として見るようにした。さらに evidence がない call でも、すでに生成中の `__mono` body 内なら arg/result から代入を推測するようにした。
 5. これで `examples/07_junction.yu` の `std::junction::junction::{all,any}` は `__mono` 化できた。残りは `std::list::&impl#187::fold`、`std::flow::sub::sub`、`std::list::fold_impl`、`std::list::view_raw`、`std::junction::junction::junction` が旧 demand 側に残っている。
 6. 空 evidence からの推論は root call には許可しない。これにより `test.yu` の `&p#587::var_ref__mono0` のような余計な root specialization は避け、38 passes / 23 specializations を保っている。
-7. 次は role method (`Fold::fold`) を substitution pass で concrete impl へ解くか、role-specialization の新規 specialization が 0 になった場合に role fixpoint 自体を短絡できるか計測する。
+7. role method call について、receiver 型から concrete impl binding を一意に選べる場合は substitution pass で impl 側へ直接向ける実験を入れた。`examples/07_junction.yu` では `std::fold::Fold::fold` が `std::list::&impl#187::fold__mono2` へ寄るようになった。
+8. `Fold::fold` の callback effect 変数 `e` を閉じるため、型代入推論に function effect も見る入口を追加した。これで role call は新パス側へ移せたが、`fold_impl` / `view_raw` はまだ旧 demand 側に残る。
+9. `fold_impl` が残る理由は、新パス時点の impl body 内 call がまだ `Any` 寄りで、後続 refine 後に `list<int>` へ締まるため。次は `RefineTypes` 後に限定的な `SubstitutionSpecialize` をもう一度走らせる実験、または `substitute_binding` 側で local/pattern 型までより強く置換する実験をする。
 
 ## Notes
 

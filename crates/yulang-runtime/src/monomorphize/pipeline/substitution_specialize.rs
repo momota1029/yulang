@@ -1,7 +1,6 @@
 use super::*;
 use crate::types::{
-    diagnostic_core_type, infer_type_substitutions, needs_runtime_coercion, runtime_core_type,
-    type_compatible,
+    diagnostic_core_type, needs_runtime_coercion, runtime_core_type, type_compatible,
 };
 
 pub(super) fn substitute_specialize_module(module: Module) -> Module {
@@ -11,6 +10,7 @@ pub(super) fn substitute_specialize_module(module: Module) -> Module {
 struct SubstitutionSpecializer {
     module: Module,
     generic_bindings: HashMap<core_ir::Path, Binding>,
+    role_impls: HashMap<core_ir::Name, Vec<Binding>>,
     specializations: HashMap<String, core_ir::Path>,
     emitted: Vec<Binding>,
     next_index: usize,
@@ -26,10 +26,12 @@ impl SubstitutionSpecializer {
             .filter(|binding| !binding_substitution_vars(binding).is_empty())
             .map(|binding| (binding.name.clone(), binding.clone()))
             .collect::<HashMap<_, _>>();
+        let role_impls = substitution_role_impls(&module);
         let next_index = next_substitution_specialization_index(&module);
         Self {
             module,
             generic_bindings,
+            role_impls,
             specializations: HashMap::new(),
             emitted: Vec::new(),
             next_index,
@@ -255,7 +257,11 @@ impl SubstitutionSpecializer {
             self.bump("skip-non-var-spine");
             return None;
         };
-        let Some(original) = self.generic_bindings.get(spine.target).cloned() else {
+        let original = if let Some(original) = self.generic_bindings.get(spine.target).cloned() {
+            original
+        } else if let Some(original) = self.select_role_impl_binding(&spine) {
+            original
+        } else {
             self.bump("skip-non-generic-callee");
             return None;
         };
@@ -290,7 +296,12 @@ impl SubstitutionSpecializer {
         infer_direct_param_substitution(&ret, &actual_ret, &mut principal_substitutions);
         let mut ret_vars = BTreeSet::new();
         collect_core_type_vars(&ret, &mut ret_vars);
-        infer_type_substitutions(&ret, &actual_ret, &ret_vars, &mut principal_substitutions);
+        infer_type_substitutions_with_effects(
+            &ret,
+            &actual_ret,
+            &ret_vars,
+            &mut principal_substitutions,
+        );
         callee_ty = substitute_type(principal_callee, &principal_substitutions);
         let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
             self.bump("skip-non-function-principal");
@@ -301,7 +312,12 @@ impl SubstitutionSpecializer {
         } else {
             let mut vars = BTreeSet::new();
             collect_core_type_vars(&ret, &mut vars);
-            infer_type_substitutions(&ret, &actual_ret, &vars, &mut principal_substitutions);
+            infer_type_substitutions_with_effects(
+                &ret,
+                &actual_ret,
+                &vars,
+                &mut principal_substitutions,
+            );
             callee_ty = substitute_type(principal_callee, &principal_substitutions);
             let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
                 self.bump("skip-non-function-principal");
@@ -326,7 +342,7 @@ impl SubstitutionSpecializer {
             );
             let mut vars = BTreeSet::new();
             collect_core_type_vars(param, &mut vars);
-            infer_type_substitutions(
+            infer_type_substitutions_with_effects(
                 param,
                 &runtime_core_type(&arg.ty),
                 &vars,
@@ -348,7 +364,7 @@ impl SubstitutionSpecializer {
             for (arg, param) in spine.args.iter().zip(&params) {
                 let mut vars = BTreeSet::new();
                 collect_core_type_vars(param, &mut vars);
-                infer_type_substitutions(
+                infer_type_substitutions_with_effects(
                     param,
                     &runtime_core_type(&arg.ty),
                     &vars,
@@ -409,6 +425,29 @@ impl SubstitutionSpecializer {
             current = next;
         }
         Some(call)
+    }
+
+    fn select_role_impl_binding(&mut self, spine: &ApplySpine<'_>) -> Option<Binding> {
+        if !is_role_method_path(spine.target) {
+            return None;
+        }
+        let method = spine.target.segments.last()?;
+        let receiver = spine.args.first()?;
+        let receiver_ty = runtime_core_type(&receiver.ty);
+        let candidates = self.role_impls.get(method)?;
+        let mut matched = candidates
+            .iter()
+            .filter(|candidate| role_impl_receiver_matches(candidate, &receiver_ty))
+            .cloned()
+            .collect::<Vec<_>>();
+        if matched.len() == 1 {
+            self.bump("role-impl-selected");
+            return matched.pop();
+        }
+        if matched.len() > 1 {
+            self.bump("skip-ambiguous-role-impl");
+        }
+        None
     }
 
     fn intern_specialization(
@@ -486,6 +525,46 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
         evidence: selected_evidence,
         instantiation: selected_instantiation,
     })
+}
+
+fn substitution_role_impls(module: &Module) -> HashMap<core_ir::Name, Vec<Binding>> {
+    let mut out: HashMap<core_ir::Name, Vec<Binding>> = HashMap::new();
+    for binding in &module.bindings {
+        if !is_impl_method_path(&binding.name) || binding_substitution_vars(binding).is_empty() {
+            continue;
+        }
+        let Some(method) = binding.name.segments.last() else {
+            continue;
+        };
+        out.entry(method.clone()).or_default().push(binding.clone());
+    }
+    for candidates in out.values_mut() {
+        candidates.sort_by_key(|candidate| canonical_path(&candidate.name));
+    }
+    out
+}
+
+fn role_impl_receiver_matches(binding: &Binding, receiver_ty: &core_ir::Type) -> bool {
+    let Some((params, _)) = core_fun_spine(&binding.scheme.body, 1) else {
+        return false;
+    };
+    let Some(receiver_param) = params.first() else {
+        return false;
+    };
+    let mut substitutions = BTreeMap::new();
+    infer_direct_param_substitution(receiver_param, receiver_ty, &mut substitutions);
+    let mut vars = BTreeSet::new();
+    collect_core_type_vars(receiver_param, &mut vars);
+    infer_type_substitutions_with_effects(receiver_param, receiver_ty, &vars, &mut substitutions);
+    let receiver_param = substitute_type(receiver_param, &substitutions);
+    type_matches_exact_bounds(receiver_ty, &receiver_param)
+        || type_compatible(&receiver_param, receiver_ty)
+}
+
+fn is_impl_method_path(path: &core_ir::Path) -> bool {
+    path.segments
+        .iter()
+        .any(|segment| segment.0.starts_with("&impl#"))
 }
 
 fn binding_body_has_generic_apply(
@@ -758,7 +837,7 @@ fn args_already_match_params(args: &[&Expr], params: &[core_ir::Type]) -> bool {
 }
 
 fn type_matches_exact_bounds(actual: &core_ir::Type, expected: &core_ir::Type) -> bool {
-    if actual == expected {
+    if actual == expected || matches!(actual, core_ir::Type::Any) {
         return true;
     }
     match (actual, expected) {
