@@ -56,6 +56,15 @@ impl DemandQueue {
     }
 
     fn push_demand(&mut self, demand: Demand) -> bool {
+        if !demand.key.signature.is_closed()
+            && self.seen.iter().any(|key| {
+                key.target == demand.target
+                    && key.signature.is_closed()
+                    && closed_signature_covers_open(&key.signature, &demand.key.signature)
+            })
+        {
+            return false;
+        }
         if !self.seen.insert(demand.key.clone()) {
             return false;
         }
@@ -73,6 +82,183 @@ impl DemandQueue {
 
     pub fn is_empty(&self) -> bool {
         self.queue.is_empty()
+    }
+}
+
+fn closed_signature_covers_open(closed: &DemandSignature, open: &DemandSignature) -> bool {
+    match (closed, open) {
+        (_, DemandSignature::Ignored | DemandSignature::Hole(_)) => true,
+        (DemandSignature::Core(closed), DemandSignature::Core(open)) => {
+            closed_core_type_covers_open(closed, open)
+        }
+        (
+            DemandSignature::Fun {
+                param: closed_param,
+                ret: closed_ret,
+            },
+            DemandSignature::Fun {
+                param: open_param,
+                ret: open_ret,
+            },
+        ) => {
+            closed_signature_covers_open(closed_param, open_param)
+                && closed_signature_covers_open(closed_ret, open_ret)
+        }
+        (
+            DemandSignature::Thunk {
+                effect: closed_effect,
+                value: closed_value,
+            },
+            DemandSignature::Thunk {
+                effect: open_effect,
+                value: open_value,
+            },
+        ) => {
+            closed_effect_covers_open(closed_effect, open_effect)
+                && closed_signature_covers_open(closed_value, open_value)
+        }
+        _ => false,
+    }
+}
+
+fn closed_effect_covers_open(closed: &DemandEffect, open: &DemandEffect) -> bool {
+    match (closed, open) {
+        (_, DemandEffect::Hole(_)) => true,
+        (DemandEffect::Empty, DemandEffect::Empty) => true,
+        (DemandEffect::Atom(closed), DemandEffect::Atom(open)) => {
+            closed_core_type_covers_open(closed, open)
+        }
+        (DemandEffect::Row(closed), DemandEffect::Row(open)) => {
+            closed.len() == open.len()
+                && closed
+                    .iter()
+                    .zip(open)
+                    .all(|(closed, open)| closed_effect_covers_open(closed, open))
+        }
+        _ => false,
+    }
+}
+
+fn closed_core_type_covers_open(closed: &DemandCoreType, open: &DemandCoreType) -> bool {
+    match (closed, open) {
+        (_, DemandCoreType::Any | DemandCoreType::Hole(_)) => true,
+        (DemandCoreType::Never, DemandCoreType::Never) => true,
+        (
+            DemandCoreType::Named {
+                path: closed_path,
+                args: closed_args,
+            },
+            DemandCoreType::Named {
+                path: open_path,
+                args: open_args,
+            },
+        ) => {
+            closed_path == open_path
+                && closed_args.len() == open_args.len()
+                && closed_args
+                    .iter()
+                    .zip(open_args)
+                    .all(|(closed, open)| closed_type_arg_covers_open(closed, open))
+        }
+        (
+            DemandCoreType::Fun {
+                param: closed_param,
+                param_effect: closed_param_effect,
+                ret_effect: closed_ret_effect,
+                ret: closed_ret,
+            },
+            DemandCoreType::Fun {
+                param: open_param,
+                param_effect: open_param_effect,
+                ret_effect: open_ret_effect,
+                ret: open_ret,
+            },
+        ) => {
+            closed_core_type_covers_open(closed_param, open_param)
+                && closed_effect_covers_open(closed_param_effect, open_param_effect)
+                && closed_effect_covers_open(closed_ret_effect, open_ret_effect)
+                && closed_core_type_covers_open(closed_ret, open_ret)
+        }
+        (DemandCoreType::Tuple(closed), DemandCoreType::Tuple(open))
+        | (DemandCoreType::Union(closed), DemandCoreType::Union(open))
+        | (DemandCoreType::Inter(closed), DemandCoreType::Inter(open)) => {
+            closed.len() == open.len()
+                && closed
+                    .iter()
+                    .zip(open)
+                    .all(|(closed, open)| closed_core_type_covers_open(closed, open))
+        }
+        (DemandCoreType::Record(closed), DemandCoreType::Record(open)) => {
+            closed.len() == open.len()
+                && closed.iter().zip(open).all(|(closed, open)| {
+                    closed.name == open.name
+                        && closed.optional == open.optional
+                        && closed_core_type_covers_open(&closed.value, &open.value)
+                })
+        }
+        (DemandCoreType::Variant(closed), DemandCoreType::Variant(open)) => {
+            closed.len() == open.len()
+                && closed.iter().zip(open).all(|(closed, open)| {
+                    closed.name == open.name
+                        && closed.payloads.len() == open.payloads.len()
+                        && closed
+                            .payloads
+                            .iter()
+                            .zip(&open.payloads)
+                            .all(|(closed, open)| closed_core_type_covers_open(closed, open))
+                })
+        }
+        (DemandCoreType::RowAsValue(closed), DemandCoreType::RowAsValue(open)) => {
+            closed.len() == open.len()
+                && closed
+                    .iter()
+                    .zip(open)
+                    .all(|(closed, open)| closed_effect_covers_open(closed, open))
+        }
+        (
+            DemandCoreType::Recursive {
+                var: closed_var,
+                body: closed_body,
+            },
+            DemandCoreType::Recursive {
+                var: open_var,
+                body: open_body,
+            },
+        ) => closed_var == open_var && closed_core_type_covers_open(closed_body, open_body),
+        _ => false,
+    }
+}
+
+fn closed_type_arg_covers_open(closed: &DemandTypeArg, open: &DemandTypeArg) -> bool {
+    match (closed, open) {
+        (DemandTypeArg::Type(closed), DemandTypeArg::Type(open)) => {
+            closed_core_type_covers_open(closed, open)
+        }
+        (
+            DemandTypeArg::Bounds {
+                lower: closed_lower,
+                upper: closed_upper,
+            },
+            DemandTypeArg::Bounds {
+                lower: open_lower,
+                upper: open_upper,
+            },
+        ) => {
+            optional_closed_core_type_covers_open(closed_lower.as_ref(), open_lower.as_ref())
+                && optional_closed_core_type_covers_open(closed_upper.as_ref(), open_upper.as_ref())
+        }
+        _ => false,
+    }
+}
+
+fn optional_closed_core_type_covers_open(
+    closed: Option<&DemandCoreType>,
+    open: Option<&DemandCoreType>,
+) -> bool {
+    match (closed, open) {
+        (_, None) => true,
+        (Some(closed), Some(open)) => closed_core_type_covers_open(closed, open),
+        (None, Some(_)) => false,
     }
 }
 
@@ -954,6 +1140,13 @@ pub(super) fn apply_evidence_callee_signature(
         .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty)))
 }
 
+pub(super) fn apply_evidence_substituted_callee_signature(
+    evidence: &core_ir::ApplyEvidence,
+) -> Option<DemandSignature> {
+    apply_evidence_substituted_callee_type(evidence)
+        .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty)))
+}
+
 pub(super) fn apply_evidence_arg_signature(
     evidence: &core_ir::ApplyEvidence,
 ) -> Option<DemandSignature> {
@@ -986,18 +1179,28 @@ fn evidence_bounds_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> 
 }
 
 fn apply_evidence_callee_type(evidence: &core_ir::ApplyEvidence) -> Option<core_ir::Type> {
-    if std::env::var_os("YULANG_USE_APPLY_SUBSTITUTIONS").is_some()
-        && let Some(principal_callee) = &evidence.principal_callee
-        && !evidence.substitutions.is_empty()
-    {
-        let substitutions = evidence
-            .substitutions
-            .iter()
-            .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
-            .collect::<BTreeMap<_, _>>();
-        return Some(substitute_type(principal_callee, &substitutions));
+    if let Some(callee) = apply_evidence_substituted_callee_type(evidence) {
+        return Some(callee);
     }
     evidence_bounds_type(&evidence.callee).cloned()
+}
+
+fn apply_evidence_substituted_callee_type(
+    evidence: &core_ir::ApplyEvidence,
+) -> Option<core_ir::Type> {
+    if std::env::var_os("YULANG_USE_APPLY_SUBSTITUTIONS").is_none() {
+        return None;
+    }
+    let principal_callee = evidence.principal_callee.as_ref()?;
+    if evidence.substitutions.is_empty() {
+        return None;
+    }
+    let substitutions = evidence
+        .substitutions
+        .iter()
+        .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
+        .collect::<BTreeMap<_, _>>();
+    Some(substitute_type(principal_callee, &substitutions))
 }
 
 pub(super) fn merge_signature_hint(
@@ -1151,6 +1354,32 @@ mod tests {
 
         assert!(queue.push(target.clone(), RuntimeType::core(named("int"))));
         assert!(queue.push(target, RuntimeType::core(named("str"))));
+        assert_eq!(queue.len(), 2);
+    }
+
+    #[test]
+    fn demand_queue_drops_open_demand_after_closed_target_demand() {
+        let mut queue = DemandQueue::default();
+        let target = path("id");
+
+        assert!(queue.push(target.clone(), RuntimeType::core(named("int"))));
+        assert!(!queue.push(target, RuntimeType::core(core_ir::Type::Any)));
+        assert_eq!(queue.len(), 1);
+    }
+
+    #[test]
+    fn demand_queue_keeps_open_demand_not_covered_by_closed_target_demand() {
+        let mut queue = DemandQueue::default();
+        let target = path("id");
+
+        assert!(queue.push(target.clone(), RuntimeType::core(named("int"))));
+        assert!(queue.push(
+            target,
+            RuntimeType::fun(
+                RuntimeType::core(named("bool")),
+                RuntimeType::core(core_ir::Type::Any),
+            )
+        ));
         assert_eq!(queue.len(), 2);
     }
 

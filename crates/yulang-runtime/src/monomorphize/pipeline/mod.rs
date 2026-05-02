@@ -220,6 +220,9 @@ fn run_profiled_mono_pass(
     profile: &mut MonomorphizeProfile,
     debug: bool,
 ) -> RuntimeResult<MonoStep> {
+    let before_for_changed_debug = std::env::var_os("YULANG_DEBUG_MONO_CHANGED")
+        .is_some()
+        .then(|| module.clone());
     let before = MonoStats::from_module(&module);
     let step = apply_mono_pass(module, pass)?;
     let after = MonoStats::from_module(&step.module);
@@ -242,6 +245,9 @@ fn run_profiled_mono_pass(
             after.roots,
             step.progress.format()
         );
+    }
+    if let Some(before) = before_for_changed_debug {
+        debug_mono_changed_items(pass.name(), &before, &step.module);
     }
     Ok(step)
 }
@@ -330,6 +336,54 @@ impl MonoStats {
             roots: module.root_exprs.len(),
         }
     }
+}
+
+fn debug_mono_changed_items(pass: &str, before: &Module, after: &Module) {
+    if std::env::var_os("YULANG_DEBUG_MONO_CHANGED").is_none() {
+        return;
+    }
+    let changed_bindings = changed_binding_names(before, after);
+    if !changed_bindings.is_empty() {
+        eprintln!("mono changed {pass} bindings: {changed_bindings:?}");
+    }
+    let changed_roots = changed_root_indexes(before, after);
+    if !changed_roots.is_empty() {
+        eprintln!("mono changed {pass} roots: {changed_roots:?}");
+    }
+}
+
+fn changed_binding_names(before: &Module, after: &Module) -> Vec<core_ir::Path> {
+    let before_by_name = before
+        .bindings
+        .iter()
+        .map(|binding| (&binding.name, binding))
+        .collect::<HashMap<_, _>>();
+    let mut names = Vec::new();
+    for binding in &after.bindings {
+        if before_by_name
+            .get(&binding.name)
+            .is_none_or(|before| *before != binding)
+        {
+            names.push(binding.name.clone());
+        }
+    }
+    for binding in &before.bindings {
+        if !after
+            .bindings
+            .iter()
+            .any(|after| after.name == binding.name)
+        {
+            names.push(binding.name.clone());
+        }
+    }
+    names
+}
+
+fn changed_root_indexes(before: &Module, after: &Module) -> Vec<usize> {
+    let len = before.root_exprs.len().max(after.root_exprs.len());
+    (0..len)
+        .filter(|index| before.root_exprs.get(*index) != after.root_exprs.get(*index))
+        .collect()
 }
 
 struct MonoStep {

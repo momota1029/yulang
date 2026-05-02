@@ -48,6 +48,10 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - `YULANG_EXPORT_APPLY_SUBSTITUTIONS=1` の opt-in で、呼び出し位置に callee の主型と「主型の型変数への代入」を載せる。
 - `YULANG_USE_APPLY_SUBSTITUTIONS=1` の opt-in で、runtime monomorphize が evidence の `principal_callee` に `substitutions` を適用した callee 型を hint として読む。
 - core-ir の verbose 表示に `principal=...` と `subst=[t := ty]` を出すようにした。
+- generic call closure の入口を、opt-in 時は代入済み主型から param/ret hint を作るように変更した。
+- これにより `closed_call_signature` は、head の runtime 型だけでなく、`principal_callee + substitutions` から得た引数列を seed hint として受け取れる。
+- demand collection の generic / role call でも、opt-in 時は代入済み主型から param/ret hint を作るようにした。
+- specialization emit の missing demand key 生成でも、opt-in 時は代入済み主型から param/ret hint を seed として使うようにした。
 
 ## Experiment Notes
 
@@ -62,21 +66,34 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - 代表型を `Some(to)` ではなく `None` で消える変数だけに絞っても、まだ型不一致は残った。したがって、下界から取った concrete part をそのまま evidence slot へ入れるのは粗すぎる。
 - 主型 + 代入表の opt-in 経路は壊れなかった。`examples/07_junction.yu` では `principal=t4448 ... -> ...` と `subst=[t4448 := int]` のような情報が出ている。
 - ただし、`YULANG_EXPORT_APPLY_SUBSTITUTIONS=1 YULANG_USE_APPLY_SUBSTITUTIONS=1` でも、`examples/07_junction.yu`、`examples/10_effect_handler.yu`、`test.yu` の `mono_passes` / `specializations` はまだ変わらない。
-- これは、代入表を載せるだけでは demand collection / generic call closure の形がまだ変わらないためだと思われる。次は demand signature を「型を再推測する」より「主型へ代入する」流れへ寄せる必要がある。
+- generic call closure も代入済み主型の param/ret を読むようにしたが、pass 数はまだ変わらなかった。つまり、今の pass 数は hint の精度だけでなく、demand queue の到達順や specialization emit/refine loop に支配されている可能性が高い。
+- collection / check / emit の主要な call-signature 入口を代入済み主型へ寄せても、pass 数はまだ変わらなかった。
+- `YULANG_DEBUG_DEMAND_CHECK=1` で見ると、`Fold.fold` の call hint は `list[int]` まで閉じている。一方で `std::list::fold_impl` には別経路から open demand が入り、`list_view[Hole]` と `Thunk[..., list_view[Hole]]` の不一致で一度失敗している。
+- つまり、今残っている pass 数は「呼び出し位置の主型代入を読めていない」だけではなく、impl body / missing demand / effect thunk shape の閉じ方が後続 round に持ち越されることが原因になっている。
+- `YULANG_DEBUG_DEMAND_SOURCE=1` を追加し、demand source を initial collect / pending missing / checked child に分けて見られるようにした。
+- `std::list::fold_impl` の open demand は、主に `fold_impl` 自身を check している途中の再帰 child demand から出ていた。閉じた親 demand を check している self-recursive child は親の demand signature にそろえるようにした。
+- 同じ target に閉じた demand がすでに queue にある場合、後から来た open demand は積まないようにした。落とす条件は、既存の closed signature が open demand の具体部分を覆う場合だけに絞った。これで `examples/07_junction.yu` の `fold_impl` / `view_raw` open demand は消えた。
+- ただし `mono_passes` はまだ 13 のまま。現在の残りは open demand の check ではなく、pipeline の収束確認 round と、role-specialization の 2 周目で新規 specialization なしに rewrite/refine がもう一度だけ走る構造に寄っている。
+- `SpecializationTable::seed_existing` の debug では、最終的な `fold_impl__ddmono13` / `view_raw__ddmono14` は既存 specialization として seed されている。したがって、次の問題は「seed できない」ではなく「role-specialization 1 周目で作った specialization の参照が、その周の後半だけでは安定しきらない」こと。
+- role fixpoint に `canonicalize-specializations` を追加する実験では、収束周回は変わらず pass 数が 13 から 15 に増えた。重複名の canonicalize では今回の 2 周目は消えない。
+- `YULANG_DEBUG_MONO_CHANGED=1` を追加し、pass ごとに変化した binding/root を見られるようにした。
+- `examples/07_junction.yu` の role-specialization 2 周目で変わる binding は `std::junction::junction::{all__ddmono9, any__ddmono10}`、`std::list::&impl#187::fold__ddmono11`、`std::list::fold_impl__ddmono13` の 4 つ。新規 specialization はないため、role call が impl specialization へ置き換わったあと、body 型が refine でもう一段安定する遅延として見てよい。
 
 ## Next Steps
 
-1. runtime monomorphize の generic call closure で、callee 主型 + substitutions から直接 demand signature を作る。
-2. demand collection で `arg/result` evidence から型を再推測している箇所を、代入済み主型の param/ret 参照へ寄せる。
-3. 代表型を「変数ごと」ではなく「evidence slot ごと」に決める。callee / arg / result のどの位置で同一視してよいかを、slot の極性と型形状に沿って制限する。
-4. 下界 concrete part の候補を、閉じた型を拾うだけでなく、slot の期待形と合うものだけに絞る。関数 slot の代表が value arg slot に流れないようにする。
-5. `YULANG_COALESCE_APPLY_EVIDENCE=1` の経路で、代表型なしの共起共有が runtime pass に効かない理由を調べる。
-6. report API を使って、実プログラムで `Some(to)` / `None` / concrete representatives がどの程度出ているか数える。
-7. `id : a -> a`、`range`、`fold`、record constructor の小さい例で、slot ごとの代表型が期待通りになる単体テストを作る。
-8. binding scheme、root expr など、他の export 対象にも別々の simplification relation を持てる形に広げる。
-9. 単一化できない境界にだけ cast / evidence を入れる実験を作る。
-10. その経路で `DemandEngine` を通さず VM 前段まで進められるか測る。
-11. role / associated type / effect / thunk shape の責務を、runtime monomorphize から切り出せるか分類する。
+1. role-specialization 2 周目の 4 binding について、`demand-specialize` がどの call path を書き換え、`refine-types` がどの type slot を変えるかを式単位で見る。
+2. 2 周目が新規 specialization なしの参照安定化だけなら、同じ周の中で rewrite/refine をもう一度だけ局所的に回すほうが安いか測る。
+3. `list_view[Hole]` と `Thunk[..., list_view[Hole]]` のずれを、effectful return の shape 問題として閉じられるか確認する。
+4. child demand を queue へ積む段階で、代入済み主型から specialization key を直接作れるか試す。
+5. 代表型を「変数ごと」ではなく「evidence slot ごと」に決める。callee / arg / result のどの位置で同一視してよいかを、slot の極性と型形状に沿って制限する。
+6. 下界 concrete part の候補を、閉じた型を拾うだけでなく、slot の期待形と合うものだけに絞る。関数 slot の代表が value arg slot に流れないようにする。
+7. `YULANG_COALESCE_APPLY_EVIDENCE=1` の経路で、代表型なしの共起共有が runtime pass に効かない理由を調べる。
+8. report API を使って、実プログラムで `Some(to)` / `None` / concrete representatives がどの程度出ているか数える。
+9. `id : a -> a`、`range`、`fold`、record constructor の小さい例で、slot ごとの代表型が期待通りになる単体テストを作る。
+10. binding scheme、root expr など、他の export 対象にも別々の simplification relation を持てる形に広げる。
+11. 単一化できない境界にだけ cast / evidence を入れる実験を作る。
+12. その経路で `DemandEngine` を通さず VM 前段まで進められるか測る。
+13. role / associated type / effect / thunk shape の責務を、runtime monomorphize から切り出せるか分類する。
 
 ## Notes
 

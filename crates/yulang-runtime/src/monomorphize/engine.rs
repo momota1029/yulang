@@ -409,6 +409,7 @@ impl<'a> DemandEngine<'a> {
     pub fn from_module(module: &'a Module) -> Self {
         let mut collector = DemandCollector::from_module(module);
         collector.collect_module(module);
+        debug_demand_queue_source("initial collect", collector.queue());
         Self {
             checker: DemandChecker::from_module(module),
             queue: collector.into_queue(),
@@ -419,6 +420,7 @@ impl<'a> DemandEngine<'a> {
 
     pub fn push_demands(&mut self, demands: impl IntoIterator<Item = Demand>) {
         for demand in demands {
+            debug_demand_source("pending missing", &demand.target, &demand.key.signature);
             self.queue
                 .push_signature(demand.target, demand.expected, demand.key.signature);
         }
@@ -440,6 +442,8 @@ impl<'a> DemandEngine<'a> {
             };
             self.specializations.intern(&checked);
             let mut child_demands = checked.child_demands.clone();
+            let child_source = format!("checked child from {:?}", checked.target);
+            debug_demand_queue_source(&child_source, &child_demands);
             while let Some(child) = child_demands.pop_front() {
                 self.queue
                     .push_signature(child.target, child.expected, child.key.signature);
@@ -453,6 +457,41 @@ impl<'a> DemandEngine<'a> {
             fresh_specializations: specializations.fresh,
         })
     }
+}
+
+fn debug_demand_queue_source(source: &str, queue: &DemandQueue) {
+    if std::env::var_os("YULANG_DEBUG_DEMAND_SOURCE").is_none() {
+        return;
+    }
+    for demand in &queue.queue {
+        debug_demand_source(source, &demand.target, &demand.key.signature);
+    }
+}
+
+fn debug_demand_source(source: &str, target: &core_ir::Path, signature: &DemandSignature) {
+    if std::env::var_os("YULANG_DEBUG_DEMAND_SOURCE").is_none()
+        || !(engine_path_ends_with(target, &["std", "list", "fold_impl"])
+            || engine_path_ends_with(target, &["std", "list", "view_raw"])
+            || engine_path_ends_with(target, &["std", "fold", "Fold", "fold"]))
+    {
+        return;
+    }
+    let status = if signature.is_closed() {
+        "closed"
+    } else {
+        "open"
+    };
+    eprintln!("demand source {source} {status} {target:?}: {signature:?}");
+}
+
+fn engine_path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
+    path.segments.len() >= suffix.len()
+        && path
+            .segments
+            .iter()
+            .rev()
+            .zip(suffix.iter().rev())
+            .all(|(segment, expected)| segment.0 == *expected)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

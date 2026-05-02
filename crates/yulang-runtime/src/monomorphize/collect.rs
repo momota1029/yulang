@@ -61,12 +61,15 @@ impl DemandCollector {
                     let demand_target = demand_call_target(target);
                     if self.generic_bindings.contains(&demand_target) {
                         let expected = curried_call_type(&args, expr.ty.clone());
+                        let principal_hints =
+                            applied_call_principal_signature_hints(expr, args.len());
                         let (arg_signatures, ret) = self.call_signatures_from_head(
                             &demand_target,
                             head,
                             &args,
                             expr,
                             expected_signature.clone(),
+                            principal_hints,
                         );
                         self.queue.push_signature(
                             demand_target,
@@ -85,7 +88,9 @@ impl DemandCollector {
                     && let Some(candidates) = self.generic_role_impls.get(method)
                 {
                     let expected = curried_call_type(&args, expr.ty.clone());
-                    let (arg_signatures, ret) = call_signatures_from_head(head, &args, expr);
+                    let principal_hints = applied_call_principal_signature_hints(expr, args.len());
+                    let (arg_signatures, ret) =
+                        call_signatures_from_head(head, &args, expr, principal_hints);
                     let ret = expected_signature.clone().unwrap_or(ret);
                     let signature = curried_signatures(&arg_signatures, ret);
                     let impl_signature = role_impl_demand_signature(&signature);
@@ -243,8 +248,9 @@ impl DemandCollector {
         args: &[&Expr],
         expr: &Expr,
         expected: Option<DemandSignature>,
+        principal_hints: Option<(Vec<DemandSignature>, DemandSignature)>,
     ) -> (Vec<DemandSignature>, DemandSignature) {
-        let (arg_signatures, ret) = call_signatures_from_head(head, args, expr);
+        let (arg_signatures, ret) = call_signatures_from_head(head, args, expr, principal_hints);
         let ret = expected
             .unwrap_or_else(|| self.lift_known_handler_return_to_enclosing_effect(target, ret));
         let (arg_signatures, ret) =
@@ -508,13 +514,17 @@ fn call_signatures_from_head(
     head: &Expr,
     args: &[&Expr],
     expr: &Expr,
+    principal_hints: Option<(Vec<DemandSignature>, DemandSignature)>,
 ) -> (Vec<DemandSignature>, DemandSignature) {
     let fallback_args = args
         .iter()
         .map(|arg| expr_signature(arg))
         .collect::<Vec<_>>();
     let fallback_ret = expr_signature(expr);
-    let Some((hints, ret_hint)) = curried_signatures_from_type(&head.ty, args.len()) else {
+    let Some((hints, ret_hint)) = principal_hints
+        .filter(|(hints, _)| hints.len() == args.len())
+        .or_else(|| curried_signatures_from_type(&head.ty, args.len()))
+    else {
         return (fallback_args, fallback_ret);
     };
     let mut unifier = DemandUnifier::new();
@@ -541,6 +551,52 @@ fn call_signatures_from_head(
         .collect();
     let ret = return_effect_from_args(substitutions.apply_signature(&ret_hint), &fallback_args);
     (args, ret)
+}
+
+fn applied_call_principal_signature_hints(
+    expr: &Expr,
+    arity: usize,
+) -> Option<(Vec<DemandSignature>, DemandSignature)> {
+    let mut head = expr;
+    let mut principal = None;
+    loop {
+        head = transparent_call_head(head);
+        let ExprKind::Apply {
+            callee, evidence, ..
+        } = &head.kind
+        else {
+            break;
+        };
+        if let Some(signature) = evidence
+            .as_ref()
+            .and_then(apply_evidence_substituted_callee_signature)
+        {
+            principal = Some(signature);
+        }
+        head = callee;
+    }
+
+    let (params, ret) = uncurried_collect_signatures(principal?);
+    if params.len() < arity {
+        return None;
+    }
+    let ret = if params.len() == arity {
+        ret
+    } else {
+        curried_signatures(&params[arity..], ret)
+    };
+    Some((params.into_iter().take(arity).collect(), ret))
+}
+
+fn transparent_call_head(mut expr: &Expr) -> &Expr {
+    loop {
+        match &expr.kind {
+            ExprKind::BindHere { expr: inner }
+            | ExprKind::Coerce { expr: inner, .. }
+            | ExprKind::Pack { expr: inner, .. } => expr = inner,
+            _ => return expr,
+        }
+    }
 }
 
 fn strengthen_handler_arg_signatures(

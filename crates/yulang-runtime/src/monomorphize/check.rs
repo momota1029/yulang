@@ -66,7 +66,7 @@ impl<'a> DemandChecker<'a> {
                 return Err(error);
             }
         };
-        let (substitutions, child_demands, local_signatures) = checker.finish();
+        let (substitutions, child_demands, local_signatures) = checker.finish(&expected);
         debug_checked_locals(&demand.target, &local_signatures, &child_demands);
         let solved_shape = preserve_operational_shapes(&expected, &actual);
         let solved = close_pure_handler_result(
@@ -404,7 +404,11 @@ impl<'a> ExprChecker<'a> {
                 if let Some((target, head, args)) = applied_call_with_head(expr)
                     && self.generic_bindings.contains(target)
                 {
+                    let principal_hints = applied_call_principal_signature_hints(expr, args.len());
                     let ret = expected.cloned().unwrap_or_else(|| {
+                        if let Some((_, ret)) = &principal_hints {
+                            return ret.clone();
+                        }
                         let fallback = self.signature_from_type(&expr.ty);
                         evidence
                             .as_ref()
@@ -420,7 +424,13 @@ impl<'a> ExprChecker<'a> {
                         evidence.as_ref(),
                         ret,
                     );
-                    let (param_hints, ret) = self.closed_call_signature(target, head, &args, ret);
+                    let (param_hints, ret) = self.closed_call_signature(
+                        target,
+                        head,
+                        &args,
+                        ret,
+                        principal_hints.map(|(params, _)| params),
+                    );
                     let evidence_hints = applied_call_arg_evidence_signatures(expr);
                     let mut arg_signatures = Vec::with_capacity(args.len());
                     for (index, ((arg, hint), evidence_hint)) in args
@@ -457,7 +467,11 @@ impl<'a> ExprChecker<'a> {
                     && let Some(method) = target.segments.last()
                     && let Some(candidates) = self.generic_role_impls.get(method).cloned()
                 {
+                    let principal_hints = applied_call_principal_signature_hints(expr, args.len());
                     let ret = expected.cloned().unwrap_or_else(|| {
+                        if let Some((_, ret)) = &principal_hints {
+                            return ret.clone();
+                        }
                         let fallback = self.signature_from_type(&expr.ty);
                         evidence
                             .as_ref()
@@ -471,7 +485,13 @@ impl<'a> ExprChecker<'a> {
                         evidence.as_ref(),
                         ret,
                     );
-                    let (param_hints, ret) = self.closed_call_signature(target, head, &args, ret);
+                    let (param_hints, ret) = self.closed_call_signature(
+                        target,
+                        head,
+                        &args,
+                        ret,
+                        principal_hints.map(|(params, _)| params),
+                    );
                     let evidence_hints = applied_call_arg_evidence_signatures(expr);
                     let mut arg_signatures = Vec::with_capacity(args.len());
                     for (index, ((arg, hint), evidence_hint)) in args
@@ -1135,6 +1155,7 @@ impl<'a> ExprChecker<'a> {
 
     fn finish(
         self,
+        current_expected: &DemandSignature,
     ) -> (
         DemandSubstitution,
         DemandQueue,
@@ -1143,11 +1164,15 @@ impl<'a> ExprChecker<'a> {
         let substitutions = self.unifier.finish();
         let mut child_demands = DemandQueue::default();
         for child in self.child_demands {
-            child_demands.push_signature(
-                child.target,
-                child.expected,
-                substitutions.apply_signature(&child.signature),
-            );
+            let mut signature = substitutions.apply_signature(&child.signature);
+            if child.target == *self.current_target && !signature.is_closed() {
+                signature = if current_expected.is_closed() {
+                    current_expected.clone()
+                } else {
+                    merge_signature_hint(signature, current_expected.clone())
+                };
+            }
+            child_demands.push_signature(child.target, child.expected, signature);
         }
         let local_signatures = self
             .local_signatures
@@ -1492,8 +1517,11 @@ impl<'a> ExprChecker<'a> {
         head: &Expr,
         args: &[&Expr],
         ret: DemandSignature,
+        seed_param_hints: Option<Vec<Option<DemandSignature>>>,
     ) -> (Vec<Option<DemandSignature>>, DemandSignature) {
-        let param_hints = self.curried_param_signatures_from_type(&head.ty, args.len());
+        let param_hints = seed_param_hints
+            .filter(|hints| hints.len() == args.len())
+            .unwrap_or_else(|| self.curried_param_signatures_from_type(&head.ty, args.len()));
         let provisional_args = param_hints
             .iter()
             .zip(args)
@@ -1810,6 +1838,42 @@ fn applied_call_arg_evidence_signatures(expr: &Expr) -> Vec<Option<DemandSignatu
     }
     hints.reverse();
     hints
+}
+
+fn applied_call_principal_signature_hints(
+    expr: &Expr,
+    arity: usize,
+) -> Option<(Vec<Option<DemandSignature>>, DemandSignature)> {
+    let mut head = expr;
+    let mut principal = None;
+    loop {
+        head = transparent_call_head(head);
+        let ExprKind::Apply {
+            callee, evidence, ..
+        } = &head.kind
+        else {
+            break;
+        };
+        if let Some(signature) = evidence
+            .as_ref()
+            .and_then(apply_evidence_substituted_callee_signature)
+        {
+            principal = Some(signature);
+        }
+        head = callee;
+    }
+
+    let (params, ret) = uncurried_checker_signatures(principal?);
+    if params.len() < arity {
+        return None;
+    }
+    let ret = if params.len() == arity {
+        ret
+    } else {
+        curried_signatures(&params[arity..], ret)
+    };
+    let params = params.into_iter().take(arity).map(Some).collect::<Vec<_>>();
+    Some((params, ret))
 }
 
 fn applied_primitive_with_args(expr: &Expr) -> Option<(core_ir::PrimitiveOp, Vec<&Expr>)> {

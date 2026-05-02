@@ -895,12 +895,22 @@ impl<'a> BodyEmitter<'a> {
             return Ok(None);
         };
         let demand_target = demand_call_target(target);
-        let ret = expected
-            .cloned()
-            .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty));
+        let principal_hints = applied_call_principal_signature_hints(expr, args.len());
+        let ret = expected.cloned().unwrap_or_else(|| {
+            principal_hints
+                .as_ref()
+                .map(|(_, ret)| ret.clone())
+                .unwrap_or_else(|| DemandSignature::from_runtime_type(&expr.ty))
+        });
         let ret = self.lift_known_handler_return_to_enclosing_effect(&demand_target, ret);
         let ret = self.lift_recursive_return_to_enclosing_effect(&demand_target, ret);
-        let (param_hints, ret) = self.closed_call_signature(&demand_target, head, &args, ret);
+        let (param_hints, ret) = self.closed_call_signature(
+            &demand_target,
+            head,
+            &args,
+            ret,
+            principal_hints.map(|(params, _)| params),
+        );
         let evidence_hints = applied_call_arg_evidence_signatures(expr);
         let arg_signatures = args
             .iter()
@@ -1077,8 +1087,11 @@ impl<'a> BodyEmitter<'a> {
         head: &Expr,
         args: &[&Expr],
         ret: DemandSignature,
+        seed_param_hints: Option<Vec<Option<DemandSignature>>>,
     ) -> (Vec<Option<DemandSignature>>, DemandSignature) {
-        let param_hints = curried_param_signatures_from_type(&head.ty, args.len());
+        let param_hints = seed_param_hints
+            .filter(|hints| hints.len() == args.len())
+            .unwrap_or_else(|| curried_param_signatures_from_type(&head.ty, args.len()));
         let provisional_args = param_hints
             .iter()
             .zip(args)
@@ -1595,6 +1608,44 @@ fn applied_call_arg_evidence_signatures(expr: &Expr) -> Vec<Option<DemandSignatu
     hints
 }
 
+fn applied_call_principal_signature_hints(
+    expr: &Expr,
+    arity: usize,
+) -> Option<(Vec<Option<DemandSignature>>, DemandSignature)> {
+    let mut callee = expr;
+    let mut principal = None;
+    loop {
+        callee = transparent_call_head(callee);
+        let ExprKind::Apply {
+            callee: next,
+            evidence,
+            ..
+        } = &callee.kind
+        else {
+            break;
+        };
+        if let Some(signature) = evidence
+            .as_ref()
+            .and_then(apply_evidence_substituted_callee_signature)
+        {
+            principal = Some(signature);
+        }
+        callee = next;
+    }
+
+    let (params, ret) = uncurried_emit_signatures(principal?);
+    if params.len() < arity {
+        return None;
+    }
+    let ret = if params.len() == arity {
+        ret
+    } else {
+        curried_signatures(&params[arity..], ret)
+    };
+    let params = params.into_iter().take(arity).map(Some).collect();
+    Some((params, ret))
+}
+
 fn applied_primitive_with_args(expr: &Expr) -> Option<(core_ir::PrimitiveOp, Vec<&Expr>)> {
     let mut callee = expr;
     let mut args = Vec::new();
@@ -1676,6 +1727,15 @@ fn uncurried_emit_signatures(
             DemandSignature::Fun { param, ret } => {
                 args.push(*param);
                 current = *ret;
+            }
+            DemandSignature::Core(DemandCoreType::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            }) => {
+                args.push(effected_core_signature(*param, *param_effect));
+                current = effected_core_signature(*ret, *ret_effect);
             }
             ret => return (args, ret),
         }

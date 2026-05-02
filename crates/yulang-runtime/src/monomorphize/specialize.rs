@@ -61,14 +61,32 @@ impl SpecializationTable {
                 continue;
             };
             if !binding.type_params.is_empty() || hir_type_has_vars(&binding.body.ty) {
+                debug_seed_existing_specialization(
+                    "skip-open-binding",
+                    &target,
+                    &binding.name,
+                    None,
+                );
                 continue;
             }
             let signature = DemandSignature::from_runtime_type(&binding.body.ty);
             if !signature.is_closed() {
+                debug_seed_existing_specialization(
+                    "skip-open-signature",
+                    &target,
+                    &binding.name,
+                    Some(&signature),
+                );
                 continue;
             }
             let specialization = existing_specialization(target, binding, signature);
             if !self.cache.contains_key(&specialization.key) {
+                debug_seed_existing_specialization(
+                    "seed",
+                    &specialization.target,
+                    &specialization.path,
+                    Some(&specialization.key.signature),
+                );
                 self.cache
                     .insert(specialization.key.clone(), specialization.path.clone());
                 self.known.push(specialization);
@@ -165,6 +183,21 @@ fn demand_effect_is_empty_for_arity(effect: &DemandEffect) -> bool {
         DemandEffect::Row(items) => items.iter().all(demand_effect_is_empty_for_arity),
         DemandEffect::Hole(_) | DemandEffect::Atom(_) => false,
     }
+}
+
+fn debug_seed_existing_specialization(
+    action: &str,
+    target: &core_ir::Path,
+    path: &core_ir::Path,
+    signature: Option<&DemandSignature>,
+) {
+    if std::env::var_os("YULANG_DEBUG_DEMAND_SOURCE").is_none()
+        || !(path_ends_with(target, &["std", "list", "fold_impl"])
+            || path_ends_with(target, &["std", "list", "view_raw"]))
+    {
+        return;
+    }
+    eprintln!("specialization seed {action} {target:?} <- {path:?}: {signature:?}");
 }
 
 fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
