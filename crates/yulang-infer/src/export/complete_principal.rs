@@ -13,7 +13,8 @@ use crate::ids::TypeVar;
 use crate::solve::Infer;
 
 use super::types::{
-    collect_core_type_vars, export_type_bounds_for_tv, project_core_value_type_or_any,
+    collect_core_type_vars, export_coalesced_apply_evidence_bounds, export_type_bounds_for_tv,
+    project_core_value_type_or_any,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,10 +26,12 @@ pub(super) struct CompleteApplyPrincipalEvidence {
 pub(super) fn complete_apply_principal_evidence(
     infer: &Infer,
     principal_callee: core_ir::Type,
+    callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
 ) -> Option<CompleteApplyPrincipalEvidence> {
-    let substitutions = apply_principal_substitutions(infer, &principal_callee, arg_tv, result_tv);
+    let substitutions =
+        apply_principal_substitutions(infer, &principal_callee, callee_tv, arg_tv, result_tv);
     (!substitutions.is_empty()).then_some(CompleteApplyPrincipalEvidence {
         principal_callee,
         substitutions,
@@ -38,6 +41,7 @@ pub(super) fn complete_apply_principal_evidence(
 pub(super) fn apply_principal_substitutions(
     infer: &Infer,
     principal_callee: &core_ir::Type,
+    callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
 ) -> Vec<core_ir::TypeSubstitution> {
@@ -51,11 +55,20 @@ pub(super) fn apply_principal_substitutions(
     }
 
     let mut substitutions = BTreeMap::new();
-    if let Some(arg_ty) = export_monomorphic_type_for_tv(infer, arg_tv) {
+    let slot_types = apply_slot_monomorphic_types(infer, callee_tv, arg_tv, result_tv);
+    if let Some(arg_ty) = slot_types.arg {
         infer_core_type_substitutions(param, &arg_ty, &params, &mut substitutions);
     }
-    if let Some(result_ty) = export_monomorphic_type_for_tv(infer, result_tv) {
+    if let Some(result_ty) = slot_types.result {
         infer_core_type_substitutions(ret, &result_ty, &params, &mut substitutions);
+    }
+    if substitutions.is_empty() {
+        if let Some(arg_ty) = export_monomorphic_type_for_tv(infer, arg_tv) {
+            infer_core_type_substitutions(param, &arg_ty, &params, &mut substitutions);
+        }
+        if let Some(result_ty) = export_monomorphic_type_for_tv(infer, result_tv) {
+            infer_core_type_substitutions(ret, &result_ty, &params, &mut substitutions);
+        }
     }
 
     substitutions
@@ -63,6 +76,35 @@ pub(super) fn apply_principal_substitutions(
         .filter(|(_, ty)| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
         .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
         .collect()
+}
+
+struct ApplySlotTypes {
+    arg: Option<core_ir::Type>,
+    result: Option<core_ir::Type>,
+}
+
+fn apply_slot_monomorphic_types(
+    infer: &Infer,
+    callee_tv: TypeVar,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+) -> ApplySlotTypes {
+    let relevant_vars = BTreeSet::new();
+    let (_, arg, result) =
+        export_coalesced_apply_evidence_bounds(infer, callee_tv, arg_tv, result_tv, &relevant_vars);
+    ApplySlotTypes {
+        arg: monomorphic_type_from_bounds(arg),
+        result: monomorphic_type_from_bounds(result),
+    }
+}
+
+fn monomorphic_type_from_bounds(bounds: core_ir::TypeBounds) -> Option<core_ir::Type> {
+    bounds
+        .lower
+        .as_deref()
+        .or(bounds.upper.as_deref())
+        .cloned()
+        .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
 }
 
 fn principal_fun_param_ret(ty: &core_ir::Type) -> Option<(&core_ir::Type, &core_ir::Type)> {

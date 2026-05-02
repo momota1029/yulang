@@ -351,6 +351,7 @@ impl<'a> ExprExporter<'a> {
             && let Some(principal) = complete_apply_principal_evidence(
                 &self.state.infer,
                 principal_callee,
+                callee.tv,
                 arg.tv,
                 result.tv,
             )
