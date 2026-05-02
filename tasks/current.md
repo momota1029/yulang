@@ -136,6 +136,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 14. `complete_principal` で apply evidence の callee/arg/result を同じ slot relation として coalesce し、その arg/result slot から substitution を作るようにした。`examples/07_junction.yu` の pass 数はまだ 14 のまま。なお callee slot 全体を主型と照合する実験は `t4327 := ⊥` のように下界の `Never` を値型代表として拾ってしまうため危険だった。callee はそのまま推測に使わず、今は arg/result slot に限定する。
 15. `complete_principal` の substitution 作成を小さな unifier にした。関数型の param/ret だけでなく param effect / ret effect も単一化対象にし、同じ主型変数へ複数の異なる具体候補が出た場合は早い者勝ちにせず、その変数の substitution を落とす。`examples/07_junction.yu` の pass 数はまだ 14 のままだが、代表を無理に選ばない形になった。
 16. unifier の候補 merge を少し強めた。`list<int <: _>` と `list<int>` のように bounds と concrete type が同じ形なら concrete 側へ寄せる。値型位置では `Never` を substitution 代表にしないが、effect 位置では空 effect として `Never` を許す。これらは `complete_principal` の単体テストで固定した。`examples/07_junction.yu` はまだ 14 passes / 10 specializations。
+17. `complete_principal` が principal scheme の role requirements も見るようにした。式 evidence 側の `principal_callee_scheme` も compact scheme から `export_scheme(..., role_constraints)` で requirements 付きに復元する。現在は保守的に `item` associated + `list<T>` だけを扱い、`Fold<list<int>, item=t>` から `t := int` を出す。`examples/07_junction.yu` の root evidence では `t4144 := list<int <: _>, t4327 := int` と `t4060 := list<int <: _>, t4332 := int` が出るようになった。ただし runtime 側の pass 数はまだ 14 のまま。
 
 ## Notes
 

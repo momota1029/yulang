@@ -19,7 +19,7 @@ use super::paths::collect_canonical_binding_paths;
 use super::roles::canonical_runtime_export_def;
 use super::spine::{collect_apply_spine, strip_transparent_wrappers};
 use super::types::{
-    export_coalesced_apply_evidence_bounds, export_relevant_type_bounds_for_tv, export_scheme_body,
+    export_coalesced_apply_evidence_bounds, export_relevant_type_bounds_for_tv, export_scheme,
 };
 
 pub fn export_expr(
@@ -347,10 +347,10 @@ impl<'a> ExprExporter<'a> {
             role_method,
         };
         if std::env::var_os("YULANG_EXPORT_APPLY_SUBSTITUTIONS").is_some()
-            && let Some(principal_callee) = self.principal_callee_type(callee)
+            && let Some(principal_scheme) = self.principal_callee_scheme(callee)
             && let Some(principal) = complete_apply_principal_evidence(
                 &self.state.infer,
-                principal_callee,
+                principal_scheme,
                 callee.tv,
                 arg.tv,
                 result.tv,
@@ -362,7 +362,7 @@ impl<'a> ExprExporter<'a> {
         evidence
     }
 
-    fn principal_callee_type(&self, callee: &TypedExpr) -> Option<core_ir::Type> {
+    fn principal_callee_scheme(&self, callee: &TypedExpr) -> Option<core_ir::Scheme> {
         let def = match &callee.kind {
             ExprKind::Var(def) => Some(canonical_runtime_export_def(self.state, *def)),
             ExprKind::Ref(ref_id) => self
@@ -376,11 +376,12 @@ impl<'a> ExprExporter<'a> {
         self.state
             .runtime_export_schemes
             .get(&def)
-            .map(|scheme| scheme.body.clone())
+            .cloned()
             .or_else(|| {
-                self.state
-                    .compact_scheme_of(def)
-                    .map(|scheme| export_scheme_body(&scheme))
+                self.state.compact_scheme_of(def).map(|scheme| {
+                    let constraints = self.state.infer.compact_role_constraints_of(def);
+                    export_scheme(&self.state.infer, &scheme, &constraints)
+                })
             })
     }
 

@@ -25,26 +25,27 @@ pub(super) struct CompleteApplyPrincipalEvidence {
 
 pub(super) fn complete_apply_principal_evidence(
     infer: &Infer,
-    principal_callee: core_ir::Type,
+    principal_scheme: core_ir::Scheme,
     callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
 ) -> Option<CompleteApplyPrincipalEvidence> {
     let substitutions =
-        apply_principal_substitutions(infer, &principal_callee, callee_tv, arg_tv, result_tv);
+        apply_principal_substitutions(infer, &principal_scheme, callee_tv, arg_tv, result_tv);
     (!substitutions.is_empty()).then_some(CompleteApplyPrincipalEvidence {
-        principal_callee,
+        principal_callee: principal_scheme.body,
         substitutions,
     })
 }
 
 pub(super) fn apply_principal_substitutions(
     infer: &Infer,
-    principal_callee: &core_ir::Type,
+    principal_scheme: &core_ir::Scheme,
     callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
 ) -> Vec<core_ir::TypeSubstitution> {
+    let principal_callee = &principal_scheme.body;
     let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
         return Vec::new();
     };
@@ -70,6 +71,7 @@ pub(super) fn apply_principal_substitutions(
             unifier.infer_value(ret, &result_ty);
         }
     }
+    unifier.infer_role_associated_requirements(&principal_scheme.requirements);
 
     unifier
         .into_substitutions()
@@ -153,6 +155,156 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
         self.substitutions
             .into_iter()
             .filter(move |(var, _)| !conflicts.contains(var))
+    }
+
+    fn infer_role_associated_requirements(&mut self, requirements: &[core_ir::RoleRequirement]) {
+        for requirement in requirements {
+            let Some(input) = first_requirement_input(requirement)
+                .and_then(|bounds| self.substitute_bounds(bounds))
+                .and_then(monomorphic_type_from_bounds)
+            else {
+                continue;
+            };
+            for associated in requirement.args.iter().filter_map(requirement_associated) {
+                self.infer_list_item_associated(&input, associated);
+            }
+        }
+    }
+
+    fn infer_list_item_associated(
+        &mut self,
+        input: &core_ir::Type,
+        associated: (&core_ir::Name, &core_ir::TypeBounds),
+    ) {
+        let (name, bounds) = associated;
+        if name.0 != "item" {
+            return;
+        }
+        let Some(item) = list_item_type(input) else {
+            return;
+        };
+        if let Some(lower) = &bounds.lower {
+            self.infer_value(lower, &item);
+        }
+        if let Some(upper) = &bounds.upper {
+            self.infer_value(upper, &item);
+        }
+    }
+
+    fn substitute_bounds(&self, bounds: &core_ir::TypeBounds) -> Option<core_ir::TypeBounds> {
+        Some(core_ir::TypeBounds {
+            lower: substitute_optional_box(bounds.lower.as_deref(), |ty| self.substitute_type(ty))?,
+            upper: substitute_optional_box(bounds.upper.as_deref(), |ty| self.substitute_type(ty))?,
+        })
+    }
+
+    fn substitute_type(&self, ty: &core_ir::Type) -> Option<core_ir::Type> {
+        match ty {
+            core_ir::Type::Var(var) if self.conflicts.contains(var) => None,
+            core_ir::Type::Var(var) => self
+                .substitutions
+                .get(var)
+                .cloned()
+                .or_else(|| Some(core_ir::Type::Var(var.clone()))),
+            core_ir::Type::Named { path, args } => Some(core_ir::Type::Named {
+                path: path.clone(),
+                args: args
+                    .iter()
+                    .map(|arg| self.substitute_arg(arg))
+                    .collect::<Option<Vec<_>>>()?,
+            }),
+            core_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            } => Some(core_ir::Type::Fun {
+                param: Box::new(self.substitute_type(param)?),
+                param_effect: Box::new(self.substitute_type(param_effect)?),
+                ret_effect: Box::new(self.substitute_type(ret_effect)?),
+                ret: Box::new(self.substitute_type(ret)?),
+            }),
+            core_ir::Type::Tuple(items) => Some(core_ir::Type::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect::<Option<Vec<_>>>()?,
+            )),
+            core_ir::Type::Record(record) => Some(core_ir::Type::Record(core_ir::RecordType {
+                fields: record
+                    .fields
+                    .iter()
+                    .map(|field| {
+                        Some(core_ir::RecordField {
+                            name: field.name.clone(),
+                            value: self.substitute_type(&field.value)?,
+                            optional: field.optional,
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?,
+                spread: match &record.spread {
+                    Some(core_ir::RecordSpread::Head(ty)) => Some(core_ir::RecordSpread::Head(
+                        Box::new(self.substitute_type(ty)?),
+                    )),
+                    Some(core_ir::RecordSpread::Tail(ty)) => Some(core_ir::RecordSpread::Tail(
+                        Box::new(self.substitute_type(ty)?),
+                    )),
+                    None => None,
+                },
+            })),
+            core_ir::Type::Variant(variant) => Some(core_ir::Type::Variant(core_ir::VariantType {
+                cases: variant
+                    .cases
+                    .iter()
+                    .map(|case| {
+                        Some(core_ir::VariantCase {
+                            name: case.name.clone(),
+                            payloads: case
+                                .payloads
+                                .iter()
+                                .map(|payload| self.substitute_type(payload))
+                                .collect::<Option<Vec<_>>>()?,
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?,
+                tail: substitute_optional_box(variant.tail.as_deref(), |tail| {
+                    self.substitute_type(tail)
+                })?,
+            })),
+            core_ir::Type::Row { items, tail } => Some(core_ir::Type::Row {
+                items: items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect::<Option<Vec<_>>>()?,
+                tail: Box::new(self.substitute_type(tail)?),
+            }),
+            core_ir::Type::Union(items) => Some(core_ir::Type::Union(
+                items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect::<Option<Vec<_>>>()?,
+            )),
+            core_ir::Type::Inter(items) => Some(core_ir::Type::Inter(
+                items
+                    .iter()
+                    .map(|item| self.substitute_type(item))
+                    .collect::<Option<Vec<_>>>()?,
+            )),
+            core_ir::Type::Recursive { var, body } => Some(core_ir::Type::Recursive {
+                var: var.clone(),
+                body: Box::new(self.substitute_type(body)?),
+            }),
+            core_ir::Type::Never | core_ir::Type::Any => Some(ty.clone()),
+        }
+    }
+
+    fn substitute_arg(&self, arg: &core_ir::TypeArg) -> Option<core_ir::TypeArg> {
+        match arg {
+            core_ir::TypeArg::Type(ty) => Some(core_ir::TypeArg::Type(self.substitute_type(ty)?)),
+            core_ir::TypeArg::Bounds(bounds) => {
+                Some(core_ir::TypeArg::Bounds(self.substitute_bounds(bounds)?))
+            }
+        }
     }
 
     fn infer_value(&mut self, template: &core_ir::Type, actual: &core_ir::Type) {
@@ -275,6 +427,45 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
                 self.substitutions.insert(var.clone(), actual.clone());
             }
         }
+    }
+}
+
+fn first_requirement_input(requirement: &core_ir::RoleRequirement) -> Option<&core_ir::TypeBounds> {
+    requirement.args.iter().find_map(|arg| match arg {
+        core_ir::RoleRequirementArg::Input(bounds) => Some(bounds),
+        core_ir::RoleRequirementArg::Associated { .. } => None,
+    })
+}
+
+fn requirement_associated(
+    arg: &core_ir::RoleRequirementArg,
+) -> Option<(&core_ir::Name, &core_ir::TypeBounds)> {
+    match arg {
+        core_ir::RoleRequirementArg::Associated { name, bounds } => Some((name, bounds)),
+        core_ir::RoleRequirementArg::Input(_) => None,
+    }
+}
+
+fn list_item_type(ty: &core_ir::Type) -> Option<core_ir::Type> {
+    let core_ir::Type::Named { path, args } = ty else {
+        return None;
+    };
+    if !path.segments.last().is_some_and(|name| name.0 == "list") || args.len() != 1 {
+        return None;
+    }
+    match &args[0] {
+        core_ir::TypeArg::Type(ty) => Some(ty.clone()),
+        core_ir::TypeArg::Bounds(bounds) => monomorphic_type_from_bounds(bounds.clone()),
+    }
+}
+
+fn substitute_optional_box<T>(
+    value: Option<&core_ir::Type>,
+    mut substitute: impl FnMut(&core_ir::Type) -> Option<T>,
+) -> Option<Option<Box<T>>> {
+    match value {
+        Some(ty) => substitute(ty).map(Box::new).map(Some),
+        None => Some(None),
     }
 }
 
@@ -422,6 +613,16 @@ mod tests {
         }
     }
 
+    fn fold_path() -> core_ir::Path {
+        core_ir::Path {
+            segments: vec![
+                core_ir::Name("std".to_string()),
+                core_ir::Name("fold".to_string()),
+                core_ir::Name("Fold".to_string()),
+            ],
+        }
+    }
+
     fn one_param_unifier() -> PrincipalSubstitutionUnifier<'static> {
         let params = Box::leak(Box::new(BTreeSet::from([tv("t")])));
         PrincipalSubstitutionUnifier::new(params)
@@ -464,5 +665,35 @@ mod tests {
         unifier.infer_value(&core_ir::Type::Var(tv("t")), &named("bool"));
 
         assert!(unifier.into_substitutions().next().is_none());
+    }
+
+    #[test]
+    fn infers_fold_item_associated_from_list_input() {
+        let params = Box::leak(Box::new(BTreeSet::from([tv("xs"), tv("item")])));
+        let mut unifier = PrincipalSubstitutionUnifier::new(params);
+        unifier.infer_value(
+            &core_ir::Type::Var(tv("xs")),
+            &list(core_ir::TypeArg::Type(named("int"))),
+        );
+        unifier.infer_role_associated_requirements(&[core_ir::RoleRequirement {
+            role: fold_path(),
+            args: vec![
+                core_ir::RoleRequirementArg::Input(core_ir::TypeBounds::exact(core_ir::Type::Var(
+                    tv("xs"),
+                ))),
+                core_ir::RoleRequirementArg::Associated {
+                    name: core_ir::Name("item".to_string()),
+                    bounds: core_ir::TypeBounds::exact(core_ir::Type::Var(tv("item"))),
+                },
+            ],
+        }]);
+
+        assert_eq!(
+            unifier.into_substitutions().collect::<Vec<_>>(),
+            vec![
+                (tv("item"), named("int")),
+                (tv("xs"), list(core_ir::TypeArg::Type(named("int")))),
+            ]
+        );
     }
 }
