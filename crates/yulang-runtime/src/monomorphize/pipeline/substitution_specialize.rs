@@ -459,14 +459,24 @@ impl SubstitutionSpecializer {
         if let Some(path) = self.specializations.get(&key) {
             return Some(path.clone());
         }
+        let has_nested_generic_apply = binding_body_has_generic_apply(
+            &original.body,
+            &self.generic_bindings,
+            Some(&original.name),
+        );
         if std::env::var_os("YULANG_SUBST_SPECIALIZE_LEAF").is_none()
-            && !binding_body_has_generic_apply(
-                &original.body,
-                &self.generic_bindings,
-                Some(&original.name),
-            )
+            && original.name.segments.len() == 1
+            && !has_nested_generic_apply
         {
-            self.bump("skip-leaf-specialization");
+            self.bump("skip-local-leaf-specialization");
+            return None;
+        }
+        if std::env::var_os("YULANG_SUBST_SPECIALIZE_LEAF").is_none()
+            && original.name.segments.len() > 1
+            && !has_nested_generic_apply
+            && binding_body_has_local_call(&original.body, Some(&original.name))
+        {
+            self.bump("skip-recursive-leaf-specialization");
             return None;
         }
         let path = substitution_specialized_path(&original.name, self.next_index);
@@ -475,6 +485,7 @@ impl SubstitutionSpecializer {
         let mut binding = substitute_binding(original, &substitutions);
         binding.name = path.clone();
         binding.type_params.clear();
+        binding.body = refresh_local_expr_types(binding.body);
         self.specialization_body_depth += 1;
         binding.body = self.rewrite_expr(binding.body);
         self.specialization_body_depth -= 1;
@@ -662,6 +673,83 @@ fn binding_body_has_generic_apply(
     }
 }
 
+fn binding_body_has_local_call(expr: &Expr, target: Option<&core_ir::Path>) -> bool {
+    if apply_spine(expr).is_some_and(|spine| Some(spine.target) == target) {
+        return true;
+    }
+    match &expr.kind {
+        ExprKind::Apply { callee, arg, .. } => {
+            binding_body_has_local_call(callee, target) || binding_body_has_local_call(arg, target)
+        }
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::Thunk { expr: body, .. }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => binding_body_has_local_call(body, target),
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            binding_body_has_local_call(cond, target)
+                || binding_body_has_local_call(then_branch, target)
+                || binding_body_has_local_call(else_branch, target)
+        }
+        ExprKind::Tuple(items) => items
+            .iter()
+            .any(|item| binding_body_has_local_call(item, target)),
+        ExprKind::Record { fields, spread } => {
+            fields
+                .iter()
+                .any(|field| binding_body_has_local_call(&field.value, target))
+                || spread.as_ref().is_some_and(|spread| match spread {
+                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
+                        binding_body_has_local_call(expr, target)
+                    }
+                })
+        }
+        ExprKind::Variant { value, .. } => value
+            .as_ref()
+            .is_some_and(|value| binding_body_has_local_call(value, target)),
+        ExprKind::Select { base, .. } => binding_body_has_local_call(base, target),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            binding_body_has_local_call(scrutinee, target)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .is_some_and(|guard| binding_body_has_local_call(guard, target))
+                        || binding_body_has_local_call(&arm.body, target)
+                })
+        }
+        ExprKind::Block { stmts, tail } => {
+            stmts.iter().any(|stmt| stmt_has_local_call(stmt, target))
+                || tail
+                    .as_ref()
+                    .is_some_and(|tail| binding_body_has_local_call(tail, target))
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            binding_body_has_local_call(body, target)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .is_some_and(|guard| binding_body_has_local_call(guard, target))
+                        || binding_body_has_local_call(&arm.body, target)
+                })
+        }
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => false,
+    }
+}
+
 fn stmt_has_generic_apply(
     stmt: &Stmt,
     generic_bindings: &HashMap<core_ir::Path, Binding>,
@@ -670,6 +758,14 @@ fn stmt_has_generic_apply(
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
             binding_body_has_generic_apply(value, generic_bindings, ignored_target)
+        }
+    }
+}
+
+fn stmt_has_local_call(stmt: &Stmt, target: Option<&core_ir::Path>) -> bool {
+    match stmt {
+        Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
+            binding_body_has_local_call(value, target)
         }
     }
 }

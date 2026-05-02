@@ -28,6 +28,7 @@ use crate::types::{
 use crate::validate::validate_module;
 
 mod canonicalize;
+mod local_refresh;
 mod locals;
 mod normalize;
 mod paths;
@@ -37,6 +38,7 @@ mod substitute;
 mod substitution_specialize;
 
 use canonicalize::*;
+use local_refresh::*;
 use locals::*;
 use normalize::*;
 use paths::*;
