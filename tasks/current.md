@@ -129,6 +129,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 7. role method call について、receiver 型から concrete impl binding を一意に選べる場合は substitution pass で impl 側へ直接向ける実験を入れた。`examples/07_junction.yu` では `std::fold::Fold::fold` が `std::list::&impl#187::fold__mono2` へ寄るようになった。
 8. `Fold::fold` の callback effect 変数 `e` を閉じるため、型代入推論に function effect も見る入口を追加した。これで role call は新パス側へ移せたが、`fold_impl` / `view_raw` はまだ旧 demand 側に残る。
 9. `fold_impl` が残る理由は、新パス時点の impl body 内 call がまだ `Any` 寄りで、後続 refine 後に `list<int>` へ締まるため。次は `RefineTypes` 後に限定的な `SubstitutionSpecialize` をもう一度走らせる実験、または `substitute_binding` 側で local/pattern 型までより強く置換する実験をする。
+10. `YULANG_SUBST_SPECIALIZE_REFINE_RETRY=1` として retry 実験をした。先頭の置換特化後に `RefineTypes -> SubstitutionSpecialize` を挟む形は `test.yu` で polymorphic binding を残して失敗した。initial `DemandSpecialize -> RefineTypes` 後にもう一度だけ走らせる形は通るが、`examples/07_junction.yu` は 15 passes / 10 specializations、`examples/10_effect_handler.yu` は 11 passes / 1 specialization、`test.yu` は 39 passes / 23 specializations で、単に 1 pass 増えた。したがって retry ではなく、`fold_impl` call site が `Any` のまま残る原因を潰すほうへ戻す。
 
 ## Notes
 
