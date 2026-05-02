@@ -13,6 +13,7 @@ use crate::solve::RefFieldProjection;
 use crate::solve::role::role_method_info_for_path;
 use crate::symbols::{Name, Path};
 
+use super::complete_principal::complete_apply_principal_evidence;
 use super::names::{export_name, export_path};
 use super::paths::collect_canonical_binding_paths;
 use super::roles::canonical_runtime_export_def;
@@ -347,16 +348,15 @@ impl<'a> ExprExporter<'a> {
         };
         if std::env::var_os("YULANG_EXPORT_APPLY_SUBSTITUTIONS").is_some()
             && let Some(principal_callee) = self.principal_callee_type(callee)
-        {
-            evidence.substitutions = super::types::export_apply_substitutions(
+            && let Some(principal) = complete_apply_principal_evidence(
                 &self.state.infer,
-                &principal_callee,
+                principal_callee,
                 arg.tv,
                 result.tv,
-            );
-            if !evidence.substitutions.is_empty() {
-                evidence.principal_callee = Some(principal_callee);
-            }
+            )
+        {
+            evidence.principal_callee = Some(principal.principal_callee);
+            evidence.substitutions = principal.substitutions;
         }
         evidence
     }

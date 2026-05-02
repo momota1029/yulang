@@ -132,6 +132,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 10. `YULANG_SUBST_SPECIALIZE_REFINE_RETRY=1` として retry 実験をした。先頭の置換特化後に `RefineTypes -> SubstitutionSpecialize` を挟む形は `test.yu` で polymorphic binding を残して失敗した。initial `DemandSpecialize -> RefineTypes` 後にもう一度だけ走らせる形は通るが、`examples/07_junction.yu` は 15 passes / 10 specializations、`examples/10_effect_handler.yu` は 11 passes / 1 specialization、`test.yu` は 39 passes / 23 specializations で、単に 1 pass 増えた。したがって retry ではなく、`fold_impl` call site が `Any` のまま残る原因を潰すほうへ戻す。
 11. `local_refresh` を追加し、型代入で clone した binding body の中だけ、lambda 引数、let/match/handle pattern、resume binding から分かるローカル型を `Var(local_...)` の `ty` へ流し直すようにした。これで `examples/07_junction.yu` の `std::list::fold_impl` は旧 `__ddmono` ではなく `std::list::fold_impl__mono3` として新パス側へ移った。
 12. leaf specialization を全開にすると `examples/10_effect_handler.yu` のローカル再帰 `listen` が `unbound variable listen` で壊れた。そのため、既定では単一 segment のローカル leaf は旧 demand 側に残し、`std::...` のような module path を持つ leaf は新パスで扱えるようにした。これで `examples/07_junction.yu` の `std::list::view_raw` も `std::list::view_raw__mono4` へ移った。パス数はまだ `junction` 14、`effect_handler` 10、`types` 10 のままで、残る旧 demand は主に `std::flow::sub::sub`、`std::junction::junction::junction`、role impl の `lt/add`、ローカル再帰系。
+13. infer/export 側に `export::complete_principal` module を切った。これは「完全主型付き evidence」を作る責務の置き場で、既存の `principal_callee + substitutions` 生成を `types.rs` から移した。今は挙動を変えない移設だが、次はここに slot ごとの極性消去・共起 relation・代表型選択を足して、runtime が demand で型関係を掘り直さなくてよい形へ寄せる。
 
 ## Notes
 

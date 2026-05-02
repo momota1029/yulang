@@ -6,6 +6,7 @@
 //! rediscover from syntax.  It should not perform VM-oriented thunk repair or
 //! monomorphization.
 
+mod complete_principal;
 pub mod expr;
 pub mod names;
 pub(crate) mod paths;
