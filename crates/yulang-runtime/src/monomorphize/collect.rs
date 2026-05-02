@@ -58,7 +58,7 @@ impl DemandCollector {
                 instantiation: _,
             } => {
                 if let Some((target, head, args)) = applied_call_with_head(expr) {
-                    let demand_target = demand_call_target(target);
+                    let demand_target = collect_demand_call_target(target);
                     if self.generic_bindings.contains(&demand_target) {
                         let expected = curried_call_type(&args, expr.ty.clone());
                         let principal_hints =
@@ -465,6 +465,21 @@ fn is_materialized_specialization_binding(path: &core_ir::Path) -> bool {
     };
     generated_suffix_index(name, "__ddmono").is_some()
         || generated_suffix_index(name, "__mono").is_some()
+}
+
+fn collect_demand_call_target(path: &core_ir::Path) -> core_ir::Path {
+    if std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some()
+        && generated_path_has_suffix(path, "__mono")
+    {
+        return path.clone();
+    }
+    demand_call_target(path)
+}
+
+fn generated_path_has_suffix(path: &core_ir::Path, marker: &str) -> bool {
+    path.segments
+        .last()
+        .is_some_and(|name| generated_suffix_index(&name.0, marker).is_some())
 }
 
 fn generated_suffix_index(name: &str, marker: &str) -> Option<usize> {
