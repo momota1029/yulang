@@ -57,7 +57,9 @@ impl SpecializationTable {
 
     fn seed_existing(&mut self, module: &Module) {
         for binding in &module.bindings {
-            let Some(target) = unspecialized_demand_path(&binding.name) else {
+            let Some(target) = unspecialized_demand_path(&binding.name)
+                .or_else(|| unspecialized_legacy_mono_path(&binding.name))
+            else {
                 continue;
             };
             if !binding.type_params.is_empty() || hir_type_has_vars(&binding.body.ty) {

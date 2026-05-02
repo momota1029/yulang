@@ -24,6 +24,24 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 
 そのため、単に `monomorphize` を統合・高速化しても効果は限られる。まず infer/lower から runtime へ渡す型変数関係を正しくし、runtime 側が demand-driven に型関係を掘り直す量を減らすほうが筋がよい。
 
+より根本的には、既存の demand-driven monomorphize を賢くするのではなく、主型に対する型代入だけで specialization を作る新しい pass を用意する必要がある。この pass は「単一化できる場所は素直に同じ型として扱い、単一化できない境界にだけ cast / thunk / bind_here を入れる」ことを目的にする。既存の demand/refine/fixpoint 系は、その新パスが処理できなかった場所の fallback として残し、計測上だんだん使われなくなることを確認する。
+
+最終目標は、古い不動点型の monomorphize を 6-8 回回す構造から、主型代入による 1 pass specialization へ寄せること。
+
+## New Direction: Substitution Specialization
+
+新しく `SubstitutionSpecialize` のような pass を作る。
+
+- 入力は `ApplyEvidence.principal_callee` と `ApplyEvidence.substitutions`、および binding の主型情報。
+- specialization key は `DemandSignature` ではなく、`target + normalized type substitutions` に寄せる。
+- binding clone は、body / scheme / evidence / runtime type annotation に型代入をそのまま適用して作る。
+- call site は、代入済み callee 型と実際の arg / result 型を局所的に合わせる。
+- 合う場所は rewrite しない。合わない場所だけ `Coerce`、value-to-thunk wrapper、thunk-to-value `BindHere` を入れる。
+- role method は、代入済み receiver / associated type から concrete impl を選べる場合だけこの pass で解く。解けない場合は既存 role-specialization へ落とす。
+- effect / thunk / `bind_here` は、型代入だけでは足りない実行形の問題として runtime 側で補う。ただし demand-driven に型を掘り直す理由にはしない。
+
+この pass が存在する場合、pipeline の前半で先に走らせる。後半の `DemandSpecialize` / `RefineTypes` / `RefreshClosedSchemes` / role fixpoint は互換用として残し、`added_specializations` や changed binding 数がどれだけ減るかを測る。
+
 ## Initial Findings
 
 - `Infer` は union-find のような全体等価クラスを持っていない。型変数の情報は主に `lower: TypeVar -> PosId[]` と `upper: TypeVar -> NegId[]` に入る。
@@ -78,22 +96,34 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - role fixpoint に `canonicalize-specializations` を追加する実験では、収束周回は変わらず pass 数が 13 から 15 に増えた。重複名の canonicalize では今回の 2 周目は消えない。
 - `YULANG_DEBUG_MONO_CHANGED=1` を追加し、pass ごとに変化した binding/root を見られるようにした。
 - `examples/07_junction.yu` の role-specialization 2 周目で変わる binding は `std::junction::junction::{all__ddmono9, any__ddmono10}`、`std::list::&impl#187::fold__ddmono11`、`std::list::fold_impl__ddmono13` の 4 つ。新規 specialization はないため、role call が impl specialization へ置き換わったあと、body 型が refine でもう一段安定する遅延として見てよい。
+- `YULANG_SUBST_SPECIALIZE=1` の opt-in で、`substitution-specialize` pass の最小入口を追加した。
+- 最小版は apply spine を `head Var + args[]` として読み、`TypeInstantiation` または `ApplyEvidence` から `target + normalized type substitutions` の key を作る。
+- clone した binding body には型代入を適用し、さらに新パスの rewrite を再帰的にかける。これにより wrapper だけでなく、clone 内部の generic call も順に新パスへ移せる。
+- `ApplyEvidence.principal_callee` がない call でも、`TypeInstantiation` がある場合は binding の `scheme.body` を主型として使う。
+- `examples/07_junction.yu` では新パスが 3 specialization を先に作り、旧 `DemandSpecialize` の初回追加は 8 から 7 に下がった。role-specialization の新規 specialization は 8 から 0 に下がった。
+- ただし全体では `substitution-specialize` 自体が 1 pass 増えるため、`mono_passes` は 13 から 14。`specializations` は 10 のまま。
+- `examples/10_effect_handler.yu` は 9 passes / 1 specialization から 14 passes / 2 specializations に悪化した。`test.yu` は 37 passes / 23 specializations から 38 passes / 24 specializations に悪化した。現時点では opt-in 実験経路であり、通常経路へは入れない。
 
 ## Next Steps
 
-1. role-specialization 2 周目の 4 binding について、`demand-specialize` がどの call path を書き換え、`refine-types` がどの type slot を変えるかを式単位で見る。
-2. 2 周目が新規 specialization なしの参照安定化だけなら、同じ周の中で rewrite/refine をもう一度だけ局所的に回すほうが安いか測る。
-3. `list_view[Hole]` と `Thunk[..., list_view[Hole]]` のずれを、effectful return の shape 問題として閉じられるか確認する。
-4. child demand を queue へ積む段階で、代入済み主型から specialization key を直接作れるか試す。
-5. 代表型を「変数ごと」ではなく「evidence slot ごと」に決める。callee / arg / result のどの位置で同一視してよいかを、slot の極性と型形状に沿って制限する。
-6. 下界 concrete part の候補を、閉じた型を拾うだけでなく、slot の期待形と合うものだけに絞る。関数 slot の代表が value arg slot に流れないようにする。
-7. `YULANG_COALESCE_APPLY_EVIDENCE=1` の経路で、代表型なしの共起共有が runtime pass に効かない理由を調べる。
-8. report API を使って、実プログラムで `Some(to)` / `None` / concrete representatives がどの程度出ているか数える。
-9. `id : a -> a`、`range`、`fold`、record constructor の小さい例で、slot ごとの代表型が期待通りになる単体テストを作る。
+1. `SubstitutionSpecialize` pass の最小入口を作る。まずは opt-in で、`ApplyEvidence.principal_callee + substitutions` がある direct generic call だけを対象にする。
+2. `target + normalized type substitutions` から specialization key / path を作る table を用意する。既存 `DemandSignature` table とは別にする。
+3. binding body に型代入を適用して clone する最小 emitter を作る。最初は型注釈と apply evidence の substitution だけを置き換える。
+4. call site で代入済み param / ret と実際の arg / result が合わないときだけ、`Coerce` / `Thunk` / `BindHere` を挿入する局所 adapter を作る。
+5. 新パス後に既存 pipeline を走らせ、`DemandSpecialize` の `added_specializations` と changed binding 数が減るか測る。
+6. `examples/07_junction.yu` の `fold_impl` / `view_raw` が新パスで先に作られ、role-specialization 2 周目の 4 binding 変化が消えるか確認する。
+7. role method / associated type / effect row / recursive call は、最小経路が動いてから順に新パスへ移す。
+8. 旧 demand-driven pass が必要になった call site を debug 出力し、「なぜ型代入だけで足りなかったか」の分類に使う。
+9. 代表型を「変数ごと」ではなく「evidence slot ごと」に決める。callee / arg / result のどの位置で同一視してよいかを、slot の極性と型形状に沿って制限する。
 10. binding scheme、root expr など、他の export 対象にも別々の simplification relation を持てる形に広げる。
-11. 単一化できない境界にだけ cast / evidence を入れる実験を作る。
-12. その経路で `DemandEngine` を通さず VM 前段まで進められるか測る。
-13. role / associated type / effect / thunk shape の責務を、runtime monomorphize から切り出せるか分類する。
+11. role / associated type / effect / thunk shape の責務を、runtime monomorphize から切り出せるか分類する。
+
+## Immediate Next Steps
+
+1. `substitution-specialize` が `examples/10_effect_handler.yu` と `test.yu` で余計な specialization を作る理由を debug し、benefit がない場合は call site 単位で fallback できるようにする。
+2. `examples/07_junction.yu` でまだ旧 demand が作っている 7 specialization の内訳を見て、`fold_impl` / `view_raw` / role impl を型代入 pass へ移す。
+3. 新パスが作った `__mono` を旧 demand の seed として扱う変更は入れた。次は `__mono` body を旧 demand が再 rewrite して wrapper 化する量を減らす。
+4. role-specialization の新規 specialization が 0 になった場合、role fixpoint 自体を短絡できるか計測する。
 
 ## Notes
 

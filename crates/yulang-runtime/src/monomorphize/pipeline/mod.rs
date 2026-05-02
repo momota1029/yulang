@@ -33,6 +33,7 @@ mod paths;
 mod reachability;
 mod shape;
 mod substitute;
+mod substitution_specialize;
 
 use canonicalize::*;
 use locals::*;
@@ -41,6 +42,7 @@ use paths::*;
 use reachability::*;
 use shape::*;
 use substitute::*;
+use substitution_specialize::*;
 
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     let (lowered, _) = monomorphize_module_profiled(module)?;
@@ -94,6 +96,7 @@ pub struct MonomorphizeProgress {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MonoPass {
+    SubstitutionSpecialize,
     DemandSpecialize,
     RefineTypes,
     RefreshClosedSchemes,
@@ -106,6 +109,7 @@ enum MonoPass {
 impl MonoPass {
     fn name(self) -> &'static str {
         match self {
+            MonoPass::SubstitutionSpecialize => "substitution-specialize",
             MonoPass::DemandSpecialize => "demand-specialize",
             MonoPass::RefineTypes => "refine-types",
             MonoPass::RefreshClosedSchemes => "refresh-closed-schemes",
@@ -161,6 +165,15 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
     let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
     let mut module = module;
     let mut profile = MonomorphizeProfile::default();
+    if std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some() {
+        let step = run_profiled_mono_pass(
+            module,
+            MonoPass::SubstitutionSpecialize,
+            &mut profile,
+            debug,
+        )?;
+        module = step.module;
+    }
     for stage in MONO_PIPELINE {
         match *stage {
             MonoStage::Pass(pass) => {
@@ -288,6 +301,9 @@ fn run_mono_fixpoint(
 
 fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
     match pass {
+        MonoPass::SubstitutionSpecialize => {
+            run_tracked_infallible_pass(module, substitute_specialize_module)
+        }
         MonoPass::DemandSpecialize => demand_specialize_module(module),
         MonoPass::RefineTypes => refine_module_types_for_mono(module),
         MonoPass::RefreshClosedSchemes => {
