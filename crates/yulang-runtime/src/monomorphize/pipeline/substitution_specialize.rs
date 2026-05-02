@@ -15,6 +15,7 @@ struct SubstitutionSpecializer {
     emitted: Vec<Binding>,
     next_index: usize,
     stats: HashMap<&'static str, usize>,
+    specialization_body_depth: usize,
 }
 
 impl SubstitutionSpecializer {
@@ -22,7 +23,7 @@ impl SubstitutionSpecializer {
         let generic_bindings = module
             .bindings
             .iter()
-            .filter(|binding| !binding.type_params.is_empty())
+            .filter(|binding| !binding_substitution_vars(binding).is_empty())
             .map(|binding| (binding.name.clone(), binding.clone()))
             .collect::<HashMap<_, _>>();
         let next_index = next_substitution_specialization_index(&module);
@@ -33,6 +34,7 @@ impl SubstitutionSpecializer {
             emitted: Vec::new(),
             next_index,
             stats: HashMap::new(),
+            specialization_body_depth: 0,
         }
     }
 
@@ -257,14 +259,17 @@ impl SubstitutionSpecializer {
             self.bump("skip-non-generic-callee");
             return None;
         };
-        let Some(binding_substitutions) =
-            substitutions_from_instantiation(spine.instantiation, &original).or_else(|| {
-                spine
-                    .evidence
-                    .and_then(|evidence| substitutions_from_evidence(evidence, &original))
-            })
-        else {
+        let initial_substitutions =
+            substitutions_from_instantiation(spine.instantiation, &original)
+                .or_else(|| {
+                    spine
+                        .evidence
+                        .and_then(|evidence| substitutions_from_evidence(evidence, &original))
+                })
+                .or_else(|| (self.specialization_body_depth > 0).then(BTreeMap::new));
+        let Some(initial_substitutions) = initial_substitutions else {
             self.bump("skip-no-complete-substitution");
+            debug_subst_specialize_skip("no-complete-substitution", spine.target, None);
             return None;
         };
         let principal_callee = spine
@@ -275,13 +280,22 @@ impl SubstitutionSpecializer {
             .evidence
             .map(evidence_substitution_map)
             .unwrap_or_default();
-        principal_substitutions.extend(binding_substitutions.clone());
+        principal_substitutions.extend(initial_substitutions);
         let mut callee_ty = substitute_type(principal_callee, &principal_substitutions);
-        let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
+        let Some((_params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
             self.bump("skip-non-function-principal");
             return None;
         };
         let actual_ret = diagnostic_core_type(&expr.ty);
+        infer_direct_param_substitution(&ret, &actual_ret, &mut principal_substitutions);
+        let mut ret_vars = BTreeSet::new();
+        collect_core_type_vars(&ret, &mut ret_vars);
+        infer_type_substitutions(&ret, &actual_ret, &ret_vars, &mut principal_substitutions);
+        callee_ty = substitute_type(principal_callee, &principal_substitutions);
+        let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
+            self.bump("skip-non-function-principal");
+            return None;
+        };
         let params = if type_compatible(&ret, &actual_ret) {
             params
         } else {
@@ -304,11 +318,29 @@ impl SubstitutionSpecializer {
             }
             params
         };
-        if std::env::var_os("YULANG_SUBST_SPECIALIZE_ADAPT_ARGS").is_none()
-            && !args_already_match_params(&spine.args, &params)
-        {
-            self.bump("skip-arg-adaptation");
-            debug_arg_mismatch(spine.target, &spine.args, &params);
+        for (arg, param) in spine.args.iter().zip(&params) {
+            infer_direct_param_substitution(
+                param,
+                &runtime_core_type(&arg.ty),
+                &mut principal_substitutions,
+            );
+            let mut vars = BTreeSet::new();
+            collect_core_type_vars(param, &mut vars);
+            infer_type_substitutions(
+                param,
+                &runtime_core_type(&arg.ty),
+                &vars,
+                &mut principal_substitutions,
+            );
+        }
+        callee_ty = substitute_type(principal_callee, &principal_substitutions);
+        let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
+            self.bump("skip-non-function-principal");
+            return None;
+        };
+        if !type_compatible(&ret, &actual_ret) {
+            self.bump("skip-ret-mismatch");
+            debug_subst_specialize_skip("ret-mismatch", spine.target, Some((&actual_ret, &ret)));
             return None;
         }
         let mut adapted_args = adapt_args_to_params(&spine.args, &params);
@@ -339,12 +371,21 @@ impl SubstitutionSpecializer {
             }
             adapted_args = adapt_args_to_params(&spine.args, &params);
         }
+        if std::env::var_os("YULANG_SUBST_SPECIALIZE_ADAPT_ARGS").is_none()
+            && !args_already_match_params(&spine.args, &params)
+        {
+            self.bump("skip-arg-adaptation");
+            debug_arg_mismatch(spine.target, &spine.args, &params);
+            return None;
+        }
         let Some(adapted_args) = adapted_args else {
             self.bump("skip-arg-mismatch");
             debug_arg_mismatch(spine.target, &spine.args, &params);
             return None;
         };
 
+        let binding_substitutions =
+            complete_binding_substitutions(&original, &principal_substitutions)?;
         let path = self.intern_specialization(original, binding_substitutions)?;
         self.bump("rewrite");
         let mut call = Expr::typed(ExprKind::Var(path), RuntimeType::core(callee_ty.clone()));
@@ -395,7 +436,9 @@ impl SubstitutionSpecializer {
         let mut binding = substitute_binding(original, &substitutions);
         binding.name = path.clone();
         binding.type_params.clear();
+        self.specialization_body_depth += 1;
         binding.body = self.rewrite_expr(binding.body);
+        self.specialization_body_depth -= 1;
         self.emitted.push(binding);
         Some(path)
     }
@@ -560,14 +603,17 @@ fn substitutions_from_instantiation(
     if instantiation.target != binding.name {
         return None;
     }
-    let params = binding.type_params.iter().cloned().collect::<HashSet<_>>();
+    let params = binding_substitution_vars(binding);
     let substitutions = instantiation
         .args
         .iter()
         .filter(|substitution| params.contains(&substitution.var))
         .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
         .collect::<BTreeMap<_, _>>();
-    if substitutions.len() == binding.type_params.len()
+    if params.is_empty() {
+        return None;
+    }
+    if substitutions.len() == params.len()
         && substitutions.values().all(|ty| !core_type_has_vars(ty))
     {
         Some(substitutions)
@@ -624,20 +670,59 @@ fn substitutions_from_evidence(
     if evidence.principal_callee.is_none() || evidence.substitutions.is_empty() {
         return None;
     }
-    let params = binding.type_params.iter().cloned().collect::<HashSet<_>>();
+    let params = binding_substitution_vars(binding);
     let substitutions = evidence
         .substitutions
         .iter()
         .filter(|substitution| params.contains(&substitution.var))
         .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
         .collect::<BTreeMap<_, _>>();
-    if substitutions.len() == binding.type_params.len()
-        && substitutions.values().all(|ty| !core_type_has_vars(ty))
+    if substitutions.values().all(|ty| !core_type_has_vars(ty))
+        && (!substitutions.is_empty()
+            || params.is_empty()
+            || binding.type_params.is_empty()
+            || substitutions.len() == params.len())
+        && (binding.type_params.is_empty() || substitutions.len() == params.len())
     {
         Some(substitutions)
     } else {
         None
     }
+}
+
+fn complete_binding_substitutions(
+    binding: &Binding,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> Option<BTreeMap<core_ir::TypeVar, core_ir::Type>> {
+    let params = binding_substitution_vars(binding);
+    let out = params
+        .into_iter()
+        .map(|var| {
+            let ty = substitutions.get(&var)?;
+            (!core_type_has_vars(ty)).then(|| (var, ty.clone()))
+        })
+        .collect::<Option<BTreeMap<_, _>>>()?;
+    (!out.is_empty()).then_some(out)
+}
+
+fn infer_direct_param_substitution(
+    param: &core_ir::Type,
+    actual: &core_ir::Type,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) {
+    if let core_ir::Type::Var(var) = param
+        && !core_type_has_vars(actual)
+    {
+        substitutions
+            .entry(var.clone())
+            .or_insert_with(|| actual.clone());
+    }
+}
+
+fn binding_substitution_vars(binding: &Binding) -> HashSet<core_ir::TypeVar> {
+    let mut vars = BTreeSet::new();
+    collect_binding_type_params(binding, &mut vars);
+    vars.into_iter().collect()
 }
 
 fn adapt_value_to_core(expr: Expr, expected: &core_ir::Type) -> Option<Expr> {

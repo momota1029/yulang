@@ -123,8 +123,10 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 1. `substitution-specialize` は、既定では self-recursive / leaf specialization と arg shape adaptation をしないように絞った。`examples/10_effect_handler.yu` は 14 passes / 2 specializations から 10 passes / 1 specialization へ戻り、`test.yu` は 38 passes / 23 specializations になった。
 2. `examples/07_junction.yu` では `list<int>` と `list<int <: _>` の違いを exact-ish に扱うことで `all__mono0` / `any__mono1` は作れるようになった。ただし旧 demand がそれらを再処理するため、全体はまだ 14 passes / 10 specializations のまま。
 3. `YULANG_SUBST_SPECIALIZE=1` の collector では、`__mono` call を元の generic target へ戻さないようにした。これで `all__ddmono` / `any__ddmono` の外側 wrapper は消えたが、`all__mono0` / `any__mono1` の body から `std::junction::junction::{all,any}` 側の demand が出るため、総数はまだ同じ。
-4. 次は `examples/07_junction.yu` でまだ旧 demand が作っている `std::junction::junction::{all,any,junction}`、`fold_impl`、`view_raw`、role impl を型代入 pass へ移す。
-5. role-specialization の新規 specialization が 0 になった場合、role fixpoint 自体を短絡できるか計測する。
+4. `substitution-specialize` は、binding の `type_params` だけでなく scheme/body に残る型変数も substitution 対象として見るようにした。さらに evidence がない call でも、すでに生成中の `__mono` body 内なら arg/result から代入を推測するようにした。
+5. これで `examples/07_junction.yu` の `std::junction::junction::{all,any}` は `__mono` 化できた。残りは `std::list::&impl#187::fold`、`std::flow::sub::sub`、`std::list::fold_impl`、`std::list::view_raw`、`std::junction::junction::junction` が旧 demand 側に残っている。
+6. 空 evidence からの推論は root call には許可しない。これにより `test.yu` の `&p#587::var_ref__mono0` のような余計な root specialization は避け、38 passes / 23 specializations を保っている。
+7. 次は role method (`Fold::fold`) を substitution pass で concrete impl へ解くか、role-specialization の新規 specialization が 0 になった場合に role fixpoint 自体を短絡できるか計測する。
 
 ## Notes
 
