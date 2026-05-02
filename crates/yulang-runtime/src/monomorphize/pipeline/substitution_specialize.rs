@@ -265,9 +265,9 @@ impl SubstitutionSpecializer {
             self.bump("skip-non-generic-callee");
             return None;
         };
-        if is_known_handler_target(spine.target) {
-            self.bump("skip-known-handler-target");
-            debug_subst_specialize_skip("known-handler-target", spine.target, None);
+        if binding_contains_handler(&original) {
+            self.bump("skip-handler-binding");
+            debug_subst_specialize_skip("handler-binding", spine.target, None);
             return None;
         }
         let initial_substitutions =
@@ -603,23 +603,94 @@ fn is_impl_method_path(path: &core_ir::Path) -> bool {
         .any(|segment| segment.0.starts_with("&impl#"))
 }
 
-fn is_known_handler_target(path: &core_ir::Path) -> bool {
-    path_ends_with(path, &["std", "flow", "sub", "sub"])
-        || path_ends_with(path, &["std", "sub", "sub"])
-        || path_ends_with(path, &["std", "junction", "junction", "junction"])
-        || path_ends_with(path, &["std", "undet", "undet", "once"])
-        || path_ends_with(path, &["std", "undet", "undet", "list"])
-        || path_ends_with(path, &["std", "undet", "undet", "logic"])
+fn binding_contains_handler(binding: &Binding) -> bool {
+    expr_contains_handler(&binding.body)
 }
 
-fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
-    path.segments.len() >= suffix.len()
-        && path
-            .segments
-            .iter()
-            .rev()
-            .zip(suffix.iter().rev())
-            .all(|(segment, expected)| segment.0 == *expected)
+fn expr_contains_handler(expr: &Expr) -> bool {
+    match &expr.kind {
+        ExprKind::Handle {
+            body,
+            arms,
+            handler,
+            ..
+        } => {
+            !arms.is_empty()
+                || !handler.consumes.is_empty()
+                || handler.residual_before.is_some()
+                || handler.residual_after.is_some()
+                || expr_contains_handler(body)
+                || arms.iter().any(handle_arm_contains_handler)
+        }
+        ExprKind::Apply { callee, arg, .. } => {
+            expr_contains_handler(callee) || expr_contains_handler(arg)
+        }
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::Thunk { expr: body, .. }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => expr_contains_handler(body),
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_contains_handler(cond)
+                || expr_contains_handler(then_branch)
+                || expr_contains_handler(else_branch)
+        }
+        ExprKind::Tuple(items) => items.iter().any(expr_contains_handler),
+        ExprKind::Record { fields, spread } => {
+            fields
+                .iter()
+                .any(|field| expr_contains_handler(&field.value))
+                || spread.as_ref().is_some_and(|spread| match spread {
+                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
+                        expr_contains_handler(expr)
+                    }
+                })
+        }
+        ExprKind::Variant { value, .. } => value
+            .as_ref()
+            .is_some_and(|value| expr_contains_handler(value)),
+        ExprKind::Select { base, .. } => expr_contains_handler(base),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            expr_contains_handler(scrutinee)
+                || arms.iter().any(|arm| {
+                    arm.guard.as_ref().is_some_and(expr_contains_handler)
+                        || expr_contains_handler(&arm.body)
+                })
+        }
+        ExprKind::Block { stmts, tail } => {
+            stmts.iter().any(stmt_contains_handler)
+                || tail
+                    .as_ref()
+                    .is_some_and(|tail| expr_contains_handler(tail))
+        }
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => false,
+    }
+}
+
+fn handle_arm_contains_handler(arm: &HandleArm) -> bool {
+    arm.guard.as_ref().is_some_and(expr_contains_handler) || expr_contains_handler(&arm.body)
+}
+
+fn stmt_contains_handler(stmt: &Stmt) -> bool {
+    match stmt {
+        Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
+            expr_contains_handler(value)
+        }
+    }
 }
 
 fn binding_body_has_generic_apply(
@@ -1280,6 +1351,56 @@ mod tests {
         let receiver = list(named("int"));
 
         assert!(role_impl_receiver_matches(&impl_binding, &receiver));
+    }
+
+    #[test]
+    fn handler_binding_detection_is_structural() {
+        let mut binding = test_binding(fun(named("unit"), named("unit")));
+
+        assert!(!binding_contains_handler(&binding));
+
+        binding.body = Expr::typed(
+            ExprKind::Lambda {
+                param: core_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Handle {
+                        body: Box::new(Expr::typed(
+                            ExprKind::Var(path("x")),
+                            RuntimeType::core(named("unit")),
+                        )),
+                        arms: vec![HandleArm {
+                            effect: path_segments(&["std", "effect"]),
+                            payload: Pattern::Wildcard {
+                                ty: RuntimeType::core(named("unit")),
+                            },
+                            resume: None,
+                            guard: None,
+                            body: Expr::typed(
+                                ExprKind::Lit(core_ir::Lit::Unit),
+                                RuntimeType::core(named("unit")),
+                            ),
+                        }],
+                        evidence: crate::ir::JoinEvidence {
+                            result: named("unit"),
+                        },
+                        handler: crate::ir::HandleEffect {
+                            consumes: Vec::new(),
+                            residual_before: None,
+                            residual_after: None,
+                        },
+                    },
+                    RuntimeType::core(named("unit")),
+                )),
+            },
+            RuntimeType::fun(
+                RuntimeType::core(named("unit")),
+                RuntimeType::core(named("unit")),
+            ),
+        );
+
+        assert!(binding_contains_handler(&binding));
     }
 
     fn test_binding(scheme_body: core_ir::Type) -> Binding {
