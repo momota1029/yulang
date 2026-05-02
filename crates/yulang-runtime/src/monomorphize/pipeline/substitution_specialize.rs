@@ -272,6 +272,11 @@ impl SubstitutionSpecializer {
                         .evidence
                         .and_then(|evidence| substitutions_from_evidence(evidence, &original))
                 })
+                .or_else(|| {
+                    binding_substitution_vars(&original)
+                        .is_empty()
+                        .then(BTreeMap::new)
+                })
                 .or_else(|| (self.specialization_body_depth > 0).then(BTreeMap::new));
         let Some(initial_substitutions) = initial_substitutions else {
             self.bump("skip-no-complete-substitution");
@@ -402,7 +407,11 @@ impl SubstitutionSpecializer {
 
         let binding_substitutions =
             complete_binding_substitutions(&original, &principal_substitutions)?;
-        let path = self.intern_specialization(original, binding_substitutions)?;
+        let path = if binding_substitutions.is_empty() {
+            original.name.clone()
+        } else {
+            self.intern_specialization(original, binding_substitutions)?
+        };
         self.bump("rewrite");
         let mut call = Expr::typed(ExprKind::Var(path), RuntimeType::core(callee_ty.clone()));
         let mut current = callee_ty;
@@ -440,6 +449,7 @@ impl SubstitutionSpecializer {
             .filter(|candidate| role_impl_receiver_matches(candidate, &receiver_ty))
             .cloned()
             .collect::<Vec<_>>();
+        debug_role_impl_selection(spine.target, &receiver_ty, candidates, &matched);
         if matched.len() == 1 {
             self.bump("role-impl-selected");
             return matched.pop();
@@ -541,7 +551,7 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
 fn substitution_role_impls(module: &Module) -> HashMap<core_ir::Name, Vec<Binding>> {
     let mut out: HashMap<core_ir::Name, Vec<Binding>> = HashMap::new();
     for binding in &module.bindings {
-        if !is_impl_method_path(&binding.name) || binding_substitution_vars(binding).is_empty() {
+        if !is_impl_method_path(&binding.name) {
             continue;
         }
         let Some(method) = binding.name.segments.last() else {
@@ -569,7 +579,6 @@ fn role_impl_receiver_matches(binding: &Binding, receiver_ty: &core_ir::Type) ->
     infer_type_substitutions_with_effects(receiver_param, receiver_ty, &vars, &mut substitutions);
     let receiver_param = substitute_type(receiver_param, &substitutions);
     type_matches_exact_bounds(receiver_ty, &receiver_param)
-        || type_compatible(&receiver_param, receiver_ty)
 }
 
 fn is_impl_method_path(path: &core_ir::Path) -> bool {
@@ -828,6 +837,30 @@ fn debug_arg_mismatch(target: &core_ir::Path, args: &[&Expr], params: &[core_ir:
     }
 }
 
+fn debug_role_impl_selection(
+    target: &core_ir::Path,
+    receiver_ty: &core_ir::Type,
+    candidates: &[Binding],
+    matched: &[Binding],
+) {
+    if std::env::var_os("YULANG_DEBUG_SUBST_SPECIALIZE").is_none() {
+        return;
+    }
+    let candidates = candidates
+        .iter()
+        .map(|binding| canonical_path(&binding.name))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let matched = matched
+        .iter()
+        .map(|binding| canonical_path(&binding.name))
+        .collect::<Vec<_>>()
+        .join(", ");
+    eprintln!(
+        "subst specialize role-impl {target:?}: receiver={receiver_ty:?} candidates=[{candidates}] matched=[{matched}]"
+    );
+}
+
 fn evidence_substitution_map(
     evidence: &core_ir::ApplyEvidence,
 ) -> BTreeMap<core_ir::TypeVar, core_ir::Type> {
@@ -870,6 +903,9 @@ fn complete_binding_substitutions(
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) -> Option<BTreeMap<core_ir::TypeVar, core_ir::Type>> {
     let params = binding_substitution_vars(binding);
+    if params.is_empty() {
+        return Some(BTreeMap::new());
+    }
     let out = params
         .into_iter()
         .map(|var| {
@@ -877,7 +913,7 @@ fn complete_binding_substitutions(
             (!core_type_has_vars(ty)).then(|| (var, ty.clone()))
         })
         .collect::<Option<BTreeMap<_, _>>>()?;
-    (!out.is_empty()).then_some(out)
+    Some(out)
 }
 
 fn infer_direct_param_substitution(
@@ -1094,4 +1130,78 @@ fn next_substitution_specialization_index(module: &Module) -> usize {
         .max()
         .map(|index| index + 1)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn role_impl_receiver_match_does_not_use_numeric_widening() {
+        let int_impl = test_binding(fun(named("int"), named("bool")));
+        let receiver = named("int");
+
+        assert!(role_impl_receiver_matches(&int_impl, &receiver));
+
+        let float_impl = test_binding(fun(named("float"), named("bool")));
+
+        assert!(!role_impl_receiver_matches(&float_impl, &receiver));
+    }
+
+    #[test]
+    fn role_impl_receiver_match_instantiates_named_receiver_args() {
+        let var = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
+        let impl_binding = test_binding(fun(list(var), named("bool")));
+        let receiver = list(named("int"));
+
+        assert!(role_impl_receiver_matches(&impl_binding, &receiver));
+    }
+
+    fn test_binding(scheme_body: core_ir::Type) -> Binding {
+        Binding {
+            name: path_segments(&["std", "prelude", "&impl#0", "method"]),
+            type_params: Vec::new(),
+            scheme: core_ir::Scheme {
+                requirements: Vec::new(),
+                body: scheme_body.clone(),
+            },
+            body: Expr::typed(ExprKind::Var(path("body")), RuntimeType::core(scheme_body)),
+        }
+    }
+
+    fn fun(param: core_ir::Type, ret: core_ir::Type) -> core_ir::Type {
+        core_ir::Type::Fun {
+            param: Box::new(param),
+            param_effect: Box::new(core_ir::Type::Never),
+            ret_effect: Box::new(core_ir::Type::Never),
+            ret: Box::new(ret),
+        }
+    }
+
+    fn list(item: core_ir::Type) -> core_ir::Type {
+        core_ir::Type::Named {
+            path: path_segments(&["std", "list", "list"]),
+            args: vec![core_ir::TypeArg::Type(item)],
+        }
+    }
+
+    fn named(name: &str) -> core_ir::Type {
+        core_ir::Type::Named {
+            path: path(name),
+            args: Vec::new(),
+        }
+    }
+
+    fn path(name: &str) -> core_ir::Path {
+        core_ir::Path::from_name(core_ir::Name(name.to_string()))
+    }
+
+    fn path_segments(segments: &[&str]) -> core_ir::Path {
+        core_ir::Path {
+            segments: segments
+                .iter()
+                .map(|segment| core_ir::Name((*segment).to_string()))
+                .collect(),
+        }
+    }
 }
