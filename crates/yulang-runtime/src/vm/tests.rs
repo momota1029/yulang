@@ -1078,9 +1078,9 @@ std::flow::sub::sub:
 
     fn mono_binding_named(binding: &Binding, base: &str) -> bool {
         binding.name.segments.last().is_some_and(|name| {
-            name.0
-                .strip_prefix(base)
-                .is_some_and(|suffix| suffix.starts_with("__mono"))
+            name.0.strip_prefix(base).is_some_and(|suffix| {
+                suffix.starts_with("__mono") || suffix.starts_with("__ddmono")
+            })
         })
     }
 
@@ -1105,13 +1105,13 @@ std::flow::sub::sub:
     }
 
     fn function_accepts_sub_int_thunk(ty: &RuntimeType) -> bool {
-        let RuntimeType::Fun { param, .. } = ty else {
+        let RuntimeType::Fun { param, ret } = ty else {
             return false;
         };
-        let RuntimeType::Thunk { effect, value } = param.as_ref() else {
+        let RuntimeType::Thunk { effect, .. } = param.as_ref() else {
             return false;
         };
-        is_int_hir_type(value) && effect_contains_sub_int(effect)
+        returns_int_value(ret) && effect_contains_sub_int(effect)
     }
 
     fn function_accepts_undet_int_thunk_returns_int_list(ty: &RuntimeType) -> bool {
@@ -1128,6 +1128,11 @@ std::flow::sub::sub:
 
     fn is_int_hir_type(ty: &RuntimeType) -> bool {
         matches!(ty, RuntimeType::Core(ty) if is_int_core_type(ty))
+    }
+
+    fn returns_int_value(ty: &RuntimeType) -> bool {
+        is_int_hir_type(ty)
+            || matches!(ty, RuntimeType::Thunk { value, .. } if is_int_hir_type(value))
     }
 
     fn is_int_list_hir_type(ty: &RuntimeType) -> bool {

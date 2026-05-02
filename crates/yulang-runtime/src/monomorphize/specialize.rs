@@ -1,986 +1,272 @@
-use super::*;
+use std::collections::HashMap;
 
-impl Monomorphizer {
-    pub(super) fn specialize(
-        &mut self,
-        instantiation: &TypeInstantiation,
-    ) -> Option<core_ir::Path> {
-        if !self.originals.contains_key(&instantiation.target) || instantiation.args.is_empty() {
-            return None;
-        }
-        let original = self.originals.get(&instantiation.target)?.clone();
-        let effect_params = effect_position_vars(&original.scheme.body);
-        let params = original.type_params.iter().cloned().collect();
-        let mut substitutions = instantiation
-            .args
-            .iter()
-            .map(|arg| (arg.var.clone(), arg.ty.clone()))
-            .collect::<BTreeMap<_, _>>();
-        infer_role_requirement_substitutions(
-            &original.scheme.requirements,
-            &params,
-            &mut substitutions,
-        );
-        let instantiation = TypeInstantiation {
-            target: instantiation.target.clone(),
-            args: original
-                .type_params
-                .iter()
-                .filter_map(|var| {
-                    substitutions
-                        .get(var)
-                        .map(|ty| crate::ir::TypeSubstitution {
-                            var: var.clone(),
-                            ty: ty.clone(),
-                        })
-                })
-                .collect(),
+use super::*;
+use crate::ir::{Binding, Module};
+use crate::types::hir_type_has_vars;
+
+#[derive(Debug, Default, Clone)]
+pub struct SpecializationTable {
+    cache: HashMap<DemandKey, core_ir::Path>,
+    known: Vec<DemandSpecialization>,
+    fresh: Vec<DemandSpecialization>,
+    next_index: usize,
+}
+
+impl SpecializationTable {
+    pub fn from_module(module: &Module) -> Self {
+        let mut table = Self {
+            next_index: next_specialization_index(module),
+            ..Self::default()
         };
-        let instantiation = normalize_type_instantiation(&instantiation, &effect_params)?;
-        if is_effect_only_role_specialization(&original, &instantiation, &effect_params) {
-            return None;
-        }
-        let key = specialization_key(&instantiation);
-        if self.failed_specializations.contains(&key) {
-            return None;
+        table.seed_existing(module);
+        table
+    }
+
+    pub fn intern(&mut self, checked: &CheckedDemand) -> core_ir::Path {
+        let key = checked_key(checked);
+        if !should_materialize_demand(&key) {
+            return checked.target.clone();
         }
         if let Some(path) = self.cache.get(&key) {
-            return Some(path.clone());
+            return path.clone();
         }
-        if let Some(path) = self.specialized_path_for_instantiation(&original, &instantiation) {
-            self.cache.insert(key, path.clone());
-            return Some(path);
-        }
-
-        let path = self.fresh_specialized_path(&instantiation.target);
-        if std::env::var_os("YULANG_DEBUG_MONO_SPECIALIZE").is_some() {
-            eprintln!("mono specialize {key} -> {}", canonical_path(&path));
-        }
-        self.cache.insert(key.clone(), path.clone());
-
-        let substitutions = instantiation
-            .args
-            .iter()
-            .map(|arg| (arg.var.clone(), arg.ty.clone()))
-            .collect::<BTreeMap<_, _>>();
-        let mut binding = substitute_binding(original, &substitutions);
-        let mut associated_substitutions = BTreeMap::new();
-        infer_role_requirement_substitutions(
-            &binding.scheme.requirements,
-            &binding.type_params.iter().cloned().collect(),
-            &mut associated_substitutions,
-        );
-        infer_direct_associated_requirement_substitutions(
-            &binding.scheme.requirements,
-            &binding.type_params.iter().cloned().collect(),
-            &mut associated_substitutions,
-        );
-        normalize_substitutions(&mut associated_substitutions);
-        if !associated_substitutions.is_empty() {
-            binding = substitute_binding(binding, &associated_substitutions);
-        }
-        binding.name = path.clone();
-        refresh_binding_body_type_from_scheme(&mut binding);
-        let mut refreshed_associated_substitutions = BTreeMap::new();
-        infer_direct_associated_requirement_substitutions(
-            &binding.scheme.requirements,
-            &binding.type_params.iter().cloned().collect(),
-            &mut refreshed_associated_substitutions,
-        );
-        normalize_substitutions(&mut refreshed_associated_substitutions);
-        if !refreshed_associated_substitutions.is_empty() {
-            binding = substitute_binding(binding, &refreshed_associated_substitutions);
-            refresh_binding_body_type_from_scheme(&mut binding);
-        }
-        let body_ty = binding.body.ty.clone();
-        binding.body = self.rewrite_expr_with_expected(binding.body, Some(&body_ty));
-        refresh_binding_type_params(&mut binding);
-        binding = fill_residual_effect_params(binding);
-        refresh_binding_type_params(&mut binding);
-        if !binding.type_params.is_empty() {
-            self.cache.remove(&key);
-            self.failed_specializations.insert(key);
-            return None;
-        }
-        refresh_specialized_scheme_from_body(&mut binding);
-        self.specialized_types.insert(
-            path.clone(),
-            normalize_hir_function_type(binding.body.ty.clone()),
-        );
-        self.specialized.push(binding);
-        Some(path)
-    }
-
-    pub(super) fn callee_param_expected(&self, callee: &Expr) -> Option<RuntimeType> {
-        if let Some((target, _)) = applied_head(callee) {
-            if self
-                .originals
-                .get(&target)
-                .is_some_and(|binding| !binding.type_params.is_empty())
-            {
-                return None;
-            }
-            if unspecialized_path(&target).is_some_and(|base| {
-                self.originals
-                    .get(&base)
-                    .is_some_and(|binding| !binding.type_params.is_empty())
-            }) {
-                return None;
-            }
-        }
-        function_param_type(&callee.ty)
-    }
-
-    pub(super) fn specialize_callee_from_call(
-        &mut self,
-        callee: &mut Expr,
-        arg_ty: &RuntimeType,
-        result_ty: &RuntimeType,
-    ) -> bool {
-        let (target, applied_args) = match applied_head(callee) {
-            Some(head) => head,
-            None => return false,
+        let path = specialized_path(&checked.target, self.next_index);
+        self.next_index += 1;
+        let specialization = DemandSpecialization {
+            target: checked.target.clone(),
+            path: path.clone(),
+            key,
+            solved: checked.solved.clone(),
         };
-        let already_applied_args = applied_arg_types(callee);
-        let receiver_ty = already_applied_args.first().or_else(|| {
-            if already_applied_args.is_empty() {
-                Some(arg_ty)
-            } else {
-                None
-            }
-        });
-        let Some(path) = self
-            .resolve_role_method_call_before_generic_specialization(
-                target.clone(),
-                already_applied_args.len(),
-                receiver_ty,
-                arg_ty,
-                result_ty,
-            )
-            .or_else(|| {
-                self.specialize_path_for_call(target.clone(), applied_args, arg_ty, result_ty)
-            })
-            .or_else(|| {
-                if self.originals.contains_key(&target) {
-                    None
-                } else {
-                    self.resolve_role_method_call(
-                        target.clone(),
-                        already_applied_args.len(),
-                        receiver_ty,
-                        arg_ty,
-                        result_ty,
-                        false,
-                    )
-                }
-            })
-            .or_else(|| {
-                let base = unspecialized_path(&target)?;
-                self.specialize_path_for_call(base, applied_args, arg_ty, result_ty)
-            })
-        else {
-            return false;
-        };
-        self.replace_instantiated_head(callee, &target, &path);
-        true
-    }
-
-    pub(super) fn resolve_role_callee_from_call(
-        &mut self,
-        callee: &mut Expr,
-        arg_ty: &RuntimeType,
-        result_ty: &RuntimeType,
-    ) -> bool {
-        let Some((target, _)) = applied_head(callee) else {
-            return false;
-        };
-        if !is_role_method_path(&target) {
-            return false;
-        }
-        let already_applied_args = applied_arg_types(callee);
-        let receiver_ty = already_applied_args.first().or_else(|| {
-            if already_applied_args.is_empty() {
-                Some(arg_ty)
-            } else {
-                None
-            }
-        });
-        let Some(path) = self.resolve_role_method_call(
-            target.clone(),
-            already_applied_args.len(),
-            receiver_ty,
-            arg_ty,
-            result_ty,
-            true,
-        ) else {
-            return false;
-        };
-        self.replace_instantiated_head(callee, &target, &path);
-        true
-    }
-
-    fn resolve_role_method_call_before_generic_specialization(
-        &mut self,
-        target: core_ir::Path,
-        applied_args: usize,
-        receiver_ty: Option<&RuntimeType>,
-        arg_ty: &RuntimeType,
-        result_ty: &RuntimeType,
-    ) -> Option<core_ir::Path> {
-        if !is_role_method_path(&target) {
-            return None;
-        }
-        self.resolve_role_method_call(target, applied_args, receiver_ty, arg_ty, result_ty, false)
-    }
-
-    pub(super) fn specialize_path_for_type(
-        &mut self,
-        target: core_ir::Path,
-        actual_ty: &RuntimeType,
-    ) -> Option<core_ir::Path> {
-        let original = self.originals.get(&target)?;
-        if original.type_params.is_empty() {
-            return None;
-        }
-        let mut substitutions = BTreeMap::new();
-        infer_hir_type_substitutions(
-            &original.body.ty,
-            actual_ty,
-            &original.type_params,
-            &mut substitutions,
-        );
-        if substitutions.is_empty() {
-            let principal = binding_principal_hir_type(original);
-            infer_hir_type_substitutions(
-                &principal,
-                actual_ty,
-                &original.type_params,
-                &mut substitutions,
-            );
-        }
-        normalize_substitutions(&mut substitutions);
-        if substitutions.is_empty() {
-            return None;
-        }
-        let instantiation = TypeInstantiation {
-            target: target.clone(),
-            args: original
-                .type_params
-                .iter()
-                .filter_map(|var| {
-                    substitutions
-                        .get(var)
-                        .map(|ty| crate::ir::TypeSubstitution {
-                            var: var.clone(),
-                            ty: ty.clone(),
-                        })
-                })
-                .collect(),
-        };
-        self.specialize(&instantiation)
-    }
-
-    pub(super) fn specialize_path_for_call(
-        &mut self,
-        target: core_ir::Path,
-        applied_args: usize,
-        arg_ty: &RuntimeType,
-        result_ty: &RuntimeType,
-    ) -> Option<core_ir::Path> {
-        let original = self.originals.get(&target)?;
-        if original.type_params.is_empty() {
-            return None;
-        }
-        let template = unapplied_hir_type(&original.body.ty, applied_args)?;
-        let actual = RuntimeType::fun(arg_ty.clone(), result_ty.clone());
-        let mut substitutions = BTreeMap::new();
-        infer_hir_call_type_substitutions(
-            template,
-            &actual,
-            &original.type_params,
-            &mut substitutions,
-        );
-        if let Some(principal_template) = unapplied_core_type(&original.scheme.body, applied_args) {
-            infer_effectful_type_substitutions(
-                principal_template,
-                &effected_function_core_type(arg_ty, result_ty),
-                &original.type_params.iter().cloned().collect(),
-                &mut substitutions,
-            );
-        }
-        let effect_params = effect_position_vars(&original.scheme.body);
-        fill_call_effect_substitutions(&mut substitutions, &effect_params, &[arg_ty, result_ty]);
-        normalize_call_substitutions(&mut substitutions, &effect_params);
-        if substitutions.is_empty() {
-            return self.specialized_path_for_compatible_call(
-                &target,
-                applied_args,
-                arg_ty,
-                result_ty,
-            );
-        }
-        let instantiation = TypeInstantiation {
-            target: target.clone(),
-            args: original
-                .type_params
-                .iter()
-                .filter_map(|var| {
-                    substitutions
-                        .get(var)
-                        .map(|ty| crate::ir::TypeSubstitution {
-                            var: var.clone(),
-                            ty: ty.clone(),
-                        })
-                })
-                .collect(),
-        };
-        self.specialize(&instantiation).or_else(|| {
-            self.specialized_path_for_compatible_call(&target, applied_args, arg_ty, result_ty)
-        })
-    }
-
-    fn specialized_path_for_compatible_call(
-        &self,
-        target: &core_ir::Path,
-        applied_args: usize,
-        arg_ty: &RuntimeType,
-        result_ty: &RuntimeType,
-    ) -> Option<core_ir::Path> {
-        let base = unspecialized_path(target).unwrap_or_else(|| target.clone());
-        let actual = RuntimeType::fun(arg_ty.clone(), result_ty.clone());
-        self.specialized_types
-            .iter()
-            .filter(|(path, ty)| {
-                *path != target
-                    && unspecialized_path(path).is_some_and(|candidate| candidate == base)
-                    && !hir_type_has_vars(ty)
-            })
-            .filter_map(|(path, ty)| {
-                let template = unapplied_hir_type(ty, applied_args)?;
-                (hir_type_compatible(&template, &actual)
-                    || hir_type_compatible(&actual, &template)
-                    || (applied_args == 0 && receiver_type_matches(template, arg_ty)))
-                .then(|| (role_method_candidate_score(template, &actual), path.clone()))
-            })
-            .max_by_key(|(score, path)| (*score, path_key(path)))
-            .map(|(_, path)| path)
-    }
-
-    fn specialized_path_for_instantiation(
-        &self,
-        original: &Binding,
-        instantiation: &TypeInstantiation,
-    ) -> Option<core_ir::Path> {
-        let substitutions = instantiation
-            .args
-            .iter()
-            .map(|arg| (arg.var.clone(), arg.ty.clone()))
-            .collect::<BTreeMap<_, _>>();
-        let expected_from_body = substitute_hir_type(original.body.ty.clone(), &substitutions);
-        let expected_from_scheme =
-            substitute_hir_type(binding_principal_hir_type(original), &substitutions);
-        self.specialized_types
-            .iter()
-            .filter(|(path, ty)| {
-                unspecialized_path(path).is_some_and(|base| base == instantiation.target)
-                    && !hir_type_has_vars(ty)
-            })
-            .filter_map(|(path, ty)| {
-                let score = specialization_type_reuse_score(
-                    ty,
-                    &expected_from_body,
-                    &expected_from_scheme,
-                )?;
-                Some((score, path.clone()))
-            })
-            .max_by_key(|(score, path)| (*score, path_key(path)))
-            .map(|(_, path)| path)
-    }
-
-    pub(super) fn replace_instantiated_head(
-        &self,
-        expr: &mut Expr,
-        target: &core_ir::Path,
-        replacement: &core_ir::Path,
-    ) {
-        match &mut expr.kind {
-            ExprKind::Var(path) if path == target => {
-                *path = replacement.clone();
-                if let Some(ty) = self.binding_type(replacement) {
-                    expr.ty = ty;
-                }
-            }
-            ExprKind::EffectOp(path) if path == target => {
-                *expr = Expr {
-                    ty: self
-                        .binding_type(replacement)
-                        .unwrap_or_else(|| expr.ty.clone()),
-                    kind: ExprKind::Var(replacement.clone()),
-                };
-            }
-            ExprKind::Apply { callee, .. } => {
-                self.replace_instantiated_head(callee, target, replacement);
-                if let Some(ret) = apply_result_type(&callee.ty) {
-                    expr.ty = ret;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    pub(super) fn binding_type(&self, path: &core_ir::Path) -> Option<RuntimeType> {
-        self.specialized
-            .iter()
-            .find(|binding| binding.name == *path)
-            .map(|binding| normalize_hir_function_type(binding.body.ty.clone()))
-            .or_else(|| self.specialized_types.get(path).cloned())
-            .or_else(|| self.originals.get(path).map(binding_principal_hir_type))
-    }
-
-    pub(super) fn concrete_binding_type(&self, path: &core_ir::Path) -> Option<RuntimeType> {
-        self.specialized
-            .iter()
-            .find(|binding| binding.name == *path)
-            .map(|binding| normalize_hir_function_type(binding.body.ty.clone()))
-            .or_else(|| self.specialized_types.get(path).cloned())
-            .or_else(|| {
-                self.originals.get(path).and_then(|binding| {
-                    if binding.type_params.is_empty() {
-                        Some(binding_principal_hir_type(binding))
-                    } else {
-                        None
-                    }
-                })
-            })
-    }
-
-    pub(super) fn resolve_role_method_var(
-        &mut self,
-        path: core_ir::Path,
-        expected: &RuntimeType,
-    ) -> core_ir::Path {
-        if self.originals.contains_key(&path) {
-            return path;
-        }
-        if hir_type_has_vars(expected) {
-            return path;
-        }
-        if function_param(expected).is_none_or(hir_type_is_hole) {
-            return path;
-        }
-        let Some(method) = path.segments.last() else {
-            return path;
-        };
-        let mut candidates = self
-            .originals
-            .iter()
-            .filter(|(candidate, _)| {
-                is_impl_method_path(candidate, method) && !is_specialized_path(candidate)
-            })
-            .map(|(candidate, binding)| (candidate.clone(), binding.clone()))
-            .collect::<Vec<_>>();
-        candidates.sort_by_key(|(path, _)| path_key(path));
-
-        for (candidate, binding) in candidates {
-            let template = binding_principal_hir_type(&binding);
-            let mut substitutions = BTreeMap::new();
-            infer_hir_type_substitutions(
-                &template,
-                expected,
-                &binding.type_params,
-                &mut substitutions,
-            );
-            normalize_substitutions(&mut substitutions);
-            let ty = substitute_hir_type(template.clone(), &substitutions);
-            if !hir_type_compatible(expected, &ty) {
-                continue;
-            }
-            if substitutions.is_empty() {
-                return candidate;
-            }
-            let instantiation = TypeInstantiation {
-                target: candidate.clone(),
-                args: binding
-                    .type_params
-                    .into_iter()
-                    .filter_map(|var| {
-                        substitutions
-                            .get(&var)
-                            .map(|ty| crate::ir::TypeSubstitution {
-                                var,
-                                ty: ty.clone(),
-                            })
-                    })
-                    .collect(),
-            };
-            return self.specialize(&instantiation).unwrap_or(candidate);
-        }
-
+        self.cache.insert(specialization.key.clone(), path.clone());
+        self.known.push(specialization.clone());
+        self.fresh.push(specialization);
         path
     }
 
-    pub(super) fn resolve_role_method_call(
-        &mut self,
-        target: core_ir::Path,
-        applied_args: usize,
-        receiver_ty: Option<&RuntimeType>,
-        arg_ty: &RuntimeType,
-        result_ty: &RuntimeType,
-        infer_effects: bool,
-    ) -> Option<core_ir::Path> {
-        if hir_type_is_hole(arg_ty) {
-            return None;
-        }
-        let concrete_receiver_ty = receiver_ty
-            .filter(|receiver_ty| !hir_type_has_vars(receiver_ty))
-            .filter(|receiver_ty| !hir_type_contains_any(receiver_ty));
-        let method = target.segments.last()?.clone();
-        let actual = RuntimeType::fun(arg_ty.clone(), result_ty.clone());
-        let mut candidates = self
-            .originals
-            .iter()
-            .filter(|(candidate, _)| {
-                is_impl_method_path(candidate, &method) && !is_specialized_path(candidate)
-            })
-            .map(|(candidate, binding)| (candidate.clone(), binding.clone()))
-            .collect::<Vec<_>>();
-        candidates.sort_by_key(|(path, _)| path_key(path));
+    pub fn into_specializations(self) -> Vec<DemandSpecialization> {
+        self.known
+    }
 
-        let mut best = None;
-        for (candidate, binding) in candidates {
-            let binding_ty = binding_principal_hir_type(&binding);
-            if let Some(receiver_ty) = concrete_receiver_ty
-                && !binding_receiver_matches(&binding_ty, receiver_ty)
-            {
-                continue;
-            }
-            let Some(template) = unapplied_hir_type(&binding_ty, applied_args) else {
+    pub fn into_output(self) -> SpecializationOutput {
+        SpecializationOutput {
+            known: self.known,
+            fresh: self.fresh,
+        }
+    }
+
+    fn seed_existing(&mut self, module: &Module) {
+        for binding in &module.bindings {
+            let Some(target) = unspecialized_demand_path(&binding.name) else {
                 continue;
             };
-            let mut substitutions = BTreeMap::new();
-            infer_hir_type_substitutions(
-                template,
-                &actual,
-                &binding.type_params,
-                &mut substitutions,
-            );
-            if infer_effects {
-                if let Some(principal_template) =
-                    unapplied_core_type(&binding.scheme.body, applied_args)
-                {
-                    infer_effectful_type_substitutions(
-                        principal_template,
-                        &effected_function_core_type(arg_ty, result_ty),
-                        &binding.type_params.iter().cloned().collect(),
-                        &mut substitutions,
-                    );
-                }
-                let effect_params = effect_position_vars(&binding.scheme.body);
-                fill_call_effect_substitutions(
-                    &mut substitutions,
-                    &effect_params,
-                    &[arg_ty, result_ty],
-                );
-                normalize_call_substitutions(&mut substitutions, &effect_params);
-            } else {
-                normalize_substitutions(&mut substitutions);
-            }
-            let ty = substitute_hir_type(template.clone(), &substitutions);
-            if !hir_type_compatible(&ty, &actual) && !receiver_type_matches(&ty, arg_ty) {
+            if !binding.type_params.is_empty() || hir_type_has_vars(&binding.body.ty) {
                 continue;
             }
-            let score = role_method_candidate_score(&ty, &actual);
-            match &best {
-                Some((best_score, _, _)) if *best_score >= score => {}
-                _ => best = Some((score, candidate, substitutions)),
+            let signature = DemandSignature::from_runtime_type(&binding.body.ty);
+            if !signature.is_closed() {
+                continue;
+            }
+            let specialization = existing_specialization(target, binding, signature);
+            if !self.cache.contains_key(&specialization.key) {
+                self.cache
+                    .insert(specialization.key.clone(), specialization.path.clone());
+                self.known.push(specialization);
             }
         }
-
-        let (_, candidate, substitutions) = best?;
-        if substitutions.is_empty() {
-            return Some(candidate);
-        }
-        let binding = self.originals.get(&candidate)?;
-        let instantiation = TypeInstantiation {
-            target: candidate.clone(),
-            args: binding
-                .type_params
-                .iter()
-                .filter_map(|var| {
-                    substitutions
-                        .get(var)
-                        .map(|ty| crate::ir::TypeSubstitution {
-                            var: var.clone(),
-                            ty: ty.clone(),
-                        })
-                })
-                .collect(),
-        };
-        self.specialize(&instantiation).or(Some(candidate))
-    }
-
-    pub(super) fn fresh_specialized_path(&mut self, target: &core_ir::Path) -> core_ir::Path {
-        let mut path = target.clone();
-        let suffix = self.next_specialization;
-        self.next_specialization += 1;
-        if let Some(name) = path.segments.last_mut() {
-            name.0 = format!("{}__mono{}", name.0, suffix);
-        }
-        path
     }
 }
 
-fn specialization_type_reuse_score(
-    candidate: &RuntimeType,
-    expected_from_body: &RuntimeType,
-    expected_from_scheme: &RuntimeType,
-) -> Option<usize> {
-    if candidate == expected_from_body || candidate == expected_from_scheme {
-        return Some(3);
-    }
-    if hir_type_compatible(candidate, expected_from_body)
-        && hir_type_compatible(expected_from_body, candidate)
-    {
-        return Some(2);
-    }
-    if hir_type_compatible(candidate, expected_from_scheme)
-        && hir_type_compatible(expected_from_scheme, candidate)
-    {
-        return Some(1);
-    }
-    None
+pub(super) fn demand_call_target(path: &core_ir::Path) -> core_ir::Path {
+    unspecialized_demand_path(path)
+        .or_else(|| unspecialized_legacy_mono_path(path))
+        .unwrap_or_else(|| path.clone())
 }
 
-pub(super) fn is_impl_method_path(path: &core_ir::Path, method: &core_ir::Name) -> bool {
-    path.segments.last() == Some(method)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpecializationOutput {
+    pub known: Vec<DemandSpecialization>,
+    pub fresh: Vec<DemandSpecialization>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DemandSpecialization {
+    pub target: core_ir::Path,
+    pub path: core_ir::Path,
+    pub key: DemandKey,
+    pub solved: DemandSignature,
+}
+
+fn checked_key(checked: &CheckedDemand) -> DemandKey {
+    DemandKey::from_signature(checked.target.clone(), checked.expected.clone())
+}
+
+fn specialized_path(target: &core_ir::Path, index: usize) -> core_ir::Path {
+    let mut path = target.clone();
+    match path.segments.last_mut() {
+        Some(name) => {
+            name.0 = format!("{}__ddmono{index}", name.0);
+        }
+        None => {
+            path.segments
+                .push(core_ir::Name(format!("__ddmono{index}")));
+        }
+    }
+    path
+}
+
+fn existing_specialization(
+    target: core_ir::Path,
+    binding: &Binding,
+    signature: DemandSignature,
+) -> DemandSpecialization {
+    DemandSpecialization {
+        target: target.clone(),
+        path: binding.name.clone(),
+        key: DemandKey::from_signature(target, signature.clone()),
+        solved: signature,
+    }
+}
+
+fn should_materialize_demand(key: &DemandKey) -> bool {
+    let arity = signature_arity(&key.signature);
+    if path_ends_with(&key.target, &["std", "range", "fold_from"]) {
+        return arity >= 3;
+    }
+    if path_ends_with(&key.target, &["std", "range", "fold_ints"]) {
+        return arity >= 4;
+    }
+    true
+}
+
+fn signature_arity(signature: &DemandSignature) -> usize {
+    let mut arity = 0;
+    let mut current = signature;
+    loop {
+        match current {
+            DemandSignature::Fun { ret, .. } => {
+                arity += 1;
+                current = ret;
+            }
+            DemandSignature::Thunk { effect, value }
+                if demand_effect_is_empty_for_arity(effect) =>
+            {
+                current = value;
+            }
+            _ => break,
+        }
+    }
+    arity
+}
+
+fn demand_effect_is_empty_for_arity(effect: &DemandEffect) -> bool {
+    match effect {
+        DemandEffect::Empty => true,
+        DemandEffect::Row(items) => items.iter().all(demand_effect_is_empty_for_arity),
+        DemandEffect::Hole(_) | DemandEffect::Atom(_) => false,
+    }
+}
+
+fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
+    path.segments.len() >= suffix.len()
         && path
             .segments
             .iter()
-            .any(|segment| segment.0.starts_with("&impl#"))
+            .rev()
+            .zip(suffix.iter().rev())
+            .all(|(segment, expected)| segment.0 == *expected)
 }
 
-fn is_effect_only_role_specialization(
-    original: &Binding,
-    instantiation: &TypeInstantiation,
-    effect_params: &BTreeSet<core_ir::TypeVar>,
-) -> bool {
-    !original.scheme.requirements.is_empty()
-        && instantiation
-            .args
-            .iter()
-            .all(|arg| effect_params.contains(&arg.var))
+fn next_specialization_index(module: &Module) -> usize {
+    module
+        .bindings
+        .iter()
+        .filter_map(|binding| demand_specialization_suffix(&binding.name))
+        .max()
+        .map(|index| index + 1)
+        .unwrap_or(0)
 }
 
-pub(super) fn is_role_method_path(path: &core_ir::Path) -> bool {
-    let Some(role) = path.segments.iter().rev().nth(1) else {
-        return false;
-    };
-    role.0.chars().next().is_some_and(char::is_uppercase)
-}
-
-pub(super) fn is_specialized_path(path: &core_ir::Path) -> bool {
-    path.segments
-        .last()
-        .is_some_and(|segment| segment.0.contains("__mono"))
-}
-
-pub(super) fn specialization_suffix(path: &core_ir::Path) -> Option<usize> {
+fn demand_specialization_suffix(path: &core_ir::Path) -> Option<usize> {
     path.segments
         .last()?
         .0
-        .rsplit_once("__mono")?
+        .rsplit_once("__ddmono")?
         .1
         .parse()
         .ok()
 }
 
-pub(super) fn unspecialized_path(path: &core_ir::Path) -> Option<core_ir::Path> {
-    let mut path = path.clone();
-    let name = &mut path.segments.last_mut()?.0;
+fn unspecialized_demand_path(path: &core_ir::Path) -> Option<core_ir::Path> {
+    let mut base = path.clone();
+    let name = &mut base.segments.last_mut()?.0;
+    let index = name.find("__ddmono")?;
+    name.truncate(index);
+    Some(base)
+}
+
+fn unspecialized_legacy_mono_path(path: &core_ir::Path) -> Option<core_ir::Path> {
+    let mut base = path.clone();
+    let name = &mut base.segments.last_mut()?.0;
     let index = name.find("__mono")?;
     name.truncate(index);
-    Some(path)
-}
-
-pub(super) fn specialization_key(instantiation: &TypeInstantiation) -> String {
-    let mut key = canonical_path(&instantiation.target);
-    key.push('|');
-    for arg in &instantiation.args {
-        key.push_str(&arg.var.0);
-        key.push('=');
-        canonical_type(&arg.ty, &mut key);
-        key.push(';');
-    }
-    key
-}
-
-pub(super) fn canonical_path(path: &core_ir::Path) -> String {
-    path.segments
-        .iter()
-        .map(|segment| segment.0.as_str())
-        .collect::<Vec<_>>()
-        .join("::")
-}
-
-pub(super) fn canonical_type(ty: &core_ir::Type, out: &mut String) {
-    match ty {
-        core_ir::Type::Any => out.push('_'),
-        core_ir::Type::Never => out.push('!'),
-        core_ir::Type::Var(var) => out.push_str(&var.0),
-        core_ir::Type::Named { path, args } => {
-            out.push_str(&canonical_path(path));
-            if !args.is_empty() {
-                out.push('<');
-                for (index, arg) in args.iter().enumerate() {
-                    if index > 0 {
-                        out.push(',');
-                    }
-                    canonical_type_arg(arg, out);
-                }
-                out.push('>');
-            }
-        }
-        core_ir::Type::Fun {
-            param,
-            param_effect,
-            ret_effect,
-            ret,
-        } => {
-            out.push('(');
-            canonical_type(param, out);
-            out.push('-');
-            canonical_type(param_effect, out);
-            out.push('/');
-            canonical_type(ret_effect, out);
-            out.push_str("->");
-            canonical_type(ret, out);
-            out.push(')');
-        }
-        core_ir::Type::Tuple(items) => canonical_type_list("(", ")", items, out),
-        core_ir::Type::Record(record) => {
-            out.push('{');
-            for field in &record.fields {
-                out.push_str(&field.name.0);
-                out.push(':');
-                canonical_type(&field.value, out);
-                out.push(',');
-            }
-            out.push('}');
-        }
-        core_ir::Type::Variant(variant) => {
-            out.push('[');
-            for case in &variant.cases {
-                out.push_str(&case.name.0);
-                canonical_type_list("(", ")", &case.payloads, out);
-                out.push(',');
-            }
-            out.push(']');
-        }
-        core_ir::Type::Row { items, tail } => {
-            canonical_type_list("[", "]", items, out);
-            out.push('|');
-            canonical_type(tail, out);
-        }
-        core_ir::Type::Union(items) => canonical_type_list("union(", ")", items, out),
-        core_ir::Type::Inter(items) => canonical_type_list("inter(", ")", items, out),
-        core_ir::Type::Recursive { var, body } => {
-            out.push_str("rec ");
-            out.push_str(&var.0);
-            out.push('.');
-            canonical_type(body, out);
-        }
-    }
-}
-
-pub(super) fn canonical_type_arg(arg: &core_ir::TypeArg, out: &mut String) {
-    match arg {
-        core_ir::TypeArg::Type(ty) => canonical_type(ty, out),
-        core_ir::TypeArg::Bounds(bounds) => {
-            out.push_str("bounds(");
-            if let Some(lower) = bounds.lower.as_deref() {
-                canonical_type(lower, out);
-            }
-            out.push_str("..");
-            if let Some(upper) = bounds.upper.as_deref() {
-                canonical_type(upper, out);
-            }
-            out.push(')');
-        }
-    }
-}
-
-pub(super) fn canonical_type_list(
-    open: &str,
-    close: &str,
-    items: &[core_ir::Type],
-    out: &mut String,
-) {
-    out.push_str(open);
-    for (index, item) in items.iter().enumerate() {
-        if index > 0 {
-            out.push(',');
-        }
-        canonical_type(item, out);
-    }
-    out.push_str(close);
+    Some(base)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::Root;
 
     #[test]
-    pub(super) fn monomorphizes_instantiated_direct_call_once() {
-        let a = core_ir::TypeVar("a".to_string());
-        let id_path = core_ir::Path::from_name(core_ir::Name("id".to_string()));
-        let int = named_type("int");
-        let id_ty = RuntimeType::fun(
-            RuntimeType::core(core_ir::Type::Var(a.clone())),
-            RuntimeType::core(core_ir::Type::Var(a.clone())),
-        );
-        let module = Module {
-            path: core_ir::Path::default(),
-            bindings: vec![Binding {
-                name: id_path.clone(),
-                type_params: vec![a.clone()],
-                scheme: core_ir::Scheme {
-                    requirements: Vec::new(),
-                    body: core_ir::Type::Fun {
-                        param: Box::new(core_ir::Type::Var(a.clone())),
-                        param_effect: Box::new(core_ir::Type::Never),
-                        ret_effect: Box::new(core_ir::Type::Never),
-                        ret: Box::new(core_ir::Type::Var(a.clone())),
-                    },
-                },
-                body: Expr::typed(
-                    ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
-                        param_effect_annotation: None,
-                        param_function_allowed_effects: None,
-                        body: Box::new(Expr::typed(
-                            ExprKind::Var(core_ir::Path::from_name(core_ir::Name("x".to_string()))),
-                            RuntimeType::core(core_ir::Type::Var(a.clone())),
-                        )),
-                    },
-                    id_ty.clone(),
-                ),
-            }],
-            root_exprs: vec![Expr::typed(
-                ExprKind::Apply {
-                    callee: Box::new(Expr::typed(ExprKind::Var(id_path.clone()), id_ty)),
-                    arg: Box::new(Expr::typed(
-                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
-                        int.clone(),
-                    )),
-                    evidence: None,
-                    instantiation: Some(TypeInstantiation {
-                        target: id_path.clone(),
-                        args: vec![crate::ir::TypeSubstitution {
-                            var: a,
-                            ty: int.clone(),
-                        }],
-                    }),
-                },
-                int.clone(),
-            )],
-            roots: vec![Root::Expr(0)],
-        };
+    fn specialization_table_reuses_same_key() {
+        let checked = checked("id", DemandSignature::Core(named("int")));
+        let mut table = SpecializationTable::default();
 
-        let module = monomorphize_module(module).expect("monomorphized");
+        let first = table.intern(&checked);
+        let second = table.intern(&checked);
+        let specializations = table.into_specializations();
 
-        assert_eq!(module.bindings.len(), 1);
-        let specialized = &module.bindings[0];
-        assert!(specialized.type_params.is_empty());
-        let ExprKind::Apply {
-            callee,
-            instantiation,
-            ..
-        } = &module.root_exprs[0].kind
-        else {
-            panic!("root should be an apply");
-        };
-        assert!(instantiation.is_none());
-        assert!(matches!(&callee.kind, ExprKind::Var(path) if path == &specialized.name));
+        assert_eq!(first, second);
+        assert_eq!(specializations.len(), 1);
     }
 
     #[test]
-    pub(super) fn reuses_specialization_for_same_type_arguments() {
-        let a = core_ir::TypeVar("a".to_string());
-        let id_path = core_ir::Path::from_name(core_ir::Name("id".to_string()));
-        let int = named_type("int");
-        let id_ty = RuntimeType::fun(
-            RuntimeType::core(core_ir::Type::Var(a.clone())),
-            RuntimeType::core(core_ir::Type::Var(a.clone())),
-        );
-        let instantiation = TypeInstantiation {
-            target: id_path.clone(),
-            args: vec![crate::ir::TypeSubstitution {
-                var: a.clone(),
-                ty: int.clone(),
-            }],
-        };
-        let call = || {
-            Expr::typed(
-                ExprKind::Apply {
-                    callee: Box::new(Expr::typed(ExprKind::Var(id_path.clone()), id_ty.clone())),
-                    arg: Box::new(Expr::typed(
-                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
-                        int.clone(),
-                    )),
-                    evidence: None,
-                    instantiation: Some(instantiation.clone()),
-                },
-                int.clone(),
-            )
-        };
-        let module = Module {
-            path: core_ir::Path::default(),
-            bindings: vec![Binding {
-                name: id_path.clone(),
-                type_params: vec![a.clone()],
-                scheme: core_ir::Scheme {
-                    requirements: Vec::new(),
-                    body: core_ir::Type::Fun {
-                        param: Box::new(core_ir::Type::Var(a.clone())),
-                        param_effect: Box::new(core_ir::Type::Never),
-                        ret_effect: Box::new(core_ir::Type::Never),
-                        ret: Box::new(core_ir::Type::Var(a.clone())),
-                    },
-                },
-                body: Expr::typed(
-                    ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
-                        param_effect_annotation: None,
-                        param_function_allowed_effects: None,
-                        body: Box::new(Expr::typed(
-                            ExprKind::Var(core_ir::Path::from_name(core_ir::Name("x".to_string()))),
-                            RuntimeType::core(core_ir::Type::Var(a)),
-                        )),
-                    },
-                    id_ty.clone(),
-                ),
-            }],
-            root_exprs: vec![call(), call()],
-            roots: vec![Root::Expr(0), Root::Expr(1)],
-        };
+    fn specialization_table_allocates_paths_in_order() {
+        let mut table = SpecializationTable::default();
+        let first = table.intern(&checked("id", DemandSignature::Core(named("int"))));
+        let second = table.intern(&checked("id", DemandSignature::Core(named("str"))));
 
-        let module = monomorphize_module(module).expect("monomorphized");
+        assert_eq!(first, path("id__ddmono0"));
+        assert_eq!(second, path("id__ddmono1"));
+    }
 
-        assert_eq!(module.bindings.len(), 1);
-        let specialized = &module.bindings[0].name;
-        for root in &module.root_exprs {
-            let ExprKind::Apply { callee, .. } = &root.kind else {
-                panic!("root should be an apply");
-            };
-            assert!(matches!(&callee.kind, ExprKind::Var(path) if path == specialized));
+    #[test]
+    fn demand_call_target_strips_demand_and_legacy_suffixes() {
+        assert_eq!(demand_call_target(&path("id__ddmono12")), path("id"));
+        assert_eq!(demand_call_target(&path("id__mono3")), path("id"));
+        assert_eq!(demand_call_target(&path("id")), path("id"));
+    }
+
+    fn checked(name: &str, signature: DemandSignature) -> CheckedDemand {
+        CheckedDemand {
+            target: path(name),
+            expected: signature.clone(),
+            actual: signature.clone(),
+            solved: signature,
+            substitutions: DemandSubstitution::default(),
+            child_demands: DemandQueue::default(),
+            local_signatures: HashMap::new(),
         }
     }
 
-    pub(super) fn named_type(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named(name: &str) -> DemandCoreType {
+        DemandCoreType::Named {
+            path: path(name),
             args: Vec::new(),
         }
+    }
+
+    fn path(name: &str) -> core_ir::Path {
+        core_ir::Path::from_name(core_ir::Name(name.to_string()))
     }
 }

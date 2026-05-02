@@ -24,12 +24,6 @@ pub(crate) fn core_types_compatible(expected: &core_ir::Type, actual: &core_ir::
     }
 }
 
-pub(crate) fn type_path_last_is(path: &core_ir::Path, name: &str) -> bool {
-    path.segments
-        .last()
-        .is_some_and(|segment| segment.0 == name)
-}
-
 pub(crate) fn is_qualified_runtime_path(path: &core_ir::Path) -> bool {
     path.segments.len() > 1
         || path

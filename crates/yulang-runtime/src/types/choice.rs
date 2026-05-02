@@ -41,13 +41,6 @@ pub(crate) fn choose_bounds_pair(
     }
 }
 
-pub(crate) fn choose_hir_bounds_type(
-    bounds: &core_ir::TypeBounds,
-    choice: BoundsChoice,
-) -> Option<RuntimeType> {
-    choose_bounds_type(bounds, choice).map(RuntimeType::core)
-}
-
 pub(crate) fn choose_core_type(
     left: core_ir::Type,
     right: core_ir::Type,

@@ -174,6 +174,16 @@ impl DemandUnifier {
             (DemandSignature::Core(expected), DemandSignature::Core(actual)) => {
                 self.core(expected, actual)
             }
+            (DemandSignature::Core(expected), actual)
+                if let Some(expected) = core_fun_signature(expected) =>
+            {
+                self.signature(&expected, actual)
+            }
+            (expected, DemandSignature::Core(actual))
+                if let Some(actual) = core_fun_signature(actual) =>
+            {
+                self.signature(expected, &actual)
+            }
             (
                 DemandSignature::Fun {
                     param: expected_param,
@@ -185,7 +195,7 @@ impl DemandUnifier {
                 },
             ) => {
                 self.signature(expected_param, actual_param)?;
-                self.signature(expected_ret, actual_ret)
+                self.return_signature(expected_ret, actual_ret)
             }
             (
                 DemandSignature::Thunk {
@@ -219,6 +229,19 @@ impl DemandUnifier {
                 actual: actual.clone(),
             }),
         }
+    }
+
+    fn return_signature(
+        &mut self,
+        expected: &DemandSignature,
+        actual: &DemandSignature,
+    ) -> Result<(), DemandUnifyError> {
+        if let DemandSignature::Thunk { value, .. } = expected
+            && !matches!(actual, DemandSignature::Thunk { .. })
+        {
+            return self.signature(value, actual);
+        }
+        self.signature(expected, actual)
     }
 
     fn core(
@@ -396,6 +419,7 @@ impl DemandUnifier {
         for expected in expected_fixed {
             if let Some(index) = self.find_unifiable_effect(&expected, &actual_fixed) {
                 actual_fixed.remove(index);
+                self.remove_redundant_unifiable_effects(&expected, &mut actual_fixed);
             } else {
                 unmatched_expected.push(expected);
             }
@@ -474,6 +498,23 @@ impl DemandUnifier {
             self.substitutions = snapshot;
         }
         None
+    }
+
+    fn remove_redundant_unifiable_effects(
+        &mut self,
+        expected: &DemandEffect,
+        actual: &mut Vec<DemandEffect>,
+    ) {
+        let mut index = 0;
+        while index < actual.len() {
+            let snapshot = self.substitutions.clone();
+            if self.effect(expected, &actual[index]).is_ok() {
+                actual.remove(index);
+            } else {
+                self.substitutions = snapshot;
+                index += 1;
+            }
+        }
     }
 
     fn type_arg(
@@ -589,6 +630,28 @@ impl DemandUnifier {
     }
 }
 
+fn core_fun_signature(ty: &DemandCoreType) -> Option<DemandSignature> {
+    let DemandCoreType::Fun {
+        param,
+        param_effect,
+        ret_effect,
+        ret,
+    } = ty
+    else {
+        return None;
+    };
+    Some(DemandSignature::Fun {
+        param: Box::new(effected_core_signature(
+            param.as_ref().clone(),
+            param_effect.as_ref().clone(),
+        )),
+        ret: Box::new(effected_core_signature(
+            ret.as_ref().clone(),
+            ret_effect.as_ref().clone(),
+        )),
+    })
+}
+
 fn flatten_effect_row(items: &[DemandEffect]) -> Vec<DemandEffect> {
     let mut out = Vec::new();
     for item in items {
@@ -605,6 +668,7 @@ fn push_flat_effect(effect: &DemandEffect, out: &mut Vec<DemandEffect>) {
                 push_flat_effect(item, out);
             }
         }
+        effect if demand_effect_is_impossible(effect) => {}
         effect => out.push(effect.clone()),
     }
 }
@@ -650,8 +714,8 @@ fn single_effect_payload_side<'a>(
         return None;
     }
     match (left_args.as_slice(), right_args.as_slice()) {
-        ([], args) if args.iter().all(is_payload_hole_arg) => Some(args),
-        (args, []) if args.iter().all(is_payload_hole_arg) => Some(args),
+        ([], args) => Some(args),
+        (args, []) => Some(args),
         _ => None,
     }
 }
@@ -684,21 +748,6 @@ fn copied_loop_control_family(path: &core_ir::Path) -> Option<&'static str> {
         ["std", "flow", "loop", "last" | "next" | "redo"] => Some("std::flow::loop"),
         ["std", "flow", "label_loop", "last" | "next" | "redo"] => Some("std::flow::label_loop"),
         _ => None,
-    }
-}
-
-fn is_payload_hole_arg(arg: &DemandTypeArg) -> bool {
-    match arg {
-        DemandTypeArg::Type(DemandCoreType::Hole(_)) => true,
-        DemandTypeArg::Bounds { lower, upper } => {
-            lower
-                .as_ref()
-                .is_none_or(|ty| matches!(ty, DemandCoreType::Hole(_)))
-                && upper
-                    .as_ref()
-                    .is_none_or(|ty| matches!(ty, DemandCoreType::Hole(_)))
-        }
-        _ => false,
     }
 }
 
@@ -878,6 +927,25 @@ mod tests {
     }
 
     #[test]
+    fn unifier_accepts_pure_function_where_effectful_return_is_expected() {
+        let expected = DemandSignature::Fun {
+            param: Box::new(DemandSignature::Core(named("int"))),
+            ret: Box::new(DemandSignature::Thunk {
+                effect: DemandEffect::Atom(named("io")),
+                value: Box::new(DemandSignature::Core(named("bool"))),
+            }),
+        };
+        let actual = DemandSignature::Fun {
+            param: Box::new(DemandSignature::Core(named("int"))),
+            ret: Box::new(DemandSignature::Core(named("bool"))),
+        };
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("pure return satisfies effectful return demand");
+    }
+
+    #[test]
     fn unifier_keeps_effect_holes_in_effect_substitution() {
         let expected = DemandSignature::Thunk {
             effect: DemandEffect::Hole(0),
@@ -956,6 +1024,25 @@ mod tests {
             .expect("unified local effect payload hole");
 
         assert_eq!(substitutions.cores.get(&0), Some(&DemandCoreType::Never));
+    }
+
+    #[test]
+    fn unifier_matches_payloadless_effect_with_known_payload_effect() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Atom(named("sub")),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Atom(named_with_args(
+                "sub",
+                vec![DemandTypeArg::Type(named("int"))],
+            )),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("unified effect payload erasure");
     }
 
     #[test]
@@ -1041,6 +1128,62 @@ mod tests {
         DemandUnifier::new()
             .unify_signature(&expected, &actual)
             .expect("actual effect row is a subset of expected effects");
+    }
+
+    #[test]
+    fn unifier_accepts_duplicate_actual_effects_covered_by_one_expected_effect() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Atom(named_with_args(
+                "sub",
+                vec![DemandTypeArg::Type(named("int"))],
+            )),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![
+                DemandEffect::Atom(named_with_args(
+                    "sub",
+                    vec![DemandTypeArg::Type(named("int"))],
+                )),
+                DemandEffect::Atom(named_with_args(
+                    "sub",
+                    vec![DemandTypeArg::Type(DemandCoreType::Hole(0))],
+                )),
+            ]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("duplicate compatible effects are one row member");
+    }
+
+    #[test]
+    fn unifier_drops_never_payload_effects_from_rows() {
+        let expected = DemandSignature::Thunk {
+            effect: DemandEffect::Atom(named_with_args(
+                "sub",
+                vec![DemandTypeArg::Type(named("int"))],
+            )),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+        let actual = DemandSignature::Thunk {
+            effect: DemandEffect::Row(vec![
+                DemandEffect::Atom(named_with_args(
+                    "sub",
+                    vec![DemandTypeArg::Type(DemandCoreType::Never)],
+                )),
+                DemandEffect::Atom(named_with_args(
+                    "sub",
+                    vec![DemandTypeArg::Type(named("int"))],
+                )),
+            ]),
+            value: Box::new(DemandSignature::Core(named("unit"))),
+        };
+
+        DemandUnifier::new()
+            .unify_signature(&expected, &actual)
+            .expect("never payload effects are impossible");
     }
 
     #[test]

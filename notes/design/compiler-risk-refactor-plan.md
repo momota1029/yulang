@@ -1499,3 +1499,268 @@ New risk noticed:
   between "value expression" and "control expression already producing a thunk"
   should eventually move into a small expression-shape helper instead of living
   as emitter-local choices.
+
+### 2026-05-01: Demand-specialized dependencies are filtered as a group
+
+- Closed demand specializations now keep their checked local signatures keyed by
+  the checked demand shape.  This avoids leaking the solved display signature
+  back into runtime body emission when the body still contains open local
+  helper shapes.
+- Demand emission now has a separate runtime-shape projection for open demand
+  signatures.  It preserves operational `Fun` / `Thunk` structure while turning
+  unresolved holes into `Any` only at the temporary rewrite boundary.
+- Local synthetic `var_ref` helpers are closed from their visible return
+  `std::var::ref<effect, value>` shape, including the local reference effect
+  path such as `&xs#647`.
+- List concatenation helpers (`std::list::merge` and the list `Add::add`
+  implementation) close their element type from either list argument or the
+  result list.  This removes the remaining legacy `__mono` path in the
+  showcase nondeterminism queue.
+- Freshly emitted demand bindings are no longer accepted independently.  If a
+  fresh binding refers to another fresh specialization that was rejected by
+  validation, the dependent binding is rejected too.  This prevents thin wrapper
+  bindings such as `std::junction::all__ddmono*` from calling a missing inner
+  specialization.
+- Added a regression test for rejecting a valid-looking fresh wrapper whose
+  fresh helper dependency was rejected.
+
+Measured:
+
+- `examples/showcase.yu`: final runtime IR has no `__mono[0-9]` paths.
+- `examples/showcase.yu`: VM output remains `7`, `[2, 6, 4]`, `5`,
+  and `just 18`.
+- `cargo test -q -p yulang-runtime` passes.
+
+New risk noticed:
+
+- Per-binding validation is still a bridge, not the final algorithm.  It keeps
+  bad fresh candidates out of executable IR, but the better end state is for the
+  demand engine to know dependency groups before emission instead of filtering
+  after emission.
+
+### 2026-05-01: Final cleanup stops generating fresh demand specializations
+
+- Demand collection now scans only root expressions and reachable collectable
+  binding bodies.  Unreachable legacy or demand-specialized bodies no longer
+  create fresh demand work.
+- Added a regression test proving an unreachable `__mono` body is not scanned
+  even if it contains a generic call.
+- The final cleanup fixed point now resolves residual role methods, refines
+  types, and refreshes closed schemes, but it no longer runs
+  `demand-specialize`.  Demand generation belongs before the cleanup prune;
+  after the keep-legacy prune it was repeatedly making alternate helpers that
+  were later discarded.
+
+Measured:
+
+- `examples/*.yu` runtime IR has no legacy `__mono[0-9]` paths, except
+  `examples/02_refs.yu` which currently fails earlier with unresolved `&x` /
+  `&y` and is a separate reference-lowering issue.
+- `examples/showcase.yu --run --runtime-phase-timings` now reports roughly
+  `mono_passes: 43, specializations: 64` on this machine, instead of reaching
+  the final-cleanup round limit.
+- `cargo test -q` passes.
+
+New risk noticed:
+
+- The role-specialization fixed point still performs several whole-module
+  rewrite/refine rounds after demand specialization has done the useful work.
+  The next migration target is to move more role-call replacement into the
+  demand engine so `rewrite-uses` no longer has to keep touching most bindings.
+- Pruning before role-specialization is not valid yet.  Role helper and impl
+  candidates that look unreachable before `resolve-residual-role-methods` may
+  still be needed to turn role-method requests into ordinary calls.
+
+### 2026-05-02: Old residual cleanup passes removed
+
+- The old `resolve-residual-role-methods` pass is no longer part of the
+  monomorphization pipeline.
+  - Demand specialization and the remaining use-rewrite pass now cover the
+    tested role-method cases.
+  - The dedicated `residual_roles.rs` rewriter and its old
+    `resolve_role_callee_from_call` helper were deleted.
+- The two residual associated cleanup passes were removed.
+  - `resolve-specialized-residual-associated` was not making progress in the
+    current runtime tests.
+  - The later all-binding `resolve-residual-associated` pass was also unused
+    after the demand-specialization fixes.
+  - This deleted the old fold-specific body scanner used only by that cleanup.
+- The final cleanup fixed point was removed.  After demand generation was
+  stopped there, it only performed one small refine/refresh round and all
+  current runtime tests pass without it.
+- The pre-final `prune-unreachable-keep-legacy-templates` pass was removed.
+  After associated cleanup disappeared, keeping legacy templates for one more
+  stage no longer had a consumer.  The pipeline now does a single final
+  reachability prune.
+- The initial demand/refine repeat count was tested at two rounds, but kept at
+  three.  Two rounds passes the current VM tests, but it shifts work into later
+  rounds and creates more specializations in the showcase run.
+
+Measured:
+
+- `cargo test -q -p yulang-runtime` passes.
+- `examples/showcase.yu` still runs as `7`, `[2, 6, 4]`, `5`, and `just 18`.
+- With `YULANG_DEBUG_MONO_PIPELINE=1`, the showcase pipeline now reports about
+  `mono_passes: 25, specializations: 63` for the monomorphization profile in
+  this workspace.
+
+New risk noticed:
+
+- Removing `rewrite-uses` entirely is still not valid.  The current failures are
+  residual polymorphic helpers such as `std::flow::loop::for_in`,
+  `std::flow::sub::sub`, and `std::opt::opt::just`, plus unresolved role
+  requests such as `Add::add` / `Eq::eq` in loop examples.
+- In the showcase no-rewrite trial, closed demand specializations for
+  `std::flow::loop::for_in` were discovered, but generic parents such as
+  `std::junction::junction::all`, `std::junction::junction::any`, and
+  `std::undet::undet::each` still referenced generic
+  `std::flow::sub::sub`.  The missing piece is therefore propagation into
+  already checked parent bodies, not merely discovering more leaf
+  specializations.
+- A trial that emitted child demands for role impl candidates inside checked
+  bodies did not remove the need for `rewrite-uses` and increased generated
+  specializations.  The next step should be a more direct account of why
+  already discovered closed demand specializations are not always propagated
+  into parent bodies, rather than adding broader candidate collection.
+
+### 2026-05-02: Demand fixed point stops on no new specializations
+
+- The role-specialization fixed point now stops once a demand-specialization
+  round creates no new specializations.
+- This avoids the old "confirmation round" where `rewrite-uses`,
+  `demand-specialize`, and `refine-types` all reported local rewrites, but the
+  module had already stopped changing in a useful way.
+- The early stop is limited to fixed points that include `DemandSpecialize`, so
+  future non-demand fixed points are not accidentally stopped by the same rule.
+- Tried moving `refresh-closed-schemes` out of the loop and running it once
+  after role specialization.  That failed in `list_contains` and undet/list
+  cases with residual `std::flow::sub::sub` / `list__ddmono*` type variables.
+  So refresh still belongs inside the loop for now.
+
+Measured:
+
+- `cargo test -q -p yulang-runtime` passes.
+- `examples/showcase.yu` still runs correctly.
+- With debug output, showcase stops after the first round with
+  `new-specializations=0` and reports about `mono_passes: 25`.
+
+New risk noticed:
+
+- Several passes still report "changed bindings" even in a round whose output is
+  effectively stable.  That means the local progress reports are conservative,
+  not exact.  The next cleanup should make `rewrite-uses` and `refine-types`
+  report only durable changes, or move the stop rule into the demand engine
+  itself.
+
+### 2026-05-02: Demand effect rows are canonicalized
+
+- Demand keys now normalize effect rows while canonicalizing holes:
+  - nested rows are flattened;
+  - empty row items are removed;
+  - singleton rows collapse to the single effect;
+  - equivalent row items are sorted and deduplicated.
+- This fixes a real instability where semantically identical effects such as
+  `[last; next; redo]` and `[redo; last; next]` were treated as different
+  demand signatures.  That made the role-specialization fixed point keep
+  producing one fresh specialization per round until the hard limit.
+- Specialization candidate lookup in the demand emitter is now deterministic.
+  Ambiguous candidates gathered from `HashMap::values()` are sorted by path
+  before the "most specific" choice is made.
+- Added tests for effect-row order canonicalization and singleton-row
+  canonicalization.
+
+Measured:
+
+- `examples/showcase.yu --run --runtime-phase-timings` is stable across
+  repeated runs again: `mono_passes: 25`, `specializations: 62`, and
+  monomorphization is about one second on this machine.
+- `cargo test -q -p yulang-runtime` passes.
+
+New risk noticed:
+
+- The remaining repeated rejected fresh candidates are concentrated around
+  `std::junction::junction::{all,any}` and `std::undet::undet::each`.
+  Debug validation now prints the concrete rejection reason; the current shape
+  is a mismatch where a `sub` effect is expected but a `junction` / `undet`
+  row is still present.  That points to missing effect-subtraction propagation
+  inside already checked parent bodies, not to random specialization order.
+- Validating fresh bindings with the whole existing module context was tested
+  and reverted.  It did not reduce the pass count and made showcase
+  monomorphization significantly slower, so this cannot sit on the hot path.
+
+### 2026-05-02: Handler residual holes are closed earlier
+
+- Tightened demand closure for known effect handlers:
+  - `for_in` now treats an open result-effect hole as weaker than the concrete
+    residual effect visible in the callback.
+  - unit handlers such as `std::flow::loop::last::sub` now drop residual effect
+    holes when no concrete residual effect remains.
+  - concrete residual effects are preserved; only top-level unknown effect
+    holes are erased at this closure boundary.
+- This lets demand specialization rewrite more loop/sub handler calls before
+  the old use-rewrite pass runs.
+- The initial demand/refine repeat was reduced from two rounds to one after
+  measurement.  In the showcase run this lowers the monomorphization profile to
+  about `mono_passes: 17`, `specializations: 60`, and roughly `0.7s` on repeated
+  local runs.
+
+Measured:
+
+- `cargo test -q -p yulang-runtime` passes.
+- `examples/showcase.yu` still runs as `7`, `[2, 6, 4]`, `5`, and `just 18`.
+
+New risk noticed:
+
+- Removing `rewrite-uses` entirely is still not valid.  After the handler
+  closure fixes, the no-rewrite trial gets past `for_in` and
+  `loop::last::sub`, but a root `std::flow::sub::sub` call can still be
+  re-created with no expected type and remains open as
+  `Thunk[sub<_>; _] -> _`.
+- The next algorithmic step should not add another local repair pass.  It should
+  give root expression calls the same checked demand context that collector
+  used, or carry a demand id from collection to emission so the emitter does not
+  have to rediscover an open call signature from the tree.
+
+### 2026-05-02: Demand-driven monomorphization promoted
+
+- Demand emission now reports missing demands when a checked body still
+  references a generic binding through a concrete signature.
+- The demand engine feeds those missing demands back into the queue for a
+  bounded number of rounds.  This lets actual use sites pull in the
+  specialization they need instead of relying on the old whole-tree
+  `rewrite-uses` repair pass.
+- Role-method missing demands are expanded through the same impl-candidate
+  path used by ordinary demand checking, so associated calls such as
+  `Fold::find` can create concrete impl demands directly.
+- Pure functions can now satisfy an expected thunk-returning callback by
+  checking the returned value against the thunk value type.  This is needed for
+  `Fold::fold` callbacks, where the callback itself is curried but only the
+  final result is effectful.
+- Single-payload constructors close their result type from the payload argument
+  when the return annotation still contains an open hole.  This fixed residual
+  `std::opt::opt::just` in `list.find`.
+- The old `monomorphize/` implementation files were removed.  The
+  demand-driven implementation was promoted to the canonical
+  `crates/yulang-runtime/src/monomorphize` module, with the public
+  `monomorphize_module` API preserved.
+
+Measured:
+
+- `cargo test -q -p yulang-runtime -- --test-threads=1` passes with 218 tests.
+- `examples/showcase.yu --run --runtime-phase-timings` runs correctly.  On this
+  machine the promoted demand-driven stage reports about `mono_passes: 37`,
+  `specializations: 80`, and `monomorphize: 1.6s`.
+
+New risk noticed:
+
+- The public stage is now demand-driven, but it still has a small cleanup
+  pipeline around the demand core: type refinement, closed-scheme refresh,
+  canonicalization, nullary constructor inlining, and reachability pruning.
+  These are no longer the old specialization algorithm, but the next cleanup
+  should make each helper's invariant explicit so they do not become a second
+  hidden monomorphizer.
+- The fixpoint still reaches its round limit on `showcase`.  After unreachable
+  generated specializations are pruned, the remaining churn appears to be a
+  small set of repeatedly regenerated specializations with slightly changing
+  effect signatures.  Correctness is covered by the current tests, but this is
+  the next performance target.
