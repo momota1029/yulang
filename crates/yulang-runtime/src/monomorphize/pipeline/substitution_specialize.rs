@@ -265,6 +265,11 @@ impl SubstitutionSpecializer {
             self.bump("skip-non-generic-callee");
             return None;
         };
+        if is_known_handler_target(spine.target) {
+            self.bump("skip-known-handler-target");
+            debug_subst_specialize_skip("known-handler-target", spine.target, None);
+            return None;
+        }
         let initial_substitutions =
             substitutions_from_instantiation(spine.instantiation, &original)
                 .or_else(|| {
@@ -298,6 +303,12 @@ impl SubstitutionSpecializer {
             return None;
         };
         let actual_ret = diagnostic_core_type(&expr.ty);
+        infer_spine_effect_substitutions(
+            &callee_ty,
+            &spine.args,
+            &expr.ty,
+            &mut principal_substitutions,
+        );
         infer_direct_param_substitution(&ret, &actual_ret, &mut principal_substitutions);
         let mut ret_vars = BTreeSet::new();
         collect_core_type_vars(&ret, &mut ret_vars);
@@ -405,8 +416,13 @@ impl SubstitutionSpecializer {
             return None;
         };
 
-        let binding_substitutions =
-            complete_binding_substitutions(&original, &principal_substitutions)?;
+        let Some(binding_substitutions) =
+            complete_binding_substitutions(&original, &principal_substitutions)
+        else {
+            self.bump("skip-incomplete-binding-substitution");
+            debug_incomplete_binding_substitution(&original, &principal_substitutions);
+            return None;
+        };
         let path = if binding_substitutions.is_empty() {
             original.name.clone()
         } else {
@@ -585,6 +601,25 @@ fn is_impl_method_path(path: &core_ir::Path) -> bool {
     path.segments
         .iter()
         .any(|segment| segment.0.starts_with("&impl#"))
+}
+
+fn is_known_handler_target(path: &core_ir::Path) -> bool {
+    path_ends_with(path, &["std", "flow", "sub", "sub"])
+        || path_ends_with(path, &["std", "sub", "sub"])
+        || path_ends_with(path, &["std", "junction", "junction", "junction"])
+        || path_ends_with(path, &["std", "undet", "undet", "once"])
+        || path_ends_with(path, &["std", "undet", "undet", "list"])
+        || path_ends_with(path, &["std", "undet", "undet", "logic"])
+}
+
+fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
+    path.segments.len() >= suffix.len()
+        && path
+            .segments
+            .iter()
+            .rev()
+            .zip(suffix.iter().rev())
+            .all(|(segment, expected)| segment.0 == *expected)
 }
 
 fn binding_body_has_generic_apply(
@@ -861,6 +896,25 @@ fn debug_role_impl_selection(
     );
 }
 
+fn debug_incomplete_binding_substitution(
+    binding: &Binding,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) {
+    if std::env::var_os("YULANG_DEBUG_SUBST_SPECIALIZE").is_none() {
+        return;
+    }
+    let missing = binding_substitution_vars(binding)
+        .into_iter()
+        .filter(|var| substitutions.get(var).is_none_or(core_type_has_vars))
+        .map(|var| var.0)
+        .collect::<Vec<_>>()
+        .join(", ");
+    eprintln!(
+        "subst specialize skip incomplete-binding-substitution {:?}: missing=[{}]",
+        binding.name, missing
+    );
+}
+
 fn evidence_substitution_map(
     evidence: &core_ir::ApplyEvidence,
 ) -> BTreeMap<core_ir::TypeVar, core_ir::Type> {
@@ -927,6 +981,42 @@ fn infer_direct_param_substitution(
         substitutions
             .entry(var.clone())
             .or_insert_with(|| actual.clone());
+    }
+}
+
+fn infer_spine_effect_substitutions(
+    callee_ty: &core_ir::Type,
+    args: &[&Expr],
+    result_ty: &RuntimeType,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) {
+    let Some(parts) = core_fun_spine_effect_parts(callee_ty, args.len()) else {
+        return;
+    };
+    for (arg, param) in args.iter().zip(&parts.params) {
+        infer_effect_substitution(&param.effect, &runtime_expr_effect(&arg.ty), substitutions);
+    }
+    infer_effect_substitution(
+        &parts.ret_effect,
+        &runtime_expr_effect(result_ty),
+        substitutions,
+    );
+}
+
+fn infer_effect_substitution(
+    template: &core_ir::Type,
+    actual: &core_ir::Type,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) {
+    let mut vars = BTreeSet::new();
+    collect_core_type_vars(template, &mut vars);
+    infer_type_substitutions_with_effects(template, actual, &vars, substitutions);
+}
+
+fn runtime_expr_effect(ty: &RuntimeType) -> core_ir::Type {
+    match ty {
+        RuntimeType::Thunk { effect, .. } => effect.clone(),
+        RuntimeType::Core(_) | RuntimeType::Fun { .. } => core_ir::Type::Never,
     }
 }
 
@@ -1088,6 +1178,15 @@ fn core_fun_parts(ty: &core_ir::Type) -> Option<(core_ir::Type, core_ir::Type)> 
     Some((param.as_ref().clone(), ret.as_ref().clone()))
 }
 
+struct CoreFunSpineEffectParts {
+    params: Vec<CoreFunParamEffect>,
+    ret_effect: core_ir::Type,
+}
+
+struct CoreFunParamEffect {
+    effect: core_ir::Type,
+}
+
 fn core_fun_spine(ty: &core_ir::Type, arity: usize) -> Option<(Vec<core_ir::Type>, core_ir::Type)> {
     let mut params = Vec::with_capacity(arity);
     let mut current = ty.clone();
@@ -1097,6 +1196,32 @@ fn core_fun_spine(ty: &core_ir::Type, arity: usize) -> Option<(Vec<core_ir::Type
         current = ret;
     }
     Some((params, current))
+}
+
+fn core_fun_spine_effect_parts(
+    ty: &core_ir::Type,
+    arity: usize,
+) -> Option<CoreFunSpineEffectParts> {
+    let mut params = Vec::with_capacity(arity);
+    let mut current = ty.clone();
+    let mut ret_effect = core_ir::Type::Never;
+    for _ in 0..arity {
+        let core_ir::Type::Fun {
+            param_effect,
+            ret_effect: next_ret_effect,
+            ret,
+            ..
+        } = current
+        else {
+            return None;
+        };
+        params.push(CoreFunParamEffect {
+            effect: *param_effect,
+        });
+        ret_effect = *next_ret_effect;
+        current = *ret;
+    }
+    Some(CoreFunSpineEffectParts { params, ret_effect })
 }
 
 fn substitution_key(
