@@ -18,7 +18,7 @@ use crate::ir::{
     Type as RuntimeType, TypeInstantiation,
 };
 use crate::monomorphize::{
-    DemandEvidenceProfile, DemandQueueProfile, demand_monomorphize_module,
+    DemandEvidenceProfile, DemandQueueProfile, DemandSpecialization, demand_monomorphize_module,
     reset_demand_evidence_profile, snapshot_demand_evidence_profile,
 };
 use crate::refine::refine_module_types_with_report;
@@ -112,6 +112,7 @@ pub struct MonomorphizePassProfile {
     pub progress: MonomorphizeProgress,
     pub demand_queue: DemandQueueProfile,
     pub added_binding_paths: Vec<core_ir::Path>,
+    pub added_specializations: Vec<DemandSpecialization>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -284,6 +285,7 @@ fn run_profiled_mono_pass(
         progress,
         demand_queue: step.demand_queue,
         added_binding_paths: step.added_binding_paths.clone(),
+        added_specializations: step.added_specializations.clone(),
     });
     if debug {
         eprintln!(
@@ -372,11 +374,13 @@ fn demand_specialize_module(module: Module) -> RuntimeResult<MonoStep> {
     validate_module(&output.module)?;
     let progress = MonoProgress::from_modules(&before, &output.module);
     let added_binding_paths = added_binding_paths(&before, &output.module);
+    let added_specializations = output.profile.emitted_specializations;
     Ok(MonoStep {
         module: output.module,
         progress,
         demand_queue: output.profile.queue,
         added_binding_paths,
+        added_specializations,
     })
 }
 
@@ -447,6 +451,7 @@ struct MonoStep {
     progress: MonoProgress,
     demand_queue: DemandQueueProfile,
     added_binding_paths: Vec<core_ir::Path>,
+    added_specializations: Vec<DemandSpecialization>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -519,6 +524,7 @@ where
         progress,
         demand_queue: DemandQueueProfile::default(),
         added_binding_paths,
+        added_specializations: Vec::new(),
     })
 }
 
@@ -541,6 +547,7 @@ fn refine_module_types_for_mono(module: Module) -> RuntimeResult<MonoStep> {
         progress,
         demand_queue: DemandQueueProfile::default(),
         added_binding_paths: Vec::new(),
+        added_specializations: Vec::new(),
     })
 }
 

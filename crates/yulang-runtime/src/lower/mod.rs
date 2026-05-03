@@ -63,6 +63,7 @@ pub struct RuntimeLowerOutput {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct RuntimeLowerProfile {
     pub expected_arg_evidence: ExpectedArgEvidenceProfile,
+    pub expected_adapter_evidence: ExpectedAdapterEvidenceProfile,
     pub runtime_adapters: RuntimeAdapterProfile,
 }
 
@@ -91,6 +92,21 @@ pub struct RuntimeAdapterProfile {
     pub bind_here: usize,
     pub reused_thunk: usize,
     pub forced_effect_thunk: usize,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct ExpectedAdapterEvidenceProfile {
+    pub total: usize,
+    pub runtime_usable: usize,
+    pub closed: usize,
+    pub informative: usize,
+    pub effect_operation_argument: usize,
+    pub value_to_thunk: usize,
+    pub thunk_to_value: usize,
+    pub bind_here: usize,
+    pub handler_residual: usize,
+    pub handler_return: usize,
+    pub resume_argument: usize,
 }
 
 pub fn lower_core_program(program: core_ir::CoreProgram) -> RuntimeResult<Module> {
@@ -260,9 +276,52 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
         module,
         profile: RuntimeLowerProfile {
             expected_arg_evidence: lowerer.expected_arg_evidence_profile,
+            expected_adapter_evidence: expected_adapter_evidence_profile(evidence),
             runtime_adapters: lowerer.runtime_adapter_profile,
         },
     })
+}
+
+fn expected_adapter_evidence_profile(
+    evidence: &core_ir::PrincipalEvidence,
+) -> ExpectedAdapterEvidenceProfile {
+    let mut profile = ExpectedAdapterEvidenceProfile::default();
+    for edge in &evidence.expected_adapter_edges {
+        profile.total += 1;
+        if edge.runtime_usable {
+            profile.runtime_usable += 1;
+        }
+        if edge.closed {
+            profile.closed += 1;
+        }
+        if edge.informative {
+            profile.informative += 1;
+        }
+        match edge.kind {
+            core_ir::ExpectedAdapterEdgeKind::EffectOperationArgument => {
+                profile.effect_operation_argument += 1;
+            }
+            core_ir::ExpectedAdapterEdgeKind::ValueToThunk => {
+                profile.value_to_thunk += 1;
+            }
+            core_ir::ExpectedAdapterEdgeKind::ThunkToValue => {
+                profile.thunk_to_value += 1;
+            }
+            core_ir::ExpectedAdapterEdgeKind::BindHere => {
+                profile.bind_here += 1;
+            }
+            core_ir::ExpectedAdapterEdgeKind::HandlerResidual => {
+                profile.handler_residual += 1;
+            }
+            core_ir::ExpectedAdapterEdgeKind::HandlerReturn => {
+                profile.handler_return += 1;
+            }
+            core_ir::ExpectedAdapterEdgeKind::ResumeArgument => {
+                profile.resume_argument += 1;
+            }
+        }
+    }
+    profile
 }
 
 fn normalize_initial_alias_types(

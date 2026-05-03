@@ -92,7 +92,6 @@ pub fn demand_monomorphize_module(
             });
         }
         let mut module = rewrite.module;
-        let emitted_count = valid_output.emitted.len();
         let emitted_names = valid_output
             .emitted
             .iter()
@@ -100,11 +99,26 @@ pub fn demand_monomorphize_module(
             .collect::<HashSet<_>>();
         module.bindings.extend(valid_output.emitted);
         retain_reachable_emitted_bindings(&mut module, &emitted_names);
+        let retained_names = module
+            .bindings
+            .iter()
+            .map(|binding| binding.name.clone())
+            .collect::<HashSet<_>>();
+        let emitted_specializations: Vec<_> = valid_output
+            .specializations
+            .iter()
+            .filter(|specialization| {
+                emitted_names.contains(&specialization.path)
+                    && retained_names.contains(&specialization.path)
+            })
+            .cloned()
+            .collect();
         return Ok(DemandMonomorphizeOutput {
             module,
             profile: DemandMonomorphizeProfile {
-                specializations: emitted_count,
+                specializations: emitted_specializations.len(),
                 queue: engine_output.queue_profile,
+                emitted_specializations,
             },
         });
     }
@@ -385,10 +399,11 @@ pub struct DemandMonomorphizeOutput {
     pub profile: DemandMonomorphizeProfile,
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct DemandMonomorphizeProfile {
     pub specializations: usize,
     pub queue: DemandQueueProfile,
+    pub emitted_specializations: Vec<DemandSpecialization>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -768,6 +768,21 @@ fn print_runtime_phase_timings(
         adapters.reused_thunk,
         adapters.forced_effect_thunk,
     );
+    let adapter_evidence = &profile.lower_profile.expected_adapter_evidence;
+    eprintln!(
+        "    expected_adapter_evidence: total={}, runtime_usable={}, closed={}, informative={}, effect_operation_argument={}, value_to_thunk={}, thunk_to_value={}, bind_here={}, handler_residual={}, handler_return={}, resume_argument={}",
+        adapter_evidence.total,
+        adapter_evidence.runtime_usable,
+        adapter_evidence.closed,
+        adapter_evidence.informative,
+        adapter_evidence.effect_operation_argument,
+        adapter_evidence.value_to_thunk,
+        adapter_evidence.thunk_to_value,
+        adapter_evidence.bind_here,
+        adapter_evidence.handler_residual,
+        adapter_evidence.handler_return,
+        adapter_evidence.resume_argument,
+    );
     let demand_queue = profile.monomorphize_profile.demand_queue_profile();
     eprintln!(
         "    demand_queue: attempted={}, pushed={}, pushed_open={}, pushed_closed={}, skipped_duplicate={}, skipped_covered_by_closed={}",
@@ -812,6 +827,14 @@ fn print_runtime_phase_timings(
             pass.demand_queue.pushed,
             added_paths,
         );
+        for specialization in &pass.added_specializations {
+            eprintln!(
+                "            specialization {} <= {} :: {:?}",
+                format_core_path(&specialization.path),
+                format_core_path(&specialization.target),
+                specialization.solved,
+            );
+        }
     }
     if let Some(duration) = vm_compile {
         eprintln!("    vm_compile: {}", format_duration(duration));
