@@ -4,7 +4,9 @@ use std::collections::{HashMap, HashSet};
 use yulang_parser::lex::SyntaxKind;
 
 use crate::ast::expr::{CatchArmKind, ExprKind, TypedCatchArm, TypedExpr};
-use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
+use crate::diagnostic::{
+    ConstraintCause, ConstraintReason, ExpectedAdapterEdgeKind, ExpectedEdgeId, ExpectedEdgeKind,
+};
 use crate::lower::stmt::{bind_pattern_locals, connect_pat_shape_and_locals, lower_pat};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::scheme::{
@@ -47,7 +49,7 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
             match &arm.kind {
                 CatchArmKind::Value(pat, body) => {
                     saw_value_arm = true;
-                    state.expect_value_and_effect(
+                    let branch_edge_id = state.expect_value_and_effect(
                         body.tv,
                         tv,
                         body.eff,
@@ -58,6 +60,7 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
                             reason: ConstraintReason::CatchBranch,
                         },
                     );
+                    record_handler_return_adapter_edge(state, branch_edge_id, body, tv, eff);
                     state.infer.constrain(Pos::Var(comp.tv), Neg::Var(pat.tv));
                 }
                 CatchArmKind::Effect {
@@ -145,7 +148,7 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
                         );
                     }
 
-                    state.expect_value_and_effect(
+                    let branch_edge_id = state.expect_value_and_effect(
                         body.tv,
                         tv,
                         body.eff,
@@ -156,6 +159,7 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
                             reason: ConstraintReason::CatchBranch,
                         },
                     );
+                    record_handler_return_adapter_edge(state, branch_edge_id, body, tv, eff);
                 }
             }
         }
@@ -168,6 +172,7 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
         if handled_ops.is_empty() {
             state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
         } else if saw_value_arm {
+            record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
             let rest_eff = state.fresh_tv();
             state.infer.mark_through(rest_eff);
             state.infer.constrain(
@@ -180,6 +185,7 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
             );
             state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
         } else {
+            record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
             let rest_eff = state.fresh_tv();
             state.infer.mark_through(rest_eff);
             state.infer.constrain(
@@ -208,6 +214,48 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
     })();
     state.lower_detail.lower_catch += start.elapsed();
     result
+}
+
+fn record_handler_return_adapter_edge(
+    state: &mut LowerState,
+    source_edge: ExpectedEdgeId,
+    body: &TypedExpr,
+    result_tv: crate::ids::TypeVar,
+    result_eff: crate::ids::TypeVar,
+) {
+    state.record_expected_adapter_edge(
+        ExpectedAdapterEdgeKind::HandlerReturn,
+        Some(source_edge),
+        Some(body.tv),
+        Some(result_tv),
+        Some(body.eff),
+        Some(result_eff),
+        ConstraintCause {
+            span: None,
+            reason: ConstraintReason::CatchBranch,
+        },
+    );
+}
+
+fn record_handler_residual_adapter_edge(
+    state: &mut LowerState,
+    comp: &TypedExpr,
+    result_tv: crate::ids::TypeVar,
+    result_eff: crate::ids::TypeVar,
+    node: &SyntaxNode,
+) {
+    state.record_expected_adapter_edge(
+        ExpectedAdapterEdgeKind::HandlerResidual,
+        None,
+        Some(comp.tv),
+        Some(result_tv),
+        Some(comp.eff),
+        Some(result_eff),
+        ConstraintCause {
+            span: Some(node.text_range()),
+            reason: ConstraintReason::CatchBranch,
+        },
+    );
 }
 
 struct EffectOpUse {

@@ -420,6 +420,51 @@ fn effect_operation_application_records_adapter_edge() {
 }
 
 #[test]
+fn catch_records_handler_adapter_edges() {
+    let mut state = parse_and_lower(
+        "pub act out:\n  pub say: str -> ()\n\ncatch out::say \"hi\":\n    out::say msg, k -> k ()\n",
+    );
+
+    let residual = state
+        .expected_adapter_edges
+        .iter()
+        .find(|edge| edge.kind == diagnostic::ExpectedAdapterEdgeKind::HandlerResidual)
+        .expect("handler residual adapter edge");
+    assert!(residual.source_expected_edge.is_none());
+    assert!(residual.actual_value.is_some());
+    assert!(residual.expected_value.is_some());
+    assert!(residual.actual_effect.is_some());
+    assert!(residual.expected_effect.is_some());
+
+    let handler_return = state
+        .expected_adapter_edges
+        .iter()
+        .find(|edge| edge.kind == diagnostic::ExpectedAdapterEdgeKind::HandlerReturn)
+        .expect("handler return adapter edge");
+    assert!(handler_return.source_expected_edge.is_some());
+    assert!(handler_return.actual_value.is_some());
+    assert!(handler_return.expected_value.is_some());
+    assert!(handler_return.actual_effect.is_some());
+    assert!(handler_return.expected_effect.is_some());
+
+    let program = export_core_program(&mut state);
+    assert!(
+        program
+            .evidence
+            .expected_adapter_edges
+            .iter()
+            .any(|edge| edge.kind == yulang_core_ir::ExpectedAdapterEdgeKind::HandlerResidual)
+    );
+    assert!(
+        program
+            .evidence
+            .expected_adapter_edges
+            .iter()
+            .any(|edge| edge.kind == yulang_core_ir::ExpectedAdapterEdgeKind::HandlerReturn)
+    );
+}
+
+#[test]
 fn expected_edges_keep_solver_constraints() {
     let state = parse_and_lower("my id(x: int) = x\nmy f(b: bool) = if b { id 1 } else { id 2 }");
     assert!(

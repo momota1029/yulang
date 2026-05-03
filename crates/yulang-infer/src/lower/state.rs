@@ -295,8 +295,8 @@ impl LowerState {
         expected_eff: TypeVar,
         kind: ExpectedEdgeKind,
         cause: ConstraintCause,
-    ) {
-        self.record_expected_edge_with_effects(
+    ) -> ExpectedEdgeId {
+        let edge_id = self.record_expected_edge_with_effects(
             actual_tv,
             expected_tv,
             Some(actual_eff),
@@ -308,6 +308,7 @@ impl LowerState {
             .constrain_with_cause(Pos::Var(actual_tv), Neg::Var(expected_tv), cause);
         self.infer
             .constrain(Pos::Var(actual_eff), Neg::Var(expected_eff));
+        edge_id
     }
 
     pub fn representation_coerce(
