@@ -1030,10 +1030,17 @@ fn print_observed_adapter_evidence_summary(adapters: &runtime::RuntimeAdapterPro
         }
     }
     eprintln!(
-        "    observed_adapter_evidence: total={}, value_to_thunk={}, force_thunk_to_value={}",
+        "    observed_adapter_evidence: total={}, value_to_thunk={}, force_thunk_to_value={}, with_source_edge={}, without_source_edge={}, source_application_callee={}, source_application_argument={}, source_other_expected_edge={}, source_with_derived_parent={}, source_without_derived_parent={}",
         adapters.observed_adapter_evidence.len(),
         value_to_thunk,
         force_thunk_to_value,
+        adapters.observed_adapter_with_source_expected_edge,
+        adapters.observed_adapter_without_source_expected_edge,
+        adapters.observed_adapter_source_application_callee,
+        adapters.observed_adapter_source_application_argument,
+        adapters.observed_adapter_source_other_expected_edge,
+        adapters.observed_adapter_source_with_derived_parent,
+        adapters.observed_adapter_source_without_derived_parent,
     );
 
     let mut by_context = BTreeMap::<(String, String, String, String), usize>::new();

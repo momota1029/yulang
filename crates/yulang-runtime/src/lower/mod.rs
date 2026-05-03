@@ -121,6 +121,13 @@ pub struct RuntimeAdapterProfile {
     pub unmatched_bind_here: usize,
     pub matched_derived_expected_edge_parent: usize,
     pub unmatched_derived_expected_edge_parent: usize,
+    pub observed_adapter_with_source_expected_edge: usize,
+    pub observed_adapter_without_source_expected_edge: usize,
+    pub observed_adapter_source_application_callee: usize,
+    pub observed_adapter_source_application_argument: usize,
+    pub observed_adapter_source_other_expected_edge: usize,
+    pub observed_adapter_source_with_derived_parent: usize,
+    pub observed_adapter_source_without_derived_parent: usize,
     pub events: Vec<RuntimeAdapterEvent>,
     pub observed_adapter_evidence: Vec<ObservedAdapterEvidence>,
 }
@@ -372,7 +379,7 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
     let mut runtime_adapters = lowerer.runtime_adapter_profile;
     profile_runtime_adapter_expected_matches(&mut runtime_adapters, evidence);
     profile_runtime_adapter_derived_parent_matches(&mut runtime_adapters, evidence);
-    collect_observed_adapter_evidence(&mut runtime_adapters);
+    collect_observed_adapter_evidence(&mut runtime_adapters, evidence);
     Ok(RuntimeLowerOutput {
         module,
         profile: RuntimeLowerProfile {
@@ -384,12 +391,53 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
     })
 }
 
-fn collect_observed_adapter_evidence(profile: &mut RuntimeAdapterProfile) {
+fn collect_observed_adapter_evidence(
+    profile: &mut RuntimeAdapterProfile,
+    evidence: &core_ir::PrincipalEvidence,
+) {
     profile.observed_adapter_evidence = profile
         .events
         .iter()
         .filter_map(observed_adapter_evidence_from_event)
         .collect();
+    profile_observed_adapter_source_coverage(profile, evidence);
+}
+
+fn profile_observed_adapter_source_coverage(
+    profile: &mut RuntimeAdapterProfile,
+    evidence: &core_ir::PrincipalEvidence,
+) {
+    let observed = profile.observed_adapter_evidence.clone();
+    for observed in observed {
+        let Some(source_expected_edge) = observed.source_expected_edge else {
+            profile.observed_adapter_without_source_expected_edge += 1;
+            continue;
+        };
+        profile.observed_adapter_with_source_expected_edge += 1;
+        match evidence
+            .expected_edge(source_expected_edge)
+            .map(|edge| edge.kind)
+        {
+            Some(core_ir::ExpectedEdgeKind::ApplicationCallee) => {
+                profile.observed_adapter_source_application_callee += 1;
+            }
+            Some(core_ir::ExpectedEdgeKind::ApplicationArgument) => {
+                profile.observed_adapter_source_application_argument += 1;
+            }
+            Some(_) | None => {
+                profile.observed_adapter_source_other_expected_edge += 1;
+            }
+        }
+        if evidence
+            .derived_expected_edges_for_parent(source_expected_edge)
+            .next()
+            .is_some()
+        {
+            profile.observed_adapter_source_with_derived_parent += 1;
+        } else {
+            profile.observed_adapter_source_without_derived_parent += 1;
+        }
+    }
 }
 
 fn observed_adapter_evidence_from_event(
