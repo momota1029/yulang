@@ -20,6 +20,13 @@ pub(super) struct HandlerCallBoundary {
     pub(super) pure: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct HandlerAdapterPlan {
+    pub(super) residual_before: Option<core_ir::Type>,
+    pub(super) residual_after: Option<core_ir::Type>,
+    pub(super) return_wrapper_effect: Option<core_ir::Type>,
+}
+
 pub(super) fn handler_binding_info(binding: &Binding) -> Option<HandlerBindingInfo> {
     let mut info = expr_handler_info(&binding.body)?;
     if let Some((input_effect, output_effect)) = principal_handler_effects(&binding.scheme.body) {
@@ -50,10 +57,171 @@ pub(super) fn handler_call_boundary(
     }
 }
 
+pub(super) fn handler_adapter_plan(
+    info: &HandlerBindingInfo,
+    boundary: &HandlerCallBoundary,
+) -> HandlerAdapterPlan {
+    let residual_before = handler_residual_before(info, boundary);
+    let residual_after = residual_before
+        .as_ref()
+        .map(|effect| remove_consumed_effects(effect, &info.consumes));
+    let return_wrapper_effect =
+        handler_return_wrapper_effect(info, boundary, residual_after.as_ref());
+    HandlerAdapterPlan {
+        residual_before,
+        residual_after,
+        return_wrapper_effect,
+    }
+}
+
 fn runtime_thunk_effect(ty: &RuntimeType) -> Option<core_ir::Type> {
     match ty {
         RuntimeType::Thunk { effect, .. } => Some(effect.clone()),
         RuntimeType::Core(_) | RuntimeType::Fun { .. } => None,
+    }
+}
+
+fn handler_residual_before(
+    info: &HandlerBindingInfo,
+    boundary: &HandlerCallBoundary,
+) -> Option<core_ir::Type> {
+    let structural = info
+        .principal_input_effect
+        .as_ref()
+        .filter(|effect| effect_contains_any(effect, &info.consumes))
+        .cloned()
+        .or_else(|| {
+            (!info.consumes.is_empty()).then(|| effect_row_from_paths(info.consumes.clone()))
+        });
+    merge_effects(structural, boundary.input_effect.clone())
+}
+
+fn handler_return_wrapper_effect(
+    info: &HandlerBindingInfo,
+    boundary: &HandlerCallBoundary,
+    _residual_after: Option<&core_ir::Type>,
+) -> Option<core_ir::Type> {
+    if !boundary.pure || boundary.output_effect.is_some() {
+        return None;
+    }
+    info.consumes
+        .first()
+        .cloned()
+        .map(|path| core_ir::Type::Named {
+            path,
+            args: Vec::new(),
+        })
+}
+
+fn merge_effects(
+    left: Option<core_ir::Type>,
+    right: Option<core_ir::Type>,
+) -> Option<core_ir::Type> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(merge_effect_rows(left, right)),
+        (Some(effect), None) | (None, Some(effect)) => Some(effect),
+        (None, None) => None,
+    }
+}
+
+fn merge_effect_rows(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
+    if effect_is_empty(&left) {
+        return right;
+    }
+    if effect_is_empty(&right) || left == right {
+        return left;
+    }
+    let (mut items, left_tail) = effect_row_parts(left);
+    let (right_items, right_tail) = effect_row_parts(right);
+    for item in right_items {
+        push_unique_effect_item(&mut items, item);
+    }
+    let tail = merge_effect_tails(left_tail, right_tail);
+    effect_row(items, tail)
+}
+
+fn effect_row_parts(effect: core_ir::Type) -> (Vec<core_ir::Type>, core_ir::Type) {
+    match effect {
+        core_ir::Type::Row { items, tail } => (items, *tail),
+        other => (vec![other], core_ir::Type::Never),
+    }
+}
+
+fn merge_effect_tails(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
+    if effect_is_empty(&left) {
+        return right;
+    }
+    if effect_is_empty(&right) || left == right {
+        return left;
+    }
+    core_ir::Type::Union(vec![left, right])
+}
+
+fn push_unique_effect_item(items: &mut Vec<core_ir::Type>, item: core_ir::Type) {
+    if effect_is_empty(&item) || items.iter().any(|existing| existing == &item) {
+        return;
+    }
+    items.push(item);
+}
+
+fn effect_row(items: Vec<core_ir::Type>, tail: core_ir::Type) -> core_ir::Type {
+    let items = items
+        .into_iter()
+        .filter(|item| !effect_is_empty(item) && item != &tail)
+        .collect::<Vec<_>>();
+    if items.is_empty() {
+        return tail;
+    }
+    core_ir::Type::Row {
+        items,
+        tail: Box::new(tail),
+    }
+}
+
+fn effect_row_from_paths(paths: Vec<core_ir::Path>) -> core_ir::Type {
+    effect_row(
+        paths
+            .into_iter()
+            .map(|path| core_ir::Type::Named {
+                path,
+                args: Vec::new(),
+            })
+            .collect(),
+        core_ir::Type::Never,
+    )
+}
+
+fn remove_consumed_effects(effect: &core_ir::Type, consumed: &[core_ir::Path]) -> core_ir::Type {
+    match effect {
+        core_ir::Type::Named { path, .. }
+            if consumed
+                .iter()
+                .any(|consumed| effect_paths_match(consumed, path)) =>
+        {
+            core_ir::Type::Never
+        }
+        core_ir::Type::Row { items, tail } => {
+            let items = items
+                .iter()
+                .map(|item| remove_consumed_effects(item, consumed))
+                .filter(|item| !effect_is_empty(item))
+                .collect();
+            let tail = remove_consumed_effects(tail, consumed);
+            effect_row(items, tail)
+        }
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => effect_row(
+            items
+                .iter()
+                .map(|item| remove_consumed_effects(item, consumed))
+                .filter(|item| !effect_is_empty(item))
+                .collect(),
+            core_ir::Type::Never,
+        ),
+        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(remove_consumed_effects(body, consumed)),
+        },
+        other => other.clone(),
     }
 }
 
@@ -255,6 +423,40 @@ mod tests {
         assert!(boundary.consumes_input_effect);
         assert!(boundary.preserves_output_effect);
         assert!(boundary.pure);
+    }
+
+    #[test]
+    fn handler_adapter_plan_combines_structural_and_call_site_effects() {
+        let consumes = path_segments(&["std", "flow", "sub"]);
+        let outer = path_segments(&["std", "junction", "junction"]);
+        let info = HandlerBindingInfo {
+            consumes: vec![consumes.clone()],
+            principal_input_effect: Some(effect(consumes.clone())),
+            principal_output_effect: Some(core_ir::Type::Never),
+            residual_before_known: true,
+            residual_after_known: true,
+            pure: true,
+        };
+        let boundary = HandlerCallBoundary {
+            consumes: vec![consumes.clone()],
+            input_effect: Some(effect(outer.clone())),
+            output_effect: None,
+            consumes_input_effect: false,
+            preserves_output_effect: false,
+            pure: true,
+        };
+
+        let plan = handler_adapter_plan(&info, &boundary);
+
+        assert_eq!(
+            plan.residual_before,
+            Some(effect_row(vec![
+                effect(consumes.clone()),
+                effect(outer.clone())
+            ]))
+        );
+        assert_eq!(plan.residual_after, Some(effect_row(vec![effect(outer)])));
+        assert_eq!(plan.return_wrapper_effect, Some(effect(consumes)));
     }
 
     fn test_binding(scheme_body: core_ir::Type) -> Binding {

@@ -268,7 +268,8 @@ impl SubstitutionSpecializer {
         if let Some(handler) = handler_binding_info(&original) {
             self.bump("skip-handler-binding");
             let boundary = handler_call_boundary(&handler, &spine.args, &expr.ty);
-            debug_handler_binding_skip(spine.target, &handler, &boundary);
+            let plan = handler_adapter_plan(&handler, &boundary);
+            debug_handler_binding_skip(spine.target, &handler, &boundary, &plan);
             return None;
         }
         let initial_substitutions =
@@ -882,6 +883,7 @@ fn debug_handler_binding_skip(
     target: &core_ir::Path,
     info: &HandlerBindingInfo,
     boundary: &HandlerCallBoundary,
+    plan: &HandlerAdapterPlan,
 ) {
     if std::env::var_os("YULANG_DEBUG_SUBST_SPECIALIZE").is_none() {
         return;
@@ -893,7 +895,7 @@ fn debug_handler_binding_skip(
         .collect::<Vec<_>>()
         .join(", ");
     eprintln!(
-        "subst specialize skip handler-binding {target:?}: consumes=[{consumes}] principal_input_effect={:?} principal_output_effect={:?} residual_before={} residual_after={} pure={} input_effect={:?} output_effect={:?} consumes_input={} preserves_output={}",
+        "subst specialize skip handler-binding {target:?}: consumes=[{consumes}] principal_input_effect={:?} principal_output_effect={:?} residual_before={} residual_after={} pure={} input_effect={:?} output_effect={:?} consumes_input={} preserves_output={} planned_residual_before={:?} planned_residual_after={:?} planned_return_wrapper_effect={:?}",
         info.principal_input_effect,
         info.principal_output_effect,
         info.residual_before_known,
@@ -902,7 +904,10 @@ fn debug_handler_binding_skip(
         boundary.input_effect,
         boundary.output_effect,
         boundary.consumes_input_effect,
-        boundary.preserves_output_effect
+        boundary.preserves_output_effect,
+        plan.residual_before,
+        plan.residual_after,
+        plan.return_wrapper_effect
     );
 }
 
