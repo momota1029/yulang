@@ -820,7 +820,7 @@ fn print_runtime_phase_timings(
     );
     let demand_evidence = &profile.monomorphize_profile.demand_evidence;
     eprintln!(
-        "    demand_evidence: apply_arg_calls={}, expected_arg_disabled={}, expected_arg_present={}, expected_arg_converted={}, expected_arg_used={}, expected_arg_changed_signature={}, expected_arg_same_signature={}, expected_arg_rejected_open={}",
+        "    demand_evidence: apply_arg_calls={}, expected_arg_disabled={}, expected_arg_present={}, expected_arg_converted={}, expected_arg_used={}, expected_arg_changed_signature={}, expected_arg_same_signature={}, expected_arg_rejected_open={}, apply_callee_calls={}, expected_callee_disabled={}, expected_callee_present={}, expected_callee_converted={}, expected_callee_used={}, expected_callee_changed_param_signature={}, expected_callee_same_param_signature={}, expected_callee_rejected_open={}, expected_callee_rejected_non_function={}",
         demand_evidence.apply_arg_signature_calls,
         demand_evidence.expected_arg_hint_disabled,
         demand_evidence.expected_arg_hint_present,
@@ -829,6 +829,15 @@ fn print_runtime_phase_timings(
         demand_evidence.expected_arg_hint_changed_signature,
         demand_evidence.expected_arg_hint_same_signature,
         demand_evidence.expected_arg_hint_rejected_open,
+        demand_evidence.apply_callee_signature_calls,
+        demand_evidence.expected_callee_hint_disabled,
+        demand_evidence.expected_callee_hint_present,
+        demand_evidence.expected_callee_hint_converted,
+        demand_evidence.expected_callee_hint_used,
+        demand_evidence.expected_callee_hint_changed_param_signature,
+        demand_evidence.expected_callee_hint_same_param_signature,
+        demand_evidence.expected_callee_hint_rejected_open,
+        demand_evidence.expected_callee_hint_rejected_non_function,
     );
     eprintln!("    monomorphize_passes:");
     for pass in &profile.monomorphize_profile.passes {

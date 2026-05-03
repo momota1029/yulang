@@ -431,7 +431,7 @@ impl<'a> ExprChecker<'a> {
                         ret,
                         principal_hints.map(|(params, _)| params),
                     );
-                    let evidence_hints = applied_call_arg_evidence_signatures(expr);
+                    let evidence_hints = applied_call_param_evidence_signatures(expr);
                     let mut arg_signatures = Vec::with_capacity(args.len());
                     for (index, ((arg, hint), evidence_hint)) in args
                         .iter()
@@ -492,7 +492,7 @@ impl<'a> ExprChecker<'a> {
                         ret,
                         principal_hints.map(|(params, _)| params),
                     );
-                    let evidence_hints = applied_call_arg_evidence_signatures(expr);
+                    let evidence_hints = applied_call_param_evidence_signatures(expr);
                     let mut arg_signatures = Vec::with_capacity(args.len());
                     for (index, ((arg, hint), evidence_hint)) in args
                         .iter()
@@ -1822,7 +1822,7 @@ fn applied_call_with_head(expr: &Expr) -> Option<(&core_ir::Path, &Expr, Vec<&Ex
     }
 }
 
-fn applied_call_arg_evidence_signatures(expr: &Expr) -> Vec<Option<DemandSignature>> {
+fn applied_call_param_evidence_signatures(expr: &Expr) -> Vec<Option<DemandSignature>> {
     let mut head = expr;
     let mut hints = Vec::new();
     loop {
@@ -1833,7 +1833,7 @@ fn applied_call_arg_evidence_signatures(expr: &Expr) -> Vec<Option<DemandSignatu
         else {
             break;
         };
-        hints.push(evidence.as_ref().and_then(apply_evidence_arg_signature));
+        hints.push(evidence.as_ref().and_then(apply_evidence_param_signature));
         head = callee;
     }
     hints.reverse();

@@ -61,6 +61,15 @@ pub struct DemandEvidenceProfile {
     pub expected_arg_hint_changed_signature: usize,
     pub expected_arg_hint_same_signature: usize,
     pub expected_arg_hint_rejected_open: usize,
+    pub apply_callee_signature_calls: usize,
+    pub expected_callee_hint_disabled: usize,
+    pub expected_callee_hint_present: usize,
+    pub expected_callee_hint_converted: usize,
+    pub expected_callee_hint_used: usize,
+    pub expected_callee_hint_changed_param_signature: usize,
+    pub expected_callee_hint_same_param_signature: usize,
+    pub expected_callee_hint_rejected_open: usize,
+    pub expected_callee_hint_rejected_non_function: usize,
 }
 
 pub(crate) fn reset_demand_evidence_profile() {
@@ -80,6 +89,15 @@ struct DemandEvidenceProfileCounters {
     expected_arg_hint_changed_signature: AtomicUsize,
     expected_arg_hint_same_signature: AtomicUsize,
     expected_arg_hint_rejected_open: AtomicUsize,
+    apply_callee_signature_calls: AtomicUsize,
+    expected_callee_hint_disabled: AtomicUsize,
+    expected_callee_hint_present: AtomicUsize,
+    expected_callee_hint_converted: AtomicUsize,
+    expected_callee_hint_used: AtomicUsize,
+    expected_callee_hint_changed_param_signature: AtomicUsize,
+    expected_callee_hint_same_param_signature: AtomicUsize,
+    expected_callee_hint_rejected_open: AtomicUsize,
+    expected_callee_hint_rejected_non_function: AtomicUsize,
 }
 
 impl DemandEvidenceProfileCounters {
@@ -93,6 +111,15 @@ impl DemandEvidenceProfileCounters {
             expected_arg_hint_changed_signature: AtomicUsize::new(0),
             expected_arg_hint_same_signature: AtomicUsize::new(0),
             expected_arg_hint_rejected_open: AtomicUsize::new(0),
+            apply_callee_signature_calls: AtomicUsize::new(0),
+            expected_callee_hint_disabled: AtomicUsize::new(0),
+            expected_callee_hint_present: AtomicUsize::new(0),
+            expected_callee_hint_converted: AtomicUsize::new(0),
+            expected_callee_hint_used: AtomicUsize::new(0),
+            expected_callee_hint_changed_param_signature: AtomicUsize::new(0),
+            expected_callee_hint_same_param_signature: AtomicUsize::new(0),
+            expected_callee_hint_rejected_open: AtomicUsize::new(0),
+            expected_callee_hint_rejected_non_function: AtomicUsize::new(0),
         }
     }
 
@@ -107,6 +134,23 @@ impl DemandEvidenceProfileCounters {
         self.expected_arg_hint_same_signature
             .store(0, Ordering::Relaxed);
         self.expected_arg_hint_rejected_open
+            .store(0, Ordering::Relaxed);
+        self.apply_callee_signature_calls
+            .store(0, Ordering::Relaxed);
+        self.expected_callee_hint_disabled
+            .store(0, Ordering::Relaxed);
+        self.expected_callee_hint_present
+            .store(0, Ordering::Relaxed);
+        self.expected_callee_hint_converted
+            .store(0, Ordering::Relaxed);
+        self.expected_callee_hint_used.store(0, Ordering::Relaxed);
+        self.expected_callee_hint_changed_param_signature
+            .store(0, Ordering::Relaxed);
+        self.expected_callee_hint_same_param_signature
+            .store(0, Ordering::Relaxed);
+        self.expected_callee_hint_rejected_open
+            .store(0, Ordering::Relaxed);
+        self.expected_callee_hint_rejected_non_function
             .store(0, Ordering::Relaxed);
     }
 
@@ -125,6 +169,27 @@ impl DemandEvidenceProfileCounters {
                 .load(Ordering::Relaxed),
             expected_arg_hint_rejected_open: self
                 .expected_arg_hint_rejected_open
+                .load(Ordering::Relaxed),
+            apply_callee_signature_calls: self.apply_callee_signature_calls.load(Ordering::Relaxed),
+            expected_callee_hint_disabled: self
+                .expected_callee_hint_disabled
+                .load(Ordering::Relaxed),
+            expected_callee_hint_present: self.expected_callee_hint_present.load(Ordering::Relaxed),
+            expected_callee_hint_converted: self
+                .expected_callee_hint_converted
+                .load(Ordering::Relaxed),
+            expected_callee_hint_used: self.expected_callee_hint_used.load(Ordering::Relaxed),
+            expected_callee_hint_changed_param_signature: self
+                .expected_callee_hint_changed_param_signature
+                .load(Ordering::Relaxed),
+            expected_callee_hint_same_param_signature: self
+                .expected_callee_hint_same_param_signature
+                .load(Ordering::Relaxed),
+            expected_callee_hint_rejected_open: self
+                .expected_callee_hint_rejected_open
+                .load(Ordering::Relaxed),
+            expected_callee_hint_rejected_non_function: self
+                .expected_callee_hint_rejected_non_function
                 .load(Ordering::Relaxed),
         }
     }
@@ -1320,6 +1385,77 @@ pub(super) fn apply_evidence_arg_signature_with_expected_arg(
         .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())))
 }
 
+pub(super) fn apply_evidence_param_signature(
+    evidence: &core_ir::ApplyEvidence,
+) -> Option<DemandSignature> {
+    let arg = apply_evidence_arg_signature(evidence);
+    let callee = apply_evidence_expected_callee_param_signature(
+        evidence,
+        std::env::var_os("YULANG_USE_EXPECTED_CALLEE_EVIDENCE").is_some(),
+    );
+    match (arg, callee) {
+        (Some(arg), Some(callee)) => Some(merge_signature_hint(arg, callee)),
+        (Some(arg), None) => Some(arg),
+        (None, Some(callee)) => Some(callee),
+        (None, None) => None,
+    }
+}
+
+pub(super) fn apply_evidence_expected_callee_param_signature(
+    evidence: &core_ir::ApplyEvidence,
+    use_expected_callee: bool,
+) -> Option<DemandSignature> {
+    DEMAND_EVIDENCE_PROFILE
+        .apply_callee_signature_calls
+        .fetch_add(1, Ordering::Relaxed);
+    if !use_expected_callee {
+        DEMAND_EVIDENCE_PROFILE
+            .expected_callee_hint_disabled
+            .fetch_add(1, Ordering::Relaxed);
+        return None;
+    }
+    let Some(bounds) = evidence.expected_callee.as_ref() else {
+        return None;
+    };
+    DEMAND_EVIDENCE_PROFILE
+        .expected_callee_hint_present
+        .fetch_add(1, Ordering::Relaxed);
+    let Some(ty) = evidence_bounds_type(bounds) else {
+        return None;
+    };
+    DEMAND_EVIDENCE_PROFILE
+        .expected_callee_hint_converted
+        .fetch_add(1, Ordering::Relaxed);
+    let core_ir::Type::Fun { param, .. } = ty else {
+        DEMAND_EVIDENCE_PROFILE
+            .expected_callee_hint_rejected_non_function
+            .fetch_add(1, Ordering::Relaxed);
+        return None;
+    };
+    let signature = DemandSignature::from_runtime_type(&RuntimeType::core(param.as_ref().clone()));
+    if !signature.is_closed() {
+        DEMAND_EVIDENCE_PROFILE
+            .expected_callee_hint_rejected_open
+            .fetch_add(1, Ordering::Relaxed);
+        return None;
+    }
+    DEMAND_EVIDENCE_PROFILE
+        .expected_callee_hint_used
+        .fetch_add(1, Ordering::Relaxed);
+    let fallback = evidence_bounds_type(&evidence.arg)
+        .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())));
+    if fallback.as_ref() == Some(&signature) {
+        DEMAND_EVIDENCE_PROFILE
+            .expected_callee_hint_same_param_signature
+            .fetch_add(1, Ordering::Relaxed);
+    } else {
+        DEMAND_EVIDENCE_PROFILE
+            .expected_callee_hint_changed_param_signature
+            .fetch_add(1, Ordering::Relaxed);
+    }
+    Some(signature)
+}
+
 fn apply_evidence_signature(evidence: &core_ir::ApplyEvidence) -> Option<DemandSignature> {
     if let Some(core_ir::Type::Fun {
         ret_effect, ret, ..
@@ -1662,6 +1798,36 @@ mod tests {
                 path: path("str"),
                 args: Vec::new(),
             })),
+        );
+    }
+
+    #[test]
+    fn apply_evidence_param_signature_can_use_closed_expected_callee_opt_in() {
+        let evidence = core_ir::ApplyEvidence {
+            callee_source_edge: Some(2),
+            expected_callee: Some(core_ir::TypeBounds::exact(core_ir::Type::Fun {
+                param: Box::new(named("int")),
+                param_effect: Box::new(core_ir::Type::Never),
+                ret_effect: Box::new(core_ir::Type::Never),
+                ret: Box::new(named("str")),
+            })),
+            arg_source_edge: None,
+            callee: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            expected_arg: None,
+            result: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            principal_callee: None,
+            substitutions: Vec::new(),
+            role_method: false,
+        };
+
+        assert_eq!(
+            apply_evidence_expected_callee_param_signature(&evidence, false),
+            None,
+        );
+        assert_eq!(
+            apply_evidence_expected_callee_param_signature(&evidence, true),
+            Some(int_signature()),
         );
     }
 

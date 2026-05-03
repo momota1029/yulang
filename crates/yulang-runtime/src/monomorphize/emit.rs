@@ -911,7 +911,7 @@ impl<'a> BodyEmitter<'a> {
             ret,
             principal_hints.map(|(params, _)| params),
         );
-        let evidence_hints = applied_call_arg_evidence_signatures(expr);
+        let evidence_hints = applied_call_param_evidence_signatures(expr);
         let arg_signatures = args
             .iter()
             .zip(param_hints.iter().cloned())
@@ -1588,7 +1588,7 @@ fn applied_call_with_head(expr: &Expr) -> Option<(&core_ir::Path, &Expr, Vec<&Ex
     }
 }
 
-fn applied_call_arg_evidence_signatures(expr: &Expr) -> Vec<Option<DemandSignature>> {
+fn applied_call_param_evidence_signatures(expr: &Expr) -> Vec<Option<DemandSignature>> {
     let mut callee = expr;
     let mut hints = Vec::new();
     loop {
@@ -1601,7 +1601,7 @@ fn applied_call_arg_evidence_signatures(expr: &Expr) -> Vec<Option<DemandSignatu
         else {
             break;
         };
-        hints.push(evidence.as_ref().and_then(apply_evidence_arg_signature));
+        hints.push(evidence.as_ref().and_then(apply_evidence_param_signature));
         callee = next;
     }
     hints.reverse();
