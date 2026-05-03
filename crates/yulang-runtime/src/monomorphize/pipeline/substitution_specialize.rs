@@ -267,7 +267,8 @@ impl SubstitutionSpecializer {
         };
         if let Some(handler) = handler_binding_info(&original) {
             self.bump("skip-handler-binding");
-            debug_handler_binding_skip(spine.target, &handler);
+            let boundary = handler_call_boundary(&handler, &spine.args, &expr.ty);
+            debug_handler_binding_skip(spine.target, &handler, &boundary);
             return None;
         }
         let initial_substitutions =
@@ -877,7 +878,11 @@ fn debug_role_impl_selection(
     );
 }
 
-fn debug_handler_binding_skip(target: &core_ir::Path, info: &HandlerBindingInfo) {
+fn debug_handler_binding_skip(
+    target: &core_ir::Path,
+    info: &HandlerBindingInfo,
+    boundary: &HandlerCallBoundary,
+) {
     if std::env::var_os("YULANG_DEBUG_SUBST_SPECIALIZE").is_none() {
         return;
     }
@@ -888,8 +893,16 @@ fn debug_handler_binding_skip(target: &core_ir::Path, info: &HandlerBindingInfo)
         .collect::<Vec<_>>()
         .join(", ");
     eprintln!(
-        "subst specialize skip handler-binding {target:?}: consumes=[{consumes}] residual_before={} residual_after={} pure={}",
-        info.residual_before_known, info.residual_after_known, info.pure
+        "subst specialize skip handler-binding {target:?}: consumes=[{consumes}] principal_input_effect={:?} principal_output_effect={:?} residual_before={} residual_after={} pure={} input_effect={:?} output_effect={:?} consumes_input={} preserves_output={}",
+        info.principal_input_effect,
+        info.principal_output_effect,
+        info.residual_before_known,
+        info.residual_after_known,
+        info.pure,
+        boundary.input_effect,
+        boundary.output_effect,
+        boundary.consumes_input_effect,
+        boundary.preserves_output_effect
     );
 }
 

@@ -3,13 +3,67 @@ use super::*;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct HandlerBindingInfo {
     pub(super) consumes: Vec<core_ir::Path>,
+    pub(super) principal_input_effect: Option<core_ir::Type>,
+    pub(super) principal_output_effect: Option<core_ir::Type>,
     pub(super) residual_before_known: bool,
     pub(super) residual_after_known: bool,
     pub(super) pure: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct HandlerCallBoundary {
+    pub(super) consumes: Vec<core_ir::Path>,
+    pub(super) input_effect: Option<core_ir::Type>,
+    pub(super) output_effect: Option<core_ir::Type>,
+    pub(super) consumes_input_effect: bool,
+    pub(super) preserves_output_effect: bool,
+    pub(super) pure: bool,
+}
+
 pub(super) fn handler_binding_info(binding: &Binding) -> Option<HandlerBindingInfo> {
-    expr_handler_info(&binding.body)
+    let mut info = expr_handler_info(&binding.body)?;
+    if let Some((input_effect, output_effect)) = principal_handler_effects(&binding.scheme.body) {
+        info.principal_input_effect = Some(input_effect);
+        info.principal_output_effect = Some(output_effect);
+    }
+    Some(info)
+}
+
+pub(super) fn handler_call_boundary(
+    info: &HandlerBindingInfo,
+    args: &[&Expr],
+    result_ty: &RuntimeType,
+) -> HandlerCallBoundary {
+    let input_effect = args.first().and_then(|arg| runtime_thunk_effect(&arg.ty));
+    let output_effect = runtime_thunk_effect(result_ty);
+    HandlerCallBoundary {
+        consumes: info.consumes.clone(),
+        consumes_input_effect: input_effect
+            .as_ref()
+            .is_some_and(|effect| effect_contains_any(effect, &info.consumes)),
+        preserves_output_effect: output_effect
+            .as_ref()
+            .is_some_and(|effect| !effect_is_empty(effect)),
+        input_effect,
+        output_effect,
+        pure: info.pure,
+    }
+}
+
+fn runtime_thunk_effect(ty: &RuntimeType) -> Option<core_ir::Type> {
+    match ty {
+        RuntimeType::Thunk { effect, .. } => Some(effect.clone()),
+        RuntimeType::Core(_) | RuntimeType::Fun { .. } => None,
+    }
+}
+
+fn effect_contains_any(effect: &core_ir::Type, targets: &[core_ir::Path]) -> bool {
+    let paths = effect_paths(effect);
+    paths.iter().any(|path| {
+        targets
+            .iter()
+            .any(|target| effect_paths_match(path, target))
+    })
 }
 
 fn expr_handler_info(expr: &Expr) -> Option<HandlerBindingInfo> {
@@ -21,6 +75,8 @@ fn expr_handler_info(expr: &Expr) -> Option<HandlerBindingInfo> {
             ..
         } => Some(HandlerBindingInfo {
             consumes: handler.consumes.clone(),
+            principal_input_effect: None,
+            principal_output_effect: None,
             residual_before_known: handler.residual_before.is_some(),
             residual_after_known: handler.residual_after.is_some(),
             pure: handler.residual_after.as_ref().is_some_and(effect_is_empty),
@@ -73,6 +129,21 @@ fn expr_handler_info(expr: &Expr) -> Option<HandlerBindingInfo> {
         | ExprKind::Lit(_)
         | ExprKind::PeekId
         | ExprKind::FindId { .. } => None,
+    }
+}
+
+fn principal_handler_effects(ty: &core_ir::Type) -> Option<(core_ir::Type, core_ir::Type)> {
+    match ty {
+        core_ir::Type::Fun {
+            param_effect,
+            ret_effect,
+            ..
+        } => Some((param_effect.as_ref().clone(), ret_effect.as_ref().clone())),
+        core_ir::Type::Recursive { body, .. } => principal_handler_effects(body),
+        core_ir::Type::Inter(items) | core_ir::Type::Union(items) => {
+            items.iter().find_map(principal_handler_effects)
+        }
+        _ => None,
     }
 }
 
@@ -151,9 +222,39 @@ mod tests {
 
         let info = handler_binding_info(&binding).expect("handler info");
         assert_eq!(info.consumes, Vec::<core_ir::Path>::new());
+        assert_eq!(info.principal_input_effect, Some(core_ir::Type::Never));
+        assert_eq!(info.principal_output_effect, Some(core_ir::Type::Never));
         assert!(!info.residual_before_known);
         assert!(!info.residual_after_known);
         assert!(!info.pure);
+    }
+
+    #[test]
+    fn handler_call_boundary_reports_consumed_and_preserved_effects() {
+        let consumes = path_segments(&["std", "flow", "sub"]);
+        let outer = path_segments(&["std", "junction", "junction"]);
+        let info = HandlerBindingInfo {
+            consumes: vec![consumes.clone()],
+            principal_input_effect: None,
+            principal_output_effect: None,
+            residual_before_known: true,
+            residual_after_known: true,
+            pure: true,
+        };
+        let arg = Expr::typed(
+            ExprKind::Var(path("x")),
+            RuntimeType::thunk(
+                effect_row(vec![effect(consumes), effect(outer.clone())]),
+                RuntimeType::core(named("int")),
+            ),
+        );
+        let result_ty = RuntimeType::thunk(effect(outer), RuntimeType::core(named("int")));
+
+        let boundary = handler_call_boundary(&info, &[&arg], &result_ty);
+
+        assert!(boundary.consumes_input_effect);
+        assert!(boundary.preserves_output_effect);
+        assert!(boundary.pure);
     }
 
     fn test_binding(scheme_body: core_ir::Type) -> Binding {
@@ -181,6 +282,20 @@ mod tests {
         core_ir::Type::Named {
             path: path(name),
             args: Vec::new(),
+        }
+    }
+
+    fn effect(path: core_ir::Path) -> core_ir::Type {
+        core_ir::Type::Named {
+            path,
+            args: Vec::new(),
+        }
+    }
+
+    fn effect_row(items: Vec<core_ir::Type>) -> core_ir::Type {
+        core_ir::Type::Row {
+            items,
+            tail: Box::new(core_ir::Type::Never),
         }
     }
 
