@@ -2,7 +2,9 @@ use std::collections::{BTreeSet, HashSet};
 
 use yulang_core_ir as core_ir;
 
-use super::complete_principal::collect_expected_edge_evidence;
+use super::complete_principal::{
+    collect_expected_adapter_edge_evidence, collect_expected_edge_evidence,
+};
 use super::expr::export_expr;
 use super::names::{export_path, path_key};
 use super::paths::{collect_canonical_binding_paths, complete_referenced_binding_closure};
@@ -51,6 +53,10 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
                 .into_iter()
                 .map(export_expected_edge_evidence)
                 .collect(),
+            expected_adapter_edges: collect_expected_adapter_edge_evidence(state)
+                .into_iter()
+                .map(export_expected_adapter_edge_evidence)
+                .collect(),
         },
     }
 }
@@ -68,6 +74,51 @@ fn export_expected_edge_evidence(
         closed: evidence.closed,
         informative: evidence.informative,
         runtime_usable: evidence.runtime_usable,
+    }
+}
+
+fn export_expected_adapter_edge_evidence(
+    evidence: super::complete_principal::ExpectedAdapterEdgeEvidence,
+) -> core_ir::ExpectedAdapterEdgeEvidence {
+    core_ir::ExpectedAdapterEdgeEvidence {
+        id: evidence.id.0,
+        source_expected_edge: evidence.source_expected_edge.map(|id| id.0),
+        kind: export_expected_adapter_edge_kind(evidence.kind),
+        actual_value: evidence.actual_value,
+        expected_value: evidence.expected_value,
+        actual_effect: evidence.actual_effect,
+        expected_effect: evidence.expected_effect,
+        closed: evidence.closed,
+        informative: evidence.informative,
+        runtime_usable: evidence.runtime_usable,
+    }
+}
+
+fn export_expected_adapter_edge_kind(
+    kind: crate::diagnostic::ExpectedAdapterEdgeKind,
+) -> core_ir::ExpectedAdapterEdgeKind {
+    match kind {
+        crate::diagnostic::ExpectedAdapterEdgeKind::EffectOperationArgument => {
+            core_ir::ExpectedAdapterEdgeKind::EffectOperationArgument
+        }
+        crate::diagnostic::ExpectedAdapterEdgeKind::ValueToThunk => {
+            core_ir::ExpectedAdapterEdgeKind::ValueToThunk
+        }
+        crate::diagnostic::ExpectedAdapterEdgeKind::ThunkToValue => {
+            core_ir::ExpectedAdapterEdgeKind::ThunkToValue
+        }
+        crate::diagnostic::ExpectedAdapterEdgeKind::BindHere => {
+            core_ir::ExpectedAdapterEdgeKind::BindHere
+        }
+        crate::diagnostic::ExpectedAdapterEdgeKind::HandlerResidual => {
+            core_ir::ExpectedAdapterEdgeKind::HandlerResidual
+        }
+        crate::diagnostic::ExpectedAdapterEdgeKind::HandlerReturn => {
+            core_ir::ExpectedAdapterEdgeKind::HandlerReturn
+        }
+        crate::diagnostic::ExpectedAdapterEdgeKind::ResumeArgument => {
+            core_ir::ExpectedAdapterEdgeKind::ResumeArgument
+        }
     }
 }
 

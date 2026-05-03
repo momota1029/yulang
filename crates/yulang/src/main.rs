@@ -1610,20 +1610,29 @@ fn print_infer_graph(graph: &core_ir::CoreGraphView, verbose: bool) {
 }
 
 fn print_core_principal_evidence(evidence: &core_ir::PrincipalEvidence, verbose: bool) {
-    if evidence.expected_edges.is_empty() {
+    if evidence.expected_edges.is_empty() && evidence.expected_adapter_edges.is_empty() {
         return;
     }
     println!("principal-evidence:");
     if !verbose {
         println!(
-            "  {} expected edges (use --verbose-ir for details)",
-            evidence.expected_edges.len()
+            "  {} expected edges, {} expected adapter edges (use --verbose-ir for details)",
+            evidence.expected_edges.len(),
+            evidence.expected_adapter_edges.len(),
         );
         return;
     }
-    println!("  expected edges:");
-    for edge in &evidence.expected_edges {
-        println!("    {}", format_core_expected_edge_evidence(edge));
+    if !evidence.expected_edges.is_empty() {
+        println!("  expected edges:");
+        for edge in &evidence.expected_edges {
+            println!("    {}", format_core_expected_edge_evidence(edge));
+        }
+    }
+    if !evidence.expected_adapter_edges.is_empty() {
+        println!("  expected adapter edges:");
+        for edge in &evidence.expected_adapter_edges {
+            println!("    {}", format_core_expected_adapter_edge_evidence(edge));
+        }
     }
 }
 
@@ -1637,6 +1646,44 @@ fn format_core_expected_edge_evidence(evidence: &core_ir::ExpectedEdgeEvidence) 
         format!("actual={}", format_core_bounds(&evidence.actual)),
         format!("expected={}", format_core_bounds(&evidence.expected)),
     ];
+    if let Some(actual_effect) = &evidence.actual_effect {
+        parts.push(format!(
+            "actual-effect={}",
+            format_core_bounds(actual_effect)
+        ));
+    }
+    if let Some(expected_effect) = &evidence.expected_effect {
+        parts.push(format!(
+            "expected-effect={}",
+            format_core_bounds(expected_effect)
+        ));
+    }
+    parts.push(format!("closed={}", evidence.closed));
+    parts.push(format!("informative={}", evidence.informative));
+    parts.push(format!("runtime-usable={}", evidence.runtime_usable));
+    parts.join(" ")
+}
+
+fn format_core_expected_adapter_edge_evidence(
+    evidence: &core_ir::ExpectedAdapterEdgeEvidence,
+) -> String {
+    let mut parts = vec![format!(
+        "#{} {}",
+        evidence.id,
+        format_core_expected_adapter_edge_kind(evidence.kind)
+    )];
+    if let Some(source_expected_edge) = evidence.source_expected_edge {
+        parts.push(format!("source-expected-edge=#{source_expected_edge}"));
+    }
+    if let Some(actual_value) = &evidence.actual_value {
+        parts.push(format!("actual-value={}", format_core_bounds(actual_value)));
+    }
+    if let Some(expected_value) = &evidence.expected_value {
+        parts.push(format!(
+            "expected-value={}",
+            format_core_bounds(expected_value)
+        ));
+    }
     if let Some(actual_effect) = &evidence.actual_effect {
         parts.push(format!(
             "actual-effect={}",
@@ -1669,6 +1716,18 @@ fn format_core_expected_edge_kind(kind: core_ir::ExpectedEdgeKind) -> &'static s
         core_ir::ExpectedEdgeKind::VariantPayload => "variant-payload",
         core_ir::ExpectedEdgeKind::AssignmentValue => "assignment-value",
         core_ir::ExpectedEdgeKind::RepresentationCoerce => "representation-coerce",
+    }
+}
+
+fn format_core_expected_adapter_edge_kind(kind: core_ir::ExpectedAdapterEdgeKind) -> &'static str {
+    match kind {
+        core_ir::ExpectedAdapterEdgeKind::EffectOperationArgument => "effect-operation-argument",
+        core_ir::ExpectedAdapterEdgeKind::ValueToThunk => "value-to-thunk",
+        core_ir::ExpectedAdapterEdgeKind::ThunkToValue => "thunk-to-value",
+        core_ir::ExpectedAdapterEdgeKind::BindHere => "bind-here",
+        core_ir::ExpectedAdapterEdgeKind::HandlerResidual => "handler-residual",
+        core_ir::ExpectedAdapterEdgeKind::HandlerReturn => "handler-return",
+        core_ir::ExpectedAdapterEdgeKind::ResumeArgument => "resume-argument",
     }
 }
 

@@ -735,6 +735,7 @@ mod tests {
                     informative: true,
                     runtime_usable: true,
                 }],
+                expected_adapter_edges: Vec::new(),
             },
         };
 
@@ -1310,6 +1311,7 @@ mod tests {
                 informative: true,
                 runtime_usable: false,
             }],
+            expected_adapter_edges: Vec::new(),
         };
         let mut lowerer = Lowerer {
             env: HashMap::new(),

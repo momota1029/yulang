@@ -230,6 +230,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - runtime lower の expected arg evidence profile は `present` / `converted` / `usable-by-table` / `usable-by-bounds` / `used-as-*` / `ignored-*` に分け、どこで evidence が落ちるかを見られるようにした。
 - runtime lower は `PrincipalEvidence.expected_edges` を `id -> edge` の index にして持つようにした。`ApplyEvidence.arg_source_edge` と `CoerceEvidence.source_edge` の kind invariant はこの index 経由で確認する。
 - `ExpectedAdapterEdge` / `ExpectedAdapterEdgeEvidence` の最小入口を追加した。まずは effect operation argument を観測対象にし、`ApplicationArgument` edge を source として value/effect の actual/expected bounds を `--infer --verbose-ir` で確認できる。
+- `CoreProgram.evidence` に expected adapter edge table も載せるようにした。`--core-ir --verbose-ir` では principal evidence の adapter edges として表示できる。
 - handler adapter は ExpectedEdge だけで足りなければ `ExpectedAdapterEdge` のような別種を考える。
   - `ThunkWrap` / `BindHere` / `HandlerAdapter` / `EffectResidual` の境界として扱う。
 - `RecordField` / `VariantPayload` は lowering を bidirectional にせず、まず annotation edge などから派生する diagnostic 用 `DerivedExpectedEdge` として始めた。nominal constructor payload などの追加は、expected slot が見える場所から広げる。

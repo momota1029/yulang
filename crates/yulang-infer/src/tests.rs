@@ -381,7 +381,7 @@ fn core_program_carries_expected_edge_evidence_table() {
 
 #[test]
 fn effect_operation_application_records_adapter_edge() {
-    let state = parse_and_lower("pub act out:\n  pub say: str -> ()\n\nout::say \"hi\"\n");
+    let mut state = parse_and_lower("pub act out:\n  pub say: str -> ()\n\nout::say \"hi\"\n");
     let adapter_edge = state
         .expected_adapter_edges
         .iter()
@@ -393,6 +393,30 @@ fn effect_operation_application_records_adapter_edge() {
     assert!(adapter_edge.expected_value.is_some());
     assert!(adapter_edge.actual_effect.is_some());
     assert!(adapter_edge.expected_effect.is_some());
+
+    let adapter_edge_id = adapter_edge.id.0;
+    let source_expected_edge_id = adapter_edge
+        .source_expected_edge
+        .expect("adapter should link source expected edge")
+        .0;
+    let program = export_core_program(&mut state);
+    let core_adapter = program
+        .evidence
+        .expected_adapter_edge(adapter_edge_id)
+        .expect("core principal adapter evidence");
+
+    assert_eq!(
+        core_adapter.kind,
+        yulang_core_ir::ExpectedAdapterEdgeKind::EffectOperationArgument
+    );
+    assert_eq!(
+        core_adapter.source_expected_edge,
+        Some(source_expected_edge_id)
+    );
+    assert!(core_adapter.actual_value.is_some());
+    assert!(core_adapter.expected_value.is_some());
+    assert!(core_adapter.actual_effect.is_some());
+    assert!(core_adapter.expected_effect.is_some());
 }
 
 #[test]

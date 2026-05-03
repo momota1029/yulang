@@ -5,11 +5,12 @@ pub mod type_order;
 pub mod types;
 
 pub use expr::{
-    ApplyEvidence, Binding, BindingVisibility, CoerceEvidence, CoreProgram, ExpectedEdgeEvidence,
-    ExpectedEdgeKind, Expr, FunctionSigAllowedEffects, HandleArm, ImplDecl, ImplMember, Item,
-    JoinEvidence, Lit, MatchArm, Module, ParamEffectAnnotation, Pattern, PrimitiveOp,
-    PrincipalBinding, PrincipalEvidence, PrincipalModule, PrincipalRoot, RecordExprField,
-    RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, RoleDecl, RoleMember, Stmt,
+    ApplyEvidence, Binding, BindingVisibility, CoerceEvidence, CoreProgram,
+    ExpectedAdapterEdgeEvidence, ExpectedAdapterEdgeKind, ExpectedEdgeEvidence, ExpectedEdgeKind,
+    Expr, FunctionSigAllowedEffects, HandleArm, ImplDecl, ImplMember, Item, JoinEvidence, Lit,
+    MatchArm, Module, ParamEffectAnnotation, Pattern, PrimitiveOp, PrincipalBinding,
+    PrincipalEvidence, PrincipalModule, PrincipalRoot, RecordExprField, RecordPatternField,
+    RecordSpreadExpr, RecordSpreadPattern, RoleDecl, RoleMember, Stmt,
 };
 pub use graph::{
     BindingGraphNode, CoreGraphView, ExprGraphNode, GraphOwner, RuntimeSymbol, RuntimeSymbolKind,
