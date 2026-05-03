@@ -127,6 +127,7 @@ pub struct SubstitutionSpecializeProfile {
 pub struct SubstitutionSpecializeTargetSkips {
     pub target: core_ir::Path,
     pub survives_final_prune: Option<bool>,
+    pub actionable: bool,
     pub reasons: Vec<SubstitutionSpecializeSkipCount>,
     pub missing_vars: Vec<SubstitutionSpecializeMissingVarCount>,
     pub no_complete_causes: Vec<SubstitutionSpecializeSkipCount>,

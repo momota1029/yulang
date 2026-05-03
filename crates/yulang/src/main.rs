@@ -910,6 +910,22 @@ fn print_substitution_specialize_profile(profile: &runtime::MonomorphizePassProf
         .collect::<Vec<_>>()
         .join(", ");
     eprintln!("            substitution_specialize: {stats}");
+    let surviving_actionable_skips = subst
+        .target_skips
+        .iter()
+        .filter(|target| target.actionable && target.survives_final_prune == Some(true))
+        .count();
+    let surviving_benign_skips = subst
+        .target_skips
+        .iter()
+        .filter(|target| !target.actionable && target.survives_final_prune == Some(true))
+        .count();
+    if surviving_actionable_skips > 0 || surviving_benign_skips > 0 {
+        eprintln!(
+            "                skip_reachability surviving_actionable_targets={} surviving_benign_targets={}",
+            surviving_actionable_skips, surviving_benign_skips
+        );
+    }
     for target in subst.target_skips.iter().take(12) {
         let total = target
             .reasons
@@ -941,10 +957,11 @@ fn print_substitution_specialize_profile(profile: &runtime::MonomorphizePassProf
             None => "unknown",
         };
         eprintln!(
-            "                skip_target {} total={} survives_final_prune={} reasons=[{}] missing_vars=[{}] no_complete_causes=[{}]",
+            "                skip_target {} total={} survives_final_prune={} actionable={} reasons=[{}] missing_vars=[{}] no_complete_causes=[{}]",
             format_core_path(&target.target),
             total,
             survives_final_prune,
+            if target.actionable { "yes" } else { "no" },
             reasons,
             missing_vars,
             no_complete_causes,

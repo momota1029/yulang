@@ -189,6 +189,9 @@ impl SubstitutionSpecializer {
                 SubstitutionSpecializeTargetSkips {
                     target,
                     survives_final_prune: None,
+                    actionable: reasons
+                        .iter()
+                        .any(|reason| !substitution_specialize_skip_reason_benign(reason.reason)),
                     reasons,
                     missing_vars,
                     no_complete_causes,
@@ -776,6 +779,15 @@ impl SubstitutionSpecializer {
         self.emitted.push(binding);
         Some(path)
     }
+}
+
+fn substitution_specialize_skip_reason_benign(reason: &str) -> bool {
+    matches!(
+        reason,
+        "skip-non-generic-callee"
+            | "skip-local-leaf-specialization"
+            | "skip-recursive-leaf-specialization"
+    )
 }
 
 struct ApplySpine<'a> {
