@@ -21,7 +21,8 @@ use super::paths::collect_canonical_binding_paths;
 use super::roles::canonical_runtime_export_def;
 use super::spine::{collect_apply_spine, strip_transparent_wrappers};
 use super::types::{
-    export_coalesced_apply_evidence_bounds, export_relevant_type_bounds_for_tv, export_scheme,
+    export_coalesced_apply_evidence_bounds_with_expected_arg, export_relevant_type_bounds_for_tv,
+    export_scheme,
 };
 
 pub fn export_expr(
@@ -345,13 +346,15 @@ impl<'a> ExprExporter<'a> {
             &self.relevant_vars,
         );
         if std::env::var_os("YULANG_COALESCE_APPLY_EVIDENCE").is_some() {
-            let (callee_bounds, arg, result) = export_coalesced_apply_evidence_bounds(
-                &self.state.infer,
-                callee.tv,
-                arg.tv,
-                result.tv,
-                &self.relevant_vars,
-            );
+            let (callee_bounds, arg, expected_arg, result) =
+                export_coalesced_apply_evidence_bounds_with_expected_arg(
+                    &self.state.infer,
+                    callee.tv,
+                    arg.tv,
+                    expected_arg_tv,
+                    result.tv,
+                    &self.relevant_vars,
+                );
             return core_ir::ApplyEvidence {
                 arg_source_edge: arg_source_edge.map(|id| id.0),
                 callee: callee_bounds,

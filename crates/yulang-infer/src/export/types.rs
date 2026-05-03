@@ -131,6 +131,57 @@ pub fn export_coalesced_apply_evidence_bounds(
     )
 }
 
+pub fn export_coalesced_apply_evidence_bounds_with_expected_arg(
+    infer: &Infer,
+    callee_tv: TypeVar,
+    arg_tv: TypeVar,
+    expected_arg_tv: TypeVar,
+    result_tv: TypeVar,
+    relevant_vars: &BTreeSet<core_ir::TypeVar>,
+) -> (
+    core_ir::TypeBounds,
+    core_ir::TypeBounds,
+    core_ir::TypeBounds,
+    core_ir::TypeBounds,
+) {
+    let schemes =
+        compact_type_vars_in_order(infer, &[callee_tv, arg_tv, expected_arg_tv, result_tv]);
+    let mut rec_vars = HashMap::new();
+    let mut cty = CompactBounds::default();
+    for scheme in &schemes {
+        cty = merge_compact_bounds(true, cty, scheme.cty.clone());
+        rec_vars.extend(scheme.rec_vars.clone());
+    }
+
+    let evidence_constraint = CompactRoleConstraint {
+        role: Path {
+            segments: vec![Name("__apply_evidence".to_string())],
+        },
+        args: schemes.iter().map(|scheme| scheme.cty.clone()).collect(),
+    };
+    let host = CompactTypeScheme { cty, rec_vars };
+    let output = coalesce_by_co_occurrence_with_role_constraints_report(
+        &host,
+        std::slice::from_ref(&evidence_constraint),
+    );
+    let args = output
+        .constraints
+        .iter()
+        .find(|constraint| {
+            constraint.role == evidence_constraint.role
+                && constraint.args.len() == evidence_constraint.args.len()
+        })
+        .map(|constraint| constraint.args.as_slice())
+        .unwrap_or(evidence_constraint.args.as_slice());
+
+    (
+        project_type_bounds(export_type_bounds(&output.scheme, &args[0]), relevant_vars),
+        project_type_bounds(export_type_bounds(&output.scheme, &args[1]), relevant_vars),
+        project_type_bounds(export_type_bounds(&output.scheme, &args[2]), relevant_vars),
+        project_type_bounds(export_type_bounds(&output.scheme, &args[3]), relevant_vars),
+    )
+}
+
 pub fn export_coalesced_coerce_evidence_bounds(
     infer: &Infer,
     actual_tv: TypeVar,

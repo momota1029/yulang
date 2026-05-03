@@ -300,6 +300,55 @@ fn application_argument_edge_links_to_apply_evidence() {
 }
 
 #[test]
+fn application_argument_edge_links_to_expected_edge_evidence() {
+    let mut state = parse_and_lower("my id(x: int) = x\nid 1");
+    let application_edge_ids = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::ApplicationArgument)
+        .map(|edge| edge.id.0)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(
+        !application_edge_ids.is_empty(),
+        "expected application argument edge"
+    );
+
+    let expected_edge_evidence = collect_expected_edge_evidence(&state);
+    for edge_id in &application_edge_ids {
+        let evidence = expected_edge_evidence
+            .iter()
+            .find(|evidence| evidence.id.0 == *edge_id)
+            .unwrap_or_else(|| panic!("missing expected edge evidence for #{edge_id}"));
+        assert_eq!(
+            evidence.kind,
+            diagnostic::ExpectedEdgeKind::ApplicationArgument
+        );
+        assert!(
+            evidence.expected.lower.is_some() || evidence.expected.upper.is_some(),
+            "expected application argument edge evidence to expose expected bounds: {evidence:?}",
+        );
+    }
+
+    let program = export_core_program(&mut state);
+    let apply_evidence = apply_evidence_source_expected_args_in_module(&program.program);
+    for edge_id in &application_edge_ids {
+        let expected_arg = apply_evidence
+            .iter()
+            .find_map(|(source_edge, expected_arg)| {
+                (*source_edge == *edge_id).then_some(expected_arg)
+            })
+            .unwrap_or_else(|| panic!("missing apply evidence for source edge #{edge_id}"));
+        let expected_arg = expected_arg
+            .as_ref()
+            .unwrap_or_else(|| panic!("missing expected_arg for source edge #{edge_id}"));
+        assert!(
+            expected_arg.lower.is_some() || expected_arg.upper.is_some(),
+            "expected ApplyEvidence.expected_arg to expose bounds for source edge #{edge_id}: {expected_arg:?}",
+        );
+    }
+}
+
+#[test]
 fn expected_edges_keep_solver_constraints() {
     let state = parse_and_lower("my id(x: int) = x\nmy f(b: bool) = if b { id 1 } else { id 2 }");
     assert!(
@@ -448,6 +497,33 @@ fn collect_apply_evidence_source_edges(
                 .and_then(|evidence| evidence.arg_source_edge)
         {
             source_edges.insert(source_edge);
+        }
+    });
+}
+
+fn apply_evidence_source_expected_args_in_module(
+    module: &yulang_core_ir::PrincipalModule,
+) -> Vec<(u32, Option<yulang_core_ir::TypeBounds>)> {
+    let mut source_edges = Vec::new();
+    for binding in &module.bindings {
+        collect_apply_evidence_source_expected_args(&binding.body, &mut source_edges);
+    }
+    for expr in &module.root_exprs {
+        collect_apply_evidence_source_expected_args(expr, &mut source_edges);
+    }
+    source_edges
+}
+
+fn collect_apply_evidence_source_expected_args(
+    expr: &yulang_core_ir::Expr,
+    source_edges: &mut Vec<(u32, Option<yulang_core_ir::TypeBounds>)>,
+) {
+    visit_core_expr(expr, &mut |expr| {
+        if let yulang_core_ir::Expr::Apply { evidence, .. } = expr
+            && let Some(evidence) = evidence
+            && let Some(source_edge) = evidence.arg_source_edge
+        {
+            source_edges.push((source_edge, evidence.expected_arg.clone()));
         }
     });
 }
