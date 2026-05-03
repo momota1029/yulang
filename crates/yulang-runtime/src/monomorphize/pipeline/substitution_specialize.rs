@@ -265,7 +265,12 @@ impl SubstitutionSpecializer {
             self.bump("skip-non-generic-callee");
             return None;
         };
-        if let Some(handler) = handler_binding_info(&original) {
+        let handler_info = handler_binding_info(&original);
+        let allow_handler_specialize =
+            std::env::var_os("YULANG_SUBST_SPECIALIZE_HANDLERS").is_some();
+        if let Some(handler) = handler_info.as_ref()
+            && !allow_handler_specialize
+        {
             self.bump("skip-handler-binding");
             let boundary = handler_call_boundary(&handler, &spine.args, &expr.ty);
             let plan = handler_adapter_plan(&handler, &boundary);
@@ -425,10 +430,28 @@ impl SubstitutionSpecializer {
             debug_incomplete_binding_substitution(&original, &principal_substitutions);
             return None;
         };
-        let path = if binding_substitutions.is_empty() {
+        let handler_plan = handler_info.as_ref().map(|info| {
+            let boundary = handler_call_boundary(info, &spine.args, &expr.ty);
+            let plan = handler_adapter_plan(info, &boundary);
+            let plan = substitute_handler_adapter_plan(&plan, &principal_substitutions);
+            debug_handler_binding_plan(spine.target, info, &boundary, &plan);
+            (boundary, plan)
+        });
+        if let Some((boundary, plan)) = handler_plan.as_ref()
+            && !handler_plan_is_supported(boundary, plan)
+        {
+            self.bump("skip-handler-plan");
+            debug_handler_plan_skip(spine.target, boundary, plan);
+            return None;
+        }
+        let path = if binding_substitutions.is_empty() && handler_plan.is_none() {
             original.name.clone()
         } else {
-            self.intern_specialization(original, binding_substitutions)?
+            self.intern_specialization(
+                original,
+                binding_substitutions,
+                handler_plan.map(|(_, plan)| plan),
+            )?
         };
         self.bump("rewrite");
         let mut call = Expr::typed(ExprKind::Var(path), RuntimeType::core(callee_ty.clone()));
@@ -482,8 +505,9 @@ impl SubstitutionSpecializer {
         &mut self,
         original: Binding,
         substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
+        handler_plan: Option<HandlerAdapterPlan>,
     ) -> Option<core_ir::Path> {
-        let key = substitution_key(&original.name, &substitutions);
+        let key = substitution_key(&original.name, &substitutions, handler_plan.as_ref());
         if let Some(path) = self.specializations.get(&key) {
             return Some(path.clone());
         }
@@ -511,6 +535,9 @@ impl SubstitutionSpecializer {
         self.next_index += 1;
         self.specializations.insert(key, path.clone());
         let mut binding = substitute_binding(original, &substitutions);
+        if let Some(plan) = handler_plan {
+            binding = apply_handler_adapter_plan_to_binding(binding, &plan);
+        }
         binding.name = path.clone();
         binding.type_params.clear();
         binding.body = refresh_local_expr_types(binding.body);
@@ -911,6 +938,52 @@ fn debug_handler_binding_skip(
     );
 }
 
+fn debug_handler_binding_plan(
+    target: &core_ir::Path,
+    info: &HandlerBindingInfo,
+    boundary: &HandlerCallBoundary,
+    plan: &HandlerAdapterPlan,
+) {
+    if std::env::var_os("YULANG_DEBUG_SUBST_SPECIALIZE").is_none() {
+        return;
+    }
+    let consumes = info
+        .consumes
+        .iter()
+        .map(canonical_path)
+        .collect::<Vec<_>>()
+        .join(", ");
+    eprintln!(
+        "subst specialize handler-plan {target:?}: consumes=[{consumes}] input_effect={:?} output_effect={:?} residual_before={:?} residual_after={:?} return_wrapper_effect={:?}",
+        boundary.input_effect,
+        boundary.output_effect,
+        plan.residual_before,
+        plan.residual_after,
+        plan.return_wrapper_effect
+    );
+}
+
+fn handler_plan_is_supported(boundary: &HandlerCallBoundary, plan: &HandlerAdapterPlan) -> bool {
+    boundary.consumes_input_effect
+        && plan.residual_after.as_ref().is_none_or(effect_is_empty)
+        && (plan.return_wrapper_effect.is_none()
+            || std::env::var_os("YULANG_SUBST_SPECIALIZE_HANDLER_RETURN").is_some())
+}
+
+fn debug_handler_plan_skip(
+    target: &core_ir::Path,
+    boundary: &HandlerCallBoundary,
+    plan: &HandlerAdapterPlan,
+) {
+    if std::env::var_os("YULANG_DEBUG_SUBST_SPECIALIZE").is_none() {
+        return;
+    }
+    eprintln!(
+        "subst specialize skip handler-plan {target:?}: consumes_input={} residual_after={:?} return_wrapper_effect={:?}",
+        boundary.consumes_input_effect, plan.residual_after, plan.return_wrapper_effect
+    );
+}
+
 fn debug_incomplete_binding_substitution(
     binding: &Binding,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
@@ -1242,6 +1315,7 @@ fn core_fun_spine_effect_parts(
 fn substitution_key(
     target: &core_ir::Path,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    handler_plan: Option<&HandlerAdapterPlan>,
 ) -> String {
     let mut key = canonical_path(target);
     for (var, ty) in substitutions {
@@ -1249,6 +1323,21 @@ fn substitution_key(
         key.push_str(&var.0);
         key.push('=');
         canonical_type(ty, &mut key);
+    }
+    if let Some(plan) = handler_plan {
+        key.push_str("|handler");
+        if let Some(effect) = &plan.residual_before {
+            key.push_str("|before=");
+            canonical_type(effect, &mut key);
+        }
+        if let Some(effect) = &plan.residual_after {
+            key.push_str("|after=");
+            canonical_type(effect, &mut key);
+        }
+        if let Some(effect) = &plan.return_wrapper_effect {
+            key.push_str("|wrap=");
+            canonical_type(effect, &mut key);
+        }
     }
     key
 }

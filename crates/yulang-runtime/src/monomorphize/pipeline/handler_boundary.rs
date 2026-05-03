@@ -74,6 +74,35 @@ pub(super) fn handler_adapter_plan(
     }
 }
 
+pub(super) fn substitute_handler_adapter_plan(
+    plan: &HandlerAdapterPlan,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> HandlerAdapterPlan {
+    HandlerAdapterPlan {
+        residual_before: plan
+            .residual_before
+            .as_ref()
+            .map(|effect| normalize_effect(substitute_type(effect, substitutions))),
+        residual_after: plan
+            .residual_after
+            .as_ref()
+            .map(|effect| normalize_effect(substitute_type(effect, substitutions))),
+        return_wrapper_effect: plan
+            .return_wrapper_effect
+            .as_ref()
+            .map(|effect| normalize_effect(substitute_type(effect, substitutions))),
+    }
+}
+
+pub(super) fn apply_handler_adapter_plan_to_binding(
+    mut binding: Binding,
+    plan: &HandlerAdapterPlan,
+) -> Binding {
+    let mut next_effect_id = next_effect_id_after_expr(&binding.body);
+    binding.body = apply_handler_adapter_plan_to_expr(binding.body, plan, &mut next_effect_id);
+    binding
+}
+
 fn runtime_thunk_effect(ty: &RuntimeType) -> Option<core_ir::Type> {
     match ty {
         RuntimeType::Thunk { effect, .. } => Some(effect.clone()),
@@ -101,6 +130,9 @@ fn handler_return_wrapper_effect(
     boundary: &HandlerCallBoundary,
     _residual_after: Option<&core_ir::Type>,
 ) -> Option<core_ir::Type> {
+    if std::env::var_os("YULANG_SUBST_SPECIALIZE_HANDLER_RETURN").is_none() {
+        return None;
+    }
     if !boundary.pure || boundary.output_effect.is_some() {
         return None;
     }
@@ -222,6 +254,330 @@ fn remove_consumed_effects(effect: &core_ir::Type, consumed: &[core_ir::Path]) -
             body: Box::new(remove_consumed_effects(body, consumed)),
         },
         other => other.clone(),
+    }
+}
+
+fn normalize_effect(effect: core_ir::Type) -> core_ir::Type {
+    match effect {
+        core_ir::Type::Row { items, tail } => {
+            let items = items
+                .into_iter()
+                .map(normalize_effect)
+                .filter(|item| !effect_is_empty(item))
+                .collect();
+            effect_row(items, normalize_effect(*tail))
+        }
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => effect_row(
+            items
+                .into_iter()
+                .map(normalize_effect)
+                .filter(|item| !effect_is_empty(item))
+                .collect(),
+            core_ir::Type::Never,
+        ),
+        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+            var,
+            body: Box::new(normalize_effect(*body)),
+        },
+        other => other,
+    }
+}
+
+fn apply_handler_adapter_plan_to_expr(
+    expr: Expr,
+    plan: &HandlerAdapterPlan,
+    next_effect_id: &mut usize,
+) -> Expr {
+    let Expr { ty, kind } = expr;
+    match kind {
+        ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body,
+        } => {
+            let body = rewrite_first_handle(*body, plan);
+            let body = wrap_handler_return(body, plan, next_effect_id);
+            Expr::typed(
+                ExprKind::Lambda {
+                    param,
+                    param_effect_annotation,
+                    param_function_allowed_effects,
+                    body: Box::new(body),
+                },
+                ty,
+            )
+        }
+        other => {
+            let expr = Expr::typed(other, ty);
+            let expr = rewrite_first_handle(expr, plan);
+            wrap_handler_return(expr, plan, next_effect_id)
+        }
+    }
+}
+
+fn rewrite_first_handle(expr: Expr, plan: &HandlerAdapterPlan) -> Expr {
+    let Expr { ty, kind } = expr;
+    match kind {
+        ExprKind::Handle {
+            body,
+            arms,
+            evidence,
+            mut handler,
+        } => {
+            handler.residual_before = plan.residual_before.clone();
+            handler.residual_after = plan.residual_after.clone();
+            Expr::typed(
+                ExprKind::Handle {
+                    body,
+                    arms,
+                    evidence,
+                    handler,
+                },
+                ty,
+            )
+        }
+        ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body,
+        } => Expr::typed(
+            ExprKind::Lambda {
+                param,
+                param_effect_annotation,
+                param_function_allowed_effects,
+                body: Box::new(rewrite_first_handle(*body, plan)),
+            },
+            ty,
+        ),
+        ExprKind::BindHere { expr } => Expr::typed(
+            ExprKind::BindHere {
+                expr: Box::new(rewrite_first_handle(*expr, plan)),
+            },
+            ty,
+        ),
+        ExprKind::LocalPushId { id, body } => Expr::typed(
+            ExprKind::LocalPushId {
+                id,
+                body: Box::new(rewrite_first_handle(*body, plan)),
+            },
+            ty,
+        ),
+        ExprKind::AddId { id, allowed, thunk } => Expr::typed(
+            ExprKind::AddId {
+                id,
+                allowed,
+                thunk: Box::new(rewrite_first_handle(*thunk, plan)),
+            },
+            ty,
+        ),
+        other => Expr::typed(other, ty),
+    }
+}
+
+fn wrap_handler_return(body: Expr, plan: &HandlerAdapterPlan, next_effect_id: &mut usize) -> Expr {
+    let Some(effect) = plan.return_wrapper_effect.clone() else {
+        return body;
+    };
+    if matches!(body.kind, ExprKind::LocalPushId { .. })
+        || !matches!(body.ty, RuntimeType::Core(_))
+        || effect_is_empty(&effect)
+    {
+        return body;
+    }
+    let value_ty = body.ty.clone();
+    let thunk_ty = RuntimeType::thunk(effect.clone(), value_ty.clone());
+    let thunk = Expr::typed(
+        ExprKind::Thunk {
+            effect: effect.clone(),
+            value: value_ty.clone(),
+            expr: Box::new(body),
+        },
+        thunk_ty.clone(),
+    );
+    let add_id = Expr::typed(
+        ExprKind::AddId {
+            id: crate::ir::EffectIdRef::Peek,
+            allowed: effect,
+            thunk: Box::new(thunk),
+        },
+        thunk_ty,
+    );
+    let forced = Expr::typed(
+        ExprKind::BindHere {
+            expr: Box::new(add_id),
+        },
+        value_ty.clone(),
+    );
+    let id = crate::ir::EffectIdVar(*next_effect_id);
+    *next_effect_id += 1;
+    Expr::typed(
+        ExprKind::LocalPushId {
+            id,
+            body: Box::new(forced),
+        },
+        value_ty,
+    )
+}
+
+fn next_effect_id_after_expr(expr: &Expr) -> usize {
+    max_effect_id_expr(expr).map_or(0, |id| id + 1)
+}
+
+fn max_effect_id_expr(expr: &Expr) -> Option<usize> {
+    let mut max = None;
+    match &expr.kind {
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::Thunk { expr: body, .. }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => update_max(&mut max, max_effect_id_expr(body)),
+        ExprKind::Apply { callee, arg, .. } => {
+            update_max(&mut max, max_effect_id_expr(callee));
+            update_max(&mut max, max_effect_id_expr(arg));
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            update_max(&mut max, max_effect_id_expr(cond));
+            update_max(&mut max, max_effect_id_expr(then_branch));
+            update_max(&mut max, max_effect_id_expr(else_branch));
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                update_max(&mut max, max_effect_id_expr(item));
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                update_max(&mut max, max_effect_id_expr(&field.value));
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
+                        update_max(&mut max, max_effect_id_expr(expr));
+                    }
+                }
+            }
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                update_max(&mut max, max_effect_id_expr(value));
+            }
+        }
+        ExprKind::Select { base, .. } => update_max(&mut max, max_effect_id_expr(base)),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            update_max(&mut max, max_effect_id_expr(scrutinee));
+            for arm in arms {
+                update_max(&mut max, max_effect_id_pattern(&arm.pattern));
+                if let Some(guard) = &arm.guard {
+                    update_max(&mut max, max_effect_id_expr(guard));
+                }
+                update_max(&mut max, max_effect_id_expr(&arm.body));
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            for stmt in stmts {
+                update_max(&mut max, max_effect_id_stmt(stmt));
+            }
+            if let Some(tail) = tail {
+                update_max(&mut max, max_effect_id_expr(tail));
+            }
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            update_max(&mut max, max_effect_id_expr(body));
+            for arm in arms {
+                update_max(&mut max, max_effect_id_pattern(&arm.payload));
+                if let Some(guard) = &arm.guard {
+                    update_max(&mut max, max_effect_id_expr(guard));
+                }
+                update_max(&mut max, max_effect_id_expr(&arm.body));
+            }
+        }
+        ExprKind::AddId { id, thunk, .. } => {
+            update_max(&mut max, max_effect_id_ref(*id));
+            update_max(&mut max, max_effect_id_expr(thunk));
+        }
+        ExprKind::FindId { id } => update_max(&mut max, max_effect_id_ref(*id)),
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId => {}
+    }
+    max
+}
+
+fn max_effect_id_stmt(stmt: &Stmt) -> Option<usize> {
+    match stmt {
+        Stmt::Let { pattern, value } => {
+            max_effect_id_pattern(pattern).max(max_effect_id_expr(value))
+        }
+        Stmt::Expr(expr) | Stmt::Module { body: expr, .. } => max_effect_id_expr(expr),
+    }
+}
+
+fn max_effect_id_pattern(pattern: &Pattern) -> Option<usize> {
+    match pattern {
+        Pattern::Tuple { items, .. } => items.iter().filter_map(max_effect_id_pattern).max(),
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => prefix
+            .iter()
+            .chain(suffix)
+            .filter_map(max_effect_id_pattern)
+            .chain(
+                spread
+                    .iter()
+                    .filter_map(|pattern| max_effect_id_pattern(pattern)),
+            )
+            .max(),
+        Pattern::Record { fields, spread, .. } => {
+            let mut max = None;
+            for field in fields {
+                update_max(&mut max, max_effect_id_pattern(&field.pattern));
+                if let Some(default) = &field.default {
+                    update_max(&mut max, max_effect_id_expr(default));
+                }
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpreadPattern::Head(pattern) | RecordSpreadPattern::Tail(pattern) => {
+                        update_max(&mut max, max_effect_id_pattern(pattern));
+                    }
+                }
+            }
+            max
+        }
+        Pattern::Variant { value, .. } => value.as_deref().and_then(max_effect_id_pattern),
+        Pattern::Or { left, right, .. } => {
+            max_effect_id_pattern(left).max(max_effect_id_pattern(right))
+        }
+        Pattern::As { pattern, .. } => max_effect_id_pattern(pattern),
+        Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => None,
+    }
+}
+
+fn max_effect_id_ref(id: crate::ir::EffectIdRef) -> Option<usize> {
+    match id {
+        crate::ir::EffectIdRef::Var(id) => Some(id.0),
+        crate::ir::EffectIdRef::Peek => None,
+    }
+}
+
+fn update_max(max: &mut Option<usize>, candidate: Option<usize>) {
+    if let Some(candidate) = candidate {
+        *max = Some(max.map_or(candidate, |max| max.max(candidate)));
     }
 }
 
@@ -456,7 +812,7 @@ mod tests {
             ]))
         );
         assert_eq!(plan.residual_after, Some(effect_row(vec![effect(outer)])));
-        assert_eq!(plan.return_wrapper_effect, Some(effect(consumes)));
+        assert_eq!(plan.return_wrapper_effect, None);
     }
 
     fn test_binding(scheme_body: core_ir::Type) -> Binding {
