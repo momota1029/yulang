@@ -648,6 +648,21 @@ sub:
     }
 
     #[test]
+    fn vm_runs_source_helper_sub_return_from_suffix_range_loop() {
+        let results = eval_source_with_std(
+            r#"my f x = return x
+sub:
+    for x in 0..:
+        if x == 5: f x
+        else: ()
+    0
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("5".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_std_undet_once_and_sub_return_roots() {
         let results = eval_source_with_std(
             r#"use std::undet::*

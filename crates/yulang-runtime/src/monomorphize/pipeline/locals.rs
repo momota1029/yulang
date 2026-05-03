@@ -15,14 +15,29 @@ pub(super) fn pattern_type(pattern: &Pattern) -> RuntimeType {
 }
 
 pub(super) fn collect_expr_vars(expr: &Expr, vars: &mut HashSet<core_ir::Path>) {
+    let mut bound = HashSet::new();
+    collect_expr_free_vars(expr, &mut bound, vars);
+}
+
+fn collect_expr_free_vars(
+    expr: &Expr,
+    bound: &mut HashSet<core_ir::Path>,
+    vars: &mut HashSet<core_ir::Path>,
+) {
     match &expr.kind {
         ExprKind::Var(path) => {
-            vars.insert(path.clone());
+            if !bound.contains(path) {
+                vars.insert(path.clone());
+            }
         }
-        ExprKind::Lambda { body, .. } => collect_expr_vars(body, vars),
+        ExprKind::Lambda { param, body, .. } => {
+            with_bound_path(bound, core_ir::Path::from_name(param.clone()), |bound| {
+                collect_expr_free_vars(body, bound, vars);
+            });
+        }
         ExprKind::Apply { callee, arg, .. } => {
-            collect_expr_vars(callee, vars);
-            collect_expr_vars(arg, vars);
+            collect_expr_free_vars(callee, bound, vars);
+            collect_expr_free_vars(arg, bound, vars);
         }
         ExprKind::If {
             cond,
@@ -30,67 +45,66 @@ pub(super) fn collect_expr_vars(expr: &Expr, vars: &mut HashSet<core_ir::Path>) 
             else_branch,
             ..
         } => {
-            collect_expr_vars(cond, vars);
-            collect_expr_vars(then_branch, vars);
-            collect_expr_vars(else_branch, vars);
+            collect_expr_free_vars(cond, bound, vars);
+            collect_expr_free_vars(then_branch, bound, vars);
+            collect_expr_free_vars(else_branch, bound, vars);
         }
         ExprKind::Tuple(items) => {
             for item in items {
-                collect_expr_vars(item, vars);
+                collect_expr_free_vars(item, bound, vars);
             }
         }
         ExprKind::Record { fields, spread } => {
             for field in fields {
-                collect_expr_vars(&field.value, vars);
+                collect_expr_free_vars(&field.value, bound, vars);
             }
             if let Some(spread) = spread {
                 match spread {
                     RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
-                        collect_expr_vars(expr, vars);
+                        collect_expr_free_vars(expr, bound, vars);
                     }
                 }
             }
         }
         ExprKind::Variant {
             value: Some(value), ..
-        } => collect_expr_vars(value, vars),
-        ExprKind::Select { base, .. } => collect_expr_vars(base, vars),
+        } => collect_expr_free_vars(value, bound, vars),
+        ExprKind::Select { base, .. } => collect_expr_free_vars(base, bound, vars),
         ExprKind::Match {
             scrutinee, arms, ..
         } => {
-            collect_expr_vars(scrutinee, vars);
+            collect_expr_free_vars(scrutinee, bound, vars);
             for arm in arms {
-                collect_pattern_default_vars(&arm.pattern, vars);
-                if let Some(guard) = &arm.guard {
-                    collect_expr_vars(guard, vars);
-                }
-                collect_expr_vars(&arm.body, vars);
+                collect_pattern_default_free_vars(&arm.pattern, bound, vars);
+                with_bound_pattern(bound, &arm.pattern, |bound| {
+                    if let Some(guard) = &arm.guard {
+                        collect_expr_free_vars(guard, bound, vars);
+                    }
+                    collect_expr_free_vars(&arm.body, bound, vars);
+                });
             }
         }
         ExprKind::Block { stmts, tail } => {
-            for stmt in stmts {
-                collect_stmt_vars(stmt, vars);
-            }
-            if let Some(tail) = tail {
-                collect_expr_vars(tail, vars);
-            }
+            collect_block_free_vars(stmts, tail.as_deref(), bound, vars);
         }
         ExprKind::Handle { body, arms, .. } => {
-            collect_expr_vars(body, vars);
+            collect_expr_free_vars(body, bound, vars);
             for arm in arms {
-                collect_pattern_default_vars(&arm.payload, vars);
-                if let Some(guard) = &arm.guard {
-                    collect_expr_vars(guard, vars);
-                }
-                collect_expr_vars(&arm.body, vars);
+                collect_pattern_default_free_vars(&arm.payload, bound, vars);
+                with_bound_pattern(bound, &arm.payload, |bound| {
+                    if let Some(guard) = &arm.guard {
+                        collect_expr_free_vars(guard, bound, vars);
+                    }
+                    collect_expr_free_vars(&arm.body, bound, vars);
+                });
             }
         }
         ExprKind::BindHere { expr }
         | ExprKind::Thunk { expr, .. }
         | ExprKind::Coerce { expr, .. }
-        | ExprKind::Pack { expr, .. } => collect_expr_vars(expr, vars),
-        ExprKind::LocalPushId { body, .. } => collect_expr_vars(body, vars),
-        ExprKind::AddId { thunk, .. } => collect_expr_vars(thunk, vars),
+        | ExprKind::Pack { expr, .. } => collect_expr_free_vars(expr, bound, vars),
+        ExprKind::LocalPushId { body, .. } => collect_expr_free_vars(body, bound, vars),
+        ExprKind::AddId { thunk, .. } => collect_expr_free_vars(thunk, bound, vars),
         ExprKind::EffectOp(_)
         | ExprKind::PrimitiveOp(_)
         | ExprKind::Lit(_)
@@ -100,23 +114,73 @@ pub(super) fn collect_expr_vars(expr: &Expr, vars: &mut HashSet<core_ir::Path>) 
     }
 }
 
-fn collect_stmt_vars(stmt: &Stmt, vars: &mut HashSet<core_ir::Path>) {
+fn collect_block_free_vars(
+    stmts: &[Stmt],
+    tail: Option<&Expr>,
+    bound: &mut HashSet<core_ir::Path>,
+    vars: &mut HashSet<core_ir::Path>,
+) {
+    let checkpoint = bound.clone();
+    for stmt in stmts {
+        collect_stmt_free_vars(stmt, bound, vars);
+    }
+    if let Some(tail) = tail {
+        collect_expr_free_vars(tail, bound, vars);
+    }
+    *bound = checkpoint;
+}
+
+fn collect_stmt_free_vars(
+    stmt: &Stmt,
+    bound: &mut HashSet<core_ir::Path>,
+    vars: &mut HashSet<core_ir::Path>,
+) {
     match stmt {
         Stmt::Let { pattern, value } => {
-            collect_pattern_default_vars(pattern, vars);
-            collect_expr_vars(value, vars);
+            collect_pattern_default_free_vars(pattern, bound, vars);
+            collect_expr_free_vars(value, bound, vars);
+            bind_pattern_paths(bound, pattern);
         }
         Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
-            collect_expr_vars(value, vars);
+            collect_expr_free_vars(value, bound, vars);
         }
+    }
+    if let Stmt::Module { def, .. } = stmt {
+        bound.insert(def.clone());
     }
 }
 
-fn collect_pattern_default_vars(pattern: &Pattern, vars: &mut HashSet<core_ir::Path>) {
+fn with_bound_path(
+    bound: &mut HashSet<core_ir::Path>,
+    path: core_ir::Path,
+    f: impl FnOnce(&mut HashSet<core_ir::Path>),
+) {
+    let inserted = bound.insert(path.clone());
+    f(bound);
+    if inserted {
+        bound.remove(&path);
+    }
+}
+
+fn with_bound_pattern(
+    bound: &mut HashSet<core_ir::Path>,
+    pattern: &Pattern,
+    f: impl FnOnce(&mut HashSet<core_ir::Path>),
+) {
+    let checkpoint = bound.clone();
+    bind_pattern_paths(bound, pattern);
+    f(bound);
+    *bound = checkpoint;
+}
+
+fn bind_pattern_paths(bound: &mut HashSet<core_ir::Path>, pattern: &Pattern) {
     match pattern {
+        Pattern::Bind { name, .. } => {
+            bound.insert(core_ir::Path::from_name(name.clone()));
+        }
         Pattern::Tuple { items, .. } => {
             for item in items {
-                collect_pattern_default_vars(item, vars);
+                bind_pattern_paths(bound, item);
             }
         }
         Pattern::List {
@@ -126,38 +190,92 @@ fn collect_pattern_default_vars(pattern: &Pattern, vars: &mut HashSet<core_ir::P
             ..
         } => {
             for item in prefix {
-                collect_pattern_default_vars(item, vars);
+                bind_pattern_paths(bound, item);
             }
             if let Some(spread) = spread {
-                collect_pattern_default_vars(spread, vars);
+                bind_pattern_paths(bound, spread);
             }
             for item in suffix {
-                collect_pattern_default_vars(item, vars);
+                bind_pattern_paths(bound, item);
             }
         }
         Pattern::Record { fields, spread, .. } => {
             for field in fields {
-                if let Some(default) = &field.default {
-                    collect_expr_vars(default, vars);
-                }
-                collect_pattern_default_vars(&field.pattern, vars);
+                bind_pattern_paths(bound, &field.pattern);
             }
             if let Some(spread) = spread {
                 match spread {
                     RecordSpreadPattern::Head(pattern) | RecordSpreadPattern::Tail(pattern) => {
-                        collect_pattern_default_vars(pattern, vars);
+                        bind_pattern_paths(bound, pattern);
                     }
                 }
             }
         }
         Pattern::Variant {
             value: Some(value), ..
-        } => collect_pattern_default_vars(value, vars),
+        } => bind_pattern_paths(bound, value),
         Pattern::Or { left, right, .. } => {
-            collect_pattern_default_vars(left, vars);
-            collect_pattern_default_vars(right, vars);
+            bind_pattern_paths(bound, left);
+            bind_pattern_paths(bound, right);
         }
-        Pattern::As { pattern, .. } => collect_pattern_default_vars(pattern, vars),
+        Pattern::As { pattern, name, .. } => {
+            bind_pattern_paths(bound, pattern);
+            bound.insert(core_ir::Path::from_name(name.clone()));
+        }
+        Pattern::Wildcard { .. } | Pattern::Lit { .. } | Pattern::Variant { value: None, .. } => {}
+    }
+}
+
+fn collect_pattern_default_free_vars(
+    pattern: &Pattern,
+    bound: &mut HashSet<core_ir::Path>,
+    vars: &mut HashSet<core_ir::Path>,
+) {
+    match pattern {
+        Pattern::Tuple { items, .. } => {
+            for item in items {
+                collect_pattern_default_free_vars(item, bound, vars);
+            }
+        }
+        Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix {
+                collect_pattern_default_free_vars(item, bound, vars);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_default_free_vars(spread, bound, vars);
+            }
+            for item in suffix {
+                collect_pattern_default_free_vars(item, bound, vars);
+            }
+        }
+        Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                if let Some(default) = &field.default {
+                    collect_expr_free_vars(default, bound, vars);
+                }
+                collect_pattern_default_free_vars(&field.pattern, bound, vars);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpreadPattern::Head(pattern) | RecordSpreadPattern::Tail(pattern) => {
+                        collect_pattern_default_free_vars(pattern, bound, vars);
+                    }
+                }
+            }
+        }
+        Pattern::Variant {
+            value: Some(value), ..
+        } => collect_pattern_default_free_vars(value, bound, vars),
+        Pattern::Or { left, right, .. } => {
+            collect_pattern_default_free_vars(left, bound, vars);
+            collect_pattern_default_free_vars(right, bound, vars);
+        }
+        Pattern::As { pattern, .. } => collect_pattern_default_free_vars(pattern, bound, vars),
         Pattern::Wildcard { .. }
         | Pattern::Bind { .. }
         | Pattern::Lit { .. }
