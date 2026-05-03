@@ -74,6 +74,8 @@ mod tests {
             graph: &program.graph,
             runtime_symbols: HashMap::new(),
             principal_vars: principal_module_type_vars(&program.program),
+            use_expected_arg_evidence: false,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -163,6 +165,8 @@ mod tests {
                 core_ir::RuntimeSymbolKind::RoleMethod,
             )]),
             principal_vars: BTreeSet::new(),
+            use_expected_arg_evidence: false,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1118,6 +1122,8 @@ mod tests {
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             principal_vars: BTreeSet::new(),
+            use_expected_arg_evidence: false,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1155,6 +1161,65 @@ mod tests {
         };
         assert!(matches!(callee.ty, RuntimeType::Fun { .. }));
         assert_eq!(core_type(&expr.ty), &named_type("int"));
+    }
+
+    #[test]
+    pub(super) fn lower_apply_can_use_expected_arg_evidence_opt_in() {
+        let mut lowerer = Lowerer {
+            env: HashMap::new(),
+            binding_infos: HashMap::new(),
+            aliases: HashMap::new(),
+            graph: &core_ir::CoreGraphView::default(),
+            runtime_symbols: HashMap::new(),
+            principal_vars: BTreeSet::new(),
+            use_expected_arg_evidence: true,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            next_synthetic_type_var: 0,
+            next_effect_id_var: 0,
+        };
+        let callee_path = core_ir::Path::from_name(core_ir::Name("k".to_string()));
+        let arg_path = core_ir::Path::from_name(core_ir::Name("x".to_string()));
+        let mut locals = HashMap::from([
+            (callee_path.clone(), RuntimeType::core(core_ir::Type::Any)),
+            (arg_path.clone(), RuntimeType::core(core_ir::Type::Any)),
+        ]);
+        let expr = core_ir::Expr::Apply {
+            callee: Box::new(core_ir::Expr::Var(callee_path.clone())),
+            arg: Box::new(core_ir::Expr::Var(arg_path.clone())),
+            evidence: Some(core_ir::ApplyEvidence {
+                arg_source_edge: Some(3),
+                callee: core_ir::TypeBounds {
+                    lower: None,
+                    upper: Some(Box::new(core_ir::Type::Any)),
+                },
+                arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
+                expected_arg: Some(core_ir::TypeBounds::exact(named_type("int"))),
+                result: core_ir::TypeBounds::exact(named_type("int")),
+                principal_callee: None,
+                substitutions: Vec::new(),
+                role_method: false,
+            }),
+        };
+
+        let expr = lowerer
+            .lower_expr(
+                expr,
+                Some(&RuntimeType::core(named_type("int"))),
+                &mut locals,
+                TypeSource::RootGraph,
+            )
+            .expect("lowered");
+
+        let ExprKind::Apply { arg, .. } = &expr.kind else {
+            panic!("missing apply");
+        };
+        assert_eq!(core_type(&arg.ty), &named_type("int"));
+        assert_eq!(
+            locals.get(&arg_path),
+            Some(&RuntimeType::core(named_type("int")))
+        );
+        assert_eq!(lowerer.expected_arg_evidence_profile.available, 1);
+        assert!(lowerer.expected_arg_evidence_profile.used >= 1);
     }
 
     #[test]
@@ -1199,6 +1264,8 @@ mod tests {
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             principal_vars: BTreeSet::new(),
+            use_expected_arg_evidence: false,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };

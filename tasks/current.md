@@ -215,6 +215,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - `ExpectedEdgeEvidence` に `runtime_usable` を追加した。value 側では `Never` / `Any` / `Var` を runtime hint として使わず、effect 側では `Never` を empty effect として使える扱いに分ける。
 - type error の `from edge:` は局所的な `error.pos/error.neg` ではなく、選択された edge の coalesced actual/expected bounds と edge id/kind を出すようにした。
 - act copy の `ExprKind::App` は元の `ApplicationArgument` edge id をコピーしないことをテストで固定した。`Coerce` と同じく、コピー後の tv と古い edge id がズレる誤リンクを避ける。
+- `YULANG_USE_EXPECTED_ARG_EVIDENCE=1` の opt-in で、runtime lower が `ApplyEvidence.expected_arg` を引数 lowering の期待型候補として読めるようにした。通常経路は変えず、`YULANG_DEBUG_EXPECTED_ARG_EVIDENCE=1` で available / used / ignored-unusable の counters を出せる。
 - handler adapter は ExpectedEdge だけで足りなければ `ExpectedAdapterEdge` のような別種を考える。
   - `ThunkWrap` / `BindHere` / `HandlerAdapter` / `EffectResidual` の境界として扱う。
 - `RecordField` / `VariantPayload` は lowering を bidirectional にするより、まず annotation edge などから派生する diagnostic 用 `DerivedExpectedEdge` として検討する。

@@ -111,6 +111,8 @@ pub fn lower_principal_module_with_graph(
             .map(|symbol| (symbol.path.clone(), symbol.kind))
             .collect(),
         principal_vars,
+        use_expected_arg_evidence: std::env::var_os("YULANG_USE_EXPECTED_ARG_EVIDENCE").is_some(),
+        expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
         next_synthetic_type_var: 0,
         next_effect_id_var: 0,
     };
@@ -126,6 +128,14 @@ pub fn lower_principal_module_with_graph(
         .enumerate()
         .map(|(index, expr)| lowerer.lower_root_expr(index, expr))
         .collect::<RuntimeResult<Vec<_>>>()?;
+    if std::env::var_os("YULANG_DEBUG_EXPECTED_ARG_EVIDENCE").is_some() {
+        eprintln!(
+            "expected-arg evidence: available={} used={} ignored-unusable={}",
+            lowerer.expected_arg_evidence_profile.available,
+            lowerer.expected_arg_evidence_profile.used,
+            lowerer.expected_arg_evidence_profile.ignored_unusable,
+        );
+    }
     let roots = module
         .roots
         .into_iter()
@@ -200,6 +210,8 @@ struct Lowerer<'a> {
     graph: &'a core_ir::CoreGraphView,
     runtime_symbols: HashMap<core_ir::Path, core_ir::RuntimeSymbolKind>,
     principal_vars: BTreeSet<core_ir::TypeVar>,
+    use_expected_arg_evidence: bool,
+    expected_arg_evidence_profile: ExpectedArgEvidenceProfile,
     next_synthetic_type_var: usize,
     next_effect_id_var: usize,
 }
@@ -209,6 +221,13 @@ struct BindingInfo {
     ty: RuntimeType,
     type_params: Vec<core_ir::TypeVar>,
     requirements: Vec<core_ir::RoleRequirement>,
+}
+
+#[derive(Default)]
+struct ExpectedArgEvidenceProfile {
+    available: usize,
+    used: usize,
+    ignored_unusable: usize,
 }
 
 #[cfg(test)]

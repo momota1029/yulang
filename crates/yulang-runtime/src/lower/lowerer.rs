@@ -206,6 +206,11 @@ impl Lowerer<'_> {
                     .as_ref()
                     .and_then(|evidence| self.tir_argument_runtime_type(&evidence.arg))
                     .map(RuntimeType::core);
+                let evidence_expected_arg = self.expected_arg_evidence_runtime_type(
+                    evidence
+                        .as_ref()
+                        .and_then(|evidence| evidence.expected_arg.as_ref()),
+                );
                 let evidence_result = evidence
                     .as_ref()
                     .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.result))
@@ -269,7 +274,15 @@ impl Lowerer<'_> {
                 }
                 let mut arg = None;
                 let param_hint = fun_parts.as_ref().map(|parts| parts.param.clone());
-                let arg_ty = match choose_apply_arg_type(evidence_arg, param_hint) {
+                let param_or_expected_arg_hint = match (param_hint, evidence_expected_arg.clone()) {
+                    (Some(param_hint), _) => Some(param_hint),
+                    (None, Some(expected_arg)) if self.use_expected_arg_evidence => {
+                        self.expected_arg_evidence_profile.used += 1;
+                        Some(expected_arg)
+                    }
+                    (None, _) => None,
+                };
+                let arg_ty = match choose_apply_arg_type(evidence_arg, param_or_expected_arg_hint) {
                     Some(arg_ty) => arg_ty,
                     None => {
                         let lowered = self.lower_expr(
@@ -325,6 +338,18 @@ impl Lowerer<'_> {
                             }
                         } else if matches!(arg_ty, RuntimeType::Thunk { .. }) {
                             Some(&arg_ty)
+                        } else if let Some(expected_arg_ty) =
+                            evidence_expected_arg.as_ref().filter(|_| {
+                                self.use_expected_arg_evidence
+                                    && can_push_expected_arg_through(
+                                        arg_expr
+                                            .as_ref()
+                                            .expect("arg should be present before lowering"),
+                                    )
+                            })
+                        {
+                            self.expected_arg_evidence_profile.used += 1;
+                            Some(expected_arg_ty)
                         } else if let Some(lower_arg_ty) =
                             evidence_arg_lower.as_ref().filter(|_| {
                                 can_push_expected_arg_through(
@@ -1023,6 +1048,22 @@ impl Lowerer<'_> {
     ) -> Option<RuntimeType> {
         choose_bounds_type(bounds, BoundsChoice::MonomorphicExpected)
             .map(|ty| project_runtime_hir_type_with_vars(&ty, &self.principal_vars))
+    }
+
+    fn expected_arg_evidence_runtime_type(
+        &mut self,
+        bounds: Option<&core_ir::TypeBounds>,
+    ) -> Option<RuntimeType> {
+        let ty = bounds
+            .and_then(|bounds| self.tir_argument_runtime_type(bounds))
+            .map(RuntimeType::core)?;
+        self.expected_arg_evidence_profile.available += 1;
+        if expected_arg_evidence_runtime_usable(&ty) {
+            Some(ty)
+        } else {
+            self.expected_arg_evidence_profile.ignored_unusable += 1;
+            None
+        }
     }
 
     pub(super) fn core_expr_is_effect_operation(

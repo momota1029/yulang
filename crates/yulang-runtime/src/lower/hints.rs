@@ -73,6 +73,15 @@ pub(super) fn choose_apply_arg_type(
     }
 }
 
+pub(super) fn expected_arg_evidence_runtime_usable(ty: &RuntimeType) -> bool {
+    !hir_type_has_type_vars(ty)
+        && !hir_type_is_hole(ty)
+        && !matches!(
+            ty,
+            RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Never | core_ir::Type::Var(_))
+        )
+}
+
 pub(super) fn choose_apply_callee_type(
     evidence_callee: Option<RuntimeType>,
     stored_callee: Option<RuntimeType>,
