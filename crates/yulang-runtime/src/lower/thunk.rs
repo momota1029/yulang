@@ -116,9 +116,9 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
                         expected,
                     );
                     if apply_arg_source_edge(source)
-                        || adapter_source
-                            .as_ref()
-                            .is_some_and(|source| source.has_apply_arg_source_edge)
+                        || adapter_source.as_ref().is_some_and(|source| {
+                            source.has_apply_callee_source_edge || source.has_apply_arg_source_edge
+                        })
                     {
                         profile.apply_evidence_value_to_thunk_with_source_edge += 1;
                     }
@@ -159,9 +159,9 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
                     expected,
                 );
                 if apply_arg_source_edge(source)
-                    || adapter_source
-                        .as_ref()
-                        .is_some_and(|source| source.has_apply_arg_source_edge)
+                    || adapter_source.as_ref().is_some_and(|source| {
+                        source.has_apply_callee_source_edge || source.has_apply_arg_source_edge
+                    })
                 {
                     profile.apply_evidence_thunk_to_value_with_source_edge += 1;
                     profile.apply_evidence_bind_here_with_source_edge += 1;
@@ -213,6 +213,7 @@ fn record_apply_adapter(
             phase,
             owner: adapter_source.owner.clone(),
             apply_target: adapter_source.apply_target.clone(),
+            callee_source_edge: adapter_source.callee_source_edge,
             arg_source_edge: adapter_source.arg_source_edge,
             actual: actual.clone(),
             expected: expected.clone(),
@@ -292,7 +293,9 @@ fn record_apply_adapter_phase(
 pub(super) struct RuntimeAdapterSource {
     pub phase: RuntimeApplyAdapterPhase,
     pub has_apply_evidence: bool,
+    pub has_apply_callee_source_edge: bool,
     pub has_apply_arg_source_edge: bool,
+    pub callee_source_edge: Option<u32>,
     pub arg_source_edge: Option<u32>,
     pub owner: Option<core_ir::Path>,
     pub apply_target: Option<core_ir::Path>,
@@ -305,7 +308,7 @@ impl RuntimeAdapterSource {
         } else {
             profile.apply_evidence_adapter_without_evidence += 1;
         }
-        if self.has_apply_arg_source_edge {
+        if self.has_apply_callee_source_edge || self.has_apply_arg_source_edge {
             profile.apply_evidence_adapter_with_source_edge += 1;
         }
     }

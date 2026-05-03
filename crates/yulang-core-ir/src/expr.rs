@@ -56,6 +56,7 @@ pub enum ExpectedEdgeKind {
     MatchBranch,
     CatchGuard,
     CatchBranch,
+    ApplicationCallee,
     ApplicationArgument,
     Annotation,
     RecordField,
@@ -156,8 +157,10 @@ pub enum PrimitiveOp {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApplyEvidence {
+    pub callee_source_edge: Option<u32>,
     pub arg_source_edge: Option<u32>,
     pub callee: crate::types::TypeBounds,
+    pub expected_callee: Option<crate::types::TypeBounds>,
     pub arg: crate::types::TypeBounds,
     pub expected_arg: Option<crate::types::TypeBounds>,
     pub result: crate::types::TypeBounds,

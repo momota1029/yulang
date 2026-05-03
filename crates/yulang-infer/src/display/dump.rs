@@ -454,6 +454,7 @@ fn format_expected_edge_kind(kind: ExpectedEdgeKind) -> &'static str {
         ExpectedEdgeKind::MatchBranch => "match-branch",
         ExpectedEdgeKind::CatchGuard => "catch-guard",
         ExpectedEdgeKind::CatchBranch => "catch-branch",
+        ExpectedEdgeKind::ApplicationCallee => "application-callee",
         ExpectedEdgeKind::ApplicationArgument => "application-argument",
         ExpectedEdgeKind::Annotation => "annotation",
         ExpectedEdgeKind::RecordField => "record-field",

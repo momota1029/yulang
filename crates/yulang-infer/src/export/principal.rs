@@ -132,6 +132,9 @@ fn export_expected_edge_kind(
         crate::diagnostic::ExpectedEdgeKind::MatchBranch => core_ir::ExpectedEdgeKind::MatchBranch,
         crate::diagnostic::ExpectedEdgeKind::CatchGuard => core_ir::ExpectedEdgeKind::CatchGuard,
         crate::diagnostic::ExpectedEdgeKind::CatchBranch => core_ir::ExpectedEdgeKind::CatchBranch,
+        crate::diagnostic::ExpectedEdgeKind::ApplicationCallee => {
+            core_ir::ExpectedEdgeKind::ApplicationCallee
+        }
         crate::diagnostic::ExpectedEdgeKind::ApplicationArgument => {
             core_ir::ExpectedEdgeKind::ApplicationArgument
         }

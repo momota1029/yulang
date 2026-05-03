@@ -35,11 +35,13 @@ pub(crate) fn make_app_with_cause(
         kind: TypeOriginKind::ApplicationResult,
         label: None,
     });
+    let expected_callee_tv = state.fresh_tv();
     let expected_arg_tv = state.fresh_tv();
     let call_eff = state.fresh_tv();
     let eff = state.fresh_tv();
     if let Some(owner) = cross_owner_function_ref_owner(state, &func) {
         state.infer.add_non_generic_var(owner, tv);
+        state.infer.add_non_generic_var(owner, expected_callee_tv);
         state.infer.add_non_generic_var(owner, expected_arg_tv);
         state.infer.add_non_generic_var(owner, call_eff);
         state.infer.add_non_generic_var(owner, eff);
@@ -92,13 +94,19 @@ pub(crate) fn make_app_with_cause(
     }
 
     state.infer.constrain_with_cause(
-        Pos::Var(func.tv),
+        Pos::Var(expected_callee_tv),
         state.neg_fun(
             Pos::Var(expected_arg_tv),
             Pos::Var(arg_eff_for_slot),
             demanded_ret_eff,
             Neg::Var(tv),
         ),
+        cause.clone(),
+    );
+    let callee_edge_id = state.expect_value(
+        func.tv,
+        expected_callee_tv,
+        ExpectedEdgeKind::ApplicationCallee,
         cause.clone(),
     );
     let arg_edge_id = state.expect_value(
@@ -170,6 +178,8 @@ pub(crate) fn make_app_with_cause(
         kind: ExprKind::App {
             callee: Box::new(func),
             arg: Box::new(arg),
+            callee_edge_id: Some(callee_edge_id),
+            expected_callee_tv,
             arg_edge_id: Some(arg_edge_id),
             expected_arg_tv,
         },

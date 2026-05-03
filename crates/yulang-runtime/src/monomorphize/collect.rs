@@ -1425,6 +1425,8 @@ mod tests {
                         RuntimeType::core(named("unit")),
                     )),
                     evidence: Some(core_ir::ApplyEvidence {
+                        callee_source_edge: None,
+                        expected_callee: None,
                         arg_source_edge: None,
                         callee: core_ir::TypeBounds::exact(core_ir::Type::Fun {
                             param: Box::new(named("unit")),

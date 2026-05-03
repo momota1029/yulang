@@ -183,7 +183,9 @@ mod tests {
             Some(RuntimeAdapterSource {
                 phase: RuntimeApplyAdapterPhase::PrepareFinalArgument,
                 has_apply_evidence: true,
+                has_apply_callee_source_edge: false,
                 has_apply_arg_source_edge: true,
+                callee_source_edge: None,
                 arg_source_edge: Some(7),
                 owner: Some(core_ir::Path::from_name(core_ir::Name("owner".to_string()))),
                 apply_target: Some(core_ir::Path::from_name(core_ir::Name("f".to_string()))),
@@ -611,6 +613,8 @@ mod tests {
                         callee: Box::new(core_ir::Expr::Var(action_path.clone())),
                         arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
                         evidence: Some(core_ir::ApplyEvidence {
+                            callee_source_edge: None,
+                            expected_callee: None,
                             arg_source_edge: None,
                             callee: core_ir::TypeBounds::exact(effect_op_ty),
                             arg: core_ir::TypeBounds::exact(unit_type()),
@@ -630,6 +634,8 @@ mod tests {
                             callee: Box::new(core_ir::Expr::Var(k_path)),
                             arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Bool(true))),
                             evidence: Some(core_ir::ApplyEvidence {
+                                callee_source_edge: None,
+                                expected_callee: None,
                                 arg_source_edge: None,
                                 callee: core_ir::TypeBounds::exact(core_ir::Type::Any),
                                 arg: core_ir::TypeBounds::exact(bool_type()),
@@ -875,6 +881,8 @@ mod tests {
                     callee: Box::new(core_ir::Expr::Var(effect_path.clone())),
                     arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
                     evidence: Some(core_ir::ApplyEvidence {
+                        callee_source_edge: None,
+                        expected_callee: None,
                         arg_source_edge: None,
                         callee: core_ir::TypeBounds::exact(effect_ty),
                         arg: core_ir::TypeBounds::exact(unit_type()),
@@ -947,6 +955,8 @@ mod tests {
                     callee: Box::new(core_ir::Expr::Var(action_path)),
                     arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
                     evidence: Some(core_ir::ApplyEvidence {
+                        callee_source_edge: None,
+                        expected_callee: None,
                         arg_source_edge: None,
                         callee: core_ir::TypeBounds::exact(fn_ty),
                         arg: core_ir::TypeBounds::exact(unit_type()),
@@ -1241,6 +1251,8 @@ mod tests {
                             callee: Box::new(core_ir::Expr::Var(effect_path.clone())),
                             arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
                             evidence: Some(core_ir::ApplyEvidence {
+                                callee_source_edge: None,
+                                expected_callee: None,
                                 arg_source_edge: None,
                                 callee: core_ir::TypeBounds::exact(effect_op_ty),
                                 arg: core_ir::TypeBounds::exact(unit_type()),
@@ -1309,6 +1321,8 @@ mod tests {
             callee: Box::new(core_ir::Expr::Var(local)),
             arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
             evidence: Some(core_ir::ApplyEvidence {
+                callee_source_edge: None,
+                expected_callee: None,
                 arg_source_edge: None,
                 callee: core_ir::TypeBounds {
                     lower: None,
@@ -1367,6 +1381,8 @@ mod tests {
             callee: Box::new(core_ir::Expr::Var(callee_path.clone())),
             arg: Box::new(core_ir::Expr::Var(arg_path.clone())),
             evidence: Some(core_ir::ApplyEvidence {
+                callee_source_edge: None,
+                expected_callee: None,
                 arg_source_edge: Some(3),
                 callee: core_ir::TypeBounds {
                     lower: None,
@@ -1453,6 +1469,8 @@ mod tests {
             callee: Box::new(core_ir::Expr::Var(callee_path)),
             arg: Box::new(core_ir::Expr::Var(arg_path.clone())),
             evidence: Some(core_ir::ApplyEvidence {
+                callee_source_edge: None,
+                expected_callee: None,
                 arg_source_edge: Some(3),
                 callee: core_ir::TypeBounds {
                     lower: None,
@@ -1545,6 +1563,8 @@ mod tests {
             callee: Box::new(core_ir::Expr::Var(callee_path)),
             arg: Box::new(core_ir::Expr::Var(arg_path.clone())),
             evidence: Some(core_ir::ApplyEvidence {
+                callee_source_edge: None,
+                expected_callee: None,
                 arg_source_edge: Some(3),
                 callee: core_ir::TypeBounds {
                     lower: None,
@@ -1687,6 +1707,8 @@ mod tests {
             callee: Box::new(core_ir::Expr::Var(path)),
             arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
             evidence: Some(core_ir::ApplyEvidence {
+                callee_source_edge: None,
+                expected_callee: None,
                 arg_source_edge: None,
                 callee: core_ir::TypeBounds::exact(fn_ty),
                 arg: core_ir::TypeBounds::exact(unit_type()),

@@ -1619,6 +1619,8 @@ mod tests {
     #[test]
     fn apply_evidence_arg_signature_can_use_closed_expected_arg_opt_in() {
         let evidence = core_ir::ApplyEvidence {
+            callee_source_edge: None,
+            expected_callee: None,
             arg_source_edge: Some(1),
             callee: core_ir::TypeBounds::exact(core_ir::Type::Any),
             arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
@@ -1642,6 +1644,8 @@ mod tests {
     #[test]
     fn apply_evidence_arg_signature_ignores_open_expected_arg() {
         let evidence = core_ir::ApplyEvidence {
+            callee_source_edge: None,
+            expected_callee: None,
             arg_source_edge: Some(1),
             callee: core_ir::TypeBounds::exact(core_ir::Type::Any),
             arg: core_ir::TypeBounds::exact(named("str")),

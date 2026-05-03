@@ -933,11 +933,12 @@ fn print_runtime_adapter_event_summary(adapters: &runtime::RuntimeAdapterProfile
                 .map(format_core_path)
                 .unwrap_or_else(|| "<unknown>".to_string());
             eprintln!(
-                "        adapter_event_detail phase={} owner={} target={} kind={} source_edge={:?} actual={:?} expected={:?}",
+                "        adapter_event_detail phase={} owner={} target={} kind={} callee_source_edge={:?} arg_source_edge={:?} actual={:?} expected={:?}",
                 runtime_adapter_phase_name(event.phase),
                 owner,
                 target,
                 runtime_adapter_kind_name(event.kind),
+                event.callee_source_edge,
                 event.arg_source_edge,
                 event.actual,
                 event.expected,
@@ -1493,6 +1494,7 @@ fn infer_expected_edge_is_diagnostic_context(kind: InferExpectedEdgeKind) -> boo
 fn infer_expected_edge_context_label(kind: InferExpectedEdgeKind) -> &'static str {
     match kind {
         InferExpectedEdgeKind::Annotation => "annotation",
+        InferExpectedEdgeKind::ApplicationCallee => "function callee",
         InferExpectedEdgeKind::ApplicationArgument => "function argument",
         InferExpectedEdgeKind::AssignmentValue => "assignment value",
         _ => "context",
@@ -1650,6 +1652,7 @@ fn format_expected_edge_kind(kind: InferExpectedEdgeKind) -> &'static str {
         InferExpectedEdgeKind::MatchBranch => "match-branch",
         InferExpectedEdgeKind::CatchGuard => "catch-guard",
         InferExpectedEdgeKind::CatchBranch => "catch-branch",
+        InferExpectedEdgeKind::ApplicationCallee => "application-callee",
         InferExpectedEdgeKind::ApplicationArgument => "application-argument",
         InferExpectedEdgeKind::Annotation => "annotation",
         InferExpectedEdgeKind::RecordField => "record-field",
@@ -1714,6 +1717,7 @@ fn infer_expected_edge_flow_context(state: &InferLowerState, edge: &InferExpecte
 
 fn infer_expected_edge_actual_label(kind: InferExpectedEdgeKind) -> &'static str {
     match kind {
+        InferExpectedEdgeKind::ApplicationCallee => "callee actual",
         InferExpectedEdgeKind::ApplicationArgument => "argument actual",
         InferExpectedEdgeKind::Annotation => "expression actual",
         InferExpectedEdgeKind::AssignmentValue => "value actual",
@@ -1723,6 +1727,7 @@ fn infer_expected_edge_actual_label(kind: InferExpectedEdgeKind) -> &'static str
 
 fn infer_expected_edge_expected_label(kind: InferExpectedEdgeKind) -> &'static str {
     match kind {
+        InferExpectedEdgeKind::ApplicationCallee => "callable",
         InferExpectedEdgeKind::ApplicationArgument => "parameter",
         InferExpectedEdgeKind::Annotation => "annotation",
         InferExpectedEdgeKind::AssignmentValue => "reference slot",
@@ -1931,6 +1936,7 @@ fn format_core_expected_edge_kind(kind: core_ir::ExpectedEdgeKind) -> &'static s
         core_ir::ExpectedEdgeKind::MatchBranch => "match-branch",
         core_ir::ExpectedEdgeKind::CatchGuard => "catch-guard",
         core_ir::ExpectedEdgeKind::CatchBranch => "catch-branch",
+        core_ir::ExpectedEdgeKind::ApplicationCallee => "application-callee",
         core_ir::ExpectedEdgeKind::ApplicationArgument => "application-argument",
         core_ir::ExpectedEdgeKind::Annotation => "annotation",
         core_ir::ExpectedEdgeKind::RecordField => "record-field",
@@ -2613,11 +2619,20 @@ fn format_apply_evidence(evidence: &core_ir::ApplyEvidence) -> String {
         format_core_bounds(&evidence.arg),
         format_core_bounds(&evidence.result)
     );
+    if let Some(expected_callee) = &evidence.expected_callee {
+        out.push_str(&format!(
+            ", expected-callee={}",
+            format_core_bounds(expected_callee)
+        ));
+    }
     if let Some(expected_arg) = &evidence.expected_arg {
         out.push_str(&format!(
             ", expected-arg={}",
             format_core_bounds(expected_arg)
         ));
+    }
+    if let Some(callee_source_edge) = evidence.callee_source_edge {
+        out.push_str(&format!(", callee-source-edge={callee_source_edge}"));
     }
     if let Some(arg_source_edge) = evidence.arg_source_edge {
         out.push_str(&format!(", arg-source-edge={arg_source_edge}"));
@@ -3723,7 +3738,7 @@ mod tests {
             "function argument expected int; expression provides std::str::str"
         );
         let edge = context.edge.expect("from edge");
-        assert!(edge.starts_with("#1 application-argument argument actual "));
+        assert!(edge.contains("application-argument argument actual "));
         assert!(edge.contains("std::str::str"));
         assert!(edge.contains("=> parameter "));
         assert!(context.detail.is_none());
@@ -3831,6 +3846,8 @@ mod tests {
     #[test]
     fn format_apply_evidence_shows_full_projected_bounds() {
         let evidence = core_ir::ApplyEvidence {
+            callee_source_edge: None,
+            expected_callee: None,
             arg_source_edge: None,
             callee: core_ir::TypeBounds {
                 lower: None,

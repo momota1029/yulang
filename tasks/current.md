@@ -218,6 +218,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - `YULANG_USE_EXPECTED_ARG_EVIDENCE=1` の opt-in で、runtime lower が `ApplyEvidence.expected_arg` を引数 lowering の期待型候補として読めるようにした。通常経路は変えず、`YULANG_DEBUG_EXPECTED_ARG_EVIDENCE=1` で available / used / ignored-unusable の counters を出せる。
 - `YULANG_COALESCE_APPLY_EVIDENCE=1` の apply evidence coalesce に `expected_arg_tv` を含めた。coalesced 経路では `callee / actual arg / expected arg / result` が同じ slot-local relation で整う。
 - `ApplicationArgument` の source edge が `ExpectedEdgeEvidence` と `ApplyEvidence.expected_arg` の両方へつながることをテストで固定した。
+- `ExpectedEdgeKind::ApplicationCallee` を追加した。apply lowering では callee 用の `expected_callee_tv` を作り、`callee.tv <= expected_callee_tv` を `ExpectedEdge` として記録する。core `ApplyEvidence` には `callee_source_edge` / `expected_callee` を追加し、runtime adapter event の `apply.lower-callee` から callee source edge を辿れるようにした。
 - `core_ir::CoreProgram` に `PrincipalEvidence { expected_edges }` table を追加した。`ExpectedEdgeEvidence` は core IR 側にも保存され、`--core-ir --verbose-ir` では `principal-evidence:` として `source_edge` の参照先を読める。
 - runtime lower は `PrincipalEvidence` を受け取り、`ApplyEvidence.arg_source_edge` から対応する `ExpectedEdgeEvidence.runtime_usable` を参照できるようにした。table が無い旧入口では従来通り bounds から保守的に判定する。
 - runtime lower が `source_edge` 先の `ExpectedEdgeEvidence.runtime_usable=false` を尊重し、`ApplyEvidence.expected_arg` を使わないことをテストで固定した。

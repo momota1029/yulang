@@ -30,6 +30,8 @@ pub enum ExprKind {
     App {
         callee: Box<TypedExpr>,
         arg: Box<TypedExpr>,
+        callee_edge_id: Option<crate::diagnostic::ExpectedEdgeId>,
+        expected_callee_tv: TypeVar,
         arg_edge_id: Option<crate::diagnostic::ExpectedEdgeId>,
         expected_arg_tv: TypeVar,
     },

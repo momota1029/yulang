@@ -62,6 +62,8 @@ impl<'a> ExprExporter<'a> {
             ExprKind::App {
                 callee,
                 arg,
+                callee_edge_id,
+                expected_callee_tv,
                 arg_edge_id,
                 expected_arg_tv,
             } => core_ir::Expr::Apply {
@@ -71,6 +73,8 @@ impl<'a> ExprExporter<'a> {
                     callee,
                     arg,
                     expr,
+                    *callee_edge_id,
+                    *expected_callee_tv,
                     *arg_edge_id,
                     *expected_arg_tv,
                 )),
@@ -130,12 +134,14 @@ impl<'a> ExprExporter<'a> {
                         callee: Box::new(core_ir::Expr::Var(self.path_for_def(def))),
                         arg: Box::new(self.export_expr(recv)),
                         evidence: Some(core_ir::ApplyEvidence {
+                            callee_source_edge: None,
                             arg_source_edge: None,
                             callee: export_relevant_type_bounds_for_tv(
                                 &self.state.infer,
                                 callee_tv,
                                 &self.relevant_vars,
                             ),
+                            expected_callee: None,
                             arg: export_relevant_type_bounds_for_tv(
                                 &self.state.infer,
                                 recv.tv,
@@ -159,12 +165,14 @@ impl<'a> ExprExporter<'a> {
                         callee: Box::new(core_ir::Expr::Var(self.path_for_def(def))),
                         arg: Box::new(self.export_expr(recv)),
                         evidence: Some(core_ir::ApplyEvidence {
+                            callee_source_edge: None,
                             arg_source_edge: None,
                             callee: export_relevant_type_bounds_for_tv(
                                 &self.state.infer,
                                 callee_tv,
                                 &self.relevant_vars,
                             ),
+                            expected_callee: None,
                             arg: export_relevant_type_bounds_for_tv(
                                 &self.state.infer,
                                 recv.tv,
@@ -336,10 +344,17 @@ impl<'a> ExprExporter<'a> {
         callee: &TypedExpr,
         arg: &TypedExpr,
         result: &TypedExpr,
+        callee_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
+        expected_callee_tv: TypeVar,
         arg_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
         expected_arg_tv: TypeVar,
     ) -> core_ir::ApplyEvidence {
         let role_method = self.is_role_method_callee(callee);
+        let expected_callee = export_relevant_type_bounds_for_tv(
+            &self.state.infer,
+            expected_callee_tv,
+            &self.relevant_vars,
+        );
         let expected_arg = export_relevant_type_bounds_for_tv(
             &self.state.infer,
             expected_arg_tv,
@@ -356,8 +371,10 @@ impl<'a> ExprExporter<'a> {
                     &self.relevant_vars,
                 );
             return core_ir::ApplyEvidence {
+                callee_source_edge: callee_source_edge.map(|id| id.0),
                 arg_source_edge: arg_source_edge.map(|id| id.0),
                 callee: callee_bounds,
+                expected_callee: Some(expected_callee),
                 arg,
                 expected_arg: Some(expected_arg),
                 result,
@@ -367,6 +384,7 @@ impl<'a> ExprExporter<'a> {
             };
         }
         let mut evidence = core_ir::ApplyEvidence {
+            callee_source_edge: callee_source_edge.map(|id| id.0),
             arg_source_edge: arg_source_edge.map(|id| id.0),
             callee: if self.relevant_vars.is_empty() && !role_method {
                 core_ir::TypeBounds::default()
@@ -377,6 +395,7 @@ impl<'a> ExprExporter<'a> {
                     &self.relevant_vars,
                 )
             },
+            expected_callee: Some(expected_callee),
             arg: export_relevant_type_bounds_for_tv(&self.state.infer, arg.tv, &self.relevant_vars),
             expected_arg: Some(expected_arg),
             result: export_relevant_type_bounds_for_tv(

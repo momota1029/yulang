@@ -74,6 +74,7 @@ fn assert_expected_edge_reason_matches_kind(edge: &diagnostic::ExpectedEdge) {
             | (Kind::MatchBranch, Reason::MatchBranch)
             | (Kind::CatchGuard, Reason::CatchGuard)
             | (Kind::CatchBranch, Reason::CatchBranch)
+            | (Kind::ApplicationCallee, Reason::ApplyArg)
             | (Kind::ApplicationArgument, Reason::ApplyArg)
             | (Kind::Annotation, Reason::Annotation)
             | (Kind::AssignmentValue, Reason::AssignmentValue)
@@ -273,6 +274,74 @@ fn application_argument_records_expected_edge() {
         .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::ApplicationArgument)
         .count();
     assert_eq!(application_edges, 1);
+}
+
+#[test]
+fn application_callee_records_expected_edge() {
+    let state = parse_and_lower("my id x = x\nmy y = id 1");
+    let application_edges = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::ApplicationCallee)
+        .count();
+    assert_eq!(application_edges, 1);
+}
+
+#[test]
+fn application_callee_edge_links_to_apply_evidence() {
+    let mut state = parse_and_lower("my id(x: int) = x\nid 1");
+    let application_edge_ids = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::ApplicationCallee)
+        .map(|edge| edge.id.0)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(
+        !application_edge_ids.is_empty(),
+        "expected application callee edge"
+    );
+
+    let program = export_core_program(&mut state);
+    let evidence_source_edges = apply_evidence_callee_source_edges_in_module(&program.program);
+    assert!(
+        application_edge_ids
+            .iter()
+            .all(|edge_id| evidence_source_edges.contains(edge_id)),
+        "expected every application callee edge to have matching ApplyEvidence source, edges={application_edge_ids:?}, evidence_sources={evidence_source_edges:?}",
+    );
+}
+
+#[test]
+fn application_callee_edge_links_to_expected_callee_evidence() {
+    let mut state = parse_and_lower("my id(x: int) = x\nid 1");
+    let application_edge_ids = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::ApplicationCallee)
+        .map(|edge| edge.id.0)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(
+        !application_edge_ids.is_empty(),
+        "expected application callee edge"
+    );
+
+    let program = export_core_program(&mut state);
+    let apply_evidence = apply_evidence_callee_source_expected_callees_in_module(&program.program);
+    for edge_id in &application_edge_ids {
+        let expected_callee = apply_evidence
+            .iter()
+            .find_map(|(source_edge, expected_callee)| {
+                (*source_edge == *edge_id).then_some(expected_callee)
+            })
+            .unwrap_or_else(|| panic!("missing apply evidence for callee source edge #{edge_id}"));
+        let expected_callee = expected_callee
+            .as_ref()
+            .unwrap_or_else(|| panic!("missing expected_callee for callee source edge #{edge_id}"));
+        assert!(
+            expected_callee.lower.is_some() || expected_callee.upper.is_some(),
+            "expected ApplyEvidence.expected_callee to expose bounds for source edge #{edge_id}: {expected_callee:?}",
+        );
+    }
 }
 
 #[test]
@@ -620,6 +689,34 @@ fn apply_evidence_source_edges_in_module(
     source_edges
 }
 
+fn apply_evidence_callee_source_edges_in_module(
+    module: &yulang_core_ir::PrincipalModule,
+) -> std::collections::BTreeSet<u32> {
+    let mut source_edges = std::collections::BTreeSet::new();
+    for binding in &module.bindings {
+        collect_apply_evidence_callee_source_edges(&binding.body, &mut source_edges);
+    }
+    for expr in &module.root_exprs {
+        collect_apply_evidence_callee_source_edges(expr, &mut source_edges);
+    }
+    source_edges
+}
+
+fn collect_apply_evidence_callee_source_edges(
+    expr: &yulang_core_ir::Expr,
+    source_edges: &mut std::collections::BTreeSet<u32>,
+) {
+    visit_core_expr(expr, &mut |expr| {
+        if let yulang_core_ir::Expr::Apply { evidence, .. } = expr
+            && let Some(source_edge) = evidence
+                .as_ref()
+                .and_then(|evidence| evidence.callee_source_edge)
+        {
+            source_edges.insert(source_edge);
+        }
+    });
+}
+
 fn collect_apply_evidence_source_edges(
     expr: &yulang_core_ir::Expr,
     source_edges: &mut std::collections::BTreeSet<u32>,
@@ -631,6 +728,33 @@ fn collect_apply_evidence_source_edges(
                 .and_then(|evidence| evidence.arg_source_edge)
         {
             source_edges.insert(source_edge);
+        }
+    });
+}
+
+fn apply_evidence_callee_source_expected_callees_in_module(
+    module: &yulang_core_ir::PrincipalModule,
+) -> Vec<(u32, Option<yulang_core_ir::TypeBounds>)> {
+    let mut source_edges = Vec::new();
+    for binding in &module.bindings {
+        collect_apply_evidence_callee_source_expected_callees(&binding.body, &mut source_edges);
+    }
+    for expr in &module.root_exprs {
+        collect_apply_evidence_callee_source_expected_callees(expr, &mut source_edges);
+    }
+    source_edges
+}
+
+fn collect_apply_evidence_callee_source_expected_callees(
+    expr: &yulang_core_ir::Expr,
+    source_edges: &mut Vec<(u32, Option<yulang_core_ir::TypeBounds>)>,
+) {
+    visit_core_expr(expr, &mut |expr| {
+        if let yulang_core_ir::Expr::Apply { evidence, .. } = expr
+            && let Some(evidence) = evidence
+            && let Some(source_edge) = evidence.callee_source_edge
+        {
+            source_edges.push((source_edge, evidence.expected_callee.clone()));
         }
     });
 }

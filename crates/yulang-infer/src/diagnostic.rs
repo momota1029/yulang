@@ -76,6 +76,7 @@ pub enum ExpectedEdgeKind {
     MatchBranch,
     CatchGuard,
     CatchBranch,
+    ApplicationCallee,
     ApplicationArgument,
     Annotation,
     RecordField,

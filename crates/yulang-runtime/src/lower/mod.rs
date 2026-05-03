@@ -127,6 +127,7 @@ pub struct RuntimeAdapterEvent {
     pub phase: RuntimeApplyAdapterPhase,
     pub owner: Option<core_ir::Path>,
     pub apply_target: Option<core_ir::Path>,
+    pub callee_source_edge: Option<u32>,
     pub arg_source_edge: Option<u32>,
     pub actual: RuntimeType,
     pub expected: RuntimeType,
@@ -387,12 +388,21 @@ fn expected_adapter_edge_matches_event(
     if expected_adapter_event_kind(edge.kind) != Some(event.kind) {
         return false;
     }
-    if let Some(source_edge) = event.arg_source_edge
+    if let Some(source_edge) = runtime_adapter_event_source_edge(event)
         && edge.source_expected_edge != Some(source_edge)
     {
         return false;
     }
     true
+}
+
+fn runtime_adapter_event_source_edge(event: &RuntimeAdapterEvent) -> Option<u32> {
+    match event.phase {
+        RuntimeApplyAdapterPhase::LowerCallee => event.callee_source_edge,
+        RuntimeApplyAdapterPhase::LowerArgument
+        | RuntimeApplyAdapterPhase::PrepareFinalArgument
+        | RuntimeApplyAdapterPhase::PrepareEffectOperationArgument => event.arg_source_edge,
+    }
 }
 
 fn expected_adapter_event_kind(

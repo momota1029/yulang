@@ -54,6 +54,8 @@ fn transform_copied_expr_kind(
         ExprKind::App {
             callee,
             arg,
+            callee_edge_id: _,
+            expected_callee_tv,
             arg_edge_id: _,
             expected_arg_tv,
         } => ExprKind::App {
@@ -61,6 +63,8 @@ fn transform_copied_expr_kind(
                 types, callee, def_subst,
             )),
             arg: Box::new(transform_copied_principal_body_inner(types, arg, def_subst)),
+            callee_edge_id: None,
+            expected_callee_tv: types.copy_tv(*expected_callee_tv),
             arg_edge_id: None,
             expected_arg_tv: types.copy_tv(*expected_arg_tv),
         },
@@ -230,6 +234,7 @@ mod tests {
         let arg_tv = state.fresh_tv();
         let result_tv = state.fresh_tv();
         let expected_arg_tv = state.fresh_tv();
+        let expected_callee_tv = state.fresh_tv();
         let eff = state.fresh_tv();
         let expr = TypedExpr {
             tv: result_tv,
@@ -237,6 +242,8 @@ mod tests {
             kind: ExprKind::App {
                 callee: Box::new(unit_expr(callee_tv, eff)),
                 arg: Box::new(unit_expr(arg_tv, eff)),
+                callee_edge_id: Some(ExpectedEdgeId(8)),
+                expected_callee_tv,
                 arg_edge_id: Some(ExpectedEdgeId(9)),
                 expected_arg_tv,
             },
@@ -245,6 +252,8 @@ mod tests {
         let copied = copy_expr(&mut state, &expr);
 
         let ExprKind::App {
+            callee_edge_id,
+            expected_callee_tv: copied_expected_callee_tv,
             arg_edge_id,
             expected_arg_tv: copied_expected_arg_tv,
             ..
@@ -252,7 +261,9 @@ mod tests {
         else {
             panic!("expected copied app");
         };
+        assert_eq!(callee_edge_id, None);
         assert_eq!(arg_edge_id, None);
+        assert_ne!(copied_expected_callee_tv, expected_callee_tv);
         assert_ne!(copied_expected_arg_tv, expected_arg_tv);
     }
 

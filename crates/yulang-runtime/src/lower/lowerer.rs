@@ -196,7 +196,8 @@ impl Lowerer<'_> {
                 evidence,
             } => {
                 if let Some(evidence) = &evidence {
-                    self.validate_apply_source_edge(evidence.arg_source_edge);
+                    self.validate_apply_callee_source_edge(evidence.callee_source_edge);
+                    self.validate_apply_arg_source_edge(evidence.arg_source_edge);
                 }
                 let mut callee_expr = Some(*callee);
                 let mut arg_expr = Some(*arg);
@@ -998,8 +999,11 @@ impl Lowerer<'_> {
         RuntimeAdapterSource {
             phase,
             has_apply_evidence: evidence.is_some(),
+            has_apply_callee_source_edge: evidence
+                .is_some_and(|evidence| evidence.callee_source_edge.is_some()),
             has_apply_arg_source_edge: evidence
                 .is_some_and(|evidence| evidence.arg_source_edge.is_some()),
+            callee_source_edge: evidence.and_then(|evidence| evidence.callee_source_edge),
             arg_source_edge: evidence.and_then(|evidence| evidence.arg_source_edge),
             owner: self.current_binding.clone(),
             apply_target: apply_target.cloned(),
@@ -1324,7 +1328,13 @@ impl Lowerer<'_> {
         usable
     }
 
-    fn validate_apply_source_edge(&self, source_edge: Option<u32>) {
+    fn validate_apply_callee_source_edge(&self, source_edge: Option<u32>) {
+        if let Some(edge) = source_edge.and_then(|id| self.expected_edge(id)) {
+            debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::ApplicationCallee);
+        }
+    }
+
+    fn validate_apply_arg_source_edge(&self, source_edge: Option<u32>) {
         if let Some(edge) = source_edge.and_then(|id| self.expected_edge(id)) {
             debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::ApplicationArgument);
         }
