@@ -94,6 +94,9 @@ pub(super) fn prepare_expr_for_expected_profiled(
                 let value = more_informative_hir_type(value, &expr.ty);
                 let ty = RuntimeType::thunk(effect.clone(), value.clone());
                 profile.value_to_thunk += 1;
+                if matches!(source, TypeSource::ApplyEvidence) {
+                    profile.apply_evidence_value_to_thunk += 1;
+                }
                 Ok(Expr::typed(
                     ExprKind::Thunk {
                         effect: effect.clone(),
@@ -110,6 +113,12 @@ pub(super) fn prepare_expr_for_expected_profiled(
             Ok(expr)
         }
         _ => {
+            if matches!(expr.ty, RuntimeType::Thunk { .. })
+                && matches!(source, TypeSource::ApplyEvidence)
+            {
+                profile.apply_evidence_thunk_to_value += 1;
+                profile.apply_evidence_bind_here += 1;
+            }
             let (expr, actual) = force_value_expr_profiled(expr, profile);
             require_same_hir_type(expected, &actual, source)?;
             Ok(expr)

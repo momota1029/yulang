@@ -761,10 +761,13 @@ fn print_runtime_phase_timings(
     );
     let adapters = &profile.lower_profile.runtime_adapters;
     eprintln!(
-        "    runtime_adapters: value_to_thunk={}, thunk_to_value={}, bind_here={}, reused_thunk={}, forced_effect_thunk={}",
+        "    runtime_adapters: value_to_thunk={}, thunk_to_value={}, bind_here={}, apply_evidence_value_to_thunk={}, apply_evidence_thunk_to_value={}, apply_evidence_bind_here={}, reused_thunk={}, forced_effect_thunk={}",
         adapters.value_to_thunk,
         adapters.thunk_to_value,
         adapters.bind_here,
+        adapters.apply_evidence_value_to_thunk,
+        adapters.apply_evidence_thunk_to_value,
+        adapters.apply_evidence_bind_here,
         adapters.reused_thunk,
         adapters.forced_effect_thunk,
     );

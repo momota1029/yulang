@@ -90,6 +90,9 @@ pub struct RuntimeAdapterProfile {
     pub value_to_thunk: usize,
     pub thunk_to_value: usize,
     pub bind_here: usize,
+    pub apply_evidence_value_to_thunk: usize,
+    pub apply_evidence_thunk_to_value: usize,
+    pub apply_evidence_bind_here: usize,
     pub reused_thunk: usize,
     pub forced_effect_thunk: usize,
 }
@@ -248,10 +251,17 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
     }
     if std::env::var_os("YULANG_DEBUG_RUNTIME_ADAPTERS").is_some() {
         eprintln!(
-            "runtime adapters: value-to-thunk={} thunk-to-value={} bind-here={} reused-thunk={} forced-effect-thunk={}",
+            "runtime adapters: value-to-thunk={} thunk-to-value={} bind-here={} apply-evidence-value-to-thunk={} apply-evidence-thunk-to-value={} apply-evidence-bind-here={} reused-thunk={} forced-effect-thunk={}",
             lowerer.runtime_adapter_profile.value_to_thunk,
             lowerer.runtime_adapter_profile.thunk_to_value,
             lowerer.runtime_adapter_profile.bind_here,
+            lowerer
+                .runtime_adapter_profile
+                .apply_evidence_value_to_thunk,
+            lowerer
+                .runtime_adapter_profile
+                .apply_evidence_thunk_to_value,
+            lowerer.runtime_adapter_profile.apply_evidence_bind_here,
             lowerer.runtime_adapter_profile.reused_thunk,
             lowerer.runtime_adapter_profile.forced_effect_thunk,
         );
