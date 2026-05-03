@@ -447,6 +447,17 @@ fn catch_records_handler_adapter_edges() {
     assert!(handler_return.actual_effect.is_some());
     assert!(handler_return.expected_effect.is_some());
 
+    let resume_arg = state
+        .expected_adapter_edges
+        .iter()
+        .find(|edge| edge.kind == diagnostic::ExpectedAdapterEdgeKind::ResumeArgument)
+        .expect("resume argument adapter edge");
+    assert!(resume_arg.source_expected_edge.is_some());
+    assert!(resume_arg.actual_value.is_some());
+    assert!(resume_arg.expected_value.is_some());
+    assert!(resume_arg.actual_effect.is_some());
+    assert!(resume_arg.expected_effect.is_some());
+
     let program = export_core_program(&mut state);
     assert!(
         program
@@ -461,6 +472,13 @@ fn catch_records_handler_adapter_edges() {
             .expected_adapter_edges
             .iter()
             .any(|edge| edge.kind == yulang_core_ir::ExpectedAdapterEdgeKind::HandlerReturn)
+    );
+    assert!(
+        program
+            .evidence
+            .expected_adapter_edges
+            .iter()
+            .any(|edge| edge.kind == yulang_core_ir::ExpectedAdapterEdgeKind::ResumeArgument)
     );
 }
 

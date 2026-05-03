@@ -233,6 +233,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - `CoreProgram.evidence` に expected adapter edge table も載せるようにした。`--core-ir --verbose-ir` では principal evidence の adapter edges として表示できる。
 - runtime lower 側にも `YULANG_DEBUG_RUNTIME_ADAPTERS=1` の profile を追加した。`value-to-thunk` / `thunk-to-value` / `bind-here` / `reused-thunk` / `forced-effect-thunk` を数え、ExpectedAdapterEdge がまだ直接届いていない runtime adapter 挿入点を観測できる。
 - `catch` lowering で handler boundary の adapter evidence を置き始めた。handled effect がある `catch` は `HandlerResidual`、各 arm body の result join は source `CatchBranch` edge 付きの `HandlerReturn` として core evidence table まで運ぶ。
+- continuation application は `ResumeArgument` adapter edge として記録するようにした。通常の `ApplicationArgument` source edge にリンクし、resume に渡す値/effect の actual/expected slot を core evidence table で見られる。
 - handler adapter は ExpectedEdge だけで足りなければ `ExpectedAdapterEdge` のような別種を考える。
   - `ThunkWrap` / `BindHere` / `HandlerAdapter` / `EffectResidual` の境界として扱う。
 - `RecordField` / `VariantPayload` は lowering を bidirectional にせず、まず annotation edge などから派生する diagnostic 用 `DerivedExpectedEdge` として始めた。nominal constructor payload などの追加は、expected slot が見える場所から広げる。

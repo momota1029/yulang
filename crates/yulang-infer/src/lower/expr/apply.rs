@@ -115,7 +115,18 @@ pub(crate) fn make_app_with_cause(
             Some(expected_arg_tv),
             Some(arg.eff),
             Some(arg_eff_for_slot),
-            cause,
+            cause.clone(),
+        );
+    }
+    if matches!(&func.kind, ExprKind::Var(def) if state.is_continuation_def(*def)) {
+        state.record_expected_adapter_edge(
+            ExpectedAdapterEdgeKind::ResumeArgument,
+            Some(arg_edge_id),
+            Some(arg.tv),
+            Some(expected_arg_tv),
+            Some(arg.eff),
+            Some(arg_eff_for_slot),
+            cause.clone(),
         );
     }
     if pure_argument_slot {
