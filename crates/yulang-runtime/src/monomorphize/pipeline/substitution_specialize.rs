@@ -417,7 +417,7 @@ impl SubstitutionSpecializer {
             debug_arg_mismatch(spine.target, &spine.args, &params);
             return None;
         }
-        let Some(adapted_args) = adapted_args else {
+        let Some(mut adapted_args) = adapted_args else {
             self.bump("skip-arg-mismatch");
             debug_arg_mismatch(spine.target, &spine.args, &params);
             return None;
@@ -437,14 +437,25 @@ impl SubstitutionSpecializer {
             debug_handler_binding_plan(spine.target, info, &boundary, &plan);
             (boundary, plan)
         });
+        let mut use_original_handler_target = false;
         if let Some((boundary, plan)) = handler_plan.as_ref()
             && !handler_plan_is_supported(boundary, plan)
         {
-            self.bump("skip-handler-plan");
-            debug_handler_plan_skip(spine.target, boundary, plan);
-            return None;
+            if handler_call_adapter_enabled()
+                && adapt_handler_call_site_args(&mut adapted_args, plan).is_some()
+            {
+                self.bump("handler-call-adapter");
+                use_original_handler_target = true;
+                debug_handler_call_adapter(spine.target, plan);
+            } else {
+                self.bump("skip-handler-plan");
+                debug_handler_plan_skip(spine.target, boundary, plan);
+                return None;
+            }
         }
-        let path = if binding_substitutions.is_empty() && handler_plan.is_none() {
+        let path = if use_original_handler_target
+            || (binding_substitutions.is_empty() && handler_plan.is_none())
+        {
             original.name.clone()
         } else {
             self.intern_specialization(
@@ -968,6 +979,45 @@ fn handler_plan_is_supported(boundary: &HandlerCallBoundary, plan: &HandlerAdapt
         && plan.residual_after.as_ref().is_none_or(effect_is_empty)
         && (plan.return_wrapper_effect.is_none()
             || std::env::var_os("YULANG_SUBST_SPECIALIZE_HANDLER_RETURN").is_some())
+}
+
+fn handler_call_adapter_enabled() -> bool {
+    std::env::var_os("YULANG_SUBST_SPECIALIZE_HANDLER_CALL_ADAPTER").is_some()
+}
+
+fn adapt_handler_call_site_args(args: &mut [Expr], plan: &HandlerAdapterPlan) -> Option<()> {
+    let effect = plan.residual_before.as_ref()?;
+    let first = args.first_mut()?;
+    let RuntimeType::Thunk { value, .. } = &first.ty else {
+        return None;
+    };
+    let value = value.as_ref().clone();
+    let lifted_ty = RuntimeType::thunk(effect.clone(), value.clone());
+    let forced = Expr::typed(
+        ExprKind::BindHere {
+            expr: Box::new(first.clone()),
+        },
+        value.clone(),
+    );
+    *first = Expr::typed(
+        ExprKind::Thunk {
+            effect: effect.clone(),
+            value,
+            expr: Box::new(forced),
+        },
+        lifted_ty,
+    );
+    Some(())
+}
+
+fn debug_handler_call_adapter(target: &core_ir::Path, plan: &HandlerAdapterPlan) {
+    if std::env::var_os("YULANG_DEBUG_SUBST_SPECIALIZE").is_none() {
+        return;
+    }
+    eprintln!(
+        "subst specialize handler-call-adapter {target:?}: lifted_input_effect={:?}",
+        plan.residual_before
+    );
 }
 
 fn debug_handler_plan_skip(
