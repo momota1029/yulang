@@ -696,7 +696,7 @@ fn lower_runtime_module_or_exit(
     let lower_output = match runtime::lower_core_program_profiled(program.clone()) {
         Ok(output) => output,
         Err(err) => {
-            eprintln!("failed to lower runtime IR: {err}");
+            eprintln!("error: {err}");
             process::exit(1);
         }
     };
@@ -707,7 +707,7 @@ fn lower_runtime_module_or_exit(
     let (module, monomorphize_profile) = match runtime::monomorphize_module_profiled(module) {
         Ok(output) => output,
         Err(err) => {
-            eprintln!("failed to lower runtime IR: {err}");
+            eprintln!("error: {err}");
             process::exit(1);
         }
     };

@@ -136,24 +136,23 @@ This usually means a name, field, method, or operator could not be resolved."
             } => {
                 let context = match source {
                     TypeSource::ApplyEvidence | TypeSource::ApplyCalleeEvidence => {
-                        "while applying a function"
+                        "function application"
                     }
-                    TypeSource::ApplyArgumentEvidence => "while checking a function argument",
-                    TypeSource::ApplyArgumentSourceEdge => "while checking a function argument",
-                    TypeSource::JoinEvidence => "while joining branch results",
-                    TypeSource::RootGraph => "while checking a top-level expression",
-                    TypeSource::BindingScheme | TypeSource::BindingGraph => {
-                        "while checking a binding"
+                    TypeSource::ApplyArgumentEvidence | TypeSource::ApplyArgumentSourceEdge => {
+                        "function argument"
                     }
-                    TypeSource::Local => "while checking a local value",
-                    TypeSource::Literal => "while checking a literal",
-                    TypeSource::Structural => "while checking a structured value",
-                    TypeSource::Validation => "while validating runtime IR",
-                    TypeSource::Expected => "while checking an expected type",
+                    TypeSource::JoinEvidence => "branch result",
+                    TypeSource::RootGraph => "top-level expression",
+                    TypeSource::BindingScheme | TypeSource::BindingGraph => "binding",
+                    TypeSource::Local => "local value",
+                    TypeSource::Literal => "literal",
+                    TypeSource::Structural => "structured value",
+                    TypeSource::Validation => "runtime validation",
+                    TypeSource::Expected => "expected type",
                 };
                 write!(
                     f,
-                    "type mismatch {context}: expected {}, got {}",
+                    "{context} type mismatch: expected {}, got {}",
                     display_type(expected),
                     display_type(actual)
                 )
@@ -371,7 +370,7 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "type mismatch while applying a function: expected bool -> bool, got int -> int"
+            "function application type mismatch: expected bool -> bool, got int -> int"
         );
     }
 

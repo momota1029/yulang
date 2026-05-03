@@ -175,7 +175,7 @@ g
                 assert!(!output.ok);
                 let message = &output.diagnostics[0].message;
                 assert!(
-                    message.contains("type mismatch while applying a function"),
+                    message.contains("function application type mismatch"),
                     "{message}"
                 );
                 assert!(message.contains("expected bool -> bool"), "{message}");
