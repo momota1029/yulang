@@ -42,6 +42,21 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 
 この pass が存在する場合、pipeline の前半で先に走らせる。後半の `DemandSpecialize` / `RefineTypes` / `RefreshClosedSchemes` / role fixpoint は互換用として残し、`added_specializations` や changed binding 数がどれだけ減るかを測る。
 
+## Elaboration Direction
+
+`SubstitutionSpecialize` は「主型に型代入を入れる」だけでは足りない。subtyping / effect / thunk / handler boundary では、型が合わない位置をあとから探すのではなく、infer/lower の制約生成時点で `CastHole` / `AdapterHole` に相当する evidence を置く必要がある。
+
+この方向では、各式に少なくとも次の 2 種類の型を区別して持たせる。
+
+- intrinsic type: その式が自然に合成した型。
+- contextual type: 親の文脈から期待され、cast / adapter 後に使われる型。
+
+`A <= B` が必要な境界では、`CastHole(origin, A, B)` のような evidence を作る。runtime はその hole を見て、値の `Coerce`、value-to-thunk wrapper、thunk-to-value `BindHere`、handler adapter のいずれかを埋める。これにより、主型代入で合う場所は単純に clone し、合わない場所だけを syntax-directed に elaboration できる。
+
+`complete_principal` の責務は、今の `principal_callee + substitutions` 生成から、最終的には「principal elaboration evidence」生成へ広げる。まずは既存の `ApplyEvidence` に近い位置で、callee / arg / result の intrinsic/contextual 型と adapter hole を opt-in で持たせる。infer 全体を bidirectional typing へ一気に書き換えるのではなく、apply evidence と handler boundary から段階的に進める。
+
+`HandlerAdapterPlan` は、この `AdapterHole` の effect/thunk 版として扱う。`std::flow::sub::sub` のように型代入だけでは clone できない binding は、handler boundary に adapter hole が足りないケースと見なし、hole がない間は旧 demand-driven path へ明示的に落とす。
+
 ## Initial Findings
 
 - `Infer` は union-find のような全体等価クラスを持っていない。型変数の情報は主に `lower: TypeVar -> PosId[]` と `upper: TypeVar -> NegId[]` に入る。
@@ -144,6 +159,8 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 22. `HandlerAdapterPlan` を追加し、`HandlerBindingInfo + HandlerCallBoundary` から `residual_before`、`residual_after`、`return_wrapper_effect` を構造的に計算できるようにした。`std::flow::sub::sub` では plan が `sub + junction + tail` を before、`junction + tail` を after として出す。`std::junction::junction::junction` では before が `junction + tail`、after が `tail` になる。まだ clone は解禁せず、まず adapter の材料を debug と単体テストで固定した。
 23. `YULANG_SUBST_SPECIALIZE_HANDLERS=1` の opt-in で、handler binding の substitution clone に `HandlerAdapterPlan` を流せるようにした。clone 側では最初の `Handle` に `residual_before` / `residual_after` を設定し、return wrapper は別 opt-in `YULANG_SUBST_SPECIALIZE_HANDLER_RETURN=1` に分けた。実験では `std::flow::sub::sub` のように consumed effect が call site input から消えていて residual_after が残る handler を clone すると `junction` が 38 passes に悪化する。一方で `std::junction::junction::junction` のように call site input が consumed effect を持ち、residual_after が空になる handler だけに絞ると、挙動は壊れず `junction` は 14 passes / 9 specializations のまま。つまり次の問題は return wrapper 以前に、「消費 effect が主型側にだけ残る handler」を clone 可能な形へ落とすこと。
 24. `YULANG_SUBST_SPECIALIZE_HANDLER_CALL_ADAPTER=1` の opt-in で、unsupported handler plan のときに handler clone は作らず、call site の第 1 引数 thunk だけを `plan.residual_before` の effect へ持ち上げる経路を追加した。`std::flow::sub::sub` では `junction` thunk を `sub + junction` へ包み直してから旧 demand 側へ渡す。これは 38 passes には悪化しないが、`junction` は 14 passes / 9 specializations のままで削減にもつながらなかった。したがって call site の thunk shape を合わせるだけでは足りず、旧 demand が handler binding を再処理する構造そのものを減らす必要がある。
+25. `examples/02_refs.yu` を計測対象に加えた。直接スカラー参照代入 `&x = ...` は lower 時点で参照を「読む」扱いから除外されていたため `&x` binding が作られず、未定義名になっていた。`VarBindingUsage` を read/write に分け、書き込みでも `var_ref` helper と参照 binding を用意するようにした。元の `02_refs.yu` は `[0] (11, 21)` で通る。通常実行は 37 passes / 39 specializations、置換 opt-in は 38 passes / 41 specializations で、参照系はまだ古い demand-driven 単相化に強く乗っている。
+26. ChatGPT Pro への相談結果を方針へ反映した。Simple-sub は主型と subtyping constraint を扱うが、cast/coerce 挿入位置の決定は別の elaboration 問題として見る。今後は「制約解決後に cast 位置を探す」のではなく、型推論・制約生成時に hole を置き、解けた制約と runtime 型から hole を埋める方向へ寄せる。
 
 ## Notes
 
@@ -151,3 +168,5 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - このまま大きく最適化するより、まず「runtime が demand-driven に再推測しなくてよい型変数関係」を増やす。
 - effect / thunk / `bind_here` は実行形の問題も含むため、infer へ無理に押し込まない。
 - 計測は必要だが、先に設計上の責務を分ける。計測対象は pass 単位だけでなく、collect / check / emit / rewrite / validate / refine / prune の内訳まで見る。
+- `examples/02_refs.yu` は回帰対象に残す。参照 direct assignment は直ったが、置換 opt-in では通常経路より 1 pass / 2 specializations 増えるので、参照 helper (`run/get/set/var_ref`) を新パスで扱うか、まず旧 demand のまま残すかを分けて見る。
+- 最終形は「主型代入だけで全部を解く」ではなく、「主型代入 + constraint 生成時に置いた elaboration hole を埋める」形にする。cast 位置の選択は typing derivation に依存しうるため、実装として正規の elaboration 形をひとつ決める。

@@ -21,6 +21,7 @@ struct PreparedVarBinding {
 #[derive(Debug, Clone, Copy, Default)]
 struct VarBindingUsage {
     reads_reference: bool,
+    writes_reference: bool,
 }
 
 pub(crate) fn lower_var_binding_suffix(
@@ -73,6 +74,7 @@ fn prepare_var_bindings(
 fn analyze_var_binding_usage(binding: &VarBinding, suffix_items: &[SyntaxNode]) -> VarBindingUsage {
     VarBindingUsage {
         reads_reference: block_items_contain_reference_read(suffix_items, &binding.reference.0),
+        writes_reference: block_items_contain_reference_write(suffix_items, &binding.reference.0),
     }
 }
 
@@ -82,6 +84,12 @@ fn block_items_contain_reference_read(items: &[SyntaxNode], text: &str) -> bool 
         .any(|item| syntax_node_contains_reference_read(item, text))
 }
 
+fn block_items_contain_reference_write(items: &[SyntaxNode], text: &str) -> bool {
+    items
+        .iter()
+        .any(|item| syntax_node_contains_reference_write(item, text))
+}
+
 fn syntax_node_contains_reference_read(node: &SyntaxNode, text: &str) -> bool {
     node.descendants_with_tokens()
         .filter_map(|it| it.into_token())
@@ -89,6 +97,16 @@ fn syntax_node_contains_reference_read(node: &SyntaxNode, text: &str) -> bool {
             tok.kind() == SyntaxKind::SigilIdent
                 && tok.text() == text
                 && !sigil_token_is_assignment_target(&tok)
+        })
+}
+
+fn syntax_node_contains_reference_write(node: &SyntaxNode, text: &str) -> bool {
+    node.descendants_with_tokens()
+        .filter_map(|it| it.into_token())
+        .any(|tok| {
+            tok.kind() == SyntaxKind::SigilIdent
+                && tok.text() == text
+                && sigil_token_is_assignment_target(&tok)
         })
 }
 
@@ -131,7 +149,7 @@ fn prepare_var_binding(
     PreparedVarBinding {
         binding,
         act,
-        needs_ref_binding: usage.reads_reference,
+        needs_ref_binding: usage.uses_reference(),
         helper_source,
     }
 }
@@ -220,10 +238,16 @@ fn selected_var_helper_names(usage: VarBindingUsage) -> Vec<Name> {
         Name("get".to_string()),
         Name("set".to_string()),
     ];
-    if usage.reads_reference {
+    if usage.uses_reference() {
         names.push(Name("var_ref".to_string()));
     }
     names
+}
+
+impl VarBindingUsage {
+    fn uses_reference(self) -> bool {
+        self.reads_reference || self.writes_reference
+    }
 }
 
 fn materialize_var_act_helpers(

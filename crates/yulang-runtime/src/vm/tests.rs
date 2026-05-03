@@ -210,6 +210,30 @@ sub:
     }
 
     #[test]
+    fn vm_runs_source_ref_scalar_assignment_example() {
+        let results = eval_source_with_std(
+            r#"{
+    my $x = 10
+    my $y = 20
+
+    &x = $x + 1
+    &y = $y + 1
+
+    ($x, $y)
+}
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Int("11".to_string()),
+                TestValue::Int("21".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_ref_field_assignment_example() {
         let results = eval_source_with_std(
             r#"struct point { x: int, y: int } with:

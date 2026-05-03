@@ -4,6 +4,14 @@
 //! runtime monomorphization a direct type-substitution step.  The key rule is
 //! that co-occurrence and polar elimination are applied at the export slot that
 //! owns the evidence, not as one global type-variable union.
+//!
+//! The longer-term target is principal elaboration evidence, not just a
+//! substitution table.  A call site should expose the type it naturally
+//! synthesizes, the contextual type required by the parent expression, and the
+//! coercion/adapter holes needed to cross that boundary.  Runtime lowering can
+//! then fill those holes with `Coerce`, thunk wrappers, `BindHere`, or handler
+//! adapters instead of rediscovering the same subtyping facts through demand
+//! monomorphization.
 
 use std::collections::{BTreeMap, BTreeSet};
 
