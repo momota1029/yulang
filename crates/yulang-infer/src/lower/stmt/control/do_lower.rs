@@ -100,7 +100,7 @@ pub(crate) fn lower_expr_with_synthetic_owner_if_top_level(
     state: &mut LowerState,
     node: &SyntaxNode,
 ) -> TypedExpr {
-    if state.current_owner.is_some() {
+    if state.current_owner.is_some() || state.suppress_top_level_expr_owners() {
         return crate::lower::expr::lower_expr(state, node);
     }
 

@@ -2,7 +2,7 @@ use crate::profile::ProfileClock as Instant;
 
 use yulang_parser::lex::SyntaxKind;
 
-use crate::ast::expr::{PatKind, TypedExpr, TypedPat, TypedStmt};
+use crate::ast::expr::{ExprKind, PatKind, TypedBlock, TypedExpr, TypedPat, TypedStmt};
 use crate::ids::{DefId, TypeVar};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::{Name, Path};
@@ -28,7 +28,7 @@ pub(crate) fn lower_var_binding_suffix(
     state: &mut LowerState,
     bindings: &[VarBinding],
     suffix_items: &[SyntaxNode],
-    stmts: &mut Vec<TypedStmt>,
+    _stmts: &mut Vec<TypedStmt>,
     tail: &mut Option<Box<TypedExpr>>,
 ) {
     let start = Instant::now();
@@ -38,22 +38,62 @@ pub(crate) fn lower_var_binding_suffix(
         materialize_var_act_helpers(state, &item.act, item.helper_source.as_ref());
     }
 
+    let mut ref_stmts = Vec::new();
     for item in &prepared {
         if item.needs_ref_binding {
             if let Some(stmt) = lower_var_ref_binding(state, &item.binding, &item.act.name) {
-                stmts.push(stmt);
+                ref_stmts.push(stmt);
             }
         } else {
             register_var_ref_alias(state, &item.binding, &item.act.name);
         }
     }
 
-    let mut body = super::super::lower_block_expr_from_items(state, suffix_items);
+    let mut body = state.without_top_level_expr_owners(|state| {
+        super::super::lower_block_expr_from_items(state, suffix_items)
+    });
+    if !ref_stmts.is_empty() {
+        body = block_expr_from_parts(state, ref_stmts, body);
+    }
     for item in prepared.iter().rev() {
         body = lower_var_run_expr(state, &item.act.name, &item.binding, body);
     }
     tail.replace(Box::new(body));
     state.lower_detail.lower_var_binding_suffix += start.elapsed();
+}
+
+fn block_expr_from_parts(
+    state: &mut LowerState,
+    stmts: Vec<TypedStmt>,
+    tail: TypedExpr,
+) -> TypedExpr {
+    let tv = state.fresh_tv();
+    let eff = state.fresh_tv();
+    for stmt in &stmts {
+        if let Some(stmt_eff) = stmt_eff(stmt) {
+            state.infer.constrain(Pos::Var(stmt_eff), Neg::Var(eff));
+        }
+    }
+    state.infer.constrain(Pos::Var(tail.tv), Neg::Var(tv));
+    state.infer.constrain(Pos::Var(tail.eff), Neg::Var(eff));
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::Block(TypedBlock {
+            tv,
+            eff,
+            stmts,
+            tail: Some(Box::new(tail)),
+        }),
+    }
+}
+
+fn stmt_eff(stmt: &TypedStmt) -> Option<TypeVar> {
+    match stmt {
+        TypedStmt::Let(_, expr) => Some(expr.eff),
+        TypedStmt::Expr(expr) => Some(expr.eff),
+        TypedStmt::Module(..) => None,
+    }
 }
 
 fn prepare_var_bindings(
@@ -115,13 +155,12 @@ fn sigil_token_is_assignment_target(
 ) -> bool {
     let mut node = token.parent();
     while let Some(parent) = node {
-        let has_assign_suffix = parent
+        let token_end = token.text_range().end();
+        let token_is_before_assign = parent
             .children()
-            .any(|child| child.kind() == SyntaxKind::Assign);
-        let projects_reference = parent
-            .children()
-            .any(|child| matches!(child.kind(), SyntaxKind::Field | SyntaxKind::Index));
-        if has_assign_suffix && !projects_reference {
+            .find(|child| child.kind() == SyntaxKind::Assign)
+            .is_some_and(|assign| token_end <= assign.text_range().start());
+        if token_is_before_assign {
             return true;
         }
         node = parent.parent();
@@ -134,7 +173,7 @@ fn prepare_var_binding(
     binding: VarBinding,
     usage: VarBindingUsage,
 ) -> PreparedVarBinding {
-    let act_name = scoped_var_act_name(&binding, state.current_owner);
+    let act_name = scoped_var_act_name(&binding, state.current_owner, usage);
     let init_def = ensure_var_init_binding(state, &binding.init);
     let act = super::super::unary_synthetic_act_spec(state, act_name);
     if let Some(&init_tv) = state.def_tvs.get(&init_def) {
@@ -293,11 +332,12 @@ fn define_local_value(state: &mut LowerState, name: Name) -> DefId {
     def
 }
 
-fn scoped_var_act_name(binding: &VarBinding, owner: Option<DefId>) -> Name {
-    let Some(owner) = owner else {
-        return binding.reference.clone();
-    };
-    Name(format!("{}#{}", binding.reference.0, owner.0))
+fn scoped_var_act_name(binding: &VarBinding, owner: Option<DefId>, usage: VarBindingUsage) -> Name {
+    match owner {
+        Some(owner) => Name(format!("{}#{}", binding.reference.0, owner.0)),
+        None if usage.uses_reference() => Name(format!("{}#var", binding.reference.0)),
+        None => binding.reference.clone(),
+    }
 }
 
 fn invariant_ref_args(

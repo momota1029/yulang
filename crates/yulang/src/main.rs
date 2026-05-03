@@ -2867,6 +2867,31 @@ mod tests {
     }
 
     #[test]
+    fn top_level_projected_var_assignment_runs() {
+        run_with_large_stack(|| {
+            let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+            let std_root = repo_root.join("lib/std");
+            let mut lowered = yulang_infer::lower_virtual_source_with_options(
+                "my $xs = [2, 3, 4]\n&xs[1] = 6\n$xs\n",
+                Some(repo_root),
+                SourceOptions {
+                    std_root: Some(std_root),
+                    implicit_prelude: true,
+                    search_paths: Vec::new(),
+                },
+            )
+            .expect("lowered source");
+            let program = export_core_program(&mut lowered.state);
+            let module = runtime::lower_core_program(program).expect("lowered runtime IR");
+            let (module, _) = runtime::monomorphize_module_profiled(module).expect("monomorphized");
+            let vm = runtime::compile_vm_module(module).expect("compiled VM module");
+            let results = vm.eval_roots().expect("evaluated roots");
+            assert_eq!(results.len(), 1);
+            assert_eq!(format_runtime_vm_result(&results[0]), "[2, 6, 4]");
+        });
+    }
+
+    #[test]
     fn infer_error_headline_reports_missing_impl() {
         let source = "role Display 'a:\n    our a.display: string\n\nmy shown = 1.display\n";
         let options = test_cli_options();

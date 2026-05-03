@@ -99,6 +99,7 @@ pub struct LowerState {
     /// 後解決された RefId のうち、frozen scheme の参照インスタンス化まで済ませたもの。
     instantiated_resolved_refs: HashSet<RefId>,
     force_local_bindings_depth: u32,
+    suppress_top_level_expr_owners_depth: u32,
     synthetic_with_module_counter: u32,
 }
 
@@ -148,6 +149,7 @@ impl LowerState {
             enum_variant_patterns: HashMap::new(),
             instantiated_resolved_refs: HashSet::new(),
             force_local_bindings_depth: 0,
+            suppress_top_level_expr_owners_depth: 0,
             synthetic_with_module_counter: 0,
         }
     }
@@ -807,6 +809,17 @@ impl LowerState {
 
     pub fn force_local_bindings(&self) -> bool {
         self.force_local_bindings_depth > 0
+    }
+
+    pub fn without_top_level_expr_owners<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.suppress_top_level_expr_owners_depth += 1;
+        let out = f(self);
+        self.suppress_top_level_expr_owners_depth -= 1;
+        out
+    }
+
+    pub fn suppress_top_level_expr_owners(&self) -> bool {
+        self.suppress_top_level_expr_owners_depth > 0
     }
 
     pub fn current_type_scope(&self) -> Option<&HashMap<String, TypeVar>> {
