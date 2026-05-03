@@ -43,6 +43,7 @@ pub struct ExpectedEdgeEvidence {
     pub actual_effect: Option<core_ir::TypeBounds>,
     pub expected_effect: Option<core_ir::TypeBounds>,
     pub closed: bool,
+    pub informative: bool,
 }
 
 pub(super) fn complete_coerce_principal_evidence(
@@ -100,6 +101,12 @@ pub(super) fn complete_expected_edge_evidence(
         && type_bounds_closed(&expected)
         && actual_effect.as_ref().is_none_or(type_bounds_closed)
         && expected_effect.as_ref().is_none_or(type_bounds_closed);
+    let informative = type_bounds_informative(&actual)
+        || type_bounds_informative(&expected)
+        || actual_effect.as_ref().is_some_and(type_bounds_informative)
+        || expected_effect
+            .as_ref()
+            .is_some_and(type_bounds_informative);
     ExpectedEdgeEvidence {
         id: edge.id,
         kind: edge.kind,
@@ -108,6 +115,7 @@ pub(super) fn complete_expected_edge_evidence(
         actual_effect,
         expected_effect,
         closed,
+        informative,
     }
 }
 
@@ -664,6 +672,29 @@ fn type_bounds_closed(bounds: &core_ir::TypeBounds) -> bool {
         && bounds.upper.as_deref().is_none_or(|ty| !type_has_vars(ty))
 }
 
+fn type_bounds_informative(bounds: &core_ir::TypeBounds) -> bool {
+    bounds.lower.as_deref().is_some_and(type_informative)
+        || bounds.upper.as_deref().is_some_and(type_informative)
+}
+
+fn type_informative(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
+        core_ir::Type::Named { .. } => true,
+        core_ir::Type::Fun { .. }
+        | core_ir::Type::Tuple(_)
+        | core_ir::Type::Record(_)
+        | core_ir::Type::Variant(_) => true,
+        core_ir::Type::Row { items, tail } => {
+            items.iter().any(type_informative) || type_informative(tail)
+        }
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().any(type_informative)
+        }
+        core_ir::Type::Recursive { body, .. } => type_informative(body),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -809,5 +840,6 @@ mod tests {
         assert!(evidence.actual_effect.is_none());
         assert!(evidence.expected_effect.is_none());
         assert!(!evidence.closed);
+        assert!(evidence.informative);
     }
 }

@@ -1242,6 +1242,7 @@ fn format_expected_edge_evidence(evidence: &yulang_infer::ExpectedEdgeEvidence) 
         ));
     }
     parts.push(format!("closed={}", evidence.closed));
+    parts.push(format!("informative={}", evidence.informative));
     parts.join(" ")
 }
 
