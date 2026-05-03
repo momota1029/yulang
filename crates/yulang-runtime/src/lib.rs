@@ -26,7 +26,10 @@ pub use ir::{
     MatchArm, Module, Pattern, RecordExprField, RecordPatternField, RecordSpreadExpr,
     RecordSpreadPattern, ResumeBinding, Root, Stmt, Type, TypeInstantiation, TypeSubstitution,
 };
-pub use lower::{lower_core_program, lower_principal_module};
+pub use lower::{
+    ExpectedArgEvidenceProfile, RuntimeAdapterProfile, RuntimeLowerOutput, RuntimeLowerProfile,
+    lower_core_program, lower_core_program_profiled, lower_principal_module,
+};
 pub use monomorphize::{
     MonomorphizePassProfile, MonomorphizeProfile, MonomorphizeProgress, monomorphize_module,
     monomorphize_module_profiled,

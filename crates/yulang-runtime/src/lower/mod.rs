@@ -54,10 +54,50 @@ use std_types::*;
 use substitutions::*;
 use thunk::*;
 
+pub struct RuntimeLowerOutput {
+    pub module: Module,
+    pub profile: RuntimeLowerProfile,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct RuntimeLowerProfile {
+    pub expected_arg_evidence: ExpectedArgEvidenceProfile,
+    pub runtime_adapters: RuntimeAdapterProfile,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct ExpectedArgEvidenceProfile {
+    pub present: usize,
+    pub converted: usize,
+    pub usable_by_table: usize,
+    pub usable_by_bounds: usize,
+    pub used_as_arg_type_hint: usize,
+    pub used_as_lowering_expected: usize,
+    pub ignored_no_expected_arg: usize,
+    pub ignored_not_convertible: usize,
+    pub ignored_unusable: usize,
+    pub ignored_no_push: usize,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct RuntimeAdapterProfile {
+    pub value_to_thunk: usize,
+    pub thunk_to_value: usize,
+    pub bind_here: usize,
+    pub reused_thunk: usize,
+    pub forced_effect_thunk: usize,
+}
+
 pub fn lower_core_program(program: core_ir::CoreProgram) -> RuntimeResult<Module> {
+    lower_core_program_profiled(program).map(|output| output.module)
+}
+
+pub fn lower_core_program_profiled(
+    program: core_ir::CoreProgram,
+) -> RuntimeResult<RuntimeLowerOutput> {
     let graph = program.graph;
     let evidence = program.evidence;
-    lower_principal_module_with_graph_and_evidence(program.program, &graph, &evidence)
+    lower_principal_module_with_graph_and_evidence_profiled(program.program, &graph, &evidence)
 }
 
 pub fn lower_principal_module(module: core_ir::PrincipalModule) -> RuntimeResult<Module> {
@@ -77,6 +117,15 @@ fn lower_principal_module_with_graph_and_evidence(
     graph: &core_ir::CoreGraphView,
     evidence: &core_ir::PrincipalEvidence,
 ) -> RuntimeResult<Module> {
+    lower_principal_module_with_graph_and_evidence_profiled(module, graph, evidence)
+        .map(|output| output.module)
+}
+
+fn lower_principal_module_with_graph_and_evidence_profiled(
+    module: core_ir::PrincipalModule,
+    graph: &core_ir::CoreGraphView,
+    evidence: &core_ir::PrincipalEvidence,
+) -> RuntimeResult<RuntimeLowerOutput> {
     let principal_vars = principal_module_type_vars(&module);
     let mut binding_infos = module
         .bindings
@@ -147,7 +196,7 @@ fn lower_principal_module_with_graph_and_evidence(
         .collect::<RuntimeResult<Vec<_>>>()?;
     if std::env::var_os("YULANG_DEBUG_EXPECTED_ARG_EVIDENCE").is_some() {
         eprintln!(
-            "expected-arg evidence: present={} converted={} usable-by-table={} usable-by-bounds={} used-as-arg-type-hint={} used-as-lowering-expected={} ignored-no-expected-arg={} ignored-unusable={} ignored-no-push={}",
+            "expected-arg evidence: present={} converted={} usable-by-table={} usable-by-bounds={} used-as-arg-type-hint={} used-as-lowering-expected={} ignored-no-expected-arg={} ignored-not-convertible={} ignored-unusable={} ignored-no-push={}",
             lowerer.expected_arg_evidence_profile.present,
             lowerer.expected_arg_evidence_profile.converted,
             lowerer.expected_arg_evidence_profile.usable_by_table,
@@ -159,6 +208,9 @@ fn lower_principal_module_with_graph_and_evidence(
             lowerer
                 .expected_arg_evidence_profile
                 .ignored_no_expected_arg,
+            lowerer
+                .expected_arg_evidence_profile
+                .ignored_not_convertible,
             lowerer.expected_arg_evidence_profile.ignored_unusable,
             lowerer.expected_arg_evidence_profile.ignored_no_push,
         );
@@ -189,7 +241,13 @@ fn lower_principal_module_with_graph_and_evidence(
     };
     check_runtime_invariants(&module, RuntimeStage::Lowered)?;
     validate_module(&module)?;
-    Ok(module)
+    Ok(RuntimeLowerOutput {
+        module,
+        profile: RuntimeLowerProfile {
+            expected_arg_evidence: lowerer.expected_arg_evidence_profile,
+            runtime_adapters: lowerer.runtime_adapter_profile,
+        },
+    })
 }
 
 fn normalize_initial_alias_types(
@@ -260,28 +318,6 @@ struct BindingInfo {
     ty: RuntimeType,
     type_params: Vec<core_ir::TypeVar>,
     requirements: Vec<core_ir::RoleRequirement>,
-}
-
-#[derive(Default)]
-struct ExpectedArgEvidenceProfile {
-    present: usize,
-    converted: usize,
-    usable_by_table: usize,
-    usable_by_bounds: usize,
-    used_as_arg_type_hint: usize,
-    used_as_lowering_expected: usize,
-    ignored_no_expected_arg: usize,
-    ignored_unusable: usize,
-    ignored_no_push: usize,
-}
-
-#[derive(Default)]
-struct RuntimeAdapterProfile {
-    value_to_thunk: usize,
-    thunk_to_value: usize,
-    bind_here: usize,
-    reused_thunk: usize,
-    forced_effect_thunk: usize,
 }
 
 #[cfg(test)]

@@ -683,6 +683,7 @@ struct RuntimeLowerOutput {
 #[derive(Default)]
 struct RuntimePhaseProfile {
     lower: Duration,
+    lower_profile: runtime::RuntimeLowerProfile,
     monomorphize: Duration,
     monomorphize_profile: runtime::MonomorphizeProfile,
 }
@@ -692,13 +693,15 @@ fn lower_runtime_module_or_exit(
     print_timings: bool,
 ) -> RuntimeLowerOutput {
     let lower_start = Instant::now();
-    let module = match runtime::lower_core_program(program.clone()) {
-        Ok(module) => module,
+    let lower_output = match runtime::lower_core_program_profiled(program.clone()) {
+        Ok(output) => output,
         Err(err) => {
             eprintln!("failed to lower runtime IR: {err}");
             process::exit(1);
         }
     };
+    let lower_profile = lower_output.profile;
+    let module = lower_output.module;
     let lower = lower_start.elapsed();
     let mono_start = Instant::now();
     let (module, monomorphize_profile) = match runtime::monomorphize_module_profiled(module) {
@@ -711,6 +714,7 @@ fn lower_runtime_module_or_exit(
     let monomorphize = mono_start.elapsed();
     let profile = RuntimePhaseProfile {
         lower,
+        lower_profile,
         monomorphize,
         monomorphize_profile,
     };
@@ -735,6 +739,29 @@ fn print_runtime_phase_timings(
         "    mono_passes: {}, specializations: {}",
         profile.monomorphize_profile.pass_count(),
         profile.monomorphize_profile.added_specializations()
+    );
+    let expected_arg = &profile.lower_profile.expected_arg_evidence;
+    eprintln!(
+        "    expected_arg_evidence: present={}, converted={}, usable_by_table={}, usable_by_bounds={}, used_as_arg_type_hint={}, used_as_lowering_expected={}, ignored_no_expected_arg={}, ignored_not_convertible={}, ignored_unusable={}, ignored_no_push={}",
+        expected_arg.present,
+        expected_arg.converted,
+        expected_arg.usable_by_table,
+        expected_arg.usable_by_bounds,
+        expected_arg.used_as_arg_type_hint,
+        expected_arg.used_as_lowering_expected,
+        expected_arg.ignored_no_expected_arg,
+        expected_arg.ignored_not_convertible,
+        expected_arg.ignored_unusable,
+        expected_arg.ignored_no_push,
+    );
+    let adapters = &profile.lower_profile.runtime_adapters;
+    eprintln!(
+        "    runtime_adapters: value_to_thunk={}, thunk_to_value={}, bind_here={}, reused_thunk={}, forced_effect_thunk={}",
+        adapters.value_to_thunk,
+        adapters.thunk_to_value,
+        adapters.bind_here,
+        adapters.reused_thunk,
+        adapters.forced_effect_thunk,
     );
     if let Some(duration) = vm_compile {
         eprintln!("    vm_compile: {}", format_duration(duration));

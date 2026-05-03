@@ -1152,9 +1152,13 @@ impl Lowerer<'_> {
             return None;
         };
         self.expected_arg_evidence_profile.present += 1;
-        let ty = self
+        let Some(ty) = self
             .tir_argument_runtime_type(bounds)
-            .map(RuntimeType::core)?;
+            .map(RuntimeType::core)
+        else {
+            self.expected_arg_evidence_profile.ignored_not_convertible += 1;
+            return None;
+        };
         self.expected_arg_evidence_profile.converted += 1;
         let table_usable = source_edge.and_then(|id| {
             self.expected_edge(id).map(|edge| {
