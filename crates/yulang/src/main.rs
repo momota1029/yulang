@@ -808,6 +808,19 @@ fn print_runtime_phase_timings(
         adapter_evidence.handler_return,
         adapter_evidence.resume_argument,
     );
+    let derived_evidence = &profile.lower_profile.derived_expected_evidence;
+    eprintln!(
+        "    derived_expected_evidence: total={}, record_field={}, tuple_item={}, variant_payload={}, function_param={}, function_return={}, covariant={}, contravariant={}, invariant={}",
+        derived_evidence.total,
+        derived_evidence.record_field,
+        derived_evidence.tuple_item,
+        derived_evidence.variant_payload,
+        derived_evidence.function_param,
+        derived_evidence.function_return,
+        derived_evidence.covariant,
+        derived_evidence.contravariant,
+        derived_evidence.invariant,
+    );
     let demand_queue = profile.monomorphize_profile.demand_queue_profile();
     eprintln!(
         "    demand_queue: attempted={}, pushed={}, pushed_open={}, pushed_closed={}, skipped_duplicate={}, skipped_covered_by_closed={}",
@@ -888,12 +901,14 @@ fn print_runtime_adapter_event_summary(adapters: &runtime::RuntimeAdapterProfile
         adapters.events.len()
     );
     eprintln!(
-        "    runtime_adapter_match: matched_expected_adapter={}, unmatched_expected_adapter={}, unmatched_value_to_thunk={}, unmatched_thunk_to_value={}, unmatched_bind_here={}",
+        "    runtime_adapter_match: matched_expected_adapter={}, unmatched_expected_adapter={}, unmatched_value_to_thunk={}, unmatched_thunk_to_value={}, unmatched_bind_here={}, matched_derived_parent={}, unmatched_derived_parent={}",
         adapters.matched_expected_adapter,
         adapters.unmatched_expected_adapter,
         adapters.unmatched_value_to_thunk,
         adapters.unmatched_thunk_to_value,
         adapters.unmatched_bind_here,
+        adapters.matched_derived_expected_edge_parent,
+        adapters.unmatched_derived_expected_edge_parent,
     );
     print_observed_adapter_evidence_summary(adapters);
     let mut by_context = BTreeMap::<(String, String, String, String), usize>::new();
@@ -1930,15 +1945,19 @@ fn print_infer_graph(graph: &core_ir::CoreGraphView, verbose: bool) {
 }
 
 fn print_core_principal_evidence(evidence: &core_ir::PrincipalEvidence, verbose: bool) {
-    if evidence.expected_edges.is_empty() && evidence.expected_adapter_edges.is_empty() {
+    if evidence.expected_edges.is_empty()
+        && evidence.expected_adapter_edges.is_empty()
+        && evidence.derived_expected_edges.is_empty()
+    {
         return;
     }
     println!("principal-evidence:");
     if !verbose {
         println!(
-            "  {} expected edges, {} expected adapter edges (use --verbose-ir for details)",
+            "  {} expected edges, {} expected adapter edges, {} derived expected edges (use --verbose-ir for details)",
             evidence.expected_edges.len(),
             evidence.expected_adapter_edges.len(),
+            evidence.derived_expected_edges.len(),
         );
         return;
     }
@@ -1952,6 +1971,12 @@ fn print_core_principal_evidence(evidence: &core_ir::PrincipalEvidence, verbose:
         println!("  expected adapter edges:");
         for edge in &evidence.expected_adapter_edges {
             println!("    {}", format_core_expected_adapter_edge_evidence(edge));
+        }
+    }
+    if !evidence.derived_expected_edges.is_empty() {
+        println!("  derived expected edges:");
+        for edge in &evidence.derived_expected_edges {
+            println!("    {}", format_core_derived_expected_edge_evidence(edge));
         }
     }
 }
@@ -2022,6 +2047,24 @@ fn format_core_expected_adapter_edge_evidence(
     parts.join(" ")
 }
 
+fn format_core_derived_expected_edge_evidence(
+    evidence: &core_ir::DerivedExpectedEdgeEvidence,
+) -> String {
+    let mut parts = vec![
+        format!(
+            "parent=#{} {}",
+            evidence.parent,
+            format_core_derived_expected_edge_kind(evidence.kind)
+        ),
+        format!("polarity={}", format_core_edge_polarity(evidence.polarity)),
+        format!("path={}", format_core_edge_path(&evidence.path)),
+        format!("actual={}", format_core_bounds(&evidence.actual)),
+        format!("expected={}", format_core_bounds(&evidence.expected)),
+    ];
+    parts.retain(|part| !part.is_empty());
+    parts.join(" ")
+}
+
 fn format_core_expected_edge_kind(kind: core_ir::ExpectedEdgeKind) -> &'static str {
     match kind {
         core_ir::ExpectedEdgeKind::IfCondition => "if-condition",
@@ -2038,6 +2081,38 @@ fn format_core_expected_edge_kind(kind: core_ir::ExpectedEdgeKind) -> &'static s
         core_ir::ExpectedEdgeKind::AssignmentValue => "assignment-value",
         core_ir::ExpectedEdgeKind::RepresentationCoerce => "representation-coerce",
     }
+}
+
+fn format_core_edge_polarity(polarity: core_ir::EdgePolarity) -> &'static str {
+    match polarity {
+        core_ir::EdgePolarity::Covariant => "covariant",
+        core_ir::EdgePolarity::Contravariant => "contravariant",
+        core_ir::EdgePolarity::Invariant => "invariant",
+    }
+}
+
+fn format_core_derived_expected_edge_kind(kind: core_ir::DerivedExpectedEdgeKind) -> &'static str {
+    match kind {
+        core_ir::DerivedExpectedEdgeKind::RecordField => "record-field",
+        core_ir::DerivedExpectedEdgeKind::TupleItem => "tuple-item",
+        core_ir::DerivedExpectedEdgeKind::VariantPayload => "variant-payload",
+        core_ir::DerivedExpectedEdgeKind::FunctionParam => "function-param",
+        core_ir::DerivedExpectedEdgeKind::FunctionReturn => "function-return",
+    }
+}
+
+fn format_core_edge_path(path: &[core_ir::EdgePathSegment]) -> String {
+    path.iter()
+        .map(|segment| match segment {
+            core_ir::EdgePathSegment::Field(name) => format!(".{}", name.0),
+            core_ir::EdgePathSegment::TupleIndex(index) => format!("[{index}]"),
+            core_ir::EdgePathSegment::VariantCase(name) => format!(":{}", name.0),
+            core_ir::EdgePathSegment::PayloadIndex(index) => format!("({index})"),
+            core_ir::EdgePathSegment::FunctionParam => ".param".to_string(),
+            core_ir::EdgePathSegment::FunctionReturn => ".return".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("")
 }
 
 fn format_core_expected_adapter_edge_kind(kind: core_ir::ExpectedAdapterEdgeKind) -> &'static str {

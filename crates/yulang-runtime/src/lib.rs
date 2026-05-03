@@ -27,10 +27,10 @@ pub use ir::{
     RecordSpreadPattern, ResumeBinding, Root, Stmt, Type, TypeInstantiation, TypeSubstitution,
 };
 pub use lower::{
-    ExpectedAdapterEvidenceProfile, ExpectedArgEvidenceProfile, ObservedAdapterEvidence,
-    ObservedAdapterEvidenceKind, RuntimeAdapterEvent, RuntimeAdapterEventKind,
-    RuntimeAdapterProfile, RuntimeApplyAdapterPhase, RuntimeLowerOutput, RuntimeLowerProfile,
-    lower_core_program, lower_core_program_profiled, lower_principal_module,
+    DerivedExpectedEvidenceProfile, ExpectedAdapterEvidenceProfile, ExpectedArgEvidenceProfile,
+    ObservedAdapterEvidence, ObservedAdapterEvidenceKind, RuntimeAdapterEvent,
+    RuntimeAdapterEventKind, RuntimeAdapterProfile, RuntimeApplyAdapterPhase, RuntimeLowerOutput,
+    RuntimeLowerProfile, lower_core_program, lower_core_program_profiled, lower_principal_module,
 };
 pub use monomorphize::{
     DemandEvidenceProfile, DemandQueueProfile, MonomorphizePassProfile, MonomorphizeProfile,

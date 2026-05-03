@@ -6,6 +6,7 @@ pub mod types;
 
 pub use expr::{
     ApplyEvidence, Binding, BindingVisibility, CoerceEvidence, CoreProgram,
+    DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, EdgePolarity,
     ExpectedAdapterEdgeEvidence, ExpectedAdapterEdgeKind, ExpectedEdgeEvidence, ExpectedEdgeKind,
     Expr, FunctionSigAllowedEffects, HandleArm, ImplDecl, ImplMember, Item, JoinEvidence, Lit,
     MatchArm, Module, ParamEffectAnnotation, Pattern, PrimitiveOp, PrincipalBinding,

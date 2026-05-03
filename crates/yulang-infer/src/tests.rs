@@ -449,6 +449,24 @@ fn core_program_carries_expected_edge_evidence_table() {
 }
 
 #[test]
+fn core_program_carries_derived_expected_edge_evidence_table() {
+    let mut state = parse_and_lower("my p: { a: { b: int } } = { a: { b: 1 } }\n");
+    let program = export_core_program(&mut state);
+    assert!(
+        program
+            .evidence
+            .derived_expected_edges
+            .iter()
+            .any(
+                |edge| edge.kind == yulang_core_ir::DerivedExpectedEdgeKind::RecordField
+                    && edge.path.len() == 2
+            ),
+        "expected core principal evidence to expose nested record field derived edges: {:?}",
+        program.evidence.derived_expected_edges,
+    );
+}
+
+#[test]
 fn effect_operation_application_records_adapter_edge() {
     let mut state = parse_and_lower("pub act out:\n  pub say: str -> ()\n\nout::say \"hi\"\n");
     let adapter_edge = state

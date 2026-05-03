@@ -3,7 +3,8 @@ use std::collections::{BTreeSet, HashSet};
 use yulang_core_ir as core_ir;
 
 use super::complete_principal::{
-    collect_expected_adapter_edge_evidence, collect_expected_edge_evidence,
+    collect_derived_expected_edge_evidence, collect_expected_adapter_edge_evidence,
+    collect_expected_edge_evidence,
 };
 use super::expr::export_expr;
 use super::names::{export_path, path_key};
@@ -57,6 +58,10 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
                 .into_iter()
                 .map(export_expected_adapter_edge_evidence)
                 .collect(),
+            derived_expected_edges: collect_derived_expected_edge_evidence(state)
+                .into_iter()
+                .map(export_derived_expected_edge_evidence)
+                .collect(),
         },
     }
 }
@@ -74,6 +79,82 @@ fn export_expected_edge_evidence(
         closed: evidence.closed,
         informative: evidence.informative,
         runtime_usable: evidence.runtime_usable,
+    }
+}
+
+fn export_derived_expected_edge_evidence(
+    evidence: super::complete_principal::DerivedExpectedEdgeEvidence,
+) -> core_ir::DerivedExpectedEdgeEvidence {
+    core_ir::DerivedExpectedEdgeEvidence {
+        parent: evidence.parent.0,
+        kind: export_derived_expected_edge_kind(evidence.kind),
+        polarity: export_edge_polarity(evidence.polarity),
+        path: evidence
+            .path
+            .into_iter()
+            .map(export_edge_path_segment)
+            .collect(),
+        actual: evidence.actual,
+        expected: evidence.expected,
+    }
+}
+
+fn export_derived_expected_edge_kind(
+    kind: super::complete_principal::DerivedExpectedEdgeKind,
+) -> core_ir::DerivedExpectedEdgeKind {
+    match kind {
+        super::complete_principal::DerivedExpectedEdgeKind::RecordField => {
+            core_ir::DerivedExpectedEdgeKind::RecordField
+        }
+        super::complete_principal::DerivedExpectedEdgeKind::TupleItem => {
+            core_ir::DerivedExpectedEdgeKind::TupleItem
+        }
+        super::complete_principal::DerivedExpectedEdgeKind::VariantPayload => {
+            core_ir::DerivedExpectedEdgeKind::VariantPayload
+        }
+        super::complete_principal::DerivedExpectedEdgeKind::FunctionParam => {
+            core_ir::DerivedExpectedEdgeKind::FunctionParam
+        }
+        super::complete_principal::DerivedExpectedEdgeKind::FunctionReturn => {
+            core_ir::DerivedExpectedEdgeKind::FunctionReturn
+        }
+    }
+}
+
+fn export_edge_polarity(
+    polarity: super::complete_principal::EdgePolarity,
+) -> core_ir::EdgePolarity {
+    match polarity {
+        super::complete_principal::EdgePolarity::Covariant => core_ir::EdgePolarity::Covariant,
+        super::complete_principal::EdgePolarity::Contravariant => {
+            core_ir::EdgePolarity::Contravariant
+        }
+        super::complete_principal::EdgePolarity::Invariant => core_ir::EdgePolarity::Invariant,
+    }
+}
+
+fn export_edge_path_segment(
+    segment: super::complete_principal::EdgePathSegment,
+) -> core_ir::EdgePathSegment {
+    match segment {
+        super::complete_principal::EdgePathSegment::Field(name) => {
+            core_ir::EdgePathSegment::Field(name)
+        }
+        super::complete_principal::EdgePathSegment::TupleIndex(index) => {
+            core_ir::EdgePathSegment::TupleIndex(index)
+        }
+        super::complete_principal::EdgePathSegment::VariantCase(name) => {
+            core_ir::EdgePathSegment::VariantCase(name)
+        }
+        super::complete_principal::EdgePathSegment::PayloadIndex(index) => {
+            core_ir::EdgePathSegment::PayloadIndex(index)
+        }
+        super::complete_principal::EdgePathSegment::FunctionParam => {
+            core_ir::EdgePathSegment::FunctionParam
+        }
+        super::complete_principal::EdgePathSegment::FunctionReturn => {
+            core_ir::EdgePathSegment::FunctionReturn
+        }
     }
 }
 

@@ -21,6 +21,7 @@ pub struct CoreProgram {
 pub struct PrincipalEvidence {
     pub expected_edges: Vec<ExpectedEdgeEvidence>,
     pub expected_adapter_edges: Vec<ExpectedAdapterEdgeEvidence>,
+    pub derived_expected_edges: Vec<DerivedExpectedEdgeEvidence>,
 }
 
 impl PrincipalEvidence {
@@ -32,6 +33,15 @@ impl PrincipalEvidence {
         self.expected_adapter_edges
             .iter()
             .find(|edge| edge.id == id)
+    }
+
+    pub fn derived_expected_edges_for_parent(
+        &self,
+        parent: u32,
+    ) -> impl Iterator<Item = &DerivedExpectedEdgeEvidence> {
+        self.derived_expected_edges
+            .iter()
+            .filter(move |edge| edge.parent == parent)
     }
 }
 
@@ -88,6 +98,42 @@ pub enum ExpectedAdapterEdgeKind {
     HandlerResidual,
     HandlerReturn,
     ResumeArgument,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DerivedExpectedEdgeEvidence {
+    pub parent: u32,
+    pub kind: DerivedExpectedEdgeKind,
+    pub polarity: EdgePolarity,
+    pub path: Vec<EdgePathSegment>,
+    pub actual: crate::types::TypeBounds,
+    pub expected: crate::types::TypeBounds,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EdgePolarity {
+    Covariant,
+    Contravariant,
+    Invariant,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DerivedExpectedEdgeKind {
+    RecordField,
+    TupleItem,
+    VariantPayload,
+    FunctionParam,
+    FunctionReturn,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EdgePathSegment {
+    Field(Name),
+    TupleIndex(usize),
+    VariantCase(Name),
+    PayloadIndex(usize),
+    FunctionParam,
+    FunctionReturn,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

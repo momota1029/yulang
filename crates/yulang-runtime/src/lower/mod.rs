@@ -64,6 +64,7 @@ pub struct RuntimeLowerOutput {
 pub struct RuntimeLowerProfile {
     pub expected_arg_evidence: ExpectedArgEvidenceProfile,
     pub expected_adapter_evidence: ExpectedAdapterEvidenceProfile,
+    pub derived_expected_evidence: DerivedExpectedEvidenceProfile,
     pub runtime_adapters: RuntimeAdapterProfile,
 }
 
@@ -118,6 +119,8 @@ pub struct RuntimeAdapterProfile {
     pub unmatched_value_to_thunk: usize,
     pub unmatched_thunk_to_value: usize,
     pub unmatched_bind_here: usize,
+    pub matched_derived_expected_edge_parent: usize,
+    pub unmatched_derived_expected_edge_parent: usize,
     pub events: Vec<RuntimeAdapterEvent>,
     pub observed_adapter_evidence: Vec<ObservedAdapterEvidence>,
 }
@@ -179,6 +182,19 @@ pub struct ExpectedAdapterEvidenceProfile {
     pub handler_residual: usize,
     pub handler_return: usize,
     pub resume_argument: usize,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct DerivedExpectedEvidenceProfile {
+    pub total: usize,
+    pub record_field: usize,
+    pub tuple_item: usize,
+    pub variant_payload: usize,
+    pub function_param: usize,
+    pub function_return: usize,
+    pub covariant: usize,
+    pub contravariant: usize,
+    pub invariant: usize,
 }
 
 pub fn lower_core_program(program: core_ir::CoreProgram) -> RuntimeResult<Module> {
@@ -355,12 +371,14 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
     validate_module(&module)?;
     let mut runtime_adapters = lowerer.runtime_adapter_profile;
     profile_runtime_adapter_expected_matches(&mut runtime_adapters, evidence);
+    profile_runtime_adapter_derived_parent_matches(&mut runtime_adapters, evidence);
     collect_observed_adapter_evidence(&mut runtime_adapters);
     Ok(RuntimeLowerOutput {
         module,
         profile: RuntimeLowerProfile {
             expected_arg_evidence: lowerer.expected_arg_evidence_profile,
             expected_adapter_evidence: expected_adapter_evidence_profile(evidence),
+            derived_expected_evidence: derived_expected_evidence_profile(evidence),
             runtime_adapters,
         },
     })
@@ -413,6 +431,26 @@ fn profile_runtime_adapter_expected_matches(
                     profile.unmatched_bind_here += 1;
                 }
             }
+        }
+    }
+}
+
+fn profile_runtime_adapter_derived_parent_matches(
+    profile: &mut RuntimeAdapterProfile,
+    evidence: &core_ir::PrincipalEvidence,
+) {
+    for event in &profile.events {
+        let Some(source_edge) = runtime_adapter_event_source_edge(event) else {
+            continue;
+        };
+        if evidence
+            .derived_expected_edges_for_parent(source_edge)
+            .next()
+            .is_some()
+        {
+            profile.matched_derived_expected_edge_parent += 1;
+        } else {
+            profile.unmatched_derived_expected_edge_parent += 1;
         }
     }
 }
@@ -506,6 +544,28 @@ fn expected_adapter_evidence_profile(
             core_ir::ExpectedAdapterEdgeKind::ResumeArgument => {
                 profile.resume_argument += 1;
             }
+        }
+    }
+    profile
+}
+
+fn derived_expected_evidence_profile(
+    evidence: &core_ir::PrincipalEvidence,
+) -> DerivedExpectedEvidenceProfile {
+    let mut profile = DerivedExpectedEvidenceProfile::default();
+    for edge in &evidence.derived_expected_edges {
+        profile.total += 1;
+        match edge.kind {
+            core_ir::DerivedExpectedEdgeKind::RecordField => profile.record_field += 1,
+            core_ir::DerivedExpectedEdgeKind::TupleItem => profile.tuple_item += 1,
+            core_ir::DerivedExpectedEdgeKind::VariantPayload => profile.variant_payload += 1,
+            core_ir::DerivedExpectedEdgeKind::FunctionParam => profile.function_param += 1,
+            core_ir::DerivedExpectedEdgeKind::FunctionReturn => profile.function_return += 1,
+        }
+        match edge.polarity {
+            core_ir::EdgePolarity::Covariant => profile.covariant += 1,
+            core_ir::EdgePolarity::Contravariant => profile.contravariant += 1,
+            core_ir::EdgePolarity::Invariant => profile.invariant += 1,
         }
     }
     profile
