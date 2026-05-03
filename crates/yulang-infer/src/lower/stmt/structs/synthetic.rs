@@ -17,19 +17,18 @@ pub(crate) fn synthetic_struct_constructor_body(
     state.register_def_name(arg_def, arg_name.clone());
     state.register_def_owner(arg_def, ctor_def);
 
-    let body = TypedExpr {
-        tv: ret_tv,
-        eff: state.fresh_exact_pure_eff_tv(),
-        kind: ExprKind::Coerce {
-            actual_tv: arg_tv,
-            expected_tv: ret_tv,
-            expr: Box::new(TypedExpr {
-                tv: arg_tv,
-                eff: state.fresh_exact_pure_eff_tv(),
-                kind: ExprKind::Var(arg_def),
-            }),
+    let body_eff = state.fresh_exact_pure_eff_tv();
+    let arg_expr_eff = state.fresh_exact_pure_eff_tv();
+    let body = state.representation_coerce(
+        arg_tv,
+        ret_tv,
+        body_eff,
+        TypedExpr {
+            tv: arg_tv,
+            eff: arg_expr_eff,
+            kind: ExprKind::Var(arg_def),
         },
-    };
+    );
     let arg_eff_tv = state.fresh_exact_pure_eff_tv();
     super::super::wrap_header_lambdas(
         state,
@@ -98,23 +97,24 @@ pub(crate) fn synthetic_struct_field_body(
         ),
     );
 
+    let recv_coerce_eff = state.fresh_exact_pure_eff_tv();
+    let recv_expr_eff = state.fresh_exact_pure_eff_tv();
+    let recv = state.representation_coerce(
+        recv_tv,
+        record_tv,
+        recv_coerce_eff,
+        TypedExpr {
+            tv: recv_tv,
+            eff: recv_expr_eff,
+            kind: ExprKind::Var(recv_def),
+        },
+    );
+
     let body = TypedExpr {
         tv: state.fresh_tv(),
         eff: state.fresh_exact_pure_eff_tv(),
         kind: ExprKind::Select {
-            recv: Box::new(TypedExpr {
-                tv: record_tv,
-                eff: state.fresh_exact_pure_eff_tv(),
-                kind: ExprKind::Coerce {
-                    actual_tv: recv_tv,
-                    expected_tv: record_tv,
-                    expr: Box::new(TypedExpr {
-                        tv: recv_tv,
-                        eff: state.fresh_exact_pure_eff_tv(),
-                        kind: ExprKind::Var(recv_def),
-                    }),
-                },
-            }),
+            recv: Box::new(recv),
             name: field_name.clone(),
         },
     };

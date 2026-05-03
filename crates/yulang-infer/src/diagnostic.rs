@@ -59,6 +59,7 @@ pub enum ConstraintReason {
     ApplyArg,
     ApplyFunction,
     Annotation,
+    RepresentationCoerce,
     ImplMember,
     IfCondition,
     IfBranch,

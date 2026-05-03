@@ -116,6 +116,7 @@ fn constraint_reason_priority(reason: ConstraintReason) -> u8 {
         ConstraintReason::Annotation => 5,
         ConstraintReason::ApplyArg
         | ConstraintReason::ApplyFunction
+        | ConstraintReason::RepresentationCoerce
         | ConstraintReason::ImplMember
         | ConstraintReason::IfCondition
         | ConstraintReason::IfBranch

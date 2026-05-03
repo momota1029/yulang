@@ -172,6 +172,9 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 35. `ExpectedEdgeKind::ApplicationArgument` を apply lowering に接続した。関数側の argument slot として `expected_arg_tv` を作り、`arg.tv <= expected_arg_tv` を `expect_value` で記録し、関数制約は `func.tv <= expected_arg_tv -> result` にした。これにより application argument も solver が実際に見る subsumption 境界として観測できる。
 36. direct ref assignment に `ExpectedEdgeKind::AssignmentValue` を接続した。`RefSet` lowering では参照の要素型用 `expected_value_tv` を作り、`value.tv <= expected_value_tv` を `expect_value` で記録してから、reference 側を `std::var::ref<ref_eff, expected_value_tv>` に合わせる。
 37. `collect_expected_edges` の表示側で `TypeVar -> CompactTypeScheme` の小さな cache を入れた。表示文字列ではなく compact 結果だけを cache し、edge ごとの `VarNamer` は維持するので、同じ edge 内の型変数名付けは従来通りに保つ。
+38. 通常の `ExpectedEdge` について、`actual_tv <= expected_tv` と effect edge の `actual_eff <= expected_eff` が solver に入っていることをテストで固定した。kind と `ConstraintReason` の対応もあわせて見る。
+39. `ExprKind::Coerce` を作る synthetic struct / enum constructor と struct field projection で、`ExpectedEdgeKind::RepresentationCoerce` を記録するようにした。これは runtime 表現境界なので、通常の `expect_value` とは分けて制約は追加しない。
+40. direct ref assignment の `AssignmentValue` cause に右辺 span を入れるようにした。これで diagnostic / hover で「代入値が期待型へ流れた場所」を辿りやすくなった。
 
 ## Notes
 
@@ -186,4 +189,5 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - `ExpectedEdge` は今のところ `LowerState` 内の観測用 table と CLI verbose 表示で、export / runtime には影響しない。次は `ExpectedEdge` を principal elaboration evidence 生成に接続するか、application argument / annotation / assignment value へ広げるかを選ぶ。
 - `ExpectedEdge` を増やす場合は、直接 `record_expected_edge*` を呼ぶより先に `expect_*` helper を通す。edge と solver constraint が同じ subsumption 境界を表す、という invariant を崩さない。
 - annotation edge は今のところ value type の annotation が対象。effect-only annotation は `ExpectedEdge` が value tv を必須にしているため、別途 `ExpectedEffectEdge` を作るか `ExpectedEdge` を effect-only に対応させるかを決めてから扱う。
-- `RecordField` / `VariantPayload` / `RepresentationCoerce` は enum にはあるが、今回は保留。record / variant は現状だと値を組み立てる側の制約が多く、expected subsumption 境界として切る位置を先に決める必要がある。coerce は representation/runtime 的な境界なので、`ExpectedEdge` と統合するより `CoerceEvidence` / future adapter hole 側との関係を先に整理する。
+- `RecordField` / `VariantPayload` は enum にはあるが、今回は保留。record / variant は現状だと値を組み立てる側の制約が多く、expected subsumption 境界として切る位置を先に決める必要がある。
+- `RepresentationCoerce` edge は記録済みだが、通常の expected subsumption edge とは違って solver constraint の副産物ではない。`CoerceEvidence` / future adapter hole との対応を見るための観測点として扱う。

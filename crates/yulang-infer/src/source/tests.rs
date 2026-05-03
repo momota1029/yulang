@@ -6,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use super::*;
 use crate::diagnostic::ExpectedEdgeKind;
 use crate::display::dump::{collect_expected_edges, render_compact_results};
+use crate::types::{Neg, Pos};
 
 fn run_with_large_stack<T>(f: impl FnOnce() -> T + Send + 'static) -> T
 where
@@ -51,6 +52,27 @@ fn normalize_runtime_scheme_vars(text: &str) -> String {
         i += 1;
     }
     out
+}
+
+fn assert_expected_edge_value_constraint(
+    state: &LowerState,
+    edge: &crate::diagnostic::ExpectedEdge,
+) {
+    let expected_lowers = state.infer.lowers_of(edge.expected_tv);
+    assert!(
+        expected_lowers
+            .iter()
+            .any(|pos| matches!(pos, Pos::Var(tv) if *tv == edge.actual_tv)),
+        "expected edge should add actual as expected lower: {edge:?}, lowers={expected_lowers:?}",
+    );
+
+    let actual_uppers = state.infer.uppers_of(edge.actual_tv);
+    assert!(
+        actual_uppers
+            .iter()
+            .any(|neg| matches!(neg, Neg::Var(tv) if *tv == edge.expected_tv)),
+        "expected edge should add expected as actual upper: {edge:?}, uppers={actual_uppers:?}",
+    );
 }
 
 const PAT_RECORD_DEFAULT_SOURCE: &str = r#"act cfg:
@@ -1353,8 +1375,13 @@ fn lowers_var_sigils_across_multiple_top_level_bindings() {
             .expected_edges
             .iter()
             .filter(|edge| edge.kind == ExpectedEdgeKind::AssignmentValue)
-            .count();
-        assert_eq!(assignment_edges, 1);
+            .collect::<Vec<_>>();
+        assert_eq!(assignment_edges.len(), 1);
+        assert!(
+            assignment_edges[0].cause.span.is_some(),
+            "assignment expected edge should point at the assigned value",
+        );
+        assert_expected_edge_value_constraint(&lowered.state, assignment_edges[0]);
 
         assert_eq!(
             rendered

@@ -22,6 +22,69 @@ fn parse_and_lower(src: &str) -> LowerState {
     state
 }
 
+fn assert_expected_edge_solver_constraint(state: &LowerState, edge: &diagnostic::ExpectedEdge) {
+    if edge.kind == diagnostic::ExpectedEdgeKind::RepresentationCoerce {
+        return;
+    }
+
+    let expected_lowers = state.infer.lowers_of(edge.expected_tv);
+    assert!(
+        expected_lowers
+            .iter()
+            .any(|pos| matches!(pos, Pos::Var(tv) if *tv == edge.actual_tv)),
+        "expected edge should add actual as expected lower: {edge:?}, lowers={expected_lowers:?}",
+    );
+
+    let actual_uppers = state.infer.uppers_of(edge.actual_tv);
+    assert!(
+        actual_uppers
+            .iter()
+            .any(|neg| matches!(neg, Neg::Var(tv) if *tv == edge.expected_tv)),
+        "expected edge should add expected as actual upper: {edge:?}, uppers={actual_uppers:?}",
+    );
+
+    if let (Some(actual_eff), Some(expected_eff)) = (edge.actual_eff, edge.expected_eff) {
+        let expected_eff_lowers = state.infer.lowers_of(expected_eff);
+        assert!(
+            expected_eff_lowers
+                .iter()
+                .any(|pos| matches!(pos, Pos::Var(tv) if *tv == actual_eff)),
+            "effect edge should add actual effect as expected lower: {edge:?}, lowers={expected_eff_lowers:?}",
+        );
+
+        let actual_eff_uppers = state.infer.uppers_of(actual_eff);
+        assert!(
+            actual_eff_uppers
+                .iter()
+                .any(|neg| matches!(neg, Neg::Var(tv) if *tv == expected_eff)),
+            "effect edge should add expected effect as actual upper: {edge:?}, uppers={actual_eff_uppers:?}",
+        );
+    }
+}
+
+fn assert_expected_edge_reason_matches_kind(edge: &diagnostic::ExpectedEdge) {
+    use crate::diagnostic::ConstraintReason as Reason;
+    use crate::diagnostic::ExpectedEdgeKind as Kind;
+
+    let matches_kind = matches!(
+        (edge.kind, &edge.cause.reason),
+        (Kind::IfCondition, Reason::IfCondition)
+            | (Kind::IfBranch, Reason::IfBranch)
+            | (Kind::MatchGuard, Reason::MatchGuard)
+            | (Kind::MatchBranch, Reason::MatchBranch)
+            | (Kind::CatchGuard, Reason::CatchGuard)
+            | (Kind::CatchBranch, Reason::CatchBranch)
+            | (Kind::ApplicationArgument, Reason::ApplyArg)
+            | (Kind::Annotation, Reason::Annotation)
+            | (Kind::AssignmentValue, Reason::AssignmentValue)
+            | (Kind::RepresentationCoerce, Reason::RepresentationCoerce)
+    );
+    assert!(
+        matches_kind,
+        "expected edge kind and cause reason should match: {edge:?}",
+    );
+}
+
 #[test]
 fn simple_binding() {
     let state = parse_and_lower("my x = 42");
@@ -210,6 +273,59 @@ fn application_argument_records_expected_edge() {
         .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::ApplicationArgument)
         .count();
     assert_eq!(application_edges, 1);
+}
+
+#[test]
+fn expected_edges_keep_solver_constraints() {
+    let state = parse_and_lower("my id(x: int) = x\nmy f(b: bool) = if b { id 1 } else { id 2 }");
+    assert!(
+        state
+            .expected_edges
+            .iter()
+            .any(|edge| edge.kind == diagnostic::ExpectedEdgeKind::Annotation)
+    );
+    assert!(
+        state
+            .expected_edges
+            .iter()
+            .any(|edge| edge.kind == diagnostic::ExpectedEdgeKind::ApplicationArgument)
+    );
+    assert!(
+        state
+            .expected_edges
+            .iter()
+            .any(|edge| edge.kind == diagnostic::ExpectedEdgeKind::IfCondition)
+    );
+    assert!(
+        state
+            .expected_edges
+            .iter()
+            .any(|edge| edge.kind == diagnostic::ExpectedEdgeKind::IfBranch)
+    );
+
+    for edge in &state.expected_edges {
+        assert_expected_edge_reason_matches_kind(edge);
+        assert_expected_edge_solver_constraint(&state, edge);
+    }
+}
+
+#[test]
+fn synthetic_representation_coerce_records_expected_edges() {
+    let state = parse_and_lower(
+        "struct point { x: int, y: int }\nmy p = point { x: 1, y: 2 }\nmy px = p.x",
+    );
+    let representation_edges = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::RepresentationCoerce)
+        .collect::<Vec<_>>();
+    assert!(
+        representation_edges.len() >= 2,
+        "struct constructor and field projection should record representation edges, got {representation_edges:?}",
+    );
+    for edge in representation_edges {
+        assert_expected_edge_reason_matches_kind(edge);
+    }
 }
 
 #[test]

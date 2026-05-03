@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::ast::expr::TypedExpr;
+use crate::ast::expr::{ExprKind, TypedExpr};
 use crate::diagnostic::{ConstraintCause, ExpectedEdge, ExpectedEdgeKind, TypeOrigin};
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::ctx::LowerCtx;
@@ -254,6 +254,33 @@ impl LowerState {
             .constrain_with_cause(Pos::Var(actual_tv), Neg::Var(expected_tv), cause);
         self.infer
             .constrain(Pos::Var(actual_eff), Neg::Var(expected_eff));
+    }
+
+    pub fn representation_coerce(
+        &mut self,
+        actual_tv: TypeVar,
+        expected_tv: TypeVar,
+        eff: TypeVar,
+        expr: TypedExpr,
+    ) -> TypedExpr {
+        self.record_expected_edge(
+            actual_tv,
+            expected_tv,
+            ExpectedEdgeKind::RepresentationCoerce,
+            ConstraintCause {
+                span: None,
+                reason: crate::diagnostic::ConstraintReason::RepresentationCoerce,
+            },
+        );
+        TypedExpr {
+            tv: expected_tv,
+            eff,
+            kind: ExprKind::Coerce {
+                actual_tv,
+                expected_tv,
+                expr: Box::new(expr),
+            },
+        }
     }
 
     /// fresh な DefId を発行し、SCC に登録する。

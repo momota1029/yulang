@@ -181,15 +181,8 @@ fn synthetic_enum_nullary_constructor_body(
     );
     state.infer.constrain(enum_pos, Neg::Var(ret_tv));
     state.infer.constrain(Pos::Var(ret_tv), enum_neg);
-    TypedExpr {
-        tv: ret_tv,
-        eff: state.fresh_exact_pure_eff_tv(),
-        kind: ExprKind::Coerce {
-            actual_tv: variant_tv,
-            expected_tv: ret_tv,
-            expr: Box::new(variant),
-        },
-    }
+    let body_eff = state.fresh_exact_pure_eff_tv();
+    state.representation_coerce(variant_tv, ret_tv, body_eff, variant)
 }
 
 fn synthetic_enum_unary_constructor_body(
@@ -219,25 +212,23 @@ fn synthetic_enum_unary_constructor_body(
         .infer
         .constrain(Pos::Var(payload_tv), Neg::Var(arg_tv));
 
+    let payload_coerce_eff = state.fresh_exact_pure_eff_tv();
+    let arg_expr_eff = state.fresh_exact_pure_eff_tv();
+    let payload = state.representation_coerce(
+        arg_tv,
+        payload_tv,
+        payload_coerce_eff,
+        TypedExpr {
+            tv: arg_tv,
+            eff: arg_expr_eff,
+            kind: ExprKind::Var(arg_def),
+        },
+    );
+
     let variant = TypedExpr {
         tv: variant_tv,
         eff: state.fresh_exact_pure_eff_tv(),
-        kind: ExprKind::PolyVariant(
-            tag.clone(),
-            vec![TypedExpr {
-                tv: payload_tv,
-                eff: state.fresh_exact_pure_eff_tv(),
-                kind: ExprKind::Coerce {
-                    actual_tv: arg_tv,
-                    expected_tv: payload_tv,
-                    expr: Box::new(TypedExpr {
-                        tv: arg_tv,
-                        eff: state.fresh_exact_pure_eff_tv(),
-                        kind: ExprKind::Var(arg_def),
-                    }),
-                },
-            }],
-        ),
+        kind: ExprKind::PolyVariant(tag.clone(), vec![payload]),
     };
     state.infer.constrain(
         state.pos_variant(vec![(tag.clone(), vec![Pos::Var(payload_tv)])]),
@@ -253,15 +244,8 @@ fn synthetic_enum_unary_constructor_body(
     state.infer.constrain(enum_pos, Neg::Var(ret_tv));
     state.infer.constrain(Pos::Var(ret_tv), enum_neg);
 
-    let body = TypedExpr {
-        tv: ret_tv,
-        eff: state.fresh_exact_pure_eff_tv(),
-        kind: ExprKind::Coerce {
-            actual_tv: variant_tv,
-            expected_tv: ret_tv,
-            expr: Box::new(variant),
-        },
-    };
+    let body_eff = state.fresh_exact_pure_eff_tv();
+    let body = state.representation_coerce(variant_tv, ret_tv, body_eff, variant);
     let arg_eff_tv = state.fresh_exact_pure_eff_tv();
     super::super::wrap_header_lambdas(
         state,

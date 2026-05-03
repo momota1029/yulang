@@ -51,7 +51,7 @@ pub(super) fn lower_var_assignment(
     reference: TypedExpr,
     suffix: &SyntaxNode,
 ) -> TypedExpr {
-    let rhs = suffix
+    let rhs_node = suffix
         .children()
         .filter(|c| {
             matches!(
@@ -59,7 +59,9 @@ pub(super) fn lower_var_assignment(
                 SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
             )
         })
-        .last()
+        .last();
+    let rhs_span = rhs_node.as_ref().map(SyntaxNode::text_range);
+    let rhs = rhs_node
         .map(|node| lower_expr(state, &node))
         .unwrap_or_else(|| unit_expr(state));
 
@@ -67,7 +69,7 @@ pub(super) fn lower_var_assignment(
         return make_app(state, set, rhs);
     }
 
-    lower_ref_set_assignment(state, reference, rhs)
+    lower_ref_set_assignment(state, reference, rhs, rhs_span)
 }
 
 fn resolve_var_assignment_set(state: &mut LowerState, reference: &TypedExpr) -> Option<TypedExpr> {
@@ -102,11 +104,12 @@ fn lower_ref_set_assignment(
     state: &mut LowerState,
     reference: TypedExpr,
     value: TypedExpr,
+    value_span: Option<rowan::TextRange>,
 ) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
     let ref_eff = state.fresh_tv();
-    constrain_ref_set_assignment(state, tv, eff, ref_eff, &reference, &value);
+    constrain_ref_set_assignment(state, tv, eff, ref_eff, &reference, &value, value_span);
     TypedExpr {
         tv,
         eff,
@@ -124,6 +127,7 @@ fn constrain_ref_set_assignment(
     ref_eff: TypeVar,
     reference: &TypedExpr,
     value: &TypedExpr,
+    value_span: Option<rowan::TextRange>,
 ) {
     let expected_value_tv = state.fresh_tv();
     state.infer.constrain(prim_type("unit"), Neg::Var(tv));
@@ -139,7 +143,7 @@ fn constrain_ref_set_assignment(
         expected_value_tv,
         ExpectedEdgeKind::AssignmentValue,
         ConstraintCause {
-            span: None,
+            span: value_span,
             reason: ConstraintReason::AssignmentValue,
         },
     );
