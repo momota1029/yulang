@@ -6,6 +6,7 @@
 //! profiling, and final invariant checks around this demand core.
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use yulang_core_ir as core_ir;
 
@@ -49,6 +50,88 @@ pub struct DemandQueueProfile {
     pub skipped_duplicate: usize,
     pub skipped_covered_by_closed: usize,
 }
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct DemandEvidenceProfile {
+    pub apply_arg_signature_calls: usize,
+    pub expected_arg_hint_disabled: usize,
+    pub expected_arg_hint_present: usize,
+    pub expected_arg_hint_converted: usize,
+    pub expected_arg_hint_used: usize,
+    pub expected_arg_hint_changed_signature: usize,
+    pub expected_arg_hint_same_signature: usize,
+    pub expected_arg_hint_rejected_open: usize,
+}
+
+pub(crate) fn reset_demand_evidence_profile() {
+    DEMAND_EVIDENCE_PROFILE.reset();
+}
+
+pub(crate) fn snapshot_demand_evidence_profile() -> DemandEvidenceProfile {
+    DEMAND_EVIDENCE_PROFILE.snapshot()
+}
+
+struct DemandEvidenceProfileCounters {
+    apply_arg_signature_calls: AtomicUsize,
+    expected_arg_hint_disabled: AtomicUsize,
+    expected_arg_hint_present: AtomicUsize,
+    expected_arg_hint_converted: AtomicUsize,
+    expected_arg_hint_used: AtomicUsize,
+    expected_arg_hint_changed_signature: AtomicUsize,
+    expected_arg_hint_same_signature: AtomicUsize,
+    expected_arg_hint_rejected_open: AtomicUsize,
+}
+
+impl DemandEvidenceProfileCounters {
+    const fn new() -> Self {
+        Self {
+            apply_arg_signature_calls: AtomicUsize::new(0),
+            expected_arg_hint_disabled: AtomicUsize::new(0),
+            expected_arg_hint_present: AtomicUsize::new(0),
+            expected_arg_hint_converted: AtomicUsize::new(0),
+            expected_arg_hint_used: AtomicUsize::new(0),
+            expected_arg_hint_changed_signature: AtomicUsize::new(0),
+            expected_arg_hint_same_signature: AtomicUsize::new(0),
+            expected_arg_hint_rejected_open: AtomicUsize::new(0),
+        }
+    }
+
+    fn reset(&self) {
+        self.apply_arg_signature_calls.store(0, Ordering::Relaxed);
+        self.expected_arg_hint_disabled.store(0, Ordering::Relaxed);
+        self.expected_arg_hint_present.store(0, Ordering::Relaxed);
+        self.expected_arg_hint_converted.store(0, Ordering::Relaxed);
+        self.expected_arg_hint_used.store(0, Ordering::Relaxed);
+        self.expected_arg_hint_changed_signature
+            .store(0, Ordering::Relaxed);
+        self.expected_arg_hint_same_signature
+            .store(0, Ordering::Relaxed);
+        self.expected_arg_hint_rejected_open
+            .store(0, Ordering::Relaxed);
+    }
+
+    fn snapshot(&self) -> DemandEvidenceProfile {
+        DemandEvidenceProfile {
+            apply_arg_signature_calls: self.apply_arg_signature_calls.load(Ordering::Relaxed),
+            expected_arg_hint_disabled: self.expected_arg_hint_disabled.load(Ordering::Relaxed),
+            expected_arg_hint_present: self.expected_arg_hint_present.load(Ordering::Relaxed),
+            expected_arg_hint_converted: self.expected_arg_hint_converted.load(Ordering::Relaxed),
+            expected_arg_hint_used: self.expected_arg_hint_used.load(Ordering::Relaxed),
+            expected_arg_hint_changed_signature: self
+                .expected_arg_hint_changed_signature
+                .load(Ordering::Relaxed),
+            expected_arg_hint_same_signature: self
+                .expected_arg_hint_same_signature
+                .load(Ordering::Relaxed),
+            expected_arg_hint_rejected_open: self
+                .expected_arg_hint_rejected_open
+                .load(Ordering::Relaxed),
+        }
+    }
+}
+
+static DEMAND_EVIDENCE_PROFILE: DemandEvidenceProfileCounters =
+    DemandEvidenceProfileCounters::new();
 
 impl DemandQueue {
     pub fn push(&mut self, target: core_ir::Path, expected: RuntimeType) -> bool {
@@ -1195,15 +1278,43 @@ pub(super) fn apply_evidence_arg_signature_with_expected_arg(
     evidence: &core_ir::ApplyEvidence,
     use_expected_arg: bool,
 ) -> Option<DemandSignature> {
-    if use_expected_arg
-        && let Some(signature) = evidence
-            .expected_arg
-            .as_ref()
-            .and_then(evidence_bounds_type)
-            .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())))
-            .filter(DemandSignature::is_closed)
-    {
-        return Some(signature);
+    DEMAND_EVIDENCE_PROFILE
+        .apply_arg_signature_calls
+        .fetch_add(1, Ordering::Relaxed);
+    if !use_expected_arg {
+        DEMAND_EVIDENCE_PROFILE
+            .expected_arg_hint_disabled
+            .fetch_add(1, Ordering::Relaxed);
+    } else if let Some(bounds) = evidence.expected_arg.as_ref() {
+        DEMAND_EVIDENCE_PROFILE
+            .expected_arg_hint_present
+            .fetch_add(1, Ordering::Relaxed);
+        if let Some(ty) = evidence_bounds_type(bounds) {
+            DEMAND_EVIDENCE_PROFILE
+                .expected_arg_hint_converted
+                .fetch_add(1, Ordering::Relaxed);
+            let signature = DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone()));
+            if signature.is_closed() {
+                DEMAND_EVIDENCE_PROFILE
+                    .expected_arg_hint_used
+                    .fetch_add(1, Ordering::Relaxed);
+                let fallback = evidence_bounds_type(&evidence.arg)
+                    .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())));
+                if fallback.as_ref() == Some(&signature) {
+                    DEMAND_EVIDENCE_PROFILE
+                        .expected_arg_hint_same_signature
+                        .fetch_add(1, Ordering::Relaxed);
+                } else {
+                    DEMAND_EVIDENCE_PROFILE
+                        .expected_arg_hint_changed_signature
+                        .fetch_add(1, Ordering::Relaxed);
+                }
+                return Some(signature);
+            }
+            DEMAND_EVIDENCE_PROFILE
+                .expected_arg_hint_rejected_open
+                .fetch_add(1, Ordering::Relaxed);
+        }
     }
     evidence_bounds_type(&evidence.arg)
         .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())))

@@ -17,7 +17,10 @@ use crate::ir::{
     RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, ResumeBinding, Root, Stmt,
     Type as RuntimeType, TypeInstantiation,
 };
-use crate::monomorphize::{DemandQueueProfile, demand_monomorphize_module};
+use crate::monomorphize::{
+    DemandEvidenceProfile, DemandQueueProfile, demand_monomorphize_module,
+    reset_demand_evidence_profile, snapshot_demand_evidence_profile,
+};
 use crate::refine::refine_module_types_with_report;
 use crate::types::{
     collect_expr_type_vars, collect_hir_type_vars, collect_type_vars as collect_core_type_vars,
@@ -67,11 +70,19 @@ pub fn monomorphize_module_profiled(
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct MonomorphizeProfile {
     pub passes: Vec<MonomorphizePassProfile>,
+    pub demand_evidence: DemandEvidenceProfile,
 }
 
 impl MonomorphizeProfile {
     pub fn pass_count(&self) -> usize {
         self.passes.len()
+    }
+
+    pub fn effective_pass_count(&self) -> usize {
+        self.passes
+            .iter()
+            .filter(|pass| pass.progress.changed())
+            .count()
     }
 
     pub fn added_specializations(&self) -> usize {
@@ -100,6 +111,7 @@ pub struct MonomorphizePassProfile {
     pub roots_after: usize,
     pub progress: MonomorphizeProgress,
     pub demand_queue: DemandQueueProfile,
+    pub added_binding_paths: Vec<core_ir::Path>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -107,6 +119,12 @@ pub struct MonomorphizeProgress {
     pub changed_bindings: usize,
     pub changed_roots: usize,
     pub added_specializations: usize,
+}
+
+impl MonomorphizeProgress {
+    pub fn changed(self) -> bool {
+        self.changed_bindings > 0 || self.changed_roots > 0 || self.added_specializations > 0
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,6 +198,7 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
     let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
     let mut module = module;
     let mut profile = MonomorphizeProfile::default();
+    reset_demand_evidence_profile();
     if std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some() {
         let step = run_profiled_mono_pass(
             module,
@@ -211,6 +230,7 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
             }
         }
     }
+    profile.demand_evidence = snapshot_demand_evidence_profile();
     Ok((module, profile))
 }
 
@@ -263,6 +283,7 @@ fn run_profiled_mono_pass(
         roots_after: after.roots,
         progress,
         demand_queue: step.demand_queue,
+        added_binding_paths: step.added_binding_paths.clone(),
     });
     if debug {
         eprintln!(
@@ -350,10 +371,12 @@ fn demand_specialize_module(module: Module) -> RuntimeResult<MonoStep> {
         })?;
     validate_module(&output.module)?;
     let progress = MonoProgress::from_modules(&before, &output.module);
+    let added_binding_paths = added_binding_paths(&before, &output.module);
     Ok(MonoStep {
         module: output.module,
         progress,
         demand_queue: output.profile.queue,
+        added_binding_paths,
     })
 }
 
@@ -423,6 +446,7 @@ struct MonoStep {
     module: Module,
     progress: MonoProgress,
     demand_queue: DemandQueueProfile,
+    added_binding_paths: Vec<core_ir::Path>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -489,10 +513,12 @@ where
     let before = module.clone();
     let module = f(module)?;
     let progress = MonoProgress::from_modules(&before, &module);
+    let added_binding_paths = added_binding_paths(&before, &module);
     Ok(MonoStep {
         module,
         progress,
         demand_queue: DemandQueueProfile::default(),
+        added_binding_paths,
     })
 }
 
@@ -514,5 +540,20 @@ fn refine_module_types_for_mono(module: Module) -> RuntimeResult<MonoStep> {
         module: output.module,
         progress,
         demand_queue: DemandQueueProfile::default(),
+        added_binding_paths: Vec::new(),
     })
+}
+
+fn added_binding_paths(before: &Module, after: &Module) -> Vec<core_ir::Path> {
+    let before_paths = before
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<HashSet<_>>();
+    after
+        .bindings
+        .iter()
+        .filter(|binding| !before_paths.contains(&binding.name))
+        .map(|binding| binding.name.clone())
+        .collect()
 }

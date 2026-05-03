@@ -31,8 +31,8 @@ pub use lower::{
     lower_core_program, lower_core_program_profiled, lower_principal_module,
 };
 pub use monomorphize::{
-    DemandQueueProfile, MonomorphizePassProfile, MonomorphizeProfile, MonomorphizeProgress,
-    monomorphize_module, monomorphize_module_profiled,
+    DemandEvidenceProfile, DemandQueueProfile, MonomorphizePassProfile, MonomorphizeProfile,
+    MonomorphizeProgress, monomorphize_module, monomorphize_module_profiled,
 };
 pub use refine::refine_module_types;
 pub use validate::validate_module;

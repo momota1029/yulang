@@ -736,8 +736,9 @@ fn print_runtime_phase_timings(
         format_duration(profile.monomorphize)
     );
     eprintln!(
-        "    mono_passes: {}, specializations: {}",
+        "    mono_passes: {}, effective_passes: {}, specializations: {}",
         profile.monomorphize_profile.pass_count(),
+        profile.monomorphize_profile.effective_pass_count(),
         profile.monomorphize_profile.added_specializations()
     );
     let expected_arg = &profile.lower_profile.expected_arg_evidence;
@@ -777,6 +778,41 @@ fn print_runtime_phase_timings(
         demand_queue.skipped_duplicate,
         demand_queue.skipped_covered_by_closed,
     );
+    let demand_evidence = &profile.monomorphize_profile.demand_evidence;
+    eprintln!(
+        "    demand_evidence: apply_arg_calls={}, expected_arg_disabled={}, expected_arg_present={}, expected_arg_converted={}, expected_arg_used={}, expected_arg_changed_signature={}, expected_arg_same_signature={}, expected_arg_rejected_open={}",
+        demand_evidence.apply_arg_signature_calls,
+        demand_evidence.expected_arg_hint_disabled,
+        demand_evidence.expected_arg_hint_present,
+        demand_evidence.expected_arg_hint_converted,
+        demand_evidence.expected_arg_hint_used,
+        demand_evidence.expected_arg_hint_changed_signature,
+        demand_evidence.expected_arg_hint_same_signature,
+        demand_evidence.expected_arg_hint_rejected_open,
+    );
+    eprintln!("    monomorphize_passes:");
+    for pass in &profile.monomorphize_profile.passes {
+        let added_paths = pass
+            .added_binding_paths
+            .iter()
+            .map(format_core_path)
+            .collect::<Vec<_>>()
+            .join(", ");
+        eprintln!(
+            "        {}: bindings {}->{}, roots {}->{}, changed_bindings={}, changed_roots={}, added_specializations={}, queue_attempted={}, queue_pushed={}, added=[{}]",
+            pass.name,
+            pass.bindings_before,
+            pass.bindings_after,
+            pass.roots_before,
+            pass.roots_after,
+            pass.progress.changed_bindings,
+            pass.progress.changed_roots,
+            pass.progress.added_specializations,
+            pass.demand_queue.attempted,
+            pass.demand_queue.pushed,
+            added_paths,
+        );
+    }
     if let Some(duration) = vm_compile {
         eprintln!("    vm_compile: {}", format_duration(duration));
     }
