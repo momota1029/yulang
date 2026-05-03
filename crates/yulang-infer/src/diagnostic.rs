@@ -170,6 +170,10 @@ impl ConstraintCause {
     }
 }
 
+pub fn type_error_vars(infer: &crate::solve::Infer, error: &TypeError) -> Vec<TypeVar> {
+    origin_vars(infer, error.pos, error.neg)
+}
+
 pub(super) fn origin_vars(infer: &crate::solve::Infer, pos: PosId, neg: NegId) -> Vec<TypeVar> {
     let mut vars = Vec::new();
     let mut push = |tv: TypeVar| {

@@ -95,7 +95,17 @@ fn collect_expr_free_vars(
                     if let Some(guard) = &arm.guard {
                         collect_expr_free_vars(guard, bound, vars);
                     }
-                    collect_expr_free_vars(&arm.body, bound, vars);
+                    if let Some(resume) = &arm.resume {
+                        with_bound_path(
+                            bound,
+                            core_ir::Path::from_name(resume.name.clone()),
+                            |bound| {
+                                collect_expr_free_vars(&arm.body, bound, vars);
+                            },
+                        );
+                    } else {
+                        collect_expr_free_vars(&arm.body, bound, vars);
+                    }
                 });
             }
         }
@@ -280,5 +290,52 @@ fn collect_pattern_default_free_vars(
         | Pattern::Bind { .. }
         | Pattern::Lit { .. }
         | Pattern::Variant { value: None, .. } => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn collect_expr_vars_ignores_handle_resume_in_arm_body() {
+        let resume = core_ir::Name("resume".to_string());
+        let resume_path = core_ir::Path::from_name(resume.clone());
+        let unit = RuntimeType::Core(core_ir::Type::Named {
+            path: core_ir::Path::from_name(core_ir::Name("unit".to_string())),
+            args: Vec::new(),
+        });
+        let expr = Expr::typed(
+            ExprKind::Handle {
+                body: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit.clone())),
+                arms: vec![HandleArm {
+                    effect: core_ir::Path::from_name(core_ir::Name("eff".to_string())),
+                    payload: Pattern::Wildcard { ty: unit.clone() },
+                    resume: Some(ResumeBinding {
+                        name: resume,
+                        ty: unit.clone(),
+                    }),
+                    guard: None,
+                    body: Expr::typed(ExprKind::Var(resume_path.clone()), unit.clone()),
+                }],
+                evidence: crate::ir::JoinEvidence {
+                    result: core_ir::Type::Never,
+                },
+                handler: crate::ir::HandleEffect {
+                    consumes: Vec::new(),
+                    residual_before: None,
+                    residual_after: None,
+                },
+            },
+            unit,
+        );
+
+        let mut vars = HashSet::new();
+        collect_expr_vars(&expr, &mut vars);
+
+        assert!(
+            !vars.contains(&resume_path),
+            "resume binding should not be treated as a top-level reference: {vars:?}",
+        );
     }
 }

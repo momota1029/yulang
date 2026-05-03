@@ -18,9 +18,9 @@ use rowan::SyntaxNode;
 use yulang_core_ir as core_ir;
 use yulang_infer::ids::{NegId as InferNegId, PosId as InferPosId};
 use yulang_infer::{
-    ExpectedEdgeKind as InferExpectedEdgeKind, ExpectedShape as InferExpectedShape,
-    FinalizeCompactProfile as InferFinalizeCompactProfile, LowerState as InferLowerState,
-    Neg as InferNeg, Path as InferPath, Pos as InferPos,
+    ExpectedEdge as InferExpectedEdge, ExpectedEdgeKind as InferExpectedEdgeKind,
+    ExpectedShape as InferExpectedShape, FinalizeCompactProfile as InferFinalizeCompactProfile,
+    LowerState as InferLowerState, Neg as InferNeg, Path as InferPath, Pos as InferPos,
     SourceLowerProfile as InferSourceLowerProfile, SourceOptions,
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
     TypeErrorKind as InferTypeErrorKind, collect_compact_results as collect_infer_compact_results,
@@ -1106,19 +1106,17 @@ fn print_infer_type_error(state: &InferLowerState, error: &InferTypeError, sourc
 }
 
 fn infer_error_expected_context(state: &InferLowerState, error: &InferTypeError) -> Option<String> {
+    let error_vars = yulang_infer::diagnostic::type_error_vars(&state.infer, error);
     let edge = state
         .expected_edges
         .iter()
-        .filter(|edge| edge.cause.reason == error.cause.reason)
         .filter(|edge| infer_expected_edge_is_diagnostic_context(edge.kind))
-        .find(|edge| edge.cause.span == error.cause.span)
-        .or_else(|| {
-            state
-                .expected_edges
-                .iter()
-                .filter(|edge| edge.cause.reason == error.cause.reason)
-                .find(|edge| infer_expected_edge_is_diagnostic_context(edge.kind))
-        })?;
+        .filter_map(|edge| {
+            let score = infer_expected_edge_error_score(edge, error, &error_vars);
+            (score > 0).then_some((score, edge))
+        })
+        .max_by_key(|(score, _)| *score)
+        .map(|(_, edge)| edge)?;
 
     Some(format!(
         "{} expected {}; expression provides {}",
@@ -1126,6 +1124,39 @@ fn infer_error_expected_context(state: &InferLowerState, error: &InferTypeError)
         format_infer_neg(state, error.neg),
         format_infer_pos(state, error.pos),
     ))
+}
+
+fn infer_expected_edge_error_score(
+    edge: &InferExpectedEdge,
+    error: &InferTypeError,
+    error_vars: &[yulang_infer::TypeVar],
+) -> u8 {
+    let mut score = 0;
+    if error_vars.contains(&edge.actual_tv) {
+        score += 3;
+    }
+    if error_vars.contains(&edge.expected_tv) {
+        score += 3;
+    }
+    if edge
+        .actual_eff
+        .is_some_and(|actual_eff| error_vars.contains(&actual_eff))
+    {
+        score += 3;
+    }
+    if edge
+        .expected_eff
+        .is_some_and(|expected_eff| error_vars.contains(&expected_eff))
+    {
+        score += 3;
+    }
+    if edge.cause.span == error.cause.span {
+        score += 2;
+    }
+    if edge.cause.reason == error.cause.reason {
+        score += 1;
+    }
+    score
 }
 
 fn infer_expected_edge_is_diagnostic_context(kind: InferExpectedEdgeKind) -> bool {

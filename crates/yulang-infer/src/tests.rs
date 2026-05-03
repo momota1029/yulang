@@ -325,6 +325,129 @@ fn synthetic_representation_coerce_records_expected_edges() {
     );
     for edge in representation_edges {
         assert_expected_edge_reason_matches_kind(edge);
+        let (Some(actual_eff), Some(expected_eff)) = (edge.actual_eff, edge.expected_eff) else {
+            panic!("representation edge should record effect flow: {edge:?}");
+        };
+        let expected_eff_lowers = state.infer.lowers_of(expected_eff);
+        assert!(
+            expected_eff_lowers
+                .iter()
+                .any(|pos| matches!(pos, Pos::Var(tv) if *tv == actual_eff)),
+            "representation coerce should constrain inner effect into wrapper effect: {edge:?}, lowers={expected_eff_lowers:?}",
+        );
+    }
+}
+
+#[test]
+fn synthetic_representation_coerce_edges_have_core_evidence() {
+    let mut state = parse_and_lower("struct point { x: int }\nmy p = point { x: 1 }\nmy px = p.x");
+    let representation_edge_count = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::RepresentationCoerce)
+        .count();
+    assert!(
+        representation_edge_count >= 2,
+        "expected representation edges for struct helpers, got {:?}",
+        state.expected_edges,
+    );
+
+    let program = export_core_program(&mut state);
+    let coerce_evidence_count = count_coerce_evidence_in_module(&program.program);
+    assert!(
+        coerce_evidence_count >= representation_edge_count,
+        "expected core CoerceEvidence for representation edges, edges={representation_edge_count}, evidence={coerce_evidence_count}",
+    );
+}
+
+fn count_coerce_evidence_in_module(module: &yulang_core_ir::PrincipalModule) -> usize {
+    module
+        .bindings
+        .iter()
+        .map(|binding| count_coerce_evidence(&binding.body))
+        .sum::<usize>()
+        + module
+            .root_exprs
+            .iter()
+            .map(count_coerce_evidence)
+            .sum::<usize>()
+}
+
+fn count_coerce_evidence(expr: &yulang_core_ir::Expr) -> usize {
+    match expr {
+        yulang_core_ir::Expr::Coerce { evidence, expr } => {
+            usize::from(evidence.is_some()) + count_coerce_evidence(expr)
+        }
+        yulang_core_ir::Expr::Lambda { body, .. }
+        | yulang_core_ir::Expr::Pack { expr: body, .. } => count_coerce_evidence(body),
+        yulang_core_ir::Expr::Apply { callee, arg, .. } => {
+            count_coerce_evidence(callee) + count_coerce_evidence(arg)
+        }
+        yulang_core_ir::Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            count_coerce_evidence(cond)
+                + count_coerce_evidence(then_branch)
+                + count_coerce_evidence(else_branch)
+        }
+        yulang_core_ir::Expr::Tuple(items) => items.iter().map(count_coerce_evidence).sum(),
+        yulang_core_ir::Expr::Record { fields, spread } => {
+            fields
+                .iter()
+                .map(|field| count_coerce_evidence(&field.value))
+                .sum::<usize>()
+                + match spread {
+                    Some(yulang_core_ir::RecordSpreadExpr::Head(expr))
+                    | Some(yulang_core_ir::RecordSpreadExpr::Tail(expr)) => {
+                        count_coerce_evidence(expr)
+                    }
+                    None => 0,
+                }
+        }
+        yulang_core_ir::Expr::Variant { value, .. } => {
+            value.as_deref().map(count_coerce_evidence).unwrap_or(0)
+        }
+        yulang_core_ir::Expr::Select { base, .. } => count_coerce_evidence(base),
+        yulang_core_ir::Expr::Match {
+            scrutinee, arms, ..
+        } => {
+            count_coerce_evidence(scrutinee)
+                + arms
+                    .iter()
+                    .map(|arm| {
+                        arm.guard.as_ref().map(count_coerce_evidence).unwrap_or(0)
+                            + count_coerce_evidence(&arm.body)
+                    })
+                    .sum::<usize>()
+        }
+        yulang_core_ir::Expr::Block { stmts, tail } => {
+            stmts
+                .iter()
+                .map(|stmt| match stmt {
+                    yulang_core_ir::Stmt::Let { value, .. } | yulang_core_ir::Stmt::Expr(value) => {
+                        count_coerce_evidence(value)
+                    }
+                    yulang_core_ir::Stmt::Module { body, .. } => count_coerce_evidence(body),
+                })
+                .sum::<usize>()
+                + tail.as_deref().map(count_coerce_evidence).unwrap_or(0)
+        }
+        yulang_core_ir::Expr::Handle { body, arms, .. } => {
+            count_coerce_evidence(body)
+                + arms
+                    .iter()
+                    .map(|arm| {
+                        arm.guard.as_ref().map(count_coerce_evidence).unwrap_or(0)
+                            + count_coerce_evidence(&arm.body)
+                    })
+                    .sum::<usize>()
+        }
+        yulang_core_ir::Expr::Var(_)
+        | yulang_core_ir::Expr::PrimitiveOp(_)
+        | yulang_core_ir::Expr::Lit(_) => 0,
     }
 }
 

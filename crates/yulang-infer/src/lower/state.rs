@@ -263,15 +263,19 @@ impl LowerState {
         eff: TypeVar,
         expr: TypedExpr,
     ) -> TypedExpr {
-        self.record_expected_edge(
+        let actual_eff = expr.eff;
+        self.record_expected_edge_with_effects(
             actual_tv,
             expected_tv,
+            Some(actual_eff),
+            Some(eff),
             ExpectedEdgeKind::RepresentationCoerce,
             ConstraintCause {
                 span: None,
                 reason: crate::diagnostic::ConstraintReason::RepresentationCoerce,
             },
         );
+        self.infer.constrain(Pos::Var(actual_eff), Neg::Var(eff));
         TypedExpr {
             tv: expected_tv,
             eff,
