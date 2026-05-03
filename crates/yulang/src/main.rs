@@ -878,22 +878,63 @@ fn print_runtime_adapter_event_summary(adapters: &runtime::RuntimeAdapterProfile
         "    runtime_adapter_events: total={}",
         adapters.events.len()
     );
-    let mut by_target = BTreeMap::<(String, String, String), usize>::new();
+    let mut by_context = BTreeMap::<(String, String, String, String), usize>::new();
     for event in &adapters.events {
         let phase = runtime_adapter_phase_name(event.phase).to_string();
+        let owner = event
+            .owner
+            .as_ref()
+            .map(format_core_path)
+            .unwrap_or_else(|| "<root>".to_string());
         let target = event
             .apply_target
             .as_ref()
             .map(format_core_path)
             .unwrap_or_else(|| "<unknown>".to_string());
         let kind = runtime_adapter_kind_name(event.kind).to_string();
-        *by_target.entry((phase, target, kind)).or_default() += 1;
+        *by_context.entry((phase, owner, target, kind)).or_default() += 1;
     }
-    for ((phase, target, kind), count) in by_target.iter().take(12) {
+    let mut by_context = by_context.into_iter().collect::<Vec<_>>();
+    by_context.sort_by(
+        |((left_phase, left_owner, left_target, left_kind), left_count),
+         ((right_phase, right_owner, right_target, right_kind), right_count)| {
+            right_count
+                .cmp(left_count)
+                .then_with(|| left_phase.cmp(right_phase))
+                .then_with(|| left_owner.cmp(right_owner))
+                .then_with(|| left_target.cmp(right_target))
+                .then_with(|| left_kind.cmp(right_kind))
+        },
+    );
+    for ((phase, owner, target, kind), count) in by_context.iter().take(12) {
         eprintln!(
-            "        adapter_event phase={} target={} kind={} count={}",
-            phase, target, kind, count
+            "        adapter_event phase={} owner={} target={} kind={} count={}",
+            phase, owner, target, kind, count
         );
+    }
+    if env::var_os("YULANG_TRACE_RUNTIME_ADAPTER_EVENTS").is_some() {
+        for event in &adapters.events {
+            let owner = event
+                .owner
+                .as_ref()
+                .map(format_core_path)
+                .unwrap_or_else(|| "<root>".to_string());
+            let target = event
+                .apply_target
+                .as_ref()
+                .map(format_core_path)
+                .unwrap_or_else(|| "<unknown>".to_string());
+            eprintln!(
+                "        adapter_event_detail phase={} owner={} target={} kind={} source_edge={:?} actual={:?} expected={:?}",
+                runtime_adapter_phase_name(event.phase),
+                owner,
+                target,
+                runtime_adapter_kind_name(event.kind),
+                event.arg_source_edge,
+                event.actual,
+                event.expected,
+            );
+        }
     }
 }
 
