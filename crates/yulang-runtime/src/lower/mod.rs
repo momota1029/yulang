@@ -113,6 +113,11 @@ pub struct RuntimeAdapterProfile {
     pub apply_prepare_effect_operation_argument_bind_here: usize,
     pub reused_thunk: usize,
     pub forced_effect_thunk: usize,
+    pub matched_expected_adapter: usize,
+    pub unmatched_expected_adapter: usize,
+    pub unmatched_value_to_thunk: usize,
+    pub unmatched_thunk_to_value: usize,
+    pub unmatched_bind_here: usize,
     pub events: Vec<RuntimeAdapterEvent>,
 }
 
@@ -329,14 +334,83 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
     };
     check_runtime_invariants(&module, RuntimeStage::Lowered)?;
     validate_module(&module)?;
+    let mut runtime_adapters = lowerer.runtime_adapter_profile;
+    profile_runtime_adapter_expected_matches(&mut runtime_adapters, evidence);
     Ok(RuntimeLowerOutput {
         module,
         profile: RuntimeLowerProfile {
             expected_arg_evidence: lowerer.expected_arg_evidence_profile,
             expected_adapter_evidence: expected_adapter_evidence_profile(evidence),
-            runtime_adapters: lowerer.runtime_adapter_profile,
+            runtime_adapters,
         },
     })
+}
+
+fn profile_runtime_adapter_expected_matches(
+    profile: &mut RuntimeAdapterProfile,
+    evidence: &core_ir::PrincipalEvidence,
+) {
+    for event in &profile.events {
+        if expected_adapter_event_match(evidence, event) {
+            profile.matched_expected_adapter += 1;
+        } else {
+            profile.unmatched_expected_adapter += 1;
+            match event.kind {
+                RuntimeAdapterEventKind::ValueToThunk => {
+                    profile.unmatched_value_to_thunk += 1;
+                }
+                RuntimeAdapterEventKind::ThunkToValue => {
+                    profile.unmatched_thunk_to_value += 1;
+                }
+                RuntimeAdapterEventKind::BindHere => {
+                    profile.unmatched_bind_here += 1;
+                }
+            }
+        }
+    }
+}
+
+fn expected_adapter_event_match(
+    evidence: &core_ir::PrincipalEvidence,
+    event: &RuntimeAdapterEvent,
+) -> bool {
+    evidence
+        .expected_adapter_edges
+        .iter()
+        .any(|edge| expected_adapter_edge_matches_event(edge, event))
+}
+
+fn expected_adapter_edge_matches_event(
+    edge: &core_ir::ExpectedAdapterEdgeEvidence,
+    event: &RuntimeAdapterEvent,
+) -> bool {
+    if expected_adapter_event_kind(edge.kind) != Some(event.kind) {
+        return false;
+    }
+    if let Some(source_edge) = event.arg_source_edge
+        && edge.source_expected_edge != Some(source_edge)
+    {
+        return false;
+    }
+    true
+}
+
+fn expected_adapter_event_kind(
+    kind: core_ir::ExpectedAdapterEdgeKind,
+) -> Option<RuntimeAdapterEventKind> {
+    match kind {
+        core_ir::ExpectedAdapterEdgeKind::ValueToThunk => {
+            Some(RuntimeAdapterEventKind::ValueToThunk)
+        }
+        core_ir::ExpectedAdapterEdgeKind::ThunkToValue => {
+            Some(RuntimeAdapterEventKind::ThunkToValue)
+        }
+        core_ir::ExpectedAdapterEdgeKind::BindHere => Some(RuntimeAdapterEventKind::BindHere),
+        core_ir::ExpectedAdapterEdgeKind::EffectOperationArgument
+        | core_ir::ExpectedAdapterEdgeKind::HandlerResidual
+        | core_ir::ExpectedAdapterEdgeKind::HandlerReturn
+        | core_ir::ExpectedAdapterEdgeKind::ResumeArgument => None,
+    }
 }
 
 fn expected_adapter_evidence_profile(

@@ -878,6 +878,14 @@ fn print_runtime_adapter_event_summary(adapters: &runtime::RuntimeAdapterProfile
         "    runtime_adapter_events: total={}",
         adapters.events.len()
     );
+    eprintln!(
+        "    runtime_adapter_match: matched_expected_adapter={}, unmatched_expected_adapter={}, unmatched_value_to_thunk={}, unmatched_thunk_to_value={}, unmatched_bind_here={}",
+        adapters.matched_expected_adapter,
+        adapters.unmatched_expected_adapter,
+        adapters.unmatched_value_to_thunk,
+        adapters.unmatched_thunk_to_value,
+        adapters.unmatched_bind_here,
+    );
     let mut by_context = BTreeMap::<(String, String, String, String), usize>::new();
     for event in &adapters.events {
         let phase = runtime_adapter_phase_name(event.phase).to_string();
