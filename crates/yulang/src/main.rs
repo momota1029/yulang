@@ -741,6 +741,20 @@ fn print_runtime_phase_timings(
         profile.monomorphize_profile.effective_pass_count(),
         profile.monomorphize_profile.added_specializations()
     );
+    let core_shape = &profile.lower_profile.core_shape;
+    eprintln!(
+        "    core_shape: exprs={}, applies={}, apply_complete={}, apply_partial={}, apply_missing_evidence={}, apply_missing_context={}, apply_missing_principal={}, apply_with_principal={}, apply_with_substitutions={}, apply_with_substitution_candidates={}",
+        core_shape.exprs,
+        core_shape.applies,
+        core_shape.apply_complete,
+        core_shape.apply_partial,
+        core_shape.apply_missing_evidence,
+        core_shape.apply_missing_context,
+        core_shape.apply_missing_principal,
+        core_shape.apply_with_principal,
+        core_shape.apply_with_substitutions,
+        core_shape.apply_with_substitution_candidates,
+    );
     let expected_arg = &profile.lower_profile.expected_arg_evidence;
     eprintln!(
         "    expected_arg_evidence: present={}, converted={}, usable_by_table={}, usable_by_bounds={}, used_as_arg_type_hint={}, used_as_lowering_expected={}, ignored_no_expected_arg={}, ignored_not_convertible={}, ignored_table_open={}, ignored_table_uninformative={}, ignored_table_not_runtime_usable={}, ignored_bounds_unusable={}, ignored_unusable={}, ignored_no_push={}",

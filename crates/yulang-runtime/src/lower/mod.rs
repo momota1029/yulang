@@ -32,6 +32,7 @@ use crate::types::{
 };
 use crate::validate::validate_module;
 
+mod core_shape;
 mod diagnostics;
 mod effects;
 mod evidence;
@@ -44,6 +45,8 @@ mod std_types;
 mod substitutions;
 mod thunk;
 
+pub use core_shape::CoreShapeProfile;
+use core_shape::*;
 use diagnostics::*;
 use effects::*;
 use evidence::*;
@@ -62,6 +65,7 @@ pub struct RuntimeLowerOutput {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct RuntimeLowerProfile {
+    pub core_shape: CoreShapeProfile,
     pub expected_arg_evidence: ExpectedArgEvidenceProfile,
     pub expected_adapter_evidence: ExpectedAdapterEvidenceProfile,
     pub derived_expected_evidence: DerivedExpectedEvidenceProfile,
@@ -211,9 +215,15 @@ pub fn lower_core_program(program: core_ir::CoreProgram) -> RuntimeResult<Module
 pub fn lower_core_program_profiled(
     program: core_ir::CoreProgram,
 ) -> RuntimeResult<RuntimeLowerOutput> {
+    let core_shape = profile_core_program(&program);
     let graph = program.graph;
     let evidence = program.evidence;
-    lower_principal_module_with_graph_and_evidence_profiled(program.program, &graph, &evidence)
+    lower_principal_module_with_graph_and_evidence_profiled(
+        program.program,
+        &graph,
+        &evidence,
+        core_shape,
+    )
 }
 
 pub fn lower_principal_module(module: core_ir::PrincipalModule) -> RuntimeResult<Module> {
@@ -233,14 +243,20 @@ fn lower_principal_module_with_graph_and_evidence(
     graph: &core_ir::CoreGraphView,
     evidence: &core_ir::PrincipalEvidence,
 ) -> RuntimeResult<Module> {
-    lower_principal_module_with_graph_and_evidence_profiled(module, graph, evidence)
-        .map(|output| output.module)
+    lower_principal_module_with_graph_and_evidence_profiled(
+        module,
+        graph,
+        evidence,
+        CoreShapeProfile::default(),
+    )
+    .map(|output| output.module)
 }
 
 fn lower_principal_module_with_graph_and_evidence_profiled(
     module: core_ir::PrincipalModule,
     graph: &core_ir::CoreGraphView,
     evidence: &core_ir::PrincipalEvidence,
+    core_shape: CoreShapeProfile,
 ) -> RuntimeResult<RuntimeLowerOutput> {
     let principal_vars = principal_module_type_vars(&module);
     let mut binding_infos = module
@@ -383,6 +399,7 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
     Ok(RuntimeLowerOutput {
         module,
         profile: RuntimeLowerProfile {
+            core_shape,
             expected_arg_evidence: lowerer.expected_arg_evidence_profile,
             expected_adapter_evidence: expected_adapter_evidence_profile(evidence),
             derived_expected_evidence: derived_expected_evidence_profile(evidence),

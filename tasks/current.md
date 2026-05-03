@@ -269,3 +269,27 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - handler adapter は ExpectedEdge だけで足りなければ `ExpectedAdapterEdge` のような別種を考える。
   - `ThunkWrap` / `BindHere` / `HandlerAdapter` / `EffectResidual` の境界として扱う。
 - `RecordField` / `VariantPayload` は lowering を bidirectional にせず、まず annotation edge などから派生する diagnostic 用 `DerivedExpectedEdge` として始めた。nominal constructor payload などの追加は、expected slot が見える場所から広げる。
+
+## Current Checkpoint: ShapeTable / ShapedCore
+
+Runtime specialization is parked at the observable checkpoint for now:
+
+- `examples/07_junction.yu` has `surviving_actionable_targets=0`.
+- The remaining surviving substitution-specialize skips are benign already-monomorphic callee revisits.
+- `std::range::fold_ints` / `fold_from` / `std::list::fold_impl` do not survive final prune in that benchmark.
+- Open candidate graph solving remains parked unless a surviving target proves it necessary.
+
+The next direction is a non-behavior-changing shaped core layer. `CoreProgram`
+now gets a `ShapeTable` / `CoreShapeProfile` pass before runtime lowering. The
+first pass records expression traversal paths and detailed apply shape slots
+from existing `ApplyEvidence`, without changing runtime lowering,
+monomorphization, VM output, or diagnostics.
+
+Short-term goal:
+
+- Keep expanding shape coverage as an evidence ledger for diagnostics and
+  specialization.
+- Prefer adding slot-local shape/evidence records over strengthening runtime
+  recovery heuristics.
+- Use `--runtime-phase-timings` `core_shape:` output to decide where evidence is
+  missing before changing behavior.
