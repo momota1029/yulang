@@ -25,6 +25,7 @@ use yulang_infer::{
     SourceLowerProfile as InferSourceLowerProfile, SourceOptions,
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
     TypeErrorKind as InferTypeErrorKind, collect_compact_results as collect_infer_compact_results,
+    collect_derived_expected_edge_evidence as collect_infer_derived_expected_edge_evidence,
     collect_expected_edge_evidence as collect_infer_expected_edge_evidence,
     collect_expected_edges as collect_infer_expected_edges,
     collect_surface_diagnostics as collect_infer_surface_diagnostics, export_core_program,
@@ -570,6 +571,15 @@ fn run_infer_views(
                     println!("expected-edge-evidence:");
                     for evidence in expected_edge_evidence {
                         println!("  {}", format_expected_edge_evidence(&evidence));
+                    }
+                }
+                let derived_expected_edge_evidence =
+                    collect_infer_derived_expected_edge_evidence(&state);
+                if !derived_expected_edge_evidence.is_empty() {
+                    println!();
+                    println!("derived-expected-edge-evidence:");
+                    for evidence in derived_expected_edge_evidence {
+                        println!("  {}", format_derived_expected_edge_evidence(&evidence));
                     }
                 }
             }
@@ -1245,6 +1255,47 @@ fn format_expected_edge_evidence(evidence: &yulang_infer::ExpectedEdgeEvidence) 
     parts.push(format!("informative={}", evidence.informative));
     parts.push(format!("runtime-usable={}", evidence.runtime_usable));
     parts.join(" ")
+}
+
+fn format_derived_expected_edge_evidence(
+    evidence: &yulang_infer::DerivedExpectedEdgeEvidence,
+) -> String {
+    let mut parts = vec![
+        format!(
+            "parent=#{} {}",
+            evidence.parent.0,
+            format_derived_expected_edge_kind(evidence.kind)
+        ),
+        format!("path={}", format_edge_path(&evidence.path)),
+        format!("actual={}", format_core_bounds(&evidence.actual)),
+        format!("expected={}", format_core_bounds(&evidence.expected)),
+    ];
+    parts.retain(|part| !part.is_empty());
+    parts.join(" ")
+}
+
+fn format_derived_expected_edge_kind(kind: yulang_infer::DerivedExpectedEdgeKind) -> &'static str {
+    match kind {
+        yulang_infer::DerivedExpectedEdgeKind::RecordField => "record-field",
+        yulang_infer::DerivedExpectedEdgeKind::TupleItem => "tuple-item",
+        yulang_infer::DerivedExpectedEdgeKind::VariantPayload => "variant-payload",
+        yulang_infer::DerivedExpectedEdgeKind::FunctionParam => "function-param",
+        yulang_infer::DerivedExpectedEdgeKind::FunctionReturn => "function-return",
+    }
+}
+
+fn format_edge_path(path: &[yulang_infer::EdgePathSegment]) -> String {
+    path.iter()
+        .map(|segment| match segment {
+            yulang_infer::EdgePathSegment::Field(name) => format!(".{}", name.0),
+            yulang_infer::EdgePathSegment::TupleIndex(index) => format!("[{index}]"),
+            yulang_infer::EdgePathSegment::VariantCase(name) => format!(":{}", name.0),
+            yulang_infer::EdgePathSegment::PayloadIndex(index) => format!("({index})"),
+            yulang_infer::EdgePathSegment::FunctionParam => ".param".to_string(),
+            yulang_infer::EdgePathSegment::FunctionReturn => ".return".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("")
 }
 
 fn format_expected_edge_kind(kind: InferExpectedEdgeKind) -> &'static str {

@@ -47,6 +47,34 @@ pub struct ExpectedEdgeEvidence {
     pub runtime_usable: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DerivedExpectedEdgeEvidence {
+    pub parent: ExpectedEdgeId,
+    pub kind: DerivedExpectedEdgeKind,
+    pub path: Vec<EdgePathSegment>,
+    pub actual: core_ir::TypeBounds,
+    pub expected: core_ir::TypeBounds,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DerivedExpectedEdgeKind {
+    RecordField,
+    TupleItem,
+    VariantPayload,
+    FunctionParam,
+    FunctionReturn,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EdgePathSegment {
+    Field(core_ir::Name),
+    TupleIndex(usize),
+    VariantCase(core_ir::Name),
+    PayloadIndex(usize),
+    FunctionParam,
+    FunctionReturn,
+}
+
 pub(super) fn complete_coerce_principal_evidence(
     infer: &Infer,
     source_edge: Option<ExpectedEdgeId>,
@@ -83,6 +111,15 @@ pub fn collect_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvi
         .expected_edges
         .iter()
         .map(|edge| complete_expected_edge_evidence(&state.infer, edge))
+        .collect()
+}
+
+pub fn collect_derived_expected_edge_evidence(
+    state: &LowerState,
+) -> Vec<DerivedExpectedEdgeEvidence> {
+    collect_expected_edge_evidence(state)
+        .iter()
+        .flat_map(derive_expected_edge_evidence)
         .collect()
 }
 
@@ -222,6 +259,46 @@ fn export_monomorphic_type_for_tv(infer: &Infer, tv: TypeVar) -> Option<core_ir:
         .cloned()
         .map(|ty| project_core_value_type_or_any(ty, &BTreeSet::new()))
         .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
+}
+
+fn derive_expected_edge_evidence(
+    evidence: &ExpectedEdgeEvidence,
+) -> Vec<DerivedExpectedEdgeEvidence> {
+    let mut derived = Vec::new();
+    derive_record_field_edges(evidence, &mut derived);
+    derived
+}
+
+fn derive_record_field_edges(
+    evidence: &ExpectedEdgeEvidence,
+    derived: &mut Vec<DerivedExpectedEdgeEvidence>,
+) {
+    let (Some(core_ir::Type::Record(actual)), Some(core_ir::Type::Record(expected))) = (
+        bounds_primary_type(&evidence.actual),
+        bounds_primary_type(&evidence.expected),
+    ) else {
+        return;
+    };
+    for expected_field in &expected.fields {
+        let Some(actual_field) = actual
+            .fields
+            .iter()
+            .find(|field| field.name == expected_field.name)
+        else {
+            continue;
+        };
+        derived.push(DerivedExpectedEdgeEvidence {
+            parent: evidence.id,
+            kind: DerivedExpectedEdgeKind::RecordField,
+            path: vec![EdgePathSegment::Field(expected_field.name.clone())],
+            actual: core_ir::TypeBounds::exact(actual_field.value.clone()),
+            expected: core_ir::TypeBounds::exact(expected_field.value.clone()),
+        });
+    }
+}
+
+fn bounds_primary_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
+    bounds.lower.as_deref().or(bounds.upper.as_deref())
 }
 
 struct PrincipalSubstitutionUnifier<'a> {
@@ -949,5 +1026,22 @@ mod tests {
         assert!(!evidence.closed);
         assert!(evidence.informative);
         assert!(!evidence.runtime_usable);
+    }
+
+    #[test]
+    fn derives_record_field_expected_edge_evidence() {
+        let state = parse_and_lower("my p: { x: int } = { x: 1 }\n");
+
+        let derived = collect_derived_expected_edge_evidence(&state);
+        let field = derived
+            .iter()
+            .find(|edge| {
+                edge.kind == DerivedExpectedEdgeKind::RecordField
+                    && edge.path == vec![EdgePathSegment::Field(core_ir::Name("x".to_string()))]
+            })
+            .expect("record field derived edge");
+
+        assert_eq!(field.actual, core_ir::TypeBounds::exact(named("int")));
+        assert_eq!(field.expected, core_ir::TypeBounds::exact(named("int")));
     }
 }

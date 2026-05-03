@@ -15,6 +15,9 @@ mod roles;
 mod spine;
 pub mod types;
 
-pub use complete_principal::{ExpectedEdgeEvidence, collect_expected_edge_evidence};
+pub use complete_principal::{
+    DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, ExpectedEdgeEvidence,
+    collect_derived_expected_edge_evidence, collect_expected_edge_evidence,
+};
 pub use principal::{export_core_program, export_principal_bindings, export_principal_module};
 pub use types::export_scheme_body;
