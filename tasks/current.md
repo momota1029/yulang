@@ -236,6 +236,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - continuation application は `ResumeArgument` adapter edge として記録するようにした。通常の `ApplicationArgument` source edge にリンクし、resume に渡す値/effect の actual/expected slot を core evidence table で見られる。
 - `YULANG_USE_EXPECTED_ARG_EVIDENCE=1` のとき、monomorphize の apply evidence arg signature hint も閉じた `ApplyEvidence.expected_arg` を優先するようにした。runtime lower だけでなく DemandEmitter / checker 側の signature hint にも expected arg evidence が届く。
 - `--runtime-phase-timings` に expected arg evidence profile と runtime adapter profile を統合した。env var の debug 出力を使わなくても、present / converted / runtime_usable / used / ignored と thunk / `BindHere` 挿入数を比較できる。
+- `DemandQueueProfile` を追加し、`--runtime-phase-timings` に attempted / pushed / pushed_open / pushed_closed / skipped_duplicate / skipped_covered_by_closed を出すようにした。expected arg evidence が demand dedup や closed-cover に効いているかを見られる。
 - handler adapter は ExpectedEdge だけで足りなければ `ExpectedAdapterEdge` のような別種を考える。
   - `ThunkWrap` / `BindHere` / `HandlerAdapter` / `EffectResidual` の境界として扱う。
 - `RecordField` / `VariantPayload` は lowering を bidirectional にせず、まず annotation edge などから派生する diagnostic 用 `DerivedExpectedEdge` として始めた。nominal constructor payload などの追加は、expected slot が見える場所から広げる。

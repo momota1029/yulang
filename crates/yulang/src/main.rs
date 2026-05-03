@@ -763,6 +763,16 @@ fn print_runtime_phase_timings(
         adapters.reused_thunk,
         adapters.forced_effect_thunk,
     );
+    let demand_queue = profile.monomorphize_profile.demand_queue_profile();
+    eprintln!(
+        "    demand_queue: attempted={}, pushed={}, pushed_open={}, pushed_closed={}, skipped_duplicate={}, skipped_covered_by_closed={}",
+        demand_queue.attempted,
+        demand_queue.pushed,
+        demand_queue.pushed_open,
+        demand_queue.pushed_closed,
+        demand_queue.skipped_duplicate,
+        demand_queue.skipped_covered_by_closed,
+    );
     if let Some(duration) = vm_compile {
         eprintln!("    vm_compile: {}", format_duration(duration));
     }

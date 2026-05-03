@@ -15,7 +15,10 @@ pub fn demand_monomorphize_module(
         if engine_output.specializations.is_empty() {
             return Ok(DemandMonomorphizeOutput {
                 module,
-                profile: DemandMonomorphizeProfile::default(),
+                profile: DemandMonomorphizeProfile {
+                    queue: engine_output.queue_profile,
+                    ..DemandMonomorphizeProfile::default()
+                },
             });
         }
         let specializations = engine_output
@@ -27,7 +30,10 @@ pub fn demand_monomorphize_module(
         if specializations.is_empty() {
             return Ok(DemandMonomorphizeOutput {
                 module,
-                profile: DemandMonomorphizeProfile::default(),
+                profile: DemandMonomorphizeProfile {
+                    queue: engine_output.queue_profile,
+                    ..DemandMonomorphizeProfile::default()
+                },
             });
         }
         if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
@@ -79,7 +85,10 @@ pub fn demand_monomorphize_module(
         if rewrite.changed_roots == 0 && rewrite.changed_bindings == 0 {
             return Ok(DemandMonomorphizeOutput {
                 module: rewrite.module,
-                profile: DemandMonomorphizeProfile::default(),
+                profile: DemandMonomorphizeProfile {
+                    queue: engine_output.queue_profile,
+                    ..DemandMonomorphizeProfile::default()
+                },
             });
         }
         let mut module = rewrite.module;
@@ -95,6 +104,7 @@ pub fn demand_monomorphize_module(
             module,
             profile: DemandMonomorphizeProfile {
                 specializations: emitted_count,
+                queue: engine_output.queue_profile,
             },
         });
     }
@@ -378,6 +388,7 @@ pub struct DemandMonomorphizeOutput {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct DemandMonomorphizeProfile {
     pub specializations: usize,
+    pub queue: DemandQueueProfile,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -451,10 +462,12 @@ impl<'a> DemandEngine<'a> {
             self.checked.push(checked);
         }
         let specializations = self.specializations.into_output();
+        let queue_profile = self.queue.profile();
         Ok(DemandEngineOutput {
             checked: self.checked,
             specializations: specializations.known,
             fresh_specializations: specializations.fresh,
+            queue_profile,
         })
     }
 }
@@ -499,6 +512,7 @@ pub struct DemandEngineOutput {
     pub checked: Vec<CheckedDemand>,
     pub specializations: Vec<DemandSpecialization>,
     pub fresh_specializations: Vec<DemandSpecialization>,
+    pub queue_profile: DemandQueueProfile,
 }
 
 impl DemandEngineOutput {

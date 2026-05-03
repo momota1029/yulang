@@ -17,7 +17,7 @@ use crate::ir::{
     RecordPatternField, RecordSpreadExpr, RecordSpreadPattern, ResumeBinding, Root, Stmt,
     Type as RuntimeType, TypeInstantiation,
 };
-use crate::monomorphize::demand_monomorphize_module;
+use crate::monomorphize::{DemandQueueProfile, demand_monomorphize_module};
 use crate::refine::refine_module_types_with_report;
 use crate::types::{
     collect_expr_type_vars, collect_hir_type_vars, collect_type_vars as collect_core_type_vars,
@@ -80,6 +80,15 @@ impl MonomorphizeProfile {
             .map(|pass| pass.progress.added_specializations)
             .sum()
     }
+
+    pub fn demand_queue_profile(&self) -> DemandQueueProfile {
+        self.passes
+            .iter()
+            .fold(DemandQueueProfile::default(), |mut profile, pass| {
+                profile.merge(pass.demand_queue);
+                profile
+            })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,6 +99,7 @@ pub struct MonomorphizePassProfile {
     pub roots_before: usize,
     pub roots_after: usize,
     pub progress: MonomorphizeProgress,
+    pub demand_queue: DemandQueueProfile,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -252,6 +262,7 @@ fn run_profiled_mono_pass(
         roots_before: before.roots,
         roots_after: after.roots,
         progress,
+        demand_queue: step.demand_queue,
     });
     if debug {
         eprintln!(
@@ -342,6 +353,7 @@ fn demand_specialize_module(module: Module) -> RuntimeResult<MonoStep> {
     Ok(MonoStep {
         module: output.module,
         progress,
+        demand_queue: output.profile.queue,
     })
 }
 
@@ -410,6 +422,7 @@ fn changed_root_indexes(before: &Module, after: &Module) -> Vec<usize> {
 struct MonoStep {
     module: Module,
     progress: MonoProgress,
+    demand_queue: DemandQueueProfile,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -476,7 +489,11 @@ where
     let before = module.clone();
     let module = f(module)?;
     let progress = MonoProgress::from_modules(&before, &module);
-    Ok(MonoStep { module, progress })
+    Ok(MonoStep {
+        module,
+        progress,
+        demand_queue: DemandQueueProfile::default(),
+    })
 }
 
 fn run_tracked_infallible_pass<F>(module: Module, f: F) -> RuntimeResult<MonoStep>
@@ -496,5 +513,6 @@ fn refine_module_types_for_mono(module: Module) -> RuntimeResult<MonoStep> {
     Ok(MonoStep {
         module: output.module,
         progress,
+        demand_queue: DemandQueueProfile::default(),
     })
 }

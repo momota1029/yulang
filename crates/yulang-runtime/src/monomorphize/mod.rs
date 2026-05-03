@@ -37,6 +37,17 @@ pub use specialize::*;
 pub struct DemandQueue {
     queue: VecDeque<Demand>,
     seen: HashSet<DemandKey>,
+    profile: DemandQueueProfile,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct DemandQueueProfile {
+    pub attempted: usize,
+    pub pushed: usize,
+    pub pushed_open: usize,
+    pub pushed_closed: usize,
+    pub skipped_duplicate: usize,
+    pub skipped_covered_by_closed: usize,
 }
 
 impl DemandQueue {
@@ -56,6 +67,7 @@ impl DemandQueue {
     }
 
     fn push_demand(&mut self, demand: Demand) -> bool {
+        self.profile.attempted += 1;
         if !demand.key.signature.is_closed()
             && self.seen.iter().any(|key| {
                 key.target == demand.target
@@ -63,11 +75,19 @@ impl DemandQueue {
                     && closed_signature_covers_open(&key.signature, &demand.key.signature)
             })
         {
+            self.profile.skipped_covered_by_closed += 1;
             return false;
         }
         if !self.seen.insert(demand.key.clone()) {
+            self.profile.skipped_duplicate += 1;
             return false;
         }
+        if demand.key.signature.is_closed() {
+            self.profile.pushed_closed += 1;
+        } else {
+            self.profile.pushed_open += 1;
+        }
+        self.profile.pushed += 1;
         self.queue.push_back(demand);
         true
     }
@@ -82,6 +102,21 @@ impl DemandQueue {
 
     pub fn is_empty(&self) -> bool {
         self.queue.is_empty()
+    }
+
+    pub fn profile(&self) -> DemandQueueProfile {
+        self.profile
+    }
+}
+
+impl DemandQueueProfile {
+    pub fn merge(&mut self, other: Self) {
+        self.attempted += other.attempted;
+        self.pushed += other.pushed;
+        self.pushed_open += other.pushed_open;
+        self.pushed_closed += other.pushed_closed;
+        self.skipped_duplicate += other.skipped_duplicate;
+        self.skipped_covered_by_closed += other.skipped_covered_by_closed;
     }
 }
 
