@@ -265,7 +265,7 @@ impl Lowerer<'_> {
                         callee_expr.take().expect("callee should be present"),
                         callee_expected,
                         locals,
-                        TypeSource::ApplyEvidence,
+                        TypeSource::ApplyCalleeEvidence,
                     )?;
                     let (lowered, lowered_ty) =
                         force_value_expr_profiled(lowered, &mut self.runtime_adapter_profile);
@@ -301,7 +301,7 @@ impl Lowerer<'_> {
                             arg_expr.take().expect("arg should be present"),
                             None,
                             locals,
-                            TypeSource::ApplyEvidence,
+                            TypeSource::ApplyArgumentEvidence,
                         )?;
                         let (lowered, arg_ty) = match lowered.ty {
                             RuntimeType::Thunk { .. } => {
@@ -334,7 +334,7 @@ impl Lowerer<'_> {
                             callee_expr.take().expect("callee should be present"),
                             callee_expected.as_ref(),
                             locals,
-                            TypeSource::ApplyEvidence,
+                            TypeSource::ApplyCalleeEvidence,
                         )?
                     }
                 };
@@ -347,9 +347,9 @@ impl Lowerer<'_> {
                             .as_ref()
                             .is_some_and(|evidence| evidence.arg_source_edge.is_some())
                         {
-                            TypeSource::ApplyArgumentEvidence
+                            TypeSource::ApplyArgumentSourceEdge
                         } else {
-                            TypeSource::ApplyEvidence
+                            TypeSource::ApplyArgumentEvidence
                         };
                         let expected_arg = if callee_is_effect_operation
                             && matches!(arg_ty, RuntimeType::Thunk { .. })
@@ -427,26 +427,33 @@ impl Lowerer<'_> {
                 let apply_arg_adapter_source = evidence
                     .as_ref()
                     .map(|evidence| RuntimeAdapterSource {
+                        phase: ApplyAdapterPhase::PrepareFinalArgument,
                         has_apply_evidence: true,
                         has_apply_arg_source_edge: evidence.arg_source_edge.is_some(),
                     })
                     .or(Some(RuntimeAdapterSource {
+                        phase: ApplyAdapterPhase::PrepareFinalArgument,
                         has_apply_evidence: false,
                         has_apply_arg_source_edge: false,
                     }));
                 let arg = if matches!(callee.kind, ExprKind::EffectOp(_)) {
+                    let apply_effect_adapter_source =
+                        apply_arg_adapter_source.map(|source| RuntimeAdapterSource {
+                            phase: ApplyAdapterPhase::PrepareEffectOperationArgument,
+                            ..source
+                        });
                     prepare_effect_operation_arg(
                         arg,
                         &final_fun_parts.param,
                         if apply_arg_adapter_source
                             .is_some_and(|source| source.has_apply_arg_source_edge)
                         {
-                            TypeSource::ApplyArgumentEvidence
+                            TypeSource::ApplyArgumentSourceEdge
                         } else {
                             TypeSource::ApplyEvidence
                         },
                         &mut self.runtime_adapter_profile,
-                        apply_arg_adapter_source,
+                        apply_effect_adapter_source,
                     )?
                 } else {
                     prepare_expr_for_expected_with_adapter_source_profiled(
@@ -455,7 +462,7 @@ impl Lowerer<'_> {
                         if apply_arg_adapter_source
                             .is_some_and(|source| source.has_apply_arg_source_edge)
                         {
-                            TypeSource::ApplyArgumentEvidence
+                            TypeSource::ApplyArgumentSourceEdge
                         } else {
                             TypeSource::ApplyEvidence
                         },

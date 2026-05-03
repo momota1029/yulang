@@ -157,6 +157,47 @@ mod tests {
     }
 
     #[test]
+    pub(super) fn runtime_adapter_profile_counts_apply_phase_and_source_edge() {
+        let expected = RuntimeType::core(named_type("int"));
+        let thunk_ty = RuntimeType::thunk(empty_row(), RuntimeType::core(named_type("int")));
+        let expr = Expr::typed(
+            ExprKind::Thunk {
+                effect: empty_row(),
+                value: RuntimeType::core(named_type("int")),
+                expr: Box::new(Expr::typed(
+                    ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                    RuntimeType::core(named_type("int")),
+                )),
+            },
+            thunk_ty,
+        );
+        let mut profile = RuntimeAdapterProfile::default();
+
+        let prepared = prepare_expr_for_expected_with_adapter_source_profiled(
+            expr,
+            &expected,
+            TypeSource::ApplyArgumentSourceEdge,
+            &mut profile,
+            Some(RuntimeAdapterSource {
+                phase: ApplyAdapterPhase::PrepareFinalArgument,
+                has_apply_evidence: true,
+                has_apply_arg_source_edge: true,
+            }),
+        )
+        .expect("prepared");
+
+        assert!(matches!(prepared.kind, ExprKind::BindHere { .. }));
+        assert_eq!(profile.apply_evidence_thunk_to_value, 1);
+        assert_eq!(profile.apply_evidence_bind_here, 1);
+        assert_eq!(profile.apply_prepare_final_argument_thunk_to_value, 1);
+        assert_eq!(profile.apply_prepare_final_argument_bind_here, 1);
+        assert_eq!(profile.apply_evidence_adapter_with_evidence, 2);
+        assert_eq!(profile.apply_evidence_adapter_with_source_edge, 2);
+        assert_eq!(profile.apply_evidence_thunk_to_value_with_source_edge, 1);
+        assert_eq!(profile.apply_evidence_bind_here_with_source_edge, 1);
+    }
+
+    #[test]
     pub(super) fn lower_role_method_var_resolves_concrete_impl_from_expected_receiver() {
         let role_path = core_ir::Path::new(vec![
             core_ir::Name("std".to_string()),

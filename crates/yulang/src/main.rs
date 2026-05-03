@@ -777,6 +777,21 @@ fn print_runtime_phase_timings(
         adapters.reused_thunk,
         adapters.forced_effect_thunk,
     );
+    eprintln!(
+        "    runtime_adapter_phases: apply_lower_callee(value_to_thunk={}, thunk_to_value={}, bind_here={}), apply_lower_argument(value_to_thunk={}, thunk_to_value={}, bind_here={}), apply_prepare_final_argument(value_to_thunk={}, thunk_to_value={}, bind_here={}), apply_prepare_effect_operation_argument(value_to_thunk={}, thunk_to_value={}, bind_here={})",
+        adapters.apply_lower_callee_value_to_thunk,
+        adapters.apply_lower_callee_thunk_to_value,
+        adapters.apply_lower_callee_bind_here,
+        adapters.apply_lower_argument_value_to_thunk,
+        adapters.apply_lower_argument_thunk_to_value,
+        adapters.apply_lower_argument_bind_here,
+        adapters.apply_prepare_final_argument_value_to_thunk,
+        adapters.apply_prepare_final_argument_thunk_to_value,
+        adapters.apply_prepare_final_argument_bind_here,
+        adapters.apply_prepare_effect_operation_argument_value_to_thunk,
+        adapters.apply_prepare_effect_operation_argument_thunk_to_value,
+        adapters.apply_prepare_effect_operation_argument_bind_here,
+    );
     let adapter_evidence = &profile.lower_profile.expected_adapter_evidence;
     eprintln!(
         "    expected_adapter_evidence: total={}, runtime_usable={}, closed={}, informative={}, effect_operation_argument={}, value_to_thunk={}, thunk_to_value={}, bind_here={}, handler_residual={}, handler_return={}, resume_argument={}",
