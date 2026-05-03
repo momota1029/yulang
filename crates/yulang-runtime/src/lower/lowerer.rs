@@ -1163,7 +1163,7 @@ impl Lowerer<'_> {
         let usable = match source_edge.and_then(|id| self.expected_edge(id).cloned()) {
             Some(edge) => {
                 debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::ApplicationArgument);
-                self.profile_expected_arg_table_usability(&edge)
+                self.profile_expected_arg_table_usability(&edge, &ty)
             }
             None => self.profile_expected_arg_bounds_usability(&ty),
         };
@@ -1184,19 +1184,23 @@ impl Lowerer<'_> {
     fn profile_expected_arg_table_usability(
         &mut self,
         edge: &core_ir::ExpectedEdgeEvidence,
+        ty: &RuntimeType,
     ) -> bool {
-        if edge.runtime_usable {
+        let expected_closed = type_bounds_closed(&edge.expected);
+        let expected_informative = type_bounds_informative(&edge.expected);
+        let expected_runtime_usable = expected_arg_evidence_runtime_usable(ty);
+        if expected_closed && expected_informative && expected_runtime_usable {
             self.expected_arg_evidence_profile.usable_by_table += 1;
             return true;
         }
-        if !edge.closed {
+        if !expected_closed {
             self.expected_arg_evidence_profile.ignored_table_open += 1;
         }
-        if !edge.informative {
+        if !expected_informative {
             self.expected_arg_evidence_profile
                 .ignored_table_uninformative += 1;
         }
-        if edge.closed && edge.informative {
+        if expected_closed && expected_informative && !expected_runtime_usable {
             self.expected_arg_evidence_profile
                 .ignored_table_not_runtime_usable += 1;
         }
@@ -1571,6 +1575,41 @@ fn prepare_effect_operation_arg(
             RuntimeType::Thunk { .. },
         ) => Ok(force_value_expr_profiled(arg, profile).0),
         _ => prepare_expr_for_expected_profiled(arg, expected, source, profile),
+    }
+}
+
+fn type_bounds_closed(bounds: &core_ir::TypeBounds) -> bool {
+    (bounds.lower.is_some() || bounds.upper.is_some())
+        && bounds
+            .lower
+            .as_deref()
+            .is_none_or(|ty| !core_type_has_vars(ty))
+        && bounds
+            .upper
+            .as_deref()
+            .is_none_or(|ty| !core_type_has_vars(ty))
+}
+
+fn type_bounds_informative(bounds: &core_ir::TypeBounds) -> bool {
+    bounds.lower.as_deref().is_some_and(type_informative)
+        || bounds.upper.as_deref().is_some_and(type_informative)
+}
+
+fn type_informative(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
+        core_ir::Type::Named { .. }
+        | core_ir::Type::Fun { .. }
+        | core_ir::Type::Tuple(_)
+        | core_ir::Type::Record(_)
+        | core_ir::Type::Variant(_) => true,
+        core_ir::Type::Row { items, tail } => {
+            items.iter().any(type_informative) || type_informative(tail)
+        }
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().any(type_informative)
+        }
+        core_ir::Type::Recursive { body, .. } => type_informative(body),
     }
 }
 

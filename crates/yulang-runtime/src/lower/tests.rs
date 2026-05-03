@@ -1350,7 +1350,7 @@ mod tests {
     }
 
     #[test]
-    pub(super) fn lower_apply_ignores_expected_arg_when_source_edge_is_not_runtime_usable() {
+    pub(super) fn lower_apply_can_use_closed_expected_slot_when_edge_actual_is_open() {
         let principal_evidence = core_ir::PrincipalEvidence {
             expected_edges: vec![core_ir::ExpectedEdgeEvidence {
                 id: 3,
@@ -1419,6 +1419,96 @@ mod tests {
         let ExprKind::Apply { arg, .. } = &expr.kind else {
             panic!("missing apply");
         };
+        assert_eq!(core_type(&arg.ty), &named_type("int"));
+        assert_eq!(
+            locals.get(&arg_path),
+            Some(&RuntimeType::core(named_type("int")))
+        );
+        assert_eq!(lowerer.expected_arg_evidence_profile.present, 1);
+        assert_eq!(lowerer.expected_arg_evidence_profile.converted, 1);
+        assert_eq!(lowerer.expected_arg_evidence_profile.usable_by_table, 1);
+        assert_eq!(
+            lowerer.expected_arg_evidence_profile.used_as_arg_type_hint,
+            1
+        );
+        assert_eq!(
+            lowerer
+                .expected_arg_evidence_profile
+                .used_as_lowering_expected,
+            0
+        );
+    }
+
+    #[test]
+    pub(super) fn lower_apply_ignores_expected_arg_when_expected_slot_is_erased() {
+        let principal_evidence = core_ir::PrincipalEvidence {
+            expected_edges: vec![core_ir::ExpectedEdgeEvidence {
+                id: 3,
+                kind: core_ir::ExpectedEdgeKind::ApplicationArgument,
+                actual: core_ir::TypeBounds::exact(core_ir::Type::Any),
+                expected: core_ir::TypeBounds::exact(core_ir::Type::Any),
+                actual_effect: None,
+                expected_effect: None,
+                closed: true,
+                informative: false,
+                runtime_usable: false,
+            }],
+            expected_adapter_edges: Vec::new(),
+        };
+        let mut lowerer = Lowerer {
+            env: HashMap::new(),
+            binding_infos: HashMap::new(),
+            aliases: HashMap::new(),
+            graph: &core_ir::CoreGraphView::default(),
+            runtime_symbols: HashMap::new(),
+            principal_vars: BTreeSet::new(),
+            expected_edges_by_id: principal_evidence
+                .expected_edges
+                .iter()
+                .map(|edge| (edge.id, edge))
+                .collect(),
+            use_expected_arg_evidence: true,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            next_synthetic_type_var: 0,
+            next_effect_id_var: 0,
+        };
+        let callee_path = core_ir::Path::from_name(core_ir::Name("k".to_string()));
+        let arg_path = core_ir::Path::from_name(core_ir::Name("x".to_string()));
+        let mut locals = HashMap::from([
+            (callee_path.clone(), RuntimeType::core(core_ir::Type::Any)),
+            (arg_path.clone(), RuntimeType::core(core_ir::Type::Any)),
+        ]);
+        let expr = core_ir::Expr::Apply {
+            callee: Box::new(core_ir::Expr::Var(callee_path)),
+            arg: Box::new(core_ir::Expr::Var(arg_path.clone())),
+            evidence: Some(core_ir::ApplyEvidence {
+                arg_source_edge: Some(3),
+                callee: core_ir::TypeBounds {
+                    lower: None,
+                    upper: Some(Box::new(core_ir::Type::Any)),
+                },
+                arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
+                expected_arg: Some(core_ir::TypeBounds::exact(core_ir::Type::Any)),
+                result: core_ir::TypeBounds::exact(named_type("int")),
+                principal_callee: None,
+                substitutions: Vec::new(),
+                role_method: false,
+            }),
+        };
+
+        let expr = lowerer
+            .lower_expr(
+                expr,
+                Some(&RuntimeType::core(named_type("int"))),
+                &mut locals,
+                TypeSource::RootGraph,
+            )
+            .expect("lowered");
+
+        let ExprKind::Apply { arg, .. } = &expr.kind else {
+            panic!("missing apply");
+        };
         assert_eq!(core_type(&arg.ty), &core_ir::Type::Any);
         assert_eq!(
             locals.get(&arg_path),
@@ -1426,15 +1516,15 @@ mod tests {
         );
         assert_eq!(lowerer.expected_arg_evidence_profile.present, 1);
         assert_eq!(lowerer.expected_arg_evidence_profile.converted, 1);
-        assert_eq!(lowerer.expected_arg_evidence_profile.ignored_unusable, 1);
-        assert_eq!(
-            lowerer.expected_arg_evidence_profile.used_as_arg_type_hint,
-            0
-        );
         assert_eq!(
             lowerer
                 .expected_arg_evidence_profile
-                .used_as_lowering_expected,
+                .ignored_table_uninformative,
+            1
+        );
+        assert_eq!(lowerer.expected_arg_evidence_profile.ignored_unusable, 1);
+        assert_eq!(
+            lowerer.expected_arg_evidence_profile.used_as_arg_type_hint,
             0
         );
     }
