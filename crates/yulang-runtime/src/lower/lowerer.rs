@@ -5,15 +5,18 @@ impl Lowerer<'_> {
         &mut self,
         binding: core_ir::PrincipalBinding,
     ) -> RuntimeResult<Binding> {
+        let old_binding = self.current_binding.replace(binding.name.clone());
         let body_ty = self.binding_runtime_type(&binding);
         let alias_runtime_ty = self.alias_target_runtime_type(&binding);
         reject_non_runtime_hir_type(&body_ty, TypeSource::BindingScheme)?;
-        let body = self.lower_expr(
+        let body_result = self.lower_expr(
             binding.body,
             Some(&body_ty),
             &mut HashMap::new(),
             TypeSource::BindingScheme,
-        )?;
+        );
+        self.current_binding = old_binding;
+        let body = body_result?;
         require_same_hir_type(&body_ty, &body.ty, TypeSource::BindingScheme)?;
         let type_params = principal_hir_type_params(&body.ty);
         let mut scheme = binding.scheme;
@@ -107,11 +110,12 @@ impl Lowerer<'_> {
                 if let Some(expected) = expected {
                     if matches!(expected, RuntimeType::Thunk { .. }) {
                         let expr = Expr::typed(ExprKind::Lit(lit), ty);
-                        return prepare_expr_for_expected_profiled(
+                        return prepare_expr_for_expected_with_adapter_source_profiled(
                             expr,
                             expected,
                             expected_source,
                             &mut self.runtime_adapter_profile,
+                            self.current_runtime_adapter_source.clone(),
                         );
                     }
                     let expected_core = core_type(expected);
@@ -196,6 +200,7 @@ impl Lowerer<'_> {
                 }
                 let mut callee_expr = Some(*callee);
                 let mut arg_expr = Some(*arg);
+                let apply_target = callee_expr.as_ref().and_then(core_apply_head_target);
                 let callee_is_effect_operation = callee_expr
                     .as_ref()
                     .is_some_and(|expr| self.core_expr_is_effect_operation(expr, locals));
@@ -261,11 +266,17 @@ impl Lowerer<'_> {
                             RuntimeType::Core(core_ir::Type::Var(_)) => None,
                             other => Some(other),
                         });
-                    let lowered = self.lower_expr(
+                    let adapter_source = self.runtime_adapter_source_for_apply(
+                        RuntimeApplyAdapterPhase::LowerCallee,
+                        evidence.as_ref(),
+                        apply_target.as_ref(),
+                    );
+                    let lowered = self.lower_expr_with_runtime_adapter_source(
                         callee_expr.take().expect("callee should be present"),
                         callee_expected,
                         locals,
                         TypeSource::ApplyCalleeEvidence,
+                        adapter_source,
                     )?;
                     let (lowered, lowered_ty) =
                         force_value_expr_profiled(lowered, &mut self.runtime_adapter_profile);
@@ -297,11 +308,17 @@ impl Lowerer<'_> {
                 let arg_ty = match choose_apply_arg_type(evidence_arg, param_or_expected_arg_hint) {
                     Some(arg_ty) => arg_ty,
                     None => {
-                        let lowered = self.lower_expr(
+                        let adapter_source = self.runtime_adapter_source_for_apply(
+                            RuntimeApplyAdapterPhase::LowerArgument,
+                            evidence.as_ref(),
+                            apply_target.as_ref(),
+                        );
+                        let lowered = self.lower_expr_with_runtime_adapter_source(
                             arg_expr.take().expect("arg should be present"),
                             None,
                             locals,
                             TypeSource::ApplyArgumentEvidence,
+                            adapter_source,
                         )?;
                         let (lowered, arg_ty) = match lowered.ty {
                             RuntimeType::Thunk { .. } => {
@@ -330,11 +347,17 @@ impl Lowerer<'_> {
                             }
                             Some(other) => Some(other.clone()),
                         };
-                        self.lower_expr(
+                        let adapter_source = self.runtime_adapter_source_for_apply(
+                            RuntimeApplyAdapterPhase::LowerCallee,
+                            evidence.as_ref(),
+                            apply_target.as_ref(),
+                        );
+                        self.lower_expr_with_runtime_adapter_source(
                             callee_expr.take().expect("callee should be present"),
                             callee_expected.as_ref(),
                             locals,
                             TypeSource::ApplyCalleeEvidence,
+                            adapter_source,
                         )?
                     }
                 };
@@ -394,11 +417,17 @@ impl Lowerer<'_> {
                                 }
                             }
                         };
-                        self.lower_expr(
+                        let adapter_source = self.runtime_adapter_source_for_apply(
+                            RuntimeApplyAdapterPhase::LowerArgument,
+                            evidence.as_ref(),
+                            apply_target.as_ref(),
+                        );
+                        self.lower_expr_with_runtime_adapter_source(
                             arg_expr.take().expect("arg should be present"),
                             expected_arg,
                             locals,
                             arg_source,
+                            adapter_source,
                         )?
                     }
                 };
@@ -424,28 +453,22 @@ impl Lowerer<'_> {
                     &result_ty,
                 );
                 let mut final_fun_parts = function_parts(&callee.ty).unwrap_or(final_fun_parts);
-                let apply_arg_adapter_source = evidence
-                    .as_ref()
-                    .map(|evidence| RuntimeAdapterSource {
-                        phase: ApplyAdapterPhase::PrepareFinalArgument,
-                        has_apply_evidence: true,
-                        has_apply_arg_source_edge: evidence.arg_source_edge.is_some(),
-                    })
-                    .or(Some(RuntimeAdapterSource {
-                        phase: ApplyAdapterPhase::PrepareFinalArgument,
-                        has_apply_evidence: false,
-                        has_apply_arg_source_edge: false,
-                    }));
+                let apply_arg_adapter_source = Some(self.runtime_adapter_source_for_apply(
+                    RuntimeApplyAdapterPhase::PrepareFinalArgument,
+                    evidence.as_ref(),
+                    apply_target.as_ref(),
+                ));
                 let arg = if matches!(callee.kind, ExprKind::EffectOp(_)) {
                     let apply_effect_adapter_source =
-                        apply_arg_adapter_source.map(|source| RuntimeAdapterSource {
-                            phase: ApplyAdapterPhase::PrepareEffectOperationArgument,
-                            ..source
+                        apply_arg_adapter_source.clone().map(|mut source| {
+                            source.phase = RuntimeApplyAdapterPhase::PrepareEffectOperationArgument;
+                            source
                         });
                     prepare_effect_operation_arg(
                         arg,
                         &final_fun_parts.param,
                         if apply_arg_adapter_source
+                            .as_ref()
                             .is_some_and(|source| source.has_apply_arg_source_edge)
                         {
                             TypeSource::ApplyArgumentSourceEdge
@@ -460,6 +483,7 @@ impl Lowerer<'_> {
                         arg,
                         &final_fun_parts.param,
                         if apply_arg_adapter_source
+                            .as_ref()
                             .is_some_and(|source| source.has_apply_arg_source_edge)
                         {
                             TypeSource::ApplyArgumentSourceEdge
@@ -515,6 +539,7 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
             core_ir::Expr::If {
@@ -560,6 +585,7 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
             core_ir::Expr::Tuple(items) => {
@@ -598,6 +624,7 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
             core_ir::Expr::Record { fields, spread } => {
@@ -644,6 +671,7 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
             core_ir::Expr::Variant { tag, value } => {
@@ -686,6 +714,7 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
             core_ir::Expr::Select { base, field } => {
@@ -714,6 +743,7 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
             core_ir::Expr::Match {
@@ -771,6 +801,7 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
             core_ir::Expr::Block { mut stmts, tail } => {
@@ -825,6 +856,7 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
             core_ir::Expr::Handle {
@@ -876,6 +908,7 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
             core_ir::Expr::Coerce { expr, evidence } => {
@@ -916,6 +949,7 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
             core_ir::Expr::Pack { var, expr } => {
@@ -935,8 +969,40 @@ impl Lowerer<'_> {
                     expected,
                     expected_source,
                     &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
                 )
             }
+        }
+    }
+
+    fn lower_expr_with_runtime_adapter_source(
+        &mut self,
+        expr: core_ir::Expr,
+        expected: Option<&RuntimeType>,
+        locals: &mut HashMap<core_ir::Path, RuntimeType>,
+        expected_source: TypeSource,
+        adapter_source: RuntimeAdapterSource,
+    ) -> RuntimeResult<Expr> {
+        let old_source = self.current_runtime_adapter_source.replace(adapter_source);
+        let result = self.lower_expr(expr, expected, locals, expected_source);
+        self.current_runtime_adapter_source = old_source;
+        result
+    }
+
+    fn runtime_adapter_source_for_apply(
+        &self,
+        phase: RuntimeApplyAdapterPhase,
+        evidence: Option<&core_ir::ApplyEvidence>,
+        apply_target: Option<&core_ir::Path>,
+    ) -> RuntimeAdapterSource {
+        RuntimeAdapterSource {
+            phase,
+            has_apply_evidence: evidence.is_some(),
+            has_apply_arg_source_edge: evidence
+                .is_some_and(|evidence| evidence.arg_source_edge.is_some()),
+            arg_source_edge: evidence.and_then(|evidence| evidence.arg_source_edge),
+            owner: self.current_binding.clone(),
+            apply_target: apply_target.cloned(),
         }
     }
 
@@ -1623,6 +1689,14 @@ fn prepare_effect_operation_arg(
             profile,
             adapter_source,
         ),
+    }
+}
+
+fn core_apply_head_target(expr: &core_ir::Expr) -> Option<core_ir::Path> {
+    match expr {
+        core_ir::Expr::Var(path) => Some(path.clone()),
+        core_ir::Expr::Apply { callee, .. } => core_apply_head_target(callee),
+        _ => None,
     }
 }
 

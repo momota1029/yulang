@@ -76,6 +76,7 @@ pub(super) fn empty_row() -> core_ir::Type {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn prepare_expr_for_expected_profiled(
     expr: Expr,
     expected: &RuntimeType,
@@ -108,12 +109,16 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
                     profile.apply_evidence_value_to_thunk += 1;
                     record_apply_adapter(
                         profile,
-                        RuntimeAdapterKind::ValueToThunk,
+                        RuntimeAdapterEventKind::ValueToThunk,
                         source,
-                        adapter_source,
+                        adapter_source.clone(),
+                        &expr.ty,
+                        expected,
                     );
                     if apply_arg_source_edge(source)
-                        || adapter_source.is_some_and(|source| source.has_apply_arg_source_edge)
+                        || adapter_source
+                            .as_ref()
+                            .is_some_and(|source| source.has_apply_arg_source_edge)
                     {
                         profile.apply_evidence_value_to_thunk_with_source_edge += 1;
                     }
@@ -139,18 +144,24 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
                 profile.apply_evidence_bind_here += 1;
                 record_apply_adapter(
                     profile,
-                    RuntimeAdapterKind::ThunkToValue,
+                    RuntimeAdapterEventKind::ThunkToValue,
                     source,
-                    adapter_source,
+                    adapter_source.clone(),
+                    &expr.ty,
+                    expected,
                 );
                 record_apply_adapter(
                     profile,
-                    RuntimeAdapterKind::BindHere,
+                    RuntimeAdapterEventKind::BindHere,
                     source,
-                    adapter_source,
+                    adapter_source.clone(),
+                    &expr.ty,
+                    expected,
                 );
                 if apply_arg_source_edge(source)
-                    || adapter_source.is_some_and(|source| source.has_apply_arg_source_edge)
+                    || adapter_source
+                        .as_ref()
+                        .is_some_and(|source| source.has_apply_arg_source_edge)
                 {
                     profile.apply_evidence_thunk_to_value_with_source_edge += 1;
                     profile.apply_evidence_bind_here_with_source_edge += 1;
@@ -179,11 +190,14 @@ fn apply_arg_source_edge(source: TypeSource) -> bool {
 
 fn record_apply_adapter(
     profile: &mut RuntimeAdapterProfile,
-    kind: RuntimeAdapterKind,
+    kind: RuntimeAdapterEventKind,
     source: TypeSource,
     adapter_source: Option<RuntimeAdapterSource>,
+    actual: &RuntimeType,
+    expected: &RuntimeType,
 ) {
     let phase = adapter_source
+        .as_ref()
         .map(|source| {
             source.profile_apply_adapter(profile);
             source.phase
@@ -193,16 +207,27 @@ fn record_apply_adapter(
         return;
     };
     record_apply_adapter_phase(profile, phase, kind);
+    if let Some(adapter_source) = &adapter_source {
+        profile.events.push(RuntimeAdapterEvent {
+            kind,
+            phase,
+            owner: adapter_source.owner.clone(),
+            apply_target: adapter_source.apply_target.clone(),
+            arg_source_edge: adapter_source.arg_source_edge,
+            actual: actual.clone(),
+            expected: expected.clone(),
+        });
+    }
     if adapter_source.is_none() && apply_arg_source_edge(source) {
         profile.apply_evidence_adapter_with_source_edge += 1;
     }
 }
 
-fn apply_adapter_phase(source: TypeSource) -> Option<ApplyAdapterPhase> {
+fn apply_adapter_phase(source: TypeSource) -> Option<RuntimeApplyAdapterPhase> {
     match source {
-        TypeSource::ApplyCalleeEvidence => Some(ApplyAdapterPhase::LowerCallee),
+        TypeSource::ApplyCalleeEvidence => Some(RuntimeApplyAdapterPhase::LowerCallee),
         TypeSource::ApplyArgumentEvidence | TypeSource::ApplyArgumentSourceEdge => {
-            Some(ApplyAdapterPhase::LowerArgument)
+            Some(RuntimeApplyAdapterPhase::LowerArgument)
         }
         TypeSource::ApplyEvidence => None,
         _ => None,
@@ -211,73 +236,70 @@ fn apply_adapter_phase(source: TypeSource) -> Option<ApplyAdapterPhase> {
 
 fn record_apply_adapter_phase(
     profile: &mut RuntimeAdapterProfile,
-    phase: ApplyAdapterPhase,
-    kind: RuntimeAdapterKind,
+    phase: RuntimeApplyAdapterPhase,
+    kind: RuntimeAdapterEventKind,
 ) {
     match (phase, kind) {
-        (ApplyAdapterPhase::LowerCallee, RuntimeAdapterKind::ValueToThunk) => {
+        (RuntimeApplyAdapterPhase::LowerCallee, RuntimeAdapterEventKind::ValueToThunk) => {
             profile.apply_lower_callee_value_to_thunk += 1;
         }
-        (ApplyAdapterPhase::LowerCallee, RuntimeAdapterKind::ThunkToValue) => {
+        (RuntimeApplyAdapterPhase::LowerCallee, RuntimeAdapterEventKind::ThunkToValue) => {
             profile.apply_lower_callee_thunk_to_value += 1;
         }
-        (ApplyAdapterPhase::LowerCallee, RuntimeAdapterKind::BindHere) => {
+        (RuntimeApplyAdapterPhase::LowerCallee, RuntimeAdapterEventKind::BindHere) => {
             profile.apply_lower_callee_bind_here += 1;
         }
-        (ApplyAdapterPhase::LowerArgument, RuntimeAdapterKind::ValueToThunk) => {
+        (RuntimeApplyAdapterPhase::LowerArgument, RuntimeAdapterEventKind::ValueToThunk) => {
             profile.apply_lower_argument_value_to_thunk += 1;
         }
-        (ApplyAdapterPhase::LowerArgument, RuntimeAdapterKind::ThunkToValue) => {
+        (RuntimeApplyAdapterPhase::LowerArgument, RuntimeAdapterEventKind::ThunkToValue) => {
             profile.apply_lower_argument_thunk_to_value += 1;
         }
-        (ApplyAdapterPhase::LowerArgument, RuntimeAdapterKind::BindHere) => {
+        (RuntimeApplyAdapterPhase::LowerArgument, RuntimeAdapterEventKind::BindHere) => {
             profile.apply_lower_argument_bind_here += 1;
         }
-        (ApplyAdapterPhase::PrepareFinalArgument, RuntimeAdapterKind::ValueToThunk) => {
+        (RuntimeApplyAdapterPhase::PrepareFinalArgument, RuntimeAdapterEventKind::ValueToThunk) => {
             profile.apply_prepare_final_argument_value_to_thunk += 1;
         }
-        (ApplyAdapterPhase::PrepareFinalArgument, RuntimeAdapterKind::ThunkToValue) => {
+        (RuntimeApplyAdapterPhase::PrepareFinalArgument, RuntimeAdapterEventKind::ThunkToValue) => {
             profile.apply_prepare_final_argument_thunk_to_value += 1;
         }
-        (ApplyAdapterPhase::PrepareFinalArgument, RuntimeAdapterKind::BindHere) => {
+        (RuntimeApplyAdapterPhase::PrepareFinalArgument, RuntimeAdapterEventKind::BindHere) => {
             profile.apply_prepare_final_argument_bind_here += 1;
         }
-        (ApplyAdapterPhase::PrepareEffectOperationArgument, RuntimeAdapterKind::ValueToThunk) => {
+        (
+            RuntimeApplyAdapterPhase::PrepareEffectOperationArgument,
+            RuntimeAdapterEventKind::ValueToThunk,
+        ) => {
             profile.apply_prepare_effect_operation_argument_value_to_thunk += 1;
         }
-        (ApplyAdapterPhase::PrepareEffectOperationArgument, RuntimeAdapterKind::ThunkToValue) => {
+        (
+            RuntimeApplyAdapterPhase::PrepareEffectOperationArgument,
+            RuntimeAdapterEventKind::ThunkToValue,
+        ) => {
             profile.apply_prepare_effect_operation_argument_thunk_to_value += 1;
         }
-        (ApplyAdapterPhase::PrepareEffectOperationArgument, RuntimeAdapterKind::BindHere) => {
+        (
+            RuntimeApplyAdapterPhase::PrepareEffectOperationArgument,
+            RuntimeAdapterEventKind::BindHere,
+        ) => {
             profile.apply_prepare_effect_operation_argument_bind_here += 1;
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct RuntimeAdapterSource {
-    pub phase: ApplyAdapterPhase,
+    pub phase: RuntimeApplyAdapterPhase,
     pub has_apply_evidence: bool,
     pub has_apply_arg_source_edge: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum ApplyAdapterPhase {
-    LowerCallee,
-    LowerArgument,
-    PrepareFinalArgument,
-    PrepareEffectOperationArgument,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RuntimeAdapterKind {
-    ValueToThunk,
-    ThunkToValue,
-    BindHere,
+    pub arg_source_edge: Option<u32>,
+    pub owner: Option<core_ir::Path>,
+    pub apply_target: Option<core_ir::Path>,
 }
 
 impl RuntimeAdapterSource {
-    fn profile_apply_adapter(self, profile: &mut RuntimeAdapterProfile) {
+    fn profile_apply_adapter(&self, profile: &mut RuntimeAdapterProfile) {
         if self.has_apply_evidence {
             profile.apply_evidence_adapter_with_evidence += 1;
         } else {
@@ -294,10 +316,17 @@ pub(super) fn finalize_effectful_expr_profiled(
     expected: Option<&RuntimeType>,
     source: TypeSource,
     profile: &mut RuntimeAdapterProfile,
+    adapter_source: Option<RuntimeAdapterSource>,
 ) -> RuntimeResult<Expr> {
     let expr = attach_forced_effect_profiled(expr, profile);
     match expected {
-        Some(expected) => prepare_expr_for_expected_profiled(expr, expected, source, profile),
+        Some(expected) => prepare_expr_for_expected_with_adapter_source_profiled(
+            expr,
+            expected,
+            source,
+            profile,
+            adapter_source,
+        ),
         None => Ok(expr),
     }
 }
@@ -307,6 +336,7 @@ pub(super) fn finalize_handler_expr_profiled(
     expected: Option<&RuntimeType>,
     source: TypeSource,
     profile: &mut RuntimeAdapterProfile,
+    adapter_source: Option<RuntimeAdapterSource>,
 ) -> RuntimeResult<Expr> {
     let expr = attach_forced_effect_profiled(expr, profile);
     match (expected, &expr.ty) {
@@ -320,7 +350,13 @@ pub(super) fn finalize_handler_expr_profiled(
             require_same_hir_type(expected_value, actual, source)?;
             Ok(expr)
         }
-        (Some(expected), _) => prepare_expr_for_expected_profiled(expr, expected, source, profile),
+        (Some(expected), _) => prepare_expr_for_expected_with_adapter_source_profiled(
+            expr,
+            expected,
+            source,
+            profile,
+            adapter_source,
+        ),
         (None, _) => Ok(expr),
     }
 }

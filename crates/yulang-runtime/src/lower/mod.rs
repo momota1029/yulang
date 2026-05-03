@@ -60,7 +60,7 @@ pub struct RuntimeLowerOutput {
     pub profile: RuntimeLowerProfile,
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct RuntimeLowerProfile {
     pub expected_arg_evidence: ExpectedArgEvidenceProfile,
     pub expected_adapter_evidence: ExpectedAdapterEvidenceProfile,
@@ -85,7 +85,7 @@ pub struct ExpectedArgEvidenceProfile {
     pub ignored_no_push: usize,
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct RuntimeAdapterProfile {
     pub value_to_thunk: usize,
     pub thunk_to_value: usize,
@@ -113,6 +113,33 @@ pub struct RuntimeAdapterProfile {
     pub apply_prepare_effect_operation_argument_bind_here: usize,
     pub reused_thunk: usize,
     pub forced_effect_thunk: usize,
+    pub events: Vec<RuntimeAdapterEvent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeAdapterEvent {
+    pub kind: RuntimeAdapterEventKind,
+    pub phase: RuntimeApplyAdapterPhase,
+    pub owner: Option<core_ir::Path>,
+    pub apply_target: Option<core_ir::Path>,
+    pub arg_source_edge: Option<u32>,
+    pub actual: RuntimeType,
+    pub expected: RuntimeType,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RuntimeAdapterEventKind {
+    ValueToThunk,
+    ThunkToValue,
+    BindHere,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RuntimeApplyAdapterPhase {
+    LowerCallee,
+    LowerArgument,
+    PrepareFinalArgument,
+    PrepareEffectOperationArgument,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -221,6 +248,8 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
         use_expected_arg_evidence: std::env::var_os("YULANG_USE_EXPECTED_ARG_EVIDENCE").is_some(),
         expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
         runtime_adapter_profile: RuntimeAdapterProfile::default(),
+        current_binding: None,
+        current_runtime_adapter_source: None,
         next_synthetic_type_var: 0,
         next_effect_id_var: 0,
     };
@@ -411,6 +440,8 @@ struct Lowerer<'a> {
     use_expected_arg_evidence: bool,
     expected_arg_evidence_profile: ExpectedArgEvidenceProfile,
     runtime_adapter_profile: RuntimeAdapterProfile,
+    current_binding: Option<core_ir::Path>,
+    current_runtime_adapter_source: Option<RuntimeAdapterSource>,
     next_synthetic_type_var: usize,
     next_effect_id_var: usize,
 }

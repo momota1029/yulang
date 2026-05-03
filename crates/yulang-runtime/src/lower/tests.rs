@@ -80,6 +80,8 @@ mod tests {
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            current_binding: None,
+            current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -179,9 +181,12 @@ mod tests {
             TypeSource::ApplyArgumentSourceEdge,
             &mut profile,
             Some(RuntimeAdapterSource {
-                phase: ApplyAdapterPhase::PrepareFinalArgument,
+                phase: RuntimeApplyAdapterPhase::PrepareFinalArgument,
                 has_apply_evidence: true,
                 has_apply_arg_source_edge: true,
+                arg_source_edge: Some(7),
+                owner: Some(core_ir::Path::from_name(core_ir::Name("owner".to_string()))),
+                apply_target: Some(core_ir::Path::from_name(core_ir::Name("f".to_string()))),
             }),
         )
         .expect("prepared");
@@ -195,6 +200,12 @@ mod tests {
         assert_eq!(profile.apply_evidence_adapter_with_source_edge, 2);
         assert_eq!(profile.apply_evidence_thunk_to_value_with_source_edge, 1);
         assert_eq!(profile.apply_evidence_bind_here_with_source_edge, 1);
+        assert_eq!(profile.events.len(), 2);
+        assert_eq!(
+            profile.events[0].apply_target.as_ref(),
+            Some(&core_ir::Path::from_name(core_ir::Name("f".to_string())))
+        );
+        assert_eq!(profile.events[0].arg_source_edge, Some(7));
     }
 
     #[test]
@@ -262,6 +273,8 @@ mod tests {
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            current_binding: None,
+            current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1285,6 +1298,8 @@ mod tests {
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            current_binding: None,
+            current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1337,6 +1352,8 @@ mod tests {
             use_expected_arg_evidence: true,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            current_binding: None,
+            current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1421,6 +1438,8 @@ mod tests {
             use_expected_arg_evidence: true,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            current_binding: None,
+            current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1511,6 +1530,8 @@ mod tests {
             use_expected_arg_evidence: true,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            current_binding: None,
+            current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1616,6 +1637,8 @@ mod tests {
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            current_binding: None,
+            current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };

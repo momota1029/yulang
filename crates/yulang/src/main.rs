@@ -1,5 +1,5 @@
 use std::cmp::Reverse;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -792,6 +792,7 @@ fn print_runtime_phase_timings(
         adapters.apply_prepare_effect_operation_argument_thunk_to_value,
         adapters.apply_prepare_effect_operation_argument_bind_here,
     );
+    print_runtime_adapter_event_summary(adapters);
     let adapter_evidence = &profile.lower_profile.expected_adapter_evidence;
     eprintln!(
         "    expected_adapter_evidence: total={}, runtime_usable={}, closed={}, informative={}, effect_operation_argument={}, value_to_thunk={}, thunk_to_value={}, bind_here={}, handler_residual={}, handler_return={}, resume_argument={}",
@@ -865,6 +866,53 @@ fn print_runtime_phase_timings(
     }
     if let Some(duration) = vm_eval {
         eprintln!("    vm_eval: {}", format_duration(duration));
+    }
+}
+
+fn print_runtime_adapter_event_summary(adapters: &runtime::RuntimeAdapterProfile) {
+    if adapters.events.is_empty() {
+        eprintln!("    runtime_adapter_events: total=0");
+        return;
+    }
+    eprintln!(
+        "    runtime_adapter_events: total={}",
+        adapters.events.len()
+    );
+    let mut by_target = BTreeMap::<(String, String, String), usize>::new();
+    for event in &adapters.events {
+        let phase = runtime_adapter_phase_name(event.phase).to_string();
+        let target = event
+            .apply_target
+            .as_ref()
+            .map(format_core_path)
+            .unwrap_or_else(|| "<unknown>".to_string());
+        let kind = runtime_adapter_kind_name(event.kind).to_string();
+        *by_target.entry((phase, target, kind)).or_default() += 1;
+    }
+    for ((phase, target, kind), count) in by_target.iter().take(12) {
+        eprintln!(
+            "        adapter_event phase={} target={} kind={} count={}",
+            phase, target, kind, count
+        );
+    }
+}
+
+fn runtime_adapter_phase_name(phase: runtime::RuntimeApplyAdapterPhase) -> &'static str {
+    match phase {
+        runtime::RuntimeApplyAdapterPhase::LowerCallee => "apply.lower-callee",
+        runtime::RuntimeApplyAdapterPhase::LowerArgument => "apply.lower-argument",
+        runtime::RuntimeApplyAdapterPhase::PrepareFinalArgument => "apply.prepare-final-argument",
+        runtime::RuntimeApplyAdapterPhase::PrepareEffectOperationArgument => {
+            "apply.prepare-effect-operation-argument"
+        }
+    }
+}
+
+fn runtime_adapter_kind_name(kind: runtime::RuntimeAdapterEventKind) -> &'static str {
+    match kind {
+        runtime::RuntimeAdapterEventKind::ValueToThunk => "value-to-thunk",
+        runtime::RuntimeAdapterEventKind::ThunkToValue => "thunk-to-value",
+        runtime::RuntimeAdapterEventKind::BindHere => "bind-here",
     }
 }
 
