@@ -186,6 +186,9 @@ impl Lowerer<'_> {
                 arg,
                 evidence,
             } => {
+                if let Some(evidence) = &evidence {
+                    self.validate_apply_source_edge(evidence.arg_source_edge);
+                }
                 let mut callee_expr = Some(*callee);
                 let mut arg_expr = Some(*arg);
                 let callee_is_effect_operation = callee_expr
@@ -280,7 +283,7 @@ impl Lowerer<'_> {
                 let param_or_expected_arg_hint = match (param_hint, evidence_expected_arg.clone()) {
                     (Some(param_hint), _) => Some(param_hint),
                     (None, Some(expected_arg)) if self.use_expected_arg_evidence => {
-                        self.expected_arg_evidence_profile.used += 1;
+                        self.expected_arg_evidence_profile.used_as_arg_type_hint += 1;
                         Some(expected_arg)
                     }
                     (None, _) => None,
@@ -341,38 +344,35 @@ impl Lowerer<'_> {
                             }
                         } else if matches!(arg_ty, RuntimeType::Thunk { .. }) {
                             Some(&arg_ty)
-                        } else if let Some(expected_arg_ty) =
-                            evidence_expected_arg.as_ref().filter(|_| {
-                                self.use_expected_arg_evidence
-                                    && can_push_expected_arg_through(
-                                        arg_expr
-                                            .as_ref()
-                                            .expect("arg should be present before lowering"),
-                                    )
-                            })
-                        {
-                            self.expected_arg_evidence_profile.used += 1;
-                            Some(expected_arg_ty)
-                        } else if let Some(lower_arg_ty) =
-                            evidence_arg_lower.as_ref().filter(|_| {
-                                can_push_expected_arg_through(
-                                    arg_expr
-                                        .as_ref()
-                                        .expect("arg should be present before lowering"),
-                                )
-                            })
-                        {
-                            Some(lower_arg_ty)
-                        } else if hir_type_has_type_vars(&arg_ty)
-                            && !can_push_expected_arg_through(
+                        } else {
+                            let can_push = can_push_expected_arg_through(
                                 arg_expr
                                     .as_ref()
                                     .expect("arg should be present before lowering"),
-                            )
-                        {
-                            None
-                        } else {
-                            Some(&arg_ty)
+                            );
+                            if let Some(expected_arg_ty) = evidence_expected_arg
+                                .as_ref()
+                                .filter(|_| self.use_expected_arg_evidence && can_push)
+                            {
+                                self.expected_arg_evidence_profile.used_as_lowering_expected += 1;
+                                Some(expected_arg_ty)
+                            } else {
+                                if self.use_expected_arg_evidence
+                                    && evidence_expected_arg.is_some()
+                                    && !can_push
+                                {
+                                    self.expected_arg_evidence_profile.ignored_no_push += 1;
+                                }
+                                if let Some(lower_arg_ty) =
+                                    evidence_arg_lower.as_ref().filter(|_| can_push)
+                                {
+                                    Some(lower_arg_ty)
+                                } else if hir_type_has_type_vars(&arg_ty) && !can_push {
+                                    None
+                                } else {
+                                    Some(&arg_ty)
+                                }
+                            }
                         };
                         self.lower_expr(
                             arg_expr.take().expect("arg should be present"),
@@ -1061,17 +1061,35 @@ impl Lowerer<'_> {
         source_edge: Option<u32>,
         bounds: Option<&core_ir::TypeBounds>,
     ) -> Option<RuntimeType> {
-        let ty = bounds
-            .and_then(|bounds| self.tir_argument_runtime_type(bounds))
+        let Some(bounds) = bounds else {
+            self.expected_arg_evidence_profile.ignored_no_expected_arg += 1;
+            return None;
+        };
+        self.expected_arg_evidence_profile.present += 1;
+        let ty = self
+            .tir_argument_runtime_type(bounds)
             .map(RuntimeType::core)?;
-        self.expected_arg_evidence_profile.available += 1;
-        let table_usable = source_edge
-            .and_then(|id| self.principal_evidence.expected_edge(id))
-            .map(|edge| {
+        self.expected_arg_evidence_profile.converted += 1;
+        let table_usable = source_edge.and_then(|id| {
+            self.expected_edge(id).map(|edge| {
                 debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::ApplicationArgument);
                 edge.runtime_usable
-            });
-        let usable = table_usable.unwrap_or_else(|| expected_arg_evidence_runtime_usable(&ty));
+            })
+        });
+        let usable = match table_usable {
+            Some(true) => {
+                self.expected_arg_evidence_profile.usable_by_table += 1;
+                true
+            }
+            Some(false) => false,
+            None => {
+                let usable = expected_arg_evidence_runtime_usable(&ty);
+                if usable {
+                    self.expected_arg_evidence_profile.usable_by_bounds += 1;
+                }
+                usable
+            }
+        };
         if usable {
             Some(ty)
         } else {
@@ -1081,9 +1099,19 @@ impl Lowerer<'_> {
     }
 
     fn validate_coerce_source_edge(&self, source_edge: Option<u32>) {
-        if let Some(edge) = source_edge.and_then(|id| self.principal_evidence.expected_edge(id)) {
+        if let Some(edge) = source_edge.and_then(|id| self.expected_edge(id)) {
             debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::RepresentationCoerce);
         }
+    }
+
+    fn validate_apply_source_edge(&self, source_edge: Option<u32>) {
+        if let Some(edge) = source_edge.and_then(|id| self.expected_edge(id)) {
+            debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::ApplicationArgument);
+        }
+    }
+
+    fn expected_edge(&self, id: u32) -> Option<&core_ir::ExpectedEdgeEvidence> {
+        self.expected_edges_by_id.get(&id).copied()
     }
 
     pub(super) fn core_expr_is_effect_operation(

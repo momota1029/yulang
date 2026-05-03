@@ -76,7 +76,7 @@ mod tests {
             graph: &program.graph,
             runtime_symbols: HashMap::new(),
             principal_vars: principal_module_type_vars(&program.program),
-            principal_evidence: &core_ir::PrincipalEvidence::default(),
+            expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
@@ -168,7 +168,7 @@ mod tests {
                 core_ir::RuntimeSymbolKind::RoleMethod,
             )]),
             principal_vars: BTreeSet::new(),
-            principal_evidence: &core_ir::PrincipalEvidence::default(),
+            expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
@@ -1189,7 +1189,7 @@ mod tests {
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             principal_vars: BTreeSet::new(),
-            principal_evidence: &core_ir::PrincipalEvidence::default(),
+            expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
@@ -1240,7 +1240,7 @@ mod tests {
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             principal_vars: BTreeSet::new(),
-            principal_evidence: &core_ir::PrincipalEvidence::default(),
+            expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: true,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
@@ -1287,8 +1287,13 @@ mod tests {
             locals.get(&arg_path),
             Some(&RuntimeType::core(named_type("int")))
         );
-        assert_eq!(lowerer.expected_arg_evidence_profile.available, 1);
-        assert!(lowerer.expected_arg_evidence_profile.used >= 1);
+        assert_eq!(lowerer.expected_arg_evidence_profile.present, 1);
+        assert_eq!(lowerer.expected_arg_evidence_profile.converted, 1);
+        assert_eq!(lowerer.expected_arg_evidence_profile.usable_by_bounds, 1);
+        assert_eq!(
+            lowerer.expected_arg_evidence_profile.used_as_arg_type_hint,
+            1
+        );
     }
 
     #[test]
@@ -1313,7 +1318,11 @@ mod tests {
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             principal_vars: BTreeSet::new(),
-            principal_evidence: &principal_evidence,
+            expected_edges_by_id: principal_evidence
+                .expected_edges
+                .iter()
+                .map(|edge| (edge.id, edge))
+                .collect(),
             use_expected_arg_evidence: true,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
@@ -1360,9 +1369,19 @@ mod tests {
             locals.get(&arg_path),
             Some(&RuntimeType::core(core_ir::Type::Any))
         );
-        assert_eq!(lowerer.expected_arg_evidence_profile.available, 1);
+        assert_eq!(lowerer.expected_arg_evidence_profile.present, 1);
+        assert_eq!(lowerer.expected_arg_evidence_profile.converted, 1);
         assert_eq!(lowerer.expected_arg_evidence_profile.ignored_unusable, 1);
-        assert_eq!(lowerer.expected_arg_evidence_profile.used, 0);
+        assert_eq!(
+            lowerer.expected_arg_evidence_profile.used_as_arg_type_hint,
+            0
+        );
+        assert_eq!(
+            lowerer
+                .expected_arg_evidence_profile
+                .used_as_lowering_expected,
+            0
+        );
     }
 
     #[test]
@@ -1407,7 +1426,7 @@ mod tests {
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             principal_vars: BTreeSet::new(),
-            principal_evidence: &core_ir::PrincipalEvidence::default(),
+            expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,

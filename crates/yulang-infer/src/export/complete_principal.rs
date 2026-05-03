@@ -51,9 +51,17 @@ pub struct ExpectedEdgeEvidence {
 pub struct DerivedExpectedEdgeEvidence {
     pub parent: ExpectedEdgeId,
     pub kind: DerivedExpectedEdgeKind,
+    pub polarity: EdgePolarity,
     pub path: Vec<EdgePathSegment>,
     pub actual: core_ir::TypeBounds,
     pub expected: core_ir::TypeBounds,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EdgePolarity {
+    Covariant,
+    Contravariant,
+    Invariant,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -265,23 +273,60 @@ fn derive_expected_edge_evidence(
     evidence: &ExpectedEdgeEvidence,
 ) -> Vec<DerivedExpectedEdgeEvidence> {
     let mut derived = Vec::new();
-    derive_record_field_edges(evidence, &mut derived);
-    derive_tuple_item_edges(evidence, &mut derived);
-    derive_variant_payload_edges(evidence, &mut derived);
-    derive_function_edges(evidence, &mut derived);
+    if let (Some(actual), Some(expected)) = (
+        bounds_primary_type(&evidence.actual),
+        bounds_primary_type(&evidence.expected),
+    ) {
+        derive_structural_edges(
+            evidence.id,
+            EdgePolarity::Covariant,
+            actual,
+            expected,
+            &mut Vec::new(),
+            &mut derived,
+            0,
+        );
+    }
     derived
 }
 
-fn derive_record_field_edges(
-    evidence: &ExpectedEdgeEvidence,
+const MAX_DERIVED_EDGE_DEPTH: usize = 4;
+
+fn derive_structural_edges(
+    parent: ExpectedEdgeId,
+    polarity: EdgePolarity,
+    actual: &core_ir::Type,
+    expected: &core_ir::Type,
+    path: &mut Vec<EdgePathSegment>,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
+    depth: usize,
 ) {
-    let (Some(core_ir::Type::Record(actual)), Some(core_ir::Type::Record(expected))) = (
-        bounds_primary_type(&evidence.actual),
-        bounds_primary_type(&evidence.expected),
-    ) else {
-        return;
-    };
+    match (actual, expected) {
+        (core_ir::Type::Record(actual), core_ir::Type::Record(expected)) => {
+            derive_record_field_edges(parent, polarity, actual, expected, path, derived, depth);
+        }
+        (core_ir::Type::Tuple(actual), core_ir::Type::Tuple(expected)) => {
+            derive_tuple_item_edges(parent, polarity, actual, expected, path, derived, depth);
+        }
+        (core_ir::Type::Variant(actual), core_ir::Type::Variant(expected)) => {
+            derive_variant_payload_edges(parent, polarity, actual, expected, path, derived, depth);
+        }
+        (core_ir::Type::Fun { .. }, core_ir::Type::Fun { .. }) => {
+            derive_function_edges(parent, polarity, actual, expected, path, derived, depth);
+        }
+        _ => {}
+    }
+}
+
+fn derive_record_field_edges(
+    parent: ExpectedEdgeId,
+    polarity: EdgePolarity,
+    actual: &core_ir::RecordType,
+    expected: &core_ir::RecordType,
+    path: &mut Vec<EdgePathSegment>,
+    derived: &mut Vec<DerivedExpectedEdgeEvidence>,
+    depth: usize,
+) {
     for expected_field in &expected.fields {
         let Some(actual_field) = actual
             .fields
@@ -290,50 +335,74 @@ fn derive_record_field_edges(
         else {
             continue;
         };
-        derived.push(DerivedExpectedEdgeEvidence {
-            parent: evidence.id,
-            kind: DerivedExpectedEdgeKind::RecordField,
-            path: vec![EdgePathSegment::Field(expected_field.name.clone())],
-            actual: core_ir::TypeBounds::exact(actual_field.value.clone()),
-            expected: core_ir::TypeBounds::exact(expected_field.value.clone()),
-        });
+        path.push(EdgePathSegment::Field(expected_field.name.clone()));
+        push_derived_edge(
+            parent,
+            DerivedExpectedEdgeKind::RecordField,
+            polarity,
+            path,
+            &actual_field.value,
+            &expected_field.value,
+            derived,
+        );
+        derive_child_edge(
+            parent,
+            polarity,
+            &actual_field.value,
+            &expected_field.value,
+            path,
+            derived,
+            depth,
+        );
+        path.pop();
     }
 }
 
 fn derive_tuple_item_edges(
-    evidence: &ExpectedEdgeEvidence,
+    parent: ExpectedEdgeId,
+    polarity: EdgePolarity,
+    actual: &[core_ir::Type],
+    expected: &[core_ir::Type],
+    path: &mut Vec<EdgePathSegment>,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
+    depth: usize,
 ) {
-    let (Some(core_ir::Type::Tuple(actual)), Some(core_ir::Type::Tuple(expected))) = (
-        bounds_primary_type(&evidence.actual),
-        bounds_primary_type(&evidence.expected),
-    ) else {
-        return;
-    };
     if actual.len() != expected.len() {
         return;
     }
     for (index, (actual_item, expected_item)) in actual.iter().zip(expected).enumerate() {
-        derived.push(DerivedExpectedEdgeEvidence {
-            parent: evidence.id,
-            kind: DerivedExpectedEdgeKind::TupleItem,
-            path: vec![EdgePathSegment::TupleIndex(index)],
-            actual: core_ir::TypeBounds::exact(actual_item.clone()),
-            expected: core_ir::TypeBounds::exact(expected_item.clone()),
-        });
+        path.push(EdgePathSegment::TupleIndex(index));
+        push_derived_edge(
+            parent,
+            DerivedExpectedEdgeKind::TupleItem,
+            polarity,
+            path,
+            actual_item,
+            expected_item,
+            derived,
+        );
+        derive_child_edge(
+            parent,
+            polarity,
+            actual_item,
+            expected_item,
+            path,
+            derived,
+            depth,
+        );
+        path.pop();
     }
 }
 
 fn derive_variant_payload_edges(
-    evidence: &ExpectedEdgeEvidence,
+    parent: ExpectedEdgeId,
+    polarity: EdgePolarity,
+    actual: &core_ir::VariantType,
+    expected: &core_ir::VariantType,
+    path: &mut Vec<EdgePathSegment>,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
+    depth: usize,
 ) {
-    let (Some(core_ir::Type::Variant(actual)), Some(core_ir::Type::Variant(expected))) = (
-        bounds_primary_type(&evidence.actual),
-        bounds_primary_type(&evidence.expected),
-    ) else {
-        return;
-    };
     for expected_case in &expected.cases {
         let Some(actual_case) = actual
             .cases
@@ -345,62 +414,148 @@ fn derive_variant_payload_edges(
         if actual_case.payloads.len() != expected_case.payloads.len() {
             continue;
         }
+        path.push(EdgePathSegment::VariantCase(expected_case.name.clone()));
         for (index, (actual_payload, expected_payload)) in actual_case
             .payloads
             .iter()
             .zip(&expected_case.payloads)
             .enumerate()
         {
-            derived.push(DerivedExpectedEdgeEvidence {
-                parent: evidence.id,
-                kind: DerivedExpectedEdgeKind::VariantPayload,
-                path: vec![
-                    EdgePathSegment::VariantCase(expected_case.name.clone()),
-                    EdgePathSegment::PayloadIndex(index),
-                ],
-                actual: core_ir::TypeBounds::exact(actual_payload.clone()),
-                expected: core_ir::TypeBounds::exact(expected_payload.clone()),
-            });
+            path.push(EdgePathSegment::PayloadIndex(index));
+            push_derived_edge(
+                parent,
+                DerivedExpectedEdgeKind::VariantPayload,
+                polarity,
+                path,
+                actual_payload,
+                expected_payload,
+                derived,
+            );
+            derive_child_edge(
+                parent,
+                polarity,
+                actual_payload,
+                expected_payload,
+                path,
+                derived,
+                depth,
+            );
+            path.pop();
         }
+        path.pop();
     }
 }
 
 fn derive_function_edges(
-    evidence: &ExpectedEdgeEvidence,
+    parent: ExpectedEdgeId,
+    polarity: EdgePolarity,
+    actual: &core_ir::Type,
+    expected: &core_ir::Type,
+    path: &mut Vec<EdgePathSegment>,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
+    depth: usize,
 ) {
     let (
-        Some(core_ir::Type::Fun {
+        core_ir::Type::Fun {
             param: actual_param,
             ret: actual_ret,
             ..
-        }),
-        Some(core_ir::Type::Fun {
+        },
+        core_ir::Type::Fun {
             param: expected_param,
             ret: expected_ret,
             ..
-        }),
-    ) = (
-        bounds_primary_type(&evidence.actual),
-        bounds_primary_type(&evidence.expected),
-    )
+        },
+    ) = (actual, expected)
     else {
         return;
     };
+    let param_polarity = polarity.flip();
+    path.push(EdgePathSegment::FunctionParam);
+    push_derived_edge(
+        parent,
+        DerivedExpectedEdgeKind::FunctionParam,
+        param_polarity,
+        path,
+        actual_param,
+        expected_param,
+        derived,
+    );
+    derive_child_edge(
+        parent,
+        param_polarity,
+        actual_param,
+        expected_param,
+        path,
+        derived,
+        depth,
+    );
+    path.pop();
+
+    path.push(EdgePathSegment::FunctionReturn);
+    push_derived_edge(
+        parent,
+        DerivedExpectedEdgeKind::FunctionReturn,
+        polarity,
+        path,
+        actual_ret,
+        expected_ret,
+        derived,
+    );
+    derive_child_edge(
+        parent,
+        polarity,
+        actual_ret,
+        expected_ret,
+        path,
+        derived,
+        depth,
+    );
+    path.pop();
+}
+
+fn push_derived_edge(
+    parent: ExpectedEdgeId,
+    kind: DerivedExpectedEdgeKind,
+    polarity: EdgePolarity,
+    path: &[EdgePathSegment],
+    actual: &core_ir::Type,
+    expected: &core_ir::Type,
+    derived: &mut Vec<DerivedExpectedEdgeEvidence>,
+) {
     derived.push(DerivedExpectedEdgeEvidence {
-        parent: evidence.id,
-        kind: DerivedExpectedEdgeKind::FunctionParam,
-        path: vec![EdgePathSegment::FunctionParam],
-        actual: core_ir::TypeBounds::exact(actual_param.as_ref().clone()),
-        expected: core_ir::TypeBounds::exact(expected_param.as_ref().clone()),
+        parent,
+        kind,
+        polarity,
+        path: path.to_vec(),
+        actual: core_ir::TypeBounds::exact(actual.clone()),
+        expected: core_ir::TypeBounds::exact(expected.clone()),
     });
-    derived.push(DerivedExpectedEdgeEvidence {
-        parent: evidence.id,
-        kind: DerivedExpectedEdgeKind::FunctionReturn,
-        path: vec![EdgePathSegment::FunctionReturn],
-        actual: core_ir::TypeBounds::exact(actual_ret.as_ref().clone()),
-        expected: core_ir::TypeBounds::exact(expected_ret.as_ref().clone()),
-    });
+}
+
+fn derive_child_edge(
+    parent: ExpectedEdgeId,
+    polarity: EdgePolarity,
+    actual: &core_ir::Type,
+    expected: &core_ir::Type,
+    path: &mut Vec<EdgePathSegment>,
+    derived: &mut Vec<DerivedExpectedEdgeEvidence>,
+    depth: usize,
+) {
+    if depth + 1 >= MAX_DERIVED_EDGE_DEPTH {
+        return;
+    }
+    derive_structural_edges(parent, polarity, actual, expected, path, derived, depth + 1);
+}
+
+impl EdgePolarity {
+    fn flip(self) -> Self {
+        match self {
+            Self::Covariant => Self::Contravariant,
+            Self::Contravariant => Self::Covariant,
+            Self::Invariant => Self::Invariant,
+        }
+    }
 }
 
 fn bounds_primary_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
@@ -1036,6 +1191,20 @@ mod tests {
         })
     }
 
+    fn record(fields: Vec<(&str, core_ir::Type)>) -> core_ir::Type {
+        core_ir::Type::Record(core_ir::RecordType {
+            fields: fields
+                .into_iter()
+                .map(|(name, value)| core_ir::RecordField {
+                    name: core_ir::Name(name.to_string()),
+                    value,
+                    optional: false,
+                })
+                .collect(),
+            spread: None,
+        })
+    }
+
     fn fold_path() -> core_ir::Path {
         core_ir::Path {
             segments: vec![
@@ -1168,6 +1337,7 @@ mod tests {
 
         assert_eq!(field.actual, core_ir::TypeBounds::exact(named("int")));
         assert_eq!(field.expected, core_ir::TypeBounds::exact(named("int")));
+        assert_eq!(field.polarity, EdgePolarity::Covariant);
     }
 
     #[test]
@@ -1185,6 +1355,7 @@ mod tests {
 
         assert_eq!(item.actual, core_ir::TypeBounds::exact(named("bool")));
         assert_eq!(item.expected, core_ir::TypeBounds::exact(named("bool")));
+        assert_eq!(item.polarity, EdgePolarity::Covariant);
     }
 
     #[test]
@@ -1219,6 +1390,8 @@ mod tests {
 
         assert_eq!(param.parent, ExpectedEdgeId(7));
         assert_eq!(ret.parent, ExpectedEdgeId(7));
+        assert_eq!(param.polarity, EdgePolarity::Contravariant);
+        assert_eq!(ret.polarity, EdgePolarity::Covariant);
         assert_eq!(param.actual, core_ir::TypeBounds::exact(named("str")));
         assert_eq!(param.expected, core_ir::TypeBounds::exact(named("int")));
         assert_eq!(ret.actual, core_ir::TypeBounds::exact(named("bool")));
@@ -1253,7 +1426,47 @@ mod tests {
             .expect("variant payload derived edge");
 
         assert_eq!(payload.parent, ExpectedEdgeId(9));
+        assert_eq!(payload.polarity, EdgePolarity::Covariant);
         assert_eq!(payload.actual, core_ir::TypeBounds::exact(named("bool")));
         assert_eq!(payload.expected, core_ir::TypeBounds::exact(named("int")));
+    }
+
+    #[test]
+    fn recursively_derives_nested_expected_edge_evidence() {
+        let evidence = ExpectedEdgeEvidence {
+            id: ExpectedEdgeId(11),
+            kind: ExpectedEdgeKind::Annotation,
+            actual: core_ir::TypeBounds::exact(record(vec![(
+                "a",
+                record(vec![("b", named("str"))]),
+            )])),
+            expected: core_ir::TypeBounds::exact(record(vec![(
+                "a",
+                record(vec![("b", named("int"))]),
+            )])),
+            actual_effect: None,
+            expected_effect: None,
+            closed: true,
+            informative: true,
+            runtime_usable: true,
+        };
+
+        let derived = derive_expected_edge_evidence(&evidence);
+        let nested = derived
+            .iter()
+            .find(|edge| {
+                edge.kind == DerivedExpectedEdgeKind::RecordField
+                    && edge.path
+                        == vec![
+                            EdgePathSegment::Field(core_ir::Name("a".to_string())),
+                            EdgePathSegment::Field(core_ir::Name("b".to_string())),
+                        ]
+            })
+            .expect("nested record field derived edge");
+
+        assert_eq!(nested.parent, ExpectedEdgeId(11));
+        assert_eq!(nested.polarity, EdgePolarity::Covariant);
+        assert_eq!(nested.actual, core_ir::TypeBounds::exact(named("str")));
+        assert_eq!(nested.expected, core_ir::TypeBounds::exact(named("int")));
     }
 }

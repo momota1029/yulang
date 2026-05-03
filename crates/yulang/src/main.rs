@@ -1106,6 +1106,9 @@ fn print_infer_type_error(state: &InferLowerState, error: &InferTypeError, sourc
         if let Some(edge) = context.edge {
             eprintln!("  from edge: {edge}");
         }
+        if let Some(detail) = context.detail {
+            eprintln!("  detail: {detail}");
+        }
     }
     for origin in &error.origins {
         match origin.span {
@@ -1132,6 +1135,7 @@ fn print_infer_type_error(state: &InferLowerState, error: &InferTypeError, sourc
 struct InferExpectedContext {
     summary: String,
     edge: Option<String>,
+    detail: Option<String>,
 }
 
 fn infer_error_expected_context(
@@ -1150,6 +1154,7 @@ fn infer_error_expected_context(
         .max_by_key(|(rank, _)| *rank)
         .map(|(_, edge)| edge)?;
 
+    let detail = infer_error_derived_expected_context(state, error, edge);
     Some(InferExpectedContext {
         summary: format!(
             "{} expected {}; expression provides {}",
@@ -1158,7 +1163,41 @@ fn infer_error_expected_context(
             format_infer_pos(state, error.pos),
         ),
         edge: Some(infer_expected_edge_flow_context(state, edge)),
+        detail,
     })
+}
+
+fn infer_error_derived_expected_context(
+    state: &InferLowerState,
+    error: &InferTypeError,
+    parent: &InferExpectedEdge,
+) -> Option<String> {
+    let actual = format_infer_pos(state, error.pos);
+    let expected = format_infer_neg(state, error.neg);
+    yulang_infer::collect_derived_expected_edge_evidence(state)
+        .into_iter()
+        .filter(|edge| edge.parent == parent.id)
+        .filter_map(|edge| {
+            let rank = infer_derived_expected_edge_error_rank(&edge, &actual, &expected);
+            Some((rank, edge))
+        })
+        .max_by_key(|(rank, edge)| (*rank, edge.path.len()))
+        .map(|(_, edge)| format_derived_expected_edge_context(&edge))
+}
+
+fn infer_derived_expected_edge_error_rank(
+    edge: &yulang_infer::DerivedExpectedEdgeEvidence,
+    actual: &str,
+    expected: &str,
+) -> u8 {
+    let mut rank = 1;
+    if format_core_bounds(&edge.actual) == actual {
+        rank += 3;
+    }
+    if format_core_bounds(&edge.expected) == expected {
+        rank += 3;
+    }
+    rank
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -1266,12 +1305,34 @@ fn format_derived_expected_edge_evidence(
             evidence.parent.0,
             format_derived_expected_edge_kind(evidence.kind)
         ),
+        format!("polarity={}", format_edge_polarity(evidence.polarity)),
         format!("path={}", format_edge_path(&evidence.path)),
         format!("actual={}", format_core_bounds(&evidence.actual)),
         format!("expected={}", format_core_bounds(&evidence.expected)),
     ];
     parts.retain(|part| !part.is_empty());
     parts.join(" ")
+}
+
+fn format_derived_expected_edge_context(
+    evidence: &yulang_infer::DerivedExpectedEdgeEvidence,
+) -> String {
+    format!(
+        "{} {} polarity={} actual={} expected={}",
+        format_derived_expected_edge_kind(evidence.kind),
+        format_edge_path(&evidence.path),
+        format_edge_polarity(evidence.polarity),
+        format_core_bounds(&evidence.actual),
+        format_core_bounds(&evidence.expected),
+    )
+}
+
+fn format_edge_polarity(polarity: yulang_infer::EdgePolarity) -> &'static str {
+    match polarity {
+        yulang_infer::EdgePolarity::Covariant => "covariant",
+        yulang_infer::EdgePolarity::Contravariant => "contravariant",
+        yulang_infer::EdgePolarity::Invariant => "invariant",
+    }
 }
 
 fn format_derived_expected_edge_kind(kind: yulang_infer::DerivedExpectedEdgeKind) -> &'static str {
@@ -3297,6 +3358,7 @@ mod tests {
         assert!(edge.starts_with("#0 annotation expression actual "));
         assert!(edge.contains("std::str::str"));
         assert!(edge.contains("=> annotation "));
+        assert!(context.detail.is_none());
     }
 
     #[test]
@@ -3322,6 +3384,32 @@ mod tests {
         assert!(edge.starts_with("#1 application-argument argument actual "));
         assert!(edge.contains("std::str::str"));
         assert!(edge.contains("=> parameter "));
+        assert!(context.detail.is_none());
+    }
+
+    #[test]
+    fn infer_error_context_reports_derived_record_field_edge() {
+        let source = "my p: { a: { b: int } } = { a: { b: \"s\" } }\n";
+        let options = test_cli_options();
+        let root = SyntaxNode::<YulangLanguage>::new_root(
+            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
+        );
+        let (state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let errors = state.infer.type_errors();
+        let error = errors
+            .iter()
+            .find(|error| matches!(error.kind, InferTypeErrorKind::ConstructorMismatch))
+            .expect("nested record mismatch should report constructor mismatch");
+
+        let context = infer_error_expected_context(&state, error).expect("expected context");
+        let detail = context.detail.expect("derived edge detail");
+
+        assert!(
+            detail.starts_with("record-field .a.b "),
+            "detail was {detail}"
+        );
+        assert!(detail.contains("std::str::str"), "detail was {detail}");
+        assert!(detail.contains("expected=int"), "detail was {detail}");
     }
 
     #[test]

@@ -110,6 +110,11 @@ fn lower_principal_module_with_graph_and_evidence(
         .collect::<HashMap<_, _>>();
     normalize_initial_alias_types(&module.bindings, &mut env, &mut binding_infos);
     let aliases = direct_aliases(&module.bindings);
+    let expected_edges_by_id = evidence
+        .expected_edges
+        .iter()
+        .map(|edge| (edge.id, edge))
+        .collect();
     let mut lowerer = Lowerer {
         env,
         binding_infos,
@@ -121,7 +126,7 @@ fn lower_principal_module_with_graph_and_evidence(
             .map(|symbol| (symbol.path.clone(), symbol.kind))
             .collect(),
         principal_vars,
-        principal_evidence: evidence,
+        expected_edges_by_id,
         use_expected_arg_evidence: std::env::var_os("YULANG_USE_EXPECTED_ARG_EVIDENCE").is_some(),
         expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
         next_synthetic_type_var: 0,
@@ -141,10 +146,20 @@ fn lower_principal_module_with_graph_and_evidence(
         .collect::<RuntimeResult<Vec<_>>>()?;
     if std::env::var_os("YULANG_DEBUG_EXPECTED_ARG_EVIDENCE").is_some() {
         eprintln!(
-            "expected-arg evidence: available={} used={} ignored-unusable={}",
-            lowerer.expected_arg_evidence_profile.available,
-            lowerer.expected_arg_evidence_profile.used,
+            "expected-arg evidence: present={} converted={} usable-by-table={} usable-by-bounds={} used-as-arg-type-hint={} used-as-lowering-expected={} ignored-no-expected-arg={} ignored-unusable={} ignored-no-push={}",
+            lowerer.expected_arg_evidence_profile.present,
+            lowerer.expected_arg_evidence_profile.converted,
+            lowerer.expected_arg_evidence_profile.usable_by_table,
+            lowerer.expected_arg_evidence_profile.usable_by_bounds,
+            lowerer.expected_arg_evidence_profile.used_as_arg_type_hint,
+            lowerer
+                .expected_arg_evidence_profile
+                .used_as_lowering_expected,
+            lowerer
+                .expected_arg_evidence_profile
+                .ignored_no_expected_arg,
             lowerer.expected_arg_evidence_profile.ignored_unusable,
+            lowerer.expected_arg_evidence_profile.ignored_no_push,
         );
     }
     let roots = module
@@ -221,7 +236,7 @@ struct Lowerer<'a> {
     graph: &'a core_ir::CoreGraphView,
     runtime_symbols: HashMap<core_ir::Path, core_ir::RuntimeSymbolKind>,
     principal_vars: BTreeSet<core_ir::TypeVar>,
-    principal_evidence: &'a core_ir::PrincipalEvidence,
+    expected_edges_by_id: HashMap<u32, &'a core_ir::ExpectedEdgeEvidence>,
     use_expected_arg_evidence: bool,
     expected_arg_evidence_profile: ExpectedArgEvidenceProfile,
     next_synthetic_type_var: usize,
@@ -237,9 +252,15 @@ struct BindingInfo {
 
 #[derive(Default)]
 struct ExpectedArgEvidenceProfile {
-    available: usize,
-    used: usize,
+    present: usize,
+    converted: usize,
+    usable_by_table: usize,
+    usable_by_bounds: usize,
+    used_as_arg_type_hint: usize,
+    used_as_lowering_expected: usize,
+    ignored_no_expected_arg: usize,
     ignored_unusable: usize,
+    ignored_no_push: usize,
 }
 
 #[cfg(test)]
