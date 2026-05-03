@@ -937,6 +937,25 @@ fn print_substitution_specialize_profile(profile: &runtime::MonomorphizePassProf
             missing_vars,
         );
     }
+    for target in subst.target_inferences.iter().take(12) {
+        let total = target
+            .sources
+            .iter()
+            .map(|source| source.count)
+            .sum::<usize>();
+        let sources = target
+            .sources
+            .iter()
+            .map(|source| format!("{}={}", source.source, source.count))
+            .collect::<Vec<_>>()
+            .join(", ");
+        eprintln!(
+            "                infer_target {} total={} sources=[{}]",
+            format_core_path(&target.target),
+            total,
+            sources,
+        );
+    }
 }
 
 fn print_runtime_adapter_event_summary(adapters: &runtime::RuntimeAdapterProfile) {

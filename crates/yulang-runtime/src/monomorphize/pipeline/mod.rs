@@ -120,6 +120,7 @@ pub struct MonomorphizePassProfile {
 pub struct SubstitutionSpecializeProfile {
     pub stats: HashMap<&'static str, usize>,
     pub target_skips: Vec<SubstitutionSpecializeTargetSkips>,
+    pub target_inferences: Vec<SubstitutionSpecializeTargetInferences>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -138,6 +139,18 @@ pub struct SubstitutionSpecializeSkipCount {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubstitutionSpecializeMissingVarCount {
     pub var: core_ir::TypeVar,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionSpecializeTargetInferences {
+    pub target: core_ir::Path,
+    pub sources: Vec<SubstitutionSpecializeInferenceCount>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionSpecializeInferenceCount {
+    pub source: &'static str,
     pub count: usize,
 }
 

@@ -29,8 +29,9 @@ pub use emit::*;
 pub use engine::*;
 pub use pipeline::{
     MonomorphizePassProfile, MonomorphizeProfile, MonomorphizeProgress,
-    SubstitutionSpecializeMissingVarCount, SubstitutionSpecializeProfile,
-    SubstitutionSpecializeSkipCount, SubstitutionSpecializeTargetSkips, monomorphize_module,
+    SubstitutionSpecializeInferenceCount, SubstitutionSpecializeMissingVarCount,
+    SubstitutionSpecializeProfile, SubstitutionSpecializeSkipCount,
+    SubstitutionSpecializeTargetInferences, SubstitutionSpecializeTargetSkips, monomorphize_module,
     monomorphize_module_profiled,
 };
 pub use solve::*;

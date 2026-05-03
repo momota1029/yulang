@@ -34,9 +34,10 @@ pub use lower::{
 };
 pub use monomorphize::{
     DemandEvidenceProfile, DemandQueueProfile, MonomorphizePassProfile, MonomorphizeProfile,
-    MonomorphizeProgress, SubstitutionSpecializeMissingVarCount, SubstitutionSpecializeProfile,
-    SubstitutionSpecializeSkipCount, SubstitutionSpecializeTargetSkips, monomorphize_module,
-    monomorphize_module_profiled,
+    MonomorphizeProgress, SubstitutionSpecializeInferenceCount,
+    SubstitutionSpecializeMissingVarCount, SubstitutionSpecializeProfile,
+    SubstitutionSpecializeSkipCount, SubstitutionSpecializeTargetInferences,
+    SubstitutionSpecializeTargetSkips, monomorphize_module, monomorphize_module_profiled,
 };
 pub use refine::refine_module_types;
 pub use validate::validate_module;

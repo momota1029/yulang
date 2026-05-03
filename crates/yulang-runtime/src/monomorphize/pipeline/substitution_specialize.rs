@@ -19,6 +19,7 @@ struct SubstitutionSpecializer {
     stats: HashMap<&'static str, usize>,
     target_skips: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
     target_missing_vars: HashMap<core_ir::Path, HashMap<core_ir::TypeVar, usize>>,
+    target_inferences: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
     specialization_body_depth: usize,
 }
 
@@ -42,6 +43,7 @@ impl SubstitutionSpecializer {
             stats: HashMap::new(),
             target_skips: HashMap::new(),
             target_missing_vars: HashMap::new(),
+            target_inferences: HashMap::new(),
             specialization_body_depth: 0,
         }
     }
@@ -79,6 +81,32 @@ impl SubstitutionSpecializer {
             .or_default()
             .entry(reason)
             .or_default() += 1;
+    }
+
+    fn bump_inference(&mut self, target: &core_ir::Path, source: &'static str) {
+        self.bump(source);
+        *self
+            .target_inferences
+            .entry(target.clone())
+            .or_default()
+            .entry(source)
+            .or_default() += 1;
+    }
+
+    fn profile_inference<F>(
+        &mut self,
+        target: &core_ir::Path,
+        source: &'static str,
+        substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+        f: F,
+    ) where
+        F: FnOnce(&mut BTreeMap<core_ir::TypeVar, core_ir::Type>),
+    {
+        let before = substitutions.len();
+        f(substitutions);
+        if substitutions.len() > before {
+            self.bump_inference(target, source);
+        }
     }
 
     fn bump_incomplete_binding_substitution(
@@ -159,9 +187,42 @@ impl SubstitutionSpecializer {
                 .cmp(&left_total)
                 .then_with(|| canonical_path(&left.target).cmp(&canonical_path(&right.target)))
         });
+        let mut target_inferences = self
+            .target_inferences
+            .into_iter()
+            .map(|(target, sources)| {
+                let mut sources = sources
+                    .into_iter()
+                    .map(|(source, count)| SubstitutionSpecializeInferenceCount { source, count })
+                    .collect::<Vec<_>>();
+                sources.sort_by(|left, right| {
+                    right
+                        .count
+                        .cmp(&left.count)
+                        .then_with(|| left.source.cmp(right.source))
+                });
+                SubstitutionSpecializeTargetInferences { target, sources }
+            })
+            .collect::<Vec<_>>();
+        target_inferences.sort_by(|left, right| {
+            let left_total = left
+                .sources
+                .iter()
+                .map(|source| source.count)
+                .sum::<usize>();
+            let right_total = right
+                .sources
+                .iter()
+                .map(|source| source.count)
+                .sum::<usize>();
+            right_total
+                .cmp(&left_total)
+                .then_with(|| canonical_path(&left.target).cmp(&canonical_path(&right.target)))
+        });
         SubstitutionSpecializeProfile {
             stats: self.stats,
             target_skips,
+            target_inferences,
         }
     }
 
@@ -411,20 +472,29 @@ impl SubstitutionSpecializer {
             return None;
         };
         let actual_ret = diagnostic_core_type(&expr.ty);
-        infer_spine_effect_substitutions(
-            &callee_ty,
-            &spine.args,
-            &expr.ty,
+        self.profile_inference(
+            spine.target,
+            "infer-spine-effect-substitution",
             &mut principal_substitutions,
+            |substitutions| {
+                infer_spine_effect_substitutions(&callee_ty, &spine.args, &expr.ty, substitutions);
+            },
         );
-        infer_direct_param_substitution(&ret, &actual_ret, &mut principal_substitutions);
+        self.profile_inference(
+            spine.target,
+            "infer-ret-direct-substitution",
+            &mut principal_substitutions,
+            |substitutions| infer_direct_param_substitution(&ret, &actual_ret, substitutions),
+        );
         let mut ret_vars = BTreeSet::new();
         collect_core_type_vars(&ret, &mut ret_vars);
-        infer_type_substitutions_with_effects(
-            &ret,
-            &actual_ret,
-            &ret_vars,
+        self.profile_inference(
+            spine.target,
+            "infer-ret-structural-substitution",
             &mut principal_substitutions,
+            |substitutions| {
+                infer_type_substitutions_with_effects(&ret, &actual_ret, &ret_vars, substitutions);
+            },
         );
         callee_ty = substitute_type(principal_callee, &principal_substitutions);
         let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
@@ -436,11 +506,13 @@ impl SubstitutionSpecializer {
         } else {
             let mut vars = BTreeSet::new();
             collect_core_type_vars(&ret, &mut vars);
-            infer_type_substitutions_with_effects(
-                &ret,
-                &actual_ret,
-                &vars,
+            self.profile_inference(
+                spine.target,
+                "infer-ret-retry-substitution",
                 &mut principal_substitutions,
+                |substitutions| {
+                    infer_type_substitutions_with_effects(&ret, &actual_ret, &vars, substitutions);
+                },
             );
             callee_ty = substitute_type(principal_callee, &principal_substitutions);
             let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
@@ -459,18 +531,32 @@ impl SubstitutionSpecializer {
             params
         };
         for (arg, param) in spine.args.iter().zip(&params) {
-            infer_direct_param_substitution(
-                param,
-                &runtime_core_type(&arg.ty),
+            self.profile_inference(
+                spine.target,
+                "infer-arg-direct-substitution",
                 &mut principal_substitutions,
+                |substitutions| {
+                    infer_direct_param_substitution(
+                        param,
+                        &runtime_core_type(&arg.ty),
+                        substitutions,
+                    );
+                },
             );
             let mut vars = BTreeSet::new();
             collect_core_type_vars(param, &mut vars);
-            infer_type_substitutions_with_effects(
-                param,
-                &runtime_core_type(&arg.ty),
-                &vars,
+            self.profile_inference(
+                spine.target,
+                "infer-arg-structural-substitution",
                 &mut principal_substitutions,
+                |substitutions| {
+                    infer_type_substitutions_with_effects(
+                        param,
+                        &runtime_core_type(&arg.ty),
+                        &vars,
+                        substitutions,
+                    );
+                },
             );
         }
         callee_ty = substitute_type(principal_callee, &principal_substitutions);
@@ -488,11 +574,18 @@ impl SubstitutionSpecializer {
             for (arg, param) in spine.args.iter().zip(&params) {
                 let mut vars = BTreeSet::new();
                 collect_core_type_vars(param, &mut vars);
-                infer_type_substitutions_with_effects(
-                    param,
-                    &runtime_core_type(&arg.ty),
-                    &vars,
+                self.profile_inference(
+                    spine.target,
+                    "infer-arg-retry-substitution",
                     &mut principal_substitutions,
+                    |substitutions| {
+                        infer_type_substitutions_with_effects(
+                            param,
+                            &runtime_core_type(&arg.ty),
+                            &vars,
+                            substitutions,
+                        );
+                    },
                 );
             }
             callee_ty = substitute_type(principal_callee, &principal_substitutions);
