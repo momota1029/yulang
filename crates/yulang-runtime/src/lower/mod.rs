@@ -75,6 +75,10 @@ pub struct ExpectedArgEvidenceProfile {
     pub used_as_lowering_expected: usize,
     pub ignored_no_expected_arg: usize,
     pub ignored_not_convertible: usize,
+    pub ignored_table_open: usize,
+    pub ignored_table_uninformative: usize,
+    pub ignored_table_not_runtime_usable: usize,
+    pub ignored_bounds_unusable: usize,
     pub ignored_unusable: usize,
     pub ignored_no_push: usize,
 }
@@ -196,7 +200,7 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
         .collect::<RuntimeResult<Vec<_>>>()?;
     if std::env::var_os("YULANG_DEBUG_EXPECTED_ARG_EVIDENCE").is_some() {
         eprintln!(
-            "expected-arg evidence: present={} converted={} usable-by-table={} usable-by-bounds={} used-as-arg-type-hint={} used-as-lowering-expected={} ignored-no-expected-arg={} ignored-not-convertible={} ignored-unusable={} ignored-no-push={}",
+            "expected-arg evidence: present={} converted={} usable-by-table={} usable-by-bounds={} used-as-arg-type-hint={} used-as-lowering-expected={} ignored-no-expected-arg={} ignored-not-convertible={} ignored-table-open={} ignored-table-uninformative={} ignored-table-not-runtime-usable={} ignored-bounds-unusable={} ignored-unusable={} ignored-no-push={}",
             lowerer.expected_arg_evidence_profile.present,
             lowerer.expected_arg_evidence_profile.converted,
             lowerer.expected_arg_evidence_profile.usable_by_table,
@@ -211,6 +215,16 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
             lowerer
                 .expected_arg_evidence_profile
                 .ignored_not_convertible,
+            lowerer.expected_arg_evidence_profile.ignored_table_open,
+            lowerer
+                .expected_arg_evidence_profile
+                .ignored_table_uninformative,
+            lowerer
+                .expected_arg_evidence_profile
+                .ignored_table_not_runtime_usable,
+            lowerer
+                .expected_arg_evidence_profile
+                .ignored_bounds_unusable,
             lowerer.expected_arg_evidence_profile.ignored_unusable,
             lowerer.expected_arg_evidence_profile.ignored_no_push,
         );

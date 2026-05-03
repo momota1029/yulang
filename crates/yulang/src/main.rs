@@ -742,7 +742,7 @@ fn print_runtime_phase_timings(
     );
     let expected_arg = &profile.lower_profile.expected_arg_evidence;
     eprintln!(
-        "    expected_arg_evidence: present={}, converted={}, usable_by_table={}, usable_by_bounds={}, used_as_arg_type_hint={}, used_as_lowering_expected={}, ignored_no_expected_arg={}, ignored_not_convertible={}, ignored_unusable={}, ignored_no_push={}",
+        "    expected_arg_evidence: present={}, converted={}, usable_by_table={}, usable_by_bounds={}, used_as_arg_type_hint={}, used_as_lowering_expected={}, ignored_no_expected_arg={}, ignored_not_convertible={}, ignored_table_open={}, ignored_table_uninformative={}, ignored_table_not_runtime_usable={}, ignored_bounds_unusable={}, ignored_unusable={}, ignored_no_push={}",
         expected_arg.present,
         expected_arg.converted,
         expected_arg.usable_by_table,
@@ -751,6 +751,10 @@ fn print_runtime_phase_timings(
         expected_arg.used_as_lowering_expected,
         expected_arg.ignored_no_expected_arg,
         expected_arg.ignored_not_convertible,
+        expected_arg.ignored_table_open,
+        expected_arg.ignored_table_uninformative,
+        expected_arg.ignored_table_not_runtime_usable,
+        expected_arg.ignored_bounds_unusable,
         expected_arg.ignored_unusable,
         expected_arg.ignored_no_push,
     );

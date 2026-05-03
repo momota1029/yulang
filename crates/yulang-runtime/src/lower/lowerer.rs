@@ -1160,25 +1160,12 @@ impl Lowerer<'_> {
             return None;
         };
         self.expected_arg_evidence_profile.converted += 1;
-        let table_usable = source_edge.and_then(|id| {
-            self.expected_edge(id).map(|edge| {
+        let usable = match source_edge.and_then(|id| self.expected_edge(id).cloned()) {
+            Some(edge) => {
                 debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::ApplicationArgument);
-                edge.runtime_usable
-            })
-        });
-        let usable = match table_usable {
-            Some(true) => {
-                self.expected_arg_evidence_profile.usable_by_table += 1;
-                true
+                self.profile_expected_arg_table_usability(&edge)
             }
-            Some(false) => false,
-            None => {
-                let usable = expected_arg_evidence_runtime_usable(&ty);
-                if usable {
-                    self.expected_arg_evidence_profile.usable_by_bounds += 1;
-                }
-                usable
-            }
+            None => self.profile_expected_arg_bounds_usability(&ty),
         };
         if usable {
             Some(ty)
@@ -1192,6 +1179,38 @@ impl Lowerer<'_> {
         if let Some(edge) = source_edge.and_then(|id| self.expected_edge(id)) {
             debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::RepresentationCoerce);
         }
+    }
+
+    fn profile_expected_arg_table_usability(
+        &mut self,
+        edge: &core_ir::ExpectedEdgeEvidence,
+    ) -> bool {
+        if edge.runtime_usable {
+            self.expected_arg_evidence_profile.usable_by_table += 1;
+            return true;
+        }
+        if !edge.closed {
+            self.expected_arg_evidence_profile.ignored_table_open += 1;
+        }
+        if !edge.informative {
+            self.expected_arg_evidence_profile
+                .ignored_table_uninformative += 1;
+        }
+        if edge.closed && edge.informative {
+            self.expected_arg_evidence_profile
+                .ignored_table_not_runtime_usable += 1;
+        }
+        false
+    }
+
+    fn profile_expected_arg_bounds_usability(&mut self, ty: &RuntimeType) -> bool {
+        let usable = expected_arg_evidence_runtime_usable(ty);
+        if usable {
+            self.expected_arg_evidence_profile.usable_by_bounds += 1;
+        } else {
+            self.expected_arg_evidence_profile.ignored_bounds_unusable += 1;
+        }
+        usable
     }
 
     fn validate_apply_source_edge(&self, source_edge: Option<u32>) {
