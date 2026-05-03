@@ -700,6 +700,54 @@ mod tests {
     }
 
     #[test]
+    pub(super) fn lower_coerce_accepts_representation_source_edge_table() {
+        let program = core_ir::CoreProgram {
+            program: core_ir::PrincipalModule {
+                path: core_ir::Path::default(),
+                bindings: Vec::new(),
+                root_exprs: vec![core_ir::Expr::Coerce {
+                    expr: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))),
+                    evidence: Some(core_ir::CoerceEvidence {
+                        source_edge: Some(9),
+                        actual: core_ir::TypeBounds::exact(named_type("int")),
+                        expected: core_ir::TypeBounds::exact(named_type("float")),
+                    }),
+                }],
+                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+            },
+            graph: core_ir::CoreGraphView {
+                bindings: Vec::new(),
+                root_exprs: vec![core_ir::ExprGraphNode {
+                    owner: core_ir::GraphOwner::RootExpr(0),
+                    bounds: core_ir::TypeBounds::exact(named_type("float")),
+                }],
+                runtime_symbols: Vec::new(),
+            },
+            evidence: core_ir::PrincipalEvidence {
+                expected_edges: vec![core_ir::ExpectedEdgeEvidence {
+                    id: 9,
+                    kind: core_ir::ExpectedEdgeKind::RepresentationCoerce,
+                    actual: core_ir::TypeBounds::exact(named_type("int")),
+                    expected: core_ir::TypeBounds::exact(named_type("float")),
+                    actual_effect: None,
+                    expected_effect: None,
+                    closed: true,
+                    informative: true,
+                    runtime_usable: true,
+                }],
+            },
+        };
+
+        let module = lower_core_program(program).expect("lowered");
+
+        let ExprKind::Coerce { from, to, .. } = &module.root_exprs[0].kind else {
+            panic!("missing coercion");
+        };
+        assert_eq!(*from, named_type("int"));
+        assert_eq!(*to, named_type("float"));
+    }
+
+    #[test]
     pub(super) fn lower_unbound_qualified_path_as_effect_op() {
         let effect_path = core_ir::Path {
             segments: vec![

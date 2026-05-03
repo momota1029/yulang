@@ -767,6 +767,9 @@ impl Lowerer<'_> {
                 finalize_handler_expr(expr, expected, expected_source)
             }
             core_ir::Expr::Coerce { expr, evidence } => {
+                if let Some(evidence) = &evidence {
+                    self.validate_coerce_source_edge(evidence.source_edge);
+                }
                 let evidence_actual = evidence
                     .as_ref()
                     .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.actual))
@@ -1074,6 +1077,12 @@ impl Lowerer<'_> {
         } else {
             self.expected_arg_evidence_profile.ignored_unusable += 1;
             None
+        }
+    }
+
+    fn validate_coerce_source_edge(&self, source_edge: Option<u32>) {
+        if let Some(edge) = source_edge.and_then(|id| self.principal_evidence.expected_edge(id)) {
+            debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::RepresentationCoerce);
         }
     }
 
