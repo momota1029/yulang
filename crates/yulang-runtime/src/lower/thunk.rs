@@ -76,21 +76,24 @@ pub(super) fn empty_row() -> core_ir::Type {
     }
 }
 
-pub(super) fn prepare_expr_for_expected(
+pub(super) fn prepare_expr_for_expected_profiled(
     expr: Expr,
     expected: &RuntimeType,
     source: TypeSource,
+    profile: &mut RuntimeAdapterProfile,
 ) -> RuntimeResult<Expr> {
     match expected {
         RuntimeType::Thunk { effect, value } => match &expr.ty {
             RuntimeType::Thunk { .. } => {
                 require_apply_arg_compatible(expected, &expr.ty, source)?;
+                profile.reused_thunk += 1;
                 Ok(expr)
             }
             _ => {
                 require_same_hir_type(value, &expr.ty, source)?;
                 let value = more_informative_hir_type(value, &expr.ty);
                 let ty = RuntimeType::thunk(effect.clone(), value.clone());
+                profile.value_to_thunk += 1;
                 Ok(Expr::typed(
                     ExprKind::Thunk {
                         effect: effect.clone(),
@@ -107,31 +110,33 @@ pub(super) fn prepare_expr_for_expected(
             Ok(expr)
         }
         _ => {
-            let (expr, actual) = force_value_expr(expr);
+            let (expr, actual) = force_value_expr_profiled(expr, profile);
             require_same_hir_type(expected, &actual, source)?;
             Ok(expr)
         }
     }
 }
 
-pub(super) fn finalize_effectful_expr(
+pub(super) fn finalize_effectful_expr_profiled(
     expr: Expr,
     expected: Option<&RuntimeType>,
     source: TypeSource,
+    profile: &mut RuntimeAdapterProfile,
 ) -> RuntimeResult<Expr> {
-    let expr = attach_forced_effect(expr);
+    let expr = attach_forced_effect_profiled(expr, profile);
     match expected {
-        Some(expected) => prepare_expr_for_expected(expr, expected, source),
+        Some(expected) => prepare_expr_for_expected_profiled(expr, expected, source, profile),
         None => Ok(expr),
     }
 }
 
-pub(super) fn finalize_handler_expr(
+pub(super) fn finalize_handler_expr_profiled(
     expr: Expr,
     expected: Option<&RuntimeType>,
     source: TypeSource,
+    profile: &mut RuntimeAdapterProfile,
 ) -> RuntimeResult<Expr> {
-    let expr = attach_forced_effect(expr);
+    let expr = attach_forced_effect_profiled(expr, profile);
     match (expected, &expr.ty) {
         (
             Some(RuntimeType::Thunk {
@@ -143,16 +148,20 @@ pub(super) fn finalize_handler_expr(
             require_same_hir_type(expected_value, actual, source)?;
             Ok(expr)
         }
-        (Some(expected), _) => prepare_expr_for_expected(expr, expected, source),
+        (Some(expected), _) => prepare_expr_for_expected_profiled(expr, expected, source, profile),
         (None, _) => Ok(expr),
     }
 }
 
-pub(super) fn attach_forced_effect(expr: Expr) -> Expr {
+pub(super) fn attach_forced_effect_profiled(
+    expr: Expr,
+    profile: &mut RuntimeAdapterProfile,
+) -> Expr {
     match expr_forced_effect(&expr) {
         Some(effect) => {
             let effect = project_runtime_effect(&effect);
             if should_thunk_effect(&effect) {
+                profile.forced_effect_thunk += 1;
                 attach_expr_effect(expr, effect)
             } else {
                 expr

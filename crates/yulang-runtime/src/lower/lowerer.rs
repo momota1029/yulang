@@ -107,7 +107,12 @@ impl Lowerer<'_> {
                 if let Some(expected) = expected {
                     if matches!(expected, RuntimeType::Thunk { .. }) {
                         let expr = Expr::typed(ExprKind::Lit(lit), ty);
-                        return prepare_expr_for_expected(expr, expected, expected_source);
+                        return prepare_expr_for_expected_profiled(
+                            expr,
+                            expected,
+                            expected_source,
+                            &mut self.runtime_adapter_profile,
+                        );
                     }
                     let expected_core = core_type(expected);
                     require_same_type(expected_core, &ty, expected_source)?;
@@ -262,7 +267,8 @@ impl Lowerer<'_> {
                         locals,
                         TypeSource::ApplyEvidence,
                     )?;
-                    let (lowered, lowered_ty) = force_value_expr(lowered);
+                    let (lowered, lowered_ty) =
+                        force_value_expr_profiled(lowered, &mut self.runtime_adapter_profile);
                     fun_parts = function_parts(&lowered_ty).ok();
                     callee = Some(lowered);
                 }
@@ -302,7 +308,10 @@ impl Lowerer<'_> {
                                 let arg_ty = lowered.ty.clone();
                                 (lowered, arg_ty)
                             }
-                            _ => force_value_expr(lowered),
+                            _ => force_value_expr_profiled(
+                                lowered,
+                                &mut self.runtime_adapter_profile,
+                            ),
                         };
                         arg = Some(lowered);
                         arg_ty
@@ -329,7 +338,8 @@ impl Lowerer<'_> {
                         )?
                     }
                 };
-                let (mut callee, _) = force_value_expr(callee);
+                let (mut callee, _) =
+                    force_value_expr_profiled(callee, &mut self.runtime_adapter_profile);
                 let arg = match arg {
                     Some(arg) => arg,
                     None => {
@@ -409,12 +419,14 @@ impl Lowerer<'_> {
                         arg,
                         &final_fun_parts.param,
                         TypeSource::ApplyEvidence,
+                        &mut self.runtime_adapter_profile,
                     )?
                 } else {
-                    prepare_expr_for_expected(
+                    prepare_expr_for_expected_profiled(
                         arg,
                         &final_fun_parts.param,
                         TypeSource::ApplyEvidence,
+                        &mut self.runtime_adapter_profile,
                     )?
                 };
                 require_apply_arg_compatible(
@@ -457,7 +469,12 @@ impl Lowerer<'_> {
                         apply = attach_expr_effect(apply, effect);
                     }
                 }
-                finalize_effectful_expr(apply, expected, expected_source)
+                finalize_effectful_expr_profiled(
+                    apply,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
             core_ir::Expr::If {
                 cond,
@@ -497,7 +514,12 @@ impl Lowerer<'_> {
                     },
                     result_ty,
                 );
-                finalize_effectful_expr(expr, expected, expected_source)
+                finalize_effectful_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
             core_ir::Expr::Tuple(items) => {
                 let expected_items = match expected.and_then(RuntimeType::as_core) {
@@ -514,7 +536,13 @@ impl Lowerer<'_> {
                             .cloned()
                             .map(RuntimeType::core);
                         self.lower_expr(item, expected_item.as_ref(), locals, TypeSource::Expected)
-                            .map(|expr| force_core_value_expr(expr).0)
+                            .map(|expr| {
+                                force_core_value_expr_profiled(
+                                    expr,
+                                    &mut self.runtime_adapter_profile,
+                                )
+                                .0
+                            })
                     })
                     .collect::<RuntimeResult<Vec<_>>>()?;
                 let ty = core_ir::Type::Tuple(
@@ -524,7 +552,12 @@ impl Lowerer<'_> {
                         .collect(),
                 );
                 let expr = Expr::typed(ExprKind::Tuple(items), ty);
-                finalize_effectful_expr(expr, expected, expected_source)
+                finalize_effectful_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
             core_ir::Expr::Record { fields, spread } => {
                 let fields = fields
@@ -537,13 +570,16 @@ impl Lowerer<'_> {
                         .map(RuntimeType::core);
                         Ok(RecordExprField {
                             name: field.name,
-                            value: force_value_expr(self.lower_expr(
-                                field.value,
-                                expected.as_ref(),
-                                locals,
-                                TypeSource::Expected,
-                            )?)
-                            .0,
+                            value: {
+                                let value = self.lower_expr(
+                                    field.value,
+                                    expected.as_ref(),
+                                    locals,
+                                    TypeSource::Expected,
+                                )?;
+                                force_value_expr_profiled(value, &mut self.runtime_adapter_profile)
+                                    .0
+                            },
                         })
                     })
                     .collect::<RuntimeResult<Vec<_>>>()?;
@@ -562,7 +598,12 @@ impl Lowerer<'_> {
                     spread: None,
                 });
                 let expr = Expr::typed(ExprKind::Record { fields, spread }, ty);
-                finalize_effectful_expr(expr, expected, expected_source)
+                finalize_effectful_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
             core_ir::Expr::Variant { tag, value } => {
                 let expected_payload =
@@ -576,7 +617,10 @@ impl Lowerer<'_> {
                             locals,
                             TypeSource::Expected,
                         )
-                        .map(|expr| force_core_value_expr(expr).0)
+                        .map(|expr| {
+                            force_core_value_expr_profiled(expr, &mut self.runtime_adapter_profile)
+                                .0
+                        })
                         .map(Box::new)
                     })
                     .transpose()?;
@@ -596,11 +640,17 @@ impl Lowerer<'_> {
                         })
                     });
                 let expr = Expr::typed(ExprKind::Variant { tag, value }, ty);
-                finalize_effectful_expr(expr, expected, expected_source)
+                finalize_effectful_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
             core_ir::Expr::Select { base, field } => {
                 let base = self.lower_expr(*base, None, locals, TypeSource::Expected)?;
-                let (base, base_ty) = force_core_value_expr(base);
+                let (base, base_ty) =
+                    force_core_value_expr_profiled(base, &mut self.runtime_adapter_profile);
                 let ty = match select_field_type(&base_ty, &field) {
                     Ok(ty) => ty,
                     Err(error) => match expected {
@@ -618,7 +668,12 @@ impl Lowerer<'_> {
                     },
                     ty,
                 );
-                finalize_effectful_expr(expr, expected, expected_source)
+                finalize_effectful_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
             core_ir::Expr::Match {
                 scrutinee,
@@ -628,7 +683,8 @@ impl Lowerer<'_> {
                 let result_ty = self.join_result_type(evidence.as_ref(), expected, "match")?;
                 let result_hir_ty = RuntimeType::core(result_ty.clone());
                 let scrutinee = self.lower_expr(*scrutinee, None, locals, TypeSource::Expected)?;
-                let (scrutinee, scrutinee_ty) = force_core_value_expr(scrutinee);
+                let (scrutinee, scrutinee_ty) =
+                    force_core_value_expr_profiled(scrutinee, &mut self.runtime_adapter_profile);
                 let arms = arms
                     .into_iter()
                     .map(|arm| {
@@ -669,7 +725,12 @@ impl Lowerer<'_> {
                     },
                     result_ty,
                 );
-                finalize_effectful_expr(expr, expected, expected_source)
+                finalize_effectful_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
             core_ir::Expr::Block { mut stmts, tail } => {
                 let mut block_locals = locals.clone();
@@ -718,7 +779,12 @@ impl Lowerer<'_> {
                     ty,
                     kind: ExprKind::Block { stmts, tail },
                 };
-                finalize_effectful_expr(expr, expected, expected_source)
+                finalize_effectful_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
             core_ir::Expr::Handle {
                 body,
@@ -764,7 +830,12 @@ impl Lowerer<'_> {
                     },
                     result_ty,
                 );
-                finalize_handler_expr(expr, expected, expected_source)
+                finalize_handler_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
             core_ir::Expr::Coerce { expr, evidence } => {
                 if let Some(evidence) = &evidence {
@@ -779,7 +850,8 @@ impl Lowerer<'_> {
                     .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.expected))
                     .map(RuntimeType::core);
                 let expr = self.lower_expr(*expr, None, locals, TypeSource::Expected)?;
-                let (expr, from) = force_core_value_expr(expr);
+                let (expr, from) =
+                    force_core_value_expr_profiled(expr, &mut self.runtime_adapter_profile);
                 let from = evidence_actual
                     .as_ref()
                     .filter(|ty| !hir_type_has_type_vars(ty))
@@ -798,11 +870,17 @@ impl Lowerer<'_> {
                     },
                     ty,
                 );
-                finalize_effectful_expr(expr, expected, expected_source)
+                finalize_effectful_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
             core_ir::Expr::Pack { var, expr } => {
                 let expr = self.lower_expr(*expr, expected, locals, expected_source)?;
-                let (expr, value_ty) = force_value_expr(expr);
+                let (expr, value_ty) =
+                    force_value_expr_profiled(expr, &mut self.runtime_adapter_profile);
                 let ty = expected.cloned().unwrap_or(value_ty);
                 let expr = Expr::typed(
                     ExprKind::Pack {
@@ -811,7 +889,12 @@ impl Lowerer<'_> {
                     },
                     ty,
                 );
-                finalize_effectful_expr(expr, expected, expected_source)
+                finalize_effectful_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                )
             }
         }
     }
@@ -863,13 +946,16 @@ impl Lowerer<'_> {
         match stmt {
             core_ir::Stmt::Let { pattern, value } => {
                 let value = self.lower_expr(value, None, locals, TypeSource::Expected)?;
-                let (value, value_ty) = force_value_expr(value);
+                let (value, value_ty) =
+                    force_value_expr_profiled(value, &mut self.runtime_adapter_profile);
                 let pattern = lower_hir_pattern(self, pattern, &value_ty, locals)?;
                 Ok(Stmt::Let { pattern, value })
             }
             core_ir::Stmt::Expr(expr) => {
                 let expr = self.lower_expr(expr, expected, locals, TypeSource::Expected)?;
-                Ok(Stmt::Expr(force_value_expr(expr).0))
+                Ok(Stmt::Expr(
+                    force_value_expr_profiled(expr, &mut self.runtime_adapter_profile).0,
+                ))
             }
             core_ir::Stmt::Module { def, body } => {
                 let expected = self.env.get(&def).cloned();
@@ -953,13 +1039,13 @@ impl Lowerer<'_> {
             core_ir::RecordSpreadExpr::Head(expr) => {
                 let expr = self.lower_expr(*expr, None, locals, TypeSource::Expected)?;
                 Ok(RecordSpreadExpr::Head(Box::new(
-                    force_core_value_expr(expr).0,
+                    force_core_value_expr_profiled(expr, &mut self.runtime_adapter_profile).0,
                 )))
             }
             core_ir::RecordSpreadExpr::Tail(expr) => {
                 let expr = self.lower_expr(*expr, None, locals, TypeSource::Expected)?;
                 Ok(RecordSpreadExpr::Tail(Box::new(
-                    force_core_value_expr(expr).0,
+                    force_core_value_expr_profiled(expr, &mut self.runtime_adapter_profile).0,
                 )))
             }
         }
@@ -1454,13 +1540,14 @@ fn prepare_effect_operation_arg(
     arg: Expr,
     expected: &RuntimeType,
     source: TypeSource,
+    profile: &mut RuntimeAdapterProfile,
 ) -> RuntimeResult<Expr> {
     match (expected, &arg.ty) {
         (
             RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_)),
             RuntimeType::Thunk { .. },
-        ) => Ok(force_value_expr(arg).0),
-        _ => prepare_expr_for_expected(arg, expected, source),
+        ) => Ok(force_value_expr_profiled(arg, profile).0),
+        _ => prepare_expr_for_expected_profiled(arg, expected, source, profile),
     }
 }
 

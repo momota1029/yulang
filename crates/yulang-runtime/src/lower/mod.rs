@@ -129,6 +129,7 @@ fn lower_principal_module_with_graph_and_evidence(
         expected_edges_by_id,
         use_expected_arg_evidence: std::env::var_os("YULANG_USE_EXPECTED_ARG_EVIDENCE").is_some(),
         expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+        runtime_adapter_profile: RuntimeAdapterProfile::default(),
         next_synthetic_type_var: 0,
         next_effect_id_var: 0,
     };
@@ -160,6 +161,16 @@ fn lower_principal_module_with_graph_and_evidence(
                 .ignored_no_expected_arg,
             lowerer.expected_arg_evidence_profile.ignored_unusable,
             lowerer.expected_arg_evidence_profile.ignored_no_push,
+        );
+    }
+    if std::env::var_os("YULANG_DEBUG_RUNTIME_ADAPTERS").is_some() {
+        eprintln!(
+            "runtime adapters: value-to-thunk={} thunk-to-value={} bind-here={} reused-thunk={} forced-effect-thunk={}",
+            lowerer.runtime_adapter_profile.value_to_thunk,
+            lowerer.runtime_adapter_profile.thunk_to_value,
+            lowerer.runtime_adapter_profile.bind_here,
+            lowerer.runtime_adapter_profile.reused_thunk,
+            lowerer.runtime_adapter_profile.forced_effect_thunk,
         );
     }
     let roots = module
@@ -239,6 +250,7 @@ struct Lowerer<'a> {
     expected_edges_by_id: HashMap<u32, &'a core_ir::ExpectedEdgeEvidence>,
     use_expected_arg_evidence: bool,
     expected_arg_evidence_profile: ExpectedArgEvidenceProfile,
+    runtime_adapter_profile: RuntimeAdapterProfile,
     next_synthetic_type_var: usize,
     next_effect_id_var: usize,
 }
@@ -261,6 +273,15 @@ struct ExpectedArgEvidenceProfile {
     ignored_no_expected_arg: usize,
     ignored_unusable: usize,
     ignored_no_push: usize,
+}
+
+#[derive(Default)]
+struct RuntimeAdapterProfile {
+    value_to_thunk: usize,
+    thunk_to_value: usize,
+    bind_here: usize,
+    reused_thunk: usize,
+    forced_effect_thunk: usize,
 }
 
 #[cfg(test)]

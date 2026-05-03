@@ -79,6 +79,7 @@ mod tests {
             expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -98,13 +99,61 @@ mod tests {
             RuntimeType::core(named_type("int")),
         );
 
+        let mut profile = RuntimeAdapterProfile::default();
         let prepared =
-            prepare_expr_for_expected(expr, &expected, TypeSource::Expected).expect("prepared");
+            prepare_expr_for_expected_profiled(expr, &expected, TypeSource::Expected, &mut profile)
+                .expect("prepared");
 
         let RuntimeType::Thunk { value, .. } = &prepared.ty else {
             panic!("expected a thunk");
         };
         assert_eq!(core_type(value), &named_type("int"));
+    }
+
+    #[test]
+    pub(super) fn runtime_adapter_profile_counts_value_to_thunk_wrap() {
+        let expected = RuntimeType::thunk(empty_row(), RuntimeType::core(named_type("int")));
+        let expr = Expr::typed(
+            ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+            RuntimeType::core(named_type("int")),
+        );
+        let mut profile = RuntimeAdapterProfile::default();
+
+        let prepared =
+            prepare_expr_for_expected_profiled(expr, &expected, TypeSource::Expected, &mut profile)
+                .expect("prepared");
+
+        assert!(matches!(prepared.kind, ExprKind::Thunk { .. }));
+        assert_eq!(profile.value_to_thunk, 1);
+        assert_eq!(profile.thunk_to_value, 0);
+        assert_eq!(profile.bind_here, 0);
+    }
+
+    #[test]
+    pub(super) fn runtime_adapter_profile_counts_thunk_to_value_bind_here() {
+        let expected = RuntimeType::core(named_type("int"));
+        let thunk_ty = RuntimeType::thunk(empty_row(), RuntimeType::core(named_type("int")));
+        let expr = Expr::typed(
+            ExprKind::Thunk {
+                effect: empty_row(),
+                value: RuntimeType::core(named_type("int")),
+                expr: Box::new(Expr::typed(
+                    ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                    RuntimeType::core(named_type("int")),
+                )),
+            },
+            thunk_ty,
+        );
+        let mut profile = RuntimeAdapterProfile::default();
+
+        let prepared =
+            prepare_expr_for_expected_profiled(expr, &expected, TypeSource::Expected, &mut profile)
+                .expect("prepared");
+
+        assert!(matches!(prepared.kind, ExprKind::BindHere { .. }));
+        assert_eq!(profile.thunk_to_value, 1);
+        assert_eq!(profile.bind_here, 1);
+        assert_eq!(profile.value_to_thunk, 0);
     }
 
     #[test]
@@ -171,6 +220,7 @@ mod tests {
             expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1193,6 +1243,7 @@ mod tests {
             expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1244,6 +1295,7 @@ mod tests {
             expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: true,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1327,6 +1379,7 @@ mod tests {
                 .collect(),
             use_expected_arg_evidence: true,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
@@ -1431,6 +1484,7 @@ mod tests {
             expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            runtime_adapter_profile: RuntimeAdapterProfile::default(),
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };

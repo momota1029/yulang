@@ -155,21 +155,22 @@ pub(super) fn lower_core_pattern(
                     };
                     let default = match (field.default, record_field_ty.as_ref()) {
                         (Some(default), Some(field_ty)) => Some(
-                            force_value_expr(lowerer.lower_expr(
-                                default,
-                                Some(&RuntimeType::core(field_ty.clone())),
-                                locals,
-                                TypeSource::Expected,
-                            )?)
+                            force_value_expr_profiled(
+                                lowerer.lower_expr(
+                                    default,
+                                    Some(&RuntimeType::core(field_ty.clone())),
+                                    locals,
+                                    TypeSource::Expected,
+                                )?,
+                                &mut lowerer.runtime_adapter_profile,
+                            )
                             .0,
                         ),
                         (Some(default), None) => {
-                            let default = force_value_expr(lowerer.lower_expr(
-                                default,
-                                None,
-                                locals,
-                                TypeSource::Expected,
-                            )?)
+                            let default = force_value_expr_profiled(
+                                lowerer.lower_expr(default, None, locals, TypeSource::Expected)?,
+                                &mut lowerer.runtime_adapter_profile,
+                            )
                             .0;
                             Some(default)
                         }
