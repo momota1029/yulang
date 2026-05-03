@@ -219,6 +219,41 @@ impl LowerState {
         });
     }
 
+    pub fn expect_value(
+        &mut self,
+        actual_tv: TypeVar,
+        expected_tv: TypeVar,
+        kind: ExpectedEdgeKind,
+        cause: ConstraintCause,
+    ) {
+        self.record_expected_edge(actual_tv, expected_tv, kind, cause.clone());
+        self.infer
+            .constrain_with_cause(Pos::Var(actual_tv), Neg::Var(expected_tv), cause);
+    }
+
+    pub fn expect_value_and_effect(
+        &mut self,
+        actual_tv: TypeVar,
+        expected_tv: TypeVar,
+        actual_eff: TypeVar,
+        expected_eff: TypeVar,
+        kind: ExpectedEdgeKind,
+        cause: ConstraintCause,
+    ) {
+        self.record_expected_edge_with_effects(
+            actual_tv,
+            expected_tv,
+            Some(actual_eff),
+            Some(expected_eff),
+            kind,
+            cause.clone(),
+        );
+        self.infer
+            .constrain_with_cause(Pos::Var(actual_tv), Neg::Var(expected_tv), cause);
+        self.infer
+            .constrain(Pos::Var(actual_eff), Neg::Var(expected_eff));
+    }
+
     /// fresh な DefId を発行し、SCC に登録する。
     pub fn fresh_def(&mut self) -> DefId {
         let def = fresh_def_id();

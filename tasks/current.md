@@ -166,6 +166,12 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 29. `CoerceEvidence` は生の推論 bounds ではなく、`complete_principal` 経由で coerce slot 内の actual/expected を一緒に coalesce してから出すようにした。これにより `examples/01_struct_with.yu` の field projection は `coerce[actual=point, expected={x: int, y: int}]` のように主型に近い形で見える。constructor の `actual=_ expected=_` は、その境界だけでは具体型が取れないため空のまま残る。
 30. `ExpectedEdge` を infer lowering 側に追加した。これは runtime IR へは渡さない軽い subsumption point の記録で、`actual_tv` / `expected_tv` / optional effect tv / kind / cause を持つ。最初の対象は `if condition`、`if branch`、`case guard`、`case branch`、`catch guard`、`catch branch`。`Coerce` は representation / runtime 的に意味のある境界へ残し、広い expected-type 境界は `ExpectedEdge` で観測する方針にした。application argument は関数 param 用の中間 tv を作ると推論形が変わるため、まだ対象外。
 31. `ExpectedEdge` を CLI の `--infer --verbose-ir` で `expected-edges:` として見られるようにした。表示は `LowerState` 内の table を compact bounds で整形するだけで、Core IR / runtime IR にはまだ流さない。これで broad expected-type 境界を runtime に影響させず棚卸しできる。
+32. `LowerState::expect_value` / `expect_value_and_effect` を追加し、`ExpectedEdge` 記録と solver constraint 生成を同じ入口にまとめた。if/case/catch の condition / guard / branch はこの helper 経由に置き換えた。bool condition / guard は `expected_bool_tv` を exact bool にし、実際の制約も `actual_tv <= expected_bool_tv` として edge と同じ境界を指すようにした。
+33. annotation に `ExpectedEdgeKind::Annotation` を追加で接続した。binding annotation と pattern/header parameter annotation は annotation 用 `ann_tv` を exact に作り、`target_tv <= ann_tv` を `expect_value` 経由で記録・制約化する。既存の双方向 annotation constraint は `ann_tv <= target_tv` を別途張って保つ。bool condition / guard の exact bool tv 生成も cause 付きにそろえた。
+34. `ConstraintReason` に match/catch/assignment 用の細かい reason を追加し、case/catch の guard / branch が `IfCondition` / `IfBranch` を流用しないようにした。priority は既存の if/app/field と同じ診断優先度にした。
+35. `ExpectedEdgeKind::ApplicationArgument` を apply lowering に接続した。関数側の argument slot として `expected_arg_tv` を作り、`arg.tv <= expected_arg_tv` を `expect_value` で記録し、関数制約は `func.tv <= expected_arg_tv -> result` にした。これにより application argument も solver が実際に見る subsumption 境界として観測できる。
+36. direct ref assignment に `ExpectedEdgeKind::AssignmentValue` を接続した。`RefSet` lowering では参照の要素型用 `expected_value_tv` を作り、`value.tv <= expected_value_tv` を `expect_value` で記録してから、reference 側を `std::var::ref<ref_eff, expected_value_tv>` に合わせる。
+37. `collect_expected_edges` の表示側で `TypeVar -> CompactTypeScheme` の小さな cache を入れた。表示文字列ではなく compact 結果だけを cache し、edge ごとの `VarNamer` は維持するので、同じ edge 内の型変数名付けは従来通りに保つ。
 
 ## Notes
 
@@ -178,3 +184,6 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - `CoerceEvidence` は IR 上の cast hole として保持できるようになったが、runtime lower が積極的に活用できるのは閉じた型だけ。未閉じの `actual` / `expected` をそのまま期待型として流すと、多相 helper が残る。次は `complete_principal` 側で slot-local に閉じた evidence を作るか、runtime 側で `AdapterHole` として遅延処理するかを分ける。
 - `CoerceEvidence.expected` を runtime lower の式型として親の `expected` より優先すると、`std::opt::opt::nil` などの多相 constructor が閉じきらず壊れる。runtime lower では親の文脈を優先し、coerce evidence は補助情報として扱う。
 - `ExpectedEdge` は今のところ `LowerState` 内の観測用 table と CLI verbose 表示で、export / runtime には影響しない。次は `ExpectedEdge` を principal elaboration evidence 生成に接続するか、application argument / annotation / assignment value へ広げるかを選ぶ。
+- `ExpectedEdge` を増やす場合は、直接 `record_expected_edge*` を呼ぶより先に `expect_*` helper を通す。edge と solver constraint が同じ subsumption 境界を表す、という invariant を崩さない。
+- annotation edge は今のところ value type の annotation が対象。effect-only annotation は `ExpectedEdge` が value tv を必須にしているため、別途 `ExpectedEffectEdge` を作るか `ExpectedEdge` を effect-only に対応させるかを決めてから扱う。
+- `RecordField` / `VariantPayload` / `RepresentationCoerce` は enum にはあるが、今回は保留。record / variant は現状だと値を組み立てる側の制約が多く、expected subsumption 境界として切る位置を先に決める必要がある。coerce は representation/runtime 的な境界なので、`ExpectedEdge` と統合するより `CoerceEvidence` / future adapter hole 側との関係を先に整理する。

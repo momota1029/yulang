@@ -33,10 +33,11 @@ pub fn collect_compact_results(state: &LowerState) -> Vec<(String, String)> {
 }
 
 pub fn collect_expected_edges(state: &LowerState) -> Vec<String> {
+    let mut cache = ExpectedEdgeFormatCache::default();
     state
         .expected_edges
         .iter()
-        .map(|edge| format_expected_edge(state, edge))
+        .map(|edge| format_expected_edge(state, edge, &mut cache))
         .collect()
 }
 
@@ -395,14 +396,24 @@ fn format_frozen_scheme_with_role_constraints(
     }
 }
 
-fn format_expected_edge(state: &LowerState, edge: &ExpectedEdge) -> String {
+#[derive(Default)]
+struct ExpectedEdgeFormatCache {
+    schemes: HashMap<TypeVar, CompactTypeScheme>,
+}
+
+fn format_expected_edge(
+    state: &LowerState,
+    edge: &ExpectedEdge,
+    cache: &mut ExpectedEdgeFormatCache,
+) -> String {
     let mut namer = VarNamer::default();
-    let actual = format_type_var_bounds(&state.infer, edge.actual_tv, &mut namer);
-    let expected = format_type_var_bounds(&state.infer, edge.expected_tv, &mut namer);
+    let actual = format_type_var_bounds(&state.infer, edge.actual_tv, &mut namer, cache);
+    let expected = format_type_var_bounds(&state.infer, edge.expected_tv, &mut namer, cache);
     let effects = match (edge.actual_eff, edge.expected_eff) {
         (Some(actual_eff), Some(expected_eff)) => {
-            let actual_eff = format_type_var_bounds(&state.infer, actual_eff, &mut namer);
-            let expected_eff = format_type_var_bounds(&state.infer, expected_eff, &mut namer);
+            let actual_eff = format_type_var_bounds(&state.infer, actual_eff, &mut namer, cache);
+            let expected_eff =
+                format_type_var_bounds(&state.infer, expected_eff, &mut namer, cache);
             format!(" effect {actual_eff} => {expected_eff}")
         }
         _ => String::new(),
@@ -422,8 +433,16 @@ fn format_expected_edge(state: &LowerState, edge: &ExpectedEdge) -> String {
     )
 }
 
-fn format_type_var_bounds(infer: &Infer, tv: TypeVar, namer: &mut VarNamer) -> String {
-    let scheme = compact_type_var(infer, tv);
+fn format_type_var_bounds(
+    infer: &Infer,
+    tv: TypeVar,
+    namer: &mut VarNamer,
+    cache: &mut ExpectedEdgeFormatCache,
+) -> String {
+    let scheme = cache
+        .schemes
+        .entry(tv)
+        .or_insert_with(|| compact_type_var(infer, tv));
     format_compact_bounds(&scheme.cty, namer)
 }
 

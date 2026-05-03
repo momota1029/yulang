@@ -119,6 +119,11 @@ fn constraint_reason_priority(reason: ConstraintReason) -> u8 {
         | ConstraintReason::ImplMember
         | ConstraintReason::IfCondition
         | ConstraintReason::IfBranch
+        | ConstraintReason::MatchGuard
+        | ConstraintReason::MatchBranch
+        | ConstraintReason::CatchGuard
+        | ConstraintReason::CatchBranch
+        | ConstraintReason::AssignmentValue
         | ConstraintReason::FieldSelection => 4,
         ConstraintReason::Structural | ConstraintReason::RowCompare => 3,
         ConstraintReason::BindingBody => 2,

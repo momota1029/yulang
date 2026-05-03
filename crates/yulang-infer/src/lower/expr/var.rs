@@ -2,6 +2,7 @@ use yulang_parser::lex::SyntaxKind;
 
 use super::{lower_expr, make_app, neg_prim_type, prim_type, resolve_path_expr, unit_expr};
 use crate::ast::expr::{ExprKind, TypedExpr};
+use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
 use crate::ids::TypeVar;
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::{Name, Path};
@@ -124,6 +125,7 @@ fn constrain_ref_set_assignment(
     reference: &TypedExpr,
     value: &TypedExpr,
 ) {
+    let expected_value_tv = state.fresh_tv();
     state.infer.constrain(prim_type("unit"), Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_prim_type("unit"));
     state
@@ -132,7 +134,20 @@ fn constrain_ref_set_assignment(
     state.infer.constrain(Pos::Var(value.eff), Neg::Var(eff));
     state.infer.constrain(Pos::Var(ref_eff), Neg::Var(eff));
 
-    let ref_args = invariant_ref_args(state, &[(ref_eff, ref_eff), (value.tv, value.tv)]);
+    state.expect_value(
+        value.tv,
+        expected_value_tv,
+        ExpectedEdgeKind::AssignmentValue,
+        ConstraintCause {
+            span: None,
+            reason: ConstraintReason::AssignmentValue,
+        },
+    );
+
+    let ref_args = invariant_ref_args(
+        state,
+        &[(ref_eff, ref_eff), (expected_value_tv, expected_value_tv)],
+    );
     state.infer.constrain(
         Pos::Con(std_var_ref_path(), ref_args),
         Neg::Var(reference.tv),

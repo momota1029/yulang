@@ -1348,6 +1348,13 @@ fn lowers_var_sigils_across_multiple_top_level_bindings() {
         )
         .unwrap();
         let rendered = render_compact_results(&mut lowered.state);
+        let assignment_edges = lowered
+            .state
+            .expected_edges
+            .iter()
+            .filter(|edge| edge.kind == ExpectedEdgeKind::AssignmentValue)
+            .count();
+        assert_eq!(assignment_edges, 1);
 
         assert_eq!(
             rendered

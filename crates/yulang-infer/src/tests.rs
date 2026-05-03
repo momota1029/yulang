@@ -170,6 +170,17 @@ fn binding_type_annotation_mismatch_surfaces_type_error() {
 }
 
 #[test]
+fn binding_type_annotation_records_expected_edge() {
+    let state = parse_and_lower("my x: int = 1");
+    let annotation_edges = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::Annotation)
+        .count();
+    assert_eq!(annotation_edges, 1);
+}
+
+#[test]
 fn int_binding_can_widen_to_float_annotation() {
     let state = parse_and_lower("my x: float = 1");
     let errors = state.infer.type_errors();
@@ -177,6 +188,28 @@ fn int_binding_can_widen_to_float_annotation() {
         errors.is_empty(),
         "int <: float annotation should be accepted, got {errors:?}",
     );
+}
+
+#[test]
+fn parameter_type_annotation_records_expected_edge() {
+    let state = parse_and_lower("my id(x: int) = x");
+    let annotation_edges = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::Annotation)
+        .count();
+    assert_eq!(annotation_edges, 1);
+}
+
+#[test]
+fn application_argument_records_expected_edge() {
+    let state = parse_and_lower("my id x = x\nmy y = id 1");
+    let application_edges = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::ApplicationArgument)
+        .count();
+    assert_eq!(application_edges, 1);
 }
 
 #[test]

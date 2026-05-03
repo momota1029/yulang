@@ -1,7 +1,7 @@
 use yulang_parser::lex::SyntaxKind;
 
-use crate::diagnostic::{ConstraintCause, ConstraintReason};
-use crate::ids::TypeVar;
+use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
+use crate::ids::{NegId, PosId, TypeVar};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::types::{Neg, Pos};
 
@@ -29,12 +29,8 @@ pub(crate) fn connect_binding_type_annotation(
         span: Some(type_expr.text_range()),
         reason: ConstraintReason::Annotation,
     };
-    state
-        .infer
-        .constrain_with_cause(pos_sig, Neg::Var(body_tv), cause.clone());
-    state
-        .infer
-        .constrain_with_cause(Pos::Var(body_tv), neg_sig, cause);
+    let ann_tv = fresh_annotation_tv(state, pos_sig, neg_sig, &cause);
+    connect_annotated_target(state, body_tv, ann_tv, cause);
 }
 
 pub(crate) fn connect_pattern_sig_annotation(
@@ -77,9 +73,12 @@ pub(crate) fn connect_pattern_sig_annotation(
         state
             .infer
             .constrain_with_cause(Pos::Var(ann_tv), Neg::Var(target_tv), cause.clone());
-        state
-            .infer
-            .constrain_with_cause(Pos::Var(target_tv), Neg::Var(ann_tv), cause.clone());
+        state.expect_value(
+            target_tv,
+            ann_tv,
+            ExpectedEdgeKind::Annotation,
+            cause.clone(),
+        );
         return Some(if fun.effect_hint {
             crate::lower::FunctionSigEffectHint::Through
         } else if fun.ret_eff_pos == state.infer.arena.empty_pos_row
@@ -94,11 +93,35 @@ pub(crate) fn connect_pattern_sig_annotation(
     let pos_sig = crate::lower::signature::lower_pure_sig_pos_id(state, &sig, &mut vars);
     let mut neg_vars = vars.clone();
     let neg_sig = crate::lower::signature::lower_pure_sig_neg_id(state, &sig, &mut neg_vars);
-    state
-        .infer
-        .constrain_with_cause(pos_sig, Neg::Var(target_tv), cause.clone());
-    state
-        .infer
-        .constrain_with_cause(Pos::Var(target_tv), neg_sig, cause);
+    let ann_tv = fresh_annotation_tv(state, pos_sig, neg_sig, &cause);
+    connect_annotated_target(state, target_tv, ann_tv, cause);
     None
+}
+
+fn fresh_annotation_tv(
+    state: &mut LowerState,
+    lower: PosId,
+    upper: NegId,
+    cause: &ConstraintCause,
+) -> TypeVar {
+    let ann_tv = state.fresh_tv();
+    state
+        .infer
+        .constrain_with_cause(lower, Neg::Var(ann_tv), cause.clone());
+    state
+        .infer
+        .constrain_with_cause(Pos::Var(ann_tv), upper, cause.clone());
+    ann_tv
+}
+
+fn connect_annotated_target(
+    state: &mut LowerState,
+    target_tv: TypeVar,
+    ann_tv: TypeVar,
+    cause: ConstraintCause,
+) {
+    state
+        .infer
+        .constrain_with_cause(Pos::Var(ann_tv), Neg::Var(target_tv), cause.clone());
+    state.expect_value(target_tv, ann_tv, ExpectedEdgeKind::Annotation, cause);
 }

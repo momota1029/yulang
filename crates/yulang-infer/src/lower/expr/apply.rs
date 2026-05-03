@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::ast::expr::{ExprKind, TypedExpr};
-use crate::diagnostic::{ConstraintCause, TypeOrigin, TypeOriginKind};
+use crate::diagnostic::{ConstraintCause, ExpectedEdgeKind, TypeOrigin, TypeOriginKind};
 use crate::ids::TypeVar;
 use crate::lower::{FunctionSigEffectHint, LowerState};
 use crate::solve::DeferredRoleMethodCall;
@@ -33,10 +33,12 @@ pub(crate) fn make_app_with_cause(
         kind: TypeOriginKind::ApplicationResult,
         label: None,
     });
+    let expected_arg_tv = state.fresh_tv();
     let call_eff = state.fresh_tv();
     let eff = state.fresh_tv();
     if let Some(owner) = cross_owner_function_ref_owner(state, &func) {
         state.infer.add_non_generic_var(owner, tv);
+        state.infer.add_non_generic_var(owner, expected_arg_tv);
         state.infer.add_non_generic_var(owner, call_eff);
         state.infer.add_non_generic_var(owner, eff);
     }
@@ -90,11 +92,17 @@ pub(crate) fn make_app_with_cause(
     state.infer.constrain_with_cause(
         Pos::Var(func.tv),
         state.neg_fun(
-            Pos::Var(arg.tv),
+            Pos::Var(expected_arg_tv),
             Pos::Var(arg_eff_for_slot),
             demanded_ret_eff,
             Neg::Var(tv),
         ),
+        cause.clone(),
+    );
+    state.expect_value(
+        arg.tv,
+        expected_arg_tv,
+        ExpectedEdgeKind::ApplicationArgument,
         cause,
     );
     if pure_argument_slot {

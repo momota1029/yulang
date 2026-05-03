@@ -48,26 +48,17 @@ pub(super) fn lower_case(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr
             if let Some(guard) = guard.as_ref() {
                 let cause = ConstraintCause {
                     span: Some(arm.text_range()),
-                    reason: ConstraintReason::IfCondition,
+                    reason: ConstraintReason::MatchGuard,
                 };
-                let expected_bool_tv = fresh_exact_bool_tv(state);
-                state.record_expected_edge_with_effects(
+                let expected_bool_tv = fresh_exact_bool_tv(state, &cause);
+                state.expect_value_and_effect(
                     guard.tv,
                     expected_bool_tv,
-                    Some(guard.eff),
-                    Some(eff),
+                    guard.eff,
+                    eff,
                     ExpectedEdgeKind::MatchGuard,
                     cause.clone(),
                 );
-                state.infer.constrain_with_cause(
-                    Pos::Var(guard.tv),
-                    neg_prim_type("bool"),
-                    cause.clone(),
-                );
-                state
-                    .infer
-                    .constrain_with_cause(prim_type("bool"), Neg::Var(guard.tv), cause);
-                state.infer.constrain(Pos::Var(guard.eff), Neg::Var(eff));
             }
             let body = arm
                 .children()
@@ -86,19 +77,17 @@ pub(super) fn lower_case(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr
             state
                 .infer
                 .constrain(Pos::Var(pat.tv), Neg::Var(scrutinee.tv));
-            state.infer.constrain(Pos::Var(body.tv), Neg::Var(tv));
-            state.record_expected_edge_with_effects(
+            state.expect_value_and_effect(
                 body.tv,
                 tv,
-                Some(body.eff),
-                Some(eff),
+                body.eff,
+                eff,
                 ExpectedEdgeKind::MatchBranch,
                 ConstraintCause {
                     span: Some(arm.text_range()),
-                    reason: ConstraintReason::IfBranch,
+                    reason: ConstraintReason::MatchBranch,
                 },
             );
-            state.infer.constrain(Pos::Var(body.eff), Neg::Var(eff));
             state.ctx.pop_local();
             Some(crate::ast::expr::TypedMatchArm { pat, guard, body })
         })
@@ -133,37 +122,29 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
             span: Some(arm.text_range()),
             reason: ConstraintReason::IfCondition,
         };
-        let expected_bool_tv = fresh_exact_bool_tv(state);
-        state.record_expected_edge_with_effects(
+        let expected_bool_tv = fresh_exact_bool_tv(state, &condition_cause);
+        state.expect_value_and_effect(
             cond.tv,
             expected_bool_tv,
-            Some(cond.eff),
-            Some(eff),
+            cond.eff,
+            eff,
             ExpectedEdgeKind::IfCondition,
-            condition_cause.clone(),
+            condition_cause,
         );
-        state
-            .infer
-            .constrain_with_cause(Pos::Var(cond.tv), neg_prim_type("bool"), condition_cause);
-        state.infer.constrain(Pos::Var(cond.eff), Neg::Var(eff));
 
         let body = lower_if_arm_body(state, &arm);
         let branch_cause = ConstraintCause {
             span: Some(arm.text_range()),
             reason: ConstraintReason::IfBranch,
         };
-        state.record_expected_edge_with_effects(
+        state.expect_value_and_effect(
             body.tv,
             tv,
-            Some(body.eff),
-            Some(eff),
+            body.eff,
+            eff,
             ExpectedEdgeKind::IfBranch,
-            branch_cause.clone(),
+            branch_cause,
         );
-        state
-            .infer
-            .constrain_with_cause(Pos::Var(body.tv), Neg::Var(tv), branch_cause);
-        state.infer.constrain(Pos::Var(body.eff), Neg::Var(eff));
 
         if scrutinee.is_none() {
             scrutinee = Some(cond);
@@ -188,18 +169,14 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
             span: Some(arm.text_range()),
             reason: ConstraintReason::IfBranch,
         };
-        state.record_expected_edge_with_effects(
+        state.expect_value_and_effect(
             body.tv,
             tv,
-            Some(body.eff),
-            Some(eff),
+            body.eff,
+            eff,
             ExpectedEdgeKind::IfBranch,
-            branch_cause.clone(),
+            branch_cause,
         );
-        state
-            .infer
-            .constrain_with_cause(Pos::Var(body.tv), Neg::Var(tv), branch_cause);
-        state.infer.constrain(Pos::Var(body.eff), Neg::Var(eff));
         let pat = bool_lit_pat(state, false);
         connect_pat_shape_and_locals(state, &pat, body.eff);
         if let Some(scrutinee) = &scrutinee {
@@ -220,18 +197,14 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
             span: Some(node.text_range()),
             reason: ConstraintReason::IfBranch,
         };
-        state.record_expected_edge_with_effects(
+        state.expect_value_and_effect(
             body.tv,
             tv,
-            Some(body.eff),
-            Some(eff),
+            body.eff,
+            eff,
             ExpectedEdgeKind::IfBranch,
-            branch_cause.clone(),
+            branch_cause,
         );
-        state
-            .infer
-            .constrain_with_cause(Pos::Var(body.tv), Neg::Var(tv), branch_cause);
-        state.infer.constrain(Pos::Var(body.eff), Neg::Var(eff));
         let pat = bool_lit_pat(state, false);
         connect_pat_shape_and_locals(state, &pat, body.eff);
         if let Some(scrutinee) = &scrutinee {
@@ -308,10 +281,14 @@ fn lower_junction_condition(state: &mut LowerState, cond: TypedExpr) -> TypedExp
     )
 }
 
-fn fresh_exact_bool_tv(state: &mut LowerState) -> TypeVar {
+fn fresh_exact_bool_tv(state: &mut LowerState, cause: &ConstraintCause) -> TypeVar {
     let tv = state.fresh_tv();
-    state.infer.constrain(prim_type("bool"), Neg::Var(tv));
-    state.infer.constrain(Pos::Var(tv), neg_prim_type("bool"));
+    state
+        .infer
+        .constrain_with_cause(prim_type("bool"), Neg::Var(tv), cause.clone());
+    state
+        .infer
+        .constrain_with_cause(Pos::Var(tv), neg_prim_type("bool"), cause.clone());
     tv
 }
 
