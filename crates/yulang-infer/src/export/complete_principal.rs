@@ -17,19 +17,31 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use yulang_core_ir as core_ir;
 
+use crate::diagnostic::{ExpectedEdge, ExpectedEdgeKind};
 use crate::ids::TypeVar;
 use crate::solve::Infer;
 
 use super::types::{
     collect_core_type_vars, export_coalesced_apply_evidence_bounds,
-    export_coalesced_coerce_evidence_bounds, export_type_bounds_for_tv,
-    project_core_value_type_or_any,
+    export_coalesced_coerce_evidence_bounds, export_coalesced_type_bounds_for_tv,
+    export_type_bounds_for_tv, project_core_value_type_or_any,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct CompleteApplyPrincipalEvidence {
     pub(super) principal_callee: core_ir::Type,
     pub(super) substitutions: Vec<core_ir::TypeSubstitution>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
+pub(super) struct ExpectedEdgeEvidence {
+    pub(super) kind: ExpectedEdgeKind,
+    pub(super) actual: core_ir::TypeBounds,
+    pub(super) expected: core_ir::TypeBounds,
+    pub(super) actual_effect: Option<core_ir::TypeBounds>,
+    pub(super) expected_effect: Option<core_ir::TypeBounds>,
+    pub(super) closed: bool,
 }
 
 pub(super) fn complete_coerce_principal_evidence(
@@ -56,6 +68,33 @@ pub(super) fn complete_apply_principal_evidence(
         principal_callee: principal_scheme.body,
         substitutions,
     })
+}
+
+#[allow(dead_code)]
+pub(super) fn complete_expected_edge_evidence(
+    infer: &Infer,
+    edge: &ExpectedEdge,
+) -> ExpectedEdgeEvidence {
+    let actual = export_coalesced_type_bounds_for_tv(infer, edge.actual_tv);
+    let expected = export_coalesced_type_bounds_for_tv(infer, edge.expected_tv);
+    let actual_effect = edge
+        .actual_eff
+        .map(|tv| export_coalesced_type_bounds_for_tv(infer, tv));
+    let expected_effect = edge
+        .expected_eff
+        .map(|tv| export_coalesced_type_bounds_for_tv(infer, tv));
+    let closed = type_bounds_closed(&actual)
+        && type_bounds_closed(&expected)
+        && actual_effect.as_ref().is_none_or(type_bounds_closed)
+        && expected_effect.as_ref().is_none_or(type_bounds_closed);
+    ExpectedEdgeEvidence {
+        kind: edge.kind,
+        actual,
+        expected,
+        actual_effect,
+        expected_effect,
+        closed,
+    }
 }
 
 pub(super) fn apply_principal_substitutions(
@@ -605,9 +644,20 @@ fn type_has_vars(ty: &core_ir::Type) -> bool {
     !vars.is_empty()
 }
 
+#[allow(dead_code)]
+fn type_bounds_closed(bounds: &core_ir::TypeBounds) -> bool {
+    (bounds.lower.is_some() || bounds.upper.is_some())
+        && bounds.lower.as_deref().is_none_or(|ty| !type_has_vars(ty))
+        && bounds.upper.as_deref().is_none_or(|ty| !type_has_vars(ty))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rowan::SyntaxNode;
+    use yulang_parser::sink::YulangLanguage;
+
+    use crate::{LowerState, diagnostic, lower_root};
 
     fn tv(name: &str) -> core_ir::TypeVar {
         core_ir::TypeVar(name.to_string())
@@ -641,6 +691,14 @@ mod tests {
                 core_ir::Name("Fold".to_string()),
             ],
         }
+    }
+
+    fn parse_and_lower(src: &str) -> LowerState {
+        let green = yulang_parser::parse_module_to_green(src);
+        let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
+        let mut state = LowerState::new();
+        lower_root(&mut state, &root);
+        state
     }
 
     fn one_param_unifier() -> PrincipalSubstitutionUnifier<'static> {
@@ -715,5 +773,27 @@ mod tests {
                 (tv("xs"), list(core_ir::TypeArg::Type(named("int")))),
             ]
         );
+    }
+
+    #[test]
+    fn completes_expected_edge_evidence_with_exported_bounds() {
+        let state = parse_and_lower("my f(x: int) = x\nf 1\n");
+        let edge = state
+            .expected_edges
+            .iter()
+            .find(|edge| edge.kind == diagnostic::ExpectedEdgeKind::ApplicationArgument)
+            .expect("application argument edge");
+
+        let evidence = complete_expected_edge_evidence(&state.infer, edge);
+
+        assert_eq!(
+            evidence.kind,
+            diagnostic::ExpectedEdgeKind::ApplicationArgument
+        );
+        assert_eq!(evidence.actual.lower.as_deref(), Some(&named("int")));
+        assert_eq!(evidence.expected, core_ir::TypeBounds::exact(named("int")));
+        assert!(evidence.actual_effect.is_none());
+        assert!(evidence.expected_effect.is_none());
+        assert!(!evidence.closed);
     }
 }

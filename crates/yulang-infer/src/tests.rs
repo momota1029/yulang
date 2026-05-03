@@ -354,9 +354,14 @@ fn synthetic_representation_coerce_edges_have_core_evidence() {
 
     let program = export_core_program(&mut state);
     let coerce_evidence_count = count_coerce_evidence_in_module(&program.program);
+    let concrete_coerce_evidence_count = count_concrete_coerce_evidence_in_module(&program.program);
     assert!(
         coerce_evidence_count >= representation_edge_count,
         "expected core CoerceEvidence for representation edges, edges={representation_edge_count}, evidence={coerce_evidence_count}",
+    );
+    assert!(
+        concrete_coerce_evidence_count > 0,
+        "expected at least one concrete CoerceEvidence for representation edges",
     );
 }
 
@@ -373,15 +378,40 @@ fn count_coerce_evidence_in_module(module: &yulang_core_ir::PrincipalModule) -> 
             .sum::<usize>()
 }
 
+fn count_concrete_coerce_evidence_in_module(module: &yulang_core_ir::PrincipalModule) -> usize {
+    module
+        .bindings
+        .iter()
+        .map(|binding| count_concrete_coerce_evidence(&binding.body))
+        .sum::<usize>()
+        + module
+            .root_exprs
+            .iter()
+            .map(count_concrete_coerce_evidence)
+            .sum::<usize>()
+}
+
 fn count_coerce_evidence(expr: &yulang_core_ir::Expr) -> usize {
+    count_coerce_evidence_by(expr, &|_| true)
+}
+
+fn count_concrete_coerce_evidence(expr: &yulang_core_ir::Expr) -> usize {
+    count_coerce_evidence_by(expr, &coerce_evidence_is_concrete)
+}
+
+fn count_coerce_evidence_by(
+    expr: &yulang_core_ir::Expr,
+    accepts: &impl Fn(&yulang_core_ir::CoerceEvidence) -> bool,
+) -> usize {
     match expr {
         yulang_core_ir::Expr::Coerce { evidence, expr } => {
-            usize::from(evidence.is_some()) + count_coerce_evidence(expr)
+            usize::from(evidence.as_ref().is_some_and(accepts))
+                + count_coerce_evidence_by(expr, accepts)
         }
         yulang_core_ir::Expr::Lambda { body, .. }
-        | yulang_core_ir::Expr::Pack { expr: body, .. } => count_coerce_evidence(body),
+        | yulang_core_ir::Expr::Pack { expr: body, .. } => count_coerce_evidence_by(body, accepts),
         yulang_core_ir::Expr::Apply { callee, arg, .. } => {
-            count_coerce_evidence(callee) + count_coerce_evidence(arg)
+            count_coerce_evidence_by(callee, accepts) + count_coerce_evidence_by(arg, accepts)
         }
         yulang_core_ir::Expr::If {
             cond,
@@ -389,37 +419,44 @@ fn count_coerce_evidence(expr: &yulang_core_ir::Expr) -> usize {
             else_branch,
             ..
         } => {
-            count_coerce_evidence(cond)
-                + count_coerce_evidence(then_branch)
-                + count_coerce_evidence(else_branch)
+            count_coerce_evidence_by(cond, accepts)
+                + count_coerce_evidence_by(then_branch, accepts)
+                + count_coerce_evidence_by(else_branch, accepts)
         }
-        yulang_core_ir::Expr::Tuple(items) => items.iter().map(count_coerce_evidence).sum(),
+        yulang_core_ir::Expr::Tuple(items) => items
+            .iter()
+            .map(|item| count_coerce_evidence_by(item, accepts))
+            .sum(),
         yulang_core_ir::Expr::Record { fields, spread } => {
             fields
                 .iter()
-                .map(|field| count_coerce_evidence(&field.value))
+                .map(|field| count_coerce_evidence_by(&field.value, accepts))
                 .sum::<usize>()
                 + match spread {
                     Some(yulang_core_ir::RecordSpreadExpr::Head(expr))
                     | Some(yulang_core_ir::RecordSpreadExpr::Tail(expr)) => {
-                        count_coerce_evidence(expr)
+                        count_coerce_evidence_by(expr, accepts)
                     }
                     None => 0,
                 }
         }
-        yulang_core_ir::Expr::Variant { value, .. } => {
-            value.as_deref().map(count_coerce_evidence).unwrap_or(0)
-        }
-        yulang_core_ir::Expr::Select { base, .. } => count_coerce_evidence(base),
+        yulang_core_ir::Expr::Variant { value, .. } => value
+            .as_deref()
+            .map(|value| count_coerce_evidence_by(value, accepts))
+            .unwrap_or(0),
+        yulang_core_ir::Expr::Select { base, .. } => count_coerce_evidence_by(base, accepts),
         yulang_core_ir::Expr::Match {
             scrutinee, arms, ..
         } => {
-            count_coerce_evidence(scrutinee)
+            count_coerce_evidence_by(scrutinee, accepts)
                 + arms
                     .iter()
                     .map(|arm| {
-                        arm.guard.as_ref().map(count_coerce_evidence).unwrap_or(0)
-                            + count_coerce_evidence(&arm.body)
+                        arm.guard
+                            .as_ref()
+                            .map(|guard| count_coerce_evidence_by(guard, accepts))
+                            .unwrap_or(0)
+                            + count_coerce_evidence_by(&arm.body, accepts)
                     })
                     .sum::<usize>()
         }
@@ -428,26 +465,99 @@ fn count_coerce_evidence(expr: &yulang_core_ir::Expr) -> usize {
                 .iter()
                 .map(|stmt| match stmt {
                     yulang_core_ir::Stmt::Let { value, .. } | yulang_core_ir::Stmt::Expr(value) => {
-                        count_coerce_evidence(value)
+                        count_coerce_evidence_by(value, accepts)
                     }
-                    yulang_core_ir::Stmt::Module { body, .. } => count_coerce_evidence(body),
+                    yulang_core_ir::Stmt::Module { body, .. } => {
+                        count_coerce_evidence_by(body, accepts)
+                    }
                 })
                 .sum::<usize>()
-                + tail.as_deref().map(count_coerce_evidence).unwrap_or(0)
+                + tail
+                    .as_deref()
+                    .map(|tail| count_coerce_evidence_by(tail, accepts))
+                    .unwrap_or(0)
         }
         yulang_core_ir::Expr::Handle { body, arms, .. } => {
-            count_coerce_evidence(body)
+            count_coerce_evidence_by(body, accepts)
                 + arms
                     .iter()
                     .map(|arm| {
-                        arm.guard.as_ref().map(count_coerce_evidence).unwrap_or(0)
-                            + count_coerce_evidence(&arm.body)
+                        arm.guard
+                            .as_ref()
+                            .map(|guard| count_coerce_evidence_by(guard, accepts))
+                            .unwrap_or(0)
+                            + count_coerce_evidence_by(&arm.body, accepts)
                     })
                     .sum::<usize>()
         }
         yulang_core_ir::Expr::Var(_)
         | yulang_core_ir::Expr::PrimitiveOp(_)
         | yulang_core_ir::Expr::Lit(_) => 0,
+    }
+}
+
+fn coerce_evidence_is_concrete(evidence: &yulang_core_ir::CoerceEvidence) -> bool {
+    concrete_type_bounds(&evidence.actual) && concrete_type_bounds(&evidence.expected)
+}
+
+fn concrete_type_bounds(bounds: &yulang_core_ir::TypeBounds) -> bool {
+    (bounds.lower.is_some() || bounds.upper.is_some())
+        && bounds.lower.as_deref().is_none_or(concrete_type)
+        && bounds.upper.as_deref().is_none_or(concrete_type)
+}
+
+fn concrete_type(ty: &yulang_core_ir::Type) -> bool {
+    match ty {
+        yulang_core_ir::Type::Never | yulang_core_ir::Type::Any => true,
+        yulang_core_ir::Type::Var(_) => false,
+        yulang_core_ir::Type::Named { args, .. } => args.iter().all(concrete_type_arg),
+        yulang_core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            concrete_type(param)
+                && concrete_type(param_effect)
+                && concrete_type(ret_effect)
+                && concrete_type(ret)
+        }
+        yulang_core_ir::Type::Tuple(items)
+        | yulang_core_ir::Type::Union(items)
+        | yulang_core_ir::Type::Inter(items) => items.iter().all(concrete_type),
+        yulang_core_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .all(|field| concrete_type(&field.value))
+                && record.spread.as_ref().is_none_or(concrete_record_spread)
+        }
+        yulang_core_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .all(|case| case.payloads.iter().all(concrete_type))
+                && variant.tail.as_deref().is_none_or(concrete_type)
+        }
+        yulang_core_ir::Type::Row { items, tail } => {
+            items.iter().all(concrete_type) && concrete_type(tail)
+        }
+        yulang_core_ir::Type::Recursive { body, .. } => concrete_type(body),
+    }
+}
+
+fn concrete_record_spread(spread: &yulang_core_ir::RecordSpread) -> bool {
+    match spread {
+        yulang_core_ir::RecordSpread::Head(ty) | yulang_core_ir::RecordSpread::Tail(ty) => {
+            concrete_type(ty)
+        }
+    }
+}
+
+fn concrete_type_arg(arg: &yulang_core_ir::TypeArg) -> bool {
+    match arg {
+        yulang_core_ir::TypeArg::Type(ty) => concrete_type(ty),
+        yulang_core_ir::TypeArg::Bounds(bounds) => concrete_type_bounds(bounds),
     }
 }
 

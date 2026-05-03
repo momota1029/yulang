@@ -193,3 +193,20 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - `RecordField` / `VariantPayload` は enum にはあるが、今回は保留。record / variant は現状だと値を組み立てる側の制約が多く、expected subsumption 境界として切る位置を先に決める必要がある。
 - `RepresentationCoerce` edge は記録済みだが、通常の expected subsumption edge とは違って solver constraint の副産物ではない。`CoerceEvidence` / future adapter hole との対応を見るための観測点として扱う。
 - diagnostic で使う `ExpectedEdge` は、今は direct cause/span が合うものだけ。`&x = "s"` のあと別の annotation で矛盾するような伝播越しの error は、まだ `Unknown` になることがある。ここは edge graph から近い文脈を辿る別 helper が必要。
+
+## ChatGPT Review: ExpectedEdge Follow-up
+
+- 現状の見立ては、ExpectedEdge 基盤と solver constraint 整合は 9割近く、型エラー診断利用は 6.5〜7割、runtime / demand 再推測削減は 4割弱。
+- 直近優先は、diagnostic edge selection の安定化と context 表示改善。
+  - scoring は TypeVar / effect TypeVar 近さを使う方向でよい。
+  - tie-break として span match、reason match、kind priority、span length を入れて、同点選択を安定させる。
+  - `error.pos/error.neg` の局所衝突だけでなく、edge の `actual_tv/expected_tv` から compact した contextual type も表示できるようにする。
+- `RepresentationCoerce` と `CoerceEvidence` の対応テストは、単純な個数比較からもう少し強める。
+  - 短期は representation edge の actual/expected bounds と core `CoerceEvidence` が具体的に出ることを確認する。
+  - 中期は `ExpectedEdgeId` / `source_edge` のような対応 ID を検討する。
+- `complete_principal` に ExpectedEdge evidence を足すのが次の本丸。
+  - 最初は runtime へ渡さず、debug / verbose / tests で edge kind、actual/expected bounds、effect actual/expected bounds、closed/open を見られる形にする。
+  - 未閉じ evidence は diagnostic/debug 用に留め、runtime 利用は閉じたものから始める。
+- handler adapter は ExpectedEdge だけで足りなければ `ExpectedAdapterEdge` のような別種を考える。
+  - `ThunkWrap` / `BindHere` / `HandlerAdapter` / `EffectResidual` の境界として扱う。
+- `RecordField` / `VariantPayload` は lowering を bidirectional にするより、まず annotation edge などから派生する diagnostic 用 `DerivedExpectedEdge` として検討する。

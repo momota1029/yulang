@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -1082,7 +1083,10 @@ fn print_infer_type_error(state: &InferLowerState, error: &InferTypeError, sourc
         format_infer_neg(state, error.neg)
     );
     if let Some(context) = infer_error_expected_context(state, error) {
-        eprintln!("  context: {context}");
+        eprintln!("  context: {}", context.summary);
+        if let Some(edge) = context.edge {
+            eprintln!("  from edge: {edge}");
+        }
     }
     for origin in &error.origins {
         match origin.span {
@@ -1105,32 +1109,53 @@ fn print_infer_type_error(state: &InferLowerState, error: &InferTypeError, sourc
     }
 }
 
-fn infer_error_expected_context(state: &InferLowerState, error: &InferTypeError) -> Option<String> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct InferExpectedContext {
+    summary: String,
+    edge: Option<String>,
+}
+
+fn infer_error_expected_context(
+    state: &InferLowerState,
+    error: &InferTypeError,
+) -> Option<InferExpectedContext> {
     let error_vars = yulang_infer::diagnostic::type_error_vars(&state.infer, error);
     let edge = state
         .expected_edges
         .iter()
         .filter(|edge| infer_expected_edge_is_diagnostic_context(edge.kind))
         .filter_map(|edge| {
-            let score = infer_expected_edge_error_score(edge, error, &error_vars);
-            (score > 0).then_some((score, edge))
+            let rank = infer_expected_edge_error_rank(edge, error, &error_vars);
+            (rank.score > 0).then_some((rank, edge))
         })
-        .max_by_key(|(score, _)| *score)
+        .max_by_key(|(rank, _)| *rank)
         .map(|(_, edge)| edge)?;
 
-    Some(format!(
-        "{} expected {}; expression provides {}",
-        infer_expected_edge_context_label(edge.kind),
-        format_infer_neg(state, error.neg),
-        format_infer_pos(state, error.pos),
-    ))
+    Some(InferExpectedContext {
+        summary: format!(
+            "{} expected {}; expression provides {}",
+            infer_expected_edge_context_label(edge.kind),
+            format_infer_neg(state, error.neg),
+            format_infer_pos(state, error.pos),
+        ),
+        edge: Some(infer_expected_edge_flow_context(state, error, edge)),
+    })
 }
 
-fn infer_expected_edge_error_score(
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct InferExpectedEdgeRank {
+    score: u8,
+    span_match: bool,
+    reason_match: bool,
+    kind_priority: u8,
+    shorter_span: Reverse<u32>,
+}
+
+fn infer_expected_edge_error_rank(
     edge: &InferExpectedEdge,
     error: &InferTypeError,
     error_vars: &[yulang_infer::TypeVar],
-) -> u8 {
+) -> InferExpectedEdgeRank {
     let mut score = 0;
     if error_vars.contains(&edge.actual_tv) {
         score += 3;
@@ -1150,13 +1175,21 @@ fn infer_expected_edge_error_score(
     {
         score += 3;
     }
-    if edge.cause.span == error.cause.span {
+    let span_match = edge.cause.span == error.cause.span;
+    if span_match {
         score += 2;
     }
-    if edge.cause.reason == error.cause.reason {
+    let reason_match = edge.cause.reason == error.cause.reason;
+    if reason_match {
         score += 1;
     }
-    score
+    InferExpectedEdgeRank {
+        score,
+        span_match,
+        reason_match,
+        kind_priority: infer_expected_edge_kind_priority(edge.kind),
+        shorter_span: Reverse(infer_expected_edge_span_len(edge)),
+    }
 }
 
 fn infer_expected_edge_is_diagnostic_context(kind: InferExpectedEdgeKind) -> bool {
@@ -1174,6 +1207,71 @@ fn infer_expected_edge_context_label(kind: InferExpectedEdgeKind) -> &'static st
         InferExpectedEdgeKind::ApplicationArgument => "function argument",
         InferExpectedEdgeKind::AssignmentValue => "assignment value",
         _ => "context",
+    }
+}
+
+fn infer_expected_edge_kind_priority(kind: InferExpectedEdgeKind) -> u8 {
+    match kind {
+        InferExpectedEdgeKind::Annotation
+        | InferExpectedEdgeKind::ApplicationArgument
+        | InferExpectedEdgeKind::AssignmentValue => 4,
+        InferExpectedEdgeKind::RepresentationCoerce => 2,
+        _ => 1,
+    }
+}
+
+fn infer_expected_edge_span_len(edge: &InferExpectedEdge) -> u32 {
+    edge.cause
+        .span
+        .map(|span| u32::from(span.end()) - u32::from(span.start()))
+        .unwrap_or(u32::MAX)
+}
+
+fn infer_expected_edge_flow_context(
+    state: &InferLowerState,
+    error: &InferTypeError,
+    edge: &InferExpectedEdge,
+) -> String {
+    let mut parts = vec![format!(
+        "{} {} => {} {}",
+        infer_expected_edge_actual_label(edge.kind),
+        format_infer_pos(state, error.pos),
+        infer_expected_edge_expected_label(edge.kind),
+        format_infer_neg(state, error.neg),
+    )];
+    if let (Some(actual_eff), Some(expected_eff)) = (edge.actual_eff, edge.expected_eff) {
+        let actual_eff = yulang_infer::export::types::export_coalesced_type_bounds_for_tv(
+            &state.infer,
+            actual_eff,
+        );
+        let expected_eff = yulang_infer::export::types::export_coalesced_type_bounds_for_tv(
+            &state.infer,
+            expected_eff,
+        );
+        parts.push(format!(
+            "effect {} => {}",
+            format_core_bounds(&actual_eff),
+            format_core_bounds(&expected_eff),
+        ));
+    }
+    parts.join("; ")
+}
+
+fn infer_expected_edge_actual_label(kind: InferExpectedEdgeKind) -> &'static str {
+    match kind {
+        InferExpectedEdgeKind::ApplicationArgument => "argument actual",
+        InferExpectedEdgeKind::Annotation => "expression actual",
+        InferExpectedEdgeKind::AssignmentValue => "value actual",
+        _ => "actual",
+    }
+}
+
+fn infer_expected_edge_expected_label(kind: InferExpectedEdgeKind) -> &'static str {
+    match kind {
+        InferExpectedEdgeKind::ApplicationArgument => "parameter",
+        InferExpectedEdgeKind::Annotation => "annotation",
+        InferExpectedEdgeKind::AssignmentValue => "reference slot",
+        _ => "expected",
     }
 }
 
@@ -3003,8 +3101,11 @@ mod tests {
             .expect("annotation mismatch should report constructor mismatch");
 
         assert_eq!(
-            infer_error_expected_context(&state, error).as_deref(),
-            Some("annotation expected int; expression provides std::str::str"),
+            infer_error_expected_context(&state, error),
+            Some(InferExpectedContext {
+                summary: "annotation expected int; expression provides std::str::str".to_string(),
+                edge: Some("expression actual std::str::str => annotation int".to_string()),
+            }),
         );
     }
 
@@ -3023,8 +3124,12 @@ mod tests {
             .expect("argument mismatch should report constructor mismatch");
 
         assert_eq!(
-            infer_error_expected_context(&state, error).as_deref(),
-            Some("function argument expected int; expression provides std::str::str"),
+            infer_error_expected_context(&state, error),
+            Some(InferExpectedContext {
+                summary: "function argument expected int; expression provides std::str::str"
+                    .to_string(),
+                edge: Some("argument actual std::str::str => parameter int".to_string()),
+            }),
         );
     }
 
