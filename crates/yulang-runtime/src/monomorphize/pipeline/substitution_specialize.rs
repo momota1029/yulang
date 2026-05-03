@@ -18,6 +18,7 @@ struct SubstitutionSpecializer {
     next_index: usize,
     stats: HashMap<&'static str, usize>,
     target_skips: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
+    target_missing_vars: HashMap<core_ir::Path, HashMap<core_ir::TypeVar, usize>>,
     specialization_body_depth: usize,
 }
 
@@ -40,6 +41,7 @@ impl SubstitutionSpecializer {
             next_index,
             stats: HashMap::new(),
             target_skips: HashMap::new(),
+            target_missing_vars: HashMap::new(),
             specialization_body_depth: 0,
         }
     }
@@ -79,7 +81,36 @@ impl SubstitutionSpecializer {
             .or_default() += 1;
     }
 
+    fn bump_incomplete_binding_substitution(
+        &mut self,
+        target: &core_ir::Path,
+        binding: &Binding,
+        substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    ) {
+        self.bump_skip(target, "skip-incomplete-binding-substitution");
+        let entry = self.target_missing_vars.entry(target.clone()).or_default();
+        for var in missing_binding_substitution_vars(binding, substitutions) {
+            *entry.entry(var).or_default() += 1;
+        }
+    }
+
+    fn bump_no_complete_substitution(
+        &mut self,
+        target: &core_ir::Path,
+        binding: &Binding,
+        spine: &ApplySpine<'_>,
+    ) {
+        self.bump_skip(target, "skip-no-complete-substitution");
+        let substitutions =
+            initial_substitution_candidates(spine.instantiation, spine.evidence, binding);
+        let entry = self.target_missing_vars.entry(target.clone()).or_default();
+        for var in missing_binding_substitution_vars(binding, &substitutions) {
+            *entry.entry(var).or_default() += 1;
+        }
+    }
+
     fn finish_profile(self) -> SubstitutionSpecializeProfile {
+        let mut target_missing_vars = self.target_missing_vars;
         let mut target_skips = self
             .target_skips
             .into_iter()
@@ -94,7 +125,23 @@ impl SubstitutionSpecializer {
                         .cmp(&left.count)
                         .then_with(|| left.reason.cmp(right.reason))
                 });
-                SubstitutionSpecializeTargetSkips { target, reasons }
+                let mut missing_vars = target_missing_vars
+                    .remove(&target)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|(var, count)| SubstitutionSpecializeMissingVarCount { var, count })
+                    .collect::<Vec<_>>();
+                missing_vars.sort_by(|left, right| {
+                    right
+                        .count
+                        .cmp(&left.count)
+                        .then_with(|| left.var.0.cmp(&right.var.0))
+                });
+                SubstitutionSpecializeTargetSkips {
+                    target,
+                    reasons,
+                    missing_vars,
+                }
             })
             .collect::<Vec<_>>();
         target_skips.sort_by(|left, right| {
@@ -345,7 +392,7 @@ impl SubstitutionSpecializer {
                 })
                 .or_else(|| (self.specialization_body_depth > 0).then(BTreeMap::new));
         let Some(initial_substitutions) = initial_substitutions else {
-            self.bump_skip(spine.target, "skip-no-complete-substitution");
+            self.bump_no_complete_substitution(spine.target, &original, &spine);
             debug_subst_specialize_skip("no-complete-substitution", spine.target, None);
             return None;
         };
@@ -480,7 +527,11 @@ impl SubstitutionSpecializer {
         let Some(binding_substitutions) =
             complete_binding_substitutions(&original, &principal_substitutions)
         else {
-            self.bump_skip(spine.target, "skip-incomplete-binding-substitution");
+            self.bump_incomplete_binding_substitution(
+                spine.target,
+                &original,
+                &principal_substitutions,
+            );
             debug_incomplete_binding_substitution(&original, &principal_substitutions);
             return None;
         };
@@ -1095,9 +1146,8 @@ fn debug_incomplete_binding_substitution(
     if std::env::var_os("YULANG_DEBUG_SUBST_SPECIALIZE").is_none() {
         return;
     }
-    let missing = binding_substitution_vars(binding)
+    let missing = missing_binding_substitution_vars(binding, substitutions)
         .into_iter()
-        .filter(|var| substitutions.get(var).is_none_or(core_type_has_vars))
         .map(|var| var.0)
         .collect::<Vec<_>>()
         .join(", ");
@@ -1105,6 +1155,18 @@ fn debug_incomplete_binding_substitution(
         "subst specialize skip incomplete-binding-substitution {:?}: missing=[{}]",
         binding.name, missing
     );
+}
+
+fn missing_binding_substitution_vars(
+    binding: &Binding,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> Vec<core_ir::TypeVar> {
+    let mut vars = binding_substitution_vars(binding)
+        .into_iter()
+        .filter(|var| substitutions.get(var).is_none_or(core_type_has_vars))
+        .collect::<Vec<_>>();
+    vars.sort_by(|left, right| left.0.cmp(&right.0));
+    vars
 }
 
 fn evidence_substitution_map(
@@ -1142,6 +1204,36 @@ fn substitutions_from_evidence(
     } else {
         None
     }
+}
+
+fn initial_substitution_candidates(
+    instantiation: Option<&TypeInstantiation>,
+    evidence: Option<&core_ir::ApplyEvidence>,
+    binding: &Binding,
+) -> BTreeMap<core_ir::TypeVar, core_ir::Type> {
+    let params = binding_substitution_vars(binding);
+    let mut substitutions = BTreeMap::new();
+    if let Some(instantiation) = instantiation
+        && instantiation.target == binding.name
+    {
+        substitutions.extend(
+            instantiation
+                .args
+                .iter()
+                .filter(|substitution| params.contains(&substitution.var))
+                .map(|substitution| (substitution.var.clone(), substitution.ty.clone())),
+        );
+    }
+    if let Some(evidence) = evidence {
+        substitutions.extend(
+            evidence
+                .substitutions
+                .iter()
+                .filter(|substitution| params.contains(&substitution.var))
+                .map(|substitution| (substitution.var.clone(), substitution.ty.clone())),
+        );
+    }
+    substitutions
 }
 
 fn complete_binding_substitutions(

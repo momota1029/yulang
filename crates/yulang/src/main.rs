@@ -922,11 +922,19 @@ fn print_substitution_specialize_profile(profile: &runtime::MonomorphizePassProf
             .map(|reason| format!("{}={}", reason.reason, reason.count))
             .collect::<Vec<_>>()
             .join(", ");
+        let missing_vars = target
+            .missing_vars
+            .iter()
+            .take(8)
+            .map(|var| format!("{}={}", var.var.0, var.count))
+            .collect::<Vec<_>>()
+            .join(", ");
         eprintln!(
-            "                skip_target {} total={} reasons=[{}]",
+            "                skip_target {} total={} reasons=[{}] missing_vars=[{}]",
             format_core_path(&target.target),
             total,
-            reasons
+            reasons,
+            missing_vars,
         );
     }
 }

@@ -126,11 +126,18 @@ pub struct SubstitutionSpecializeProfile {
 pub struct SubstitutionSpecializeTargetSkips {
     pub target: core_ir::Path,
     pub reasons: Vec<SubstitutionSpecializeSkipCount>,
+    pub missing_vars: Vec<SubstitutionSpecializeMissingVarCount>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubstitutionSpecializeSkipCount {
     pub reason: &'static str,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionSpecializeMissingVarCount {
+    pub var: core_ir::TypeVar,
     pub count: usize,
 }
 
