@@ -93,6 +93,12 @@ pub struct RuntimeAdapterProfile {
     pub apply_evidence_value_to_thunk: usize,
     pub apply_evidence_thunk_to_value: usize,
     pub apply_evidence_bind_here: usize,
+    pub apply_evidence_adapter_with_evidence: usize,
+    pub apply_evidence_adapter_with_source_edge: usize,
+    pub apply_evidence_adapter_without_evidence: usize,
+    pub apply_evidence_value_to_thunk_with_source_edge: usize,
+    pub apply_evidence_thunk_to_value_with_source_edge: usize,
+    pub apply_evidence_bind_here_with_source_edge: usize,
     pub reused_thunk: usize,
     pub forced_effect_thunk: usize,
 }

@@ -343,6 +343,14 @@ impl Lowerer<'_> {
                 let arg = match arg {
                     Some(arg) => arg,
                     None => {
+                        let arg_source = if evidence
+                            .as_ref()
+                            .is_some_and(|evidence| evidence.arg_source_edge.is_some())
+                        {
+                            TypeSource::ApplyArgumentEvidence
+                        } else {
+                            TypeSource::ApplyEvidence
+                        };
                         let expected_arg = if callee_is_effect_operation
                             && matches!(arg_ty, RuntimeType::Thunk { .. })
                         {
@@ -390,7 +398,7 @@ impl Lowerer<'_> {
                             arg_expr.take().expect("arg should be present"),
                             expected_arg,
                             locals,
-                            TypeSource::ApplyEvidence,
+                            arg_source,
                         )?
                     }
                 };
@@ -416,19 +424,43 @@ impl Lowerer<'_> {
                     &result_ty,
                 );
                 let mut final_fun_parts = function_parts(&callee.ty).unwrap_or(final_fun_parts);
+                let apply_arg_adapter_source = evidence
+                    .as_ref()
+                    .map(|evidence| RuntimeAdapterSource {
+                        has_apply_evidence: true,
+                        has_apply_arg_source_edge: evidence.arg_source_edge.is_some(),
+                    })
+                    .or(Some(RuntimeAdapterSource {
+                        has_apply_evidence: false,
+                        has_apply_arg_source_edge: false,
+                    }));
                 let arg = if matches!(callee.kind, ExprKind::EffectOp(_)) {
                     prepare_effect_operation_arg(
                         arg,
                         &final_fun_parts.param,
-                        TypeSource::ApplyEvidence,
+                        if apply_arg_adapter_source
+                            .is_some_and(|source| source.has_apply_arg_source_edge)
+                        {
+                            TypeSource::ApplyArgumentEvidence
+                        } else {
+                            TypeSource::ApplyEvidence
+                        },
                         &mut self.runtime_adapter_profile,
+                        apply_arg_adapter_source,
                     )?
                 } else {
-                    prepare_expr_for_expected_profiled(
+                    prepare_expr_for_expected_with_adapter_source_profiled(
                         arg,
                         &final_fun_parts.param,
-                        TypeSource::ApplyEvidence,
+                        if apply_arg_adapter_source
+                            .is_some_and(|source| source.has_apply_arg_source_edge)
+                        {
+                            TypeSource::ApplyArgumentEvidence
+                        } else {
+                            TypeSource::ApplyEvidence
+                        },
                         &mut self.runtime_adapter_profile,
+                        apply_arg_adapter_source,
                     )?
                 };
                 require_apply_arg_compatible(
@@ -1570,13 +1602,20 @@ fn prepare_effect_operation_arg(
     expected: &RuntimeType,
     source: TypeSource,
     profile: &mut RuntimeAdapterProfile,
+    adapter_source: Option<RuntimeAdapterSource>,
 ) -> RuntimeResult<Expr> {
     match (expected, &arg.ty) {
         (
             RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_)),
             RuntimeType::Thunk { .. },
         ) => Ok(force_value_expr_profiled(arg, profile).0),
-        _ => prepare_expr_for_expected_profiled(arg, expected, source, profile),
+        _ => prepare_expr_for_expected_with_adapter_source_profiled(
+            arg,
+            expected,
+            source,
+            profile,
+            adapter_source,
+        ),
     }
 }
 

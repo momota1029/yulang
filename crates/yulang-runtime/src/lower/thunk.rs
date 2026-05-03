@@ -82,6 +82,16 @@ pub(super) fn prepare_expr_for_expected_profiled(
     source: TypeSource,
     profile: &mut RuntimeAdapterProfile,
 ) -> RuntimeResult<Expr> {
+    prepare_expr_for_expected_with_adapter_source_profiled(expr, expected, source, profile, None)
+}
+
+pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
+    expr: Expr,
+    expected: &RuntimeType,
+    source: TypeSource,
+    profile: &mut RuntimeAdapterProfile,
+    adapter_source: Option<RuntimeAdapterSource>,
+) -> RuntimeResult<Expr> {
     match expected {
         RuntimeType::Thunk { effect, value } => match &expr.ty {
             RuntimeType::Thunk { .. } => {
@@ -94,8 +104,16 @@ pub(super) fn prepare_expr_for_expected_profiled(
                 let value = more_informative_hir_type(value, &expr.ty);
                 let ty = RuntimeType::thunk(effect.clone(), value.clone());
                 profile.value_to_thunk += 1;
-                if matches!(source, TypeSource::ApplyEvidence) {
+                if apply_adapter_source(source) {
                     profile.apply_evidence_value_to_thunk += 1;
+                    if let Some(adapter_source) = adapter_source {
+                        adapter_source.profile_apply_adapter(profile);
+                    }
+                    if apply_argument_adapter_source(source)
+                        || adapter_source.is_some_and(|source| source.has_apply_arg_source_edge)
+                    {
+                        profile.apply_evidence_value_to_thunk_with_source_edge += 1;
+                    }
                 }
                 Ok(Expr::typed(
                     ExprKind::Thunk {
@@ -113,15 +131,52 @@ pub(super) fn prepare_expr_for_expected_profiled(
             Ok(expr)
         }
         _ => {
-            if matches!(expr.ty, RuntimeType::Thunk { .. })
-                && matches!(source, TypeSource::ApplyEvidence)
-            {
+            if matches!(expr.ty, RuntimeType::Thunk { .. }) && apply_adapter_source(source) {
                 profile.apply_evidence_thunk_to_value += 1;
                 profile.apply_evidence_bind_here += 1;
+                if let Some(adapter_source) = adapter_source {
+                    adapter_source.profile_apply_adapter(profile);
+                }
+                if apply_argument_adapter_source(source)
+                    || adapter_source.is_some_and(|source| source.has_apply_arg_source_edge)
+                {
+                    profile.apply_evidence_thunk_to_value_with_source_edge += 1;
+                    profile.apply_evidence_bind_here_with_source_edge += 1;
+                }
             }
             let (expr, actual) = force_value_expr_profiled(expr, profile);
             require_same_hir_type(expected, &actual, source)?;
             Ok(expr)
+        }
+    }
+}
+
+fn apply_adapter_source(source: TypeSource) -> bool {
+    matches!(
+        source,
+        TypeSource::ApplyEvidence | TypeSource::ApplyArgumentEvidence
+    )
+}
+
+fn apply_argument_adapter_source(source: TypeSource) -> bool {
+    matches!(source, TypeSource::ApplyArgumentEvidence)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RuntimeAdapterSource {
+    pub has_apply_evidence: bool,
+    pub has_apply_arg_source_edge: bool,
+}
+
+impl RuntimeAdapterSource {
+    fn profile_apply_adapter(self, profile: &mut RuntimeAdapterProfile) {
+        if self.has_apply_evidence {
+            profile.apply_evidence_adapter_with_evidence += 1;
+        } else {
+            profile.apply_evidence_adapter_without_evidence += 1;
+        }
+        if self.has_apply_arg_source_edge {
+            profile.apply_evidence_adapter_with_source_edge += 1;
         }
     }
 }

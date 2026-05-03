@@ -70,6 +70,7 @@ pub enum TypeSource {
     BindingGraph,
     RootGraph,
     ApplyEvidence,
+    ApplyArgumentEvidence,
     JoinEvidence,
     Expected,
     Local,
@@ -133,6 +134,7 @@ This usually means a name, field, method, or operator could not be resolved."
             } => {
                 let context = match source {
                     TypeSource::ApplyEvidence => "while applying a function",
+                    TypeSource::ApplyArgumentEvidence => "while checking a function argument",
                     TypeSource::JoinEvidence => "while joining branch results",
                     TypeSource::RootGraph => "while checking a top-level expression",
                     TypeSource::BindingScheme | TypeSource::BindingGraph => {
