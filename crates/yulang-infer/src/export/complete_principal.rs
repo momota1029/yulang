@@ -44,6 +44,7 @@ pub struct ExpectedEdgeEvidence {
     pub expected_effect: Option<core_ir::TypeBounds>,
     pub closed: bool,
     pub informative: bool,
+    pub runtime_usable: bool,
 }
 
 pub(super) fn complete_coerce_principal_evidence(
@@ -107,6 +108,16 @@ pub(super) fn complete_expected_edge_evidence(
         || expected_effect
             .as_ref()
             .is_some_and(type_bounds_informative);
+    let runtime_usable = closed
+        && informative
+        && value_type_bounds_runtime_usable(&actual)
+        && value_type_bounds_runtime_usable(&expected)
+        && actual_effect
+            .as_ref()
+            .is_none_or(effect_type_bounds_runtime_usable)
+        && expected_effect
+            .as_ref()
+            .is_none_or(effect_type_bounds_runtime_usable);
     ExpectedEdgeEvidence {
         id: edge.id,
         kind: edge.kind,
@@ -116,6 +127,7 @@ pub(super) fn complete_expected_edge_evidence(
         expected_effect,
         closed,
         informative,
+        runtime_usable,
     }
 }
 
@@ -695,6 +707,101 @@ fn type_informative(ty: &core_ir::Type) -> bool {
     }
 }
 
+fn value_type_bounds_runtime_usable(bounds: &core_ir::TypeBounds) -> bool {
+    (bounds.lower.is_some() || bounds.upper.is_some())
+        && bounds
+            .lower
+            .as_deref()
+            .is_none_or(value_type_runtime_usable)
+        && bounds
+            .upper
+            .as_deref()
+            .is_none_or(value_type_runtime_usable)
+}
+
+fn effect_type_bounds_runtime_usable(bounds: &core_ir::TypeBounds) -> bool {
+    (bounds.lower.is_some() || bounds.upper.is_some())
+        && bounds
+            .lower
+            .as_deref()
+            .is_none_or(effect_type_runtime_usable)
+        && bounds
+            .upper
+            .as_deref()
+            .is_none_or(effect_type_runtime_usable)
+}
+
+fn value_type_runtime_usable(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
+        core_ir::Type::Named { args, .. } => args.iter().all(type_arg_runtime_usable),
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            value_type_runtime_usable(param)
+                && effect_type_runtime_usable(param_effect)
+                && effect_type_runtime_usable(ret_effect)
+                && value_type_runtime_usable(ret)
+        }
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().all(value_type_runtime_usable)
+        }
+        core_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .all(|field| value_type_runtime_usable(&field.value))
+                && record
+                    .spread
+                    .as_ref()
+                    .is_none_or(record_spread_runtime_usable)
+        }
+        core_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .all(|case| case.payloads.iter().all(value_type_runtime_usable))
+                && variant
+                    .tail
+                    .as_deref()
+                    .is_none_or(value_type_runtime_usable)
+        }
+        core_ir::Type::Row { items, tail } => {
+            items.iter().all(effect_type_runtime_usable) && effect_type_runtime_usable(tail)
+        }
+        core_ir::Type::Recursive { body, .. } => value_type_runtime_usable(body),
+    }
+}
+
+fn effect_type_runtime_usable(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Never => true,
+        core_ir::Type::Any | core_ir::Type::Var(_) => false,
+        core_ir::Type::Row { items, tail } => {
+            items.iter().all(effect_type_runtime_usable) && effect_type_runtime_usable(tail)
+        }
+        _ => value_type_runtime_usable(ty),
+    }
+}
+
+fn record_spread_runtime_usable(spread: &core_ir::RecordSpread) -> bool {
+    match spread {
+        core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+            value_type_runtime_usable(ty)
+        }
+    }
+}
+
+fn type_arg_runtime_usable(arg: &core_ir::TypeArg) -> bool {
+    match arg {
+        core_ir::TypeArg::Type(ty) => value_type_runtime_usable(ty),
+        core_ir::TypeArg::Bounds(bounds) => value_type_bounds_runtime_usable(bounds),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -841,5 +948,6 @@ mod tests {
         assert!(evidence.expected_effect.is_none());
         assert!(!evidence.closed);
         assert!(evidence.informative);
+        assert!(!evidence.runtime_usable);
     }
 }

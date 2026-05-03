@@ -1147,7 +1147,7 @@ fn infer_error_expected_context(
             format_infer_neg(state, error.neg),
             format_infer_pos(state, error.pos),
         ),
-        edge: Some(infer_expected_edge_flow_context(state, error, edge)),
+        edge: Some(infer_expected_edge_flow_context(state, edge)),
     })
 }
 
@@ -1243,6 +1243,7 @@ fn format_expected_edge_evidence(evidence: &yulang_infer::ExpectedEdgeEvidence) 
     }
     parts.push(format!("closed={}", evidence.closed));
     parts.push(format!("informative={}", evidence.informative));
+    parts.push(format!("runtime-usable={}", evidence.runtime_usable));
     parts.join(" ")
 }
 
@@ -1280,17 +1281,23 @@ fn infer_expected_edge_span_len(edge: &InferExpectedEdge) -> u32 {
         .unwrap_or(u32::MAX)
 }
 
-fn infer_expected_edge_flow_context(
-    state: &InferLowerState,
-    error: &InferTypeError,
-    edge: &InferExpectedEdge,
-) -> String {
+fn infer_expected_edge_flow_context(state: &InferLowerState, edge: &InferExpectedEdge) -> String {
+    let actual = yulang_infer::export::types::export_coalesced_type_bounds_for_tv(
+        &state.infer,
+        edge.actual_tv,
+    );
+    let expected = yulang_infer::export::types::export_coalesced_type_bounds_for_tv(
+        &state.infer,
+        edge.expected_tv,
+    );
     let mut parts = vec![format!(
-        "{} {} => {} {}",
+        "#{} {} {} {} => {} {}",
+        edge.id.0,
+        format_expected_edge_kind(edge.kind),
         infer_expected_edge_actual_label(edge.kind),
-        format_infer_pos(state, error.pos),
+        format_core_bounds(&actual),
         infer_expected_edge_expected_label(edge.kind),
-        format_infer_neg(state, error.neg),
+        format_core_bounds(&expected),
     )];
     if let (Some(actual_eff), Some(expected_eff)) = (edge.actual_eff, edge.expected_eff) {
         let actual_eff = yulang_infer::export::types::export_coalesced_type_bounds_for_tv(
@@ -3166,13 +3173,15 @@ mod tests {
             .find(|error| matches!(error.kind, InferTypeErrorKind::ConstructorMismatch))
             .expect("annotation mismatch should report constructor mismatch");
 
+        let context = infer_error_expected_context(&state, error).expect("expected context");
         assert_eq!(
-            infer_error_expected_context(&state, error),
-            Some(InferExpectedContext {
-                summary: "annotation expected int; expression provides std::str::str".to_string(),
-                edge: Some("expression actual std::str::str => annotation int".to_string()),
-            }),
+            context.summary,
+            "annotation expected int; expression provides std::str::str"
         );
+        let edge = context.edge.expect("from edge");
+        assert!(edge.starts_with("#0 annotation expression actual "));
+        assert!(edge.contains("std::str::str"));
+        assert!(edge.contains("=> annotation "));
     }
 
     #[test]
@@ -3189,14 +3198,15 @@ mod tests {
             .find(|error| matches!(error.kind, InferTypeErrorKind::ConstructorMismatch))
             .expect("argument mismatch should report constructor mismatch");
 
+        let context = infer_error_expected_context(&state, error).expect("expected context");
         assert_eq!(
-            infer_error_expected_context(&state, error),
-            Some(InferExpectedContext {
-                summary: "function argument expected int; expression provides std::str::str"
-                    .to_string(),
-                edge: Some("argument actual std::str::str => parameter int".to_string()),
-            }),
+            context.summary,
+            "function argument expected int; expression provides std::str::str"
         );
+        let edge = context.edge.expect("from edge");
+        assert!(edge.starts_with("#1 application-argument argument actual "));
+        assert!(edge.contains("std::str::str"));
+        assert!(edge.contains("=> parameter "));
     }
 
     #[test]

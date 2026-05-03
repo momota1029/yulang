@@ -212,6 +212,8 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - act copy の `ExprKind::Coerce` は元の `ExpectedEdgeId` をコピーしない。コピー後は tv が別物になるので、当面は `edge_id: None` にして誤った `source_edge` リンクを避ける。
 - `ExpectedEdgeEvidence` に `informative` を追加し、`closed` と「runtime/debug hint として中身があるか」を分けた。`--infer --verbose-ir` の evidence 表示にも出る。
 - `ApplicationArgument` edge を通常 `ExprKind::App` と core `ApplyEvidence` へ接続した。`App` は `arg_edge_id` / `expected_arg_tv` を持ち、export 後は `ApplyEvidence.arg_source_edge` / `expected_arg` として見える。
+- `ExpectedEdgeEvidence` に `runtime_usable` を追加した。value 側では `Never` / `Any` / `Var` を runtime hint として使わず、effect 側では `Never` を empty effect として使える扱いに分ける。
+- type error の `from edge:` は局所的な `error.pos/error.neg` ではなく、選択された edge の coalesced actual/expected bounds と edge id/kind を出すようにした。
 - handler adapter は ExpectedEdge だけで足りなければ `ExpectedAdapterEdge` のような別種を考える。
   - `ThunkWrap` / `BindHere` / `HandlerAdapter` / `EffectResidual` の境界として扱う。
 - `RecordField` / `VariantPayload` は lowering を bidirectional にするより、まず annotation edge などから派生する diagnostic 用 `DerivedExpectedEdge` として検討する。
