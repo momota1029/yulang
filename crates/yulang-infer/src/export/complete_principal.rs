@@ -299,6 +299,36 @@ pub(super) fn apply_principal_substitutions(
         .collect()
 }
 
+pub(super) fn residual_apply_principal_scheme(
+    infer: &Infer,
+    principal_scheme: &core_ir::Scheme,
+    callee_tv: TypeVar,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+) -> Option<core_ir::Scheme> {
+    let substitutions = complete_apply_principal_evidence(
+        infer,
+        principal_scheme.clone(),
+        callee_tv,
+        arg_tv,
+        result_tv,
+    )
+    .map(|principal| {
+        principal
+            .substitutions
+            .into_iter()
+            .map(|substitution| (substitution.var, substitution.ty))
+            .collect::<BTreeMap<_, _>>()
+    })
+    .unwrap_or_default();
+    let body = substitute_core_type(&principal_scheme.body, &substitutions);
+    let (_, ret) = principal_fun_param_ret(&body)?;
+    Some(core_ir::Scheme {
+        requirements: principal_scheme.requirements.clone(),
+        body: ret.clone(),
+    })
+}
+
 struct ApplySlotTypes {
     arg: Option<core_ir::Type>,
     result: Option<core_ir::Type>,
@@ -336,6 +366,124 @@ fn principal_fun_param_ret(ty: &core_ir::Type) -> Option<(&core_ir::Type, &core_
             items.iter().find_map(principal_fun_param_ret)
         }
         _ => None,
+    }
+}
+
+fn substitute_core_type(
+    ty: &core_ir::Type,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> core_ir::Type {
+    match ty {
+        core_ir::Type::Var(var) => substitutions
+            .get(var)
+            .cloned()
+            .unwrap_or_else(|| core_ir::Type::Var(var.clone())),
+        core_ir::Type::Named { path, args } => core_ir::Type::Named {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(|arg| substitute_core_type_arg(arg, substitutions))
+                .collect(),
+        },
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => core_ir::Type::Fun {
+            param: Box::new(substitute_core_type(param, substitutions)),
+            param_effect: Box::new(substitute_core_type(param_effect, substitutions)),
+            ret_effect: Box::new(substitute_core_type(ret_effect, substitutions)),
+            ret: Box::new(substitute_core_type(ret, substitutions)),
+        },
+        core_ir::Type::Tuple(items) => core_ir::Type::Tuple(
+            items
+                .iter()
+                .map(|item| substitute_core_type(item, substitutions))
+                .collect(),
+        ),
+        core_ir::Type::Record(record) => core_ir::Type::Record(core_ir::RecordType {
+            fields: record
+                .fields
+                .iter()
+                .map(|field| core_ir::RecordField {
+                    name: field.name.clone(),
+                    value: substitute_core_type(&field.value, substitutions),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: record.spread.as_ref().map(|spread| match spread {
+                core_ir::RecordSpread::Head(ty) => {
+                    core_ir::RecordSpread::Head(Box::new(substitute_core_type(ty, substitutions)))
+                }
+                core_ir::RecordSpread::Tail(ty) => {
+                    core_ir::RecordSpread::Tail(Box::new(substitute_core_type(ty, substitutions)))
+                }
+            }),
+        }),
+        core_ir::Type::Variant(variant) => core_ir::Type::Variant(core_ir::VariantType {
+            cases: variant
+                .cases
+                .iter()
+                .map(|case| core_ir::VariantCase {
+                    name: case.name.clone(),
+                    payloads: case
+                        .payloads
+                        .iter()
+                        .map(|payload| substitute_core_type(payload, substitutions))
+                        .collect(),
+                })
+                .collect(),
+            tail: variant
+                .tail
+                .as_ref()
+                .map(|tail| Box::new(substitute_core_type(tail, substitutions))),
+        }),
+        core_ir::Type::Row { items, tail } => core_ir::Type::Row {
+            items: items
+                .iter()
+                .map(|item| substitute_core_type(item, substitutions))
+                .collect(),
+            tail: Box::new(substitute_core_type(tail, substitutions)),
+        },
+        core_ir::Type::Union(items) => core_ir::Type::Union(
+            items
+                .iter()
+                .map(|item| substitute_core_type(item, substitutions))
+                .collect(),
+        ),
+        core_ir::Type::Inter(items) => core_ir::Type::Inter(
+            items
+                .iter()
+                .map(|item| substitute_core_type(item, substitutions))
+                .collect(),
+        ),
+        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(substitute_core_type(body, substitutions)),
+        },
+        core_ir::Type::Never | core_ir::Type::Any => ty.clone(),
+    }
+}
+
+fn substitute_core_type_arg(
+    arg: &core_ir::TypeArg,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> core_ir::TypeArg {
+    match arg {
+        core_ir::TypeArg::Type(ty) => {
+            core_ir::TypeArg::Type(substitute_core_type(ty, substitutions))
+        }
+        core_ir::TypeArg::Bounds(bounds) => core_ir::TypeArg::Bounds(core_ir::TypeBounds {
+            lower: bounds
+                .lower
+                .as_ref()
+                .map(|ty| Box::new(substitute_core_type(ty, substitutions))),
+            upper: bounds
+                .upper
+                .as_ref()
+                .map(|ty| Box::new(substitute_core_type(ty, substitutions))),
+        }),
     }
 }
 

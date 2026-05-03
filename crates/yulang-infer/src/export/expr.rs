@@ -15,6 +15,7 @@ use crate::symbols::{Name, Path};
 
 use super::complete_principal::{
     complete_apply_principal_evidence, complete_coerce_principal_evidence,
+    residual_apply_principal_scheme,
 };
 use super::names::{export_name, export_path};
 use super::paths::collect_canonical_binding_paths;
@@ -430,8 +431,8 @@ impl<'a> ExprExporter<'a> {
         evidence
     }
 
-    fn principal_callee_scheme(&self, callee: &TypedExpr) -> Option<core_ir::Scheme> {
-        let def = match &callee.kind {
+    fn principal_callee_scheme(&self, expr: &TypedExpr) -> Option<core_ir::Scheme> {
+        let def = match &expr.kind {
             ExprKind::Var(def) => Some(canonical_runtime_export_def(self.state, *def)),
             ExprKind::Ref(ref_id) => self
                 .state
@@ -439,6 +440,22 @@ impl<'a> ExprExporter<'a> {
                 .refs
                 .get(*ref_id)
                 .map(|def| canonical_runtime_export_def(self.state, def)),
+            ExprKind::App {
+                callee: app_callee,
+                arg,
+                expected_callee_tv: _,
+                expected_arg_tv: _,
+                ..
+            } => {
+                let scheme = self.principal_callee_scheme(app_callee)?;
+                return residual_apply_principal_scheme(
+                    &self.state.infer,
+                    &scheme,
+                    app_callee.tv,
+                    arg.tv,
+                    expr.tv,
+                );
+            }
             _ => None,
         }?;
         self.state
