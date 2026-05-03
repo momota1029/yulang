@@ -215,9 +215,51 @@ mod tests {
             },
         };
 
-        let copied = transform_copied_principal_body(
-            &mut state,
-            &expr,
+        let copied = copy_expr(&mut state, &expr);
+
+        let ExprKind::Coerce { edge_id, .. } = copied.kind else {
+            panic!("expected copied coerce");
+        };
+        assert_eq!(edge_id, None);
+    }
+
+    #[test]
+    fn copied_app_drops_argument_edge_id() {
+        let mut state = LowerState::new();
+        let callee_tv = state.fresh_tv();
+        let arg_tv = state.fresh_tv();
+        let result_tv = state.fresh_tv();
+        let expected_arg_tv = state.fresh_tv();
+        let eff = state.fresh_tv();
+        let expr = TypedExpr {
+            tv: result_tv,
+            eff,
+            kind: ExprKind::App {
+                callee: Box::new(unit_expr(callee_tv, eff)),
+                arg: Box::new(unit_expr(arg_tv, eff)),
+                arg_edge_id: Some(ExpectedEdgeId(9)),
+                expected_arg_tv,
+            },
+        };
+
+        let copied = copy_expr(&mut state, &expr);
+
+        let ExprKind::App {
+            arg_edge_id,
+            expected_arg_tv: copied_expected_arg_tv,
+            ..
+        } = copied.kind
+        else {
+            panic!("expected copied app");
+        };
+        assert_eq!(arg_edge_id, None);
+        assert_ne!(copied_expected_arg_tv, expected_arg_tv);
+    }
+
+    fn copy_expr(state: &mut LowerState, expr: &TypedExpr) -> TypedExpr {
+        transform_copied_principal_body(
+            state,
+            expr,
             &HashMap::new(),
             &[],
             &Path {
@@ -227,12 +269,15 @@ mod tests {
                 segments: Vec::new(),
             },
             &[],
-        );
+        )
+    }
 
-        let ExprKind::Coerce { edge_id, .. } = copied.kind else {
-            panic!("expected copied coerce");
-        };
-        assert_eq!(edge_id, None);
+    fn unit_expr(tv: TypeVar, eff: TypeVar) -> TypedExpr {
+        TypedExpr {
+            tv,
+            eff,
+            kind: ExprKind::Lit(Lit::Unit),
+        }
     }
 }
 
