@@ -164,6 +164,8 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 27. 既存の cast 情報を棚卸しした。infer の `ExprKind::Coerce` は `actual_tv` / `expected_tv` を持っていたが、Core IR へ export すると `Coerce { expr }` だけになり、境界型が失われていた。`core_ir::CoerceEvidence { actual, expected }` を追加し、export 時に `actual_tv` / `expected_tv` の bounds を載せるようにした。runtime lower は閉じた evidence だけを `from` / `to` の補助として使う。未閉じの evidence を inner の期待型へ押し込むと `std::var::ref::update_effect__ddmono*` が多相のまま残るため、今は保守的に使わない。
 28. `--core-ir --verbose-ir` で `coerce value :: coerce[actual=..., expected=...]` のように表示できるようにした。これで cast hole の存在は CLI から確認できる。`examples/01_struct_with.yu` の struct constructor / field projection で evidence が出ることを確認した。
 29. `CoerceEvidence` は生の推論 bounds ではなく、`complete_principal` 経由で coerce slot 内の actual/expected を一緒に coalesce してから出すようにした。これにより `examples/01_struct_with.yu` の field projection は `coerce[actual=point, expected={x: int, y: int}]` のように主型に近い形で見える。constructor の `actual=_ expected=_` は、その境界だけでは具体型が取れないため空のまま残る。
+30. `ExpectedEdge` を infer lowering 側に追加した。これは runtime IR へは渡さない軽い subsumption point の記録で、`actual_tv` / `expected_tv` / optional effect tv / kind / cause を持つ。最初の対象は `if condition`、`if branch`、`case guard`、`case branch`、`catch guard`、`catch branch`。`Coerce` は representation / runtime 的に意味のある境界へ残し、広い expected-type 境界は `ExpectedEdge` で観測する方針にした。application argument は関数 param 用の中間 tv を作ると推論形が変わるため、まだ対象外。
+31. `ExpectedEdge` を CLI の `--infer --verbose-ir` で `expected-edges:` として見られるようにした。表示は `LowerState` 内の table を compact bounds で整形するだけで、Core IR / runtime IR にはまだ流さない。これで broad expected-type 境界を runtime に影響させず棚卸しできる。
 
 ## Notes
 
@@ -175,3 +177,4 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - 最終形は「主型代入だけで全部を解く」ではなく、「主型代入 + constraint 生成時に置いた elaboration hole を埋める」形にする。cast 位置の選択は typing derivation に依存しうるため、実装として正規の elaboration 形をひとつ決める。
 - `CoerceEvidence` は IR 上の cast hole として保持できるようになったが、runtime lower が積極的に活用できるのは閉じた型だけ。未閉じの `actual` / `expected` をそのまま期待型として流すと、多相 helper が残る。次は `complete_principal` 側で slot-local に閉じた evidence を作るか、runtime 側で `AdapterHole` として遅延処理するかを分ける。
 - `CoerceEvidence.expected` を runtime lower の式型として親の `expected` より優先すると、`std::opt::opt::nil` などの多相 constructor が閉じきらず壊れる。runtime lower では親の文脈を優先し、coerce evidence は補助情報として扱う。
+- `ExpectedEdge` は今のところ `LowerState` 内の観測用 table と CLI verbose 表示で、export / runtime には影響しない。次は `ExpectedEdge` を principal elaboration evidence 生成に接続するか、application argument / annotation / assignment value へ広げるかを選ぶ。

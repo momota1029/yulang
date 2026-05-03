@@ -23,6 +23,7 @@ use yulang_infer::{
     SourceLowerProfile as InferSourceLowerProfile, SourceOptions,
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
     TypeErrorKind as InferTypeErrorKind, collect_compact_results as collect_infer_compact_results,
+    collect_expected_edges as collect_infer_expected_edges,
     collect_surface_diagnostics as collect_infer_surface_diagnostics, export_core_program,
     lower_entry_with_options_profiled as lower_infer_entry_with_options_profiled,
     lower_virtual_source_with_options_profiled as lower_infer_virtual_source_with_options_profiled,
@@ -550,6 +551,16 @@ fn run_infer_views(
         if let Some(rendered) = rendered {
             for (name, scheme) in rendered {
                 println!("{name} : {scheme}");
+            }
+            if options.verbose_ir {
+                let expected_edges = collect_infer_expected_edges(&state);
+                if !expected_edges.is_empty() {
+                    println!();
+                    println!("expected-edges:");
+                    for edge in expected_edges {
+                        println!("  {edge}");
+                    }
+                }
             }
         }
         if options.core_ir {

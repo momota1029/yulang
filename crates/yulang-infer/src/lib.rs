@@ -23,8 +23,9 @@ pub use diagnostic::{
     TypeOriginKind,
 };
 pub use display::{
-    collect_compact_results, collect_compact_results_for_paths, format_coalesced_scheme,
-    format_compact_scheme, render_compact_results, render_exported_compact_results,
+    collect_compact_results, collect_compact_results_for_paths, collect_expected_edges,
+    format_coalesced_scheme, format_compact_scheme, render_compact_results,
+    render_exported_compact_results,
 };
 pub use export::{
     export_core_program, export_principal_bindings, export_principal_module, export_scheme_body,

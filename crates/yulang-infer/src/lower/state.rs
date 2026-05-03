@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast::expr::TypedExpr;
-use crate::diagnostic::TypeOrigin;
+use crate::diagnostic::{ConstraintCause, ExpectedEdge, ExpectedEdgeKind, TypeOrigin};
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::ctx::LowerCtx;
 use crate::solve::Infer;
@@ -59,6 +59,9 @@ pub struct LowerState {
     pub top_level_blocks: Vec<(Path, crate::ast::expr::TypedBlock)>,
     /// top-level 式のために作った synthetic owner。
     pub top_level_expr_owners: Vec<DefId>,
+    /// 型制約を張ったときの「実際の型が文脈型として使われる」軽い記録。
+    /// runtime IR には影響させず、diagnostic / hover / 将来の elaboration evidence に使う。
+    pub expected_edges: Vec<ExpectedEdge>,
     /// 現在見えている型変数スコープ。
     pub type_var_scopes: Vec<HashMap<String, TypeVar>>,
     /// DefId → 参照時に露出する latent effect slot。
@@ -125,6 +128,7 @@ impl LowerState {
             runtime_export_schemes: HashMap::new(),
             top_level_blocks: Vec::new(),
             top_level_expr_owners: Vec::new(),
+            expected_edges: Vec::new(),
             type_var_scopes: Vec::new(),
             def_eff_tvs: HashMap::new(),
             var_ref_acts: HashMap::new(),
@@ -177,6 +181,42 @@ impl LowerState {
         let tv = self.fresh_tv_at(level);
         self.infer.register_origin(tv, origin);
         tv
+    }
+
+    pub fn record_expected_edge(
+        &mut self,
+        actual_tv: TypeVar,
+        expected_tv: TypeVar,
+        kind: ExpectedEdgeKind,
+        cause: ConstraintCause,
+    ) {
+        self.expected_edges.push(ExpectedEdge {
+            actual_tv,
+            expected_tv,
+            actual_eff: None,
+            expected_eff: None,
+            kind,
+            cause,
+        });
+    }
+
+    pub fn record_expected_edge_with_effects(
+        &mut self,
+        actual_tv: TypeVar,
+        expected_tv: TypeVar,
+        actual_eff: Option<TypeVar>,
+        expected_eff: Option<TypeVar>,
+        kind: ExpectedEdgeKind,
+        cause: ConstraintCause,
+    ) {
+        self.expected_edges.push(ExpectedEdge {
+            actual_tv,
+            expected_tv,
+            actual_eff,
+            expected_eff,
+            kind,
+            cause,
+        });
     }
 
     /// fresh な DefId を発行し、SCC に登録する。

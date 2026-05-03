@@ -2,13 +2,14 @@ use std::collections::{HashMap, HashSet};
 
 use yulang_core_ir as core_ir;
 
+use crate::diagnostic::{ExpectedEdge, ExpectedEdgeKind};
 use crate::display::format as display_format;
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::lower::LowerState;
 use crate::scheme::FrozenScheme;
 use crate::simplify::compact::{
     CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRow, CompactType,
-    CompactTypeScheme, CompactVariant,
+    CompactTypeScheme, CompactVariant, compact_type_var,
 };
 use crate::simplify::cooccur::CompactRoleConstraint;
 use crate::solve::{Infer, RoleConstraint};
@@ -29,6 +30,14 @@ pub fn render_exported_compact_results(state: &mut LowerState) -> Vec<(String, S
 
 pub fn collect_compact_results(state: &LowerState) -> Vec<(String, String)> {
     collect_compact_results_for_paths(state, &collect_user_observable_binding_paths(state))
+}
+
+pub fn collect_expected_edges(state: &LowerState) -> Vec<String> {
+    state
+        .expected_edges
+        .iter()
+        .map(|edge| format_expected_edge(state, edge))
+        .collect()
 }
 
 pub fn collect_compact_results_for_paths(
@@ -383,6 +392,55 @@ fn format_frozen_scheme_with_role_constraints(
         body
     } else {
         format!("{} => {}", rendered_constraints.join(", "), body)
+    }
+}
+
+fn format_expected_edge(state: &LowerState, edge: &ExpectedEdge) -> String {
+    let mut namer = VarNamer::default();
+    let actual = format_type_var_bounds(&state.infer, edge.actual_tv, &mut namer);
+    let expected = format_type_var_bounds(&state.infer, edge.expected_tv, &mut namer);
+    let effects = match (edge.actual_eff, edge.expected_eff) {
+        (Some(actual_eff), Some(expected_eff)) => {
+            let actual_eff = format_type_var_bounds(&state.infer, actual_eff, &mut namer);
+            let expected_eff = format_type_var_bounds(&state.infer, expected_eff, &mut namer);
+            format!(" effect {actual_eff} => {expected_eff}")
+        }
+        _ => String::new(),
+    };
+    let span = edge
+        .cause
+        .span
+        .map(|span| format!(" @{}..{}", u32::from(span.start()), u32::from(span.end())))
+        .unwrap_or_default();
+    format!(
+        "{}: {} => {}{}{}",
+        format_expected_edge_kind(edge.kind),
+        actual,
+        expected,
+        effects,
+        span,
+    )
+}
+
+fn format_type_var_bounds(infer: &Infer, tv: TypeVar, namer: &mut VarNamer) -> String {
+    let scheme = compact_type_var(infer, tv);
+    format_compact_bounds(&scheme.cty, namer)
+}
+
+fn format_expected_edge_kind(kind: ExpectedEdgeKind) -> &'static str {
+    match kind {
+        ExpectedEdgeKind::IfCondition => "if-condition",
+        ExpectedEdgeKind::IfBranch => "if-branch",
+        ExpectedEdgeKind::MatchGuard => "match-guard",
+        ExpectedEdgeKind::MatchBranch => "match-branch",
+        ExpectedEdgeKind::CatchGuard => "catch-guard",
+        ExpectedEdgeKind::CatchBranch => "catch-branch",
+        ExpectedEdgeKind::ApplicationArgument => "application-argument",
+        ExpectedEdgeKind::Annotation => "annotation",
+        ExpectedEdgeKind::RecordField => "record-field",
+        ExpectedEdgeKind::VariantPayload => "variant-payload",
+        ExpectedEdgeKind::AssignmentValue => "assignment-value",
+        ExpectedEdgeKind::RepresentationCoerce => "representation-coerce",
     }
 }
 

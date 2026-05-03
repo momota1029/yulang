@@ -4,7 +4,8 @@ use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::*;
-use crate::display::dump::render_compact_results;
+use crate::diagnostic::ExpectedEdgeKind;
+use crate::display::dump::{collect_expected_edges, render_compact_results};
 
 fn run_with_large_stack<T>(f: impl FnOnce() -> T + Send + 'static) -> T
 where
@@ -2694,6 +2695,48 @@ fn lowers_plain_bool_if_conditions() {
 }
 
 #[test]
+fn records_expected_edges_for_if_conditions_and_branches() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            "my f(x: bool) = if x { 1 } else { 0 }",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        let condition_edges = lowered
+            .state
+            .expected_edges
+            .iter()
+            .filter(|edge| edge.kind == ExpectedEdgeKind::IfCondition)
+            .count();
+        let branch_edges = lowered
+            .state
+            .expected_edges
+            .iter()
+            .filter(|edge| edge.kind == ExpectedEdgeKind::IfBranch)
+            .count();
+
+        assert_eq!(condition_edges, 1);
+        assert_eq!(branch_edges, 2);
+
+        let rendered_edges = collect_expected_edges(&lowered.state);
+        assert!(
+            rendered_edges
+                .iter()
+                .any(|edge| edge.contains("if-condition"))
+        );
+        assert!(rendered_edges.iter().any(|edge| edge.contains("if-branch")));
+    });
+}
+
+#[test]
 fn lowers_plain_bool_case_guards() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -2710,6 +2753,40 @@ fn lowers_plain_bool_case_guards() {
         .unwrap();
         let rendered = render_compact_results(&mut lowered.state);
         assert_eq!(rendered_type(&rendered, "f"), "bool -> int");
+    });
+}
+
+#[test]
+fn records_expected_edges_for_case_guards_and_branches() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            "my f(x: bool) = case 1:\n  1 if x -> 1\n  _ -> 0\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        let guard_edges = lowered
+            .state
+            .expected_edges
+            .iter()
+            .filter(|edge| edge.kind == ExpectedEdgeKind::MatchGuard)
+            .count();
+        let branch_edges = lowered
+            .state
+            .expected_edges
+            .iter()
+            .filter(|edge| edge.kind == ExpectedEdgeKind::MatchBranch)
+            .count();
+
+        assert_eq!(guard_edges, 1);
+        assert_eq!(branch_edges, 2);
     });
 }
 
@@ -2797,6 +2874,40 @@ fn lowers_plain_bool_catch_guards() {
         .unwrap();
         let rendered = render_compact_results(&mut lowered.state);
         assert_eq!(rendered_type(&rendered, "f"), "bool -> int");
+    });
+}
+
+#[test]
+fn records_expected_edges_for_catch_guards_and_branches() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            "my f(x: bool) = catch 1:\n  n if x -> n\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        let guard_edges = lowered
+            .state
+            .expected_edges
+            .iter()
+            .filter(|edge| edge.kind == ExpectedEdgeKind::CatchGuard)
+            .count();
+        let branch_edges = lowered
+            .state
+            .expected_edges
+            .iter()
+            .filter(|edge| edge.kind == ExpectedEdgeKind::CatchBranch)
+            .count();
+
+        assert_eq!(guard_edges, 1);
+        assert_eq!(branch_edges, 1);
     });
 }
 

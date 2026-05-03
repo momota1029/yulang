@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use yulang_parser::lex::SyntaxKind;
 
 use crate::ast::expr::{CatchArmKind, ExprKind, TypedCatchArm, TypedExpr};
-use crate::diagnostic::{ConstraintCause, ConstraintReason};
+use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
 use crate::lower::stmt::{bind_pattern_locals, connect_pat_shape_and_locals, lower_pat};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::scheme::{
@@ -47,6 +47,17 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
             match &arm.kind {
                 CatchArmKind::Value(pat, body) => {
                     saw_value_arm = true;
+                    state.record_expected_edge_with_effects(
+                        body.tv,
+                        tv,
+                        Some(body.eff),
+                        Some(eff),
+                        ExpectedEdgeKind::CatchBranch,
+                        ConstraintCause {
+                            span: None,
+                            reason: ConstraintReason::IfBranch,
+                        },
+                    );
                     state.infer.constrain(Pos::Var(body.tv), Neg::Var(tv));
                     state.infer.constrain(Pos::Var(body.eff), Neg::Var(eff));
                     state.infer.constrain(Pos::Var(comp.tv), Neg::Var(pat.tv));
@@ -136,6 +147,17 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
                         );
                     }
 
+                    state.record_expected_edge_with_effects(
+                        body.tv,
+                        tv,
+                        Some(body.eff),
+                        Some(eff),
+                        ExpectedEdgeKind::CatchBranch,
+                        ConstraintCause {
+                            span: None,
+                            reason: ConstraintReason::IfBranch,
+                        },
+                    );
                     state.infer.constrain(Pos::Var(body.tv), Neg::Var(tv));
                     state.infer.constrain(Pos::Var(body.eff), Neg::Var(eff));
                 }
@@ -697,22 +719,27 @@ fn lower_catch_arm(
             .map(|c| lower_expr(state, &c))
             .unwrap_or_else(|| unit_expr(state));
         if let Some(guard) = guard.as_ref() {
+            let cause = ConstraintCause {
+                span: Some(node.text_range()),
+                reason: ConstraintReason::IfCondition,
+            };
+            let expected_bool_tv = fresh_exact_bool_tv(state);
+            state.record_expected_edge_with_effects(
+                guard.tv,
+                expected_bool_tv,
+                Some(guard.eff),
+                Some(body.eff),
+                ExpectedEdgeKind::CatchGuard,
+                cause.clone(),
+            );
             state.infer.constrain_with_cause(
                 Pos::Var(guard.tv),
                 neg_prim_type("bool"),
-                ConstraintCause {
-                    span: Some(node.text_range()),
-                    reason: ConstraintReason::IfCondition,
-                },
+                cause.clone(),
             );
-            state.infer.constrain_with_cause(
-                prim_type("bool"),
-                Neg::Var(guard.tv),
-                ConstraintCause {
-                    span: Some(node.text_range()),
-                    reason: ConstraintReason::IfCondition,
-                },
-            );
+            state
+                .infer
+                .constrain_with_cause(prim_type("bool"), Neg::Var(guard.tv), cause);
             state
                 .infer
                 .constrain(Pos::Var(guard.eff), Neg::Var(body.eff));
@@ -749,22 +776,27 @@ fn lower_catch_arm(
             .map(|c| lower_expr(state, &c))
             .unwrap_or_else(|| unit_expr(state));
         if let Some(guard) = guard.as_ref() {
+            let cause = ConstraintCause {
+                span: Some(node.text_range()),
+                reason: ConstraintReason::IfCondition,
+            };
+            let expected_bool_tv = fresh_exact_bool_tv(state);
+            state.record_expected_edge_with_effects(
+                guard.tv,
+                expected_bool_tv,
+                Some(guard.eff),
+                Some(body.eff),
+                ExpectedEdgeKind::CatchGuard,
+                cause.clone(),
+            );
             state.infer.constrain_with_cause(
                 Pos::Var(guard.tv),
                 neg_prim_type("bool"),
-                ConstraintCause {
-                    span: Some(node.text_range()),
-                    reason: ConstraintReason::IfCondition,
-                },
+                cause.clone(),
             );
-            state.infer.constrain_with_cause(
-                prim_type("bool"),
-                Neg::Var(guard.tv),
-                ConstraintCause {
-                    span: Some(node.text_range()),
-                    reason: ConstraintReason::IfCondition,
-                },
-            );
+            state
+                .infer
+                .constrain_with_cause(prim_type("bool"), Neg::Var(guard.tv), cause);
             state
                 .infer
                 .constrain(Pos::Var(guard.eff), Neg::Var(body.eff));
@@ -777,6 +809,13 @@ fn lower_catch_arm(
     let result = TypedCatchArm { tv, guard, kind };
     state.lower_detail.lower_catch_arm += start.elapsed();
     result
+}
+
+fn fresh_exact_bool_tv(state: &mut LowerState) -> crate::ids::TypeVar {
+    let tv = state.fresh_tv();
+    state.infer.constrain(prim_type("bool"), Neg::Var(tv));
+    state.infer.constrain(Pos::Var(tv), neg_prim_type("bool"));
+    tv
 }
 
 fn extract_catch_effect_path(node: &SyntaxNode) -> Option<Path> {
