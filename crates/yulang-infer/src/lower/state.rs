@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ast::expr::{ExprKind, TypedExpr};
 use crate::diagnostic::{
-    ConstraintCause, ExpectedEdge, ExpectedEdgeId, ExpectedEdgeKind, TypeOrigin,
+    ConstraintCause, ExpectedAdapterEdge, ExpectedAdapterEdgeId, ExpectedAdapterEdgeKind,
+    ExpectedEdge, ExpectedEdgeId, ExpectedEdgeKind, TypeOrigin,
 };
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::ctx::LowerCtx;
@@ -65,6 +66,10 @@ pub struct LowerState {
     /// runtime IR には影響させず、diagnostic / hover / 将来の elaboration evidence に使う。
     pub expected_edges: Vec<ExpectedEdge>,
     next_expected_edge_id: u32,
+    /// runtime 実行形の変換境界を軽く観測する table。
+    /// まず debug / diagnostic 用に集め、閉じたものだけ将来 adapter evidence として使う。
+    pub expected_adapter_edges: Vec<ExpectedAdapterEdge>,
+    next_expected_adapter_edge_id: u32,
     /// 現在見えている型変数スコープ。
     pub type_var_scopes: Vec<HashMap<String, TypeVar>>,
     /// DefId → 参照時に露出する latent effect slot。
@@ -134,6 +139,8 @@ impl LowerState {
             top_level_expr_owners: Vec::new(),
             expected_edges: Vec::new(),
             next_expected_edge_id: 0,
+            expected_adapter_edges: Vec::new(),
+            next_expected_adapter_edge_id: 0,
             type_var_scopes: Vec::new(),
             def_eff_tvs: HashMap::new(),
             var_ref_acts: HashMap::new(),
@@ -234,6 +241,36 @@ impl LowerState {
     fn fresh_expected_edge_id(&mut self) -> ExpectedEdgeId {
         let id = ExpectedEdgeId(self.next_expected_edge_id);
         self.next_expected_edge_id += 1;
+        id
+    }
+
+    pub fn record_expected_adapter_edge(
+        &mut self,
+        kind: ExpectedAdapterEdgeKind,
+        source_expected_edge: Option<ExpectedEdgeId>,
+        actual_value: Option<TypeVar>,
+        expected_value: Option<TypeVar>,
+        actual_effect: Option<TypeVar>,
+        expected_effect: Option<TypeVar>,
+        cause: ConstraintCause,
+    ) -> ExpectedAdapterEdgeId {
+        let id = self.fresh_expected_adapter_edge_id();
+        self.expected_adapter_edges.push(ExpectedAdapterEdge {
+            id,
+            source_expected_edge,
+            actual_value,
+            expected_value,
+            actual_effect,
+            expected_effect,
+            kind,
+            cause,
+        });
+        id
+    }
+
+    fn fresh_expected_adapter_edge_id(&mut self) -> ExpectedAdapterEdgeId {
+        let id = ExpectedAdapterEdgeId(self.next_expected_adapter_edge_id);
+        self.next_expected_adapter_edge_id += 1;
         id
     }
 

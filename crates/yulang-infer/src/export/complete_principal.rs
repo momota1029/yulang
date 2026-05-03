@@ -17,7 +17,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use yulang_core_ir as core_ir;
 
-use crate::diagnostic::{ExpectedEdge, ExpectedEdgeId, ExpectedEdgeKind};
+use crate::diagnostic::{
+    ExpectedAdapterEdge, ExpectedAdapterEdgeId, ExpectedAdapterEdgeKind, ExpectedEdge,
+    ExpectedEdgeId, ExpectedEdgeKind,
+};
 use crate::ids::TypeVar;
 use crate::lower::LowerState;
 use crate::solve::Infer;
@@ -40,6 +43,20 @@ pub struct ExpectedEdgeEvidence {
     pub kind: ExpectedEdgeKind,
     pub actual: core_ir::TypeBounds,
     pub expected: core_ir::TypeBounds,
+    pub actual_effect: Option<core_ir::TypeBounds>,
+    pub expected_effect: Option<core_ir::TypeBounds>,
+    pub closed: bool,
+    pub informative: bool,
+    pub runtime_usable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpectedAdapterEdgeEvidence {
+    pub id: ExpectedAdapterEdgeId,
+    pub source_expected_edge: Option<ExpectedEdgeId>,
+    pub kind: ExpectedAdapterEdgeKind,
+    pub actual_value: Option<core_ir::TypeBounds>,
+    pub expected_value: Option<core_ir::TypeBounds>,
     pub actual_effect: Option<core_ir::TypeBounds>,
     pub expected_effect: Option<core_ir::TypeBounds>,
     pub closed: bool,
@@ -122,6 +139,16 @@ pub fn collect_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvi
         .collect()
 }
 
+pub fn collect_expected_adapter_edge_evidence(
+    state: &LowerState,
+) -> Vec<ExpectedAdapterEdgeEvidence> {
+    state
+        .expected_adapter_edges
+        .iter()
+        .map(|edge| complete_expected_adapter_edge_evidence(&state.infer, edge))
+        .collect()
+}
+
 pub fn collect_derived_expected_edge_evidence(
     state: &LowerState,
 ) -> Vec<DerivedExpectedEdgeEvidence> {
@@ -129,6 +156,60 @@ pub fn collect_derived_expected_edge_evidence(
         .iter()
         .flat_map(derive_expected_edge_evidence)
         .collect()
+}
+
+fn complete_expected_adapter_edge_evidence(
+    infer: &Infer,
+    edge: &ExpectedAdapterEdge,
+) -> ExpectedAdapterEdgeEvidence {
+    let actual_value = edge
+        .actual_value
+        .map(|tv| export_coalesced_type_bounds_for_tv(infer, tv));
+    let expected_value = edge
+        .expected_value
+        .map(|tv| export_coalesced_type_bounds_for_tv(infer, tv));
+    let actual_effect = edge
+        .actual_effect
+        .map(|tv| export_coalesced_type_bounds_for_tv(infer, tv));
+    let expected_effect = edge
+        .expected_effect
+        .map(|tv| export_coalesced_type_bounds_for_tv(infer, tv));
+    let closed = actual_value.as_ref().is_none_or(type_bounds_closed)
+        && expected_value.as_ref().is_none_or(type_bounds_closed)
+        && actual_effect.as_ref().is_none_or(type_bounds_closed)
+        && expected_effect.as_ref().is_none_or(type_bounds_closed);
+    let informative = actual_value.as_ref().is_some_and(type_bounds_informative)
+        || expected_value.as_ref().is_some_and(type_bounds_informative)
+        || actual_effect.as_ref().is_some_and(type_bounds_informative)
+        || expected_effect
+            .as_ref()
+            .is_some_and(type_bounds_informative);
+    let runtime_usable = closed
+        && informative
+        && actual_value
+            .as_ref()
+            .is_none_or(value_type_bounds_runtime_usable)
+        && expected_value
+            .as_ref()
+            .is_none_or(value_type_bounds_runtime_usable)
+        && actual_effect
+            .as_ref()
+            .is_none_or(effect_type_bounds_runtime_usable)
+        && expected_effect
+            .as_ref()
+            .is_none_or(effect_type_bounds_runtime_usable);
+    ExpectedAdapterEdgeEvidence {
+        id: edge.id,
+        source_expected_edge: edge.source_expected_edge,
+        kind: edge.kind,
+        actual_value,
+        expected_value,
+        actual_effect,
+        expected_effect,
+        closed,
+        informative,
+        runtime_usable,
+    }
 }
 
 pub(super) fn complete_expected_edge_evidence(
@@ -1320,6 +1401,23 @@ mod tests {
         assert!(!evidence.closed);
         assert!(evidence.informative);
         assert!(!evidence.runtime_usable);
+    }
+
+    #[test]
+    fn completes_expected_adapter_edge_evidence_with_exported_bounds() {
+        let state = parse_and_lower("pub act out:\n  pub say: str -> ()\n\nout::say \"hi\"\n");
+
+        let evidence = collect_expected_adapter_edge_evidence(&state)
+            .into_iter()
+            .find(|edge| edge.kind == ExpectedAdapterEdgeKind::EffectOperationArgument)
+            .expect("effect operation argument adapter evidence");
+
+        assert!(evidence.source_expected_edge.is_some());
+        assert!(evidence.actual_value.is_some());
+        assert!(evidence.expected_value.is_some());
+        assert!(evidence.actual_effect.is_some());
+        assert!(evidence.expected_effect.is_some());
+        assert!(evidence.informative);
     }
 
     #[test]

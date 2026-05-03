@@ -1,7 +1,9 @@
 use std::collections::HashSet;
 
 use crate::ast::expr::{ExprKind, TypedExpr};
-use crate::diagnostic::{ConstraintCause, ExpectedEdgeKind, TypeOrigin, TypeOriginKind};
+use crate::diagnostic::{
+    ConstraintCause, ExpectedAdapterEdgeKind, ExpectedEdgeKind, TypeOrigin, TypeOriginKind,
+};
 use crate::ids::TypeVar;
 use crate::lower::{FunctionSigEffectHint, LowerState};
 use crate::solve::DeferredRoleMethodCall;
@@ -103,8 +105,19 @@ pub(crate) fn make_app_with_cause(
         arg.tv,
         expected_arg_tv,
         ExpectedEdgeKind::ApplicationArgument,
-        cause,
+        cause.clone(),
     );
+    if matches!(&func.kind, ExprKind::Var(def) if state.effect_op_args.contains_key(def)) {
+        state.record_expected_adapter_edge(
+            ExpectedAdapterEdgeKind::EffectOperationArgument,
+            Some(arg_edge_id),
+            Some(arg.tv),
+            Some(expected_arg_tv),
+            Some(arg.eff),
+            Some(arg_eff_for_slot),
+            cause,
+        );
+    }
     if pure_argument_slot {
         state.infer.constrain(Pos::Var(arg.eff), Neg::Var(call_eff));
     }

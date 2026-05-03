@@ -19,8 +19,9 @@ pub use ast::{
     ExprKind, Lit, TypedBlock, TypedCatchArm, TypedExpr, TypedMatchArm, TypedPat, TypedStmt,
 };
 pub use diagnostic::{
-    ConstraintCause, ConstraintReason, ExpectedEdge, ExpectedEdgeId, ExpectedEdgeKind,
-    ExpectedShape, TypeError, TypeErrorKind, TypeOrigin, TypeOriginKind,
+    ConstraintCause, ConstraintReason, ExpectedAdapterEdge, ExpectedAdapterEdgeId,
+    ExpectedAdapterEdgeKind, ExpectedEdge, ExpectedEdgeId, ExpectedEdgeKind, ExpectedShape,
+    TypeError, TypeErrorKind, TypeOrigin, TypeOriginKind,
 };
 pub use display::{
     collect_compact_results, collect_compact_results_for_paths, collect_expected_edges,
@@ -29,8 +30,9 @@ pub use display::{
 };
 pub use export::{
     DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, EdgePolarity,
-    ExpectedEdgeEvidence, collect_derived_expected_edge_evidence, collect_expected_edge_evidence,
-    export_core_program, export_principal_bindings, export_principal_module, export_scheme_body,
+    ExpectedAdapterEdgeEvidence, ExpectedEdgeEvidence, collect_derived_expected_edge_evidence,
+    collect_expected_adapter_edge_evidence, collect_expected_edge_evidence, export_core_program,
+    export_principal_bindings, export_principal_module, export_scheme_body,
 };
 pub use ids::{DefId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 pub use lower::stmt::{finish_lowering, lower_root, lower_root_in_module};

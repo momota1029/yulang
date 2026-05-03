@@ -380,6 +380,22 @@ fn core_program_carries_expected_edge_evidence_table() {
 }
 
 #[test]
+fn effect_operation_application_records_adapter_edge() {
+    let state = parse_and_lower("pub act out:\n  pub say: str -> ()\n\nout::say \"hi\"\n");
+    let adapter_edge = state
+        .expected_adapter_edges
+        .iter()
+        .find(|edge| edge.kind == diagnostic::ExpectedAdapterEdgeKind::EffectOperationArgument)
+        .expect("effect operation argument adapter edge");
+
+    assert!(adapter_edge.source_expected_edge.is_some());
+    assert!(adapter_edge.actual_value.is_some());
+    assert!(adapter_edge.expected_value.is_some());
+    assert!(adapter_edge.actual_effect.is_some());
+    assert!(adapter_edge.expected_effect.is_some());
+}
+
+#[test]
 fn expected_edges_keep_solver_constraints() {
     let state = parse_and_lower("my id(x: int) = x\nmy f(b: bool) = if b { id 1 } else { id 2 }");
     assert!(

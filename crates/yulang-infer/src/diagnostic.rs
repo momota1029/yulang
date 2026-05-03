@@ -42,6 +42,32 @@ pub struct ExpectedEdge {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ExpectedEdgeId(pub u32);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpectedAdapterEdge {
+    pub id: ExpectedAdapterEdgeId,
+    pub source_expected_edge: Option<ExpectedEdgeId>,
+    pub actual_value: Option<TypeVar>,
+    pub expected_value: Option<TypeVar>,
+    pub actual_effect: Option<TypeVar>,
+    pub expected_effect: Option<TypeVar>,
+    pub kind: ExpectedAdapterEdgeKind,
+    pub cause: ConstraintCause,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ExpectedAdapterEdgeId(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ExpectedAdapterEdgeKind {
+    EffectOperationArgument,
+    ValueToThunk,
+    ThunkToValue,
+    BindHere,
+    HandlerResidual,
+    HandlerReturn,
+    ResumeArgument,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ExpectedEdgeKind {
     IfCondition,

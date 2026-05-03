@@ -17,7 +17,8 @@ pub mod types;
 
 pub use complete_principal::{
     DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, EdgePolarity,
-    ExpectedEdgeEvidence, collect_derived_expected_edge_evidence, collect_expected_edge_evidence,
+    ExpectedAdapterEdgeEvidence, ExpectedEdgeEvidence, collect_derived_expected_edge_evidence,
+    collect_expected_adapter_edge_evidence, collect_expected_edge_evidence,
 };
 pub use principal::{export_core_program, export_principal_bindings, export_principal_module};
 pub use types::export_scheme_body;

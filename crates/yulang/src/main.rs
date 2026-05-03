@@ -26,6 +26,7 @@ use yulang_infer::{
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
     TypeErrorKind as InferTypeErrorKind, collect_compact_results as collect_infer_compact_results,
     collect_derived_expected_edge_evidence as collect_infer_derived_expected_edge_evidence,
+    collect_expected_adapter_edge_evidence as collect_infer_expected_adapter_edge_evidence,
     collect_expected_edge_evidence as collect_infer_expected_edge_evidence,
     collect_expected_edges as collect_infer_expected_edges,
     collect_surface_diagnostics as collect_infer_surface_diagnostics, export_core_program,
@@ -580,6 +581,15 @@ fn run_infer_views(
                     println!("derived-expected-edge-evidence:");
                     for evidence in derived_expected_edge_evidence {
                         println!("  {}", format_derived_expected_edge_evidence(&evidence));
+                    }
+                }
+                let expected_adapter_edge_evidence =
+                    collect_infer_expected_adapter_edge_evidence(&state);
+                if !expected_adapter_edge_evidence.is_empty() {
+                    println!();
+                    println!("expected-adapter-edge-evidence:");
+                    for evidence in expected_adapter_edge_evidence {
+                        println!("  {}", format_expected_adapter_edge_evidence(&evidence));
                     }
                 }
             }
@@ -1294,6 +1304,58 @@ fn format_expected_edge_evidence(evidence: &yulang_infer::ExpectedEdgeEvidence) 
     parts.push(format!("informative={}", evidence.informative));
     parts.push(format!("runtime-usable={}", evidence.runtime_usable));
     parts.join(" ")
+}
+
+fn format_expected_adapter_edge_evidence(
+    evidence: &yulang_infer::ExpectedAdapterEdgeEvidence,
+) -> String {
+    let mut parts = vec![format!(
+        "#{} {}",
+        evidence.id.0,
+        format_expected_adapter_edge_kind(evidence.kind)
+    )];
+    if let Some(source_expected_edge) = evidence.source_expected_edge {
+        parts.push(format!("source-expected-edge=#{}", source_expected_edge.0));
+    }
+    if let Some(actual_value) = &evidence.actual_value {
+        parts.push(format!("actual-value={}", format_core_bounds(actual_value)));
+    }
+    if let Some(expected_value) = &evidence.expected_value {
+        parts.push(format!(
+            "expected-value={}",
+            format_core_bounds(expected_value)
+        ));
+    }
+    if let Some(actual_effect) = &evidence.actual_effect {
+        parts.push(format!(
+            "actual-effect={}",
+            format_core_bounds(actual_effect)
+        ));
+    }
+    if let Some(expected_effect) = &evidence.expected_effect {
+        parts.push(format!(
+            "expected-effect={}",
+            format_core_bounds(expected_effect)
+        ));
+    }
+    parts.push(format!("closed={}", evidence.closed));
+    parts.push(format!("informative={}", evidence.informative));
+    parts.push(format!("runtime-usable={}", evidence.runtime_usable));
+    parts.join(" ")
+}
+
+fn format_expected_adapter_edge_kind(kind: yulang_infer::ExpectedAdapterEdgeKind) -> &'static str {
+    match kind {
+        yulang_infer::ExpectedAdapterEdgeKind::EffectOperationArgument => {
+            "effect-operation-argument"
+        }
+        yulang_infer::ExpectedAdapterEdgeKind::ValueToThunk => "value-to-thunk",
+        yulang_infer::ExpectedAdapterEdgeKind::ThunkToValue => "thunk-to-value",
+        yulang_infer::ExpectedAdapterEdgeKind::BindHere => "bind-here",
+        yulang_infer::ExpectedAdapterEdgeKind::HandlerResidual => "handler-residual",
+        yulang_infer::ExpectedAdapterEdgeKind::HandlerReturn => "handler-return",
+        yulang_infer::ExpectedAdapterEdgeKind::ResumeArgument => "resume-argument",
+    }
 }
 
 fn format_derived_expected_edge_evidence(
