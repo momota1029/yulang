@@ -360,7 +360,7 @@ impl<'a> ExprExporter<'a> {
             expected_arg_tv,
             &self.relevant_vars,
         );
-        if std::env::var_os("YULANG_COALESCE_APPLY_EVIDENCE").is_some() {
+        let mut evidence = if std::env::var_os("YULANG_COALESCE_APPLY_EVIDENCE").is_some() {
             let (callee_bounds, arg, expected_arg, result) =
                 export_coalesced_apply_evidence_bounds_with_expected_arg(
                     &self.state.infer,
@@ -370,7 +370,7 @@ impl<'a> ExprExporter<'a> {
                     result.tv,
                     &self.relevant_vars,
                 );
-            return core_ir::ApplyEvidence {
+            core_ir::ApplyEvidence {
                 callee_source_edge: callee_source_edge.map(|id| id.0),
                 arg_source_edge: arg_source_edge.map(|id| id.0),
                 callee: callee_bounds,
@@ -381,33 +381,38 @@ impl<'a> ExprExporter<'a> {
                 principal_callee: None,
                 substitutions: Vec::new(),
                 role_method,
-            };
-        }
-        let mut evidence = core_ir::ApplyEvidence {
-            callee_source_edge: callee_source_edge.map(|id| id.0),
-            arg_source_edge: arg_source_edge.map(|id| id.0),
-            callee: if self.relevant_vars.is_empty() && !role_method {
-                core_ir::TypeBounds::default()
-            } else {
-                export_relevant_type_bounds_for_tv(
+            }
+        } else {
+            core_ir::ApplyEvidence {
+                callee_source_edge: callee_source_edge.map(|id| id.0),
+                arg_source_edge: arg_source_edge.map(|id| id.0),
+                callee: if self.relevant_vars.is_empty() && !role_method {
+                    core_ir::TypeBounds::default()
+                } else {
+                    export_relevant_type_bounds_for_tv(
+                        &self.state.infer,
+                        callee.tv,
+                        &self.relevant_vars,
+                    )
+                },
+                expected_callee: Some(expected_callee),
+                arg: export_relevant_type_bounds_for_tv(
                     &self.state.infer,
-                    callee.tv,
+                    arg.tv,
                     &self.relevant_vars,
-                )
-            },
-            expected_callee: Some(expected_callee),
-            arg: export_relevant_type_bounds_for_tv(&self.state.infer, arg.tv, &self.relevant_vars),
-            expected_arg: Some(expected_arg),
-            result: export_relevant_type_bounds_for_tv(
-                &self.state.infer,
-                result.tv,
-                &self.relevant_vars,
-            ),
-            principal_callee: None,
-            substitutions: Vec::new(),
-            role_method,
+                ),
+                expected_arg: Some(expected_arg),
+                result: export_relevant_type_bounds_for_tv(
+                    &self.state.infer,
+                    result.tv,
+                    &self.relevant_vars,
+                ),
+                principal_callee: None,
+                substitutions: Vec::new(),
+                role_method,
+            }
         };
-        if std::env::var_os("YULANG_EXPORT_APPLY_SUBSTITUTIONS").is_some()
+        if export_apply_substitutions_enabled()
             && let Some(principal_scheme) = self.principal_callee_scheme(callee)
             && let Some(principal) = complete_apply_principal_evidence(
                 &self.state.infer,
@@ -1068,6 +1073,11 @@ fn std_list_index_raw_path() -> core_ir::Path {
         core_ir::Name("list".to_string()),
         core_ir::Name("index_raw".to_string()),
     ])
+}
+
+fn export_apply_substitutions_enabled() -> bool {
+    std::env::var_os("YULANG_EXPORT_APPLY_SUBSTITUTIONS").is_some()
+        || std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some()
 }
 
 fn export_lit(lit: &TirLit) -> core_ir::Lit {
