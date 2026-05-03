@@ -52,7 +52,7 @@ pub(crate) fn direct_param_source_eff_tv(body: &TypedExpr, param_def: DefId) -> 
                         .or_else(|| direct_param_source_eff_tv(&arm.body, param_def))
                 })
             }),
-        ExprKind::App(callee, arg) => match &arg.kind {
+        ExprKind::App { callee, arg, .. } => match &arg.kind {
             ExprKind::Var(def) if *def == param_def => Some(arg.eff),
             _ if matches!(&callee.kind, ExprKind::Var(def) if *def == param_def) => Some(body.eff),
             _ => direct_param_source_eff_tv(callee, param_def)
@@ -121,7 +121,7 @@ fn collect_lambda_capture_effs(
                 }
             }
         }
-        ExprKind::App(callee, arg) => {
+        ExprKind::App { callee, arg, .. } => {
             collect_lambda_capture_effs(state, callee, local_defs, out);
             collect_lambda_capture_effs(state, arg, local_defs, out);
         }

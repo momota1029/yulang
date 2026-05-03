@@ -5,7 +5,7 @@ pub(super) fn collect_apply_spine<'a>(expr: &'a TypedExpr) -> (&'a TypedExpr, Ve
     let mut head = expr;
     loop {
         head = strip_transparent_wrappers(head);
-        let ExprKind::App(callee, arg) = &head.kind else {
+        let ExprKind::App { callee, arg, .. } = &head.kind else {
             break;
         };
         args.push(arg.as_ref());

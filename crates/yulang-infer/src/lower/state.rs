@@ -243,10 +243,11 @@ impl LowerState {
         expected_tv: TypeVar,
         kind: ExpectedEdgeKind,
         cause: ConstraintCause,
-    ) {
-        self.record_expected_edge(actual_tv, expected_tv, kind, cause.clone());
+    ) -> ExpectedEdgeId {
+        let edge_id = self.record_expected_edge(actual_tv, expected_tv, kind, cause.clone());
         self.infer
             .constrain_with_cause(Pos::Var(actual_tv), Neg::Var(expected_tv), cause);
+        edge_id
     }
 
     pub fn expect_value_and_effect(

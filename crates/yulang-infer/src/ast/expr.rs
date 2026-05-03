@@ -27,7 +27,12 @@ pub enum ExprKind {
     PrimitiveOp(core_ir::PrimitiveOp),
     Var(DefId),
     Ref(RefId),
-    App(Box<TypedExpr>, Box<TypedExpr>),
+    App {
+        callee: Box<TypedExpr>,
+        arg: Box<TypedExpr>,
+        arg_edge_id: Option<crate::diagnostic::ExpectedEdgeId>,
+        expected_arg_tv: TypeVar,
+    },
     RefSet {
         reference: Box<TypedExpr>,
         value: Box<TypedExpr>,

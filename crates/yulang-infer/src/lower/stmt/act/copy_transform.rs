@@ -51,12 +51,19 @@ fn transform_copied_expr_kind(
             .and_then(|def| def_subst.get(&def).copied())
             .map(ExprKind::Var)
             .unwrap_or(ExprKind::Ref(*ref_id)),
-        ExprKind::App(callee, arg) => ExprKind::App(
-            Box::new(transform_copied_principal_body_inner(
+        ExprKind::App {
+            callee,
+            arg,
+            arg_edge_id: _,
+            expected_arg_tv,
+        } => ExprKind::App {
+            callee: Box::new(transform_copied_principal_body_inner(
                 types, callee, def_subst,
             )),
-            Box::new(transform_copied_principal_body_inner(types, arg, def_subst)),
-        ),
+            arg: Box::new(transform_copied_principal_body_inner(types, arg, def_subst)),
+            arg_edge_id: None,
+            expected_arg_tv: types.copy_tv(*expected_arg_tv),
+        },
         ExprKind::RefSet { reference, value } => ExprKind::RefSet {
             reference: Box::new(transform_copied_principal_body_inner(
                 types, reference, def_subst,

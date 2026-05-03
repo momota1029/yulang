@@ -2088,6 +2088,15 @@ fn format_apply_evidence(evidence: &core_ir::ApplyEvidence) -> String {
         format_core_bounds(&evidence.arg),
         format_core_bounds(&evidence.result)
     );
+    if let Some(expected_arg) = &evidence.expected_arg {
+        out.push_str(&format!(
+            ", expected-arg={}",
+            format_core_bounds(expected_arg)
+        ));
+    }
+    if let Some(arg_source_edge) = evidence.arg_source_edge {
+        out.push_str(&format!(", arg-source-edge={arg_source_edge}"));
+    }
     if let Some(principal) = &evidence.principal_callee {
         out.push_str(&format!(", principal={}", format_core_type(principal)));
     }
@@ -3267,6 +3276,7 @@ mod tests {
     #[test]
     fn format_apply_evidence_shows_full_projected_bounds() {
         let evidence = core_ir::ApplyEvidence {
+            arg_source_edge: None,
             callee: core_ir::TypeBounds {
                 lower: None,
                 upper: Some(Box::new(core_ir::Type::Fun {
@@ -3303,6 +3313,7 @@ mod tests {
                     args: vec![],
                 })),
             },
+            expected_arg: None,
             result: core_ir::TypeBounds {
                 lower: Some(Box::new(core_ir::Type::Var(core_ir::TypeVar(
                     "a".to_string(),

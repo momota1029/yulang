@@ -180,8 +180,12 @@ pub(crate) fn substitute_apply_evidence(
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) -> core_ir::ApplyEvidence {
     core_ir::ApplyEvidence {
+        arg_source_edge: evidence.arg_source_edge,
         callee: substitute_bounds(evidence.callee, substitutions),
         arg: substitute_bounds(evidence.arg, substitutions),
+        expected_arg: evidence
+            .expected_arg
+            .map(|bounds| substitute_bounds(bounds, substitutions)),
         result: substitute_bounds(evidence.result, substitutions),
         principal_callee: evidence
             .principal_callee

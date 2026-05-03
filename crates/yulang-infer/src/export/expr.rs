@@ -7,7 +7,7 @@ use crate::ast::expr::{
     CatchArmKind, ExprKind, Lit as TirLit, PatKind, RecordPatSpread, RecordSpread, TypedBlock,
     TypedCatchArm, TypedExpr, TypedPat, TypedStmt,
 };
-use crate::ids::{DefId, RefId};
+use crate::ids::{DefId, RefId, TypeVar};
 use crate::lower::LowerState;
 use crate::solve::RefFieldProjection;
 use crate::solve::role::role_method_info_for_path;
@@ -58,10 +58,21 @@ impl<'a> ExprExporter<'a> {
             ExprKind::Lit(lit) => core_ir::Expr::Lit(export_lit(lit)),
             ExprKind::Var(def) => core_ir::Expr::Var(self.path_for_def(*def)),
             ExprKind::Ref(ref_id) => core_ir::Expr::Var(self.path_for_ref(*ref_id)),
-            ExprKind::App(callee, arg) => core_ir::Expr::Apply {
+            ExprKind::App {
+                callee,
+                arg,
+                arg_edge_id,
+                expected_arg_tv,
+            } => core_ir::Expr::Apply {
                 callee: Box::new(self.export_expr(callee)),
                 arg: Box::new(self.export_expr(arg)),
-                evidence: Some(self.export_apply_evidence(callee, arg, expr)),
+                evidence: Some(self.export_apply_evidence(
+                    callee,
+                    arg,
+                    expr,
+                    *arg_edge_id,
+                    *expected_arg_tv,
+                )),
             },
             ExprKind::RefSet { reference, value } => self.export_ref_set(expr, reference, value),
             ExprKind::Lam(def, body) => {
@@ -118,6 +129,7 @@ impl<'a> ExprExporter<'a> {
                         callee: Box::new(core_ir::Expr::Var(self.path_for_def(def))),
                         arg: Box::new(self.export_expr(recv)),
                         evidence: Some(core_ir::ApplyEvidence {
+                            arg_source_edge: None,
                             callee: export_relevant_type_bounds_for_tv(
                                 &self.state.infer,
                                 callee_tv,
@@ -128,6 +140,7 @@ impl<'a> ExprExporter<'a> {
                                 recv.tv,
                                 &self.relevant_vars,
                             ),
+                            expected_arg: None,
                             result: export_relevant_type_bounds_for_tv(
                                 &self.state.infer,
                                 expr.tv,
@@ -145,6 +158,7 @@ impl<'a> ExprExporter<'a> {
                         callee: Box::new(core_ir::Expr::Var(self.path_for_def(def))),
                         arg: Box::new(self.export_expr(recv)),
                         evidence: Some(core_ir::ApplyEvidence {
+                            arg_source_edge: None,
                             callee: export_relevant_type_bounds_for_tv(
                                 &self.state.infer,
                                 callee_tv,
@@ -155,6 +169,7 @@ impl<'a> ExprExporter<'a> {
                                 recv.tv,
                                 &self.relevant_vars,
                             ),
+                            expected_arg: None,
                             result: export_relevant_type_bounds_for_tv(
                                 &self.state.infer,
                                 expr.tv,
@@ -320,8 +335,15 @@ impl<'a> ExprExporter<'a> {
         callee: &TypedExpr,
         arg: &TypedExpr,
         result: &TypedExpr,
+        arg_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
+        expected_arg_tv: TypeVar,
     ) -> core_ir::ApplyEvidence {
         let role_method = self.is_role_method_callee(callee);
+        let expected_arg = export_relevant_type_bounds_for_tv(
+            &self.state.infer,
+            expected_arg_tv,
+            &self.relevant_vars,
+        );
         if std::env::var_os("YULANG_COALESCE_APPLY_EVIDENCE").is_some() {
             let (callee_bounds, arg, result) = export_coalesced_apply_evidence_bounds(
                 &self.state.infer,
@@ -331,8 +353,10 @@ impl<'a> ExprExporter<'a> {
                 &self.relevant_vars,
             );
             return core_ir::ApplyEvidence {
+                arg_source_edge: arg_source_edge.map(|id| id.0),
                 callee: callee_bounds,
                 arg,
+                expected_arg: Some(expected_arg),
                 result,
                 principal_callee: None,
                 substitutions: Vec::new(),
@@ -340,6 +364,7 @@ impl<'a> ExprExporter<'a> {
             };
         }
         let mut evidence = core_ir::ApplyEvidence {
+            arg_source_edge: arg_source_edge.map(|id| id.0),
             callee: if self.relevant_vars.is_empty() && !role_method {
                 core_ir::TypeBounds::default()
             } else {
@@ -350,6 +375,7 @@ impl<'a> ExprExporter<'a> {
                 )
             },
             arg: export_relevant_type_bounds_for_tv(&self.state.infer, arg.tv, &self.relevant_vars),
+            expected_arg: Some(expected_arg),
             result: export_relevant_type_bounds_for_tv(
                 &self.state.infer,
                 result.tv,
@@ -960,7 +986,10 @@ fn local_var(name: &core_ir::Name) -> core_ir::Expr {
 }
 
 fn ref_index_projection_parts(expr: &TypedExpr) -> Option<(&TypedExpr, &TypedExpr)> {
-    let ExprKind::App(callee, index) = &strip_transparent_wrappers(expr).kind else {
+    let ExprKind::App {
+        callee, arg: index, ..
+    } = &strip_transparent_wrappers(expr).kind
+    else {
         return None;
     };
     match &strip_transparent_wrappers(callee).kind {

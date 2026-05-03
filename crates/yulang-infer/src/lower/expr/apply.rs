@@ -46,7 +46,7 @@ pub(crate) fn make_app_with_cause(
         || matches!(func.kind, ExprKind::Select { .. })
         || selected_value_method_accepts_pure_next_arg(state, &func);
     let anf_arg = matches!(passing_style, ArgumentPassingStyle::Value)
-        && matches!(arg.kind, ExprKind::App(_, _));
+        && matches!(arg.kind, ExprKind::App { .. });
     let arg_eff_for_slot = if pure_argument_slot || anf_arg {
         state.fresh_exact_pure_eff_tv()
     } else {
@@ -99,7 +99,7 @@ pub(crate) fn make_app_with_cause(
         ),
         cause.clone(),
     );
-    state.expect_value(
+    let arg_edge_id = state.expect_value(
         arg.tv,
         expected_arg_tv,
         ExpectedEdgeKind::ApplicationArgument,
@@ -143,7 +143,12 @@ pub(crate) fn make_app_with_cause(
     let result = TypedExpr {
         tv,
         eff,
-        kind: ExprKind::App(Box::new(func), Box::new(arg)),
+        kind: ExprKind::App {
+            callee: Box::new(func),
+            arg: Box::new(arg),
+            arg_edge_id: Some(arg_edge_id),
+            expected_arg_tv,
+        },
     };
     register_role_method_call_spine(state, &result);
     result
@@ -223,9 +228,9 @@ fn role_method_info_for_direct_call_path(
 fn collect_app_spine<'a>(expr: &'a TypedExpr) -> (&'a TypedExpr, Vec<&'a TypedExpr>) {
     let mut args = Vec::new();
     let mut current = expr;
-    while let ExprKind::App(func, arg) = &current.kind {
+    while let ExprKind::App { callee, arg, .. } = &current.kind {
         args.push(arg.as_ref());
-        current = func.as_ref();
+        current = callee.as_ref();
     }
     args.reverse();
     (current, args)

@@ -445,7 +445,7 @@ fn extend_target_defs_from_expr(
                 }
             }
         }
-        ExprKind::App(callee, arg) => {
+        ExprKind::App { callee, arg, .. } => {
             for def in collect_export_method_defs(state, expr) {
                 if exportable_defs.contains(&def) && target_defs.insert(def) {
                     pending.push(def);

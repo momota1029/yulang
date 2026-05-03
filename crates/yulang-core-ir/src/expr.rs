@@ -83,8 +83,10 @@ pub enum PrimitiveOp {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApplyEvidence {
+    pub arg_source_edge: Option<u32>,
     pub callee: crate::types::TypeBounds,
     pub arg: crate::types::TypeBounds,
+    pub expected_arg: Option<crate::types::TypeBounds>,
     pub result: crate::types::TypeBounds,
     pub principal_callee: Option<crate::types::Type>,
     pub substitutions: Vec<crate::types::TypeSubstitution>,

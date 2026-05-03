@@ -4113,8 +4113,10 @@ mod tests {
                                         RuntimeType::core(core_ir::Type::Any),
                                     )),
                                     evidence: Some(core_ir::ApplyEvidence {
+                                        arg_source_edge: None,
                                         callee: core_ir::TypeBounds::exact(singleton_int_ty),
                                         arg: core_ir::TypeBounds::exact(named("int")),
+                                        expected_arg: None,
                                         result: core_ir::TypeBounds::exact(list_int.clone()),
                                         principal_callee: None,
                                         substitutions: Vec::new(),

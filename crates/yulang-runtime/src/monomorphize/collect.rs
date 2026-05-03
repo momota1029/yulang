@@ -1425,6 +1425,7 @@ mod tests {
                         RuntimeType::core(named("unit")),
                     )),
                     evidence: Some(core_ir::ApplyEvidence {
+                        arg_source_edge: None,
                         callee: core_ir::TypeBounds::exact(core_ir::Type::Fun {
                             param: Box::new(named("unit")),
                             param_effect: Box::new(core_ir::Type::Never),
@@ -1432,6 +1433,7 @@ mod tests {
                             ret: Box::new(named("int")),
                         }),
                         arg: core_ir::TypeBounds::exact(named("unit")),
+                        expected_arg: None,
                         result: core_ir::TypeBounds::exact(named("int")),
                         principal_callee: None,
                         substitutions: Vec::new(),

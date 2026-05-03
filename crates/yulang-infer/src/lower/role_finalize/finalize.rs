@@ -392,7 +392,7 @@ impl LowerState {
                 .all(|payload| self.is_syntactic_value_expr(payload)),
             crate::ast::expr::ExprKind::Coerce { expr, .. }
             | crate::ast::expr::ExprKind::PackForall(_, expr) => self.is_syntactic_value_expr(expr),
-            crate::ast::expr::ExprKind::App(_, _)
+            crate::ast::expr::ExprKind::App { .. }
             | crate::ast::expr::ExprKind::RefSet { .. }
             | crate::ast::expr::ExprKind::Select { .. }
             | crate::ast::expr::ExprKind::Match(_, _)
