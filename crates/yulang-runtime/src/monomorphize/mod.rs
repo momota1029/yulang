@@ -1150,6 +1150,26 @@ pub(super) fn apply_evidence_substituted_callee_signature(
 pub(super) fn apply_evidence_arg_signature(
     evidence: &core_ir::ApplyEvidence,
 ) -> Option<DemandSignature> {
+    apply_evidence_arg_signature_with_expected_arg(
+        evidence,
+        std::env::var_os("YULANG_USE_EXPECTED_ARG_EVIDENCE").is_some(),
+    )
+}
+
+pub(super) fn apply_evidence_arg_signature_with_expected_arg(
+    evidence: &core_ir::ApplyEvidence,
+    use_expected_arg: bool,
+) -> Option<DemandSignature> {
+    if use_expected_arg
+        && let Some(signature) = evidence
+            .expected_arg
+            .as_ref()
+            .and_then(evidence_bounds_type)
+            .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())))
+            .filter(DemandSignature::is_closed)
+    {
+        return Some(signature);
+    }
     evidence_bounds_type(&evidence.arg)
         .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())))
 }
@@ -1447,6 +1467,51 @@ mod tests {
                     },
                 )),
             }
+        );
+    }
+
+    #[test]
+    fn apply_evidence_arg_signature_can_use_closed_expected_arg_opt_in() {
+        let evidence = core_ir::ApplyEvidence {
+            arg_source_edge: Some(1),
+            callee: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            expected_arg: Some(core_ir::TypeBounds::exact(named("int"))),
+            result: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            principal_callee: None,
+            substitutions: Vec::new(),
+            role_method: false,
+        };
+
+        assert_eq!(
+            apply_evidence_arg_signature_with_expected_arg(&evidence, false),
+            Some(DemandSignature::Hole(0)),
+        );
+        assert_eq!(
+            apply_evidence_arg_signature_with_expected_arg(&evidence, true),
+            Some(int_signature()),
+        );
+    }
+
+    #[test]
+    fn apply_evidence_arg_signature_ignores_open_expected_arg() {
+        let evidence = core_ir::ApplyEvidence {
+            arg_source_edge: Some(1),
+            callee: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            arg: core_ir::TypeBounds::exact(named("str")),
+            expected_arg: Some(core_ir::TypeBounds::exact(core_ir::Type::Any)),
+            result: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            principal_callee: None,
+            substitutions: Vec::new(),
+            role_method: false,
+        };
+
+        assert_eq!(
+            apply_evidence_arg_signature_with_expected_arg(&evidence, true),
+            Some(DemandSignature::Core(DemandCoreType::Named {
+                path: path("str"),
+                args: Vec::new(),
+            })),
         );
     }
 
