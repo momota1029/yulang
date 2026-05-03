@@ -123,8 +123,8 @@ pub(super) fn complete_apply_principal_evidence(
     callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
-    callee_source_edge: Option<ExpectedEdgeId>,
-    arg_source_edge: Option<ExpectedEdgeId>,
+    callee_source_edge: Option<&ExpectedEdge>,
+    arg_source_edge: Option<&ExpectedEdge>,
 ) -> Option<CompleteApplyPrincipalEvidence> {
     let substitutions =
         apply_principal_substitutions(infer, &principal_scheme, callee_tv, arg_tv, result_tv);
@@ -320,8 +320,8 @@ pub(super) fn apply_principal_substitution_candidates(
     callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
-    callee_source_edge: Option<ExpectedEdgeId>,
-    arg_source_edge: Option<ExpectedEdgeId>,
+    callee_source_edge: Option<&ExpectedEdge>,
+    arg_source_edge: Option<&ExpectedEdge>,
 ) -> Vec<core_ir::PrincipalSubstitutionCandidate> {
     let principal_callee = &principal_scheme.body;
     let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
@@ -339,18 +339,36 @@ pub(super) fn apply_principal_substitution_candidates(
         principal_callee,
         &slot_bounds.callee,
         &params,
-        callee_source_edge,
+        callee_source_edge.map(|edge| edge.id),
         &mut vec![core_ir::PrincipalSlotPathSegment::Callee],
         &mut candidates,
     );
+    if let Some(edge) = callee_source_edge {
+        collect_candidates_from_expected_edge(
+            infer,
+            edge,
+            &params,
+            &mut vec![core_ir::PrincipalSlotPathSegment::Callee],
+            &mut candidates,
+        );
+    }
     collect_candidates_from_bounds(
         param,
         &slot_bounds.arg,
         &params,
-        arg_source_edge,
+        arg_source_edge.map(|edge| edge.id),
         &mut vec![core_ir::PrincipalSlotPathSegment::Arg],
         &mut candidates,
     );
+    if let Some(edge) = arg_source_edge {
+        collect_candidates_from_expected_edge(
+            infer,
+            edge,
+            &params,
+            &mut vec![core_ir::PrincipalSlotPathSegment::Arg],
+            &mut candidates,
+        );
+    }
     collect_candidates_from_bounds(
         ret,
         &slot_bounds.result,
@@ -359,6 +377,7 @@ pub(super) fn apply_principal_substitution_candidates(
         &mut vec![core_ir::PrincipalSlotPathSegment::Result],
         &mut candidates,
     );
+    dedupe_principal_substitution_candidates(&mut candidates);
     candidates
 }
 
@@ -501,7 +520,7 @@ fn collect_candidates_from_type(
 ) {
     match (template, actual) {
         (core_ir::Type::Var(var), actual) if params.contains(var) => {
-            if principal_candidate_type_usable(actual) {
+            if principal_candidate_type_recordable(actual) {
                 out.push(core_ir::PrincipalSubstitutionCandidate {
                     var: var.clone(),
                     relation,
@@ -650,6 +669,123 @@ fn collect_candidates_from_arg(
     }
 }
 
+fn collect_candidates_from_expected_edge(
+    infer: &Infer,
+    edge: &ExpectedEdge,
+    params: &BTreeSet<core_ir::TypeVar>,
+    path_prefix: &mut Vec<core_ir::PrincipalSlotPathSegment>,
+    out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+) {
+    let evidence = complete_expected_edge_evidence(infer, edge);
+    if let (Some(actual), Some(expected)) = (
+        bounds_primary_type(&evidence.actual),
+        bounds_primary_type(&evidence.expected),
+    ) {
+        collect_candidates_from_expected_relation(
+            actual,
+            expected,
+            EdgePolarity::Covariant,
+            params,
+            Some(edge.id),
+            path_prefix,
+            out,
+        );
+    }
+    for derived in derive_expected_edge_evidence(&evidence) {
+        let Some(actual) = bounds_primary_type(&derived.actual) else {
+            continue;
+        };
+        let Some(expected) = bounds_primary_type(&derived.expected) else {
+            continue;
+        };
+        let old_len = path_prefix.len();
+        path_prefix.extend(
+            derived
+                .path
+                .iter()
+                .map(principal_slot_path_segment_from_edge_path_segment),
+        );
+        collect_candidates_from_expected_relation(
+            actual,
+            expected,
+            derived.polarity,
+            params,
+            Some(edge.id),
+            path_prefix,
+            out,
+        );
+        path_prefix.truncate(old_len);
+    }
+}
+
+fn collect_candidates_from_expected_relation(
+    actual: &core_ir::Type,
+    expected: &core_ir::Type,
+    polarity: EdgePolarity,
+    params: &BTreeSet<core_ir::TypeVar>,
+    source_edge: Option<ExpectedEdgeId>,
+    path: &mut Vec<core_ir::PrincipalSlotPathSegment>,
+    out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+) {
+    let (expected_relation, actual_relation) = match polarity {
+        EdgePolarity::Covariant | EdgePolarity::Invariant => (
+            core_ir::PrincipalCandidateRelation::Lower,
+            core_ir::PrincipalCandidateRelation::Upper,
+        ),
+        EdgePolarity::Contravariant => (
+            core_ir::PrincipalCandidateRelation::Upper,
+            core_ir::PrincipalCandidateRelation::Lower,
+        ),
+    };
+    collect_candidates_from_type(
+        expected,
+        actual,
+        params,
+        expected_relation,
+        source_edge,
+        path,
+        out,
+    );
+    collect_candidates_from_type(
+        actual,
+        expected,
+        params,
+        actual_relation,
+        source_edge,
+        path,
+        out,
+    );
+}
+
+fn principal_slot_path_segment_from_edge_path_segment(
+    segment: &EdgePathSegment,
+) -> core_ir::PrincipalSlotPathSegment {
+    match segment {
+        EdgePathSegment::Field(name) => core_ir::PrincipalSlotPathSegment::Field(name.clone()),
+        EdgePathSegment::TupleIndex(index) => core_ir::PrincipalSlotPathSegment::TupleIndex(*index),
+        EdgePathSegment::VariantCase(name) => {
+            core_ir::PrincipalSlotPathSegment::VariantCase(name.clone())
+        }
+        EdgePathSegment::PayloadIndex(index) => {
+            core_ir::PrincipalSlotPathSegment::PayloadIndex(*index)
+        }
+        EdgePathSegment::FunctionParam => core_ir::PrincipalSlotPathSegment::FunctionParam,
+        EdgePathSegment::FunctionReturn => core_ir::PrincipalSlotPathSegment::FunctionReturn,
+    }
+}
+
+fn dedupe_principal_substitution_candidates(
+    candidates: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+) {
+    let mut deduped = Vec::with_capacity(candidates.len());
+    for candidate in candidates.drain(..) {
+        if !deduped.iter().any(|existing| existing == &candidate) {
+            deduped.push(candidate);
+        }
+    }
+    *candidates = deduped;
+}
+
 fn flip_candidate_relation(
     relation: core_ir::PrincipalCandidateRelation,
 ) -> core_ir::PrincipalCandidateRelation {
@@ -660,17 +796,11 @@ fn flip_candidate_relation(
     }
 }
 
-fn principal_candidate_type_usable(ty: &core_ir::Type) -> bool {
+fn principal_candidate_type_recordable(ty: &core_ir::Type) -> bool {
     !matches!(
         ty,
         core_ir::Type::Any | core_ir::Type::Never | core_ir::Type::Var(_)
-    ) && !type_has_core_vars(ty)
-}
-
-fn type_has_core_vars(ty: &core_ir::Type) -> bool {
-    let mut vars = BTreeSet::new();
-    collect_core_type_vars(ty, &mut vars);
-    !vars.is_empty()
+    )
 }
 
 fn principal_fun_param_ret(ty: &core_ir::Type) -> Option<(&core_ir::Type, &core_ir::Type)> {

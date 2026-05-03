@@ -427,8 +427,8 @@ impl<'a> ExprExporter<'a> {
                 callee.tv,
                 arg.tv,
                 result.tv,
-                callee_source_edge,
-                arg_source_edge,
+                self.expected_edge(callee_source_edge),
+                self.expected_edge(arg_source_edge),
             ) {
                 evidence.principal_callee = Some(principal.principal_callee);
                 evidence.substitutions = principal.substitutions;
@@ -436,6 +436,14 @@ impl<'a> ExprExporter<'a> {
             }
         }
         evidence
+    }
+
+    fn expected_edge(
+        &self,
+        id: Option<crate::diagnostic::ExpectedEdgeId>,
+    ) -> Option<&crate::diagnostic::ExpectedEdge> {
+        let id = id?;
+        self.state.expected_edges.iter().find(|edge| edge.id == id)
     }
 
     fn principal_callee_scheme(&self, expr: &TypedExpr) -> Option<core_ir::Scheme> {

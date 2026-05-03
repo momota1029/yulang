@@ -2950,6 +2950,10 @@ fn format_principal_slot_path_segment(segment: &core_ir::PrincipalSlotPathSegmen
         core_ir::PrincipalSlotPathSegment::Callee => "callee".to_string(),
         core_ir::PrincipalSlotPathSegment::Arg => "arg".to_string(),
         core_ir::PrincipalSlotPathSegment::Result => "result".to_string(),
+        core_ir::PrincipalSlotPathSegment::Field(name) => format!("field({})", name.0),
+        core_ir::PrincipalSlotPathSegment::TupleIndex(index) => format!("tuple({index})"),
+        core_ir::PrincipalSlotPathSegment::VariantCase(name) => format!("case({})", name.0),
+        core_ir::PrincipalSlotPathSegment::PayloadIndex(index) => format!("payload({index})"),
         core_ir::PrincipalSlotPathSegment::FunctionParam => "param".to_string(),
         core_ir::PrincipalSlotPathSegment::FunctionReturn => "return".to_string(),
     }

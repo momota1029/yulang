@@ -237,6 +237,10 @@ pub enum PrincipalSlotPathSegment {
     Callee,
     Arg,
     Result,
+    Field(Name),
+    TupleIndex(usize),
+    VariantCase(Name),
+    PayloadIndex(usize),
     FunctionParam,
     FunctionReturn,
 }
