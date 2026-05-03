@@ -131,7 +131,7 @@ impl SubstitutionSpecializer {
         spine: &ApplySpine<'_>,
     ) {
         self.bump_skip(target, "skip-no-complete-substitution");
-        let cause = no_complete_substitution_cause(spine.instantiation, spine.evidence, binding);
+        let cause = no_complete_substitution_cause(spine, binding);
         *self
             .target_no_complete_causes
             .entry(target.clone())
@@ -786,6 +786,8 @@ struct ApplySpine<'a> {
     args: Vec<&'a Expr>,
     evidence: Option<&'a core_ir::ApplyEvidence>,
     instantiation: Option<&'a TypeInstantiation>,
+    evidence_count: usize,
+    principal_evidence_count: usize,
 }
 
 fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
@@ -793,6 +795,8 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
     let mut args = Vec::new();
     let mut selected_evidence = None;
     let mut selected_instantiation = None;
+    let mut evidence_count = 0;
+    let mut principal_evidence_count = 0;
     while let ExprKind::Apply {
         callee,
         arg,
@@ -802,10 +806,14 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
     } = &current.kind
     {
         args.push(arg.as_ref());
+        if evidence.is_some() {
+            evidence_count += 1;
+        }
         if evidence
             .as_ref()
             .is_some_and(|evidence| evidence.principal_callee.is_some())
         {
+            principal_evidence_count += 1;
             selected_evidence = evidence.as_ref();
         }
         if instantiation.is_some() {
@@ -822,6 +830,8 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
         args,
         evidence: selected_evidence,
         instantiation: selected_instantiation,
+        evidence_count,
+        principal_evidence_count,
     })
 }
 
@@ -1352,12 +1362,8 @@ fn initial_substitution_candidates(
     substitutions
 }
 
-fn no_complete_substitution_cause(
-    instantiation: Option<&TypeInstantiation>,
-    evidence: Option<&core_ir::ApplyEvidence>,
-    binding: &Binding,
-) -> &'static str {
-    if let Some(instantiation) = instantiation
+fn no_complete_substitution_cause(spine: &ApplySpine<'_>, binding: &Binding) -> &'static str {
+    if let Some(instantiation) = spine.instantiation
         && instantiation.target == binding.name
     {
         let params = binding_substitution_vars(binding);
@@ -1374,7 +1380,17 @@ fn no_complete_substitution_cause(
             return "instantiation-open-vars";
         }
     }
-    let Some(evidence) = evidence else {
+    if let Some(instantiation) = spine.instantiation
+        && instantiation.target != binding.name
+    {
+        return "instantiation-target-mismatch";
+    }
+    let Some(evidence) = spine.evidence else {
+        if spine.evidence_count > 0 && spine.principal_evidence_count == 0 {
+            return "apply-evidence-missing-principal-callee";
+        } else if spine.evidence_count > 0 {
+            return "apply-evidence-not-selected";
+        }
         return "no-apply-evidence";
     };
     if evidence.principal_callee.is_none() {
