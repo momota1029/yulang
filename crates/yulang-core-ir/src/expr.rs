@@ -14,6 +14,47 @@ pub struct PrincipalModule {
 pub struct CoreProgram {
     pub program: PrincipalModule,
     pub graph: CoreGraphView,
+    pub evidence: PrincipalEvidence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct PrincipalEvidence {
+    pub expected_edges: Vec<ExpectedEdgeEvidence>,
+}
+
+impl PrincipalEvidence {
+    pub fn expected_edge(&self, id: u32) -> Option<&ExpectedEdgeEvidence> {
+        self.expected_edges.iter().find(|edge| edge.id == id)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpectedEdgeEvidence {
+    pub id: u32,
+    pub kind: ExpectedEdgeKind,
+    pub actual: crate::types::TypeBounds,
+    pub expected: crate::types::TypeBounds,
+    pub actual_effect: Option<crate::types::TypeBounds>,
+    pub expected_effect: Option<crate::types::TypeBounds>,
+    pub closed: bool,
+    pub informative: bool,
+    pub runtime_usable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExpectedEdgeKind {
+    IfCondition,
+    IfBranch,
+    MatchGuard,
+    MatchBranch,
+    CatchGuard,
+    CatchBranch,
+    ApplicationArgument,
+    Annotation,
+    RecordField,
+    VariantPayload,
+    AssignmentValue,
+    RepresentationCoerce,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

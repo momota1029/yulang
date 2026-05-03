@@ -56,7 +56,8 @@ use thunk::*;
 
 pub fn lower_core_program(program: core_ir::CoreProgram) -> RuntimeResult<Module> {
     let graph = program.graph;
-    lower_principal_module_with_graph(program.program, &graph)
+    let evidence = program.evidence;
+    lower_principal_module_with_graph_and_evidence(program.program, &graph, &evidence)
 }
 
 pub fn lower_principal_module(module: core_ir::PrincipalModule) -> RuntimeResult<Module> {
@@ -66,6 +67,15 @@ pub fn lower_principal_module(module: core_ir::PrincipalModule) -> RuntimeResult
 pub fn lower_principal_module_with_graph(
     module: core_ir::PrincipalModule,
     graph: &core_ir::CoreGraphView,
+) -> RuntimeResult<Module> {
+    let evidence = core_ir::PrincipalEvidence::default();
+    lower_principal_module_with_graph_and_evidence(module, graph, &evidence)
+}
+
+fn lower_principal_module_with_graph_and_evidence(
+    module: core_ir::PrincipalModule,
+    graph: &core_ir::CoreGraphView,
+    evidence: &core_ir::PrincipalEvidence,
 ) -> RuntimeResult<Module> {
     let principal_vars = principal_module_type_vars(&module);
     let mut binding_infos = module
@@ -111,6 +121,7 @@ pub fn lower_principal_module_with_graph(
             .map(|symbol| (symbol.path.clone(), symbol.kind))
             .collect(),
         principal_vars,
+        principal_evidence: evidence,
         use_expected_arg_evidence: std::env::var_os("YULANG_USE_EXPECTED_ARG_EVIDENCE").is_some(),
         expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
         next_synthetic_type_var: 0,
@@ -210,6 +221,7 @@ struct Lowerer<'a> {
     graph: &'a core_ir::CoreGraphView,
     runtime_symbols: HashMap<core_ir::Path, core_ir::RuntimeSymbolKind>,
     principal_vars: BTreeSet<core_ir::TypeVar>,
+    principal_evidence: &'a core_ir::PrincipalEvidence,
     use_expected_arg_evidence: bool,
     expected_arg_evidence_profile: ExpectedArgEvidenceProfile,
     next_synthetic_type_var: usize,

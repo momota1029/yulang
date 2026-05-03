@@ -349,6 +349,37 @@ fn application_argument_edge_links_to_expected_edge_evidence() {
 }
 
 #[test]
+fn core_program_carries_expected_edge_evidence_table() {
+    let mut state = parse_and_lower("my id(x: int) = x\nid 1");
+    let application_edge_ids = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::ApplicationArgument)
+        .map(|edge| edge.id.0)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(
+        !application_edge_ids.is_empty(),
+        "expected application argument edge"
+    );
+
+    let program = export_core_program(&mut state);
+    for edge_id in &application_edge_ids {
+        let edge = program
+            .evidence
+            .expected_edge(*edge_id)
+            .unwrap_or_else(|| panic!("missing core principal evidence for edge #{edge_id}"));
+        assert_eq!(
+            edge.kind,
+            yulang_core_ir::ExpectedEdgeKind::ApplicationArgument
+        );
+        assert!(
+            edge.expected.lower.is_some() || edge.expected.upper.is_some(),
+            "expected core principal evidence to expose expected bounds: {edge:?}",
+        );
+    }
+}
+
+#[test]
 fn expected_edges_keep_solver_constraints() {
     let state = parse_and_lower("my id(x: int) = x\nmy f(b: bool) = if b { id 1 } else { id 2 }");
     assert!(

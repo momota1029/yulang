@@ -2,6 +2,7 @@ use std::collections::{BTreeSet, HashSet};
 
 use yulang_core_ir as core_ir;
 
+use super::complete_principal::collect_expected_edge_evidence;
 use super::expr::export_expr;
 use super::names::{export_path, path_key};
 use super::paths::{collect_canonical_binding_paths, complete_referenced_binding_closure};
@@ -45,6 +46,55 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
             roots,
         },
         graph,
+        evidence: core_ir::PrincipalEvidence {
+            expected_edges: collect_expected_edge_evidence(state)
+                .into_iter()
+                .map(export_expected_edge_evidence)
+                .collect(),
+        },
+    }
+}
+
+fn export_expected_edge_evidence(
+    evidence: super::complete_principal::ExpectedEdgeEvidence,
+) -> core_ir::ExpectedEdgeEvidence {
+    core_ir::ExpectedEdgeEvidence {
+        id: evidence.id.0,
+        kind: export_expected_edge_kind(evidence.kind),
+        actual: evidence.actual,
+        expected: evidence.expected,
+        actual_effect: evidence.actual_effect,
+        expected_effect: evidence.expected_effect,
+        closed: evidence.closed,
+        informative: evidence.informative,
+        runtime_usable: evidence.runtime_usable,
+    }
+}
+
+fn export_expected_edge_kind(
+    kind: crate::diagnostic::ExpectedEdgeKind,
+) -> core_ir::ExpectedEdgeKind {
+    match kind {
+        crate::diagnostic::ExpectedEdgeKind::IfCondition => core_ir::ExpectedEdgeKind::IfCondition,
+        crate::diagnostic::ExpectedEdgeKind::IfBranch => core_ir::ExpectedEdgeKind::IfBranch,
+        crate::diagnostic::ExpectedEdgeKind::MatchGuard => core_ir::ExpectedEdgeKind::MatchGuard,
+        crate::diagnostic::ExpectedEdgeKind::MatchBranch => core_ir::ExpectedEdgeKind::MatchBranch,
+        crate::diagnostic::ExpectedEdgeKind::CatchGuard => core_ir::ExpectedEdgeKind::CatchGuard,
+        crate::diagnostic::ExpectedEdgeKind::CatchBranch => core_ir::ExpectedEdgeKind::CatchBranch,
+        crate::diagnostic::ExpectedEdgeKind::ApplicationArgument => {
+            core_ir::ExpectedEdgeKind::ApplicationArgument
+        }
+        crate::diagnostic::ExpectedEdgeKind::Annotation => core_ir::ExpectedEdgeKind::Annotation,
+        crate::diagnostic::ExpectedEdgeKind::RecordField => core_ir::ExpectedEdgeKind::RecordField,
+        crate::diagnostic::ExpectedEdgeKind::VariantPayload => {
+            core_ir::ExpectedEdgeKind::VariantPayload
+        }
+        crate::diagnostic::ExpectedEdgeKind::AssignmentValue => {
+            core_ir::ExpectedEdgeKind::AssignmentValue
+        }
+        crate::diagnostic::ExpectedEdgeKind::RepresentationCoerce => {
+            core_ir::ExpectedEdgeKind::RepresentationCoerce
+        }
     }
 }
 

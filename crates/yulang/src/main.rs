@@ -1348,6 +1348,7 @@ fn print_infer_surface_diagnostic(diagnostic: &InferSurfaceDiagnostic, source: &
 fn print_infer_program(program: &core_ir::CoreProgram, verbose: bool) {
     print_core_ir_module(&program.program);
     print_infer_graph(&program.graph, verbose);
+    print_core_principal_evidence(&program.evidence, verbose);
 }
 
 fn print_core_ir_module(module: &core_ir::PrincipalModule) {
@@ -1431,6 +1432,69 @@ fn print_infer_graph(graph: &core_ir::CoreGraphView, verbose: bool) {
                 println!("    {} :: {}", format_graph_owner(&node.owner), bounds);
             }
         }
+    }
+}
+
+fn print_core_principal_evidence(evidence: &core_ir::PrincipalEvidence, verbose: bool) {
+    if evidence.expected_edges.is_empty() {
+        return;
+    }
+    println!("principal-evidence:");
+    if !verbose {
+        println!(
+            "  {} expected edges (use --verbose-ir for details)",
+            evidence.expected_edges.len()
+        );
+        return;
+    }
+    println!("  expected edges:");
+    for edge in &evidence.expected_edges {
+        println!("    {}", format_core_expected_edge_evidence(edge));
+    }
+}
+
+fn format_core_expected_edge_evidence(evidence: &core_ir::ExpectedEdgeEvidence) -> String {
+    let mut parts = vec![
+        format!(
+            "#{} {}",
+            evidence.id,
+            format_core_expected_edge_kind(evidence.kind)
+        ),
+        format!("actual={}", format_core_bounds(&evidence.actual)),
+        format!("expected={}", format_core_bounds(&evidence.expected)),
+    ];
+    if let Some(actual_effect) = &evidence.actual_effect {
+        parts.push(format!(
+            "actual-effect={}",
+            format_core_bounds(actual_effect)
+        ));
+    }
+    if let Some(expected_effect) = &evidence.expected_effect {
+        parts.push(format!(
+            "expected-effect={}",
+            format_core_bounds(expected_effect)
+        ));
+    }
+    parts.push(format!("closed={}", evidence.closed));
+    parts.push(format!("informative={}", evidence.informative));
+    parts.push(format!("runtime-usable={}", evidence.runtime_usable));
+    parts.join(" ")
+}
+
+fn format_core_expected_edge_kind(kind: core_ir::ExpectedEdgeKind) -> &'static str {
+    match kind {
+        core_ir::ExpectedEdgeKind::IfCondition => "if-condition",
+        core_ir::ExpectedEdgeKind::IfBranch => "if-branch",
+        core_ir::ExpectedEdgeKind::MatchGuard => "match-guard",
+        core_ir::ExpectedEdgeKind::MatchBranch => "match-branch",
+        core_ir::ExpectedEdgeKind::CatchGuard => "catch-guard",
+        core_ir::ExpectedEdgeKind::CatchBranch => "catch-branch",
+        core_ir::ExpectedEdgeKind::ApplicationArgument => "application-argument",
+        core_ir::ExpectedEdgeKind::Annotation => "annotation",
+        core_ir::ExpectedEdgeKind::RecordField => "record-field",
+        core_ir::ExpectedEdgeKind::VariantPayload => "variant-payload",
+        core_ir::ExpectedEdgeKind::AssignmentValue => "assignment-value",
+        core_ir::ExpectedEdgeKind::RepresentationCoerce => "representation-coerce",
     }
 }
 

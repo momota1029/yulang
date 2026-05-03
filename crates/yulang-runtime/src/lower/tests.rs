@@ -19,6 +19,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -66,6 +67,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
         let lowerer = Lowerer {
             env: HashMap::new(),
@@ -74,6 +76,7 @@ mod tests {
             graph: &program.graph,
             runtime_symbols: HashMap::new(),
             principal_vars: principal_module_type_vars(&program.program),
+            principal_evidence: &core_ir::PrincipalEvidence::default(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
@@ -165,6 +168,7 @@ mod tests {
                 core_ir::RuntimeSymbolKind::RoleMethod,
             )]),
             principal_vars: BTreeSet::new(),
+            principal_evidence: &core_ir::PrincipalEvidence::default(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
@@ -223,6 +227,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -252,6 +257,7 @@ mod tests {
                 roots: vec![core_ir::PrincipalRoot::Expr(0)],
             },
             graph: core_ir::CoreGraphView::default(),
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         assert!(matches!(
@@ -311,6 +317,7 @@ mod tests {
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -378,6 +385,7 @@ mod tests {
                 roots: Vec::new(),
             },
             graph: core_ir::CoreGraphView::default(),
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -440,6 +448,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -545,6 +554,7 @@ mod tests {
                     kind: core_ir::RuntimeSymbolKind::EffectOperation,
                 }],
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -594,6 +604,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -632,6 +643,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -673,6 +685,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -732,6 +745,7 @@ mod tests {
                     kind: core_ir::RuntimeSymbolKind::EffectOperation,
                 }],
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -800,6 +814,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -849,6 +864,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -901,6 +917,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -951,6 +968,7 @@ mod tests {
                 roots: Vec::new(),
             },
             graph: core_ir::CoreGraphView::default(),
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1093,6 +1111,7 @@ mod tests {
                     kind: core_ir::RuntimeSymbolKind::EffectOperation,
                 }],
             },
+            evidence: core_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1122,6 +1141,7 @@ mod tests {
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             principal_vars: BTreeSet::new(),
+            principal_evidence: &core_ir::PrincipalEvidence::default(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
@@ -1172,6 +1192,7 @@ mod tests {
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             principal_vars: BTreeSet::new(),
+            principal_evidence: &core_ir::PrincipalEvidence::default(),
             use_expected_arg_evidence: true,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,
@@ -1264,6 +1285,7 @@ mod tests {
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             principal_vars: BTreeSet::new(),
+            principal_evidence: &core_ir::PrincipalEvidence::default(),
             use_expected_arg_evidence: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             next_synthetic_type_var: 0,

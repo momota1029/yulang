@@ -209,6 +209,9 @@ impl Lowerer<'_> {
                 let evidence_expected_arg = self.expected_arg_evidence_runtime_type(
                     evidence
                         .as_ref()
+                        .and_then(|evidence| evidence.arg_source_edge),
+                    evidence
+                        .as_ref()
                         .and_then(|evidence| evidence.expected_arg.as_ref()),
                 );
                 let evidence_result = evidence
@@ -1052,13 +1055,21 @@ impl Lowerer<'_> {
 
     fn expected_arg_evidence_runtime_type(
         &mut self,
+        source_edge: Option<u32>,
         bounds: Option<&core_ir::TypeBounds>,
     ) -> Option<RuntimeType> {
         let ty = bounds
             .and_then(|bounds| self.tir_argument_runtime_type(bounds))
             .map(RuntimeType::core)?;
         self.expected_arg_evidence_profile.available += 1;
-        if expected_arg_evidence_runtime_usable(&ty) {
+        let table_usable = source_edge
+            .and_then(|id| self.principal_evidence.expected_edge(id))
+            .map(|edge| {
+                debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::ApplicationArgument);
+                edge.runtime_usable
+            });
+        let usable = table_usable.unwrap_or_else(|| expected_arg_evidence_runtime_usable(&ty));
+        if usable {
             Some(ty)
         } else {
             self.expected_arg_evidence_profile.ignored_unusable += 1;
