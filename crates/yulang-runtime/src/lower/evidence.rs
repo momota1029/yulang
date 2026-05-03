@@ -29,7 +29,7 @@ pub(super) fn infer_local_expected_type(
         core_ir::Expr::Var(path) if path.segments.as_slice() == std::slice::from_ref(name) => {
             Some(expected.clone())
         }
-        core_ir::Expr::Coerce { expr } | core_ir::Expr::Pack { expr, .. } => {
+        core_ir::Expr::Coerce { expr, .. } | core_ir::Expr::Pack { expr, .. } => {
             infer_local_expected_type(name, expr, expected)
         }
         core_ir::Expr::If {
@@ -89,7 +89,7 @@ pub(super) fn infer_resume_param_type_from_expr(
                 .or_else(|| infer_resume_param_type_from_expr(resume, arg))
         }
         core_ir::Expr::Lambda { body, .. }
-        | core_ir::Expr::Coerce { expr: body }
+        | core_ir::Expr::Coerce { expr: body, .. }
         | core_ir::Expr::Pack { expr: body, .. } => infer_resume_param_type_from_expr(resume, body),
         core_ir::Expr::If {
             cond,
@@ -161,7 +161,7 @@ pub(super) fn infer_resume_param_type_from_stmt(
 pub(super) fn is_resume_call(resume: &core_ir::Name, callee: &core_ir::Expr) -> bool {
     match callee {
         core_ir::Expr::Var(path) => path.segments.as_slice() == std::slice::from_ref(resume),
-        core_ir::Expr::Coerce { expr } | core_ir::Expr::Pack { expr, .. } => {
+        core_ir::Expr::Coerce { expr, .. } | core_ir::Expr::Pack { expr, .. } => {
             is_resume_call(resume, expr)
         }
         _ => false,
@@ -171,7 +171,7 @@ pub(super) fn is_resume_call(resume: &core_ir::Name, callee: &core_ir::Expr) -> 
 pub(super) fn literal_expr_type(expr: &core_ir::Expr) -> Option<core_ir::Type> {
     match expr {
         core_ir::Expr::Lit(lit) => Some(lit_type(lit)),
-        core_ir::Expr::Coerce { expr } | core_ir::Expr::Pack { expr, .. } => {
+        core_ir::Expr::Coerce { expr, .. } | core_ir::Expr::Pack { expr, .. } => {
             literal_expr_type(expr)
         }
         _ => None,

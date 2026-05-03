@@ -13,7 +13,9 @@ use crate::solve::RefFieldProjection;
 use crate::solve::role::role_method_info_for_path;
 use crate::symbols::{Name, Path};
 
-use super::complete_principal::complete_apply_principal_evidence;
+use super::complete_principal::{
+    complete_apply_principal_evidence, complete_coerce_principal_evidence,
+};
 use super::names::{export_name, export_path};
 use super::paths::collect_canonical_binding_paths;
 use super::roles::canonical_runtime_export_def;
@@ -200,8 +202,17 @@ impl<'a> ExprExporter<'a> {
                 }),
             },
             ExprKind::Block(block) => self.export_block(block),
-            ExprKind::Coerce { expr, .. } => core_ir::Expr::Coerce {
+            ExprKind::Coerce {
+                actual_tv,
+                expected_tv,
+                expr,
+            } => core_ir::Expr::Coerce {
                 expr: Box::new(self.export_expr(expr)),
+                evidence: Some(complete_coerce_principal_evidence(
+                    &self.state.infer,
+                    *actual_tv,
+                    *expected_tv,
+                )),
             },
             ExprKind::PackForall(var, expr) => core_ir::Expr::Pack {
                 var: core_ir::TypeVar(format!("t{}", var.0)),

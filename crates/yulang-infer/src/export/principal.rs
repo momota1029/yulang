@@ -1051,6 +1051,27 @@ mod tests {
     }
 
     #[test]
+    fn export_principal_bindings_attach_coerce_evidence() {
+        let mut state = parse_and_lower("struct point { x: int }\n");
+        let bindings = export_principal_bindings(&mut state);
+        let evidence = bindings
+            .iter()
+            .find_map(|binding| find_coerce_evidence(&binding.body, concrete_coerce_evidence))
+            .expect("synthetic field projection should carry concrete coerce evidence");
+
+        assert!(
+            evidence.actual.lower.is_some() || evidence.actual.upper.is_some(),
+            "missing actual coerce bounds: {:?}",
+            evidence.actual
+        );
+        assert!(
+            evidence.expected.lower.is_some() || evidence.expected.upper.is_some(),
+            "missing expected coerce bounds: {:?}",
+            evidence.expected
+        );
+    }
+
+    #[test]
     fn export_principal_module_collects_top_level_root_exprs() {
         let mut state = parse_and_lower("1\ntrue\n");
         let module = export_principal_module(&mut state);
@@ -1140,6 +1161,85 @@ mod tests {
             }
             core_ir::Type::Recursive { body, .. } => contains_named_int(body),
             core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
+        }
+    }
+
+    fn concrete_coerce_evidence(evidence: &core_ir::CoerceEvidence) -> bool {
+        (evidence.actual.lower.is_some() || evidence.actual.upper.is_some())
+            && (evidence.expected.lower.is_some() || evidence.expected.upper.is_some())
+    }
+
+    fn find_coerce_evidence(
+        expr: &core_ir::Expr,
+        predicate: fn(&core_ir::CoerceEvidence) -> bool,
+    ) -> Option<&core_ir::CoerceEvidence> {
+        match expr {
+            core_ir::Expr::Coerce { evidence, expr } => evidence
+                .as_ref()
+                .filter(|evidence| predicate(evidence))
+                .or_else(|| find_coerce_evidence(expr.as_ref(), predicate)),
+            core_ir::Expr::Lambda { body, .. } | core_ir::Expr::Pack { expr: body, .. } => {
+                find_coerce_evidence(body, predicate)
+            }
+            core_ir::Expr::Apply { callee, arg, .. } => find_coerce_evidence(callee, predicate)
+                .or_else(|| find_coerce_evidence(arg, predicate)),
+            core_ir::Expr::If {
+                cond,
+                then_branch,
+                else_branch,
+                ..
+            } => find_coerce_evidence(cond, predicate)
+                .or_else(|| find_coerce_evidence(then_branch, predicate))
+                .or_else(|| find_coerce_evidence(else_branch, predicate)),
+            core_ir::Expr::Tuple(items) => items
+                .iter()
+                .find_map(|item| find_coerce_evidence(item, predicate)),
+            core_ir::Expr::Record { fields, spread } => fields
+                .iter()
+                .find_map(|field| find_coerce_evidence(&field.value, predicate))
+                .or_else(|| match spread {
+                    Some(core_ir::RecordSpreadExpr::Head(expr))
+                    | Some(core_ir::RecordSpreadExpr::Tail(expr)) => {
+                        find_coerce_evidence(expr, predicate)
+                    }
+                    None => None,
+                }),
+            core_ir::Expr::Variant { value, .. } => value
+                .as_deref()
+                .and_then(|value| find_coerce_evidence(value, predicate)),
+            core_ir::Expr::Select { base, .. } => find_coerce_evidence(base, predicate),
+            core_ir::Expr::Match {
+                scrutinee, arms, ..
+            } => find_coerce_evidence(scrutinee, predicate).or_else(|| {
+                arms.iter().find_map(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .and_then(|guard| find_coerce_evidence(guard, predicate))
+                        .or_else(|| find_coerce_evidence(&arm.body, predicate))
+                })
+            }),
+            core_ir::Expr::Block { stmts, tail } => stmts
+                .iter()
+                .find_map(|stmt| match stmt {
+                    core_ir::Stmt::Let { value, .. } | core_ir::Stmt::Expr(value) => {
+                        find_coerce_evidence(value, predicate)
+                    }
+                    core_ir::Stmt::Module { body, .. } => find_coerce_evidence(body, predicate),
+                })
+                .or_else(|| {
+                    tail.as_deref()
+                        .and_then(|tail| find_coerce_evidence(tail, predicate))
+                }),
+            core_ir::Expr::Handle { body, arms, .. } => find_coerce_evidence(body, predicate)
+                .or_else(|| {
+                    arms.iter().find_map(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .and_then(|guard| find_coerce_evidence(guard, predicate))
+                            .or_else(|| find_coerce_evidence(&arm.body, predicate))
+                    })
+                }),
+            core_ir::Expr::Var(_) | core_ir::Expr::PrimitiveOp(_) | core_ir::Expr::Lit(_) => None,
         }
     }
 }

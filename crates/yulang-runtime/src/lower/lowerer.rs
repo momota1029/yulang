@@ -738,11 +738,26 @@ impl Lowerer<'_> {
                 );
                 finalize_handler_expr(expr, expected, expected_source)
             }
-            core_ir::Expr::Coerce { expr } => {
+            core_ir::Expr::Coerce { expr, evidence } => {
+                let evidence_actual = evidence
+                    .as_ref()
+                    .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.actual))
+                    .map(RuntimeType::core);
+                let evidence_expected = evidence
+                    .as_ref()
+                    .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.expected))
+                    .map(RuntimeType::core);
                 let expr = self.lower_expr(*expr, None, locals, TypeSource::Expected)?;
                 let (expr, from) = force_core_value_expr(expr);
+                let from = evidence_actual
+                    .as_ref()
+                    .filter(|ty| !hir_type_has_type_vars(ty))
+                    .and_then(RuntimeType::as_core)
+                    .cloned()
+                    .unwrap_or(from);
                 let ty = expected
                     .cloned()
+                    .or_else(|| evidence_expected.filter(|ty| !hir_type_has_type_vars(ty)))
                     .unwrap_or_else(|| RuntimeType::core(from.clone()));
                 let expr = Expr::typed(
                     ExprKind::Coerce {
@@ -1107,7 +1122,7 @@ impl Lowerer<'_> {
                 .as_ref()
                 .and_then(|evidence| self.visible_principal_bounds_type(&evidence.result))
                 .or_else(|| self.visible_handle_result_type(arms)),
-            core_ir::Expr::Coerce { expr } | core_ir::Expr::Pack { expr, .. } => {
+            core_ir::Expr::Coerce { expr, .. } | core_ir::Expr::Pack { expr, .. } => {
                 self.visible_expr_type(expr)
             }
         }

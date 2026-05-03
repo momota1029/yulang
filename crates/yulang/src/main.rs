@@ -1673,7 +1673,13 @@ fn format_core_expr(expr: &core_ir::Expr) -> String {
             }
             text
         }
-        core_ir::Expr::Coerce { expr } => format!("coerce {}", format_core_expr_atom(expr)),
+        core_ir::Expr::Coerce { expr, evidence } => {
+            let mut text = format!("coerce {}", format_core_expr_atom(expr));
+            if let Some(evidence) = evidence {
+                text.push_str(&format!(" :: {}", format_coerce_evidence(evidence)));
+            }
+            text
+        }
         core_ir::Expr::Pack { var, expr } => {
             format!("pack {} in {}", var.0, format_core_expr(expr))
         }
@@ -1867,6 +1873,14 @@ fn format_apply_evidence(evidence: &core_ir::ApplyEvidence) -> String {
 
 fn format_join_evidence(evidence: &core_ir::JoinEvidence) -> String {
     format!("join[{}]", format_core_bounds(&evidence.result))
+}
+
+fn format_coerce_evidence(evidence: &core_ir::CoerceEvidence) -> String {
+    format!(
+        "coerce[actual={}, expected={}]",
+        format_core_bounds(&evidence.actual),
+        format_core_bounds(&evidence.expected)
+    )
 }
 
 fn format_runtime_typed_expr(expr: &runtime::Expr, verbose: bool) -> String {

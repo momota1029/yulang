@@ -97,6 +97,12 @@ pub struct JoinEvidence {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoerceEvidence {
+    pub actual: crate::types::TypeBounds,
+    pub expected: crate::types::TypeBounds,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrincipalRoot {
     Binding(Path),
     Expr(usize),
@@ -191,6 +197,7 @@ pub enum Expr {
     },
     Coerce {
         expr: Box<Expr>,
+        evidence: Option<CoerceEvidence>,
     },
     Pack {
         var: TypeVar,

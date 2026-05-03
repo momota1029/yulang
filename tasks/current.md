@@ -161,6 +161,9 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 24. `YULANG_SUBST_SPECIALIZE_HANDLER_CALL_ADAPTER=1` の opt-in で、unsupported handler plan のときに handler clone は作らず、call site の第 1 引数 thunk だけを `plan.residual_before` の effect へ持ち上げる経路を追加した。`std::flow::sub::sub` では `junction` thunk を `sub + junction` へ包み直してから旧 demand 側へ渡す。これは 38 passes には悪化しないが、`junction` は 14 passes / 9 specializations のままで削減にもつながらなかった。したがって call site の thunk shape を合わせるだけでは足りず、旧 demand が handler binding を再処理する構造そのものを減らす必要がある。
 25. `examples/02_refs.yu` を計測対象に加えた。直接スカラー参照代入 `&x = ...` は lower 時点で参照を「読む」扱いから除外されていたため `&x` binding が作られず、未定義名になっていた。`VarBindingUsage` を read/write に分け、書き込みでも `var_ref` helper と参照 binding を用意するようにした。元の `02_refs.yu` は `[0] (11, 21)` で通る。通常実行は 37 passes / 39 specializations、置換 opt-in は 38 passes / 41 specializations で、参照系はまだ古い demand-driven 単相化に強く乗っている。
 26. ChatGPT Pro への相談結果を方針へ反映した。Simple-sub は主型と subtyping constraint を扱うが、cast/coerce 挿入位置の決定は別の elaboration 問題として見る。今後は「制約解決後に cast 位置を探す」のではなく、型推論・制約生成時に hole を置き、解けた制約と runtime 型から hole を埋める方向へ寄せる。
+27. 既存の cast 情報を棚卸しした。infer の `ExprKind::Coerce` は `actual_tv` / `expected_tv` を持っていたが、Core IR へ export すると `Coerce { expr }` だけになり、境界型が失われていた。`core_ir::CoerceEvidence { actual, expected }` を追加し、export 時に `actual_tv` / `expected_tv` の bounds を載せるようにした。runtime lower は閉じた evidence だけを `from` / `to` の補助として使う。未閉じの evidence を inner の期待型へ押し込むと `std::var::ref::update_effect__ddmono*` が多相のまま残るため、今は保守的に使わない。
+28. `--core-ir --verbose-ir` で `coerce value :: coerce[actual=..., expected=...]` のように表示できるようにした。これで cast hole の存在は CLI から確認できる。`examples/01_struct_with.yu` の struct constructor / field projection で evidence が出ることを確認した。
+29. `CoerceEvidence` は生の推論 bounds ではなく、`complete_principal` 経由で coerce slot 内の actual/expected を一緒に coalesce してから出すようにした。これにより `examples/01_struct_with.yu` の field projection は `coerce[actual=point, expected={x: int, y: int}]` のように主型に近い形で見える。constructor の `actual=_ expected=_` は、その境界だけでは具体型が取れないため空のまま残る。
 
 ## Notes
 
@@ -170,3 +173,5 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - 計測は必要だが、先に設計上の責務を分ける。計測対象は pass 単位だけでなく、collect / check / emit / rewrite / validate / refine / prune の内訳まで見る。
 - `examples/02_refs.yu` は回帰対象に残す。参照 direct assignment は直ったが、置換 opt-in では通常経路より 1 pass / 2 specializations 増えるので、参照 helper (`run/get/set/var_ref`) を新パスで扱うか、まず旧 demand のまま残すかを分けて見る。
 - 最終形は「主型代入だけで全部を解く」ではなく、「主型代入 + constraint 生成時に置いた elaboration hole を埋める」形にする。cast 位置の選択は typing derivation に依存しうるため、実装として正規の elaboration 形をひとつ決める。
+- `CoerceEvidence` は IR 上の cast hole として保持できるようになったが、runtime lower が積極的に活用できるのは閉じた型だけ。未閉じの `actual` / `expected` をそのまま期待型として流すと、多相 helper が残る。次は `complete_principal` 側で slot-local に閉じた evidence を作るか、runtime 側で `AdapterHole` として遅延処理するかを分ける。
+- `CoerceEvidence.expected` を runtime lower の式型として親の `expected` より優先すると、`std::opt::opt::nil` などの多相 constructor が閉じきらず壊れる。runtime lower では親の文脈を優先し、coerce evidence は補助情報として扱う。

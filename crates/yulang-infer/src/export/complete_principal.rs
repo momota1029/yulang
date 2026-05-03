@@ -21,7 +21,8 @@ use crate::ids::TypeVar;
 use crate::solve::Infer;
 
 use super::types::{
-    collect_core_type_vars, export_coalesced_apply_evidence_bounds, export_type_bounds_for_tv,
+    collect_core_type_vars, export_coalesced_apply_evidence_bounds,
+    export_coalesced_coerce_evidence_bounds, export_type_bounds_for_tv,
     project_core_value_type_or_any,
 };
 
@@ -29,6 +30,17 @@ use super::types::{
 pub(super) struct CompleteApplyPrincipalEvidence {
     pub(super) principal_callee: core_ir::Type,
     pub(super) substitutions: Vec<core_ir::TypeSubstitution>,
+}
+
+pub(super) fn complete_coerce_principal_evidence(
+    infer: &Infer,
+    actual_tv: TypeVar,
+    expected_tv: TypeVar,
+) -> core_ir::CoerceEvidence {
+    let relevant_vars = BTreeSet::new();
+    let (actual, expected) =
+        export_coalesced_coerce_evidence_bounds(infer, actual_tv, expected_tv, &relevant_vars);
+    core_ir::CoerceEvidence { actual, expected }
 }
 
 pub(super) fn complete_apply_principal_evidence(

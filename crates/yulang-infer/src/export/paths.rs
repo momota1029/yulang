@@ -102,7 +102,7 @@ fn collect_expr_binding_refs(expr: &core_ir::Expr, out: &mut HashSet<core_ir::Pa
         }
         core_ir::Expr::PrimitiveOp(_) | core_ir::Expr::Lit(_) => {}
         core_ir::Expr::Lambda { body, .. }
-        | core_ir::Expr::Coerce { expr: body }
+        | core_ir::Expr::Coerce { expr: body, .. }
         | core_ir::Expr::Pack { expr: body, .. } => {
             collect_expr_binding_refs(body, out);
         }
