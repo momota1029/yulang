@@ -1435,7 +1435,7 @@ mod tests {
             lowerer
                 .expected_arg_evidence_profile
                 .used_as_lowering_expected,
-            0
+            1
         );
     }
 

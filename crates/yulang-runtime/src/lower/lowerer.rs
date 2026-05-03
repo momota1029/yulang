@@ -355,21 +355,23 @@ impl Lowerer<'_> {
                         } else if matches!(arg_ty, RuntimeType::Thunk { .. }) {
                             Some(&arg_ty)
                         } else {
-                            let can_push = can_push_expected_arg_through(
-                                arg_expr
-                                    .as_ref()
-                                    .expect("arg should be present before lowering"),
-                            );
-                            if let Some(expected_arg_ty) = evidence_expected_arg
+                            let pending_arg = arg_expr
                                 .as_ref()
-                                .filter(|_| self.use_expected_arg_evidence && can_push)
+                                .expect("arg should be present before lowering");
+                            let can_push = can_push_expected_arg_through(pending_arg);
+                            let can_push_expected_evidence =
+                                can_push_expected_arg_evidence_through(pending_arg);
+                            if let Some(expected_arg_ty) =
+                                evidence_expected_arg.as_ref().filter(|_| {
+                                    self.use_expected_arg_evidence && can_push_expected_evidence
+                                })
                             {
                                 self.expected_arg_evidence_profile.used_as_lowering_expected += 1;
                                 Some(expected_arg_ty)
                             } else {
                                 if self.use_expected_arg_evidence
                                     && evidence_expected_arg.is_some()
-                                    && !can_push
+                                    && !can_push_expected_evidence
                                 {
                                     self.expected_arg_evidence_profile.ignored_no_push += 1;
                                 }
@@ -1622,4 +1624,8 @@ fn can_push_expected_arg_through(expr: &core_ir::Expr) -> bool {
             | core_ir::Expr::Variant { .. }
             | core_ir::Expr::Block { .. }
     )
+}
+
+fn can_push_expected_arg_evidence_through(expr: &core_ir::Expr) -> bool {
+    matches!(expr, core_ir::Expr::Var(_)) || can_push_expected_arg_through(expr)
 }
