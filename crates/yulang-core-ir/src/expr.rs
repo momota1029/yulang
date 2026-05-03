@@ -212,7 +212,33 @@ pub struct ApplyEvidence {
     pub result: crate::types::TypeBounds,
     pub principal_callee: Option<crate::types::Type>,
     pub substitutions: Vec<crate::types::TypeSubstitution>,
+    pub substitution_candidates: Vec<PrincipalSubstitutionCandidate>,
     pub role_method: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrincipalSubstitutionCandidate {
+    pub var: TypeVar,
+    pub relation: PrincipalCandidateRelation,
+    pub ty: Type,
+    pub source_edge: Option<u32>,
+    pub path: Vec<PrincipalSlotPathSegment>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrincipalCandidateRelation {
+    Lower,
+    Upper,
+    Exact,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PrincipalSlotPathSegment {
+    Callee,
+    Arg,
+    Result,
+    FunctionParam,
+    FunctionReturn,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

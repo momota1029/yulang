@@ -156,6 +156,7 @@ impl<'a> ExprExporter<'a> {
                             ),
                             principal_callee: None,
                             substitutions: Vec::new(),
+                            substitution_candidates: Vec::new(),
                             role_method: false,
                         }),
                     }
@@ -187,6 +188,7 @@ impl<'a> ExprExporter<'a> {
                             ),
                             principal_callee: None,
                             substitutions: Vec::new(),
+                            substitution_candidates: Vec::new(),
                             role_method: false,
                         }),
                     }
@@ -381,6 +383,7 @@ impl<'a> ExprExporter<'a> {
                 result,
                 principal_callee: None,
                 substitutions: Vec::new(),
+                substitution_candidates: Vec::new(),
                 role_method,
             }
         } else {
@@ -410,6 +413,7 @@ impl<'a> ExprExporter<'a> {
                 ),
                 principal_callee: None,
                 substitutions: Vec::new(),
+                substitution_candidates: Vec::new(),
                 role_method,
             }
         };
@@ -423,9 +427,12 @@ impl<'a> ExprExporter<'a> {
                 callee.tv,
                 arg.tv,
                 result.tv,
+                callee_source_edge,
+                arg_source_edge,
             ) {
                 evidence.principal_callee = Some(principal.principal_callee);
                 evidence.substitutions = principal.substitutions;
+                evidence.substitution_candidates = principal.substitution_candidates;
             }
         }
         evidence

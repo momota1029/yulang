@@ -10,7 +10,8 @@ pub use expr::{
     ExpectedAdapterEdgeEvidence, ExpectedAdapterEdgeKind, ExpectedEdgeEvidence, ExpectedEdgeKind,
     Expr, FunctionSigAllowedEffects, HandleArm, ImplDecl, ImplMember, Item, JoinEvidence, Lit,
     MatchArm, Module, ParamEffectAnnotation, Pattern, PrimitiveOp, PrincipalBinding,
-    PrincipalEvidence, PrincipalModule, PrincipalRoot, RecordExprField, RecordPatternField,
+    PrincipalCandidateRelation, PrincipalEvidence, PrincipalModule, PrincipalRoot,
+    PrincipalSlotPathSegment, PrincipalSubstitutionCandidate, RecordExprField, RecordPatternField,
     RecordSpreadExpr, RecordSpreadPattern, RoleDecl, RoleMember, Stmt,
 };
 pub use graph::{

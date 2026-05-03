@@ -4122,6 +4122,7 @@ mod tests {
                                         result: core_ir::TypeBounds::exact(list_int.clone()),
                                         principal_callee: None,
                                         substitutions: Vec::new(),
+                                        substitution_candidates: Vec::new(),
                                         role_method: false,
                                     }),
                                     instantiation: None,

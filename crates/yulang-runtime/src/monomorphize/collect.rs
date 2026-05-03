@@ -1439,6 +1439,7 @@ mod tests {
                         result: core_ir::TypeBounds::exact(named("int")),
                         principal_callee: None,
                         substitutions: Vec::new(),
+                        substitution_candidates: Vec::new(),
                         role_method: false,
                     }),
                     instantiation: None::<TypeInstantiation>,

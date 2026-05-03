@@ -1767,6 +1767,7 @@ mod tests {
             result: core_ir::TypeBounds::exact(core_ir::Type::Any),
             principal_callee: None,
             substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
             role_method: false,
         };
 
@@ -1792,6 +1793,7 @@ mod tests {
             result: core_ir::TypeBounds::exact(core_ir::Type::Any),
             principal_callee: None,
             substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
             role_method: false,
         };
 
@@ -1821,6 +1823,7 @@ mod tests {
             result: core_ir::TypeBounds::exact(core_ir::Type::Any),
             principal_callee: None,
             substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
             role_method: false,
         };
 

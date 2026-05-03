@@ -202,6 +202,17 @@ pub(crate) fn substitute_apply_evidence(
                 ty: substitute_type(&substitution.ty, substitutions),
             })
             .collect(),
+        substitution_candidates: evidence
+            .substitution_candidates
+            .into_iter()
+            .map(|candidate| core_ir::PrincipalSubstitutionCandidate {
+                var: candidate.var,
+                relation: candidate.relation,
+                ty: substitute_type(&candidate.ty, substitutions),
+                source_edge: candidate.source_edge,
+                path: candidate.path,
+            })
+            .collect(),
         role_method: evidence.role_method,
     }
 }

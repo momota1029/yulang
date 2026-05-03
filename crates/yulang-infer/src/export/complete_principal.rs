@@ -35,6 +35,7 @@ use super::types::{
 pub(super) struct CompleteApplyPrincipalEvidence {
     pub(super) principal_callee: core_ir::Type,
     pub(super) substitutions: Vec<core_ir::TypeSubstitution>,
+    pub(super) substitution_candidates: Vec<core_ir::PrincipalSubstitutionCandidate>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -122,13 +123,27 @@ pub(super) fn complete_apply_principal_evidence(
     callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
+    callee_source_edge: Option<ExpectedEdgeId>,
+    arg_source_edge: Option<ExpectedEdgeId>,
 ) -> Option<CompleteApplyPrincipalEvidence> {
     let substitutions =
         apply_principal_substitutions(infer, &principal_scheme, callee_tv, arg_tv, result_tv);
-    (!substitutions.is_empty()).then_some(CompleteApplyPrincipalEvidence {
-        principal_callee: principal_scheme.body,
-        substitutions,
-    })
+    let substitution_candidates = apply_principal_substitution_candidates(
+        infer,
+        &principal_scheme,
+        callee_tv,
+        arg_tv,
+        result_tv,
+        callee_source_edge,
+        arg_source_edge,
+    );
+    (!substitutions.is_empty() || !substitution_candidates.is_empty()).then_some(
+        CompleteApplyPrincipalEvidence {
+            principal_callee: principal_scheme.body,
+            substitutions,
+            substitution_candidates,
+        },
+    )
 }
 
 pub fn collect_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvidence> {
@@ -299,6 +314,54 @@ pub(super) fn apply_principal_substitutions(
         .collect()
 }
 
+pub(super) fn apply_principal_substitution_candidates(
+    infer: &Infer,
+    principal_scheme: &core_ir::Scheme,
+    callee_tv: TypeVar,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+    callee_source_edge: Option<ExpectedEdgeId>,
+    arg_source_edge: Option<ExpectedEdgeId>,
+) -> Vec<core_ir::PrincipalSubstitutionCandidate> {
+    let principal_callee = &principal_scheme.body;
+    let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
+        return Vec::new();
+    };
+    let mut params = BTreeSet::new();
+    collect_core_type_vars(principal_callee, &mut params);
+    if params.is_empty() {
+        return Vec::new();
+    }
+
+    let slot_bounds = apply_slot_bounds(infer, callee_tv, arg_tv, result_tv);
+    let mut candidates = Vec::new();
+    collect_candidates_from_bounds(
+        principal_callee,
+        &slot_bounds.callee,
+        &params,
+        callee_source_edge,
+        &mut vec![core_ir::PrincipalSlotPathSegment::Callee],
+        &mut candidates,
+    );
+    collect_candidates_from_bounds(
+        param,
+        &slot_bounds.arg,
+        &params,
+        arg_source_edge,
+        &mut vec![core_ir::PrincipalSlotPathSegment::Arg],
+        &mut candidates,
+    );
+    collect_candidates_from_bounds(
+        ret,
+        &slot_bounds.result,
+        &params,
+        None,
+        &mut vec![core_ir::PrincipalSlotPathSegment::Result],
+        &mut candidates,
+    );
+    candidates
+}
+
 pub(super) fn residual_apply_principal_scheme(
     infer: &Infer,
     principal_scheme: &core_ir::Scheme,
@@ -312,6 +375,8 @@ pub(super) fn residual_apply_principal_scheme(
         callee_tv,
         arg_tv,
         result_tv,
+        None,
+        None,
     )
     .map(|principal| {
         principal
@@ -334,6 +399,12 @@ struct ApplySlotTypes {
     result: Option<core_ir::Type>,
 }
 
+struct ApplySlotBounds {
+    callee: core_ir::TypeBounds,
+    arg: core_ir::TypeBounds,
+    result: core_ir::TypeBounds,
+}
+
 fn apply_slot_monomorphic_types(
     infer: &Infer,
     callee_tv: TypeVar,
@@ -349,6 +420,22 @@ fn apply_slot_monomorphic_types(
     }
 }
 
+fn apply_slot_bounds(
+    infer: &Infer,
+    callee_tv: TypeVar,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+) -> ApplySlotBounds {
+    let relevant_vars = BTreeSet::new();
+    let (callee, arg, result) =
+        export_coalesced_apply_evidence_bounds(infer, callee_tv, arg_tv, result_tv, &relevant_vars);
+    ApplySlotBounds {
+        callee,
+        arg,
+        result,
+    }
+}
+
 fn monomorphic_type_from_bounds(bounds: core_ir::TypeBounds) -> Option<core_ir::Type> {
     bounds
         .lower
@@ -356,6 +443,234 @@ fn monomorphic_type_from_bounds(bounds: core_ir::TypeBounds) -> Option<core_ir::
         .or(bounds.upper.as_deref())
         .cloned()
         .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
+}
+
+fn collect_candidates_from_bounds(
+    template: &core_ir::Type,
+    bounds: &core_ir::TypeBounds,
+    params: &BTreeSet<core_ir::TypeVar>,
+    source_edge: Option<ExpectedEdgeId>,
+    path: &mut Vec<core_ir::PrincipalSlotPathSegment>,
+    out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+) {
+    if let Some(lower) = &bounds.lower {
+        collect_candidates_from_type(
+            template,
+            lower,
+            params,
+            core_ir::PrincipalCandidateRelation::Lower,
+            source_edge,
+            path,
+            out,
+        );
+    }
+    if let Some(upper) = &bounds.upper {
+        collect_candidates_from_type(
+            template,
+            upper,
+            params,
+            core_ir::PrincipalCandidateRelation::Upper,
+            source_edge,
+            path,
+            out,
+        );
+    }
+    if let (Some(lower), Some(upper)) = (&bounds.lower, &bounds.upper)
+        && lower == upper
+    {
+        collect_candidates_from_type(
+            template,
+            lower,
+            params,
+            core_ir::PrincipalCandidateRelation::Exact,
+            source_edge,
+            path,
+            out,
+        );
+    }
+}
+
+fn collect_candidates_from_type(
+    template: &core_ir::Type,
+    actual: &core_ir::Type,
+    params: &BTreeSet<core_ir::TypeVar>,
+    relation: core_ir::PrincipalCandidateRelation,
+    source_edge: Option<ExpectedEdgeId>,
+    path: &mut Vec<core_ir::PrincipalSlotPathSegment>,
+    out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+) {
+    match (template, actual) {
+        (core_ir::Type::Var(var), actual) if params.contains(var) => {
+            if principal_candidate_type_usable(actual) {
+                out.push(core_ir::PrincipalSubstitutionCandidate {
+                    var: var.clone(),
+                    relation,
+                    ty: actual.clone(),
+                    source_edge: source_edge.map(|id| id.0),
+                    path: path.clone(),
+                });
+            }
+        }
+        (
+            core_ir::Type::Named {
+                path: template_path,
+                args,
+            },
+            core_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+        ) if template_path == actual_path && args.len() == actual_args.len() => {
+            for (template_arg, actual_arg) in args.iter().zip(actual_args) {
+                collect_candidates_from_arg(
+                    template_arg,
+                    actual_arg,
+                    params,
+                    relation,
+                    source_edge,
+                    path,
+                    out,
+                );
+            }
+        }
+        (
+            core_ir::Type::Fun {
+                param,
+                param_effect: _,
+                ret_effect: _,
+                ret,
+            },
+            core_ir::Type::Fun {
+                param: actual_param,
+                param_effect: _,
+                ret_effect: _,
+                ret: actual_ret,
+            },
+        ) => {
+            path.push(core_ir::PrincipalSlotPathSegment::FunctionParam);
+            collect_candidates_from_type(
+                param,
+                actual_param,
+                params,
+                flip_candidate_relation(relation),
+                source_edge,
+                path,
+                out,
+            );
+            path.pop();
+
+            path.push(core_ir::PrincipalSlotPathSegment::FunctionReturn);
+            collect_candidates_from_type(ret, actual_ret, params, relation, source_edge, path, out);
+            path.pop();
+        }
+        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items))
+            if items.len() == actual_items.len() =>
+        {
+            for (item, actual_item) in items.iter().zip(actual_items) {
+                collect_candidates_from_type(
+                    item,
+                    actual_item,
+                    params,
+                    relation,
+                    source_edge,
+                    path,
+                    out,
+                );
+            }
+        }
+        (core_ir::Type::Union(items) | core_ir::Type::Inter(items), actual) => {
+            for item in items {
+                collect_candidates_from_type(
+                    item,
+                    actual,
+                    params,
+                    relation,
+                    source_edge,
+                    path,
+                    out,
+                );
+            }
+        }
+        (core_ir::Type::Recursive { body, .. }, actual) => {
+            collect_candidates_from_type(body, actual, params, relation, source_edge, path, out);
+        }
+        (template, core_ir::Type::Recursive { body, .. }) => {
+            collect_candidates_from_type(template, body, params, relation, source_edge, path, out);
+        }
+        _ => {}
+    }
+}
+
+fn collect_candidates_from_arg(
+    template: &core_ir::TypeArg,
+    actual: &core_ir::TypeArg,
+    params: &BTreeSet<core_ir::TypeVar>,
+    relation: core_ir::PrincipalCandidateRelation,
+    source_edge: Option<ExpectedEdgeId>,
+    path: &mut Vec<core_ir::PrincipalSlotPathSegment>,
+    out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+) {
+    match (template, actual) {
+        (core_ir::TypeArg::Type(template), core_ir::TypeArg::Type(actual)) => {
+            collect_candidates_from_type(
+                template,
+                actual,
+                params,
+                relation,
+                source_edge,
+                path,
+                out,
+            );
+        }
+        (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
+            if let (Some(template), Some(actual)) = (&template.lower, &actual.lower) {
+                collect_candidates_from_type(
+                    template,
+                    actual,
+                    params,
+                    relation,
+                    source_edge,
+                    path,
+                    out,
+                );
+            }
+            if let (Some(template), Some(actual)) = (&template.upper, &actual.upper) {
+                collect_candidates_from_type(
+                    template,
+                    actual,
+                    params,
+                    relation,
+                    source_edge,
+                    path,
+                    out,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+fn flip_candidate_relation(
+    relation: core_ir::PrincipalCandidateRelation,
+) -> core_ir::PrincipalCandidateRelation {
+    match relation {
+        core_ir::PrincipalCandidateRelation::Lower => core_ir::PrincipalCandidateRelation::Upper,
+        core_ir::PrincipalCandidateRelation::Upper => core_ir::PrincipalCandidateRelation::Lower,
+        core_ir::PrincipalCandidateRelation::Exact => core_ir::PrincipalCandidateRelation::Exact,
+    }
+}
+
+fn principal_candidate_type_usable(ty: &core_ir::Type) -> bool {
+    !matches!(
+        ty,
+        core_ir::Type::Any | core_ir::Type::Never | core_ir::Type::Var(_)
+    ) && !type_has_core_vars(ty)
+}
+
+fn type_has_core_vars(ty: &core_ir::Type) -> bool {
+    let mut vars = BTreeSet::new();
+    collect_core_type_vars(ty, &mut vars);
+    !vars.is_empty()
 }
 
 fn principal_fun_param_ret(ty: &core_ir::Type) -> Option<(&core_ir::Type, &core_ir::Type)> {

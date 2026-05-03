@@ -1351,7 +1351,80 @@ fn initial_substitution_candidates(
                 .map(|substitution| (substitution.var.clone(), substitution.ty.clone())),
         );
     }
+    substitutions.extend(solve_principal_substitution_candidates(
+        spine.principal_evidences.iter().flat_map(|evidence| {
+            evidence
+                .substitution_candidates
+                .iter()
+                .filter(|candidate| params.contains(&candidate.var))
+        }),
+    ));
     substitutions
+}
+
+fn solve_principal_substitution_candidates<'a>(
+    candidates: impl Iterator<Item = &'a core_ir::PrincipalSubstitutionCandidate>,
+) -> BTreeMap<core_ir::TypeVar, core_ir::Type> {
+    let mut by_var: BTreeMap<core_ir::TypeVar, PrincipalCandidateSet> = BTreeMap::new();
+    for candidate in candidates {
+        if core_type_has_vars(&candidate.ty)
+            || matches!(
+                candidate.ty,
+                core_ir::Type::Any | core_ir::Type::Never | core_ir::Type::Var(_)
+            )
+        {
+            continue;
+        }
+        let set = by_var.entry(candidate.var.clone()).or_default();
+        match candidate.relation {
+            core_ir::PrincipalCandidateRelation::Exact => {
+                push_unique_type(&mut set.exact, candidate.ty.clone());
+            }
+            core_ir::PrincipalCandidateRelation::Lower => {
+                push_unique_type(&mut set.lower, candidate.ty.clone());
+            }
+            core_ir::PrincipalCandidateRelation::Upper => {
+                push_unique_type(&mut set.upper, candidate.ty.clone());
+            }
+        }
+    }
+    by_var
+        .into_iter()
+        .filter_map(|(var, set)| set.solve().map(|ty| (var, ty)))
+        .collect()
+}
+
+#[derive(Default)]
+struct PrincipalCandidateSet {
+    exact: Vec<core_ir::Type>,
+    lower: Vec<core_ir::Type>,
+    upper: Vec<core_ir::Type>,
+}
+
+impl PrincipalCandidateSet {
+    fn solve(self) -> Option<core_ir::Type> {
+        if self.exact.len() == 1 {
+            return self.exact.into_iter().next();
+        }
+        if self.exact.len() > 1 {
+            return None;
+        }
+        let matches = self
+            .lower
+            .iter()
+            .filter(|lower| self.upper.iter().any(|upper| upper == *lower))
+            .cloned()
+            .collect::<Vec<_>>();
+        (matches.len() == 1)
+            .then(|| matches.into_iter().next())
+            .flatten()
+    }
+}
+
+fn push_unique_type(types: &mut Vec<core_ir::Type>, ty: core_ir::Type) {
+    if !types.iter().any(|existing| existing == &ty) {
+        types.push(ty);
+    }
 }
 
 fn no_complete_substitution_cause(spine: &ApplySpine<'_>, binding: &Binding) -> &'static str {
@@ -1389,6 +1462,13 @@ fn no_complete_substitution_cause(spine: &ApplySpine<'_>, binding: &Binding) -> 
         return "evidence-missing-principal-callee";
     }
     if evidence.substitutions.is_empty() {
+        if spine
+            .principal_evidences
+            .iter()
+            .any(|evidence| !evidence.substitution_candidates.is_empty())
+        {
+            return "evidence-unsolved-candidates";
+        }
         return "evidence-empty-substitutions";
     }
     if evidence.substitutions.iter().any(|substitution| {
@@ -1744,6 +1824,72 @@ mod tests {
         let receiver = list(named("int"));
 
         assert!(role_impl_receiver_matches(&impl_binding, &receiver));
+    }
+
+    #[test]
+    fn principal_substitution_candidates_bind_matching_lower_and_upper() {
+        let var = core_ir::TypeVar("acc".to_string());
+        let lower = principal_candidate(
+            var.clone(),
+            core_ir::PrincipalCandidateRelation::Lower,
+            named("int"),
+        );
+        let upper = principal_candidate(
+            var.clone(),
+            core_ir::PrincipalCandidateRelation::Upper,
+            named("int"),
+        );
+
+        let substitutions = solve_principal_substitution_candidates([&lower, &upper].into_iter());
+
+        assert_eq!(substitutions.get(&var), Some(&named("int")));
+    }
+
+    #[test]
+    fn principal_substitution_candidates_do_not_bind_one_sided_candidates() {
+        let var = core_ir::TypeVar("acc".to_string());
+        let lower = principal_candidate(
+            var.clone(),
+            core_ir::PrincipalCandidateRelation::Lower,
+            named("int"),
+        );
+
+        let substitutions = solve_principal_substitution_candidates([&lower].into_iter());
+
+        assert!(!substitutions.contains_key(&var));
+    }
+
+    #[test]
+    fn principal_substitution_candidates_do_not_bind_conflicting_exact_candidates() {
+        let var = core_ir::TypeVar("acc".to_string());
+        let first = principal_candidate(
+            var.clone(),
+            core_ir::PrincipalCandidateRelation::Exact,
+            named("int"),
+        );
+        let second = principal_candidate(
+            var.clone(),
+            core_ir::PrincipalCandidateRelation::Exact,
+            named("bool"),
+        );
+
+        let substitutions = solve_principal_substitution_candidates([&first, &second].into_iter());
+
+        assert!(!substitutions.contains_key(&var));
+    }
+
+    fn principal_candidate(
+        var: core_ir::TypeVar,
+        relation: core_ir::PrincipalCandidateRelation,
+        ty: core_ir::Type,
+    ) -> core_ir::PrincipalSubstitutionCandidate {
+        core_ir::PrincipalSubstitutionCandidate {
+            var,
+            relation,
+            ty,
+            source_edge: None,
+            path: Vec::new(),
+        }
     }
 
     fn test_binding(scheme_body: core_ir::Type) -> Binding {

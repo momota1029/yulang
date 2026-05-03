@@ -2905,7 +2905,54 @@ fn format_apply_evidence(evidence: &core_ir::ApplyEvidence) -> String {
             .join(", ");
         out.push_str(&format!(", subst=[{substitutions}]"));
     }
+    if !evidence.substitution_candidates.is_empty() {
+        let candidates = evidence
+            .substitution_candidates
+            .iter()
+            .map(format_principal_substitution_candidate)
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!(", subst-candidates=[{candidates}]"));
+    }
     out
+}
+
+fn format_principal_substitution_candidate(
+    candidate: &core_ir::PrincipalSubstitutionCandidate,
+) -> String {
+    let relation = match candidate.relation {
+        core_ir::PrincipalCandidateRelation::Lower => "<=",
+        core_ir::PrincipalCandidateRelation::Upper => ">=",
+        core_ir::PrincipalCandidateRelation::Exact => "=",
+    };
+    let path = candidate
+        .path
+        .iter()
+        .map(format_principal_slot_path_segment)
+        .collect::<Vec<_>>()
+        .join(".");
+    let source = candidate
+        .source_edge
+        .map(|edge| format!(" edge#{edge}"))
+        .unwrap_or_default();
+    format!(
+        "{} {} {} @{}{}",
+        candidate.var.0,
+        relation,
+        format_core_type(&candidate.ty),
+        path,
+        source,
+    )
+}
+
+fn format_principal_slot_path_segment(segment: &core_ir::PrincipalSlotPathSegment) -> String {
+    match segment {
+        core_ir::PrincipalSlotPathSegment::Callee => "callee".to_string(),
+        core_ir::PrincipalSlotPathSegment::Arg => "arg".to_string(),
+        core_ir::PrincipalSlotPathSegment::Result => "result".to_string(),
+        core_ir::PrincipalSlotPathSegment::FunctionParam => "param".to_string(),
+        core_ir::PrincipalSlotPathSegment::FunctionReturn => "return".to_string(),
+    }
 }
 
 fn format_join_evidence(evidence: &core_ir::JoinEvidence) -> String {
@@ -4149,6 +4196,7 @@ mod tests {
             },
             principal_callee: None,
             substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
             role_method: false,
         };
 
