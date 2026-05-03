@@ -1244,6 +1244,80 @@ mod tests {
     }
 
     #[test]
+    pub(super) fn lower_apply_ignores_expected_arg_when_source_edge_is_not_runtime_usable() {
+        let principal_evidence = core_ir::PrincipalEvidence {
+            expected_edges: vec![core_ir::ExpectedEdgeEvidence {
+                id: 3,
+                kind: core_ir::ExpectedEdgeKind::ApplicationArgument,
+                actual: core_ir::TypeBounds::exact(core_ir::Type::Any),
+                expected: core_ir::TypeBounds::exact(named_type("int")),
+                actual_effect: None,
+                expected_effect: None,
+                closed: true,
+                informative: true,
+                runtime_usable: false,
+            }],
+        };
+        let mut lowerer = Lowerer {
+            env: HashMap::new(),
+            binding_infos: HashMap::new(),
+            aliases: HashMap::new(),
+            graph: &core_ir::CoreGraphView::default(),
+            runtime_symbols: HashMap::new(),
+            principal_vars: BTreeSet::new(),
+            principal_evidence: &principal_evidence,
+            use_expected_arg_evidence: true,
+            expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
+            next_synthetic_type_var: 0,
+            next_effect_id_var: 0,
+        };
+        let callee_path = core_ir::Path::from_name(core_ir::Name("k".to_string()));
+        let arg_path = core_ir::Path::from_name(core_ir::Name("x".to_string()));
+        let mut locals = HashMap::from([
+            (callee_path.clone(), RuntimeType::core(core_ir::Type::Any)),
+            (arg_path.clone(), RuntimeType::core(core_ir::Type::Any)),
+        ]);
+        let expr = core_ir::Expr::Apply {
+            callee: Box::new(core_ir::Expr::Var(callee_path)),
+            arg: Box::new(core_ir::Expr::Var(arg_path.clone())),
+            evidence: Some(core_ir::ApplyEvidence {
+                arg_source_edge: Some(3),
+                callee: core_ir::TypeBounds {
+                    lower: None,
+                    upper: Some(Box::new(core_ir::Type::Any)),
+                },
+                arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
+                expected_arg: Some(core_ir::TypeBounds::exact(named_type("int"))),
+                result: core_ir::TypeBounds::exact(named_type("int")),
+                principal_callee: None,
+                substitutions: Vec::new(),
+                role_method: false,
+            }),
+        };
+
+        let expr = lowerer
+            .lower_expr(
+                expr,
+                Some(&RuntimeType::core(named_type("int"))),
+                &mut locals,
+                TypeSource::RootGraph,
+            )
+            .expect("lowered");
+
+        let ExprKind::Apply { arg, .. } = &expr.kind else {
+            panic!("missing apply");
+        };
+        assert_eq!(core_type(&arg.ty), &core_ir::Type::Any);
+        assert_eq!(
+            locals.get(&arg_path),
+            Some(&RuntimeType::core(core_ir::Type::Any))
+        );
+        assert_eq!(lowerer.expected_arg_evidence_profile.available, 1);
+        assert_eq!(lowerer.expected_arg_evidence_profile.ignored_unusable, 1);
+        assert_eq!(lowerer.expected_arg_evidence_profile.used, 0);
+    }
+
+    #[test]
     pub(super) fn lower_apply_uses_fold_requirement_to_refine_associated_result() {
         let container = core_ir::TypeVar("container".to_string());
         let item = core_ir::TypeVar("item".to_string());
