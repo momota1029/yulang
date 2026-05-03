@@ -220,6 +220,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - `ApplicationArgument` の source edge が `ExpectedEdgeEvidence` と `ApplyEvidence.expected_arg` の両方へつながることをテストで固定した。
 - `ExpectedEdgeKind::ApplicationCallee` を追加した。apply lowering では callee 用の `expected_callee_tv` を作り、`callee.tv <= expected_callee_tv` を `ExpectedEdge` として記録する。core `ApplyEvidence` には `callee_source_edge` / `expected_callee` を追加し、runtime adapter event の `apply.lower-callee` から callee source edge を辿れるようにした。
 - `YULANG_USE_EXPECTED_CALLEE_EVIDENCE=1` を追加し、monomorphize の apply parameter hint に `ApplyEvidence.expected_callee` の parameter slot を混ぜられるようにした。`--runtime-phase-timings` の `demand_evidence` に expected callee の present / converted / used / changed-param / same-param / rejected counters を出す。
+- runtime adapter event から debug/profile 用の `ObservedAdapterEvidence` を作るようにした。runtime 実装上は `ThunkToValue` と `BindHere` が 2 event で出るが、observed evidence では semantic な `ForceThunkToValue` 1 件として畳み、`ExpectedAdapterEvidence` とは混ぜずに表示する。
 - `core_ir::CoreProgram` に `PrincipalEvidence { expected_edges }` table を追加した。`ExpectedEdgeEvidence` は core IR 側にも保存され、`--core-ir --verbose-ir` では `principal-evidence:` として `source_edge` の参照先を読める。
 - runtime lower は `PrincipalEvidence` を受け取り、`ApplyEvidence.arg_source_edge` から対応する `ExpectedEdgeEvidence.runtime_usable` を参照できるようにした。table が無い旧入口では従来通り bounds から保守的に判定する。
 - runtime lower が `source_edge` 先の `ExpectedEdgeEvidence.runtime_usable=false` を尊重し、`ApplyEvidence.expected_arg` を使わないことをテストで固定した。

@@ -119,6 +119,24 @@ pub struct RuntimeAdapterProfile {
     pub unmatched_thunk_to_value: usize,
     pub unmatched_bind_here: usize,
     pub events: Vec<RuntimeAdapterEvent>,
+    pub observed_adapter_evidence: Vec<ObservedAdapterEvidence>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ObservedAdapterEvidence {
+    pub kind: ObservedAdapterEvidenceKind,
+    pub phase: RuntimeApplyAdapterPhase,
+    pub owner: Option<core_ir::Path>,
+    pub apply_target: Option<core_ir::Path>,
+    pub source_expected_edge: Option<u32>,
+    pub actual: RuntimeType,
+    pub expected: RuntimeType,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ObservedAdapterEvidenceKind {
+    ValueToThunk,
+    ForceThunkToValue,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -337,6 +355,7 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
     validate_module(&module)?;
     let mut runtime_adapters = lowerer.runtime_adapter_profile;
     profile_runtime_adapter_expected_matches(&mut runtime_adapters, evidence);
+    collect_observed_adapter_evidence(&mut runtime_adapters);
     Ok(RuntimeLowerOutput {
         module,
         profile: RuntimeLowerProfile {
@@ -344,6 +363,33 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
             expected_adapter_evidence: expected_adapter_evidence_profile(evidence),
             runtime_adapters,
         },
+    })
+}
+
+fn collect_observed_adapter_evidence(profile: &mut RuntimeAdapterProfile) {
+    profile.observed_adapter_evidence = profile
+        .events
+        .iter()
+        .filter_map(observed_adapter_evidence_from_event)
+        .collect();
+}
+
+fn observed_adapter_evidence_from_event(
+    event: &RuntimeAdapterEvent,
+) -> Option<ObservedAdapterEvidence> {
+    let kind = match event.kind {
+        RuntimeAdapterEventKind::ValueToThunk => ObservedAdapterEvidenceKind::ValueToThunk,
+        RuntimeAdapterEventKind::ThunkToValue => ObservedAdapterEvidenceKind::ForceThunkToValue,
+        RuntimeAdapterEventKind::BindHere => return None,
+    };
+    Some(ObservedAdapterEvidence {
+        kind,
+        phase: event.phase,
+        owner: event.owner.clone(),
+        apply_target: event.apply_target.clone(),
+        source_expected_edge: runtime_adapter_event_source_edge(event),
+        actual: event.actual.clone(),
+        expected: event.expected.clone(),
     })
 }
 

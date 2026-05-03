@@ -895,6 +895,7 @@ fn print_runtime_adapter_event_summary(adapters: &runtime::RuntimeAdapterProfile
         adapters.unmatched_thunk_to_value,
         adapters.unmatched_bind_here,
     );
+    print_observed_adapter_evidence_summary(adapters);
     let mut by_context = BTreeMap::<(String, String, String, String), usize>::new();
     for event in &adapters.events {
         let phase = runtime_adapter_phase_name(event.phase).to_string();
@@ -953,6 +954,90 @@ fn print_runtime_adapter_event_summary(adapters: &runtime::RuntimeAdapterProfile
                 event.expected,
             );
         }
+    }
+}
+
+fn print_observed_adapter_evidence_summary(adapters: &runtime::RuntimeAdapterProfile) {
+    let mut value_to_thunk = 0;
+    let mut force_thunk_to_value = 0;
+    for evidence in &adapters.observed_adapter_evidence {
+        match evidence.kind {
+            runtime::ObservedAdapterEvidenceKind::ValueToThunk => value_to_thunk += 1,
+            runtime::ObservedAdapterEvidenceKind::ForceThunkToValue => force_thunk_to_value += 1,
+        }
+    }
+    eprintln!(
+        "    observed_adapter_evidence: total={}, value_to_thunk={}, force_thunk_to_value={}",
+        adapters.observed_adapter_evidence.len(),
+        value_to_thunk,
+        force_thunk_to_value,
+    );
+
+    let mut by_context = BTreeMap::<(String, String, String, String), usize>::new();
+    for evidence in &adapters.observed_adapter_evidence {
+        let phase = runtime_adapter_phase_name(evidence.phase).to_string();
+        let owner = evidence
+            .owner
+            .as_ref()
+            .map(format_core_path)
+            .unwrap_or_else(|| "<root>".to_string());
+        let target = evidence
+            .apply_target
+            .as_ref()
+            .map(format_core_path)
+            .unwrap_or_else(|| "<unknown>".to_string());
+        let kind = observed_adapter_evidence_kind_name(evidence.kind).to_string();
+        *by_context.entry((phase, owner, target, kind)).or_default() += 1;
+    }
+    let mut by_context = by_context.into_iter().collect::<Vec<_>>();
+    by_context.sort_by(
+        |((left_phase, left_owner, left_target, left_kind), left_count),
+         ((right_phase, right_owner, right_target, right_kind), right_count)| {
+            right_count
+                .cmp(left_count)
+                .then_with(|| left_phase.cmp(right_phase))
+                .then_with(|| left_owner.cmp(right_owner))
+                .then_with(|| left_target.cmp(right_target))
+                .then_with(|| left_kind.cmp(right_kind))
+        },
+    );
+    for ((phase, owner, target, kind), count) in by_context.iter().take(12) {
+        eprintln!(
+            "        observed_adapter phase={} owner={} target={} kind={} count={}",
+            phase, owner, target, kind, count
+        );
+    }
+
+    if env::var_os("YULANG_TRACE_RUNTIME_ADAPTER_EVENTS").is_some() {
+        for evidence in &adapters.observed_adapter_evidence {
+            let owner = evidence
+                .owner
+                .as_ref()
+                .map(format_core_path)
+                .unwrap_or_else(|| "<root>".to_string());
+            let target = evidence
+                .apply_target
+                .as_ref()
+                .map(format_core_path)
+                .unwrap_or_else(|| "<unknown>".to_string());
+            eprintln!(
+                "        observed_adapter_detail phase={} owner={} target={} kind={} source_expected_edge={:?} actual={:?} expected={:?}",
+                runtime_adapter_phase_name(evidence.phase),
+                owner,
+                target,
+                observed_adapter_evidence_kind_name(evidence.kind),
+                evidence.source_expected_edge,
+                evidence.actual,
+                evidence.expected,
+            );
+        }
+    }
+}
+
+fn observed_adapter_evidence_kind_name(kind: runtime::ObservedAdapterEvidenceKind) -> &'static str {
+    match kind {
+        runtime::ObservedAdapterEvidenceKind::ValueToThunk => "value-to-thunk",
+        runtime::ObservedAdapterEvidenceKind::ForceThunkToValue => "force-thunk-to-value",
     }
 }
 
