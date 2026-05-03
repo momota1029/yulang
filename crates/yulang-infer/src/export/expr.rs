@@ -203,6 +203,7 @@ impl<'a> ExprExporter<'a> {
             },
             ExprKind::Block(block) => self.export_block(block),
             ExprKind::Coerce {
+                edge_id,
                 actual_tv,
                 expected_tv,
                 expr,
@@ -210,6 +211,7 @@ impl<'a> ExprExporter<'a> {
                 expr: Box::new(self.export_expr(expr)),
                 evidence: Some(complete_coerce_principal_evidence(
                     &self.state.infer,
+                    *edge_id,
                     *actual_tv,
                     *expected_tv,
                 )),

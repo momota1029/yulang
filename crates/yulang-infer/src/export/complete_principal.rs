@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use yulang_core_ir as core_ir;
 
-use crate::diagnostic::{ExpectedEdge, ExpectedEdgeKind};
+use crate::diagnostic::{ExpectedEdge, ExpectedEdgeId, ExpectedEdgeKind};
 use crate::ids::TypeVar;
 use crate::solve::Infer;
 
@@ -36,6 +36,7 @@ pub(super) struct CompleteApplyPrincipalEvidence {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(dead_code)]
 pub(super) struct ExpectedEdgeEvidence {
+    pub(super) id: ExpectedEdgeId,
     pub(super) kind: ExpectedEdgeKind,
     pub(super) actual: core_ir::TypeBounds,
     pub(super) expected: core_ir::TypeBounds,
@@ -46,13 +47,18 @@ pub(super) struct ExpectedEdgeEvidence {
 
 pub(super) fn complete_coerce_principal_evidence(
     infer: &Infer,
+    source_edge: Option<ExpectedEdgeId>,
     actual_tv: TypeVar,
     expected_tv: TypeVar,
 ) -> core_ir::CoerceEvidence {
     let relevant_vars = BTreeSet::new();
     let (actual, expected) =
         export_coalesced_coerce_evidence_bounds(infer, actual_tv, expected_tv, &relevant_vars);
-    core_ir::CoerceEvidence { actual, expected }
+    core_ir::CoerceEvidence {
+        source_edge: source_edge.map(|id| id.0),
+        actual,
+        expected,
+    }
 }
 
 pub(super) fn complete_apply_principal_evidence(
@@ -88,6 +94,7 @@ pub(super) fn complete_expected_edge_evidence(
         && actual_effect.as_ref().is_none_or(type_bounds_closed)
         && expected_effect.as_ref().is_none_or(type_bounds_closed);
     ExpectedEdgeEvidence {
+        id: edge.id,
         kind: edge.kind,
         actual,
         expected,
@@ -786,6 +793,7 @@ mod tests {
 
         let evidence = complete_expected_edge_evidence(&state.infer, edge);
 
+        assert_eq!(evidence.id, edge.id,);
         assert_eq!(
             evidence.kind,
             diagnostic::ExpectedEdgeKind::ApplicationArgument

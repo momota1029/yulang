@@ -30,6 +30,7 @@ pub struct ConstraintCause {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExpectedEdge {
+    pub id: ExpectedEdgeId,
     pub actual_tv: TypeVar,
     pub expected_tv: TypeVar,
     pub actual_eff: Option<TypeVar>,
@@ -37,6 +38,9 @@ pub struct ExpectedEdge {
     pub kind: ExpectedEdgeKind,
     pub cause: ConstraintCause,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ExpectedEdgeId(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ExpectedEdgeKind {

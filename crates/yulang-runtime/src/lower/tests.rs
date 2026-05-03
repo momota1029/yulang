@@ -650,6 +650,7 @@ mod tests {
                 root_exprs: vec![core_ir::Expr::Coerce {
                     expr: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))),
                     evidence: Some(core_ir::CoerceEvidence {
+                        source_edge: None,
                         actual: core_ir::TypeBounds::exact(named_type("int")),
                         expected: core_ir::TypeBounds::exact(named_type("float")),
                     }),

@@ -19,8 +19,8 @@ pub use ast::{
     ExprKind, Lit, TypedBlock, TypedCatchArm, TypedExpr, TypedMatchArm, TypedPat, TypedStmt,
 };
 pub use diagnostic::{
-    ConstraintCause, ConstraintReason, ExpectedEdge, ExpectedEdgeKind, ExpectedShape, TypeError,
-    TypeErrorKind, TypeOrigin, TypeOriginKind,
+    ConstraintCause, ConstraintReason, ExpectedEdge, ExpectedEdgeId, ExpectedEdgeKind,
+    ExpectedShape, TypeError, TypeErrorKind, TypeOrigin, TypeOriginKind,
 };
 pub use display::{
     collect_compact_results, collect_compact_results_for_paths, collect_expected_edges,

@@ -341,11 +341,13 @@ fn synthetic_representation_coerce_records_expected_edges() {
 #[test]
 fn synthetic_representation_coerce_edges_have_core_evidence() {
     let mut state = parse_and_lower("struct point { x: int }\nmy p = point { x: 1 }\nmy px = p.x");
-    let representation_edge_count = state
+    let representation_edge_ids = state
         .expected_edges
         .iter()
         .filter(|edge| edge.kind == diagnostic::ExpectedEdgeKind::RepresentationCoerce)
-        .count();
+        .map(|edge| edge.id.0)
+        .collect::<std::collections::BTreeSet<_>>();
+    let representation_edge_count = representation_edge_ids.len();
     assert!(
         representation_edge_count >= 2,
         "expected representation edges for struct helpers, got {:?}",
@@ -362,6 +364,13 @@ fn synthetic_representation_coerce_edges_have_core_evidence() {
     assert!(
         concrete_coerce_evidence_count > 0,
         "expected at least one concrete CoerceEvidence for representation edges",
+    );
+    let evidence_source_edges = coerce_evidence_source_edges_in_module(&program.program);
+    assert!(
+        representation_edge_ids
+            .iter()
+            .all(|edge_id| evidence_source_edges.contains(edge_id)),
+        "expected every representation edge to have matching core CoerceEvidence source, edges={representation_edge_ids:?}, evidence_sources={evidence_source_edges:?}",
     );
 }
 
@@ -389,6 +398,114 @@ fn count_concrete_coerce_evidence_in_module(module: &yulang_core_ir::PrincipalMo
             .iter()
             .map(count_concrete_coerce_evidence)
             .sum::<usize>()
+}
+
+fn coerce_evidence_source_edges_in_module(
+    module: &yulang_core_ir::PrincipalModule,
+) -> std::collections::BTreeSet<u32> {
+    let mut source_edges = std::collections::BTreeSet::new();
+    for binding in &module.bindings {
+        collect_coerce_evidence_source_edges(&binding.body, &mut source_edges);
+    }
+    for expr in &module.root_exprs {
+        collect_coerce_evidence_source_edges(expr, &mut source_edges);
+    }
+    source_edges
+}
+
+fn collect_coerce_evidence_source_edges(
+    expr: &yulang_core_ir::Expr,
+    source_edges: &mut std::collections::BTreeSet<u32>,
+) {
+    match expr {
+        yulang_core_ir::Expr::Coerce { evidence, expr } => {
+            if let Some(source_edge) = evidence.as_ref().and_then(|evidence| evidence.source_edge) {
+                source_edges.insert(source_edge);
+            }
+            collect_coerce_evidence_source_edges(expr, source_edges);
+        }
+        yulang_core_ir::Expr::Lambda { body, .. }
+        | yulang_core_ir::Expr::Pack { expr: body, .. } => {
+            collect_coerce_evidence_source_edges(body, source_edges);
+        }
+        yulang_core_ir::Expr::Apply { callee, arg, .. } => {
+            collect_coerce_evidence_source_edges(callee, source_edges);
+            collect_coerce_evidence_source_edges(arg, source_edges);
+        }
+        yulang_core_ir::Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_coerce_evidence_source_edges(cond, source_edges);
+            collect_coerce_evidence_source_edges(then_branch, source_edges);
+            collect_coerce_evidence_source_edges(else_branch, source_edges);
+        }
+        yulang_core_ir::Expr::Tuple(items) => {
+            for item in items {
+                collect_coerce_evidence_source_edges(item, source_edges);
+            }
+        }
+        yulang_core_ir::Expr::Record { fields, spread } => {
+            for field in fields {
+                collect_coerce_evidence_source_edges(&field.value, source_edges);
+            }
+            if let Some(
+                yulang_core_ir::RecordSpreadExpr::Head(expr)
+                | yulang_core_ir::RecordSpreadExpr::Tail(expr),
+            ) = spread
+            {
+                collect_coerce_evidence_source_edges(expr, source_edges);
+            }
+        }
+        yulang_core_ir::Expr::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_coerce_evidence_source_edges(value, source_edges);
+            }
+        }
+        yulang_core_ir::Expr::Select { base, .. } => {
+            collect_coerce_evidence_source_edges(base, source_edges);
+        }
+        yulang_core_ir::Expr::Match {
+            scrutinee, arms, ..
+        } => {
+            collect_coerce_evidence_source_edges(scrutinee, source_edges);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_coerce_evidence_source_edges(guard, source_edges);
+                }
+                collect_coerce_evidence_source_edges(&arm.body, source_edges);
+            }
+        }
+        yulang_core_ir::Expr::Block { stmts, tail } => {
+            for stmt in stmts {
+                match stmt {
+                    yulang_core_ir::Stmt::Let { value, .. } | yulang_core_ir::Stmt::Expr(value) => {
+                        collect_coerce_evidence_source_edges(value, source_edges);
+                    }
+                    yulang_core_ir::Stmt::Module { body, .. } => {
+                        collect_coerce_evidence_source_edges(body, source_edges);
+                    }
+                }
+            }
+            if let Some(tail) = tail {
+                collect_coerce_evidence_source_edges(tail, source_edges);
+            }
+        }
+        yulang_core_ir::Expr::Handle { body, arms, .. } => {
+            collect_coerce_evidence_source_edges(body, source_edges);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_coerce_evidence_source_edges(guard, source_edges);
+                }
+                collect_coerce_evidence_source_edges(&arm.body, source_edges);
+            }
+        }
+        yulang_core_ir::Expr::Var(_)
+        | yulang_core_ir::Expr::PrimitiveOp(_)
+        | yulang_core_ir::Expr::Lit(_) => {}
+    }
 }
 
 fn count_coerce_evidence(expr: &yulang_core_ir::Expr) -> usize {

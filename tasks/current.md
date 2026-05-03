@@ -204,6 +204,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - `RepresentationCoerce` と `CoerceEvidence` の対応テストは、単純な個数比較からもう少し強める。
   - 短期は representation edge の actual/expected bounds と core `CoerceEvidence` が具体的に出ることを確認する。
   - 中期は `ExpectedEdgeId` / `source_edge` のような対応 ID を検討する。
+  - `ExpectedEdgeId` を追加し、`ExprKind::Coerce` から core `CoerceEvidence.source_edge` へ流すようにした。これで `RepresentationCoerce` edge と core evidence の対応をテストで直接確認できる。
 - `complete_principal` に ExpectedEdge evidence を足すのが次の本丸。
   - 最初は runtime へ渡さず、debug / verbose / tests で edge kind、actual/expected bounds、effect actual/expected bounds、closed/open を見られる形にする。
   - 未閉じ evidence は diagnostic/debug 用に留め、runtime 利用は閉じたものから始める。

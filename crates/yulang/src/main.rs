@@ -2061,11 +2061,15 @@ fn format_join_evidence(evidence: &core_ir::JoinEvidence) -> String {
 }
 
 fn format_coerce_evidence(evidence: &core_ir::CoerceEvidence) -> String {
-    format!(
+    let mut text = format!(
         "coerce[actual={}, expected={}]",
         format_core_bounds(&evidence.actual),
         format_core_bounds(&evidence.expected)
-    )
+    );
+    if let Some(source_edge) = evidence.source_edge {
+        text.push_str(&format!(", source-edge={source_edge}"));
+    }
+    text
 }
 
 fn format_runtime_typed_expr(expr: &runtime::Expr, verbose: bool) -> String {

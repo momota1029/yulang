@@ -47,6 +47,7 @@ pub enum ExprKind {
     Catch(Box<TypedExpr>, Vec<TypedCatchArm>),
     Block(TypedBlock),
     Coerce {
+        edge_id: Option<crate::diagnostic::ExpectedEdgeId>,
         actual_tv: TypeVar,
         expected_tv: TypeVar,
         expr: Box<TypedExpr>,

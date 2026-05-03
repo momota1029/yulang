@@ -98,6 +98,7 @@ pub struct JoinEvidence {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoerceEvidence {
+    pub source_edge: Option<u32>,
     pub actual: crate::types::TypeBounds,
     pub expected: crate::types::TypeBounds,
 }

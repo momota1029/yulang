@@ -159,10 +159,12 @@ fn transform_copied_expr_kind(
         ),
         ExprKind::Block(block) => ExprKind::Block(transform_copied_block(block, types, def_subst)),
         ExprKind::Coerce {
+            edge_id,
             actual_tv,
             expected_tv,
             expr,
         } => ExprKind::Coerce {
+            edge_id: *edge_id,
             actual_tv: types.copy_tv(*actual_tv),
             expected_tv: types.copy_tv(*expected_tv),
             expr: Box::new(transform_copied_principal_body_inner(

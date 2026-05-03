@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast::expr::{ExprKind, TypedExpr};
-use crate::diagnostic::{ConstraintCause, ExpectedEdge, ExpectedEdgeKind, TypeOrigin};
+use crate::diagnostic::{
+    ConstraintCause, ExpectedEdge, ExpectedEdgeId, ExpectedEdgeKind, TypeOrigin,
+};
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::ctx::LowerCtx;
 use crate::solve::Infer;
@@ -62,6 +64,7 @@ pub struct LowerState {
     /// 型制約を張ったときの「実際の型が文脈型として使われる」軽い記録。
     /// runtime IR には影響させず、diagnostic / hover / 将来の elaboration evidence に使う。
     pub expected_edges: Vec<ExpectedEdge>,
+    next_expected_edge_id: u32,
     /// 現在見えている型変数スコープ。
     pub type_var_scopes: Vec<HashMap<String, TypeVar>>,
     /// DefId → 参照時に露出する latent effect slot。
@@ -130,6 +133,7 @@ impl LowerState {
             top_level_blocks: Vec::new(),
             top_level_expr_owners: Vec::new(),
             expected_edges: Vec::new(),
+            next_expected_edge_id: 0,
             type_var_scopes: Vec::new(),
             def_eff_tvs: HashMap::new(),
             var_ref_acts: HashMap::new(),
@@ -191,8 +195,10 @@ impl LowerState {
         expected_tv: TypeVar,
         kind: ExpectedEdgeKind,
         cause: ConstraintCause,
-    ) {
+    ) -> ExpectedEdgeId {
+        let id = self.fresh_expected_edge_id();
         self.expected_edges.push(ExpectedEdge {
+            id,
             actual_tv,
             expected_tv,
             actual_eff: None,
@@ -200,6 +206,7 @@ impl LowerState {
             kind,
             cause,
         });
+        id
     }
 
     pub fn record_expected_edge_with_effects(
@@ -210,8 +217,10 @@ impl LowerState {
         expected_eff: Option<TypeVar>,
         kind: ExpectedEdgeKind,
         cause: ConstraintCause,
-    ) {
+    ) -> ExpectedEdgeId {
+        let id = self.fresh_expected_edge_id();
         self.expected_edges.push(ExpectedEdge {
+            id,
             actual_tv,
             expected_tv,
             actual_eff,
@@ -219,6 +228,13 @@ impl LowerState {
             kind,
             cause,
         });
+        id
+    }
+
+    fn fresh_expected_edge_id(&mut self) -> ExpectedEdgeId {
+        let id = ExpectedEdgeId(self.next_expected_edge_id);
+        self.next_expected_edge_id += 1;
+        id
     }
 
     pub fn expect_value(
@@ -264,7 +280,7 @@ impl LowerState {
         expr: TypedExpr,
     ) -> TypedExpr {
         let actual_eff = expr.eff;
-        self.record_expected_edge_with_effects(
+        let edge_id = self.record_expected_edge_with_effects(
             actual_tv,
             expected_tv,
             Some(actual_eff),
@@ -280,6 +296,7 @@ impl LowerState {
             tv: expected_tv,
             eff,
             kind: ExprKind::Coerce {
+                edge_id: Some(edge_id),
                 actual_tv,
                 expected_tv,
                 expr: Box::new(expr),
