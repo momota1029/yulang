@@ -223,6 +223,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - runtime lower が `source_edge` 先の `ExpectedEdgeEvidence.runtime_usable=false` を尊重し、`ApplyEvidence.expected_arg` を使わないことをテストで固定した。
 - runtime lower の `CoerceEvidence.source_edge` は、`PrincipalEvidence` に対応 edge がある場合、debug invariant として `RepresentationCoerce` kind を指すことを確認する。正しい table 付き coerce はテストで固定した。
 - diagnostic 用の `DerivedExpectedEdgeEvidence` を追加した。まずは expected edge の actual/expected が record 同士のとき、共通 field を `RecordField` derived edge として派生する。`--infer --verbose-ir` では `derived-expected-edge-evidence:` として確認できる。
+- `DerivedExpectedEdgeEvidence` は tuple item、variant payload、function param/return も派生するようにした。これで構造型 annotation などの expected edge から、より細かい diagnostic context を取り出せる。
 - handler adapter は ExpectedEdge だけで足りなければ `ExpectedAdapterEdge` のような別種を考える。
   - `ThunkWrap` / `BindHere` / `HandlerAdapter` / `EffectResidual` の境界として扱う。
-- `RecordField` / `VariantPayload` は lowering を bidirectional にするより、まず annotation edge などから派生する diagnostic 用 `DerivedExpectedEdge` として検討する。
+- `RecordField` / `VariantPayload` は lowering を bidirectional にせず、まず annotation edge などから派生する diagnostic 用 `DerivedExpectedEdge` として始めた。nominal constructor payload などの追加は、expected slot が見える場所から広げる。
