@@ -138,8 +138,7 @@ impl SubstitutionSpecializer {
             .or_default()
             .entry(cause)
             .or_default() += 1;
-        let substitutions =
-            initial_substitution_candidates(spine.instantiation, spine.evidence, binding);
+        let substitutions = initial_substitution_candidates(spine, binding);
         let entry = self.target_missing_vars.entry(target.clone()).or_default();
         for var in missing_binding_substitution_vars(binding, &substitutions) {
             *entry.entry(var).or_default() += 1;
@@ -464,11 +463,7 @@ impl SubstitutionSpecializer {
         }
         let initial_substitutions =
             substitutions_from_instantiation(spine.instantiation, &original)
-                .or_else(|| {
-                    spine
-                        .evidence
-                        .and_then(|evidence| substitutions_from_evidence(evidence, &original))
-                })
+                .or_else(|| substitutions_from_spine_evidence(&spine, &original))
                 .or_else(|| {
                     binding_substitution_vars(&original)
                         .is_empty()
@@ -488,6 +483,7 @@ impl SubstitutionSpecializer {
             .evidence
             .map(evidence_substitution_map)
             .unwrap_or_default();
+        principal_substitutions.extend(initial_substitution_candidates(&spine, &original));
         principal_substitutions.extend(initial_substitutions);
         let mut callee_ty = substitute_type(principal_callee, &principal_substitutions);
         let Some((_params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
@@ -785,6 +781,7 @@ struct ApplySpine<'a> {
     target: &'a core_ir::Path,
     args: Vec<&'a Expr>,
     evidence: Option<&'a core_ir::ApplyEvidence>,
+    principal_evidences: Vec<&'a core_ir::ApplyEvidence>,
     instantiation: Option<&'a TypeInstantiation>,
     evidence_count: usize,
     principal_evidence_count: usize,
@@ -794,6 +791,7 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
     let mut current = expr;
     let mut args = Vec::new();
     let mut selected_evidence = None;
+    let mut principal_evidences = Vec::new();
     let mut selected_instantiation = None;
     let mut evidence_count = 0;
     let mut principal_evidence_count = 0;
@@ -814,6 +812,9 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
             .is_some_and(|evidence| evidence.principal_callee.is_some())
         {
             principal_evidence_count += 1;
+            if let Some(evidence) = evidence.as_ref() {
+                principal_evidences.push(evidence);
+            }
             selected_evidence = evidence.as_ref();
         }
         if instantiation.is_some() {
@@ -829,6 +830,7 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
         target,
         args,
         evidence: selected_evidence,
+        principal_evidences,
         instantiation: selected_instantiation,
         evidence_count,
         principal_evidence_count,
@@ -1305,26 +1307,17 @@ fn evidence_substitution_map(
         .collect()
 }
 
-fn substitutions_from_evidence(
-    evidence: &core_ir::ApplyEvidence,
+fn substitutions_from_spine_evidence(
+    spine: &ApplySpine<'_>,
     binding: &Binding,
 ) -> Option<BTreeMap<core_ir::TypeVar, core_ir::Type>> {
-    if evidence.principal_callee.is_none() || evidence.substitutions.is_empty() {
-        return None;
-    }
     let params = binding_substitution_vars(binding);
-    let substitutions = evidence
-        .substitutions
-        .iter()
-        .filter(|substitution| params.contains(&substitution.var))
-        .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
-        .collect::<BTreeMap<_, _>>();
-    if substitutions.values().all(|ty| !core_type_has_vars(ty))
-        && (!substitutions.is_empty()
-            || params.is_empty()
-            || binding.type_params.is_empty()
-            || substitutions.len() == params.len())
-        && (binding.type_params.is_empty() || substitutions.len() == params.len())
+    if params.is_empty() {
+        return Some(BTreeMap::new());
+    }
+    let substitutions = initial_substitution_candidates(spine, binding);
+    if substitutions.len() == params.len()
+        && substitutions.values().all(|ty| !core_type_has_vars(ty))
     {
         Some(substitutions)
     } else {
@@ -1333,13 +1326,12 @@ fn substitutions_from_evidence(
 }
 
 fn initial_substitution_candidates(
-    instantiation: Option<&TypeInstantiation>,
-    evidence: Option<&core_ir::ApplyEvidence>,
+    spine: &ApplySpine<'_>,
     binding: &Binding,
 ) -> BTreeMap<core_ir::TypeVar, core_ir::Type> {
     let params = binding_substitution_vars(binding);
     let mut substitutions = BTreeMap::new();
-    if let Some(instantiation) = instantiation
+    if let Some(instantiation) = spine.instantiation
         && instantiation.target == binding.name
     {
         substitutions.extend(
@@ -1350,7 +1342,7 @@ fn initial_substitution_candidates(
                 .map(|substitution| (substitution.var.clone(), substitution.ty.clone())),
         );
     }
-    if let Some(evidence) = evidence {
+    for evidence in &spine.principal_evidences {
         substitutions.extend(
             evidence
                 .substitutions
