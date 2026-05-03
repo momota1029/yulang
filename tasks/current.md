@@ -207,7 +207,9 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
   - `ExpectedEdgeId` を追加し、`ExprKind::Coerce` から core `CoerceEvidence.source_edge` へ流すようにした。これで `RepresentationCoerce` edge と core evidence の対応をテストで直接確認できる。
 - `complete_principal` に ExpectedEdge evidence を足すのが次の本丸。
   - 最初は runtime へ渡さず、debug / verbose / tests で edge kind、actual/expected bounds、effect actual/expected bounds、closed/open を見られる形にする。
+  - `collect_expected_edge_evidence(state)` を export し、`--infer --verbose-ir` で `expected-edge-evidence:` として確認できるようにした。
   - 未閉じ evidence は diagnostic/debug 用に留め、runtime 利用は閉じたものから始める。
+- act copy の `ExprKind::Coerce` は元の `ExpectedEdgeId` をコピーしない。コピー後は tv が別物になるので、当面は `edge_id: None` にして誤った `source_edge` リンクを避ける。
 - handler adapter は ExpectedEdge だけで足りなければ `ExpectedAdapterEdge` のような別種を考える。
   - `ThunkWrap` / `BindHere` / `HandlerAdapter` / `EffectResidual` の境界として扱う。
 - `RecordField` / `VariantPayload` は lowering を bidirectional にするより、まず annotation edge などから派生する diagnostic 用 `DerivedExpectedEdge` として検討する。

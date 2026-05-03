@@ -19,6 +19,7 @@ use yulang_core_ir as core_ir;
 
 use crate::diagnostic::{ExpectedEdge, ExpectedEdgeId, ExpectedEdgeKind};
 use crate::ids::TypeVar;
+use crate::lower::LowerState;
 use crate::solve::Infer;
 
 use super::types::{
@@ -34,15 +35,14 @@ pub(super) struct CompleteApplyPrincipalEvidence {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[allow(dead_code)]
-pub(super) struct ExpectedEdgeEvidence {
-    pub(super) id: ExpectedEdgeId,
-    pub(super) kind: ExpectedEdgeKind,
-    pub(super) actual: core_ir::TypeBounds,
-    pub(super) expected: core_ir::TypeBounds,
-    pub(super) actual_effect: Option<core_ir::TypeBounds>,
-    pub(super) expected_effect: Option<core_ir::TypeBounds>,
-    pub(super) closed: bool,
+pub struct ExpectedEdgeEvidence {
+    pub id: ExpectedEdgeId,
+    pub kind: ExpectedEdgeKind,
+    pub actual: core_ir::TypeBounds,
+    pub expected: core_ir::TypeBounds,
+    pub actual_effect: Option<core_ir::TypeBounds>,
+    pub expected_effect: Option<core_ir::TypeBounds>,
+    pub closed: bool,
 }
 
 pub(super) fn complete_coerce_principal_evidence(
@@ -76,7 +76,14 @@ pub(super) fn complete_apply_principal_evidence(
     })
 }
 
-#[allow(dead_code)]
+pub fn collect_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvidence> {
+    state
+        .expected_edges
+        .iter()
+        .map(|edge| complete_expected_edge_evidence(&state.infer, edge))
+        .collect()
+}
+
 pub(super) fn complete_expected_edge_evidence(
     infer: &Infer,
     edge: &ExpectedEdge,
@@ -651,7 +658,6 @@ fn type_has_vars(ty: &core_ir::Type) -> bool {
     !vars.is_empty()
 }
 
-#[allow(dead_code)]
 fn type_bounds_closed(bounds: &core_ir::TypeBounds) -> bool {
     (bounds.lower.is_some() || bounds.upper.is_some())
         && bounds.lower.as_deref().is_none_or(|ty| !type_has_vars(ty))

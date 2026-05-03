@@ -159,12 +159,12 @@ fn transform_copied_expr_kind(
         ),
         ExprKind::Block(block) => ExprKind::Block(transform_copied_block(block, types, def_subst)),
         ExprKind::Coerce {
-            edge_id,
+            edge_id: _,
             actual_tv,
             expected_tv,
             expr,
         } => ExprKind::Coerce {
-            edge_id: *edge_id,
+            edge_id: None,
             actual_tv: types.copy_tv(*actual_tv),
             expected_tv: types.copy_tv(*expected_tv),
             expr: Box::new(transform_copied_principal_body_inner(
@@ -177,6 +177,55 @@ fn transform_copied_expr_kind(
                 types, expr, def_subst,
             )),
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::expr::Lit;
+    use crate::diagnostic::ExpectedEdgeId;
+
+    #[test]
+    fn copied_coerce_drops_source_edge_id() {
+        let mut state = LowerState::new();
+        let tv = state.fresh_tv();
+        let eff = state.fresh_tv();
+        let actual_tv = state.fresh_tv();
+        let expected_tv = state.fresh_tv();
+        let expr = TypedExpr {
+            tv: expected_tv,
+            eff,
+            kind: ExprKind::Coerce {
+                edge_id: Some(ExpectedEdgeId(7)),
+                actual_tv,
+                expected_tv,
+                expr: Box::new(TypedExpr {
+                    tv,
+                    eff,
+                    kind: ExprKind::Lit(Lit::Unit),
+                }),
+            },
+        };
+
+        let copied = transform_copied_principal_body(
+            &mut state,
+            &expr,
+            &HashMap::new(),
+            &[],
+            &Path {
+                segments: Vec::new(),
+            },
+            &Path {
+                segments: Vec::new(),
+            },
+            &[],
+        );
+
+        let ExprKind::Coerce { edge_id, .. } = copied.kind else {
+            panic!("expected copied coerce");
+        };
+        assert_eq!(edge_id, None);
     }
 }
 

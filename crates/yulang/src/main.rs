@@ -25,6 +25,7 @@ use yulang_infer::{
     SourceLowerProfile as InferSourceLowerProfile, SourceOptions,
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
     TypeErrorKind as InferTypeErrorKind, collect_compact_results as collect_infer_compact_results,
+    collect_expected_edge_evidence as collect_infer_expected_edge_evidence,
     collect_expected_edges as collect_infer_expected_edges,
     collect_surface_diagnostics as collect_infer_surface_diagnostics, export_core_program,
     lower_entry_with_options_profiled as lower_infer_entry_with_options_profiled,
@@ -561,6 +562,14 @@ fn run_infer_views(
                     println!("expected-edges:");
                     for edge in expected_edges {
                         println!("  {edge}");
+                    }
+                }
+                let expected_edge_evidence = collect_infer_expected_edge_evidence(&state);
+                if !expected_edge_evidence.is_empty() {
+                    println!();
+                    println!("expected-edge-evidence:");
+                    for evidence in expected_edge_evidence {
+                        println!("  {}", format_expected_edge_evidence(&evidence));
                     }
                 }
             }
@@ -1207,6 +1216,49 @@ fn infer_expected_edge_context_label(kind: InferExpectedEdgeKind) -> &'static st
         InferExpectedEdgeKind::ApplicationArgument => "function argument",
         InferExpectedEdgeKind::AssignmentValue => "assignment value",
         _ => "context",
+    }
+}
+
+fn format_expected_edge_evidence(evidence: &yulang_infer::ExpectedEdgeEvidence) -> String {
+    let mut parts = vec![
+        format!(
+            "#{} {}",
+            evidence.id.0,
+            format_expected_edge_kind(evidence.kind)
+        ),
+        format!("actual={}", format_core_bounds(&evidence.actual)),
+        format!("expected={}", format_core_bounds(&evidence.expected)),
+    ];
+    if let Some(actual_effect) = &evidence.actual_effect {
+        parts.push(format!(
+            "actual-effect={}",
+            format_core_bounds(actual_effect)
+        ));
+    }
+    if let Some(expected_effect) = &evidence.expected_effect {
+        parts.push(format!(
+            "expected-effect={}",
+            format_core_bounds(expected_effect)
+        ));
+    }
+    parts.push(format!("closed={}", evidence.closed));
+    parts.join(" ")
+}
+
+fn format_expected_edge_kind(kind: InferExpectedEdgeKind) -> &'static str {
+    match kind {
+        InferExpectedEdgeKind::IfCondition => "if-condition",
+        InferExpectedEdgeKind::IfBranch => "if-branch",
+        InferExpectedEdgeKind::MatchGuard => "match-guard",
+        InferExpectedEdgeKind::MatchBranch => "match-branch",
+        InferExpectedEdgeKind::CatchGuard => "catch-guard",
+        InferExpectedEdgeKind::CatchBranch => "catch-branch",
+        InferExpectedEdgeKind::ApplicationArgument => "application-argument",
+        InferExpectedEdgeKind::Annotation => "annotation",
+        InferExpectedEdgeKind::RecordField => "record-field",
+        InferExpectedEdgeKind::VariantPayload => "variant-payload",
+        InferExpectedEdgeKind::AssignmentValue => "assignment-value",
+        InferExpectedEdgeKind::RepresentationCoerce => "representation-coerce",
     }
 }
 

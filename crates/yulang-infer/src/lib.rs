@@ -28,7 +28,8 @@ pub use display::{
     render_exported_compact_results,
 };
 pub use export::{
-    export_core_program, export_principal_bindings, export_principal_module, export_scheme_body,
+    ExpectedEdgeEvidence, collect_expected_edge_evidence, export_core_program,
+    export_principal_bindings, export_principal_module, export_scheme_body,
 };
 pub use ids::{DefId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 pub use lower::stmt::{finish_lowering, lower_root, lower_root_in_module};
