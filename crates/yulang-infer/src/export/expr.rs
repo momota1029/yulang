@@ -414,16 +414,18 @@ impl<'a> ExprExporter<'a> {
         };
         if export_apply_substitutions_enabled()
             && let Some(principal_scheme) = self.principal_callee_scheme(callee)
-            && let Some(principal) = complete_apply_principal_evidence(
+        {
+            evidence.principal_callee = Some(principal_scheme.body.clone());
+            if let Some(principal) = complete_apply_principal_evidence(
                 &self.state.infer,
                 principal_scheme,
                 callee.tv,
                 arg.tv,
                 result.tv,
-            )
-        {
-            evidence.principal_callee = Some(principal.principal_callee);
-            evidence.substitutions = principal.substitutions;
+            ) {
+                evidence.principal_callee = Some(principal.principal_callee);
+                evidence.substitutions = principal.substitutions;
+            }
         }
         evidence
     }
