@@ -126,6 +126,7 @@ pub struct SubstitutionSpecializeProfile {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubstitutionSpecializeTargetSkips {
     pub target: core_ir::Path,
+    pub survives_final_prune: Option<bool>,
     pub reasons: Vec<SubstitutionSpecializeSkipCount>,
     pub missing_vars: Vec<SubstitutionSpecializeMissingVarCount>,
     pub no_complete_causes: Vec<SubstitutionSpecializeSkipCount>,
@@ -272,6 +273,7 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
         }
     }
     profile.demand_evidence = snapshot_demand_evidence_profile();
+    annotate_substitution_skip_reachability(&mut profile, &module);
     Ok((module, profile))
 }
 
@@ -619,4 +621,16 @@ fn added_binding_paths(before: &Module, after: &Module) -> Vec<core_ir::Path> {
         .filter(|binding| !before_paths.contains(&binding.name))
         .map(|binding| binding.name.clone())
         .collect()
+}
+
+fn annotate_substitution_skip_reachability(
+    profile: &mut MonomorphizeProfile,
+    final_module: &Module,
+) {
+    let surviving_bindings = final_reachable_binding_paths(final_module);
+    for pass in &mut profile.passes {
+        for target in &mut pass.substitution_specialize.target_skips {
+            target.survives_final_prune = Some(surviving_bindings.contains(&target.target));
+        }
+    }
 }

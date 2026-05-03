@@ -935,10 +935,16 @@ fn print_substitution_specialize_profile(profile: &runtime::MonomorphizePassProf
             .map(|cause| format!("{}={}", cause.reason, cause.count))
             .collect::<Vec<_>>()
             .join(", ");
+        let survives_final_prune = match target.survives_final_prune {
+            Some(true) => "yes",
+            Some(false) => "no",
+            None => "unknown",
+        };
         eprintln!(
-            "                skip_target {} total={} reasons=[{}] missing_vars=[{}] no_complete_causes=[{}]",
+            "                skip_target {} total={} survives_final_prune={} reasons=[{}] missing_vars=[{}] no_complete_causes=[{}]",
             format_core_path(&target.target),
             total,
+            survives_final_prune,
             reasons,
             missing_vars,
             no_complete_causes,

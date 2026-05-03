@@ -188,6 +188,7 @@ impl SubstitutionSpecializer {
                 });
                 SubstitutionSpecializeTargetSkips {
                     target,
+                    survives_final_prune: None,
                     reasons,
                     missing_vars,
                     no_complete_causes,
