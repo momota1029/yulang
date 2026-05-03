@@ -882,12 +882,52 @@ fn print_runtime_phase_timings(
                 specialization.solved,
             );
         }
+        print_substitution_specialize_profile(pass);
     }
     if let Some(duration) = vm_compile {
         eprintln!("    vm_compile: {}", format_duration(duration));
     }
     if let Some(duration) = vm_eval {
         eprintln!("    vm_eval: {}", format_duration(duration));
+    }
+}
+
+fn print_substitution_specialize_profile(profile: &runtime::MonomorphizePassProfile) {
+    let subst = &profile.substitution_specialize;
+    if subst.stats.is_empty() && subst.target_skips.is_empty() {
+        return;
+    }
+    let mut stats = subst.stats.iter().collect::<Vec<_>>();
+    stats.sort_by(|(left_key, left_count), (right_key, right_count)| {
+        right_count
+            .cmp(left_count)
+            .then_with(|| left_key.cmp(right_key))
+    });
+    let stats = stats
+        .into_iter()
+        .take(16)
+        .map(|(key, count)| format!("{key}={count}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    eprintln!("            substitution_specialize: {stats}");
+    for target in subst.target_skips.iter().take(12) {
+        let total = target
+            .reasons
+            .iter()
+            .map(|reason| reason.count)
+            .sum::<usize>();
+        let reasons = target
+            .reasons
+            .iter()
+            .map(|reason| format!("{}={}", reason.reason, reason.count))
+            .collect::<Vec<_>>()
+            .join(", ");
+        eprintln!(
+            "                skip_target {} total={} reasons=[{}]",
+            format_core_path(&target.target),
+            total,
+            reasons
+        );
     }
 }
 

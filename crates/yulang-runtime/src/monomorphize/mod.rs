@@ -28,8 +28,9 @@ pub use collect::*;
 pub use emit::*;
 pub use engine::*;
 pub use pipeline::{
-    MonomorphizePassProfile, MonomorphizeProfile, MonomorphizeProgress, monomorphize_module,
-    monomorphize_module_profiled,
+    MonomorphizePassProfile, MonomorphizeProfile, MonomorphizeProgress,
+    SubstitutionSpecializeProfile, SubstitutionSpecializeSkipCount,
+    SubstitutionSpecializeTargetSkips, monomorphize_module, monomorphize_module_profiled,
 };
 pub use solve::*;
 pub use specialize::*;

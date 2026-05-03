@@ -3,7 +3,9 @@ use crate::types::{
     diagnostic_core_type, needs_runtime_coercion, runtime_core_type, type_compatible,
 };
 
-pub(super) fn substitute_specialize_module(module: Module) -> Module {
+pub(super) fn substitute_specialize_module_profiled(
+    module: Module,
+) -> (Module, SubstitutionSpecializeProfile) {
     SubstitutionSpecializer::new(module).run()
 }
 
@@ -15,6 +17,7 @@ struct SubstitutionSpecializer {
     emitted: Vec<Binding>,
     next_index: usize,
     stats: HashMap<&'static str, usize>,
+    target_skips: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
     specialization_body_depth: usize,
 }
 
@@ -36,11 +39,12 @@ impl SubstitutionSpecializer {
             emitted: Vec::new(),
             next_index,
             stats: HashMap::new(),
+            target_skips: HashMap::new(),
             specialization_body_depth: 0,
         }
     }
 
-    fn run(mut self) -> Module {
+    fn run(mut self) -> (Module, SubstitutionSpecializeProfile) {
         let mut module = std::mem::replace(&mut self.module, empty_module());
         module.root_exprs = module
             .root_exprs
@@ -56,12 +60,62 @@ impl SubstitutionSpecializer {
             })
             .collect();
         self.debug_stats();
-        module.bindings.extend(self.emitted);
-        module
+        module.bindings.extend(std::mem::take(&mut self.emitted));
+        let profile = self.finish_profile();
+        (module, profile)
     }
 
     fn bump(&mut self, key: &'static str) {
         *self.stats.entry(key).or_default() += 1;
+    }
+
+    fn bump_skip(&mut self, target: &core_ir::Path, reason: &'static str) {
+        self.bump(reason);
+        *self
+            .target_skips
+            .entry(target.clone())
+            .or_default()
+            .entry(reason)
+            .or_default() += 1;
+    }
+
+    fn finish_profile(self) -> SubstitutionSpecializeProfile {
+        let mut target_skips = self
+            .target_skips
+            .into_iter()
+            .map(|(target, reasons)| {
+                let mut reasons = reasons
+                    .into_iter()
+                    .map(|(reason, count)| SubstitutionSpecializeSkipCount { reason, count })
+                    .collect::<Vec<_>>();
+                reasons.sort_by(|left, right| {
+                    right
+                        .count
+                        .cmp(&left.count)
+                        .then_with(|| left.reason.cmp(right.reason))
+                });
+                SubstitutionSpecializeTargetSkips { target, reasons }
+            })
+            .collect::<Vec<_>>();
+        target_skips.sort_by(|left, right| {
+            let left_total = left
+                .reasons
+                .iter()
+                .map(|reason| reason.count)
+                .sum::<usize>();
+            let right_total = right
+                .reasons
+                .iter()
+                .map(|reason| reason.count)
+                .sum::<usize>();
+            right_total
+                .cmp(&left_total)
+                .then_with(|| canonical_path(&left.target).cmp(&canonical_path(&right.target)))
+        });
+        SubstitutionSpecializeProfile {
+            stats: self.stats,
+            target_skips,
+        }
     }
 
     fn debug_stats(&self) {
@@ -262,7 +316,7 @@ impl SubstitutionSpecializer {
         } else if let Some(original) = self.select_role_impl_binding(&spine) {
             original
         } else {
-            self.bump("skip-non-generic-callee");
+            self.bump_skip(spine.target, "skip-non-generic-callee");
             return None;
         };
         let handler_info = handler_binding_info(&original);
@@ -271,7 +325,7 @@ impl SubstitutionSpecializer {
         if let Some(handler) = handler_info.as_ref()
             && !allow_handler_specialize
         {
-            self.bump("skip-handler-binding");
+            self.bump_skip(spine.target, "skip-handler-binding");
             let boundary = handler_call_boundary(&handler, &spine.args, &expr.ty);
             let plan = handler_adapter_plan(&handler, &boundary);
             debug_handler_binding_skip(spine.target, &handler, &boundary, &plan);
@@ -291,7 +345,7 @@ impl SubstitutionSpecializer {
                 })
                 .or_else(|| (self.specialization_body_depth > 0).then(BTreeMap::new));
         let Some(initial_substitutions) = initial_substitutions else {
-            self.bump("skip-no-complete-substitution");
+            self.bump_skip(spine.target, "skip-no-complete-substitution");
             debug_subst_specialize_skip("no-complete-substitution", spine.target, None);
             return None;
         };
@@ -306,7 +360,7 @@ impl SubstitutionSpecializer {
         principal_substitutions.extend(initial_substitutions);
         let mut callee_ty = substitute_type(principal_callee, &principal_substitutions);
         let Some((_params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
-            self.bump("skip-non-function-principal");
+            self.bump_skip(spine.target, "skip-non-function-principal");
             return None;
         };
         let actual_ret = diagnostic_core_type(&expr.ty);
@@ -327,7 +381,7 @@ impl SubstitutionSpecializer {
         );
         callee_ty = substitute_type(principal_callee, &principal_substitutions);
         let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
-            self.bump("skip-non-function-principal");
+            self.bump_skip(spine.target, "skip-non-function-principal");
             return None;
         };
         let params = if type_compatible(&ret, &actual_ret) {
@@ -343,11 +397,11 @@ impl SubstitutionSpecializer {
             );
             callee_ty = substitute_type(principal_callee, &principal_substitutions);
             let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
-                self.bump("skip-non-function-principal");
+                self.bump_skip(spine.target, "skip-non-function-principal");
                 return None;
             };
             if !type_compatible(&ret, &actual_ret) {
-                self.bump("skip-ret-mismatch");
+                self.bump_skip(spine.target, "skip-ret-mismatch");
                 debug_subst_specialize_skip(
                     "ret-mismatch",
                     spine.target,
@@ -374,11 +428,11 @@ impl SubstitutionSpecializer {
         }
         callee_ty = substitute_type(principal_callee, &principal_substitutions);
         let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
-            self.bump("skip-non-function-principal");
+            self.bump_skip(spine.target, "skip-non-function-principal");
             return None;
         };
         if !type_compatible(&ret, &actual_ret) {
-            self.bump("skip-ret-mismatch");
+            self.bump_skip(spine.target, "skip-ret-mismatch");
             debug_subst_specialize_skip("ret-mismatch", spine.target, Some((&actual_ret, &ret)));
             return None;
         }
@@ -396,11 +450,11 @@ impl SubstitutionSpecializer {
             }
             callee_ty = substitute_type(principal_callee, &principal_substitutions);
             let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
-                self.bump("skip-non-function-principal");
+                self.bump_skip(spine.target, "skip-non-function-principal");
                 return None;
             };
             if actual_ret != ret {
-                self.bump("skip-ret-mismatch");
+                self.bump_skip(spine.target, "skip-ret-mismatch");
                 debug_subst_specialize_skip(
                     "ret-mismatch",
                     spine.target,
@@ -413,12 +467,12 @@ impl SubstitutionSpecializer {
         if std::env::var_os("YULANG_SUBST_SPECIALIZE_ADAPT_ARGS").is_none()
             && !args_already_match_params(&spine.args, &params)
         {
-            self.bump("skip-arg-adaptation");
+            self.bump_skip(spine.target, "skip-arg-adaptation");
             debug_arg_mismatch(spine.target, &spine.args, &params);
             return None;
         }
         let Some(mut adapted_args) = adapted_args else {
-            self.bump("skip-arg-mismatch");
+            self.bump_skip(spine.target, "skip-arg-mismatch");
             debug_arg_mismatch(spine.target, &spine.args, &params);
             return None;
         };
@@ -426,7 +480,7 @@ impl SubstitutionSpecializer {
         let Some(binding_substitutions) =
             complete_binding_substitutions(&original, &principal_substitutions)
         else {
-            self.bump("skip-incomplete-binding-substitution");
+            self.bump_skip(spine.target, "skip-incomplete-binding-substitution");
             debug_incomplete_binding_substitution(&original, &principal_substitutions);
             return None;
         };
@@ -448,7 +502,7 @@ impl SubstitutionSpecializer {
                 use_original_handler_target = true;
                 debug_handler_call_adapter(spine.target, plan);
             } else {
-                self.bump("skip-handler-plan");
+                self.bump_skip(spine.target, "skip-handler-plan");
                 debug_handler_plan_skip(spine.target, boundary, plan);
                 return None;
             }
@@ -507,7 +561,7 @@ impl SubstitutionSpecializer {
             return matched.pop();
         }
         if matched.len() > 1 {
-            self.bump("skip-ambiguous-role-impl");
+            self.bump_skip(spine.target, "skip-ambiguous-role-impl");
         }
         None
     }
@@ -531,7 +585,7 @@ impl SubstitutionSpecializer {
             && original.name.segments.len() == 1
             && !has_nested_generic_apply
         {
-            self.bump("skip-local-leaf-specialization");
+            self.bump_skip(&original.name, "skip-local-leaf-specialization");
             return None;
         }
         if std::env::var_os("YULANG_SUBST_SPECIALIZE_LEAF").is_none()
@@ -539,7 +593,7 @@ impl SubstitutionSpecializer {
             && !has_nested_generic_apply
             && binding_body_has_local_call(&original.body, Some(&original.name))
         {
-            self.bump("skip-recursive-leaf-specialization");
+            self.bump_skip(&original.name, "skip-recursive-leaf-specialization");
             return None;
         }
         let path = substitution_specialized_path(&original.name, self.next_index);

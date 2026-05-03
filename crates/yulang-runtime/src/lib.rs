@@ -34,7 +34,8 @@ pub use lower::{
 };
 pub use monomorphize::{
     DemandEvidenceProfile, DemandQueueProfile, MonomorphizePassProfile, MonomorphizeProfile,
-    MonomorphizeProgress, monomorphize_module, monomorphize_module_profiled,
+    MonomorphizeProgress, SubstitutionSpecializeProfile, SubstitutionSpecializeSkipCount,
+    SubstitutionSpecializeTargetSkips, monomorphize_module, monomorphize_module_profiled,
 };
 pub use refine::refine_module_types;
 pub use validate::validate_module;

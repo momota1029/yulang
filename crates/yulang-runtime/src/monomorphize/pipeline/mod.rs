@@ -111,8 +111,27 @@ pub struct MonomorphizePassProfile {
     pub roots_after: usize,
     pub progress: MonomorphizeProgress,
     pub demand_queue: DemandQueueProfile,
+    pub substitution_specialize: SubstitutionSpecializeProfile,
     pub added_binding_paths: Vec<core_ir::Path>,
     pub added_specializations: Vec<DemandSpecialization>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct SubstitutionSpecializeProfile {
+    pub stats: HashMap<&'static str, usize>,
+    pub target_skips: Vec<SubstitutionSpecializeTargetSkips>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionSpecializeTargetSkips {
+    pub target: core_ir::Path,
+    pub reasons: Vec<SubstitutionSpecializeSkipCount>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionSpecializeSkipCount {
+    pub reason: &'static str,
+    pub count: usize,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -284,6 +303,7 @@ fn run_profiled_mono_pass(
         roots_after: after.roots,
         progress,
         demand_queue: step.demand_queue,
+        substitution_specialize: step.substitution_specialize.clone(),
         added_binding_paths: step.added_binding_paths.clone(),
         added_specializations: step.added_specializations.clone(),
     });
@@ -341,7 +361,18 @@ fn run_mono_fixpoint(
 fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
     match pass {
         MonoPass::SubstitutionSpecialize => {
-            run_tracked_infallible_pass(module, substitute_specialize_module)
+            let before = module.clone();
+            let (module, substitution_specialize) = substitute_specialize_module_profiled(module);
+            let progress = MonoProgress::from_modules(&before, &module);
+            let added_binding_paths = added_binding_paths(&before, &module);
+            Ok(MonoStep {
+                module,
+                progress,
+                demand_queue: DemandQueueProfile::default(),
+                substitution_specialize,
+                added_binding_paths,
+                added_specializations: Vec::new(),
+            })
         }
         MonoPass::DemandSpecialize => demand_specialize_module(module),
         MonoPass::RefineTypes => refine_module_types_for_mono(module),
@@ -379,6 +410,7 @@ fn demand_specialize_module(module: Module) -> RuntimeResult<MonoStep> {
         module: output.module,
         progress,
         demand_queue: output.profile.queue,
+        substitution_specialize: SubstitutionSpecializeProfile::default(),
         added_binding_paths,
         added_specializations,
     })
@@ -450,6 +482,7 @@ struct MonoStep {
     module: Module,
     progress: MonoProgress,
     demand_queue: DemandQueueProfile,
+    substitution_specialize: SubstitutionSpecializeProfile,
     added_binding_paths: Vec<core_ir::Path>,
     added_specializations: Vec<DemandSpecialization>,
 }
@@ -523,6 +556,7 @@ where
         module,
         progress,
         demand_queue: DemandQueueProfile::default(),
+        substitution_specialize: SubstitutionSpecializeProfile::default(),
         added_binding_paths,
         added_specializations: Vec::new(),
     })
@@ -546,6 +580,7 @@ fn refine_module_types_for_mono(module: Module) -> RuntimeResult<MonoStep> {
         module: output.module,
         progress,
         demand_queue: DemandQueueProfile::default(),
+        substitution_specialize: SubstitutionSpecializeProfile::default(),
         added_binding_paths: Vec::new(),
         added_specializations: Vec::new(),
     })
