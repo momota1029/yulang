@@ -18,8 +18,9 @@ use rowan::SyntaxNode;
 use yulang_core_ir as core_ir;
 use yulang_infer::ids::{NegId as InferNegId, PosId as InferPosId};
 use yulang_infer::{
-    ExpectedShape as InferExpectedShape, FinalizeCompactProfile as InferFinalizeCompactProfile,
-    LowerState as InferLowerState, Neg as InferNeg, Path as InferPath, Pos as InferPos,
+    ExpectedEdgeKind as InferExpectedEdgeKind, ExpectedShape as InferExpectedShape,
+    FinalizeCompactProfile as InferFinalizeCompactProfile, LowerState as InferLowerState,
+    Neg as InferNeg, Path as InferPath, Pos as InferPos,
     SourceLowerProfile as InferSourceLowerProfile, SourceOptions,
     SurfaceDiagnostic as InferSurfaceDiagnostic, TypeError as InferTypeError,
     TypeErrorKind as InferTypeErrorKind, collect_compact_results as collect_infer_compact_results,
@@ -1080,6 +1081,9 @@ fn print_infer_type_error(state: &InferLowerState, error: &InferTypeError, sourc
         format_infer_pos(state, error.pos),
         format_infer_neg(state, error.neg)
     );
+    if let Some(context) = infer_error_expected_context(state, error) {
+        eprintln!("  context: {context}");
+    }
     for origin in &error.origins {
         match origin.span {
             Some(span) => {
@@ -1098,6 +1102,47 @@ fn print_infer_type_error(state: &InferLowerState, error: &InferTypeError, sourc
                 }
             }
         }
+    }
+}
+
+fn infer_error_expected_context(state: &InferLowerState, error: &InferTypeError) -> Option<String> {
+    let edge = state
+        .expected_edges
+        .iter()
+        .filter(|edge| edge.cause.reason == error.cause.reason)
+        .filter(|edge| infer_expected_edge_is_diagnostic_context(edge.kind))
+        .find(|edge| edge.cause.span == error.cause.span)
+        .or_else(|| {
+            state
+                .expected_edges
+                .iter()
+                .filter(|edge| edge.cause.reason == error.cause.reason)
+                .find(|edge| infer_expected_edge_is_diagnostic_context(edge.kind))
+        })?;
+
+    Some(format!(
+        "{} expected {}; expression provides {}",
+        infer_expected_edge_context_label(edge.kind),
+        format_infer_neg(state, error.neg),
+        format_infer_pos(state, error.pos),
+    ))
+}
+
+fn infer_expected_edge_is_diagnostic_context(kind: InferExpectedEdgeKind) -> bool {
+    matches!(
+        kind,
+        InferExpectedEdgeKind::Annotation
+            | InferExpectedEdgeKind::ApplicationArgument
+            | InferExpectedEdgeKind::AssignmentValue
+    )
+}
+
+fn infer_expected_edge_context_label(kind: InferExpectedEdgeKind) -> &'static str {
+    match kind {
+        InferExpectedEdgeKind::Annotation => "annotation",
+        InferExpectedEdgeKind::ApplicationArgument => "function argument",
+        InferExpectedEdgeKind::AssignmentValue => "assignment value",
+        _ => "context",
     }
 }
 
@@ -2909,6 +2954,46 @@ mod tests {
         assert_eq!(
             infer_error_headline(&state, error),
             "no impl for Display<int>"
+        );
+    }
+
+    #[test]
+    fn infer_error_context_reports_annotation_edge() {
+        let source = "my x: int = \"s\"\n";
+        let options = test_cli_options();
+        let root = SyntaxNode::<YulangLanguage>::new_root(
+            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
+        );
+        let (state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let errors = state.infer.type_errors();
+        let error = errors
+            .iter()
+            .find(|error| matches!(error.kind, InferTypeErrorKind::ConstructorMismatch))
+            .expect("annotation mismatch should report constructor mismatch");
+
+        assert_eq!(
+            infer_error_expected_context(&state, error).as_deref(),
+            Some("annotation expected int; expression provides std::str::str"),
+        );
+    }
+
+    #[test]
+    fn infer_error_context_reports_application_argument_edge() {
+        let source = "my f(x: int) = x\nf \"s\"\n";
+        let options = test_cli_options();
+        let root = SyntaxNode::<YulangLanguage>::new_root(
+            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
+        );
+        let (state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let errors = state.infer.type_errors();
+        let error = errors
+            .iter()
+            .find(|error| matches!(error.kind, InferTypeErrorKind::ConstructorMismatch))
+            .expect("argument mismatch should report constructor mismatch");
+
+        assert_eq!(
+            infer_error_expected_context(&state, error).as_deref(),
+            Some("function argument expected int; expression provides std::str::str"),
         );
     }
 

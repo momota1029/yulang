@@ -175,6 +175,7 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 38. 通常の `ExpectedEdge` について、`actual_tv <= expected_tv` と effect edge の `actual_eff <= expected_eff` が solver に入っていることをテストで固定した。kind と `ConstraintReason` の対応もあわせて見る。
 39. `ExprKind::Coerce` を作る synthetic struct / enum constructor と struct field projection で、`ExpectedEdgeKind::RepresentationCoerce` を記録するようにした。これは runtime 表現境界なので、通常の `expect_value` とは分けて制約は追加しない。
 40. direct ref assignment の `AssignmentValue` cause に右辺 span を入れるようにした。これで diagnostic / hover で「代入値が期待型へ流れた場所」を辿りやすくなった。
+41. CLI の型エラー表示で、`Annotation` / `ApplicationArgument` / `AssignmentValue` の `ExpectedEdge` が直接の error cause と一致する場合に、`context: annotation expected int; expression provides string` のような文脈行を出すようにした。まずは直接 cause が残っている edge だけを使い、伝播後に `Unknown` へ落ちる assignment error の復元は次段階へ残した。
 
 ## Notes
 
@@ -191,3 +192,4 @@ runtime の高速化を直接進める前に、型情報の責務を整理する
 - annotation edge は今のところ value type の annotation が対象。effect-only annotation は `ExpectedEdge` が value tv を必須にしているため、別途 `ExpectedEffectEdge` を作るか `ExpectedEdge` を effect-only に対応させるかを決めてから扱う。
 - `RecordField` / `VariantPayload` は enum にはあるが、今回は保留。record / variant は現状だと値を組み立てる側の制約が多く、expected subsumption 境界として切る位置を先に決める必要がある。
 - `RepresentationCoerce` edge は記録済みだが、通常の expected subsumption edge とは違って solver constraint の副産物ではない。`CoerceEvidence` / future adapter hole との対応を見るための観測点として扱う。
+- diagnostic で使う `ExpectedEdge` は、今は direct cause/span が合うものだけ。`&x = "s"` のあと別の annotation で矛盾するような伝播越しの error は、まだ `Unknown` になることがある。ここは edge graph から近い文脈を辿る別 helper が必要。
