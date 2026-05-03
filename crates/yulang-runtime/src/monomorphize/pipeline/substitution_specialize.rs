@@ -20,6 +20,7 @@ struct SubstitutionSpecializer {
     target_skips: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
     target_missing_vars: HashMap<core_ir::Path, HashMap<core_ir::TypeVar, usize>>,
     target_inferences: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
+    target_no_complete_causes: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
     specialization_body_depth: usize,
 }
 
@@ -44,6 +45,7 @@ impl SubstitutionSpecializer {
             target_skips: HashMap::new(),
             target_missing_vars: HashMap::new(),
             target_inferences: HashMap::new(),
+            target_no_complete_causes: HashMap::new(),
             specialization_body_depth: 0,
         }
     }
@@ -129,6 +131,13 @@ impl SubstitutionSpecializer {
         spine: &ApplySpine<'_>,
     ) {
         self.bump_skip(target, "skip-no-complete-substitution");
+        let cause = no_complete_substitution_cause(spine.instantiation, spine.evidence, binding);
+        *self
+            .target_no_complete_causes
+            .entry(target.clone())
+            .or_default()
+            .entry(cause)
+            .or_default() += 1;
         let substitutions =
             initial_substitution_candidates(spine.instantiation, spine.evidence, binding);
         let entry = self.target_missing_vars.entry(target.clone()).or_default();
@@ -139,6 +148,7 @@ impl SubstitutionSpecializer {
 
     fn finish_profile(self) -> SubstitutionSpecializeProfile {
         let mut target_missing_vars = self.target_missing_vars;
+        let mut target_no_complete_causes = self.target_no_complete_causes;
         let mut target_skips = self
             .target_skips
             .into_iter()
@@ -165,10 +175,23 @@ impl SubstitutionSpecializer {
                         .cmp(&left.count)
                         .then_with(|| left.var.0.cmp(&right.var.0))
                 });
+                let mut no_complete_causes = target_no_complete_causes
+                    .remove(&target)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|(reason, count)| SubstitutionSpecializeSkipCount { reason, count })
+                    .collect::<Vec<_>>();
+                no_complete_causes.sort_by(|left, right| {
+                    right
+                        .count
+                        .cmp(&left.count)
+                        .then_with(|| left.reason.cmp(right.reason))
+                });
                 SubstitutionSpecializeTargetSkips {
                     target,
                     reasons,
                     missing_vars,
+                    no_complete_causes,
                 }
             })
             .collect::<Vec<_>>();
@@ -1327,6 +1350,46 @@ fn initial_substitution_candidates(
         );
     }
     substitutions
+}
+
+fn no_complete_substitution_cause(
+    instantiation: Option<&TypeInstantiation>,
+    evidence: Option<&core_ir::ApplyEvidence>,
+    binding: &Binding,
+) -> &'static str {
+    if let Some(instantiation) = instantiation
+        && instantiation.target == binding.name
+    {
+        let params = binding_substitution_vars(binding);
+        let substitutions = instantiation
+            .args
+            .iter()
+            .filter(|substitution| params.contains(&substitution.var))
+            .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
+            .collect::<BTreeMap<_, _>>();
+        if substitutions.len() != params.len() {
+            return "instantiation-missing-vars";
+        }
+        if substitutions.values().any(core_type_has_vars) {
+            return "instantiation-open-vars";
+        }
+    }
+    let Some(evidence) = evidence else {
+        return "no-apply-evidence";
+    };
+    if evidence.principal_callee.is_none() {
+        return "evidence-missing-principal-callee";
+    }
+    if evidence.substitutions.is_empty() {
+        return "evidence-empty-substitutions";
+    }
+    if evidence.substitutions.iter().any(|substitution| {
+        binding_substitution_vars(binding).contains(&substitution.var)
+            && core_type_has_vars(&substitution.ty)
+    }) {
+        return "evidence-open-substitutions";
+    }
+    "evidence-incomplete-substitutions"
 }
 
 fn complete_binding_substitutions(

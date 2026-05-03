@@ -929,12 +929,19 @@ fn print_substitution_specialize_profile(profile: &runtime::MonomorphizePassProf
             .map(|var| format!("{}={}", var.var.0, var.count))
             .collect::<Vec<_>>()
             .join(", ");
+        let no_complete_causes = target
+            .no_complete_causes
+            .iter()
+            .map(|cause| format!("{}={}", cause.reason, cause.count))
+            .collect::<Vec<_>>()
+            .join(", ");
         eprintln!(
-            "                skip_target {} total={} reasons=[{}] missing_vars=[{}]",
+            "                skip_target {} total={} reasons=[{}] missing_vars=[{}] no_complete_causes=[{}]",
             format_core_path(&target.target),
             total,
             reasons,
             missing_vars,
+            no_complete_causes,
         );
     }
     for target in subst.target_inferences.iter().take(12) {
