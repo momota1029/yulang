@@ -658,3 +658,29 @@ Next likely evidence task: connect parent contextual/result shape to the child
 apply result slot. Do this through explicit result/context evidence or a shaped
 core bridge, not by reading runtime-refined `Expr.ty` as new substitution
 evidence.
+
+## Current Slice: Parent Context Can Flow Downward
+
+`SubstitutionSpecialize` now has a context-aware expression rewrite entrypoint.
+For apply expressions, parent evidence is passed down before rewriting children:
+
+```text
+ApplyEvidence.expected_callee -> callee expression context
+ApplyEvidence.expected_arg    -> argument expression result context
+```
+
+The exported-spine plan builder uses that result context when constructing a
+principal plan for the child expression. This is a shaped-core style bridge:
+context flows along the syntax tree from existing evidence, not from
+runtime-refined expression types.
+
+In `07_junction`, this does not yet close `std::junction::all/any` because the
+outer operator/root apply still has no apply evidence. The same gap blocks the
+source-frame diagnostic for `1 + true`.
+
+Next target:
+
+- preserve or synthesize source-edge-backed apply evidence for operator/root
+  applications;
+- after that, parent expected argument shape can close child apply result slots
+  without involving demand/refine loops.

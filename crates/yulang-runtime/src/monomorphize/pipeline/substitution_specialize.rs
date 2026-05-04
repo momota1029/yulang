@@ -265,6 +265,14 @@ impl SubstitutionSpecializer {
     }
 
     fn rewrite_expr(&mut self, expr: Expr) -> Expr {
+        self.rewrite_expr_with_context(expr, None)
+    }
+
+    fn rewrite_expr_with_context(
+        &mut self,
+        expr: Expr,
+        result_contextual: Option<core_ir::TypeBounds>,
+    ) -> Expr {
         let ty = expr.ty;
         let kind = match expr.kind {
             ExprKind::Apply {
@@ -273,8 +281,14 @@ impl SubstitutionSpecializer {
                 evidence,
                 instantiation,
             } => {
-                let callee = self.rewrite_expr(*callee);
-                let arg = self.rewrite_expr(*arg);
+                let callee_contextual = evidence
+                    .as_ref()
+                    .and_then(|evidence| evidence.expected_callee.clone());
+                let arg_contextual = evidence
+                    .as_ref()
+                    .and_then(|evidence| evidence.expected_arg.clone());
+                let callee = self.rewrite_expr_with_context(*callee, callee_contextual);
+                let arg = self.rewrite_expr_with_context(*arg, arg_contextual);
                 let expr = Expr {
                     ty,
                     kind: ExprKind::Apply {
@@ -284,7 +298,7 @@ impl SubstitutionSpecializer {
                         instantiation,
                     },
                 };
-                return self.rewrite_direct_generic_apply(expr);
+                return self.rewrite_direct_generic_apply(expr, result_contextual);
             }
             ExprKind::Lambda {
                 param,
@@ -436,12 +450,21 @@ impl SubstitutionSpecializer {
         }
     }
 
-    fn rewrite_direct_generic_apply(&mut self, expr: Expr) -> Expr {
+    fn rewrite_direct_generic_apply(
+        &mut self,
+        expr: Expr,
+        result_contextual: Option<core_ir::TypeBounds>,
+    ) -> Expr {
         self.bump("apply");
-        self.rewrite_generic_apply_spine(&expr).unwrap_or(expr)
+        self.rewrite_generic_apply_spine(&expr, result_contextual.as_ref())
+            .unwrap_or(expr)
     }
 
-    fn rewrite_generic_apply_spine(&mut self, expr: &Expr) -> Option<Expr> {
+    fn rewrite_generic_apply_spine(
+        &mut self,
+        expr: &Expr,
+        result_contextual: Option<&core_ir::TypeBounds>,
+    ) -> Option<Expr> {
         let Some(spine) = apply_spine(expr) else {
             self.bump("skip-non-var-spine");
             return None;
@@ -469,7 +492,8 @@ impl SubstitutionSpecializer {
         }
         if principal_elaborate_enabled()
             && !role_selected
-            && let Some(plan) = complete_principal_elaboration_plan_for_spine(&spine, &original)
+            && let Some(plan) =
+                complete_principal_elaboration_plan_for_spine(&spine, &original, result_contextual)
         {
             self.bump("principal-plan-complete");
             if let Some(rewritten) =
@@ -1432,6 +1456,7 @@ fn principal_elaborate_strict_enabled() -> bool {
 fn complete_principal_elaboration_plan_for_spine(
     spine: &ApplySpine<'_>,
     binding: &Binding,
+    result_contextual: Option<&core_ir::TypeBounds>,
 ) -> Option<core_ir::PrincipalElaborationPlan> {
     if let Some(plan) = spine.principal_evidences.iter().find_map(|evidence| {
         let plan = evidence.principal_elaboration.as_ref()?;
@@ -1444,13 +1469,14 @@ fn complete_principal_elaboration_plan_for_spine(
     }) {
         return Some(plan);
     }
-    complete_principal_elaboration_plan_from_exported_spine(spine, binding)
+    complete_principal_elaboration_plan_from_exported_spine(spine, binding, result_contextual)
         .filter(|plan| plan.complete)
 }
 
 fn complete_principal_elaboration_plan_from_exported_spine(
     spine: &ApplySpine<'_>,
     binding: &Binding,
+    result_contextual: Option<&core_ir::TypeBounds>,
 ) -> Option<core_ir::PrincipalElaborationPlan> {
     let (params, ret) = core_fun_spine(&binding.scheme.body, spine.args.len())?;
     let mut substitutions = Vec::new();
@@ -1492,7 +1518,9 @@ fn complete_principal_elaboration_plan_from_exported_spine(
         args,
         result: core_ir::PrincipalElaborationResult {
             intrinsic: result,
-            contextual: Some(core_ir::TypeBounds::exact(ret)),
+            contextual: result_contextual
+                .cloned()
+                .or_else(|| Some(core_ir::TypeBounds::exact(ret))),
             expected_runtime: None,
         },
         adapters: Vec::new(),
