@@ -1,5 +1,70 @@
 # Current Task: runtime specialization redesign
 
+## Current Decision: direct principal elaboration
+
+The current direction is still the same large goal: move toward a typed IR that
+can be elaborated in one syntax-directed pass, with old demand-driven
+monomorphize acting as fallback rather than the main route.
+
+The next major runtime step should not be an open-candidate graph solver and
+should not be another round of runtime shape inference. `SubstitutionSpecialize`
+has proved useful as an experiment, but the target concept is now
+`PrincipalElaborate`:
+
+- `complete_principal` should export enough principal elaboration evidence for a
+  call site.
+- runtime should execute that evidence: clone/rewrite/adapt.
+- runtime should not rediscover Simple-Sub relations from runtime IR shapes on
+  the main path.
+- demand / refine / role fixpoint passes should become measured fallback.
+
+Concrete next design target:
+
+```text
+infer/export
+  complete principal elaboration evidence
+    principal callee
+    full-spine substitutions
+    source-edge-backed arg/callee/result slots
+    explicit adapter holes
+
+PrincipalElaborate
+  execute the plan
+  clone target binding with normalized substitutions
+  rewrite call to specialized binding
+  insert only plan adapters
+
+Old DemandSpecialize
+  fallback only, with reachable/actionable fallback counters
+```
+
+Planned experiment flags:
+
+```text
+YULANG_PRINCIPAL_ELABORATE=1
+YULANG_PRINCIPAL_ELABORATE_STRICT=1
+```
+
+Strict mode should fail with explicit incomplete plan reasons instead of silent
+fallback. A useful first strict result is a small list like:
+
+```text
+std::flow::sub::sub: HandlerBoundaryWithoutPlan
+std::range::fold_ints: MissingSubstitution(t1193), OpenCandidate(t1254)
+std::list::fold_impl: MissingAdapterHole(ValueToThunk)
+```
+
+Important non-goals right now:
+
+- Do not solve `t <= t | u` / `t >= t & u` with a runtime graph solver.
+- Do not revive global representative-type rewriting.
+- Do not make handler specialization default.
+- Do not make runtime infer substitutions from arg/result runtime shapes on the
+  principal-elaborate main path; keep those helpers as fallback only.
+
+The `CoreShape` and diagnostic work remains useful, but as observability for the
+same typed-IR direction, not as a separate detour.
+
 ## Context
 
 `yulang-runtime` の `monomorphize` は、現在は demand-driven に具体的な呼び出し形を集め、`DemandSignature` を作り、必要な specialization を emit している。

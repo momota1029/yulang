@@ -1013,8 +1013,11 @@ impl Lowerer<'_> {
         expected_source: TypeSource,
         adapter_source: RuntimeAdapterSource,
     ) -> RuntimeResult<Expr> {
+        let context = type_mismatch_context_for_adapter_source(&adapter_source);
         let old_source = self.current_runtime_adapter_source.replace(adapter_source);
-        let result = self.lower_expr(expr, expected, locals, expected_source);
+        let result = self
+            .lower_expr(expr, expected, locals, expected_source)
+            .map_err(|error| error.with_type_mismatch_context(context));
         self.current_runtime_adapter_source = old_source;
         result
     }
@@ -1758,6 +1761,28 @@ fn apply_type_mismatch_context(
         phase,
         callee_source_edge: evidence.and_then(|evidence| evidence.callee_source_edge),
         arg_source_edge: evidence.and_then(|evidence| evidence.arg_source_edge),
+    }
+}
+
+fn type_mismatch_context_for_adapter_source(source: &RuntimeAdapterSource) -> TypeMismatchContext {
+    TypeMismatchContext {
+        callee: source.apply_target.clone().map(RuntimeCalleeLabel::Path),
+        phase: type_mismatch_phase_for_runtime_apply_phase(source.phase),
+        callee_source_edge: source.callee_source_edge,
+        arg_source_edge: source.arg_source_edge,
+    }
+}
+
+fn type_mismatch_phase_for_runtime_apply_phase(
+    phase: RuntimeApplyAdapterPhase,
+) -> TypeMismatchPhase {
+    match phase {
+        RuntimeApplyAdapterPhase::LowerCallee => TypeMismatchPhase::ApplyCallee,
+        RuntimeApplyAdapterPhase::LowerArgument
+        | RuntimeApplyAdapterPhase::PrepareFinalArgument
+        | RuntimeApplyAdapterPhase::PrepareEffectOperationArgument => {
+            TypeMismatchPhase::ApplyArgument
+        }
     }
 }
 

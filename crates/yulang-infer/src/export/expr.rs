@@ -20,7 +20,7 @@ use super::complete_principal::{
 use super::names::{export_name, export_path};
 use super::paths::collect_canonical_binding_paths;
 use super::roles::canonical_runtime_export_def;
-use super::spine::{collect_apply_spine, strip_transparent_wrappers};
+use super::spine::{collect_apply_spine_with_apps, strip_transparent_wrappers};
 use super::types::{
     export_coalesced_apply_evidence_bounds_with_expected_arg, export_relevant_type_bounds_for_tv,
     export_scheme,
@@ -928,7 +928,16 @@ impl<'a> ExprExporter<'a> {
     }
 
     fn export_resolved_role_method_call(&mut self, expr: &TypedExpr) -> Option<core_ir::Expr> {
-        let (head, args) = collect_apply_spine(expr);
+        let (head, apps) = collect_apply_spine_with_apps(expr);
+        let args = apps
+            .iter()
+            .filter_map(|app| {
+                let ExprKind::App { arg, .. } = &app.kind else {
+                    return None;
+                };
+                Some(arg.as_ref())
+            })
+            .collect::<Vec<_>>();
         let head = strip_transparent_wrappers(head);
         match &head.kind {
             ExprKind::Select { recv, name } => {
@@ -947,12 +956,8 @@ impl<'a> ExprExporter<'a> {
                     arg: Box::new(self.export_expr(recv)),
                     evidence: None,
                 };
-                for arg in args {
-                    out = core_ir::Expr::Apply {
-                        callee: Box::new(out),
-                        arg: Box::new(self.export_expr(arg)),
-                        evidence: None,
-                    };
+                for app in apps {
+                    out = self.export_rewritten_apply(out, app);
                 }
                 Some(out)
             }
@@ -963,12 +968,8 @@ impl<'a> ExprExporter<'a> {
                         .unwrap_or(resolved);
                     let resolved = canonical_runtime_export_def(self.state, resolved);
                     let mut out = core_ir::Expr::Var(self.path_for_def(resolved));
-                    for arg in args {
-                        out = core_ir::Expr::Apply {
-                            callee: Box::new(out),
-                            arg: Box::new(self.export_expr(arg)),
-                            evidence: None,
-                        };
+                    for app in apps {
+                        out = self.export_rewritten_apply(out, app);
                     }
                     return Some(out);
                 }
@@ -976,6 +977,27 @@ impl<'a> ExprExporter<'a> {
                 None
             }
             _ => None,
+        }
+    }
+
+    fn export_rewritten_apply(
+        &mut self,
+        callee_expr: core_ir::Expr,
+        app: &TypedExpr,
+    ) -> core_ir::Expr {
+        let ExprKind::App {
+            arg,
+            callee_edge_id,
+            arg_edge_id,
+            ..
+        } = &app.kind
+        else {
+            return callee_expr;
+        };
+        core_ir::Expr::Apply {
+            callee: Box::new(callee_expr),
+            arg: Box::new(self.export_expr(arg)),
+            evidence: Some(source_only_apply_evidence(*callee_edge_id, *arg_edge_id)),
         }
     }
 
@@ -1063,6 +1085,25 @@ fn core_unit_type() -> core_ir::Type {
     core_ir::Type::Named {
         path: core_ir::Path::from_name(core_ir::Name("unit".to_string())),
         args: Vec::new(),
+    }
+}
+
+fn source_only_apply_evidence(
+    callee_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
+    arg_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
+) -> core_ir::ApplyEvidence {
+    core_ir::ApplyEvidence {
+        callee_source_edge: callee_source_edge.map(|id| id.0),
+        arg_source_edge: arg_source_edge.map(|id| id.0),
+        callee: core_ir::TypeBounds::default(),
+        expected_callee: None,
+        arg: core_ir::TypeBounds::default(),
+        expected_arg: None,
+        result: core_ir::TypeBounds::default(),
+        principal_callee: None,
+        substitutions: Vec::new(),
+        substitution_candidates: Vec::new(),
+        role_method: false,
     }
 }
 

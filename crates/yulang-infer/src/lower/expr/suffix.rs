@@ -10,8 +10,8 @@ use crate::symbols::Name;
 
 use super::{
     infix_op_ref, lower_expr, lower_not_equal_infix, lower_short_circuit_infix,
-    lower_var_assignment, make_app, make_app_with_cause, prefix_op_ref, resolve_path_expr,
-    suffix_op_ref, unit_expr,
+    lower_var_assignment, make_app_with_cause, prefix_op_ref, resolve_path_expr, suffix_op_ref,
+    unit_expr,
 };
 
 /// サフィックスノードを acc に適用して新しい TypedExpr を返す。
@@ -30,11 +30,11 @@ pub(super) fn apply_suffix(
         SyntaxKind::InfixNode => apply_infix_suffix(state, acc, suffix),
         SyntaxKind::PrefixNode => {
             let op_ref = prefix_op_ref(state, suffix);
-            make_app(state, op_ref, acc)
+            make_app_with_cause(state, op_ref, acc, apply_arg_cause(suffix))
         }
         SyntaxKind::SuffixNode => {
             let op_ref = suffix_op_ref(state, suffix);
-            make_app(state, op_ref, acc)
+            make_app_with_cause(state, op_ref, acc, apply_arg_cause(suffix))
         }
         SyntaxKind::Index => apply_index_suffix(state, acc, suffix),
         _ => acc,
@@ -167,8 +167,8 @@ fn apply_infix_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNod
             return not_equal;
         }
         let op_ref = infix_op_ref(state, suffix);
-        let app1 = make_app(state, op_ref, acc);
-        make_app(state, app1, rhs)
+        let app1 = make_app_with_cause(state, op_ref, acc, apply_arg_cause(suffix));
+        make_app_with_cause(state, app1, rhs, apply_arg_cause(suffix))
     } else {
         acc
     }
@@ -189,7 +189,14 @@ fn apply_index_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNod
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
     let select = push_deferred_selection(state, acc, suffix, Name("index".to_string()), tv, eff);
-    make_app(state, select, idx)
+    make_app_with_cause(state, select, idx, apply_arg_cause(suffix))
+}
+
+fn apply_arg_cause(suffix: &SyntaxNode) -> ConstraintCause {
+    ConstraintCause {
+        span: Some(suffix.text_range()),
+        reason: ConstraintReason::ApplyArg,
+    }
 }
 
 fn push_deferred_selection(
