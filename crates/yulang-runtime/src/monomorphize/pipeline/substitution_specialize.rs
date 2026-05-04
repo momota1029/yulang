@@ -445,14 +445,15 @@ impl SubstitutionSpecializer {
             self.bump("skip-non-var-spine");
             return None;
         };
-        let original = if let Some(original) = self.generic_bindings.get(spine.target).cloned() {
-            original
-        } else if let Some(original) = self.select_role_impl_binding(&spine) {
-            original
-        } else {
-            self.bump_skip(spine.target, "skip-non-generic-callee");
-            return None;
-        };
+        let (original, role_selected) =
+            if let Some(original) = self.generic_bindings.get(spine.target).cloned() {
+                (original, false)
+            } else if let Some(original) = self.select_role_impl_binding(&spine) {
+                (original, true)
+            } else {
+                self.bump_skip(spine.target, "skip-non-generic-callee");
+                return None;
+            };
         let handler_info = handler_binding_info(&original);
         let allow_handler_specialize =
             std::env::var_os("YULANG_SUBST_SPECIALIZE_HANDLERS").is_some();
@@ -464,6 +465,19 @@ impl SubstitutionSpecializer {
             let plan = handler_adapter_plan(&handler, &boundary);
             debug_handler_binding_skip(spine.target, &handler, &boundary, &plan);
             return None;
+        }
+        if principal_elaborate_enabled()
+            && !role_selected
+            && let Some(plan) =
+                complete_principal_elaboration_plan_for_spine(&spine, &original.name)
+        {
+            self.bump("principal-plan-complete");
+            if let Some(rewritten) =
+                self.rewrite_with_principal_elaboration_plan(expr, &spine, &original, plan)
+            {
+                return Some(rewritten);
+            }
+            self.bump("principal-plan-fallback");
         }
         let initial_substitutions =
             substitutions_from_instantiation(spine.instantiation, &original)
@@ -686,6 +700,84 @@ impl SubstitutionSpecializer {
             )?
         };
         self.bump("rewrite");
+        let mut call = Expr::typed(ExprKind::Var(path), RuntimeType::core(callee_ty.clone()));
+        let mut current = callee_ty;
+        for (index, arg) in adapted_args.into_iter().enumerate() {
+            let (_, next) = core_fun_parts(&current)?;
+            let ty = if index + 1 == spine.args.len() {
+                expr.ty.clone()
+            } else {
+                RuntimeType::core(next.clone())
+            };
+            call = Expr::typed(
+                ExprKind::Apply {
+                    callee: Box::new(call),
+                    arg: Box::new(arg),
+                    evidence: None,
+                    instantiation: None,
+                },
+                ty,
+            );
+            current = next;
+        }
+        Some(call)
+    }
+
+    fn rewrite_with_principal_elaboration_plan(
+        &mut self,
+        expr: &Expr,
+        spine: &ApplySpine<'_>,
+        original: &Binding,
+        plan: &core_ir::PrincipalElaborationPlan,
+    ) -> Option<Expr> {
+        let principal_substitutions = plan
+            .substitutions
+            .iter()
+            .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
+            .collect::<BTreeMap<_, _>>();
+        let Some(binding_substitutions) =
+            complete_binding_substitutions(original, &principal_substitutions)
+        else {
+            self.bump_incomplete_binding_substitution(
+                spine.target,
+                original,
+                &principal_substitutions,
+            );
+            return None;
+        };
+        let callee_ty = substitute_type(&plan.principal_callee, &principal_substitutions);
+        let Some((params, ret)) = core_fun_spine(&callee_ty, spine.args.len()) else {
+            self.bump_skip(spine.target, "principal-plan-non-function");
+            return None;
+        };
+        let actual_ret = diagnostic_core_type(&expr.ty);
+        if !type_compatible(&ret, &actual_ret) {
+            self.bump_skip(spine.target, "principal-plan-ret-mismatch");
+            debug_subst_specialize_skip(
+                "principal-plan-ret-mismatch",
+                spine.target,
+                Some((&actual_ret, &ret)),
+            );
+            return None;
+        }
+        if std::env::var_os("YULANG_SUBST_SPECIALIZE_ADAPT_ARGS").is_none()
+            && !args_already_match_params(&spine.args, &params)
+        {
+            self.bump_skip(spine.target, "principal-plan-arg-adaptation");
+            debug_arg_mismatch(spine.target, &spine.args, &params);
+            return None;
+        }
+        let Some(adapted_args) = adapt_args_to_params(&spine.args, &params) else {
+            self.bump_skip(spine.target, "principal-plan-arg-mismatch");
+            debug_arg_mismatch(spine.target, &spine.args, &params);
+            return None;
+        };
+        let path = if binding_substitutions.is_empty() {
+            original.name.clone()
+        } else {
+            self.intern_specialization(original.clone(), binding_substitutions, None)?
+        };
+        self.bump("principal-plan-rewrite");
         let mut call = Expr::typed(ExprKind::Var(path), RuntimeType::core(callee_ty.clone()));
         let mut current = callee_ty;
         for (index, arg) in adapted_args.into_iter().enumerate() {
@@ -1318,6 +1410,25 @@ fn evidence_substitution_map(
         .iter()
         .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
         .collect()
+}
+
+fn principal_elaborate_enabled() -> bool {
+    std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some()
+}
+
+fn complete_principal_elaboration_plan_for_spine<'a>(
+    spine: &'a ApplySpine<'_>,
+    target: &core_ir::Path,
+) -> Option<&'a core_ir::PrincipalElaborationPlan> {
+    spine.principal_evidences.iter().find_map(|evidence| {
+        let plan = evidence.principal_elaboration.as_ref()?;
+        (plan.complete
+            && plan
+                .target
+                .as_ref()
+                .is_none_or(|plan_target| plan_target == target))
+        .then_some(plan)
+    })
 }
 
 fn substitutions_from_spine_evidence(

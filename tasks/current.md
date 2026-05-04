@@ -65,6 +65,11 @@ Current implementation status:
   Under strict mode the pipeline runs `principal-elaborate`, prunes unreachable
   bindings, and fails before old demand fallback if reachable generic calls do
   not have complete principal elaboration plans.
+- The principal-elaborate pass now has a first direct-plan execution entry for
+  direct generic calls. It only uses `PrincipalElaborationPlan.substitutions` on
+  that path and leaves runtime inference helpers as fallback. In `07_junction`
+  this path is not yet hit, which means exported complete plans still do not
+  cover the reachable direct generic targets.
 
 Strict mode should fail with explicit incomplete plan reasons instead of silent
 fallback. A useful first strict result is a small list like:
