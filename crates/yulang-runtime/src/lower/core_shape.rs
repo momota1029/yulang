@@ -20,6 +20,9 @@ pub struct CoreShapeProfile {
     pub apply_with_principal: usize,
     pub apply_with_substitutions: usize,
     pub apply_with_substitution_candidates: usize,
+    pub apply_with_principal_elaboration: usize,
+    pub apply_principal_elaboration_complete: usize,
+    pub apply_principal_elaboration_incomplete: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,6 +50,7 @@ pub struct ApplyShape {
     pub principal_callee: Option<core_ir::Type>,
     pub substitutions: Vec<core_ir::TypeSubstitution>,
     pub substitution_candidates: Vec<core_ir::PrincipalSubstitutionCandidate>,
+    pub principal_elaboration: Option<core_ir::PrincipalElaborationPlan>,
     pub status: ApplyShapeStatus,
     pub missing_reasons: Vec<ApplyShapeMissingReason>,
 }
@@ -196,6 +200,14 @@ impl ShapeTable {
             }
             if !apply.substitution_candidates.is_empty() {
                 profile.apply_with_substitution_candidates += 1;
+            }
+            if let Some(plan) = &apply.principal_elaboration {
+                profile.apply_with_principal_elaboration += 1;
+                if plan.complete {
+                    profile.apply_principal_elaboration_complete += 1;
+                } else {
+                    profile.apply_principal_elaboration_incomplete += 1;
+                }
             }
         }
         profile
@@ -443,6 +455,7 @@ fn apply_shape(
         substitution_candidates: evidence
             .map(|evidence| evidence.substitution_candidates.clone())
             .unwrap_or_default(),
+        principal_elaboration: evidence.and_then(|evidence| evidence.principal_elaboration.clone()),
         status,
         missing_reasons,
     }
@@ -664,6 +677,7 @@ mod tests {
                 path: vec![core_ir::PrincipalSlotPathSegment::Arg],
             }],
             role_method: false,
+            principal_elaboration: None,
         };
         let program = program_with_root(core_ir::Expr::Apply {
             callee: Box::new(core_ir::Expr::Var(path("f"))),

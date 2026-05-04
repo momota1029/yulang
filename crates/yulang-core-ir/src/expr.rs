@@ -222,6 +222,67 @@ pub struct ApplyEvidence {
     pub substitutions: Vec<crate::types::TypeSubstitution>,
     pub substitution_candidates: Vec<PrincipalSubstitutionCandidate>,
     pub role_method: bool,
+    pub principal_elaboration: Option<PrincipalElaborationPlan>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrincipalElaborationPlan {
+    pub target: Option<Path>,
+    pub principal_callee: Type,
+    pub substitutions: Vec<crate::types::TypeSubstitution>,
+    pub args: Vec<PrincipalElaborationArg>,
+    pub result: PrincipalElaborationResult,
+    pub adapters: Vec<PrincipalAdapterHole>,
+    pub complete: bool,
+    pub incomplete_reasons: Vec<PrincipalElaborationIncompleteReason>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrincipalElaborationArg {
+    pub index: usize,
+    pub intrinsic: crate::types::TypeBounds,
+    pub contextual: Option<crate::types::TypeBounds>,
+    pub expected_runtime: Option<Type>,
+    pub source_edge: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrincipalElaborationResult {
+    pub intrinsic: crate::types::TypeBounds,
+    pub contextual: Option<crate::types::TypeBounds>,
+    pub expected_runtime: Option<Type>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrincipalAdapterHole {
+    pub kind: PrincipalAdapterKind,
+    pub source_edge: Option<u32>,
+    pub actual: Type,
+    pub expected: Type,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrincipalAdapterKind {
+    Coerce,
+    ValueToThunk,
+    ThunkToValue,
+    BindHere,
+    HandlerResidual,
+    HandlerReturn,
+    ResumeArgument,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PrincipalElaborationIncompleteReason {
+    MissingPrincipalCallee,
+    MissingTarget,
+    MissingSubstitution(TypeVar),
+    ConflictingSubstitution(TypeVar),
+    OpenCandidate(TypeVar),
+    OpenArgType(usize),
+    OpenResultType,
+    HandlerBoundaryWithoutPlan,
+    AmbiguousRoleImpl,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

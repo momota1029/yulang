@@ -22,8 +22,8 @@ use super::paths::collect_canonical_binding_paths;
 use super::roles::canonical_runtime_export_def;
 use super::spine::{collect_apply_spine_with_apps, strip_transparent_wrappers};
 use super::types::{
-    export_coalesced_apply_evidence_bounds_with_expected_arg, export_relevant_type_bounds_for_tv,
-    export_scheme,
+    collect_core_type_vars, export_coalesced_apply_evidence_bounds_with_expected_arg,
+    export_relevant_type_bounds_for_tv, export_scheme,
 };
 
 pub fn export_expr(
@@ -158,6 +158,7 @@ impl<'a> ExprExporter<'a> {
                             substitutions: Vec::new(),
                             substitution_candidates: Vec::new(),
                             role_method: false,
+                            principal_elaboration: None,
                         }),
                     }
                 } else if let Some(def) = self.state.infer.resolve_extension_method_def(name) {
@@ -190,6 +191,7 @@ impl<'a> ExprExporter<'a> {
                             substitutions: Vec::new(),
                             substitution_candidates: Vec::new(),
                             role_method: false,
+                            principal_elaboration: None,
                         }),
                     }
                 } else {
@@ -385,6 +387,7 @@ impl<'a> ExprExporter<'a> {
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
                 role_method,
+                principal_elaboration: None,
             }
         } else {
             core_ir::ApplyEvidence {
@@ -415,8 +418,10 @@ impl<'a> ExprExporter<'a> {
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
                 role_method,
+                principal_elaboration: None,
             }
         };
+        let principal_target = self.principal_callee_target(callee);
         if export_apply_substitutions_enabled()
             && let Some(principal_scheme) = self.principal_callee_scheme(callee)
         {
@@ -435,6 +440,8 @@ impl<'a> ExprExporter<'a> {
                 evidence.substitution_candidates = principal.substitution_candidates;
             }
         }
+        evidence.principal_elaboration =
+            build_principal_elaboration_plan(&evidence, principal_target);
         evidence
     }
 
@@ -483,6 +490,21 @@ impl<'a> ExprExporter<'a> {
                     export_scheme(&self.state.infer, &scheme, &constraints)
                 })
             })
+    }
+
+    fn principal_callee_target(&self, expr: &TypedExpr) -> Option<core_ir::Path> {
+        match &strip_transparent_wrappers(expr).kind {
+            ExprKind::Var(def) => {
+                Some(self.path_for_def(canonical_runtime_export_def(self.state, *def)))
+            }
+            ExprKind::Ref(ref_id) => self
+                .state
+                .ctx
+                .refs
+                .get(*ref_id)
+                .map(|def| self.path_for_def(canonical_runtime_export_def(self.state, def))),
+            _ => None,
+        }
     }
 
     fn export_ref_set(
@@ -1104,7 +1126,70 @@ fn source_only_apply_evidence(
         substitutions: Vec::new(),
         substitution_candidates: Vec::new(),
         role_method: false,
+        principal_elaboration: None,
     }
+}
+
+fn build_principal_elaboration_plan(
+    evidence: &core_ir::ApplyEvidence,
+    target: Option<core_ir::Path>,
+) -> Option<core_ir::PrincipalElaborationPlan> {
+    let principal_callee = evidence.principal_callee.clone()?;
+    let mut incomplete_reasons = Vec::new();
+    if target.is_none() {
+        incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::MissingTarget);
+    }
+    let mut principal_vars = BTreeSet::new();
+    collect_core_type_vars(&principal_callee, &mut principal_vars);
+    for substitution in &evidence.substitutions {
+        principal_vars.remove(&substitution.var);
+    }
+    for var in principal_vars {
+        if evidence
+            .substitution_candidates
+            .iter()
+            .any(|candidate| candidate.var == var)
+        {
+            incomplete_reasons
+                .push(core_ir::PrincipalElaborationIncompleteReason::OpenCandidate(var));
+        } else {
+            incomplete_reasons
+                .push(core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var));
+        }
+    }
+    if evidence.expected_arg.is_none() {
+        incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::OpenArgType(
+            0,
+        ));
+    }
+    if type_bounds_empty(&evidence.result) {
+        incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::OpenResultType);
+    }
+    let complete = incomplete_reasons.is_empty();
+    Some(core_ir::PrincipalElaborationPlan {
+        target,
+        principal_callee,
+        substitutions: evidence.substitutions.clone(),
+        args: vec![core_ir::PrincipalElaborationArg {
+            index: 0,
+            intrinsic: evidence.arg.clone(),
+            contextual: evidence.expected_arg.clone(),
+            expected_runtime: None,
+            source_edge: evidence.arg_source_edge,
+        }],
+        result: core_ir::PrincipalElaborationResult {
+            intrinsic: evidence.result.clone(),
+            contextual: None,
+            expected_runtime: None,
+        },
+        adapters: Vec::new(),
+        complete,
+        incomplete_reasons,
+    })
+}
+
+fn type_bounds_empty(bounds: &core_ir::TypeBounds) -> bool {
+    bounds.lower.is_none() && bounds.upper.is_none()
 }
 
 fn std_var_ref_path() -> core_ir::Path {

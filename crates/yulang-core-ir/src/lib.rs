@@ -9,10 +9,12 @@ pub use expr::{
     DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, EdgePolarity,
     ExpectedAdapterEdgeEvidence, ExpectedAdapterEdgeKind, ExpectedEdgeEvidence, ExpectedEdgeKind,
     Expr, FunctionSigAllowedEffects, HandleArm, ImplDecl, ImplMember, Item, JoinEvidence, Lit,
-    MatchArm, Module, ParamEffectAnnotation, Pattern, PrimitiveOp, PrincipalBinding,
-    PrincipalCandidateRelation, PrincipalEvidence, PrincipalModule, PrincipalRoot,
-    PrincipalSlotPathSegment, PrincipalSubstitutionCandidate, RecordExprField, RecordPatternField,
-    RecordSpreadExpr, RecordSpreadPattern, RoleDecl, RoleMember, SourceRange, Stmt,
+    MatchArm, Module, ParamEffectAnnotation, Pattern, PrimitiveOp, PrincipalAdapterHole,
+    PrincipalAdapterKind, PrincipalBinding, PrincipalCandidateRelation, PrincipalElaborationArg,
+    PrincipalElaborationIncompleteReason, PrincipalElaborationPlan, PrincipalElaborationResult,
+    PrincipalEvidence, PrincipalModule, PrincipalRoot, PrincipalSlotPathSegment,
+    PrincipalSubstitutionCandidate, RecordExprField, RecordPatternField, RecordSpreadExpr,
+    RecordSpreadPattern, RoleDecl, RoleMember, SourceRange, Stmt,
 };
 pub use graph::{
     BindingGraphNode, CoreGraphView, ExprGraphNode, GraphOwner, RuntimeSymbol, RuntimeSymbolKind,

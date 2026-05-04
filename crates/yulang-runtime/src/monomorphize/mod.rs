@@ -1769,6 +1769,7 @@ mod tests {
             substitutions: Vec::new(),
             substitution_candidates: Vec::new(),
             role_method: false,
+            principal_elaboration: None,
         };
 
         assert_eq!(
@@ -1795,6 +1796,7 @@ mod tests {
             substitutions: Vec::new(),
             substitution_candidates: Vec::new(),
             role_method: false,
+            principal_elaboration: None,
         };
 
         assert_eq!(
@@ -1825,6 +1827,7 @@ mod tests {
             substitutions: Vec::new(),
             substitution_candidates: Vec::new(),
             role_method: false,
+            principal_elaboration: None,
         };
 
         assert_eq!(

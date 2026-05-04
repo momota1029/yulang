@@ -752,7 +752,7 @@ fn print_runtime_phase_timings(
     );
     let core_shape = &profile.lower_profile.core_shape;
     eprintln!(
-        "    core_shape: exprs={}, applies={}, apply_complete={}, apply_partial={}, apply_missing_evidence={}, apply_missing_context={}, apply_missing_principal={}, apply_with_principal={}, apply_with_substitutions={}, apply_with_substitution_candidates={}",
+        "    core_shape: exprs={}, applies={}, apply_complete={}, apply_partial={}, apply_missing_evidence={}, apply_missing_context={}, apply_missing_principal={}, apply_with_principal={}, apply_with_substitutions={}, apply_with_substitution_candidates={}, apply_with_principal_elaboration={}, apply_principal_elaboration_complete={}, apply_principal_elaboration_incomplete={}",
         core_shape.exprs,
         core_shape.applies,
         core_shape.apply_complete,
@@ -763,6 +763,9 @@ fn print_runtime_phase_timings(
         core_shape.apply_with_principal,
         core_shape.apply_with_substitutions,
         core_shape.apply_with_substitution_candidates,
+        core_shape.apply_with_principal_elaboration,
+        core_shape.apply_principal_elaboration_complete,
+        core_shape.apply_principal_elaboration_incomplete,
     );
     let expected_arg = &profile.lower_profile.expected_arg_evidence;
     eprintln!(
@@ -4388,6 +4391,7 @@ mod tests {
             substitutions: Vec::new(),
             substitution_candidates: Vec::new(),
             role_method: false,
+            principal_elaboration: None,
         };
 
         assert_eq!(

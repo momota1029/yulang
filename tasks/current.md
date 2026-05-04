@@ -50,8 +50,17 @@ Current implementation status:
 - `YULANG_PRINCIPAL_ELABORATE=1` exists.
 - It currently runs a `principal-elaborate` monomorphize pass that delegates to
   the old substitution-specialize implementation.
-- This is only the entry-point rename/wrapper. The next required step is to
-  export and execute a real `PrincipalElaborationPlan`.
+- Core IR now has `PrincipalElaborationPlan` on `ApplyEvidence`.
+- `complete_principal` / export now builds a first conservative plan from
+  `principal_callee`, closed substitutions, substitution candidates, source
+  edges, and apply arg/result slots.
+- The initial plan is intentionally observational: adapter holes are empty,
+  expected runtime slot types are not executed yet, and incomplete reasons are
+  conservative.
+- `CoreShape` counts apply sites with principal elaboration plans and splits
+  them into complete / incomplete.
+- Runtime still delegates plan execution to the old substitution-specialize
+  fallback. The next required step is strict plan execution / failure reporting.
 - `YULANG_PRINCIPAL_ELABORATE_STRICT=1` is planned but not implemented yet.
 
 Strict mode should fail with explicit incomplete plan reasons instead of silent

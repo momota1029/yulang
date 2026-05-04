@@ -624,6 +624,7 @@ mod tests {
                             substitutions: Vec::new(),
                             substitution_candidates: Vec::new(),
                             role_method: false,
+                            principal_elaboration: None,
                         }),
                     }),
                     arms: vec![core_ir::HandleArm {
@@ -646,6 +647,7 @@ mod tests {
                                 substitutions: Vec::new(),
                                 substitution_candidates: Vec::new(),
                                 role_method: false,
+                                principal_elaboration: None,
                             }),
                         },
                     }],
@@ -896,6 +898,7 @@ mod tests {
                         substitutions: Vec::new(),
                         substitution_candidates: Vec::new(),
                         role_method: false,
+                        principal_elaboration: None,
                     }),
                 }],
                 roots: vec![core_ir::PrincipalRoot::Expr(0)],
@@ -971,6 +974,7 @@ mod tests {
                         substitutions: Vec::new(),
                         substitution_candidates: Vec::new(),
                         role_method: false,
+                        principal_elaboration: None,
                     }),
                 }],
                 roots: vec![core_ir::PrincipalRoot::Expr(0)],
@@ -1268,6 +1272,7 @@ mod tests {
                                 substitutions: Vec::new(),
                                 substitution_candidates: Vec::new(),
                                 role_method: false,
+                                principal_elaboration: None,
                             }),
                         }),
                     },
@@ -1342,6 +1347,7 @@ mod tests {
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
                 role_method: false,
+                principal_elaboration: None,
             }),
         };
 
@@ -1403,6 +1409,7 @@ mod tests {
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
                 role_method: false,
+                principal_elaboration: None,
             }),
         };
 
@@ -1494,6 +1501,7 @@ mod tests {
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
                 role_method: false,
+                principal_elaboration: None,
             }),
         };
 
@@ -1591,6 +1599,7 @@ mod tests {
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
                 role_method: false,
+                principal_elaboration: None,
             }),
         };
 
@@ -1733,6 +1742,7 @@ mod tests {
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
                 role_method: false,
+                principal_elaboration: None,
             }),
         }
     }

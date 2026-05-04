@@ -214,6 +214,65 @@ pub(crate) fn substitute_apply_evidence(
             })
             .collect(),
         role_method: evidence.role_method,
+        principal_elaboration: evidence
+            .principal_elaboration
+            .map(|plan| substitute_principal_elaboration_plan(plan, substitutions)),
+    }
+}
+
+fn substitute_principal_elaboration_plan(
+    plan: core_ir::PrincipalElaborationPlan,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> core_ir::PrincipalElaborationPlan {
+    core_ir::PrincipalElaborationPlan {
+        target: plan.target,
+        principal_callee: substitute_type(&plan.principal_callee, substitutions),
+        substitutions: plan
+            .substitutions
+            .into_iter()
+            .map(|substitution| core_ir::TypeSubstitution {
+                var: substitution.var,
+                ty: substitute_type(&substitution.ty, substitutions),
+            })
+            .collect(),
+        args: plan
+            .args
+            .into_iter()
+            .map(|arg| core_ir::PrincipalElaborationArg {
+                index: arg.index,
+                intrinsic: substitute_bounds(arg.intrinsic, substitutions),
+                contextual: arg
+                    .contextual
+                    .map(|bounds| substitute_bounds(bounds, substitutions)),
+                expected_runtime: arg
+                    .expected_runtime
+                    .map(|ty| substitute_type(&ty, substitutions)),
+                source_edge: arg.source_edge,
+            })
+            .collect(),
+        result: core_ir::PrincipalElaborationResult {
+            intrinsic: substitute_bounds(plan.result.intrinsic, substitutions),
+            contextual: plan
+                .result
+                .contextual
+                .map(|bounds| substitute_bounds(bounds, substitutions)),
+            expected_runtime: plan
+                .result
+                .expected_runtime
+                .map(|ty| substitute_type(&ty, substitutions)),
+        },
+        adapters: plan
+            .adapters
+            .into_iter()
+            .map(|adapter| core_ir::PrincipalAdapterHole {
+                kind: adapter.kind,
+                source_edge: adapter.source_edge,
+                actual: substitute_type(&adapter.actual, substitutions),
+                expected: substitute_type(&adapter.expected, substitutions),
+            })
+            .collect(),
+        complete: plan.complete,
+        incomplete_reasons: plan.incomplete_reasons,
     }
 }
 
