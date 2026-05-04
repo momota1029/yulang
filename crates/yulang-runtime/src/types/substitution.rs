@@ -179,6 +179,29 @@ pub(crate) fn substitute_apply_evidence(
     evidence: core_ir::ApplyEvidence,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) -> core_ir::ApplyEvidence {
+    let evidence_substitutions = evidence
+        .substitutions
+        .into_iter()
+        .map(|substitution| core_ir::TypeSubstitution {
+            var: substitution.var,
+            ty: substitute_type(&substitution.ty, substitutions),
+        })
+        .collect::<Vec<_>>();
+    let substitution_candidates = evidence
+        .substitution_candidates
+        .into_iter()
+        .map(|candidate| core_ir::PrincipalSubstitutionCandidate {
+            var: candidate.var,
+            relation: candidate.relation,
+            ty: substitute_type(&candidate.ty, substitutions),
+            source_edge: candidate.source_edge,
+            path: candidate.path,
+        })
+        .collect::<Vec<_>>();
+    let principal_elaboration = evidence.principal_elaboration.map(|plan| {
+        substitute_principal_elaboration_plan(plan, substitutions, &substitution_candidates)
+    });
+
     core_ir::ApplyEvidence {
         callee_source_edge: evidence.callee_source_edge,
         arg_source_edge: evidence.arg_source_edge,
@@ -194,37 +217,19 @@ pub(crate) fn substitute_apply_evidence(
         principal_callee: evidence
             .principal_callee
             .map(|ty| substitute_type(&ty, substitutions)),
-        substitutions: evidence
-            .substitutions
-            .into_iter()
-            .map(|substitution| core_ir::TypeSubstitution {
-                var: substitution.var,
-                ty: substitute_type(&substitution.ty, substitutions),
-            })
-            .collect(),
-        substitution_candidates: evidence
-            .substitution_candidates
-            .into_iter()
-            .map(|candidate| core_ir::PrincipalSubstitutionCandidate {
-                var: candidate.var,
-                relation: candidate.relation,
-                ty: substitute_type(&candidate.ty, substitutions),
-                source_edge: candidate.source_edge,
-                path: candidate.path,
-            })
-            .collect(),
+        substitutions: evidence_substitutions,
+        substitution_candidates,
         role_method: evidence.role_method,
-        principal_elaboration: evidence
-            .principal_elaboration
-            .map(|plan| substitute_principal_elaboration_plan(plan, substitutions)),
+        principal_elaboration,
     }
 }
 
 fn substitute_principal_elaboration_plan(
     plan: core_ir::PrincipalElaborationPlan,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
 ) -> core_ir::PrincipalElaborationPlan {
-    core_ir::PrincipalElaborationPlan {
+    let plan = core_ir::PrincipalElaborationPlan {
         target: plan.target,
         principal_callee: substitute_type(&plan.principal_callee, substitutions),
         substitutions: plan
@@ -273,7 +278,560 @@ fn substitute_principal_elaboration_plan(
             .collect(),
         complete: plan.complete,
         incomplete_reasons: plan.incomplete_reasons,
+    };
+    normalize_principal_elaboration_plan_after_substitution(plan, substitution_candidates)
+}
+
+fn normalize_principal_elaboration_plan_after_substitution(
+    plan: core_ir::PrincipalElaborationPlan,
+    substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
+) -> core_ir::PrincipalElaborationPlan {
+    let required_vars = principal_elaboration_required_vars(&plan);
+    if required_vars.is_empty() {
+        return rebuild_principal_elaboration_plan_status(
+            plan,
+            BTreeMap::new(),
+            BTreeSet::new(),
+            substitution_candidates,
+        );
     }
+
+    let mut substitutions = BTreeMap::new();
+    let mut conflicts = BTreeSet::new();
+    for substitution in &plan.substitutions {
+        if !principal_plan_substitution_type_usable(&substitution.ty, false) {
+            continue;
+        }
+        insert_exact_projected_substitution(
+            &mut substitutions,
+            &mut conflicts,
+            substitution.var.clone(),
+            substitution.ty.clone(),
+        );
+    }
+    project_substitutions_from_candidates(
+        substitution_candidates,
+        &required_vars,
+        &mut substitutions,
+        &mut conflicts,
+    );
+
+    let substituted_principal = substitute_type(&plan.principal_callee, &substitutions);
+    for arg in &plan.args {
+        let Some(template) = principal_fun_param_at(&substituted_principal, arg.index) else {
+            continue;
+        };
+        if let Some(actual) = principal_plan_arg_type(arg) {
+            project_closed_substitutions_from_type(
+                template,
+                &actual,
+                &required_vars,
+                &mut substitutions,
+                &mut conflicts,
+                false,
+                64,
+            );
+        }
+    }
+
+    if let Some(template) = principal_fun_result_after_args(&substituted_principal, plan.args.len())
+        && let Some(actual) = principal_plan_result_type(&plan.result)
+    {
+        project_closed_substitutions_from_type(
+            template,
+            &actual,
+            &required_vars,
+            &mut substitutions,
+            &mut conflicts,
+            false,
+            64,
+        );
+    }
+
+    rebuild_principal_elaboration_plan_status(
+        plan,
+        substitutions,
+        conflicts,
+        substitution_candidates,
+    )
+}
+
+fn rebuild_principal_elaboration_plan_status(
+    mut plan: core_ir::PrincipalElaborationPlan,
+    substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: BTreeSet<core_ir::TypeVar>,
+    substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
+) -> core_ir::PrincipalElaborationPlan {
+    let required_vars = principal_elaboration_required_vars(&plan);
+    let mut incomplete_reasons = Vec::new();
+    if plan.target.is_none() {
+        incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::MissingTarget);
+    }
+    for var in &required_vars {
+        if conflicts.contains(var) {
+            incomplete_reasons.push(
+                core_ir::PrincipalElaborationIncompleteReason::ConflictingSubstitution(var.clone()),
+            );
+        } else if !substitutions.contains_key(var) {
+            let has_open_candidate = substitution_candidates
+                .iter()
+                .any(|candidate| candidate.var == *var)
+                || plan.incomplete_reasons.iter().any(|reason| {
+                    matches!(
+                        reason,
+                        core_ir::PrincipalElaborationIncompleteReason::OpenCandidate(candidate_var)
+                            if candidate_var == var
+                    )
+                });
+            if has_open_candidate {
+                incomplete_reasons.push(
+                    core_ir::PrincipalElaborationIncompleteReason::OpenCandidate(var.clone()),
+                );
+            } else {
+                incomplete_reasons.push(
+                    core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var.clone()),
+                );
+            }
+        }
+    }
+    for arg in &plan.args {
+        if principal_plan_arg_type(arg).is_none() {
+            incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::OpenArgType(
+                arg.index,
+            ));
+        }
+    }
+    if principal_plan_result_type(&plan.result).is_none() {
+        incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::OpenResultType);
+    }
+
+    plan.substitutions = substitutions
+        .into_iter()
+        .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
+        .collect();
+    plan.complete = incomplete_reasons.is_empty();
+    plan.incomplete_reasons = incomplete_reasons;
+    plan
+}
+
+fn principal_elaboration_required_vars(
+    plan: &core_ir::PrincipalElaborationPlan,
+) -> BTreeSet<core_ir::TypeVar> {
+    let mut vars = BTreeSet::new();
+    collect_type_vars(&plan.principal_callee, &mut vars);
+    vars
+}
+
+fn principal_fun_param_at(ty: &core_ir::Type, index: usize) -> Option<&core_ir::Type> {
+    let mut current = ty;
+    for _ in 0..index {
+        current = match current {
+            core_ir::Type::Fun { ret, .. } => ret,
+            core_ir::Type::Recursive { body, .. } => body,
+            _ => return None,
+        };
+    }
+    match current {
+        core_ir::Type::Fun { param, .. } => Some(param),
+        core_ir::Type::Recursive { body, .. } => principal_fun_param_at(body, 0),
+        _ => None,
+    }
+}
+
+fn principal_fun_result_after_args(ty: &core_ir::Type, arg_count: usize) -> Option<&core_ir::Type> {
+    let mut current = ty;
+    for _ in 0..arg_count {
+        current = match current {
+            core_ir::Type::Fun { ret, .. } => ret,
+            core_ir::Type::Recursive { body, .. } => body,
+            _ => return None,
+        };
+    }
+    Some(current)
+}
+
+fn principal_plan_arg_type(arg: &core_ir::PrincipalElaborationArg) -> Option<core_ir::Type> {
+    arg.expected_runtime
+        .clone()
+        .or_else(|| principal_plan_bounds_exact_type(arg.contextual.as_ref()))
+        .or_else(|| principal_plan_bounds_exact_type(Some(&arg.intrinsic)))
+}
+
+fn principal_plan_result_type(
+    result: &core_ir::PrincipalElaborationResult,
+) -> Option<core_ir::Type> {
+    result
+        .expected_runtime
+        .clone()
+        .or_else(|| principal_plan_bounds_exact_type(result.contextual.as_ref()))
+        .or_else(|| principal_plan_bounds_exact_type(Some(&result.intrinsic)))
+}
+
+fn principal_plan_bounds_exact_type(bounds: Option<&core_ir::TypeBounds>) -> Option<core_ir::Type> {
+    let bounds = bounds?;
+    match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
+        (Some(lower), Some(upper)) if lower == upper => Some(lower.clone()),
+        _ => None,
+    }
+}
+
+fn insert_exact_projected_substitution(
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    var: core_ir::TypeVar,
+    ty: core_ir::Type,
+) {
+    if let Some(existing) = substitutions.get(&var) {
+        if existing != &ty {
+            conflicts.insert(var);
+        }
+    } else {
+        substitutions.insert(var, ty);
+    }
+}
+
+fn project_substitutions_from_candidates(
+    candidates: &[core_ir::PrincipalSubstitutionCandidate],
+    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+) {
+    let mut by_var = BTreeMap::<
+        core_ir::TypeVar,
+        Vec<(core_ir::PrincipalCandidateRelation, core_ir::Type)>,
+    >::new();
+    for candidate in candidates {
+        if !params.contains(&candidate.var)
+            || !principal_plan_substitution_type_usable(&candidate.ty, false)
+        {
+            continue;
+        }
+        by_var
+            .entry(candidate.var.clone())
+            .or_default()
+            .push((candidate.relation, candidate.ty.clone()));
+    }
+
+    for (var, candidates) in by_var {
+        if substitutions.contains_key(&var) || conflicts.contains(&var) {
+            continue;
+        }
+        let exact = unique_candidate_type(
+            candidates
+                .iter()
+                .filter(|(relation, _)| {
+                    matches!(relation, core_ir::PrincipalCandidateRelation::Exact)
+                })
+                .map(|(_, ty)| ty),
+        );
+        match exact {
+            CandidateTypeChoice::One(ty) => {
+                insert_exact_projected_substitution(substitutions, conflicts, var, ty);
+                continue;
+            }
+            CandidateTypeChoice::Conflict => {
+                conflicts.insert(var);
+                continue;
+            }
+            CandidateTypeChoice::None => {}
+        }
+
+        let lower = unique_candidate_type(
+            candidates
+                .iter()
+                .filter(|(relation, _)| {
+                    matches!(relation, core_ir::PrincipalCandidateRelation::Lower)
+                })
+                .map(|(_, ty)| ty),
+        );
+        let upper = unique_candidate_type(
+            candidates
+                .iter()
+                .filter(|(relation, _)| {
+                    matches!(relation, core_ir::PrincipalCandidateRelation::Upper)
+                })
+                .map(|(_, ty)| ty),
+        );
+        if let (CandidateTypeChoice::One(lower), CandidateTypeChoice::One(upper)) = (lower, upper)
+            && lower == upper
+        {
+            insert_exact_projected_substitution(substitutions, conflicts, var, lower);
+        }
+    }
+}
+
+enum CandidateTypeChoice {
+    None,
+    One(core_ir::Type),
+    Conflict,
+}
+
+fn unique_candidate_type<'a>(
+    candidates: impl Iterator<Item = &'a core_ir::Type>,
+) -> CandidateTypeChoice {
+    let mut choice: Option<core_ir::Type> = None;
+    for candidate in candidates {
+        match &choice {
+            Some(existing) if existing != candidate => return CandidateTypeChoice::Conflict,
+            Some(_) => {}
+            None => choice = Some(candidate.clone()),
+        }
+    }
+    choice.map_or(CandidateTypeChoice::None, CandidateTypeChoice::One)
+}
+
+fn project_closed_substitutions_from_type(
+    template: &core_ir::Type,
+    actual: &core_ir::Type,
+    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    allow_never: bool,
+    depth: usize,
+) {
+    if depth == 0 {
+        return;
+    }
+    match (template, actual) {
+        (core_ir::Type::Var(var), actual) if params.contains(var) => {
+            if principal_plan_substitution_type_usable(actual, allow_never) {
+                insert_exact_projected_substitution(
+                    substitutions,
+                    conflicts,
+                    var.clone(),
+                    actual.clone(),
+                );
+            }
+        }
+        (
+            core_ir::Type::Named { path, args },
+            core_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+        ) if path == actual_path && args.len() == actual_args.len() => {
+            for (template_arg, actual_arg) in args.iter().zip(actual_args) {
+                project_closed_substitutions_from_type_arg(
+                    template_arg,
+                    actual_arg,
+                    params,
+                    substitutions,
+                    conflicts,
+                    allow_never,
+                    depth - 1,
+                );
+            }
+        }
+        (
+            core_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            },
+            core_ir::Type::Fun {
+                param: actual_param,
+                param_effect: actual_param_effect,
+                ret_effect: actual_ret_effect,
+                ret: actual_ret,
+            },
+        ) => {
+            project_closed_substitutions_from_type(
+                param,
+                actual_param,
+                params,
+                substitutions,
+                conflicts,
+                false,
+                depth - 1,
+            );
+            project_closed_substitutions_from_type(
+                param_effect,
+                actual_param_effect,
+                params,
+                substitutions,
+                conflicts,
+                true,
+                depth - 1,
+            );
+            project_closed_substitutions_from_type(
+                ret_effect,
+                actual_ret_effect,
+                params,
+                substitutions,
+                conflicts,
+                true,
+                depth - 1,
+            );
+            project_closed_substitutions_from_type(
+                ret,
+                actual_ret,
+                params,
+                substitutions,
+                conflicts,
+                false,
+                depth - 1,
+            );
+        }
+        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items))
+            if items.len() == actual_items.len() =>
+        {
+            for (item, actual_item) in items.iter().zip(actual_items) {
+                project_closed_substitutions_from_type(
+                    item,
+                    actual_item,
+                    params,
+                    substitutions,
+                    conflicts,
+                    allow_never,
+                    depth - 1,
+                );
+            }
+        }
+        (core_ir::Type::Record(record), core_ir::Type::Record(actual_record)) => {
+            for field in &record.fields {
+                let Some(actual_field) = actual_record
+                    .fields
+                    .iter()
+                    .find(|actual| actual.name == field.name)
+                else {
+                    continue;
+                };
+                project_closed_substitutions_from_type(
+                    &field.value,
+                    &actual_field.value,
+                    params,
+                    substitutions,
+                    conflicts,
+                    allow_never,
+                    depth - 1,
+                );
+            }
+        }
+        (core_ir::Type::Variant(variant), core_ir::Type::Variant(actual_variant)) => {
+            for case in &variant.cases {
+                let Some(actual_case) = actual_variant
+                    .cases
+                    .iter()
+                    .find(|actual| actual.name == case.name)
+                else {
+                    continue;
+                };
+                if case.payloads.len() != actual_case.payloads.len() {
+                    continue;
+                }
+                for (payload, actual_payload) in case.payloads.iter().zip(&actual_case.payloads) {
+                    project_closed_substitutions_from_type(
+                        payload,
+                        actual_payload,
+                        params,
+                        substitutions,
+                        conflicts,
+                        allow_never,
+                        depth - 1,
+                    );
+                }
+            }
+        }
+        (
+            core_ir::Type::Row { items, tail },
+            core_ir::Type::Row {
+                items: actual_items,
+                tail: actual_tail,
+            },
+        ) if items.len() == actual_items.len() => {
+            for (item, actual_item) in items.iter().zip(actual_items) {
+                project_closed_substitutions_from_type(
+                    item,
+                    actual_item,
+                    params,
+                    substitutions,
+                    conflicts,
+                    true,
+                    depth - 1,
+                );
+            }
+            project_closed_substitutions_from_type(
+                tail,
+                actual_tail,
+                params,
+                substitutions,
+                conflicts,
+                true,
+                depth - 1,
+            );
+        }
+        (core_ir::Type::Recursive { body, .. }, actual) => {
+            project_closed_substitutions_from_type(
+                body,
+                actual,
+                params,
+                substitutions,
+                conflicts,
+                allow_never,
+                depth - 1,
+            );
+        }
+        (template, core_ir::Type::Recursive { body, .. }) => {
+            project_closed_substitutions_from_type(
+                template,
+                body,
+                params,
+                substitutions,
+                conflicts,
+                allow_never,
+                depth - 1,
+            );
+        }
+        _ => {}
+    }
+}
+
+fn project_closed_substitutions_from_type_arg(
+    template: &core_ir::TypeArg,
+    actual: &core_ir::TypeArg,
+    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    allow_never: bool,
+    depth: usize,
+) {
+    match (template, actual) {
+        (core_ir::TypeArg::Type(template), core_ir::TypeArg::Type(actual)) => {
+            project_closed_substitutions_from_type(
+                template,
+                actual,
+                params,
+                substitutions,
+                conflicts,
+                allow_never,
+                depth,
+            );
+        }
+        (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
+            if let (Some(template), Some(actual)) = (
+                principal_plan_bounds_exact_type(Some(template)),
+                principal_plan_bounds_exact_type(Some(actual)),
+            ) {
+                project_closed_substitutions_from_type(
+                    &template,
+                    &actual,
+                    params,
+                    substitutions,
+                    conflicts,
+                    allow_never,
+                    depth,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+fn principal_plan_substitution_type_usable(ty: &core_ir::Type, allow_never: bool) -> bool {
+    !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_))
+        && (allow_never || !matches!(ty, core_ir::Type::Never))
+        && !type_has_vars(ty)
 }
 
 pub(crate) fn substitute_join_evidence(
@@ -741,5 +1299,105 @@ pub(super) fn substitute_type_arg(
                 .as_ref()
                 .map(|ty| Box::new(substitute_type(ty, substitutions))),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plan_normalization_closes_child_var_after_parent_substitution() {
+        let a = tv("a");
+        let t = tv("t");
+        let mut substitutions = BTreeMap::new();
+        substitutions.insert(t.clone(), named("int"));
+
+        let plan = list_plan_for_arg(list_of(core_ir::Type::Var(t)));
+        let normalized = substitute_principal_elaboration_plan(plan, &substitutions, &[]);
+
+        assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);
+        assert_eq!(
+            normalized.substitutions,
+            vec![core_ir::TypeSubstitution {
+                var: a,
+                ty: named("int"),
+            }]
+        );
+    }
+
+    #[test]
+    fn plan_normalization_leaves_open_child_var_missing() {
+        let plan = list_plan_for_arg(list_of(core_ir::Type::Var(tv("t"))));
+        let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
+
+        assert!(!normalized.complete);
+        assert!(normalized.incomplete_reasons.contains(
+            &core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
+        ));
+    }
+
+    #[test]
+    fn plan_normalization_does_not_solve_union_actuals() {
+        let plan = list_plan_for_arg(list_of(core_ir::Type::Union(vec![
+            core_ir::Type::Var(tv("t")),
+            named("int"),
+        ])));
+        let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
+
+        assert!(!normalized.complete);
+        assert!(normalized.incomplete_reasons.contains(
+            &core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
+        ));
+    }
+
+    fn list_plan_for_arg(arg_ty: core_ir::Type) -> core_ir::PrincipalElaborationPlan {
+        core_ir::PrincipalElaborationPlan {
+            target: Some(core_ir::Path::from_name(core_ir::Name(
+                "view_raw".to_string(),
+            ))),
+            principal_callee: core_ir::Type::Fun {
+                param: Box::new(list_of(core_ir::Type::Var(tv("a")))),
+                param_effect: Box::new(core_ir::Type::Never),
+                ret_effect: Box::new(core_ir::Type::Never),
+                ret: Box::new(named("unit")),
+            },
+            substitutions: Vec::new(),
+            args: vec![core_ir::PrincipalElaborationArg {
+                index: 0,
+                intrinsic: core_ir::TypeBounds::exact(arg_ty),
+                contextual: None,
+                expected_runtime: None,
+                source_edge: None,
+            }],
+            result: core_ir::PrincipalElaborationResult {
+                intrinsic: core_ir::TypeBounds::exact(named("unit")),
+                contextual: None,
+                expected_runtime: None,
+            },
+            adapters: Vec::new(),
+            complete: false,
+            incomplete_reasons: vec![
+                core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a")),
+            ],
+        }
+    }
+
+    fn list_of(item: core_ir::Type) -> core_ir::Type {
+        core_ir::Type::Named {
+            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
+            args: vec![core_ir::TypeArg::Type(item)],
+        }
+    }
+
+    fn named(name: &str) -> core_ir::Type {
+        core_ir::Type::Named {
+            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+            args: Vec::new(),
+        }
+    }
+
+    fn tv(name: &str) -> core_ir::TypeVar {
+        core_ir::TypeVar(name.to_string())
     }
 }

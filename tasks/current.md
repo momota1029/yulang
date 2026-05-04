@@ -491,3 +491,43 @@ frame because that root operator apply reaches runtime lowering without apply
 evidence/source edge. Next step is to preserve or synthesize source-edge-backed
 apply shape for that root/operator case, rather than adding a broad fallback
 frame that may point at the wrong source.
+
+## Current Slice: Clone-Time Principal Plan Normalization
+
+Direct principal elaboration now treats cloned binding evidence as something to
+instantiate, not as something to re-infer from runtime shapes.
+
+Allowed normalization:
+
+- apply the parent specialization substitution to nested `ApplyEvidence` and
+  `PrincipalElaborationPlan` fields;
+- reuse already-exported substitution candidates after that substitution;
+- project missing variables only through closed, constructor-preserving matches
+  such as `list[a]` against `list[int]`;
+- recompute `complete` and `incomplete_reasons` after normalization.
+
+Still forbidden:
+
+- solving open lower/upper graphs;
+- propagating through `t <= t | u` or `t >= t & u`;
+- using runtime-refined argument/result types as new evidence;
+- binding from `Any`, open `Var`, or value-position `Never`.
+
+This is the intended line between "execute the exported principal plan" and
+"reconstruct Simple-Sub in runtime".
+
+Current `07_junction` observation:
+
+- the standalone normalization rule works in unit tests;
+- strict `YULANG_PRINCIPAL_ELABORATE=1 YULANG_PRINCIPAL_ELABORATE_STRICT=1`
+  still reports `std::list::view_raw: MissingSubstitution(a)`;
+- the likely reason is upstream: the surviving `view_raw` call is inside
+  specialized `fold_impl`, and `fold_impl` itself still lacks closed
+  substitutions for `t1879/t1894/t1924`, so the child plan does not yet receive
+  enough parent substitution to close.
+
+Next direct-elaboration target:
+
+- close or reclassify the `std::list::fold_impl` plan first;
+- only then expect nested helpers such as `std::list::view_raw` to complete by
+  clone-time normalization.
