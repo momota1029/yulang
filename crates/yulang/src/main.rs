@@ -612,6 +612,7 @@ fn run_infer_views(
             let lowered = lower_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
+                &diagnostic_source,
             );
             print_runtime_module(&lowered.module, options.verbose_ir);
         }
@@ -623,6 +624,7 @@ fn run_infer_views(
             let lowered = lower_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
                 options.runtime_phase_timings,
+                &diagnostic_source,
             );
             print!("{}", runtime::format_hygiene_module(&lowered.module));
         }
@@ -630,8 +632,11 @@ fn run_infer_views(
             if options.infer || options.core_ir || options.runtime_ir || options.hygiene_ir {
                 println!();
             }
-            let lowered =
-                lower_runtime_module_or_exit(infer_program.as_ref().expect("core program"), false);
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                false,
+                &diagnostic_source,
+            );
             let compile_start = Instant::now();
             let module = match runtime::compile_vm_module(lowered.module) {
                 Ok(module) => module,
@@ -691,12 +696,16 @@ struct RuntimePhaseProfile {
 fn lower_runtime_module_or_exit(
     program: &core_ir::CoreProgram,
     print_timings: bool,
+    source: &str,
 ) -> RuntimeLowerOutput {
     let lower_start = Instant::now();
     let lower_output = match runtime::lower_core_program_profiled(program.clone()) {
         Ok(output) => output,
         Err(err) => {
             eprintln!("error: {err}");
+            if let Some(frame) = runtime_error_source_frame(&err, program, source) {
+                eprint!("{frame}");
+            }
             process::exit(1);
         }
     };
@@ -3948,6 +3957,62 @@ fn line_col(source: &str, offset: usize) -> (usize, usize) {
     (line, offset.saturating_sub(line_start) + 1)
 }
 
+fn runtime_error_source_frame(
+    error: &runtime::RuntimeError,
+    program: &core_ir::CoreProgram,
+    source: &str,
+) -> Option<String> {
+    let range = runtime_error_source_range(error, &program.evidence)?;
+    source_frame(source, range)
+}
+
+fn runtime_error_source_range(
+    error: &runtime::RuntimeError,
+    evidence: &core_ir::PrincipalEvidence,
+) -> Option<core_ir::SourceRange> {
+    let runtime::RuntimeError::TypeMismatch {
+        context: Some(context),
+        ..
+    } = error
+    else {
+        return None;
+    };
+    let first_edge = match context.phase {
+        runtime::diagnostic::TypeMismatchPhase::ApplyCallee => context.callee_source_edge,
+        runtime::diagnostic::TypeMismatchPhase::ApplyArgument => context.arg_source_edge,
+        runtime::diagnostic::TypeMismatchPhase::ApplyResult => {
+            context.arg_source_edge.or(context.callee_source_edge)
+        }
+        runtime::diagnostic::TypeMismatchPhase::Expected => {
+            context.arg_source_edge.or(context.callee_source_edge)
+        }
+    };
+    let edge = first_edge.and_then(|id| evidence.expected_edge(id))?;
+    edge.source_range
+}
+
+fn source_frame(source: &str, range: core_ir::SourceRange) -> Option<String> {
+    let start = usize::try_from(range.start).ok()?.min(source.len());
+    let end = usize::try_from(range.end)
+        .ok()?
+        .min(source.len())
+        .max(start);
+    let (line, col) = line_col(source, start);
+    let line_start = source[..start].rfind('\n').map_or(0, |idx| idx + 1);
+    let line_end = source[start..]
+        .find('\n')
+        .map_or(source.len(), |idx| start + idx);
+    let line_text = &source[line_start..line_end];
+    let caret_start = source[line_start..start].chars().count();
+    let caret_end = source[start..end.min(line_end)].chars().count();
+    let caret_len = caret_end.max(1);
+    Some(format!(
+        "  at {line}:{col}\n{line:>4} | {line_text}\n     | {}{}\n",
+        " ".repeat(caret_start),
+        "^".repeat(caret_len)
+    ))
+}
+
 fn source_options(options: &CliOptions) -> SourceOptions {
     let std_root = options
         .std_root
@@ -3988,6 +4053,62 @@ mod tests {
             std_root: None,
             profile_flamegraph: None,
             profile_repeat: 1,
+        }
+    }
+
+    #[test]
+    fn runtime_error_source_frame_uses_apply_source_edge() {
+        let program = core_ir::CoreProgram {
+            program: core_ir::PrincipalModule {
+                path: core_ir::Path::default(),
+                bindings: Vec::new(),
+                root_exprs: Vec::new(),
+                roots: Vec::new(),
+            },
+            graph: core_ir::CoreGraphView::default(),
+            evidence: core_ir::PrincipalEvidence {
+                expected_edges: vec![core_ir::ExpectedEdgeEvidence {
+                    id: 7,
+                    kind: core_ir::ExpectedEdgeKind::ApplicationArgument,
+                    source_range: Some(core_ir::SourceRange { start: 4, end: 8 }),
+                    actual: core_ir::TypeBounds::exact(core_type("bool")),
+                    expected: core_ir::TypeBounds::exact(core_type("int")),
+                    actual_effect: None,
+                    expected_effect: None,
+                    closed: true,
+                    informative: true,
+                    runtime_usable: true,
+                }],
+                expected_adapter_edges: Vec::new(),
+                derived_expected_edges: Vec::new(),
+            },
+        };
+        let error = runtime::RuntimeError::TypeMismatch {
+            expected: core_type("int"),
+            actual: core_type("bool"),
+            source: runtime::TypeSource::ApplyArgumentEvidence,
+            context: Some(runtime::diagnostic::TypeMismatchContext {
+                callee: None,
+                phase: runtime::diagnostic::TypeMismatchPhase::ApplyArgument,
+                callee_source_edge: None,
+                arg_source_edge: Some(7),
+            }),
+        };
+
+        let frame = runtime_error_source_frame(&error, &program, "1 + true\n")
+            .expect("source frame from apply argument edge");
+
+        assert!(frame.contains("at 1:5"));
+        assert!(frame.contains("1 | 1 + true"));
+        assert!(frame.contains("^^^^"));
+    }
+
+    fn core_type(name: &str) -> core_ir::Type {
+        core_ir::Type::Named {
+            path: core_ir::Path {
+                segments: vec![core_ir::Name(name.to_string())],
+            },
+            args: Vec::new(),
         }
     }
 

@@ -381,3 +381,18 @@ Next diagnostic step:
   edge evidence.
 - Convert the stored byte range into a line/column frame in the CLI.
 - Keep the fallback message useful when no source edge or range is available.
+
+The CLI now has the first source-frame bridge for runtime type mismatches:
+
+```text
+RuntimeError::TypeMismatch.context.{arg_source_edge,callee_source_edge}
+  -> CoreProgram.evidence.expected_edge(id).source_range
+  -> one-line source frame
+```
+
+This only renders when the runtime mismatch carries a source edge whose expected
+edge evidence has a range. The current `1 + true` runtime error still lacks a
+frame because that root operator apply reaches runtime lowering without apply
+evidence/source edge. Next step is to preserve or synthesize source-edge-backed
+apply shape for that root/operator case, rather than adding a broad fallback
+frame that may point at the wrong source.
