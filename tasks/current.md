@@ -788,3 +788,19 @@ principal elaborate:
 fallback:
   only for boundaries with missing evidence
 ```
+
+Strict reporting now applies that split for handler-like targets too. If a
+generic target is recognized as a handler binding, strict mode reports
+`HandlerBoundaryWithoutPlan` instead of presenting its open effect/thunk
+variables as ordinary missing substitutions. In `07_junction`, this reclassifies
+the two remaining handler targets:
+
+```text
+std::flow::sub::sub:
+  HandlerBoundaryWithoutPlan
+std::junction::junction::junction:
+  HandlerBoundaryWithoutPlan
+```
+
+The remaining non-handler wrapper failures are still ordinary open slot
+evidence gaps (`std::junction::all/any` and their junction wrappers).

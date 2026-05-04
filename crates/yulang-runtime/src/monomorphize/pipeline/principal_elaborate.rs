@@ -61,7 +61,12 @@ fn collect_principal_elaboration_failures(
         if !plan.as_ref().is_some_and(|plan| plan.complete) {
             let target = failures.entry(spine.target.clone()).or_default();
             target.count += 1;
-            if let Some(plan) = plan {
+            if handler_binding_info(binding).is_some() {
+                target.bump(format!(
+                    "{:?}",
+                    core_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan
+                ));
+            } else if let Some(plan) = plan {
                 for reason in &plan.incomplete_reasons {
                     target.bump(format!("{reason:?}"));
                 }
