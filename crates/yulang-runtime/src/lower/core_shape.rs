@@ -551,6 +551,7 @@ fn print_debug_core_shapes(table: &ShapeTable) {
         table.applies.len()
     );
     print_debug_core_shape_missing_applies(table);
+    print_debug_core_shape_principal_plans(table);
     if std::env::var_os("YULANG_TRACE_CORE_SHAPES").is_none() {
         return;
     }
@@ -578,6 +579,51 @@ fn print_debug_core_shapes(table: &ShapeTable) {
             apply.substitution_candidates.len(),
         );
     }
+}
+
+fn print_debug_core_shape_principal_plans(table: &ShapeTable) {
+    let mut counts: BTreeMap<String, PrincipalPlanDebugCounts> = BTreeMap::new();
+    for apply in &table.applies {
+        let Some(plan) = &apply.principal_elaboration else {
+            continue;
+        };
+        let target = plan
+            .target
+            .as_ref()
+            .map(display_path)
+            .unwrap_or_else(|| apply_debug_target(apply));
+        let counts = counts.entry(target).or_default();
+        counts.total += 1;
+        if plan.complete {
+            counts.complete += 1;
+        } else {
+            counts.incomplete += 1;
+            for reason in &plan.incomplete_reasons {
+                *counts.reasons.entry(format!("{reason:?}")).or_default() += 1;
+            }
+        }
+    }
+    if counts.is_empty() {
+        return;
+    }
+    eprintln!("core-shape principal plans:");
+    for (target, counts) in counts {
+        eprintln!(
+            "  {target}: total={} complete={} incomplete={}",
+            counts.total, counts.complete, counts.incomplete
+        );
+        for (reason, count) in counts.reasons {
+            eprintln!("    {reason}: {count}");
+        }
+    }
+}
+
+#[derive(Default)]
+struct PrincipalPlanDebugCounts {
+    total: usize,
+    complete: usize,
+    incomplete: usize,
+    reasons: BTreeMap<String, usize>,
 }
 
 fn print_debug_core_shape_missing_applies(table: &ShapeTable) {
