@@ -42,6 +42,7 @@ pub(super) struct CompleteApplyPrincipalEvidence {
 pub struct ExpectedEdgeEvidence {
     pub id: ExpectedEdgeId,
     pub kind: ExpectedEdgeKind,
+    pub source_range: Option<core_ir::SourceRange>,
     pub actual: core_ir::TypeBounds,
     pub expected: core_ir::TypeBounds,
     pub actual_effect: Option<core_ir::TypeBounds>,
@@ -56,6 +57,7 @@ pub struct ExpectedAdapterEdgeEvidence {
     pub id: ExpectedAdapterEdgeId,
     pub source_expected_edge: Option<ExpectedEdgeId>,
     pub kind: ExpectedAdapterEdgeKind,
+    pub source_range: Option<core_ir::SourceRange>,
     pub actual_value: Option<core_ir::TypeBounds>,
     pub expected_value: Option<core_ir::TypeBounds>,
     pub actual_effect: Option<core_ir::TypeBounds>,
@@ -217,6 +219,7 @@ fn complete_expected_adapter_edge_evidence(
         id: edge.id,
         source_expected_edge: edge.source_expected_edge,
         kind: edge.kind,
+        source_range: source_range(edge.cause.span),
         actual_value,
         expected_value,
         actual_effect,
@@ -262,6 +265,7 @@ pub(super) fn complete_expected_edge_evidence(
     ExpectedEdgeEvidence {
         id: edge.id,
         kind: edge.kind,
+        source_range: source_range(edge.cause.span),
         actual,
         expected,
         actual_effect,
@@ -270,6 +274,13 @@ pub(super) fn complete_expected_edge_evidence(
         informative,
         runtime_usable,
     }
+}
+
+fn source_range(range: Option<rowan::TextRange>) -> Option<core_ir::SourceRange> {
+    range.map(|range| core_ir::SourceRange {
+        start: u32::from(range.start()),
+        end: u32::from(range.end()),
+    })
 }
 
 pub(super) fn apply_principal_substitutions(
@@ -1989,6 +2000,7 @@ mod tests {
         );
         assert_eq!(evidence.actual.lower.as_deref(), Some(&named("int")));
         assert_eq!(evidence.expected, core_ir::TypeBounds::exact(named("int")));
+        assert!(evidence.source_range.is_some());
         assert!(evidence.actual_effect.is_none());
         assert!(evidence.expected_effect.is_none());
         assert!(!evidence.closed);
@@ -2006,6 +2018,7 @@ mod tests {
             .expect("effect operation argument adapter evidence");
 
         assert!(evidence.source_expected_edge.is_some());
+        assert!(evidence.source_range.is_some());
         assert!(evidence.actual_value.is_some());
         assert!(evidence.expected_value.is_some());
         assert!(evidence.actual_effect.is_some());
@@ -2054,6 +2067,7 @@ mod tests {
         let evidence = ExpectedEdgeEvidence {
             id: ExpectedEdgeId(7),
             kind: ExpectedEdgeKind::Annotation,
+            source_range: None,
             actual: core_ir::TypeBounds::exact(fun(named("str"), named("bool"))),
             expected: core_ir::TypeBounds::exact(fun(named("int"), named("int"))),
             actual_effect: None,
@@ -2094,6 +2108,7 @@ mod tests {
         let evidence = ExpectedEdgeEvidence {
             id: ExpectedEdgeId(9),
             kind: ExpectedEdgeKind::Annotation,
+            source_range: None,
             actual: core_ir::TypeBounds::exact(variant("some", vec![named("str"), named("bool")])),
             expected: core_ir::TypeBounds::exact(variant("some", vec![named("int"), named("int")])),
             actual_effect: None,
@@ -2127,6 +2142,7 @@ mod tests {
         let evidence = ExpectedEdgeEvidence {
             id: ExpectedEdgeId(11),
             kind: ExpectedEdgeKind::Annotation,
+            source_range: None,
             actual: core_ir::TypeBounds::exact(record(vec![(
                 "a",
                 record(vec![("b", named("str"))]),

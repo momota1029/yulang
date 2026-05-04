@@ -357,3 +357,27 @@ result type mismatch in call to `+`: expected bool -> bool, got int -> int
 This is still not final source-span diagnostics. The next diagnostics step is to
 carry source ranges from expected/source edges into core evidence, then use those
 ranges for code frames.
+
+## Current Slice: Source Ranges in Principal Evidence
+
+Expected edge and expected adapter edge evidence now carry byte source ranges
+through core IR:
+
+```text
+ConstraintCause.span
+  -> complete_principal ExpectedEdgeEvidence / ExpectedAdapterEdgeEvidence
+  -> core_ir::PrincipalEvidence
+  -> --infer/--core-ir --verbose-ir source-range=START..END
+```
+
+This is still non-behavior-changing plumbing. Runtime diagnostics do not render
+code frames yet, but an apply mismatch that has an `arg_source_edge` or
+`callee_source_edge` can now resolve that edge back to a source byte range in
+`CoreProgram.evidence`.
+
+Next diagnostic step:
+
+- Use the source edge on apply mismatch context to look up the matching expected
+  edge evidence.
+- Convert the stored byte range into a line/column frame in the CLI.
+- Keep the fallback message useful when no source edge or range is available.

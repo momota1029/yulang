@@ -1750,6 +1750,12 @@ fn format_expected_edge_evidence(evidence: &yulang_infer::ExpectedEdgeEvidence) 
             format_core_bounds(expected_effect)
         ));
     }
+    if let Some(source_range) = evidence.source_range {
+        parts.push(format!(
+            "source-range={}",
+            format_source_range(source_range)
+        ));
+    }
     parts.push(format!("closed={}", evidence.closed));
     parts.push(format!("informative={}", evidence.informative));
     parts.push(format!("runtime-usable={}", evidence.runtime_usable));
@@ -1766,6 +1772,12 @@ fn format_expected_adapter_edge_evidence(
     )];
     if let Some(source_expected_edge) = evidence.source_expected_edge {
         parts.push(format!("source-expected-edge=#{}", source_expected_edge.0));
+    }
+    if let Some(source_range) = evidence.source_range {
+        parts.push(format!(
+            "source-range={}",
+            format_source_range(source_range)
+        ));
     }
     if let Some(actual_value) = &evidence.actual_value {
         parts.push(format!("actual-value={}", format_core_bounds(actual_value)));
@@ -2121,10 +2133,20 @@ fn format_core_expected_edge_evidence(evidence: &core_ir::ExpectedEdgeEvidence) 
             format_core_bounds(expected_effect)
         ));
     }
+    if let Some(source_range) = evidence.source_range {
+        parts.push(format!(
+            "source-range={}",
+            format_source_range(source_range)
+        ));
+    }
     parts.push(format!("closed={}", evidence.closed));
     parts.push(format!("informative={}", evidence.informative));
     parts.push(format!("runtime-usable={}", evidence.runtime_usable));
     parts.join(" ")
+}
+
+fn format_source_range(range: core_ir::SourceRange) -> String {
+    format!("{}..{}", range.start, range.end)
 }
 
 fn format_core_expected_adapter_edge_evidence(
@@ -2137,6 +2159,12 @@ fn format_core_expected_adapter_edge_evidence(
     )];
     if let Some(source_expected_edge) = evidence.source_expected_edge {
         parts.push(format!("source-expected-edge=#{source_expected_edge}"));
+    }
+    if let Some(source_range) = evidence.source_range {
+        parts.push(format!(
+            "source-range={}",
+            format_source_range(source_range)
+        ));
     }
     if let Some(actual_value) = &evidence.actual_value {
         parts.push(format!("actual-value={}", format_core_bounds(actual_value)));

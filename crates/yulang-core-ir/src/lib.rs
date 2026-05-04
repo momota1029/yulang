@@ -12,7 +12,7 @@ pub use expr::{
     MatchArm, Module, ParamEffectAnnotation, Pattern, PrimitiveOp, PrincipalBinding,
     PrincipalCandidateRelation, PrincipalEvidence, PrincipalModule, PrincipalRoot,
     PrincipalSlotPathSegment, PrincipalSubstitutionCandidate, RecordExprField, RecordPatternField,
-    RecordSpreadExpr, RecordSpreadPattern, RoleDecl, RoleMember, Stmt,
+    RecordSpreadExpr, RecordSpreadPattern, RoleDecl, RoleMember, SourceRange, Stmt,
 };
 pub use graph::{
     BindingGraphNode, CoreGraphView, ExprGraphNode, GraphOwner, RuntimeSymbol, RuntimeSymbolKind,

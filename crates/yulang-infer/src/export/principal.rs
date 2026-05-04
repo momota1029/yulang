@@ -72,6 +72,7 @@ fn export_expected_edge_evidence(
     core_ir::ExpectedEdgeEvidence {
         id: evidence.id.0,
         kind: export_expected_edge_kind(evidence.kind),
+        source_range: evidence.source_range,
         actual: evidence.actual,
         expected: evidence.expected,
         actual_effect: evidence.actual_effect,
@@ -165,6 +166,7 @@ fn export_expected_adapter_edge_evidence(
         id: evidence.id.0,
         source_expected_edge: evidence.source_expected_edge.map(|id| id.0),
         kind: export_expected_adapter_edge_kind(evidence.kind),
+        source_range: evidence.source_range,
         actual_value: evidence.actual_value,
         expected_value: evidence.expected_value,
         actual_effect: evidence.actual_effect,

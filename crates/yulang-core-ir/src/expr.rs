@@ -49,6 +49,7 @@ impl PrincipalEvidence {
 pub struct ExpectedEdgeEvidence {
     pub id: u32,
     pub kind: ExpectedEdgeKind,
+    pub source_range: Option<SourceRange>,
     pub actual: crate::types::TypeBounds,
     pub expected: crate::types::TypeBounds,
     pub actual_effect: Option<crate::types::TypeBounds>,
@@ -80,6 +81,7 @@ pub struct ExpectedAdapterEdgeEvidence {
     pub id: u32,
     pub source_expected_edge: Option<u32>,
     pub kind: ExpectedAdapterEdgeKind,
+    pub source_range: Option<SourceRange>,
     pub actual_value: Option<crate::types::TypeBounds>,
     pub expected_value: Option<crate::types::TypeBounds>,
     pub actual_effect: Option<crate::types::TypeBounds>,
@@ -87,6 +89,12 @@ pub struct ExpectedAdapterEdgeEvidence {
     pub closed: bool,
     pub informative: bool,
     pub runtime_usable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SourceRange {
+    pub start: u32,
+    pub end: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

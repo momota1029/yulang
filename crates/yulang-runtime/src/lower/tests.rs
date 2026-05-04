@@ -839,6 +839,7 @@ mod tests {
                 expected_edges: vec![core_ir::ExpectedEdgeEvidence {
                     id: 9,
                     kind: core_ir::ExpectedEdgeKind::RepresentationCoerce,
+                    source_range: None,
                     actual: core_ir::TypeBounds::exact(named_type("int")),
                     expected: core_ir::TypeBounds::exact(named_type("float")),
                     actual_effect: None,
@@ -1437,6 +1438,7 @@ mod tests {
             expected_edges: vec![core_ir::ExpectedEdgeEvidence {
                 id: 3,
                 kind: core_ir::ExpectedEdgeKind::ApplicationArgument,
+                source_range: None,
                 actual: core_ir::TypeBounds::exact(core_ir::Type::Any),
                 expected: core_ir::TypeBounds::exact(named_type("int")),
                 actual_effect: None,
@@ -1533,6 +1535,7 @@ mod tests {
             expected_edges: vec![core_ir::ExpectedEdgeEvidence {
                 id: 3,
                 kind: core_ir::ExpectedEdgeKind::ApplicationArgument,
+                source_range: None,
                 actual: core_ir::TypeBounds::exact(core_ir::Type::Any),
                 expected: core_ir::TypeBounds::exact(core_ir::Type::Any),
                 actual_effect: None,
