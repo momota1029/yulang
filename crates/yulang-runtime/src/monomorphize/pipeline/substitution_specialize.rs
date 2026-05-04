@@ -1,7 +1,7 @@
 use super::*;
 use crate::types::{
-    diagnostic_core_type, needs_runtime_coercion, normalize_principal_elaboration_plan,
-    runtime_core_type, type_compatible,
+    diagnostic_core_type, needs_runtime_coercion,
+    normalize_principal_elaboration_plan_with_requirements, runtime_core_type, type_compatible,
 };
 
 pub(super) fn substitute_specialize_module_profiled(
@@ -1560,7 +1560,11 @@ fn complete_principal_elaboration_plan_from_exported_spine(
         complete: false,
         incomplete_reasons: Vec::new(),
     };
-    let plan = normalize_principal_elaboration_plan(plan, &candidates);
+    let plan = normalize_principal_elaboration_plan_with_requirements(
+        plan,
+        &candidates,
+        &binding.scheme.requirements,
+    );
     debug_principal_elaboration_plan_from_spine(spine.target, &plan, &candidates);
     Some(plan)
 }

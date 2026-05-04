@@ -229,7 +229,15 @@ fn substitute_principal_elaboration_plan(
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
     substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
 ) -> core_ir::PrincipalElaborationPlan {
-    let plan = core_ir::PrincipalElaborationPlan {
+    let plan = substitute_principal_elaboration_plan_slots(plan, substitutions);
+    normalize_principal_elaboration_plan(plan, substitution_candidates)
+}
+
+fn substitute_principal_elaboration_plan_slots(
+    plan: core_ir::PrincipalElaborationPlan,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> core_ir::PrincipalElaborationPlan {
+    core_ir::PrincipalElaborationPlan {
         target: plan.target,
         principal_callee: substitute_type(&plan.principal_callee, substitutions),
         substitutions: plan
@@ -278,13 +286,20 @@ fn substitute_principal_elaboration_plan(
             .collect(),
         complete: plan.complete,
         incomplete_reasons: plan.incomplete_reasons,
-    };
-    normalize_principal_elaboration_plan(plan, substitution_candidates)
+    }
 }
 
 pub(crate) fn normalize_principal_elaboration_plan(
     plan: core_ir::PrincipalElaborationPlan,
     substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
+) -> core_ir::PrincipalElaborationPlan {
+    normalize_principal_elaboration_plan_with_requirements(plan, substitution_candidates, &[])
+}
+
+pub(crate) fn normalize_principal_elaboration_plan_with_requirements(
+    plan: core_ir::PrincipalElaborationPlan,
+    substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
+    requirements: &[core_ir::RoleRequirement],
 ) -> core_ir::PrincipalElaborationPlan {
     let required_vars = principal_elaboration_required_vars(&plan);
     if required_vars.is_empty() {
@@ -311,6 +326,12 @@ pub(crate) fn normalize_principal_elaboration_plan(
     }
     project_substitutions_from_candidates(
         substitution_candidates,
+        &required_vars,
+        &mut substitutions,
+        &mut conflicts,
+    );
+    project_substitutions_from_role_requirements(
+        requirements,
         &required_vars,
         &mut substitutions,
         &mut conflicts,
@@ -362,6 +383,13 @@ fn rebuild_principal_elaboration_plan_status(
     conflicts: BTreeSet<core_ir::TypeVar>,
     substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
 ) -> core_ir::PrincipalElaborationPlan {
+    if !substitutions.is_empty() {
+        let non_conflicting_substitutions = substitutions
+            .iter()
+            .filter_map(|(var, ty)| (!conflicts.contains(var)).then_some((var.clone(), ty.clone())))
+            .collect::<BTreeMap<_, _>>();
+        plan = substitute_principal_elaboration_plan_slots(plan, &non_conflicting_substitutions);
+    }
     let required_vars = principal_elaboration_required_vars(&plan);
     let mut incomplete_reasons = Vec::new();
     if plan.target.is_none() {
@@ -578,6 +606,107 @@ fn project_substitutions_from_candidates(
         {
             insert_exact_projected_substitution(substitutions, conflicts, var, lower);
         }
+    }
+}
+
+fn project_substitutions_from_role_requirements(
+    requirements: &[core_ir::RoleRequirement],
+    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+) {
+    for _ in 0..4 {
+        let before = (substitutions.len(), conflicts.len());
+        for requirement in requirements {
+            let Some(input) = first_requirement_input(requirement)
+                .map(|bounds| substitute_bounds(bounds.clone(), substitutions))
+                .and_then(|bounds| principal_plan_bounds_slot_type(Some(&bounds), false))
+            else {
+                continue;
+            };
+            let Some(item) = list_item_type(&input) else {
+                continue;
+            };
+            for associated in requirement.args.iter().filter_map(requirement_associated) {
+                project_list_item_associated_substitution(
+                    associated,
+                    &item,
+                    params,
+                    substitutions,
+                    conflicts,
+                );
+            }
+        }
+        if before == (substitutions.len(), conflicts.len()) {
+            break;
+        }
+    }
+}
+
+fn project_list_item_associated_substitution(
+    associated: (&core_ir::Name, &core_ir::TypeBounds),
+    item: &core_ir::Type,
+    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+) {
+    let (name, bounds) = associated;
+    if name.0 != "item" || !principal_plan_substitution_type_usable(item, false) {
+        return;
+    }
+    let bounds = substitute_bounds(bounds.clone(), substitutions);
+    if let Some(lower) = bounds.lower.as_deref() {
+        project_closed_substitutions_from_type(
+            lower,
+            item,
+            params,
+            substitutions,
+            conflicts,
+            false,
+            32,
+        );
+    }
+    if let Some(upper) = bounds.upper.as_deref() {
+        project_closed_substitutions_from_type(
+            upper,
+            item,
+            params,
+            substitutions,
+            conflicts,
+            false,
+            32,
+        );
+    }
+}
+
+fn first_requirement_input(requirement: &core_ir::RoleRequirement) -> Option<&core_ir::TypeBounds> {
+    requirement.args.iter().find_map(|arg| match arg {
+        core_ir::RoleRequirementArg::Input(bounds) => Some(bounds),
+        core_ir::RoleRequirementArg::Associated { .. } => None,
+    })
+}
+
+fn requirement_associated(
+    arg: &core_ir::RoleRequirementArg,
+) -> Option<(&core_ir::Name, &core_ir::TypeBounds)> {
+    match arg {
+        core_ir::RoleRequirementArg::Associated { name, bounds } => Some((name, bounds)),
+        core_ir::RoleRequirementArg::Input(_) => None,
+    }
+}
+
+fn list_item_type(ty: &core_ir::Type) -> Option<core_ir::Type> {
+    let core_ir::Type::Named { path, args } = ty else {
+        return None;
+    };
+    if path.segments.last().map(|name| name.0.as_str()) != Some("list") {
+        return None;
+    }
+    match args.first()? {
+        core_ir::TypeArg::Type(ty) => {
+            principal_plan_substitution_type_usable(ty, false).then(|| ty.clone())
+        }
+        core_ir::TypeArg::Bounds(bounds) => principal_plan_bounds_slot_type(Some(bounds), false),
     }
 }
 
@@ -1427,6 +1556,66 @@ mod tests {
                 var: tv("a"),
                 ty: named("int"),
             }]
+        );
+    }
+
+    #[test]
+    fn plan_normalization_projects_list_item_role_requirement() {
+        let mut plan = core_ir::PrincipalElaborationPlan {
+            target: Some(core_ir::Path::from_name(core_ir::Name("all".to_string()))),
+            principal_callee: core_ir::Type::Fun {
+                param: Box::new(core_ir::Type::Var(tv("container"))),
+                param_effect: Box::new(core_ir::Type::Never),
+                ret_effect: Box::new(core_ir::Type::Never),
+                ret: Box::new(core_ir::Type::Var(tv("item"))),
+            },
+            substitutions: vec![core_ir::TypeSubstitution {
+                var: tv("container"),
+                ty: list_of(named("int")),
+            }],
+            args: vec![core_ir::PrincipalElaborationArg {
+                index: 0,
+                intrinsic: core_ir::TypeBounds::exact(list_of(named("int"))),
+                contextual: None,
+                expected_runtime: None,
+                source_edge: None,
+            }],
+            result: core_ir::PrincipalElaborationResult {
+                intrinsic: core_ir::TypeBounds::default(),
+                contextual: None,
+                expected_runtime: None,
+            },
+            adapters: Vec::new(),
+            complete: false,
+            incomplete_reasons: Vec::new(),
+        };
+        plan.result.contextual = Some(core_ir::TypeBounds::exact(core_ir::Type::Var(tv("item"))));
+
+        let normalized = normalize_principal_elaboration_plan_with_requirements(
+            plan,
+            &[],
+            &[core_ir::RoleRequirement {
+                role: core_ir::Path::from_name(core_ir::Name("Fold".to_string())),
+                args: vec![
+                    core_ir::RoleRequirementArg::Input(core_ir::TypeBounds::exact(
+                        core_ir::Type::Var(tv("container")),
+                    )),
+                    core_ir::RoleRequirementArg::Associated {
+                        name: core_ir::Name("item".to_string()),
+                        bounds: core_ir::TypeBounds::exact(core_ir::Type::Var(tv("item"))),
+                    },
+                ],
+            }],
+        );
+
+        assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);
+        assert!(
+            normalized
+                .substitutions
+                .contains(&core_ir::TypeSubstitution {
+                    var: tv("item"),
+                    ty: named("int"),
+                })
         );
     }
 
