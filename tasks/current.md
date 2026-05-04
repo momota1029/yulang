@@ -45,6 +45,15 @@ YULANG_PRINCIPAL_ELABORATE=1
 YULANG_PRINCIPAL_ELABORATE_STRICT=1
 ```
 
+Current implementation status:
+
+- `YULANG_PRINCIPAL_ELABORATE=1` exists.
+- It currently runs a `principal-elaborate` monomorphize pass that delegates to
+  the old substitution-specialize implementation.
+- This is only the entry-point rename/wrapper. The next required step is to
+  export and execute a real `PrincipalElaborationPlan`.
+- `YULANG_PRINCIPAL_ELABORATE_STRICT=1` is planned but not implemented yet.
+
 Strict mode should fail with explicit incomplete plan reasons instead of silent
 fallback. A useful first strict result is a small list like:
 

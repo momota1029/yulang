@@ -468,7 +468,8 @@ fn is_materialized_specialization_binding(path: &core_ir::Path) -> bool {
 }
 
 fn collect_demand_call_target(path: &core_ir::Path) -> core_ir::Path {
-    if std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some()
+    if (std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some()
+        || std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some())
         && generated_path_has_suffix(path, "__mono")
     {
         return path.clone();

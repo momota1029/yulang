@@ -36,6 +36,7 @@ mod local_refresh;
 mod locals;
 mod normalize;
 mod paths;
+mod principal_elaborate;
 mod reachability;
 mod shape;
 mod substitute;
@@ -47,6 +48,7 @@ use local_refresh::*;
 use locals::*;
 use normalize::*;
 use paths::*;
+use principal_elaborate::*;
 use reachability::*;
 use shape::*;
 use substitute::*;
@@ -172,6 +174,7 @@ impl MonomorphizeProgress {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MonoPass {
+    PrincipalElaborate,
     SubstitutionSpecialize,
     DemandSpecialize,
     RefineTypes,
@@ -185,6 +188,7 @@ enum MonoPass {
 impl MonoPass {
     fn name(self) -> &'static str {
         match self {
+            MonoPass::PrincipalElaborate => "principal-elaborate",
             MonoPass::SubstitutionSpecialize => "substitution-specialize",
             MonoPass::DemandSpecialize => "demand-specialize",
             MonoPass::RefineTypes => "refine-types",
@@ -242,7 +246,11 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
     let mut module = module;
     let mut profile = MonomorphizeProfile::default();
     reset_demand_evidence_profile();
-    if std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some() {
+    if std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some() {
+        let step =
+            run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, &mut profile, debug)?;
+        module = step.module;
+    } else if std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some() {
         let step = run_profiled_mono_pass(
             module,
             MonoPass::SubstitutionSpecialize,
@@ -387,6 +395,20 @@ fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
         MonoPass::SubstitutionSpecialize => {
             let before = module.clone();
             let (module, substitution_specialize) = substitute_specialize_module_profiled(module);
+            let progress = MonoProgress::from_modules(&before, &module);
+            let added_binding_paths = added_binding_paths(&before, &module);
+            Ok(MonoStep {
+                module,
+                progress,
+                demand_queue: DemandQueueProfile::default(),
+                substitution_specialize,
+                added_binding_paths,
+                added_specializations: Vec::new(),
+            })
+        }
+        MonoPass::PrincipalElaborate => {
+            let before = module.clone();
+            let (module, substitution_specialize) = principal_elaborate_module_profiled(module);
             let progress = MonoProgress::from_modules(&before, &module);
             let added_binding_paths = added_binding_paths(&before, &module);
             Ok(MonoStep {

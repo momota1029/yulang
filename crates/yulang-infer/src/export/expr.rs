@@ -1153,6 +1153,7 @@ fn std_list_index_raw_path() -> core_ir::Path {
 fn export_apply_substitutions_enabled() -> bool {
     std::env::var_os("YULANG_EXPORT_APPLY_SUBSTITUTIONS").is_some()
         || std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some()
+        || std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some()
 }
 
 fn export_lit(lit: &TirLit) -> core_ir::Lit {
