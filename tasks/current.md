@@ -587,3 +587,40 @@ accumulator/effect variables `t1879/t1894`. Do not solve those via open
 candidate graph propagation; either get closed evidence from the full apply
 spine / role method plan, or reclassify the blocker as missing adapter or
 handler evidence.
+
+## Current Slice: Strict Means Direct Path Only
+
+`YULANG_PRINCIPAL_ELABORATE_STRICT=1` now stops the principal-elaborate pass from
+falling through into the old runtime inference helpers when no complete plan
+exists. In strict mode, the pass no longer uses the main-path versions of:
+
+- direct arg/result substitution inference from runtime expression shapes;
+- structural arg/result substitution inference from runtime expression shapes;
+- retry inference;
+- old arg adaptation.
+
+This makes strict mode a test of exported principal evidence, not a test of how
+well the legacy recovery path can compensate.
+
+Current strict `07_junction` blockers:
+
+```text
+std::flow::sub::sub:
+  MissingSubstitution(t3614/t3637/t3641)
+std::junction::all:
+  OpenResultType
+std::junction::any:
+  OpenResultType
+std::junction::junction::all:
+  MissingSubstitution(t4677/t4888)
+std::junction::junction::any:
+  MissingSubstitution(t4581/t4893)
+std::junction::junction::junction:
+  MissingSubstitution(t4871)
+```
+
+The non-strict path still uses fallback and still runs `07_junction`. The next
+strict target is no longer `fold_impl/view_raw` in this benchmark; it is the
+`junction/sub` boundary. Treat `std::flow::sub::sub` as likely missing
+handler/adapter evidence unless closed principal slot evidence proves
+otherwise.

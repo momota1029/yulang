@@ -479,6 +479,10 @@ impl SubstitutionSpecializer {
             }
             self.bump("principal-plan-fallback");
         }
+        if principal_elaborate_strict_enabled() {
+            self.bump_skip(spine.target, "principal-plan-incomplete-strict");
+            return None;
+        }
         let initial_substitutions =
             substitutions_from_instantiation(spine.instantiation, &original)
                 .or_else(|| substitutions_from_spine_evidence(&spine, &original))
@@ -1419,6 +1423,10 @@ fn evidence_substitution_map(
 
 fn principal_elaborate_enabled() -> bool {
     std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some()
+}
+
+fn principal_elaborate_strict_enabled() -> bool {
+    std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
 }
 
 fn complete_principal_elaboration_plan_for_spine(
