@@ -418,6 +418,35 @@ fn application_argument_edge_links_to_expected_edge_evidence() {
 }
 
 #[test]
+fn rewritten_role_method_apply_keeps_slot_evidence() {
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _guard = ENV_LOCK.lock().unwrap();
+    let old = std::env::var_os("YULANG_PRINCIPAL_ELABORATE");
+    unsafe {
+        std::env::set_var("YULANG_PRINCIPAL_ELABORATE", "1");
+    }
+    let mut state = parse_and_lower("1 < 2");
+    let program = export_core_program(&mut state);
+    match old {
+        Some(value) => unsafe {
+            std::env::set_var("YULANG_PRINCIPAL_ELABORATE", value);
+        },
+        None => unsafe {
+            std::env::remove_var("YULANG_PRINCIPAL_ELABORATE");
+        },
+    }
+    let apply_evidence = apply_evidence_source_expected_args_in_module(&program.program);
+    let missing_expected_arg = apply_evidence
+        .iter()
+        .filter(|(_, expected_arg)| expected_arg.is_none())
+        .collect::<Vec<_>>();
+    assert!(
+        missing_expected_arg.is_empty(),
+        "expected rewritten role method applies to preserve expected_arg bounds: {missing_expected_arg:?}",
+    );
+}
+
+#[test]
 fn core_program_carries_expected_edge_evidence_table() {
     let mut state = parse_and_lower("my id(x: int) = x\nid 1");
     let application_edge_ids = state

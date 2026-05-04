@@ -78,6 +78,7 @@ impl<'a> ExprExporter<'a> {
                     *expected_callee_tv,
                     *arg_edge_id,
                     *expected_arg_tv,
+                    true,
                 )),
             },
             ExprKind::RefSet { reference, value } => self.export_ref_set(expr, reference, value),
@@ -353,6 +354,7 @@ impl<'a> ExprExporter<'a> {
         expected_callee_tv: TypeVar,
         arg_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
         expected_arg_tv: TypeVar,
+        include_principal: bool,
     ) -> core_ir::ApplyEvidence {
         let role_method = self.is_role_method_callee(callee);
         let expected_callee = export_relevant_type_bounds_for_tv(
@@ -422,7 +424,8 @@ impl<'a> ExprExporter<'a> {
             }
         };
         let principal_target = self.principal_callee_target(callee);
-        if export_apply_substitutions_enabled()
+        if include_principal
+            && export_apply_substitutions_enabled()
             && let Some(principal_scheme) = self.principal_callee_scheme(callee)
         {
             evidence.principal_callee = Some(principal_scheme.body.clone());
@@ -440,8 +443,10 @@ impl<'a> ExprExporter<'a> {
                 evidence.substitution_candidates = principal.substitution_candidates;
             }
         }
-        evidence.principal_elaboration =
-            build_principal_elaboration_plan(&evidence, principal_target);
+        if include_principal {
+            evidence.principal_elaboration =
+                build_principal_elaboration_plan(&evidence, principal_target);
+        }
         evidence
     }
 
@@ -1011,16 +1016,35 @@ impl<'a> ExprExporter<'a> {
         let ExprKind::App {
             arg,
             callee_edge_id,
+            expected_callee_tv,
             arg_edge_id,
+            expected_arg_tv,
+            callee,
             ..
         } = &app.kind
         else {
             return callee_expr;
         };
+        if !export_rewritten_apply_slot_evidence_enabled() {
+            return core_ir::Expr::Apply {
+                callee: Box::new(callee_expr),
+                arg: Box::new(self.export_expr(arg)),
+                evidence: Some(source_only_apply_evidence(*callee_edge_id, *arg_edge_id)),
+            };
+        }
         core_ir::Expr::Apply {
             callee: Box::new(callee_expr),
             arg: Box::new(self.export_expr(arg)),
-            evidence: Some(source_only_apply_evidence(*callee_edge_id, *arg_edge_id)),
+            evidence: Some(self.export_apply_evidence(
+                callee,
+                arg,
+                app,
+                *callee_edge_id,
+                *expected_callee_tv,
+                *arg_edge_id,
+                *expected_arg_tv,
+                false,
+            )),
         }
     }
 
@@ -1240,6 +1264,10 @@ fn export_apply_substitutions_enabled() -> bool {
     std::env::var_os("YULANG_EXPORT_APPLY_SUBSTITUTIONS").is_some()
         || std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some()
         || std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some()
+}
+
+fn export_rewritten_apply_slot_evidence_enabled() -> bool {
+    export_apply_substitutions_enabled()
 }
 
 fn export_lit(lit: &TirLit) -> core_ir::Lit {

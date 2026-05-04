@@ -684,3 +684,39 @@ Next target:
   applications;
 - after that, parent expected argument shape can close child apply result slots
   without involving demand/refine loops.
+
+## Current Slice: Rewritten Role Applies Preserve Slot Evidence
+
+Role-method export rewrites calls such as operator applications to concrete
+runtime callees. Those rewritten apply nodes previously kept only
+`callee_source_edge` / `arg_source_edge`; their `expected_callee`,
+`expected_arg`, `callee`, `arg`, and `result` bounds were discarded.
+
+That made parent-context propagation impossible at root/operator boundaries.
+For example, the root `<` call in `examples/07_junction.yu` could not pass its
+expected boolean argument shape down into `std::junction::all/any` results.
+
+Under the principal-elaboration/export-substitution experiment flags, the
+exporter now preserves full slot evidence for rewritten role-method apply
+nodes, while deliberately not attaching principal/substitution plans to those
+rewritten nodes yet. The default export path still uses source-only evidence for
+these rewritten applies, because enabling the richer evidence unconditionally
+changes the current fallback specialization behavior.
+
+Observed effect with:
+
+```sh
+YULANG_PRINCIPAL_ELABORATE=1 RUSTC_WRAPPER= cargo run -q -p yulang -- --run --runtime-phase-timings examples/07_junction.yu
+```
+
+- output remains `[0] 1`;
+- `core_shape` apply count increases from 146 to 147 because the rewritten role
+  apply is now shaped;
+- `principal-plan-complete` / `principal-plan-rewrite` increase from 3 to 7;
+- first-pass principal rewrites increase from 3 to 7;
+- old demand fallback still adds `std::flow::sub::sub__ddmono1` and
+  `std::junction::junction::junction__ddmono2`.
+
+The next strict-elaboration gap is therefore narrower: result context now
+reaches more wrapper calls, but strict failure reporting still reads embedded
+plans and does not yet use the context-aware exported-spine planner.
