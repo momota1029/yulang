@@ -404,6 +404,19 @@ fn rebuild_principal_elaboration_plan_status(
     if principal_plan_result_type(&plan.result).is_none() {
         incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::OpenResultType);
     }
+    incomplete_reasons.extend(
+        plan.incomplete_reasons
+            .iter()
+            .filter_map(|reason| match reason {
+                core_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(kind) => {
+                    Some(core_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(*kind))
+                }
+                core_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan => {
+                    Some(core_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan)
+                }
+                _ => None,
+            }),
+    );
 
     plan.substitutions = substitutions
         .into_iter()
@@ -1431,6 +1444,34 @@ mod tests {
         assert!(!normalized.complete);
         assert!(normalized.incomplete_reasons.contains(
             &core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
+        ));
+    }
+
+    #[test]
+    fn plan_normalization_does_not_invent_adapter_holes() {
+        let plan = list_plan_for_arg(list_of(named("int")));
+        let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
+
+        assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);
+        assert!(normalized.adapters.is_empty());
+    }
+
+    #[test]
+    fn plan_normalization_preserves_missing_adapter_hole_reason() {
+        let mut plan = list_plan_for_arg(list_of(named("int")));
+        plan.incomplete_reasons = vec![
+            core_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(
+                core_ir::PrincipalAdapterKind::ValueToThunk,
+            ),
+        ];
+        let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
+
+        assert!(!normalized.complete);
+        assert!(normalized.adapters.is_empty());
+        assert!(normalized.incomplete_reasons.contains(
+            &core_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(
+                core_ir::PrincipalAdapterKind::ValueToThunk,
+            )
         ));
     }
 

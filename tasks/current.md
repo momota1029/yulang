@@ -751,3 +751,40 @@ std::junction::junction::junction:
 This confirms that the next strict target is not an open candidate graph solver.
 It is still missing explicit result/context evidence across role/operator and
 handler/sub boundaries.
+
+## Invariant: Plan Instantiation Is Not Adapter Insertion
+
+Principal elaboration now has two separate responsibilities:
+
+1. **Plan instantiation**
+   - Apply known parent substitutions to cloned body evidence.
+   - Re-normalize nested `PrincipalElaborationPlan`s from substituted exported
+     slots.
+   - Closed structural projection is allowed here.
+   - This is evidence instantiation, not Simple-Sub graph reconstruction.
+
+2. **Coercion / adapter elaboration**
+   - Decide where `Coerce`, `Thunk`, `BindHere`, and handler adapters belong.
+   - This must come from explicit `ExpectedAdapterEdge` /
+     `PrincipalAdapterHole` evidence produced during infer/lower.
+   - Runtime must not discover adapter positions by searching for type
+     mismatches.
+
+Normalization may complete substitutions. Normalization must not invent adapter
+holes. If substituted intrinsic/contextual slots reveal a boundary that needs a
+runtime adapter and no exported adapter evidence supports it, the plan should
+stay incomplete with `MissingAdapterHole(...)` or
+`HandlerBoundaryWithoutPlan`, not silently insert an adapter.
+
+This keeps the path toward one-pass elaboration clear:
+
+```text
+infer/lower:
+  intrinsic/contextual slots + expected edges + adapter holes
+
+principal elaborate:
+  instantiate plans, normalize closed substitutions, execute existing holes
+
+fallback:
+  only for boundaries with missing evidence
+```

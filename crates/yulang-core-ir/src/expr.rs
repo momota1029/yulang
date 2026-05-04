@@ -281,6 +281,7 @@ pub enum PrincipalElaborationIncompleteReason {
     OpenCandidate(TypeVar),
     OpenArgType(usize),
     OpenResultType,
+    MissingAdapterHole(PrincipalAdapterKind),
     HandlerBoundaryWithoutPlan,
     AmbiguousRoleImpl,
 }
