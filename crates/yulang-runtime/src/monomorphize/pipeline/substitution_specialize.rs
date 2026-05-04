@@ -1453,6 +1453,39 @@ fn principal_elaborate_strict_enabled() -> bool {
     std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
 }
 
+pub(super) fn principal_elaboration_plan_for_expr(
+    expr: &Expr,
+    binding: &Binding,
+    result_contextual: Option<&core_ir::TypeBounds>,
+) -> Option<core_ir::PrincipalElaborationPlan> {
+    let spine = apply_spine(expr)?;
+    if spine.target != &binding.name {
+        return None;
+    }
+    if let Some(plan) = spine.principal_evidences.iter().find_map(|evidence| {
+        let plan = evidence.principal_elaboration.as_ref()?;
+        (plan.complete
+            && plan
+                .target
+                .as_ref()
+                .is_none_or(|plan_target| plan_target == &binding.name))
+        .then_some(plan.clone())
+    }) {
+        return Some(plan);
+    }
+    complete_principal_elaboration_plan_from_exported_spine(&spine, binding, result_contextual)
+        .or_else(|| {
+            spine.principal_evidences.iter().find_map(|evidence| {
+                let plan = evidence.principal_elaboration.as_ref()?;
+                (plan
+                    .target
+                    .as_ref()
+                    .is_none_or(|plan_target| plan_target == &binding.name))
+                .then_some(plan.clone())
+            })
+        })
+}
+
 fn complete_principal_elaboration_plan_for_spine(
     spine: &ApplySpine<'_>,
     binding: &Binding,

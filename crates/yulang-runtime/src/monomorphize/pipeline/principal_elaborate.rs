@@ -3,7 +3,10 @@ use crate::ir::Module;
 use std::collections::{BTreeMap, HashMap};
 
 use super::*;
-use super::{SubstitutionSpecializeProfile, substitute_specialize_module_profiled};
+use super::{
+    SubstitutionSpecializeProfile, principal_elaboration_plan_for_expr,
+    substitute_specialize_module_profiled,
+};
 
 pub(super) fn principal_elaborate_module_profiled(
     module: Module,
@@ -27,10 +30,15 @@ pub(super) fn principal_elaborate_strict_failure(module: &Module) -> Option<Stri
 
     let mut failures = HashMap::<core_ir::Path, PrincipalElaborationStrictTarget>::new();
     for expr in &module.root_exprs {
-        collect_principal_elaboration_failures(expr, &generic_bindings, &mut failures);
+        collect_principal_elaboration_failures(expr, None, &generic_bindings, &mut failures);
     }
     for binding in &module.bindings {
-        collect_principal_elaboration_failures(&binding.body, &generic_bindings, &mut failures);
+        collect_principal_elaboration_failures(
+            &binding.body,
+            None,
+            &generic_bindings,
+            &mut failures,
+        );
     }
 
     if failures.is_empty() {
@@ -42,45 +50,56 @@ pub(super) fn principal_elaborate_strict_failure(module: &Module) -> Option<Stri
 
 fn collect_principal_elaboration_failures(
     expr: &Expr,
+    result_contextual: Option<&core_ir::TypeBounds>,
     generic_bindings: &HashMap<core_ir::Path, &Binding>,
     failures: &mut HashMap<core_ir::Path, PrincipalElaborationStrictTarget>,
 ) {
     if let Some(spine) = principal_apply_spine(expr)
-        && generic_bindings.contains_key(spine.target)
+        && let Some(binding) = generic_bindings.get(spine.target)
     {
-        let complete_plan = spine.plans.iter().any(|plan| {
-            plan.complete
-                && plan
-                    .target
-                    .as_ref()
-                    .is_none_or(|target| target == spine.target)
-        });
-        if !complete_plan {
+        let plan = principal_elaboration_plan_for_expr(expr, binding, result_contextual);
+        if !plan.as_ref().is_some_and(|plan| plan.complete) {
             let target = failures.entry(spine.target.clone()).or_default();
             target.count += 1;
-            if spine.plans.is_empty() {
-                target.bump("MissingPrincipalElaborationPlan".to_string());
-            } else {
-                for plan in spine.plans {
-                    if plan.complete {
-                        continue;
-                    }
-                    for reason in &plan.incomplete_reasons {
-                        target.bump(format!("{reason:?}"));
-                    }
+            if let Some(plan) = plan {
+                for reason in &plan.incomplete_reasons {
+                    target.bump(format!("{reason:?}"));
                 }
+            } else {
+                target.bump("MissingPrincipalElaborationPlan".to_string());
             }
         }
-        for arg in spine.args {
-            collect_principal_elaboration_failures(arg, generic_bindings, failures);
+        for (arg, evidence) in spine
+            .args
+            .into_iter()
+            .zip(spine.evidences_by_arg.into_iter())
+        {
+            let arg_context = evidence.and_then(|evidence| evidence.expected_arg.as_ref());
+            collect_principal_elaboration_failures(arg, arg_context, generic_bindings, failures);
         }
         return;
     }
 
     match &expr.kind {
-        ExprKind::Apply { callee, arg, .. } => {
-            collect_principal_elaboration_failures(callee, generic_bindings, failures);
-            collect_principal_elaboration_failures(arg, generic_bindings, failures);
+        ExprKind::Apply {
+            callee,
+            arg,
+            evidence,
+            ..
+        } => {
+            let callee_context = evidence
+                .as_ref()
+                .and_then(|evidence| evidence.expected_callee.as_ref());
+            let arg_context = evidence
+                .as_ref()
+                .and_then(|evidence| evidence.expected_arg.as_ref());
+            collect_principal_elaboration_failures(
+                callee,
+                callee_context,
+                generic_bindings,
+                failures,
+            );
+            collect_principal_elaboration_failures(arg, arg_context, generic_bindings, failures);
         }
         ExprKind::Lambda { body, .. }
         | ExprKind::BindHere { expr: body }
@@ -89,7 +108,7 @@ fn collect_principal_elaboration_failures(
         | ExprKind::AddId { thunk: body, .. }
         | ExprKind::Coerce { expr: body, .. }
         | ExprKind::Pack { expr: body, .. } => {
-            collect_principal_elaboration_failures(body, generic_bindings, failures);
+            collect_principal_elaboration_failures(body, None, generic_bindings, failures);
         }
         ExprKind::If {
             cond,
@@ -97,44 +116,54 @@ fn collect_principal_elaboration_failures(
             else_branch,
             ..
         } => {
-            collect_principal_elaboration_failures(cond, generic_bindings, failures);
-            collect_principal_elaboration_failures(then_branch, generic_bindings, failures);
-            collect_principal_elaboration_failures(else_branch, generic_bindings, failures);
+            collect_principal_elaboration_failures(cond, None, generic_bindings, failures);
+            collect_principal_elaboration_failures(then_branch, None, generic_bindings, failures);
+            collect_principal_elaboration_failures(else_branch, None, generic_bindings, failures);
         }
         ExprKind::Tuple(items) => {
             for item in items {
-                collect_principal_elaboration_failures(item, generic_bindings, failures);
+                collect_principal_elaboration_failures(item, None, generic_bindings, failures);
             }
         }
         ExprKind::Record { fields, spread } => {
             for field in fields {
-                collect_principal_elaboration_failures(&field.value, generic_bindings, failures);
+                collect_principal_elaboration_failures(
+                    &field.value,
+                    None,
+                    generic_bindings,
+                    failures,
+                );
             }
             if let Some(spread) = spread {
                 match spread {
                     RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
-                        collect_principal_elaboration_failures(expr, generic_bindings, failures);
+                        collect_principal_elaboration_failures(
+                            expr,
+                            None,
+                            generic_bindings,
+                            failures,
+                        );
                     }
                 }
             }
         }
         ExprKind::Variant { value, .. } => {
             if let Some(value) = value {
-                collect_principal_elaboration_failures(value, generic_bindings, failures);
+                collect_principal_elaboration_failures(value, None, generic_bindings, failures);
             }
         }
         ExprKind::Select { base, .. } => {
-            collect_principal_elaboration_failures(base, generic_bindings, failures);
+            collect_principal_elaboration_failures(base, None, generic_bindings, failures);
         }
         ExprKind::Match {
             scrutinee, arms, ..
         } => {
-            collect_principal_elaboration_failures(scrutinee, generic_bindings, failures);
+            collect_principal_elaboration_failures(scrutinee, None, generic_bindings, failures);
             for arm in arms {
                 if let Some(guard) = &arm.guard {
-                    collect_principal_elaboration_failures(guard, generic_bindings, failures);
+                    collect_principal_elaboration_failures(guard, None, generic_bindings, failures);
                 }
-                collect_principal_elaboration_failures(&arm.body, generic_bindings, failures);
+                collect_principal_elaboration_failures(&arm.body, None, generic_bindings, failures);
             }
         }
         ExprKind::Block { stmts, tail } => {
@@ -142,16 +171,21 @@ fn collect_principal_elaboration_failures(
                 collect_principal_elaboration_failures_in_stmt(stmt, generic_bindings, failures);
             }
             if let Some(tail) = tail {
-                collect_principal_elaboration_failures(tail, generic_bindings, failures);
+                collect_principal_elaboration_failures(
+                    tail,
+                    result_contextual,
+                    generic_bindings,
+                    failures,
+                );
             }
         }
         ExprKind::Handle { body, arms, .. } => {
-            collect_principal_elaboration_failures(body, generic_bindings, failures);
+            collect_principal_elaboration_failures(body, None, generic_bindings, failures);
             for arm in arms {
                 if let Some(guard) = &arm.guard {
-                    collect_principal_elaboration_failures(guard, generic_bindings, failures);
+                    collect_principal_elaboration_failures(guard, None, generic_bindings, failures);
                 }
-                collect_principal_elaboration_failures(&arm.body, generic_bindings, failures);
+                collect_principal_elaboration_failures(&arm.body, None, generic_bindings, failures);
             }
         }
         ExprKind::Var(_)
@@ -170,7 +204,7 @@ fn collect_principal_elaboration_failures_in_stmt(
 ) {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
-            collect_principal_elaboration_failures(value, generic_bindings, failures);
+            collect_principal_elaboration_failures(value, None, generic_bindings, failures);
         }
     }
 }
@@ -216,13 +250,13 @@ impl PrincipalElaborationStrictTarget {
 struct PrincipalApplySpine<'a> {
     target: &'a core_ir::Path,
     args: Vec<&'a Expr>,
-    plans: Vec<&'a core_ir::PrincipalElaborationPlan>,
+    evidences_by_arg: Vec<Option<&'a core_ir::ApplyEvidence>>,
 }
 
 fn principal_apply_spine(expr: &Expr) -> Option<PrincipalApplySpine<'_>> {
     let mut current = expr;
     let mut args = Vec::new();
-    let mut plans = Vec::new();
+    let mut evidences_by_arg = Vec::new();
     while let ExprKind::Apply {
         callee,
         arg,
@@ -231,22 +265,18 @@ fn principal_apply_spine(expr: &Expr) -> Option<PrincipalApplySpine<'_>> {
     } = &current.kind
     {
         args.push(arg.as_ref());
-        if let Some(plan) = evidence
-            .as_ref()
-            .and_then(|evidence| evidence.principal_elaboration.as_ref())
-        {
-            plans.push(plan);
-        }
+        evidences_by_arg.push(evidence.as_ref());
         current = callee;
     }
     let ExprKind::Var(target) = &current.kind else {
         return None;
     };
     args.reverse();
+    evidences_by_arg.reverse();
     Some(PrincipalApplySpine {
         target,
         args,
-        plans,
+        evidences_by_arg,
     })
 }
 

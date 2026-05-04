@@ -720,3 +720,34 @@ YULANG_PRINCIPAL_ELABORATE=1 RUSTC_WRAPPER= cargo run -q -p yulang -- --run --ru
 The next strict-elaboration gap is therefore narrower: result context now
 reaches more wrapper calls, but strict failure reporting still reads embedded
 plans and does not yet use the context-aware exported-spine planner.
+
+## Current Slice: Strict Reporting Uses Context-Aware Plans
+
+Strict principal-elaboration failure reporting now calls the same
+context-aware exported-spine plan builder used by the non-strict rewrite path.
+It also propagates `ApplyEvidence.expected_callee` / `expected_arg` while
+walking into child expressions.
+
+This does not make `07_junction` strict mode pass yet. It changes the strict
+failure list from embedded-plan-only reasons to the current planner's actual
+slot view. The remaining failures now include open arg/result slots where the
+planner still cannot prove a closed substitution:
+
+```text
+std::flow::sub::sub:
+  MissingSubstitution(t3614/t3637/t3641), OpenArgType(0), OpenResultType
+std::junction::all:
+  MissingSubstitution(t4929), OpenResultType
+std::junction::any:
+  MissingSubstitution(t4903), OpenResultType
+std::junction::junction::all:
+  MissingSubstitution(t4677/t4888), OpenArgType(0), OpenResultType
+std::junction::junction::any:
+  MissingSubstitution(t4581/t4893), OpenArgType(0), OpenResultType
+std::junction::junction::junction:
+  MissingSubstitution(t4871)
+```
+
+This confirms that the next strict target is not an open candidate graph solver.
+It is still missing explicit result/context evidence across role/operator and
+handler/sub boundaries.
