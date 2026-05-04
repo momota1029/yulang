@@ -624,3 +624,37 @@ strict target is no longer `fold_impl/view_raw` in this benchmark; it is the
 `junction/sub` boundary. Treat `std::flow::sub::sub` as likely missing
 handler/adapter evidence unless closed principal slot evidence proves
 otherwise.
+
+## Current Slice: Closed Slot Bounds Improve Principal Rewrites
+
+Principal plan normalization now treats single closed top-level slot bounds as
+usable observed slot types, just like the narrower `TypeArg::Bounds` rule:
+
+```text
+arg0 lower=list[lower=int] can project into a principal param slot
+```
+
+This is still not an open-candidate graph solver. Conflicting bounds, `Any`,
+open `Var`, value-position `Never`, and union/intersection propagation remain
+rejected.
+
+Effect on `YULANG_PRINCIPAL_ELABORATE=1 examples/07_junction.yu`:
+
+- output remains `[0] 1`;
+- total pass/specialization counts are unchanged;
+- `principal-plan-complete` and `principal-plan-rewrite` increase from 1 to 3.
+
+The remaining strict wrapper failures now show that arg slots can close, while
+result context is still missing:
+
+```text
+std::junction::all:
+  MissingSubstitution(t4929), OpenResultType
+std::junction::any:
+  MissingSubstitution(t4903), OpenResultType
+```
+
+Next likely evidence task: connect parent contextual/result shape to the child
+apply result slot. Do this through explicit result/context evidence or a shaped
+core bridge, not by reading runtime-refined `Expr.ty` as new substitution
+evidence.

@@ -453,8 +453,8 @@ fn principal_fun_result_after_args(ty: &core_ir::Type, arg_count: usize) -> Opti
 fn principal_plan_arg_type(arg: &core_ir::PrincipalElaborationArg) -> Option<core_ir::Type> {
     arg.expected_runtime
         .clone()
-        .or_else(|| principal_plan_bounds_exact_type(arg.contextual.as_ref()))
-        .or_else(|| principal_plan_bounds_exact_type(Some(&arg.intrinsic)))
+        .or_else(|| principal_plan_bounds_slot_type(arg.contextual.as_ref(), false))
+        .or_else(|| principal_plan_bounds_slot_type(Some(&arg.intrinsic), false))
 }
 
 fn principal_plan_result_type(
@@ -463,14 +463,22 @@ fn principal_plan_result_type(
     result
         .expected_runtime
         .clone()
-        .or_else(|| principal_plan_bounds_exact_type(result.contextual.as_ref()))
-        .or_else(|| principal_plan_bounds_exact_type(Some(&result.intrinsic)))
+        .or_else(|| principal_plan_bounds_slot_type(result.contextual.as_ref(), false))
+        .or_else(|| principal_plan_bounds_slot_type(Some(&result.intrinsic), false))
 }
 
-fn principal_plan_bounds_exact_type(bounds: Option<&core_ir::TypeBounds>) -> Option<core_ir::Type> {
+fn principal_plan_bounds_slot_type(
+    bounds: Option<&core_ir::TypeBounds>,
+    allow_never: bool,
+) -> Option<core_ir::Type> {
     let bounds = bounds?;
     match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
-        (Some(lower), Some(upper)) if lower == upper => Some(lower.clone()),
+        (Some(lower), Some(upper)) if lower == upper => {
+            principal_plan_substitution_type_usable(lower, allow_never).then(|| lower.clone())
+        }
+        (Some(ty), None) | (None, Some(ty)) => {
+            principal_plan_substitution_type_usable(ty, allow_never).then(|| ty.clone())
+        }
         _ => None,
     }
 }

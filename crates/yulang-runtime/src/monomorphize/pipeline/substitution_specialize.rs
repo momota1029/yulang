@@ -1536,6 +1536,16 @@ fn debug_principal_elaboration_plan_from_spine(
             "  result intrinsic={:?} contextual={:?}",
             plan.result.intrinsic, plan.result.contextual
         );
+        for candidate in candidates.iter().take(12) {
+            eprintln!(
+                "  candidate {:?} {:?} {:?} source={:?} path={:?}",
+                candidate.var,
+                candidate.relation,
+                candidate.ty,
+                candidate.source_edge,
+                candidate.path
+            );
+        }
     }
 }
 
