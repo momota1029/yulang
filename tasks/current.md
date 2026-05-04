@@ -293,3 +293,42 @@ Short-term goal:
   recovery heuristics.
 - Use `--runtime-phase-timings` `core_shape:` output to decide where evidence is
   missing before changing behavior.
+
+## Direction Guardrail: One-Pass Typed IR
+
+The long-term direction is still to build a typed IR with as little looping and
+runtime rediscovery as possible.
+
+The recent evidence / shape work is on that path only if it moves information
+from later recovery passes into earlier, explicit records:
+
+```text
+infer/lower:
+  place expected/coerce/adapter boundaries
+
+complete_principal:
+  export slot-local expression shape and principal evidence
+
+runtime lower:
+  consume shape/evidence instead of rediscovering types and adapters
+
+monomorphize:
+  use principal evidence instead of demand/fixpoint recovery where possible
+```
+
+Use this as the main test for future changes:
+
+```text
+Does this change move a type/adapter decision from a later heuristic loop into
+complete_principal / ShapeTable / explicit evidence?
+```
+
+If yes, it is probably on the main line.
+If it only adds profiling, strengthens runtime heuristics, solves open candidate
+graphs globally, or special-cases std helpers without reducing later recovery,
+it is likely sideways.
+
+`ShapeTable` is not the goal by itself. It is the smallest checkpoint toward a
+shaped core where every expression has intrinsic/contextual value/effect shape,
+principal instantiation data, and adapter/coercion boundary information that
+runtime can eventually trust.
