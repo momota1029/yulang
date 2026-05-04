@@ -531,7 +531,7 @@ fn collect_candidates_from_type(
 ) {
     match (template, actual) {
         (core_ir::Type::Var(var), actual) if params.contains(var) => {
-            if principal_candidate_type_recordable(actual) {
+            if principal_candidate_type_recordable(var, actual) {
                 out.push(core_ir::PrincipalSubstitutionCandidate {
                     var: var.clone(),
                     relation,
@@ -807,11 +807,12 @@ fn flip_candidate_relation(
     }
 }
 
-fn principal_candidate_type_recordable(ty: &core_ir::Type) -> bool {
-    !matches!(
-        ty,
-        core_ir::Type::Any | core_ir::Type::Never | core_ir::Type::Var(_)
-    )
+fn principal_candidate_type_recordable(var: &core_ir::TypeVar, ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Any | core_ir::Type::Never => false,
+        core_ir::Type::Var(actual) => actual != var,
+        _ => true,
+    }
 }
 
 fn principal_fun_param_ret(ty: &core_ir::Type) -> Option<(&core_ir::Type, &core_ir::Type)> {

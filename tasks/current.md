@@ -804,3 +804,59 @@ std::junction::junction::junction:
 
 The remaining non-handler wrapper failures are still ordinary open slot
 evidence gaps (`std::junction::all/any` and their junction wrappers).
+
+## Runtime Subset Means Principal-Unify, Not Interpretation
+
+The subset target is a runtime subset in the specialization/elaboration sense:
+use all exported type inference evidence to build executable, monomorphic
+runtime IR with a lightweight one-pass principal-unification path.
+
+It is not a Core IR interpreter and not a type checker.
+
+Current correction:
+
+- The incorrect direct evaluator path has been removed.
+- `YULANG_PRINCIPAL_ELABORATE=1` now routes through a separate
+  `principal_unify` implementation instead of delegating to the old
+  substitution-specialize pass.
+- The principal-unify path executes complete `PrincipalElaborationPlan`s only:
+  closed substitutions, binding clone, apply rewrite, recursive body rewrite.
+- It does not run runtime arg/result structural inference helpers.
+- It does not invent adapter holes. If an adapter is needed without exported
+  evidence, the call remains for fallback and records a skip reason.
+
+Current checkpoint:
+
+- Strict principal-unify now covers `examples/07_junction.yu` without old demand
+  fallback.
+- The strict run outputs `[0] 1`.
+- `mono_passes=2`, `effective_passes=2`, and `demand_queue attempted=0`.
+- `skip_reachability surviving_actionable_targets=0`; the remaining reachable
+  skip target is a benign revisit of an already-specialized non-generic callee.
+- The strict path emits the needed direct specializations for
+  `std::list::view_raw`, `std::list::fold_impl`, the concrete `Fold::fold`
+  impl, `std::flow::sub::sub`, public/junction `all` and `any`, and
+  `std::junction::junction::junction`.
+
+The important implementation boundaries are:
+
+1. Principal-unify may read lowered `BindHere` in callee position to recover the
+   original apply spine.
+2. Partial role-method calls should remain unrewritten until the outer full
+   spine is available.
+3. Handler-adapted bindings must rebuild call sites with the same adapted
+   callee type that was emitted.
+4. A `RuntimeType::Thunk` annotation alone is not enough evidence that an
+   expression produces a thunk. If the expression is not syntactically a
+   `Thunk` and not an apply whose callee returns an effect thunk, the adapter
+   must materialize an explicit `Thunk`.
+
+Next target:
+
+1. Keep principal-unify as the runtime subset main path for strict experiments.
+2. Add more small examples under strict mode, but only when they exercise
+   principal evidence execution rather than the old demand path.
+3. Move remaining adapter placement from runtime observation toward exported
+   `PrincipalAdapterHole` / `ExpectedAdapterEdge` evidence.
+4. Keep open-candidate graph solving parked unless a strict, reachable target
+   fails solely because of an open candidate relation.

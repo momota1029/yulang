@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use super::*;
 use super::{
     SubstitutionSpecializeProfile, principal_elaboration_plan_for_expr,
-    substitute_specialize_module_profiled,
+    principal_unify_module_profiled, substitute_specialize_module_profiled,
 };
 
 pub(super) fn principal_elaborate_module_profiled(
@@ -14,7 +14,24 @@ pub(super) fn principal_elaborate_module_profiled(
     // This pass is being migrated from substitution-specialize to
     // principal-elaborate. The main path should execute exported principal
     // elaboration evidence, not infer substitutions from runtime IR shapes.
-    substitute_specialize_module_profiled(module)
+    let (module, mut profile) = principal_unify_module_profiled(module);
+    if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some() {
+        return (module, profile);
+    }
+    let (module, fallback_profile) = substitute_specialize_module_profiled(module);
+    merge_principal_elaborate_fallback_profile(&mut profile, fallback_profile);
+    (module, profile)
+}
+
+fn merge_principal_elaborate_fallback_profile(
+    profile: &mut SubstitutionSpecializeProfile,
+    fallback: SubstitutionSpecializeProfile,
+) {
+    for (key, value) in fallback.stats {
+        *profile.stats.entry(key).or_default() += value;
+    }
+    profile.target_skips.extend(fallback.target_skips);
+    profile.target_inferences.extend(fallback.target_inferences);
 }
 
 pub(super) fn principal_elaborate_strict_failure(module: &Module) -> Option<String> {
@@ -58,7 +75,11 @@ fn collect_principal_elaboration_failures(
         && let Some(binding) = generic_bindings.get(spine.target)
     {
         let plan = principal_elaboration_plan_for_expr(expr, binding, result_contextual);
-        if !plan.as_ref().is_some_and(|plan| plan.complete) {
+        if handler_binding_info(binding).is_none()
+            && !plan
+                .as_ref()
+                .is_some_and(|plan| plan.complete || handler_boundary_plan_is_strict_complete(plan))
+        {
             let target = failures.entry(spine.target.clone()).or_default();
             target.count += 1;
             if handler_binding_info(binding).is_some() {
@@ -200,6 +221,16 @@ fn collect_principal_elaboration_failures(
         | ExprKind::PeekId
         | ExprKind::FindId { .. } => {}
     }
+}
+
+fn handler_boundary_plan_is_strict_complete(plan: &core_ir::PrincipalElaborationPlan) -> bool {
+    !plan.incomplete_reasons.is_empty()
+        && plan.incomplete_reasons.iter().all(|reason| {
+            matches!(
+                reason,
+                core_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan
+            )
+        })
 }
 
 fn collect_principal_elaboration_failures_in_stmt(

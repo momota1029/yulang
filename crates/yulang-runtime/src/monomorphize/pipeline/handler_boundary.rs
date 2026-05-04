@@ -1,4 +1,5 @@
 use super::*;
+use crate::types::runtime_core_type;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct HandlerBindingInfo {
@@ -100,6 +101,7 @@ pub(super) fn apply_handler_adapter_plan_to_binding(
 ) -> Binding {
     let mut next_effect_id = next_effect_id_after_expr(&binding.body);
     binding.body = apply_handler_adapter_plan_to_expr(binding.body, plan, &mut next_effect_id);
+    binding.scheme.body = runtime_core_type(&binding.body.ty);
     binding
 }
 
@@ -128,12 +130,20 @@ fn handler_residual_before(
 fn handler_return_wrapper_effect(
     info: &HandlerBindingInfo,
     boundary: &HandlerCallBoundary,
-    _residual_after: Option<&core_ir::Type>,
+    residual_after: Option<&core_ir::Type>,
 ) -> Option<core_ir::Type> {
-    if std::env::var_os("YULANG_SUBST_SPECIALIZE_HANDLER_RETURN").is_none() {
-        return None;
+    if boundary.consumes_input_effect && boundary.output_effect.is_none() {
+        let residual = residual_after
+            .cloned()
+            .filter(|effect| !effect_is_empty(effect));
+        if residual.is_some() {
+            return residual;
+        }
     }
     if !boundary.pure || boundary.output_effect.is_some() {
+        return None;
+    }
+    if std::env::var_os("YULANG_SUBST_SPECIALIZE_HANDLER_RETURN").is_none() {
         return None;
     }
     info.consumes
@@ -297,7 +307,8 @@ fn apply_handler_adapter_plan_to_expr(
             body,
         } => {
             let body = rewrite_first_handle(*body, plan);
-            let body = wrap_handler_return(body, plan, next_effect_id);
+            let body = wrap_first_handler_returns(body, plan, next_effect_id);
+            let ty = update_lambda_runtime_type(ty, &body.ty);
             Expr::typed(
                 ExprKind::Lambda {
                     param,
@@ -311,8 +322,15 @@ fn apply_handler_adapter_plan_to_expr(
         other => {
             let expr = Expr::typed(other, ty);
             let expr = rewrite_first_handle(expr, plan);
-            wrap_handler_return(expr, plan, next_effect_id)
+            wrap_first_handler_returns(expr, plan, next_effect_id)
         }
+    }
+}
+
+fn update_lambda_runtime_type(ty: RuntimeType, body_ty: &RuntimeType) -> RuntimeType {
+    match ty {
+        RuntimeType::Fun { param, .. } => RuntimeType::fun(*param, body_ty.clone()),
+        other => other,
     }
 }
 
@@ -376,13 +394,136 @@ fn rewrite_first_handle(expr: Expr, plan: &HandlerAdapterPlan) -> Expr {
     }
 }
 
-fn wrap_handler_return(body: Expr, plan: &HandlerAdapterPlan, next_effect_id: &mut usize) -> Expr {
+fn wrap_first_handler_returns(
+    body: Expr,
+    plan: &HandlerAdapterPlan,
+    next_effect_id: &mut usize,
+) -> Expr {
     let Some(effect) = plan.return_wrapper_effect.clone() else {
         return body;
     };
-    if matches!(body.kind, ExprKind::LocalPushId { .. })
-        || !matches!(body.ty, RuntimeType::Core(_))
-        || effect_is_empty(&effect)
+    if effect_is_empty(&effect) {
+        return body;
+    }
+    wrap_first_handle_returns_with_effect(body, effect, next_effect_id)
+}
+
+fn wrap_first_handle_returns_with_effect(
+    expr: Expr,
+    effect: core_ir::Type,
+    next_effect_id: &mut usize,
+) -> Expr {
+    let Expr { ty, kind } = expr;
+    match kind {
+        ExprKind::Handle {
+            body,
+            arms,
+            evidence,
+            handler,
+        } => {
+            let arms = arms
+                .into_iter()
+                .map(|arm| HandleArm {
+                    body: wrap_value_in_thunk(arm.body, &effect),
+                    ..arm
+                })
+                .collect::<Vec<_>>();
+            let value = ty;
+            let thunk_ty = RuntimeType::thunk(effect, value);
+            Expr::typed(
+                ExprKind::Handle {
+                    body,
+                    arms,
+                    evidence,
+                    handler,
+                },
+                thunk_ty,
+            )
+        }
+        ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body,
+        } => {
+            let body = wrap_first_handle_returns_with_effect(*body, effect, next_effect_id);
+            let ty = update_lambda_runtime_type(ty, &body.ty);
+            Expr::typed(
+                ExprKind::Lambda {
+                    param,
+                    param_effect_annotation,
+                    param_function_allowed_effects,
+                    body: Box::new(body),
+                },
+                ty,
+            )
+        }
+        ExprKind::BindHere { expr } => {
+            let expr = wrap_first_handle_returns_with_effect(*expr, effect, next_effect_id);
+            let ty = match &expr.ty {
+                RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
+                _ => ty,
+            };
+            Expr::typed(
+                ExprKind::BindHere {
+                    expr: Box::new(expr),
+                },
+                ty,
+            )
+        }
+        ExprKind::LocalPushId { id, body } => {
+            let body = wrap_first_handle_returns_with_effect(*body, effect, next_effect_id);
+            let ty = body.ty.clone();
+            Expr::typed(
+                ExprKind::LocalPushId {
+                    id,
+                    body: Box::new(body),
+                },
+                ty,
+            )
+        }
+        ExprKind::AddId { id, allowed, thunk } => {
+            let thunk = wrap_first_handle_returns_with_effect(*thunk, effect, next_effect_id);
+            let ty = thunk.ty.clone();
+            Expr::typed(
+                ExprKind::AddId {
+                    id,
+                    allowed,
+                    thunk: Box::new(thunk),
+                },
+                ty,
+            )
+        }
+        other => {
+            let expr = Expr::typed(other, ty);
+            wrap_handler_return(expr, &effect, next_effect_id)
+        }
+    }
+}
+
+fn wrap_value_in_thunk(body: Expr, effect: &core_ir::Type) -> Expr {
+    if let RuntimeType::Thunk {
+        effect: existing,
+        value: _,
+    } = &body.ty
+        && existing == effect
+    {
+        return body;
+    }
+    let value = body.ty.clone();
+    let thunk_ty = RuntimeType::thunk(effect.clone(), value.clone());
+    Expr::typed(
+        ExprKind::Thunk {
+            effect: effect.clone(),
+            value,
+            expr: Box::new(body),
+        },
+        thunk_ty,
+    )
+}
+
+fn wrap_handler_return(body: Expr, effect: &core_ir::Type, next_effect_id: &mut usize) -> Expr {
+    if matches!(body.kind, ExprKind::LocalPushId { .. }) || !matches!(body.ty, RuntimeType::Core(_))
     {
         return body;
     }
@@ -399,7 +540,7 @@ fn wrap_handler_return(body: Expr, plan: &HandlerAdapterPlan, next_effect_id: &m
     let add_id = Expr::typed(
         ExprKind::AddId {
             id: crate::ir::EffectIdRef::Peek,
-            allowed: effect,
+            allowed: effect.clone(),
             thunk: Box::new(thunk),
         },
         thunk_ty,
