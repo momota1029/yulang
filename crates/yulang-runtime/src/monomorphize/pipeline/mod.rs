@@ -250,6 +250,21 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
         let step =
             run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, &mut profile, debug)?;
         module = step.module;
+        if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some() {
+            let step =
+                run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
+            module = step.module;
+            if let Some(context) = principal_elaborate_strict_failure(&module) {
+                return Err(RuntimeError::InvariantViolation {
+                    stage: "principal-elaborate-strict",
+                    context,
+                    message: "principal elaboration plan incomplete",
+                });
+            }
+            profile.demand_evidence = snapshot_demand_evidence_profile();
+            annotate_substitution_skip_reachability(&mut profile, &module);
+            return Ok((module, profile));
+        }
     } else if std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some() {
         let step = run_profiled_mono_pass(
             module,

@@ -61,7 +61,10 @@ Current implementation status:
   them into complete / incomplete.
 - Runtime still delegates plan execution to the old substitution-specialize
   fallback. The next required step is strict plan execution / failure reporting.
-- `YULANG_PRINCIPAL_ELABORATE_STRICT=1` is planned but not implemented yet.
+- `YULANG_PRINCIPAL_ELABORATE_STRICT=1` exists as an internal experiment.
+  Under strict mode the pipeline runs `principal-elaborate`, prunes unreachable
+  bindings, and fails before old demand fallback if reachable generic calls do
+  not have complete principal elaboration plans.
 
 Strict mode should fail with explicit incomplete plan reasons instead of silent
 fallback. A useful first strict result is a small list like:
