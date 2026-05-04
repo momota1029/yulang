@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use yulang_core_ir as core_ir;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -32,6 +34,9 @@ pub struct ExprShape {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApplyShape {
     pub path: ExprPath,
+    pub owner: Option<core_ir::Path>,
+    pub target: Option<core_ir::Path>,
+    pub callee_kind: ApplyHeadKind,
     pub callee_intrinsic: Option<core_ir::TypeBounds>,
     pub callee_contextual: Option<core_ir::TypeBounds>,
     pub arg_intrinsic: Option<core_ir::TypeBounds>,
@@ -43,6 +48,7 @@ pub struct ApplyShape {
     pub substitutions: Vec<core_ir::TypeSubstitution>,
     pub substitution_candidates: Vec<core_ir::PrincipalSubstitutionCandidate>,
     pub status: ApplyShapeStatus,
+    pub missing_reasons: Vec<ApplyShapeMissingReason>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,6 +81,13 @@ pub enum ExprPathSegment {
     HandleArmBody(usize),
     CoerceInner,
     PackInner,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApplyHeadKind {
+    Path(core_ir::Path),
+    Primitive(core_ir::PrimitiveOp),
+    Other,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -122,6 +135,20 @@ pub enum ApplyShapeStatus {
     MissingContext,
     MissingPrincipal,
     Partial,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ApplyShapeMissingReason {
+    NoApplyEvidence,
+    NoExpectedCallee,
+    NoExpectedArg,
+    RoleMethodWithoutPrincipal,
+    EmptyCalleeBounds,
+    EmptyArgBounds,
+    EmptyResultBounds,
+    NoPrincipalCallee,
+    NoSubstitutions,
+    NoSubstitutionCandidates,
 }
 
 pub(super) fn profile_core_program(program: &core_ir::CoreProgram) -> CoreShapeProfile {
@@ -195,7 +222,7 @@ impl ShapeCollector {
             } => {
                 self.table
                     .applies
-                    .push(apply_shape(&path, evidence.as_ref()));
+                    .push(apply_shape(&path, callee, evidence.as_ref()));
                 self.walk_expr(callee, path.child(ExprPathSegment::ApplyCallee));
                 self.walk_expr(arg, path.child(ExprPathSegment::ApplyArg));
             }
@@ -390,10 +417,18 @@ fn value_shape(expr: &core_ir::Expr) -> ValueShape {
     }
 }
 
-fn apply_shape(path: &ExprPath, evidence: Option<&core_ir::ApplyEvidence>) -> ApplyShape {
+fn apply_shape(
+    path: &ExprPath,
+    callee: &core_ir::Expr,
+    evidence: Option<&core_ir::ApplyEvidence>,
+) -> ApplyShape {
     let status = apply_shape_status(evidence);
+    let missing_reasons = apply_shape_missing_reasons(evidence);
     ApplyShape {
         path: path.clone(),
+        owner: path.owner(),
+        target: core_apply_head_target(callee),
+        callee_kind: apply_head_kind(callee),
         callee_intrinsic: evidence.map(|evidence| evidence.callee.clone()),
         callee_contextual: evidence.and_then(|evidence| evidence.expected_callee.clone()),
         arg_intrinsic: evidence.map(|evidence| evidence.arg.clone()),
@@ -409,6 +444,7 @@ fn apply_shape(path: &ExprPath, evidence: Option<&core_ir::ApplyEvidence>) -> Ap
             .map(|evidence| evidence.substitution_candidates.clone())
             .unwrap_or_default(),
         status,
+        missing_reasons,
     }
 }
 
@@ -433,6 +469,46 @@ fn apply_shape_status(evidence: Option<&core_ir::ApplyEvidence>) -> ApplyShapeSt
 
 fn bounds_present(bounds: &core_ir::TypeBounds) -> bool {
     bounds.lower.is_some() || bounds.upper.is_some()
+}
+
+fn apply_shape_missing_reasons(
+    evidence: Option<&core_ir::ApplyEvidence>,
+) -> Vec<ApplyShapeMissingReason> {
+    let Some(evidence) = evidence else {
+        return vec![ApplyShapeMissingReason::NoApplyEvidence];
+    };
+    let mut reasons = Vec::new();
+    if evidence.expected_callee.is_none() {
+        reasons.push(ApplyShapeMissingReason::NoExpectedCallee);
+    }
+    if evidence.expected_arg.is_none() {
+        reasons.push(ApplyShapeMissingReason::NoExpectedArg);
+    }
+    if evidence.role_method && evidence.principal_callee.is_none() {
+        reasons.push(ApplyShapeMissingReason::RoleMethodWithoutPrincipal);
+    }
+    if !bounds_present(&evidence.callee) {
+        reasons.push(ApplyShapeMissingReason::EmptyCalleeBounds);
+    }
+    if !bounds_present(&evidence.arg) {
+        reasons.push(ApplyShapeMissingReason::EmptyArgBounds);
+    }
+    if !bounds_present(&evidence.result) {
+        reasons.push(ApplyShapeMissingReason::EmptyResultBounds);
+    }
+    if evidence.role_method && evidence.principal_callee.is_none() {
+        reasons.push(ApplyShapeMissingReason::NoPrincipalCallee);
+    }
+    if evidence.principal_callee.is_some() && evidence.substitutions.is_empty() {
+        reasons.push(ApplyShapeMissingReason::NoSubstitutions);
+    }
+    if evidence.principal_callee.is_some()
+        && evidence.substitutions.is_empty()
+        && evidence.substitution_candidates.is_empty()
+    {
+        reasons.push(ApplyShapeMissingReason::NoSubstitutionCandidates);
+    }
+    reasons
 }
 
 fn expr_shape_kind(expr: &core_ir::Expr) -> ExprShapeKind {
@@ -461,11 +537,27 @@ fn print_debug_core_shapes(table: &ShapeTable) {
         table.exprs.len(),
         table.applies.len()
     );
+    print_debug_core_shape_missing_applies(table);
+    if std::env::var_os("YULANG_TRACE_CORE_SHAPES").is_none() {
+        return;
+    }
     for apply in &table.applies {
         eprintln!(
-            "  apply {:?}: status={:?} callee_edge={:?} arg_edge={:?} principal={} substitutions={} candidates={}",
+            "  apply {:?}: owner={} target={} head={:?} status={:?} reasons={:?} callee_edge={:?} arg_edge={:?} principal={} substitutions={} candidates={}",
             apply.path,
+            apply
+                .owner
+                .as_ref()
+                .map(display_path)
+                .unwrap_or_else(|| "<root>".to_string()),
+            apply
+                .target
+                .as_ref()
+                .map(display_path)
+                .unwrap_or_else(|| "<unknown>".to_string()),
+            apply.callee_kind,
             apply.status,
+            apply.missing_reasons,
             apply.callee_source_edge,
             apply.arg_source_edge,
             apply.principal_callee.is_some(),
@@ -473,6 +565,76 @@ fn print_debug_core_shapes(table: &ShapeTable) {
             apply.substitution_candidates.len(),
         );
     }
+}
+
+fn print_debug_core_shape_missing_applies(table: &ShapeTable) {
+    let mut counts: BTreeMap<String, BTreeMap<ApplyShapeMissingReason, usize>> = BTreeMap::new();
+    for apply in &table.applies {
+        if apply.missing_reasons.is_empty() {
+            continue;
+        }
+        let target = apply_debug_target(apply);
+        let target_counts = counts.entry(target).or_default();
+        for reason in &apply.missing_reasons {
+            *target_counts.entry(*reason).or_default() += 1;
+        }
+    }
+    if counts.is_empty() {
+        return;
+    }
+    eprintln!("core-shape missing applies:");
+    for (target, reasons) in counts {
+        eprintln!("  {target}:");
+        for (reason, count) in reasons {
+            eprintln!("    {reason:?}: {count}");
+        }
+    }
+}
+
+fn apply_debug_target(apply: &ApplyShape) -> String {
+    apply
+        .target
+        .as_ref()
+        .map(display_path)
+        .unwrap_or_else(|| match &apply.callee_kind {
+            ApplyHeadKind::Primitive(op) => format!("{op:?}"),
+            ApplyHeadKind::Path(path) => display_path(path),
+            ApplyHeadKind::Other => "<unknown>".to_string(),
+        })
+}
+
+fn apply_head_kind(expr: &core_ir::Expr) -> ApplyHeadKind {
+    match expr {
+        core_ir::Expr::Var(path) => ApplyHeadKind::Path(path.clone()),
+        core_ir::Expr::PrimitiveOp(op) => ApplyHeadKind::Primitive(*op),
+        core_ir::Expr::Apply { callee, .. } => apply_head_kind(callee),
+        _ => ApplyHeadKind::Other,
+    }
+}
+
+fn core_apply_head_target(expr: &core_ir::Expr) -> Option<core_ir::Path> {
+    match expr {
+        core_ir::Expr::Var(path) => Some(path.clone()),
+        core_ir::Expr::Apply { callee, .. } => core_apply_head_target(callee),
+        _ => None,
+    }
+}
+
+impl ExprPath {
+    fn owner(&self) -> Option<core_ir::Path> {
+        self.0.iter().find_map(|segment| match segment {
+            ExprPathSegment::Binding(path) => Some(path.clone()),
+            _ => None,
+        })
+    }
+}
+
+fn display_path(path: &core_ir::Path) -> String {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
 }
 
 #[cfg(test)]

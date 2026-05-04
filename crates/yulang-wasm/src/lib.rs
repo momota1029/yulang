@@ -174,12 +174,11 @@ g
                 let output = run_inner("1 + true\n");
                 assert!(!output.ok);
                 let message = &output.diagnostics[0].message;
-                assert!(
-                    message.contains("function application type mismatch"),
-                    "{message}"
-                );
+                assert!(message.contains("type mismatch"), "{message}");
                 assert!(message.contains("expected bool -> bool"), "{message}");
                 assert!(message.contains("got int -> int"), "{message}");
+                assert!(message.contains("+"), "{message}");
+                assert!(!message.contains("failed to lower runtime IR"), "{message}");
                 assert!(!message.contains("Named {"), "{message}");
             })
             .unwrap()

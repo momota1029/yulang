@@ -18,5 +18,6 @@ pub(super) fn require_same_type(
         expected: expected.clone(),
         actual: actual.clone(),
         source,
+        context: None,
     })
 }

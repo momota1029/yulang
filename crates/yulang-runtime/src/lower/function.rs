@@ -165,6 +165,7 @@ pub(super) fn require_same_type(
         expected: expected.clone(),
         actual: actual.clone(),
         source,
+        context: None,
     })
 }
 
@@ -240,6 +241,7 @@ pub(super) fn require_same_hir_type(
                     expected: expected_effect.clone(),
                     actual: actual_effect.clone(),
                     source,
+                    context: None,
                 });
             }
             require_same_hir_type(expected_value, actual_value, source)
@@ -257,6 +259,7 @@ pub(super) fn require_same_hir_type(
             expected: diagnostic_core_type(expected),
             actual: diagnostic_core_type(actual),
             source,
+            context: None,
         }),
     }
 }
@@ -284,6 +287,7 @@ pub(super) fn require_apply_arg_compatible(
                     expected: expected_effect.clone(),
                     actual: actual_effect.clone(),
                     source,
+                    context: None,
                 });
             }
             require_same_hir_type(expected_value, actual_value, source)

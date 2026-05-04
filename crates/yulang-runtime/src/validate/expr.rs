@@ -460,6 +460,7 @@ pub(super) fn validate_type_instantiation(
                 expected: diagnostic_core_type(&info.ty),
                 actual: arg.ty.clone(),
                 source: TypeSource::ApplyEvidence,
+                context: None,
             });
         }
         validate_substitution_type_no_any(&arg.ty, TypeSource::ApplyEvidence, type_arg_kinds)?;

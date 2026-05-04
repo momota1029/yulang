@@ -332,3 +332,28 @@ it is likely sideways.
 shaped core where every expression has intrinsic/contextual value/effect shape,
 principal instantiation data, and adapter/coercion boundary information that
 runtime can eventually trust.
+
+## Current Slice: CoreShape Explanations and First Call Diagnostic Context
+
+`CoreShape` now records apply owner / target / callee head and missing reasons
+without changing runtime behavior. `YULANG_DEBUG_CORE_SHAPES=1` prints grouped
+missing/partial apply reasons by target; `YULANG_TRACE_CORE_SHAPES=1` is required
+for the full per-apply dump.
+
+This is meant to answer:
+
+```text
+which apply target is partial, and why?
+```
+
+The first user-facing diagnostic context is also attached to runtime type
+mismatches in apply lowering. For `1 + true`, the message now includes the
+surface call label:
+
+```text
+result type mismatch in call to `+`: expected bool -> bool, got int -> int
+```
+
+This is still not final source-span diagnostics. The next diagnostics step is to
+carry source ranges from expected/source edges into core evidence, then use those
+ranges for code frames.

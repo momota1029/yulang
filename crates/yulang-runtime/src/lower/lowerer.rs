@@ -202,6 +202,7 @@ impl Lowerer<'_> {
                 let mut callee_expr = Some(*callee);
                 let mut arg_expr = Some(*arg);
                 let apply_target = callee_expr.as_ref().and_then(core_apply_head_target);
+                let apply_label = callee_expr.as_ref().and_then(core_apply_head_label);
                 let callee_is_effect_operation = callee_expr
                     .as_ref()
                     .is_some_and(|expr| self.core_expr_is_effect_operation(expr, locals));
@@ -294,7 +295,14 @@ impl Lowerer<'_> {
                 .or_else(|| expected.cloned())
                 .unwrap_or_else(|| RuntimeType::core(self.fresh_type_var("apply_result")));
                 if let Some(expected) = expected {
-                    require_apply_result_compatible(expected, &result_ty, expected_source)?;
+                    require_apply_result_compatible(expected, &result_ty, expected_source)
+                        .map_err(|error| {
+                            error.with_type_mismatch_context(apply_type_mismatch_context(
+                                apply_label.clone(),
+                                evidence.as_ref(),
+                                TypeMismatchPhase::ApplyResult,
+                            ))
+                        })?;
                 }
                 let mut arg = None;
                 let param_hint = fun_parts.as_ref().map(|parts| parts.param.clone());
@@ -478,7 +486,14 @@ impl Lowerer<'_> {
                         },
                         &mut self.runtime_adapter_profile,
                         apply_effect_adapter_source,
-                    )?
+                    )
+                    .map_err(|error| {
+                        error.with_type_mismatch_context(apply_type_mismatch_context(
+                            apply_label.clone(),
+                            evidence.as_ref(),
+                            TypeMismatchPhase::ApplyArgument,
+                        ))
+                    })?
                 } else {
                     prepare_expr_for_expected_with_adapter_source_profiled(
                         arg,
@@ -493,13 +508,27 @@ impl Lowerer<'_> {
                         },
                         &mut self.runtime_adapter_profile,
                         apply_arg_adapter_source,
-                    )?
+                    )
+                    .map_err(|error| {
+                        error.with_type_mismatch_context(apply_type_mismatch_context(
+                            apply_label.clone(),
+                            evidence.as_ref(),
+                            TypeMismatchPhase::ApplyArgument,
+                        ))
+                    })?
                 };
                 require_apply_arg_compatible(
                     &final_fun_parts.param,
                     &arg.ty,
                     TypeSource::ApplyEvidence,
-                )?;
+                )
+                .map_err(|error| {
+                    error.with_type_mismatch_context(apply_type_mismatch_context(
+                        apply_label.clone(),
+                        evidence.as_ref(),
+                        TypeMismatchPhase::ApplyArgument,
+                    ))
+                })?;
                 if let ExprKind::EffectOp(path) = &callee.kind
                     && let Some(effect) =
                         effect_operation_effect(path, core_type(value_hir_type(&arg.ty)))
@@ -1707,6 +1736,28 @@ fn core_apply_head_target(expr: &core_ir::Expr) -> Option<core_ir::Path> {
         core_ir::Expr::Var(path) => Some(path.clone()),
         core_ir::Expr::Apply { callee, .. } => core_apply_head_target(callee),
         _ => None,
+    }
+}
+
+fn core_apply_head_label(expr: &core_ir::Expr) -> Option<RuntimeCalleeLabel> {
+    match expr {
+        core_ir::Expr::Var(path) => Some(RuntimeCalleeLabel::Path(path.clone())),
+        core_ir::Expr::PrimitiveOp(op) => Some(RuntimeCalleeLabel::Primitive(*op)),
+        core_ir::Expr::Apply { callee, .. } => core_apply_head_label(callee),
+        _ => None,
+    }
+}
+
+fn apply_type_mismatch_context(
+    callee: Option<RuntimeCalleeLabel>,
+    evidence: Option<&core_ir::ApplyEvidence>,
+    phase: TypeMismatchPhase,
+) -> TypeMismatchContext {
+    TypeMismatchContext {
+        callee,
+        phase,
+        callee_source_edge: evidence.and_then(|evidence| evidence.callee_source_edge),
+        arg_source_edge: evidence.and_then(|evidence| evidence.arg_source_edge),
     }
 }
 

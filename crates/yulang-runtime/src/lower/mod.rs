@@ -10,7 +10,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use yulang_core_ir as core_ir;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult, TypeSource};
+use crate::diagnostic::{
+    RuntimeCalleeLabel, RuntimeError, RuntimeResult, TypeMismatchContext, TypeMismatchPhase,
+    TypeSource,
+};
 use crate::invariant::{RuntimeStage, check_runtime_invariants};
 use crate::ir::{
     Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence,

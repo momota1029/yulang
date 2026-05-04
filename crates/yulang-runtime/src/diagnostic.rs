@@ -32,6 +32,7 @@ pub enum RuntimeError {
         expected: core_ir::Type,
         actual: core_ir::Type,
         source: TypeSource,
+        context: Option<TypeMismatchContext>,
     },
     UnsupportedPatternShape {
         pattern: &'static str,
@@ -81,10 +82,51 @@ pub enum TypeSource {
     Validation,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeMismatchContext {
+    pub callee: Option<RuntimeCalleeLabel>,
+    pub phase: TypeMismatchPhase,
+    pub callee_source_edge: Option<u32>,
+    pub arg_source_edge: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuntimeCalleeLabel {
+    Path(core_ir::Path),
+    Primitive(core_ir::PrimitiveOp),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeMismatchPhase {
+    ApplyCallee,
+    ApplyArgument,
+    ApplyResult,
+    Expected,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResidualPolymorphicSource {
     TypeParams,
     RuntimeTypes,
+}
+
+impl RuntimeError {
+    pub fn with_type_mismatch_context(self, context: TypeMismatchContext) -> Self {
+        match self {
+            RuntimeError::TypeMismatch {
+                expected,
+                actual,
+                source,
+                context: None,
+            } => RuntimeError::TypeMismatch {
+                expected,
+                actual,
+                source,
+                context: Some(context),
+            },
+            other => other,
+        }
+    }
 }
 
 impl ResidualPolymorphicSource {
@@ -133,7 +175,25 @@ This usually means a name, field, method, or operator could not be resolved."
                 expected,
                 actual,
                 source,
+                context,
             } => {
+                if let Some(context) = context
+                    && let Some(callee) = &context.callee
+                {
+                    let callee = display_callee_label(callee);
+                    let mismatch = match context.phase {
+                        TypeMismatchPhase::ApplyArgument => "argument type mismatch",
+                        TypeMismatchPhase::ApplyCallee => "callee type mismatch",
+                        TypeMismatchPhase::ApplyResult => "result type mismatch",
+                        TypeMismatchPhase::Expected => "type mismatch",
+                    };
+                    return write!(
+                        f,
+                        "{mismatch} in call to `{callee}`: expected {}, got {}",
+                        display_type(expected),
+                        display_type(actual)
+                    );
+                }
                 let context = match source {
                     TypeSource::ApplyEvidence | TypeSource::ApplyCalleeEvidence => {
                         "function application"
@@ -214,6 +274,77 @@ fn display_path(path: &core_ir::Path) -> String {
         .map(|segment| segment.0.as_str())
         .collect::<Vec<_>>()
         .join("::")
+}
+
+fn display_callee_label(label: &RuntimeCalleeLabel) -> String {
+    match label {
+        RuntimeCalleeLabel::Path(path) => display_callee_path(path),
+        RuntimeCalleeLabel::Primitive(op) => display_primitive_op(*op).to_string(),
+    }
+}
+
+fn display_callee_path(path: &core_ir::Path) -> String {
+    match path.segments.as_slice() {
+        [std, int, add] if std.0 == "std" && int.0 == "int" && add.0 == "add" => "+".to_string(),
+        [std, int, sub] if std.0 == "std" && int.0 == "int" && sub.0 == "sub" => "-".to_string(),
+        [std, int, mul] if std.0 == "std" && int.0 == "int" && mul.0 == "mul" => "*".to_string(),
+        [std, int, div] if std.0 == "std" && int.0 == "int" && div.0 == "div" => "/".to_string(),
+        _ => display_path(path),
+    }
+}
+
+fn display_primitive_op(op: core_ir::PrimitiveOp) -> &'static str {
+    match op {
+        core_ir::PrimitiveOp::BoolNot => "not",
+        core_ir::PrimitiveOp::BoolEq => "==",
+        core_ir::PrimitiveOp::IntAdd => "+",
+        core_ir::PrimitiveOp::IntSub => "-",
+        core_ir::PrimitiveOp::IntMul => "*",
+        core_ir::PrimitiveOp::IntDiv => "/",
+        core_ir::PrimitiveOp::IntEq => "==",
+        core_ir::PrimitiveOp::IntLt => "<",
+        core_ir::PrimitiveOp::IntLe => "<=",
+        core_ir::PrimitiveOp::IntGt => ">",
+        core_ir::PrimitiveOp::IntGe => ">=",
+        core_ir::PrimitiveOp::FloatAdd => "+",
+        core_ir::PrimitiveOp::FloatSub => "-",
+        core_ir::PrimitiveOp::FloatMul => "*",
+        core_ir::PrimitiveOp::FloatDiv => "/",
+        core_ir::PrimitiveOp::FloatEq => "==",
+        core_ir::PrimitiveOp::FloatLt => "<",
+        core_ir::PrimitiveOp::FloatLe => "<=",
+        core_ir::PrimitiveOp::FloatGt => ">",
+        core_ir::PrimitiveOp::FloatGe => ">=",
+        core_ir::PrimitiveOp::StringConcat => "++",
+        core_ir::PrimitiveOp::ListIndex => "[]",
+        core_ir::PrimitiveOp::ListIndexRange => "[..]",
+        core_ir::PrimitiveOp::ListSplice => "splice",
+        core_ir::PrimitiveOp::StringIndex => "[]",
+        core_ir::PrimitiveOp::StringIndexRange => "[..]",
+        core_ir::PrimitiveOp::StringSplice => "splice",
+        _ => primitive_op_name(op),
+    }
+}
+
+fn primitive_op_name(op: core_ir::PrimitiveOp) -> &'static str {
+    match op {
+        core_ir::PrimitiveOp::ListEmpty => "list.empty",
+        core_ir::PrimitiveOp::ListSingleton => "list.singleton",
+        core_ir::PrimitiveOp::ListLen => "list.len",
+        core_ir::PrimitiveOp::ListMerge => "list.merge",
+        core_ir::PrimitiveOp::ListIndexRangeRaw => "list.index_range_raw",
+        core_ir::PrimitiveOp::ListSpliceRaw => "list.splice_raw",
+        core_ir::PrimitiveOp::ListViewRaw => "list.view_raw",
+        core_ir::PrimitiveOp::StringLen => "string.len",
+        core_ir::PrimitiveOp::StringIndexRangeRaw => "string.index_range_raw",
+        core_ir::PrimitiveOp::StringSpliceRaw => "string.splice_raw",
+        core_ir::PrimitiveOp::IntToString => "int.to_string",
+        core_ir::PrimitiveOp::IntToHex => "int.to_hex",
+        core_ir::PrimitiveOp::IntToUpperHex => "int.to_upper_hex",
+        core_ir::PrimitiveOp::FloatToString => "float.to_string",
+        core_ir::PrimitiveOp::BoolToString => "bool.to_string",
+        _ => "primitive",
+    }
 }
 
 fn display_type_vars(vars: &[core_ir::TypeVar]) -> String {
@@ -366,11 +497,38 @@ mod tests {
             expected: fun_type(named_type("bool"), named_type("bool")),
             actual: fun_type(named_type("int"), named_type("int")),
             source: TypeSource::ApplyEvidence,
+            context: None,
         };
 
         assert_eq!(
             error.to_string(),
             "function application type mismatch: expected bool -> bool, got int -> int"
+        );
+    }
+
+    #[test]
+    fn displays_apply_type_mismatch_with_callee_context() {
+        let error = RuntimeError::TypeMismatch {
+            expected: fun_type(named_type("bool"), named_type("bool")),
+            actual: fun_type(named_type("int"), named_type("int")),
+            source: TypeSource::ApplyEvidence,
+            context: Some(TypeMismatchContext {
+                callee: Some(RuntimeCalleeLabel::Path(core_ir::Path {
+                    segments: vec![
+                        core_ir::Name("std".to_string()),
+                        core_ir::Name("int".to_string()),
+                        core_ir::Name("add".to_string()),
+                    ],
+                })),
+                phase: TypeMismatchPhase::ApplyResult,
+                callee_source_edge: Some(1),
+                arg_source_edge: Some(2),
+            }),
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "result type mismatch in call to `+`: expected bool -> bool, got int -> int"
         );
     }
 

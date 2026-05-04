@@ -167,6 +167,7 @@ pub(super) fn require_apply_result_compatible(
             expected: diagnostic_core_type(expected),
             actual: diagnostic_core_type(actual),
             source,
+            context: None,
         })
     }
 }
