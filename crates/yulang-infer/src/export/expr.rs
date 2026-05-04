@@ -485,16 +485,7 @@ impl<'a> ExprExporter<'a> {
             }
             _ => None,
         }?;
-        self.state
-            .runtime_export_schemes
-            .get(&def)
-            .cloned()
-            .or_else(|| {
-                self.state.compact_scheme_of(def).map(|scheme| {
-                    let constraints = self.state.infer.compact_role_constraints_of(def);
-                    export_scheme(&self.state.infer, &scheme, &constraints)
-                })
-            })
+        self.principal_scheme_for_def(def)
     }
 
     fn principal_callee_target(&self, expr: &TypedExpr) -> Option<core_ir::Path> {
@@ -978,14 +969,22 @@ impl<'a> ExprExporter<'a> {
                     return None;
                 };
                 let def = canonical_runtime_export_def(self.state, def);
+                let mut concrete_callee_type =
+                    self.principal_scheme_for_def(def).map(|scheme| scheme.body);
                 let mut out = core_ir::Expr::Var(self.path_for_def(def));
+                let _ = concrete_callee_type
+                    .as_mut()
+                    .and_then(take_rewritten_apply_slot_evidence);
                 out = core_ir::Expr::Apply {
                     callee: Box::new(out),
                     arg: Box::new(self.export_expr(recv)),
                     evidence: None,
                 };
                 for app in apps {
-                    out = self.export_rewritten_apply(out, app);
+                    let slot = concrete_callee_type
+                        .as_mut()
+                        .and_then(take_rewritten_apply_slot_evidence);
+                    out = self.export_rewritten_apply(out, app, slot);
                 }
                 Some(out)
             }
@@ -995,9 +994,15 @@ impl<'a> ExprExporter<'a> {
                         .concrete_role_method_application_def(resolved, head, &args)
                         .unwrap_or(resolved);
                     let resolved = canonical_runtime_export_def(self.state, resolved);
+                    let mut concrete_callee_type = self
+                        .principal_scheme_for_def(resolved)
+                        .map(|scheme| scheme.body);
                     let mut out = core_ir::Expr::Var(self.path_for_def(resolved));
                     for app in apps {
-                        out = self.export_rewritten_apply(out, app);
+                        let slot = concrete_callee_type
+                            .as_mut()
+                            .and_then(take_rewritten_apply_slot_evidence);
+                        out = self.export_rewritten_apply(out, app, slot);
                     }
                     return Some(out);
                 }
@@ -1012,6 +1017,7 @@ impl<'a> ExprExporter<'a> {
         &mut self,
         callee_expr: core_ir::Expr,
         app: &TypedExpr,
+        concrete_slot: Option<RewrittenApplySlotEvidence>,
     ) -> core_ir::Expr {
         let ExprKind::App {
             arg,
@@ -1035,7 +1041,7 @@ impl<'a> ExprExporter<'a> {
         core_ir::Expr::Apply {
             callee: Box::new(callee_expr),
             arg: Box::new(self.export_expr(arg)),
-            evidence: Some(self.export_apply_evidence(
+            evidence: Some(self.rewritten_apply_evidence(
                 callee,
                 arg,
                 app,
@@ -1043,9 +1049,36 @@ impl<'a> ExprExporter<'a> {
                 *expected_callee_tv,
                 *arg_edge_id,
                 *expected_arg_tv,
-                false,
+                concrete_slot,
             )),
         }
+    }
+
+    fn rewritten_apply_evidence(
+        &self,
+        callee: &TypedExpr,
+        arg: &TypedExpr,
+        app: &TypedExpr,
+        callee_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
+        expected_callee_tv: TypeVar,
+        arg_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
+        expected_arg_tv: TypeVar,
+        concrete_slot: Option<RewrittenApplySlotEvidence>,
+    ) -> core_ir::ApplyEvidence {
+        let mut evidence = self.export_apply_evidence(
+            callee,
+            arg,
+            app,
+            callee_source_edge,
+            expected_callee_tv,
+            arg_source_edge,
+            expected_arg_tv,
+            false,
+        );
+        if let Some(slot) = concrete_slot {
+            apply_rewritten_slot_evidence(&mut evidence, slot);
+        }
+        evidence
     }
 
     fn concrete_role_method_application_def(
@@ -1065,6 +1098,19 @@ impl<'a> ExprExporter<'a> {
         self.state
             .infer
             .resolve_concrete_role_method_call_def(&info, Some(recv.tv), &[])
+    }
+
+    fn principal_scheme_for_def(&self, def: DefId) -> Option<core_ir::Scheme> {
+        self.state
+            .runtime_export_schemes
+            .get(&def)
+            .cloned()
+            .or_else(|| {
+                self.state.compact_scheme_of(def).map(|scheme| {
+                    let constraints = self.state.infer.compact_role_constraints_of(def);
+                    export_scheme(&self.state.infer, &scheme, &constraints)
+                })
+            })
     }
 
     fn is_role_method_callee(&self, expr: &TypedExpr) -> bool {
@@ -1153,6 +1199,36 @@ fn source_only_apply_evidence(
         role_method: false,
         principal_elaboration: None,
     }
+}
+
+#[derive(Debug, Clone)]
+struct RewrittenApplySlotEvidence {
+    expected_callee: core_ir::Type,
+    expected_arg: core_ir::Type,
+}
+
+fn take_rewritten_apply_slot_evidence(
+    callee: &mut core_ir::Type,
+) -> Option<RewrittenApplySlotEvidence> {
+    let core_ir::Type::Fun { param, ret, .. } = callee.clone() else {
+        return None;
+    };
+    let expected_callee = callee.clone();
+    let expected_arg = *param;
+    let result = *ret;
+    *callee = result.clone();
+    Some(RewrittenApplySlotEvidence {
+        expected_callee,
+        expected_arg,
+    })
+}
+
+fn apply_rewritten_slot_evidence(
+    evidence: &mut core_ir::ApplyEvidence,
+    slot: RewrittenApplySlotEvidence,
+) {
+    evidence.expected_callee = Some(core_ir::TypeBounds::exact(slot.expected_callee));
+    evidence.expected_arg = Some(core_ir::TypeBounds::exact(slot.expected_arg));
 }
 
 fn build_principal_elaboration_plan(
