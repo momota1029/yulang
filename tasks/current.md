@@ -70,6 +70,10 @@ Current implementation status:
   that path and leaves runtime inference helpers as fallback. In `07_junction`
   this path is not yet hit, which means exported complete plans still do not
   cover the reachable direct generic targets.
+- Curried apply evidence now propagates the original principal target through
+  nested callee apps, reducing false `MissingTarget` incomplete plans. In
+  `07_junction`, complete plan count rose, but the strict blockers remain real
+  missing substitutions for `sub`, `junction`, `fold_impl`, and `view_raw`.
 
 Strict mode should fail with explicit incomplete plan reasons instead of silent
 fallback. A useful first strict result is a small list like:

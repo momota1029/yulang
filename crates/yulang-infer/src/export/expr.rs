@@ -503,6 +503,7 @@ impl<'a> ExprExporter<'a> {
                 .refs
                 .get(*ref_id)
                 .map(|def| self.path_for_def(canonical_runtime_export_def(self.state, def))),
+            ExprKind::App { callee, .. } => self.principal_callee_target(callee),
             _ => None,
         }
     }
