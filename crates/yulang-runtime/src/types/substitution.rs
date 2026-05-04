@@ -279,10 +279,10 @@ fn substitute_principal_elaboration_plan(
         complete: plan.complete,
         incomplete_reasons: plan.incomplete_reasons,
     };
-    normalize_principal_elaboration_plan_after_substitution(plan, substitution_candidates)
+    normalize_principal_elaboration_plan(plan, substitution_candidates)
 }
 
-fn normalize_principal_elaboration_plan_after_substitution(
+pub(crate) fn normalize_principal_elaboration_plan(
     plan: core_ir::PrincipalElaborationPlan,
     substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
 ) -> core_ir::PrincipalElaborationPlan {
@@ -808,10 +808,37 @@ fn project_closed_substitutions_from_type_arg(
                 depth,
             );
         }
+        (core_ir::TypeArg::Type(template), core_ir::TypeArg::Bounds(actual)) => {
+            if let Some(actual) = principal_plan_bounds_single_closed_type(actual, allow_never) {
+                project_closed_substitutions_from_type(
+                    template,
+                    &actual,
+                    params,
+                    substitutions,
+                    conflicts,
+                    allow_never,
+                    depth,
+                );
+            }
+        }
+        (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Type(actual)) => {
+            if let Some(template) = principal_plan_bounds_single_closed_type(template, allow_never)
+            {
+                project_closed_substitutions_from_type(
+                    &template,
+                    actual,
+                    params,
+                    substitutions,
+                    conflicts,
+                    allow_never,
+                    depth,
+                );
+            }
+        }
         (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
             if let (Some(template), Some(actual)) = (
-                principal_plan_bounds_exact_type(Some(template)),
-                principal_plan_bounds_exact_type(Some(actual)),
+                principal_plan_bounds_single_closed_type(template, allow_never),
+                principal_plan_bounds_single_closed_type(actual, allow_never),
             ) {
                 project_closed_substitutions_from_type(
                     &template,
@@ -824,8 +851,19 @@ fn project_closed_substitutions_from_type_arg(
                 );
             }
         }
-        _ => {}
     }
+}
+
+fn principal_plan_bounds_single_closed_type(
+    bounds: &core_ir::TypeBounds,
+    allow_never: bool,
+) -> Option<core_ir::Type> {
+    let choice = match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
+        (Some(lower), Some(upper)) if lower == upper => Some(lower),
+        (Some(ty), None) | (None, Some(ty)) => Some(ty),
+        _ => None,
+    }?;
+    principal_plan_substitution_type_usable(choice, allow_never).then(|| choice.clone())
 }
 
 fn principal_plan_substitution_type_usable(ty: &core_ir::Type, allow_never: bool) -> bool {
@@ -1343,6 +1381,43 @@ mod tests {
             core_ir::Type::Var(tv("t")),
             named("int"),
         ])));
+        let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
+
+        assert!(!normalized.complete);
+        assert!(normalized.incomplete_reasons.contains(
+            &core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
+        ));
+    }
+
+    #[test]
+    fn plan_normalization_closes_child_var_from_single_closed_type_arg_bound() {
+        let plan = list_plan_for_arg(core_ir::Type::Named {
+            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
+            args: vec![core_ir::TypeArg::Bounds(core_ir::TypeBounds::upper(named(
+                "int",
+            )))],
+        });
+        let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
+
+        assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);
+        assert_eq!(
+            normalized.substitutions,
+            vec![core_ir::TypeSubstitution {
+                var: tv("a"),
+                ty: named("int"),
+            }]
+        );
+    }
+
+    #[test]
+    fn plan_normalization_does_not_project_conflicting_type_arg_bounds() {
+        let plan = list_plan_for_arg(core_ir::Type::Named {
+            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
+            args: vec![core_ir::TypeArg::Bounds(core_ir::TypeBounds {
+                lower: Some(Box::new(named("int"))),
+                upper: Some(Box::new(named("bool"))),
+            })],
+        });
         let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
 
         assert!(!normalized.complete);

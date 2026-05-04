@@ -71,6 +71,10 @@ fn collect_principal_elaboration_failures(
                 }
             }
         }
+        for arg in spine.args {
+            collect_principal_elaboration_failures(arg, generic_bindings, failures);
+        }
+        return;
     }
 
     match &expr.kind {
@@ -211,16 +215,22 @@ impl PrincipalElaborationStrictTarget {
 
 struct PrincipalApplySpine<'a> {
     target: &'a core_ir::Path,
+    args: Vec<&'a Expr>,
     plans: Vec<&'a core_ir::PrincipalElaborationPlan>,
 }
 
 fn principal_apply_spine(expr: &Expr) -> Option<PrincipalApplySpine<'_>> {
     let mut current = expr;
+    let mut args = Vec::new();
     let mut plans = Vec::new();
     while let ExprKind::Apply {
-        callee, evidence, ..
+        callee,
+        arg,
+        evidence,
+        ..
     } = &current.kind
     {
+        args.push(arg.as_ref());
         if let Some(plan) = evidence
             .as_ref()
             .and_then(|evidence| evidence.principal_elaboration.as_ref())
@@ -232,7 +242,12 @@ fn principal_apply_spine(expr: &Expr) -> Option<PrincipalApplySpine<'_>> {
     let ExprKind::Var(target) = &current.kind else {
         return None;
     };
-    Some(PrincipalApplySpine { target, plans })
+    args.reverse();
+    Some(PrincipalApplySpine {
+        target,
+        args,
+        plans,
+    })
 }
 
 fn principal_binding_substitution_vars(binding: &Binding) -> BTreeSet<core_ir::TypeVar> {

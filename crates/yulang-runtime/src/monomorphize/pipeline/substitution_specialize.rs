@@ -1,6 +1,7 @@
 use super::*;
 use crate::types::{
-    diagnostic_core_type, needs_runtime_coercion, runtime_core_type, type_compatible,
+    diagnostic_core_type, needs_runtime_coercion, normalize_principal_elaboration_plan,
+    runtime_core_type, type_compatible,
 };
 
 pub(super) fn substitute_specialize_module_profiled(
@@ -468,12 +469,11 @@ impl SubstitutionSpecializer {
         }
         if principal_elaborate_enabled()
             && !role_selected
-            && let Some(plan) =
-                complete_principal_elaboration_plan_for_spine(&spine, &original.name)
+            && let Some(plan) = complete_principal_elaboration_plan_for_spine(&spine, &original)
         {
             self.bump("principal-plan-complete");
             if let Some(rewritten) =
-                self.rewrite_with_principal_elaboration_plan(expr, &spine, &original, plan)
+                self.rewrite_with_principal_elaboration_plan(expr, &spine, &original, &plan)
             {
                 return Some(rewritten);
             }
@@ -885,6 +885,7 @@ fn substitution_specialize_skip_reason_benign(reason: &str) -> bool {
 struct ApplySpine<'a> {
     target: &'a core_ir::Path,
     args: Vec<&'a Expr>,
+    evidences_by_arg: Vec<Option<&'a core_ir::ApplyEvidence>>,
     evidence: Option<&'a core_ir::ApplyEvidence>,
     principal_evidences: Vec<&'a core_ir::ApplyEvidence>,
     instantiation: Option<&'a TypeInstantiation>,
@@ -895,6 +896,7 @@ struct ApplySpine<'a> {
 fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
     let mut current = expr;
     let mut args = Vec::new();
+    let mut evidences_by_arg = Vec::new();
     let mut selected_evidence = None;
     let mut principal_evidences = Vec::new();
     let mut selected_instantiation = None;
@@ -909,6 +911,7 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
     } = &current.kind
     {
         args.push(arg.as_ref());
+        evidences_by_arg.push(evidence.as_ref());
         if evidence.is_some() {
             evidence_count += 1;
         }
@@ -931,9 +934,11 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
         return None;
     };
     args.reverse();
+    evidences_by_arg.reverse();
     Some(ApplySpine {
         target,
         args,
+        evidences_by_arg,
         evidence: selected_evidence,
         principal_evidences,
         instantiation: selected_instantiation,
@@ -1416,19 +1421,114 @@ fn principal_elaborate_enabled() -> bool {
     std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some()
 }
 
-fn complete_principal_elaboration_plan_for_spine<'a>(
-    spine: &'a ApplySpine<'_>,
-    target: &core_ir::Path,
-) -> Option<&'a core_ir::PrincipalElaborationPlan> {
-    spine.principal_evidences.iter().find_map(|evidence| {
+fn complete_principal_elaboration_plan_for_spine(
+    spine: &ApplySpine<'_>,
+    binding: &Binding,
+) -> Option<core_ir::PrincipalElaborationPlan> {
+    if let Some(plan) = spine.principal_evidences.iter().find_map(|evidence| {
         let plan = evidence.principal_elaboration.as_ref()?;
         (plan.complete
             && plan
                 .target
                 .as_ref()
-                .is_none_or(|plan_target| plan_target == target))
-        .then_some(plan)
-    })
+                .is_none_or(|plan_target| plan_target == &binding.name))
+        .then_some(plan.clone())
+    }) {
+        return Some(plan);
+    }
+    complete_principal_elaboration_plan_from_exported_spine(spine, binding)
+        .filter(|plan| plan.complete)
+}
+
+fn complete_principal_elaboration_plan_from_exported_spine(
+    spine: &ApplySpine<'_>,
+    binding: &Binding,
+) -> Option<core_ir::PrincipalElaborationPlan> {
+    let (params, ret) = core_fun_spine(&binding.scheme.body, spine.args.len())?;
+    let mut substitutions = Vec::new();
+    let mut candidates = Vec::new();
+    let mut args = Vec::new();
+    for (index, evidence) in spine.evidences_by_arg.iter().enumerate() {
+        let Some(evidence) = evidence else {
+            args.push(core_ir::PrincipalElaborationArg {
+                index,
+                intrinsic: core_ir::TypeBounds::default(),
+                contextual: None,
+                expected_runtime: None,
+                source_edge: None,
+            });
+            continue;
+        };
+        substitutions.extend(evidence.substitutions.clone());
+        candidates.extend(evidence.substitution_candidates.clone());
+        args.push(core_ir::PrincipalElaborationArg {
+            index,
+            intrinsic: evidence.arg.clone(),
+            contextual: evidence
+                .expected_arg
+                .clone()
+                .or_else(|| params.get(index).cloned().map(core_ir::TypeBounds::exact)),
+            expected_runtime: None,
+            source_edge: evidence.arg_source_edge,
+        });
+    }
+    let result = spine
+        .evidences_by_arg
+        .last()
+        .and_then(|evidence| evidence.map(|evidence| evidence.result.clone()))
+        .unwrap_or_default();
+    let plan = core_ir::PrincipalElaborationPlan {
+        target: Some(binding.name.clone()),
+        principal_callee: binding.scheme.body.clone(),
+        substitutions,
+        args,
+        result: core_ir::PrincipalElaborationResult {
+            intrinsic: result,
+            contextual: Some(core_ir::TypeBounds::exact(ret)),
+            expected_runtime: None,
+        },
+        adapters: Vec::new(),
+        complete: false,
+        incomplete_reasons: Vec::new(),
+    };
+    let plan = normalize_principal_elaboration_plan(plan, &candidates);
+    debug_principal_elaboration_plan_from_spine(spine.target, &plan, &candidates);
+    Some(plan)
+}
+
+fn debug_principal_elaboration_plan_from_spine(
+    target: &core_ir::Path,
+    plan: &core_ir::PrincipalElaborationPlan,
+    candidates: &[core_ir::PrincipalSubstitutionCandidate],
+) {
+    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_ELABORATE").is_none() {
+        return;
+    }
+    if plan.complete {
+        eprintln!(
+            "principal elaborate spine-plan complete {} substitutions={:?}",
+            canonical_path(target),
+            plan.substitutions
+        );
+    } else {
+        eprintln!(
+            "principal elaborate spine-plan incomplete {} reasons={:?} substitutions={:?} candidates={}",
+            canonical_path(target),
+            plan.incomplete_reasons,
+            plan.substitutions,
+            candidates.len()
+        );
+        for arg in &plan.args {
+            eprintln!(
+                "  arg{} intrinsic={:?} contextual={:?}",
+                arg.index, arg.intrinsic, arg.contextual
+            );
+        }
+        eprintln!(
+            "  result intrinsic={:?} contextual={:?}",
+            plan.result.intrinsic, plan.result.contextual
+        );
+    }
 }
 
 fn substitutions_from_spine_evidence(

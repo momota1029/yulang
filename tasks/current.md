@@ -531,3 +531,59 @@ Next direct-elaboration target:
 - close or reclassify the `std::list::fold_impl` plan first;
 - only then expect nested helpers such as `std::list::view_raw` to complete by
   clone-time normalization.
+
+## Current Slice: Full-Spine Principal Plan Observation
+
+Strict principal elaboration should report full call-site blockers, not every
+curried prefix. The strict checker now records a generic apply spine once, then
+recurses into the actual arguments only.
+
+Current `07_junction` strict blockers are:
+
+```text
+std::flow::sub::sub:
+  MissingSubstitution(t3614/t3637/t3641), OpenArgType(0), OpenResultType
+std::junction::junction::junction:
+  MissingSubstitution(t4871)
+std::list::fold_impl:
+  MissingSubstitution(t1879/t1894/t1924), OpenResultType
+std::list::view_raw:
+  MissingSubstitution(a)
+```
+
+`SubstitutionSpecialize` also has a temporary exported-spine plan builder. It
+constructs a plan from the target principal function spine plus each apply
+node's existing `ApplyEvidence`. The plan is executed only if normalization
+makes it complete; otherwise it is debug output under
+`YULANG_DEBUG_PRINCIPAL_ELABORATE=1`.
+
+This is still within the direct elaboration line because it uses exported
+evidence and binding schemes, not runtime-refined expression types.
+
+## Current Slice: Single Closed TypeArg Bounds
+
+Clone-time plan normalization now treats a single closed concrete
+`TypeArg::Bounds` side as a structural projection source:
+
+```text
+list[a] against list[upper=int] => a := int
+```
+
+This is not an open-candidate graph solver. It remains limited to
+constructor-preserving projection and still rejects conflicting bounds, `Any`,
+open `Var`, value-position `Never`, and union/intersection propagation.
+
+Effect on `07_junction`:
+
+- normal principal elaboration still runs and prints `[0] 1`;
+- strict mode still fails on the same targets;
+- the concrete-list `std::list::fold_impl` debug plan can now derive
+  `t1924 := int`;
+- `fold_impl` still lacks `t1879/t1894`, so nested `view_raw` still receives
+  `list[upper=t1924]` rather than `list[upper=int]`.
+
+Next direct-elaboration target remains `std::list::fold_impl`, specifically the
+accumulator/effect variables `t1879/t1894`. Do not solve those via open
+candidate graph propagation; either get closed evidence from the full apply
+spine / role method plan, or reclassify the blocker as missing adapter or
+handler evidence.
