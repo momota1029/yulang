@@ -93,6 +93,7 @@ impl PrincipalUnifier {
             })
             .collect();
         module.bindings.extend(std::mem::take(&mut self.emitted));
+        add_single_specialization_aliases(&mut module, &self.root_specializations);
         module.roots = module
             .roots
             .into_iter()
@@ -256,6 +257,11 @@ impl PrincipalUnifier {
                         .or(evidence_arg_context),
                 };
                 let arg = self.rewrite_expr(*arg, arg_context);
+                let instantiation = instantiation.and_then(|instantiation| {
+                    self.single_local_emitted_specialization(&instantiation.target)
+                        .is_none()
+                        .then_some(instantiation)
+                });
                 let expr = Expr {
                     ty,
                     kind: ExprKind::Apply {
@@ -464,6 +470,9 @@ impl PrincipalUnifier {
                 expr: Box::new(self.rewrite_expr(*expr, None)),
             },
             ExprKind::Var(path) => {
+                if let Some((specialized, ty)) = self.single_local_emitted_specialization(&path) {
+                    return Expr::typed(ExprKind::Var(specialized), ty);
+                }
                 if let Some(rewritten) =
                     self.rewrite_nullary_generic_from_context(&path, result_context.as_ref())
                 {
@@ -490,6 +499,12 @@ impl PrincipalUnifier {
             }
             Stmt::Expr(expr) => Stmt::Expr(self.rewrite_expr(expr, None)),
             Stmt::Module { def, body } => {
+                if let Some((specialized, ty)) = self.single_local_emitted_specialization(&def) {
+                    return Stmt::Module {
+                        def,
+                        body: Expr::typed(ExprKind::Var(specialized), ty),
+                    };
+                }
                 let body_context = self
                     .monomorphic_binding_type(&def)
                     .map(|ty| core_ir::TypeBounds::exact(runtime_core_type(&ty)));
@@ -1128,7 +1143,7 @@ impl PrincipalUnifier {
         binding.body = refresh_local_expr_types(binding.body);
         self.active_specializations
             .push(ActivePrincipalSpecialization {
-                target: original_name,
+                target: original_name.clone(),
                 substitutions: substitutions.clone(),
                 path: path.clone(),
                 handler_plan: active_handler_plan,
@@ -1199,6 +1214,30 @@ impl PrincipalUnifier {
             return None;
         }
         Some(RuntimeType::core(binding.scheme.body.clone()))
+    }
+
+    fn single_emitted_specialization(
+        &self,
+        path: &core_ir::Path,
+    ) -> Option<(core_ir::Path, RuntimeType)> {
+        let specializations = self.root_specializations.get(path)?;
+        let [specialized] = specializations.as_slice() else {
+            return None;
+        };
+        let binding = self
+            .emitted
+            .iter()
+            .find(|binding| &binding.name == specialized)?;
+        Some((specialized.clone(), binding.body.ty.clone()))
+    }
+
+    fn single_local_emitted_specialization(
+        &self,
+        path: &core_ir::Path,
+    ) -> Option<(core_ir::Path, RuntimeType)> {
+        (path.segments.len() == 1)
+            .then(|| self.single_emitted_specialization(path))
+            .flatten()
     }
 
     fn rewrite_nullary_generic_from_context(
@@ -1328,6 +1367,48 @@ fn is_local_ref_run_path(path: &core_ir::Path) -> bool {
         return false;
     };
     name.0 == "run" && namespace.0.starts_with('&')
+}
+
+fn add_single_specialization_aliases(
+    module: &mut Module,
+    root_specializations: &HashMap<core_ir::Path, Vec<core_ir::Path>>,
+) {
+    let binding_types_by_path = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding.body.ty.clone()))
+        .collect::<HashMap<_, _>>();
+    let mut aliases = Vec::new();
+    for (original, specializations) in root_specializations {
+        if original.segments.len() != 1 {
+            continue;
+        }
+        let [specialized] = specializations.as_slice() else {
+            continue;
+        };
+        let Some(ty) = binding_types_by_path.get(specialized).cloned() else {
+            continue;
+        };
+        let alias = Binding {
+            name: original.clone(),
+            type_params: Vec::new(),
+            scheme: core_ir::Scheme {
+                requirements: Vec::new(),
+                body: runtime_core_type(&ty),
+            },
+            body: Expr::typed(ExprKind::Var(specialized.clone()), ty),
+        };
+        if let Some(existing) = module
+            .bindings
+            .iter_mut()
+            .find(|binding| &binding.name == original)
+        {
+            *existing = alias;
+        } else {
+            aliases.push(alias);
+        }
+    }
+    module.bindings.extend(aliases);
 }
 
 fn pattern_value_context(pattern: &Pattern) -> Option<core_ir::TypeBounds> {
