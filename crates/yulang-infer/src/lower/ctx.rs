@@ -375,15 +375,11 @@ impl LowerCtx {
     /// 単純名を値名前空間で解決する。
     /// 優先順: ローカル（インナー優先）→ 現在モジュール → use インポート順
     pub fn resolve_value(&self, name: &Name) -> Option<DefId> {
-        self.resolve_value_candidates_from(self.current_module, name)
-            .into_iter()
-            .next()
+        self.resolve_value_from(self.current_module, name)
     }
 
     pub fn resolve_operator_value(&self, name: &Name, fixity: OperatorFixity) -> Option<DefId> {
-        self.resolve_operator_value_candidates_from(self.current_module, name, fixity)
-            .into_iter()
-            .next()
+        self.resolve_operator_value_from(self.current_module, name, fixity)
     }
 
     pub fn resolve_value_candidates(&self, name: &Name) -> Vec<DefId> {
@@ -446,9 +442,31 @@ impl LowerCtx {
     }
 
     pub fn resolve_value_from(&self, module: ModuleId, name: &Name) -> Option<DefId> {
-        self.resolve_value_candidates_from(module, name)
-            .into_iter()
-            .next()
+        for frame in self.locals.iter().rev() {
+            if let Some(&def) = frame.get(name) {
+                return Some(def);
+            }
+        }
+
+        let mut current = Some(module);
+        while let Some(mid) = current {
+            if let Some(&def) = self.modules.node(mid).values.get(name) {
+                if is_accessible_from(module, mid, self.modules.value_visibility(mid, name)) {
+                    return Some(def);
+                }
+            }
+            current = self.modules.node(mid).parent;
+        }
+
+        for &mid in &self.use_search {
+            if let Some(&def) = self.modules.node(mid).values.get(name) {
+                if is_accessible_from(module, mid, self.modules.value_visibility(mid, name)) {
+                    return Some(def);
+                }
+            }
+        }
+
+        None
     }
 
     pub fn resolve_operator_value_from(
@@ -457,9 +475,42 @@ impl LowerCtx {
         name: &Name,
         fixity: OperatorFixity,
     ) -> Option<DefId> {
-        self.resolve_operator_value_candidates_from(module, name, fixity)
-            .into_iter()
-            .next()
+        for frame in self.locals.iter().rev() {
+            if let Some(&def) = frame.get(name)
+                && self.operator_fixity(def) == Some(fixity)
+            {
+                return Some(def);
+            }
+        }
+
+        let key = (name.clone(), fixity);
+        let mut current = Some(module);
+        while let Some(mid) = current {
+            if let Some(&def) = self.modules.node(mid).operator_values.get(&key) {
+                if is_accessible_from(
+                    module,
+                    mid,
+                    self.modules.operator_visibility(mid, name, fixity),
+                ) {
+                    return Some(def);
+                }
+            }
+            current = self.modules.node(mid).parent;
+        }
+
+        for &mid in &self.use_search {
+            if let Some(&def) = self.modules.node(mid).operator_values.get(&key) {
+                if is_accessible_from(
+                    module,
+                    mid,
+                    self.modules.operator_visibility(mid, name, fixity),
+                ) {
+                    return Some(def);
+                }
+            }
+        }
+
+        None
     }
 
     pub fn resolve_value_candidates_from(&self, module: ModuleId, name: &Name) -> Vec<DefId> {
@@ -546,15 +597,29 @@ impl LowerCtx {
     /// 単純名を型名前空間で解決する。
     /// ローカルスコープは値専用なので、モジュール → use の順。
     pub fn resolve_type(&self, name: &Name) -> Option<DefId> {
-        self.resolve_type_candidates_from(self.current_module, name)
-            .into_iter()
-            .next()
+        self.resolve_type_from(self.current_module, name)
     }
 
     pub fn resolve_type_from(&self, module: ModuleId, name: &Name) -> Option<DefId> {
-        self.resolve_type_candidates_from(module, name)
-            .into_iter()
-            .next()
+        let mut current = Some(module);
+        while let Some(mid) = current {
+            if let Some(&def) = self.modules.node(mid).types.get(name) {
+                if is_accessible_from(module, mid, self.modules.type_visibility(mid, name)) {
+                    return Some(def);
+                }
+            }
+            current = self.modules.node(mid).parent;
+        }
+
+        for &mid in &self.use_search {
+            if let Some(&def) = self.modules.node(mid).types.get(name) {
+                if is_accessible_from(module, mid, self.modules.type_visibility(mid, name)) {
+                    return Some(def);
+                }
+            }
+        }
+
+        None
     }
 
     pub fn resolve_type_candidates(&self, name: &Name) -> Vec<DefId> {
@@ -584,15 +649,27 @@ impl LowerCtx {
     /// 最初のセグメントはモジュール名前空間で引く。
     /// `a` はローカルが勝たず常にモジュールとして探す。
     pub fn resolve_path_value(&self, path: &Path) -> Option<DefId> {
-        self.resolve_path_value_candidates_from(self.current_module, path)
-            .into_iter()
-            .next()
+        self.resolve_path_value_from(self.current_module, path)
     }
 
     pub fn resolve_path_value_from(&self, module: ModuleId, path: &Path) -> Option<DefId> {
-        self.resolve_path_value_candidates_from(module, path)
-            .into_iter()
-            .next()
+        let Some((last, module_segs)) = path.segments.split_last() else {
+            return None;
+        };
+        if module_segs.is_empty() {
+            return self.resolve_value_from(module, last);
+        }
+        let module_path = Path {
+            segments: module_segs.to_vec(),
+        };
+        for mid in self.resolve_module_path_candidates_from(module, &module_path) {
+            if let Some(&def) = self.modules.node(mid).values.get(last) {
+                if is_accessible_from(module, mid, self.modules.value_visibility(mid, last)) {
+                    return Some(def);
+                }
+            }
+        }
+        None
     }
 
     pub fn resolve_path_value_candidates(&self, path: &Path) -> Vec<DefId> {
