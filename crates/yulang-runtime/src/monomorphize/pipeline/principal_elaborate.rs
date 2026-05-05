@@ -50,9 +50,6 @@ pub(super) fn principal_elaborate_strict_failure(module: &Module) -> Option<Stri
         collect_principal_elaboration_failures(expr, None, &generic_bindings, &mut failures);
     }
     for binding in &module.bindings {
-        if !binding.type_params.is_empty() {
-            continue;
-        }
         collect_principal_elaboration_failures(
             &binding.body,
             None,
