@@ -18,11 +18,19 @@ struct PrincipalUnifier {
     specializations: HashMap<String, core_ir::Path>,
     root_specializations: HashMap<core_ir::Path, Vec<core_ir::Path>>,
     emitted: Vec<Binding>,
-    active_specializations: Vec<(core_ir::Path, BTreeMap<core_ir::TypeVar, core_ir::Type>)>,
+    active_specializations: Vec<ActivePrincipalSpecialization>,
     next_index: usize,
     stats: HashMap<&'static str, usize>,
     target_skips: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
     target_missing_vars: HashMap<core_ir::Path, HashMap<core_ir::TypeVar, usize>>,
+}
+
+#[derive(Debug, Clone)]
+struct ActivePrincipalSpecialization {
+    target: core_ir::Path,
+    substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    path: core_ir::Path,
+    handler_plan: Option<HandlerAdapterPlan>,
 }
 
 impl PrincipalUnifier {
@@ -525,7 +533,7 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "skip-non-generic-callee");
             return None;
         };
-        if let Some(active) = self.active_substitutions_for(spine.target).cloned()
+        if let Some(active) = self.active_specialization_for(spine.target).cloned()
             && let Some(expr) =
                 self.rewrite_active_recursive_call(original.clone(), active, &spine, &expr.ty)
         {
@@ -536,9 +544,9 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "missing-principal-elaboration-plan");
             return None;
         };
-        if let Some(active) = self.active_substitutions_for(spine.target).cloned() {
-            debug_principal_unify_active(spine.target, &active);
-            merge_plan_substitutions(&mut plan, active);
+        if let Some(active) = self.active_specialization_for(spine.target).cloned() {
+            debug_principal_unify_active(spine.target, &active.substitutions);
+            merge_plan_substitutions(&mut plan, active.substitutions);
             plan = normalize_principal_elaboration_plan(plan, &[]);
         }
         let binding_required_vars = binding_required_vars(&original);
@@ -643,11 +651,16 @@ impl PrincipalUnifier {
             self.intern_specialization(original, binding_substitutions, handler_adapter_plan)?;
         self.bump("principal-unify-rewrite");
         debug_principal_unify_rewrite(spine.target, &path);
-        Some(rebuild_apply_call(
+        let final_arg_effect = handler_plan
+            .as_ref()
+            .and_then(|(_, plan)| plan.residual_before.as_ref())
+            .filter(|effect| !effect_is_empty(effect));
+        Some(rebuild_apply_call_with_final_arg_effect(
             path,
             call_callee_ty,
             &spine.args,
             &final_context_ty,
+            final_arg_effect,
         )?)
     }
 
@@ -790,11 +803,19 @@ impl PrincipalUnifier {
     fn rewrite_active_recursive_call(
         &mut self,
         original: Binding,
-        substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
+        active: ActivePrincipalSpecialization,
         spine: &PrincipalUnifyApplySpine<'_>,
         final_ty: &RuntimeType,
     ) -> Option<Expr> {
-        let callee_ty = substitute_type(&original.scheme.body, &substitutions);
+        let substitutions = active.substitutions;
+        let callee_ty = if let Some(plan) = active.handler_plan.as_ref() {
+            let substituted = substitute_binding(original.clone(), &substitutions);
+            apply_handler_adapter_plan_to_binding(substituted, plan)
+                .scheme
+                .body
+        } else {
+            substitute_type(&original.scheme.body, &substitutions)
+        };
         let Some((params, _ret, _ret_effect)) =
             core_fun_spine_parts_exact(&callee_ty, spine.args.len())
         else {
@@ -803,10 +824,9 @@ impl PrincipalUnifier {
         if !args_fit_without_adapter(&spine.args, &params) {
             return None;
         }
-        let path = self.intern_specialization(original, substitutions, None)?;
         self.bump("principal-unify-recursive-rewrite");
-        debug_principal_unify_rewrite(spine.target, &path);
-        rebuild_apply_call(path, callee_ty, &spine.args, final_ty)
+        debug_principal_unify_rewrite(spine.target, &active.path);
+        rebuild_apply_call(active.path, callee_ty, &spine.args, final_ty)
     }
 
     fn rewrite_non_generic_effect_context_call(
@@ -1062,6 +1082,7 @@ impl PrincipalUnifier {
         debug_principal_unify_emit(&original.name, &path, &substitutions);
         let original_name = original.name.clone();
         let mut binding = substitute_binding(original, &substitutions);
+        let active_handler_plan = handler_plan.clone();
         if let Some(plan) = handler_plan {
             binding = apply_handler_adapter_plan_to_binding(binding, &plan);
         } else if let Some(info) = handler_binding_info(&binding)
@@ -1080,8 +1101,12 @@ impl PrincipalUnifier {
         binding.name = path.clone();
         binding.type_params.clear();
         binding.body = refresh_local_expr_types(binding.body);
-        self.active_specializations
-            .push((original_name, substitutions.clone()));
+        self.active_specializations.push(ActivePrincipalSpecialization {
+            target: original_name,
+            substitutions: substitutions.clone(),
+            path: path.clone(),
+            handler_plan: active_handler_plan,
+        });
         binding.body = self.rewrite_expr(binding.body, None);
         self.active_specializations.pop();
         binding.body = refresh_local_expr_types(binding.body);
@@ -1132,16 +1157,14 @@ impl PrincipalUnifier {
         Some(path)
     }
 
-    fn active_substitutions_for(
+    fn active_specialization_for(
         &self,
         target: &core_ir::Path,
-    ) -> Option<&BTreeMap<core_ir::TypeVar, core_ir::Type>> {
+    ) -> Option<&ActivePrincipalSpecialization> {
         self.active_specializations
             .iter()
             .rev()
-            .find_map(|(active_target, substitutions)| {
-                (active_target == target).then_some(substitutions)
-            })
+            .find(|active| &active.target == target)
     }
 
     fn monomorphic_binding_type(&self, path: &core_ir::Path) -> Option<RuntimeType> {
@@ -1488,11 +1511,24 @@ fn rebuild_apply_call(
     args: &[&Expr],
     final_ty: &RuntimeType,
 ) -> Option<Expr> {
+    rebuild_apply_call_with_final_arg_effect(path, callee_ty, args, final_ty, None)
+}
+
+fn rebuild_apply_call_with_final_arg_effect(
+    path: core_ir::Path,
+    callee_ty: core_ir::Type,
+    args: &[&Expr],
+    final_ty: &RuntimeType,
+    final_arg_effect: Option<&core_ir::Type>,
+) -> Option<Expr> {
     let mut call = Expr::typed(ExprKind::Var(path), RuntimeType::core(callee_ty.clone()));
     let mut current = callee_ty;
     for (index, arg) in args.iter().enumerate() {
         let (param, param_effect, next, ret_effect) = core_fun_parts_with_effects_exact(&current)?;
-        let arg = principal_arg_adapter(arg, &param, &param_effect)?;
+        let param_effect = final_arg_effect
+            .filter(|_| index + 1 == args.len() && matches!(arg.ty, RuntimeType::Thunk { .. }))
+            .unwrap_or(&param_effect);
+        let arg = principal_arg_adapter(arg, &param, param_effect)?;
         let specialized_ret = runtime_type_from_core_value_and_effect(next.clone(), ret_effect);
         let ty = if index + 1 == args.len() {
             closed_rebuilt_apply_type(final_ty, &specialized_ret)
@@ -1794,8 +1830,27 @@ fn principal_arg_adapter(
                 value.as_ref().clone(),
             ))
         }
-        (RuntimeType::Thunk { .. }, false) if expr_materializes_runtime_thunk(arg) => {
-            Some(arg.clone())
+        (
+            RuntimeType::Thunk {
+                effect: actual_effect,
+                value,
+            },
+            false,
+        ) if expr_materializes_runtime_thunk(arg) => {
+            if actual_effect == param_effect {
+                return Some(arg.clone());
+            }
+            match &arg.kind {
+                ExprKind::Thunk { expr, .. } => Some(Expr::typed(
+                    ExprKind::Thunk {
+                        effect: param_effect.clone(),
+                        value: value.as_ref().clone(),
+                        expr: expr.clone(),
+                    },
+                    RuntimeType::thunk(param_effect.clone(), value.as_ref().clone()),
+                )),
+                _ => Some(arg.clone()),
+            }
         }
         (RuntimeType::Thunk { effect, value }, false) => Some(Expr::typed(
             ExprKind::Thunk {
@@ -2242,7 +2297,7 @@ fn adapt_apply_argument_from_callee(expr: Expr) -> Expr {
     else {
         return Expr::typed(kind, ty);
     };
-    let Some((param, param_effect)) = runtime_function_param_slot(&callee.ty)
+    let Some((param, mut param_effect)) = runtime_function_param_slot(&callee.ty)
         .or_else(|| forced_callee_function_param_slot(&callee))
     else {
         if let Some(arg) = force_thunk_arg_after_forced_callee(&callee, &arg) {
@@ -2266,6 +2321,11 @@ fn adapt_apply_argument_from_callee(expr: Expr) -> Expr {
             ty,
         );
     };
+    if let Some(effect) = partial_local_ref_run_effect(&callee)
+        && !matches!(arg.ty, RuntimeType::Core(_))
+    {
+        param_effect = effect;
+    }
     let Some(arg) = principal_arg_adapter(&arg, &param, &param_effect) else {
         return Expr::typed(
             ExprKind::Apply {
@@ -2286,6 +2346,32 @@ fn adapt_apply_argument_from_callee(expr: Expr) -> Expr {
         },
         ty,
     )
+}
+
+fn partial_local_ref_run_effect(callee: &Expr) -> Option<core_ir::Type> {
+    let ExprKind::Apply { callee, .. } = &callee.kind else {
+        return None;
+    };
+    let target = apply_head_path(callee)?;
+    let [namespace, name] = target.segments.as_slice() else {
+        return None;
+    };
+    (name.0.starts_with("run") && namespace.0.starts_with('&')).then(|| core_ir::Type::Named {
+        path: core_ir::Path {
+            segments: vec![namespace.clone()],
+        },
+        args: Vec::new(),
+    })
+}
+
+fn apply_head_path(expr: &Expr) -> Option<&core_ir::Path> {
+    match &expr.kind {
+        ExprKind::Var(path) | ExprKind::EffectOp(path) => Some(path),
+        ExprKind::Apply { callee, .. } | ExprKind::BindHere { expr: callee } => {
+            apply_head_path(callee)
+        }
+        _ => None,
+    }
 }
 
 fn adapt_apply_result_from_evidence(

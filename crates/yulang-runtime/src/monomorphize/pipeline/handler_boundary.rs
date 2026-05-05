@@ -343,9 +343,14 @@ fn apply_handler_adapter_plan_to_expr(
             param_function_allowed_effects,
             body,
         } => {
-            let body = rewrite_first_handle(*body, plan);
-            let body = wrap_first_handler_returns(body, plan, next_effect_id);
-            let ty = update_lambda_runtime_type(ty, &body.ty);
+            let body = if matches!(body.kind, ExprKind::Lambda { .. }) {
+                apply_handler_adapter_plan_to_expr(*body, plan, next_effect_id)
+            } else {
+                let body = rewrite_first_handle(*body, plan);
+                wrap_first_handler_returns(body, plan, next_effect_id)
+            };
+            let body_is_handler_boundary = expr_contains_handle_before_lambda(&body);
+            let ty = update_lambda_runtime_type(ty, &body.ty, body_is_handler_boundary, plan);
             Expr::typed(
                 ExprKind::Lambda {
                     param,
@@ -364,10 +369,108 @@ fn apply_handler_adapter_plan_to_expr(
     }
 }
 
-fn update_lambda_runtime_type(ty: RuntimeType, body_ty: &RuntimeType) -> RuntimeType {
+fn update_lambda_runtime_type(
+    ty: RuntimeType,
+    body_ty: &RuntimeType,
+    body_is_handler_boundary: bool,
+    plan: &HandlerAdapterPlan,
+) -> RuntimeType {
+    match ty {
+        RuntimeType::Fun { param, .. } => {
+            let param = if body_is_handler_boundary {
+                handler_boundary_param_type(*param, plan)
+            } else {
+                *param
+            };
+            RuntimeType::fun(param, body_ty.clone())
+        }
+        other => other,
+    }
+}
+
+fn update_lambda_return_type(ty: RuntimeType, body_ty: &RuntimeType) -> RuntimeType {
     match ty {
         RuntimeType::Fun { param, .. } => RuntimeType::fun(*param, body_ty.clone()),
         other => other,
+    }
+}
+
+fn handler_boundary_param_type(param: RuntimeType, plan: &HandlerAdapterPlan) -> RuntimeType {
+    let Some(effect) = plan
+        .residual_before
+        .clone()
+        .filter(|effect| !effect_is_empty(effect))
+    else {
+        return param;
+    };
+    match param {
+        RuntimeType::Thunk { value, .. } => RuntimeType::thunk(effect, *value),
+        other => other,
+    }
+}
+
+fn expr_contains_handle_before_lambda(expr: &Expr) -> bool {
+    match &expr.kind {
+        ExprKind::Handle { .. } => true,
+        ExprKind::Block {
+            stmts,
+            tail: Some(tail),
+        } => {
+            stmts.iter().any(stmt_contains_handle_before_lambda)
+                || expr_contains_handle_before_lambda(tail)
+        }
+        ExprKind::BindHere { expr }
+        | ExprKind::Thunk { expr, .. }
+        | ExprKind::Coerce { expr, .. }
+        | ExprKind::Pack { expr, .. } => expr_contains_handle_before_lambda(expr),
+        ExprKind::LocalPushId { body, .. } => expr_contains_handle_before_lambda(body),
+        ExprKind::AddId { thunk, .. } => expr_contains_handle_before_lambda(thunk),
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_contains_handle_before_lambda(cond)
+                || expr_contains_handle_before_lambda(then_branch)
+                || expr_contains_handle_before_lambda(else_branch)
+        }
+        ExprKind::Tuple(items) => items.iter().any(expr_contains_handle_before_lambda),
+        ExprKind::Record { fields, spread } => {
+            fields
+                .iter()
+                .any(|field| expr_contains_handle_before_lambda(&field.value))
+                || spread.as_ref().is_some_and(|spread| match spread {
+                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
+                        expr_contains_handle_before_lambda(expr)
+                    }
+                })
+        }
+        ExprKind::Variant { value, .. } => value
+            .as_deref()
+            .is_some_and(expr_contains_handle_before_lambda),
+        ExprKind::Select { base, .. } => expr_contains_handle_before_lambda(base),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            expr_contains_handle_before_lambda(scrutinee)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .is_some_and(expr_contains_handle_before_lambda)
+                        || expr_contains_handle_before_lambda(&arm.body)
+                })
+        }
+        ExprKind::Lambda { .. } => false,
+        _ => false,
+    }
+}
+
+fn stmt_contains_handle_before_lambda(stmt: &Stmt) -> bool {
+    match stmt {
+        Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
+            expr_contains_handle_before_lambda(value)
+        }
     }
 }
 
@@ -510,7 +613,7 @@ fn wrap_first_handle_returns_with_effect(
             body,
         } => {
             let body = wrap_first_handle_returns_with_effect(*body, effect, next_effect_id);
-            let ty = update_lambda_runtime_type(ty, &body.ty);
+            let ty = update_lambda_return_type(ty, &body.ty);
             Expr::typed(
                 ExprKind::Lambda {
                     param,
