@@ -129,37 +129,46 @@ fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<core_ir::Path, Runt
             arms,
             evidence,
             handler,
-        } => ExprKind::Handle {
-            body: Box::new(refresh_expr_local_types(*body, locals)),
-            arms: arms
-                .into_iter()
-                .map(|arm| {
-                    let payload = refresh_pattern_default_local_types(arm.payload, locals);
-                    let saved = locals.clone();
-                    push_pattern_local_types(&payload, locals);
-                    if let Some(resume) = &arm.resume {
-                        locals.insert(
-                            core_ir::Path::from_name(resume.name.clone()),
-                            resume.ty.clone(),
-                        );
-                    }
-                    let guard = arm
-                        .guard
-                        .map(|guard| refresh_expr_local_types(guard, locals));
-                    let body = refresh_expr_local_types(arm.body, locals);
-                    *locals = saved;
-                    HandleArm {
-                        effect: arm.effect,
-                        payload,
-                        resume: arm.resume,
-                        guard,
-                        body,
-                    }
-                })
-                .collect(),
-            evidence,
-            handler,
-        },
+        } => {
+            let body = refresh_expr_local_types(*body, locals);
+            ExprKind::Handle {
+                body: Box::new(body.clone()),
+                arms: arms
+                    .into_iter()
+                    .map(|arm| {
+                        let payload = refresh_pattern_default_local_types(arm.payload, locals);
+                        let payload = handle_arm_payload_context(&body, &arm.effect)
+                            .map(|ty| refresh_pattern_value_local_types(payload.clone(), &ty))
+                            .unwrap_or(payload);
+                        let resume = handle_arm_payload_context(&body, &arm.effect)
+                            .and_then(|ty| refresh_resume_param_type(arm.resume.clone(), &ty))
+                            .or(arm.resume);
+                        let saved = locals.clone();
+                        push_pattern_local_types(&payload, locals);
+                        if let Some(resume) = &resume {
+                            locals.insert(
+                                core_ir::Path::from_name(resume.name.clone()),
+                                resume.ty.clone(),
+                            );
+                        }
+                        let guard = arm
+                            .guard
+                            .map(|guard| refresh_expr_local_types(guard, locals));
+                        let body = refresh_expr_local_types(arm.body, locals);
+                        *locals = saved;
+                        HandleArm {
+                            effect: arm.effect,
+                            payload,
+                            resume,
+                            guard,
+                            body,
+                        }
+                    })
+                    .collect(),
+                evidence,
+                handler,
+            }
+        }
         ExprKind::BindHere { expr } => ExprKind::BindHere {
             expr: Box::new(refresh_expr_local_types(*expr, locals)),
         },
@@ -224,12 +233,16 @@ fn project_expr_runtime_types(expr: Expr) -> Expr {
             arg,
             evidence,
             instantiation,
-        } => ExprKind::Apply {
-            callee: Box::new(project_expr_runtime_types(*callee)),
-            arg: Box::new(project_expr_runtime_types(*arg)),
-            evidence,
-            instantiation,
-        },
+        } => {
+            let callee = project_expr_runtime_types(*callee);
+            let instantiation = retain_apply_instantiation_for_callee(instantiation, &callee);
+            ExprKind::Apply {
+                callee: Box::new(callee),
+                arg: Box::new(project_expr_runtime_types(*arg)),
+                evidence,
+                instantiation,
+            }
+        }
         ExprKind::If {
             cond,
             then_branch,
@@ -370,6 +383,81 @@ fn project_stmt_runtime_types(stmt: Stmt) -> Stmt {
             def,
             body: project_expr_runtime_types(body),
         },
+    }
+}
+
+fn handle_arm_payload_context(body: &Expr, effect: &core_ir::Path) -> Option<RuntimeType> {
+    if !path_ends_with(effect, &["std", "var", "ref_update", "update"]) {
+        return None;
+    }
+    let RuntimeType::Thunk { effect, .. } = &body.ty else {
+        return None;
+    };
+    ref_update_effect_value(effect).map(RuntimeType::core)
+}
+
+fn ref_update_effect_value(effect: &core_ir::Type) -> Option<core_ir::Type> {
+    match effect {
+        core_ir::Type::Named { path, args }
+            if path_ends_with(path, &["std", "var", "ref_update"]) =>
+        {
+            args.iter().find_map(|arg| match arg {
+                core_ir::TypeArg::Type(ty) if !core_type_has_any(ty) && !core_type_has_vars(ty) => {
+                    Some(ty.clone())
+                }
+                _ => None,
+            })
+        }
+        core_ir::Type::Row { items, tail } => items
+            .iter()
+            .find_map(ref_update_effect_value)
+            .or_else(|| ref_update_effect_value(tail)),
+        _ => None,
+    }
+}
+
+fn refresh_resume_param_type(
+    resume: Option<ResumeBinding>,
+    ty: &RuntimeType,
+) -> Option<ResumeBinding> {
+    let mut resume = resume?;
+    let RuntimeType::Fun { ret, .. } = resume.ty else {
+        return Some(resume);
+    };
+    resume.ty = RuntimeType::fun(ty.clone(), *ret);
+    Some(resume)
+}
+
+fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
+    path.segments.len() >= suffix.len()
+        && path
+            .segments
+            .iter()
+            .rev()
+            .zip(suffix.iter().rev())
+            .all(|(segment, expected)| segment.0 == *expected)
+}
+
+fn retain_apply_instantiation_for_callee(
+    instantiation: Option<TypeInstantiation>,
+    callee: &Expr,
+) -> Option<TypeInstantiation> {
+    let instantiation = instantiation?;
+    let Some(path) = apply_head_var_path(callee) else {
+        return Some(instantiation);
+    };
+    (path == &instantiation.target).then_some(instantiation)
+}
+
+fn apply_head_var_path(expr: &Expr) -> Option<&core_ir::Path> {
+    match &expr.kind {
+        ExprKind::Var(path) => Some(path),
+        ExprKind::Apply { callee, .. } => apply_head_var_path(callee),
+        ExprKind::Thunk { expr, .. }
+        | ExprKind::BindHere { expr }
+        | ExprKind::Coerce { expr, .. }
+        | ExprKind::Pack { expr, .. } => apply_head_var_path(expr),
+        _ => None,
     }
 }
 
