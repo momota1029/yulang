@@ -256,10 +256,24 @@ pub fn collect_expected_adapter_edge_evidence(
 pub fn collect_derived_expected_edge_evidence(
     state: &LowerState,
 ) -> Vec<DerivedExpectedEdgeEvidence> {
-    collect_expected_edge_evidence(state)
+    collect_expected_edge_evidence_for_derivation(state)
         .iter()
         .flat_map(derive_expected_edge_evidence)
         .collect()
+}
+
+fn collect_expected_edge_evidence_for_derivation(state: &LowerState) -> Vec<ExpectedEdgeEvidence> {
+    if std::env::var_os("YULANG_COALESCE_EXPECTED_EDGE_EVIDENCE").is_some() {
+        let mut coalesce_cache: HashMap<TypeVar, core_ir::TypeBounds> = HashMap::new();
+        return state
+            .expected_edges
+            .iter()
+            .map(|edge| {
+                complete_expected_edge_evidence_cached(&state.infer, edge, &mut coalesce_cache)
+            })
+            .collect();
+    }
+    collect_fast_expected_edge_evidence(state)
 }
 
 pub fn derive_all_expected_edge_evidence(

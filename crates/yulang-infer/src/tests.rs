@@ -22,6 +22,25 @@ fn parse_and_lower(src: &str) -> LowerState {
     state
 }
 
+fn with_debug_evidence<T>(f: impl FnOnce() -> T) -> T {
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _guard = ENV_LOCK.lock().unwrap();
+    let old = std::env::var_os("YULANG_EXPORT_DEBUG_EVIDENCE");
+    unsafe {
+        std::env::set_var("YULANG_EXPORT_DEBUG_EVIDENCE", "1");
+    }
+    let result = f();
+    match old {
+        Some(value) => unsafe {
+            std::env::set_var("YULANG_EXPORT_DEBUG_EVIDENCE", value);
+        },
+        None => unsafe {
+            std::env::remove_var("YULANG_EXPORT_DEBUG_EVIDENCE");
+        },
+    }
+    result
+}
+
 fn assert_expected_edge_solver_constraint(state: &LowerState, edge: &diagnostic::ExpectedEdge) {
     if edge.kind == diagnostic::ExpectedEdgeKind::RepresentationCoerce {
         return;
@@ -301,7 +320,7 @@ fn application_callee_edge_links_to_apply_evidence() {
         "expected application callee edge"
     );
 
-    let program = export_core_program(&mut state);
+    let program = with_debug_evidence(|| export_core_program(&mut state));
     let evidence_source_edges = apply_evidence_callee_source_edges_in_module(&program.program);
     assert!(
         application_edge_ids
@@ -382,7 +401,7 @@ fn application_argument_edge_links_to_expected_edge_evidence() {
         "expected application argument edge"
     );
 
-    let expected_edge_evidence = collect_expected_edge_evidence(&state);
+    let expected_edge_evidence = with_debug_evidence(|| collect_expected_edge_evidence(&state));
     for edge_id in &application_edge_ids {
         let evidence = expected_edge_evidence
             .iter()
@@ -398,7 +417,7 @@ fn application_argument_edge_links_to_expected_edge_evidence() {
         );
     }
 
-    let program = export_core_program(&mut state);
+    let program = with_debug_evidence(|| export_core_program(&mut state));
     let apply_evidence = apply_evidence_source_expected_args_in_module(&program.program);
     for edge_id in &application_edge_ids {
         let expected_arg = apply_evidence
@@ -426,7 +445,7 @@ fn rewritten_role_method_apply_keeps_slot_evidence() {
         std::env::set_var("YULANG_PRINCIPAL_ELABORATE", "1");
     }
     let mut state = parse_and_lower("1 < 2");
-    let program = export_core_program(&mut state);
+    let program = with_debug_evidence(|| export_core_program(&mut state));
     match old {
         Some(value) => unsafe {
             std::env::set_var("YULANG_PRINCIPAL_ELABORATE", value);
@@ -460,7 +479,7 @@ fn core_program_carries_expected_edge_evidence_table() {
         "expected application argument edge"
     );
 
-    let program = export_core_program(&mut state);
+    let program = with_debug_evidence(|| export_core_program(&mut state));
     for edge_id in &application_edge_ids {
         let edge = program
             .evidence
@@ -480,7 +499,7 @@ fn core_program_carries_expected_edge_evidence_table() {
 #[test]
 fn core_program_carries_derived_expected_edge_evidence_table() {
     let mut state = parse_and_lower("my p: { a: { b: int } } = { a: { b: 1 } }\n");
-    let program = export_core_program(&mut state);
+    let program = with_debug_evidence(|| export_core_program(&mut state));
     assert!(
         program
             .evidence
@@ -515,7 +534,7 @@ fn effect_operation_application_records_adapter_edge() {
         .source_expected_edge
         .expect("adapter should link source expected edge")
         .0;
-    let program = export_core_program(&mut state);
+    let program = with_debug_evidence(|| export_core_program(&mut state));
     let core_adapter = program
         .evidence
         .expected_adapter_edge(adapter_edge_id)
@@ -574,7 +593,7 @@ fn catch_records_handler_adapter_edges() {
     assert!(resume_arg.actual_effect.is_some());
     assert!(resume_arg.expected_effect.is_some());
 
-    let program = export_core_program(&mut state);
+    let program = with_debug_evidence(|| export_core_program(&mut state));
     assert!(
         program
             .evidence
@@ -1062,6 +1081,7 @@ fn concrete_type_bounds(bounds: &yulang_core_ir::TypeBounds) -> bool {
 
 fn concrete_type(ty: &yulang_core_ir::Type) -> bool {
     match ty {
+        yulang_core_ir::Type::Unknown => false,
         yulang_core_ir::Type::Never | yulang_core_ir::Type::Any => true,
         yulang_core_ir::Type::Var(_) => false,
         yulang_core_ir::Type::Named { args, .. } => args.iter().all(concrete_type_arg),
