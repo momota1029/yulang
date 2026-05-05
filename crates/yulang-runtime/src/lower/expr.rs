@@ -29,6 +29,11 @@ pub(super) fn force_core_value_expr_profiled(
     profile: &mut RuntimeAdapterProfile,
 ) -> (Expr, core_ir::Type) {
     let (expr, ty) = force_value_expr_profiled(expr, profile);
-    let ty = core_type(&ty).clone();
+    let ty = runtime_core_type(&ty);
+    let expr = if matches!(expr.ty, RuntimeType::Core(_)) {
+        expr
+    } else {
+        Expr::typed(expr.kind, RuntimeType::core(ty.clone()))
+    };
     (expr, ty)
 }

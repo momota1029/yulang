@@ -44,7 +44,10 @@ impl<'a> RuntimeTypeProjector<'a> {
         match ty {
             core_ir::Type::Never => core_ir::Type::Never,
             core_ir::Type::Any => core_ir::Type::Any,
-            core_ir::Type::Var(var) => core_ir::Type::Var(var.clone()),
+            core_ir::Type::Var(var) if self.allowed_vars.contains(var) => {
+                core_ir::Type::Var(var.clone())
+            }
+            core_ir::Type::Var(_) => runtime_projection_fallback_type(),
             core_ir::Type::Named { path, args } if is_never_path(path) && args.is_empty() => {
                 core_ir::Type::Never
             }
@@ -130,6 +133,10 @@ impl<'a> RuntimeTypeProjector<'a> {
 
     pub(super) fn project_hir(&mut self, ty: &core_ir::Type) -> RuntimeType {
         match ty {
+            core_ir::Type::Var(var) if self.allowed_vars.contains(var) => {
+                RuntimeType::core(core_ir::Type::Var(var.clone()))
+            }
+            core_ir::Type::Var(_) => RuntimeType::unknown(),
             core_ir::Type::Fun {
                 param,
                 param_effect,
@@ -140,6 +147,10 @@ impl<'a> RuntimeTypeProjector<'a> {
                 let ret = self.project_hir_effected_value(ret, ret_effect);
                 RuntimeType::fun(param, ret)
             }
+            core_ir::Type::Union(items) | core_ir::Type::Inter(items) => self
+                .project_hir_choice(items)
+                .unwrap_or_else(RuntimeType::unknown),
+            core_ir::Type::Row { .. } => RuntimeType::unknown(),
             other => RuntimeType::core(self.project(other)),
         }
     }
@@ -310,6 +321,29 @@ impl<'a> RuntimeTypeProjector<'a> {
             best = choose_core_type_candidate(best, projected, TypeChoice::RuntimeValue);
         }
         best
+    }
+
+    pub(super) fn project_hir_choice(&mut self, items: &[core_ir::Type]) -> Option<RuntimeType> {
+        let mut best = None;
+        for item in items {
+            let projected = self.project_hir(item);
+            if runtime_type_is_imprecise_runtime_slot(&projected) {
+                continue;
+            }
+            best = match best {
+                Some(current) => Some(choose_hir_projection_type(current, projected)),
+                None => Some(projected),
+            };
+        }
+        best
+    }
+}
+
+fn choose_hir_projection_type(left: RuntimeType, right: RuntimeType) -> RuntimeType {
+    if hir_type_imprecision_count(&right) < hir_type_imprecision_count(&left) {
+        right
+    } else {
+        left
     }
 }
 

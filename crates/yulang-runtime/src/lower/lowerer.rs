@@ -99,9 +99,7 @@ impl Lowerer<'_> {
                 Ok(Expr::typed(kind, ty))
             }
             core_ir::Expr::PrimitiveOp(op) => {
-                let ty = expected
-                    .cloned()
-                    .unwrap_or_else(|| RuntimeType::core(core_ir::Type::Any));
+                let ty = expected.cloned().unwrap_or_else(RuntimeType::unknown);
                 reject_non_runtime_hir_type(&ty, expected_source)?;
                 Ok(Expr::typed(ExprKind::PrimitiveOp(op), ty))
             }
@@ -567,9 +565,9 @@ impl Lowerer<'_> {
                             TypeMismatchPhase::ApplyArgument,
                         ))
                     })?;
+                let arg_value_core = runtime_core_type(value_hir_type(&arg.ty));
                 if let ExprKind::EffectOp(path) = &callee.kind
-                    && let Some(effect) =
-                        effect_operation_effect(path, core_type(value_hir_type(&arg.ty)))
+                    && let Some(effect) = effect_operation_effect(path, &arg_value_core)
                     && let RuntimeType::Thunk { value, .. } = &final_fun_parts.ret
                 {
                     final_fun_parts.ret = RuntimeType::thunk(effect, value.as_ref().clone());
@@ -577,9 +575,7 @@ impl Lowerer<'_> {
                         erased_fun_type(final_fun_parts.param.clone(), final_fun_parts.ret.clone());
                 }
                 let effect_operation = match &callee.kind {
-                    ExprKind::EffectOp(path) => {
-                        Some((path.clone(), core_type(value_hir_type(&arg.ty)).clone()))
-                    }
+                    ExprKind::EffectOp(path) => Some((path.clone(), arg_value_core)),
                     _ => None,
                 };
                 let apply_ty = match &final_fun_parts.ret {

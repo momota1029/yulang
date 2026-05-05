@@ -94,6 +94,37 @@ mod tests {
     }
 
     #[test]
+    fn project_runtime_type_erases_unallowed_value_vars() {
+        let raw = core_ir::Type::Fun {
+            param: Box::new(core_ir::Type::Var(core_ir::TypeVar("t0".to_string()))),
+            param_effect: Box::new(core_ir::Type::Never),
+            ret_effect: Box::new(core_ir::Type::Never),
+            ret: Box::new(core_ir::Type::Var(core_ir::TypeVar("t1".to_string()))),
+        };
+
+        let projected = project_runtime_type_with_vars(&raw, &BTreeSet::new());
+
+        assert_eq!(
+            projected,
+            core_ir::Type::Fun {
+                param: Box::new(core_ir::Type::Any),
+                param_effect: Box::new(core_ir::Type::Never),
+                ret_effect: Box::new(core_ir::Type::Never),
+                ret: Box::new(core_ir::Type::Any),
+            }
+        );
+    }
+
+    #[test]
+    fn project_hir_type_uses_unknown_for_unallowed_value_vars() {
+        let raw = core_ir::Type::Var(core_ir::TypeVar("t0".to_string()));
+
+        let projected = project_runtime_hir_type_with_vars(&raw, &BTreeSet::new());
+
+        assert_eq!(projected, RuntimeType::Unknown);
+    }
+
+    #[test]
     fn project_hir_wraps_effect_variable_intersection_parameter() {
         let value = core_ir::TypeVar("a".to_string());
         let effect = core_ir::TypeVar("e".to_string());
