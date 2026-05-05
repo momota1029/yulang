@@ -1,4 +1,4 @@
-import init, { colorize, run } from "./wasm/yulang_wasm.js";
+import init, { colorize } from "./wasm/yulang_wasm.js";
 import "./style.css";
 
 type Diagnostic = {
@@ -13,6 +13,16 @@ type RunOutput = {
   results: RunResult[];
   types: TypeResult[];
   diagnostics: Diagnostic[];
+};
+
+type RunWorkerRequest = {
+  id: number;
+  source: string;
+};
+
+type RunWorkerResponse = {
+  id: number;
+  output: RunOutput;
 };
 
 type RunResult = {
@@ -273,6 +283,9 @@ const translatableNodes =
   document.querySelectorAll<HTMLElement>("[data-i18n]");
 const translatableAriaNodes =
   document.querySelectorAll<HTMLElement>("[data-i18n-aria]");
+const runWorker = new Worker(new URL("./run-worker.ts", import.meta.url), {
+  type: "module",
+});
 
 let pendingRenderColor = 0;
 let activeExampleIndex = 0;
@@ -288,7 +301,9 @@ await init();
 setupExampleButtons();
 loadExample(0);
 renderColor();
-void runSource();
+runWorker.addEventListener("message", handleRunWorkerMessage);
+runWorker.addEventListener("error", handleRunWorkerError);
+runSource();
 
 const editorRenderEvents = [
   "beforeinput",
@@ -395,20 +410,29 @@ function updateExampleButtonState(): void {
   });
 }
 
-async function runSource(): Promise<void> {
+function runSource(): void {
   const generation = ++runGeneration;
   const source = sourceInput.value;
   renderColor();
   showRunLoading();
-  await nextPaint();
-  if (generation !== runGeneration) {
-    return;
-  }
-  const output = run(source) as RunOutput;
-  if (generation !== runGeneration) {
+  const request: RunWorkerRequest = { id: generation, source };
+  runWorker.postMessage(request);
+}
+
+function handleRunWorkerMessage(event: MessageEvent<RunWorkerResponse>): void {
+  const { id, output } = event.data;
+  if (id !== runGeneration) {
     return;
   }
   latestRunOutput = output;
+  isRunning = false;
+  updateRunButton();
+  renderRunOutput();
+}
+
+function handleRunWorkerError(event: ErrorEvent): void {
+  const message = event.message || "worker failed while running Yulang source";
+  latestRunOutput = runtimeErrorOutput(message, sourceInput.value.length);
   isRunning = false;
   updateRunButton();
   renderRunOutput();
@@ -455,14 +479,6 @@ function updateRunButton(): void {
   runButton.disabled = isRunning;
   runButton.classList.toggle("is-loading", isRunning);
   runButton.setAttribute("aria-busy", String(isRunning));
-}
-
-function nextPaint(): Promise<void> {
-  return new Promise((resolve) => {
-    window.requestAnimationFrame(() => {
-      window.setTimeout(resolve, 0);
-    });
-  });
 }
 
 function formatResults(results: RunResult[]): string {
@@ -551,6 +567,22 @@ function highlightSource(source: string, spans: HighlightSpan[]): string {
 
 function formatDiagnostic(diagnostic: Diagnostic): string {
   return `${diagnostic.severity}: ${diagnostic.message}`;
+}
+
+function runtimeErrorOutput(message: string, sourceLength: number): RunOutput {
+  return {
+    ok: false,
+    results: [],
+    types: [],
+    diagnostics: [
+      {
+        severity: "error",
+        message,
+        start: sourceLength,
+        end: sourceLength,
+      },
+    ],
+  };
 }
 
 function resolveInitialLang(): Lang {
