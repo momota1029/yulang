@@ -85,6 +85,7 @@ impl PrincipalUnifier {
             })
             .collect();
         module.bindings.extend(std::mem::take(&mut self.emitted));
+        redirect_unique_specialization_refs(&mut module, &self.root_specializations);
         module.roots = module
             .roots
             .into_iter()
@@ -225,6 +226,7 @@ impl PrincipalUnifier {
                     .as_ref()
                     .and_then(|evidence| evidence.expected_callee.clone());
                 let callee = self.rewrite_expr(*callee, callee_context);
+                let instantiation = retain_apply_instantiation_for_callee(instantiation, &callee);
                 let evidence_arg_context = evidence
                     .as_ref()
                     .and_then(|evidence| evidence.expected_arg.clone());
@@ -493,14 +495,21 @@ impl PrincipalUnifier {
     fn rewrite_block_module_stmt_types(&self, stmts: Vec<Stmt>) -> Vec<Stmt> {
         stmts
             .into_iter()
-            .map(|stmt| match stmt {
+            .filter_map(|stmt| match stmt {
                 Stmt::Module { def, mut body } => {
+                    if self
+                        .root_specializations
+                        .get(&def)
+                        .is_some_and(|specialized| !specialized.is_empty())
+                    {
+                        return None;
+                    }
                     if let Some(ty) = self.monomorphic_binding_type(&def) {
                         body.ty = ty;
                     }
-                    Stmt::Module { def, body }
+                    Some(Stmt::Module { def, body })
                 }
-                stmt => stmt,
+                stmt => Some(stmt),
             })
             .collect()
     }
@@ -542,6 +551,17 @@ impl PrincipalUnifier {
             plan = normalize_principal_elaboration_plan(plan, &[]);
         }
         let binding_required_vars = binding_required_vars(&original);
+        if (!plan.complete
+            || !missing_required_vars(&original, &plan_substitution_map(&plan)).is_empty())
+            && let Some(completed) = self.complete_plan_from_intrinsic_argument_slots(
+                &plan,
+                &spine.args,
+                &binding_required_vars,
+            )
+        {
+            self.bump("principal-unify-intrinsic-arg-completed-plan");
+            plan = completed;
+        }
         if (!plan.complete
             || !missing_required_vars(&original, &plan_substitution_map(&plan)).is_empty())
             && let Some(completed) = self.complete_plan_from_runtime_effect_slots(
@@ -841,6 +861,70 @@ impl PrincipalUnifier {
         self.bump("principal-unify-effect-context-rewrite");
         debug_principal_unify_rewrite(spine.target, &path);
         rebuild_apply_call(path, callee_ty, &spine.args, final_ty)
+    }
+
+    fn complete_plan_from_intrinsic_argument_slots(
+        &mut self,
+        plan: &core_ir::PrincipalElaborationPlan,
+        args: &[&Expr],
+        extra_required_vars: &BTreeSet<core_ir::TypeVar>,
+    ) -> Option<core_ir::PrincipalElaborationPlan> {
+        if !plan.adapters.is_empty() {
+            self.bump("principal-unify-intrinsic-arg-skip-adapter");
+            return None;
+        }
+        let mut substitutions = plan_substitution_map(plan);
+        let mut required_vars = BTreeSet::new();
+        collect_core_type_vars(&plan.principal_callee, &mut required_vars);
+        required_vars.extend(extra_required_vars.iter().cloned());
+        if required_vars.is_empty() {
+            self.bump("principal-unify-intrinsic-arg-skip-no-vars");
+            return None;
+        }
+
+        let before = substitutions.len();
+        let mut conflicts = BTreeSet::new();
+        let substituted_principal = substitute_type(&plan.principal_callee, &substitutions);
+        let Some((params, _ret, _ret_effect)) =
+            core_fun_spine_parts_exact(&substituted_principal, args.len())
+        else {
+            self.bump("principal-unify-intrinsic-arg-skip-non-function");
+            return None;
+        };
+
+        for (arg, (param, _param_effect)) in args.iter().zip(&params) {
+            let Some(actual) = intrinsic_argument_projection_type(arg) else {
+                continue;
+            };
+            debug_principal_unify_runtime_projection(
+                "intrinsic-arg",
+                plan.target.as_ref(),
+                param,
+                &actual,
+                &core_ir::Type::Never,
+                &core_ir::Type::Never,
+            );
+            project_closed_substitutions_from_type(
+                param,
+                &actual,
+                &required_vars,
+                &mut substitutions,
+                &mut conflicts,
+                false,
+                8,
+            );
+        }
+
+        if !conflicts.is_empty() || substitutions.len() == before {
+            if !conflicts.is_empty() {
+                self.bump("principal-unify-intrinsic-arg-conflict");
+            }
+            return None;
+        }
+
+        let mut completed = plan.clone();
+        merge_plan_substitutions(&mut completed, substitutions);
+        Some(normalize_principal_elaboration_plan(completed, &[]))
     }
 
     fn complete_plan_from_runtime_effect_slots(
@@ -1272,6 +1356,245 @@ fn plan_substitution_map(
         .iter()
         .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
         .collect()
+}
+
+fn redirect_unique_specialization_refs(
+    module: &mut Module,
+    root_specializations: &HashMap<core_ir::Path, Vec<core_ir::Path>>,
+) {
+    let replacements = root_specializations
+        .iter()
+        .filter_map(|(source, specialized)| {
+            let [target] = specialized.as_slice() else {
+                return None;
+            };
+            Some((source.clone(), target.clone()))
+        })
+        .collect::<HashMap<_, _>>();
+    if replacements.is_empty() {
+        return;
+    }
+    let binding_types = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding.body.ty.clone()))
+        .collect::<HashMap<_, _>>();
+    module.root_exprs = module
+        .root_exprs
+        .drain(..)
+        .map(|expr| redirect_expr_refs(expr, &replacements, &binding_types))
+        .collect();
+    module.bindings = module
+        .bindings
+        .drain(..)
+        .map(|binding| Binding {
+            body: redirect_expr_refs(binding.body, &replacements, &binding_types),
+            ..binding
+        })
+        .collect();
+}
+
+fn redirect_expr_refs(
+    expr: Expr,
+    replacements: &HashMap<core_ir::Path, core_ir::Path>,
+    binding_types: &HashMap<core_ir::Path, RuntimeType>,
+) -> Expr {
+    let mut ty = expr.ty;
+    let kind = match expr.kind {
+        ExprKind::Var(path) => {
+            let Some(target) = replacements.get(&path).cloned() else {
+                return Expr {
+                    ty,
+                    kind: ExprKind::Var(path),
+                };
+            };
+            if let Some(binding_ty) = binding_types.get(&target) {
+                ty = binding_ty.clone();
+            }
+            ExprKind::Var(target)
+        }
+        ExprKind::Apply {
+            callee,
+            arg,
+            evidence,
+            instantiation,
+        } => {
+            let callee = redirect_expr_refs(*callee, replacements, binding_types);
+            let arg = redirect_expr_refs(*arg, replacements, binding_types);
+            let instantiation = retain_apply_instantiation_for_callee(instantiation, &callee);
+            let kind = ExprKind::Apply {
+                callee: Box::new(callee),
+                arg: Box::new(arg),
+                evidence,
+                instantiation,
+            };
+            let ty = principal_rewrite_type_from_kind(ty, &kind);
+            return adapt_apply_argument_from_callee(Expr { ty, kind });
+        }
+        ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body,
+        } => ExprKind::Lambda {
+            param,
+            param_effect_annotation,
+            param_function_allowed_effects,
+            body: Box::new(redirect_expr_refs(*body, replacements, binding_types)),
+        },
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            evidence,
+        } => ExprKind::If {
+            cond: Box::new(redirect_expr_refs(*cond, replacements, binding_types)),
+            then_branch: Box::new(redirect_expr_refs(
+                *then_branch,
+                replacements,
+                binding_types,
+            )),
+            else_branch: Box::new(redirect_expr_refs(
+                *else_branch,
+                replacements,
+                binding_types,
+            )),
+            evidence,
+        },
+        ExprKind::Tuple(items) => ExprKind::Tuple(
+            items
+                .into_iter()
+                .map(|item| redirect_expr_refs(item, replacements, binding_types))
+                .collect(),
+        ),
+        ExprKind::Record { fields, spread } => ExprKind::Record {
+            fields: fields
+                .into_iter()
+                .map(|field| RecordExprField {
+                    name: field.name,
+                    value: redirect_expr_refs(field.value, replacements, binding_types),
+                })
+                .collect(),
+            spread: spread.map(|spread| match spread {
+                RecordSpreadExpr::Head(expr) => RecordSpreadExpr::Head(Box::new(
+                    redirect_expr_refs(*expr, replacements, binding_types),
+                )),
+                RecordSpreadExpr::Tail(expr) => RecordSpreadExpr::Tail(Box::new(
+                    redirect_expr_refs(*expr, replacements, binding_types),
+                )),
+            }),
+        },
+        ExprKind::Variant { tag, value } => ExprKind::Variant {
+            tag,
+            value: value
+                .map(|value| Box::new(redirect_expr_refs(*value, replacements, binding_types))),
+        },
+        ExprKind::Select { base, field } => ExprKind::Select {
+            base: Box::new(redirect_expr_refs(*base, replacements, binding_types)),
+            field,
+        },
+        ExprKind::Match {
+            scrutinee,
+            arms,
+            evidence,
+        } => ExprKind::Match {
+            scrutinee: Box::new(redirect_expr_refs(*scrutinee, replacements, binding_types)),
+            arms: arms
+                .into_iter()
+                .map(|arm| MatchArm {
+                    pattern: arm.pattern,
+                    guard: arm
+                        .guard
+                        .map(|guard| redirect_expr_refs(guard, replacements, binding_types)),
+                    body: redirect_expr_refs(arm.body, replacements, binding_types),
+                })
+                .collect(),
+            evidence,
+        },
+        ExprKind::Block { stmts, tail } => ExprKind::Block {
+            stmts: stmts
+                .into_iter()
+                .map(|stmt| redirect_stmt_refs(stmt, replacements, binding_types))
+                .collect(),
+            tail: tail.map(|tail| Box::new(redirect_expr_refs(*tail, replacements, binding_types))),
+        },
+        ExprKind::Handle {
+            body,
+            arms,
+            evidence,
+            handler,
+        } => ExprKind::Handle {
+            body: Box::new(redirect_expr_refs(*body, replacements, binding_types)),
+            arms: arms
+                .into_iter()
+                .map(|arm| HandleArm {
+                    effect: arm.effect,
+                    payload: arm.payload,
+                    resume: arm.resume,
+                    guard: arm
+                        .guard
+                        .map(|guard| redirect_expr_refs(guard, replacements, binding_types)),
+                    body: redirect_expr_refs(arm.body, replacements, binding_types),
+                })
+                .collect(),
+            evidence,
+            handler,
+        },
+        ExprKind::BindHere { expr } => ExprKind::BindHere {
+            expr: Box::new(redirect_expr_refs(*expr, replacements, binding_types)),
+        },
+        ExprKind::Thunk {
+            effect,
+            value,
+            expr,
+        } => ExprKind::Thunk {
+            effect,
+            value,
+            expr: Box::new(redirect_expr_refs(*expr, replacements, binding_types)),
+        },
+        ExprKind::LocalPushId { id, body } => ExprKind::LocalPushId {
+            id,
+            body: Box::new(redirect_expr_refs(*body, replacements, binding_types)),
+        },
+        ExprKind::AddId { id, allowed, thunk } => ExprKind::AddId {
+            id,
+            allowed,
+            thunk: Box::new(redirect_expr_refs(*thunk, replacements, binding_types)),
+        },
+        ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
+            from,
+            to,
+            expr: Box::new(redirect_expr_refs(*expr, replacements, binding_types)),
+        },
+        ExprKind::Pack { var, expr } => ExprKind::Pack {
+            var,
+            expr: Box::new(redirect_expr_refs(*expr, replacements, binding_types)),
+        },
+        ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => expr.kind,
+    };
+    Expr { ty, kind }
+}
+
+fn redirect_stmt_refs(
+    stmt: Stmt,
+    replacements: &HashMap<core_ir::Path, core_ir::Path>,
+    binding_types: &HashMap<core_ir::Path, RuntimeType>,
+) -> Stmt {
+    match stmt {
+        Stmt::Let { pattern, value } => Stmt::Let {
+            pattern,
+            value: redirect_expr_refs(value, replacements, binding_types),
+        },
+        Stmt::Expr(expr) => Stmt::Expr(redirect_expr_refs(expr, replacements, binding_types)),
+        Stmt::Module { def, body } => Stmt::Module {
+            def,
+            body: redirect_expr_refs(body, replacements, binding_types),
+        },
+    }
 }
 
 fn is_local_ref_run_path(path: &core_ir::Path) -> bool {
@@ -2018,6 +2341,51 @@ fn runtime_value_and_effect(ty: &RuntimeType) -> (core_ir::Type, core_ir::Type) 
     }
 }
 
+fn intrinsic_argument_projection_type(expr: &Expr) -> Option<core_ir::Type> {
+    match &expr.kind {
+        ExprKind::Record {
+            fields,
+            spread: None,
+        } => Some(core_ir::Type::Record(core_ir::RecordType {
+            fields: fields
+                .iter()
+                .map(|field| core_ir::RecordField {
+                    name: field.name.clone(),
+                    value: runtime_core_type(&field.value.ty),
+                    optional: false,
+                })
+                .collect(),
+            spread: None,
+        })),
+        ExprKind::Tuple(items) => Some(core_ir::Type::Tuple(
+            items
+                .iter()
+                .map(|item| runtime_core_type(&item.ty))
+                .collect(),
+        )),
+        ExprKind::Variant {
+            tag,
+            value: Some(value),
+        } => Some(core_ir::Type::Variant(core_ir::VariantType {
+            cases: vec![core_ir::VariantCase {
+                name: tag.clone(),
+                payloads: vec![runtime_core_type(&value.ty)],
+            }],
+            tail: None,
+        })),
+        ExprKind::Variant { tag, value: None } => {
+            Some(core_ir::Type::Variant(core_ir::VariantType {
+                cases: vec![core_ir::VariantCase {
+                    name: tag.clone(),
+                    payloads: Vec::new(),
+                }],
+                tail: None,
+            }))
+        }
+        _ => None,
+    }
+}
+
 fn debug_principal_unify_runtime_projection(
     slot: &str,
     target: Option<&core_ir::Path>,
@@ -2216,6 +2584,29 @@ fn runtime_context_function_type(bounds: Option<&core_ir::TypeBounds>) -> Option
     matches!(ty, RuntimeType::Fun { .. }).then_some(ty)
 }
 
+fn retain_apply_instantiation_for_callee(
+    instantiation: Option<TypeInstantiation>,
+    callee: &Expr,
+) -> Option<TypeInstantiation> {
+    let instantiation = instantiation?;
+    let Some(path) = apply_head_var_path(callee) else {
+        return Some(instantiation);
+    };
+    (path == &instantiation.target).then_some(instantiation)
+}
+
+fn apply_head_var_path(expr: &Expr) -> Option<&core_ir::Path> {
+    match &expr.kind {
+        ExprKind::Var(path) => Some(path),
+        ExprKind::Apply { callee, .. } => apply_head_var_path(callee),
+        ExprKind::Thunk { expr, .. }
+        | ExprKind::BindHere { expr }
+        | ExprKind::Coerce { expr, .. }
+        | ExprKind::Pack { expr, .. } => apply_head_var_path(expr),
+        _ => None,
+    }
+}
+
 fn runtime_function_param_slot(ty: &RuntimeType) -> Option<(core_ir::Type, core_ir::Type)> {
     match ty {
         RuntimeType::Core(core_ir::Type::Fun {
@@ -2242,6 +2633,7 @@ fn adapt_apply_argument_from_callee(expr: Expr) -> Expr {
     else {
         return Expr::typed(kind, ty);
     };
+    let callee = force_thunk_function_callee(callee);
     let Some((param, param_effect)) = runtime_function_param_slot(&callee.ty)
         .or_else(|| forced_callee_function_param_slot(&callee))
     else {
@@ -2286,6 +2678,17 @@ fn adapt_apply_argument_from_callee(expr: Expr) -> Expr {
         },
         ty,
     )
+}
+
+fn force_thunk_function_callee(callee: Box<Expr>) -> Box<Expr> {
+    let RuntimeType::Thunk { value, .. } = &callee.ty else {
+        return callee;
+    };
+    if !matches!(value.as_ref(), RuntimeType::Fun { .. }) {
+        return callee;
+    }
+    let ty = value.as_ref().clone();
+    Box::new(Expr::typed(ExprKind::BindHere { expr: callee }, ty))
 }
 
 fn adapt_apply_result_from_evidence(
