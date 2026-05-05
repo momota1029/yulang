@@ -3062,6 +3062,7 @@ fn format_runtime_typed_expr(expr: &runtime::Expr, verbose: bool) -> String {
 
 fn format_runtime_type(ty: &runtime::Type) -> String {
     match ty {
+        runtime::Type::Unknown => "_".to_string(),
         runtime::Type::Core(ty) => format_runtime_core_type_inner(ty, true),
         runtime::Type::Fun { param, ret } => {
             format!(

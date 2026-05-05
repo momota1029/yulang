@@ -1851,7 +1851,9 @@ fn infer_effect_substitution(
 fn runtime_expr_effect(ty: &RuntimeType) -> core_ir::Type {
     match ty {
         RuntimeType::Thunk { effect, .. } => effect.clone(),
-        RuntimeType::Core(_) | RuntimeType::Fun { .. } => core_ir::Type::Never,
+        RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Fun { .. } => {
+            core_ir::Type::Never
+        }
     }
 }
 

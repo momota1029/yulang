@@ -57,6 +57,7 @@ pub(crate) fn is_nullary_constructor_path_for_type(path: &core_ir::Path, ty: &Ru
 
 pub(crate) fn hir_type_has_vars(ty: &RuntimeType) -> bool {
     match ty {
+        RuntimeType::Unknown => false,
         RuntimeType::Core(ty) => core_type_has_vars(ty),
         RuntimeType::Fun { param, ret } => hir_type_has_vars(param) || hir_type_has_vars(ret),
         RuntimeType::Thunk { effect, value } => {
@@ -281,6 +282,7 @@ pub(crate) fn collect_pattern_type_vars(pattern: &Pattern, vars: &mut BTreeSet<c
 
 pub(crate) fn collect_hir_type_vars(ty: &RuntimeType, vars: &mut BTreeSet<core_ir::TypeVar>) {
     match ty {
+        RuntimeType::Unknown => {}
         RuntimeType::Core(ty) => collect_type_vars(ty, vars),
         RuntimeType::Fun { param, ret } => {
             collect_hir_type_vars(param, vars);

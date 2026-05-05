@@ -649,6 +649,7 @@ fn runtime_type_local_binding_usable(ty: &RuntimeType) -> bool {
 
 fn runtime_type_has_any(ty: &RuntimeType) -> bool {
     match ty {
+        RuntimeType::Unknown => true,
         RuntimeType::Core(ty) => core_type_has_any(ty),
         RuntimeType::Fun { param, ret } => runtime_type_has_any(param) || runtime_type_has_any(ret),
         RuntimeType::Thunk { effect, value } => {

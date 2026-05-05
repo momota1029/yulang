@@ -2,6 +2,7 @@ use super::*;
 
 pub(super) fn core_value_type(ty: &RuntimeType) -> core_ir::Type {
     match ty {
+        RuntimeType::Unknown => core_ir::Type::Any,
         RuntimeType::Core(ty) => ty.clone(),
         RuntimeType::Fun { param, ret } => effected_function_core_type(param, ret),
         RuntimeType::Thunk { value, .. } => core_value_type(value),

@@ -330,6 +330,7 @@ fn path_name(path: &core_ir::Path) -> String {
 
 fn runtime_type_has_runtime_fallback_in_value_position(ty: &RuntimeType) -> bool {
     match ty {
+        RuntimeType::Unknown => true,
         RuntimeType::Core(ty) => core_type_has_runtime_fallback_in_value_position(ty, false),
         RuntimeType::Fun { param, ret } => {
             runtime_type_has_runtime_fallback_in_value_position(param)

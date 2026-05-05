@@ -156,6 +156,7 @@ fn collect_type_bounds_effect_vars(
 
 fn collect_hir_effect_vars(ty: &RuntimeType, vars: &mut BTreeSet<core_ir::TypeVar>) {
     match ty {
+        RuntimeType::Unknown => {}
         RuntimeType::Core(ty) => collect_effect_position_vars(ty, vars),
         RuntimeType::Fun { param, ret } => {
             collect_hir_effect_vars(param, vars);
@@ -382,6 +383,7 @@ fn collect_pattern_non_effect_vars(pattern: &Pattern, vars: &mut BTreeSet<core_i
 
 fn collect_hir_non_effect_vars(ty: &RuntimeType, vars: &mut BTreeSet<core_ir::TypeVar>) {
     match ty {
+        RuntimeType::Unknown => {}
         RuntimeType::Core(ty) => collect_core_non_effect_vars(ty, vars),
         RuntimeType::Fun { param, ret } => {
             collect_hir_non_effect_vars(param, vars);

@@ -1598,7 +1598,12 @@ impl Lowerer<'_> {
             .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.result))
             .filter(|ty| !core_type_is_imprecise_runtime_slot(ty));
         evidence_ty
-            .or_else(|| expected.map(value_core_type).cloned())
+            .or_else(|| match expected.map(value_hir_type) {
+                Some(RuntimeType::Core(ty)) => Some(ty.clone()),
+                Some(RuntimeType::Thunk { value, .. }) => Some(runtime_core_type(value)),
+                Some(RuntimeType::Unknown) => Some(core_ir::Type::Any),
+                Some(RuntimeType::Fun { .. }) | None => None,
+            })
             .ok_or(RuntimeError::MissingJoinEvidence { node })
     }
 

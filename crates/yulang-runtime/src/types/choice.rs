@@ -186,6 +186,7 @@ pub(crate) fn type_imprecision_count(ty: &core_ir::Type) -> usize {
 
 pub(crate) fn hir_type_imprecision_count(ty: &RuntimeType) -> usize {
     match ty {
+        RuntimeType::Unknown => 1,
         RuntimeType::Core(ty) => type_imprecision_count(ty),
         RuntimeType::Fun { param, ret } => {
             hir_type_imprecision_count(param) + hir_type_imprecision_count(ret)

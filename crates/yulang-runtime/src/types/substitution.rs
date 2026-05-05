@@ -125,6 +125,7 @@ pub(crate) fn substitute_hir_type(
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) -> RuntimeType {
     match ty {
+        RuntimeType::Unknown => RuntimeType::unknown(),
         RuntimeType::Core(ty) => RuntimeType::core(substitute_type(ty, substitutions)),
         RuntimeType::Fun { param, ret } => RuntimeType::fun(
             substitute_hir_type(param, substitutions),

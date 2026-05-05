@@ -270,6 +270,7 @@ pub(super) fn substitute_hir_type(
 ) -> RuntimeType {
     let allowed_vars = BTreeSet::new();
     let ty = match ty {
+        RuntimeType::Unknown => RuntimeType::unknown(),
         RuntimeType::Core(ty) => RuntimeType::core(project_runtime_type_with_vars(
             &substitute_type(&ty, substitutions),
             &allowed_vars,

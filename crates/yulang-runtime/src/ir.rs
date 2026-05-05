@@ -33,6 +33,7 @@ impl Expr {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
+    Unknown,
     Core(core_ir::Type),
     Fun {
         param: Box<Type>,
@@ -45,6 +46,10 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn unknown() -> Self {
+        Self::Unknown
+    }
+
     pub fn core(ty: core_ir::Type) -> Self {
         Self::Core(ty)
     }
@@ -66,7 +71,7 @@ impl Type {
     pub fn as_core(&self) -> Option<&core_ir::Type> {
         match self {
             Type::Core(ty) => Some(ty),
-            Type::Fun { .. } | Type::Thunk { .. } => None,
+            Type::Unknown | Type::Fun { .. } | Type::Thunk { .. } => None,
         }
     }
 }

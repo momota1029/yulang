@@ -7,6 +7,7 @@ pub(crate) fn strict_core_type(ty: &RuntimeType) -> &core_ir::Type {
 
 pub(crate) fn diagnostic_core_type(ty: &RuntimeType) -> core_ir::Type {
     match ty {
+        RuntimeType::Unknown => core_ir::Type::Any,
         RuntimeType::Core(ty) => ty.clone(),
         RuntimeType::Fun { param, ret } => core_ir::Type::Fun {
             param: Box::new(diagnostic_core_type(param)),
@@ -20,6 +21,7 @@ pub(crate) fn diagnostic_core_type(ty: &RuntimeType) -> core_ir::Type {
 
 pub(crate) fn runtime_core_type(ty: &RuntimeType) -> core_ir::Type {
     match ty {
+        RuntimeType::Unknown => core_ir::Type::Any,
         RuntimeType::Core(ty) => ty.clone(),
         RuntimeType::Fun { param, ret } => runtime_core_function_type(param, ret),
         RuntimeType::Thunk { value, .. } => runtime_core_type(value),

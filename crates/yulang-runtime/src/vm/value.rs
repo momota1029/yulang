@@ -173,7 +173,7 @@ pub(super) fn wrap_value_for_type(value: VmValue, expected_ty: &Type) -> VmValue
 pub(super) fn expects_thunk_arg(ty: &Type) -> bool {
     match ty {
         Type::Fun { param, .. } => matches!(param.as_ref(), Type::Thunk { .. }),
-        Type::Core(_) | Type::Thunk { .. } => false,
+        Type::Unknown | Type::Core(_) | Type::Thunk { .. } => false,
     }
 }
 

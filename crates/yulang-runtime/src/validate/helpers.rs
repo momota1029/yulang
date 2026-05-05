@@ -130,6 +130,7 @@ pub(super) fn validate_hir_type_no_any(
     type_arg_kinds: &TypeArgKinds,
 ) -> RuntimeResult<()> {
     match ty {
+        RuntimeType::Unknown => Ok(()),
         RuntimeType::Core(ty) => validate_core_type_no_any(ty, source, type_arg_kinds),
         RuntimeType::Fun { param, ret } => {
             validate_hir_type_no_any(param, source, type_arg_kinds)?;
@@ -328,6 +329,7 @@ fn same_runtime_value_choice(
 
 pub(super) fn hir_value_core_type(ty: &RuntimeType) -> Cow<'_, core_ir::Type> {
     match ty {
+        RuntimeType::Unknown => Cow::Owned(core_ir::Type::Any),
         RuntimeType::Core(ty) => Cow::Borrowed(ty),
         RuntimeType::Thunk { value, .. } => match value.as_ref() {
             RuntimeType::Core(ty) => Cow::Borrowed(ty),

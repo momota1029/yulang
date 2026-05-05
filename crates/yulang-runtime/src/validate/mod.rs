@@ -241,6 +241,7 @@ fn collect_hir_type_var_kinds(
     out: &mut HashMap<core_ir::TypeVar, TypeArgKind>,
 ) {
     match ty {
+        RuntimeType::Unknown => {}
         RuntimeType::Core(ty) => collect_core_type_var_kinds(ty, slot, out),
         RuntimeType::Fun { param, ret } => {
             collect_hir_type_var_kinds(param, TypeArgKind::Value, out);
@@ -332,6 +333,7 @@ fn collect_hir_named_arg_kinds(
     out: &mut TypeArgKinds,
 ) {
     match ty {
+        RuntimeType::Unknown => {}
         RuntimeType::Core(ty) => collect_core_named_arg_kinds(ty, vars, out),
         RuntimeType::Fun { param, ret } => {
             collect_hir_named_arg_kinds(param, vars, out);
@@ -464,6 +466,7 @@ fn merge_type_arg_kind(
 
 fn infer_concrete_effect_args_from_hir(ty: &RuntimeType, out: &mut TypeArgKinds) {
     match ty {
+        RuntimeType::Unknown => {}
         RuntimeType::Core(ty) => infer_concrete_effect_args_from_core(ty, out),
         RuntimeType::Fun { param, ret } => {
             infer_concrete_effect_args_from_hir(param, out);

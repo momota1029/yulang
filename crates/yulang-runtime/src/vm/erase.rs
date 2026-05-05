@@ -280,6 +280,7 @@ pub(super) fn erase_record_spread_expr(
 
 pub(super) fn erase_type(ty: Type, effects: &EffectPathResolver) -> Type {
     match ty {
+        Type::Unknown => Type::Unknown,
         Type::Core(ty) => Type::Core(ty),
         Type::Fun { param, ret } => {
             Type::fun(erase_type(*param, effects), erase_type(*ret, effects))

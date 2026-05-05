@@ -136,7 +136,7 @@ pub(super) fn apply_handler_adapter_plan_to_binding(
 fn runtime_thunk_effect(ty: &RuntimeType) -> Option<core_ir::Type> {
     match ty {
         RuntimeType::Thunk { effect, .. } => Some(effect.clone()),
-        RuntimeType::Core(_) | RuntimeType::Fun { .. } => None,
+        RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Fun { .. } => None,
     }
 }
 

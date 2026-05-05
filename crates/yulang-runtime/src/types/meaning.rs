@@ -39,7 +39,7 @@ pub(crate) fn core_type_is_imprecise_runtime_slot(ty: &core_ir::Type) -> bool {
 pub(crate) fn runtime_type_is_imprecise_runtime_slot(ty: &RuntimeType) -> bool {
     matches!(
         ty,
-        RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_))
+        RuntimeType::Unknown | RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_))
     )
 }
 
@@ -70,6 +70,9 @@ mod tests {
 
     #[test]
     fn imprecise_runtime_slots_include_top_and_vars() {
+        assert!(runtime_type_is_imprecise_runtime_slot(
+            &RuntimeType::Unknown
+        ));
         assert!(core_type_is_imprecise_runtime_slot(&core_ir::Type::Any));
         assert!(core_type_is_imprecise_runtime_slot(&core_ir::Type::Var(
             core_ir::TypeVar("a".to_string())

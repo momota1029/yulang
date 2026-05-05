@@ -1628,6 +1628,7 @@ fn final_ty_effect_context(ty: &RuntimeType) -> Option<core_ir::Type> {
 
 fn runtime_type_value_is_function(ty: &RuntimeType) -> bool {
     match ty {
+        RuntimeType::Unknown => false,
         RuntimeType::Fun { .. } => true,
         RuntimeType::Thunk { value, .. } => runtime_type_value_is_function(value),
         RuntimeType::Core(core_ir::Type::Fun { .. }) => true,
@@ -1963,7 +1964,7 @@ fn runtime_function_return_effect(ty: &RuntimeType) -> Option<core_ir::Type> {
             RuntimeType::Thunk { effect, .. } => Some(effect.clone()),
             _ => Some(core_ir::Type::Never),
         },
-        RuntimeType::Thunk { .. } | RuntimeType::Core(_) => None,
+        RuntimeType::Unknown | RuntimeType::Thunk { .. } | RuntimeType::Core(_) => None,
     }
 }
 
@@ -1979,6 +1980,7 @@ fn runtime_type_shape_usable(ty: &RuntimeType) -> bool {
 
 fn runtime_type_contains_any(ty: &RuntimeType) -> bool {
     match ty {
+        RuntimeType::Unknown => true,
         RuntimeType::Core(ty) => core_type_contains_any(ty),
         RuntimeType::Fun { param, ret } => {
             runtime_type_contains_any(param) || runtime_type_contains_any(ret)
@@ -2303,7 +2305,7 @@ fn runtime_function_param_type(ty: &RuntimeType) -> Option<core_ir::Type> {
     match ty {
         RuntimeType::Core(core_ir::Type::Fun { param, .. }) => Some(param.as_ref().clone()),
         RuntimeType::Fun { param, .. } => Some(runtime_core_type(param)),
-        RuntimeType::Thunk { .. } | RuntimeType::Core(_) => None,
+        RuntimeType::Unknown | RuntimeType::Thunk { .. } | RuntimeType::Core(_) => None,
     }
 }
 
@@ -2331,7 +2333,7 @@ fn runtime_function_param_slot(ty: &RuntimeType) -> Option<(core_ir::Type, core_
             let (value, effect) = runtime_value_and_effect(param);
             Some((value, effect))
         }
-        RuntimeType::Thunk { .. } | RuntimeType::Core(_) => None,
+        RuntimeType::Unknown | RuntimeType::Thunk { .. } | RuntimeType::Core(_) => None,
     }
 }
 

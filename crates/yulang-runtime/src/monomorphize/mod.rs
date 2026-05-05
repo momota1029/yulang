@@ -1083,6 +1083,7 @@ struct SignatureBuilder {
 impl SignatureBuilder {
     fn runtime_type(&mut self, ty: &RuntimeType) -> DemandSignature {
         match ty {
+            RuntimeType::Unknown => DemandSignature::Hole(self.fresh_hole()),
             RuntimeType::Core(ty) => match self.core_type(ty) {
                 DemandCoreType::Hole(id) => DemandSignature::Hole(id),
                 ty => DemandSignature::Core(ty),

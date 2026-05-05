@@ -408,6 +408,7 @@ fn rewrite_stmt_paths(stmt: &mut Stmt, replacements: &HashMap<core_ir::Path, cor
 
 fn canonical_hir_type(ty: &RuntimeType, out: &mut String) {
     match ty {
+        RuntimeType::Unknown => out.push('_'),
         RuntimeType::Core(ty) => canonical_type(ty, out),
         RuntimeType::Fun { param, ret } => {
             out.push('(');
