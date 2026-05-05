@@ -26,8 +26,11 @@ pub trait DelimitedListMachine<I: EventInput, S: EventSink> {
         i.env.state.sink.lex(&open_lex);
         i.env.ml_arg = false;
         i.env.inline = false;
-        let base_indent = i.env.indent;
         let mut leading_info = open_lex.trailing_trivia_info();
+        let base_indent = match leading_info {
+            TriviaInfo::Newline { indent, .. } if indent > i.env.indent => indent,
+            _ => i.env.indent,
+        };
 
         loop {
             let parsed = self.parse_item(i.rb(), leading_info, base_indent)?;

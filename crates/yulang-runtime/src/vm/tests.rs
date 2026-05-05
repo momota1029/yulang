@@ -360,6 +360,34 @@ sub:
     }
 
     #[test]
+    fn vm_runs_source_list_expr_newline_separated_items() {
+        let results = eval_source_with_std("[\n    1\n    2\n    3\n    4\n]\n");
+
+        assert_eq!(
+            results,
+            vec![TestValue::List(vec![
+                TestValue::Int("1".to_string()),
+                TestValue::Int("2".to_string()),
+                TestValue::Int("3".to_string()),
+                TestValue::Int("4".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_source_list_expr_keeps_indented_continuation_in_item() {
+        let results = eval_source_with_std("[\n    1 +\n        2\n    3\n]\n");
+
+        assert_eq!(
+            results,
+            vec![TestValue::List(vec![
+                TestValue::Int("3".to_string()),
+                TestValue::Int("3".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_namespaced_apply_colon_indent_block_example() {
         let results = eval_source_with_std("std::sub::sub:\n  my x = 1\n  x\n");
 

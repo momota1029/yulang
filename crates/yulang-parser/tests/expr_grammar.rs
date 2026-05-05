@@ -269,6 +269,40 @@ fn expr_bracket_group() {
 }
 
 #[test]
+fn expr_bracket_group_accepts_newline_separated_items() {
+    let got = parse_expression("[\n    1\n    2\n    3\n    4\n]");
+    let expected = vec![
+        "(Expr",
+        "  (Bracket",
+        "    BracketL \"[\"",
+        "    (Expr",
+        "      Number \"1\"",
+        "    )",
+        "    (Separator",
+        "    )",
+        "    (Expr",
+        "      Number \"2\"",
+        "    )",
+        "    (Separator",
+        "    )",
+        "    (Expr",
+        "      Number \"3\"",
+        "    )",
+        "    (Separator",
+        "    )",
+        "    (Expr",
+        "      Number \"4\"",
+        "    )",
+        "    (Separator",
+        "    )",
+        "    BracketR \"]\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_bracket_group_with_spread() {
     let got = parse_expression("[1, ..xs, 3]");
     let expected = vec![
