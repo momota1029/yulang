@@ -100,7 +100,9 @@ pub(super) fn require_apply_result_hir_type(
                 value: actual_value,
             },
         ) => {
-            if !effect_compatible(actual_effect, declared_effect) {
+            if !effect_compatible(declared_effect, actual_effect)
+                && !effect_compatible(actual_effect, declared_effect)
+            {
                 if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
                     eprintln!(
                         "validate apply result {source:?}: {declared_effect:?} / {actual_effect:?}"

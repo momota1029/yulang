@@ -1,7 +1,7 @@
 use super::*;
 use crate::types::{
     normalize_principal_elaboration_plan, project_closed_substitutions_from_type,
-    runtime_core_type, type_compatible,
+    project_runtime_type_with_vars, runtime_core_type, type_compatible,
 };
 
 pub(super) fn principal_unify_module_profiled(
@@ -16,6 +16,7 @@ struct PrincipalUnifier {
     generic_bindings: HashMap<core_ir::Path, Binding>,
     role_impls: HashMap<core_ir::Name, Vec<Binding>>,
     specializations: HashMap<String, core_ir::Path>,
+    root_specializations: HashMap<core_ir::Path, Vec<core_ir::Path>>,
     emitted: Vec<Binding>,
     active_specializations: Vec<(core_ir::Path, BTreeMap<core_ir::TypeVar, core_ir::Type>)>,
     next_index: usize,
@@ -45,6 +46,7 @@ impl PrincipalUnifier {
             generic_bindings,
             role_impls,
             specializations: HashMap::new(),
+            root_specializations: HashMap::new(),
             emitted: Vec::new(),
             active_specializations: Vec::new(),
             next_index,
@@ -59,17 +61,35 @@ impl PrincipalUnifier {
         module.root_exprs = module
             .root_exprs
             .into_iter()
-            .map(|expr| self.rewrite_expr(expr, None))
+            .map(|expr| {
+                let expr = refresh_local_expr_types(expr);
+                project_runtime_expr_types(self.rewrite_expr(expr, None))
+            })
             .collect();
+        let replaced_local_ref_runs = self
+            .root_specializations
+            .iter()
+            .filter(|(path, specialized)| is_local_ref_run_path(path) && specialized.len() == 1)
+            .map(|(path, _)| path.clone())
+            .collect::<Vec<_>>();
         module.bindings = module
             .bindings
             .into_iter()
+            .filter(|binding| !replaced_local_ref_runs.contains(&binding.name))
             .map(|binding| Binding {
-                body: self.rewrite_expr(binding.body, None),
+                body: {
+                    let body = refresh_local_expr_types(binding.body);
+                    project_runtime_expr_types(self.rewrite_expr(body, None))
+                },
                 ..binding
             })
             .collect();
         module.bindings.extend(std::mem::take(&mut self.emitted));
+        module.roots = module
+            .roots
+            .into_iter()
+            .map(|root| self.rewrite_root_binding(root))
+            .collect();
         let profile = self.finish_profile();
         (module, profile)
     }
@@ -79,6 +99,7 @@ impl PrincipalUnifier {
     }
 
     fn bump_skip(&mut self, target: &core_ir::Path, reason: &'static str) {
+        debug_principal_unify_skip(target, reason);
         self.bump(reason);
         *self
             .target_skips
@@ -98,6 +119,19 @@ impl PrincipalUnifier {
         for var in missing_required_vars(binding, substitutions) {
             *entry.entry(var).or_default() += 1;
         }
+    }
+
+    fn rewrite_root_binding(&self, root: Root) -> Root {
+        let Root::Binding(path) = root else {
+            return root;
+        };
+        let Some(specialized) = self.root_specializations.get(&path) else {
+            return Root::Binding(path);
+        };
+        if specialized.len() != 1 {
+            return Root::Binding(path);
+        }
+        Root::Binding(specialized.first().cloned().unwrap_or(path))
     }
 
     fn finish_profile(self) -> SubstitutionSpecializeProfile {
@@ -235,6 +269,9 @@ impl PrincipalUnifier {
                 param_function_allowed_effects,
                 body,
             } => {
+                if let Some(context_ty) = runtime_context_function_type(result_context.as_ref()) {
+                    ty = context_ty;
+                }
                 let body_context = runtime_lambda_return_value_context(&ty);
                 ExprKind::Lambda {
                     param,
@@ -292,6 +329,7 @@ impl PrincipalUnifier {
             } => {
                 let scrutinee_context =
                     Some(core_ir::TypeBounds::exact(runtime_core_type(&scrutinee.ty)));
+                let arm_context = Some(core_ir::TypeBounds::exact(evidence.result.clone()));
                 ExprKind::Match {
                     scrutinee: Box::new(self.rewrite_expr(*scrutinee, scrutinee_context)),
                     arms: arms
@@ -299,19 +337,32 @@ impl PrincipalUnifier {
                         .map(|arm| MatchArm {
                             pattern: arm.pattern,
                             guard: arm.guard.map(|guard| self.rewrite_expr(guard, None)),
-                            body: self.rewrite_expr(arm.body, None),
+                            body: {
+                                let body_context = self
+                                    .expr_is_nullary_generic_var(&arm.body)
+                                    .then(|| arm_context.clone())
+                                    .flatten();
+                                self.rewrite_expr(arm.body, body_context)
+                            },
                         })
                         .collect(),
                     evidence,
                 }
             }
-            ExprKind::Block { stmts, tail } => ExprKind::Block {
-                stmts: stmts
+            ExprKind::Block { stmts, tail } => {
+                let stmts = stmts
                     .into_iter()
                     .map(|stmt| self.rewrite_stmt(stmt))
-                    .collect(),
-                tail: tail.map(|tail| Box::new(self.rewrite_expr(*tail, result_context))),
-            },
+                    .collect();
+                let stmts = self.rewrite_block_module_stmt_types(stmts);
+                let kind = ExprKind::Block {
+                    stmts,
+                    tail: tail.map(|tail| Box::new(self.rewrite_expr(*tail, result_context))),
+                };
+                let refreshed =
+                    project_runtime_expr_types(refresh_local_expr_types(Expr { ty, kind }));
+                return refreshed;
+            }
             ExprKind::Handle {
                 body,
                 arms,
@@ -321,6 +372,7 @@ impl PrincipalUnifier {
                 let arm_context = Some(core_ir::TypeBounds::exact(evidence.result.clone()));
                 let body = self.rewrite_expr(*body, None);
                 let body = unwrap_handler_body_bind_here(body, &handler);
+                let body = ensure_effectful_handler_body_thunk(body, &handler);
                 ExprKind::Handle {
                     body: Box::new(body),
                     arms: arms
@@ -337,31 +389,43 @@ impl PrincipalUnifier {
                     handler,
                 }
             }
-            ExprKind::BindHere { expr } => ExprKind::BindHere {
-                expr: Box::new(self.rewrite_expr(*expr, None)),
-            },
+            ExprKind::BindHere { expr } => {
+                let expr = self.rewrite_expr(*expr, None);
+                if !matches!(expr.ty, RuntimeType::Thunk { .. }) {
+                    return expr;
+                }
+                ExprKind::BindHere {
+                    expr: Box::new(expr),
+                }
+            }
             ExprKind::Thunk {
                 effect,
                 value,
                 expr,
             } => {
-                let value = if let Some(context) = closed_type_from_bounds(result_context.as_ref())
-                {
-                    RuntimeType::core(context)
+                let initial_value =
+                    if let Some(context) = closed_type_from_bounds(result_context.as_ref()) {
+                        RuntimeType::core(context)
+                    } else {
+                        match &ty {
+                            RuntimeType::Thunk {
+                                value: ty_value, ..
+                            } => ty_value.as_ref().clone(),
+                            _ => value,
+                        }
+                    };
+                let value_context = core_ir::TypeBounds::exact(runtime_core_type(&initial_value));
+                let expr = self.rewrite_expr(*expr, Some(value_context));
+                let value = if runtime_type_shape_usable(&expr.ty) {
+                    expr.ty.clone()
                 } else {
-                    match &ty {
-                        RuntimeType::Thunk {
-                            value: ty_value, ..
-                        } => ty_value.as_ref().clone(),
-                        _ => value,
-                    }
+                    initial_value
                 };
-                let value_context = core_ir::TypeBounds::exact(runtime_core_type(&value));
                 ty = RuntimeType::thunk(effect.clone(), value.clone());
                 ExprKind::Thunk {
                     effect,
                     value,
-                    expr: Box::new(self.rewrite_expr(*expr, Some(value_context))),
+                    expr: Box::new(expr),
                 }
             }
             ExprKind::LocalPushId { id, body } => {
@@ -390,28 +454,55 @@ impl PrincipalUnifier {
                 var,
                 expr: Box::new(self.rewrite_expr(*expr, None)),
             },
-            ExprKind::Var(_)
-            | ExprKind::EffectOp(_)
+            ExprKind::Var(path) => {
+                if let Some(rewritten) =
+                    self.rewrite_nullary_generic_from_context(&path, result_context.as_ref())
+                {
+                    return rewritten;
+                }
+                ExprKind::Var(path)
+            }
+            ExprKind::EffectOp(_)
             | ExprKind::PrimitiveOp(_)
             | ExprKind::Lit(_)
             | ExprKind::PeekId
             | ExprKind::FindId { .. } => expr.kind,
         };
+        ty = principal_rewrite_type_from_kind(ty, &kind);
         Expr { ty, kind }
     }
 
     fn rewrite_stmt(&mut self, stmt: Stmt) -> Stmt {
         match stmt {
-            Stmt::Let { pattern, value } => Stmt::Let {
-                pattern,
-                value: self.rewrite_expr(value, None),
-            },
+            Stmt::Let { pattern, value } => {
+                let value_context = pattern_value_context(&pattern);
+                let value = self.rewrite_expr(value, value_context);
+                Stmt::Let { pattern, value }
+            }
             Stmt::Expr(expr) => Stmt::Expr(self.rewrite_expr(expr, None)),
-            Stmt::Module { def, body } => Stmt::Module {
-                def,
-                body: self.rewrite_expr(body, None),
-            },
+            Stmt::Module { def, body } => {
+                let body_context = self
+                    .monomorphic_binding_type(&def)
+                    .map(|ty| core_ir::TypeBounds::exact(runtime_core_type(&ty)));
+                let body = self.rewrite_expr(body, body_context);
+                Stmt::Module { def, body }
+            }
         }
+    }
+
+    fn rewrite_block_module_stmt_types(&self, stmts: Vec<Stmt>) -> Vec<Stmt> {
+        stmts
+            .into_iter()
+            .map(|stmt| match stmt {
+                Stmt::Module { def, mut body } => {
+                    if let Some(ty) = self.monomorphic_binding_type(&def) {
+                        body.ty = ty;
+                    }
+                    Stmt::Module { def, body }
+                }
+                stmt => stmt,
+            })
+            .collect()
     }
 
     fn rewrite_apply_from_principal_plan(
@@ -528,6 +619,7 @@ impl PrincipalUnifier {
         if let Some((boundary, plan)) = handler_plan.as_ref()
             && !handler_plan_is_supported(boundary, plan)
         {
+            debug_principal_unify_handler_plan(spine.target, boundary, plan);
             self.bump_skip(spine.target, "missing-handler-adapter-hole");
             return None;
         }
@@ -837,7 +929,10 @@ impl PrincipalUnifier {
             true,
             64,
         );
-        if !conflicts.is_empty() || substitutions.len() == before {
+        let required_vars_closed = required_vars
+            .iter()
+            .all(|var| substitutions.contains_key(var));
+        if !conflicts.is_empty() || (substitutions.len() == before && !required_vars_closed) {
             if !conflicts.is_empty() {
                 self.bump("principal-unify-runtime-effect-conflict");
                 debug_principal_unify_projection_outcome(
@@ -857,19 +952,30 @@ impl PrincipalUnifier {
             }
             return None;
         }
+        if substitutions.len() == before {
+            self.bump("principal-unify-runtime-effect-filled-slots");
+        }
         debug_principal_unify_projection_outcome(
             "projected",
             plan.target.as_ref(),
             &substitutions,
             &conflicts,
         );
+        let normalized_substitutions = substitutions.clone();
         let mut plan = plan.clone();
         plan.substitutions = substitutions
             .into_iter()
             .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
             .collect();
         fill_plan_runtime_slots_from_principal(&mut plan, args.len());
-        let normalized = normalize_principal_elaboration_plan(plan, &[]);
+        fill_effectful_input_runtime_slot_from_result(&mut plan, args.len());
+        let mut normalized = normalize_principal_elaboration_plan(plan, &[]);
+        if normalized.complete && normalized.substitutions.is_empty() {
+            normalized.substitutions = normalized_substitutions
+                .into_iter()
+                .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
+                .collect();
+        }
         debug_principal_unify_normalized_plan(&normalized);
         Some(normalized)
     }
@@ -949,11 +1055,27 @@ impl PrincipalUnifier {
         let path = principal_unified_path(&original.name, self.next_index);
         self.next_index += 1;
         self.specializations.insert(key, path.clone());
+        self.root_specializations
+            .entry(original.name.clone())
+            .or_default()
+            .push(path.clone());
         debug_principal_unify_emit(&original.name, &path, &substitutions);
         let original_name = original.name.clone();
         let mut binding = substitute_binding(original, &substitutions);
         if let Some(plan) = handler_plan {
             binding = apply_handler_adapter_plan_to_binding(binding, &plan);
+        } else if let Some(info) = handler_binding_info(&binding)
+            && !info.consumes.is_empty()
+        {
+            binding = apply_handler_adapter_plan_to_binding(
+                binding,
+                &HandlerAdapterPlan {
+                    consumes: info.consumes,
+                    residual_before: None,
+                    residual_after: None,
+                    return_wrapper_effect: None,
+                },
+            );
         }
         binding.name = path.clone();
         binding.type_params.clear();
@@ -962,6 +1084,10 @@ impl PrincipalUnifier {
             .push((original_name, substitutions.clone()));
         binding.body = self.rewrite_expr(binding.body, None);
         self.active_specializations.pop();
+        binding.body = refresh_local_expr_types(binding.body);
+        binding.body = project_runtime_expr_types(binding.body);
+        binding.scheme.body =
+            project_runtime_type_with_vars(&runtime_core_type(&binding.body.ty), &BTreeSet::new());
         self.emitted.push(binding);
         Some(path)
     }
@@ -985,6 +1111,19 @@ impl PrincipalUnifier {
         self.next_index += 1;
         self.specializations.insert(key, path.clone());
         debug_principal_unify_emit(&original_name, &path, &BTreeMap::new());
+        if let Some(info) = handler_binding_info(&binding)
+            && !info.consumes.is_empty()
+        {
+            binding = apply_handler_adapter_plan_to_binding(
+                binding,
+                &HandlerAdapterPlan {
+                    consumes: info.consumes,
+                    residual_before: None,
+                    residual_after: None,
+                    return_wrapper_effect: None,
+                },
+            );
+        }
         binding.name = path.clone();
         binding.type_params.clear();
         binding.body = refresh_local_expr_types(binding.body);
@@ -1003,6 +1142,72 @@ impl PrincipalUnifier {
             .find_map(|(active_target, substitutions)| {
                 (active_target == target).then_some(substitutions)
             })
+    }
+
+    fn monomorphic_binding_type(&self, path: &core_ir::Path) -> Option<RuntimeType> {
+        let binding = self.bindings_by_path.get(path)?;
+        if !closed_slot_type_usable(&binding.scheme.body, false) {
+            return None;
+        }
+        Some(RuntimeType::core(binding.scheme.body.clone()))
+    }
+
+    fn rewrite_nullary_generic_from_context(
+        &mut self,
+        path: &core_ir::Path,
+        result_context: Option<&core_ir::TypeBounds>,
+    ) -> Option<Expr> {
+        let original = self.generic_bindings.get(path).cloned()?;
+        if core_fun_spine_exact(&original.scheme.body, 1).is_some() {
+            return None;
+        }
+        let context = closed_type_from_bounds(result_context)?;
+        let required = binding_required_vars(&original);
+        if required.is_empty() {
+            return None;
+        }
+        let mut substitutions = BTreeMap::new();
+        let mut conflicts = BTreeSet::new();
+        project_closed_substitutions_from_type(
+            &original.scheme.body,
+            &context,
+            &required,
+            &mut substitutions,
+            &mut conflicts,
+            false,
+            64,
+        );
+        if !conflicts.is_empty() {
+            self.bump_skip(path, "nullary-context-conflict");
+            return None;
+        }
+        let substitutions = complete_required_substitutions(&original, &substitutions)?;
+        let specialized_ty = substitute_type(&original.scheme.body, &substitutions);
+        let specialized = self.intern_specialization(original, substitutions, None)?;
+        self.bump("principal-unify-nullary-context-rewrite");
+        Some(Expr::typed(
+            ExprKind::Var(specialized),
+            RuntimeType::core(specialized_ty),
+        ))
+    }
+
+    fn expr_is_nullary_generic_var(&self, expr: &Expr) -> bool {
+        match &expr.kind {
+            ExprKind::Var(path) => self.generic_bindings.get(path).is_some_and(|binding| {
+                core_fun_spine_exact(&binding.scheme.body, 1).is_none()
+                    && path.segments.last().is_some_and(|name| name.0 == "nil")
+            }),
+            ExprKind::Thunk { expr, .. }
+            | ExprKind::LocalPushId { body: expr, .. }
+            | ExprKind::Pack { expr, .. }
+            | ExprKind::BindHere { expr }
+            | ExprKind::Coerce { expr, .. } => self.expr_is_nullary_generic_var(expr),
+            ExprKind::Block {
+                tail: Some(tail), ..
+            } => self.expr_is_nullary_generic_var(tail),
+            ExprKind::AddId { thunk, .. } => self.expr_is_nullary_generic_var(thunk),
+            _ => false,
+        }
     }
 }
 
@@ -1069,6 +1274,64 @@ fn plan_substitution_map(
         .collect()
 }
 
+fn is_local_ref_run_path(path: &core_ir::Path) -> bool {
+    let [namespace, name] = path.segments.as_slice() else {
+        return false;
+    };
+    name.0 == "run" && namespace.0.starts_with('&')
+}
+
+fn pattern_value_context(pattern: &Pattern) -> Option<core_ir::TypeBounds> {
+    let ty = runtime_core_type(pattern_runtime_type(pattern));
+    closed_slot_type_usable(&ty, false).then(|| core_ir::TypeBounds::exact(ty))
+}
+
+fn pattern_runtime_type(pattern: &Pattern) -> &RuntimeType {
+    match pattern {
+        Pattern::Tuple { ty, .. }
+        | Pattern::List { ty, .. }
+        | Pattern::Record { ty, .. }
+        | Pattern::Variant { ty, .. }
+        | Pattern::Lit { ty, .. }
+        | Pattern::Bind { ty, .. }
+        | Pattern::Wildcard { ty }
+        | Pattern::Or { ty, .. }
+        | Pattern::As { ty, .. } => ty,
+    }
+}
+
+fn principal_rewrite_type_from_kind(fallback: RuntimeType, kind: &ExprKind) -> RuntimeType {
+    match kind {
+        ExprKind::Tuple(items) => RuntimeType::core(core_ir::Type::Tuple(
+            items
+                .iter()
+                .map(|item| runtime_core_type(&item.ty))
+                .collect(),
+        )),
+        ExprKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } if then_branch.ty == else_branch.ty => then_branch.ty.clone(),
+        ExprKind::Match { arms, .. } => arms
+            .first()
+            .map(|arm| arm.body.ty.clone())
+            .unwrap_or(fallback),
+        ExprKind::Block {
+            tail: Some(tail), ..
+        } => tail.ty.clone(),
+        ExprKind::BindHere { expr } => match &expr.ty {
+            RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
+            _ => fallback,
+        },
+        ExprKind::Thunk { effect, value, .. } => RuntimeType::thunk(effect.clone(), value.clone()),
+        ExprKind::LocalPushId { body, .. } => body.ty.clone(),
+        ExprKind::AddId { thunk, .. } => thunk.ty.clone(),
+        ExprKind::Coerce { to, .. } => RuntimeType::core(to.clone()),
+        _ => fallback,
+    }
+}
+
 fn fill_plan_runtime_slots_from_principal(
     plan: &mut core_ir::PrincipalElaborationPlan,
     arg_count: usize,
@@ -1089,6 +1352,36 @@ fn fill_plan_runtime_slots_from_principal(
     if plan.result.expected_runtime.is_none() && closed_slot_type_usable(&ret, false) {
         plan.result.expected_runtime = Some(ret);
     }
+}
+
+fn fill_effectful_input_runtime_slot_from_result(
+    plan: &mut core_ir::PrincipalElaborationPlan,
+    arg_count: usize,
+) {
+    if arg_count != 1 || plan.args.len() != 1 || plan.args[0].expected_runtime.is_some() {
+        return;
+    }
+    let Some(result) = principal_plan_result_closed_type(&plan.result) else {
+        return;
+    };
+    if !closed_slot_type_usable(&result, false) {
+        return;
+    }
+    let substitutions = plan_substitution_map(plan);
+    let callee = substitute_type(&plan.principal_callee, &substitutions);
+    let Some((params, ret, _ret_effect)) = core_fun_spine_parts_exact(&callee, arg_count) else {
+        return;
+    };
+    let Some((param, param_effect)) = params.first() else {
+        return;
+    };
+    if !matches!(param, core_ir::Type::Any) || effect_is_empty(param_effect) {
+        return;
+    }
+    if ret != result && !type_compatible(&result, &ret) {
+        return;
+    }
+    plan.args[0].expected_runtime = Some(result);
 }
 
 fn merge_plan_substitutions(
@@ -1165,11 +1458,18 @@ fn owned_args_fit_without_adapter(
 }
 
 fn handler_plan_is_supported(boundary: &HandlerCallBoundary, plan: &HandlerAdapterPlan) -> bool {
-    boundary.consumes_input_effect
+    (boundary.consumes_input_effect
         && plan
             .residual_after
             .as_ref()
-            .is_none_or(|effect| effect_is_empty(effect) || plan.return_wrapper_effect.is_some())
+            .is_none_or(|effect| effect_is_empty(effect) || plan.return_wrapper_effect.is_some()))
+        || (!boundary.consumes_input_effect
+            && boundary.output_effect.as_ref().is_none_or(effect_is_empty)
+            && plan.return_wrapper_effect.is_none()
+            && plan.residual_after.as_ref().is_some_and(effect_is_empty))
+        || (boundary.output_effect.as_ref().is_none_or(effect_is_empty)
+            && plan.return_wrapper_effect.is_none()
+            && plan.residual_before == plan.residual_after)
 }
 
 fn plan_only_lacks_handler_boundary(plan: &core_ir::PrincipalElaborationPlan) -> bool {
@@ -1373,6 +1673,24 @@ fn wrap_runtime_fun_spine_return_effect(
     if arity == 0 {
         return Some(wrap_expr_in_effect_thunk(expr, effect));
     }
+    if let Expr {
+        ty: _,
+        kind: ExprKind::Block {
+            stmts,
+            tail: Some(tail),
+        },
+    } = expr
+    {
+        let tail = wrap_runtime_fun_spine_return_effect(*tail, arity, effect)?;
+        let ty = tail.ty.clone();
+        return Some(Expr::typed(
+            ExprKind::Block {
+                stmts,
+                tail: Some(Box::new(tail)),
+            },
+            ty,
+        ));
+    }
     let Expr {
         ty,
         kind:
@@ -1551,6 +1869,79 @@ fn runtime_type_has_vars(ty: &RuntimeType) -> bool {
     !vars.is_empty()
 }
 
+fn runtime_type_shape_usable(ty: &RuntimeType) -> bool {
+    !runtime_type_has_vars(ty) && !runtime_type_contains_any(ty)
+}
+
+fn runtime_type_contains_any(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Core(ty) => core_type_contains_any(ty),
+        RuntimeType::Fun { param, ret } => {
+            runtime_type_contains_any(param) || runtime_type_contains_any(ret)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            core_type_contains_any(effect) || runtime_type_contains_any(value)
+        }
+    }
+}
+
+fn core_type_contains_any(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Any => true,
+        core_ir::Type::Never | core_ir::Type::Var(_) => false,
+        core_ir::Type::Named { args, .. } => args.iter().any(core_type_arg_contains_any),
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_contains_any(param)
+                || core_type_contains_any(param_effect)
+                || core_type_contains_any(ret_effect)
+                || core_type_contains_any(ret)
+        }
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().any(core_type_contains_any)
+        }
+        core_ir::Type::Row { items, tail } => {
+            items.iter().any(core_type_contains_any) || core_type_contains_any(tail)
+        }
+        core_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| core_type_contains_any(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                        core_type_contains_any(ty)
+                    }
+                })
+        }
+        core_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(core_type_contains_any))
+                || variant
+                    .tail
+                    .as_ref()
+                    .is_some_and(|tail| core_type_contains_any(tail))
+        }
+        core_ir::Type::Recursive { body, .. } => core_type_contains_any(body),
+    }
+}
+
+fn core_type_arg_contains_any(arg: &core_ir::TypeArg) -> bool {
+    match arg {
+        core_ir::TypeArg::Type(ty) => core_type_contains_any(ty),
+        core_ir::TypeArg::Bounds(bounds) => {
+            bounds.lower.as_deref().is_some_and(core_type_contains_any)
+                || bounds.upper.as_deref().is_some_and(core_type_contains_any)
+        }
+    }
+}
+
 fn core_fun_spine_exact(
     ty: &core_ir::Type,
     arity: usize,
@@ -1643,6 +2034,37 @@ fn debug_principal_unify_runtime_projection(
         .unwrap_or_else(|| "<unknown>".to_string());
     eprintln!(
         "principal-unify runtime-slot {target} {slot}: value {template_value:?} <= {actual_value:?}; effect {template_effect:?} <= {actual_effect:?}"
+    );
+}
+
+fn debug_principal_unify_skip(target: &core_ir::Path, reason: &str) {
+    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+        return;
+    }
+    eprintln!(
+        "principal-unify skip {} reason={reason}",
+        canonical_path(target)
+    );
+}
+
+fn debug_principal_unify_handler_plan(
+    target: &core_ir::Path,
+    boundary: &HandlerCallBoundary,
+    plan: &HandlerAdapterPlan,
+) {
+    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+        return;
+    }
+    eprintln!(
+        "principal-unify handler-plan {} input_effect={:?} output_effect={:?} consumes_input={} preserves_output={} residual_before={:?} residual_after={:?} return_wrapper={:?}",
+        canonical_path(target),
+        boundary.input_effect,
+        boundary.output_effect,
+        boundary.consumes_input_effect,
+        boundary.preserves_output_effect,
+        plan.residual_before,
+        plan.residual_after,
+        plan.return_wrapper_effect
     );
 }
 
@@ -1786,6 +2208,12 @@ fn runtime_lambda_return_value_context(ty: &RuntimeType) -> Option<core_ir::Type
         return None;
     };
     Some(core_ir::TypeBounds::exact(runtime_core_type(ret)))
+}
+
+fn runtime_context_function_type(bounds: Option<&core_ir::TypeBounds>) -> Option<RuntimeType> {
+    let ty = closed_type_from_bounds(bounds)?;
+    let ty = normalize_hir_function_type(RuntimeType::core(ty));
+    matches!(ty, RuntimeType::Fun { .. }).then_some(ty)
 }
 
 fn runtime_function_param_slot(ty: &RuntimeType) -> Option<(core_ir::Type, core_ir::Type)> {
@@ -1946,6 +2374,37 @@ fn unwrap_handler_body_bind_here(body: Expr, handler: &crate::ir::HandleEffect) 
         return *expr;
     }
     Expr::typed(ExprKind::BindHere { expr }, ty)
+}
+
+fn ensure_effectful_handler_body_thunk(body: Expr, handler: &crate::ir::HandleEffect) -> Expr {
+    if handler.consumes.is_empty() || matches!(body.ty, RuntimeType::Thunk { .. }) {
+        return body;
+    }
+    let effect = handler
+        .residual_before
+        .clone()
+        .filter(|effect| !effect_is_empty(effect))
+        .unwrap_or_else(|| core_ir::Type::Row {
+            items: handler
+                .consumes
+                .iter()
+                .cloned()
+                .map(|path| core_ir::Type::Named {
+                    path,
+                    args: Vec::new(),
+                })
+                .collect(),
+            tail: Box::new(core_ir::Type::Never),
+        });
+    let value = body.ty.clone();
+    Expr::typed(
+        ExprKind::Thunk {
+            effect: effect.clone(),
+            value: value.clone(),
+            expr: Box::new(body),
+        },
+        RuntimeType::thunk(effect, value),
+    )
 }
 
 fn apply_evidence_return_effect(evidence: &core_ir::ApplyEvidence) -> Option<core_ir::Type> {
@@ -2110,10 +2569,23 @@ fn role_impl_closed_substitutions(
         );
     }
     let substituted_receiver = substitute_type(receiver_param, &substitutions);
-    if !receiver_type_matches_impl(&substituted_receiver, &receiver_ty) {
+    if !receiver_type_matches_impl(&substituted_receiver, &receiver_ty)
+        && !matches!(receiver_ty, core_ir::Type::Any)
+    {
         debug_principal_unify_role_candidate_rejected(
             &binding.name,
             "receiver-mismatch",
+            &substitutions,
+            &missing_required_vars(binding, &substitutions),
+        );
+        return None;
+    }
+    if matches!(receiver_ty, core_ir::Type::Any)
+        && !role_impl_closed_slots_match(&params, &ret, args, result_ty, &substitutions)
+    {
+        debug_principal_unify_role_candidate_rejected(
+            &binding.name,
+            "slot-mismatch",
             &substitutions,
             &missing_required_vars(binding, &substitutions),
         );
@@ -2129,6 +2601,31 @@ fn role_impl_closed_substitutions(
         );
     }
     completed
+}
+
+fn role_impl_closed_slots_match(
+    params: &[(core_ir::Type, core_ir::Type)],
+    ret: &core_ir::Type,
+    args: &[&Expr],
+    result_ty: &RuntimeType,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> bool {
+    for (arg, (param, _param_effect)) in args.iter().zip(params) {
+        let actual = runtime_core_type(&arg.ty);
+        if matches!(actual, core_ir::Type::Any) {
+            continue;
+        }
+        let param = substitute_type(param, substitutions);
+        if !receiver_type_matches_impl(&param, &actual) {
+            return false;
+        }
+    }
+    let actual_ret = runtime_core_type(result_ty);
+    if matches!(actual_ret, core_ir::Type::Any) {
+        return true;
+    }
+    let ret = substitute_type(ret, substitutions);
+    receiver_type_matches_impl(&ret, &actual_ret)
 }
 
 fn project_closed_value_substitutions_from_type(

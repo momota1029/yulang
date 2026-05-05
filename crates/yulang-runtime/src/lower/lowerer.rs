@@ -1306,7 +1306,7 @@ impl Lowerer<'_> {
         let usable = match source_edge.and_then(|id| self.expected_edge(id).cloned()) {
             Some(edge) => {
                 debug_assert_eq!(edge.kind, core_ir::ExpectedEdgeKind::ApplicationArgument);
-                self.profile_expected_arg_table_usability(&edge, &ty)
+                self.profile_expected_arg_table_usability(bounds, &ty)
             }
             None => self.profile_expected_arg_bounds_usability(&ty),
         };
@@ -1326,11 +1326,11 @@ impl Lowerer<'_> {
 
     fn profile_expected_arg_table_usability(
         &mut self,
-        edge: &core_ir::ExpectedEdgeEvidence,
+        bounds: &core_ir::TypeBounds,
         ty: &RuntimeType,
     ) -> bool {
-        let expected_closed = type_bounds_closed(&edge.expected);
-        let expected_informative = type_bounds_informative(&edge.expected);
+        let expected_closed = type_bounds_closed(bounds);
+        let expected_informative = type_bounds_informative(bounds);
         let expected_runtime_usable = expected_arg_evidence_runtime_usable(ty);
         if expected_closed && expected_informative && expected_runtime_usable {
             self.expected_arg_evidence_profile.usable_by_table += 1;

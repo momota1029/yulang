@@ -25,8 +25,9 @@ use crate::refine::refine_module_types_with_report;
 use crate::types::{
     collect_expr_type_vars, collect_hir_type_vars, collect_type_vars as collect_core_type_vars,
     core_type_has_vars, effect_is_empty, effect_paths, effect_paths_match, hir_type_has_vars,
-    infer_type_substitutions_with_effects, project_runtime_effect, should_thunk_effect,
-    substitute_apply_evidence, substitute_join_evidence, substitute_scheme, substitute_type,
+    infer_type_substitutions_with_effects, project_runtime_effect, project_runtime_type_with_vars,
+    should_thunk_effect, substitute_apply_evidence, substitute_join_evidence, substitute_scheme,
+    substitute_type,
 };
 use crate::validate::validate_module;
 

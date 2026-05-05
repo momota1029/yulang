@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::runtime_core_type;
+use crate::types::{project_runtime_type_with_vars, runtime_core_type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct HandlerBindingInfo {
@@ -23,6 +23,7 @@ pub(super) struct HandlerCallBoundary {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct HandlerAdapterPlan {
+    pub(super) consumes: Vec<core_ir::Path>,
     pub(super) residual_before: Option<core_ir::Type>,
     pub(super) residual_after: Option<core_ir::Type>,
     pub(super) return_wrapper_effect: Option<core_ir::Type>,
@@ -30,6 +31,11 @@ pub(super) struct HandlerAdapterPlan {
 
 pub(super) fn handler_binding_info(binding: &Binding) -> Option<HandlerBindingInfo> {
     let mut info = expr_handler_info(&binding.body)?;
+    if info.consumes.is_empty()
+        && let Some(effect) = local_ref_run_effect_path(&binding.name)
+    {
+        info.consumes.push(effect);
+    }
     if let Some((input_effect, output_effect)) = principal_handler_effects(&binding.scheme.body) {
         info.principal_input_effect = Some(input_effect);
         info.principal_output_effect = Some(output_effect);
@@ -42,13 +48,21 @@ pub(super) fn handler_call_boundary(
     args: &[&Expr],
     result_ty: &RuntimeType,
 ) -> HandlerCallBoundary {
-    let input_effect = args.first().and_then(|arg| runtime_thunk_effect(&arg.ty));
+    let input_effect = args.iter().find_map(|arg| runtime_thunk_effect(&arg.ty));
     let output_effect = runtime_thunk_effect(result_ty);
+    let structural_input_consumes = info
+        .principal_input_effect
+        .as_ref()
+        .is_some_and(|effect| effect_contains_any(effect, &info.consumes));
+    let curried_handler_input_consumes =
+        input_effect.is_none() && args.len() > 1 && !info.consumes.is_empty();
     HandlerCallBoundary {
         consumes: info.consumes.clone(),
         consumes_input_effect: input_effect
             .as_ref()
-            .is_some_and(|effect| effect_contains_any(effect, &info.consumes)),
+            .is_some_and(|effect| effect_contains_any(effect, &info.consumes))
+            || structural_input_consumes
+            || curried_handler_input_consumes,
         preserves_output_effect: output_effect
             .as_ref()
             .is_some_and(|effect| !effect_is_empty(effect)),
@@ -62,13 +76,25 @@ pub(super) fn handler_adapter_plan(
     info: &HandlerBindingInfo,
     boundary: &HandlerCallBoundary,
 ) -> HandlerAdapterPlan {
-    let residual_before = handler_residual_before(info, boundary);
-    let residual_after = residual_before
+    let mut residual_before = handler_residual_before(info, boundary);
+    let mut residual_after = residual_before
         .as_ref()
         .map(|effect| remove_consumed_effects(effect, &info.consumes));
-    let return_wrapper_effect =
+    let mut return_wrapper_effect =
         handler_return_wrapper_effect(info, boundary, residual_after.as_ref());
+    if boundary.consumes_input_effect
+        && boundary.preserves_output_effect
+        && let Some(output_effect) = boundary
+            .output_effect
+            .as_ref()
+            .filter(|effect| !effect_is_empty(effect))
+    {
+        residual_before = Some(effect_row_from_paths(info.consumes.clone()));
+        residual_after = Some(core_ir::Type::Never);
+        return_wrapper_effect = Some(output_effect.clone());
+    }
     HandlerAdapterPlan {
+        consumes: info.consumes.clone(),
         residual_before,
         residual_after,
         return_wrapper_effect,
@@ -80,6 +106,7 @@ pub(super) fn substitute_handler_adapter_plan(
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) -> HandlerAdapterPlan {
     HandlerAdapterPlan {
+        consumes: plan.consumes.clone(),
         residual_before: plan
             .residual_before
             .as_ref()
@@ -101,7 +128,8 @@ pub(super) fn apply_handler_adapter_plan_to_binding(
 ) -> Binding {
     let mut next_effect_id = next_effect_id_after_expr(&binding.body);
     binding.body = apply_handler_adapter_plan_to_expr(binding.body, plan, &mut next_effect_id);
-    binding.scheme.body = runtime_core_type(&binding.body.ty);
+    binding.scheme.body =
+        project_runtime_type_with_vars(&runtime_core_type(&binding.body.ty), &BTreeSet::new());
     binding
 }
 
@@ -110,6 +138,15 @@ fn runtime_thunk_effect(ty: &RuntimeType) -> Option<core_ir::Type> {
         RuntimeType::Thunk { effect, .. } => Some(effect.clone()),
         RuntimeType::Core(_) | RuntimeType::Fun { .. } => None,
     }
+}
+
+fn local_ref_run_effect_path(target: &core_ir::Path) -> Option<core_ir::Path> {
+    let [namespace, name] = target.segments.as_slice() else {
+        return None;
+    };
+    (name.0 == "run" && namespace.0.starts_with('&')).then(|| core_ir::Path {
+        segments: vec![namespace.clone()],
+    })
 }
 
 fn handler_residual_before(
@@ -343,11 +380,17 @@ fn rewrite_first_handle(expr: Expr, plan: &HandlerAdapterPlan) -> Expr {
             evidence,
             mut handler,
         } => {
-            handler.residual_before = plan.residual_before.clone();
-            handler.residual_after = plan.residual_after.clone();
+            handler.consumes = plan.consumes.clone();
+            if plan.residual_before.is_some() {
+                handler.residual_before = plan.residual_before.clone();
+            }
+            if plan.residual_after.is_some() {
+                handler.residual_after = plan.residual_after.clone();
+            }
+            let body = ensure_consuming_handle_body_thunk(*body, plan);
             Expr::typed(
                 ExprKind::Handle {
-                    body,
+                    body: Box::new(body),
                     arms,
                     evidence,
                     handler,
@@ -392,6 +435,26 @@ fn rewrite_first_handle(expr: Expr, plan: &HandlerAdapterPlan) -> Expr {
         ),
         other => Expr::typed(other, ty),
     }
+}
+
+fn ensure_consuming_handle_body_thunk(body: Expr, plan: &HandlerAdapterPlan) -> Expr {
+    if plan.consumes.is_empty() || matches!(body.ty, RuntimeType::Thunk { .. }) {
+        return body;
+    }
+    let effect = plan
+        .residual_before
+        .clone()
+        .filter(|effect| !effect_is_empty(effect))
+        .unwrap_or_else(|| effect_row_from_paths(plan.consumes.clone()));
+    let value = body.ty.clone();
+    Expr::typed(
+        ExprKind::Thunk {
+            effect: effect.clone(),
+            value: value.clone(),
+            expr: Box::new(body),
+        },
+        RuntimeType::thunk(effect, value),
+    )
 }
 
 fn wrap_first_handler_returns(
@@ -723,6 +786,9 @@ fn update_max(max: &mut Option<usize>, candidate: Option<usize>) {
 }
 
 fn effect_contains_any(effect: &core_ir::Type, targets: &[core_ir::Path]) -> bool {
+    if matches!(effect, core_ir::Type::Any) && !targets.is_empty() {
+        return true;
+    }
     let paths = effect_paths(effect);
     paths.iter().any(|path| {
         targets

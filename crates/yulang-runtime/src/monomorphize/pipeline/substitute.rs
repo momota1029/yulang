@@ -268,14 +268,18 @@ pub(super) fn substitute_hir_type(
     ty: RuntimeType,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) -> RuntimeType {
+    let allowed_vars = BTreeSet::new();
     let ty = match ty {
-        RuntimeType::Core(ty) => RuntimeType::core(substitute_type(&ty, substitutions)),
+        RuntimeType::Core(ty) => RuntimeType::core(project_runtime_type_with_vars(
+            &substitute_type(&ty, substitutions),
+            &allowed_vars,
+        )),
         RuntimeType::Fun { param, ret } => RuntimeType::fun(
             substitute_hir_type(*param, substitutions),
             substitute_hir_type(*ret, substitutions),
         ),
         RuntimeType::Thunk { effect, value } => RuntimeType::thunk(
-            substitute_type(&effect, substitutions),
+            project_runtime_effect(&substitute_type(&effect, substitutions)),
             substitute_hir_type(*value, substitutions),
         ),
     };

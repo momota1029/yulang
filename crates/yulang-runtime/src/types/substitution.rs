@@ -1322,6 +1322,7 @@ fn principal_plan_substitution_type_usable(ty: &core_ir::Type, allow_never: bool
     !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_))
         && (allow_never || !matches!(ty, core_ir::Type::Never))
         && !type_has_vars(ty)
+        && !type_has_any(ty)
 }
 
 pub(crate) fn substitute_join_evidence(
@@ -1761,6 +1762,41 @@ pub(super) fn type_has_vars(ty: &core_ir::Type) -> bool {
     let mut vars = BTreeSet::new();
     collect_type_vars(ty, &mut vars);
     !vars.is_empty()
+}
+
+fn type_has_any(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Any => true,
+        core_ir::Type::Named { args, .. } => args.iter().any(type_arg_has_any),
+        core_ir::Type::Fun { param, ret, .. } => type_has_any(param) || type_has_any(ret),
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().any(type_has_any)
+        }
+        core_ir::Type::Row { items, tail } => items.iter().any(type_has_any) || type_has_any(tail),
+        core_ir::Type::Record(record) => {
+            record.fields.iter().any(|field| type_has_any(&field.value))
+        }
+        core_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .flat_map(|case| &case.payloads)
+                .any(type_has_any)
+                || variant.tail.as_deref().is_some_and(type_has_any)
+        }
+        core_ir::Type::Recursive { body, .. } => type_has_any(body),
+        core_ir::Type::Var(_) | core_ir::Type::Never => false,
+    }
+}
+
+fn type_arg_has_any(arg: &core_ir::TypeArg) -> bool {
+    match arg {
+        core_ir::TypeArg::Type(ty) => type_has_any(ty),
+        core_ir::TypeArg::Bounds(bounds) => {
+            bounds.lower.as_deref().is_some_and(type_has_any)
+                || bounds.upper.as_deref().is_some_and(type_has_any)
+        }
+    }
 }
 
 pub(super) fn type_contains_var(ty: &core_ir::Type, var: &core_ir::TypeVar) -> bool {
