@@ -346,7 +346,8 @@ impl<'a> RuntimeTypeProjector<'a> {
     ) {
         match self.project_effect(ty) {
             effect if effect_is_empty(&effect) => {}
-            core_ir::Type::Any | core_ir::Type::Var(_) => {}
+            core_ir::Type::Unknown | core_ir::Type::Any => {}
+            core_ir::Type::Var(var) => push_unique_effect(out, core_ir::Type::Var(var)),
             core_ir::Type::Row { items, .. } => {
                 for item in items {
                     push_unique_effect(out, item);

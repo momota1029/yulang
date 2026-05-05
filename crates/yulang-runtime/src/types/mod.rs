@@ -107,10 +107,10 @@ mod tests {
         assert_eq!(
             projected,
             core_ir::Type::Fun {
-                param: Box::new(core_ir::Type::Any),
+                param: Box::new(core_ir::Type::Unknown),
                 param_effect: Box::new(core_ir::Type::Never),
                 ret_effect: Box::new(core_ir::Type::Never),
-                ret: Box::new(core_ir::Type::Any),
+                ret: Box::new(core_ir::Type::Unknown),
             }
         );
     }

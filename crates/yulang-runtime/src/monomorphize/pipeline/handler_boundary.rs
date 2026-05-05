@@ -29,6 +29,7 @@ pub(super) struct HandlerAdapterPlan {
     pub(super) residual_before: Option<core_ir::Type>,
     pub(super) residual_after: Option<core_ir::Type>,
     pub(super) return_wrapper_effect: Option<core_ir::Type>,
+    pub(super) return_value: Option<core_ir::Type>,
 }
 
 pub(super) fn handler_binding_info(binding: &Binding) -> Option<HandlerBindingInfo> {
@@ -214,7 +215,7 @@ fn merge_optional_handler_effect(out: &mut Option<core_ir::Type>, effect: core_i
 
 fn precise_handler_effect(effect: &core_ir::Type) -> Option<core_ir::Type> {
     let paths = effect_paths(effect);
-    (!paths.is_empty()).then(|| effect_row_from_paths(paths))
+    (!paths.is_empty()).then(|| normalize_effect(effect.clone()))
 }
 
 pub(super) fn handler_adapter_plan(
@@ -234,7 +235,14 @@ pub(super) fn handler_adapter_plan(
             .as_ref()
             .filter(|effect| !effect_is_empty(effect))
     {
-        residual_before = Some(effect_row_from_paths(info.consumes.clone()));
+        residual_before = Some(
+            boundary
+                .input_effect
+                .as_ref()
+                .map(|effect| select_consumed_effects(effect, &info.consumes))
+                .filter(|effect| !effect_is_empty(effect))
+                .unwrap_or_else(|| effect_row_from_paths(info.consumes.clone())),
+        );
         residual_after = Some(core_ir::Type::Never);
         return_wrapper_effect = Some(output_effect.clone());
     }
@@ -243,6 +251,7 @@ pub(super) fn handler_adapter_plan(
         residual_before,
         residual_after,
         return_wrapper_effect,
+        return_value: None,
     }
 }
 
@@ -264,7 +273,38 @@ pub(super) fn substitute_handler_adapter_plan(
             .return_wrapper_effect
             .as_ref()
             .map(|effect| normalize_effect(substitute_type(effect, substitutions))),
+        return_value: plan
+            .return_value
+            .as_ref()
+            .map(|value| substitute_type(value, substitutions)),
     }
+}
+
+pub(super) fn refine_handler_adapter_plan_from_signature(
+    mut plan: HandlerAdapterPlan,
+    params: &[(core_ir::Type, core_ir::Type)],
+    ret: &core_ir::Type,
+    consumes: &[core_ir::Path],
+) -> HandlerAdapterPlan {
+    if !effect_contains_unknown_or_var(ret) {
+        plan.return_value = Some(ret.clone());
+    }
+    let Some(consumed) = params
+        .iter()
+        .map(|(_, effect)| select_consumed_effects(effect, consumes))
+        .filter(|effect| {
+            !effect_is_empty(effect)
+                && !effect_contains_unknown_or_var(effect)
+                && !effect_paths(effect).is_empty()
+        })
+        .reduce(merge_handler_residual_effects)
+    else {
+        return plan;
+    };
+    plan.residual_before = Some(
+        merge_effects(Some(consumed), plan.residual_after.clone()).unwrap_or(core_ir::Type::Never),
+    );
+    plan
 }
 
 pub(super) fn handler_preserved_residual_effect(
@@ -304,13 +344,19 @@ fn handler_residual_before(
     info: &HandlerBindingInfo,
     boundary: &HandlerCallBoundary,
 ) -> Option<core_ir::Type> {
+    let has_call_site_consumed_effect = boundary
+        .input_effect
+        .as_ref()
+        .map(|effect| select_consumed_effects(effect, &info.consumes))
+        .is_some_and(|effect| !effect_is_empty(&effect));
     let structural = info
         .principal_input_effect
         .as_ref()
         .filter(|effect| effect_contains_any(effect, &info.consumes))
         .cloned()
         .or_else(|| {
-            (!info.consumes.is_empty()).then(|| effect_row_from_paths(info.consumes.clone()))
+            (!has_call_site_consumed_effect && !info.consumes.is_empty())
+                .then(|| effect_row_from_paths(info.consumes.clone()))
         });
     merge_effects(structural, boundary.input_effect.clone())
 }
@@ -452,6 +498,104 @@ fn remove_consumed_effects(effect: &core_ir::Type, consumed: &[core_ir::Path]) -
             body: Box::new(remove_consumed_effects(body, consumed)),
         },
         other => other.clone(),
+    }
+}
+
+fn select_consumed_effects(effect: &core_ir::Type, consumed: &[core_ir::Path]) -> core_ir::Type {
+    match effect {
+        core_ir::Type::Named { path, .. }
+            if consumed
+                .iter()
+                .any(|consumed| effect_paths_match(consumed, path)) =>
+        {
+            effect.clone()
+        }
+        core_ir::Type::Row { items, tail } => {
+            let items = items
+                .iter()
+                .map(|item| select_consumed_effects(item, consumed))
+                .filter(|item| !effect_is_empty(item))
+                .collect();
+            let tail = select_consumed_effects(tail, consumed);
+            effect_row(items, tail)
+        }
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => effect_row(
+            items
+                .iter()
+                .map(|item| select_consumed_effects(item, consumed))
+                .filter(|item| !effect_is_empty(item))
+                .collect(),
+            core_ir::Type::Never,
+        ),
+        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(select_consumed_effects(body, consumed)),
+        },
+        _ => core_ir::Type::Never,
+    }
+}
+
+fn effect_contains_unknown_or_var(effect: &core_ir::Type) -> bool {
+    match effect {
+        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_) => true,
+        core_ir::Type::Never => false,
+        core_ir::Type::Tuple(items) => items.iter().any(effect_contains_unknown_or_var),
+        core_ir::Type::Row { items, tail } => {
+            items.iter().any(effect_contains_unknown_or_var) || effect_contains_unknown_or_var(tail)
+        }
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().any(effect_contains_unknown_or_var)
+        }
+        core_ir::Type::Recursive { body, .. } => effect_contains_unknown_or_var(body),
+        core_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_unknown_or_var),
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            effect_contains_unknown_or_var(param)
+                || effect_contains_unknown_or_var(param_effect)
+                || effect_contains_unknown_or_var(ret_effect)
+                || effect_contains_unknown_or_var(ret)
+        }
+        core_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| effect_contains_unknown_or_var(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    core_ir::RecordSpread::Head(spread) | core_ir::RecordSpread::Tail(spread) => {
+                        effect_contains_unknown_or_var(spread.as_ref())
+                    }
+                })
+        }
+        core_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(effect_contains_unknown_or_var))
+                || variant
+                    .tail
+                    .as_ref()
+                    .is_some_and(|tail| effect_contains_unknown_or_var(tail.as_ref()))
+        }
+    }
+}
+
+fn type_arg_contains_unknown_or_var(arg: &core_ir::TypeArg) -> bool {
+    match arg {
+        core_ir::TypeArg::Type(ty) => effect_contains_unknown_or_var(ty),
+        core_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_ref()
+                .is_some_and(|ty| effect_contains_unknown_or_var(ty.as_ref()))
+                || bounds
+                    .upper
+                    .as_ref()
+                    .is_some_and(|ty| effect_contains_unknown_or_var(ty.as_ref()))
+        }
     }
 }
 
@@ -722,12 +866,13 @@ fn wrap_first_handler_returns(
     if effect_is_empty(&effect) {
         return body;
     }
-    wrap_first_handle_returns_with_effect(body, effect, next_effect_id)
+    wrap_first_handle_returns_with_effect(body, effect, plan.return_value.as_ref(), next_effect_id)
 }
 
 fn wrap_first_handle_returns_with_effect(
     expr: Expr,
     effect: core_ir::Type,
+    expected_value: Option<&core_ir::Type>,
     next_effect_id: &mut usize,
 ) -> Expr {
     let Expr { ty, kind } = expr;
@@ -741,11 +886,11 @@ fn wrap_first_handle_returns_with_effect(
             let arms = arms
                 .into_iter()
                 .map(|arm| HandleArm {
-                    body: wrap_value_in_thunk(arm.body, &effect),
+                    body: wrap_value_in_thunk(arm.body, &effect, expected_value),
                     ..arm
                 })
                 .collect::<Vec<_>>();
-            let value = ty;
+            let value = expected_value.cloned().map(RuntimeType::core).unwrap_or(ty);
             let thunk_ty = RuntimeType::thunk(effect, value);
             Expr::typed(
                 ExprKind::Handle {
@@ -763,7 +908,12 @@ fn wrap_first_handle_returns_with_effect(
             param_function_allowed_effects,
             body,
         } => {
-            let body = wrap_first_handle_returns_with_effect(*body, effect, next_effect_id);
+            let body = wrap_first_handle_returns_with_effect(
+                *body,
+                effect,
+                expected_value,
+                next_effect_id,
+            );
             let ty = update_lambda_return_type(ty, &body.ty);
             Expr::typed(
                 ExprKind::Lambda {
@@ -776,7 +926,12 @@ fn wrap_first_handle_returns_with_effect(
             )
         }
         ExprKind::BindHere { expr } => {
-            let expr = wrap_first_handle_returns_with_effect(*expr, effect, next_effect_id);
+            let expr = wrap_first_handle_returns_with_effect(
+                *expr,
+                effect,
+                expected_value,
+                next_effect_id,
+            );
             let ty = match &expr.ty {
                 RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
                 _ => ty,
@@ -789,7 +944,12 @@ fn wrap_first_handle_returns_with_effect(
             )
         }
         ExprKind::LocalPushId { id, body } => {
-            let body = wrap_first_handle_returns_with_effect(*body, effect, next_effect_id);
+            let body = wrap_first_handle_returns_with_effect(
+                *body,
+                effect,
+                expected_value,
+                next_effect_id,
+            );
             let ty = body.ty.clone();
             Expr::typed(
                 ExprKind::LocalPushId {
@@ -800,7 +960,12 @@ fn wrap_first_handle_returns_with_effect(
             )
         }
         ExprKind::AddId { id, allowed, thunk } => {
-            let thunk = wrap_first_handle_returns_with_effect(*thunk, effect, next_effect_id);
+            let thunk = wrap_first_handle_returns_with_effect(
+                *thunk,
+                effect,
+                expected_value,
+                next_effect_id,
+            );
             let ty = thunk.ty.clone();
             Expr::typed(
                 ExprKind::AddId {
@@ -818,7 +983,11 @@ fn wrap_first_handle_returns_with_effect(
     }
 }
 
-fn wrap_value_in_thunk(body: Expr, effect: &core_ir::Type) -> Expr {
+fn wrap_value_in_thunk(
+    body: Expr,
+    effect: &core_ir::Type,
+    expected_value: Option<&core_ir::Type>,
+) -> Expr {
     if let RuntimeType::Thunk {
         effect: existing,
         value: _,
@@ -828,7 +997,10 @@ fn wrap_value_in_thunk(body: Expr, effect: &core_ir::Type) -> Expr {
     {
         return body;
     }
-    let value = body.ty.clone();
+    let value = expected_value
+        .cloned()
+        .map(RuntimeType::core)
+        .unwrap_or_else(|| body.ty.clone());
     let thunk_ty = RuntimeType::thunk(effect.clone(), value.clone());
     Expr::typed(
         ExprKind::Thunk {
@@ -1246,7 +1418,7 @@ mod tests {
         );
 
         let info = handler_binding_info(&binding).expect("handler info");
-        assert_eq!(info.consumes, Vec::<core_ir::Path>::new());
+        assert!(info.consumes.contains(&path_segments(&["std", "effect"])));
         assert_eq!(info.principal_input_effect, Some(core_ir::Type::Never));
         assert_eq!(info.principal_output_effect, Some(core_ir::Type::Never));
         assert!(!info.residual_before_known);
@@ -1316,6 +1488,50 @@ mod tests {
         assert_eq!(plan.return_wrapper_effect, None);
     }
 
+    #[test]
+    fn handler_adapter_plan_preserves_consumed_effect_payload_from_signature() {
+        let consumes = path_segments(&["std", "flow", "sub"]);
+        let outer = path_segments(&["std", "undet", "undet"]);
+        let info = HandlerBindingInfo {
+            consumes: vec![consumes.clone()],
+            principal_input_effect: None,
+            principal_output_effect: None,
+            residual_before_known: true,
+            residual_after_known: true,
+            pure: true,
+        };
+        let boundary = HandlerCallBoundary {
+            consumes: vec![consumes.clone()],
+            input_effect: Some(effect_row(vec![
+                effect_with_arg(consumes.clone(), core_ir::Type::Unknown),
+                effect(outer.clone()),
+            ])),
+            output_effect: Some(effect(outer.clone())),
+            consumes_input_effect: true,
+            preserves_output_effect: true,
+            pure: true,
+        };
+
+        let plan = handler_adapter_plan(&info, &boundary);
+        let plan = refine_handler_adapter_plan_from_signature(
+            plan,
+            &[(
+                named("int"),
+                effect_with_arg(consumes.clone(), named("int")),
+            )],
+            &named("int"),
+            &[consumes.clone()],
+        );
+
+        assert_eq!(
+            plan.residual_before,
+            Some(effect_with_arg(consumes, named("int")))
+        );
+        assert_eq!(plan.residual_after, Some(core_ir::Type::Never));
+        assert_eq!(plan.return_wrapper_effect, Some(effect(outer)));
+        assert_eq!(plan.return_value, Some(named("int")));
+    }
+
     fn test_binding(scheme_body: core_ir::Type) -> Binding {
         Binding {
             name: path_segments(&["std", "prelude", "&impl#0", "method"]),
@@ -1348,6 +1564,13 @@ mod tests {
         core_ir::Type::Named {
             path,
             args: Vec::new(),
+        }
+    }
+
+    fn effect_with_arg(path: core_ir::Path, arg: core_ir::Type) -> core_ir::Type {
+        core_ir::Type::Named {
+            path,
+            args: vec![core_ir::TypeArg::Type(arg)],
         }
     }
 

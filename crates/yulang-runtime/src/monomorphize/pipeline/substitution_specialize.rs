@@ -1,6 +1,6 @@
 use super::*;
 use crate::types::{
-    diagnostic_core_type, needs_runtime_coercion,
+    core_type_contains_unknown, diagnostic_core_type, needs_runtime_coercion,
     normalize_principal_elaboration_plan_with_requirements, runtime_core_type, type_compatible,
 };
 
@@ -957,6 +957,9 @@ fn apply_spine(expr: &Expr) -> Option<ApplySpine<'_>> {
             selected_instantiation = instantiation.as_ref();
         }
         current = callee;
+        while let ExprKind::BindHere { expr } = &current.kind {
+            current = expr;
+        }
     }
     let ExprKind::Var(target) = &current.kind else {
         return None;
@@ -1521,11 +1524,12 @@ fn complete_principal_elaboration_plan_from_exported_spine(
     let mut substitutions = Vec::new();
     let mut candidates = Vec::new();
     let mut args = Vec::new();
-    for (index, evidence) in spine.evidences_by_arg.iter().enumerate() {
+    for (index, (arg, evidence)) in spine.args.iter().zip(&spine.evidences_by_arg).enumerate() {
+        let runtime_arg = principal_plan_runtime_arg_bounds(arg);
         let Some(evidence) = evidence else {
             args.push(core_ir::PrincipalElaborationArg {
                 index,
-                intrinsic: core_ir::TypeBounds::default(),
+                intrinsic: runtime_arg.unwrap_or_default(),
                 contextual: None,
                 expected_runtime: None,
                 source_edge: None,
@@ -1536,7 +1540,7 @@ fn complete_principal_elaboration_plan_from_exported_spine(
         candidates.extend(evidence.substitution_candidates.clone());
         args.push(core_ir::PrincipalElaborationArg {
             index,
-            intrinsic: evidence.arg.clone(),
+            intrinsic: principal_plan_best_arg_bounds(&evidence.arg, runtime_arg),
             contextual: params
                 .get(index)
                 .cloned()
@@ -1574,6 +1578,37 @@ fn complete_principal_elaboration_plan_from_exported_spine(
     );
     debug_principal_elaboration_plan_from_spine(spine.target, &plan, &candidates);
     Some(plan)
+}
+
+fn principal_plan_best_arg_bounds(
+    evidence: &core_ir::TypeBounds,
+    runtime: Option<core_ir::TypeBounds>,
+) -> core_ir::TypeBounds {
+    match (
+        principal_plan_bounds_are_precise(evidence),
+        runtime
+            .as_ref()
+            .is_some_and(principal_plan_bounds_are_precise),
+    ) {
+        (true, _) => evidence.clone(),
+        (false, true) => runtime.expect("checked precise runtime arg bounds"),
+        (false, false) => evidence.clone(),
+    }
+}
+
+fn principal_plan_runtime_arg_bounds(arg: &Expr) -> Option<core_ir::TypeBounds> {
+    let ty = runtime_core_type(&arg.ty);
+    principal_plan_type_is_precise(&ty).then(|| core_ir::TypeBounds::exact(ty))
+}
+
+fn principal_plan_bounds_are_precise(bounds: &core_ir::TypeBounds) -> bool {
+    exact_type_from_bounds(bounds).is_some_and(principal_plan_type_is_precise)
+}
+
+fn principal_plan_type_is_precise(ty: &core_ir::Type) -> bool {
+    !matches!(ty, core_ir::Type::Unknown | core_ir::Type::Any)
+        && !core_type_has_vars(ty)
+        && !core_type_contains_unknown(ty)
 }
 
 fn debug_principal_elaboration_plan_from_spine(

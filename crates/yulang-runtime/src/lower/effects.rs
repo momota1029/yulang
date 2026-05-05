@@ -14,16 +14,16 @@ pub(super) fn handle_effect_for_arms(
             )
         })
         .reduce(merge_effect_rows);
-    let residual_before = merge_effects(residual_before, arm_effects);
     let consumes = effect_paths(&handled);
     let residual_before = residual_before.map(|effect| project_runtime_effect(&effect));
     let residual_after = residual_before
         .as_ref()
         .map(|effect| subtract_handled_effects(effect, &consumes));
+    let residual_after = merge_effects(residual_after, arm_effects);
     HandleEffect {
         consumes,
         residual_before,
-        residual_after,
+        residual_after: residual_after.map(|effect| project_runtime_effect(&effect)),
     }
 }
 
@@ -157,7 +157,10 @@ pub(super) fn effect_operation_effect(
     if effect_path.segments.is_empty() {
         return None;
     }
-    let args = (!matches!(arg_ty, core_ir::Type::Any) && arg_ty != &unit_type())
+    let args = (!matches!(
+        arg_ty,
+        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_)
+    ) && arg_ty != &unit_type())
         .then(|| vec![core_ir::TypeArg::Type(arg_ty.clone())])
         .unwrap_or_default();
     Some(core_ir::Type::Row {

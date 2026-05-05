@@ -906,6 +906,34 @@ fn merge_projected_type_precision(
                 args,
             })
         }
+        (existing, core_ir::Type::Union(incoming_items))
+            if incoming_items
+                .iter()
+                .any(|item| merge_projected_type_precision(existing, item).is_some()) =>
+        {
+            Some(existing.clone())
+        }
+        (core_ir::Type::Union(existing_items), incoming)
+            if existing_items
+                .iter()
+                .any(|item| merge_projected_type_precision(item, incoming).is_some()) =>
+        {
+            Some(incoming.clone())
+        }
+        (existing, core_ir::Type::Inter(incoming_items))
+            if incoming_items
+                .iter()
+                .any(|item| merge_projected_type_precision(existing, item).is_some()) =>
+        {
+            Some(existing.clone())
+        }
+        (core_ir::Type::Inter(existing_items), incoming)
+            if existing_items
+                .iter()
+                .any(|item| merge_projected_type_precision(item, incoming).is_some()) =>
+        {
+            Some(incoming.clone())
+        }
         (core_ir::Type::Tuple(existing_items), core_ir::Type::Tuple(incoming_items))
             if existing_items.len() == incoming_items.len() =>
         {
@@ -996,7 +1024,142 @@ fn normalize_projected_substitution_type(
     ty: &core_ir::Type,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) -> core_ir::Type {
-    collapse_repeated_top_choice_type(substitute_type(ty, substitutions))
+    normalize_projected_runtime_shape(collapse_repeated_top_choice_type(substitute_type(
+        ty,
+        substitutions,
+    )))
+}
+
+fn normalize_projected_runtime_shape(ty: core_ir::Type) -> core_ir::Type {
+    match ty {
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => core_ir::Type::Fun {
+            param: Box::new(normalize_projected_runtime_shape(*param)),
+            param_effect: Box::new(normalize_projected_effect_shape(*param_effect)),
+            ret_effect: Box::new(normalize_projected_effect_shape(*ret_effect)),
+            ret: Box::new(normalize_projected_runtime_shape(*ret)),
+        },
+        core_ir::Type::Named { path, args } => core_ir::Type::Named {
+            path,
+            args: args
+                .into_iter()
+                .map(normalize_projected_runtime_shape_arg)
+                .collect(),
+        },
+        core_ir::Type::Tuple(items) => core_ir::Type::Tuple(
+            items
+                .into_iter()
+                .map(normalize_projected_runtime_shape)
+                .collect(),
+        ),
+        core_ir::Type::Record(record) => core_ir::Type::Record(core_ir::RecordType {
+            fields: record
+                .fields
+                .into_iter()
+                .map(|field| core_ir::RecordField {
+                    name: field.name,
+                    value: normalize_projected_runtime_shape(field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: record.spread.map(|spread| match spread {
+                core_ir::RecordSpread::Head(ty) => {
+                    core_ir::RecordSpread::Head(Box::new(normalize_projected_runtime_shape(*ty)))
+                }
+                core_ir::RecordSpread::Tail(ty) => {
+                    core_ir::RecordSpread::Tail(Box::new(normalize_projected_runtime_shape(*ty)))
+                }
+            }),
+        }),
+        core_ir::Type::Variant(variant) => core_ir::Type::Variant(core_ir::VariantType {
+            cases: variant
+                .cases
+                .into_iter()
+                .map(|case| core_ir::VariantCase {
+                    name: case.name,
+                    payloads: case
+                        .payloads
+                        .into_iter()
+                        .map(normalize_projected_runtime_shape)
+                        .collect(),
+                })
+                .collect(),
+            tail: variant
+                .tail
+                .map(|tail| Box::new(normalize_projected_runtime_shape(*tail))),
+        }),
+        core_ir::Type::Union(items) => core_ir::Type::Union(
+            items
+                .into_iter()
+                .map(normalize_projected_runtime_shape)
+                .collect(),
+        ),
+        core_ir::Type::Inter(items) => core_ir::Type::Inter(
+            items
+                .into_iter()
+                .map(normalize_projected_runtime_shape)
+                .collect(),
+        ),
+        core_ir::Type::Row { items, tail } => normalize_projected_effect_row_shape(items, *tail),
+        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+            var,
+            body: Box::new(normalize_projected_runtime_shape(*body)),
+        },
+        other => other,
+    }
+}
+
+fn normalize_projected_effect_shape(ty: core_ir::Type) -> core_ir::Type {
+    match ty {
+        core_ir::Type::Unknown => core_ir::Type::Never,
+        core_ir::Type::Row { items, tail } => normalize_projected_effect_row_shape(items, *tail),
+        core_ir::Type::Named { .. } => ty,
+        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => ty,
+        _ => core_ir::Type::Never,
+    }
+}
+
+fn normalize_projected_effect_row_shape(
+    items: Vec<core_ir::Type>,
+    tail: core_ir::Type,
+) -> core_ir::Type {
+    let tail = match normalize_projected_effect_shape(tail) {
+        core_ir::Type::Row {
+            items: nested_items,
+            tail: nested_tail,
+        } if nested_items.is_empty() => *nested_tail,
+        core_ir::Type::Row { items, tail } => core_ir::Type::Row { items, tail },
+        tail @ (core_ir::Type::Never
+        | core_ir::Type::Any
+        | core_ir::Type::Unknown
+        | core_ir::Type::Var(_)) => tail,
+        _ => core_ir::Type::Never,
+    };
+    core_ir::Type::Row {
+        items: items
+            .into_iter()
+            .map(normalize_projected_runtime_shape)
+            .collect(),
+        tail: Box::new(tail),
+    }
+}
+
+fn normalize_projected_runtime_shape_arg(arg: core_ir::TypeArg) -> core_ir::TypeArg {
+    match arg {
+        core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(normalize_projected_runtime_shape(ty)),
+        core_ir::TypeArg::Bounds(bounds) => core_ir::TypeArg::Bounds(core_ir::TypeBounds {
+            lower: bounds
+                .lower
+                .map(|ty| Box::new(normalize_projected_runtime_shape(*ty))),
+            upper: bounds
+                .upper
+                .map(|ty| Box::new(normalize_projected_runtime_shape(*ty))),
+        }),
+    }
 }
 
 fn collapse_repeated_top_choice_type(ty: core_ir::Type) -> core_ir::Type {
@@ -1331,7 +1494,11 @@ pub(crate) fn project_closed_substitutions_from_type(
     }
     match (template, actual) {
         (core_ir::Type::Var(var), actual) if params.contains(var) => {
-            let actual = normalize_projected_substitution_type(actual, substitutions);
+            let actual = if allow_never {
+                normalize_projected_effect_shape(substitute_type(actual, substitutions))
+            } else {
+                normalize_projected_substitution_type(actual, substitutions)
+            };
             if principal_plan_substitution_type_usable(&actual, allow_never) {
                 insert_exact_projected_substitution(substitutions, conflicts, var.clone(), actual);
             }
@@ -1474,6 +1641,9 @@ pub(crate) fn project_closed_substitutions_from_type(
         {
             let actual = normalize_projected_substitution_type(actual, substitutions);
             for item in items {
+                if !projection_choice_item_matches_actual(item, &actual, allow_never) {
+                    continue;
+                }
                 project_closed_substitutions_from_type(
                     item,
                     &actual,
@@ -1538,6 +1708,76 @@ pub(crate) fn project_closed_substitutions_from_type(
             );
         }
         _ => {}
+    }
+}
+
+fn projection_choice_item_matches_actual(
+    template: &core_ir::Type,
+    actual: &core_ir::Type,
+    allow_never: bool,
+) -> bool {
+    match (template, actual) {
+        (core_ir::Type::Var(_), _) => false,
+        (core_ir::Type::Unknown | core_ir::Type::Any, _) => false,
+        (_, core_ir::Type::Unknown | core_ir::Type::Any) => false,
+        (_, core_ir::Type::Never) => allow_never && matches!(template, core_ir::Type::Never),
+        (core_ir::Type::Never, _) => false,
+        (
+            core_ir::Type::Named { path, args },
+            core_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+        ) => path == actual_path && args.len() == actual_args.len(),
+        (core_ir::Type::Fun { .. }, core_ir::Type::Fun { .. }) => true,
+        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items)) => {
+            items.len() == actual_items.len()
+        }
+        (core_ir::Type::Record(_), core_ir::Type::Record(_)) => true,
+        (core_ir::Type::Variant(_), core_ir::Type::Variant(_)) => true,
+        (core_ir::Type::Row { .. }, core_ir::Type::Row { .. }) => true,
+        (core_ir::Type::Row { .. }, _) => allow_never,
+        (core_ir::Type::Recursive { body, .. }, actual) => {
+            projection_choice_item_matches_actual(body, actual, allow_never)
+        }
+        (template, core_ir::Type::Recursive { body, .. }) => {
+            projection_choice_item_matches_actual(template, body, allow_never)
+        }
+        (template, actual) => template == actual,
+    }
+}
+
+pub(crate) fn project_closed_substitutions_from_type_bounds(
+    template: &core_ir::Type,
+    actual: &core_ir::TypeBounds,
+    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    allow_never: bool,
+    depth: usize,
+) {
+    let actual = substitute_bounds(actual.clone(), substitutions);
+    if let Some(lower) = actual.lower.as_deref() {
+        project_closed_substitutions_from_type(
+            template,
+            lower,
+            params,
+            substitutions,
+            conflicts,
+            allow_never,
+            depth,
+        );
+    }
+    if let Some(upper) = actual.upper.as_deref() {
+        project_closed_substitutions_from_type(
+            template,
+            upper,
+            params,
+            substitutions,
+            conflicts,
+            allow_never,
+            depth,
+        );
     }
 }
 
@@ -1610,7 +1850,7 @@ fn project_closed_substitutions_from_type_arg(
     params: &BTreeSet<core_ir::TypeVar>,
     substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
     conflicts: &mut BTreeSet<core_ir::TypeVar>,
-    allow_never: bool,
+    _allow_never: bool,
     depth: usize,
 ) {
     match (template, actual) {
@@ -1621,29 +1861,27 @@ fn project_closed_substitutions_from_type_arg(
                 params,
                 substitutions,
                 conflicts,
-                allow_never,
+                false,
                 depth,
             );
         }
         (core_ir::TypeArg::Type(template), core_ir::TypeArg::Bounds(actual)) => {
             let actual_bounds = substitute_bounds(actual.clone(), substitutions);
-            if let Some(actual) =
-                principal_plan_bounds_single_closed_type(&actual_bounds, allow_never)
-            {
+            if let Some(actual) = principal_plan_bounds_single_closed_type(&actual_bounds, false) {
                 project_closed_substitutions_from_type(
                     template,
                     &actual,
                     params,
                     substitutions,
                     conflicts,
-                    allow_never,
+                    false,
                     depth,
                 );
             }
         }
         (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Type(actual)) => {
             let actual = normalize_projected_substitution_type(actual, substitutions);
-            if !principal_plan_substitution_type_usable(&actual, allow_never) {
+            if !principal_plan_substitution_type_usable(&actual, false) {
                 return;
             }
             project_closed_substitutions_from_bounds(
@@ -1652,22 +1890,20 @@ fn project_closed_substitutions_from_type_arg(
                 params,
                 substitutions,
                 conflicts,
-                allow_never,
+                false,
                 depth,
             );
         }
         (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
             let actual_bounds = substitute_bounds(actual.clone(), substitutions);
-            if let Some(actual) =
-                principal_plan_bounds_single_closed_type(&actual_bounds, allow_never)
-            {
+            if let Some(actual) = principal_plan_bounds_single_closed_type(&actual_bounds, false) {
                 project_closed_substitutions_from_bounds(
                     template,
                     &actual,
                     params,
                     substitutions,
                     conflicts,
-                    allow_never,
+                    false,
                     depth,
                 );
             }
@@ -1698,6 +1934,16 @@ fn project_closed_substitutions_from_bounds(
             allow_never,
             depth,
         );
+        project_choice_var_items_from_bound(
+            lower,
+            actual,
+            params,
+            substitutions,
+            conflicts,
+            allow_never,
+            BoundChoicePolarity::Lower,
+            depth,
+        );
     }
     if let Some(upper) = template.upper.as_deref() {
         project_closed_substitutions_from_type(
@@ -1709,6 +1955,101 @@ fn project_closed_substitutions_from_bounds(
             allow_never,
             depth,
         );
+        project_choice_var_items_from_bound(
+            upper,
+            actual,
+            params,
+            substitutions,
+            conflicts,
+            allow_never,
+            BoundChoicePolarity::Upper,
+            depth,
+        );
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BoundChoicePolarity {
+    Lower,
+    Upper,
+}
+
+fn project_choice_var_items_from_bound(
+    template: &core_ir::Type,
+    actual: &core_ir::Type,
+    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    allow_never: bool,
+    polarity: BoundChoicePolarity,
+    depth: usize,
+) {
+    if depth == 0 {
+        return;
+    }
+    let actual = if allow_never {
+        normalize_projected_effect_shape(substitute_type(actual, substitutions))
+    } else {
+        normalize_projected_substitution_type(actual, substitutions)
+    };
+    if !principal_plan_substitution_type_usable(&actual, allow_never) {
+        return;
+    }
+    match (polarity, template) {
+        (BoundChoicePolarity::Lower, core_ir::Type::Union(items)) => {
+            for item in items {
+                if let core_ir::Type::Var(var) = item
+                    && params.contains(var)
+                {
+                    insert_exact_projected_substitution(
+                        substitutions,
+                        conflicts,
+                        var.clone(),
+                        actual.clone(),
+                    );
+                    continue;
+                }
+                project_choice_var_items_from_bound(
+                    item,
+                    &actual,
+                    params,
+                    substitutions,
+                    conflicts,
+                    allow_never,
+                    polarity,
+                    depth - 1,
+                );
+            }
+        }
+        (BoundChoicePolarity::Lower, core_ir::Type::Inter(items))
+        | (BoundChoicePolarity::Upper, core_ir::Type::Union(items))
+        | (BoundChoicePolarity::Upper, core_ir::Type::Inter(items)) => {
+            for item in items {
+                project_choice_var_items_from_bound(
+                    item,
+                    &actual,
+                    params,
+                    substitutions,
+                    conflicts,
+                    allow_never,
+                    polarity,
+                    depth - 1,
+                );
+            }
+        }
+        (_, core_ir::Type::Recursive { body, .. }) => {
+            project_choice_var_items_from_bound(
+                body,
+                &actual,
+                params,
+                substitutions,
+                conflicts,
+                allow_never,
+                polarity,
+                depth - 1,
+            );
+        }
+        _ => {}
     }
 }
 
@@ -2504,7 +2845,7 @@ mod tests {
     }
 
     #[test]
-    fn closed_projection_collapses_principal_var_union_from_closed_actual() {
+    fn closed_projection_does_not_solve_principal_var_union_from_closed_actual() {
         let left = tv("left");
         let right = tv("right");
         let template = core_ir::Type::Union(vec![
@@ -2527,8 +2868,8 @@ mod tests {
         );
 
         assert!(conflicts.is_empty(), "{conflicts:?}");
-        assert_eq!(substitutions.get(&left), Some(&actual));
-        assert_eq!(substitutions.get(&right), Some(&actual));
+        assert_eq!(substitutions.get(&left), None);
+        assert_eq!(substitutions.get(&right), None);
     }
 
     fn list_plan_for_arg(arg_ty: core_ir::Type) -> core_ir::PrincipalElaborationPlan {

@@ -3,7 +3,7 @@ use super::*;
 fn reachable_expr_binding_paths(
     bindings: &[Binding],
     root_exprs: &[Expr],
-    _roots: &[Root],
+    roots: &[Root],
 ) -> HashSet<core_ir::Path> {
     let bindings_by_path = bindings
         .iter()
@@ -15,6 +15,18 @@ fn reachable_expr_binding_paths(
         let mut vars = HashSet::new();
         collect_expr_vars(expr, &mut vars);
         stack.extend(vars);
+    }
+    for root in roots {
+        match root {
+            Root::Binding(path) => stack.push(path.clone()),
+            Root::Expr(index) => {
+                if let Some(expr) = root_exprs.get(*index) {
+                    let mut vars = HashSet::new();
+                    collect_expr_vars(expr, &mut vars);
+                    stack.extend(vars);
+                }
+            }
+        }
     }
     while let Some(path) = stack.pop() {
         if !reachable.insert(path.clone()) {
@@ -39,7 +51,7 @@ pub(super) fn final_reachable_binding_paths(module: &Module) -> HashSet<core_ir:
 }
 
 pub(super) fn root_reachable_binding_paths(module: &Module) -> HashSet<core_ir::Path> {
-    reachable_expr_binding_paths(&module.bindings, &module.root_exprs, &[])
+    reachable_expr_binding_paths(&module.bindings, &module.root_exprs, &module.roots)
 }
 
 pub(super) fn prune_unreachable_bindings(module: Module) -> Module {

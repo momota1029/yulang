@@ -344,6 +344,7 @@ fn runtime_type_has_runtime_fallback_in_value_position(ty: &RuntimeType) -> bool
 
 fn core_type_has_runtime_fallback_in_value_position(ty: &core_ir::Type, effect_slot: bool) -> bool {
     match ty {
+        core_ir::Type::Unknown => !effect_slot,
         core_ir::Type::Any => !effect_slot && core_type_is_runtime_projection_fallback(ty),
         core_ir::Type::Named { args, .. } => {
             args.iter().any(|arg| match arg {
@@ -405,7 +406,7 @@ fn core_type_has_runtime_fallback_in_value_position(ty: &core_ir::Type, effect_s
         core_ir::Type::Recursive { body, .. } => {
             core_type_has_runtime_fallback_in_value_position(body, effect_slot)
         }
-        core_ir::Type::Unknown | core_ir::Type::Var(_) | core_ir::Type::Never => false,
+        core_ir::Type::Var(_) | core_ir::Type::Never => false,
     }
 }
 
@@ -499,10 +500,10 @@ mod tests {
         let module = module_with_expr(Expr::typed(
             ExprKind::Thunk {
                 effect: named("io"),
-                value: RuntimeType::core(core_ir::Type::Any),
+                value: RuntimeType::core(core_ir::Type::Unknown),
                 expr: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit())),
             },
-            RuntimeType::thunk(named("io"), RuntimeType::core(core_ir::Type::Any)),
+            RuntimeType::thunk(named("io"), RuntimeType::core(core_ir::Type::Unknown)),
         ));
 
         let err = check_strict_runtime_value_types(&module, RuntimeStage::BeforeVm).unwrap_err();
@@ -521,7 +522,7 @@ mod tests {
         let module = module_with_expr(Expr::typed(
             ExprKind::Coerce {
                 from: unit(),
-                to: core_ir::Type::Any,
+                to: core_ir::Type::Unknown,
                 expr: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit())),
             },
             unit(),

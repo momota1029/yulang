@@ -57,7 +57,9 @@ pub(super) fn choose_hir_type_hint(
     fallback: Option<RuntimeType>,
 ) -> Option<RuntimeType> {
     match primary {
-        Some(RuntimeType::Core(core_ir::Type::Any)) => fallback.or(Some(RuntimeType::unknown())),
+        Some(primary) if runtime_type_is_imprecise_runtime_slot(&primary) => {
+            fallback.or(Some(primary))
+        }
         Some(primary) => Some(primary),
         None => fallback,
     }

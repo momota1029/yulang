@@ -923,10 +923,12 @@ mod tests {
         let ExprKind::BindHere { expr } = &module.root_exprs[0].kind else {
             panic!("missing bind_here");
         };
-        let ExprKind::Thunk { expr, .. } = &expr.kind else {
-            panic!("missing thunk");
+        let apply = match &expr.kind {
+            ExprKind::Thunk { expr, .. } => expr.as_ref(),
+            ExprKind::Apply { .. } => expr.as_ref(),
+            _ => panic!("missing effectful apply"),
         };
-        let ExprKind::Apply { callee, .. } = &expr.kind else {
+        let ExprKind::Apply { callee, .. } = &apply.kind else {
             panic!("missing apply");
         };
         assert!(matches!(&callee.kind, ExprKind::EffectOp(path) if path == &effect_path));
@@ -1621,8 +1623,11 @@ mod tests {
         let ExprKind::Apply { arg, .. } = &expr.kind else {
             panic!("missing apply");
         };
-        assert!(matches!(arg.ty, RuntimeType::Unknown));
-        assert_eq!(locals.get(&arg_path), Some(&RuntimeType::Unknown));
+        assert!(matches!(arg.ty, RuntimeType::Core(core_ir::Type::Any)));
+        assert_eq!(
+            locals.get(&arg_path),
+            Some(&RuntimeType::Core(core_ir::Type::Any))
+        );
         assert_eq!(lowerer.expected_arg_evidence_profile.present, 1);
         assert_eq!(lowerer.expected_arg_evidence_profile.converted, 1);
         assert_eq!(

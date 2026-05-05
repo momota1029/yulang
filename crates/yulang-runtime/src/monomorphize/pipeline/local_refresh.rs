@@ -432,6 +432,9 @@ fn project_expr_runtime_type_from_kind(fallback: RuntimeType, kind: &ExprKind) -
         ExprKind::Block {
             tail: Some(tail), ..
         } => tail.ty.clone(),
+        ExprKind::Apply { callee, .. } => {
+            project_apply_runtime_type_from_callee(&callee.ty).unwrap_or(fallback)
+        }
         ExprKind::BindHere { expr } => match &expr.ty {
             RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
             _ => fallback,
@@ -441,6 +444,32 @@ fn project_expr_runtime_type_from_kind(fallback: RuntimeType, kind: &ExprKind) -
         ExprKind::AddId { thunk, .. } => thunk.ty.clone(),
         ExprKind::Coerce { to, .. } => RuntimeType::core(to.clone()),
         _ => fallback,
+    }
+}
+
+fn project_apply_runtime_type_from_callee(callee: &RuntimeType) -> Option<RuntimeType> {
+    match callee {
+        RuntimeType::Fun { ret, .. } => Some(ret.as_ref().clone()),
+        RuntimeType::Core(core_ir::Type::Fun {
+            ret_effect, ret, ..
+        }) => Some(local_runtime_type_from_core_value_and_effect(
+            ret.as_ref().clone(),
+            ret_effect.as_ref().clone(),
+        )),
+        RuntimeType::Thunk { value, .. } => project_apply_runtime_type_from_callee(value),
+        RuntimeType::Unknown | RuntimeType::Core(_) => None,
+    }
+}
+
+fn local_runtime_type_from_core_value_and_effect(
+    value: core_ir::Type,
+    effect: core_ir::Type,
+) -> RuntimeType {
+    let value = normalize_hir_function_type(RuntimeType::core(value));
+    if effect_is_empty(&effect) {
+        value
+    } else {
+        RuntimeType::thunk(effect, value)
     }
 }
 

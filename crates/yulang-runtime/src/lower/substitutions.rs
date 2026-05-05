@@ -6,8 +6,220 @@ pub(super) fn principal_module_type_vars(
     let mut vars = BTreeSet::new();
     for binding in &module.bindings {
         collect_type_vars(&binding.scheme.body, &mut vars);
+        collect_expr_type_vars(&binding.body, &mut vars);
+        for requirement in &binding.scheme.requirements {
+            for arg in &requirement.args {
+                match arg {
+                    core_ir::RoleRequirementArg::Input(bounds)
+                    | core_ir::RoleRequirementArg::Associated { bounds, .. } => {
+                        collect_type_bounds_vars(bounds, &mut vars);
+                    }
+                }
+            }
+        }
+    }
+    for expr in &module.root_exprs {
+        collect_expr_type_vars(expr, &mut vars);
     }
     vars
+}
+
+fn collect_expr_type_vars(expr: &core_ir::Expr, vars: &mut BTreeSet<core_ir::TypeVar>) {
+    match expr {
+        core_ir::Expr::Lit(_) | core_ir::Expr::Var(_) | core_ir::Expr::PrimitiveOp(_) => {}
+        core_ir::Expr::Lambda { body, .. } => collect_expr_type_vars(body, vars),
+        core_ir::Expr::Apply {
+            callee,
+            arg,
+            evidence,
+        } => {
+            collect_expr_type_vars(callee, vars);
+            collect_expr_type_vars(arg, vars);
+            if let Some(evidence) = evidence {
+                collect_apply_evidence_type_vars(evidence, vars);
+            }
+        }
+        core_ir::Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            evidence,
+        } => {
+            collect_expr_type_vars(cond, vars);
+            collect_expr_type_vars(then_branch, vars);
+            collect_expr_type_vars(else_branch, vars);
+            if let Some(evidence) = evidence {
+                collect_type_bounds_vars(&evidence.result, vars);
+            }
+        }
+        core_ir::Expr::Tuple(items) => {
+            for item in items {
+                collect_expr_type_vars(item, vars);
+            }
+        }
+        core_ir::Expr::Record { fields, spread } => {
+            for field in fields {
+                collect_expr_type_vars(&field.value, vars);
+            }
+            if let Some(spread) = spread {
+                collect_record_spread_expr_type_vars(spread, vars);
+            }
+        }
+        core_ir::Expr::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_expr_type_vars(value, vars);
+            }
+        }
+        core_ir::Expr::Select { base, .. } => collect_expr_type_vars(base, vars),
+        core_ir::Expr::Match {
+            scrutinee,
+            arms,
+            evidence,
+        } => {
+            collect_expr_type_vars(scrutinee, vars);
+            if let Some(evidence) = evidence {
+                collect_type_bounds_vars(&evidence.result, vars);
+            }
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_type_vars(guard, vars);
+                }
+                collect_expr_type_vars(&arm.body, vars);
+            }
+        }
+        core_ir::Expr::Block { stmts, tail } => {
+            for stmt in stmts {
+                collect_stmt_type_vars(stmt, vars);
+            }
+            if let Some(tail) = tail {
+                collect_expr_type_vars(tail, vars);
+            }
+        }
+        core_ir::Expr::Handle {
+            body,
+            arms,
+            evidence,
+        } => {
+            collect_expr_type_vars(body, vars);
+            if let Some(evidence) = evidence {
+                collect_type_bounds_vars(&evidence.result, vars);
+            }
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_type_vars(guard, vars);
+                }
+                collect_expr_type_vars(&arm.body, vars);
+            }
+        }
+        core_ir::Expr::Coerce { expr, evidence } => {
+            collect_expr_type_vars(expr, vars);
+            if let Some(evidence) = evidence {
+                collect_type_bounds_vars(&evidence.actual, vars);
+                collect_type_bounds_vars(&evidence.expected, vars);
+            }
+        }
+        core_ir::Expr::Pack { expr, .. } => {
+            collect_expr_type_vars(expr, vars);
+        }
+    }
+}
+
+fn collect_stmt_type_vars(stmt: &core_ir::Stmt, vars: &mut BTreeSet<core_ir::TypeVar>) {
+    match stmt {
+        core_ir::Stmt::Let { value, .. } => collect_expr_type_vars(value, vars),
+        core_ir::Stmt::Expr(expr) => collect_expr_type_vars(expr, vars),
+        core_ir::Stmt::Module { body, .. } => collect_expr_type_vars(body, vars),
+    }
+}
+
+fn collect_record_spread_expr_type_vars(
+    spread: &core_ir::RecordSpreadExpr,
+    vars: &mut BTreeSet<core_ir::TypeVar>,
+) {
+    match spread {
+        core_ir::RecordSpreadExpr::Head(expr) | core_ir::RecordSpreadExpr::Tail(expr) => {
+            collect_expr_type_vars(expr, vars);
+        }
+    }
+}
+
+fn collect_apply_evidence_type_vars(
+    evidence: &core_ir::ApplyEvidence,
+    vars: &mut BTreeSet<core_ir::TypeVar>,
+) {
+    collect_type_bounds_vars(&evidence.callee, vars);
+    if let Some(expected) = &evidence.expected_callee {
+        collect_type_bounds_vars(expected, vars);
+    }
+    collect_type_bounds_vars(&evidence.arg, vars);
+    if let Some(expected) = &evidence.expected_arg {
+        collect_type_bounds_vars(expected, vars);
+    }
+    collect_type_bounds_vars(&evidence.result, vars);
+    if let Some(principal) = &evidence.principal_callee {
+        collect_type_vars(principal, vars);
+    }
+    for substitution in &evidence.substitutions {
+        vars.insert(substitution.var.clone());
+        collect_type_vars(&substitution.ty, vars);
+    }
+    for candidate in &evidence.substitution_candidates {
+        vars.insert(candidate.var.clone());
+        collect_type_vars(&candidate.ty, vars);
+    }
+    if let Some(plan) = &evidence.principal_elaboration {
+        collect_principal_elaboration_plan_type_vars(plan, vars);
+    }
+}
+
+fn collect_principal_elaboration_plan_type_vars(
+    plan: &core_ir::PrincipalElaborationPlan,
+    vars: &mut BTreeSet<core_ir::TypeVar>,
+) {
+    collect_type_vars(&plan.principal_callee, vars);
+    for substitution in &plan.substitutions {
+        vars.insert(substitution.var.clone());
+        collect_type_vars(&substitution.ty, vars);
+    }
+    for arg in &plan.args {
+        collect_type_bounds_vars(&arg.intrinsic, vars);
+        if let Some(contextual) = &arg.contextual {
+            collect_type_bounds_vars(contextual, vars);
+        }
+        if let Some(expected) = &arg.expected_runtime {
+            collect_type_vars(expected, vars);
+        }
+    }
+    collect_type_bounds_vars(&plan.result.intrinsic, vars);
+    if let Some(contextual) = &plan.result.contextual {
+        collect_type_bounds_vars(contextual, vars);
+    }
+    if let Some(expected) = &plan.result.expected_runtime {
+        collect_type_vars(expected, vars);
+    }
+    for adapter in &plan.adapters {
+        collect_type_vars(&adapter.actual, vars);
+        collect_type_vars(&adapter.expected, vars);
+    }
+    for reason in &plan.incomplete_reasons {
+        match reason {
+            core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var)
+            | core_ir::PrincipalElaborationIncompleteReason::ConflictingSubstitution(var)
+            | core_ir::PrincipalElaborationIncompleteReason::OpenCandidate(var) => {
+                vars.insert(var.clone());
+            }
+            _ => {}
+        }
+    }
+}
+
+fn collect_type_bounds_vars(bounds: &core_ir::TypeBounds, vars: &mut BTreeSet<core_ir::TypeVar>) {
+    if let Some(lower) = bounds.lower.as_deref() {
+        collect_type_vars(lower, vars);
+    }
+    if let Some(upper) = bounds.upper.as_deref() {
+        collect_type_vars(upper, vars);
+    }
 }
 
 pub(super) fn infer_hir_type_substitutions(

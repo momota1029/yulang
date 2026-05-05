@@ -90,6 +90,33 @@ pub(super) fn validate_expr(
                         }
                     }
                 }
+                RuntimeType::Thunk { value, .. }
+                    if matches!(
+                        value.as_ref(),
+                        RuntimeType::Core(core_ir::Type::Var(_) | core_ir::Type::Any)
+                    ) =>
+                {
+                    if let Some(evidence) = evidence {
+                        if let Some(arg_ty) =
+                            choose_bounds_type(&evidence.arg, BoundsChoice::ValidationEvidence)
+                        {
+                            require_same_type(
+                                &arg_ty,
+                                core_type(&arg.ty),
+                                TypeSource::ApplyEvidence,
+                            )?;
+                        }
+                        if let Some(result_ty) =
+                            choose_bounds_type(&evidence.result, BoundsChoice::ValidationEvidence)
+                        {
+                            require_same_type(
+                                &result_ty,
+                                hir_value_core_type(&expr.ty).as_ref(),
+                                TypeSource::ApplyEvidence,
+                            )?;
+                        }
+                    }
+                }
                 other => {
                     return Err(RuntimeError::NonFunctionCallee {
                         ty: diagnostic_core_type(other),
