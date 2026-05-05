@@ -860,3 +860,91 @@ Next target:
    `PrincipalAdapterHole` / `ExpectedAdapterEdge` evidence.
 4. Keep open-candidate graph solving parked unless a strict, reachable target
    fails solely because of an open candidate relation.
+
+## Performance Checkpoint: Expected Edge Evidence Export
+
+The immediate slowdown was not VM execution or monomorphize itself. It was
+infer export repeatedly compacting/coalescing every expected edge slot.
+
+Measured on `examples/07_junction.yu` with `YULANG_EXPORT_TIMING=1`:
+
+```text
+before:
+  collect_edge_evidence=8095.066ms
+  export total=9456.803ms
+
+after:
+  collect_edge_evidence=1864.735ms
+  export total=3209.602ms
+```
+
+The fix batches application expected-edge `TypeVar` bound export through
+`compact_type_vars_in_order`, keeps precise coalesced evidence for
+diagnostic-sensitive edge kinds, then derives structural edge details by
+peeling lightweight `Var | Shape` / `Var & Shape` wrappers.
+
+Keep this boundary:
+
+- Fast expected-edge evidence is the default path for runtime/source execution.
+- Expensive global per-edge coalescing should stay out of hot paths.
+- If a future diagnostic needs heavier coalescing, add an explicit debug/verbose
+  path rather than making every run pay for it.
+
+## Performance Checkpoint: Principal Evidence Export
+
+After strict principal-unify made `examples/07_junction.yu` demand-free
+(`mono_passes=2`, `demand_queue attempted=0`), wall time still did not improve.
+The reason was that principal evidence generation moved work from
+monomorphize into infer export.
+
+Measured with release builds:
+
+```text
+normal 07_junction:
+  export total ~= 440ms
+  bindings ~= 135ms
+  monomorphize ~= 68ms
+  wall ~= 0.85s
+
+principal strict before cleanup:
+  export total ~= 690ms
+  bindings ~= 350ms
+  monomorphize ~= 32ms
+  wall ~= 1.03s
+
+principal strict after cleanup:
+  export total ~= 270ms
+  collect_edge_evidence ~= 0.02ms
+  bindings ~= 230-240ms
+  monomorphize ~= 20-30ms
+  wall ~= 0.60s
+```
+
+What changed:
+
+- `ExprExporter` now caches exported principal schemes by `DefId`.
+- Residual principal callee schemes are cached by expression `TypeVar`, so
+  partial apply spines do not rebuild the same residual schemes repeatedly.
+- Principal evidence completion now reuses the already exported apply slot
+  bounds instead of recomputing coalesced apply bounds for every principal
+  evidence attempt.
+- Per-apply `PrincipalElaborationPlan` export is off the hot path. Runtime can
+  build full-spine plans from `ApplyEvidence`, so prebuilding every local plan is
+  debug-only.
+- Derived expected-edge evidence and expected adapter evidence are skipped under
+  `YULANG_PRINCIPAL_ELABORATE` unless `YULANG_EXPORT_DEBUG_EVIDENCE=1` is set.
+  They are useful for diagnostics/profile, but they are not required to execute
+  the strict principal-unify path.
+- Expected-edge evidence is source-only under `YULANG_PRINCIPAL_ELABORATE`
+  unless `YULANG_EXPORT_DEBUG_EVIDENCE=1` or
+  `YULANG_COALESCE_EXPECTED_EDGE_EVIDENCE=1` is set. The strict execution path
+  needs edge id/kind/source identity; it does not need every edge's coalesced
+  actual/expected bounds.
+
+Current interpretation:
+
+- Evidence-first 1-pass execution is still the right direction.
+- The next speed work should keep separating execution evidence from debug /
+  diagnostic evidence.
+- Do not add open-candidate graph solving to recover speed. If strict mode
+  misses a reachable target, fix the exported slot evidence or adapter holes.
