@@ -359,6 +359,7 @@ fn display_type_vars(vars: &[core_ir::TypeVar]) -> String {
 
 fn display_type(ty: &core_ir::Type) -> String {
     match ty {
+        core_ir::Type::Unknown => "?".to_string(),
         core_ir::Type::Var(var) => var.0.clone(),
         core_ir::Type::Never => "never".to_string(),
         core_ir::Type::Any => "_".to_string(),

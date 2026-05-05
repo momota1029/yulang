@@ -175,6 +175,7 @@ fn format_core_bounds(bounds: &core_ir::TypeBounds) -> String {
 
 fn format_core_type(ty: &core_ir::Type) -> String {
     match ty {
+        core_ir::Type::Unknown => "?".to_string(),
         core_ir::Type::Never => "⊥".to_string(),
         core_ir::Type::Any => "⊤".to_string(),
         core_ir::Type::Var(tv) => tv.0.clone(),

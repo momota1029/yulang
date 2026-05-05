@@ -405,7 +405,7 @@ fn core_type_has_runtime_fallback_in_value_position(ty: &core_ir::Type, effect_s
         core_ir::Type::Recursive { body, .. } => {
             core_type_has_runtime_fallback_in_value_position(body, effect_slot)
         }
-        core_ir::Type::Var(_) | core_ir::Type::Never => false,
+        core_ir::Type::Unknown | core_ir::Type::Var(_) | core_ir::Type::Never => false,
     }
 }
 

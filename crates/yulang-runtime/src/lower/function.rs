@@ -200,6 +200,9 @@ pub(super) fn require_same_hir_type(
     actual: &RuntimeType,
     source: TypeSource,
 ) -> RuntimeResult<()> {
+    if runtime_type_contains_unknown(expected) || runtime_type_contains_unknown(actual) {
+        return Ok(());
+    }
     match (expected, actual) {
         (RuntimeType::Core(expected), RuntimeType::Core(actual)) => {
             require_same_type(expected, actual, source)

@@ -24,7 +24,7 @@ use crate::monomorphize::{
 use crate::refine::refine_module_types_with_report;
 use crate::types::{
     collect_expr_type_vars, collect_hir_type_vars, collect_type_vars as collect_core_type_vars,
-    core_type_has_vars, effect_is_empty, effect_paths, effect_paths_match, hir_type_has_vars,
+    core_type_has_vars, effect_is_empty, effect_paths_match, hir_type_has_vars,
     infer_type_substitutions_with_effects, project_runtime_effect, project_runtime_type_with_vars,
     should_thunk_effect, substitute_apply_evidence, substitute_join_evidence, substitute_scheme,
     substitute_type,
@@ -249,25 +249,24 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
     let mut module = module;
     let mut profile = MonomorphizeProfile::default();
     reset_demand_evidence_profile();
-    if std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some() {
+    if std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_none() {
         let step =
             run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, &mut profile, debug)?;
         module = step.module;
-        if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some() {
-            let step =
-                run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
-            module = step.module;
-            if let Some(context) = principal_elaborate_strict_failure(&module) {
-                return Err(RuntimeError::InvariantViolation {
-                    stage: "principal-elaborate-strict",
-                    context,
-                    message: "principal elaboration plan incomplete",
-                });
-            }
-            profile.demand_evidence = snapshot_demand_evidence_profile();
-            annotate_substitution_skip_reachability(&mut profile, &module);
-            return Ok((module, profile));
+        let step = run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
+        module = step.module;
+        if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
+            && let Some(context) = principal_elaborate_strict_failure(&module)
+        {
+            return Err(RuntimeError::InvariantViolation {
+                stage: "principal-elaborate",
+                context,
+                message: "principal elaboration plan incomplete",
+            });
         }
+        profile.demand_evidence = snapshot_demand_evidence_profile();
+        annotate_substitution_skip_reachability(&mut profile, &module);
+        return Ok((module, profile));
     } else if std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some() {
         let step = run_profiled_mono_pass(
             module,

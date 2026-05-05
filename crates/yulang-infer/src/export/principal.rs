@@ -146,7 +146,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
 }
 
 fn export_debug_principal_evidence_enabled() -> bool {
-    std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_none()
+    std::env::var_os("YULANG_DISABLE_PRINCIPAL_ELABORATE").is_some()
         || std::env::var_os("YULANG_EXPORT_DEBUG_EVIDENCE").is_some()
         || std::env::var_os("YULANG_VERBOSE_IR").is_some()
 }
@@ -600,7 +600,7 @@ pub(crate) fn export_principal_binding(
             let fallback_body = fallback_scheme
                 .as_ref()
                 .map(export_scheme_body)
-                .unwrap_or(core_ir::Type::Any);
+                .unwrap_or(core_ir::Type::Unknown);
             let relevant_vars = fallback_scheme
                 .as_ref()
                 .map(export_scheme_body_type_vars)
@@ -1449,7 +1449,10 @@ mod tests {
                     || variant.tail.as_deref().is_some_and(contains_named_int)
             }
             core_ir::Type::Recursive { body, .. } => contains_named_int(body),
-            core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
+            core_ir::Type::Unknown
+            | core_ir::Type::Never
+            | core_ir::Type::Any
+            | core_ir::Type::Var(_) => false,
         }
     }
 

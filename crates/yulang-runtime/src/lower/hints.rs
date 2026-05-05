@@ -149,6 +149,9 @@ pub(super) fn require_apply_result_compatible(
     actual: &RuntimeType,
     source: TypeSource,
 ) -> RuntimeResult<()> {
+    if runtime_type_contains_unknown(expected) || runtime_type_contains_unknown(actual) {
+        return Ok(());
+    }
     let expected_core = diagnostic_core_type(expected);
     let actual_core = diagnostic_core_type(actual);
     if core_types_compatible(&expected_core, &actual_core)

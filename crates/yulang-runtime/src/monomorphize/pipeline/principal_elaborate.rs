@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use super::*;
 use super::{
     SubstitutionSpecializeProfile, principal_elaboration_plan_for_expr,
-    principal_unify_module_profiled, substitute_specialize_module_profiled,
+    principal_unify_module_profiled,
 };
 
 pub(super) fn principal_elaborate_module_profiled(
@@ -14,25 +14,9 @@ pub(super) fn principal_elaborate_module_profiled(
     // This pass is being migrated from substitution-specialize to
     // principal-elaborate. The main path should execute exported principal
     // elaboration evidence, not infer substitutions from runtime IR shapes.
-    let (module, mut profile) = principal_unify_module_profiled(module);
-    if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some() {
-        let module = prune_unreachable_bindings(module);
-        return (module, profile);
-    }
-    let (module, fallback_profile) = substitute_specialize_module_profiled(module);
-    merge_principal_elaborate_fallback_profile(&mut profile, fallback_profile);
+    let (module, profile) = principal_unify_module_profiled(module);
+    let module = prune_unreachable_bindings(module);
     (module, profile)
-}
-
-fn merge_principal_elaborate_fallback_profile(
-    profile: &mut SubstitutionSpecializeProfile,
-    fallback: SubstitutionSpecializeProfile,
-) {
-    for (key, value) in fallback.stats {
-        *profile.stats.entry(key).or_default() += value;
-    }
-    profile.target_skips.extend(fallback.target_skips);
-    profile.target_inferences.extend(fallback.target_inferences);
 }
 
 pub(super) fn principal_elaborate_strict_failure(module: &Module) -> Option<String> {

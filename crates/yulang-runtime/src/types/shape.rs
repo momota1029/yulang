@@ -113,7 +113,7 @@ pub(crate) fn core_type_has_vars(ty: &core_ir::Type) -> bool {
             items.iter().any(core_type_has_vars) || core_type_has_vars(tail)
         }
         core_ir::Type::Recursive { body, .. } => core_type_has_vars(body),
-        core_ir::Type::Never | core_ir::Type::Any => false,
+        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => false,
     }
 }
 

@@ -432,7 +432,7 @@ fn project_core_type(
     relevant_vars: &BTreeSet<core_ir::TypeVar>,
 ) -> Option<core_ir::Type> {
     match ty {
-        core_ir::Type::Never | core_ir::Type::Any => Some(ty),
+        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => Some(ty),
         core_ir::Type::Var(var) => relevant_vars
             .contains(&var)
             .then_some(core_ir::Type::Var(var)),
@@ -535,14 +535,14 @@ pub(super) fn project_core_value_type_or_any(
     ty: core_ir::Type,
     relevant_vars: &BTreeSet<core_ir::TypeVar>,
 ) -> core_ir::Type {
-    project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Any)
+    project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Unknown)
 }
 
 fn project_core_effect_type_or_any(
     ty: core_ir::Type,
     relevant_vars: &BTreeSet<core_ir::TypeVar>,
 ) -> core_ir::Type {
-    project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Any)
+    project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Unknown)
 }
 
 fn project_type_arg(
@@ -551,7 +551,7 @@ fn project_type_arg(
 ) -> core_ir::TypeArg {
     match arg {
         core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(
-            project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Any),
+            project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Unknown),
         ),
         core_ir::TypeArg::Bounds(bounds) => {
             let bounds = project_type_bounds(bounds, relevant_vars);
@@ -559,7 +559,7 @@ fn project_type_arg(
                 (Some(lower), Some(upper)) if lower == upper => {
                     core_ir::TypeArg::Type((**lower).clone())
                 }
-                (None, None) => core_ir::TypeArg::Type(core_ir::Type::Any),
+                (None, None) => core_ir::TypeArg::Type(core_ir::Type::Unknown),
                 _ => core_ir::TypeArg::Bounds(bounds),
             }
         }
@@ -648,7 +648,7 @@ pub(crate) fn collect_core_type_vars(ty: &core_ir::Type, vars: &mut BTreeSet<cor
             collect_core_type_vars(tail, vars);
         }
         core_ir::Type::Recursive { body, .. } => collect_core_type_vars(body, vars),
-        core_ir::Type::Never | core_ir::Type::Any => {}
+        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => {}
     }
 }
 
@@ -666,7 +666,10 @@ fn is_empty_compact_type(ty: &CompactType) -> bool {
 
 fn normalize_core_type(ty: core_ir::Type) -> core_ir::Type {
     match ty {
-        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => ty,
+        core_ir::Type::Unknown
+        | core_ir::Type::Never
+        | core_ir::Type::Any
+        | core_ir::Type::Var(_) => ty,
         core_ir::Type::Named { path, args } => core_ir::Type::Named {
             path,
             args: args

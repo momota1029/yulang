@@ -10,6 +10,9 @@ pub(super) fn require_same_hir_type(
     actual: &RuntimeType,
     source: TypeSource,
 ) -> RuntimeResult<()> {
+    if runtime_type_contains_unknown(expected) || runtime_type_contains_unknown(actual) {
+        return Ok(());
+    }
     match (expected, actual) {
         (RuntimeType::Core(expected), RuntimeType::Core(actual)) => {
             require_same_type(expected, actual, source)
@@ -89,6 +92,9 @@ pub(super) fn require_apply_result_hir_type(
     actual: &RuntimeType,
     source: TypeSource,
 ) -> RuntimeResult<()> {
+    if runtime_type_contains_unknown(declared) || runtime_type_contains_unknown(actual) {
+        return Ok(());
+    }
     match (declared, actual) {
         (
             RuntimeType::Thunk {
@@ -200,6 +206,7 @@ fn contains_non_runtime_type_inner(
     type_arg_kinds: &TypeArgKinds,
 ) -> bool {
     match ty {
+        core_ir::Type::Unknown => false,
         core_ir::Type::Never | core_ir::Type::Any => false,
         core_ir::Type::Var(var) => !allowed_vars.contains(var),
         core_ir::Type::Union(items) | core_ir::Type::Inter(items) if effect_slot => items
@@ -279,6 +286,9 @@ pub(super) fn require_apply_arg_hir_type(
     actual: &RuntimeType,
     source: TypeSource,
 ) -> RuntimeResult<()> {
+    if runtime_type_contains_unknown(expected) || runtime_type_contains_unknown(actual) {
+        return Ok(());
+    }
     match (expected, actual) {
         (
             RuntimeType::Thunk {
@@ -329,7 +339,7 @@ fn same_runtime_value_choice(
 
 pub(super) fn hir_value_core_type(ty: &RuntimeType) -> Cow<'_, core_ir::Type> {
     match ty {
-        RuntimeType::Unknown => Cow::Owned(core_ir::Type::Any),
+        RuntimeType::Unknown => Cow::Owned(core_ir::Type::Unknown),
         RuntimeType::Core(ty) => Cow::Borrowed(ty),
         RuntimeType::Thunk { value, .. } => match value.as_ref() {
             RuntimeType::Core(ty) => Cow::Borrowed(ty),

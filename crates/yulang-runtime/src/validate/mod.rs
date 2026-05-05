@@ -17,7 +17,8 @@ use crate::ir::{
 use crate::types::{
     BoundsChoice, choose_bounds_type, collect_type_vars, core_types_compatible,
     diagnostic_core_type, effect_compatible, is_qualified_runtime_path,
-    project_runtime_hir_type_with_vars, runtime_core_type, strict_core_type as core_type,
+    project_runtime_hir_type_with_vars, runtime_core_type, runtime_type_contains_unknown,
+    strict_core_type as core_type,
 };
 
 mod expr;
@@ -97,6 +98,9 @@ fn validate_binding(
     bindings: &HashMap<core_ir::Path, BindingInfo>,
     type_arg_kinds: &TypeArgKinds,
 ) -> RuntimeResult<()> {
+    if !binding.type_params.is_empty() {
+        return Ok(());
+    }
     validate_hir_type_no_any(&binding.body.ty, TypeSource::Validation, type_arg_kinds)?;
     validate_expr(&binding.body, bindings, type_arg_kinds, &mut HashMap::new())?;
     let mut vars = BTreeSet::new();
@@ -323,7 +327,7 @@ fn collect_core_type_var_kinds(
             collect_core_type_var_kinds(tail, TypeArgKind::Effect, out);
         }
         core_ir::Type::Recursive { body, .. } => collect_core_type_var_kinds(body, slot, out),
-        core_ir::Type::Never | core_ir::Type::Any => {}
+        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => {}
     }
 }
 
@@ -417,7 +421,10 @@ fn collect_core_named_arg_kinds(
             collect_core_named_arg_kinds(tail, vars, out);
         }
         core_ir::Type::Recursive { body, .. } => collect_core_named_arg_kinds(body, vars, out),
-        core_ir::Type::Var(_) | core_ir::Type::Never | core_ir::Type::Any => {}
+        core_ir::Type::Unknown
+        | core_ir::Type::Var(_)
+        | core_ir::Type::Never
+        | core_ir::Type::Any => {}
     }
 }
 
@@ -644,7 +651,10 @@ fn infer_concrete_effect_args_from_core(ty: &core_ir::Type, out: &mut TypeArgKin
             infer_concrete_effect_args_from_core(tail, out);
         }
         core_ir::Type::Recursive { body, .. } => infer_concrete_effect_args_from_core(body, out),
-        core_ir::Type::Var(_) | core_ir::Type::Never | core_ir::Type::Any => {}
+        core_ir::Type::Unknown
+        | core_ir::Type::Var(_)
+        | core_ir::Type::Never
+        | core_ir::Type::Any => {}
     }
 }
 

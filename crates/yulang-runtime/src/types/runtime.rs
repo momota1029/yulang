@@ -21,6 +21,7 @@ pub(crate) fn contains_non_runtime_type_with_vars(
 
 pub(crate) fn collect_type_vars(ty: &core_ir::Type, vars: &mut BTreeSet<core_ir::TypeVar>) {
     match ty {
+        core_ir::Type::Unknown => {}
         core_ir::Type::Var(var) => {
             vars.insert(var.clone());
         }
@@ -125,12 +126,13 @@ pub(super) fn contains_non_runtime_type_inner(
     allowed_vars: &BTreeSet<core_ir::TypeVar>,
 ) -> bool {
     match ty {
+        core_ir::Type::Unknown => false,
         core_ir::Type::Never | core_ir::Type::Any => false,
         core_ir::Type::Var(var) => !allowed_vars.contains(var),
         core_ir::Type::Union(_) | core_ir::Type::Inter(_) => true,
         core_ir::Type::Row { .. } => !effect_slot,
         core_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
-            core_ir::TypeArg::Type(ty) => contains_non_runtime_type_inner(ty, false, allowed_vars),
+            core_ir::TypeArg::Type(ty) => contains_non_runtime_type_arg(ty, allowed_vars),
             core_ir::TypeArg::Bounds(_) => true,
         }),
         core_ir::Type::Fun {
@@ -171,5 +173,27 @@ pub(super) fn contains_non_runtime_type_inner(
         core_ir::Type::Recursive { body, .. } => {
             contains_non_runtime_type_inner(body, false, allowed_vars)
         }
+    }
+}
+
+fn contains_non_runtime_type_arg(
+    ty: &core_ir::Type,
+    allowed_vars: &BTreeSet<core_ir::TypeVar>,
+) -> bool {
+    if matches_effect_type_arg_shape(ty) {
+        contains_non_runtime_type_inner(ty, true, allowed_vars)
+    } else {
+        contains_non_runtime_type_inner(ty, false, allowed_vars)
+    }
+}
+
+fn matches_effect_type_arg_shape(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Row { .. } => true,
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            !items.is_empty() && items.iter().all(matches_effect_type_arg_shape)
+        }
+        core_ir::Type::Recursive { body, .. } => matches_effect_type_arg_shape(body),
+        _ => false,
     }
 }

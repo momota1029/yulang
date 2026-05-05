@@ -1102,7 +1102,9 @@ impl SignatureBuilder {
     fn core_type(&mut self, ty: &core_ir::Type) -> DemandCoreType {
         match ty {
             core_ir::Type::Never => DemandCoreType::Never,
-            core_ir::Type::Any | core_ir::Type::Var(_) => DemandCoreType::Hole(self.fresh_hole()),
+            core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_) => {
+                DemandCoreType::Hole(self.fresh_hole())
+            }
             core_ir::Type::Named { path, args } => DemandCoreType::Named {
                 path: path.clone(),
                 args: args.iter().map(|arg| self.type_arg(arg)).collect(),

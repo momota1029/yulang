@@ -185,6 +185,42 @@ mod tests {
     }
 
     #[test]
+    fn project_runtime_type_preserves_effect_row_type_arg() {
+        let state = named("&state");
+        let int = named("int");
+        let effect = core_ir::Type::Row {
+            items: vec![state.clone()],
+            tail: Box::new(core_ir::Type::Never),
+        };
+        let raw = core_ir::Type::Named {
+            path: core_ir::Path::new(vec![
+                core_ir::Name("std".to_string()),
+                core_ir::Name("var".to_string()),
+                core_ir::Name("ref".to_string()),
+            ]),
+            args: vec![
+                core_ir::TypeArg::Type(effect.clone()),
+                core_ir::TypeArg::Type(int.clone()),
+            ],
+        };
+
+        let projected = project_runtime_type(&raw);
+
+        assert_eq!(
+            projected,
+            core_ir::Type::Named {
+                path: core_ir::Path::new(vec![
+                    core_ir::Name("std".to_string()),
+                    core_ir::Name("var".to_string()),
+                    core_ir::Name("ref".to_string()),
+                ]),
+                args: vec![core_ir::TypeArg::Type(effect), core_ir::TypeArg::Type(int)],
+            }
+        );
+        assert!(!contains_non_runtime_type(&projected), "{projected:?}");
+    }
+
+    #[test]
     fn never_is_compatible_with_value_expected_type() {
         assert!(type_compatible(&named("unit"), &core_ir::Type::Never));
         assert!(!type_compatible(&core_ir::Type::Never, &named("unit")));

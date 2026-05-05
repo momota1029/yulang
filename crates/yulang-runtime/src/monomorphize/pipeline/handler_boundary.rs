@@ -1,5 +1,7 @@
 use super::*;
-use crate::types::{project_runtime_type_with_vars, runtime_core_type};
+use crate::types::{
+    effect_compatible, effect_paths, project_runtime_type_with_vars, runtime_core_type,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct HandlerBindingInfo {
@@ -31,10 +33,18 @@ pub(super) struct HandlerAdapterPlan {
 
 pub(super) fn handler_binding_info(binding: &Binding) -> Option<HandlerBindingInfo> {
     let mut info = expr_handler_info(&binding.body)?;
-    if info.consumes.is_empty()
-        && let Some(effect) = local_ref_run_effect_path(&binding.name)
-    {
-        info.consumes.push(effect);
+    if let Some(effect) = binding_parent_effect_path(&binding.name) {
+        if info.consumes.iter().any(|path| path.segments.len() == 1) {
+            info.consumes.retain(|path| path.segments.len() != 1);
+        }
+        if info.consumes.is_empty()
+            || !info
+                .consumes
+                .iter()
+                .any(|existing| effect_paths_match(existing, &effect))
+        {
+            info.consumes.push(effect);
+        }
     }
     if let Some((input_effect, output_effect)) = principal_handler_effects(&binding.scheme.body) {
         info.principal_input_effect = Some(input_effect);
@@ -43,13 +53,31 @@ pub(super) fn handler_binding_info(binding: &Binding) -> Option<HandlerBindingIn
     Some(info)
 }
 
+fn binding_parent_effect_path(target: &core_ir::Path) -> Option<core_ir::Path> {
+    if target.segments.len() < 2 {
+        return None;
+    }
+    Some(core_ir::Path {
+        segments: target
+            .segments
+            .iter()
+            .take(target.segments.len() - 1)
+            .cloned()
+            .collect(),
+    })
+}
+
 pub(super) fn handler_call_boundary(
     info: &HandlerBindingInfo,
     args: &[&Expr],
     result_ty: &RuntimeType,
 ) -> HandlerCallBoundary {
-    let input_effect = args.iter().find_map(|arg| runtime_thunk_effect(&arg.ty));
-    let output_effect = runtime_thunk_effect(result_ty);
+    let input_effect = args
+        .iter()
+        .filter_map(|arg| handler_argument_effect(arg))
+        .reduce(merge_handler_residual_effects)
+        .filter(|effect| !effect_is_empty(effect));
+    let output_effect = runtime_thunk_effect(result_ty).filter(|effect| !effect_is_empty(effect));
     let structural_input_consumes = info
         .principal_input_effect
         .as_ref()
@@ -70,6 +98,123 @@ pub(super) fn handler_call_boundary(
         output_effect,
         pure: info.pure,
     }
+}
+
+fn handler_argument_effect(arg: &Expr) -> Option<core_ir::Type> {
+    let mut effect = runtime_thunk_effect(&arg.ty).filter(|effect| !effect_is_empty(effect));
+    collect_expr_thunk_effects(arg, &mut effect);
+    effect
+}
+
+fn collect_expr_thunk_effects(expr: &Expr, out: &mut Option<core_ir::Type>) {
+    if let RuntimeType::Thunk { effect, .. } = &expr.ty
+        && let Some(effect) = precise_handler_effect(effect)
+    {
+        merge_optional_handler_effect(out, effect);
+        if !matches!(expr.kind, ExprKind::Thunk { .. }) {
+            return;
+        }
+    }
+    match &expr.kind {
+        ExprKind::Lambda { body, .. } | ExprKind::BindHere { expr: body } => {
+            collect_expr_thunk_effects(body, out);
+        }
+        ExprKind::Apply { callee, arg, .. } => {
+            collect_expr_thunk_effects(callee, out);
+            collect_expr_thunk_effects(arg, out);
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_expr_thunk_effects(cond, out);
+            collect_expr_thunk_effects(then_branch, out);
+            collect_expr_thunk_effects(else_branch, out);
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                collect_expr_thunk_effects(item, out);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                collect_expr_thunk_effects(&field.value, out);
+            }
+            match spread {
+                Some(RecordSpreadExpr::Head(expr)) | Some(RecordSpreadExpr::Tail(expr)) => {
+                    collect_expr_thunk_effects(expr, out);
+                }
+                None => {}
+            }
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_expr_thunk_effects(value, out);
+            }
+        }
+        ExprKind::Select { base, .. } => collect_expr_thunk_effects(base, out),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            collect_expr_thunk_effects(scrutinee, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_thunk_effects(guard, out);
+                }
+                collect_expr_thunk_effects(&arm.body, out);
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            for stmt in stmts {
+                collect_stmt_thunk_effects(stmt, out);
+            }
+            if let Some(tail) = tail {
+                collect_expr_thunk_effects(tail, out);
+            }
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            collect_expr_thunk_effects(body, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_thunk_effects(guard, out);
+                }
+                collect_expr_thunk_effects(&arm.body, out);
+            }
+        }
+        ExprKind::Thunk { expr, .. }
+        | ExprKind::LocalPushId { body: expr, .. }
+        | ExprKind::AddId { thunk: expr, .. }
+        | ExprKind::Coerce { expr, .. }
+        | ExprKind::Pack { expr, .. } => collect_expr_thunk_effects(expr, out),
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => {}
+    }
+}
+
+fn collect_stmt_thunk_effects(stmt: &Stmt, out: &mut Option<core_ir::Type>) {
+    match stmt {
+        Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
+            collect_expr_thunk_effects(value, out);
+        }
+    }
+}
+
+fn merge_optional_handler_effect(out: &mut Option<core_ir::Type>, effect: core_ir::Type) {
+    *out = match out.take() {
+        Some(existing) => Some(merge_handler_residual_effects(existing, effect)),
+        None => Some(effect),
+    };
+}
+
+fn precise_handler_effect(effect: &core_ir::Type) -> Option<core_ir::Type> {
+    let paths = effect_paths(effect);
+    (!paths.is_empty()).then(|| effect_row_from_paths(paths))
 }
 
 pub(super) fn handler_adapter_plan(
@@ -122,6 +267,21 @@ pub(super) fn substitute_handler_adapter_plan(
     }
 }
 
+pub(super) fn handler_preserved_residual_effect(
+    effect: &core_ir::Type,
+    consumed: &[core_ir::Path],
+) -> Option<core_ir::Type> {
+    let residual = normalize_effect(remove_consumed_effects(effect, consumed));
+    (!effect_is_empty(&residual)).then_some(residual)
+}
+
+pub(super) fn merge_handler_residual_effects(
+    left: core_ir::Type,
+    right: core_ir::Type,
+) -> core_ir::Type {
+    normalize_effect(merge_effect_rows(left, right))
+}
+
 pub(super) fn apply_handler_adapter_plan_to_binding(
     mut binding: Binding,
     plan: &HandlerAdapterPlan,
@@ -135,18 +295,9 @@ pub(super) fn apply_handler_adapter_plan_to_binding(
 
 fn runtime_thunk_effect(ty: &RuntimeType) -> Option<core_ir::Type> {
     match ty {
-        RuntimeType::Thunk { effect, .. } => Some(effect.clone()),
+        RuntimeType::Thunk { effect, .. } => precise_handler_effect(effect),
         RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Fun { .. } => None,
     }
-}
-
-fn local_ref_run_effect_path(target: &core_ir::Path) -> Option<core_ir::Path> {
-    let [namespace, name] = target.segments.as_slice() else {
-        return None;
-    };
-    (name.0 == "run" && namespace.0.starts_with('&')).then(|| core_ir::Path {
-        segments: vec![namespace.clone()],
-    })
 }
 
 fn handler_residual_before(
@@ -672,7 +823,8 @@ fn wrap_value_in_thunk(body: Expr, effect: &core_ir::Type) -> Expr {
         effect: existing,
         value: _,
     } = &body.ty
-        && existing == effect
+        && (existing == effect
+            || (effect_compatible(existing, effect) && effect_compatible(effect, existing)))
     {
         return body;
     }
@@ -907,16 +1059,23 @@ fn expr_handler_info(expr: &Expr) -> Option<HandlerBindingInfo> {
             arms,
             handler,
             ..
-        } => Some(HandlerBindingInfo {
-            consumes: handler.consumes.clone(),
-            principal_input_effect: None,
-            principal_output_effect: None,
-            residual_before_known: handler.residual_before.is_some(),
-            residual_after_known: handler.residual_after.is_some(),
-            pure: handler.residual_after.as_ref().is_some_and(effect_is_empty),
-        })
-        .or_else(|| expr_handler_info(body))
-        .or_else(|| arms.iter().find_map(handle_arm_handler_info)),
+        } => {
+            let consumes = if handler.consumes.is_empty() {
+                handle_arm_parent_effects(arms)
+            } else {
+                handler.consumes.clone()
+            };
+            Some(HandlerBindingInfo {
+                consumes,
+                principal_input_effect: None,
+                principal_output_effect: None,
+                residual_before_known: handler.residual_before.is_some(),
+                residual_after_known: handler.residual_after.is_some(),
+                pure: handler.residual_after.as_ref().is_some_and(effect_is_empty),
+            })
+            .or_else(|| expr_handler_info(body))
+            .or_else(|| arms.iter().find_map(handle_arm_handler_info))
+        }
         ExprKind::Apply { callee, arg, .. } => {
             expr_handler_info(callee).or_else(|| expr_handler_info(arg))
         }
@@ -964,6 +1123,38 @@ fn expr_handler_info(expr: &Expr) -> Option<HandlerBindingInfo> {
         | ExprKind::PeekId
         | ExprKind::FindId { .. } => None,
     }
+}
+
+fn handle_arm_parent_effects(arms: &[HandleArm]) -> Vec<core_ir::Path> {
+    let mut out = Vec::<core_ir::Path>::new();
+    for arm in arms {
+        for path in [Some(arm.effect.clone()), parent_effect_path(&arm.effect)]
+            .into_iter()
+            .flatten()
+        {
+            if !out
+                .iter()
+                .any(|existing| effect_paths_match(existing, &path))
+            {
+                out.push(path);
+            }
+        }
+    }
+    out
+}
+
+fn parent_effect_path(operation: &core_ir::Path) -> Option<core_ir::Path> {
+    if operation.segments.len() < 2 {
+        return None;
+    }
+    Some(core_ir::Path {
+        segments: operation
+            .segments
+            .iter()
+            .take(operation.segments.len() - 1)
+            .cloned()
+            .collect(),
+    })
 }
 
 fn principal_handler_effects(ty: &core_ir::Type) -> Option<(core_ir::Type, core_ir::Type)> {

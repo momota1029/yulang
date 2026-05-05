@@ -26,6 +26,12 @@ pub struct VariantType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
+    /// Internal evidence hole. This is not the top type.
+    ///
+    /// `Any` means "all values"; `Unknown` means "the exporter/runtime does not
+    /// have a precise type for this slot yet". Runtime specialization must not
+    /// use this as a completed substitution.
+    Unknown,
     Never,
     Any,
     Var(TypeVar),

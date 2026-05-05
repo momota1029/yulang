@@ -87,7 +87,7 @@ pub(crate) fn hir_type_is_hole(ty: &RuntimeType) -> bool {
 #[cfg(test)]
 fn type_hole_count(ty: &core_ir::Type) -> usize {
     match ty {
-        core_ir::Type::Var(_) => 1,
+        core_ir::Type::Unknown | core_ir::Type::Var(_) => 1,
         core_ir::Type::Any => 0,
         core_ir::Type::Named { args, .. } => args.iter().map(type_arg_hole_count).sum(),
         core_ir::Type::Fun {
@@ -135,7 +135,7 @@ fn type_hole_count(ty: &core_ir::Type) -> usize {
 
 pub(crate) fn type_imprecision_count(ty: &core_ir::Type) -> usize {
     match ty {
-        core_ir::Type::Any | core_ir::Type::Var(_) => 1,
+        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_) => 1,
         core_ir::Type::Named { args, .. } => args.iter().map(type_arg_imprecision_count).sum(),
         core_ir::Type::Fun {
             param,
@@ -205,7 +205,8 @@ pub(crate) fn type_choice_rank(ty: &core_ir::Type, choice: TypeChoice) -> u8 {
         core_ir::Type::Never => 2,
         core_ir::Type::Var(_) if matches!(choice, TypeChoice::Substitution) => 1,
         core_ir::Type::Recursive { body, .. } => type_choice_rank(body, choice),
-        core_ir::Type::Any
+        core_ir::Type::Unknown
+        | core_ir::Type::Any
         | core_ir::Type::Var(_)
         | core_ir::Type::Union(_)
         | core_ir::Type::Inter(_)

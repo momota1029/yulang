@@ -7,10 +7,6 @@ pub(super) fn value_hir_type(ty: &RuntimeType) -> &RuntimeType {
     }
 }
 
-pub(super) fn value_core_type(ty: &RuntimeType) -> &core_ir::Type {
-    core_type(value_hir_type(ty))
-}
-
 pub(super) fn force_value_expr_profiled(
     expr: Expr,
     profile: &mut RuntimeAdapterProfile,

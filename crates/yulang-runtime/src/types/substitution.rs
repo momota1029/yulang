@@ -23,6 +23,7 @@ pub(crate) fn substitute_type(
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) -> core_ir::Type {
     match ty {
+        core_ir::Type::Unknown => core_ir::Type::Unknown,
         core_ir::Type::Never => core_ir::Type::Never,
         core_ir::Type::Any => core_ir::Type::Any,
         core_ir::Type::Var(var) => substitutions
@@ -363,18 +364,24 @@ pub(crate) fn normalize_principal_elaboration_plan_with_requirements(
             substitution.ty.clone(),
         );
     }
-    project_substitutions_from_candidates(
-        substitution_candidates,
-        &required_vars,
-        &mut substitutions,
-        &mut conflicts,
-    );
-    project_substitutions_from_role_requirements(
-        requirements,
-        &required_vars,
-        &mut substitutions,
-        &mut conflicts,
-    );
+    for _ in 0..4 {
+        let before = (substitutions.len(), conflicts.len());
+        project_substitutions_from_candidates(
+            substitution_candidates,
+            &required_vars,
+            &mut substitutions,
+            &mut conflicts,
+        );
+        project_substitutions_from_role_requirements(
+            requirements,
+            &required_vars,
+            &mut substitutions,
+            &mut conflicts,
+        );
+        if before == (substitutions.len(), conflicts.len()) {
+            break;
+        }
+    }
 
     let substituted_principal = substitute_type(&plan.principal_callee, &substitutions);
     for arg in &plan.args {
@@ -410,6 +417,35 @@ pub(crate) fn normalize_principal_elaboration_plan_with_requirements(
             64,
         );
     }
+    if let Some(core_ir::Type::Var(var)) =
+        principal_fun_result_after_args(&substituted_principal, plan.args.len())
+        && required_vars.contains(var)
+        && !substitutions.contains_key(var)
+        && let Some(actual) =
+            principal_plan_result_self_closed_type(&plan.result, var, &substitutions)
+    {
+        insert_exact_projected_substitution(
+            &mut substitutions,
+            &mut conflicts,
+            var.clone(),
+            actual,
+        );
+    }
+    for var in &required_vars {
+        if substitutions.contains_key(var) || conflicts.contains(var) {
+            continue;
+        }
+        if let Some(actual) =
+            principal_plan_result_self_closed_type(&plan.result, var, &substitutions)
+        {
+            insert_exact_projected_substitution(
+                &mut substitutions,
+                &mut conflicts,
+                var.clone(),
+                actual,
+            );
+        }
+    }
 
     rebuild_principal_elaboration_plan_status(
         plan,
@@ -417,6 +453,40 @@ pub(crate) fn normalize_principal_elaboration_plan_with_requirements(
         conflicts,
         substitution_candidates,
     )
+}
+
+fn principal_plan_result_self_closed_type(
+    result: &core_ir::PrincipalElaborationResult,
+    var: &core_ir::TypeVar,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> Option<core_ir::Type> {
+    result
+        .contextual
+        .as_ref()
+        .and_then(|bounds| principal_plan_bounds_self_closed_type(bounds, var, substitutions))
+        .or_else(|| principal_plan_bounds_self_closed_type(&result.intrinsic, var, substitutions))
+}
+
+fn principal_plan_bounds_self_closed_type(
+    bounds: &core_ir::TypeBounds,
+    var: &core_ir::TypeVar,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> Option<core_ir::Type> {
+    let lower = bounds
+        .lower
+        .as_deref()
+        .map(|ty| substitute_type(ty, substitutions))
+        .and_then(|ty| self_or_closed_candidate_type(var, &ty));
+    let upper = bounds
+        .upper
+        .as_deref()
+        .map(|ty| substitute_type(ty, substitutions))
+        .and_then(|ty| self_or_closed_candidate_type(var, &ty));
+    match (lower, upper) {
+        (Some(lower), Some(upper)) if lower == upper => Some(lower),
+        (Some(ty), None) | (None, Some(ty)) => Some(ty),
+        _ => None,
+    }
 }
 
 fn rebuild_principal_elaboration_plan_status(
@@ -618,7 +688,7 @@ fn collect_principal_var_usage(
             collect_principal_var_usage(body, effect_slot, usage);
             usage.remove(var);
         }
-        core_ir::Type::Never | core_ir::Type::Any => {}
+        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => {}
     }
 }
 
@@ -700,7 +770,7 @@ fn collect_principal_type_arg_type_usage(
             collect_principal_type_arg_type_usage(body, usage);
             usage.remove(var);
         }
-        core_ir::Type::Never | core_ir::Type::Any => {}
+        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => {}
     }
 }
 
@@ -745,8 +815,8 @@ fn principal_plan_result_type(
     result
         .expected_runtime
         .clone()
-        .or_else(|| principal_plan_bounds_slot_type(result.contextual.as_ref(), false))
-        .or_else(|| principal_plan_bounds_slot_type(Some(&result.intrinsic), false))
+        .or_else(|| principal_plan_bounds_slot_type(result.contextual.as_ref(), true))
+        .or_else(|| principal_plan_bounds_slot_type(Some(&result.intrinsic), true))
 }
 
 fn principal_plan_bounds_slot_type(
@@ -756,13 +826,19 @@ fn principal_plan_bounds_slot_type(
     let bounds = bounds?;
     match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
         (Some(lower), Some(upper)) if lower == upper => {
-            principal_plan_substitution_type_usable(lower, allow_never).then(|| lower.clone())
+            principal_plan_slot_type_usable(lower, allow_never).then(|| lower.clone())
         }
         (Some(ty), None) | (None, Some(ty)) => {
-            principal_plan_substitution_type_usable(ty, allow_never).then(|| ty.clone())
+            principal_plan_slot_type_usable(ty, allow_never).then(|| ty.clone())
         }
         _ => None,
     }
+}
+
+fn principal_plan_slot_type_usable(ty: &core_ir::Type, allow_never: bool) -> bool {
+    !matches!(ty, core_ir::Type::Var(_))
+        && (allow_never || !matches!(ty, core_ir::Type::Never))
+        && !type_has_vars(ty)
 }
 
 fn insert_exact_projected_substitution(
@@ -771,6 +847,9 @@ fn insert_exact_projected_substitution(
     var: core_ir::TypeVar,
     ty: core_ir::Type,
 ) {
+    if type_has_any(&ty) {
+        return;
+    }
     if let Some(existing) = substitutions.get(&var) {
         if existing == &core_ir::Type::Never && ty != core_ir::Type::Never {
             substitutions.insert(var, ty);
@@ -778,6 +857,13 @@ fn insert_exact_projected_substitution(
             // `Never` is the empty effect when it appears in effect positions.
             // Keep a more informative closed effect if one has already been
             // projected. Value positions do not insert `Never` here.
+        } else if existing == &core_ir::Type::Any && ty != core_ir::Type::Any {
+            substitutions.insert(var, ty);
+        } else if ty == core_ir::Type::Any {
+            // `Any` is a real top type, but a concrete projection is more useful
+            // for a specialization key when both are observed for the same slot.
+        } else if let Some(merged) = merge_projected_type_precision(existing, &ty) {
+            substitutions.insert(var, merged);
         } else if let Some(merged) = merge_projected_effect_rows(existing, &ty) {
             substitutions.insert(var, merged);
         } else if existing != &ty {
@@ -785,6 +871,160 @@ fn insert_exact_projected_substitution(
         }
     } else {
         substitutions.insert(var, ty);
+    }
+}
+
+fn merge_projected_type_precision(
+    existing: &core_ir::Type,
+    incoming: &core_ir::Type,
+) -> Option<core_ir::Type> {
+    if existing == incoming {
+        return Some(existing.clone());
+    }
+    match (existing, incoming) {
+        (core_ir::Type::Unknown, incoming) => Some(incoming.clone()),
+        (existing, core_ir::Type::Unknown) => Some(existing.clone()),
+        (core_ir::Type::Any, incoming) => Some(incoming.clone()),
+        (existing, core_ir::Type::Any) => Some(existing.clone()),
+        (
+            core_ir::Type::Named {
+                path: existing_path,
+                args: existing_args,
+            },
+            core_ir::Type::Named {
+                path: incoming_path,
+                args: incoming_args,
+            },
+        ) if existing_path == incoming_path && existing_args.len() == incoming_args.len() => {
+            let args = existing_args
+                .iter()
+                .zip(incoming_args)
+                .map(|(existing, incoming)| merge_projected_type_arg_precision(existing, incoming))
+                .collect::<Option<Vec<_>>>()?;
+            Some(core_ir::Type::Named {
+                path: existing_path.clone(),
+                args,
+            })
+        }
+        (core_ir::Type::Tuple(existing_items), core_ir::Type::Tuple(incoming_items))
+            if existing_items.len() == incoming_items.len() =>
+        {
+            let items = existing_items
+                .iter()
+                .zip(incoming_items)
+                .map(|(existing, incoming)| merge_projected_type_precision(existing, incoming))
+                .collect::<Option<Vec<_>>>()?;
+            Some(core_ir::Type::Tuple(items))
+        }
+        (
+            core_ir::Type::Fun {
+                param: existing_param,
+                param_effect: existing_param_effect,
+                ret_effect: existing_ret_effect,
+                ret: existing_ret,
+            },
+            core_ir::Type::Fun {
+                param: incoming_param,
+                param_effect: incoming_param_effect,
+                ret_effect: incoming_ret_effect,
+                ret: incoming_ret,
+            },
+        ) => Some(core_ir::Type::Fun {
+            param: Box::new(merge_projected_type_precision(
+                existing_param,
+                incoming_param,
+            )?),
+            param_effect: Box::new(merge_projected_type_precision(
+                existing_param_effect,
+                incoming_param_effect,
+            )?),
+            ret_effect: Box::new(merge_projected_type_precision(
+                existing_ret_effect,
+                incoming_ret_effect,
+            )?),
+            ret: Box::new(merge_projected_type_precision(existing_ret, incoming_ret)?),
+        }),
+        _ => None,
+    }
+}
+
+fn merge_projected_type_arg_precision(
+    existing: &core_ir::TypeArg,
+    incoming: &core_ir::TypeArg,
+) -> Option<core_ir::TypeArg> {
+    match (existing, incoming) {
+        (core_ir::TypeArg::Type(existing), core_ir::TypeArg::Type(incoming)) => Some(
+            core_ir::TypeArg::Type(merge_projected_type_precision(existing, incoming)?),
+        ),
+        (core_ir::TypeArg::Bounds(existing), core_ir::TypeArg::Bounds(incoming)) => Some(
+            core_ir::TypeArg::Bounds(merge_projected_bounds_precision(existing, incoming)?),
+        ),
+        (core_ir::TypeArg::Bounds(existing), core_ir::TypeArg::Type(incoming))
+        | (core_ir::TypeArg::Type(incoming), core_ir::TypeArg::Bounds(existing)) => {
+            let existing = principal_plan_bounds_single_closed_type(existing, false)?;
+            Some(core_ir::TypeArg::Type(merge_projected_type_precision(
+                &existing, incoming,
+            )?))
+        }
+    }
+}
+
+fn merge_projected_bounds_precision(
+    existing: &core_ir::TypeBounds,
+    incoming: &core_ir::TypeBounds,
+) -> Option<core_ir::TypeBounds> {
+    let lower = match (existing.lower.as_deref(), incoming.lower.as_deref()) {
+        (Some(existing), Some(incoming)) => Some(Box::new(merge_projected_type_precision(
+            existing, incoming,
+        )?)),
+        (Some(existing), None) => Some(Box::new(existing.clone())),
+        (None, Some(incoming)) => Some(Box::new(incoming.clone())),
+        (None, None) => None,
+    };
+    let upper = match (existing.upper.as_deref(), incoming.upper.as_deref()) {
+        (Some(existing), Some(incoming)) => Some(Box::new(merge_projected_type_precision(
+            existing, incoming,
+        )?)),
+        (Some(existing), None) => Some(Box::new(existing.clone())),
+        (None, Some(incoming)) => Some(Box::new(incoming.clone())),
+        (None, None) => None,
+    };
+    Some(core_ir::TypeBounds { lower, upper })
+}
+
+fn normalize_projected_substitution_type(
+    ty: &core_ir::Type,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> core_ir::Type {
+    collapse_repeated_top_choice_type(substitute_type(ty, substitutions))
+}
+
+fn collapse_repeated_top_choice_type(ty: core_ir::Type) -> core_ir::Type {
+    match ty {
+        core_ir::Type::Union(items) => {
+            collapse_repeated_top_choice_items(items, core_ir::Type::Union)
+        }
+        core_ir::Type::Inter(items) => {
+            collapse_repeated_top_choice_items(items, core_ir::Type::Inter)
+        }
+        other => other,
+    }
+}
+
+fn collapse_repeated_top_choice_items(
+    items: Vec<core_ir::Type>,
+    rebuild: impl FnOnce(Vec<core_ir::Type>) -> core_ir::Type,
+) -> core_ir::Type {
+    let mut unique = Vec::<core_ir::Type>::new();
+    for item in items {
+        if !unique.iter().any(|existing| existing == &item) {
+            unique.push(item);
+        }
+    }
+    if unique.len() == 1 {
+        unique.pop().expect("single projected choice item")
+    } else {
+        rebuild(unique)
     }
 }
 
@@ -842,6 +1082,7 @@ fn project_substitutions_from_candidates(
             continue;
         }
         let ty = substitute_type(&candidate.ty, substitutions);
+        let ty = self_or_closed_candidate_type(&candidate.var, &ty).unwrap_or(ty);
         if !principal_plan_substitution_type_usable(&ty, false) {
             continue;
         }
@@ -855,6 +1096,23 @@ fn project_substitutions_from_candidates(
         if substitutions.contains_key(&var) || conflicts.contains(&var) {
             continue;
         }
+        let self_closed = unique_owned_candidate_type(
+            candidates
+                .iter()
+                .filter_map(|(_, ty)| self_or_closed_candidate_type(&var, ty)),
+        );
+        match self_closed {
+            CandidateTypeChoice::One(ty) => {
+                insert_exact_projected_substitution(substitutions, conflicts, var, ty);
+                continue;
+            }
+            CandidateTypeChoice::Conflict => {
+                conflicts.insert(var);
+                continue;
+            }
+            CandidateTypeChoice::None => {}
+        }
+
         let exact = unique_candidate_type(
             candidates
                 .iter()
@@ -897,6 +1155,45 @@ fn project_substitutions_from_candidates(
             insert_exact_projected_substitution(substitutions, conflicts, var, lower);
         }
     }
+}
+
+fn unique_owned_candidate_type(
+    candidates: impl Iterator<Item = core_ir::Type>,
+) -> CandidateTypeChoice {
+    let mut choice: Option<core_ir::Type> = None;
+    for candidate in candidates {
+        match &choice {
+            Some(existing) if existing != &candidate => return CandidateTypeChoice::Conflict,
+            Some(_) => {}
+            None => choice = Some(candidate),
+        }
+    }
+    choice.map_or(CandidateTypeChoice::None, CandidateTypeChoice::One)
+}
+
+fn self_or_closed_candidate_type(
+    var: &core_ir::TypeVar,
+    ty: &core_ir::Type,
+) -> Option<core_ir::Type> {
+    let items = match ty {
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => items,
+        _ => return None,
+    };
+    let mut closed = None::<core_ir::Type>;
+    for item in items {
+        if matches!(item, core_ir::Type::Var(item_var) if item_var == var) {
+            continue;
+        }
+        if !principal_plan_substitution_type_usable(item, false) {
+            return None;
+        }
+        match &closed {
+            Some(existing) if existing != item => return None,
+            Some(_) => {}
+            None => closed = Some(item.clone()),
+        }
+    }
+    closed
 }
 
 fn project_substitutions_from_role_requirements(
@@ -1034,13 +1331,9 @@ pub(crate) fn project_closed_substitutions_from_type(
     }
     match (template, actual) {
         (core_ir::Type::Var(var), actual) if params.contains(var) => {
-            if principal_plan_substitution_type_usable(actual, allow_never) {
-                insert_exact_projected_substitution(
-                    substitutions,
-                    conflicts,
-                    var.clone(),
-                    actual.clone(),
-                );
+            let actual = normalize_projected_substitution_type(actual, substitutions);
+            if principal_plan_substitution_type_usable(&actual, allow_never) {
+                insert_exact_projected_substitution(substitutions, conflicts, var.clone(), actual);
             }
         }
         (
@@ -1174,15 +1467,16 @@ pub(crate) fn project_closed_substitutions_from_type(
             }
         }
         (core_ir::Type::Union(items) | core_ir::Type::Inter(items), actual)
-            if principal_plan_substitution_type_usable(actual, allow_never)
-                && items.iter().all(
-                    |item| matches!(item, core_ir::Type::Var(var) if params.contains(var)),
-                ) =>
+            if principal_plan_substitution_type_usable(
+                &normalize_projected_substitution_type(actual, substitutions),
+                allow_never,
+            ) =>
         {
+            let actual = normalize_projected_substitution_type(actual, substitutions);
             for item in items {
                 project_closed_substitutions_from_type(
                     item,
-                    actual,
+                    &actual,
                     params,
                     substitutions,
                     conflicts,
@@ -1332,7 +1626,10 @@ fn project_closed_substitutions_from_type_arg(
             );
         }
         (core_ir::TypeArg::Type(template), core_ir::TypeArg::Bounds(actual)) => {
-            if let Some(actual) = principal_plan_bounds_single_closed_type(actual, allow_never) {
+            let actual_bounds = substitute_bounds(actual.clone(), substitutions);
+            if let Some(actual) =
+                principal_plan_bounds_single_closed_type(&actual_bounds, allow_never)
+            {
                 project_closed_substitutions_from_type(
                     template,
                     &actual,
@@ -1345,26 +1642,27 @@ fn project_closed_substitutions_from_type_arg(
             }
         }
         (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Type(actual)) => {
-            if let Some(template) = principal_plan_bounds_single_closed_type(template, allow_never)
-            {
-                project_closed_substitutions_from_type(
-                    &template,
-                    actual,
-                    params,
-                    substitutions,
-                    conflicts,
-                    allow_never,
-                    depth,
-                );
+            let actual = normalize_projected_substitution_type(actual, substitutions);
+            if !principal_plan_substitution_type_usable(&actual, allow_never) {
+                return;
             }
+            project_closed_substitutions_from_bounds(
+                template,
+                &actual,
+                params,
+                substitutions,
+                conflicts,
+                allow_never,
+                depth,
+            );
         }
         (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
-            if let (Some(template), Some(actual)) = (
-                principal_plan_bounds_single_closed_type(template, allow_never),
-                principal_plan_bounds_single_closed_type(actual, allow_never),
-            ) {
-                project_closed_substitutions_from_type(
-                    &template,
+            let actual_bounds = substitute_bounds(actual.clone(), substitutions);
+            if let Some(actual) =
+                principal_plan_bounds_single_closed_type(&actual_bounds, allow_never)
+            {
+                project_closed_substitutions_from_bounds(
+                    template,
                     &actual,
                     params,
                     substitutions,
@@ -1377,23 +1675,73 @@ fn project_closed_substitutions_from_type_arg(
     }
 }
 
+fn project_closed_substitutions_from_bounds(
+    template: &core_ir::TypeBounds,
+    actual: &core_ir::Type,
+    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    allow_never: bool,
+    depth: usize,
+) {
+    if !principal_plan_substitution_type_usable(actual, allow_never) {
+        return;
+    }
+
+    if let Some(lower) = template.lower.as_deref() {
+        project_closed_substitutions_from_type(
+            lower,
+            actual,
+            params,
+            substitutions,
+            conflicts,
+            allow_never,
+            depth,
+        );
+    }
+    if let Some(upper) = template.upper.as_deref() {
+        project_closed_substitutions_from_type(
+            upper,
+            actual,
+            params,
+            substitutions,
+            conflicts,
+            allow_never,
+            depth,
+        );
+    }
+}
+
 fn principal_plan_bounds_single_closed_type(
     bounds: &core_ir::TypeBounds,
     allow_never: bool,
 ) -> Option<core_ir::Type> {
-    let choice = match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
-        (Some(lower), Some(upper)) if lower == upper => Some(lower),
-        (Some(ty), None) | (None, Some(ty)) => Some(ty),
-        _ => None,
-    }?;
-    principal_plan_substitution_type_usable(choice, allow_never).then(|| choice.clone())
+    let lower = bounds
+        .lower
+        .as_deref()
+        .cloned()
+        .map(collapse_repeated_top_choice_type);
+    let upper = bounds
+        .upper
+        .as_deref()
+        .cloned()
+        .map(collapse_repeated_top_choice_type);
+    let choice = match (lower, upper) {
+        (Some(lower), Some(upper)) if lower == upper => lower,
+        (Some(ty), None) | (None, Some(ty)) => ty,
+        _ => return None,
+    };
+    principal_plan_substitution_type_usable(&choice, allow_never).then_some(choice)
 }
 
 fn principal_plan_substitution_type_usable(ty: &core_ir::Type, allow_never: bool) -> bool {
-    !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_))
-        && (allow_never || !matches!(ty, core_ir::Type::Never))
+    !matches!(
+        ty,
+        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_)
+    ) && (allow_never || !matches!(ty, core_ir::Type::Never))
         && !type_has_vars(ty)
         && !type_has_any(ty)
+        && (allow_never || !core_type_contains_unknown(ty))
 }
 
 pub(crate) fn substitute_join_evidence(
@@ -1797,7 +2145,7 @@ pub(super) fn insert_substitution(
     ty: core_ir::Type,
     prefer_non_never: bool,
 ) {
-    if matches!(ty, core_ir::Type::Any) {
+    if matches!(ty, core_ir::Type::Unknown | core_ir::Type::Any) {
         return;
     }
     if matches!(&ty, core_ir::Type::Var(actual) if actual == &var) || type_contains_var(&ty, &var) {
@@ -1838,8 +2186,19 @@ pub(super) fn type_has_vars(ty: &core_ir::Type) -> bool {
 fn type_has_any(ty: &core_ir::Type) -> bool {
     match ty {
         core_ir::Type::Any => true,
+        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Var(_) => false,
         core_ir::Type::Named { args, .. } => args.iter().any(type_arg_has_any),
-        core_ir::Type::Fun { param, ret, .. } => type_has_any(param) || type_has_any(ret),
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_has_any(param)
+                || type_has_any(param_effect)
+                || type_has_any(ret_effect)
+                || type_has_any(ret)
+        }
         core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
             items.iter().any(type_has_any)
         }
@@ -1856,7 +2215,6 @@ fn type_has_any(ty: &core_ir::Type) -> bool {
                 || variant.tail.as_deref().is_some_and(type_has_any)
         }
         core_ir::Type::Recursive { body, .. } => type_has_any(body),
-        core_ir::Type::Var(_) | core_ir::Type::Never => false,
     }
 }
 

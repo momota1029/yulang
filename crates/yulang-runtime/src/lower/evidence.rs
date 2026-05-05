@@ -1,4 +1,5 @@
 use super::*;
+use crate::types::core_type_contains_unknown;
 
 pub(super) fn infer_handle_payload_type(
     pattern: &core_ir::Pattern,
@@ -63,15 +64,17 @@ pub(super) fn infer_resume_param_type(
     resume: &core_ir::Name,
     guard: Option<&core_ir::Expr>,
     body: &core_ir::Expr,
+    locals: &HashMap<core_ir::Path, RuntimeType>,
 ) -> Option<core_ir::Type> {
     guard
-        .and_then(|guard| infer_resume_param_type_from_expr(resume, guard))
-        .or_else(|| infer_resume_param_type_from_expr(resume, body))
+        .and_then(|guard| infer_resume_param_type_from_expr(resume, guard, locals))
+        .or_else(|| infer_resume_param_type_from_expr(resume, body, locals))
 }
 
 pub(super) fn infer_resume_param_type_from_expr(
     resume: &core_ir::Name,
     expr: &core_ir::Expr,
+    locals: &HashMap<core_ir::Path, RuntimeType>,
 ) -> Option<core_ir::Type> {
     match expr {
         core_ir::Expr::Apply {
@@ -83,65 +86,71 @@ pub(super) fn infer_resume_param_type_from_expr(
                 return evidence
                     .as_ref()
                     .and_then(|evidence| runtime_bounds_type(&evidence.arg))
+                    .or_else(|| local_expr_type(arg, locals))
                     .or_else(|| literal_expr_type(arg));
             }
-            infer_resume_param_type_from_expr(resume, callee)
-                .or_else(|| infer_resume_param_type_from_expr(resume, arg))
+            infer_resume_param_type_from_expr(resume, callee, locals)
+                .or_else(|| infer_resume_param_type_from_expr(resume, arg, locals))
         }
         core_ir::Expr::Lambda { body, .. }
         | core_ir::Expr::Coerce { expr: body, .. }
-        | core_ir::Expr::Pack { expr: body, .. } => infer_resume_param_type_from_expr(resume, body),
+        | core_ir::Expr::Pack { expr: body, .. } => {
+            infer_resume_param_type_from_expr(resume, body, locals)
+        }
         core_ir::Expr::If {
             cond,
             then_branch,
             else_branch,
             ..
-        } => infer_resume_param_type_from_expr(resume, cond)
-            .or_else(|| infer_resume_param_type_from_expr(resume, then_branch))
-            .or_else(|| infer_resume_param_type_from_expr(resume, else_branch)),
+        } => infer_resume_param_type_from_expr(resume, cond, locals)
+            .or_else(|| infer_resume_param_type_from_expr(resume, then_branch, locals))
+            .or_else(|| infer_resume_param_type_from_expr(resume, else_branch, locals)),
         core_ir::Expr::Tuple(items) => items
             .iter()
-            .find_map(|item| infer_resume_param_type_from_expr(resume, item)),
+            .find_map(|item| infer_resume_param_type_from_expr(resume, item, locals)),
         core_ir::Expr::Record { fields, spread } => fields
             .iter()
-            .find_map(|field| infer_resume_param_type_from_expr(resume, &field.value))
+            .find_map(|field| infer_resume_param_type_from_expr(resume, &field.value, locals))
             .or_else(|| match spread {
                 Some(core_ir::RecordSpreadExpr::Head(expr))
                 | Some(core_ir::RecordSpreadExpr::Tail(expr)) => {
-                    infer_resume_param_type_from_expr(resume, expr)
+                    infer_resume_param_type_from_expr(resume, expr, locals)
                 }
                 None => None,
             }),
         core_ir::Expr::Variant { value, .. } => value
             .as_deref()
-            .and_then(|value| infer_resume_param_type_from_expr(resume, value)),
-        core_ir::Expr::Select { base, .. } => infer_resume_param_type_from_expr(resume, base),
+            .and_then(|value| infer_resume_param_type_from_expr(resume, value, locals)),
+        core_ir::Expr::Select { base, .. } => {
+            infer_resume_param_type_from_expr(resume, base, locals)
+        }
         core_ir::Expr::Match {
             scrutinee, arms, ..
-        } => infer_resume_param_type_from_expr(resume, scrutinee).or_else(|| {
+        } => infer_resume_param_type_from_expr(resume, scrutinee, locals).or_else(|| {
             arms.iter().find_map(|arm| {
                 arm.guard
                     .as_ref()
-                    .and_then(|guard| infer_resume_param_type_from_expr(resume, guard))
-                    .or_else(|| infer_resume_param_type_from_expr(resume, &arm.body))
+                    .and_then(|guard| infer_resume_param_type_from_expr(resume, guard, locals))
+                    .or_else(|| infer_resume_param_type_from_expr(resume, &arm.body, locals))
             })
         }),
         core_ir::Expr::Block { stmts, tail } => stmts
             .iter()
-            .find_map(|stmt| infer_resume_param_type_from_stmt(resume, stmt))
+            .find_map(|stmt| infer_resume_param_type_from_stmt(resume, stmt, locals))
             .or_else(|| {
                 tail.as_deref()
-                    .and_then(|tail| infer_resume_param_type_from_expr(resume, tail))
+                    .and_then(|tail| infer_resume_param_type_from_expr(resume, tail, locals))
             }),
-        core_ir::Expr::Handle { body, arms, .. } => infer_resume_param_type_from_expr(resume, body)
-            .or_else(|| {
+        core_ir::Expr::Handle { body, arms, .. } => {
+            infer_resume_param_type_from_expr(resume, body, locals).or_else(|| {
                 arms.iter().find_map(|arm| {
                     arm.guard
                         .as_ref()
-                        .and_then(|guard| infer_resume_param_type_from_expr(resume, guard))
-                        .or_else(|| infer_resume_param_type_from_expr(resume, &arm.body))
+                        .and_then(|guard| infer_resume_param_type_from_expr(resume, guard, locals))
+                        .or_else(|| infer_resume_param_type_from_expr(resume, &arm.body, locals))
                 })
-            }),
+            })
+        }
         core_ir::Expr::Var(_) | core_ir::Expr::PrimitiveOp(_) | core_ir::Expr::Lit(_) => None,
     }
 }
@@ -149,12 +158,15 @@ pub(super) fn infer_resume_param_type_from_expr(
 pub(super) fn infer_resume_param_type_from_stmt(
     resume: &core_ir::Name,
     stmt: &core_ir::Stmt,
+    locals: &HashMap<core_ir::Path, RuntimeType>,
 ) -> Option<core_ir::Type> {
     match stmt {
         core_ir::Stmt::Let { value, .. } | core_ir::Stmt::Expr(value) => {
-            infer_resume_param_type_from_expr(resume, value)
+            infer_resume_param_type_from_expr(resume, value, locals)
         }
-        core_ir::Stmt::Module { body, .. } => infer_resume_param_type_from_expr(resume, body),
+        core_ir::Stmt::Module { body, .. } => {
+            infer_resume_param_type_from_expr(resume, body, locals)
+        }
     }
 }
 
@@ -175,5 +187,26 @@ pub(super) fn literal_expr_type(expr: &core_ir::Expr) -> Option<core_ir::Type> {
             literal_expr_type(expr)
         }
         _ => None,
+    }
+}
+
+fn local_expr_type(
+    expr: &core_ir::Expr,
+    locals: &HashMap<core_ir::Path, RuntimeType>,
+) -> Option<core_ir::Type> {
+    match expr {
+        core_ir::Expr::Var(path) => locals.get(path).and_then(runtime_type_value_core),
+        core_ir::Expr::Coerce { expr, .. } | core_ir::Expr::Pack { expr, .. } => {
+            local_expr_type(expr, locals)
+        }
+        _ => None,
+    }
+}
+
+fn runtime_type_value_core(ty: &RuntimeType) -> Option<core_ir::Type> {
+    match ty {
+        RuntimeType::Core(ty) if !core_type_contains_unknown(ty) => Some(ty.clone()),
+        RuntimeType::Thunk { value, .. } => runtime_type_value_core(value),
+        RuntimeType::Fun { .. } | RuntimeType::Unknown | RuntimeType::Core(_) => None,
     }
 }

@@ -41,6 +41,7 @@ pub(super) fn canonical_path(path: &core_ir::Path) -> String {
 
 pub(super) fn canonical_type(ty: &core_ir::Type, out: &mut String) {
     match ty {
+        core_ir::Type::Unknown => out.push('?'),
         core_ir::Type::Any => out.push('_'),
         core_ir::Type::Never => out.push('!'),
         core_ir::Type::Var(var) => out.push_str(&var.0),

@@ -29,9 +29,10 @@ use crate::types::{
     effect_paths, effect_paths_match, effect_row_from_items, hir_type_imprecision_count,
     hir_type_is_hole, infer_type_substitutions, is_qualified_runtime_path, needs_runtime_coercion,
     project_runtime_bounds, project_runtime_effect, project_runtime_hir_type_with_vars,
-    project_runtime_type_with_vars, runtime_core_type, runtime_type_is_imprecise_runtime_slot,
-    should_thunk_effect, strict_core_type as core_type, substitute_hir_type, substitute_type,
-    thunk_effect, type_compatible, wildcard_effect_type,
+    project_runtime_type_with_vars, runtime_core_type, runtime_type_contains_unknown,
+    runtime_type_is_imprecise_runtime_slot, should_thunk_effect, strict_core_type as core_type,
+    substitute_bounds, substitute_hir_type, substitute_type, thunk_effect, type_compatible,
+    wildcard_effect_type,
 };
 use crate::validate::validate_module;
 
@@ -312,7 +313,7 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
         principal_vars,
         expected_edges_by_id,
         use_expected_arg_evidence: std::env::var_os("YULANG_USE_EXPECTED_ARG_EVIDENCE").is_some(),
-        use_principal_elaboration: std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some(),
+        use_principal_elaboration: std::env::var_os("YULANG_DISABLE_PRINCIPAL_ELABORATE").is_none(),
         expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
         runtime_adapter_profile: RuntimeAdapterProfile::default(),
         current_binding: None,

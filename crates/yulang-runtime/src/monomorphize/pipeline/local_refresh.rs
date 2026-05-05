@@ -661,7 +661,7 @@ fn runtime_type_has_any(ty: &RuntimeType) -> bool {
 fn core_type_has_any(ty: &core_ir::Type) -> bool {
     match ty {
         core_ir::Type::Any => true,
-        core_ir::Type::Never | core_ir::Type::Var(_) => false,
+        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Var(_) => false,
         core_ir::Type::Named { args, .. } => args.iter().any(core_type_arg_has_any),
         core_ir::Type::Fun {
             param,

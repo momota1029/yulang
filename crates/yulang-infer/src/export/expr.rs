@@ -1449,13 +1449,14 @@ fn std_list_index_raw_path() -> core_ir::Path {
 }
 
 fn export_apply_substitutions_enabled() -> bool {
-    std::env::var_os("YULANG_EXPORT_APPLY_SUBSTITUTIONS").is_some()
+    std::env::var_os("YULANG_DISABLE_PRINCIPAL_ELABORATE").is_none()
+        || std::env::var_os("YULANG_EXPORT_APPLY_SUBSTITUTIONS").is_some()
         || std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some()
-        || std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some()
 }
 
 fn export_principal_elaboration_plans_enabled() -> bool {
-    std::env::var_os("YULANG_EXPORT_PRINCIPAL_ELABORATION_PLANS").is_some()
+    std::env::var_os("YULANG_DISABLE_PRINCIPAL_ELABORATE").is_none()
+        || std::env::var_os("YULANG_EXPORT_PRINCIPAL_ELABORATION_PLANS").is_some()
         || std::env::var_os("YULANG_DEBUG_PRINCIPAL_ELABORATE").is_some()
 }
 

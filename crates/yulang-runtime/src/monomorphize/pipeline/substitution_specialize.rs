@@ -1462,6 +1462,12 @@ pub(super) fn principal_elaboration_plan_for_expr(
     if spine.target != &binding.name {
         return None;
     }
+    if let Some(plan) =
+        complete_principal_elaboration_plan_from_exported_spine(&spine, binding, result_contextual)
+            .filter(|plan| plan.complete)
+    {
+        return Some(plan);
+    }
     if let Some(plan) = spine.principal_evidences.iter().find_map(|evidence| {
         let plan = evidence.principal_elaboration.as_ref()?;
         (plan.complete
@@ -1531,10 +1537,11 @@ fn complete_principal_elaboration_plan_from_exported_spine(
         args.push(core_ir::PrincipalElaborationArg {
             index,
             intrinsic: evidence.arg.clone(),
-            contextual: evidence
-                .expected_arg
-                .clone()
-                .or_else(|| params.get(index).cloned().map(core_ir::TypeBounds::exact)),
+            contextual: params
+                .get(index)
+                .cloned()
+                .map(core_ir::TypeBounds::exact)
+                .or_else(|| evidence.expected_arg.clone()),
             expected_runtime: None,
             source_edge: evidence.arg_source_edge,
         });

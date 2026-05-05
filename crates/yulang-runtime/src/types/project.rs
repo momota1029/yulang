@@ -42,6 +42,7 @@ impl<'a> RuntimeTypeProjector<'a> {
 
     pub(super) fn project(&mut self, ty: &core_ir::Type) -> core_ir::Type {
         match ty {
+            core_ir::Type::Unknown => runtime_projection_fallback_type(),
             core_ir::Type::Never => core_ir::Type::Never,
             core_ir::Type::Any => core_ir::Type::Any,
             core_ir::Type::Var(var) if self.allowed_vars.contains(var) => {
@@ -133,6 +134,7 @@ impl<'a> RuntimeTypeProjector<'a> {
 
     pub(super) fn project_hir(&mut self, ty: &core_ir::Type) -> RuntimeType {
         match ty {
+            core_ir::Type::Unknown => RuntimeType::unknown(),
             core_ir::Type::Var(var) if self.allowed_vars.contains(var) => {
                 RuntimeType::core(core_ir::Type::Var(var.clone()))
             }
@@ -171,12 +173,30 @@ impl<'a> RuntimeTypeProjector<'a> {
 
     pub(super) fn project_arg(&mut self, arg: &core_ir::TypeArg) -> core_ir::TypeArg {
         match arg {
-            core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(self.project(ty)),
+            core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(self.project_type_arg_type(ty)),
             core_ir::TypeArg::Bounds(bounds) => core_ir::TypeArg::Type(
-                self.project_bounds(bounds)
+                self.project_arg_bounds(bounds)
                     .unwrap_or_else(runtime_projection_fallback_type),
             ),
         }
+    }
+
+    pub(super) fn project_type_arg_type(&mut self, ty: &core_ir::Type) -> core_ir::Type {
+        if type_arg_type_is_effect_like(ty) {
+            self.project_effect(ty)
+        } else {
+            self.project(ty)
+        }
+    }
+
+    pub(super) fn project_arg_bounds(
+        &mut self,
+        bounds: &core_ir::TypeBounds,
+    ) -> Option<core_ir::Type> {
+        if bounds_type_arg_is_effect_like(bounds) {
+            return self.project_effect_bounds(bounds);
+        }
+        self.project_bounds(bounds)
     }
 
     pub(super) fn project_bounds(&mut self, bounds: &core_ir::TypeBounds) -> Option<core_ir::Type> {
@@ -194,6 +214,31 @@ impl<'a> RuntimeTypeProjector<'a> {
             .upper
             .as_deref()
             .map(|ty| self.project(ty))
+            .filter(|ty| !is_runtime_hole(ty));
+
+        choose_bounds_pair(lower, upper, BoundsChoice::RuntimeValue)
+    }
+
+    pub(super) fn project_effect_bounds(
+        &mut self,
+        bounds: &core_ir::TypeBounds,
+    ) -> Option<core_ir::Type> {
+        match (&bounds.lower, &bounds.upper) {
+            (Some(lower), Some(upper)) if lower == upper => {
+                return Some(self.project_effect(lower));
+            }
+            _ => {}
+        }
+
+        let lower = bounds
+            .lower
+            .as_deref()
+            .map(|ty| self.project_effect(ty))
+            .filter(|ty| !is_runtime_hole(ty));
+        let upper = bounds
+            .upper
+            .as_deref()
+            .map(|ty| self.project_effect(ty))
             .filter(|ty| !is_runtime_hole(ty));
 
         choose_bounds_pair(lower, upper, BoundsChoice::RuntimeValue)
@@ -344,6 +389,28 @@ fn choose_hir_projection_type(left: RuntimeType, right: RuntimeType) -> RuntimeT
         right
     } else {
         left
+    }
+}
+
+fn bounds_type_arg_is_effect_like(bounds: &core_ir::TypeBounds) -> bool {
+    bounds
+        .lower
+        .as_deref()
+        .is_some_and(type_arg_type_is_effect_like)
+        || bounds
+            .upper
+            .as_deref()
+            .is_some_and(type_arg_type_is_effect_like)
+}
+
+fn type_arg_type_is_effect_like(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Row { .. } => true,
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            !items.is_empty() && items.iter().all(type_arg_type_is_effect_like)
+        }
+        core_ir::Type::Recursive { body, .. } => type_arg_type_is_effect_like(body),
+        _ => false,
     }
 }
 

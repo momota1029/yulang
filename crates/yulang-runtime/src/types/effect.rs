@@ -1,7 +1,7 @@
 use super::*;
 
 pub(crate) fn should_thunk_effect(effect: &core_ir::Type) -> bool {
-    !effect_is_empty(effect) && !matches!(effect, core_ir::Type::Any)
+    !effect_is_empty(effect) && !matches!(effect, core_ir::Type::Unknown | core_ir::Type::Any)
 }
 
 pub(crate) fn effect_is_empty(effect: &core_ir::Type) -> bool {
@@ -21,6 +21,9 @@ pub(crate) fn effect_is_empty(effect: &core_ir::Type) -> bool {
 }
 
 pub(crate) fn effect_compatible(expected: &core_ir::Type, actual: &core_ir::Type) -> bool {
+    if core_type_contains_unknown(expected) || core_type_contains_unknown(actual) {
+        return true;
+    }
     if type_compatible(expected, actual) || effect_is_empty(actual) {
         return true;
     }

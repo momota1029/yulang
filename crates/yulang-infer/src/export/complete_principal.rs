@@ -183,7 +183,7 @@ pub fn collect_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvi
 }
 
 fn source_only_expected_edge_evidence_enabled() -> bool {
-    std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some()
+    std::env::var_os("YULANG_DISABLE_PRINCIPAL_ELABORATE").is_none()
         && std::env::var_os("YULANG_EXPORT_DEBUG_EVIDENCE").is_none()
         && std::env::var_os("YULANG_COALESCE_EXPECTED_EDGE_EVIDENCE").is_none()
 }
@@ -481,7 +481,7 @@ fn apply_principal_substitutions(
 
     unifier
         .into_substitutions()
-        .filter(|(_, ty)| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
+        .filter(|(_, ty)| substitution_type_usable(ty, false))
         .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
         .collect()
 }
@@ -613,7 +613,7 @@ fn monomorphic_type_from_bounds(bounds: core_ir::TypeBounds) -> Option<core_ir::
                 .and_then(primary_structural_or_concrete_type)
         })
         .cloned()
-        .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
+        .filter(|ty| substitution_type_usable(ty, false))
 }
 
 fn collect_candidates_from_bounds(
@@ -1058,7 +1058,7 @@ fn substitute_core_type(
             var: var.clone(),
             body: Box::new(substitute_core_type(body, substitutions)),
         },
-        core_ir::Type::Never | core_ir::Type::Any => ty.clone(),
+        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => ty.clone(),
     }
 }
 
@@ -1091,7 +1091,7 @@ fn export_monomorphic_type_for_tv(infer: &Infer, tv: TypeVar) -> Option<core_ir:
         .or(bounds.upper.as_deref())
         .cloned()
         .map(|ty| project_core_value_type_or_any(ty, &BTreeSet::new()))
-        .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
+        .filter(|ty| substitution_type_usable(ty, false))
 }
 
 fn derive_expected_edge_evidence(
@@ -1609,7 +1609,7 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
                 var: var.clone(),
                 body: Box::new(self.substitute_type(body)?),
             }),
-            core_ir::Type::Never | core_ir::Type::Any => Some(ty.clone()),
+            core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => Some(ty.clone()),
         }
     }
 
@@ -1720,9 +1720,7 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
     }
 
     fn bind(&mut self, var: &core_ir::TypeVar, actual: &core_ir::Type, allow_never: bool) {
-        if matches!(actual, core_ir::Type::Any | core_ir::Type::Var(_))
-            || (!allow_never && matches!(actual, core_ir::Type::Never))
-        {
+        if !substitution_type_usable(actual, allow_never) {
             return;
         }
         if self.conflicts.contains(var) {
@@ -1906,6 +1904,69 @@ fn type_has_vars(ty: &core_ir::Type) -> bool {
     !vars.is_empty()
 }
 
+fn substitution_type_usable(ty: &core_ir::Type, allow_never: bool) -> bool {
+    !matches!(
+        ty,
+        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_)
+    ) && (allow_never || !matches!(ty, core_ir::Type::Never))
+        && !type_has_vars(ty)
+        && !type_has_unknown(ty)
+}
+
+fn type_has_unknown(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Unknown => true,
+        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
+        core_ir::Type::Named { args, .. } => args.iter().any(type_arg_has_unknown),
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_has_unknown(param)
+                || type_has_unknown(param_effect)
+                || type_has_unknown(ret_effect)
+                || type_has_unknown(ret)
+        }
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().any(type_has_unknown)
+        }
+        core_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_has_unknown(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                        type_has_unknown(ty)
+                    }
+                })
+        }
+        core_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(type_has_unknown))
+                || variant.tail.as_deref().is_some_and(type_has_unknown)
+        }
+        core_ir::Type::Row { items, tail } => {
+            items.iter().any(type_has_unknown) || type_has_unknown(tail)
+        }
+        core_ir::Type::Recursive { body, .. } => type_has_unknown(body),
+    }
+}
+
+fn type_arg_has_unknown(arg: &core_ir::TypeArg) -> bool {
+    match arg {
+        core_ir::TypeArg::Type(ty) => type_has_unknown(ty),
+        core_ir::TypeArg::Bounds(bounds) => {
+            bounds.lower.as_deref().is_some_and(type_has_unknown)
+                || bounds.upper.as_deref().is_some_and(type_has_unknown)
+        }
+    }
+}
+
 fn type_bounds_closed(bounds: &core_ir::TypeBounds) -> bool {
     (bounds.lower.is_some() || bounds.upper.is_some())
         && bounds.lower.as_deref().is_none_or(|ty| !type_has_vars(ty))
@@ -1919,7 +1980,10 @@ fn type_bounds_informative(bounds: &core_ir::TypeBounds) -> bool {
 
 fn type_informative(ty: &core_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
+        core_ir::Type::Unknown
+        | core_ir::Type::Never
+        | core_ir::Type::Any
+        | core_ir::Type::Var(_) => false,
         core_ir::Type::Named { .. } => true,
         core_ir::Type::Fun { .. }
         | core_ir::Type::Tuple(_)
@@ -1961,7 +2025,10 @@ fn effect_type_bounds_runtime_usable(bounds: &core_ir::TypeBounds) -> bool {
 
 fn value_type_runtime_usable(ty: &core_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
+        core_ir::Type::Unknown
+        | core_ir::Type::Never
+        | core_ir::Type::Any
+        | core_ir::Type::Var(_) => false,
         core_ir::Type::Named { args, .. } => args.iter().all(type_arg_runtime_usable),
         core_ir::Type::Fun {
             param,
@@ -2007,7 +2074,7 @@ fn value_type_runtime_usable(ty: &core_ir::Type) -> bool {
 fn effect_type_runtime_usable(ty: &core_ir::Type) -> bool {
     match ty {
         core_ir::Type::Never => true,
-        core_ir::Type::Any | core_ir::Type::Var(_) => false,
+        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_) => false,
         core_ir::Type::Row { items, tail } => {
             items.iter().all(effect_type_runtime_usable) && effect_type_runtime_usable(tail)
         }

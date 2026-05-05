@@ -93,7 +93,11 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
     profile: &mut RuntimeAdapterProfile,
     adapter_source: Option<RuntimeAdapterSource>,
 ) -> RuntimeResult<Expr> {
+    if hir_type_contains_unknown(expected) {
+        return Ok(expr);
+    }
     match expected {
+        RuntimeType::Unknown | RuntimeType::Core(core_ir::Type::Unknown) => Ok(expr),
         RuntimeType::Thunk { effect, value } => match &expr.ty {
             RuntimeType::Thunk { .. } => {
                 require_apply_arg_compatible(expected, &expr.ty, source)?;
@@ -182,6 +186,82 @@ fn apply_adapter_source(source: TypeSource) -> bool {
             | TypeSource::ApplyArgumentEvidence
             | TypeSource::ApplyArgumentSourceEdge
     )
+}
+
+fn hir_type_contains_unknown(ty: &RuntimeType) -> bool {
+    match ty {
+        RuntimeType::Unknown => true,
+        RuntimeType::Core(ty) => core_type_contains_unknown(ty),
+        RuntimeType::Fun { param, ret } => {
+            hir_type_contains_unknown(param) || hir_type_contains_unknown(ret)
+        }
+        RuntimeType::Thunk { effect, value } => {
+            core_type_contains_unknown(effect) || hir_type_contains_unknown(value)
+        }
+    }
+}
+
+fn core_type_contains_unknown(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Unknown => true,
+        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
+        core_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_unknown),
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            core_type_contains_unknown(param)
+                || core_type_contains_unknown(param_effect)
+                || core_type_contains_unknown(ret_effect)
+                || core_type_contains_unknown(ret)
+        }
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().any(core_type_contains_unknown)
+        }
+        core_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| core_type_contains_unknown(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                        core_type_contains_unknown(ty)
+                    }
+                })
+        }
+        core_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(core_type_contains_unknown))
+                || variant
+                    .tail
+                    .as_deref()
+                    .is_some_and(core_type_contains_unknown)
+        }
+        core_ir::Type::Row { items, tail } => {
+            items.iter().any(core_type_contains_unknown) || core_type_contains_unknown(tail)
+        }
+        core_ir::Type::Recursive { body, .. } => core_type_contains_unknown(body),
+    }
+}
+
+fn type_arg_contains_unknown(arg: &core_ir::TypeArg) -> bool {
+    match arg {
+        core_ir::TypeArg::Type(ty) => core_type_contains_unknown(ty),
+        core_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_deref()
+                .is_some_and(core_type_contains_unknown)
+                || bounds
+                    .upper
+                    .as_deref()
+                    .is_some_and(core_type_contains_unknown)
+        }
+    }
 }
 
 fn apply_arg_source_edge(source: TypeSource) -> bool {

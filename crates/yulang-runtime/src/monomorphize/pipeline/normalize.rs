@@ -452,7 +452,10 @@ fn collect_core_non_effect_vars(ty: &core_ir::Type, vars: &mut BTreeSet<core_ir:
             }
         }
         core_ir::Type::Recursive { body, .. } => collect_core_non_effect_vars(body, vars),
-        core_ir::Type::Row { .. } | core_ir::Type::Never | core_ir::Type::Any => {}
+        core_ir::Type::Row { .. }
+        | core_ir::Type::Unknown
+        | core_ir::Type::Never
+        | core_ir::Type::Any => {}
     }
 }
 
@@ -537,6 +540,7 @@ pub(super) fn collect_effect_position_vars(
         }
         core_ir::Type::Recursive { body, .. } => collect_effect_position_vars(body, vars),
         core_ir::Type::Row { .. }
+        | core_ir::Type::Unknown
         | core_ir::Type::Var(_)
         | core_ir::Type::Never
         | core_ir::Type::Any => {}
@@ -565,6 +569,7 @@ pub(super) fn collect_effect_vars(effect: &core_ir::Type, vars: &mut BTreeSet<co
         | core_ir::Type::Tuple(_)
         | core_ir::Type::Record(_)
         | core_ir::Type::Variant(_)
+        | core_ir::Type::Unknown
         | core_ir::Type::Never
         | core_ir::Type::Any => {}
     }
