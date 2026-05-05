@@ -189,7 +189,9 @@ pub(super) fn refine_lambda_ret_type(expected: &RuntimeType, actual: &RuntimeTyp
     ) {
         return refine_lambda_hir_type(expected, actual);
     }
-    if hir_type_is_hole(expected) && !hir_type_is_hole(actual) {
+    if runtime_type_is_imprecise_runtime_slot(expected)
+        && !runtime_type_is_imprecise_runtime_slot(actual)
+    {
         return actual.clone();
     }
     refine_anonymous_hir_type(expected, actual)
@@ -199,7 +201,8 @@ pub(super) fn refine_effect_slot(
     expected: &core_ir::Type,
     actual: &core_ir::Type,
 ) -> core_ir::Type {
-    if core_type_is_hole(expected) && !core_type_is_hole(actual) {
+    if core_type_is_imprecise_runtime_slot(expected) && !core_type_is_imprecise_runtime_slot(actual)
+    {
         return actual.clone();
     }
     refine_anonymous_type(expected, actual)

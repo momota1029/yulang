@@ -24,14 +24,14 @@ use crate::ir::{
 use crate::types::{
     BoundsChoice, TypeChoice, choose_bounds_type, choose_core_type, choose_optional_core_type,
     collect_hir_type_vars, collect_type_vars, contains_non_runtime_effect_type,
-    contains_non_runtime_type, core_type_has_vars, core_type_is_hole, core_types_compatible,
-    diagnostic_core_type, effect_compatible, effect_is_empty, effect_path, effect_paths,
-    effect_paths_match, effect_row_from_items, hir_type_hole_count, hir_type_is_hole,
-    infer_type_substitutions, is_qualified_runtime_path, needs_runtime_coercion,
+    contains_non_runtime_type, core_type_has_vars, core_type_is_imprecise_runtime_slot,
+    core_types_compatible, diagnostic_core_type, effect_compatible, effect_is_empty, effect_path,
+    effect_paths, effect_paths_match, effect_row_from_items, hir_type_imprecision_count,
+    hir_type_is_hole, infer_type_substitutions, is_qualified_runtime_path, needs_runtime_coercion,
     project_runtime_bounds, project_runtime_effect, project_runtime_hir_type_with_vars,
-    project_runtime_type_with_vars, runtime_core_type, should_thunk_effect,
-    strict_core_type as core_type, substitute_hir_type, substitute_type, thunk_effect,
-    type_compatible, wildcard_effect_type,
+    project_runtime_type_with_vars, runtime_core_type, runtime_type_is_imprecise_runtime_slot,
+    should_thunk_effect, strict_core_type as core_type, substitute_hir_type, substitute_type,
+    thunk_effect, type_compatible, wildcard_effect_type,
 };
 use crate::validate::validate_module;
 

@@ -84,9 +84,11 @@ pub(crate) fn hir_type_is_hole(ty: &RuntimeType) -> bool {
     runtime_type_is_inference_hole(ty)
 }
 
-pub(crate) fn type_hole_count(ty: &core_ir::Type) -> usize {
+#[cfg(test)]
+fn type_hole_count(ty: &core_ir::Type) -> usize {
     match ty {
-        core_ir::Type::Any | core_ir::Type::Var(_) => 1,
+        core_ir::Type::Var(_) => 1,
+        core_ir::Type::Any => 0,
         core_ir::Type::Named { args, .. } => args.iter().map(type_arg_hole_count).sum(),
         core_ir::Type::Fun {
             param,
@@ -131,12 +133,65 @@ pub(crate) fn type_hole_count(ty: &core_ir::Type) -> usize {
     }
 }
 
-pub(crate) fn hir_type_hole_count(ty: &RuntimeType) -> usize {
+pub(crate) fn type_imprecision_count(ty: &core_ir::Type) -> usize {
     match ty {
-        RuntimeType::Core(ty) => type_hole_count(ty),
-        RuntimeType::Fun { param, ret } => hir_type_hole_count(param) + hir_type_hole_count(ret),
+        core_ir::Type::Any | core_ir::Type::Var(_) => 1,
+        core_ir::Type::Named { args, .. } => args.iter().map(type_arg_imprecision_count).sum(),
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_imprecision_count(param)
+                + type_imprecision_count(param_effect)
+                + type_imprecision_count(ret_effect)
+                + type_imprecision_count(ret)
+        }
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().map(type_imprecision_count).sum()
+        }
+        core_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .map(|field| type_imprecision_count(&field.value))
+                .sum::<usize>()
+                + record
+                    .spread
+                    .as_ref()
+                    .map(record_spread_imprecision_count)
+                    .unwrap_or(0)
+        }
+        core_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .flat_map(|case| &case.payloads)
+                .map(type_imprecision_count)
+                .sum::<usize>()
+                + variant
+                    .tail
+                    .as_deref()
+                    .map(type_imprecision_count)
+                    .unwrap_or(0)
+        }
+        core_ir::Type::Row { items, tail } => {
+            items.iter().map(type_imprecision_count).sum::<usize>() + type_imprecision_count(tail)
+        }
+        core_ir::Type::Recursive { body, .. } => type_imprecision_count(body),
+        core_ir::Type::Never => 0,
+    }
+}
+
+pub(crate) fn hir_type_imprecision_count(ty: &RuntimeType) -> usize {
+    match ty {
+        RuntimeType::Core(ty) => type_imprecision_count(ty),
+        RuntimeType::Fun { param, ret } => {
+            hir_type_imprecision_count(param) + hir_type_imprecision_count(ret)
+        }
         RuntimeType::Thunk { effect, value } => {
-            type_hole_count(effect) + hir_type_hole_count(value)
+            type_imprecision_count(effect) + hir_type_imprecision_count(value)
         }
     }
 }
@@ -223,7 +278,7 @@ fn choose_visible_type(left: core_ir::Type, right: core_ir::Type) -> core_ir::Ty
         std::cmp::Ordering::Greater => return left,
         std::cmp::Ordering::Equal => {}
     }
-    if type_hole_count(&right) < type_hole_count(&left) {
+    if type_imprecision_count(&right) < type_imprecision_count(&left) {
         right
     } else {
         left
@@ -255,6 +310,7 @@ fn choose_by_rank(left: core_ir::Type, right: core_ir::Type, choice: TypeChoice)
     }
 }
 
+#[cfg(test)]
 fn type_arg_hole_count(arg: &core_ir::TypeArg) -> usize {
     match arg {
         core_ir::TypeArg::Type(ty) => type_hole_count(ty),
@@ -265,9 +321,36 @@ fn type_arg_hole_count(arg: &core_ir::TypeArg) -> usize {
     }
 }
 
+#[cfg(test)]
 fn record_spread_hole_count(spread: &core_ir::RecordSpread) -> usize {
     match spread {
         core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => type_hole_count(ty),
+    }
+}
+
+fn type_arg_imprecision_count(arg: &core_ir::TypeArg) -> usize {
+    match arg {
+        core_ir::TypeArg::Type(ty) => type_imprecision_count(ty),
+        core_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_deref()
+                .map(type_imprecision_count)
+                .unwrap_or(0)
+                + bounds
+                    .upper
+                    .as_deref()
+                    .map(type_imprecision_count)
+                    .unwrap_or(0)
+        }
+    }
+}
+
+fn record_spread_imprecision_count(spread: &core_ir::RecordSpread) -> usize {
+    match spread {
+        core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+            type_imprecision_count(ty)
+        }
     }
 }
 
@@ -320,6 +403,16 @@ mod tests {
                 TypeChoice::VisiblePrincipal
             ),
             named("int")
+        );
+    }
+
+    #[test]
+    fn hole_count_does_not_count_any_but_imprecision_does() {
+        assert_eq!(type_hole_count(&core_ir::Type::Any), 0);
+        assert_eq!(type_imprecision_count(&core_ir::Type::Any), 1);
+        assert_eq!(
+            type_hole_count(&core_ir::Type::Var(core_ir::TypeVar("a".to_string()))),
+            1
         );
     }
 

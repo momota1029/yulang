@@ -474,7 +474,7 @@ impl Lowerer<'_> {
                     callee.ty = erased_fun_type(arg_ty.clone(), result_ty.clone());
                 }
                 let final_fun_parts = function_parts(&callee.ty)?;
-                let instantiation_arg_ty = if hir_type_is_hole(&actual_arg_ty)
+                let instantiation_arg_ty = if runtime_type_is_imprecise_runtime_slot(&actual_arg_ty)
                     || hir_type_has_type_vars(&actual_arg_ty) && !hir_type_has_type_vars(&arg_ty)
                 {
                     &arg_ty
@@ -930,12 +930,13 @@ impl Lowerer<'_> {
                 evidence,
             } => {
                 let result_hint = self.join_result_type(evidence.as_ref(), expected, "handle")?;
-                let result_ty = if expected.is_none() && core_type_is_hole(&result_hint) {
-                    self.visible_handle_result_type(&arms)
-                        .unwrap_or(result_hint)
-                } else {
-                    result_hint
-                };
+                let result_ty =
+                    if expected.is_none() && core_type_is_imprecise_runtime_slot(&result_hint) {
+                        self.visible_handle_result_type(&arms)
+                            .unwrap_or(result_hint)
+                    } else {
+                        result_hint
+                    };
                 let body = self.lower_expr(*body, None, locals, TypeSource::Expected)?;
                 let handled = handler_consumes_from_core_arms(&arms, &result_ty)
                     .unwrap_or_else(|| handler_consumes_from_body_type(&body.ty));
@@ -1442,7 +1443,7 @@ impl Lowerer<'_> {
         arms.iter()
             .filter_map(|arm| self.visible_expr_type(&arm.body))
             .reduce(|left, right| choose_core_type(left, right, TypeChoice::VisiblePrincipal))
-            .filter(|ty| !core_type_is_hole(ty))
+            .filter(|ty| !core_type_is_imprecise_runtime_slot(ty))
     }
 
     pub(super) fn visible_expr_type(&self, expr: &core_ir::Expr) -> Option<core_ir::Type> {
@@ -1595,7 +1596,7 @@ impl Lowerer<'_> {
     ) -> RuntimeResult<core_ir::Type> {
         let evidence_ty = evidence
             .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.result))
-            .filter(|ty| !core_type_is_hole(ty));
+            .filter(|ty| !core_type_is_imprecise_runtime_slot(ty));
         evidence_ty
             .or_else(|| expected.map(value_core_type).cloned())
             .ok_or(RuntimeError::MissingJoinEvidence { node })

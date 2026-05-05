@@ -14,10 +14,10 @@ pub(super) fn prefer_alias_target_runtime_type(
     if !hir_type_compatible(current, target) {
         return false;
     }
-    let current_holes = hir_type_hole_count(current);
-    let target_holes = hir_type_hole_count(target);
-    if target_holes != current_holes {
-        return target_holes < current_holes;
+    let current_imprecision = hir_type_imprecision_count(current);
+    let target_imprecision = hir_type_imprecision_count(target);
+    if target_imprecision != current_imprecision {
+        return target_imprecision < current_imprecision;
     }
     hir_type_var_count(target) < hir_type_var_count(current)
 }
@@ -44,7 +44,9 @@ pub(super) fn choose_polymorphic_binding_type_hint(
     expected: Option<RuntimeType>,
 ) -> Option<RuntimeType> {
     match (stored, expected) {
-        (Some(_), Some(expected)) if !hir_type_is_hole(&expected) => Some(expected),
+        (Some(_), Some(expected)) if !runtime_type_is_imprecise_runtime_slot(&expected) => {
+            Some(expected)
+        }
         (Some(stored), _) => Some(stored),
         (None, expected) => expected,
     }
@@ -119,10 +121,10 @@ pub(super) fn more_informative_hir_type(
     expected: &RuntimeType,
     actual: &RuntimeType,
 ) -> RuntimeType {
-    let expected_holes = hir_type_hole_count(expected);
-    let actual_holes = hir_type_hole_count(actual);
-    if actual_holes < expected_holes
-        || actual_holes == expected_holes
+    let expected_imprecision = hir_type_imprecision_count(expected);
+    let actual_imprecision = hir_type_imprecision_count(actual);
+    if actual_imprecision < expected_imprecision
+        || actual_imprecision == expected_imprecision
             && hir_type_var_count(actual) < hir_type_var_count(expected)
     {
         actual.clone()
