@@ -72,6 +72,7 @@ type MessageKey =
   | "examplesLead"
   | "noOutput"
   | "noExportedTypes"
+  | "notRunYet"
   | "resultLine";
 
 const messages: Record<Lang, Record<MessageKey, string>> = {
@@ -86,6 +87,7 @@ const messages: Record<Lang, Record<MessageKey, string>> = {
       "気になる機能を選ぶと editor に読み込まれて、そのまま実行されます。",
     noOutput: "(出力なし)",
     noExportedTypes: "(公開された型なし)",
+    notRunYet: "実行すると結果がここに表示されます。",
     resultLine: "結果",
   },
   en: {
@@ -99,6 +101,7 @@ const messages: Record<Lang, Record<MessageKey, string>> = {
       "Choose an example to load it into the editor and run it immediately.",
     noOutput: "(no output)",
     noExportedTypes: "(no exported types)",
+    notRunYet: "Run the program to show results here.",
     resultLine: "Result",
   },
 };
@@ -303,7 +306,7 @@ loadExample(0);
 renderColor();
 runWorker.addEventListener("message", handleRunWorkerMessage);
 runWorker.addEventListener("error", handleRunWorkerError);
-runSource();
+renderNotRunYet();
 
 const editorRenderEvents = [
   "beforeinput",
@@ -375,6 +378,8 @@ function applyLanguage(): void {
   if (isRunning) {
     result.textContent = t("running");
     types.textContent = t("running");
+  } else if (!latestRunOutput) {
+    renderNotRunYet();
   }
 }
 
@@ -472,6 +477,15 @@ function showRunLoading(): void {
   types.setAttribute("aria-busy", "true");
   result.textContent = t("running");
   types.textContent = t("running");
+}
+
+function renderNotRunYet(): void {
+  result.classList.remove("is-error", "is-loading");
+  types.classList.remove("is-error", "is-loading");
+  result.removeAttribute("aria-busy");
+  types.removeAttribute("aria-busy");
+  result.textContent = t("notRunYet");
+  types.textContent = "";
 }
 
 function updateRunButton(): void {

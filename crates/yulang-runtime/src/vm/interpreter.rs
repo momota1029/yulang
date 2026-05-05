@@ -436,24 +436,24 @@ impl<'m> VmInterpreter<'m> {
         mut remaining: Vec<Expr>,
         env: Env,
     ) -> Result<VmResult, VmError> {
-        if remaining.is_empty() {
-            return Ok(VmResult::Value(VmValue::Tuple(done)));
-        }
-        let next = remaining.remove(0);
-        match self.eval_expr(&next, &env)? {
-            VmResult::Value(value) => {
-                done.push(value);
-                self.eval_tuple(done, remaining, env)
+        remaining.reverse();
+        while let Some(next) = remaining.pop() {
+            match self.eval_expr(&next, &env)? {
+                VmResult::Value(value) => done.push(value),
+                VmResult::Request(request) => {
+                    remaining.reverse();
+                    return Ok(VmResult::Request(push_frame(
+                        request,
+                        Frame::Tuple {
+                            done,
+                            remaining,
+                            env,
+                        },
+                    )));
+                }
             }
-            VmResult::Request(request) => Ok(VmResult::Request(push_frame(
-                request,
-                Frame::Tuple {
-                    done,
-                    remaining,
-                    env,
-                },
-            ))),
         }
+        Ok(VmResult::Value(VmValue::Tuple(done)))
     }
 
     pub(super) fn eval_record(
@@ -540,23 +540,37 @@ impl<'m> VmInterpreter<'m> {
         tail: Option<Expr>,
         mut env: Env,
     ) -> Result<VmResult, VmError> {
-        if stmts.is_empty() {
-            return match tail {
-                Some(tail) => self.eval_expr(&tail, &env),
-                None => Ok(VmResult::Value(VmValue::Unit)),
-            };
-        }
-        let stmt = stmts.remove(0);
-        match stmt {
-            Stmt::Let { pattern, value } => match self.eval_expr(&value, &env)? {
-                VmResult::Value(VmValue::Thunk(thunk)) => {
-                    match self.bind_here(VmValue::Thunk(thunk))? {
-                        VmResult::Value(mut value) => {
-                            value = make_recursive_local_value(&pattern, value);
-                            self.bind_pattern(&pattern, value, &mut env)?;
-                            self.eval_block(stmts, tail, env)
+        stmts.reverse();
+        while let Some(stmt) = stmts.pop() {
+            match stmt {
+                Stmt::Let { pattern, value } => match self.eval_expr(&value, &env)? {
+                    VmResult::Value(VmValue::Thunk(thunk)) => {
+                        match self.bind_here(VmValue::Thunk(thunk))? {
+                            VmResult::Value(mut value) => {
+                                value = make_recursive_local_value(&pattern, value);
+                                self.bind_pattern(&pattern, value, &mut env)?;
+                            }
+                            VmResult::Request(request) => {
+                                stmts.reverse();
+                                return Ok(VmResult::Request(push_frame(
+                                    request,
+                                    Frame::BlockLet {
+                                        pattern,
+                                        remaining: stmts,
+                                        tail,
+                                        env,
+                                    },
+                                )));
+                            }
                         }
-                        VmResult::Request(request) => Ok(VmResult::Request(push_frame(
+                    }
+                    VmResult::Value(mut value) => {
+                        value = make_recursive_local_value(&pattern, value);
+                        self.bind_pattern(&pattern, value, &mut env)?;
+                    }
+                    VmResult::Request(request) => {
+                        stmts.reverse();
+                        return Ok(VmResult::Request(push_frame(
                             request,
                             Frame::BlockLet {
                                 pattern,
@@ -564,53 +578,48 @@ impl<'m> VmInterpreter<'m> {
                                 tail,
                                 env,
                             },
-                        ))),
+                        )));
                     }
-                }
-                VmResult::Value(mut value) => {
-                    value = make_recursive_local_value(&pattern, value);
-                    self.bind_pattern(&pattern, value, &mut env)?;
-                    self.eval_block(stmts, tail, env)
-                }
-                VmResult::Request(request) => Ok(VmResult::Request(push_frame(
-                    request,
-                    Frame::BlockLet {
-                        pattern,
-                        remaining: stmts,
-                        tail,
-                        env,
-                    },
-                ))),
-            },
-            Stmt::Expr(expr) => match self.eval_expr(&expr, &env)? {
-                VmResult::Value(VmValue::Thunk(thunk)) => {
-                    match self.bind_here(VmValue::Thunk(thunk))? {
-                        VmResult::Value(_) => self.eval_block(stmts, tail, env),
-                        VmResult::Request(request) => Ok(VmResult::Request(push_frame(
+                },
+                Stmt::Expr(expr) => match self.eval_expr(&expr, &env)? {
+                    VmResult::Value(VmValue::Thunk(thunk)) => {
+                        match self.bind_here(VmValue::Thunk(thunk))? {
+                            VmResult::Value(_) => {}
+                            VmResult::Request(request) => {
+                                stmts.reverse();
+                                return Ok(VmResult::Request(push_frame(
+                                    request,
+                                    Frame::BlockExpr {
+                                        remaining: stmts,
+                                        tail,
+                                        env,
+                                    },
+                                )));
+                            }
+                        }
+                    }
+                    VmResult::Value(_) => {}
+                    VmResult::Request(request) => {
+                        stmts.reverse();
+                        return Ok(VmResult::Request(push_frame(
                             request,
                             Frame::BlockExpr {
                                 remaining: stmts,
                                 tail,
                                 env,
                             },
-                        ))),
+                        )));
                     }
+                },
+                Stmt::Module { def, body } => {
+                    let value = self.eval_value(&body, &env)?;
+                    env.insert(def, value);
                 }
-                VmResult::Value(_) => self.eval_block(stmts, tail, env),
-                VmResult::Request(request) => Ok(VmResult::Request(push_frame(
-                    request,
-                    Frame::BlockExpr {
-                        remaining: stmts,
-                        tail,
-                        env,
-                    },
-                ))),
-            },
-            Stmt::Module { def, body } => {
-                let value = self.eval_value(&body, &env)?;
-                env.insert(def, value);
-                self.eval_block(stmts, tail, env)
             }
+        }
+        match tail {
+            Some(tail) => self.eval_expr(&tail, &env),
+            None => Ok(VmResult::Value(VmValue::Unit)),
         }
     }
 
