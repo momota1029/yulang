@@ -54,6 +54,7 @@ type Example = {
 
 type MessageKey =
   | "run"
+  | "running"
   | "result"
   | "types"
   | "typesAria"
@@ -66,6 +67,7 @@ type MessageKey =
 const messages: Record<Lang, Record<MessageKey, string>> = {
   ja: {
     run: "実行",
+    running: "実行中",
     result: "結果",
     types: "型",
     typesAria: "型推論",
@@ -78,6 +80,7 @@ const messages: Record<Lang, Record<MessageKey, string>> = {
   },
   en: {
     run: "Run",
+    running: "Running",
     result: "Result",
     types: "Types",
     typesAria: "Type inference",
@@ -275,6 +278,8 @@ let pendingRenderColor = 0;
 let activeExampleIndex = 0;
 let activeLang = resolveInitialLang();
 let latestRunOutput: RunOutput | undefined;
+let runGeneration = 0;
+let isRunning = false;
 
 setupI18n();
 
@@ -283,7 +288,7 @@ await init();
 setupExampleButtons();
 loadExample(0);
 renderColor();
-runSource();
+void runSource();
 
 const editorRenderEvents = [
   "beforeinput",
@@ -303,7 +308,9 @@ for (const eventName of editorRenderEvents) {
 }
 sourceInput.addEventListener("scroll", keepSourceScrollAtOrigin);
 window.addEventListener("resize", syncEditorLayout);
-runButton.addEventListener("click", runSource);
+runButton.addEventListener("click", () => {
+  void runSource();
+});
 
 function setupI18n(): void {
   languageButtons.forEach((button) => {
@@ -349,6 +356,11 @@ function applyLanguage(): void {
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-pressed", String(isActive));
   });
+  updateRunButton();
+  if (isRunning) {
+    result.textContent = t("running");
+    types.textContent = t("running");
+  }
 }
 
 function setupExampleButtons(): void {
@@ -359,8 +371,7 @@ function setupExampleButtons(): void {
     button.textContent = example.label[activeLang];
     button.addEventListener("click", () => {
       loadExample(index);
-      renderColor();
-      runSource();
+      void runSource();
       sourceInput.focus();
     });
     exampleButtons.append(button);
@@ -384,16 +395,37 @@ function updateExampleButtonState(): void {
   });
 }
 
-function runSource(): void {
-  latestRunOutput = run(sourceInput.value) as RunOutput;
+async function runSource(): Promise<void> {
+  const generation = ++runGeneration;
+  const source = sourceInput.value;
+  renderColor();
+  showRunLoading();
+  await nextPaint();
+  if (generation !== runGeneration) {
+    return;
+  }
+  const output = run(source) as RunOutput;
+  if (generation !== runGeneration) {
+    return;
+  }
+  latestRunOutput = output;
+  isRunning = false;
+  updateRunButton();
   renderRunOutput();
 }
 
 function renderRunOutput(): void {
+  if (isRunning) {
+    return;
+  }
   if (!latestRunOutput) {
     return;
   }
   const output = latestRunOutput;
+  result.classList.remove("is-loading");
+  types.classList.remove("is-loading");
+  result.removeAttribute("aria-busy");
+  types.removeAttribute("aria-busy");
   result.classList.toggle("is-error", !output.ok);
   types.classList.toggle("is-error", !output.ok);
   if (output.ok) {
@@ -403,6 +435,34 @@ function renderRunOutput(): void {
     result.textContent = output.diagnostics.map(formatDiagnostic).join("\n");
     types.textContent = "";
   }
+}
+
+function showRunLoading(): void {
+  isRunning = true;
+  updateRunButton();
+  result.classList.remove("is-error");
+  types.classList.remove("is-error");
+  result.classList.add("is-loading");
+  types.classList.add("is-loading");
+  result.setAttribute("aria-busy", "true");
+  types.setAttribute("aria-busy", "true");
+  result.textContent = t("running");
+  types.textContent = t("running");
+}
+
+function updateRunButton(): void {
+  runButton.textContent = isRunning ? t("running") : t("run");
+  runButton.disabled = isRunning;
+  runButton.classList.toggle("is-loading", isRunning);
+  runButton.setAttribute("aria-busy", String(isRunning));
+}
+
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.setTimeout(resolve, 0);
+    });
+  });
 }
 
 function formatResults(results: RunResult[]): string {
