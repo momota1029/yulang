@@ -38,18 +38,18 @@ Old DemandSpecialize
   fallback only, with reachable/actionable fallback counters
 ```
 
-Planned experiment flags:
+Current runtime switches:
 
 ```text
-YULANG_PRINCIPAL_ELABORATE=1
+YULANG_LEGACY_MONO_FIXPOINT=1
 YULANG_PRINCIPAL_ELABORATE_STRICT=1
 ```
 
 Current implementation status:
 
-- `YULANG_PRINCIPAL_ELABORATE=1` exists.
-- It currently runs a `principal-elaborate` monomorphize pass that delegates to
-  the old substitution-specialize implementation.
+- Principal elaboration is the default monomorphize route. The old fixpoint
+  pipeline is now only a legacy comparison path behind
+  `YULANG_LEGACY_MONO_FIXPOINT=1`.
 - Core IR now has `PrincipalElaborationPlan` on `ApplyEvidence`.
 - `complete_principal` / export now builds a first conservative plan from
   `principal_callee`, closed substitutions, substitution candidates, source
@@ -59,8 +59,6 @@ Current implementation status:
   conservative.
 - `CoreShape` counts apply sites with principal elaboration plans and splits
   them into complete / incomplete.
-- Runtime still delegates plan execution to the old substitution-specialize
-  fallback. The next required step is strict plan execution / failure reporting.
 - `YULANG_PRINCIPAL_ELABORATE_STRICT=1` exists as an internal experiment.
   Under strict mode the pipeline runs `principal-elaborate`, prunes unreachable
   bindings, and fails before old demand fallback if reachable generic calls do
@@ -516,11 +514,11 @@ Still forbidden:
 This is the intended line between "execute the exported principal plan" and
 "reconstruct Simple-Sub in runtime".
 
-Current `07_junction` observation:
+Earlier `07_junction` observation:
 
 - the standalone normalization rule works in unit tests;
-- strict `YULANG_PRINCIPAL_ELABORATE=1 YULANG_PRINCIPAL_ELABORATE_STRICT=1`
-  still reports `std::list::view_raw: MissingSubstitution(a)`;
+- strict `YULANG_PRINCIPAL_ELABORATE_STRICT=1` still reported
+  `std::list::view_raw: MissingSubstitution(a)`;
 - the likely reason is upstream: the surviving `view_raw` call is inside
   specialized `fold_impl`, and `fold_impl` itself still lacks closed
   substitutions for `t1879/t1894/t1924`, so the child plan does not yet receive
@@ -638,7 +636,7 @@ This is still not an open-candidate graph solver. Conflicting bounds, `Any`,
 open `Var`, value-position `Never`, and union/intersection propagation remain
 rejected.
 
-Effect on `YULANG_PRINCIPAL_ELABORATE=1 examples/07_junction.yu`:
+Effect on the default principal-elaborate route for `examples/07_junction.yu`:
 
 - output remains `[0] 1`;
 - total pass/specialization counts are unchanged;
@@ -696,17 +694,14 @@ That made parent-context propagation impossible at root/operator boundaries.
 For example, the root `<` call in `examples/07_junction.yu` could not pass its
 expected boolean argument shape down into `std::junction::all/any` results.
 
-Under the principal-elaboration/export-substitution experiment flags, the
-exporter now preserves full slot evidence for rewritten role-method apply
-nodes, while deliberately not attaching principal/substitution plans to those
-rewritten nodes yet. The default export path still uses source-only evidence for
-these rewritten applies, because enabling the richer evidence unconditionally
-changes the current fallback specialization behavior.
+The exporter now preserves full slot evidence for rewritten role-method apply
+nodes on the default principal route, while deliberately not attaching
+principal/substitution plans to those rewritten nodes yet.
 
-Observed effect with:
+Observed effect with the default route:
 
 ```sh
-YULANG_PRINCIPAL_ELABORATE=1 RUSTC_WRAPPER= cargo run -q -p yulang -- --run --runtime-phase-timings examples/07_junction.yu
+RUSTC_WRAPPER= cargo run -q -p yulang -- --run --runtime-phase-timings examples/07_junction.yu
 ```
 
 - output remains `[0] 1`;
@@ -816,8 +811,8 @@ It is not a Core IR interpreter and not a type checker.
 Current correction:
 
 - The incorrect direct evaluator path has been removed.
-- `YULANG_PRINCIPAL_ELABORATE=1` now routes through a separate
-  `principal_unify` implementation instead of delegating to the old
+- The default monomorphize route now uses the separate `principal_unify`
+  implementation instead of delegating to the old
   substitution-specialize pass.
 - The principal-unify path executes complete `PrincipalElaborationPlan`s only:
   closed substitutions, binding clone, apply rewrite, recursive body rewrite.
@@ -931,12 +926,12 @@ What changed:
 - Per-apply `PrincipalElaborationPlan` export is off the hot path. Runtime can
   build full-spine plans from `ApplyEvidence`, so prebuilding every local plan is
   debug-only.
-- Derived expected-edge evidence and expected adapter evidence are skipped under
-  `YULANG_PRINCIPAL_ELABORATE` unless `YULANG_EXPORT_DEBUG_EVIDENCE=1` is set.
+- Derived expected-edge evidence and expected adapter evidence are skipped on
+  the default principal route unless `YULANG_EXPORT_DEBUG_EVIDENCE=1` is set.
   They are useful for diagnostics/profile, but they are not required to execute
   the strict principal-unify path.
-- Expected-edge evidence is source-only under `YULANG_PRINCIPAL_ELABORATE`
-  unless `YULANG_EXPORT_DEBUG_EVIDENCE=1` or
+- Expected-edge evidence is source-only on the default principal route unless
+  `YULANG_EXPORT_DEBUG_EVIDENCE=1` or
   `YULANG_COALESCE_EXPECTED_EDGE_EVIDENCE=1` is set. The strict execution path
   needs edge id/kind/source identity; it does not need every edge's coalesced
   actual/expected bounds.

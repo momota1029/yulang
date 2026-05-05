@@ -468,10 +468,7 @@ fn is_materialized_specialization_binding(path: &core_ir::Path) -> bool {
 }
 
 fn collect_demand_call_target(path: &core_ir::Path) -> core_ir::Path {
-    if (std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some()
-        || std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some())
-        && generated_path_has_suffix(path, "__mono")
-    {
+    if generated_path_has_suffix(path, "__mono") {
         return path.clone();
     }
     demand_call_target(path)
@@ -1121,11 +1118,10 @@ mod tests {
     }
 
     #[test]
-    fn collector_enqueues_legacy_mono_call_to_generic_demand() {
-        let id = path("id");
+    fn collector_keeps_principal_mono_call_materialized() {
         let module = Module {
             path: core_ir::Path::default(),
-            bindings: vec![generic_binding(id.clone())],
+            bindings: vec![generic_binding(path("id"))],
             root_exprs: vec![Expr::typed(
                 ExprKind::Apply {
                     callee: Box::new(Expr::typed(
@@ -1149,18 +1145,7 @@ mod tests {
 
         let mut collector = DemandCollector::from_module(&module);
         collector.collect_module(&module);
-        let mut queue = collector.into_queue();
-        let demand = queue.pop_front().expect("legacy mono call demand");
-
-        assert_eq!(demand.target, id);
-        assert_eq!(
-            demand.key.signature,
-            DemandSignature::Fun {
-                param: Box::new(DemandSignature::Core(named_demand("int"))),
-                ret: Box::new(DemandSignature::Core(named_demand("int"))),
-            }
-        );
-        assert!(queue.is_empty());
+        assert!(collector.into_queue().is_empty());
     }
 
     #[test]

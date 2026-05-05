@@ -1449,7 +1449,7 @@ fn evidence_substitution_map(
 }
 
 fn principal_elaborate_enabled() -> bool {
-    std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some()
+    std::env::var_os("YULANG_DISABLE_PRINCIPAL_ELABORATE").is_none()
 }
 
 fn principal_elaborate_strict_enabled() -> bool {
