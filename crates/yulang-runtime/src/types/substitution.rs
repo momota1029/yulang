@@ -824,12 +824,22 @@ fn principal_plan_bounds_slot_type(
     allow_never: bool,
 ) -> Option<core_ir::Type> {
     let bounds = bounds?;
-    match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
+    let lower = bounds
+        .lower
+        .as_deref()
+        .cloned()
+        .map(normalize_projected_closed_choice_type);
+    let upper = bounds
+        .upper
+        .as_deref()
+        .cloned()
+        .map(normalize_projected_closed_choice_type);
+    match (lower, upper) {
         (Some(lower), Some(upper)) if lower == upper => {
-            principal_plan_slot_type_usable(lower, allow_never).then(|| lower.clone())
+            principal_plan_slot_type_usable(&lower, allow_never).then_some(lower)
         }
         (Some(ty), None) | (None, Some(ty)) => {
-            principal_plan_slot_type_usable(ty, allow_never).then(|| ty.clone())
+            principal_plan_slot_type_usable(&ty, allow_never).then_some(ty)
         }
         _ => None,
     }
@@ -1757,6 +1767,18 @@ pub(crate) fn project_closed_substitutions_from_type_bounds(
     depth: usize,
 ) {
     let actual = substitute_bounds(actual.clone(), substitutions);
+    if let Some(actual) = principal_plan_bounds_single_closed_type(&actual, allow_never) {
+        project_closed_substitutions_from_type(
+            template,
+            &actual,
+            params,
+            substitutions,
+            conflicts,
+            allow_never,
+            depth,
+        );
+        return;
+    }
     if let Some(lower) = actual.lower.as_deref() {
         project_closed_substitutions_from_type(
             template,
@@ -2061,18 +2083,132 @@ fn principal_plan_bounds_single_closed_type(
         .lower
         .as_deref()
         .cloned()
-        .map(collapse_repeated_top_choice_type);
+        .map(normalize_projected_closed_choice_type);
     let upper = bounds
         .upper
         .as_deref()
         .cloned()
-        .map(collapse_repeated_top_choice_type);
+        .map(normalize_projected_closed_choice_type);
     let choice = match (lower, upper) {
         (Some(lower), Some(upper)) if lower == upper => lower,
         (Some(ty), None) | (None, Some(ty)) => ty,
         _ => return None,
     };
     principal_plan_substitution_type_usable(&choice, allow_never).then_some(choice)
+}
+
+fn normalize_projected_closed_choice_type(ty: core_ir::Type) -> core_ir::Type {
+    collapse_repeated_top_choice_type(collapse_single_bound_type_args(
+        normalize_projected_runtime_shape(ty),
+    ))
+}
+
+fn collapse_single_bound_type_args(ty: core_ir::Type) -> core_ir::Type {
+    match ty {
+        core_ir::Type::Named { path, args } => core_ir::Type::Named {
+            path,
+            args: args
+                .into_iter()
+                .map(collapse_single_bound_type_arg)
+                .collect(),
+        },
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => core_ir::Type::Fun {
+            param: Box::new(collapse_single_bound_type_args(*param)),
+            param_effect: Box::new(collapse_single_bound_type_args(*param_effect)),
+            ret_effect: Box::new(collapse_single_bound_type_args(*ret_effect)),
+            ret: Box::new(collapse_single_bound_type_args(*ret)),
+        },
+        core_ir::Type::Tuple(items) => core_ir::Type::Tuple(
+            items
+                .into_iter()
+                .map(collapse_single_bound_type_args)
+                .collect(),
+        ),
+        core_ir::Type::Record(record) => core_ir::Type::Record(core_ir::RecordType {
+            fields: record
+                .fields
+                .into_iter()
+                .map(|field| core_ir::RecordField {
+                    name: field.name,
+                    value: collapse_single_bound_type_args(field.value),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: record.spread.map(|spread| match spread {
+                core_ir::RecordSpread::Head(ty) => {
+                    core_ir::RecordSpread::Head(Box::new(collapse_single_bound_type_args(*ty)))
+                }
+                core_ir::RecordSpread::Tail(ty) => {
+                    core_ir::RecordSpread::Tail(Box::new(collapse_single_bound_type_args(*ty)))
+                }
+            }),
+        }),
+        core_ir::Type::Variant(variant) => core_ir::Type::Variant(core_ir::VariantType {
+            cases: variant
+                .cases
+                .into_iter()
+                .map(|case| core_ir::VariantCase {
+                    name: case.name,
+                    payloads: case
+                        .payloads
+                        .into_iter()
+                        .map(collapse_single_bound_type_args)
+                        .collect(),
+                })
+                .collect(),
+            tail: variant
+                .tail
+                .map(|tail| Box::new(collapse_single_bound_type_args(*tail))),
+        }),
+        core_ir::Type::Union(items) => core_ir::Type::Union(
+            items
+                .into_iter()
+                .map(collapse_single_bound_type_args)
+                .collect(),
+        ),
+        core_ir::Type::Inter(items) => core_ir::Type::Inter(
+            items
+                .into_iter()
+                .map(collapse_single_bound_type_args)
+                .collect(),
+        ),
+        core_ir::Type::Row { items, tail } => core_ir::Type::Row {
+            items: items
+                .into_iter()
+                .map(collapse_single_bound_type_args)
+                .collect(),
+            tail: Box::new(collapse_single_bound_type_args(*tail)),
+        },
+        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+            var,
+            body: Box::new(collapse_single_bound_type_args(*body)),
+        },
+        other => other,
+    }
+}
+
+fn collapse_single_bound_type_arg(arg: core_ir::TypeArg) -> core_ir::TypeArg {
+    match arg {
+        core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(collapse_single_bound_type_args(ty)),
+        core_ir::TypeArg::Bounds(bounds) => {
+            let bounds = core_ir::TypeBounds {
+                lower: bounds
+                    .lower
+                    .map(|ty| Box::new(collapse_single_bound_type_args(*ty))),
+                upper: bounds
+                    .upper
+                    .map(|ty| Box::new(collapse_single_bound_type_args(*ty))),
+            };
+            principal_plan_bounds_single_closed_type(&bounds, false)
+                .map(core_ir::TypeArg::Type)
+                .unwrap_or(core_ir::TypeArg::Bounds(bounds))
+        }
+    }
 }
 
 fn principal_plan_substitution_type_usable(ty: &core_ir::Type, allow_never: bool) -> bool {
@@ -2690,6 +2826,36 @@ mod tests {
                 "int",
             )))],
         });
+        let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
+
+        assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);
+        assert_eq!(
+            normalized.substitutions,
+            vec![core_ir::TypeSubstitution {
+                var: tv("a"),
+                ty: named("int"),
+            }]
+        );
+    }
+
+    #[test]
+    fn plan_normalization_closes_child_var_from_repeated_choice_bound_args() {
+        let list_int = list_of(named("int"));
+        let list_bounded_int = core_ir::Type::Named {
+            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
+            args: vec![core_ir::TypeArg::Bounds(core_ir::TypeBounds {
+                lower: Some(Box::new(core_ir::Type::Union(vec![
+                    named("int"),
+                    named("int"),
+                ]))),
+                upper: Some(Box::new(named("int"))),
+            })],
+        };
+        let plan = list_plan_for_arg(core_ir::Type::Union(vec![
+            list_int.clone(),
+            list_bounded_int,
+            list_int,
+        ]));
         let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
 
         assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);

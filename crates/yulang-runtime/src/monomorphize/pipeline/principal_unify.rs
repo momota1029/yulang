@@ -31,6 +31,7 @@ struct PrincipalUnifier {
     target_missing_vars: HashMap<core_ir::Path, HashMap<core_ir::TypeVar, usize>>,
     incomplete_plan_cache: HashMap<IncompletePrincipalPlanKey, CachedIncompletePrincipalPlan>,
     initial_reachable_bindings: HashSet<core_ir::Path>,
+    rewritten_template_bindings: HashSet<core_ir::Path>,
 }
 
 #[derive(Debug, Clone)]
@@ -95,11 +96,20 @@ impl PrincipalUnifier {
             target_missing_vars: HashMap::new(),
             incomplete_plan_cache: HashMap::new(),
             initial_reachable_bindings,
+            rewritten_template_bindings: HashSet::new(),
         }
     }
 
     fn run(mut self) -> (Module, SubstitutionSpecializeProfile) {
         let mut module = std::mem::replace(&mut self.module, empty_module());
+        let root_bindings = module
+            .roots
+            .iter()
+            .filter_map(|root| match root {
+                Root::Binding(path) => Some(path.clone()),
+                Root::Expr(_) => None,
+            })
+            .collect::<HashSet<_>>();
         module.root_exprs = module
             .root_exprs
             .into_iter()
@@ -113,7 +123,7 @@ impl PrincipalUnifier {
             .into_iter()
             .map(|binding| Binding {
                 body: {
-                    if !self.initial_reachable_bindings.contains(&binding.name) {
+                    if !self.binding_body_should_be_rewritten(&binding, &root_bindings) {
                         return binding;
                     }
                     let body = refresh_local_expr_types(binding.body);
@@ -122,18 +132,75 @@ impl PrincipalUnifier {
                 ..binding
             })
             .collect();
+        self.flush_emitted_specializations(&mut module);
+        self.rewrite_surviving_template_bindings(&mut module);
+        let profile = self.finish_profile();
+        (module, profile)
+    }
+
+    fn flush_emitted_specializations(&mut self, module: &mut Module) {
         module.bindings.extend(std::mem::take(&mut self.emitted));
-        add_single_specialization_aliases(&mut module, &self.root_specializations);
-        rewrite_contextual_specialization_refs(&mut module, &self.root_specializations);
-        rewrite_single_specialization_refs(&mut module, &self.root_specializations);
-        remove_specialized_generic_originals(&mut module, &self.root_specializations);
+        add_single_specialization_aliases(module, &self.root_specializations);
+        rewrite_contextual_specialization_refs(module, &self.root_specializations);
+        rewrite_single_specialization_refs(module, &self.root_specializations);
+        remove_specialized_generic_originals(module, &self.root_specializations);
         module.roots = module
             .roots
+            .clone()
             .into_iter()
             .map(|root| self.rewrite_root_binding(root))
             .collect();
-        let profile = self.finish_profile();
-        (module, profile)
+    }
+
+    fn rewrite_surviving_template_bindings(&mut self, module: &mut Module) {
+        loop {
+            let reachable = root_reachable_binding_paths(module);
+            let templates = module
+                .bindings
+                .iter()
+                .filter(|binding| reachable.contains(&binding.name))
+                .filter(|binding| !binding_required_vars(binding).is_empty())
+                .filter(|binding| !self.rewritten_template_bindings.contains(&binding.name))
+                .map(|binding| binding.name.clone())
+                .collect::<Vec<_>>();
+            if templates.is_empty() {
+                return;
+            }
+            for name in templates {
+                let Some(index) = module
+                    .bindings
+                    .iter()
+                    .position(|binding| binding.name == name)
+                else {
+                    continue;
+                };
+                self.bump("principal-unify-rewrite-surviving-template-binding");
+                self.rewritten_template_bindings.insert(name);
+                let body = module.bindings[index].body.clone();
+                let body = refresh_local_expr_types(body);
+                module.bindings[index].body =
+                    project_runtime_expr_types(self.rewrite_expr(body, None));
+            }
+            self.flush_emitted_specializations(module);
+        }
+    }
+
+    fn binding_body_should_be_rewritten(
+        &mut self,
+        binding: &Binding,
+        root_bindings: &HashSet<core_ir::Path>,
+    ) -> bool {
+        if !self.initial_reachable_bindings.contains(&binding.name) {
+            return false;
+        }
+        if root_bindings.contains(&binding.name) {
+            return true;
+        }
+        if binding_required_vars(binding).is_empty() {
+            return true;
+        }
+        self.bump("principal-unify-skip-template-binding");
+        false
     }
 
     fn bump(&mut self, key: &'static str) {
