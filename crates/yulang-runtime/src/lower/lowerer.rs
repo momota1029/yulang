@@ -108,6 +108,9 @@ impl Lowerer<'_> {
             core_ir::Expr::Lit(lit) => {
                 let ty = lit_type(&lit);
                 if let Some(expected) = expected {
+                    if matches!(expected, RuntimeType::Unknown) {
+                        return Ok(Expr::typed(ExprKind::Lit(lit), ty));
+                    }
                     if matches!(expected, RuntimeType::Thunk { .. }) {
                         let expr = Expr::typed(ExprKind::Lit(lit), ty);
                         return prepare_expr_for_expected_with_adapter_source_profiled(

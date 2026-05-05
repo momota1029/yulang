@@ -1621,11 +1621,8 @@ mod tests {
         let ExprKind::Apply { arg, .. } = &expr.kind else {
             panic!("missing apply");
         };
-        assert_eq!(core_type(&arg.ty), &core_ir::Type::Any);
-        assert_eq!(
-            locals.get(&arg_path),
-            Some(&RuntimeType::core(core_ir::Type::Any))
-        );
+        assert!(matches!(arg.ty, RuntimeType::Unknown));
+        assert_eq!(locals.get(&arg_path), Some(&RuntimeType::Unknown));
         assert_eq!(lowerer.expected_arg_evidence_profile.present, 1);
         assert_eq!(lowerer.expected_arg_evidence_profile.converted, 1);
         assert_eq!(
