@@ -14,9 +14,7 @@ pub(super) fn principal_elaborate_module_profiled(
     // This pass is being migrated from substitution-specialize to
     // principal-elaborate. The main path should execute exported principal
     // elaboration evidence, not infer substitutions from runtime IR shapes.
-    let (module, profile) = principal_unify_module_profiled(module);
-    let module = prune_unreachable_bindings(module);
-    (module, profile)
+    principal_unify_module_profiled(module)
 }
 
 pub(super) fn principal_elaborate_strict_failure(module: &Module) -> Option<String> {
