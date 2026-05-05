@@ -29,6 +29,7 @@ struct PrincipalUnifier {
     stats: HashMap<&'static str, usize>,
     target_skips: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
     target_missing_vars: HashMap<core_ir::Path, HashMap<core_ir::TypeVar, usize>>,
+    incomplete_plan_cache: HashMap<String, CachedIncompletePrincipalPlan>,
     initial_reachable_bindings: HashSet<core_ir::Path>,
 }
 
@@ -38,6 +39,11 @@ struct ActivePrincipalSpecialization {
     substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
     path: core_ir::Path,
     handler_plan: Option<HandlerAdapterPlan>,
+}
+
+#[derive(Debug, Clone)]
+struct CachedIncompletePrincipalPlan {
+    missing_vars: Vec<core_ir::TypeVar>,
 }
 
 #[derive(Default)]
@@ -78,6 +84,7 @@ impl PrincipalUnifier {
             stats: HashMap::new(),
             target_skips: HashMap::new(),
             target_missing_vars: HashMap::new(),
+            incomplete_plan_cache: HashMap::new(),
             initial_reachable_bindings,
         }
     }
@@ -144,6 +151,16 @@ impl PrincipalUnifier {
         let entry = self.target_missing_vars.entry(target.clone()).or_default();
         for var in missing_required_vars(binding, substitutions) {
             *entry.entry(var).or_default() += 1;
+        }
+    }
+
+    fn bump_missing_var_list(&mut self, target: &core_ir::Path, vars: &[core_ir::TypeVar]) {
+        if vars.is_empty() {
+            return;
+        }
+        let entry = self.target_missing_vars.entry(target.clone()).or_default();
+        for var in vars {
+            *entry.entry(var.clone()).or_default() += 1;
         }
     }
 
@@ -805,12 +822,32 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "defer-partial-handler-application");
             return None;
         }
+        let active_context_substitutions = self.active_context_substitutions();
+        let incomplete_cache_key = incomplete_plan_cache_key(
+            &spine,
+            expr,
+            result_context,
+            active_context_substitutions.as_ref(),
+        );
+        if let Some(cached) = self
+            .incomplete_plan_cache
+            .get(&incomplete_cache_key)
+            .cloned()
+        {
+            if let Some(expr) = self.rewrite_single_emitted_specialized_call(&spine, &expr.ty) {
+                return Some(expr);
+            }
+            self.bump("principal-unify-cached-incomplete-plan");
+            self.bump_skip(spine.target, "incomplete-principal-elaboration-plan");
+            self.bump_missing_var_list(spine.target, &cached.missing_vars);
+            return None;
+        }
         let Some(mut plan) = principal_elaboration_plan_for_expr(expr, &original, result_context)
         else {
             self.bump_skip(spine.target, "missing-principal-elaboration-plan");
             return None;
         };
-        if let Some(active_substitutions) = self.active_context_substitutions() {
+        if let Some(active_substitutions) = active_context_substitutions {
             debug_principal_unify_active(spine.target, &active_substitutions);
             plan = substitute_principal_plan_context_slots(plan, &active_substitutions);
         }
@@ -912,7 +949,12 @@ impl PrincipalUnifier {
             }
             self.bump_skip(spine.target, "incomplete-principal-elaboration-plan");
             let substitutions = plan_substitution_map(&plan);
-            self.bump_missing_vars(spine.target, &original, &substitutions);
+            let missing_vars = missing_required_vars(&original, &substitutions);
+            self.bump_missing_var_list(spine.target, &missing_vars);
+            self.incomplete_plan_cache.insert(
+                incomplete_cache_key,
+                CachedIncompletePrincipalPlan { missing_vars },
+            );
             return None;
         }
         if plan_has_imprecise_choice_slot_substitutions(&plan, &original) {
@@ -2443,6 +2485,28 @@ fn plan_substitution_map(
         .iter()
         .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
         .collect()
+}
+
+fn incomplete_plan_cache_key(
+    spine: &PrincipalUnifyApplySpine<'_>,
+    expr: &Expr,
+    result_context: Option<&core_ir::TypeBounds>,
+    active_context_substitutions: Option<&BTreeMap<core_ir::TypeVar, core_ir::Type>>,
+) -> String {
+    let arg_types = spine
+        .args
+        .iter()
+        .map(|arg| format!("{:?}", arg.ty))
+        .collect::<Vec<_>>();
+    format!(
+        "{}|arity={}|args={:?}|result={:?}|context={:?}|active-context={:?}",
+        canonical_path(spine.target),
+        spine.args.len(),
+        arg_types,
+        expr.ty,
+        result_context,
+        active_context_substitutions,
+    )
 }
 
 fn add_single_specialization_aliases(
