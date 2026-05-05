@@ -43,6 +43,7 @@ pub(super) struct ExprExporter<'a> {
     locals: HashMap<DefId, Path>,
     principal_scheme_cache: HashMap<DefId, Option<core_ir::Scheme>>,
     principal_callee_scheme_cache: HashMap<TypeVar, Option<core_ir::Scheme>>,
+    relevant_bounds_cache: HashMap<TypeVar, core_ir::TypeBounds>,
     relevant_vars: BTreeSet<core_ir::TypeVar>,
     edge_evidence: &'a HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 }
@@ -59,6 +60,7 @@ impl<'a> ExprExporter<'a> {
             locals: HashMap::new(),
             principal_scheme_cache: HashMap::new(),
             principal_callee_scheme_cache: HashMap::new(),
+            relevant_bounds_cache: HashMap::new(),
             relevant_vars,
             edge_evidence,
         }
@@ -69,6 +71,15 @@ impl<'a> ExprExporter<'a> {
         id: Option<crate::diagnostic::ExpectedEdgeId>,
     ) -> Option<&ExpectedEdgeEvidence> {
         self.edge_evidence.get(&id?)
+    }
+
+    fn export_relevant_bounds_for_tv(&mut self, tv: TypeVar) -> core_ir::TypeBounds {
+        if let Some(bounds) = self.relevant_bounds_cache.get(&tv) {
+            return bounds.clone();
+        }
+        let bounds = export_relevant_type_bounds_for_tv(&self.state.infer, tv, &self.relevant_vars);
+        self.relevant_bounds_cache.insert(tv, bounds.clone());
+        bounds
     }
 
     pub(super) fn export_expr(&mut self, expr: &TypedExpr) -> core_ir::Expr {
@@ -158,23 +169,11 @@ impl<'a> ExprExporter<'a> {
                         evidence: Some(core_ir::ApplyEvidence {
                             callee_source_edge: None,
                             arg_source_edge: None,
-                            callee: export_relevant_type_bounds_for_tv(
-                                &self.state.infer,
-                                callee_tv,
-                                &self.relevant_vars,
-                            ),
+                            callee: self.export_relevant_bounds_for_tv(callee_tv),
                             expected_callee: None,
-                            arg: export_relevant_type_bounds_for_tv(
-                                &self.state.infer,
-                                recv.tv,
-                                &self.relevant_vars,
-                            ),
+                            arg: self.export_relevant_bounds_for_tv(recv.tv),
                             expected_arg: None,
-                            result: export_relevant_type_bounds_for_tv(
-                                &self.state.infer,
-                                expr.tv,
-                                &self.relevant_vars,
-                            ),
+                            result: self.export_relevant_bounds_for_tv(expr.tv),
                             principal_callee: None,
                             substitutions: Vec::new(),
                             substitution_candidates: Vec::new(),
@@ -191,23 +190,11 @@ impl<'a> ExprExporter<'a> {
                         evidence: Some(core_ir::ApplyEvidence {
                             callee_source_edge: None,
                             arg_source_edge: None,
-                            callee: export_relevant_type_bounds_for_tv(
-                                &self.state.infer,
-                                callee_tv,
-                                &self.relevant_vars,
-                            ),
+                            callee: self.export_relevant_bounds_for_tv(callee_tv),
                             expected_callee: None,
-                            arg: export_relevant_type_bounds_for_tv(
-                                &self.state.infer,
-                                recv.tv,
-                                &self.relevant_vars,
-                            ),
+                            arg: self.export_relevant_bounds_for_tv(recv.tv),
                             expected_arg: None,
-                            result: export_relevant_type_bounds_for_tv(
-                                &self.state.infer,
-                                expr.tv,
-                                &self.relevant_vars,
-                            ),
+                            result: self.export_relevant_bounds_for_tv(expr.tv),
                             principal_callee: None,
                             substitutions: Vec::new(),
                             substitution_candidates: Vec::new(),
@@ -233,22 +220,14 @@ impl<'a> ExprExporter<'a> {
                     })
                     .collect(),
                 evidence: Some(core_ir::JoinEvidence {
-                    result: export_relevant_type_bounds_for_tv(
-                        &self.state.infer,
-                        expr.tv,
-                        &self.relevant_vars,
-                    ),
+                    result: self.export_relevant_bounds_for_tv(expr.tv),
                 }),
             },
             ExprKind::Catch(body, arms) => core_ir::Expr::Handle {
                 body: Box::new(self.export_expr(body)),
                 arms: arms.iter().map(|arm| self.export_catch_arm(arm)).collect(),
                 evidence: Some(core_ir::JoinEvidence {
-                    result: export_relevant_type_bounds_for_tv(
-                        &self.state.infer,
-                        expr.tv,
-                        &self.relevant_vars,
-                    ),
+                    result: self.export_relevant_bounds_for_tv(expr.tv),
                 }),
             },
             ExprKind::Block(block) => self.export_block(block),
@@ -377,16 +356,8 @@ impl<'a> ExprExporter<'a> {
         include_principal: bool,
     ) -> core_ir::ApplyEvidence {
         let role_method = self.is_role_method_callee(callee);
-        let expected_callee = export_relevant_type_bounds_for_tv(
-            &self.state.infer,
-            expected_callee_tv,
-            &self.relevant_vars,
-        );
-        let expected_arg = export_relevant_type_bounds_for_tv(
-            &self.state.infer,
-            expected_arg_tv,
-            &self.relevant_vars,
-        );
+        let expected_callee = self.export_relevant_bounds_for_tv(expected_callee_tv);
+        let expected_arg = self.export_relevant_bounds_for_tv(expected_arg_tv);
         let mut evidence = if std::env::var_os("YULANG_COALESCE_APPLY_EVIDENCE").is_some() {
             let (callee_bounds, arg, expected_arg, result) =
                 export_coalesced_apply_evidence_bounds_with_expected_arg(
@@ -418,24 +389,12 @@ impl<'a> ExprExporter<'a> {
                 callee: if self.relevant_vars.is_empty() && !role_method {
                     core_ir::TypeBounds::default()
                 } else {
-                    export_relevant_type_bounds_for_tv(
-                        &self.state.infer,
-                        callee.tv,
-                        &self.relevant_vars,
-                    )
+                    self.export_relevant_bounds_for_tv(callee.tv)
                 },
                 expected_callee: Some(expected_callee),
-                arg: export_relevant_type_bounds_for_tv(
-                    &self.state.infer,
-                    arg.tv,
-                    &self.relevant_vars,
-                ),
+                arg: self.export_relevant_bounds_for_tv(arg.tv),
                 expected_arg: Some(expected_arg),
-                result: export_relevant_type_bounds_for_tv(
-                    &self.state.infer,
-                    result.tv,
-                    &self.relevant_vars,
-                ),
+                result: self.export_relevant_bounds_for_tv(result.tv),
                 principal_callee: None,
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
@@ -1096,17 +1055,9 @@ impl<'a> ExprExporter<'a> {
                 .map(core_ir::TypeBounds::exact)
                 .unwrap_or_default(),
             expected_callee: None,
-            arg: export_relevant_type_bounds_for_tv(
-                &self.state.infer,
-                recv.tv,
-                &self.relevant_vars,
-            ),
+            arg: self.export_relevant_bounds_for_tv(recv.tv),
             expected_arg: None,
-            result: export_relevant_type_bounds_for_tv(
-                &self.state.infer,
-                result.tv,
-                &self.relevant_vars,
-            ),
+            result: self.export_relevant_bounds_for_tv(result.tv),
             principal_callee,
             substitutions: Vec::new(),
             substitution_candidates: Vec::new(),

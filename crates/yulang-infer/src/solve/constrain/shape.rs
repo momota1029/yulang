@@ -124,11 +124,17 @@ impl Infer {
                 }
             }
             (Pos::Con(p_path, p_args), Neg::Con(n_path, n_args)) if p_path == n_path => {
-                let variances = self.variances.get(&p_path).cloned().unwrap_or_else(|| {
-                    vec![crate::types::Variance::Invariant; p_args.len().min(n_args.len())]
-                });
-                let pairs: Vec<_> = p_args.iter().copied().zip(n_args.iter().copied()).collect();
-                for (variance, (pa, na)) in variances.into_iter().zip(pairs) {
+                let variances = self.variances.get(&p_path);
+                for (index, (pa, na)) in p_args
+                    .iter()
+                    .copied()
+                    .zip(n_args.iter().copied())
+                    .enumerate()
+                {
+                    let variance = variances
+                        .and_then(|items| items.get(index))
+                        .copied()
+                        .unwrap_or(crate::types::Variance::Invariant);
                     match variance {
                         crate::types::Variance::Invariant => {
                             self.propagate_invariant_arg_through(pa.0, pa.1, na.0, na.1);
