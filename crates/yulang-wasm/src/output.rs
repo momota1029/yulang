@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::fmt::Write as _;
 use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
 
@@ -60,46 +61,97 @@ pub fn format_vm_result(result: &runtime::VmResult) -> String {
 }
 
 fn format_vm_value(value: &runtime::VmValue) -> String {
+    let mut out = String::new();
+    format_vm_value_into(&mut out, value);
+    out
+}
+
+fn format_vm_value_into(out: &mut String, value: &runtime::VmValue) {
     match value {
-        runtime::VmValue::Int(value) | runtime::VmValue::Float(value) => value.clone(),
-        runtime::VmValue::String(value) => format!("{:?}", value.to_flat_string()),
-        runtime::VmValue::Bool(value) => value.to_string(),
-        runtime::VmValue::Unit => "()".to_string(),
-        runtime::VmValue::List(items) => format!(
-            "[{}]",
-            items
-                .to_vec()
-                .iter()
-                .map(format_vm_value)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        runtime::VmValue::Tuple(items) => format!(
-            "({})",
-            items
-                .iter()
-                .map(format_vm_value)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        runtime::VmValue::Record(fields) => format!(
-            "{{{}}}",
-            fields
-                .iter()
-                .map(|(name, value)| format!("{} = {}", name.0, format_vm_value(value)))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
+        runtime::VmValue::Int(value) | runtime::VmValue::Float(value) => out.push_str(value),
+        runtime::VmValue::String(value) => {
+            let _ = write!(out, "{:?}", value.to_flat_string());
+        }
+        runtime::VmValue::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
+        runtime::VmValue::Unit => out.push_str("()"),
+        runtime::VmValue::List(items) => format_vm_list_into(out, items),
+        runtime::VmValue::Tuple(items) => {
+            out.push('(');
+            format_vm_values(out, items.iter());
+            out.push(')');
+        }
+        runtime::VmValue::Record(fields) => {
+            out.push('{');
+            let mut first = true;
+            for (name, value) in fields {
+                push_separator(out, &mut first);
+                let _ = write!(out, "{} = ", name.0);
+                format_vm_value_into(out, value);
+            }
+            out.push('}');
+        }
         runtime::VmValue::Variant { tag, value } => match value {
-            Some(value) => format!("{} {}", tag.0, format_vm_value(value)),
-            None => tag.0.clone(),
+            Some(value) => {
+                out.push_str(&tag.0);
+                out.push(' ');
+                format_vm_value_into(out, value);
+            }
+            None => out.push_str(&tag.0),
         },
-        runtime::VmValue::EffectOp(path) => format!("<effect-op {}>", format_core_path(path)),
-        runtime::VmValue::PrimitiveOp(_) => "<primitive>".to_string(),
-        runtime::VmValue::Resume(_) => "<resume>".to_string(),
-        runtime::VmValue::Closure(_) => "<closure>".to_string(),
-        runtime::VmValue::Thunk(_) => "<thunk>".to_string(),
-        runtime::VmValue::EffectId(id) => format!("<effect-id {id}>"),
+        runtime::VmValue::EffectOp(path) => {
+            let _ = write!(out, "<effect-op {}>", format_core_path(path));
+        }
+        runtime::VmValue::PrimitiveOp(_) => out.push_str("<primitive>"),
+        runtime::VmValue::Resume(_) => out.push_str("<resume>"),
+        runtime::VmValue::Closure(_) => out.push_str("<closure>"),
+        runtime::VmValue::Thunk(_) => out.push_str("<thunk>"),
+        runtime::VmValue::EffectId(id) => {
+            let _ = write!(out, "<effect-id {id}>");
+        }
+    }
+}
+
+fn format_vm_list_into(
+    out: &mut String,
+    items: &runtime::runtime::list_tree::ListTree<runtime::VmValue>,
+) {
+    out.push('[');
+    let mut first = true;
+    format_vm_list_items(out, items, &mut first);
+    out.push(']');
+}
+
+fn format_vm_list_items(
+    out: &mut String,
+    items: &runtime::runtime::list_tree::ListTree<runtime::VmValue>,
+    first: &mut bool,
+) {
+    match items {
+        runtime::runtime::list_tree::ListTree::Empty => {}
+        runtime::runtime::list_tree::ListTree::Leaf(value) => {
+            push_separator(out, first);
+            format_vm_value_into(out, value);
+        }
+        runtime::runtime::list_tree::ListTree::Node(node) => {
+            format_vm_list_items(out, &node.left, first);
+            format_vm_list_items(out, &node.right, first);
+        }
+    }
+}
+
+fn format_vm_values<'a>(out: &mut String, values: impl Iterator<Item = &'a runtime::VmValue>) {
+    let mut first = true;
+    for value in values {
+        push_separator(out, &mut first);
+        format_vm_value_into(out, value);
+    }
+}
+
+fn push_separator(out: &mut String, first: &mut bool) {
+    if *first {
+        *first = false;
+    } else {
+        out.push_str(", ");
     }
 }
 
