@@ -96,6 +96,7 @@ pub struct ExpectedArgEvidenceProfile {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct RuntimeAdapterProfile {
+    pub collect_events: bool,
     pub value_to_thunk: usize,
     pub thunk_to_value: usize,
     pub bind_here: usize,
@@ -334,6 +335,7 @@ fn lower_principal_module_with_graph_and_evidence_inner(
         next_synthetic_type_var: 0,
         next_effect_id_var: 0,
     };
+    lowerer.runtime_adapter_profile.collect_events = collect_profile;
     let path = module.path;
     let bindings = module
         .bindings

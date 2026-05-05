@@ -1,5 +1,6 @@
 use crate::profile::ProfileClock as Instant;
 use std::collections::HashSet;
+use std::sync::OnceLock;
 
 use crate::ast::expr::{ExprKind, Lit, TypedExpr};
 use crate::lower::LowerState;
@@ -157,7 +158,7 @@ pub(in crate::lower::expr) fn resolve_bound_def_expr(
     state: &mut LowerState,
     def: crate::ids::DefId,
 ) -> TypedExpr {
-    let debug_ref = std::env::var_os("YULANG_DEBUG_REF").is_some();
+    let debug_ref = debug_ref_enabled();
     if debug_ref {
         eprintln!(
             "-- resolve_bound_def_expr {:?} name={:?} owner={:?} def_owner={:?} frozen={} def_eff={} let_bound={}",
@@ -346,6 +347,11 @@ pub(in crate::lower::expr) fn resolve_bound_def_expr(
         eff,
         kind: ExprKind::Var(def),
     }
+}
+
+fn debug_ref_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("YULANG_DEBUG_REF").is_some())
 }
 
 fn can_alias_direct_ref(state: &LowerState, def: crate::ids::DefId) -> bool {

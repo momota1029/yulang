@@ -287,7 +287,9 @@ fn record_apply_adapter(
         return;
     };
     record_apply_adapter_phase(profile, phase, kind);
-    if let Some(adapter_source) = &adapter_source {
+    if profile.collect_events
+        && let Some(adapter_source) = &adapter_source
+    {
         profile.events.push(RuntimeAdapterEvent {
             kind,
             phase,

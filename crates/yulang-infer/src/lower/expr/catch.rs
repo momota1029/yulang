@@ -1,5 +1,6 @@
 use crate::profile::ProfileClock as Instant;
 use std::collections::{HashMap, HashSet};
+use std::sync::OnceLock;
 
 use yulang_parser::lex::SyntaxKind;
 
@@ -269,7 +270,7 @@ fn constrain_existing_comp_effect_atoms(
     comp_eff: crate::ids::TypeVar,
     handled_atom: &crate::types::EffectAtom,
 ) {
-    let debug = std::env::var_os("YULANG_DEBUG_CATCH").is_some();
+    let debug = debug_catch_enabled();
     if debug {
         eprintln!("-- constrain_existing_comp_effect_atoms --");
         eprintln!("comp_eff tv = {:?}", comp_eff);
@@ -328,6 +329,11 @@ fn constrain_existing_comp_effect_atoms(
                 .constrain(Pos::Var(*existing_pos), Neg::Var(*handled_neg));
         }
     }
+}
+
+fn debug_catch_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("YULANG_DEBUG_CATCH").is_some())
 }
 
 pub(super) fn debug_dump_effect_tv(

@@ -659,10 +659,7 @@ impl LowerCtx {
         if module_segs.is_empty() {
             return self.resolve_value_from(module, last);
         }
-        let module_path = Path {
-            segments: module_segs.to_vec(),
-        };
-        for mid in self.resolve_module_path_candidates_from(module, &module_path) {
+        for mid in self.resolve_module_path_segments_candidates_from(module, module_segs) {
             if let Some(&def) = self.modules.node(mid).values.get(last) {
                 if is_accessible_from(module, mid, self.modules.value_visibility(mid, last)) {
                     return Some(def);
@@ -683,11 +680,8 @@ impl LowerCtx {
         if module_segs.is_empty() {
             return self.resolve_value_candidates_from(module, last);
         }
-        let module_path = Path {
-            segments: module_segs.to_vec(),
-        };
         let mut out = Vec::new();
-        for mid in self.resolve_module_path_candidates_from(module, &module_path) {
+        for mid in self.resolve_module_path_segments_candidates_from(module, module_segs) {
             if let Some(&def) = self.modules.node(mid).values.get(last) {
                 if is_accessible_from(module, mid, self.modules.value_visibility(mid, last)) {
                     push_unique(&mut out, def);
@@ -768,11 +762,8 @@ impl LowerCtx {
         if module_segs.is_empty() {
             return self.resolve_type_candidates_from(module, last);
         }
-        let module_path = Path {
-            segments: module_segs.to_vec(),
-        };
         let mut out = Vec::new();
-        for mid in self.resolve_module_path_candidates_from(module, &module_path) {
+        for mid in self.resolve_module_path_segments_candidates_from(module, module_segs) {
             if let Some(&def) = self.modules.node(mid).types.get(last) {
                 if is_accessible_from(module, mid, self.modules.type_visibility(mid, last)) {
                     push_unique(&mut out, def);
@@ -805,8 +796,16 @@ impl LowerCtx {
         module: ModuleId,
         path: &Path,
     ) -> Vec<ModuleId> {
+        self.resolve_module_path_segments_candidates_from(module, &path.segments)
+    }
+
+    fn resolve_module_path_segments_candidates_from(
+        &self,
+        module: ModuleId,
+        segments: &[Name],
+    ) -> Vec<ModuleId> {
         let mut current = vec![module];
-        for (i, seg) in path.segments.iter().enumerate() {
+        for (i, seg) in segments.iter().enumerate() {
             let mut next = Vec::new();
             if i == 0 {
                 for candidate in find_module_candidates_by_name_from(
@@ -1087,8 +1086,22 @@ fn resolve_module_path_candidates_from_modules(
     module: ModuleId,
     path: &Path,
 ) -> Vec<ModuleId> {
+    resolve_module_path_segments_candidates_from_modules(
+        modules,
+        use_search,
+        module,
+        &path.segments,
+    )
+}
+
+fn resolve_module_path_segments_candidates_from_modules(
+    modules: &ModuleTable,
+    use_search: &[ModuleId],
+    module: ModuleId,
+    segments: &[Name],
+) -> Vec<ModuleId> {
     let mut current = vec![module];
-    for (i, seg) in path.segments.iter().enumerate() {
+    for (i, seg) in segments.iter().enumerate() {
         let mut next = Vec::new();
         if i == 0 {
             for candidate in find_module_candidates_by_name_from(modules, use_search, module, seg) {
@@ -1140,13 +1153,13 @@ fn resolve_value_path_candidates_from_modules(
         return out;
     }
 
-    let module_path = Path {
-        segments: module_segs.to_vec(),
-    };
     let mut out = Vec::new();
-    for mid in
-        resolve_module_path_candidates_from_modules(modules, use_search, module, &module_path)
-    {
+    for mid in resolve_module_path_segments_candidates_from_modules(
+        modules,
+        use_search,
+        module,
+        module_segs,
+    ) {
         if let Some(&def) = modules.node(mid).values.get(last) {
             if is_accessible_from(module, mid, modules.value_visibility(mid, last)) {
                 push_unique(&mut out, def);

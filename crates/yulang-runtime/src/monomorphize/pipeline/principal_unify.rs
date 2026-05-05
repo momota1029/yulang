@@ -6,6 +6,7 @@ use crate::types::{
     project_runtime_type_with_vars, runtime_core_type, runtime_type_contains_unknown,
     substitute_bounds, type_compatible,
 };
+use std::sync::OnceLock;
 
 pub(super) fn principal_unify_module_profiled(
     module: Module,
@@ -1365,7 +1366,7 @@ impl PrincipalUnifier {
         let candidates = self.role_impls.get(method)?.clone();
         if runtime_type_value_is_function(&expr.ty) && !closed_slot_type_usable(&receiver_ty, false)
         {
-            if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_some() {
+            if debug_principal_unify_enabled() {
                 eprintln!(
                     "principal-unify partial-role-skip {:?} receiver={receiver_ty:?} active={active_substitutions:?}",
                     spine.target
@@ -1906,7 +1907,7 @@ impl PrincipalUnifier {
         required_vars.extend(extra_required_vars.iter().cloned());
         let effect_only_vars = binding_effect_only_vars(original);
         substitutions.retain(|var, ty| !(effect_only_vars.contains(var) && effect_is_empty(ty)));
-        if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_some() {
+        if debug_principal_unify_enabled() {
             eprintln!(
                 "principal-unify runtime-required {} vars={:?}",
                 plan.target
@@ -4859,7 +4860,7 @@ fn debug_principal_unify_runtime_projection(
     template_effect: &core_ir::Type,
     actual_effect: &core_ir::Type,
 ) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     let target = target
@@ -4871,7 +4872,7 @@ fn debug_principal_unify_runtime_projection(
 }
 
 fn debug_principal_unify_skip(target: &core_ir::Path, reason: &str) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     eprintln!(
@@ -4885,7 +4886,7 @@ fn debug_principal_unify_handler_plan(
     boundary: &HandlerCallBoundary,
     plan: &HandlerAdapterPlan,
 ) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     eprintln!(
@@ -4908,7 +4909,7 @@ fn debug_principal_unify_projection_outcome(
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
     conflicts: &BTreeSet<core_ir::TypeVar>,
 ) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     let target = target
@@ -4924,7 +4925,7 @@ fn debug_principal_unify_emit(
     path: &core_ir::Path,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     eprintln!(
@@ -4935,7 +4936,7 @@ fn debug_principal_unify_emit(
 }
 
 fn debug_principal_unify_rewrite(original: &core_ir::Path, path: &core_ir::Path) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     eprintln!(
@@ -4949,7 +4950,7 @@ fn debug_principal_unify_contextual_candidates(
     target: &core_ir::Path,
     matches: &[(&core_ir::Path, &core_ir::Type, usize, usize)],
 ) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY_CONTEXTUAL").is_none() {
+    if !debug_principal_unify_contextual_enabled() {
         return;
     }
     let rendered = matches
@@ -4971,7 +4972,7 @@ fn debug_principal_unify_active(
     target: &core_ir::Path,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     eprintln!(
@@ -4981,7 +4982,7 @@ fn debug_principal_unify_active(
 }
 
 fn debug_principal_unify_normalized_plan(plan: &core_ir::PrincipalElaborationPlan) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     let target = plan
@@ -5000,7 +5001,7 @@ fn debug_principal_unify_role_candidates<'a>(
     receiver_ty: &core_ir::Type,
     candidates: impl IntoIterator<Item = &'a core_ir::Path>,
 ) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     let candidates = candidates
@@ -5023,7 +5024,7 @@ fn debug_principal_unify_role_ambiguous<'a>(
         ),
     >,
 ) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     let matches = matches
@@ -5042,7 +5043,7 @@ fn debug_principal_unify_role_candidate_rejected(
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
     missing: &[core_ir::TypeVar],
 ) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     eprintln!(
@@ -5052,10 +5053,20 @@ fn debug_principal_unify_role_candidate_rejected(
 }
 
 fn debug_principal_unify_local_value(name: &core_ir::Name, ty: &RuntimeType) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_none() {
+    if !debug_principal_unify_enabled() {
         return;
     }
     eprintln!("principal-unify local-value {name:?} = {ty:?}");
+}
+
+fn debug_principal_unify_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY").is_some())
+}
+
+fn debug_principal_unify_contextual_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("YULANG_DEBUG_PRINCIPAL_UNIFY_CONTEXTUAL").is_some())
 }
 
 fn runtime_function_param_type(ty: &RuntimeType) -> Option<core_ir::Type> {

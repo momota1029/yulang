@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::OnceLock;
 
 use crate::ast::expr::{ExprKind, TypedExpr};
 use crate::diagnostic::{
@@ -28,7 +29,7 @@ pub(crate) fn make_app_with_cause(
     arg: TypedExpr,
     cause: ConstraintCause,
 ) -> TypedExpr {
-    let debug_app = std::env::var_os("YULANG_DEBUG_APP").is_some();
+    let debug_app = debug_app_enabled();
     let passing_style = argument_passing_style(state, &func);
     let tv = state.fresh_tv_with_origin(TypeOrigin {
         span: cause.span,
@@ -186,6 +187,11 @@ pub(crate) fn make_app_with_cause(
     };
     register_role_method_call_spine(state, &result);
     result
+}
+
+fn debug_app_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("YULANG_DEBUG_APP").is_some())
 }
 
 fn cross_owner_function_ref_owner(

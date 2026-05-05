@@ -1,6 +1,7 @@
 use crate::ir::Module;
 
 use std::collections::{BTreeMap, HashMap};
+use std::sync::OnceLock;
 
 use super::*;
 use super::{
@@ -459,7 +460,7 @@ fn debug_principal_elaboration_plan_from_spine(
     plan: &core_ir::PrincipalElaborationPlan,
     candidates: &[core_ir::PrincipalSubstitutionCandidate],
 ) {
-    if std::env::var_os("YULANG_DEBUG_PRINCIPAL_ELABORATE").is_none() {
+    if !debug_principal_elaborate_enabled() {
         return;
     }
     if plan.complete {
@@ -497,6 +498,11 @@ fn debug_principal_elaboration_plan_from_spine(
             );
         }
     }
+}
+
+fn debug_principal_elaborate_enabled() -> bool {
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("YULANG_DEBUG_PRINCIPAL_ELABORATE").is_some())
 }
 
 fn exact_type_from_bounds(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
