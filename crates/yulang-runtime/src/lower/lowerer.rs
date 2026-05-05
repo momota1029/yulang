@@ -149,7 +149,7 @@ impl Lowerer<'_> {
                     Some(RuntimeType::Fun { param, ret }) => {
                         ((**param).clone(), Some(ret.as_ref()))
                     }
-                    Some(RuntimeType::Core(core_ir::Type::Any)) | None => {
+                    Some(RuntimeType::Unknown | RuntimeType::Core(core_ir::Type::Any)) | None => {
                         (RuntimeType::core(core_ir::Type::Any), None)
                     }
                     Some(other) => {
@@ -470,7 +470,8 @@ impl Lowerer<'_> {
                 let actual_arg_ty = arg.ty.clone();
                 if matches!(
                     callee.ty,
-                    RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_))
+                    RuntimeType::Unknown
+                        | RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_))
                 ) {
                     callee.ty = erased_fun_type(arg_ty.clone(), result_ty.clone());
                 }
