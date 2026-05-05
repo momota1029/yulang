@@ -105,7 +105,11 @@ my inflate({base = 1, extra = base + 1}) = base + extra
 inflate { base: 3 }
 
 {
-    my $xs = [2, 3, 4]
+    my $xs = [
+        2
+        3
+        4
+    ]
     &xs[1] = 6
     $xs
 }
@@ -163,7 +167,11 @@ area { width: 3, height: 4 }
     source: `// A list element can be updated through a child reference.
 
 {
-    my $xs = [2, 3, 4]
+    my $xs = [
+        2
+        3
+        4
+    ]
     &xs[1] = 6
     $xs
 }
@@ -171,13 +179,13 @@ area { width: 3, height: 4 }
   },
   {
     label: { ja: "sub return", en: "Sub Return" },
-    source: `// sub: catches return and turns early exit into a value.
+    source: `// return binds weakly, so its value can live on the next line.
 
-sub:
-    for x in 0..:
-        if x == 5: return x
-        else: ()
-    0
+my f() = sub:
+    return
+        1 + 2 + 3 + 4
+
+f()
 `,
   },
   {
