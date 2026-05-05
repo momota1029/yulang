@@ -365,7 +365,7 @@ impl<'m> VmInterpreter<'m> {
     pub(super) fn apply(&mut self, callee: VmValue, arg: VmValue) -> Result<VmResult, VmError> {
         match callee {
             VmValue::Closure(callee) => {
-                if !matches!(callee.param_ty, Type::Thunk { .. }) {
+                if closure_param_forces_thunk_arg(&callee.param_ty) {
                     if let VmValue::Thunk(_) = arg {
                         return self.force_apply_arg(VmValue::Closure(callee), arg);
                     }
@@ -963,6 +963,13 @@ fn make_recursive_local_value(pattern: &Pattern, value: VmValue) -> VmValue {
     let mut closure = (*closure).clone();
     closure.self_name = Some(core_ir::Path::from_name(name));
     VmValue::Closure(Rc::new(closure))
+}
+
+fn closure_param_forces_thunk_arg(param_ty: &Type) -> bool {
+    !matches!(
+        param_ty,
+        Type::Thunk { .. } | Type::Core(core_ir::Type::Any)
+    )
 }
 
 fn single_bind_name(pattern: &Pattern) -> Option<core_ir::Name> {

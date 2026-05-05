@@ -365,11 +365,12 @@ impl PrincipalUnifier {
                 let stmts = self.rewrite_block_module_stmt_types(stmts);
                 let kind = ExprKind::Block {
                     stmts,
-                    tail: tail.map(|tail| Box::new(self.rewrite_expr(*tail, result_context))),
+                    tail: tail
+                        .map(|tail| Box::new(self.rewrite_expr(*tail, result_context.clone()))),
                 };
                 let refreshed =
                     project_runtime_expr_types(refresh_local_expr_types(Expr { ty, kind }));
-                return refreshed;
+                return self.rewrite_refreshed_block_once(refreshed, result_context.as_ref());
             }
             ExprKind::Handle {
                 body,
@@ -496,6 +497,30 @@ impl PrincipalUnifier {
                 Stmt::Module { def, body }
             }
         }
+    }
+
+    fn rewrite_refreshed_block_once(
+        &mut self,
+        expr: Expr,
+        result_context: Option<&core_ir::TypeBounds>,
+    ) -> Expr {
+        let Expr {
+            ty,
+            kind: ExprKind::Block { stmts, tail },
+        } = expr
+        else {
+            return expr;
+        };
+        let stmts = stmts
+            .into_iter()
+            .map(|stmt| self.rewrite_stmt(stmt))
+            .collect();
+        let stmts = self.rewrite_block_module_stmt_types(stmts);
+        let kind = ExprKind::Block {
+            stmts,
+            tail: tail.map(|tail| Box::new(self.rewrite_expr(*tail, result_context.cloned()))),
+        };
+        project_runtime_expr_types(refresh_local_expr_types(Expr { ty, kind }))
     }
 
     fn rewrite_block_module_stmt_types(&self, stmts: Vec<Stmt>) -> Vec<Stmt> {
@@ -1101,12 +1126,13 @@ impl PrincipalUnifier {
         binding.name = path.clone();
         binding.type_params.clear();
         binding.body = refresh_local_expr_types(binding.body);
-        self.active_specializations.push(ActivePrincipalSpecialization {
-            target: original_name,
-            substitutions: substitutions.clone(),
-            path: path.clone(),
-            handler_plan: active_handler_plan,
-        });
+        self.active_specializations
+            .push(ActivePrincipalSpecialization {
+                target: original_name,
+                substitutions: substitutions.clone(),
+                path: path.clone(),
+                handler_plan: active_handler_plan,
+            });
         binding.body = self.rewrite_expr(binding.body, None);
         self.active_specializations.pop();
         binding.body = refresh_local_expr_types(binding.body);
@@ -1821,6 +1847,12 @@ fn principal_arg_adapter(
     if actual != *param && !type_compatible(param, &actual) {
         return None;
     }
+    if matches!(param, core_ir::Type::Any | core_ir::Type::Var(_))
+        && matches!(arg.ty, RuntimeType::Thunk { .. })
+        && erased_param_should_preserve_thunk_arg(arg)
+    {
+        return Some(arg.clone());
+    }
     match (&arg.ty, effect_is_empty(param_effect)) {
         (RuntimeType::Thunk { effect, value }, true) if !effect_is_empty(effect) => {
             Some(Expr::typed(
@@ -1872,6 +1904,23 @@ fn principal_arg_adapter(
             ))
         }
         (_, true) => Some(arg.clone()),
+    }
+}
+
+fn erased_param_should_preserve_thunk_arg(arg: &Expr) -> bool {
+    match &arg.kind {
+        ExprKind::Var(path) => path.segments.len() == 1,
+        ExprKind::Apply { callee, .. } => local_apply_head(callee),
+        _ => false,
+    }
+}
+
+fn local_apply_head(expr: &Expr) -> bool {
+    match &expr.kind {
+        ExprKind::Var(path) => path.segments.len() == 1,
+        ExprKind::Apply { callee, .. } => local_apply_head(callee),
+        ExprKind::BindHere { expr } => local_apply_head(expr),
+        _ => false,
     }
 }
 

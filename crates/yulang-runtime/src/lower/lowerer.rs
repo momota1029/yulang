@@ -213,6 +213,10 @@ impl Lowerer<'_> {
                         self.tir_evidence_runtime_hir_type(&evidence.callee)
                     }
                 });
+                let evidence_expected_callee = evidence
+                    .as_ref()
+                    .and_then(|evidence| evidence.expected_callee.as_ref())
+                    .and_then(|bounds| self.tir_declared_runtime_hir_type(bounds));
                 let evidence_arg = evidence
                     .as_ref()
                     .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.arg))
@@ -306,14 +310,36 @@ impl Lowerer<'_> {
                 }
                 let mut arg = None;
                 let param_hint = fun_parts.as_ref().map(|parts| parts.param.clone());
+                let expected_callee_param_hint = self
+                    .use_principal_elaboration
+                    .then(|| {
+                        evidence_expected_callee
+                            .as_ref()
+                            .and_then(|ty| function_parts(ty).ok())
+                            .map(|parts| parts.param)
+                    })
+                    .flatten();
                 let param_or_expected_arg_hint = match (param_hint, evidence_expected_arg.clone()) {
+                    (_, _)
+                        if callee_local_hint.is_some()
+                            && matches!(
+                                expected_callee_param_hint,
+                                Some(RuntimeType::Thunk { .. })
+                            ) =>
+                    {
+                        expected_callee_param_hint
+                    }
+                    (Some(RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_))), _) => {
+                        expected_callee_param_hint
+                    }
                     (Some(param_hint), _) => Some(param_hint),
                     (None, Some(expected_arg)) if self.use_expected_arg_evidence => {
                         self.expected_arg_evidence_profile.used_as_arg_type_hint += 1;
                         Some(expected_arg)
                     }
-                    (None, _) => None,
+                    (None, _) => expected_callee_param_hint,
                 };
+                let selected_arg_hint = param_or_expected_arg_hint.clone();
                 let arg_ty = match choose_apply_arg_type(evidence_arg, param_or_expected_arg_hint) {
                     Some(arg_ty) => arg_ty,
                     None => {
@@ -462,6 +488,19 @@ impl Lowerer<'_> {
                     &result_ty,
                 );
                 let mut final_fun_parts = function_parts(&callee.ty).unwrap_or(final_fun_parts);
+                let final_param = choose_final_apply_param(
+                    &final_fun_parts.param,
+                    selected_arg_hint.as_ref(),
+                    callee_local_hint.is_some(),
+                );
+                if self.use_principal_elaboration
+                    && callee_local_hint.is_some()
+                    && matches!(final_param, RuntimeType::Thunk { .. })
+                {
+                    final_fun_parts.param = final_param.clone();
+                    callee.ty =
+                        erased_fun_type(final_fun_parts.param.clone(), final_fun_parts.ret.clone());
+                }
                 let apply_arg_adapter_source = Some(self.runtime_adapter_source_for_apply(
                     RuntimeApplyAdapterPhase::PrepareFinalArgument,
                     evidence.as_ref(),
@@ -475,7 +514,7 @@ impl Lowerer<'_> {
                         });
                     prepare_effect_operation_arg(
                         arg,
-                        &final_fun_parts.param,
+                        &final_param,
                         if apply_arg_adapter_source
                             .as_ref()
                             .is_some_and(|source| source.has_apply_arg_source_edge)
@@ -497,7 +536,7 @@ impl Lowerer<'_> {
                 } else {
                     prepare_expr_for_expected_with_adapter_source_profiled(
                         arg,
-                        &final_fun_parts.param,
+                        &final_param,
                         if apply_arg_adapter_source
                             .as_ref()
                             .is_some_and(|source| source.has_apply_arg_source_edge)
@@ -517,18 +556,14 @@ impl Lowerer<'_> {
                         ))
                     })?
                 };
-                require_apply_arg_compatible(
-                    &final_fun_parts.param,
-                    &arg.ty,
-                    TypeSource::ApplyEvidence,
-                )
-                .map_err(|error| {
-                    error.with_type_mismatch_context(apply_type_mismatch_context(
-                        apply_label.clone(),
-                        evidence.as_ref(),
-                        TypeMismatchPhase::ApplyArgument,
-                    ))
-                })?;
+                require_apply_arg_compatible(&final_param, &arg.ty, TypeSource::ApplyEvidence)
+                    .map_err(|error| {
+                        error.with_type_mismatch_context(apply_type_mismatch_context(
+                            apply_label.clone(),
+                            evidence.as_ref(),
+                            TypeMismatchPhase::ApplyArgument,
+                        ))
+                    })?;
                 if let ExprKind::EffectOp(path) = &callee.kind
                     && let Some(effect) =
                         effect_operation_effect(path, core_type(value_hir_type(&arg.ty)))
@@ -1731,6 +1766,18 @@ fn prepare_effect_operation_arg(
             profile,
             adapter_source,
         ),
+    }
+}
+
+fn choose_final_apply_param(
+    final_param: &RuntimeType,
+    selected_arg_hint: Option<&RuntimeType>,
+    callee_is_local: bool,
+) -> RuntimeType {
+    match (selected_arg_hint, final_param) {
+        (Some(hint @ RuntimeType::Thunk { .. }), _) if callee_is_local => hint.clone(),
+        (Some(hint), RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_))) => hint.clone(),
+        _ => final_param.clone(),
     }
 }
 
