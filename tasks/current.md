@@ -948,3 +948,29 @@ Current interpretation:
   diagnostic evidence.
 - Do not add open-candidate graph solving to recover speed. If strict mode
   misses a reachable target, fix the exported slot evidence or adapter holes.
+
+## Current Checkpoint: Playground Reflection
+
+Short-term goal: make the current principal-unify path safe to reflect in the
+playground, then keep tightening the path with playground behavior as the public
+contract.
+
+Current status:
+
+- The default runtime monomorphize path is the strict principal-elaborate route
+  unless `YULANG_LEGACY_MONO_FIXPOINT` is set.
+- `crates/yulang-wasm` calls the same runtime entrypoint as the CLI, so the
+  playground build exercises the principal path by default.
+- `examples/05_undet_all.yu`, `examples/07_junction.yu`, and
+  `examples/showcase.yu` run correctly under `YULANG_PRINCIPAL_ELABORATE_STRICT=1`.
+- `web/playground` production build succeeds after rebuilding the wasm package.
+
+Keep the near-term work focused on:
+
+- Playground-visible correctness and diagnostics.
+- Example coverage for public playground snippets.
+- Lightweight principal execution: avoid rewriting generic template bodies until
+  they survive as reachable templates, and avoid per-cache-hit diagnostic
+  bookkeeping in hot paths.
+- Continue moving missing runtime work into exported principal slot evidence or
+  adapter holes, not into the old demand/fixpoint path.
