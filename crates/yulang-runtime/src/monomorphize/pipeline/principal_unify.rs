@@ -29,7 +29,7 @@ struct PrincipalUnifier {
     stats: HashMap<&'static str, usize>,
     target_skips: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
     target_missing_vars: HashMap<core_ir::Path, HashMap<core_ir::TypeVar, usize>>,
-    incomplete_plan_cache: HashMap<String, CachedIncompletePrincipalPlan>,
+    incomplete_plan_cache: HashMap<IncompletePrincipalPlanKey, CachedIncompletePrincipalPlan>,
     initial_reachable_bindings: HashSet<core_ir::Path>,
 }
 
@@ -44,6 +44,15 @@ struct ActivePrincipalSpecialization {
 #[derive(Debug, Clone)]
 struct CachedIncompletePrincipalPlan {
     missing_vars: Vec<core_ir::TypeVar>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct IncompletePrincipalPlanKey {
+    target: core_ir::Path,
+    arg_types: Vec<RuntimeType>,
+    result_type: RuntimeType,
+    result_context: Option<core_ir::TypeBounds>,
+    active_context_substitutions: Option<BTreeMap<core_ir::TypeVar, core_ir::Type>>,
 }
 
 #[derive(Default)]
@@ -2492,21 +2501,14 @@ fn incomplete_plan_cache_key(
     expr: &Expr,
     result_context: Option<&core_ir::TypeBounds>,
     active_context_substitutions: Option<&BTreeMap<core_ir::TypeVar, core_ir::Type>>,
-) -> String {
-    let arg_types = spine
-        .args
-        .iter()
-        .map(|arg| format!("{:?}", arg.ty))
-        .collect::<Vec<_>>();
-    format!(
-        "{}|arity={}|args={:?}|result={:?}|context={:?}|active-context={:?}",
-        canonical_path(spine.target),
-        spine.args.len(),
-        arg_types,
-        expr.ty,
-        result_context,
-        active_context_substitutions,
-    )
+) -> IncompletePrincipalPlanKey {
+    IncompletePrincipalPlanKey {
+        target: spine.target.clone(),
+        arg_types: spine.args.iter().map(|arg| arg.ty.clone()).collect(),
+        result_type: expr.ty.clone(),
+        result_context: result_context.cloned(),
+        active_context_substitutions: active_context_substitutions.cloned(),
+    }
 }
 
 fn add_single_specialization_aliases(

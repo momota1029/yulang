@@ -1,30 +1,30 @@
 use crate::names::{Name, Path};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Scheme {
     pub requirements: Vec<RoleRequirement>,
     pub body: Type,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeSubstitution {
     pub var: TypeVar,
     pub ty: Type,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RecordType {
     pub fields: Vec<RecordField<Type>>,
     pub spread: Option<RecordSpread>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VariantType {
     pub cases: Vec<VariantCase>,
     pub tail: Option<Box<Type>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     /// Internal evidence hole. This is not the top type.
     ///
@@ -63,25 +63,25 @@ pub enum Type {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TypeVar(pub String);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RoleRequirement {
     pub role: Path,
     pub args: Vec<RoleRequirementArg>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RoleRequirementArg {
     Input(TypeBounds),
     Associated { name: Name, bounds: TypeBounds },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeArg {
     Type(Type),
     Bounds(TypeBounds),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct TypeBounds {
     pub lower: Option<Box<Type>>,
     pub upper: Option<Box<Type>>,
@@ -110,20 +110,20 @@ impl TypeBounds {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RecordField<T> {
     pub name: Name,
     pub value: T,
     pub optional: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecordSpread {
     Head(Box<Type>),
     Tail(Box<Type>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VariantCase {
     pub name: Name,
     pub payloads: Vec<Type>,
