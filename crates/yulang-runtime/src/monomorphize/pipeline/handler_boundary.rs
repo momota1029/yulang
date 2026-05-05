@@ -377,7 +377,7 @@ fn handler_return_wrapper_effect(
     if !boundary.pure || boundary.output_effect.is_some() {
         return None;
     }
-    if std::env::var_os("YULANG_SUBST_SPECIALIZE_HANDLER_RETURN").is_none() {
+    if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_HANDLER_RETURN").is_none() {
         return None;
     }
     info.consumes

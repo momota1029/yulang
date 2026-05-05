@@ -908,7 +908,7 @@ fn print_runtime_phase_timings(
                 specialization.solved,
             );
         }
-        print_substitution_specialize_profile(pass);
+        print_principal_elaborate_profile(pass);
     }
     if let Some(duration) = vm_compile {
         eprintln!("    vm_compile: {}", format_duration(duration));
@@ -918,8 +918,8 @@ fn print_runtime_phase_timings(
     }
 }
 
-fn print_substitution_specialize_profile(profile: &runtime::MonomorphizePassProfile) {
-    let subst = &profile.substitution_specialize;
+fn print_principal_elaborate_profile(profile: &runtime::MonomorphizePassProfile) {
+    let subst = &profile.principal_elaborate;
     if subst.stats.is_empty() && subst.target_skips.is_empty() {
         return;
     }
@@ -935,7 +935,7 @@ fn print_substitution_specialize_profile(profile: &runtime::MonomorphizePassProf
         .map(|(key, count)| format!("{key}={count}"))
         .collect::<Vec<_>>()
         .join(", ");
-    eprintln!("            substitution_specialize: {stats}");
+    eprintln!("            principal_elaborate: {stats}");
     let surviving_actionable_skips = subst
         .target_skips
         .iter()

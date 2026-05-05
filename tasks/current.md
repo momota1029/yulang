@@ -50,6 +50,12 @@ Current implementation status:
 - Principal elaboration is the default monomorphize route. The old fixpoint
   pipeline is now only a legacy comparison path behind
   `YULANG_LEGACY_MONO_FIXPOINT=1`.
+- The old `YULANG_SUBST_SPECIALIZE=1` experiment path has been removed from the
+  compiled pipeline. Principal elaboration now owns that route; legacy
+  comparison means the full old fixpoint path only.
+- A VM regression test fixes the default monomorphize pass shape to
+  `principal-elaborate -> prune-unreachable` for the showcase program, with no
+  demand queue work on the default path.
 - Core IR now has `PrincipalElaborationPlan` on `ApplyEvidence`.
 - `complete_principal` / export now builds a first conservative plan from
   `principal_callee`, closed substitutions, substitution candidates, source

@@ -9,15 +9,6 @@ pub(crate) fn infer_type_substitutions(
     infer_type_substitutions_inner(template, actual, params, substitutions, 128, false, false);
 }
 
-pub(crate) fn infer_type_substitutions_with_effects(
-    template: &core_ir::Type,
-    actual: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) {
-    infer_type_substitutions_inner(template, actual, params, substitutions, 128, true, false);
-}
-
 pub(crate) fn substitute_type(
     ty: &core_ir::Type,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,

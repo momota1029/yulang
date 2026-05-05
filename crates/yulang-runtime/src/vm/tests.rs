@@ -2,7 +2,7 @@
 mod tests {
     use super::super::*;
     use crate::ir::{Binding, Module, Type as RuntimeType};
-    use crate::{lower_core_program, monomorphize_module};
+    use crate::{lower_core_program, monomorphize_module, monomorphize_module_profiled};
     use std::path::PathBuf;
     use std::thread;
     use yulang_infer::{SourceOptions, export_core_program, lower_virtual_source_with_options};
@@ -207,6 +207,23 @@ sub:
                 },
             ]
         );
+    }
+
+    #[test]
+    fn vm_default_monomorphize_path_is_principal_elaborate_only() {
+        assert!(
+            std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_none(),
+            "this regression test must run without the legacy monomorphize override"
+        );
+
+        let (_, profile) = runtime_module_with_std_profile(SHOWCASE_SOURCE);
+        let pass_names = profile
+            .passes
+            .iter()
+            .map(|pass| pass.name)
+            .collect::<Vec<_>>();
+        assert_eq!(pass_names, vec!["principal-elaborate", "prune-unreachable"]);
+        assert_eq!(profile.demand_queue_profile().attempted, 0);
     }
 
     #[test]
@@ -1139,11 +1156,13 @@ std::flow::sub::sub:
 
     fn eval_source_with_std(src: &str) -> Vec<TestValue> {
         let src = src.to_string();
-        run_with_large_stack(move || {
-            let module = runtime_module_with_std_inner(&src);
-            let module = compile_vm_module(module).expect("compiled runtime VM module");
-            test_values(module.eval_roots().expect("vm results"))
-        })
+        run_with_large_stack(move || eval_source_with_std_inner(&src))
+    }
+
+    fn eval_source_with_std_inner(src: &str) -> Vec<TestValue> {
+        let module = runtime_module_with_std_inner(src);
+        let module = compile_vm_module(module).expect("compiled runtime VM module");
+        test_values(module.eval_roots().expect("vm results"))
     }
 
     fn runtime_module_with_std(src: &str) -> Module {
@@ -1151,7 +1170,20 @@ std::flow::sub::sub:
         run_with_large_stack(move || runtime_module_with_std_inner(&src))
     }
 
+    fn runtime_module_with_std_profile(
+        src: &str,
+    ) -> (Module, crate::monomorphize::MonomorphizeProfile) {
+        let src = src.to_string();
+        run_with_large_stack(move || runtime_module_with_std_profile_inner(&src))
+    }
+
     fn runtime_module_with_std_inner(src: &str) -> Module {
+        runtime_module_with_std_profile_inner(src).0
+    }
+
+    fn runtime_module_with_std_profile_inner(
+        src: &str,
+    ) -> (Module, crate::monomorphize::MonomorphizeProfile) {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let std_root = repo_root.join("lib/std");
         let mut lowered = lower_virtual_source_with_options(
@@ -1165,9 +1197,8 @@ std::flow::sub::sub:
         )
         .unwrap();
         let program = export_core_program(&mut lowered.state);
-        lower_core_program(program)
-            .and_then(monomorphize_module)
-            .expect("lowered runtime module")
+        let module = lower_core_program(program).expect("lowered runtime module");
+        monomorphize_module_profiled(module).expect("monomorphized runtime module")
     }
 
     fn mono_binding_named(binding: &Binding, base: &str) -> bool {

@@ -25,9 +25,8 @@ use crate::refine::refine_module_types_with_report;
 use crate::types::{
     collect_expr_type_vars, collect_hir_type_vars, collect_type_vars as collect_core_type_vars,
     core_type_has_vars, effect_is_empty, effect_paths_match, hir_type_has_vars,
-    infer_type_substitutions_with_effects, project_runtime_effect, project_runtime_type_with_vars,
-    should_thunk_effect, substitute_apply_evidence, substitute_join_evidence, substitute_scheme,
-    substitute_type,
+    project_runtime_effect, project_runtime_type_with_vars, should_thunk_effect,
+    substitute_apply_evidence, substitute_join_evidence, substitute_scheme, substitute_type,
 };
 use crate::validate::validate_module;
 
@@ -42,7 +41,6 @@ mod principal_unify;
 mod reachability;
 mod shape;
 mod substitute;
-mod substitution_specialize;
 
 use canonicalize::*;
 use handler_boundary::*;
@@ -55,7 +53,6 @@ use principal_unify::*;
 use reachability::*;
 use shape::*;
 use substitute::*;
-use substitution_specialize::*;
 
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     let (lowered, _) = monomorphize_module_profiled(module)?;
@@ -116,7 +113,7 @@ pub struct MonomorphizePassProfile {
     pub roots_after: usize,
     pub progress: MonomorphizeProgress,
     pub demand_queue: DemandQueueProfile,
-    pub substitution_specialize: SubstitutionSpecializeProfile,
+    pub principal_elaborate: SubstitutionSpecializeProfile,
     pub added_binding_paths: Vec<core_ir::Path>,
     pub added_specializations: Vec<DemandSpecialization>,
 }
@@ -178,7 +175,6 @@ impl MonomorphizeProgress {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MonoPass {
     PrincipalElaborate,
-    SubstitutionSpecialize,
     DemandSpecialize,
     RefineTypes,
     RefreshClosedSchemes,
@@ -192,7 +188,6 @@ impl MonoPass {
     fn name(self) -> &'static str {
         match self {
             MonoPass::PrincipalElaborate => "principal-elaborate",
-            MonoPass::SubstitutionSpecialize => "substitution-specialize",
             MonoPass::DemandSpecialize => "demand-specialize",
             MonoPass::RefineTypes => "refine-types",
             MonoPass::RefreshClosedSchemes => "refresh-closed-schemes",
@@ -267,14 +262,6 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
         profile.demand_evidence = snapshot_demand_evidence_profile();
         annotate_substitution_skip_reachability(&mut profile, &module);
         return Ok((module, profile));
-    } else if std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some() {
-        let step = run_profiled_mono_pass(
-            module,
-            MonoPass::SubstitutionSpecialize,
-            &mut profile,
-            debug,
-        )?;
-        module = step.module;
     }
     for stage in MONO_PIPELINE {
         match *stage {
@@ -352,7 +339,7 @@ fn run_profiled_mono_pass(
         roots_after: after.roots,
         progress,
         demand_queue: step.demand_queue,
-        substitution_specialize: step.substitution_specialize.clone(),
+        principal_elaborate: step.principal_elaborate.clone(),
         added_binding_paths: step.added_binding_paths.clone(),
         added_specializations: step.added_specializations.clone(),
     });
@@ -409,30 +396,16 @@ fn run_mono_fixpoint(
 
 fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
     match pass {
-        MonoPass::SubstitutionSpecialize => {
-            let before = module.clone();
-            let (module, substitution_specialize) = substitute_specialize_module_profiled(module);
-            let progress = MonoProgress::from_modules(&before, &module);
-            let added_binding_paths = added_binding_paths(&before, &module);
-            Ok(MonoStep {
-                module,
-                progress,
-                demand_queue: DemandQueueProfile::default(),
-                substitution_specialize,
-                added_binding_paths,
-                added_specializations: Vec::new(),
-            })
-        }
         MonoPass::PrincipalElaborate => {
             let before = module.clone();
-            let (module, substitution_specialize) = principal_elaborate_module_profiled(module);
+            let (module, principal_elaborate) = principal_elaborate_module_profiled(module);
             let progress = MonoProgress::from_modules(&before, &module);
             let added_binding_paths = added_binding_paths(&before, &module);
             Ok(MonoStep {
                 module,
                 progress,
                 demand_queue: DemandQueueProfile::default(),
-                substitution_specialize,
+                principal_elaborate,
                 added_binding_paths,
                 added_specializations: Vec::new(),
             })
@@ -473,7 +446,7 @@ fn demand_specialize_module(module: Module) -> RuntimeResult<MonoStep> {
         module: output.module,
         progress,
         demand_queue: output.profile.queue,
-        substitution_specialize: SubstitutionSpecializeProfile::default(),
+        principal_elaborate: SubstitutionSpecializeProfile::default(),
         added_binding_paths,
         added_specializations,
     })
@@ -545,7 +518,7 @@ struct MonoStep {
     module: Module,
     progress: MonoProgress,
     demand_queue: DemandQueueProfile,
-    substitution_specialize: SubstitutionSpecializeProfile,
+    principal_elaborate: SubstitutionSpecializeProfile,
     added_binding_paths: Vec<core_ir::Path>,
     added_specializations: Vec<DemandSpecialization>,
 }
@@ -619,7 +592,7 @@ where
         module,
         progress,
         demand_queue: DemandQueueProfile::default(),
-        substitution_specialize: SubstitutionSpecializeProfile::default(),
+        principal_elaborate: SubstitutionSpecializeProfile::default(),
         added_binding_paths,
         added_specializations: Vec::new(),
     })
@@ -643,7 +616,7 @@ fn refine_module_types_for_mono(module: Module) -> RuntimeResult<MonoStep> {
         module: output.module,
         progress,
         demand_queue: DemandQueueProfile::default(),
-        substitution_specialize: SubstitutionSpecializeProfile::default(),
+        principal_elaborate: SubstitutionSpecializeProfile::default(),
         added_binding_paths: Vec::new(),
         added_specializations: Vec::new(),
     })
@@ -669,7 +642,7 @@ fn annotate_substitution_skip_reachability(
 ) {
     let surviving_bindings = final_reachable_binding_paths(final_module);
     for pass in &mut profile.passes {
-        for target in &mut pass.substitution_specialize.target_skips {
+        for target in &mut pass.principal_elaborate.target_skips {
             target.survives_final_prune = Some(surviving_bindings.contains(&target.target));
         }
     }
