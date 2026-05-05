@@ -16,7 +16,7 @@ pub(super) fn principal_unify_module_profiled(
 struct PrincipalUnifier {
     module: Module,
     bindings_by_path: HashMap<core_ir::Path, Binding>,
-    generic_bindings: HashMap<core_ir::Path, Binding>,
+    generic_bindings: HashSet<core_ir::Path>,
     role_impls: HashMap<core_ir::Name, Vec<Binding>>,
     specializations: HashMap<String, core_ir::Path>,
     root_specializations: HashMap<core_ir::Path, Vec<core_ir::Path>>,
@@ -71,8 +71,8 @@ impl PrincipalUnifier {
             .bindings
             .iter()
             .filter(|binding| !binding_required_vars(binding).is_empty())
-            .map(|binding| (binding.name.clone(), binding.clone()))
-            .collect::<HashMap<_, _>>();
+            .map(|binding| binding.name.clone())
+            .collect::<HashSet<_>>();
         let role_impls = principal_unify_role_impls(&module);
         let next_index = next_principal_unify_index(&module);
         let initial_reachable_bindings = root_reachable_binding_paths(&module);
@@ -216,6 +216,13 @@ impl PrincipalUnifier {
             .or_default() += 1;
     }
 
+    fn generic_binding(&self, path: &core_ir::Path) -> Option<&Binding> {
+        self.generic_bindings
+            .contains(path)
+            .then(|| self.bindings_by_path.get(path))
+            .flatten()
+    }
+
     fn bump_missing_vars(
         &mut self,
         target: &core_ir::Path,
@@ -332,7 +339,7 @@ impl PrincipalUnifier {
                     },
                 };
                 if let Some(spine) = principal_unify_apply_spine(&original_apply)
-                    && !self.generic_bindings.contains_key(spine.target)
+                    && !self.generic_bindings.contains(spine.target)
                     && let Some(rewritten) = self.rewrite_role_method_from_receiver(
                         &original_apply,
                         &spine,
@@ -655,8 +662,7 @@ impl PrincipalUnifier {
                     };
                 }
                 if self
-                    .generic_bindings
-                    .get(&path)
+                    .generic_binding(&path)
                     .is_some_and(|binding| core_fun_spine_exact(&binding.scheme.body, 1).is_none())
                     && let Some((specialized, ty)) = self.single_local_emitted_specialization(&path)
                 {
@@ -864,7 +870,7 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "skip-local-callee-shadow");
             return None;
         }
-        let Some(original) = self.generic_bindings.get(spine.target).cloned() else {
+        let Some(original) = self.generic_binding(spine.target).cloned() else {
             if let Some(expr) =
                 self.rewrite_impl_method_call_from_args(expr, &spine, result_context)
             {
@@ -1571,7 +1577,7 @@ impl PrincipalUnifier {
         let rewritten = rebuild_apply_call(target, impl_ty, &spine.args, final_ty)?;
         if !runtime_type_value_is_function(final_ty)
             && let Some(rewritten_spine) = principal_unify_apply_spine(&rewritten)
-            && self.generic_bindings.contains_key(rewritten_spine.target)
+            && self.generic_bindings.contains(rewritten_spine.target)
             && let Some(specialized) = self.rewrite_apply_from_principal_plan(&rewritten, None)
         {
             return Some(specialized);
@@ -1763,7 +1769,7 @@ impl PrincipalUnifier {
         if spine.target.segments.len() != 1 {
             return None;
         }
-        let original = self.generic_bindings.get(spine.target)?;
+        let original = self.generic_binding(spine.target)?;
         if spine.args.len() != core_fun_arity(&original.scheme.body) {
             return None;
         }
@@ -1807,8 +1813,7 @@ impl PrincipalUnifier {
     }
 
     fn spine_is_full_generic_call(&self, spine: &PrincipalUnifyApplySpine<'_>) -> bool {
-        self.generic_bindings
-            .get(spine.target)
+        self.generic_binding(spine.target)
             .is_some_and(|binding| spine.args.len() == core_fun_arity(&binding.scheme.body))
     }
 
@@ -1819,7 +1824,7 @@ impl PrincipalUnifier {
         if self.local_value_type(spine.target).is_some() || is_specialized_path(spine.target) {
             return false;
         }
-        if self.generic_bindings.contains_key(spine.target) {
+        if self.generic_bindings.contains(spine.target) {
             return self.spine_is_full_generic_call(&spine);
         }
         if is_impl_method_path(spine.target) {
@@ -2155,7 +2160,7 @@ impl PrincipalUnifier {
             self.bump("principal-unify-body-result-skip-no-spine");
             return None;
         };
-        let Some(inner) = self.generic_bindings.get(body_spine.target).cloned() else {
+        let Some(inner) = self.generic_binding(body_spine.target).cloned() else {
             self.bump("principal-unify-body-result-skip-non-generic-inner");
             return None;
         };
@@ -2354,7 +2359,7 @@ impl PrincipalUnifier {
         path: &core_ir::Path,
         result_context: Option<&core_ir::TypeBounds>,
     ) -> Option<Expr> {
-        let original = self.generic_bindings.get(path).cloned()?;
+        let original = self.generic_binding(path).cloned()?;
         if core_fun_spine_exact(&original.scheme.body, 1).is_some() {
             return None;
         }
@@ -2444,8 +2449,7 @@ impl PrincipalUnifier {
     fn expr_is_nullary_generic_var(&self, expr: &Expr) -> bool {
         match &expr.kind {
             ExprKind::Var(path) => self
-                .generic_bindings
-                .get(path)
+                .generic_binding(path)
                 .is_some_and(|binding| core_fun_spine_exact(&binding.scheme.body, 1).is_none()),
             ExprKind::Thunk { expr, .. }
             | ExprKind::LocalPushId { body: expr, .. }

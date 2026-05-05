@@ -213,7 +213,9 @@ pub struct DerivedExpectedEvidenceProfile {
 }
 
 pub fn lower_core_program(program: core_ir::CoreProgram) -> RuntimeResult<Module> {
-    lower_core_program_profiled(program).map(|output| output.module)
+    let graph = program.graph;
+    let evidence = program.evidence;
+    lower_principal_module_with_graph_and_evidence(program.program, &graph, &evidence)
 }
 
 pub fn lower_core_program_profiled(
@@ -247,11 +249,12 @@ fn lower_principal_module_with_graph_and_evidence(
     graph: &core_ir::CoreGraphView,
     evidence: &core_ir::PrincipalEvidence,
 ) -> RuntimeResult<Module> {
-    lower_principal_module_with_graph_and_evidence_profiled(
+    lower_principal_module_with_graph_and_evidence_inner(
         module,
         graph,
         evidence,
         CoreShapeProfile::default(),
+        false,
     )
     .map(|output| output.module)
 }
@@ -261,6 +264,16 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
     graph: &core_ir::CoreGraphView,
     evidence: &core_ir::PrincipalEvidence,
     core_shape: CoreShapeProfile,
+) -> RuntimeResult<RuntimeLowerOutput> {
+    lower_principal_module_with_graph_and_evidence_inner(module, graph, evidence, core_shape, true)
+}
+
+fn lower_principal_module_with_graph_and_evidence_inner(
+    module: core_ir::PrincipalModule,
+    graph: &core_ir::CoreGraphView,
+    evidence: &core_ir::PrincipalEvidence,
+    core_shape: CoreShapeProfile,
+    collect_profile: bool,
 ) -> RuntimeResult<RuntimeLowerOutput> {
     let principal_vars = principal_module_type_vars(&module);
     let mut binding_infos = module
@@ -398,16 +411,22 @@ fn lower_principal_module_with_graph_and_evidence_profiled(
     check_runtime_invariants(&module, RuntimeStage::Lowered)?;
     validate_module(&module)?;
     let mut runtime_adapters = lowerer.runtime_adapter_profile;
-    profile_runtime_adapter_expected_matches(&mut runtime_adapters, evidence);
-    profile_runtime_adapter_derived_parent_matches(&mut runtime_adapters, evidence);
-    collect_observed_adapter_evidence(&mut runtime_adapters, evidence);
+    if collect_profile {
+        profile_runtime_adapter_expected_matches(&mut runtime_adapters, evidence);
+        profile_runtime_adapter_derived_parent_matches(&mut runtime_adapters, evidence);
+        collect_observed_adapter_evidence(&mut runtime_adapters, evidence);
+    }
     Ok(RuntimeLowerOutput {
         module,
         profile: RuntimeLowerProfile {
             core_shape,
             expected_arg_evidence: lowerer.expected_arg_evidence_profile,
-            expected_adapter_evidence: expected_adapter_evidence_profile(evidence),
-            derived_expected_evidence: derived_expected_evidence_profile(evidence),
+            expected_adapter_evidence: collect_profile
+                .then(|| expected_adapter_evidence_profile(evidence))
+                .unwrap_or_default(),
+            derived_expected_evidence: collect_profile
+                .then(|| derived_expected_evidence_profile(evidence))
+                .unwrap_or_default(),
             runtime_adapters,
         },
     })

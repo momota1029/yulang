@@ -12,7 +12,7 @@ use yulang_source::{
 use crate::lower::primitives::install_builtin_primitives;
 use crate::lower::stmt::{finish_lowering, lower_root_in_module};
 use crate::lower::{LowerDetailProfile, LowerState};
-use crate::profile::ProfileClock;
+use crate::profile::{ProfileClock, with_profile_enabled};
 use crate::symbols::{Name, Path};
 
 pub struct LoweredSources {
@@ -49,19 +49,22 @@ pub fn lower_entry_with_options(
     entry: impl AsRef<FsPath>,
     options: SourceOptions,
 ) -> Result<LoweredSources, SourceLoadError> {
-    Ok(lower_entry_with_options_profiled(entry, options)?.lowered)
+    let source_set = collect_source_files_with_options(entry, options)?;
+    Ok(lower_source_set(&source_set))
 }
 
 pub fn lower_entry_with_options_profiled(
     entry: impl AsRef<FsPath>,
     options: SourceOptions,
 ) -> Result<ProfiledLoweredSources, SourceLoadError> {
-    let collect_start = ProfileClock::now();
-    let source_set = collect_source_files_with_options(entry, options)?;
-    let collect = collect_start.elapsed();
-    let mut lowered = lower_source_set_profiled(&source_set);
-    lowered.profile.collect = collect;
-    Ok(lowered)
+    with_profile_enabled(true, || {
+        let collect_start = ProfileClock::now();
+        let source_set = collect_source_files_with_options(entry, options)?;
+        let collect = collect_start.elapsed();
+        let mut lowered = lower_source_set_profiled(&source_set);
+        lowered.profile.collect = collect;
+        Ok(lowered)
+    })
 }
 
 pub fn lower_virtual_source_with_options(
@@ -69,7 +72,8 @@ pub fn lower_virtual_source_with_options(
     base_dir: Option<PathBuf>,
     options: SourceOptions,
 ) -> Result<LoweredSources, SourceLoadError> {
-    Ok(lower_virtual_source_with_options_profiled(source, base_dir, options)?.lowered)
+    let source_set = collect_virtual_source_files_with_options(source, base_dir, options)?;
+    Ok(lower_source_set(&source_set))
 }
 
 pub fn lower_virtual_source_with_options_profiled(
@@ -77,19 +81,32 @@ pub fn lower_virtual_source_with_options_profiled(
     base_dir: Option<PathBuf>,
     options: SourceOptions,
 ) -> Result<ProfiledLoweredSources, SourceLoadError> {
-    let collect_start = ProfileClock::now();
-    let source_set = collect_virtual_source_files_with_options(source, base_dir, options)?;
-    let collect = collect_start.elapsed();
-    let mut lowered = lower_source_set_profiled(&source_set);
-    lowered.profile.collect = collect;
-    Ok(lowered)
+    with_profile_enabled(true, || {
+        let collect_start = ProfileClock::now();
+        let source_set = collect_virtual_source_files_with_options(source, base_dir, options)?;
+        let collect = collect_start.elapsed();
+        let mut lowered = lower_source_set_profiled(&source_set);
+        lowered.profile.collect = collect;
+        Ok(lowered)
+    })
 }
 
 pub fn lower_source_set(source_set: &SourceSet) -> LoweredSources {
-    lower_source_set_profiled(source_set).lowered
+    lower_source_set_with_profile(source_set, false).lowered
 }
 
 pub fn lower_source_set_profiled(source_set: &SourceSet) -> ProfiledLoweredSources {
+    lower_source_set_with_profile(source_set, true)
+}
+
+fn lower_source_set_with_profile(
+    source_set: &SourceSet,
+    collect_profile: bool,
+) -> ProfiledLoweredSources {
+    with_profile_enabled(collect_profile, || lower_source_set_inner(source_set))
+}
+
+fn lower_source_set_inner(source_set: &SourceSet) -> ProfiledLoweredSources {
     let diagnostic_source = source_set
         .files
         .iter()
@@ -104,7 +121,7 @@ pub fn lower_source_set_profiled(source_set: &SourceSet) -> ProfiledLoweredSourc
     let mut state = LowerState::new();
     install_builtin_primitives(&mut state);
     for file in &source_set.files {
-        lower_source_file_profiled(file, &mut state, &mut profile);
+        lower_source_file_inner(file, &mut state, &mut profile);
     }
     let finish_start = ProfileClock::now();
     finish_lowering(&mut state);
@@ -121,11 +138,21 @@ pub fn lower_source_set_profiled(source_set: &SourceSet) -> ProfiledLoweredSourc
 }
 
 pub fn lower_source_file(file: &SourceFile, state: &mut LowerState) {
-    let mut profile = SourceLowerProfile::default();
-    lower_source_file_profiled(file, state, &mut profile);
+    with_profile_enabled(false, || {
+        let mut profile = SourceLowerProfile::default();
+        lower_source_file_inner(file, state, &mut profile);
+    });
 }
 
 pub fn lower_source_file_profiled(
+    file: &SourceFile,
+    state: &mut LowerState,
+    profile: &mut SourceLowerProfile,
+) {
+    with_profile_enabled(true, || lower_source_file_inner(file, state, profile));
+}
+
+fn lower_source_file_inner(
     file: &SourceFile,
     state: &mut LowerState,
     profile: &mut SourceLowerProfile,

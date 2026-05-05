@@ -30,8 +30,11 @@ use yulang_infer::{
     collect_expected_edge_evidence as collect_infer_expected_edge_evidence,
     collect_expected_edges as collect_infer_expected_edges,
     collect_surface_diagnostics as collect_infer_surface_diagnostics, export_core_program,
+    lower_entry_with_options as lower_infer_entry_with_options,
     lower_entry_with_options_profiled as lower_infer_entry_with_options_profiled,
+    lower_virtual_source_with_options as lower_infer_virtual_source_with_options,
     lower_virtual_source_with_options_profiled as lower_infer_virtual_source_with_options_profiled,
+    with_profile_enabled as with_infer_profile_enabled,
 };
 use yulang_parser::context::{Env, State};
 use yulang_parser::expr::parse_expr;
@@ -499,7 +502,9 @@ fn run_infer_views(
     let (mut state, diagnostic_source, lower_profile) =
         lower_infer_sources(path, root, source, options);
 
-    let finalized = state.finalize_compact_results_profiled();
+    let finalized = with_infer_profile_enabled(options.infer_phase_timings, || {
+        state.finalize_compact_results_profiled()
+    });
 
     let error_start = Instant::now();
     let errors = state.infer.type_errors();
@@ -615,6 +620,9 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             print_runtime_module(&lowered.module, options.verbose_ir);
+            if options.runtime_phase_timings {
+                print_runtime_phase_timings(&lowered.profile, None, None);
+            }
         }
         if options.hygiene_ir {
             if options.infer || options.core_ir || options.runtime_ir {
@@ -627,6 +635,9 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             print!("{}", runtime::format_hygiene_module(&lowered.module));
+            if options.runtime_phase_timings {
+                print_runtime_phase_timings(&lowered.profile, None, None);
+            }
         }
         if options.run_vm {
             if options.infer || options.core_ir || options.runtime_ir || options.hygiene_ir {
@@ -634,7 +645,7 @@ fn run_infer_views(
             }
             let lowered = lower_runtime_module_or_exit(
                 infer_program.as_ref().expect("core program"),
-                false,
+                options.runtime_phase_timings,
                 &diagnostic_source,
             );
             let compile_start = Instant::now();
@@ -699,25 +710,46 @@ fn lower_runtime_module_or_exit(
     source: &str,
 ) -> RuntimeLowerOutput {
     let lower_start = Instant::now();
-    let lower_output = match runtime::lower_core_program_profiled(program.clone()) {
-        Ok(output) => output,
-        Err(err) => {
-            eprintln!("error: {err}");
-            if let Some(frame) = runtime_error_source_frame(&err, program, source) {
-                eprint!("{frame}");
+    let (module, lower_profile) = if print_timings {
+        match runtime::lower_core_program_profiled(program.clone()) {
+            Ok(output) => (output.module, output.profile),
+            Err(err) => {
+                eprintln!("error: {err}");
+                if let Some(frame) = runtime_error_source_frame(&err, program, source) {
+                    eprint!("{frame}");
+                }
+                process::exit(1);
             }
-            process::exit(1);
+        }
+    } else {
+        match runtime::lower_core_program(program.clone()) {
+            Ok(module) => (module, runtime::RuntimeLowerProfile::default()),
+            Err(err) => {
+                eprintln!("error: {err}");
+                if let Some(frame) = runtime_error_source_frame(&err, program, source) {
+                    eprint!("{frame}");
+                }
+                process::exit(1);
+            }
         }
     };
-    let lower_profile = lower_output.profile;
-    let module = lower_output.module;
     let lower = lower_start.elapsed();
     let mono_start = Instant::now();
-    let (module, monomorphize_profile) = match runtime::monomorphize_module_profiled(module) {
-        Ok(output) => output,
-        Err(err) => {
-            eprintln!("error: {err}");
-            process::exit(1);
+    let (module, monomorphize_profile) = if print_timings {
+        match runtime::monomorphize_module_profiled(module) {
+            Ok(output) => output,
+            Err(err) => {
+                eprintln!("error: {err}");
+                process::exit(1);
+            }
+        }
+    } else {
+        match runtime::monomorphize_module(module) {
+            Ok(module) => (module, runtime::MonomorphizeProfile::default()),
+            Err(err) => {
+                eprintln!("error: {err}");
+                process::exit(1);
+            }
         }
     };
     let monomorphize = mono_start.elapsed();
@@ -727,9 +759,6 @@ fn lower_runtime_module_or_exit(
         monomorphize,
         monomorphize_profile,
     };
-    if print_timings {
-        print_runtime_phase_timings(&profile, None, None);
-    }
     RuntimeLowerOutput { module, profile }
 }
 
@@ -1519,43 +1548,67 @@ fn lower_infer_sources(
     options: &CliOptions,
 ) -> (InferLowerState, String, InferSourceLowerProfile) {
     let Some(path) = path else {
-        let lowered = match lower_infer_virtual_source_with_options_profiled(
-            source,
-            env::current_dir().ok(),
-            source_options(options),
-        ) {
-            Ok(lowered) => lowered,
+        let (lowered, profile) = if options.infer_phase_timings {
+            match lower_infer_virtual_source_with_options_profiled(
+                source,
+                env::current_dir().ok(),
+                source_options(options),
+            ) {
+                Ok(lowered) => (lowered.lowered, lowered.profile),
+                Err(err) => {
+                    eprintln!("{err}");
+                    process::exit(1);
+                }
+            }
+        } else {
+            match lower_infer_virtual_source_with_options(
+                source,
+                env::current_dir().ok(),
+                source_options(options),
+            ) {
+                Ok(lowered) => (lowered, InferSourceLowerProfile::default()),
+                Err(err) => {
+                    eprintln!("{err}");
+                    process::exit(1);
+                }
+            }
+        };
+        return (
+            lowered.state,
+            if lowered.diagnostic_source.is_empty() {
+                source.to_string()
+            } else {
+                lowered.diagnostic_source
+            },
+            profile,
+        );
+    };
+
+    let (lowered, profile) = if options.infer_phase_timings {
+        match lower_infer_entry_with_options_profiled(path, source_options(options)) {
+            Ok(lowered) => (lowered.lowered, lowered.profile),
             Err(err) => {
                 eprintln!("{err}");
                 process::exit(1);
             }
-        };
-        return (
-            lowered.lowered.state,
-            if lowered.lowered.diagnostic_source.is_empty() {
-                source.to_string()
-            } else {
-                lowered.lowered.diagnostic_source
-            },
-            lowered.profile,
-        );
-    };
-
-    let lowered = match lower_infer_entry_with_options_profiled(path, source_options(options)) {
-        Ok(lowered) => lowered,
-        Err(err) => {
-            eprintln!("{err}");
-            process::exit(1);
+        }
+    } else {
+        match lower_infer_entry_with_options(path, source_options(options)) {
+            Ok(lowered) => (lowered, InferSourceLowerProfile::default()),
+            Err(err) => {
+                eprintln!("{err}");
+                process::exit(1);
+            }
         }
     };
     (
-        lowered.lowered.state,
-        if lowered.lowered.diagnostic_source.is_empty() {
+        lowered.state,
+        if lowered.diagnostic_source.is_empty() {
             source.to_string()
         } else {
-            lowered.lowered.diagnostic_source
+            lowered.diagnostic_source
         },
-        lowered.profile,
+        profile,
     )
 }
 

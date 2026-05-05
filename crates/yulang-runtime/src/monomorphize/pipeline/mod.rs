@@ -55,7 +55,10 @@ use shape::*;
 use substitute::*;
 
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
-    let (lowered, _) = monomorphize_module_profiled(module)?;
+    let lowered = run_mono_pipeline_unprofiled(module)?;
+    ensure_monomorphic_bindings(&lowered)?;
+    check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
+    validate_module(&lowered)?;
     Ok(lowered)
 }
 
@@ -290,6 +293,24 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
     Ok((module, profile))
 }
 
+fn run_mono_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
+    if std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_some() {
+        return run_mono_pipeline(module).map(|(module, _profile)| module);
+    }
+    let mut module = apply_mono_pass(module, MonoPass::PrincipalElaborate)?.module;
+    module = apply_mono_pass(module, MonoPass::PruneUnreachable)?.module;
+    if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
+        && let Some(context) = principal_elaborate_strict_failure(&module)
+    {
+        return Err(RuntimeError::InvariantViolation {
+            stage: "principal-elaborate",
+            context,
+            message: "principal elaboration plan incomplete",
+        });
+    }
+    Ok(module)
+}
+
 fn run_mono_repeat(
     mut module: Module,
     name: &'static str,
@@ -397,10 +418,30 @@ fn run_mono_fixpoint(
 fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
     match pass {
         MonoPass::PrincipalElaborate => {
-            let before = module.clone();
+            let bindings_before = module.bindings.len();
+            let roots_before = module.root_exprs.len();
             let (module, principal_elaborate) = principal_elaborate_module_profiled(module);
-            let progress = MonoProgress::from_modules(&before, &module);
-            let added_binding_paths = added_binding_paths(&before, &module);
+            let added_binding_paths = module
+                .bindings
+                .iter()
+                .skip(bindings_before)
+                .map(|binding| binding.name.clone())
+                .collect::<Vec<_>>();
+            let changed_bindings = principal_elaborate
+                .stats
+                .get("principal-unify-rewrite")
+                .copied()
+                .unwrap_or_default()
+                + principal_elaborate
+                    .stats
+                    .get("principal-unify-rewrite-surviving-template-binding")
+                    .copied()
+                    .unwrap_or_default();
+            let progress = MonoProgress {
+                changed_bindings,
+                changed_roots: module.root_exprs.len().abs_diff(roots_before),
+                added_specializations: module.bindings.len().saturating_sub(bindings_before),
+            };
             Ok(MonoStep {
                 module,
                 progress,

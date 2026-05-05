@@ -37,6 +37,7 @@ pub use export::{
 pub use ids::{DefId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 pub use lower::stmt::{finish_lowering, lower_root, lower_root_in_module};
 pub use lower::{FinalizeCompactProfile, FinalizeCompactResults, LowerDetailProfile, LowerState};
+pub use profile::with_profile_enabled;
 pub use ref_table::{RefTable, UnresolvedRef};
 pub use scc::*;
 pub use scheme::FrozenScheme;
