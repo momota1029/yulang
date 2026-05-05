@@ -70,6 +70,33 @@ pub fn export_type_bounds_for_tv(infer: &Infer, tv: TypeVar) -> core_ir::TypeBou
     export_type_bounds(&scheme, &scheme.cty)
 }
 
+pub fn export_type_bounds_for_tvs(
+    infer: &Infer,
+    tvs: &[TypeVar],
+) -> HashMap<TypeVar, core_ir::TypeBounds> {
+    let schemes = compact_type_vars_in_order(infer, tvs);
+    tvs.iter()
+        .copied()
+        .zip(schemes.iter())
+        .map(|(tv, scheme)| (tv, export_type_bounds(scheme, &scheme.cty)))
+        .collect()
+}
+
+pub fn export_coalesced_type_bounds_for_tvs(
+    infer: &Infer,
+    tvs: &[TypeVar],
+) -> HashMap<TypeVar, core_ir::TypeBounds> {
+    let schemes = compact_type_vars_in_order(infer, tvs);
+    tvs.iter()
+        .copied()
+        .zip(schemes.iter())
+        .map(|(tv, scheme)| {
+            let scheme = coalesce_by_co_occurrence(scheme);
+            (tv, export_type_bounds(&scheme, &scheme.cty))
+        })
+        .collect()
+}
+
 pub fn export_coalesced_type_bounds_for_tv(infer: &Infer, tv: TypeVar) -> core_ir::TypeBounds {
     let scheme = coalesce_by_co_occurrence(&compact_type_var(infer, tv));
     export_type_bounds(&scheme, &scheme.cty)

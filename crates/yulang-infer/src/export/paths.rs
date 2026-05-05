@@ -2,10 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use yulang_core_ir as core_ir;
 
+use crate::diagnostic::ExpectedEdgeId;
 use crate::ids::DefId;
 use crate::lower::LowerState;
 use crate::symbols::Path;
 
+use super::complete_principal::ExpectedEdgeEvidence;
 use super::names::export_path;
 use super::principal::export_principal_binding;
 
@@ -30,6 +32,7 @@ pub(crate) fn complete_referenced_binding_closure(
     state: &mut LowerState,
     bindings: &mut Vec<core_ir::PrincipalBinding>,
     extra_exprs: &[core_ir::Expr],
+    edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) {
     let all_paths = collect_canonical_binding_paths(state)
         .into_iter()
@@ -59,7 +62,8 @@ pub(crate) fn complete_referenced_binding_closure(
             let Some((source_path, def)) = all_paths.get(&path).cloned() else {
                 continue;
             };
-            let Some(binding) = export_principal_binding(state, &source_path, def) else {
+            let Some(binding) = export_principal_binding(state, &source_path, def, edge_evidence)
+            else {
                 continue;
             };
             if exported.insert(binding.name.clone()) {

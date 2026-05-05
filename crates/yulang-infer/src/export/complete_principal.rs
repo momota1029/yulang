@@ -13,7 +13,7 @@
 //! adapters instead of rediscovering the same subtyping facts through demand
 //! monomorphization.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use yulang_core_ir as core_ir;
 
@@ -28,7 +28,7 @@ use crate::solve::Infer;
 use super::types::{
     collect_core_type_vars, export_coalesced_apply_evidence_bounds,
     export_coalesced_coerce_evidence_bounds, export_coalesced_type_bounds_for_tv,
-    export_type_bounds_for_tv, project_core_value_type_or_any,
+    export_type_bounds_for_tv, export_type_bounds_for_tvs, project_core_value_type_or_any,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -125,19 +125,38 @@ pub(super) fn complete_apply_principal_evidence(
     callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
-    callee_source_edge: Option<&ExpectedEdge>,
-    arg_source_edge: Option<&ExpectedEdge>,
+    callee_edge_evidence: Option<&ExpectedEdgeEvidence>,
+    arg_edge_evidence: Option<&ExpectedEdgeEvidence>,
+) -> Option<CompleteApplyPrincipalEvidence> {
+    let slot_bounds = apply_slot_bounds(infer, callee_tv, arg_tv, result_tv);
+    complete_apply_principal_evidence_from_slot_bounds(
+        infer,
+        principal_scheme,
+        arg_tv,
+        result_tv,
+        &slot_bounds,
+        callee_edge_evidence,
+        arg_edge_evidence,
+    )
+}
+
+pub(super) fn complete_apply_principal_evidence_from_slot_bounds(
+    infer: &Infer,
+    principal_scheme: core_ir::Scheme,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+    slot_bounds: &ApplySlotBounds,
+    callee_edge_evidence: Option<&ExpectedEdgeEvidence>,
+    arg_edge_evidence: Option<&ExpectedEdgeEvidence>,
 ) -> Option<CompleteApplyPrincipalEvidence> {
     let substitutions =
-        apply_principal_substitutions(infer, &principal_scheme, callee_tv, arg_tv, result_tv);
+        apply_principal_substitutions(infer, &principal_scheme, arg_tv, result_tv, &slot_bounds);
     let substitution_candidates = apply_principal_substitution_candidates(
         infer,
         &principal_scheme,
-        callee_tv,
-        arg_tv,
-        result_tv,
-        callee_source_edge,
-        arg_source_edge,
+        callee_edge_evidence,
+        arg_edge_evidence,
+        &slot_bounds,
     );
     (!substitutions.is_empty() || !substitution_candidates.is_empty()).then_some(
         CompleteApplyPrincipalEvidence {
@@ -149,11 +168,79 @@ pub(super) fn complete_apply_principal_evidence(
 }
 
 pub fn collect_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvidence> {
+    if source_only_expected_edge_evidence_enabled() {
+        return collect_source_only_expected_edge_evidence(state);
+    }
+    if std::env::var_os("YULANG_COALESCE_EXPECTED_EDGE_EVIDENCE").is_none() {
+        return collect_fast_expected_edge_evidence(state);
+    }
+    let mut coalesce_cache: HashMap<TypeVar, core_ir::TypeBounds> = HashMap::new();
     state
         .expected_edges
         .iter()
-        .map(|edge| complete_expected_edge_evidence(&state.infer, edge))
+        .map(|edge| complete_expected_edge_evidence_cached(&state.infer, edge, &mut coalesce_cache))
         .collect()
+}
+
+fn source_only_expected_edge_evidence_enabled() -> bool {
+    std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some()
+        && std::env::var_os("YULANG_EXPORT_DEBUG_EVIDENCE").is_none()
+        && std::env::var_os("YULANG_COALESCE_EXPECTED_EDGE_EVIDENCE").is_none()
+}
+
+fn collect_source_only_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvidence> {
+    state
+        .expected_edges
+        .iter()
+        .map(|edge| ExpectedEdgeEvidence {
+            id: edge.id,
+            kind: edge.kind,
+            source_range: source_range(edge.cause.span),
+            actual: core_ir::TypeBounds::default(),
+            expected: core_ir::TypeBounds::default(),
+            actual_effect: None,
+            expected_effect: None,
+            closed: false,
+            informative: false,
+            runtime_usable: false,
+        })
+        .collect()
+}
+
+fn collect_fast_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvidence> {
+    let mut vars = HashSet::new();
+    for edge in &state.expected_edges {
+        vars.insert(edge.actual_tv);
+        vars.insert(edge.expected_tv);
+        if let Some(tv) = edge.actual_eff {
+            vars.insert(tv);
+        }
+        if let Some(tv) = edge.expected_eff {
+            vars.insert(tv);
+        }
+    }
+    let mut vars = vars.into_iter().collect::<Vec<_>>();
+    vars.sort_by_key(|tv| tv.0);
+    let bounds = export_type_bounds_for_tvs(&state.infer, &vars);
+    let mut coalesce_cache = HashMap::new();
+    state
+        .expected_edges
+        .iter()
+        .map(|edge| {
+            if expected_edge_kind_needs_precise_evidence(edge.kind) {
+                complete_expected_edge_evidence_cached(&state.infer, edge, &mut coalesce_cache)
+            } else {
+                complete_expected_edge_evidence_from_bounds(edge, &bounds)
+            }
+        })
+        .collect()
+}
+
+fn expected_edge_kind_needs_precise_evidence(kind: ExpectedEdgeKind) -> bool {
+    !matches!(
+        kind,
+        ExpectedEdgeKind::ApplicationCallee | ExpectedEdgeKind::ApplicationArgument
+    )
 }
 
 pub fn collect_expected_adapter_edge_evidence(
@@ -170,6 +257,15 @@ pub fn collect_derived_expected_edge_evidence(
     state: &LowerState,
 ) -> Vec<DerivedExpectedEdgeEvidence> {
     collect_expected_edge_evidence(state)
+        .iter()
+        .flat_map(derive_expected_edge_evidence)
+        .collect()
+}
+
+pub fn derive_all_expected_edge_evidence(
+    edges: &[ExpectedEdgeEvidence],
+) -> Vec<DerivedExpectedEdgeEvidence> {
+    edges
         .iter()
         .flat_map(derive_expected_edge_evidence)
         .collect()
@@ -230,18 +326,84 @@ fn complete_expected_adapter_edge_evidence(
     }
 }
 
-pub(super) fn complete_expected_edge_evidence(
+#[cfg(test)]
+fn complete_expected_edge_evidence(infer: &Infer, edge: &ExpectedEdge) -> ExpectedEdgeEvidence {
+    let mut cache = HashMap::new();
+    complete_expected_edge_evidence_cached(infer, edge, &mut cache)
+}
+
+fn coalesced_bounds_cached(
+    infer: &Infer,
+    tv: TypeVar,
+    cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+) -> core_ir::TypeBounds {
+    if let Some(cached) = cache.get(&tv) {
+        return cached.clone();
+    }
+    let bounds = export_coalesced_type_bounds_for_tv(infer, tv);
+    cache.insert(tv, bounds.clone());
+    bounds
+}
+
+fn complete_expected_edge_evidence_cached(
     infer: &Infer,
     edge: &ExpectedEdge,
+    cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
 ) -> ExpectedEdgeEvidence {
-    let actual = export_coalesced_type_bounds_for_tv(infer, edge.actual_tv);
-    let expected = export_coalesced_type_bounds_for_tv(infer, edge.expected_tv);
+    let actual = coalesced_bounds_cached(infer, edge.actual_tv, cache);
+    let expected = coalesced_bounds_cached(infer, edge.expected_tv, cache);
     let actual_effect = edge
         .actual_eff
-        .map(|tv| export_coalesced_type_bounds_for_tv(infer, tv));
+        .map(|tv| coalesced_bounds_cached(infer, tv, cache));
     let expected_effect = edge
         .expected_eff
-        .map(|tv| export_coalesced_type_bounds_for_tv(infer, tv));
+        .map(|tv| coalesced_bounds_cached(infer, tv, cache));
+    let closed = type_bounds_closed(&actual)
+        && type_bounds_closed(&expected)
+        && actual_effect.as_ref().is_none_or(type_bounds_closed)
+        && expected_effect.as_ref().is_none_or(type_bounds_closed);
+    let informative = type_bounds_informative(&actual)
+        || type_bounds_informative(&expected)
+        || actual_effect.as_ref().is_some_and(type_bounds_informative)
+        || expected_effect
+            .as_ref()
+            .is_some_and(type_bounds_informative);
+    let runtime_usable = closed
+        && informative
+        && value_type_bounds_runtime_usable(&actual)
+        && value_type_bounds_runtime_usable(&expected)
+        && actual_effect
+            .as_ref()
+            .is_none_or(effect_type_bounds_runtime_usable)
+        && expected_effect
+            .as_ref()
+            .is_none_or(effect_type_bounds_runtime_usable);
+    ExpectedEdgeEvidence {
+        id: edge.id,
+        kind: edge.kind,
+        source_range: source_range(edge.cause.span),
+        actual,
+        expected,
+        actual_effect,
+        expected_effect,
+        closed,
+        informative,
+        runtime_usable,
+    }
+}
+
+fn complete_expected_edge_evidence_from_bounds(
+    edge: &ExpectedEdge,
+    bounds: &HashMap<TypeVar, core_ir::TypeBounds>,
+) -> ExpectedEdgeEvidence {
+    let actual = bounds.get(&edge.actual_tv).cloned().unwrap_or_default();
+    let expected = bounds.get(&edge.expected_tv).cloned().unwrap_or_default();
+    let actual_effect = edge
+        .actual_eff
+        .map(|tv| bounds.get(&tv).cloned().unwrap_or_default());
+    let expected_effect = edge
+        .expected_eff
+        .map(|tv| bounds.get(&tv).cloned().unwrap_or_default());
     let closed = type_bounds_closed(&actual)
         && type_bounds_closed(&expected)
         && actual_effect.as_ref().is_none_or(type_bounds_closed)
@@ -283,12 +445,12 @@ fn source_range(range: Option<rowan::TextRange>) -> Option<core_ir::SourceRange>
     })
 }
 
-pub(super) fn apply_principal_substitutions(
+fn apply_principal_substitutions(
     infer: &Infer,
     principal_scheme: &core_ir::Scheme,
-    callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
+    slot_bounds: &ApplySlotBounds,
 ) -> Vec<core_ir::TypeSubstitution> {
     let principal_callee = &principal_scheme.body;
     let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
@@ -301,11 +463,10 @@ pub(super) fn apply_principal_substitutions(
     }
 
     let mut unifier = PrincipalSubstitutionUnifier::new(&params);
-    let slot_types = apply_slot_monomorphic_types(infer, callee_tv, arg_tv, result_tv);
-    if let Some(arg_ty) = slot_types.arg {
+    if let Some(arg_ty) = monomorphic_type_from_bounds(slot_bounds.arg.clone()) {
         unifier.infer_value(param, &arg_ty);
     }
-    if let Some(result_ty) = slot_types.result {
+    if let Some(result_ty) = monomorphic_type_from_bounds(slot_bounds.result.clone()) {
         unifier.infer_value(ret, &result_ty);
     }
     if unifier.is_empty() {
@@ -325,14 +486,12 @@ pub(super) fn apply_principal_substitutions(
         .collect()
 }
 
-pub(super) fn apply_principal_substitution_candidates(
-    infer: &Infer,
+fn apply_principal_substitution_candidates(
+    _infer: &Infer,
     principal_scheme: &core_ir::Scheme,
-    callee_tv: TypeVar,
-    arg_tv: TypeVar,
-    result_tv: TypeVar,
-    callee_source_edge: Option<&ExpectedEdge>,
-    arg_source_edge: Option<&ExpectedEdge>,
+    callee_edge_evidence: Option<&ExpectedEdgeEvidence>,
+    arg_edge_evidence: Option<&ExpectedEdgeEvidence>,
+    slot_bounds: &ApplySlotBounds,
 ) -> Vec<core_ir::PrincipalSubstitutionCandidate> {
     let principal_callee = &principal_scheme.body;
     let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
@@ -343,21 +502,18 @@ pub(super) fn apply_principal_substitution_candidates(
     if params.is_empty() {
         return Vec::new();
     }
-
-    let slot_bounds = apply_slot_bounds(infer, callee_tv, arg_tv, result_tv);
     let mut candidates = Vec::new();
     collect_candidates_from_bounds(
         principal_callee,
         &slot_bounds.callee,
         &params,
-        callee_source_edge.map(|edge| edge.id),
+        callee_edge_evidence.map(|e| e.id),
         &mut vec![core_ir::PrincipalSlotPathSegment::Callee],
         &mut candidates,
     );
-    if let Some(edge) = callee_source_edge {
+    if let Some(evidence) = callee_edge_evidence {
         collect_candidates_from_expected_edge(
-            infer,
-            edge,
+            evidence,
             &params,
             &mut vec![core_ir::PrincipalSlotPathSegment::Callee],
             &mut candidates,
@@ -367,14 +523,13 @@ pub(super) fn apply_principal_substitution_candidates(
         param,
         &slot_bounds.arg,
         &params,
-        arg_source_edge.map(|edge| edge.id),
+        arg_edge_evidence.map(|e| e.id),
         &mut vec![core_ir::PrincipalSlotPathSegment::Arg],
         &mut candidates,
     );
-    if let Some(edge) = arg_source_edge {
+    if let Some(evidence) = arg_edge_evidence {
         collect_candidates_from_expected_edge(
-            infer,
-            edge,
+            evidence,
             &params,
             &mut vec![core_ir::PrincipalSlotPathSegment::Arg],
             &mut candidates,
@@ -424,30 +579,10 @@ pub(super) fn residual_apply_principal_scheme(
     })
 }
 
-struct ApplySlotTypes {
-    arg: Option<core_ir::Type>,
-    result: Option<core_ir::Type>,
-}
-
-struct ApplySlotBounds {
-    callee: core_ir::TypeBounds,
-    arg: core_ir::TypeBounds,
-    result: core_ir::TypeBounds,
-}
-
-fn apply_slot_monomorphic_types(
-    infer: &Infer,
-    callee_tv: TypeVar,
-    arg_tv: TypeVar,
-    result_tv: TypeVar,
-) -> ApplySlotTypes {
-    let relevant_vars = BTreeSet::new();
-    let (_, arg, result) =
-        export_coalesced_apply_evidence_bounds(infer, callee_tv, arg_tv, result_tv, &relevant_vars);
-    ApplySlotTypes {
-        arg: monomorphic_type_from_bounds(arg),
-        result: monomorphic_type_from_bounds(result),
-    }
+pub(super) struct ApplySlotBounds {
+    pub(super) callee: core_ir::TypeBounds,
+    pub(super) arg: core_ir::TypeBounds,
+    pub(super) result: core_ir::TypeBounds,
 }
 
 fn apply_slot_bounds(
@@ -470,7 +605,13 @@ fn monomorphic_type_from_bounds(bounds: core_ir::TypeBounds) -> Option<core_ir::
     bounds
         .lower
         .as_deref()
-        .or(bounds.upper.as_deref())
+        .and_then(primary_structural_or_concrete_type)
+        .or_else(|| {
+            bounds
+                .upper
+                .as_deref()
+                .and_then(primary_structural_or_concrete_type)
+        })
         .cloned()
         .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
 }
@@ -681,13 +822,11 @@ fn collect_candidates_from_arg(
 }
 
 fn collect_candidates_from_expected_edge(
-    infer: &Infer,
-    edge: &ExpectedEdge,
+    evidence: &ExpectedEdgeEvidence,
     params: &BTreeSet<core_ir::TypeVar>,
     path_prefix: &mut Vec<core_ir::PrincipalSlotPathSegment>,
     out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
 ) {
-    let evidence = complete_expected_edge_evidence(infer, edge);
     if let (Some(actual), Some(expected)) = (
         bounds_primary_type(&evidence.actual),
         bounds_primary_type(&evidence.expected),
@@ -697,12 +836,12 @@ fn collect_candidates_from_expected_edge(
             expected,
             EdgePolarity::Covariant,
             params,
-            Some(edge.id),
+            Some(evidence.id),
             path_prefix,
             out,
         );
     }
-    for derived in derive_expected_edge_evidence(&evidence) {
+    for derived in derive_expected_edge_evidence(evidence) {
         let Some(actual) = bounds_primary_type(&derived.actual) else {
             continue;
         };
@@ -721,7 +860,7 @@ fn collect_candidates_from_expected_edge(
             expected,
             derived.polarity,
             params,
-            Some(edge.id),
+            Some(evidence.id),
             path_prefix,
             out,
         );
@@ -1214,9 +1353,23 @@ fn push_derived_edge(
         kind,
         polarity,
         path: path.to_vec(),
-        actual: core_ir::TypeBounds::exact(actual.clone()),
-        expected: core_ir::TypeBounds::exact(expected.clone()),
+        actual: core_ir::TypeBounds::exact(derived_actual_slot_type(actual, expected)),
+        expected: core_ir::TypeBounds::exact(derived_slot_type(expected)),
     });
+}
+
+fn derived_actual_slot_type(actual: &core_ir::Type, expected: &core_ir::Type) -> core_ir::Type {
+    let expected = derived_slot_type(expected);
+    primary_structural_or_concrete_type_not_equal(actual, &expected)
+        .or_else(|| primary_structural_or_concrete_type(actual))
+        .unwrap_or(actual)
+        .clone()
+}
+
+fn derived_slot_type(ty: &core_ir::Type) -> core_ir::Type {
+    primary_structural_or_concrete_type(ty)
+        .unwrap_or(ty)
+        .clone()
 }
 
 fn derive_child_edge(
@@ -1231,7 +1384,17 @@ fn derive_child_edge(
     if depth + 1 >= MAX_DERIVED_EDGE_DEPTH {
         return;
     }
-    derive_structural_edges(parent, polarity, actual, expected, path, derived, depth + 1);
+    let actual = derived_slot_type(actual);
+    let expected = derived_slot_type(expected);
+    derive_structural_edges(
+        parent,
+        polarity,
+        &actual,
+        &expected,
+        path,
+        derived,
+        depth + 1,
+    );
 }
 
 impl EdgePolarity {
@@ -1245,7 +1408,42 @@ impl EdgePolarity {
 }
 
 fn bounds_primary_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
-    bounds.lower.as_deref().or(bounds.upper.as_deref())
+    bounds
+        .lower
+        .as_deref()
+        .and_then(primary_structural_or_concrete_type)
+        .or_else(|| {
+            bounds
+                .upper
+                .as_deref()
+                .and_then(primary_structural_or_concrete_type)
+        })
+}
+
+fn primary_structural_or_concrete_type(ty: &core_ir::Type) -> Option<&core_ir::Type> {
+    match ty {
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => items
+            .iter()
+            .find_map(primary_structural_or_concrete_type)
+            .or(Some(ty)),
+        core_ir::Type::Var(_) | core_ir::Type::Any | core_ir::Type::Never => None,
+        _ => Some(ty),
+    }
+}
+
+fn primary_structural_or_concrete_type_not_equal<'a>(
+    ty: &'a core_ir::Type,
+    expected: &core_ir::Type,
+) -> Option<&'a core_ir::Type> {
+    match ty {
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => items
+            .iter()
+            .filter_map(primary_structural_or_concrete_type)
+            .find(|item| *item != expected),
+        core_ir::Type::Var(_) | core_ir::Type::Any | core_ir::Type::Never => None,
+        _ if ty != expected => Some(ty),
+        _ => None,
+    }
 }
 
 struct PrincipalSubstitutionUnifier<'a> {
@@ -1283,12 +1481,12 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
                 continue;
             };
             for associated in requirement.args.iter().filter_map(requirement_associated) {
-                self.infer_list_item_associated(&input, associated);
+                self.infer_fold_item_associated(&input, associated);
             }
         }
     }
 
-    fn infer_list_item_associated(
+    fn infer_fold_item_associated(
         &mut self,
         input: &core_ir::Type,
         associated: (&core_ir::Name, &core_ir::TypeBounds),
@@ -1297,7 +1495,7 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
         if name.0 != "item" {
             return;
         }
-        let Some(item) = list_item_type(input) else {
+        let Some(item) = fold_item_type(input) else {
             return;
         };
         if let Some(lower) = &bounds.lower {
@@ -1563,10 +1761,16 @@ fn requirement_associated(
     }
 }
 
-fn list_item_type(ty: &core_ir::Type) -> Option<core_ir::Type> {
+fn fold_item_type(ty: &core_ir::Type) -> Option<core_ir::Type> {
     let core_ir::Type::Named { path, args } = ty else {
         return None;
     };
+    if path.segments.last().is_some_and(|name| name.0 == "range") && args.is_empty() {
+        return Some(core_ir::Type::Named {
+            path: core_ir::Path::from_name(core_ir::Name("int".to_string())),
+            args: Vec::new(),
+        });
+    }
     if !path.segments.last().is_some_and(|name| name.0 == "list") || args.len() != 1 {
         return None;
     }
@@ -1858,6 +2062,19 @@ mod tests {
         }
     }
 
+    fn range() -> core_ir::Type {
+        core_ir::Type::Named {
+            path: core_ir::Path {
+                segments: vec![
+                    core_ir::Name("std".to_string()),
+                    core_ir::Name("range".to_string()),
+                    core_ir::Name("range".to_string()),
+                ],
+            },
+            args: Vec::new(),
+        }
+    }
+
     fn fun(param: core_ir::Type, ret: core_ir::Type) -> core_ir::Type {
         core_ir::Type::Fun {
             param: Box::new(param),
@@ -1980,6 +2197,30 @@ mod tests {
                 (tv("item"), named("int")),
                 (tv("xs"), list(core_ir::TypeArg::Type(named("int")))),
             ]
+        );
+    }
+
+    #[test]
+    fn infers_fold_item_associated_from_range_input() {
+        let params = Box::leak(Box::new(BTreeSet::from([tv("xs"), tv("item")])));
+        let mut unifier = PrincipalSubstitutionUnifier::new(params);
+        unifier.infer_value(&core_ir::Type::Var(tv("xs")), &range());
+        unifier.infer_role_associated_requirements(&[core_ir::RoleRequirement {
+            role: fold_path(),
+            args: vec![
+                core_ir::RoleRequirementArg::Input(core_ir::TypeBounds::exact(core_ir::Type::Var(
+                    tv("xs"),
+                ))),
+                core_ir::RoleRequirementArg::Associated {
+                    name: core_ir::Name("item".to_string()),
+                    bounds: core_ir::TypeBounds::exact(core_ir::Type::Var(tv("item"))),
+                },
+            ],
+        }]);
+
+        assert_eq!(
+            unifier.into_substitutions().collect::<Vec<_>>(),
+            vec![(tv("item"), named("int")), (tv("xs"), range())]
         );
     }
 

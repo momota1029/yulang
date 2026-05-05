@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 
+use crate::diagnostic::ExpectedEdgeId;
+
 use yulang_core_ir as core_ir;
 
 use crate::ast::expr::{
@@ -14,8 +16,8 @@ use crate::solve::role::role_method_info_for_path;
 use crate::symbols::{Name, Path};
 
 use super::complete_principal::{
-    complete_apply_principal_evidence, complete_coerce_principal_evidence,
-    residual_apply_principal_scheme,
+    ApplySlotBounds, ExpectedEdgeEvidence, complete_apply_principal_evidence_from_slot_bounds,
+    complete_coerce_principal_evidence, residual_apply_principal_scheme,
 };
 use super::names::{export_name, export_path};
 use super::paths::collect_canonical_binding_paths;
@@ -30,25 +32,43 @@ pub fn export_expr(
     state: &LowerState,
     expr: &TypedExpr,
     relevant_vars: BTreeSet<core_ir::TypeVar>,
+    edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) -> core_ir::Expr {
-    ExprExporter::new(state, relevant_vars).export_expr(expr)
+    ExprExporter::new(state, relevant_vars, edge_evidence).export_expr(expr)
 }
 
 pub(super) struct ExprExporter<'a> {
     state: &'a LowerState,
     globals: HashMap<DefId, Path>,
     locals: HashMap<DefId, Path>,
+    principal_scheme_cache: HashMap<DefId, Option<core_ir::Scheme>>,
+    principal_callee_scheme_cache: HashMap<TypeVar, Option<core_ir::Scheme>>,
     relevant_vars: BTreeSet<core_ir::TypeVar>,
+    edge_evidence: &'a HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 }
 
 impl<'a> ExprExporter<'a> {
-    pub(super) fn new(state: &'a LowerState, relevant_vars: BTreeSet<core_ir::TypeVar>) -> Self {
+    pub(super) fn new(
+        state: &'a LowerState,
+        relevant_vars: BTreeSet<core_ir::TypeVar>,
+        edge_evidence: &'a HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
+    ) -> Self {
         Self {
             state,
             globals: collect_canonical_binding_paths(state),
             locals: HashMap::new(),
+            principal_scheme_cache: HashMap::new(),
+            principal_callee_scheme_cache: HashMap::new(),
             relevant_vars,
+            edge_evidence,
         }
+    }
+
+    fn lookup_edge_evidence(
+        &self,
+        id: Option<crate::diagnostic::ExpectedEdgeId>,
+    ) -> Option<&ExpectedEdgeEvidence> {
+        self.edge_evidence.get(&id?)
     }
 
     pub(super) fn export_expr(&mut self, expr: &TypedExpr) -> core_ir::Expr {
@@ -346,7 +366,7 @@ impl<'a> ExprExporter<'a> {
     }
 
     fn export_apply_evidence(
-        &self,
+        &mut self,
         callee: &TypedExpr,
         arg: &TypedExpr,
         result: &TypedExpr,
@@ -429,44 +449,46 @@ impl<'a> ExprExporter<'a> {
             && let Some(principal_scheme) = self.principal_callee_scheme(callee)
         {
             evidence.principal_callee = Some(principal_scheme.body.clone());
-            if let Some(principal) = complete_apply_principal_evidence(
+            let slot_bounds = ApplySlotBounds {
+                callee: evidence.callee.clone(),
+                arg: evidence.arg.clone(),
+                result: evidence.result.clone(),
+            };
+            if let Some(principal) = complete_apply_principal_evidence_from_slot_bounds(
                 &self.state.infer,
                 principal_scheme,
-                callee.tv,
                 arg.tv,
                 result.tv,
-                self.expected_edge(callee_source_edge),
-                self.expected_edge(arg_source_edge),
+                &slot_bounds,
+                self.lookup_edge_evidence(callee_source_edge),
+                self.lookup_edge_evidence(arg_source_edge),
             ) {
                 evidence.principal_callee = Some(principal.principal_callee);
                 evidence.substitutions = principal.substitutions;
                 evidence.substitution_candidates = principal.substitution_candidates;
             }
         }
-        if include_principal {
+        if include_principal
+            && export_principal_elaboration_plans_enabled()
+            && principal_elaboration_plan_needed(&evidence)
+        {
             evidence.principal_elaboration =
                 build_principal_elaboration_plan(&evidence, principal_target);
         }
         evidence
     }
 
-    fn expected_edge(
-        &self,
-        id: Option<crate::diagnostic::ExpectedEdgeId>,
-    ) -> Option<&crate::diagnostic::ExpectedEdge> {
-        let id = id?;
-        self.state.expected_edges.iter().find(|edge| edge.id == id)
-    }
-
-    fn principal_callee_scheme(&self, expr: &TypedExpr) -> Option<core_ir::Scheme> {
-        let def = match &expr.kind {
-            ExprKind::Var(def) => Some(canonical_runtime_export_def(self.state, *def)),
-            ExprKind::Ref(ref_id) => self
-                .state
-                .ctx
-                .refs
-                .get(*ref_id)
-                .map(|def| canonical_runtime_export_def(self.state, def)),
+    fn principal_callee_scheme(&mut self, expr: &TypedExpr) -> Option<core_ir::Scheme> {
+        if let Some(cached) = self.principal_callee_scheme_cache.get(&expr.tv) {
+            return cached.clone();
+        }
+        let scheme = match &expr.kind {
+            ExprKind::Var(def) => {
+                self.intern_principal_scheme_for_def(canonical_runtime_export_def(self.state, *def))
+            }
+            ExprKind::Ref(ref_id) => self.state.ctx.refs.get(*ref_id).and_then(|def| {
+                self.intern_principal_scheme_for_def(canonical_runtime_export_def(self.state, def))
+            }),
             ExprKind::App {
                 callee: app_callee,
                 arg,
@@ -475,17 +497,19 @@ impl<'a> ExprExporter<'a> {
                 ..
             } => {
                 let scheme = self.principal_callee_scheme(app_callee)?;
-                return residual_apply_principal_scheme(
+                residual_apply_principal_scheme(
                     &self.state.infer,
                     &scheme,
                     app_callee.tv,
                     arg.tv,
                     expr.tv,
-                );
+                )
             }
             _ => None,
         }?;
-        self.principal_scheme_for_def(def)
+        self.principal_callee_scheme_cache
+            .insert(expr.tv, Some(scheme.clone()));
+        Some(scheme)
     }
 
     fn principal_callee_target(&self, expr: &TypedExpr) -> Option<core_ir::Path> {
@@ -969,17 +993,17 @@ impl<'a> ExprExporter<'a> {
                     return None;
                 };
                 let def = canonical_runtime_export_def(self.state, def);
-                let mut concrete_callee_type =
-                    self.principal_scheme_for_def(def).map(|scheme| scheme.body);
+                let mut concrete_callee_type = self
+                    .intern_principal_scheme_for_def(def)
+                    .map(|scheme| scheme.body);
                 let mut out = core_ir::Expr::Var(self.path_for_def(def));
                 let _ = concrete_callee_type
                     .as_mut()
                     .and_then(take_rewritten_apply_slot_evidence);
-                out = core_ir::Expr::Apply {
-                    callee: Box::new(out),
-                    arg: Box::new(self.export_expr(recv)),
-                    evidence: None,
-                };
+                let slot = concrete_callee_type
+                    .as_mut()
+                    .and_then(take_rewritten_apply_slot_evidence);
+                out = self.export_synthetic_selected_apply(out, def, recv, head, slot);
                 for app in apps {
                     let slot = concrete_callee_type
                         .as_mut()
@@ -995,7 +1019,7 @@ impl<'a> ExprExporter<'a> {
                         .unwrap_or(resolved);
                     let resolved = canonical_runtime_export_def(self.state, resolved);
                     let mut concrete_callee_type = self
-                        .principal_scheme_for_def(resolved)
+                        .intern_principal_scheme_for_def(resolved)
                         .map(|scheme| scheme.body);
                     let mut out = core_ir::Expr::Var(self.path_for_def(resolved));
                     for app in apps {
@@ -1054,8 +1078,75 @@ impl<'a> ExprExporter<'a> {
         }
     }
 
+    fn export_synthetic_selected_apply(
+        &mut self,
+        callee_expr: core_ir::Expr,
+        def: DefId,
+        recv: &TypedExpr,
+        result: &TypedExpr,
+        concrete_slot: Option<RewrittenApplySlotEvidence>,
+    ) -> core_ir::Expr {
+        let principal_scheme = self.intern_principal_scheme_for_def(def);
+        let principal_callee = principal_scheme.as_ref().map(|scheme| scheme.body.clone());
+        let mut evidence = core_ir::ApplyEvidence {
+            callee_source_edge: None,
+            arg_source_edge: None,
+            callee: principal_callee
+                .clone()
+                .map(core_ir::TypeBounds::exact)
+                .unwrap_or_default(),
+            expected_callee: None,
+            arg: export_relevant_type_bounds_for_tv(
+                &self.state.infer,
+                recv.tv,
+                &self.relevant_vars,
+            ),
+            expected_arg: None,
+            result: export_relevant_type_bounds_for_tv(
+                &self.state.infer,
+                result.tv,
+                &self.relevant_vars,
+            ),
+            principal_callee,
+            substitutions: Vec::new(),
+            substitution_candidates: Vec::new(),
+            role_method: false,
+            principal_elaboration: None,
+        };
+        if let Some(slot) = concrete_slot {
+            apply_rewritten_slot_evidence(&mut evidence, slot);
+        }
+        if export_apply_substitutions_enabled()
+            && let Some(principal_scheme) = principal_scheme
+        {
+            let slot_bounds = ApplySlotBounds {
+                callee: evidence.callee.clone(),
+                arg: evidence.arg.clone(),
+                result: evidence.result.clone(),
+            };
+            if let Some(principal) = complete_apply_principal_evidence_from_slot_bounds(
+                &self.state.infer,
+                principal_scheme,
+                recv.tv,
+                result.tv,
+                &slot_bounds,
+                None,
+                None,
+            ) {
+                evidence.principal_callee = Some(principal.principal_callee);
+                evidence.substitutions = principal.substitutions;
+                evidence.substitution_candidates = principal.substitution_candidates;
+            }
+        }
+        core_ir::Expr::Apply {
+            callee: Box::new(callee_expr),
+            arg: Box::new(self.export_expr(recv)),
+            evidence: Some(evidence),
+        }
+    }
+
     fn rewritten_apply_evidence(
-        &self,
+        &mut self,
         callee: &TypedExpr,
         arg: &TypedExpr,
         app: &TypedExpr,
@@ -1100,8 +1191,12 @@ impl<'a> ExprExporter<'a> {
             .resolve_concrete_role_method_call_def(&info, Some(recv.tv), &[])
     }
 
-    fn principal_scheme_for_def(&self, def: DefId) -> Option<core_ir::Scheme> {
-        self.state
+    fn intern_principal_scheme_for_def(&mut self, def: DefId) -> Option<core_ir::Scheme> {
+        if let Some(cached) = self.principal_scheme_cache.get(&def) {
+            return cached.clone();
+        }
+        let scheme = self
+            .state
             .runtime_export_schemes
             .get(&def)
             .cloned()
@@ -1110,7 +1205,9 @@ impl<'a> ExprExporter<'a> {
                     let constraints = self.state.infer.compact_role_constraints_of(def);
                     export_scheme(&self.state.infer, &scheme, &constraints)
                 })
-            })
+            });
+        self.principal_scheme_cache.insert(def, scheme.clone());
+        scheme
     }
 
     fn is_role_method_callee(&self, expr: &TypedExpr) -> bool {
@@ -1289,6 +1386,21 @@ fn build_principal_elaboration_plan(
     })
 }
 
+fn principal_elaboration_plan_needed(evidence: &core_ir::ApplyEvidence) -> bool {
+    if evidence.role_method
+        || !evidence.substitutions.is_empty()
+        || !evidence.substitution_candidates.is_empty()
+    {
+        return true;
+    }
+    let Some(principal_callee) = &evidence.principal_callee else {
+        return false;
+    };
+    let mut vars = BTreeSet::new();
+    collect_core_type_vars(principal_callee, &mut vars);
+    !vars.is_empty()
+}
+
 fn type_bounds_empty(bounds: &core_ir::TypeBounds) -> bool {
     bounds.lower.is_none() && bounds.upper.is_none()
 }
@@ -1340,6 +1452,11 @@ fn export_apply_substitutions_enabled() -> bool {
     std::env::var_os("YULANG_EXPORT_APPLY_SUBSTITUTIONS").is_some()
         || std::env::var_os("YULANG_SUBST_SPECIALIZE").is_some()
         || std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_some()
+}
+
+fn export_principal_elaboration_plans_enabled() -> bool {
+    std::env::var_os("YULANG_EXPORT_PRINCIPAL_ELABORATION_PLANS").is_some()
+        || std::env::var_os("YULANG_DEBUG_PRINCIPAL_ELABORATE").is_some()
 }
 
 fn export_rewritten_apply_slot_evidence_enabled() -> bool {

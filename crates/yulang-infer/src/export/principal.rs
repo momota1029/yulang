@@ -1,10 +1,10 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use yulang_core_ir as core_ir;
 
 use super::complete_principal::{
-    collect_derived_expected_edge_evidence, collect_expected_adapter_edge_evidence,
-    collect_expected_edge_evidence,
+    ExpectedEdgeEvidence, collect_expected_adapter_edge_evidence, collect_expected_edge_evidence,
+    derive_all_expected_edge_evidence,
 };
 use super::expr::export_expr;
 use super::names::{export_path, path_key};
@@ -17,6 +17,7 @@ use super::types::{
     export_scheme_body, export_scheme_body_type_vars, export_type_bounds_for_tv,
 };
 use crate::ast::expr::{CatchArmKind, ExprKind, TypedBlock, TypedExpr, TypedStmt};
+use crate::diagnostic::ExpectedEdgeId;
 use crate::ids::DefId;
 use crate::lower::LowerState;
 use crate::simplify::compact::compact_type_var;
@@ -24,6 +25,8 @@ use crate::simplify::cooccur::coalesce_by_co_occurrence;
 use crate::symbols::Path;
 
 pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
+    let t0 = std::time::Instant::now();
+    let export_timing = std::env::var_os("YULANG_EXPORT_TIMING").is_some();
     state.refresh_selection_environment();
     let binding_paths = state.ctx.collect_all_binding_paths();
     let target_defs = collect_export_target_defs(state, &binding_paths);
@@ -34,13 +37,89 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
         .filter(|(_, def)| target_defs.contains(def))
         .cloned()
         .collect::<Vec<_>>();
-    let root_exprs = export_root_exprs(state);
-    let mut bindings = export_bindings_for_paths(state, &selected_paths, &root_exprs);
+    if export_timing {
+        eprintln!(
+            "  export: setup={:.3}ms",
+            t0.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+    let t1 = std::time::Instant::now();
+    let expected_edge_evidence = collect_expected_edge_evidence(state);
+    if export_timing {
+        eprintln!(
+            "  export: collect_edge_evidence={:.3}ms edges={}",
+            t1.elapsed().as_secs_f64() * 1000.0,
+            expected_edge_evidence.len()
+        );
+    }
+    let edge_evidence_cache: HashMap<ExpectedEdgeId, ExpectedEdgeEvidence> = expected_edge_evidence
+        .iter()
+        .cloned()
+        .map(|e| (e.id, e))
+        .collect();
+    let t2 = std::time::Instant::now();
+    let root_exprs = export_root_exprs(state, &edge_evidence_cache);
+    if export_timing {
+        eprintln!(
+            "  export: root_exprs={:.3}ms",
+            t2.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+    let t3 = std::time::Instant::now();
+    let mut bindings =
+        export_bindings_for_paths(state, &selected_paths, &root_exprs, &edge_evidence_cache);
+    if export_timing {
+        eprintln!(
+            "  export: bindings={:.3}ms count={}",
+            t3.elapsed().as_secs_f64() * 1000.0,
+            bindings.len()
+        );
+    }
+    let t4 = std::time::Instant::now();
     refine_runtime_binding_scheme_bodies(state, &selected_paths, &mut bindings);
+    if export_timing {
+        eprintln!(
+            "  export: refine_schemes={:.3}ms",
+            t4.elapsed().as_secs_f64() * 1000.0
+        );
+    }
     let roots = (0..root_exprs.len())
         .map(core_ir::PrincipalRoot::Expr)
         .collect();
+    let t5 = std::time::Instant::now();
     let graph = export_type_graph_view_for_paths(state, &selected_paths, &bindings);
+    if export_timing {
+        eprintln!(
+            "  export: type_graph={:.3}ms",
+            t5.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+    let t6 = std::time::Instant::now();
+    let export_debug_evidence = export_debug_principal_evidence_enabled();
+    let derived_edges = if export_debug_evidence {
+        derive_all_expected_edge_evidence(&expected_edge_evidence)
+    } else {
+        Vec::new()
+    };
+    let adapter_edges = if export_debug_evidence {
+        collect_expected_adapter_edge_evidence(state)
+    } else {
+        Vec::new()
+    };
+    if export_timing {
+        eprintln!(
+            "  export: derived_edges={:.3}ms count={} adapter_edges={}",
+            t6.elapsed().as_secs_f64() * 1000.0,
+            derived_edges.len(),
+            adapter_edges.len()
+        );
+    }
+    if export_timing {
+        eprintln!(
+            "  export: total={:.3}ms",
+            t0.elapsed().as_secs_f64() * 1000.0
+        );
+    }
     core_ir::CoreProgram {
         program: core_ir::PrincipalModule {
             path: core_ir::Path::default(),
@@ -50,20 +129,26 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
         },
         graph,
         evidence: core_ir::PrincipalEvidence {
-            expected_edges: collect_expected_edge_evidence(state)
+            expected_edges: expected_edge_evidence
                 .into_iter()
                 .map(export_expected_edge_evidence)
                 .collect(),
-            expected_adapter_edges: collect_expected_adapter_edge_evidence(state)
+            expected_adapter_edges: adapter_edges
                 .into_iter()
                 .map(export_expected_adapter_edge_evidence)
                 .collect(),
-            derived_expected_edges: collect_derived_expected_edge_evidence(state)
+            derived_expected_edges: derived_edges
                 .into_iter()
                 .map(export_derived_expected_edge_evidence)
                 .collect(),
         },
     }
+}
+
+fn export_debug_principal_evidence_enabled() -> bool {
+    std::env::var_os("YULANG_PRINCIPAL_ELABORATE").is_none()
+        || std::env::var_os("YULANG_EXPORT_DEBUG_EVIDENCE").is_some()
+        || std::env::var_os("YULANG_VERBOSE_IR").is_some()
 }
 
 fn export_expected_edge_evidence(
@@ -276,10 +361,11 @@ pub fn export_principal_module(state: &mut LowerState) -> core_ir::PrincipalModu
     target_defs.extend(state.top_level_expr_owners.iter().copied());
     state.finalize_compact_results_for_defs(&target_defs);
     state.refresh_selection_environment();
-    let root_exprs = export_root_exprs(state);
+    let edge_evidence = build_edge_evidence_cache(state);
+    let root_exprs = export_root_exprs(state, &edge_evidence);
     core_ir::PrincipalModule {
         path: core_ir::Path::default(),
-        bindings: export_bindings_for_paths(state, &paths, &root_exprs),
+        bindings: export_bindings_for_paths(state, &paths, &root_exprs, &edge_evidence),
         roots: (0..root_exprs.len())
             .map(core_ir::PrincipalRoot::Expr)
             .collect(),
@@ -294,7 +380,15 @@ pub fn export_principal_bindings(state: &mut LowerState) -> Vec<core_ir::Princip
     target_defs.extend(state.top_level_expr_owners.iter().copied());
     state.finalize_compact_results_for_defs(&target_defs);
     state.refresh_selection_environment();
-    export_bindings_for_paths(state, &paths, &[])
+    let edge_evidence = build_edge_evidence_cache(state);
+    export_bindings_for_paths(state, &paths, &[], &edge_evidence)
+}
+
+fn build_edge_evidence_cache(state: &LowerState) -> HashMap<ExpectedEdgeId, ExpectedEdgeEvidence> {
+    collect_expected_edge_evidence(state)
+        .into_iter()
+        .map(|e| (e.id, e))
+        .collect()
 }
 
 fn collect_user_observable_binding_paths(state: &LowerState) -> Vec<(Path, DefId)> {
@@ -327,14 +421,15 @@ fn export_bindings_for_paths(
     state: &mut LowerState,
     paths: &[(Path, DefId)],
     extra_exprs: &[core_ir::Expr],
+    edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) -> Vec<core_ir::PrincipalBinding> {
     let canonical = collect_canonical_binding_paths(state);
     let mut bindings = canonical
         .into_iter()
         .filter(|(def, _)| paths.iter().any(|(_, path_def)| path_def == def))
-        .filter_map(|(def, path)| export_principal_binding(state, &path, def))
+        .filter_map(|(def, path)| export_principal_binding(state, &path, def, edge_evidence))
         .collect::<Vec<_>>();
-    complete_referenced_binding_closure(state, &mut bindings, extra_exprs);
+    complete_referenced_binding_closure(state, &mut bindings, extra_exprs, edge_evidence);
     bindings.sort_by(|lhs, rhs| lhs.name.segments.cmp(&rhs.name.segments));
     dedup_bindings_by_runtime_path(&mut bindings);
     bindings
@@ -456,6 +551,7 @@ pub(crate) fn export_principal_binding(
     state: &LowerState,
     path: &Path,
     def: DefId,
+    edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) -> Option<core_ir::PrincipalBinding> {
     let body = state.principal_bodies.get(&def)?;
     if let Some(scheme) = state.runtime_export_schemes.get(&def) {
@@ -463,7 +559,7 @@ pub(crate) fn export_principal_binding(
         return Some(core_ir::PrincipalBinding {
             name: export_path(path),
             scheme: scheme.clone(),
-            body: export_expr(state, body, relevant_vars),
+            body: export_expr(state, body, relevant_vars, edge_evidence),
         });
     }
     let frozen_scheme = state.infer.frozen_schemes.borrow().get(&def).cloned();
@@ -521,7 +617,7 @@ pub(crate) fn export_principal_binding(
     Some(core_ir::PrincipalBinding {
         name: export_path(path),
         scheme,
-        body: export_expr(state, body, relevant_vars),
+        body: export_expr(state, body, relevant_vars, edge_evidence),
     })
 }
 
@@ -755,13 +851,16 @@ fn _path_key(path: &Path) -> String {
     path_key(path)
 }
 
-fn export_root_exprs(state: &LowerState) -> Vec<core_ir::Expr> {
-    let owner_roots = export_owner_root_exprs(state);
+fn export_root_exprs(
+    state: &LowerState,
+    edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
+) -> Vec<core_ir::Expr> {
+    let owner_roots = export_owner_root_exprs(state, edge_evidence);
     if !owner_roots.is_empty() {
         return owner_roots;
     }
 
-    let mut exporter = super::expr::ExprExporter::new(state, BTreeSet::new());
+    let mut exporter = super::expr::ExprExporter::new(state, BTreeSet::new(), edge_evidence);
     let mut roots = Vec::new();
     for (path, block) in &state.top_level_blocks {
         if !path.segments.is_empty() {
@@ -779,13 +878,16 @@ fn export_root_exprs(state: &LowerState) -> Vec<core_ir::Expr> {
     roots
 }
 
-fn export_owner_root_exprs(state: &LowerState) -> Vec<core_ir::Expr> {
+fn export_owner_root_exprs(
+    state: &LowerState,
+    edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
+) -> Vec<core_ir::Expr> {
     let mut roots = Vec::new();
     for owner in &state.top_level_expr_owners {
         let Some(body) = state.principal_bodies.get(owner) else {
             continue;
         };
-        let mut exporter = super::expr::ExprExporter::new(state, BTreeSet::new());
+        let mut exporter = super::expr::ExprExporter::new(state, BTreeSet::new(), edge_evidence);
         roots.push(exporter.export_expr(body));
     }
     roots
