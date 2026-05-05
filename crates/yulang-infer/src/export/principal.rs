@@ -20,12 +20,13 @@ use crate::ast::expr::{CatchArmKind, ExprKind, TypedBlock, TypedExpr, TypedStmt}
 use crate::diagnostic::ExpectedEdgeId;
 use crate::ids::DefId;
 use crate::lower::LowerState;
+use crate::profile::ProfileClock;
 use crate::simplify::compact::compact_type_var;
 use crate::simplify::cooccur::coalesce_by_co_occurrence;
 use crate::symbols::Path;
 
 pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
-    let t0 = std::time::Instant::now();
+    let t0 = ProfileClock::now();
     let export_timing = std::env::var_os("YULANG_EXPORT_TIMING").is_some();
     state.refresh_selection_environment();
     let binding_paths = state.ctx.collect_all_binding_paths();
@@ -43,7 +44,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
             t0.elapsed().as_secs_f64() * 1000.0
         );
     }
-    let t1 = std::time::Instant::now();
+    let t1 = ProfileClock::now();
     let expected_edge_evidence = collect_expected_edge_evidence(state);
     if export_timing {
         eprintln!(
@@ -57,7 +58,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
         .cloned()
         .map(|e| (e.id, e))
         .collect();
-    let t2 = std::time::Instant::now();
+    let t2 = ProfileClock::now();
     let root_exprs = export_root_exprs(state, &edge_evidence_cache);
     if export_timing {
         eprintln!(
@@ -65,7 +66,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
             t2.elapsed().as_secs_f64() * 1000.0
         );
     }
-    let t3 = std::time::Instant::now();
+    let t3 = ProfileClock::now();
     let mut bindings =
         export_bindings_for_paths(state, &selected_paths, &root_exprs, &edge_evidence_cache);
     if export_timing {
@@ -75,7 +76,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
             bindings.len()
         );
     }
-    let t4 = std::time::Instant::now();
+    let t4 = ProfileClock::now();
     refine_runtime_binding_scheme_bodies(state, &selected_paths, &mut bindings);
     if export_timing {
         eprintln!(
@@ -86,7 +87,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
     let roots = (0..root_exprs.len())
         .map(core_ir::PrincipalRoot::Expr)
         .collect();
-    let t5 = std::time::Instant::now();
+    let t5 = ProfileClock::now();
     let graph = export_type_graph_view_for_paths(state, &selected_paths, &bindings);
     if export_timing {
         eprintln!(
@@ -94,7 +95,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
             t5.elapsed().as_secs_f64() * 1000.0
         );
     }
-    let t6 = std::time::Instant::now();
+    let t6 = ProfileClock::now();
     let export_debug_evidence = export_debug_principal_evidence_enabled();
     let derived_edges = if export_debug_evidence {
         derive_all_expected_edge_evidence(&expected_edge_evidence)
