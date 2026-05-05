@@ -16,6 +16,7 @@ pub(super) fn principal_elaborate_module_profiled(
     // elaboration evidence, not infer substitutions from runtime IR shapes.
     let (module, mut profile) = principal_unify_module_profiled(module);
     if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some() {
+        let module = prune_unreachable_bindings(module);
         return (module, profile);
     }
     let (module, fallback_profile) = substitute_specialize_module_profiled(module);
@@ -35,9 +36,11 @@ fn merge_principal_elaborate_fallback_profile(
 }
 
 pub(super) fn principal_elaborate_strict_failure(module: &Module) -> Option<String> {
+    let reachable = root_reachable_binding_paths(module);
     let generic_bindings = module
         .bindings
         .iter()
+        .filter(|binding| reachable.contains(&binding.name))
         .filter(|binding| !principal_binding_substitution_vars(binding).is_empty())
         .map(|binding| (binding.name.clone(), binding))
         .collect::<HashMap<_, _>>();
@@ -49,7 +52,11 @@ pub(super) fn principal_elaborate_strict_failure(module: &Module) -> Option<Stri
     for expr in &module.root_exprs {
         collect_principal_elaboration_failures(expr, None, &generic_bindings, &mut failures);
     }
-    for binding in &module.bindings {
+    for binding in module
+        .bindings
+        .iter()
+        .filter(|binding| reachable.contains(&binding.name))
+    {
         collect_principal_elaboration_failures(
             &binding.body,
             None,

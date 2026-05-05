@@ -230,6 +230,15 @@ impl PrincipalUnifier {
                 {
                     return rewritten;
                 }
+                if let Some(spine) = principal_unify_apply_spine(&original_apply)
+                    && self.generic_bindings.contains_key(spine.target)
+                    && full_spine_pre_rewrite_allowed(spine.target)
+                    && self.spine_is_full_generic_call(&spine)
+                    && let Some(rewritten) = self
+                        .rewrite_apply_from_principal_plan(&original_apply, result_context.as_ref())
+                {
+                    return adapt_apply_result_from_evidence(rewritten, result_context.as_ref());
+                }
                 let callee_context = evidence
                     .as_ref()
                     .and_then(|evidence| evidence.expected_callee.clone());
@@ -242,8 +251,12 @@ impl PrincipalUnifier {
                 let callee_param_slot = runtime_function_param_slot(&callee.ty)
                     .or_else(|| forced_callee_function_param_slot(&callee));
                 let arg_context = match (evidence_param_effect, callee_param_slot) {
-                    (Some(effect), _) if !effect_is_empty(&effect) => None,
-                    (_, Some((_param, effect))) if !effect_is_empty(&effect) => None,
+                    (Some(effect), _) if principal_param_effect_requires_thunk(&effect) => None,
+                    (_, Some((_param, effect)))
+                        if principal_param_effect_requires_thunk(&effect) =>
+                    {
+                        None
+                    }
                     (_, Some((param, _effect))) => Some(core_ir::TypeBounds::exact(param)),
                     (None, None)
                         if closed_type_from_bounds(evidence_arg_context.as_ref()).is_some() =>
@@ -865,12 +878,23 @@ impl PrincipalUnifier {
         else {
             return None;
         };
-        if !args_fit_without_adapter(&spine.args, &params) {
+        let rewritten_args = spine
+            .args
+            .iter()
+            .zip(&params)
+            .map(|(arg, (param, _param_effect))| {
+                self.rewrite_expr(
+                    (*arg).clone(),
+                    Some(core_ir::TypeBounds::exact(param.clone())),
+                )
+            })
+            .collect::<Vec<_>>();
+        if !owned_args_fit_without_adapter(&rewritten_args, &params) {
             return None;
         }
         self.bump("principal-unify-recursive-rewrite");
         debug_principal_unify_rewrite(spine.target, &active.path);
-        rebuild_apply_call(active.path, callee_ty, &spine.args, final_ty)
+        rebuild_apply_call_owned(active.path, callee_ty, rewritten_args, final_ty)
     }
 
     fn rewrite_single_emitted_specialized_call(
@@ -914,6 +938,12 @@ impl PrincipalUnifier {
         self.bump("principal-unify-single-specialization-rewrite");
         debug_principal_unify_rewrite(spine.target, &specialized);
         rebuild_apply_call_owned(specialized, callee_ty, rewritten_args, final_ty)
+    }
+
+    fn spine_is_full_generic_call(&self, spine: &PrincipalUnifyApplySpine<'_>) -> bool {
+        self.generic_bindings
+            .get(spine.target)
+            .is_some_and(|binding| spine.args.len() == core_fun_arity(&binding.scheme.body))
     }
 
     fn rewrite_non_generic_effect_context_call(
@@ -1421,6 +1451,10 @@ fn single_emitted_specialization_reuse_allowed(path: &core_ir::Path) -> bool {
         || path_ends_with(path, &["std", "var", "ref"])
         || path_ends_with(path, &["std", "var", "ref", "get"])
         || path_ends_with(path, &["std", "var", "ref", "update_effect"])
+}
+
+fn full_spine_pre_rewrite_allowed(path: &core_ir::Path) -> bool {
+    path_ends_with(path, &["std", "list", "fold_impl"])
 }
 
 fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
@@ -2020,8 +2054,9 @@ fn principal_arg_adapter(
     {
         return Some(arg.clone());
     }
-    match (&arg.ty, effect_is_empty(param_effect)) {
-        (RuntimeType::Thunk { effect, value }, true) if !effect_is_empty(effect) => {
+    let param_requires_thunk = principal_param_effect_requires_thunk(param_effect);
+    match (&arg.ty, param_requires_thunk) {
+        (RuntimeType::Thunk { effect, value }, false) if !effect_is_empty(effect) => {
             Some(Expr::typed(
                 ExprKind::BindHere {
                     expr: Box::new(arg.clone()),
@@ -2034,7 +2069,7 @@ fn principal_arg_adapter(
                 effect: actual_effect,
                 value,
             },
-            false,
+            true,
         ) if expr_materializes_runtime_thunk(arg) => {
             if actual_effect == param_effect {
                 return Some(arg.clone());
@@ -2051,7 +2086,7 @@ fn principal_arg_adapter(
                 _ => Some(arg.clone()),
             }
         }
-        (RuntimeType::Thunk { effect, value }, false) => Some(Expr::typed(
+        (RuntimeType::Thunk { effect, value }, true) => Some(Expr::typed(
             ExprKind::Thunk {
                 effect: effect.clone(),
                 value: value.as_ref().clone(),
@@ -2059,7 +2094,7 @@ fn principal_arg_adapter(
             },
             arg.ty.clone(),
         )),
-        (_, false) => {
+        (_, true) => {
             let value = arg.ty.clone();
             Some(Expr::typed(
                 ExprKind::Thunk {
@@ -2070,8 +2105,12 @@ fn principal_arg_adapter(
                 RuntimeType::thunk(param_effect.clone(), value),
             ))
         }
-        (_, true) => Some(arg.clone()),
+        (_, false) => Some(arg.clone()),
     }
+}
+
+fn principal_param_effect_requires_thunk(effect: &core_ir::Type) -> bool {
+    !effect_is_empty(effect) && !effect_paths(effect).is_empty()
 }
 
 fn erased_param_should_preserve_thunk_arg(arg: &Expr) -> bool {
@@ -3518,6 +3557,44 @@ mod tests {
         let adapted = principal_arg_adapter(&arg, &bool_ty, &effect).expect("adapter");
 
         assert!(matches!(adapted.kind, ExprKind::Thunk { .. }));
+    }
+
+    #[test]
+    fn erased_effect_param_does_not_thunk_value_argument() {
+        let bool_ty = named("bool");
+        let arg = Expr::typed(
+            ExprKind::Lit(core_ir::Lit::Bool(true)),
+            RuntimeType::core(bool_ty.clone()),
+        );
+
+        let adapted = principal_arg_adapter(&arg, &bool_ty, &core_ir::Type::Any).expect("adapter");
+
+        assert!(matches!(
+            adapted.kind,
+            ExprKind::Lit(core_ir::Lit::Bool(true))
+        ));
+        assert_eq!(adapted.ty, RuntimeType::core(bool_ty));
+    }
+
+    #[test]
+    fn erased_row_effect_param_does_not_thunk_value_argument() {
+        let bool_ty = named("bool");
+        let effect = core_ir::Type::Row {
+            items: Vec::new(),
+            tail: Box::new(core_ir::Type::Any),
+        };
+        let arg = Expr::typed(
+            ExprKind::Lit(core_ir::Lit::Bool(true)),
+            RuntimeType::core(bool_ty.clone()),
+        );
+
+        let adapted = principal_arg_adapter(&arg, &bool_ty, &effect).expect("adapter");
+
+        assert!(matches!(
+            adapted.kind,
+            ExprKind::Lit(core_ir::Lit::Bool(true))
+        ));
+        assert_eq!(adapted.ty, RuntimeType::core(bool_ty));
     }
 
     #[test]

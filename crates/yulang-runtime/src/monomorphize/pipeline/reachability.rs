@@ -38,6 +38,10 @@ pub(super) fn final_reachable_binding_paths(module: &Module) -> HashSet<core_ir:
         .collect()
 }
 
+pub(super) fn root_reachable_binding_paths(module: &Module) -> HashSet<core_ir::Path> {
+    reachable_expr_binding_paths(&module.bindings, &module.root_exprs, &[])
+}
+
 pub(super) fn prune_unreachable_bindings(module: Module) -> Module {
     let reachable =
         reachable_expr_binding_paths(&module.bindings, &module.root_exprs, &module.roots);
