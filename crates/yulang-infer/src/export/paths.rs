@@ -42,23 +42,20 @@ pub(crate) fn complete_referenced_binding_closure(
         .iter()
         .map(|binding| binding.name.clone())
         .collect::<HashSet<_>>();
-    loop {
-        let mut referenced = HashSet::new();
-        for expr in extra_exprs {
-            collect_expr_binding_refs(expr, &mut referenced);
-        }
-        for binding in bindings.iter() {
-            collect_expr_binding_refs(&binding.body, &mut referenced);
-        }
-        let missing = referenced
-            .into_iter()
-            .filter(|path| !exported.contains(path))
-            .collect::<Vec<_>>();
-        if missing.is_empty() {
-            break;
-        }
+    let mut pending_refs = HashSet::new();
+    for expr in extra_exprs {
+        collect_expr_binding_refs(expr, &mut pending_refs);
+    }
+    for binding in bindings.iter() {
+        collect_expr_binding_refs(&binding.body, &mut pending_refs);
+    }
+    while !pending_refs.is_empty() {
+        let pending = std::mem::take(&mut pending_refs);
         let mut changed = false;
-        for path in missing {
+        for path in pending {
+            if exported.contains(&path) {
+                continue;
+            }
             let Some((source_path, def)) = all_paths.get(&path).cloned() else {
                 continue;
             };
@@ -67,6 +64,7 @@ pub(crate) fn complete_referenced_binding_closure(
                 continue;
             };
             if exported.insert(binding.name.clone()) {
+                collect_expr_binding_refs(&binding.body, &mut pending_refs);
                 bindings.push(binding);
                 changed = true;
             }
