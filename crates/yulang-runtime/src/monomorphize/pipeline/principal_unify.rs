@@ -234,6 +234,7 @@ impl PrincipalUnifier {
                     .as_ref()
                     .and_then(|evidence| evidence.expected_callee.clone());
                 let callee = self.rewrite_expr(*callee, callee_context);
+                let callee = force_rebuilt_thunked_function_callee(callee);
                 let evidence_arg_context = evidence
                     .as_ref()
                     .and_then(|evidence| evidence.expected_arg.clone());
@@ -630,6 +631,9 @@ impl PrincipalUnifier {
             plan.incomplete_reasons.clear();
         }
         if !plan.complete {
+            if let Some(expr) = self.rewrite_single_emitted_specialized_call(&spine, &expr.ty) {
+                return Some(expr);
+            }
             self.bump_skip(spine.target, "incomplete-principal-elaboration-plan");
             let substitutions = plan_substitution_map(&plan);
             self.bump_missing_vars(spine.target, &original, &substitutions);
@@ -867,6 +871,49 @@ impl PrincipalUnifier {
         self.bump("principal-unify-recursive-rewrite");
         debug_principal_unify_rewrite(spine.target, &active.path);
         rebuild_apply_call(active.path, callee_ty, &spine.args, final_ty)
+    }
+
+    fn rewrite_single_emitted_specialized_call(
+        &mut self,
+        spine: &PrincipalUnifyApplySpine<'_>,
+        final_ty: &RuntimeType,
+    ) -> Option<Expr> {
+        if !single_emitted_specialization_reuse_allowed(spine.target) {
+            return None;
+        }
+        let original = self.generic_bindings.get(spine.target)?;
+        if spine.args.len() != core_fun_arity(&original.scheme.body) {
+            return None;
+        }
+        let (specialized, _ty) = self.single_emitted_specialization(spine.target)?;
+        let binding = self
+            .emitted
+            .iter()
+            .find(|binding| binding.name == specialized)
+            .cloned()?;
+        let callee_ty = binding.scheme.body.clone();
+        let Some((params, _ret, _ret_effect)) =
+            core_fun_spine_parts_exact(&callee_ty, spine.args.len())
+        else {
+            return None;
+        };
+        let rewritten_args = spine
+            .args
+            .iter()
+            .zip(&params)
+            .map(|(arg, (param, _param_effect))| {
+                self.rewrite_expr(
+                    (*arg).clone(),
+                    Some(core_ir::TypeBounds::exact(param.clone())),
+                )
+            })
+            .collect::<Vec<_>>();
+        if !owned_args_fit_without_adapter(&rewritten_args, &params) {
+            return None;
+        }
+        self.bump("principal-unify-single-specialization-rewrite");
+        debug_principal_unify_rewrite(spine.target, &specialized);
+        rebuild_apply_call_owned(specialized, callee_ty, rewritten_args, final_ty)
     }
 
     fn rewrite_non_generic_effect_context_call(
@@ -1369,6 +1416,23 @@ fn is_local_ref_run_path(path: &core_ir::Path) -> bool {
     name.0 == "run" && namespace.0.starts_with('&')
 }
 
+fn single_emitted_specialization_reuse_allowed(path: &core_ir::Path) -> bool {
+    path_ends_with(path, &["std", "list", "index_raw"])
+        || path_ends_with(path, &["std", "var", "ref"])
+        || path_ends_with(path, &["std", "var", "ref", "get"])
+        || path_ends_with(path, &["std", "var", "ref", "update_effect"])
+}
+
+fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
+    path.segments.len() >= suffix.len()
+        && path
+            .segments
+            .iter()
+            .rev()
+            .zip(suffix.iter().rev())
+            .all(|(segment, expected)| segment.0 == *expected)
+}
+
 fn add_single_specialization_aliases(
     module: &mut Module,
     root_specializations: &HashMap<core_ir::Path, Vec<core_ir::Path>>,
@@ -1631,6 +1695,9 @@ fn rebuild_apply_call_with_final_arg_effect(
     let mut call = Expr::typed(ExprKind::Var(path), RuntimeType::core(callee_ty.clone()));
     let mut current = callee_ty;
     for (index, arg) in args.iter().enumerate() {
+        if index > 0 {
+            call = force_rebuilt_thunked_function_callee(call);
+        }
         let (param, param_effect, next, ret_effect) = core_fun_parts_with_effects_exact(&current)?;
         let param_effect = final_arg_effect
             .filter(|_| index + 1 == args.len() && matches!(arg.ty, RuntimeType::Thunk { .. }))
@@ -1666,6 +1733,9 @@ fn rebuild_apply_call_owned(
     let mut current = callee_ty;
     let arity = args.len();
     for (index, arg) in args.into_iter().enumerate() {
+        if index > 0 {
+            call = force_rebuilt_thunked_function_callee(call);
+        }
         let (param, param_effect, next, ret_effect) = core_fun_parts_with_effects_exact(&current)?;
         let arg = principal_arg_adapter(&arg, &param, &param_effect)?;
         let specialized_ret = runtime_type_from_core_value_and_effect(next.clone(), ret_effect);
@@ -1686,6 +1756,21 @@ fn rebuild_apply_call_owned(
         current = next;
     }
     Some(adapt_rebuilt_result_to_context(call, final_ty))
+}
+
+fn force_rebuilt_thunked_function_callee(call: Expr) -> Expr {
+    let value = match &call.ty {
+        RuntimeType::Thunk { value, .. } if matches!(value.as_ref(), RuntimeType::Fun { .. }) => {
+            value.as_ref().clone()
+        }
+        _ => return call,
+    };
+    Expr::typed(
+        ExprKind::BindHere {
+            expr: Box::new(call),
+        },
+        value,
+    )
 }
 
 fn wrap_non_generic_binding_return_effect(
@@ -2169,6 +2254,16 @@ fn core_fun_spine_parts_exact(
         current = *ret;
     }
     Some((params, current, current_ret_effect))
+}
+
+fn core_fun_arity(ty: &core_ir::Type) -> usize {
+    let mut arity = 0;
+    let mut current = ty;
+    while let core_ir::Type::Fun { ret, .. } = current {
+        arity += 1;
+        current = ret;
+    }
+    arity
 }
 
 fn core_fun_parts_with_effects_exact(
