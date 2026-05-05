@@ -43,9 +43,7 @@ struct ActivePrincipalSpecialization {
 }
 
 #[derive(Debug, Clone)]
-struct CachedIncompletePrincipalPlan {
-    missing_vars: Vec<core_ir::TypeVar>,
-}
+struct CachedIncompletePrincipalPlan;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct IncompletePrincipalPlanKey {
@@ -905,17 +903,14 @@ impl PrincipalUnifier {
             result_context,
             active_context_substitutions.as_ref(),
         );
-        if let Some(cached) = self
+        if self
             .incomplete_plan_cache
-            .get(&incomplete_cache_key)
-            .cloned()
+            .contains_key(&incomplete_cache_key)
         {
             if let Some(expr) = self.rewrite_single_emitted_specialized_call(&spine, &expr.ty) {
                 return Some(expr);
             }
             self.bump("principal-unify-cached-incomplete-plan");
-            self.bump_skip(spine.target, "incomplete-principal-elaboration-plan");
-            self.bump_missing_var_list(spine.target, &cached.missing_vars);
             return None;
         }
         let Some(mut plan) = principal_elaboration_plan_for_expr(expr, &original, result_context)
@@ -1027,10 +1022,8 @@ impl PrincipalUnifier {
             let substitutions = plan_substitution_map(&plan);
             let missing_vars = missing_required_vars(&original, &substitutions);
             self.bump_missing_var_list(spine.target, &missing_vars);
-            self.incomplete_plan_cache.insert(
-                incomplete_cache_key,
-                CachedIncompletePrincipalPlan { missing_vars },
-            );
+            self.incomplete_plan_cache
+                .insert(incomplete_cache_key, CachedIncompletePrincipalPlan);
             return None;
         }
         if plan_has_imprecise_choice_slot_substitutions(&plan, &original) {
