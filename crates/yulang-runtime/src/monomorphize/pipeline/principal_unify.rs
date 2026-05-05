@@ -10,11 +10,16 @@ use crate::types::{
 pub(super) fn principal_unify_module_profiled(
     module: Module,
 ) -> (Module, SubstitutionSpecializeProfile) {
-    PrincipalUnifier::new(module).run()
+    PrincipalUnifier::new(module, true).run()
+}
+
+pub(super) fn principal_unify_module(module: Module) -> Module {
+    PrincipalUnifier::new(module, false).run().0
 }
 
 struct PrincipalUnifier {
     module: Module,
+    collect_profile: bool,
     bindings_by_path: HashMap<core_ir::Path, Binding>,
     generic_bindings: HashSet<core_ir::Path>,
     role_impls: HashMap<core_ir::Name, Vec<Binding>>,
@@ -61,7 +66,7 @@ struct LocalUseContextScope {
 }
 
 impl PrincipalUnifier {
-    fn new(module: Module) -> Self {
+    fn new(module: Module, collect_profile: bool) -> Self {
         let bindings_by_path = module
             .bindings
             .iter()
@@ -78,6 +83,7 @@ impl PrincipalUnifier {
         let initial_reachable_bindings = root_reachable_binding_paths(&module);
         Self {
             module,
+            collect_profile,
             bindings_by_path,
             generic_bindings,
             role_impls,
@@ -202,11 +208,17 @@ impl PrincipalUnifier {
     }
 
     fn bump(&mut self, key: &'static str) {
+        if !self.collect_profile {
+            return;
+        }
         *self.stats.entry(key).or_default() += 1;
     }
 
     fn bump_skip(&mut self, target: &core_ir::Path, reason: &'static str) {
         debug_principal_unify_skip(target, reason);
+        if !self.collect_profile {
+            return;
+        }
         self.bump(reason);
         *self
             .target_skips
@@ -229,6 +241,9 @@ impl PrincipalUnifier {
         binding: &Binding,
         substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
     ) {
+        if !self.collect_profile {
+            return;
+        }
         let entry = self.target_missing_vars.entry(target.clone()).or_default();
         for var in missing_required_vars(binding, substitutions) {
             *entry.entry(var).or_default() += 1;
@@ -236,7 +251,7 @@ impl PrincipalUnifier {
     }
 
     fn bump_missing_var_list(&mut self, target: &core_ir::Path, vars: &[core_ir::TypeVar]) {
-        if vars.is_empty() {
+        if !self.collect_profile || vars.is_empty() {
             return;
         }
         let entry = self.target_missing_vars.entry(target.clone()).or_default();

@@ -297,8 +297,8 @@ fn run_mono_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
     if std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_some() {
         return run_mono_pipeline(module).map(|(module, _profile)| module);
     }
-    let mut module = apply_mono_pass(module, MonoPass::PrincipalElaborate)?.module;
-    module = apply_mono_pass(module, MonoPass::PruneUnreachable)?.module;
+    let mut module = principal_elaborate_module(module);
+    module = prune_unreachable_bindings(module);
     if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
         && let Some(context) = principal_elaborate_strict_failure(&module)
     {

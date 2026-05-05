@@ -3,11 +3,19 @@ use crate::ir::Module;
 use std::collections::{BTreeMap, HashMap};
 
 use super::*;
-use super::{SubstitutionSpecializeProfile, principal_unify_module_profiled};
+use super::{
+    SubstitutionSpecializeProfile, principal_unify_module, principal_unify_module_profiled,
+};
 use crate::types::{
     core_type_contains_unknown, normalize_principal_elaboration_plan_with_requirements,
     runtime_core_type,
 };
+
+pub(super) fn principal_elaborate_module(module: Module) -> Module {
+    // The main path should execute exported principal elaboration evidence,
+    // not infer substitutions from runtime IR shapes.
+    principal_unify_module(module)
+}
 
 pub(super) fn principal_elaborate_module_profiled(
     module: Module,
