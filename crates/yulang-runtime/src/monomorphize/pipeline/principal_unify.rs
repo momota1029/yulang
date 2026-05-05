@@ -230,15 +230,6 @@ impl PrincipalUnifier {
                 {
                     return rewritten;
                 }
-                if let Some(spine) = principal_unify_apply_spine(&original_apply)
-                    && self.generic_bindings.contains_key(spine.target)
-                    && full_spine_pre_rewrite_allowed(spine.target)
-                    && self.spine_is_full_generic_call(&spine)
-                    && let Some(rewritten) = self
-                        .rewrite_apply_from_principal_plan(&original_apply, result_context.as_ref())
-                {
-                    return adapt_apply_result_from_evidence(rewritten, result_context.as_ref());
-                }
                 let callee_context = evidence
                     .as_ref()
                     .and_then(|evidence| evidence.expected_callee.clone());
@@ -286,9 +277,12 @@ impl PrincipalUnifier {
                     },
                 };
                 let expr = adapt_apply_argument_from_callee(expr);
-                let expr = self
-                    .rewrite_apply_from_principal_plan(&expr, result_context.as_ref())
-                    .unwrap_or(expr);
+                let expr = if self.apply_is_ready_for_principal_rewrite(&expr) {
+                    self.rewrite_apply_from_principal_plan(&expr, result_context.as_ref())
+                        .unwrap_or(expr)
+                } else {
+                    expr
+                };
                 return adapt_apply_result_from_evidence(expr, result_context.as_ref());
             }
             ExprKind::Lambda {
@@ -902,9 +896,6 @@ impl PrincipalUnifier {
         spine: &PrincipalUnifyApplySpine<'_>,
         final_ty: &RuntimeType,
     ) -> Option<Expr> {
-        if !single_emitted_specialization_reuse_allowed(spine.target) {
-            return None;
-        }
         let original = self.generic_bindings.get(spine.target)?;
         if spine.args.len() != core_fun_arity(&original.scheme.body) {
             return None;
@@ -916,7 +907,7 @@ impl PrincipalUnifier {
             .find(|binding| binding.name == specialized)
             .cloned()?;
         let callee_ty = binding.scheme.body.clone();
-        let Some((params, _ret, _ret_effect)) =
+        let Some((params, ret, ret_effect)) =
             core_fun_spine_parts_exact(&callee_ty, spine.args.len())
         else {
             return None;
@@ -935,6 +926,14 @@ impl PrincipalUnifier {
         if !owned_args_fit_without_adapter(&rewritten_args, &params) {
             return None;
         }
+        if !runtime_type_has_vars(final_ty) {
+            let (actual_ret, actual_ret_effect) = runtime_value_and_effect(final_ty);
+            if !type_compatible(&actual_ret, &ret)
+                || !type_compatible(&actual_ret_effect, &ret_effect)
+            {
+                return None;
+            }
+        }
         self.bump("principal-unify-single-specialization-rewrite");
         debug_principal_unify_rewrite(spine.target, &specialized);
         rebuild_apply_call_owned(specialized, callee_ty, rewritten_args, final_ty)
@@ -944,6 +943,16 @@ impl PrincipalUnifier {
         self.generic_bindings
             .get(spine.target)
             .is_some_and(|binding| spine.args.len() == core_fun_arity(&binding.scheme.body))
+    }
+
+    fn apply_is_ready_for_principal_rewrite(&self, expr: &Expr) -> bool {
+        let Some(spine) = principal_unify_apply_spine(expr) else {
+            return false;
+        };
+        if self.generic_bindings.contains_key(spine.target) {
+            return self.spine_is_full_generic_call(&spine);
+        }
+        true
     }
 
     fn rewrite_non_generic_effect_context_call(
@@ -1446,27 +1455,6 @@ fn is_local_ref_run_path(path: &core_ir::Path) -> bool {
     name.0 == "run" && namespace.0.starts_with('&')
 }
 
-fn single_emitted_specialization_reuse_allowed(path: &core_ir::Path) -> bool {
-    path_ends_with(path, &["std", "list", "index_raw"])
-        || path_ends_with(path, &["std", "var", "ref"])
-        || path_ends_with(path, &["std", "var", "ref", "get"])
-        || path_ends_with(path, &["std", "var", "ref", "update_effect"])
-}
-
-fn full_spine_pre_rewrite_allowed(path: &core_ir::Path) -> bool {
-    path_ends_with(path, &["std", "list", "fold_impl"])
-}
-
-fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
-    path.segments.len() >= suffix.len()
-        && path
-            .segments
-            .iter()
-            .rev()
-            .zip(suffix.iter().rev())
-            .all(|(segment, expected)| segment.0 == *expected)
-}
-
 fn add_single_specialization_aliases(
     module: &mut Module,
     root_specializations: &HashMap<core_ir::Path, Vec<core_ir::Path>>,
@@ -1726,7 +1714,10 @@ fn rebuild_apply_call_with_final_arg_effect(
     final_ty: &RuntimeType,
     final_arg_effect: Option<&core_ir::Type>,
 ) -> Option<Expr> {
-    let mut call = Expr::typed(ExprKind::Var(path), RuntimeType::core(callee_ty.clone()));
+    let mut call = Expr::typed(
+        ExprKind::Var(path),
+        normalize_hir_function_type(RuntimeType::core(callee_ty.clone())),
+    );
     let mut current = callee_ty;
     for (index, arg) in args.iter().enumerate() {
         if index > 0 {
@@ -1763,7 +1754,10 @@ fn rebuild_apply_call_owned(
     args: Vec<Expr>,
     final_ty: &RuntimeType,
 ) -> Option<Expr> {
-    let mut call = Expr::typed(ExprKind::Var(path), RuntimeType::core(callee_ty.clone()));
+    let mut call = Expr::typed(
+        ExprKind::Var(path),
+        normalize_hir_function_type(RuntimeType::core(callee_ty.clone())),
+    );
     let mut current = callee_ty;
     let arity = args.len();
     for (index, arg) in args.into_iter().enumerate() {
@@ -2032,10 +2026,11 @@ fn runtime_type_from_core_value_and_effect(
     value: core_ir::Type,
     effect: core_ir::Type,
 ) -> RuntimeType {
+    let value = normalize_hir_function_type(RuntimeType::core(value));
     if effect_is_empty(&effect) {
-        RuntimeType::core(value)
+        value
     } else {
-        RuntimeType::thunk(effect, RuntimeType::core(value))
+        RuntimeType::thunk(effect, value)
     }
 }
 

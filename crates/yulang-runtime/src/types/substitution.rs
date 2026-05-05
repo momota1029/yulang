@@ -348,11 +348,11 @@ pub(crate) fn normalize_principal_elaboration_plan_with_requirements(
         );
     }
 
-    let effect_only_vars = principal_elaboration_effect_only_vars(&plan);
+    let never_usable_vars = principal_elaboration_never_usable_vars(&plan);
     let mut substitutions = BTreeMap::new();
     let mut conflicts = BTreeSet::new();
     for substitution in &plan.substitutions {
-        let allow_never = effect_only_vars.contains(&substitution.var);
+        let allow_never = never_usable_vars.contains(&substitution.var);
         if !principal_plan_substitution_type_usable(&substitution.ty, allow_never) {
             continue;
         }
@@ -505,14 +505,14 @@ fn principal_elaboration_required_vars(
     vars
 }
 
-fn principal_elaboration_effect_only_vars(
+fn principal_elaboration_never_usable_vars(
     plan: &core_ir::PrincipalElaborationPlan,
 ) -> BTreeSet<core_ir::TypeVar> {
     let mut usage = BTreeMap::<core_ir::TypeVar, PrincipalVarUsage>::new();
     collect_principal_var_usage(&plan.principal_callee, false, &mut usage);
     usage
         .into_iter()
-        .filter_map(|(var, usage)| usage.effect_only().then_some(var))
+        .filter_map(|(var, usage)| usage.never_usable().then_some(var))
         .collect()
 }
 
@@ -520,6 +520,7 @@ fn principal_elaboration_effect_only_vars(
 struct PrincipalVarUsage {
     value: bool,
     effect: bool,
+    type_arg: bool,
 }
 
 impl PrincipalVarUsage {
@@ -531,7 +532,11 @@ impl PrincipalVarUsage {
         self.effect = true;
     }
 
-    fn effect_only(&self) -> bool {
+    fn mark_type_arg(&mut self) {
+        self.type_arg = true;
+    }
+
+    fn never_usable(&self) -> bool {
         self.effect && !self.value
     }
 }
@@ -622,15 +627,80 @@ fn collect_principal_type_arg_usage(
     usage: &mut BTreeMap<core_ir::TypeVar, PrincipalVarUsage>,
 ) {
     match arg {
-        core_ir::TypeArg::Type(ty) => collect_principal_var_usage(ty, false, usage),
+        core_ir::TypeArg::Type(ty) => collect_principal_type_arg_type_usage(ty, usage),
         core_ir::TypeArg::Bounds(bounds) => {
             if let Some(lower) = bounds.lower.as_deref() {
-                collect_principal_var_usage(lower, false, usage);
+                collect_principal_type_arg_type_usage(lower, usage);
             }
             if let Some(upper) = bounds.upper.as_deref() {
-                collect_principal_var_usage(upper, false, usage);
+                collect_principal_type_arg_type_usage(upper, usage);
             }
         }
+    }
+}
+
+fn collect_principal_type_arg_type_usage(
+    ty: &core_ir::Type,
+    usage: &mut BTreeMap<core_ir::TypeVar, PrincipalVarUsage>,
+) {
+    match ty {
+        core_ir::Type::Var(var) => {
+            usage.entry(var.clone()).or_default().mark_type_arg();
+        }
+        core_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_principal_type_arg_usage(arg, usage);
+            }
+        }
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            collect_principal_var_usage(param, false, usage);
+            collect_principal_var_usage(param_effect, true, usage);
+            collect_principal_var_usage(ret_effect, true, usage);
+            collect_principal_var_usage(ret, false, usage);
+        }
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            for item in items {
+                collect_principal_type_arg_type_usage(item, usage);
+            }
+        }
+        core_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_principal_var_usage(&field.value, false, usage);
+            }
+            if let Some(spread) = &record.spread {
+                match spread {
+                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                        collect_principal_var_usage(ty, false, usage);
+                    }
+                }
+            }
+        }
+        core_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_principal_var_usage(payload, false, usage);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_principal_var_usage(tail, false, usage);
+            }
+        }
+        core_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_principal_var_usage(item, true, usage);
+            }
+            collect_principal_var_usage(tail, true, usage);
+        }
+        core_ir::Type::Recursive { var, body } => {
+            collect_principal_type_arg_type_usage(body, usage);
+            usage.remove(var);
+        }
+        core_ir::Type::Never | core_ir::Type::Any => {}
     }
 }
 
