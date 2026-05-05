@@ -256,7 +256,7 @@ pub fn standard_op_table() -> OpTable {
     add!("last", prefix: 80, nullfix);
     add!("next", prefix: 80, nullfix);
     add!("redo", prefix: 80, nullfix);
-    add!("return", prefix: 80);
+    add!("return", prefix: 1, nullfix);
     add!("+", prefix: 70, infix: (50, 50));
     add!("-", prefix: 70, infix: (50, 50));
     add!("*", infix: (60, 60));

@@ -21,11 +21,6 @@ pub(super) fn prefix_op_ref(state: &mut LowerState, node: &SyntaxNode) -> TypedE
     let Some(name) = prefix_op_name(node) else {
         return unit_expr(state);
     };
-    if name.0 == "return" {
-        if let Some(act_name) = state.ctx.current_sub_return_act_alias() {
-            return resolve_path_expr(state, vec![act_name, Name("return".to_string())]);
-        }
-    }
     resolve_operator_expr(state, name, OperatorFixity::Prefix)
 }
 

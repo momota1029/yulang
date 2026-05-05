@@ -66,14 +66,9 @@ fn apply_field_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNod
             Name(s.trim_start_matches('.').to_string())
         });
     if let Some(name) = name {
-        if name.0 == "return" {
-            if let ExprKind::Var(def) = &acc.kind {
-                if let Some(act_name) = state.ctx.resolve_sub_label_alias(*def) {
-                    return resolve_path_expr(
-                        state,
-                        vec![act_name, crate::symbols::Name("return".to_string())],
-                    );
-                }
+        if let ExprKind::Var(def) = &acc.kind {
+            if let Some(path) = state.ctx.resolve_field_alias(*def, &name) {
+                return resolve_path_expr(state, path.segments);
             }
         }
         push_deferred_selection(state, acc, suffix, name, tv, eff)

@@ -65,8 +65,10 @@ use lambda::lower_lambda;
 use list::lower_list_expr;
 use literal::{lower_number_token, lower_string_lit};
 use operator::{infix_op_name, infix_op_ref, prefix_op_ref, suffix_op_ref};
-pub(super) use path::resolve_path_expr;
 use path::{resolve_bound_def_expr, resolve_operator_expr};
+pub(super) use path::{
+    resolve_path_expr, try_resolve_local_operator_expr, try_resolve_operator_expr,
+};
 use prim::{neg_prim_type, prim_type};
 use record::lower_record_literal;
 use suffix::{apply_suffix, apply_synthetic_field_selection};

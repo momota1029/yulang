@@ -104,8 +104,8 @@ pub(super) fn resolve_operator_expr(
     name: Name,
     fixity: OperatorFixity,
 ) -> TypedExpr {
-    if let Some(def) = state.ctx.resolve_operator_value(&name, fixity) {
-        return resolve_bound_def_expr(state, def);
+    if let Some(expr) = try_resolve_operator_expr(state, &name, fixity) {
+        return expr;
     }
 
     let path = Path {
@@ -129,6 +129,28 @@ pub(super) fn resolve_operator_expr(
         eff,
         kind: ExprKind::Ref(ref_id),
     }
+}
+
+pub(crate) fn try_resolve_operator_expr(
+    state: &mut LowerState,
+    name: &Name,
+    fixity: OperatorFixity,
+) -> Option<TypedExpr> {
+    state
+        .ctx
+        .resolve_operator_value(name, fixity)
+        .map(|def| resolve_bound_def_expr(state, def))
+}
+
+pub(crate) fn try_resolve_local_operator_expr(
+    state: &mut LowerState,
+    name: &Name,
+    fixity: OperatorFixity,
+) -> Option<TypedExpr> {
+    state
+        .ctx
+        .resolve_local_operator_value(name, fixity)
+        .map(|def| resolve_bound_def_expr(state, def))
 }
 
 pub(in crate::lower::expr) fn resolve_bound_def_expr(

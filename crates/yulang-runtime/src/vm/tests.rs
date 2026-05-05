@@ -676,6 +676,33 @@ sub:
     }
 
     #[test]
+    fn vm_runs_source_sub_return_multiline_expression() {
+        let results = eval_source_with_std(
+            r#"my f() = sub:
+    return
+        1 + 2 + 3 + 4
+
+f()
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("10".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_source_sub_return_nullfix_unit() {
+        let results = eval_source_with_std(
+            r#"my f() = sub:
+    return
+
+f()
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
     fn vm_runs_source_helper_sub_return_from_suffix_range_loop() {
         let results = eval_source_with_std(
             r#"my f x = return x

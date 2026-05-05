@@ -161,6 +161,81 @@ fn expr_return_prefix() {
 }
 
 #[test]
+fn expr_return_prefix_captures_infix_rhs() {
+    let got = parse_expression("return 1 + 2 + 3 + 4");
+    let expected = vec![
+        "(Expr",
+        "  (PrefixNode",
+        "    Prefix \"return\"",
+        "    (Expr",
+        "      Number \"1\"",
+        "      (InfixNode",
+        "        Infix \"+\"",
+        "        (Expr",
+        "          Number \"2\"",
+        "        )",
+        "      )",
+        "      (InfixNode",
+        "        Infix \"+\"",
+        "        (Expr",
+        "          Number \"3\"",
+        "        )",
+        "      )",
+        "      (InfixNode",
+        "        Infix \"+\"",
+        "        (Expr",
+        "          Number \"4\"",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_return_prefix_captures_multiline_infix_rhs() {
+    let got = parse_expression("return\n    1 + 2 + 3 + 4");
+    let expected = vec![
+        "(Expr",
+        "  (PrefixNode",
+        "    Prefix \"return\"",
+        "    (Expr",
+        "      Number \"1\"",
+        "      (InfixNode",
+        "        Infix \"+\"",
+        "        (Expr",
+        "          Number \"2\"",
+        "        )",
+        "      )",
+        "      (InfixNode",
+        "        Infix \"+\"",
+        "        (Expr",
+        "          Number \"3\"",
+        "        )",
+        "      )",
+        "      (InfixNode",
+        "        Infix \"+\"",
+        "        (Expr",
+        "          Number \"4\"",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_return_nullfix() {
+    let got = parse_expression("return");
+    let expected = vec!["(Expr", "  Nullfix \"return\"", ")"];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_return_call_remains_ident_call() {
     let got = parse_expression("return()");
     let expected = vec![

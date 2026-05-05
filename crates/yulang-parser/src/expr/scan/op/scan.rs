@@ -50,7 +50,7 @@ where
         let trailing_trivia = scan_trivia(i.rb())?;
         let post_info = trailing_trivia.info();
         let text = I::seq(start_cp.clone(), end_cp.clone());
-        if is_call_or_path_sensitive_control_op(text.as_ref())
+        if is_call_or_path_sensitive_operator(def.kinds())
             && matches!(post_info, TriviaInfo::None)
             && i.lookahead(one_of("(:").skip()).is_some()
         {
@@ -71,7 +71,12 @@ where
         let a = judge(def.kinds(), pre_ws, post_ws, true);
         let b = judge(def.kinds(), pre_ws, post_ws, false);
 
-        let use_ = if a != b {
+        let use_ = if should_prefer_prefix_with_argument(def.kinds(), post_ws)
+            && i.lookahead(from_fn(|i| value_start(i, &post_info)))
+                .is_some()
+        {
+            Some(OpUse::Prefix)
+        } else if a != b {
             let probe = i
                 .lookahead(from_fn(|i| value_start(i, &post_info)))
                 .is_some();
@@ -112,8 +117,15 @@ where
     Some((use_, def, lex))
 }
 
-fn is_call_or_path_sensitive_control_op(text: &str) -> bool {
-    matches!(text, "last" | "next" | "redo" | "return")
+fn is_call_or_path_sensitive_operator(kinds: OpKindSet) -> bool {
+    kinds.contains(OpKindSet::PREFIX)
+        && kinds.contains(OpKindSet::NULLFIX)
+        && !kinds.contains(OpKindSet::INFIX)
+        && !kinds.contains(OpKindSet::SUFFIX)
+}
+
+fn should_prefer_prefix_with_argument(kinds: OpKindSet, post_ws: bool) -> bool {
+    post_ws && is_call_or_path_sensitive_operator(kinds)
 }
 
 fn is_loop_control_op(text: &str) -> bool {

@@ -10,7 +10,8 @@ use crate::symbols::{Name, OperatorFixity, Path};
 
 use super::{
     apply_suffix, lower_expr, lower_expr_atom, lower_number_token, lower_var_read_expr,
-    make_app_with_cause, resolve_operator_expr, resolve_path_expr, unit_expr,
+    make_app_with_cause, resolve_operator_expr, resolve_path_expr, try_resolve_local_operator_expr,
+    try_resolve_operator_expr, unit_expr,
 };
 
 // ── chain lowering ────────────────────────────────────────────────────────────
@@ -97,12 +98,9 @@ fn lower_expr_chain_prefix_with_pipe_arg(
                 head_expr = Some(expr);
             }
             Token(t) if t.kind() == SyntaxKind::Nullfix => {
-                nullfix_head = Some(Name(t.text().to_string()));
-                head_expr = Some(resolve_operator_expr(
-                    state,
-                    Name(t.text().to_string()),
-                    OperatorFixity::Nullfix,
-                ));
+                let name = Name(t.text().to_string());
+                nullfix_head = Some(name.clone());
+                head_expr = Some(resolve_nullfix_operator_expr(state, name, t.text_range()));
             }
             _ => return unit_expr(state),
         }
@@ -224,6 +222,40 @@ fn lower_expr_chain_prefix_with_pipe_arg(
     })()
 }
 
+fn resolve_nullfix_operator_expr(
+    state: &mut LowerState,
+    name: Name,
+    span: rowan::TextRange,
+) -> TypedExpr {
+    if let Some(expr) = try_resolve_local_operator_expr(state, &name, OperatorFixity::Nullfix) {
+        return expr;
+    }
+    if let Some(prefix) = try_resolve_local_operator_expr(state, &name, OperatorFixity::Prefix) {
+        return apply_prefix_operator_to_unit(state, prefix, span);
+    }
+    if let Some(expr) = try_resolve_operator_expr(state, &name, OperatorFixity::Nullfix) {
+        return expr;
+    }
+    resolve_operator_expr(state, name, OperatorFixity::Nullfix)
+}
+
+fn apply_prefix_operator_to_unit(
+    state: &mut LowerState,
+    prefix: TypedExpr,
+    span: rowan::TextRange,
+) -> TypedExpr {
+    let unit = unit_expr(state);
+    make_app_with_cause(
+        state,
+        prefix,
+        unit,
+        ConstraintCause {
+            span: Some(span),
+            reason: ConstraintReason::ApplyArg,
+        },
+    )
+}
+
 fn lower_with_expr_chain(
     state: &mut LowerState,
     node: &SyntaxNode,
@@ -311,7 +343,10 @@ fn lower_sub_syntax(state: &mut LowerState, items: &mut ChainItems) -> Option<Ty
     match label {
         None => {
             let sub = resolve_path_expr(state, std_flow_sub_path("sub"));
+            state.ctx.push_local();
+            bind_unlabeled_sub_operator_helpers(state);
             let body = lower_expr(state, &body);
+            state.ctx.pop_local();
             Some(make_app_with_cause(
                 state,
                 sub,
@@ -338,16 +373,13 @@ fn lower_sub_syntax(state: &mut LowerState, items: &mut ChainItems) -> Option<Ty
                 }
             }
             state.ctx.push_local();
-            state
-                .ctx
-                .bind_sub_label_alias(label_arg.def, spec.name.clone());
+            bind_sub_label_operator_helpers(state, &spec);
+            bind_sub_label_field_helpers(state, label_arg.def, &spec);
             for (name, def) in &label_arg.local_bindings {
                 state.ctx.bind_local(name.clone(), *def);
-                state.ctx.bind_sub_label_alias(*def, spec.name.clone());
+                bind_sub_label_field_helpers(state, *def, &spec);
             }
-            state.ctx.push_sub_return_act_alias(spec.name.clone());
             let raw_body = lower_expr(state, &body);
-            state.ctx.pop_sub_return_act_alias();
             state.ctx.pop_local();
             let lambda = stmt::wrap_header_lambdas(state, raw_body, vec![label_arg]);
             let control_label = resolve_path_expr(
@@ -402,6 +434,45 @@ fn materialize_sub_label_act_helpers(state: &mut LowerState, spec: &stmt::Synthe
     stmt::materialize_synthetic_act(state, spec, &std_flow_sub_synthetic_act_source());
 }
 
+fn bind_sub_label_operator_helpers(state: &mut LowerState, spec: &stmt::SyntheticActSpec) {
+    let member = sub_label_return_member_name();
+    let path = Path {
+        segments: vec![spec.name.clone(), member.clone()],
+    };
+    if let Some(def) = state.ctx.resolve_path_value(&path) {
+        state
+            .ctx
+            .bind_local_operator(member, OperatorFixity::Prefix, def);
+    }
+}
+
+fn bind_unlabeled_sub_operator_helpers(state: &mut LowerState) {
+    let member = sub_label_return_member_name();
+    let path = Path {
+        segments: std_flow_sub_path_segments_with(member.clone()),
+    };
+    if let Some(def) = state.ctx.resolve_path_value(&path) {
+        state
+            .ctx
+            .bind_local_operator(member, OperatorFixity::Prefix, def);
+    }
+}
+
+fn bind_sub_label_field_helpers(
+    state: &mut LowerState,
+    label_def: crate::ids::DefId,
+    spec: &stmt::SyntheticActSpec,
+) {
+    let member = sub_label_return_member_name();
+    state.ctx.bind_field_alias(
+        label_def,
+        member.clone(),
+        Path {
+            segments: vec![spec.name.clone(), member],
+        },
+    );
+}
+
 fn std_flow_sub_effect_path() -> Path {
     Path {
         segments: std_flow_sub_path_segments(),
@@ -415,11 +486,22 @@ fn std_flow_sub_path_segments() -> Vec<Name> {
         .collect()
 }
 
+fn std_flow_sub_path_segments_with(member: Name) -> Vec<Name> {
+    let mut segments = std_flow_sub_path_segments();
+    segments.push(member);
+    segments
+}
+
 fn selected_sub_label_helper_names() -> Vec<Name> {
-    ["return", "sub", "control_label"]
-        .into_iter()
-        .map(|segment| Name(segment.to_string()))
-        .collect()
+    vec![
+        sub_label_return_member_name(),
+        Name("sub".to_string()),
+        Name("control_label".to_string()),
+    ]
+}
+
+fn sub_label_return_member_name() -> Name {
+    Name("return".to_string())
 }
 
 fn std_flow_sub_synthetic_act_source() -> stmt::SyntheticActSource {

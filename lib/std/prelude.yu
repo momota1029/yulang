@@ -150,10 +150,11 @@ my label_redo(label) = label.redo()
 pub nullfix(last) = loop_last()
 pub nullfix(next) = loop_next()
 pub nullfix(redo) = loop_redo()
+pub nullfix(return) = return ()
 
 pub prefix(last) 8.0.0 = label_last
 pub prefix(next) 8.0.0 = label_next
 pub prefix(redo) 8.0.0 = label_redo
-pub prefix(return) 8.0.0 = std::flow::sub::return
+pub prefix(return) 1.0.0 = std::flow::sub::return
 
 pub use std::list::*

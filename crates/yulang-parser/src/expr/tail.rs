@@ -7,6 +7,8 @@ use crate::expr::scan::{ExprLedTag, ExprNudTag, scan_expr_led, scan_expr_nud};
 use crate::lex::{Lex, SyntaxKind, Token, TriviaInfo};
 use crate::op::BpVec;
 use crate::parse::emit_invalid;
+use crate::scan::trivia::scan_trivia;
+use crate::scan::{scan_ident_or_keyword, scan_sigil_ident};
 use crate::sink::EventSink;
 use crate::stmt::{parse_indent_stmt_block, parse_statement};
 use crate::typ::parse::parse_type;
@@ -46,7 +48,8 @@ pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
         ExprLedTag::PathSep => {
             i.env.state.sink.start(SyntaxKind::PathSep);
             i.env.state.sink.lex(&led.lex);
-            let rhs_nud = scan_expr_nud(led.lex.trailing_trivia_info(), i.rb())?;
+            let rhs_nud = scan_path_segment_nud(led.lex.trailing_trivia_info(), i.rb())
+                .or_else(|| scan_expr_nud(led.lex.trailing_trivia_info(), i.rb()))?;
             if is_path_segment(&rhs_nud) {
                 i.env.state.sink.lex(&rhs_nud.lex);
             } else {
@@ -268,6 +271,19 @@ fn is_path_segment(token: &Token<ExprNudTag>) -> bool {
             | SyntaxKind::Suffix
             | SyntaxKind::Nullfix
     )
+}
+
+fn scan_path_segment_nud<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    mut i: In<I, S>,
+) -> Option<Token<ExprNudTag>> {
+    let (kind, text) = if let Some(item) = i.maybe_fn(scan_sigil_ident)? {
+        item
+    } else {
+        i.maybe_fn(scan_ident_or_keyword)??
+    };
+    let trailing_trivia = i.run(scan_trivia)?;
+    Some(Lex::new(leading_info, kind, text, trailing_trivia).tag(ExprNudTag::Atom))
 }
 
 fn pipeline_lbp() -> BpVec {

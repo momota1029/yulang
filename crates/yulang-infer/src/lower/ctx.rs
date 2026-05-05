@@ -28,11 +28,8 @@ pub struct LowerCtx {
     locals: Vec<HashMap<Name, DefId>>,
     /// `$x` 読み取り専用の `&x -> synthetic act` alias。
     var_ref_aliases: Vec<HashMap<Name, Name>>,
-    /// labeled `sub` の label 変数 DefId → synthetic act alias。
-    sub_label_aliases: Vec<HashMap<DefId, Name>>,
-    /// labeled `sub` の body 内で bare `return` が向く synthetic act。
-    sub_return_act_aliases: Vec<Name>,
-
+    /// 特定のローカル値のフィールド参照を既知 helper path へ束縛する。
+    field_aliases: Vec<HashMap<(DefId, Name), Path>>,
     /// 現在 lowering 中のモジュール。
     pub current_module: ModuleId,
 
@@ -56,8 +53,7 @@ impl LowerCtx {
             // module-level `my` は module private として modules 側へ積む。
             locals: vec![HashMap::new()],
             var_ref_aliases: vec![HashMap::new()],
-            sub_label_aliases: vec![HashMap::new()],
-            sub_return_act_aliases: Vec::new(),
+            field_aliases: vec![HashMap::new()],
             current_module: root,
             use_search: vec![],
             use_paths: vec![],
@@ -255,20 +251,20 @@ impl LowerCtx {
     pub fn push_local(&mut self) {
         self.locals.push(HashMap::new());
         self.var_ref_aliases.push(HashMap::new());
-        self.sub_label_aliases.push(HashMap::new());
+        self.field_aliases.push(HashMap::new());
     }
 
     /// 直前の push_local に対応するフレームを閉じる。
     pub fn pop_local(&mut self) {
         self.locals.pop();
         self.var_ref_aliases.pop();
-        self.sub_label_aliases.pop();
+        self.field_aliases.pop();
     }
 
     /// 直前の push_local に対応する値名前空間フレームを取り出して閉じる。
     pub fn pop_local_frame(&mut self) -> HashMap<Name, DefId> {
         self.var_ref_aliases.pop();
-        self.sub_label_aliases.pop();
+        self.field_aliases.pop();
         self.locals.pop().unwrap_or_default()
     }
 
@@ -277,6 +273,11 @@ impl LowerCtx {
         if let Some(frame) = self.locals.last_mut() {
             frame.insert(name, def);
         }
+    }
+
+    pub fn bind_local_operator(&mut self, name: Name, fixity: OperatorFixity, def: DefId) {
+        self.mark_operator_def(def, fixity);
+        self.bind_local(name, def);
     }
 
     pub fn local_depth(&self) -> usize {
@@ -298,31 +299,19 @@ impl LowerCtx {
         None
     }
 
-    pub fn bind_sub_label_alias(&mut self, def: DefId, act_name: Name) {
-        if let Some(frame) = self.sub_label_aliases.last_mut() {
-            frame.insert(def, act_name);
+    pub fn bind_field_alias(&mut self, def: DefId, field: Name, path: Path) {
+        if let Some(frame) = self.field_aliases.last_mut() {
+            frame.insert((def, field), path);
         }
     }
 
-    pub fn resolve_sub_label_alias(&self, def: DefId) -> Option<Name> {
-        for frame in self.sub_label_aliases.iter().rev() {
-            if let Some(act_name) = frame.get(&def) {
-                return Some(act_name.clone());
+    pub fn resolve_field_alias(&self, def: DefId, field: &Name) -> Option<Path> {
+        for frame in self.field_aliases.iter().rev() {
+            if let Some(path) = frame.get(&(def, field.clone())) {
+                return Some(path.clone());
             }
         }
         None
-    }
-
-    pub fn push_sub_return_act_alias(&mut self, act_name: Name) {
-        self.sub_return_act_aliases.push(act_name);
-    }
-
-    pub fn pop_sub_return_act_alias(&mut self) {
-        self.sub_return_act_aliases.pop();
-    }
-
-    pub fn current_sub_return_act_alias(&self) -> Option<Name> {
-        self.sub_return_act_aliases.last().cloned()
     }
 
     // ── モジュール操作 ────────────────────────────────────────────────────────
@@ -413,6 +402,22 @@ impl LowerCtx {
     pub fn resolve_local_value(&self, name: &Name) -> Option<DefId> {
         for frame in self.locals.iter().rev() {
             if let Some(&def) = frame.get(name) {
+                return Some(def);
+            }
+        }
+        None
+    }
+
+    /// ローカルスコープだけで operator を解決する。
+    pub fn resolve_local_operator_value(
+        &self,
+        name: &Name,
+        fixity: OperatorFixity,
+    ) -> Option<DefId> {
+        for frame in self.locals.iter().rev() {
+            if let Some(&def) = frame.get(name)
+                && self.operator_fixity(def) == Some(fixity)
+            {
                 return Some(def);
             }
         }
