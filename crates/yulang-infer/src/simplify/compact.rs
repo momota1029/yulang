@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use crate::profile::ProfileClock as Instant;
 
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::ids::{NegId, PosId, TypeVar};
@@ -17,20 +18,20 @@ use crate::types::{Neg, Pos};
 
 use crate::solve::{Infer, IntoNegId, IntoPosId};
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CompactBounds {
     pub self_var: Option<TypeVar>,
     pub lower: CompactType,
     pub upper: CompactType,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CompactTypeScheme {
     pub cty: CompactBounds,
     pub rec_vars: std::collections::HashMap<TypeVar, CompactBounds>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CompactType {
     pub vars: std::collections::HashSet<TypeVar>,
     pub prims: std::collections::HashSet<Path>,
@@ -60,13 +61,13 @@ impl CompactProfile {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactCon {
     pub path: Path,
     pub args: Vec<CompactBounds>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactFun {
     pub arg: CompactType,
     pub arg_eff: CompactType,
@@ -74,24 +75,24 @@ pub struct CompactFun {
     pub ret: CompactType,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactRecord {
     pub fields: Vec<RecordField<CompactType>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactRecordSpread {
     pub fields: Vec<RecordField<CompactType>>,
     pub tail: Box<CompactType>,
     pub tail_wins: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactVariant {
     pub items: Vec<(Name, Vec<CompactType>)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactRow {
     pub items: Vec<CompactType>,
     pub tail: Box<CompactType>,

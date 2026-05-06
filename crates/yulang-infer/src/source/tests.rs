@@ -1909,6 +1909,39 @@ fn compiled_typed_import_resolves_scheme_refs() {
         data_artifact.typed.schemes.len()
     );
     assert!(imported.refs.schemes.iter().all(Option::is_some));
+    assert!(
+        data_artifact
+            .typed
+            .schemes
+            .iter()
+            .any(|scheme| scheme.compact.is_some())
+    );
+    assert!(
+        imported
+            .refs
+            .schemes
+            .iter()
+            .any(|def| def.as_ref().is_some_and(|def| imported
+                .namespace
+                .state
+                .infer
+                .compact_schemes
+                .borrow()
+                .contains_key(def)))
+    );
+    assert!(
+        imported
+            .refs
+            .schemes
+            .iter()
+            .any(|def| def.as_ref().is_some_and(|def| imported
+                .namespace
+                .state
+                .infer
+                .frozen_schemes
+                .borrow()
+                .contains_key(def)))
+    );
 }
 
 #[test]
@@ -1917,6 +1950,7 @@ fn compiled_typed_validation_reports_missing_scheme_symbol() {
         schemes: vec![StdInferSnapshotScheme {
             symbol: 7,
             rendered: "int".to_string(),
+            compact: None,
         }],
         ..CompiledTypedSurface::default()
     };
@@ -1932,6 +1966,7 @@ fn compiled_typed_import_rejects_missing_scheme_symbol() {
         schemes: vec![StdInferSnapshotScheme {
             symbol: 7,
             rendered: "int".to_string(),
+            compact: None,
         }],
         ..CompiledTypedSurface::default()
     };
@@ -2013,6 +2048,19 @@ fn compiled_unit_artifact_bundles_syntax_namespace_and_typed_surfaces() {
             .flat_map(|module| &module.operators)
             .any(|operator| operator.name == "%%")
     );
+    assert!(
+        ops_artifact
+            .runtime
+            .program
+            .program
+            .bindings
+            .iter()
+            .any(|binding| binding
+                .name
+                .segments
+                .iter()
+                .any(|name| name.0 == "#op:infix:%%"))
+    );
 
     let encoded = serde_json::to_string(ops_artifact).unwrap();
     let decoded: CompiledUnitArtifact = serde_json::from_str(&encoded).unwrap();
@@ -2058,6 +2106,159 @@ fn compiled_unit_import_restores_syntax_and_typed_refs() {
             .any(|export| export.name.0 == "%%")
     );
     assert!(imported.typed.coverage.has_complete_ref_resolution());
+    assert!(
+        imported
+            .runtime
+            .program
+            .program
+            .bindings
+            .iter()
+            .any(|binding| binding
+                .name
+                .segments
+                .iter()
+                .any(|name| name.0 == "#op:infix:%%"))
+    );
+}
+
+#[test]
+fn compiled_runtime_bundle_merges_surfaces_and_remaps_evidence_ids() {
+    let left = runtime_surface_with_coerce_binding("left", 0);
+    let right = runtime_surface_with_coerce_binding("right", 0);
+    let bundle = CompiledRuntimeBundle::from_surfaces([&left, &right]).unwrap();
+
+    assert_eq!(bundle.surface.program.program.bindings.len(), 2);
+    assert_eq!(
+        bundle
+            .surface
+            .program
+            .evidence
+            .expected_edges
+            .iter()
+            .map(|edge| edge.id)
+            .collect::<Vec<_>>(),
+        vec![0, 1]
+    );
+
+    let right_binding = bundle
+        .surface
+        .program
+        .program
+        .bindings
+        .iter()
+        .find(|binding| binding.name.segments[0].0 == "right")
+        .expect("right binding");
+    let yulang_core_ir::Expr::Coerce {
+        evidence: Some(evidence),
+        ..
+    } = &right_binding.body
+    else {
+        panic!("right binding should keep coerce evidence");
+    };
+    assert_eq!(evidence.source_edge, Some(1));
+}
+
+#[test]
+fn compiled_runtime_bundle_rejects_conflicting_binding_paths() {
+    let left = runtime_surface_with_coerce_binding("same", 0);
+    let mut right = runtime_surface_with_coerce_binding("same", 0);
+    right.program.program.bindings[0].body =
+        yulang_core_ir::Expr::Lit(yulang_core_ir::Lit::Int("2".to_string()));
+
+    let err = CompiledRuntimeBundle::from_surfaces([&left, &right]).unwrap_err();
+    assert!(matches!(
+        err,
+        CompiledRuntimeMergeError::ConflictingBinding { .. }
+    ));
+}
+
+#[test]
+fn compiled_runtime_bundle_merges_before_user_program_and_remaps_user_evidence() {
+    let dependency = runtime_surface_with_coerce_binding("dependency", 0);
+    let user = runtime_surface_with_coerce_binding("user", 0);
+    let bundle = CompiledRuntimeBundle::from_surfaces([&dependency]).unwrap();
+    let merged = bundle.merge_with_user_program(user.program).unwrap();
+
+    assert_eq!(
+        merged
+            .evidence
+            .expected_edges
+            .iter()
+            .map(|edge| edge.id)
+            .collect::<Vec<_>>(),
+        vec![0, 1]
+    );
+
+    let user_binding = merged
+        .program
+        .bindings
+        .iter()
+        .find(|binding| binding.name.segments[0].0 == "user")
+        .expect("user binding");
+    let yulang_core_ir::Expr::Coerce {
+        evidence: Some(evidence),
+        ..
+    } = &user_binding.body
+    else {
+        panic!("user binding should keep coerce evidence");
+    };
+    assert_eq!(evidence.source_edge, Some(1));
+}
+
+fn runtime_surface_with_coerce_binding(name: &str, source_edge: u32) -> CompiledRuntimeSurface {
+    let path = CorePath::new(vec![CoreName(name.to_string())]);
+    let any_scheme = yulang_core_ir::Scheme {
+        requirements: Vec::new(),
+        body: yulang_core_ir::Type::Any,
+    };
+    CompiledRuntimeSurface {
+        program: yulang_core_ir::CoreProgram {
+            program: yulang_core_ir::PrincipalModule {
+                path: CorePath::default(),
+                bindings: vec![yulang_core_ir::PrincipalBinding {
+                    name: path.clone(),
+                    scheme: any_scheme,
+                    body: yulang_core_ir::Expr::Coerce {
+                        expr: Box::new(yulang_core_ir::Expr::Lit(yulang_core_ir::Lit::Int(
+                            "1".to_string(),
+                        ))),
+                        evidence: Some(yulang_core_ir::CoerceEvidence {
+                            source_edge: Some(source_edge),
+                            actual: yulang_core_ir::TypeBounds::exact(yulang_core_ir::Type::Any),
+                            expected: yulang_core_ir::TypeBounds::exact(yulang_core_ir::Type::Any),
+                        }),
+                    },
+                }],
+                root_exprs: Vec::new(),
+                roots: Vec::new(),
+            },
+            graph: yulang_core_ir::CoreGraphView {
+                bindings: vec![yulang_core_ir::BindingGraphNode {
+                    binding: path,
+                    scheme_body: yulang_core_ir::Type::Any,
+                    body_bounds: yulang_core_ir::TypeBounds::exact(yulang_core_ir::Type::Any),
+                }],
+                root_exprs: Vec::new(),
+                runtime_symbols: Vec::new(),
+            },
+            evidence: yulang_core_ir::PrincipalEvidence {
+                expected_edges: vec![yulang_core_ir::ExpectedEdgeEvidence {
+                    id: source_edge,
+                    kind: yulang_core_ir::ExpectedEdgeKind::RepresentationCoerce,
+                    source_range: None,
+                    actual: yulang_core_ir::TypeBounds::exact(yulang_core_ir::Type::Any),
+                    expected: yulang_core_ir::TypeBounds::exact(yulang_core_ir::Type::Any),
+                    actual_effect: None,
+                    expected_effect: None,
+                    closed: true,
+                    informative: true,
+                    runtime_usable: true,
+                }],
+                expected_adapter_edges: Vec::new(),
+                derived_expected_edges: Vec::new(),
+            },
+        },
+    }
 }
 
 #[test]

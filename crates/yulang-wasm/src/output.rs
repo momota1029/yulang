@@ -33,6 +33,10 @@ pub struct RunTimings {
     pub source_cache_misses: usize,
     pub source_cache_clone_ms: f64,
     pub source_cache_build_ms: f64,
+    pub compiled_std_artifacts: usize,
+    pub compiled_std_runtime_bindings: usize,
+    pub compiled_std_cache_hit: bool,
+    pub compiled_std_fallback_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -41,7 +45,21 @@ pub struct WarmupOutput {
     pub source_cache_misses: usize,
     pub source_cache_clone_ms: f64,
     pub source_cache_build_ms: f64,
+    pub embedded_std_artifacts: usize,
+    pub embedded_std_runtime_bindings: usize,
+    pub embedded_std_artifacts_bytes: usize,
+    pub embedded_std_artifacts_valid: bool,
+    pub embedded_std_artifacts_fallback_reason: Option<String>,
     pub total_ms: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EmbeddedStdArtifactsOutput {
+    pub artifacts: usize,
+    pub runtime_bindings: usize,
+    pub bytes: usize,
+    pub valid: bool,
+    pub fallback_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

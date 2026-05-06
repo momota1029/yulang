@@ -1,5 +1,6 @@
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::symbols::{Name, Path};
+use serde::{Deserialize, Serialize};
 
 pub mod arena;
 
@@ -12,13 +13,13 @@ pub enum Variance {
 
 /// エフェクト行の中のひとつのエフェクト。
 /// 型引数は (pos側の型変数, neg側の型変数) のペア。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EffectAtom {
     pub path: Path,
     pub args: Vec<(TypeVar, TypeVar)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RecordField<T> {
     pub name: Name,
     pub value: T,

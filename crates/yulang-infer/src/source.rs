@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::{Path as FsPath, PathBuf};
 use std::time::Duration;
@@ -18,7 +18,9 @@ use crate::lower::primitives::install_builtin_primitives;
 use crate::lower::stmt::{finish_lowering, lower_root_in_module};
 use crate::lower::{LowerDetailProfile, LowerState};
 use crate::profile::{ProfileClock, with_profile_enabled};
+use crate::simplify::compact::CompactTypeScheme;
 use crate::symbols::{ModuleId, Name, Namespace, OperatorFixity, Path, Visibility};
+use yulang_core_ir as core_ir;
 use yulang_core_ir::CoreProgram;
 
 pub struct LoweredSources {
@@ -187,11 +189,28 @@ pub enum CompiledTypedImportError {
 pub struct CompiledUnitImport {
     pub syntax: CompiledSyntaxSurface,
     pub typed: CompiledTypedImport,
+    pub runtime: CompiledRuntimeSurface,
+}
+
+pub struct CompiledUnitArtifactsImport {
+    pub typed: CompiledTypedImport,
+    pub runtime: CompiledRuntimeBundle,
+}
+
+pub struct CompiledUnitProfiledLoweredSources {
+    pub lowered: ProfiledLoweredSources,
+    pub runtime: CompiledRuntimeBundle,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompiledUnitImportError {
     InvalidTyped(CompiledTypedImportError),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledUnitArtifactsImportError {
+    InvalidTyped(CompiledTypedImportError),
+    InvalidRuntime(CompiledRuntimeMergeError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -207,6 +226,7 @@ pub struct CompiledUnitArtifact {
     pub syntax: CompiledSyntaxSurface,
     pub namespace: CompiledNamespaceSurface,
     pub typed: CompiledTypedSurface,
+    pub runtime: CompiledRuntimeSurface,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -217,6 +237,38 @@ pub struct CompiledTypedSurface {
     pub role_impls: Vec<StdInferSnapshotRoleImpl>,
     pub effects: Vec<StdInferSnapshotEffect>,
     pub effect_methods: Vec<StdInferSnapshotEffectMethod>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct CompiledRuntimeSurface {
+    pub program: CoreProgram,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct CompiledRuntimeBundle {
+    pub surface: CompiledRuntimeSurface,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledRuntimeMergeError {
+    ConflictingBinding { path: core_ir::Path },
+    ConflictingGraphBinding { path: core_ir::Path },
+    ConflictingRuntimeSymbol { path: core_ir::Path },
+}
+
+impl CompiledRuntimeBundle {
+    pub fn from_surfaces<'a>(
+        surfaces: impl IntoIterator<Item = &'a CompiledRuntimeSurface>,
+    ) -> Result<Self, CompiledRuntimeMergeError> {
+        merge_compiled_runtime_surfaces(surfaces).map(|surface| Self { surface })
+    }
+
+    pub fn merge_with_user_program(
+        &self,
+        user_program: CoreProgram,
+    ) -> Result<CoreProgram, CompiledRuntimeMergeError> {
+        merge_runtime_bundle_with_user_program(&self.surface, user_program)
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -485,6 +537,7 @@ pub struct StdInferSnapshotSymbol {
 pub struct StdInferSnapshotScheme {
     pub symbol: u32,
     pub rendered: String,
+    pub compact: Option<CompactTypeScheme>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -705,7 +758,23 @@ pub fn import_compiled_unit_artifact(
     Ok(CompiledUnitImport {
         syntax: artifact.syntax.clone(),
         typed,
+        runtime: artifact.runtime.clone(),
     })
+}
+
+pub fn import_compiled_unit_artifacts(
+    artifacts: &[CompiledUnitArtifact],
+) -> Result<CompiledUnitArtifactsImport, CompiledUnitArtifactsImportError> {
+    let namespace =
+        merge_compiled_namespace_surfaces(artifacts.iter().map(|artifact| &artifact.namespace));
+    let typed = merge_compiled_typed_surfaces(artifacts);
+    let typed = import_compiled_typed_surface(&namespace, &typed)
+        .map_err(CompiledUnitArtifactsImportError::InvalidTyped)?;
+    let runtime =
+        CompiledRuntimeBundle::from_surfaces(artifacts.iter().map(|artifact| &artifact.runtime))
+            .map_err(CompiledUnitArtifactsImportError::InvalidRuntime)?;
+
+    Ok(CompiledUnitArtifactsImport { typed, runtime })
 }
 
 pub fn import_compiled_typed_surface(
@@ -730,6 +799,7 @@ pub fn import_compiled_typed_surface(
         },
     )?;
     let refs = import_compiled_typed_refs(typed, &namespace_import.values);
+    import_compiled_compact_schemes(typed, &refs, &namespace_import.state);
     let coverage = import_compiled_typed_coverage(&namespace_import, &refs);
 
     Ok(CompiledTypedImport {
@@ -740,29 +810,70 @@ pub fn import_compiled_typed_surface(
     })
 }
 
+pub fn lower_source_set_with_compiled_unit_artifacts_profiled(
+    source_set: &SourceSet,
+    artifacts: &[CompiledUnitArtifact],
+) -> Result<CompiledUnitProfiledLoweredSources, CompiledUnitArtifactsImportError> {
+    let import = import_compiled_unit_artifacts(artifacts)?;
+    let mut profile = source_set_profile_header(source_set);
+    profile.std_cache.hits += 1;
+    let lowered =
+        lower_source_set_from_std_state(source_set, import.typed.namespace.state, profile);
+    Ok(CompiledUnitProfiledLoweredSources {
+        lowered,
+        runtime: import.runtime,
+    })
+}
+
+fn import_compiled_compact_schemes(
+    typed: &CompiledTypedSurface,
+    refs: &CompiledTypedImportRefs,
+    state: &LowerState,
+) {
+    for (scheme, def) in typed.schemes.iter().zip(&refs.schemes) {
+        if let (Some(compact), Some(def)) = (&scheme.compact, def) {
+            let frozen = crate::scheme::freeze_compact_scheme_with_non_generic(
+                &state.infer,
+                compact,
+                &std::collections::HashSet::new(),
+            );
+            state.infer.store_compact_scheme(*def, compact.clone());
+            state.infer.frozen_schemes.borrow_mut().insert(*def, frozen);
+        }
+    }
+}
+
 pub fn build_compiled_unit_artifacts(
     source_set: &SourceSet,
     state: &LowerState,
 ) -> Vec<CompiledUnitArtifact> {
     let syntax_artifacts = source_set.compiled_unit_syntax_artifacts();
     let typed_artifacts = build_compiled_typed_artifacts(source_set, state);
+    let runtime_surfaces = build_compiled_runtime_surfaces(state, &typed_artifacts);
 
     assert_eq!(
         syntax_artifacts.len(),
         typed_artifacts.len(),
         "syntax and typed artifact builders must use the same compilation units"
     );
+    assert_eq!(
+        typed_artifacts.len(),
+        runtime_surfaces.len(),
+        "typed and runtime artifact builders must use the same compilation units"
+    );
 
     syntax_artifacts
         .into_iter()
         .zip(typed_artifacts)
-        .map(|(syntax_artifact, typed_artifact)| {
+        .zip(runtime_surfaces)
+        .map(|((syntax_artifact, typed_artifact), runtime)| {
             debug_assert_eq!(syntax_artifact.manifest, typed_artifact.manifest);
             CompiledUnitArtifact {
                 manifest: syntax_artifact.manifest,
                 syntax: syntax_artifact.syntax,
                 namespace: typed_artifact.namespace,
                 typed: typed_artifact.typed,
+                runtime,
             }
         })
         .collect()
@@ -1762,17 +1873,23 @@ fn collect_std_snapshot_schemes(
     let mut schemes = value_ids
         .iter()
         .filter_map(|(def, symbol)| {
-            let rendered = if let Some(scheme) = compact_schemes.get(def) {
-                crate::display::dump::format_compact_scheme(scheme)
+            let compact = if let Some(scheme) = compact_schemes.get(def) {
+                Some(scheme.clone())
             } else if let Some(tv) = state.def_tvs.get(def).or_else(|| infer_def_tvs.get(def)) {
-                let scheme = crate::simplify::compact::compact_type_var(&state.infer, *tv);
-                crate::display::dump::format_compact_scheme(&scheme)
+                Some(crate::simplify::compact::compact_type_var(
+                    &state.infer,
+                    *tv,
+                ))
             } else {
                 return None;
             };
+            let rendered = crate::display::dump::format_compact_scheme(
+                compact.as_ref().expect("compact scheme should exist"),
+            );
             Some(StdInferSnapshotScheme {
                 symbol: *symbol,
                 rendered,
+                compact,
             })
         })
         .collect::<Vec<_>>();
@@ -1986,10 +2103,16 @@ fn compiled_namespace_surface_for_modules(
     value_paths: &[(Path, crate::ids::DefId)],
     type_paths: &[(Path, crate::ids::DefId)],
 ) -> CompiledNamespaceSurface {
-    let module_ids = source_modules
+    let root_module_ids = source_modules
         .iter()
         .filter_map(|module_path| module_id_for_core_path(state, module_path))
         .collect::<Vec<_>>();
+    let mut module_ids = Vec::new();
+    for module in root_module_ids {
+        collect_namespace_surface_module_tree(state, module, &mut module_ids);
+    }
+    module_ids.sort_by_key(|module| module.0);
+    module_ids.dedup();
     let mut value_defs = HashMap::new();
     let mut type_defs = HashMap::new();
     let values = compiled_namespace_symbols_for_defs(
@@ -2025,6 +2148,27 @@ fn compiled_namespace_surface_for_modules(
     }
 }
 
+fn collect_namespace_surface_module_tree(
+    state: &LowerState,
+    module: ModuleId,
+    out: &mut Vec<ModuleId>,
+) {
+    out.push(module);
+    let children = state
+        .ctx
+        .modules
+        .node(module)
+        .modules
+        .values()
+        .copied()
+        .filter(|child| state.ctx.modules.node(*child).parent == Some(module))
+        .filter(|child| state.companion_modules.contains(child))
+        .collect::<Vec<_>>();
+    for child in children {
+        collect_namespace_surface_module_tree(state, child, out);
+    }
+}
+
 fn compiled_unit_value_id_remap(
     namespace: &CompiledNamespaceSurface,
     value_defs_by_path: &HashMap<Vec<String>, crate::ids::DefId>,
@@ -2041,6 +2185,429 @@ fn compiled_unit_value_id_remap(
         remap.insert(*global_id, symbol.unit_id);
     }
     remap
+}
+
+fn build_compiled_runtime_surfaces(
+    state: &LowerState,
+    typed_artifacts: &[CompiledUnitTypedArtifact],
+) -> Vec<CompiledRuntimeSurface> {
+    let value_paths = state.ctx.collect_all_binding_paths();
+
+    typed_artifacts
+        .iter()
+        .map(|artifact| {
+            let unit_paths = artifact
+                .namespace
+                .modules
+                .iter()
+                .map(|module| module.path.clone())
+                .collect::<Vec<_>>();
+            let binding_paths =
+                compiled_runtime_binding_paths_for_modules(&value_paths, &unit_paths);
+            let mut export_state = state.clone();
+            let mut program =
+                crate::export_core_program_for_binding_paths(&mut export_state, &binding_paths);
+            prune_core_program_to_modules(&mut program, &unit_paths);
+            CompiledRuntimeSurface { program }
+        })
+        .collect()
+}
+
+fn prune_core_program_to_modules(program: &mut CoreProgram, module_paths: &[Vec<String>]) {
+    program
+        .program
+        .bindings
+        .retain(|binding| core_path_belongs_to_modules(&binding.name, module_paths));
+    program
+        .graph
+        .bindings
+        .retain(|node| core_path_belongs_to_modules(&node.binding, module_paths));
+    program
+        .graph
+        .runtime_symbols
+        .retain(|symbol| core_path_belongs_to_modules(&symbol.path, module_paths));
+}
+
+fn core_path_belongs_to_modules(path: &core_ir::Path, modules: &[Vec<String>]) -> bool {
+    let segments = path
+        .segments
+        .iter()
+        .map(|segment| segment.0.clone())
+        .collect::<Vec<_>>();
+    path_belongs_to_modules(&segments, modules)
+}
+
+fn merge_compiled_runtime_surfaces<'a>(
+    surfaces: impl IntoIterator<Item = &'a CompiledRuntimeSurface>,
+) -> Result<CompiledRuntimeSurface, CompiledRuntimeMergeError> {
+    let mut merged = CompiledRuntimeSurface::default();
+    let mut next_expected_id = 0u32;
+    let mut next_adapter_id = 0u32;
+    for surface in surfaces {
+        let expected_edge_offset = next_expected_id;
+        let adapter_edge_offset = next_adapter_id;
+        let root_expr_offset = merged.program.program.root_exprs.len();
+        let mut program = surface.program.clone();
+        remap_core_program_runtime_ids(
+            &mut program,
+            expected_edge_offset,
+            adapter_edge_offset,
+            root_expr_offset,
+        );
+        next_expected_id = next_expected_id.max(next_expected_edge_id(&program));
+        next_adapter_id = next_adapter_id.max(next_adapter_edge_id(&program));
+        merge_core_program_into(&mut merged.program, program)?;
+    }
+    Ok(merged)
+}
+
+fn merge_runtime_bundle_with_user_program(
+    dependencies: &CompiledRuntimeSurface,
+    mut user_program: CoreProgram,
+) -> Result<CoreProgram, CompiledRuntimeMergeError> {
+    let mut merged = dependencies.program.clone();
+    prune_user_program_dependency_runtime_duplicates(&mut user_program, &merged);
+    let expected_edge_offset = next_expected_edge_id(&merged);
+    let adapter_edge_offset = next_adapter_edge_id(&merged);
+    let root_expr_offset = merged.program.root_exprs.len();
+    remap_core_program_runtime_ids(
+        &mut user_program,
+        expected_edge_offset,
+        adapter_edge_offset,
+        root_expr_offset,
+    );
+    merge_core_program_into(&mut merged, user_program)?;
+    Ok(merged)
+}
+
+fn prune_user_program_dependency_runtime_duplicates(
+    user_program: &mut CoreProgram,
+    dependencies: &CoreProgram,
+) {
+    let dependency_bindings = dependencies
+        .program
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<HashSet<_>>();
+    let dependency_runtime_symbols = dependencies
+        .graph
+        .runtime_symbols
+        .iter()
+        .map(|symbol| symbol.path.clone())
+        .collect::<HashSet<_>>();
+
+    user_program
+        .program
+        .bindings
+        .retain(|binding| !dependency_bindings.contains(&binding.name));
+    user_program
+        .graph
+        .bindings
+        .retain(|node| !dependency_bindings.contains(&node.binding));
+    user_program
+        .graph
+        .runtime_symbols
+        .retain(|symbol| !dependency_runtime_symbols.contains(&symbol.path));
+}
+
+fn next_expected_edge_id(program: &CoreProgram) -> u32 {
+    program
+        .evidence
+        .expected_edges
+        .iter()
+        .map(|edge| edge.id.saturating_add(1))
+        .max()
+        .unwrap_or(0)
+}
+
+fn next_adapter_edge_id(program: &CoreProgram) -> u32 {
+    program
+        .evidence
+        .expected_adapter_edges
+        .iter()
+        .map(|edge| edge.id.saturating_add(1))
+        .max()
+        .unwrap_or(0)
+}
+
+fn remap_core_program_runtime_ids(
+    program: &mut CoreProgram,
+    expected_edge_offset: u32,
+    adapter_edge_offset: u32,
+    root_expr_offset: usize,
+) {
+    for binding in &mut program.program.bindings {
+        remap_core_expr_runtime_ids(&mut binding.body, expected_edge_offset);
+    }
+    for root in &mut program.program.root_exprs {
+        remap_core_expr_runtime_ids(root, expected_edge_offset);
+    }
+    for root in &mut program.program.roots {
+        if let core_ir::PrincipalRoot::Expr(index) = root {
+            *index += root_expr_offset;
+        }
+    }
+    for edge in &mut program.evidence.expected_edges {
+        edge.id += expected_edge_offset;
+    }
+    for edge in &mut program.evidence.expected_adapter_edges {
+        edge.id += adapter_edge_offset;
+        if let Some(source) = &mut edge.source_expected_edge {
+            *source += expected_edge_offset;
+        }
+    }
+    for edge in &mut program.evidence.derived_expected_edges {
+        edge.parent += expected_edge_offset;
+    }
+    for graph_root in &mut program.graph.root_exprs {
+        let core_ir::GraphOwner::RootExpr(index) = &mut graph_root.owner;
+        *index += root_expr_offset;
+    }
+}
+
+fn remap_core_expr_runtime_ids(expr: &mut core_ir::Expr, expected_edge_offset: u32) {
+    match expr {
+        core_ir::Expr::Var(_) | core_ir::Expr::PrimitiveOp(_) | core_ir::Expr::Lit(_) => {}
+        core_ir::Expr::Lambda { body, .. } => {
+            remap_core_expr_runtime_ids(body, expected_edge_offset);
+        }
+        core_ir::Expr::Apply {
+            callee,
+            arg,
+            evidence,
+        } => {
+            remap_core_expr_runtime_ids(callee, expected_edge_offset);
+            remap_core_expr_runtime_ids(arg, expected_edge_offset);
+            if let Some(evidence) = evidence {
+                remap_apply_evidence_runtime_ids(evidence, expected_edge_offset);
+            }
+        }
+        core_ir::Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            remap_core_expr_runtime_ids(cond, expected_edge_offset);
+            remap_core_expr_runtime_ids(then_branch, expected_edge_offset);
+            remap_core_expr_runtime_ids(else_branch, expected_edge_offset);
+        }
+        core_ir::Expr::Tuple(items) => {
+            for item in items {
+                remap_core_expr_runtime_ids(item, expected_edge_offset);
+            }
+        }
+        core_ir::Expr::Record { fields, spread } => {
+            for field in fields {
+                remap_core_expr_runtime_ids(&mut field.value, expected_edge_offset);
+            }
+            if let Some(spread) = spread {
+                remap_record_spread_expr_runtime_ids(spread, expected_edge_offset);
+            }
+        }
+        core_ir::Expr::Variant { value, .. } => {
+            if let Some(value) = value {
+                remap_core_expr_runtime_ids(value, expected_edge_offset);
+            }
+        }
+        core_ir::Expr::Select { base, .. } => {
+            remap_core_expr_runtime_ids(base, expected_edge_offset);
+        }
+        core_ir::Expr::Match {
+            scrutinee, arms, ..
+        } => {
+            remap_core_expr_runtime_ids(scrutinee, expected_edge_offset);
+            for arm in arms {
+                if let Some(guard) = &mut arm.guard {
+                    remap_core_expr_runtime_ids(guard, expected_edge_offset);
+                }
+                remap_core_expr_runtime_ids(&mut arm.body, expected_edge_offset);
+            }
+        }
+        core_ir::Expr::Block { stmts, tail } => {
+            for stmt in stmts {
+                remap_core_stmt_runtime_ids(stmt, expected_edge_offset);
+            }
+            if let Some(tail) = tail {
+                remap_core_expr_runtime_ids(tail, expected_edge_offset);
+            }
+        }
+        core_ir::Expr::Handle { body, arms, .. } => {
+            remap_core_expr_runtime_ids(body, expected_edge_offset);
+            for arm in arms {
+                if let Some(guard) = &mut arm.guard {
+                    remap_core_expr_runtime_ids(guard, expected_edge_offset);
+                }
+                remap_core_expr_runtime_ids(&mut arm.body, expected_edge_offset);
+            }
+        }
+        core_ir::Expr::Coerce { expr, evidence } => {
+            remap_core_expr_runtime_ids(expr, expected_edge_offset);
+            if let Some(evidence) = evidence {
+                remap_optional_expected_edge(&mut evidence.source_edge, expected_edge_offset);
+            }
+        }
+        core_ir::Expr::Pack { expr, .. } => {
+            remap_core_expr_runtime_ids(expr, expected_edge_offset);
+        }
+    }
+}
+
+fn remap_record_spread_expr_runtime_ids(
+    spread: &mut core_ir::RecordSpreadExpr,
+    expected_edge_offset: u32,
+) {
+    match spread {
+        core_ir::RecordSpreadExpr::Head(expr) | core_ir::RecordSpreadExpr::Tail(expr) => {
+            remap_core_expr_runtime_ids(expr, expected_edge_offset);
+        }
+    }
+}
+
+fn remap_core_stmt_runtime_ids(stmt: &mut core_ir::Stmt, expected_edge_offset: u32) {
+    match stmt {
+        core_ir::Stmt::Let { value, .. } | core_ir::Stmt::Expr(value) => {
+            remap_core_expr_runtime_ids(value, expected_edge_offset);
+        }
+        core_ir::Stmt::Module { body, .. } => {
+            remap_core_expr_runtime_ids(body, expected_edge_offset);
+        }
+    }
+}
+
+fn remap_apply_evidence_runtime_ids(
+    evidence: &mut core_ir::ApplyEvidence,
+    expected_edge_offset: u32,
+) {
+    remap_optional_expected_edge(&mut evidence.callee_source_edge, expected_edge_offset);
+    remap_optional_expected_edge(&mut evidence.arg_source_edge, expected_edge_offset);
+    for candidate in &mut evidence.substitution_candidates {
+        remap_optional_expected_edge(&mut candidate.source_edge, expected_edge_offset);
+    }
+    if let Some(plan) = &mut evidence.principal_elaboration {
+        for arg in &mut plan.args {
+            remap_optional_expected_edge(&mut arg.source_edge, expected_edge_offset);
+        }
+        for adapter in &mut plan.adapters {
+            remap_optional_expected_edge(&mut adapter.source_edge, expected_edge_offset);
+        }
+    }
+}
+
+fn remap_optional_expected_edge(edge: &mut Option<u32>, expected_edge_offset: u32) {
+    if let Some(edge) = edge {
+        *edge += expected_edge_offset;
+    }
+}
+
+fn merge_core_program_into(
+    target: &mut CoreProgram,
+    source: CoreProgram,
+) -> Result<(), CompiledRuntimeMergeError> {
+    merge_principal_bindings(&mut target.program.bindings, source.program.bindings)?;
+    target.program.root_exprs.extend(source.program.root_exprs);
+    target.program.roots.extend(source.program.roots);
+    merge_binding_graph_nodes(&mut target.graph.bindings, source.graph.bindings)?;
+    target.graph.root_exprs.extend(source.graph.root_exprs);
+    merge_runtime_symbols(
+        &mut target.graph.runtime_symbols,
+        source.graph.runtime_symbols,
+    )?;
+    target
+        .evidence
+        .expected_edges
+        .extend(source.evidence.expected_edges);
+    target
+        .evidence
+        .expected_adapter_edges
+        .extend(source.evidence.expected_adapter_edges);
+    target
+        .evidence
+        .derived_expected_edges
+        .extend(source.evidence.derived_expected_edges);
+    Ok(())
+}
+
+fn merge_principal_bindings(
+    target: &mut Vec<core_ir::PrincipalBinding>,
+    source: Vec<core_ir::PrincipalBinding>,
+) -> Result<(), CompiledRuntimeMergeError> {
+    let mut by_path = target
+        .iter()
+        .enumerate()
+        .map(|(index, binding)| (binding.name.clone(), index))
+        .collect::<HashMap<_, _>>();
+    for binding in source {
+        if let Some(index) = by_path.get(&binding.name).copied() {
+            if target[index] != binding {
+                return Err(CompiledRuntimeMergeError::ConflictingBinding { path: binding.name });
+            }
+            continue;
+        }
+        by_path.insert(binding.name.clone(), target.len());
+        target.push(binding);
+    }
+    Ok(())
+}
+
+fn merge_binding_graph_nodes(
+    target: &mut Vec<core_ir::BindingGraphNode>,
+    source: Vec<core_ir::BindingGraphNode>,
+) -> Result<(), CompiledRuntimeMergeError> {
+    let mut by_path = target
+        .iter()
+        .enumerate()
+        .map(|(index, node)| (node.binding.clone(), index))
+        .collect::<HashMap<_, _>>();
+    for node in source {
+        if let Some(index) = by_path.get(&node.binding).copied() {
+            if target[index] != node {
+                return Err(CompiledRuntimeMergeError::ConflictingGraphBinding {
+                    path: node.binding,
+                });
+            }
+            continue;
+        }
+        by_path.insert(node.binding.clone(), target.len());
+        target.push(node);
+    }
+    Ok(())
+}
+
+fn merge_runtime_symbols(
+    target: &mut Vec<core_ir::RuntimeSymbol>,
+    source: Vec<core_ir::RuntimeSymbol>,
+) -> Result<(), CompiledRuntimeMergeError> {
+    let mut by_path = target
+        .iter()
+        .enumerate()
+        .map(|(index, symbol)| (symbol.path.clone(), index))
+        .collect::<HashMap<_, _>>();
+    for symbol in source {
+        if let Some(index) = by_path.get(&symbol.path).copied() {
+            if target[index].kind != symbol.kind {
+                return Err(CompiledRuntimeMergeError::ConflictingRuntimeSymbol {
+                    path: symbol.path,
+                });
+            }
+            continue;
+        }
+        by_path.insert(symbol.path.clone(), target.len());
+        target.push(symbol);
+    }
+    Ok(())
+}
+
+fn compiled_runtime_binding_paths_for_modules(
+    value_paths: &[(Path, crate::ids::DefId)],
+    unit_paths: &[Vec<String>],
+) -> Vec<(Path, crate::ids::DefId)> {
+    value_paths
+        .iter()
+        .filter(|(path, _)| path_belongs_to_modules(&snapshot_path_segments(path), unit_paths))
+        .cloned()
+        .collect()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2067,6 +2634,7 @@ fn compiled_typed_surface_for_namespace(
                 Some(StdInferSnapshotScheme {
                     symbol,
                     rendered: scheme.rendered.clone(),
+                    compact: scheme.compact.clone(),
                 })
             })
             .collect(),
@@ -2291,6 +2859,65 @@ fn merge_compiled_namespace_surfaces<'a>(
         values,
         types,
     }
+}
+
+fn merge_compiled_typed_surfaces(artifacts: &[CompiledUnitArtifact]) -> CompiledTypedSurface {
+    let mut typed = CompiledTypedSurface::default();
+    let mut value_offset = 0u32;
+
+    for artifact in artifacts {
+        typed
+            .schemes
+            .extend(artifact.typed.schemes.iter().cloned().map(|mut scheme| {
+                scheme.symbol += value_offset;
+                scheme
+            }));
+        typed.roles.extend(artifact.typed.roles.iter().cloned());
+        typed.role_methods.extend(
+            artifact
+                .typed
+                .role_methods
+                .iter()
+                .cloned()
+                .map(|mut method| {
+                    method.symbol += value_offset;
+                    method
+                }),
+        );
+        typed.role_impls.extend(
+            artifact
+                .typed
+                .role_impls
+                .iter()
+                .cloned()
+                .map(|mut role_impl| {
+                    for member in &mut role_impl.members {
+                        member.symbol += value_offset;
+                    }
+                    role_impl
+                }),
+        );
+        typed.effects.extend(artifact.typed.effects.iter().cloned());
+        typed
+            .effect_methods
+            .extend(
+                artifact
+                    .typed
+                    .effect_methods
+                    .iter()
+                    .cloned()
+                    .map(|mut method| {
+                        method.symbol += value_offset;
+                        method
+                    }),
+            );
+
+        value_offset += artifact.namespace.values.len() as u32;
+    }
+
+    typed.roles.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
+    typed.effects.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
+    typed
 }
 
 fn import_compiled_namespace_module_skeletons(

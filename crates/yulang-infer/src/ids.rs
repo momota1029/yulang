@@ -1,5 +1,7 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use serde::{Deserialize, Serialize};
+
 /// 変数・関数・型などの定義を一意に識別する ID。
 /// 定義ひとつにつき必ずひとつ発行される。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -24,7 +26,7 @@ pub fn fresh_ref_id() -> RefId {
 }
 
 /// 型変数。制約テーブルを引くまで実際の型は不明。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TypeVar(pub u32);
 
 static NEXT_TYPE_VAR: AtomicU32 = AtomicU32::new(0);

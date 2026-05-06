@@ -139,9 +139,29 @@ SourceSet
 ```
 
 `SourceSet::compilation_units()` now exposes the first piece of that model: SCC
-units, unit dependencies, origin classification, and syntax exports. The next
-implementation slice should build a read-only `CompiledUnitManifest` from those
-units before trying to replace lowering with persisted artifacts.
+units, unit dependencies, origin classification, and syntax exports.
+
+Current compiled-unit implementation checkpoint:
+
+- `CompiledUnitArtifact` bundles manifest, syntax, namespace, typed, and runtime
+  surfaces for each source SCC.
+- Syntax surfaces preserve parser-facing operator exports and can rebuild
+  downstream `OpTable` contributions.
+- Namespace surfaces restore modules, values, types, operator value entries,
+  visibility, and canonical paths into fresh process-local lowering ids.
+- Typed surfaces now carry compact scheme payloads for exported unit values, and
+  typed import installs both compact and rebuilt frozen schemes into the restored
+  `Infer` state.
+- Runtime surfaces carry unit-local core bindings and can be merged before a
+  fresh user core export with conflict checks and evidence id remapping.
+- `crates/yulang-wasm` builds std compiled-unit artifacts at package build time,
+  embeds the serialized artifact bytes, imports std compiled-unit surfaces on
+  the normal playground run path, and keeps source std compilation as the
+  conservative fallback.
+
+The remaining cache work is to expand typed-surface import for role/impl/effect
+lookup fidelity, tighten manifest validation against the active source set, and
+then generalize persistence to user dependency SCCs.
 
 Operator-specific cache rule:
 
@@ -1085,11 +1105,55 @@ file-SCC compiled-unit artifacts:
   entries and can import them into fresh process-local ids.
 - `CompiledTypedSurface` carries typed metadata refs and now has an import
   skeleton that resolves scheme/role/effect refs against the imported namespace.
-- `CompiledUnitArtifact` bundles syntax, namespace, and typed surfaces under
-  one manifest for a single `SourceCompilationUnit`.
+- `CompiledRuntimeSurface` carries the first unit-local `CoreProgram` payload
+  exported from the namespace value symbols that belong to the unit.
+- `CompiledUnitArtifact` bundles syntax, namespace, typed, and runtime surfaces
+  under one manifest for a single `SourceCompilationUnit`.
+- `CompiledRuntimeBundle::from_surfaces` is the first merge checkpoint for
+  dependency runtime surfaces. It deduplicates same-path core bindings, rejects
+  conflicting same-path payloads, and remaps expected-edge evidence ids across
+  merged unit surfaces.
+- `CompiledRuntimeBundle::merge_with_user_program` can place cached dependency
+  runtime surfaces before a freshly exported user program. A wasm regression now
+  removes a dependency binding from user core export, restores it from a runtime
+  surface, and still evaluates the merged program.
+- Runtime surfaces are seeded from all binding paths owned by the unit module
+  paths. This preserves generated same-unit runtime helpers while keeping
+  imported/reexported value identities from duplicating bindings across units.
+- A std-facing wasm regression now restores bundled source-std runtime surfaces
+  into a fresh program export and evaluates `1 + 2`.
+- `crates/yulang-wasm` exposes `std_compiled_unit_artifacts()` for build-time
+  tooling experiments. This keeps the artifact path observable from the
+  playground package without putting artifact construction on the normal run
+  path.
+- `crates/yulang-wasm/build.rs` now builds std compiled-unit artifacts at
+  package build time and embeds the serialized artifact JSON through `OUT_DIR`.
+  Wasm exposes `embedded_std_compiled_unit_artifacts()` and
+  `embedded_std_compiled_unit_artifact_status()`, and `warm_std_cache()` reports
+  the embedded artifact status in its console-visible output.
+- Embedded artifact loading validates compiled-unit format versions plus
+  namespace/typed surface completeness and reports a fallback reason instead of
+  panicking through warmup/status. The playground logs embedded std artifact
+  status after wasm init.
+- The normal playground run path now attempts embedded std compiled-unit import
+  before the process-local source std cache. On a cache hit, user lowering skips
+  std source lowering/export and merges embedded std runtime surfaces before VM
+  lowering. If artifact import or merged runtime execution fails, it falls back
+  to the existing source std cache path and reports the reason in timings.
+- The embedded path also falls back when VM eval leaves a root request
+  unresolved. This is intentional until role/impl/effect typed-surface import
+  can reproduce the source-lowered std behavior for console/effect-heavy
+  programs.
+- Namespace surfaces include same-unit companion modules so imported role/type
+  method paths such as `std::prelude::Add::add` resolve without lowering the
+  std source unit.
+- Runtime merge prunes user-exported duplicate dependency runtime symbols before
+  adding cached dependency surfaces. This avoids conflicts when imported defs
+  leave runtime symbol metadata in the fresh user export.
 
-This is still not a replacement for lowering/inference. The next hard boundary
-is restoring real scheme/body/principal evidence into the imported state without
-faking source-defined defs. Keep the work unit-oriented, not std-special-cased:
-`SourceCompilationUnit -> CompiledUnit artifact -> importable syntax/namespace/
-typed/runtime surfaces`.
+This is now a first replacement path for std lowering/export in the playground,
+with source std compilation kept as fallback. The next hard boundary is
+restoring fuller role/impl/effect typed metadata and tightening manifest/source
+validation without faking source-defined defs. Keep the work unit-oriented, not
+std-special-cased: `SourceCompilationUnit -> CompiledUnit artifact ->
+importable syntax/namespace/typed/runtime surfaces`.

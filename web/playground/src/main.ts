@@ -1,4 +1,9 @@
-import init, { colorize, run, warm_std_cache } from "./wasm/yulang_wasm.js";
+import init, {
+  colorize,
+  embedded_std_compiled_unit_artifact_status,
+  run,
+  warm_std_cache,
+} from "./wasm/yulang_wasm.js";
 import "./style.css";
 
 type Diagnostic = {
@@ -36,6 +41,31 @@ type RunTimings = {
   source_cache_misses: number;
   source_cache_clone_ms: number;
   source_cache_build_ms: number;
+  compiled_std_artifacts: number;
+  compiled_std_runtime_bindings: number;
+  compiled_std_cache_hit: boolean;
+  compiled_std_fallback_reason?: string;
+};
+
+type EmbeddedStdArtifactsOutput = {
+  artifacts: number;
+  runtime_bindings: number;
+  bytes: number;
+  valid: boolean;
+  fallback_reason?: string;
+};
+
+type WarmupOutput = {
+  source_cache_hits: number;
+  source_cache_misses: number;
+  source_cache_clone_ms: number;
+  source_cache_build_ms: number;
+  embedded_std_artifacts: number;
+  embedded_std_runtime_bindings: number;
+  embedded_std_artifacts_bytes: number;
+  embedded_std_artifacts_valid: boolean;
+  embedded_std_artifacts_fallback_reason?: string;
+  total_ms: number;
 };
 
 type RunResult = {
@@ -318,6 +348,7 @@ let isRunning = false;
 setupI18n();
 
 await init();
+logEmbeddedStdArtifacts();
 
 setupExampleButtons();
 loadExample(0);
@@ -506,13 +537,20 @@ function updateRunButton(): void {
 
 function scheduleStdCacheWarmup(): void {
   const warm = () => {
-    console.debug("Yulang std cache warmup", warm_std_cache());
+    console.debug("Yulang std cache warmup", warm_std_cache() as WarmupOutput);
   };
   if ("requestIdleCallback" in window) {
     window.requestIdleCallback(warm, { timeout: 1000 });
   } else {
     window.setTimeout(warm, 0);
   }
+}
+
+function logEmbeddedStdArtifacts(): void {
+  console.debug(
+    "Yulang embedded std artifacts",
+    embedded_std_compiled_unit_artifact_status() as EmbeddedStdArtifactsOutput,
+  );
 }
 
 function nextPaint(): Promise<void> {

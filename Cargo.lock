@@ -1304,6 +1304,7 @@ dependencies = [
  "js-sys",
  "serde",
  "serde-wasm-bindgen",
+ "serde_json",
  "wasm-bindgen",
  "yulang-core-ir",
  "yulang-infer",
