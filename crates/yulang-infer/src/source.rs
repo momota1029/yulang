@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use yulang_parser::parse_module_to_green_with_ops;
 use yulang_parser::sink::YulangLanguage;
 use yulang_source::{
-    SourceFile, SourceLoadError, SourceOptions, SourceOrigin, SourceSet,
+    CompiledUnitManifest, SourceFile, SourceLoadError, SourceOptions, SourceOrigin, SourceSet,
     collect_source_files_with_options, collect_virtual_source_files_with_options,
 };
 
@@ -23,6 +23,63 @@ use yulang_core_ir::CoreProgram;
 pub struct LoweredSources {
     pub state: LowerState,
     pub diagnostic_source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitNamespaceArtifact {
+    pub manifest: CompiledUnitManifest,
+    pub namespace: CompiledNamespaceSurface,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct CompiledNamespaceSurface {
+    pub modules: Vec<CompiledNamespaceModule>,
+    pub values: Vec<CompiledNamespaceSymbol>,
+    pub types: Vec<CompiledNamespaceSymbol>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceModule {
+    pub path: Vec<String>,
+    pub values: Vec<CompiledNamespaceModuleValue>,
+    pub operators: Vec<CompiledNamespaceModuleOperator>,
+    pub types: Vec<CompiledNamespaceModuleType>,
+    pub modules: Vec<CompiledNamespaceModuleChild>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceModuleValue {
+    pub name: String,
+    pub symbol: u32,
+    pub visibility: StdInferSnapshotVisibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceModuleOperator {
+    pub name: String,
+    pub fixity: StdInferSnapshotOperatorFixity,
+    pub symbol: u32,
+    pub visibility: StdInferSnapshotVisibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceModuleType {
+    pub name: String,
+    pub symbol: u32,
+    pub visibility: StdInferSnapshotVisibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceModuleChild {
+    pub name: String,
+    pub module_path: Vec<String>,
+    pub visibility: StdInferSnapshotVisibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledNamespaceSymbol {
+    pub path: Vec<String>,
+    pub unit_id: u32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -409,6 +466,39 @@ pub fn build_std_infer_snapshot_data(source_set: &SourceSet) -> Option<StdInferS
 
 pub fn build_std_core_snapshot_data(source_set: &SourceSet) -> Option<StdCoreSnapshotData> {
     with_profile_enabled(false, || build_std_core_snapshot_data_inner(source_set))
+}
+
+pub fn build_compiled_namespace_artifacts(
+    source_set: &SourceSet,
+    state: &LowerState,
+) -> Vec<CompiledUnitNamespaceArtifact> {
+    let syntax_artifacts = source_set.compiled_unit_syntax_artifacts();
+    let units = source_set.compilation_units();
+    let value_paths = state.ctx.collect_all_binding_paths();
+    let type_paths = state.ctx.collect_all_type_paths();
+
+    units
+        .units
+        .iter()
+        .enumerate()
+        .map(|(unit_idx, unit)| {
+            let module_paths = unit
+                .files
+                .iter()
+                .map(|&file_idx| source_set.files[file_idx].module_path.clone())
+                .collect::<Vec<_>>();
+            let namespace = compiled_namespace_surface_for_modules(
+                state,
+                &module_paths,
+                &value_paths,
+                &type_paths,
+            );
+            CompiledUnitNamespaceArtifact {
+                manifest: syntax_artifacts[unit_idx].manifest.clone(),
+                namespace,
+            }
+        })
+        .collect()
 }
 
 pub fn import_std_infer_snapshot_data(
@@ -1519,6 +1609,229 @@ fn collect_std_snapshot_module_paths_from(
         let mut child_path = path.clone();
         child_path.segments.push(name.clone());
         collect_std_snapshot_module_paths_from(state, child, child_path, out);
+    }
+}
+
+fn compiled_namespace_surface_for_modules(
+    state: &LowerState,
+    source_modules: &[yulang_core_ir::Path],
+    value_paths: &[(Path, crate::ids::DefId)],
+    type_paths: &[(Path, crate::ids::DefId)],
+) -> CompiledNamespaceSurface {
+    let module_ids = source_modules
+        .iter()
+        .filter_map(|module_path| module_id_for_core_path(state, module_path))
+        .collect::<Vec<_>>();
+    let mut value_defs = HashMap::new();
+    let mut type_defs = HashMap::new();
+    let values = compiled_namespace_symbols_for_defs(
+        value_paths,
+        module_ids.iter().flat_map(|module| {
+            state
+                .ctx
+                .modules
+                .node(*module)
+                .values
+                .values()
+                .chain(state.ctx.modules.node(*module).operator_values.values())
+                .copied()
+        }),
+        &mut value_defs,
+    );
+    let types = compiled_namespace_symbols_for_defs(
+        type_paths,
+        module_ids
+            .iter()
+            .flat_map(|module| state.ctx.modules.node(*module).types.values().copied()),
+        &mut type_defs,
+    );
+    let modules = module_ids
+        .into_iter()
+        .map(|module| compiled_namespace_module(state, module, &value_defs, &type_defs))
+        .collect::<Vec<_>>();
+
+    CompiledNamespaceSurface {
+        modules,
+        values,
+        types,
+    }
+}
+
+fn module_id_for_core_path(state: &LowerState, path: &yulang_core_ir::Path) -> Option<ModuleId> {
+    state.ctx.modules.module_ids().find(|module| {
+        path_from_infer_path(&state.ctx.module_path(*module)).segments == path.segments
+    })
+}
+
+fn compiled_namespace_symbols_for_defs(
+    all_paths: &[(Path, crate::ids::DefId)],
+    defs: impl IntoIterator<Item = crate::ids::DefId>,
+    out_ids: &mut HashMap<crate::ids::DefId, u32>,
+) -> Vec<CompiledNamespaceSymbol> {
+    let mut symbols = Vec::new();
+    let mut defs = defs.into_iter().collect::<Vec<_>>();
+    defs.sort_by_key(|def| def.0);
+    defs.dedup();
+    for def in defs {
+        let Some(path) = all_paths
+            .iter()
+            .find_map(|(path, current)| (*current == def).then_some(path))
+        else {
+            continue;
+        };
+        let unit_id = out_ids.len() as u32;
+        out_ids.insert(def, unit_id);
+        symbols.push(CompiledNamespaceSymbol {
+            path: path.segments.iter().map(|name| name.0.clone()).collect(),
+            unit_id,
+        });
+    }
+    symbols.sort_by(|left, right| left.path.cmp(&right.path));
+    symbols
+}
+
+fn compiled_namespace_module(
+    state: &LowerState,
+    module: ModuleId,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+    type_ids: &HashMap<crate::ids::DefId, u32>,
+) -> CompiledNamespaceModule {
+    let node = state.ctx.modules.node(module);
+    CompiledNamespaceModule {
+        path: state
+            .ctx
+            .module_path(module)
+            .segments
+            .iter()
+            .map(|name| name.0.clone())
+            .collect(),
+        values: compiled_namespace_module_values(state, module, value_ids),
+        operators: compiled_namespace_module_operators(state, module, value_ids),
+        types: compiled_namespace_module_types(state, module, type_ids),
+        modules: compiled_namespace_module_children(state, module, node),
+    }
+}
+
+fn compiled_namespace_module_values(
+    state: &LowerState,
+    module: ModuleId,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<CompiledNamespaceModuleValue> {
+    let mut values = state
+        .ctx
+        .modules
+        .node(module)
+        .values
+        .iter()
+        .filter_map(|(name, def)| {
+            value_ids
+                .get(def)
+                .copied()
+                .map(|symbol| CompiledNamespaceModuleValue {
+                    name: name.0.clone(),
+                    symbol,
+                    visibility: snapshot_visibility(
+                        state.ctx.modules.value_visibility(module, name),
+                    ),
+                })
+        })
+        .collect::<Vec<_>>();
+    values.sort_by(|left, right| left.name.cmp(&right.name));
+    values
+}
+
+fn compiled_namespace_module_operators(
+    state: &LowerState,
+    module: ModuleId,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<CompiledNamespaceModuleOperator> {
+    let mut operators = state
+        .ctx
+        .modules
+        .node(module)
+        .operator_values
+        .iter()
+        .filter_map(|((name, fixity), def)| {
+            value_ids
+                .get(def)
+                .copied()
+                .map(|symbol| CompiledNamespaceModuleOperator {
+                    name: name.0.clone(),
+                    fixity: snapshot_operator_fixity(*fixity),
+                    symbol,
+                    visibility: snapshot_visibility(
+                        state.ctx.modules.operator_visibility(module, name, *fixity),
+                    ),
+                })
+        })
+        .collect::<Vec<_>>();
+    operators.sort_by(|left, right| {
+        left.name
+            .cmp(&right.name)
+            .then_with(|| left.fixity.cmp(&right.fixity))
+    });
+    operators
+}
+
+fn compiled_namespace_module_types(
+    state: &LowerState,
+    module: ModuleId,
+    type_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<CompiledNamespaceModuleType> {
+    let mut types = state
+        .ctx
+        .modules
+        .node(module)
+        .types
+        .iter()
+        .filter_map(|(name, def)| {
+            type_ids
+                .get(def)
+                .copied()
+                .map(|symbol| CompiledNamespaceModuleType {
+                    name: name.0.clone(),
+                    symbol,
+                    visibility: snapshot_visibility(
+                        state.ctx.modules.type_visibility(module, name),
+                    ),
+                })
+        })
+        .collect::<Vec<_>>();
+    types.sort_by(|left, right| left.name.cmp(&right.name));
+    types
+}
+
+fn compiled_namespace_module_children(
+    state: &LowerState,
+    parent: ModuleId,
+    node: &crate::symbols::ModuleNode,
+) -> Vec<CompiledNamespaceModuleChild> {
+    let mut modules = node
+        .modules
+        .iter()
+        .map(|(name, module)| CompiledNamespaceModuleChild {
+            name: name.0.clone(),
+            module_path: state
+                .ctx
+                .module_path(*module)
+                .segments
+                .iter()
+                .map(|segment| segment.0.clone())
+                .collect(),
+            visibility: snapshot_visibility(state.ctx.modules.module_visibility(parent, name)),
+        })
+        .collect::<Vec<_>>();
+    modules.sort_by(|left, right| left.name.cmp(&right.name));
+    modules
+}
+
+fn path_from_infer_path(path: &Path) -> yulang_core_ir::Path {
+    yulang_core_ir::Path {
+        segments: path
+            .segments
+            .iter()
+            .map(|name| yulang_core_ir::Name(name.0.clone()))
+            .collect(),
     }
 }
 

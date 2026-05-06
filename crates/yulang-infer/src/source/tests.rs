@@ -1610,6 +1610,116 @@ fn lowers_virtual_entry_with_local_operator_module() {
 }
 
 #[test]
+fn compiled_namespace_artifact_preserves_operator_value_identity() {
+    let source_set = collect_inline_source_files_with_options(
+        "use ops::*\nmy y = 1 %% 2\n",
+        [InlineSource {
+            path: PathBuf::from("<ops>.yu"),
+            module_path: CorePath::new(vec![CoreName("ops".to_string())]),
+            origin: SourceOrigin::User,
+            source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+            meta: None,
+        }],
+        yulang_source::SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+    let artifacts = build_compiled_namespace_artifacts(&source_set, &lowered.state);
+    let ops_artifact = artifacts
+        .iter()
+        .find(|artifact| {
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["ops"])
+        })
+        .expect("ops namespace artifact should exist");
+    let ops_module = ops_artifact
+        .namespace
+        .modules
+        .iter()
+        .find(|module| module.path == vec!["ops"])
+        .unwrap();
+    let op = ops_module
+        .operators
+        .iter()
+        .find(|operator| operator.name == "%%")
+        .expect("operator value should be exported");
+
+    assert_eq!(op.fixity, StdInferSnapshotOperatorFixity::Infix);
+    assert!(
+        ops_artifact
+            .namespace
+            .values
+            .iter()
+            .any(|symbol| symbol.unit_id == op.symbol
+                && symbol.path == vec!["ops".to_string(), "#op:infix:%%".to_string()])
+    );
+}
+
+#[test]
+fn compiled_namespace_artifact_preserves_value_and_type_symbols() {
+    let source_set = collect_inline_source_files_with_options(
+        "use data::*\nmy y = box 1\n",
+        [InlineSource {
+            path: PathBuf::from("<data>.yu"),
+            module_path: CorePath::new(vec![CoreName("data".to_string())]),
+            origin: SourceOrigin::User,
+            source: "pub struct box 'a:\n  value: 'a\n\npub make x = box x\n".to_string(),
+            meta: None,
+        }],
+        yulang_source::SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+    let artifacts = build_compiled_namespace_artifacts(&source_set, &lowered.state);
+    let data_artifact = artifacts
+        .iter()
+        .find(|artifact| {
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["data"])
+        })
+        .expect("data namespace artifact should exist");
+    let data_module = data_artifact
+        .namespace
+        .modules
+        .iter()
+        .find(|module| module.path == vec!["data"])
+        .unwrap();
+
+    assert!(data_module.values.iter().any(|value| value.name == "make"));
+    assert!(data_module.types.iter().any(|ty| ty.name == "box"));
+    assert!(
+        data_artifact
+            .namespace
+            .values
+            .iter()
+            .any(|symbol| symbol.path == vec!["data".to_string(), "make".to_string()])
+    );
+    assert!(
+        data_artifact
+            .namespace
+            .types
+            .iter()
+            .any(|symbol| symbol.path == vec!["data".to_string(), "box".to_string()])
+    );
+
+    let encoded = serde_json::to_string(data_artifact).unwrap();
+    let decoded: CompiledUnitNamespaceArtifact = serde_json::from_str(&encoded).unwrap();
+    assert_eq!(&decoded, data_artifact);
+}
+
+#[test]
 fn lowers_var_sigils_across_multiple_top_level_bindings() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
