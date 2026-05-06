@@ -5,6 +5,7 @@ use std::path::{Path as FsPath, PathBuf};
 use std::time::Duration;
 
 use rowan::SyntaxNode;
+use serde::{Deserialize, Serialize};
 use yulang_parser::parse_module_to_green_with_ops;
 use yulang_parser::sink::YulangLanguage;
 use yulang_source::{
@@ -80,6 +81,14 @@ pub struct SourceLowerCache {
 pub struct StdInferSnapshot {
     key: StdSourceCacheKey,
     state: LowerState,
+}
+
+pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 0;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotManifest {
+    pub format_version: u32,
+    pub key: StdSourceCacheKey,
 }
 
 pub fn lower_entry_with_options(
@@ -385,6 +394,13 @@ impl StdInferSnapshot {
     fn covers(&self, requested: &StdSourceCacheKey) -> bool {
         self.key.covers(requested)
     }
+
+    pub fn manifest(&self) -> StdInferSnapshotManifest {
+        StdInferSnapshotManifest {
+            format_version: STD_INFER_SNAPSHOT_FORMAT_VERSION,
+            key: self.key.clone(),
+        }
+    }
 }
 
 fn build_std_infer_snapshot_inner(
@@ -411,13 +427,13 @@ fn build_std_infer_snapshot_inner(
     Some(StdInferSnapshot::new(key, state))
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct StdSourceCacheKey {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct StdSourceCacheKey {
     files: Vec<StdSourceFileCacheKey>,
 }
 
 impl StdSourceCacheKey {
-    fn from_source_set(source_set: &SourceSet) -> Self {
+    pub fn from_source_set(source_set: &SourceSet) -> Self {
         Self {
             files: source_set
                 .std_files()
@@ -431,7 +447,7 @@ impl StdSourceCacheKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct StdSourceFileCacheKey {
     module_path: Vec<String>,
     source_len: usize,

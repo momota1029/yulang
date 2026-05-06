@@ -1251,6 +1251,8 @@ dependencies = [
  "dashmap",
  "rowan",
  "rustc-hash 2.1.2",
+ "serde",
+ "serde_json",
  "smallvec",
  "yulang-core-ir",
  "yulang-parser",

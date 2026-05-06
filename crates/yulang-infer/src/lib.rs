@@ -47,8 +47,9 @@ pub use solve::{
     RoleMethodInfo,
 };
 pub use source::{
-    LoweredSources, ProfiledLoweredSources, SourceLowerCache, SourceLowerProfile,
-    SourceStdCacheProfile, StdInferSnapshot, build_std_infer_snapshot, lower_entry_with_options,
+    LoweredSources, ProfiledLoweredSources, STD_INFER_SNAPSHOT_FORMAT_VERSION, SourceLowerCache,
+    SourceLowerProfile, SourceStdCacheProfile, StdInferSnapshot, StdInferSnapshotManifest,
+    StdSourceCacheKey, build_std_infer_snapshot, lower_entry_with_options,
     lower_entry_with_options_profiled, lower_source_file, lower_source_file_profiled,
     lower_source_set, lower_source_set_profiled, lower_source_set_with_std_cache,
     lower_source_set_with_std_cache_profiled, lower_source_set_with_std_snapshot,

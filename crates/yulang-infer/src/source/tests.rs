@@ -101,8 +101,12 @@ fn std_lower_cache_preserves_entry_results() {
     let mut cache = SourceLowerCache::default();
     let mut cached = lower_source_set_with_std_cache(&source_set, &mut cache);
     let snapshot = build_std_infer_snapshot(&source_set).expect("std snapshot");
+    let manifest_json = serde_json::to_string(&snapshot.manifest()).unwrap();
+    let manifest: StdInferSnapshotManifest = serde_json::from_str(&manifest_json).unwrap();
     let mut snapshotted = lower_source_set_with_std_snapshot(&source_set, &snapshot).lowered;
 
+    assert_eq!(manifest.format_version, STD_INFER_SNAPSHOT_FORMAT_VERSION);
+    assert_eq!(manifest, snapshot.manifest());
     assert_eq!(
         crate::render_exported_compact_results(&mut cached.state),
         crate::render_exported_compact_results(&mut uncached.state)
