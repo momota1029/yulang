@@ -114,6 +114,10 @@ Current key examples:
 Goal: make playground runs fast enough that small edits do not feel like a full
 compiler restart.
 
+Detailed plan:
+
+- `notes/design/partial-compilation-cache-plan.md`
+
 Important correction:
 
 - The cache unit should not be "std only" and should not be only a serialized
@@ -148,6 +152,9 @@ Current shape:
 
 Next steps:
 
+- Follow the phase order in `notes/design/partial-compilation-cache-plan.md`.
+- Immediate next slice: `CompiledUnitManifest + CompiledSyntaxSurface` from
+  `SourceCompilationUnit`.
 - Design a persistent compiled-unit artifact for file SCCs:
   - source identity: file paths, module paths, source hash, origin, compiler
     snapshot version, and relevant feature flags;

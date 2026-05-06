@@ -104,6 +104,10 @@ same typed-IR direction, not as a separate detour.
 The persistent cache direction must be file-SCC based, not std-only and not
 core-only.
 
+Detailed plan:
+
+- `notes/design/partial-compilation-cache-plan.md`
+
 Recent std snapshot work is useful as a serialization prototype:
 
 - `StdInferSnapshotData` proves we can make stable snapshot-local ids for module
