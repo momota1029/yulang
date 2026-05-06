@@ -1,0 +1,19 @@
+// Attach role implementations to a type with `with:`.
+// The enclosing type is inserted as the first role argument.
+
+role Pick 'container 'key:
+    type value
+    our container.pick: 'key -> value
+
+struct pair 'left 'right { left: 'left, right: 'right } with:
+    impl Pick int:
+        type value = 'left
+        our p.pick _ = p.left
+
+    impl Pick bool:
+        type value = 'right
+        our p.pick _ = p.right
+
+my p = pair { left: 10, right: false }
+
+(p.pick 0, p.pick true)
