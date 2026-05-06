@@ -99,6 +99,46 @@ Important non-goals right now:
 The `CoreShape` and diagnostic work remains useful, but as observability for the
 same typed-IR direction, not as a separate detour.
 
+## Current Decision: compiled-unit cache direction
+
+The persistent cache direction must be file-SCC based, not std-only and not
+core-only.
+
+Recent std snapshot work is useful as a serialization prototype:
+
+- `StdInferSnapshotData` proves we can make stable snapshot-local ids for module
+  / value / type metadata.
+- `StdCoreSnapshotData` proves `CoreProgram` can be serialized.
+
+But it is not a complete cache architecture:
+
+- operator syntax is exported/imported at the source layer and must be part of
+  any cached unit;
+- namespace state includes modules, reexports, visibility, values, types, and
+  canonical paths, not just core bindings;
+- role/impl/effect lookup tables are needed by downstream inference;
+- a user module can depend on non-std modules exactly like it depends on std, so
+  the cache boundary should be a dependency SCC of files.
+
+Therefore the next cache model should be:
+
+```text
+SourceSet
+  -> file dependency graph
+  -> SourceCompilationUnit SCCs
+  -> CompiledUnit artifact
+       source hashes + module paths
+       syntax exports / operator table delta
+       namespace exports
+       typed schemes / role/effect metadata
+       principal evidence / core bindings
+```
+
+`SourceSet::compilation_units()` now exposes the first piece of that model: SCC
+units, unit dependencies, origin classification, and syntax exports. The next
+implementation slice should build a read-only `CompiledUnitManifest` from those
+units before trying to replace lowering with persisted artifacts.
+
 ## Context
 
 `yulang-runtime` の `monomorphize` は、現在は demand-driven に具体的な呼び出し形を集め、`DemandSignature` を作り、必要な specialization を emit している。

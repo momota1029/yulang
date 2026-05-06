@@ -114,6 +114,21 @@ Current key examples:
 Goal: make playground runs fast enough that small edits do not feel like a full
 compiler restart.
 
+Important correction:
+
+- The cache unit should not be "std only" and should not be only a serialized
+  `CoreProgram`.
+- Yulang source files export syntax as well as values/types. Operator tables,
+  `use` / reexport information, module namespace, role/impl/effect lookup
+  tables, and type evidence all belong to the reusable artifact boundary.
+- The long-term unit is a file dependency SCC. A cached unit must restore both:
+  - parse/lower environment contributions such as operator syntax and module
+    names;
+  - typed/exported artifacts such as schemes, core bindings, role impls, and
+    principal evidence.
+- The current std snapshot / std core snapshot work is a prototype for payload
+  shape and serialization only. It is not the final cache architecture.
+
 Current shape:
 
 - Wasm `RunOutput.timings` reports phase timings for source loading, infer
@@ -128,21 +143,26 @@ Current shape:
   `source_cache_misses` in `RunOutput.timings`.
 - This cache is not yet a build-time persistent artifact. It still stores a
   cloned `LowerState` in memory after wasm startup.
+- `SourceSet::compilation_units()` now exposes file SCCs with unit dependencies
+  and syntax exports. This is the intended boundary for the next cache design.
 
 Next steps:
 
-- Design a persistent bundled std artifact for wasm startup:
-  - first target: a compact `StdInferSnapshot`, not serialized whole
-    `LowerState`;
-  - include module/name tables, resolved refs, exported public schemes,
-    syntax exports, role/impl lookup tables, effect metadata, principal bodies
-    and evidence needed by export/runtime;
-  - make def ids / type vars / frozen scheme ids importable without collision
-    with user code;
-  - keep a version/hash key based on std source text, compiler snapshot version,
-    and relevant feature flags.
+- Design a persistent compiled-unit artifact for file SCCs:
+  - source identity: file paths, module paths, source hash, origin, compiler
+    snapshot version, and relevant feature flags;
+  - dependency edges: imported module SCCs and syntax-export dependencies;
+  - syntax surface: exported operator definitions and imported operator table
+    contributions;
+  - namespace surface: modules, values, types, reexports, visibility, and
+    canonical paths;
+  - typed surface: public schemes, frozen schemes needed by downstream units,
+    role/impl lookup tables, effect metadata, expected/principal evidence;
+  - runtime surface: core bindings that can be merged into a downstream
+    `CoreProgram` without re-exporting the source unit.
 - Use the process-local lowered-std cache as the behavioral oracle while
-  designing the persistent artifact.
+  designing the persistent artifact. It proves behavior; it is not the final
+  format.
 - Measure first playground run separately from second run. The persistent cache
   should reduce first-run `infer_lower_ms` and ideally make type rendering /
   export cacheable later.
@@ -150,9 +170,9 @@ Next steps:
   - `--infer-phase-timings`
   - `--runtime-phase-timings`
   - `YULANG_EXPORT_TIMING=1`
-- After the infer snapshot is stable, consider persistent core/export artifacts
-  for std public bindings and principal evidence. Do not serialize debug-only
-  derived evidence into the hot artifact unless a consumer needs it.
+- Treat `StdCoreSnapshotData` as a useful experiment, not the destination. It
+  proves that exported core artifacts can be serialized, but it does not carry
+  enough source/lower environment to replace file-level compilation.
 - Avoid treating the current global clone of `LowerState` as the final answer.
   It is a stepping stone and measurement baseline, not the long-term cache
   format.

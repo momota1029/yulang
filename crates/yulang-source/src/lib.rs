@@ -136,6 +136,83 @@ impl SourceSet {
     pub fn user_files(&self) -> impl Iterator<Item = &SourceFile> {
         self.files_with_origin(SourceOrigin::User)
     }
+
+    pub fn compilation_units(&self) -> SourceCompilationUnits {
+        SourceCompilationUnits::from_source_set(self)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceCompilationUnits {
+    pub units: Vec<SourceCompilationUnit>,
+    pub file_to_unit: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceCompilationUnit {
+    pub files: Vec<usize>,
+    pub dependencies: Vec<usize>,
+    pub origin: SourceCompilationUnitOrigin,
+    pub syntax_exports: Vec<SyntaxExport>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceCompilationUnitOrigin {
+    Entry,
+    Std,
+    User,
+    Mixed,
+}
+
+impl SourceCompilationUnits {
+    fn from_source_set(source_set: &SourceSet) -> Self {
+        let module_paths = source_set
+            .files
+            .iter()
+            .map(|file| file.module_path.clone())
+            .collect::<Vec<_>>();
+        let dependencies = source_set
+            .files
+            .iter()
+            .map(|file| source_dependencies(file, &module_paths))
+            .collect::<Vec<_>>();
+        let components = source_sccs(&dependencies);
+        let mut file_to_unit = vec![0; source_set.files.len()];
+        for (unit_idx, files) in components.iter().enumerate() {
+            for &file_idx in files {
+                file_to_unit[file_idx] = unit_idx;
+            }
+        }
+
+        let units = components
+            .iter()
+            .map(|files| {
+                let mut unit_deps = Vec::new();
+                for &file_idx in files {
+                    for &dep in &dependencies[file_idx] {
+                        let dep_unit = file_to_unit[dep];
+                        if dep_unit != file_to_unit[file_idx] {
+                            unit_deps.push(dep_unit);
+                        }
+                    }
+                }
+                unit_deps.sort_unstable();
+                unit_deps.dedup();
+
+                SourceCompilationUnit {
+                    files: files.clone(),
+                    dependencies: unit_deps,
+                    origin: source_unit_origin(files, &source_set.files),
+                    syntax_exports: source_unit_syntax_exports(files, &source_set.files),
+                }
+            })
+            .collect();
+
+        Self {
+            units,
+            file_to_unit,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -590,6 +667,90 @@ fn source_dependencies(file: &SourceFile, module_paths: &[ModulePath]) -> Vec<us
     deps.sort_unstable();
     deps.dedup();
     deps
+}
+
+fn source_sccs(dependencies: &[Vec<usize>]) -> Vec<Vec<usize>> {
+    let mut ctx = SourceSccContext {
+        dependencies,
+        index: 0,
+        stack: Vec::new(),
+        on_stack: vec![false; dependencies.len()],
+        indices: vec![None; dependencies.len()],
+        lowlink: vec![0; dependencies.len()],
+        components: Vec::new(),
+    };
+    for file in 0..dependencies.len() {
+        if ctx.indices[file].is_none() {
+            source_scc_connect(file, &mut ctx);
+        }
+    }
+    ctx.components.reverse();
+    ctx.components
+}
+
+struct SourceSccContext<'a> {
+    dependencies: &'a [Vec<usize>],
+    index: usize,
+    stack: Vec<usize>,
+    on_stack: Vec<bool>,
+    indices: Vec<Option<usize>>,
+    lowlink: Vec<usize>,
+    components: Vec<Vec<usize>>,
+}
+
+fn source_scc_connect(file: usize, ctx: &mut SourceSccContext<'_>) {
+    ctx.indices[file] = Some(ctx.index);
+    ctx.lowlink[file] = ctx.index;
+    ctx.index += 1;
+    ctx.stack.push(file);
+    ctx.on_stack[file] = true;
+
+    for &dep in &ctx.dependencies[file] {
+        if ctx.indices[dep].is_none() {
+            source_scc_connect(dep, ctx);
+            ctx.lowlink[file] = ctx.lowlink[file].min(ctx.lowlink[dep]);
+        } else if ctx.on_stack[dep] {
+            ctx.lowlink[file] = ctx.lowlink[file].min(ctx.indices[dep].unwrap());
+        }
+    }
+
+    if ctx.lowlink[file] == ctx.indices[file].unwrap() {
+        let mut component = Vec::new();
+        while let Some(member) = ctx.stack.pop() {
+            ctx.on_stack[member] = false;
+            component.push(member);
+            if member == file {
+                break;
+            }
+        }
+        component.sort_unstable();
+        ctx.components.push(component);
+    }
+}
+
+fn source_unit_origin(files: &[usize], source_files: &[SourceFile]) -> SourceCompilationUnitOrigin {
+    let mut origin = None;
+    for &file in files {
+        match origin {
+            None => origin = Some(source_files[file].origin),
+            Some(existing) if existing == source_files[file].origin => {}
+            Some(_) => return SourceCompilationUnitOrigin::Mixed,
+        }
+    }
+    match origin.unwrap_or(SourceOrigin::User) {
+        SourceOrigin::Entry => SourceCompilationUnitOrigin::Entry,
+        SourceOrigin::Std => SourceCompilationUnitOrigin::Std,
+        SourceOrigin::User => SourceCompilationUnitOrigin::User,
+    }
+}
+
+fn source_unit_syntax_exports(files: &[usize], source_files: &[SourceFile]) -> Vec<SyntaxExport> {
+    let mut exports = Vec::new();
+    for &file in files {
+        exports.extend(source_files[file].meta.syntax_exports.iter().cloned());
+    }
+    exports.sort_by(|left, right| left.name.0.cmp(&right.name.0));
+    exports
 }
 
 fn import_module_path(import: &UseImport) -> Option<ModulePath> {
@@ -1583,5 +1744,58 @@ mod tests {
         }));
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compilation_units_keep_file_sccs_and_operator_exports() {
+        let set = collect_inline_source_files_with_options(
+            "use a::*\n1 %% 2\n",
+            [
+                InlineSource {
+                    path: PathBuf::from("<a>.yu"),
+                    module_path: module_path(&["a"]),
+                    origin: SourceOrigin::User,
+                    source: "use b::*\npub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+                    meta: None,
+                },
+                InlineSource {
+                    path: PathBuf::from("<b>.yu"),
+                    module_path: module_path(&["b"]),
+                    origin: SourceOrigin::User,
+                    source: "use a::*\npub prefix(not) 8.0.0 = \\x -> x\n".to_string(),
+                    meta: None,
+                },
+            ],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+        let units = set.compilation_units();
+        let cyclic_unit = units
+            .units
+            .iter()
+            .find(|unit| unit.files.len() == 2)
+            .expect("a/b should form one SCC");
+        let unit_modules = cyclic_unit
+            .files
+            .iter()
+            .map(|&idx| names(&set.files[idx].module_path))
+            .collect::<Vec<_>>();
+        assert!(unit_modules.contains(&vec!["a"]));
+        assert!(unit_modules.contains(&vec!["b"]));
+        assert!(
+            cyclic_unit
+                .syntax_exports
+                .iter()
+                .any(|export| export.name == Name("%%".to_string()))
+        );
+        assert!(
+            cyclic_unit
+                .syntax_exports
+                .iter()
+                .any(|export| export.name == Name("not".to_string()))
+        );
     }
 }
