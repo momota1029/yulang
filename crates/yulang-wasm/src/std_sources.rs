@@ -1,7 +1,21 @@
 use std::path::PathBuf;
 
 use yulang_core_ir::{Name, Path};
-use yulang_source::InlineSource;
+use yulang_source::{
+    InlineSource, SourceOptions, SourceSet, collect_inline_source_files_with_options,
+};
+
+pub fn source_set(source: &str) -> SourceSet {
+    collect_inline_source_files_with_options(
+        source,
+        inline_sources(),
+        SourceOptions {
+            std_root: None,
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        },
+    )
+}
 
 pub fn inline_sources() -> impl Iterator<Item = InlineSource> {
     STD_SOURCES.iter().map(|source| InlineSource {

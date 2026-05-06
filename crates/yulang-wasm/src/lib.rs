@@ -3,10 +3,9 @@ use wasm_bindgen::prelude::*;
 
 use yulang_infer::{collect_surface_diagnostics, export_core_program, lower_source_set};
 use yulang_runtime as runtime;
-use yulang_source::{SourceOptions, collect_inline_source_files_with_options};
 
 pub use color::{ColorizeOutput, HighlightSpan};
-pub use output::{Diagnostic, RunOutput, RunResult, TypeResult};
+pub use output::{Diagnostic, RunOutput, RunResult, RunTimings, TypeResult};
 
 #[wasm_bindgen]
 pub fn run(source: &str) -> JsValue {
@@ -22,11 +21,12 @@ pub fn colorize(source: &str) -> JsValue {
 
 fn run_inner(source: &str) -> RunOutput {
     match compile_and_run(source) {
-        Ok((results, stdout, types)) => RunOutput {
+        Ok(output) => RunOutput {
             ok: true,
-            results,
-            stdout,
-            types,
+            results: output.results,
+            stdout: output.stdout,
+            types: output.types,
+            timings: Some(output.timings),
             diagnostics: Vec::new(),
         },
         Err(message) => RunOutput {
@@ -34,28 +34,38 @@ fn run_inner(source: &str) -> RunOutput {
             results: Vec::new(),
             stdout: String::new(),
             types: Vec::new(),
+            timings: None,
             diagnostics: vec![Diagnostic::error(message, source.len())],
         },
     }
 }
 
-fn compile_and_run(source: &str) -> Result<(Vec<RunResult>, String, Vec<TypeResult>), String> {
+struct CompileRunOutput {
+    results: Vec<RunResult>,
+    stdout: String,
+    types: Vec<TypeResult>,
+    timings: RunTimings,
+}
+
+fn compile_and_run(source: &str) -> Result<CompileRunOutput, String> {
+    let total_start = now_ms();
     let source = playground_source(source);
-    let source_set = collect_inline_source_files_with_options(
-        &source,
-        std_sources::inline_sources(),
-        SourceOptions {
-            std_root: None,
-            implicit_prelude: true,
-            search_paths: Vec::new(),
-        },
-    );
+    let source_set_start = now_ms();
+    let source_set = std_sources::source_set(&source);
+    let source_set_ms = elapsed_ms(source_set_start);
+    let files = source_set.files.len();
+    let infer_lower_start = now_ms();
     let mut lowered = lower_source_set(&source_set);
+    let infer_lower_ms = elapsed_ms(infer_lower_start);
+    let type_render_start = now_ms();
     let types = yulang_infer::render_exported_compact_results(&mut lowered.state)
         .into_iter()
         .map(|(name, ty)| TypeResult { name, ty })
         .collect();
+    let type_render_ms = elapsed_ms(type_render_start);
+    let diagnostics_start = now_ms();
     let surface_diagnostics = collect_surface_diagnostics(&lowered.state);
+    let diagnostics_ms = elapsed_ms(diagnostics_start);
     if !surface_diagnostics.is_empty() {
         return Err(surface_diagnostics
             .into_iter()
@@ -63,27 +73,46 @@ fn compile_and_run(source: &str) -> Result<(Vec<RunResult>, String, Vec<TypeResu
             .collect::<Vec<_>>()
             .join("\n"));
     }
+    let export_core_start = now_ms();
     let program = export_core_program(&mut lowered.state);
-    let module = runtime::lower_core_program(program)
-        .and_then(runtime::monomorphize_module)
-        .map_err(|error| error.to_string())?;
+    let export_core_ms = elapsed_ms(export_core_start);
+    let runtime_lower_start = now_ms();
+    let module = runtime::lower_core_program(program).map_err(|error| error.to_string())?;
+    let runtime_lower_ms = elapsed_ms(runtime_lower_start);
+    let monomorphize_start = now_ms();
+    let module = runtime::monomorphize_module(module).map_err(|error| error.to_string())?;
+    let monomorphize_ms = elapsed_ms(monomorphize_start);
+    let vm_compile_start = now_ms();
     let vm = runtime::compile_vm_module(module).map_err(|error| error.to_string())?;
+    let vm_compile_ms = elapsed_ms(vm_compile_start);
+    let vm_eval_start = now_ms();
     runtime::eval_roots_with_basic_host(&vm)
         .map_err(|error| error.to_string())
-        .map(|host_output| {
-            (
-                host_output
-                    .results
-                    .iter()
-                    .enumerate()
-                    .map(|(index, result)| RunResult {
-                        index,
-                        value: output::format_vm_result(result),
-                    })
-                    .collect(),
-                host_output.stdout,
-                types,
-            )
+        .map(|host_output| CompileRunOutput {
+            results: host_output
+                .results
+                .iter()
+                .enumerate()
+                .map(|(index, result)| RunResult {
+                    index,
+                    value: output::format_vm_result(result),
+                })
+                .collect(),
+            stdout: host_output.stdout,
+            types,
+            timings: RunTimings {
+                source_set_ms,
+                infer_lower_ms,
+                type_render_ms,
+                diagnostics_ms,
+                export_core_ms,
+                runtime_lower_ms,
+                monomorphize_ms,
+                vm_compile_ms,
+                vm_eval_ms: elapsed_ms(vm_eval_start),
+                total_ms: elapsed_ms(total_start),
+                files,
+            },
         })
 }
 
@@ -95,6 +124,24 @@ fn to_js_value<T: Serialize>(value: &T) -> JsValue {
     serde_wasm_bindgen::to_value(value).unwrap_or_else(|error| {
         JsValue::from_str(&format!("failed to serialize playground response: {error}"))
     })
+}
+
+#[cfg(target_arch = "wasm32")]
+fn now_ms() -> f64 {
+    js_sys::Date::now()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn now_ms() -> f64 {
+    use std::sync::OnceLock;
+    use std::time::Instant;
+
+    static START: OnceLock<Instant> = OnceLock::new();
+    START.get_or_init(Instant::now).elapsed().as_secs_f64() * 1000.0
+}
+
+fn elapsed_ms(start: f64) -> f64 {
+    now_ms() - start
 }
 
 mod color;
@@ -164,6 +211,22 @@ g
                 assert_eq!(output.results.len(), 2);
                 assert_eq!(output.results[0].value, "3");
                 assert_eq!(output.results[1].value, "7");
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn reports_compile_timings() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner("1 + 2\n");
+                assert!(output.ok, "{:?}", output.diagnostics);
+                let timings = output.timings.expect("run timings");
+                assert!(timings.files > 1);
+                assert!(timings.total_ms >= 0.0);
             })
             .unwrap()
             .join()

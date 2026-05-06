@@ -109,7 +109,40 @@ Current key examples:
 - Effects
 - Console Output
 
-## Priority 4: Refactoring
+## Priority 4: Partial Compilation / Std Cache
+
+Goal: make playground runs fast enough that small edits do not feel like a full
+compiler restart.
+
+Current shape:
+
+- Wasm `RunOutput.timings` reports phase timings for source loading, infer
+  lowering, type rendering, diagnostics, core export, runtime lowering,
+  monomorphize, VM compile, and VM eval.
+- Playground timing output is currently sent to the browser console, not the
+  visible result pane.
+- A first std `SourceFile` cache attempt was reverted after measurement. Source
+  loading was not the dominant cost; infer/export/monomorphize are the current
+  bottlenecks.
+
+Next steps:
+
+- Use the timings to confirm whether the remaining fixed cost is infer/lower,
+  core export, runtime lower, monomorphize, or VM eval.
+- Keep deeper timing available locally:
+  - `--infer-phase-timings`
+  - `--runtime-phase-timings`
+  - `YULANG_EXPORT_TIMING=1`
+- Split std from user code at the infer/export boundary only after the timing
+  data justifies it.
+- Treat a reusable std infer artifact as a real partial-compilation boundary:
+  def ids, type vars, role tables, syntax exports, and principal evidence must
+  have an explicit import/instantiation story before reuse.
+- Avoid a quick global clone of `LowerState` as the final answer. It may help as
+  a measurement step, but the long-term cache should expose a small artifact,
+  not a copy of the whole compiler state.
+
+## Priority 5: Refactoring
 
 Goal: reduce places where one change requires touching unrelated modules.
 
@@ -121,7 +154,7 @@ Goal: reduce places where one change requires touching unrelated modules.
 - Keep host request formatting and host request handling out of core VM
   evaluation logic when possible.
 
-## Priority 5: Language Semantics Still Needing Work
+## Priority 6: Language Semantics Still Needing Work
 
 Goal: finish semantics that are visible and likely to become examples/docs.
 
@@ -147,7 +180,7 @@ Goal: finish semantics that are visible and likely to become examples/docs.
   - remove remaining internal errors from user-facing paths
   - keep list/tree/string runtime behavior documented by tests
 
-## Priority 6: Public Docs
+## Priority 7: Public Docs
 
 Goal: make the repo understandable without reading implementation notes.
 
@@ -159,15 +192,18 @@ Goal: make the repo understandable without reading implementation notes.
 
 ## Suggested Next Step
 
-Start with console output. It is the smallest useful bridge to the outside world
-and gives playground visitors immediate feedback without exposing raw effect
-requests.
+Use the playground timing breakdown to choose the next partial-compilation
+boundary. Console output is now available, so the immediate performance work is
+to make the fixed std cost visible and then shrink it.
 
 Concrete first task:
 
-1. Add `std::console` with a `print` or `println` operation.
-2. Teach CLI/Wasm host code to handle that operation and collect output.
-3. Add one VM-level test and one source-level example.
-4. Make unsupported host requests produce a language-level diagnostic, not raw
-   request text.
-5. Then resume diagnostics with the existing bad-snippet list.
+1. Compare first and second playground runs using `RunOutput.timings`.
+2. If `source_set_ms` remains meaningful, avoid rebuilding syntax tables for
+   cached std files.
+3. If `infer_lower_ms` dominates, design a std infer artifact with explicit
+   imported def/type-var namespaces.
+4. If runtime lower / monomorphize dominates, continue shrinking fallback
+   monomorphize rather than expanding source-level caching.
+5. Keep diagnostics work in parallel, but do not let diagnostics add more CST
+   rescans on the hot path.

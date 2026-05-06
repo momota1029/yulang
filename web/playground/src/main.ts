@@ -13,7 +13,22 @@ type RunOutput = {
   results: RunResult[];
   stdout: string;
   types: TypeResult[];
+  timings?: RunTimings;
   diagnostics: Diagnostic[];
+};
+
+type RunTimings = {
+  source_set_ms: number;
+  infer_lower_ms: number;
+  type_render_ms: number;
+  diagnostics_ms: number;
+  export_core_ms: number;
+  runtime_lower_ms: number;
+  monomorphize_ms: number;
+  vm_compile_ms: number;
+  vm_eval_ms: number;
+  total_ms: number;
+  files: number;
 };
 
 type RunResult = {
@@ -435,6 +450,9 @@ function renderRunOutput(): void {
     return;
   }
   const output = latestRunOutput;
+  if (output.timings) {
+    console.debug("Yulang run timings", output.timings);
+  }
   result.classList.remove("is-loading");
   types.classList.remove("is-loading");
   result.removeAttribute("aria-busy");

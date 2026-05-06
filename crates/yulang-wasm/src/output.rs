@@ -9,7 +9,23 @@ pub struct RunOutput {
     pub results: Vec<RunResult>,
     pub stdout: String,
     pub types: Vec<TypeResult>,
+    pub timings: Option<RunTimings>,
     pub diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RunTimings {
+    pub source_set_ms: f64,
+    pub infer_lower_ms: f64,
+    pub type_render_ms: f64,
+    pub diagnostics_ms: f64,
+    pub export_core_ms: f64,
+    pub runtime_lower_ms: f64,
+    pub monomorphize_ms: f64,
+    pub vm_compile_ms: f64,
+    pub vm_eval_ms: f64,
+    pub total_ms: f64,
+    pub files: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
