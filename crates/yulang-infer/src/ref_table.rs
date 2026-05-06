@@ -8,7 +8,7 @@ use crate::symbols::{ModuleId, Path};
 /// RefId → DefId の対応表。
 /// lowering ワンパスで名前解決しながら積み上げる。
 /// 解決できなかった RefId は unresolved に残る。
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct RefTable {
     resolved: HashMap<RefId, ResolvedRef>,
     unresolved: Vec<(RefId, UnresolvedRef)>,

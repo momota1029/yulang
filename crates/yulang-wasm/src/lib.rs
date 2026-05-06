@@ -1,7 +1,11 @@
 use serde::Serialize;
+use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 
-use yulang_infer::{collect_surface_diagnostics, export_core_program, lower_source_set};
+use yulang_infer::{
+    SourceLowerCache, collect_surface_diagnostics, export_core_program,
+    lower_source_set_with_std_cache,
+};
 use yulang_runtime as runtime;
 
 pub use color::{ColorizeOutput, HighlightSpan};
@@ -58,7 +62,7 @@ fn compile_and_run(source: &str) -> Result<CompileRunOutput, String> {
     let std_files = source_set.std_files().count();
     let user_files = source_set.user_files().count();
     let infer_lower_start = now_ms();
-    let mut lowered = lower_source_set(&source_set);
+    let mut lowered = lower_with_cache(&source_set);
     let infer_lower_ms = elapsed_ms(infer_lower_start);
     let type_render_start = now_ms();
     let types = yulang_infer::render_exported_compact_results(&mut lowered.state)
@@ -120,6 +124,15 @@ fn compile_and_run(source: &str) -> Result<CompileRunOutput, String> {
                 user_files,
             },
         })
+}
+
+thread_local! {
+    static SOURCE_LOWER_CACHE: RefCell<SourceLowerCache> = RefCell::new(SourceLowerCache::default());
+}
+
+fn lower_with_cache(source_set: &yulang_source::SourceSet) -> yulang_infer::LoweredSources {
+    SOURCE_LOWER_CACHE
+        .with(|cache| lower_source_set_with_std_cache(source_set, &mut cache.borrow_mut()))
 }
 
 fn playground_source(source: &str) -> String {

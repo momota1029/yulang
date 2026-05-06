@@ -17,6 +17,7 @@ use super::{
 };
 
 /// lowering ワンパスで持ち回す全状態。
+#[derive(Clone)]
 pub struct LowerState {
     pub ctx: LowerCtx,
     pub infer: Infer,

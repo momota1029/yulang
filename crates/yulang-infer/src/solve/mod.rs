@@ -114,6 +114,7 @@ pub struct RefFieldProjection {
     pub constructor: DefId,
 }
 
+#[derive(Clone)]
 pub struct Infer {
     pub arena: TypeArena,
     pub lower: RefCell<FxHashMap<TypeVar, SmallVec<[PosId; 2]>>>,

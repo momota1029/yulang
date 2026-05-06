@@ -15,6 +15,7 @@ pub struct ResolvedType {
 
 /// lowering ワンパスで使うスコープ・名前解決の文脈。
 /// 制約生成はこれを包む上位クレートで行う。
+#[derive(Clone)]
 pub struct LowerCtx {
     pub modules: ModuleTable,
     pub refs: RefTable,

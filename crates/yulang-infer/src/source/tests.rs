@@ -7,6 +7,8 @@ use super::*;
 use crate::diagnostic::ExpectedEdgeKind;
 use crate::display::dump::{collect_expected_edges, render_compact_results};
 use crate::types::{Neg, Pos};
+use yulang_core_ir::{Name as CoreName, Path as CorePath};
+use yulang_source::{InlineSource, SourceOrigin, collect_inline_source_files_with_options};
 
 fn run_with_large_stack<T>(f: impl FnOnce() -> T + Send + 'static) -> T
 where
@@ -73,6 +75,37 @@ fn assert_expected_edge_value_constraint(
             .any(|neg| matches!(neg, Neg::Var(tv) if *tv == edge.expected_tv)),
         "expected edge should add expected as actual upper: {edge:?}, uppers={actual_uppers:?}",
     );
+}
+
+#[test]
+fn std_lower_cache_preserves_entry_results() {
+    let source_set = collect_inline_source_files_with_options(
+        "use std::prelude::*\none",
+        [InlineSource {
+            path: PathBuf::from("<std>/prelude.yu"),
+            module_path: CorePath {
+                segments: vec![CoreName("std".to_string()), CoreName("prelude".to_string())],
+            },
+            origin: SourceOrigin::Std,
+            source: "pub my one = 1\n".to_string(),
+            meta: None,
+        }],
+        SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+
+    let mut uncached = lower_source_set(&source_set);
+    let mut cache = SourceLowerCache::default();
+    let mut cached = lower_source_set_with_std_cache(&source_set, &mut cache);
+
+    assert_eq!(
+        crate::render_exported_compact_results(&mut cached.state),
+        crate::render_exported_compact_results(&mut uncached.state)
+    );
+    assert_eq!(cached.diagnostic_source, uncached.diagnostic_source);
 }
 
 const PAT_RECORD_DEFAULT_SOURCE: &str = r#"act cfg:

@@ -47,9 +47,10 @@ pub use solve::{
     RoleMethodInfo,
 };
 pub use source::{
-    LoweredSources, ProfiledLoweredSources, SourceLowerProfile, lower_entry_with_options,
-    lower_entry_with_options_profiled, lower_source_file, lower_source_file_profiled,
-    lower_source_set, lower_source_set_profiled, lower_virtual_source_with_options,
+    LoweredSources, ProfiledLoweredSources, SourceLowerCache, SourceLowerProfile,
+    lower_entry_with_options, lower_entry_with_options_profiled, lower_source_file,
+    lower_source_file_profiled, lower_source_set, lower_source_set_profiled,
+    lower_source_set_with_std_cache, lower_virtual_source_with_options,
     lower_virtual_source_with_options_profiled,
 };
 pub use surface_diagnostic::{SurfaceDiagnostic, collect_surface_diagnostics};

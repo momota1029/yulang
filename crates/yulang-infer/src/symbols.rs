@@ -45,14 +45,14 @@ pub struct ModuleId(pub u32);
 
 /// 全モジュールのテーブル。
 /// lowering ワンパスで積み上げていく。
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ModuleTable {
     modules: Vec<ModuleNode>,
 }
 
 /// モジュールひとつの中身。名前空間ごとに分離している。
 /// 値・型・モジュールは同じ名前で共存できる。
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ModuleNode {
     /// 親モジュール。root は None。
     pub parent: Option<ModuleId>,

@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::{Path as FsPath, PathBuf};
 use std::time::Duration;
 
@@ -58,6 +61,11 @@ pub struct ProfiledLoweredSources {
     pub profile: SourceLowerProfile,
 }
 
+#[derive(Default)]
+pub struct SourceLowerCache {
+    std_states: HashMap<StdSourceCacheKey, LowerState>,
+}
+
 pub fn lower_entry_with_options(
     entry: impl AsRef<FsPath>,
     options: SourceOptions,
@@ -108,6 +116,13 @@ pub fn lower_source_set(source_set: &SourceSet) -> LoweredSources {
     lower_source_set_with_profile(source_set, false).lowered
 }
 
+pub fn lower_source_set_with_std_cache(
+    source_set: &SourceSet,
+    cache: &mut SourceLowerCache,
+) -> LoweredSources {
+    with_profile_enabled(false, || lower_source_set_cached_inner(source_set, cache))
+}
+
 pub fn lower_source_set_profiled(source_set: &SourceSet) -> ProfiledLoweredSources {
     lower_source_set_with_profile(source_set, true)
 }
@@ -150,6 +165,36 @@ fn lower_source_set_inner(source_set: &SourceSet) -> ProfiledLoweredSources {
             diagnostic_source,
         },
         profile,
+    }
+}
+
+fn lower_source_set_cached_inner(
+    source_set: &SourceSet,
+    cache: &mut SourceLowerCache,
+) -> LoweredSources {
+    if source_set.std_files().next().is_none() {
+        return lower_source_set(source_set);
+    }
+
+    let diagnostic_source = source_set
+        .entry_files()
+        .next()
+        .map(|file| file.source.clone())
+        .unwrap_or_default();
+    let mut state = cache.std_state(source_set);
+    let mut profile = SourceLowerProfile::default();
+    for file in source_set
+        .files
+        .iter()
+        .filter(|file| file.origin != SourceOrigin::Std)
+    {
+        lower_source_file_inner(file, &mut state, &mut profile);
+    }
+    finish_lowering(&mut state);
+
+    LoweredSources {
+        state,
+        diagnostic_source,
     }
 }
 
@@ -210,6 +255,68 @@ fn tir_module_path(file: &SourceFile) -> Path {
             .map(|name| Name(name.0.clone()))
             .collect(),
     }
+}
+
+impl SourceLowerCache {
+    fn std_state(&mut self, source_set: &SourceSet) -> LowerState {
+        let key = StdSourceCacheKey::from_source_set(source_set);
+        if let Some(state) = self.std_states.get(&key) {
+            return state.clone();
+        }
+
+        let mut state = LowerState::new();
+        install_builtin_primitives(&mut state);
+        let mut profile = SourceLowerProfile::default();
+        for file in source_set.std_files() {
+            lower_source_file_inner(file, &mut state, &mut profile);
+        }
+        self.std_states.insert(key, state.clone());
+        state
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct StdSourceCacheKey {
+    files: Vec<StdSourceFileCacheKey>,
+}
+
+impl StdSourceCacheKey {
+    fn from_source_set(source_set: &SourceSet) -> Self {
+        Self {
+            files: source_set
+                .std_files()
+                .map(StdSourceFileCacheKey::from_file)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct StdSourceFileCacheKey {
+    module_path: Vec<String>,
+    source_len: usize,
+    source_hash: u64,
+}
+
+impl StdSourceFileCacheKey {
+    fn from_file(file: &SourceFile) -> Self {
+        Self {
+            module_path: file
+                .module_path
+                .segments
+                .iter()
+                .map(|name| name.0.clone())
+                .collect(),
+            source_len: file.source.len(),
+            source_hash: source_hash(&file.source),
+        }
+    }
+}
+
+fn source_hash(source: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    source.hash(&mut hasher);
+    hasher.finish()
 }
 
 #[cfg(test)]
