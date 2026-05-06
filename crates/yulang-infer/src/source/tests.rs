@@ -1822,6 +1822,66 @@ fn compiled_namespace_import_restores_value_type_and_operator_resolution() {
 }
 
 #[test]
+fn compiled_typed_artifact_preserves_schemes_and_validates_symbols() {
+    let source_set = collect_inline_source_files_with_options(
+        "use data::*\nmy y = id 1\n",
+        [InlineSource {
+            path: PathBuf::from("<data>.yu"),
+            module_path: CorePath::new(vec![CoreName("data".to_string())]),
+            origin: SourceOrigin::User,
+            source: "pub id x = x\n".to_string(),
+            meta: None,
+        }],
+        yulang_source::SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+    let artifacts = build_compiled_typed_artifacts(&source_set, &lowered.state);
+    let data_artifact = artifacts
+        .iter()
+        .find(|artifact| {
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["data"])
+        })
+        .expect("data typed artifact should exist");
+    let validation = data_artifact.typed.validate(&data_artifact.namespace);
+
+    assert!(validation.is_complete());
+    assert!(
+        data_artifact
+            .typed
+            .schemes
+            .iter()
+            .any(|scheme| scheme.rendered.contains("->"))
+    );
+
+    let encoded = serde_json::to_string(data_artifact).unwrap();
+    let decoded: CompiledUnitTypedArtifact = serde_json::from_str(&encoded).unwrap();
+    assert_eq!(&decoded, data_artifact);
+}
+
+#[test]
+fn compiled_typed_validation_reports_missing_scheme_symbol() {
+    let typed = CompiledTypedSurface {
+        schemes: vec![StdInferSnapshotScheme {
+            symbol: 7,
+            rendered: "int".to_string(),
+        }],
+        ..CompiledTypedSurface::default()
+    };
+    let validation = typed.validate(&CompiledNamespaceSurface::default());
+
+    assert!(!validation.is_complete());
+    assert_eq!(validation.missing_scheme_symbols, vec![7]);
+}
+
+#[test]
 fn lowers_var_sigils_across_multiple_top_level_bindings() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

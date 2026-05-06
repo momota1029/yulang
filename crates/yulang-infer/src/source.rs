@@ -138,6 +138,52 @@ pub enum CompiledNamespaceImportError {
     InvalidNamespace(CompiledNamespaceValidation),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitTypedArtifact {
+    pub manifest: CompiledUnitManifest,
+    pub namespace: CompiledNamespaceSurface,
+    pub typed: CompiledTypedSurface,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct CompiledTypedSurface {
+    pub schemes: Vec<StdInferSnapshotScheme>,
+    pub roles: Vec<StdInferSnapshotRole>,
+    pub role_methods: Vec<StdInferSnapshotRoleMethod>,
+    pub role_impls: Vec<StdInferSnapshotRoleImpl>,
+    pub effects: Vec<StdInferSnapshotEffect>,
+    pub effect_methods: Vec<StdInferSnapshotEffectMethod>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CompiledTypedValidation {
+    pub schemes: usize,
+    pub roles: usize,
+    pub role_methods: usize,
+    pub role_impls: usize,
+    pub effects: usize,
+    pub effect_methods: usize,
+    pub missing_scheme_symbols: Vec<u32>,
+    pub missing_role_method_symbols: Vec<u32>,
+    pub missing_role_impl_member_symbols: Vec<u32>,
+    pub missing_effect_method_symbols: Vec<u32>,
+}
+
+impl CompiledTypedValidation {
+    pub fn is_complete(&self) -> bool {
+        self.missing_scheme_symbols.is_empty()
+            && self.missing_role_method_symbols.is_empty()
+            && self.missing_role_impl_member_symbols.is_empty()
+            && self.missing_effect_method_symbols.is_empty()
+    }
+}
+
+impl CompiledTypedSurface {
+    pub fn validate(&self, namespace: &CompiledNamespaceSurface) -> CompiledTypedValidation {
+        validate_compiled_typed_surface(self, namespace)
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SourceLowerProfile {
     pub collect: Duration,
@@ -579,6 +625,55 @@ pub fn import_compiled_namespace_surface(
         types,
         validation,
     })
+}
+
+pub fn build_compiled_typed_artifacts(
+    source_set: &SourceSet,
+    state: &LowerState,
+) -> Vec<CompiledUnitTypedArtifact> {
+    let namespace_artifacts = build_compiled_namespace_artifacts(source_set, state);
+    let value_paths = state.ctx.collect_all_binding_paths();
+    let value_defs_by_path = value_paths
+        .iter()
+        .map(|(path, def)| (snapshot_path_segments(path), *def))
+        .collect::<HashMap<_, _>>();
+    let all_value_ids = value_paths
+        .iter()
+        .enumerate()
+        .map(|(index, (_, def))| (*def, index as u32))
+        .collect::<HashMap<_, _>>();
+    let all_schemes = collect_std_snapshot_schemes(state, &all_value_ids);
+    let all_role_methods = collect_std_snapshot_role_methods(state, &all_value_ids);
+    let all_role_impls = collect_std_snapshot_role_impls(state, &all_value_ids);
+    let all_effect_methods = collect_std_snapshot_effect_methods(state, &all_value_ids);
+    let roles = collect_std_snapshot_roles(state);
+    let effects = collect_std_snapshot_effects(state);
+
+    namespace_artifacts
+        .into_iter()
+        .map(|artifact| {
+            let unit_value_ids = compiled_unit_value_id_remap(
+                &artifact.namespace,
+                &value_defs_by_path,
+                &all_value_ids,
+            );
+            let typed = compiled_typed_surface_for_namespace(
+                &artifact.namespace,
+                &unit_value_ids,
+                &all_schemes,
+                &roles,
+                &all_role_methods,
+                &all_role_impls,
+                &effects,
+                &all_effect_methods,
+            );
+            CompiledUnitTypedArtifact {
+                manifest: artifact.manifest,
+                namespace: artifact.namespace,
+                typed,
+            }
+        })
+        .collect()
 }
 
 pub fn import_std_infer_snapshot_data(
@@ -1735,6 +1830,166 @@ fn compiled_namespace_surface_for_modules(
         values,
         types,
     }
+}
+
+fn compiled_unit_value_id_remap(
+    namespace: &CompiledNamespaceSurface,
+    value_defs_by_path: &HashMap<Vec<String>, crate::ids::DefId>,
+    all_value_ids: &HashMap<crate::ids::DefId, u32>,
+) -> HashMap<u32, u32> {
+    let mut remap = HashMap::new();
+    for symbol in &namespace.values {
+        let Some(def) = value_defs_by_path.get(&symbol.path) else {
+            continue;
+        };
+        let Some(global_id) = all_value_ids.get(def) else {
+            continue;
+        };
+        remap.insert(*global_id, symbol.unit_id);
+    }
+    remap
+}
+
+#[allow(clippy::too_many_arguments)]
+fn compiled_typed_surface_for_namespace(
+    namespace: &CompiledNamespaceSurface,
+    unit_value_ids: &HashMap<u32, u32>,
+    schemes: &[StdInferSnapshotScheme],
+    roles: &[StdInferSnapshotRole],
+    role_methods: &[StdInferSnapshotRoleMethod],
+    role_impls: &[StdInferSnapshotRoleImpl],
+    effects: &[StdInferSnapshotEffect],
+    effect_methods: &[StdInferSnapshotEffectMethod],
+) -> CompiledTypedSurface {
+    let unit_paths = namespace
+        .modules
+        .iter()
+        .map(|module| module.path.clone())
+        .collect::<Vec<_>>();
+    CompiledTypedSurface {
+        schemes: schemes
+            .iter()
+            .filter_map(|scheme| {
+                let symbol = *unit_value_ids.get(&scheme.symbol)?;
+                Some(StdInferSnapshotScheme {
+                    symbol,
+                    rendered: scheme.rendered.clone(),
+                })
+            })
+            .collect(),
+        roles: roles
+            .iter()
+            .filter(|role| path_belongs_to_modules(&role.path, &unit_paths))
+            .cloned()
+            .collect(),
+        role_methods: role_methods
+            .iter()
+            .filter_map(|method| {
+                let symbol = *unit_value_ids.get(&method.symbol)?;
+                Some(StdInferSnapshotRoleMethod {
+                    role: method.role.clone(),
+                    name: method.name.clone(),
+                    symbol,
+                    has_receiver: method.has_receiver,
+                    has_default_body: method.has_default_body,
+                })
+            })
+            .collect(),
+        role_impls: role_impls
+            .iter()
+            .map(|role_impl| {
+                let members = role_impl
+                    .members
+                    .iter()
+                    .filter_map(|member| {
+                        let symbol = *unit_value_ids.get(&member.symbol)?;
+                        Some(StdInferSnapshotRoleImplMember {
+                            name: member.name.clone(),
+                            symbol,
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                StdInferSnapshotRoleImpl {
+                    role: role_impl.role.clone(),
+                    args: role_impl.args.clone(),
+                    members,
+                }
+            })
+            .filter(|role_impl| !role_impl.members.is_empty())
+            .collect(),
+        effects: effects
+            .iter()
+            .filter(|effect| path_belongs_to_modules(&effect.path, &unit_paths))
+            .cloned()
+            .collect(),
+        effect_methods: effect_methods
+            .iter()
+            .filter_map(|method| {
+                let symbol = *unit_value_ids.get(&method.symbol)?;
+                Some(StdInferSnapshotEffectMethod {
+                    name: method.name.clone(),
+                    effect: method.effect.clone(),
+                    symbol,
+                    module: method.module,
+                    visibility: method.visibility,
+                    receiver_expects_computation: method.receiver_expects_computation,
+                })
+            })
+            .collect(),
+    }
+}
+
+fn path_belongs_to_modules(path: &[String], modules: &[Vec<String>]) -> bool {
+    modules.iter().any(|module| {
+        !module.is_empty() && path.len() >= module.len() && path[..module.len()] == module[..]
+    })
+}
+
+fn validate_compiled_typed_surface(
+    typed: &CompiledTypedSurface,
+    namespace: &CompiledNamespaceSurface,
+) -> CompiledTypedValidation {
+    let value_ids = namespace
+        .values
+        .iter()
+        .map(|symbol| symbol.unit_id)
+        .collect::<std::collections::HashSet<_>>();
+    let mut validation = CompiledTypedValidation {
+        schemes: typed.schemes.len(),
+        roles: typed.roles.len(),
+        role_methods: typed.role_methods.len(),
+        role_impls: typed.role_impls.len(),
+        effects: typed.effects.len(),
+        effect_methods: typed.effect_methods.len(),
+        ..CompiledTypedValidation::default()
+    };
+
+    for scheme in &typed.schemes {
+        if !value_ids.contains(&scheme.symbol) {
+            validation.missing_scheme_symbols.push(scheme.symbol);
+        }
+    }
+    for method in &typed.role_methods {
+        if !value_ids.contains(&method.symbol) {
+            validation.missing_role_method_symbols.push(method.symbol);
+        }
+    }
+    for role_impl in &typed.role_impls {
+        for member in &role_impl.members {
+            if !value_ids.contains(&member.symbol) {
+                validation
+                    .missing_role_impl_member_symbols
+                    .push(member.symbol);
+            }
+        }
+    }
+    for method in &typed.effect_methods {
+        if !value_ids.contains(&method.symbol) {
+            validation.missing_effect_method_symbols.push(method.symbol);
+        }
+    }
+
+    validation
 }
 
 fn validate_compiled_namespace_surface(
