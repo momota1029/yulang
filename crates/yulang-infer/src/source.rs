@@ -376,6 +376,7 @@ pub fn import_std_infer_snapshot_data(
 
     let mut state = LowerState::new();
     install_builtin_primitives(&mut state);
+    import_std_snapshot_module_skeletons(&mut state, &data.modules);
 
     let modules = import_std_snapshot_modules(&state, &data.modules);
     let values = import_std_snapshot_values(&state, &data.values);
@@ -1018,6 +1019,28 @@ fn validate_snapshot_effect_operations(
         }
     }
     Ok(())
+}
+
+fn import_std_snapshot_module_skeletons(
+    state: &mut LowerState,
+    modules: &[StdInferSnapshotModule],
+) {
+    let mut paths = modules
+        .iter()
+        .map(|module| path_from_snapshot_segments(&module.path))
+        .collect::<Vec<_>>();
+    paths.sort_by(|lhs, rhs| {
+        lhs.segments
+            .len()
+            .cmp(&rhs.segments.len())
+            .then_with(|| snapshot_path_segments(lhs).cmp(&snapshot_path_segments(rhs)))
+    });
+    paths.dedup_by(|lhs, rhs| lhs.segments == rhs.segments);
+
+    for path in paths {
+        let saved = state.ctx.enter_module_path(&path);
+        state.ctx.leave_module_path(saved);
+    }
 }
 
 fn import_std_snapshot_modules(

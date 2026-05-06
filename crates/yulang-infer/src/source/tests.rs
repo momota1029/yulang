@@ -214,18 +214,27 @@ fn std_snapshot_import_resolves_builtin_paths_and_reports_missing_std_paths() {
         .find(|module| module.path == ["std", "prelude"])
         .expect("std::prelude snapshot module");
     assert!(
-        import.modules[prelude.snapshot_id as usize].is_none(),
-        "source-defined std::prelude module should remain missing until full module import exists"
+        import.modules[prelude.snapshot_id as usize].is_some(),
+        "source-defined std::prelude module skeleton should be restored"
     );
+    let missing_symbol = data.values.len() as u32;
+    let bogus_value = StdInferSnapshotSymbol {
+        path: vec!["std".to_string(), "prelude".to_string(), "one".to_string()],
+        snapshot_id: missing_symbol,
+    };
+    let mut data_with_missing_value = data.clone();
+    data_with_missing_value.values.push(bogus_value);
+    let import_with_missing_value =
+        import_std_infer_snapshot_data(&data_with_missing_value).expect("snapshot import");
     assert!(
-        import
+        import_with_missing_value
             .missing
-            .modules
+            .values
             .iter()
-            .any(|missing| missing.snapshot_id == prelude.snapshot_id
-                && missing.path == ["std", "prelude"]),
-        "missing std module paths should be reported structurally: {:?}",
-        import.missing.modules
+            .any(|missing| missing.snapshot_id == missing_symbol
+                && missing.path == ["std", "prelude", "one"]),
+        "missing std value paths should be reported structurally: {:?}",
+        import_with_missing_value.missing.values
     );
 }
 
