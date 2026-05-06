@@ -100,12 +100,19 @@ fn std_lower_cache_preserves_entry_results() {
     let mut uncached = lower_source_set(&source_set);
     let mut cache = SourceLowerCache::default();
     let mut cached = lower_source_set_with_std_cache(&source_set, &mut cache);
+    let snapshot = build_std_infer_snapshot(&source_set).expect("std snapshot");
+    let mut snapshotted = lower_source_set_with_std_snapshot(&source_set, &snapshot).lowered;
 
     assert_eq!(
         crate::render_exported_compact_results(&mut cached.state),
         crate::render_exported_compact_results(&mut uncached.state)
     );
+    assert_eq!(
+        crate::render_exported_compact_results(&mut snapshotted.state),
+        crate::render_exported_compact_results(&mut uncached.state)
+    );
     assert_eq!(cached.diagnostic_source, uncached.diagnostic_source);
+    assert_eq!(snapshotted.diagnostic_source, uncached.diagnostic_source);
 }
 
 const PAT_RECORD_DEFAULT_SOURCE: &str = r#"act cfg:

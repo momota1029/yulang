@@ -48,9 +48,10 @@ pub use solve::{
 };
 pub use source::{
     LoweredSources, ProfiledLoweredSources, SourceLowerCache, SourceLowerProfile,
-    SourceStdCacheProfile, lower_entry_with_options, lower_entry_with_options_profiled,
-    lower_source_file, lower_source_file_profiled, lower_source_set, lower_source_set_profiled,
-    lower_source_set_with_std_cache, lower_source_set_with_std_cache_profiled,
+    SourceStdCacheProfile, StdInferSnapshot, build_std_infer_snapshot, lower_entry_with_options,
+    lower_entry_with_options_profiled, lower_source_file, lower_source_file_profiled,
+    lower_source_set, lower_source_set_profiled, lower_source_set_with_std_cache,
+    lower_source_set_with_std_cache_profiled, lower_source_set_with_std_snapshot,
     lower_virtual_source_with_options, lower_virtual_source_with_options_profiled,
     warm_std_source_cache,
 };

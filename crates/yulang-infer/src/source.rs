@@ -73,7 +73,13 @@ pub struct ProfiledLoweredSources {
 
 #[derive(Default)]
 pub struct SourceLowerCache {
-    std_states: HashMap<StdSourceCacheKey, LowerState>,
+    std_snapshots: HashMap<StdSourceCacheKey, StdInferSnapshot>,
+}
+
+#[derive(Clone)]
+pub struct StdInferSnapshot {
+    key: StdSourceCacheKey,
+    state: LowerState,
 }
 
 pub fn lower_entry_with_options(
@@ -155,6 +161,28 @@ pub fn warm_std_source_cache(
     })
 }
 
+pub fn build_std_infer_snapshot(source_set: &SourceSet) -> Option<StdInferSnapshot> {
+    with_profile_enabled(false, || build_std_infer_snapshot_inner(source_set, None))
+}
+
+pub fn lower_source_set_with_std_snapshot(
+    source_set: &SourceSet,
+    snapshot: &StdInferSnapshot,
+) -> ProfiledLoweredSources {
+    let key = StdSourceCacheKey::from_source_set(source_set);
+    if !snapshot.covers(&key) {
+        return lower_source_set_profiled(source_set);
+    }
+    with_profile_enabled(true, || {
+        let mut profile = source_set_profile_header(source_set);
+        profile.std_cache.hits += 1;
+        let clone_start = ProfileClock::now();
+        let state = snapshot.instantiate();
+        profile.std_cache.clone += clone_start.elapsed();
+        lower_source_set_from_std_state(source_set, state, profile)
+    })
+}
+
 pub fn lower_source_set_profiled(source_set: &SourceSet) -> ProfiledLoweredSources {
     lower_source_set_with_profile(source_set, true)
 }
@@ -174,13 +202,7 @@ fn lower_source_set_inner(source_set: &SourceSet) -> ProfiledLoweredSources {
         .map(|file| file.source.clone())
         .unwrap_or_default();
 
-    let mut profile = SourceLowerProfile {
-        files: source_set.files.len(),
-        entry_files: source_set.files_with_origin(SourceOrigin::Entry).count(),
-        std_files: source_set.files_with_origin(SourceOrigin::Std).count(),
-        user_files: source_set.files_with_origin(SourceOrigin::User).count(),
-        ..SourceLowerProfile::default()
-    };
+    let mut profile = source_set_profile_header(source_set);
     let mut state = LowerState::new();
     install_builtin_primitives(&mut state);
     for file in &source_set.files {
@@ -200,6 +222,16 @@ fn lower_source_set_inner(source_set: &SourceSet) -> ProfiledLoweredSources {
     }
 }
 
+fn source_set_profile_header(source_set: &SourceSet) -> SourceLowerProfile {
+    SourceLowerProfile {
+        files: source_set.files.len(),
+        entry_files: source_set.files_with_origin(SourceOrigin::Entry).count(),
+        std_files: source_set.files_with_origin(SourceOrigin::Std).count(),
+        user_files: source_set.files_with_origin(SourceOrigin::User).count(),
+        ..SourceLowerProfile::default()
+    }
+}
+
 fn lower_source_set_cached_inner(
     source_set: &SourceSet,
     cache: &mut SourceLowerCache,
@@ -210,19 +242,21 @@ fn lower_source_set_cached_inner(
         return lowered;
     }
 
+    let mut profile = source_set_profile_header(source_set);
+    let state = cache.std_state(source_set, &mut profile);
+    lower_source_set_from_std_state(source_set, state, profile)
+}
+
+fn lower_source_set_from_std_state(
+    source_set: &SourceSet,
+    mut state: LowerState,
+    mut profile: SourceLowerProfile,
+) -> ProfiledLoweredSources {
     let diagnostic_source = source_set
         .entry_files()
         .next()
         .map(|file| file.source.clone())
         .unwrap_or_default();
-    let mut profile = SourceLowerProfile {
-        files: source_set.files.len(),
-        entry_files: source_set.files_with_origin(SourceOrigin::Entry).count(),
-        std_files: source_set.files_with_origin(SourceOrigin::Std).count(),
-        user_files: source_set.files_with_origin(SourceOrigin::User).count(),
-        ..SourceLowerProfile::default()
-    };
-    let mut state = cache.std_state(source_set, &mut profile);
     for file in source_set
         .files
         .iter()
@@ -310,35 +344,71 @@ impl SourceLowerCache {
         profile: &mut SourceLowerProfile,
     ) -> LowerState {
         let key = StdSourceCacheKey::from_source_set(source_set);
-        if let Some(state) = self.covering_std_state(&key) {
+        if let Some(snapshot) = self.covering_std_snapshot(&key) {
             profile.std_cache.hits += 1;
             let clone_start = ProfileClock::now();
-            let cloned = state.clone();
+            let cloned = snapshot.instantiate();
             profile.std_cache.clone += clone_start.elapsed();
             return cloned;
         }
 
         profile.std_cache.misses += 1;
         let build_start = ProfileClock::now();
-        let mut state = LowerState::new();
-        install_builtin_primitives(&mut state);
-        for file in source_set.std_files() {
-            lower_source_file_inner(file, &mut state, profile);
-        }
+        let snapshot = build_std_infer_snapshot_inner(source_set, Some(profile))
+            .expect("std source set should build a snapshot after std file check");
         profile.std_cache.build += build_start.elapsed();
         let clone_start = ProfileClock::now();
-        self.std_states.insert(key, state.clone());
+        let state = snapshot.instantiate();
+        self.std_snapshots.insert(key, snapshot);
         profile.std_cache.clone += clone_start.elapsed();
         state
     }
 
-    fn covering_std_state(&self, key: &StdSourceCacheKey) -> Option<&LowerState> {
-        self.std_states.get(key).or_else(|| {
-            self.std_states
+    fn covering_std_snapshot(&self, key: &StdSourceCacheKey) -> Option<&StdInferSnapshot> {
+        self.std_snapshots.get(key).or_else(|| {
+            self.std_snapshots
                 .iter()
-                .find_map(|(cached, state)| cached.covers(key).then_some(state))
+                .find_map(|(cached, snapshot)| cached.covers(key).then_some(snapshot))
         })
     }
+}
+
+impl StdInferSnapshot {
+    fn new(key: StdSourceCacheKey, state: LowerState) -> Self {
+        Self { key, state }
+    }
+
+    fn instantiate(&self) -> LowerState {
+        self.state.clone()
+    }
+
+    fn covers(&self, requested: &StdSourceCacheKey) -> bool {
+        self.key.covers(requested)
+    }
+}
+
+fn build_std_infer_snapshot_inner(
+    source_set: &SourceSet,
+    profile: Option<&mut SourceLowerProfile>,
+) -> Option<StdInferSnapshot> {
+    if source_set.std_files().next().is_none() {
+        return None;
+    }
+    let key = StdSourceCacheKey::from_source_set(source_set);
+    let mut state = LowerState::new();
+    install_builtin_primitives(&mut state);
+    let mut local_profile;
+    let profile = match profile {
+        Some(profile) => profile,
+        None => {
+            local_profile = SourceLowerProfile::default();
+            &mut local_profile
+        }
+    };
+    for file in source_set.std_files() {
+        lower_source_file_inner(file, &mut state, profile);
+    }
+    Some(StdInferSnapshot::new(key, state))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

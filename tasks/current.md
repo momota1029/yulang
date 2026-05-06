@@ -986,14 +986,19 @@ The playground now has a process-local lowered-std cache:
   in `RunOutput.timings`.
 - The playground runs the first example first, then warms the full bundled std
   cache during idle time so later runs hit the cache.
+- `SourceLowerCache` now stores `StdInferSnapshot` values instead of raw
+  `LowerState` values. The current snapshot still instantiates by cloning the
+  lowered state, but callers now go through an explicit snapshot boundary.
+- `build_std_infer_snapshot` and `lower_source_set_with_std_snapshot` provide
+  the equivalence target for the future persistent artifact.
 
 This is intentionally not the final persistent cache design. It proves the
 partial-compilation boundary and gives a behavioral baseline.
 
 Next direction:
 
-1. Design `StdInferSnapshot` as a compact importable artifact instead of
-   serializing the whole `LowerState`.
+1. Shrink `StdInferSnapshot` from a transitional lowered-state wrapper into a
+   compact importable artifact.
 2. Snapshot only std information that user lowering/export/runtime actually
    consumes:
    - module/name tables and canonical paths
