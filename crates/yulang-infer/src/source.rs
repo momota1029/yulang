@@ -9,8 +9,9 @@ use serde::{Deserialize, Serialize};
 use yulang_parser::parse_module_to_green_with_ops;
 use yulang_parser::sink::YulangLanguage;
 use yulang_source::{
-    CompiledUnitManifest, SourceFile, SourceLoadError, SourceOptions, SourceOrigin, SourceSet,
-    collect_source_files_with_options, collect_virtual_source_files_with_options,
+    CompiledSyntaxSurface, CompiledUnitManifest, SourceFile, SourceLoadError, SourceOptions,
+    SourceOrigin, SourceSet, collect_source_files_with_options,
+    collect_virtual_source_files_with_options,
 };
 
 use crate::lower::primitives::install_builtin_primitives;
@@ -186,6 +187,14 @@ pub enum CompiledTypedImportError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledUnitTypedArtifact {
     pub manifest: CompiledUnitManifest,
+    pub namespace: CompiledNamespaceSurface,
+    pub typed: CompiledTypedSurface,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitArtifact {
+    pub manifest: CompiledUnitManifest,
+    pub syntax: CompiledSyntaxSurface,
     pub namespace: CompiledNamespaceSurface,
     pub typed: CompiledTypedSurface,
 }
@@ -708,6 +717,34 @@ pub fn import_compiled_typed_surface(
         coverage,
         validation: typed_validation,
     })
+}
+
+pub fn build_compiled_unit_artifacts(
+    source_set: &SourceSet,
+    state: &LowerState,
+) -> Vec<CompiledUnitArtifact> {
+    let syntax_artifacts = source_set.compiled_unit_syntax_artifacts();
+    let typed_artifacts = build_compiled_typed_artifacts(source_set, state);
+
+    assert_eq!(
+        syntax_artifacts.len(),
+        typed_artifacts.len(),
+        "syntax and typed artifact builders must use the same compilation units"
+    );
+
+    syntax_artifacts
+        .into_iter()
+        .zip(typed_artifacts)
+        .map(|(syntax_artifact, typed_artifact)| {
+            debug_assert_eq!(syntax_artifact.manifest, typed_artifact.manifest);
+            CompiledUnitArtifact {
+                manifest: syntax_artifact.manifest,
+                syntax: syntax_artifact.syntax,
+                namespace: typed_artifact.namespace,
+                typed: typed_artifact.typed,
+            }
+        })
+        .collect()
 }
 
 pub fn build_compiled_typed_artifacts(

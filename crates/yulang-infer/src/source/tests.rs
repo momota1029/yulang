@@ -1944,6 +1944,82 @@ fn compiled_typed_import_rejects_missing_scheme_symbol() {
 }
 
 #[test]
+fn compiled_unit_artifact_bundles_syntax_namespace_and_typed_surfaces() {
+    let source_set = collect_inline_source_files_with_options(
+        "use data::*\nuse ops::*\nmy y = id (1 %% 2)\n",
+        [
+            InlineSource {
+                path: PathBuf::from("<data>.yu"),
+                module_path: CorePath::new(vec![CoreName("data".to_string())]),
+                origin: SourceOrigin::User,
+                source: "pub id x = x\n".to_string(),
+                meta: None,
+            },
+            InlineSource {
+                path: PathBuf::from("<ops>.yu"),
+                module_path: CorePath::new(vec![CoreName("ops".to_string())]),
+                origin: SourceOrigin::User,
+                source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+                meta: None,
+            },
+        ],
+        yulang_source::SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+    let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
+    let data_artifact = artifacts
+        .iter()
+        .find(|artifact| {
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["data"])
+        })
+        .expect("data unit artifact should exist");
+    let ops_artifact = artifacts
+        .iter()
+        .find(|artifact| {
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["ops"])
+        })
+        .expect("ops unit artifact should exist");
+
+    assert!(
+        data_artifact
+            .typed
+            .validate(&data_artifact.namespace)
+            .is_complete()
+    );
+    assert!(
+        ops_artifact
+            .syntax
+            .public_exports
+            .iter()
+            .any(|export| export.name.0 == "%%")
+    );
+    assert!(
+        ops_artifact
+            .namespace
+            .modules
+            .iter()
+            .flat_map(|module| &module.operators)
+            .any(|operator| operator.name == "%%")
+    );
+
+    let encoded = serde_json::to_string(ops_artifact).unwrap();
+    let decoded: CompiledUnitArtifact = serde_json::from_str(&encoded).unwrap();
+    assert_eq!(&decoded, ops_artifact);
+}
+
+#[test]
 fn lowers_var_sigils_across_multiple_top_level_bindings() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

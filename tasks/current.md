@@ -1085,6 +1085,8 @@ file-SCC compiled-unit artifacts:
   entries and can import them into fresh process-local ids.
 - `CompiledTypedSurface` carries typed metadata refs and now has an import
   skeleton that resolves scheme/role/effect refs against the imported namespace.
+- `CompiledUnitArtifact` bundles syntax, namespace, and typed surfaces under
+  one manifest for a single `SourceCompilationUnit`.
 
 This is still not a replacement for lowering/inference. The next hard boundary
 is restoring real scheme/body/principal evidence into the imported state without
