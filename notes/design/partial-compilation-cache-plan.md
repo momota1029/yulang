@@ -123,6 +123,23 @@ Required fields:
 This layer is required because Yulang files can affect syntax through exported
 operators. A core-only cache cannot parse downstream source safely.
 
+Important operator split:
+
+- Syntax surface owns parser-facing operator definitions:
+  - surface operator name;
+  - prefix/infix/suffix/nullfix availability;
+  - binding power vectors;
+  - visibility / reexport information relevant before parsing downstream
+    files.
+- Syntax surface does not own the lowered operator value identity. It should not
+  contain process-local `DefId` or assume the operator body has been lowered.
+- The serialized form should be independent of parser implementation details
+  such as `SmallVec` layout. A small artifact type like
+  `CompiledOperatorSyntax` should carry `Vec<i8>` binding powers and be
+  convertible to/from parser `OpDef`.
+- A cache hit for a dependency unit must be able to rebuild the downstream
+  parser `OpTable` from syntax artifacts before parsing the downstream source.
+
 ### Namespace Surface
 
 Purpose: restore names, modules, visibility, and canonical paths without
@@ -138,6 +155,20 @@ Required fields:
 - visibility;
 - canonical value/type paths;
 - builtin-backed symbols vs source-defined symbols.
+
+Operator namespace identity belongs here, not in the syntax surface. Lowering
+must resolve a parsed operator use through a stable imported mapping such as:
+
+```text
+(Infix) syntax token
+  -> imported namespace entry (operator name + fixity)
+  -> UnitValueId
+  -> fresh process-local DefId
+```
+
+This separation is required because a single surface operator spelling can have
+multiple fixities, and because parser syntax availability and lowered value
+identity are consumed at different phases.
 
 Import should allocate fresh process-local ids and build maps:
 
@@ -246,10 +277,16 @@ Tasks:
 
 - Add `CompiledUnitManifest`.
 - Add `CompiledSyntaxSurface`.
-- Serialize syntax exports and unit dependency hashes.
+- Add a stable `CompiledOperatorSyntax` representation instead of serializing
+  parser `OpDef` directly.
+- Serialize direct and reexported syntax exports plus unit dependency hashes.
+- Add an import helper that rebuilds an `OpTable` contribution from cached
+  operator syntax.
 - Add tests for:
   - operator exports in a cached unit;
+  - reexported operator exports in a cached unit;
   - downstream parse using imported syntax surface;
+  - `use ... without (...)` excluding cached operator syntax;
   - invalidation when operator source changes.
 
 Success condition:
@@ -263,12 +300,15 @@ Tasks:
 
 - Add `CompiledNamespaceSurface`.
 - Serialize module/value/type/reexport/operator namespace entries.
+- Represent operator values as `(operator name, fixity) -> UnitValueId`.
 - Import namespace into fresh `LowerState` using fresh ids.
 - Add stable local id maps.
 - Add tests comparing:
   - normal lowering;
   - process-local cache lowering;
   - namespace-surface import + downstream lowering.
+  - parsed cached operator uses resolving to the same canonical operator value
+    as normal lowering.
 
 Success condition:
 

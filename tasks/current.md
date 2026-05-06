@@ -143,6 +143,15 @@ units, unit dependencies, origin classification, and syntax exports. The next
 implementation slice should build a read-only `CompiledUnitManifest` from those
 units before trying to replace lowering with persisted artifacts.
 
+Operator-specific cache rule:
+
+- Syntax surface stores parser-facing operator definitions and reexports so a
+  downstream file can rebuild its `OpTable` before parsing.
+- Namespace surface stores lowered operator value identity as
+  `(operator name, fixity) -> UnitValueId`.
+- Do not collapse these two into one field. Parser syntax availability and
+  value resolution happen at different phases.
+
 ## Context
 
 `yulang-runtime` の `monomorphize` は、現在は demand-driven に具体的な呼び出し形を集め、`DemandSignature` を作り、必要な specialization を emit している。

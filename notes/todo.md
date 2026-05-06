@@ -155,6 +155,13 @@ Next steps:
 - Follow the phase order in `notes/design/partial-compilation-cache-plan.md`.
 - Immediate next slice: `CompiledUnitManifest + CompiledSyntaxSurface` from
   `SourceCompilationUnit`.
+- The syntax slice must include cached operator syntax:
+  - stable `CompiledOperatorSyntax` data, not raw parser implementation state;
+  - direct exports and reexports;
+  - enough data to rebuild downstream `OpTable` before parsing.
+- Operator value identity is a later namespace-surface task:
+  - `(operator name, fixity) -> UnitValueId -> DefId`;
+  - keep this separate from parser-facing operator syntax.
 - Design a persistent compiled-unit artifact for file SCCs:
   - source identity: file paths, module paths, source hash, origin, compiler
     snapshot version, and relevant feature flags;
