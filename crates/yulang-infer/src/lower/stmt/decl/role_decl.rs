@@ -4,6 +4,10 @@ pub(crate) fn lower_impl_decl(state: &mut LowerState, node: &SyntaxNode) {
     crate::lower::role::lower_impl_decl(state, node);
 }
 
+pub(crate) fn lower_cast_decl(state: &mut LowerState, node: &SyntaxNode) {
+    crate::lower::role::lower_cast_decl(state, node);
+}
+
 pub(crate) fn lower_attached_impl_decl(
     state: &mut LowerState,
     node: &SyntaxNode,

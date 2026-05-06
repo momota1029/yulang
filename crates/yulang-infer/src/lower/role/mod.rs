@@ -4,14 +4,14 @@ use yulang_core_ir as core_ir;
 use yulang_parser::lex::SyntaxKind;
 
 use super::signature::{
-    SigRecordField, SigRow, SigType, SigVar, act_type_param_names, fresh_type_scope,
-    lower_pure_sig_neg_id, lower_pure_sig_pos_id, parse_sig_type_expr, render_concrete_sig_type,
-    sig_type_head,
+    SigRecordField, SigRow, SigType, SigVar, act_type_param_names, collect_all_sig_vars,
+    fresh_type_scope, lower_pure_sig_neg_id, lower_pure_sig_pos_id, parse_sig_type_expr,
+    render_concrete_sig_type, sig_type_head,
 };
 use super::stmt::{
-    ArgPatInfo, binding_sig_var_names, child_node, collect_block_items, collect_header_args,
-    has_token, header_value_name, ident_name, lower_binding_body, lower_binding_with_type_scope,
-    make_arg_pat_info, preregister_binding, wrap_header_lambdas,
+    ArgPatInfo, HeaderArg, binding_sig_var_names, child_node, child_nodes, collect_block_items,
+    collect_header_args, has_token, header_value_name, ident_name, lower_binding_body,
+    lower_binding_with_type_scope, make_arg_pat_info, preregister_binding, wrap_header_lambdas,
 };
 use super::where_clause::lower_where_clause;
 use super::{LowerState, SyntaxNode};
@@ -32,7 +32,7 @@ mod runtime;
 mod subst;
 
 pub(super) use decl::lower_role_decl;
-pub(super) use impls::{lower_attached_impl_decl, lower_impl_decl};
+pub(super) use impls::{lower_attached_impl_decl, lower_cast_decl, lower_impl_decl};
 pub(super) use runtime::{export_runtime_path, export_runtime_sig_row, export_runtime_sig_type};
 
 use runtime::{runtime_export_role_method_scheme, runtime_export_scheme};

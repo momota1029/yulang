@@ -51,6 +51,10 @@ pub role Len 'a:
 pub role Display 'a:
     our a.show: str
 
+pub role Cast 'from:
+    type to
+    our from.cast: to
+
 pub role LowerHex 'a:
     our a.lower_hex: str
 

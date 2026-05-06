@@ -1,0 +1,8 @@
+struct user_id { raw: int }
+
+cast(x: user_id): int = x.raw
+cast(x: int): user_id = user_id { raw: x }
+
+my id: user_id = 7.cast
+my raw: int = id.cast
+raw

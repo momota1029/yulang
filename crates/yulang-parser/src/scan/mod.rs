@@ -175,6 +175,7 @@ fn keyword_kind(text: &str) -> Option<SyntaxKind> {
         "enum" => Some(SyntaxKind::Enum),
         "role" => Some(SyntaxKind::Role),
         "impl" => Some(SyntaxKind::Impl),
+        "cast" => Some(SyntaxKind::Cast),
         "act" => Some(SyntaxKind::Act),
         "mod" => Some(SyntaxKind::Mod),
         "as" => Some(SyntaxKind::As),

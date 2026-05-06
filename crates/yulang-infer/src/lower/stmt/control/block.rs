@@ -206,6 +206,10 @@ fn lower_block_items(
                 flush_tail_into_stmt(stmts, tail);
                 super::super::lower_impl_decl(state, &child);
             }
+            SyntaxKind::CastDecl => {
+                flush_tail_into_stmt(stmts, tail);
+                super::super::lower_cast_decl(state, &child);
+            }
             SyntaxKind::StructDecl => {
                 flush_tail_into_stmt(stmts, tail);
                 super::super::lower_struct_decl(state, &child);

@@ -761,6 +761,95 @@ fn stmt_impl_decl_via_semicolon() {
 }
 
 #[test]
+fn stmt_cast_decl_inline_body() {
+    let got = parse_stmt_once("cast(x: user_id): int = x.raw");
+    let expected = vec![
+        "(CastDecl",
+        "  Cast \"cast\"",
+        "  ParenL \"(\"",
+        "  (Pattern",
+        "    Ident \"x\"",
+        "    (TypeAnn",
+        "      Colon \":\"",
+        "      (TypeExpr",
+        "        Ident \"user_id\"",
+        "      )",
+        "    )",
+        "  )",
+        "  ParenR \")\"",
+        "  (TypeAnn",
+        "    Colon \":\"",
+        "    (TypeExpr",
+        "      Ident \"int\"",
+        "    )",
+        "  )",
+        "  Equal \"=\"",
+        "  (BindingBody",
+        "    (Expr",
+        "      Ident \"x\"",
+        "      (Field",
+        "        DotField \".raw\"",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_pub_cast_decl_inline_body() {
+    let got = parse_stmt_once("pub cast(x: int): user_id = user_id { raw: x }");
+    let expected = vec![
+        "(CastDecl",
+        "  Pub \"pub\"",
+        "  Cast \"cast\"",
+        "  ParenL \"(\"",
+        "  (Pattern",
+        "    Ident \"x\"",
+        "    (TypeAnn",
+        "      Colon \":\"",
+        "      (TypeExpr",
+        "        Ident \"int\"",
+        "      )",
+        "    )",
+        "  )",
+        "  ParenR \")\"",
+        "  (TypeAnn",
+        "    Colon \":\"",
+        "    (TypeExpr",
+        "      Ident \"user_id\"",
+        "    )",
+        "  )",
+        "  Equal \"=\"",
+        "  (BindingBody",
+        "    (Expr",
+        "      Ident \"user_id\"",
+        "      (ApplyML",
+        "        (Expr",
+        "          (BraceGroup",
+        "            BraceL \"{\"",
+        "            (Expr",
+        "              Ident \"raw\"",
+        "              (ApplyColon",
+        "                Colon \":\"",
+        "                (Expr",
+        "                  Ident \"x\"",
+        "                )",
+        "              )",
+        "            )",
+        "            BraceR \"}\"",
+        "          )",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_act_decl_path_semicolon() {
     let got = parse_stmt_once("act Console::Read;");
     let expected = vec![

@@ -27,6 +27,9 @@ pub(crate) fn lower_struct_with_bindings(
             SyntaxKind::ImplDecl => {
                 super::super::lower_attached_impl_decl(state, &item, struct_path, type_param_names);
             }
+            SyntaxKind::CastDecl => {
+                super::super::lower_cast_decl(state, &item);
+            }
             _ => {}
         }
     }

@@ -188,6 +188,20 @@ sub:
     }
 
     #[test]
+    fn vm_runs_source_cast_declarations() {
+        let results = eval_source_with_std(
+            "struct user_id { raw: int }\n\
+             cast(x: user_id): int = x.raw\n\
+             cast(x: int): user_id = user_id { raw: x }\n\
+             my id: user_id = 7.cast\n\
+             my raw: int = id.cast\n\
+             raw\n",
+        );
+
+        assert_eq!(results, vec![TestValue::Int("7".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_showcase_example() {
         let results = eval_source_with_std(SHOWCASE_SOURCE);
 

@@ -207,6 +207,7 @@ pub enum SyntaxKind {
     MarkSectionCloseSigil = 182,
     MarkBlankLine = 183,
     DotDot = 184,
+    Cast = 185,
 
     // Yumark tokens
     YmHashSigil = 186,
@@ -360,6 +361,7 @@ pub enum SyntaxKind {
 
     // doc comment statement node
     DocCommentDecl = 621,
+    CastDecl = 633,
     PatSpread = 624,
 
     // effect row in type argument position: '[ ... ]

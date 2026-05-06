@@ -245,6 +245,9 @@ pub(crate) fn lower_type_with_bindings(
             SyntaxKind::ImplDecl => {
                 super::lower_attached_impl_decl(state, &item, type_path, type_param_names);
             }
+            SyntaxKind::CastDecl => {
+                super::lower_cast_decl(state, &item);
+            }
             _ => {}
         }
     }

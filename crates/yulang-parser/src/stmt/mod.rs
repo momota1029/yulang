@@ -15,6 +15,7 @@ use crate::sink::EventSink;
 mod act_decl;
 mod binding;
 mod block;
+mod cast_decl;
 mod common;
 mod enum_decl;
 mod for_stmt;
@@ -53,6 +54,7 @@ fn parse_statement_from_stop<I: EventInput, S: EventSink>(
         SyntaxKind::Enum => enum_decl::parse_enum_decl(i, None, stop),
         SyntaxKind::Role => role_decl::parse_role_decl(i, None, stop),
         SyntaxKind::Impl => impl_decl::parse_impl_decl(i, None, stop),
+        SyntaxKind::Cast => cast_decl::parse_cast_decl(i, None, stop),
         SyntaxKind::Act => act_decl::parse_act_decl(i, None, stop),
         SyntaxKind::For => for_stmt::parse_for_stmt(i, stop),
         SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
@@ -147,6 +149,7 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
             SyntaxKind::Enum => enum_decl::parse_enum_decl(i, vis, nud.lex),
             SyntaxKind::Role => role_decl::parse_role_decl(i, vis, nud.lex),
             SyntaxKind::Impl => impl_decl::parse_impl_decl(i, vis, nud.lex),
+            SyntaxKind::Cast => cast_decl::parse_cast_decl(i, vis, nud.lex),
             SyntaxKind::Act => act_decl::parse_act_decl(i, vis, nud.lex),
             SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
                 op_def::parse_op_def_stmt(i, vis, nud.lex)

@@ -13,7 +13,9 @@ pub(crate) use extension::{
     global_extension_method_header,
 };
 pub(super) use module_decl::lower_mod_decl;
-pub(super) use role_decl::{lower_attached_impl_decl, lower_impl_decl, lower_role_decl};
+pub(super) use role_decl::{
+    lower_attached_impl_decl, lower_cast_decl, lower_impl_decl, lower_role_decl,
+};
 pub(super) use type_decl::{lower_type_decl, lower_type_with_bindings};
 pub(super) use use_decl::lower_use_decl;
 pub(super) use where_decl::lower_where_clause;
