@@ -326,11 +326,10 @@ pub(super) fn principal_elaboration_plan_for_expr(
     if spine.target != &binding.name {
         return None;
     }
-    if let Some(plan) =
-        complete_principal_elaboration_plan_from_spine(&spine, binding, result_contextual)
-            .filter(|plan| plan.complete)
-    {
-        return Some(plan);
+    let spine_plan =
+        complete_principal_elaboration_plan_from_spine(&spine, binding, result_contextual);
+    if let Some(plan) = spine_plan.as_ref().filter(|plan| plan.complete) {
+        return Some(plan.clone());
     }
     if let Some(plan) = spine.evidences_by_arg.iter().find_map(|evidence| {
         let evidence = evidence.as_ref().copied()?;
@@ -344,19 +343,17 @@ pub(super) fn principal_elaboration_plan_for_expr(
     }) {
         return Some(plan);
     }
-    complete_principal_elaboration_plan_from_spine(&spine, binding, result_contextual).or_else(
-        || {
-            spine.evidences_by_arg.iter().find_map(|evidence| {
-                let evidence = evidence.as_ref().copied()?;
-                let plan = evidence.principal_elaboration.as_ref()?;
-                (plan
-                    .target
-                    .as_ref()
-                    .is_none_or(|plan_target| plan_target == &binding.name))
-                .then_some(plan.clone())
-            })
-        },
-    )
+    spine_plan.or_else(|| {
+        spine.evidences_by_arg.iter().find_map(|evidence| {
+            let evidence = evidence.as_ref().copied()?;
+            let plan = evidence.principal_elaboration.as_ref()?;
+            (plan
+                .target
+                .as_ref()
+                .is_none_or(|plan_target| plan_target == &binding.name))
+            .then_some(plan.clone())
+        })
+    })
 }
 
 fn complete_principal_elaboration_plan_from_spine(

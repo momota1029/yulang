@@ -926,8 +926,9 @@ fn print_runtime_phase_timings(
             .collect::<Vec<_>>()
             .join(", ");
         eprintln!(
-            "        {}: bindings {}->{}, roots {}->{}, changed_bindings={}, changed_roots={}, added_specializations={}, queue_attempted={}, queue_pushed={}, added=[{}]",
+            "        {}: duration={}, bindings {}->{}, roots {}->{}, changed_bindings={}, changed_roots={}, added_specializations={}, queue_attempted={}, queue_pushed={}, added=[{}]",
             pass.name,
+            format_duration(pass.duration),
             pass.bindings_before,
             pass.bindings_after,
             pass.roots_before,
@@ -959,7 +960,7 @@ fn print_runtime_phase_timings(
 
 fn print_principal_elaborate_profile(profile: &runtime::MonomorphizePassProfile) {
     let subst = &profile.principal_elaborate;
-    if subst.stats.is_empty() && subst.target_skips.is_empty() {
+    if subst.stats.is_empty() && subst.timings.is_empty() && subst.target_skips.is_empty() {
         return;
     }
     let mut stats = subst.stats.iter().collect::<Vec<_>>();
@@ -975,6 +976,21 @@ fn print_principal_elaborate_profile(profile: &runtime::MonomorphizePassProfile)
         .collect::<Vec<_>>()
         .join(", ");
     eprintln!("            principal_elaborate: {stats}");
+    if !subst.timings.is_empty() {
+        let mut timings = subst.timings.iter().collect::<Vec<_>>();
+        timings.sort_by(|(left_key, left_duration), (right_key, right_duration)| {
+            right_duration
+                .cmp(left_duration)
+                .then_with(|| left_key.cmp(right_key))
+        });
+        let timings = timings
+            .into_iter()
+            .take(12)
+            .map(|(key, duration)| format!("{key}={}", format_duration(*duration)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        eprintln!("                timings: {timings}");
+    }
     let surviving_actionable_skips = subst
         .target_skips
         .iter()

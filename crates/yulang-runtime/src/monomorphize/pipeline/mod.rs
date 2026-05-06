@@ -7,6 +7,7 @@
 //! from erased value types.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::time::Duration;
 
 use yulang_core_ir as core_ir;
 
@@ -110,6 +111,7 @@ impl MonomorphizeProfile {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MonomorphizePassProfile {
     pub name: &'static str,
+    pub duration: Duration,
     pub bindings_before: usize,
     pub bindings_after: usize,
     pub roots_before: usize,
@@ -124,6 +126,7 @@ pub struct MonomorphizePassProfile {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct SubstitutionSpecializeProfile {
     pub stats: HashMap<&'static str, usize>,
+    pub timings: HashMap<&'static str, Duration>,
     pub target_skips: Vec<SubstitutionSpecializeTargetSkips>,
     pub target_inferences: Vec<SubstitutionSpecializeTargetInferences>,
 }
@@ -349,11 +352,14 @@ fn run_profiled_mono_pass(
         .is_some()
         .then(|| module.clone());
     let before = MonoStats::from_module(&module);
+    let started = std::time::Instant::now();
     let step = apply_mono_pass(module, pass)?;
+    let duration = started.elapsed();
     let after = MonoStats::from_module(&step.module);
     let progress = step.progress.to_public();
     profile.passes.push(MonomorphizePassProfile {
         name: pass.name(),
+        duration,
         bindings_before: before.bindings,
         bindings_after: after.bindings,
         roots_before: before.roots,

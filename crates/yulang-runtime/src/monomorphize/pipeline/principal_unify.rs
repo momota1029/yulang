@@ -7,6 +7,7 @@ use crate::types::{
     substitute_bounds, type_compatible,
 };
 use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 pub(super) fn principal_unify_module_profiled(
     module: Module,
@@ -29,14 +30,17 @@ struct PrincipalUnifier {
     root_specializations: HashMap<core_ir::Path, Vec<core_ir::Path>>,
     role_method_rewrites: HashMap<core_ir::Path, Vec<core_ir::Path>>,
     emitted: Vec<Binding>,
+    emitted_by_path: HashMap<core_ir::Path, Binding>,
     active_specializations: Vec<ActivePrincipalSpecialization>,
     local_use_contexts: Vec<LocalUseContextScope>,
     local_value_contexts: Vec<BTreeMap<core_ir::Name, RuntimeType>>,
     next_index: usize,
     stats: HashMap<&'static str, usize>,
+    timings: HashMap<&'static str, Duration>,
     target_skips: HashMap<core_ir::Path, HashMap<&'static str, usize>>,
     target_missing_vars: HashMap<core_ir::Path, HashMap<core_ir::TypeVar, usize>>,
     incomplete_plan_cache: HashMap<IncompletePrincipalPlanKey, CachedIncompletePrincipalPlan>,
+    incomplete_plan_targets: HashSet<core_ir::Path>,
     initial_reachable_bindings: HashSet<core_ir::Path>,
     rewritten_template_bindings: HashSet<core_ir::Path>,
 }
@@ -109,14 +113,17 @@ impl PrincipalUnifier {
             root_specializations: HashMap::new(),
             role_method_rewrites: HashMap::new(),
             emitted: Vec::new(),
+            emitted_by_path: HashMap::new(),
             active_specializations: Vec::new(),
             local_use_contexts: Vec::new(),
             local_value_contexts: Vec::new(),
             next_index,
             stats: HashMap::new(),
+            timings: HashMap::new(),
             target_skips: HashMap::new(),
             target_missing_vars: HashMap::new(),
             incomplete_plan_cache: HashMap::new(),
+            incomplete_plan_targets: HashSet::new(),
             initial_reachable_bindings,
             rewritten_template_bindings: HashSet::new(),
         }
@@ -132,30 +139,47 @@ impl PrincipalUnifier {
                 Root::Expr(_) => None,
             })
             .collect::<HashSet<_>>();
-        module.root_exprs = module
-            .root_exprs
-            .into_iter()
-            .map(|expr| {
-                let expr = refresh_local_expr_types(expr);
-                project_runtime_expr_types(self.rewrite_expr(expr, None))
-            })
-            .collect();
-        module.bindings = module
-            .bindings
-            .into_iter()
-            .map(|binding| Binding {
-                body: {
-                    if !self.binding_body_should_be_rewritten(&binding, &root_bindings) {
-                        return binding;
-                    }
-                    let body = refresh_local_expr_types(binding.body);
-                    project_runtime_expr_types(self.rewrite_expr(body, None))
-                },
-                ..binding
-            })
-            .collect();
+        let started = self.profile_timer();
+        let mut root_exprs = Vec::with_capacity(module.root_exprs.len());
+        for expr in module.root_exprs {
+            let step = self.profile_timer();
+            let expr = refresh_local_expr_types(expr);
+            self.finish_profile_timer("root-refresh-before-rewrite", step);
+            let step = self.profile_timer();
+            let expr = self.rewrite_expr(expr, None);
+            self.finish_profile_timer("root-rewrite", step);
+            let step = self.profile_timer();
+            root_exprs.push(project_runtime_expr_types(expr));
+            self.finish_profile_timer("root-project", step);
+        }
+        module.root_exprs = root_exprs;
+        self.finish_profile_timer("rewrite-root-exprs", started);
+        let started = self.profile_timer();
+        let mut bindings = Vec::with_capacity(module.bindings.len());
+        for binding in module.bindings {
+            if !self.binding_body_should_be_rewritten(&binding, &root_bindings) {
+                bindings.push(binding);
+                continue;
+            }
+            let step = self.profile_timer();
+            let body = refresh_local_expr_types(binding.body);
+            self.finish_profile_timer("binding-refresh-before-rewrite", step);
+            let step = self.profile_timer();
+            let body = self.rewrite_expr(body, None);
+            self.finish_profile_timer("binding-rewrite", step);
+            let step = self.profile_timer();
+            let body = project_runtime_expr_types(body);
+            self.finish_profile_timer("binding-project", step);
+            bindings.push(Binding { body, ..binding });
+        }
+        module.bindings = bindings;
+        self.finish_profile_timer("rewrite-bindings", started);
+        let started = self.profile_timer();
         self.flush_emitted_specializations(&mut module);
+        self.finish_profile_timer("flush-emitted-specializations", started);
+        let started = self.profile_timer();
         self.rewrite_surviving_template_bindings(&mut module);
+        self.finish_profile_timer("rewrite-surviving-template-bindings", started);
         let profile = self.finish_profile();
         (module, profile)
     }
@@ -240,6 +264,23 @@ impl PrincipalUnifier {
         *self.stats.entry(key).or_default() += 1;
     }
 
+    fn add_timing(&mut self, key: &'static str, duration: Duration) {
+        if !self.collect_profile {
+            return;
+        }
+        *self.timings.entry(key).or_default() += duration;
+    }
+
+    fn profile_timer(&self) -> Option<Instant> {
+        self.collect_profile.then(Instant::now)
+    }
+
+    fn finish_profile_timer(&mut self, key: &'static str, started: Option<Instant>) {
+        if let Some(started) = started {
+            self.add_timing(key, started.elapsed());
+        }
+    }
+
     fn bump_skip(&mut self, target: &core_ir::Path, reason: &'static str) {
         debug_principal_unify_skip(target, reason);
         if !self.collect_profile {
@@ -259,6 +300,15 @@ impl PrincipalUnifier {
             .contains(path)
             .then(|| self.bindings_by_path.get(path))
             .flatten()
+    }
+
+    fn emitted_binding(&self, path: &core_ir::Path) -> Option<&Binding> {
+        self.emitted_by_path.get(path)
+    }
+
+    fn binding_by_path_or_emitted(&self, path: &core_ir::Path) -> Option<&Binding> {
+        self.emitted_binding(path)
+            .or_else(|| self.bindings_by_path.get(path))
     }
 
     fn required_vars_for_binding(&self, binding: &Binding) -> BTreeSet<core_ir::TypeVar> {
@@ -363,6 +413,7 @@ impl PrincipalUnifier {
         });
         SubstitutionSpecializeProfile {
             stats: self.stats,
+            timings: self.timings,
             target_skips,
             target_inferences: Vec::new(),
         }
@@ -377,25 +428,6 @@ impl PrincipalUnifier {
                 evidence,
                 instantiation,
             } => {
-                let original_apply = Expr {
-                    ty: ty.clone(),
-                    kind: ExprKind::Apply {
-                        callee: callee.clone(),
-                        arg: arg.clone(),
-                        evidence: evidence.clone(),
-                        instantiation: instantiation.clone(),
-                    },
-                };
-                if let Some(spine) = principal_unify_apply_spine(&original_apply)
-                    && !self.generic_bindings.contains(spine.target)
-                    && let Some(rewritten) = self.rewrite_role_method_from_receiver(
-                        &original_apply,
-                        &spine,
-                        result_context.as_ref(),
-                    )
-                {
-                    return rewritten;
-                }
                 let callee_context = evidence
                     .as_ref()
                     .and_then(|evidence| evidence.expected_callee.clone());
@@ -442,15 +474,11 @@ impl PrincipalUnifier {
                         instantiation,
                     },
                 };
-                let expr = refresh_apply_expr_type_from_callee(project_runtime_expr_types(
-                    adapt_apply_argument_from_callee(expr),
-                ));
-                let expr = if self.apply_is_ready_for_principal_rewrite(&expr) {
-                    self.rewrite_apply_from_principal_plan(&expr, result_context.as_ref())
-                        .unwrap_or(expr)
-                } else {
-                    expr
-                };
+                let expr =
+                    refresh_apply_expr_type_from_callee(adapt_apply_argument_from_callee(expr));
+                let expr = self
+                    .rewrite_apply_from_principal_plan(&expr, result_context.as_ref())
+                    .unwrap_or(expr);
                 return adapt_apply_result_from_evidence(expr, result_context.as_ref());
             }
             ExprKind::Lambda {
@@ -913,9 +941,13 @@ impl PrincipalUnifier {
         result_context: Option<&core_ir::TypeBounds>,
     ) -> Option<Expr> {
         self.bump("principal-unify-apply");
-        let spine = principal_unify_apply_spine(expr)?;
-        if self.local_value_type(spine.target).is_some() {
-            self.bump_skip(spine.target, "skip-local-callee-shadow");
+        let started = self.profile_timer();
+        let Some(spine) = principal_unify_apply_spine(expr) else {
+            self.finish_profile_timer("apply-spine", started);
+            return None;
+        };
+        self.finish_profile_timer("apply-spine", started);
+        if self.local_value_type(spine.target).is_some() || is_specialized_path(spine.target) {
             return None;
         }
         let Some(original) = self.generic_binding(spine.target).cloned() else {
@@ -934,9 +966,11 @@ impl PrincipalUnifier {
             {
                 return Some(expr);
             }
-            self.bump_skip(spine.target, "skip-non-generic-callee");
             return None;
         };
+        if spine.args.len() != core_fun_arity(&original.scheme.body) {
+            return None;
+        }
         if let Some(active) = self.active_specialization_for(spine.target).cloned()
             && let Some(expr) =
                 self.rewrite_active_recursive_call(original.clone(), active, &spine, &expr.ty)
@@ -951,27 +985,32 @@ impl PrincipalUnifier {
             return None;
         }
         let active_context_substitutions = self.active_context_substitutions();
-        let incomplete_cache_key = incomplete_plan_cache_key(
-            &spine,
-            expr,
-            result_context,
-            active_context_substitutions.as_ref(),
-        );
-        if self
-            .incomplete_plan_cache
-            .contains_key(&incomplete_cache_key)
-        {
-            if let Some(expr) = self.rewrite_single_emitted_specialized_call(&spine, &expr.ty) {
-                return Some(expr);
+        let mut incomplete_cache_key = None;
+        if self.incomplete_plan_targets.contains(spine.target) {
+            let key = incomplete_plan_cache_key(
+                &spine,
+                expr,
+                result_context,
+                active_context_substitutions.as_ref(),
+            );
+            if self.incomplete_plan_cache.contains_key(&key) {
+                if let Some(expr) = self.rewrite_single_emitted_specialized_call(&spine, &expr.ty) {
+                    return Some(expr);
+                }
+                self.bump("principal-unify-cached-incomplete-plan");
+                return None;
             }
-            self.bump("principal-unify-cached-incomplete-plan");
-            return None;
+            incomplete_cache_key = Some(key);
         }
+        let started = self.profile_timer();
         let Some(mut plan) = principal_elaboration_plan_for_expr(expr, &original, result_context)
         else {
+            self.finish_profile_timer("plan-for-expr", started);
             self.bump_skip(spine.target, "missing-principal-elaboration-plan");
             return None;
         };
+        self.finish_profile_timer("plan-for-expr", started);
+        let started = self.profile_timer();
         if let Some(active_substitutions) = active_context_substitutions {
             debug_principal_unify_active(spine.target, &active_substitutions);
             plan = substitute_principal_plan_context_slots(plan, &active_substitutions);
@@ -1068,6 +1107,7 @@ impl PrincipalUnifier {
             plan.complete = true;
             plan.incomplete_reasons.clear();
         }
+        self.finish_profile_timer("complete-plan", started);
         if !plan.complete {
             if let Some(expr) = self.rewrite_single_emitted_specialized_call(&spine, &expr.ty) {
                 return Some(expr);
@@ -1076,8 +1116,17 @@ impl PrincipalUnifier {
             let substitutions = plan_substitution_map(&plan);
             let missing_vars = missing_required_vars(&original, &substitutions);
             self.bump_missing_var_list(spine.target, &missing_vars);
+            let key = incomplete_cache_key.unwrap_or_else(|| {
+                incomplete_plan_cache_key(
+                    &spine,
+                    expr,
+                    result_context,
+                    self.active_context_substitutions().as_ref(),
+                )
+            });
+            self.incomplete_plan_targets.insert(spine.target.clone());
             self.incomplete_plan_cache
-                .insert(incomplete_cache_key, CachedIncompletePrincipalPlan);
+                .insert(key, CachedIncompletePrincipalPlan);
             return None;
         }
         if plan_has_imprecise_choice_slot_substitutions(&plan, &original) {
@@ -1607,10 +1656,7 @@ impl PrincipalUnifier {
             let path =
                 self.intern_specialization(candidate.clone(), substitutions.clone(), None)?;
             let impl_ty = self
-                .emitted
-                .iter()
-                .find(|binding| binding.name == path)
-                .or_else(|| self.bindings_by_path.get(&path))
+                .binding_by_path_or_emitted(&path)
                 .map(|binding| binding.scheme.body.clone())
                 .unwrap_or_else(|| substitute_type(&candidate.scheme.body, &substitutions));
             let role_rewrites = self
@@ -1649,12 +1695,7 @@ impl PrincipalUnifier {
         let mut matches = Vec::new();
         if let Some(paths) = self.role_method_rewrites.get(role_method) {
             for path in paths {
-                let Some(binding) = self
-                    .emitted
-                    .iter()
-                    .find(|binding| &binding.name == path)
-                    .or_else(|| self.bindings_by_path.get(path))
-                else {
+                let Some(binding) = self.binding_by_path_or_emitted(path) else {
                     continue;
                 };
                 let Some(params) = role_rewrite_candidate_params(&binding.scheme.body, args.len())
@@ -1671,8 +1712,7 @@ impl PrincipalUnifier {
                 continue;
             };
             for path in paths {
-                let Some(binding) = self.emitted.iter().find(|binding| &binding.name == path)
-                else {
+                let Some(binding) = self.emitted_binding(path) else {
                     continue;
                 };
                 let Some(params) = role_rewrite_candidate_params(&binding.scheme.body, args.len())
@@ -1822,11 +1862,7 @@ impl PrincipalUnifier {
             return None;
         }
         let (specialized, _ty) = self.single_emitted_specialization(spine.target)?;
-        let binding = self
-            .emitted
-            .iter()
-            .find(|binding| binding.name == specialized)
-            .cloned()?;
+        let binding = self.emitted_binding(&specialized).cloned()?;
         let callee_ty = binding.scheme.body.clone();
         let Some((params, ret, ret_effect)) =
             core_fun_spine_parts_exact(&callee_ty, spine.args.len())
@@ -1858,32 +1894,6 @@ impl PrincipalUnifier {
         self.bump("principal-unify-single-specialization-rewrite");
         debug_principal_unify_rewrite(spine.target, &specialized);
         rebuild_apply_call_owned(specialized, callee_ty, rewritten_args, final_ty)
-    }
-
-    fn spine_is_full_generic_call(&self, spine: &PrincipalUnifyApplySpine<'_>) -> bool {
-        self.generic_binding(spine.target)
-            .is_some_and(|binding| spine.args.len() == core_fun_arity(&binding.scheme.body))
-    }
-
-    fn apply_is_ready_for_principal_rewrite(&self, expr: &Expr) -> bool {
-        let Some(spine) = principal_unify_apply_spine(expr) else {
-            return false;
-        };
-        if self.local_value_type(spine.target).is_some() || is_specialized_path(spine.target) {
-            return false;
-        }
-        if self.generic_bindings.contains(spine.target) {
-            return self.spine_is_full_generic_call(&spine);
-        }
-        if is_impl_method_path(spine.target) {
-            return true;
-        }
-        if is_role_method_path(spine.target) {
-            return true;
-        }
-        self.bindings_by_path
-            .get(spine.target)
-            .is_some_and(|binding| non_generic_effect_context_rewrite_possible(binding, &expr.ty))
     }
 
     fn rewrite_non_generic_effect_context_call(
@@ -2270,11 +2280,12 @@ impl PrincipalUnifier {
             .push(path.clone());
         debug_principal_unify_emit(&original.name, &path, &substitutions);
         let original_name = original.name.clone();
+        let started = self.profile_timer();
         let mut binding = substitute_binding(original, &substitutions);
+        self.finish_profile_timer("intern-substitute-binding", started);
         let active_handler_plan = handler_plan.clone();
         binding.name = path.clone();
         binding.type_params.clear();
-        binding.body = refresh_local_expr_types(binding.body);
         self.active_specializations
             .push(ActivePrincipalSpecialization {
                 target: original_name.clone(),
@@ -2291,15 +2302,22 @@ impl PrincipalUnifier {
             })
             .unwrap_or_else(|| binding.scheme.body.clone());
         let binding_body_context = core_ir::TypeBounds::exact(binding_body_context);
+        let started = self.profile_timer();
         binding.body = self.rewrite_expr(binding.body, Some(binding_body_context));
+        self.finish_profile_timer("intern-rewrite-body", started);
         self.active_specializations.pop();
         if let Some(plan) = handler_plan {
+            let started = self.profile_timer();
             binding = apply_handler_adapter_plan_to_binding(binding, &plan);
+            self.finish_profile_timer("intern-apply-handler-plan", started);
         }
+        let started = self.profile_timer();
         binding.body = refresh_local_expr_types(binding.body);
         binding.body = project_runtime_expr_types(binding.body);
         binding.scheme.body =
             project_runtime_type_with_vars(&runtime_core_type(&binding.body.ty), &BTreeSet::new());
+        self.finish_profile_timer("intern-final-refresh-project", started);
+        self.emitted_by_path.insert(path.clone(), binding.clone());
         self.emitted.push(binding);
         Some(path)
     }
@@ -2325,7 +2343,6 @@ impl PrincipalUnifier {
         debug_principal_unify_emit(&original_name, &path, &BTreeMap::new());
         binding.name = path.clone();
         binding.type_params.clear();
-        binding.body = refresh_local_expr_types(binding.body);
         self.active_specializations
             .push(ActivePrincipalSpecialization {
                 target: original_name,
@@ -2334,11 +2351,16 @@ impl PrincipalUnifier {
                 handler_plan: None,
             });
         let binding_body_context = core_ir::TypeBounds::exact(binding.scheme.body.clone());
+        let started = self.profile_timer();
         binding.body = self.rewrite_expr(binding.body, Some(binding_body_context));
+        self.finish_profile_timer("effect-context-rewrite-body", started);
         self.active_specializations.pop();
+        let started = self.profile_timer();
         binding.body = refresh_local_expr_types(binding.body);
         binding.body = project_runtime_expr_types(binding.body);
         binding.scheme.body = runtime_core_type(&binding.body.ty);
+        self.finish_profile_timer("effect-context-final-refresh-project", started);
+        self.emitted_by_path.insert(path.clone(), binding.clone());
         self.emitted.push(binding);
         Some(path)
     }
@@ -2372,9 +2394,8 @@ impl PrincipalUnifier {
     }
 
     fn known_binding_runtime_type(&self, path: &core_ir::Path) -> Option<RuntimeType> {
-        self.emitted
-            .iter()
-            .find(|binding| &binding.name == path)
+        self.emitted_by_path
+            .get(path)
             .map(|binding| binding.body.ty.clone())
     }
 
@@ -2386,10 +2407,7 @@ impl PrincipalUnifier {
         let [specialized] = specializations.as_slice() else {
             return None;
         };
-        let binding = self
-            .emitted
-            .iter()
-            .find(|binding| &binding.name == specialized)?;
+        let binding = self.emitted_binding(specialized)?;
         Some((specialized.clone(), binding.body.ty.clone()))
     }
 
@@ -2511,16 +2529,6 @@ impl PrincipalUnifier {
             _ => false,
         }
     }
-}
-
-fn non_generic_effect_context_rewrite_possible(binding: &Binding, final_ty: &RuntimeType) -> bool {
-    if !binding_required_vars(binding).is_empty() {
-        return false;
-    }
-    let RuntimeType::Thunk { effect, value } = final_ty else {
-        return false;
-    };
-    !effect_is_empty(effect) && !matches!(value.as_ref(), RuntimeType::Fun { .. })
 }
 
 fn handler_call_boundary_refs(
