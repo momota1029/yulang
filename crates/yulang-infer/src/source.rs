@@ -114,6 +114,7 @@ pub struct StdInferSnapshotImport {
     pub types: Vec<Option<crate::ids::DefId>>,
     pub refs: StdInferSnapshotImportRefs,
     pub missing: StdInferSnapshotImportMissing,
+    pub coverage: StdInferSnapshotImportCoverage,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -123,6 +124,22 @@ pub struct StdInferSnapshotImportRefs {
     pub role_impl_members: Vec<Vec<Option<crate::ids::DefId>>>,
     pub effect_methods: Vec<Option<crate::ids::DefId>>,
     pub effect_method_modules: Vec<Option<ModuleId>>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StdInferSnapshotImportCoverage {
+    pub modules_total: usize,
+    pub modules_resolved: usize,
+    pub values_total: usize,
+    pub values_resolved: usize,
+    pub types_total: usize,
+    pub types_resolved: usize,
+    pub schemes_total: usize,
+    pub schemes_resolved: usize,
+    pub role_methods_total: usize,
+    pub role_methods_resolved: usize,
+    pub effect_methods_total: usize,
+    pub effect_methods_resolved: usize,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -382,6 +399,7 @@ pub fn import_std_infer_snapshot_data(
     let values = import_std_snapshot_values(&state, &data.values);
     let types = import_std_snapshot_types(&state, &data.types);
     let refs = import_std_snapshot_refs(data, &values, &modules);
+    let coverage = import_std_snapshot_coverage(&modules, &values, &types, &refs);
     let missing = StdInferSnapshotImportMissing {
         modules: missing_snapshot_paths(&data.modules, &modules, |module| {
             (module.snapshot_id, &module.path)
@@ -401,6 +419,7 @@ pub fn import_std_infer_snapshot_data(
         types,
         refs,
         missing,
+        coverage,
     })
 }
 
@@ -1123,6 +1142,32 @@ fn import_std_snapshot_refs(
             .map(|method| modules[method.module as usize])
             .collect(),
     }
+}
+
+fn import_std_snapshot_coverage(
+    modules: &[Option<ModuleId>],
+    values: &[Option<crate::ids::DefId>],
+    types: &[Option<crate::ids::DefId>],
+    refs: &StdInferSnapshotImportRefs,
+) -> StdInferSnapshotImportCoverage {
+    StdInferSnapshotImportCoverage {
+        modules_total: modules.len(),
+        modules_resolved: count_resolved(modules),
+        values_total: values.len(),
+        values_resolved: count_resolved(values),
+        types_total: types.len(),
+        types_resolved: count_resolved(types),
+        schemes_total: refs.schemes.len(),
+        schemes_resolved: count_resolved(&refs.schemes),
+        role_methods_total: refs.role_methods.len(),
+        role_methods_resolved: count_resolved(&refs.role_methods),
+        effect_methods_total: refs.effect_methods.len(),
+        effect_methods_resolved: count_resolved(&refs.effect_methods),
+    }
+}
+
+fn count_resolved<T>(items: &[Option<T>]) -> usize {
+    items.iter().filter(|item| item.is_some()).count()
 }
 
 fn missing_snapshot_paths<T>(

@@ -192,6 +192,10 @@ fn std_snapshot_import_resolves_builtin_paths_and_reports_missing_std_paths() {
         import.values[int_add.snapshot_id as usize].is_some(),
         "builtin std::int::add should resolve during partial import"
     );
+    assert_eq!(import.coverage.modules_total, data.modules.len());
+    assert_eq!(import.coverage.modules_resolved, data.modules.len());
+    assert!(import.coverage.values_resolved <= import.coverage.values_total);
+    assert_eq!(import.coverage.schemes_total, data.schemes.len());
     let int_add_scheme = data
         .schemes
         .iter()
@@ -226,6 +230,10 @@ fn std_snapshot_import_resolves_builtin_paths_and_reports_missing_std_paths() {
     data_with_missing_value.values.push(bogus_value);
     let import_with_missing_value =
         import_std_infer_snapshot_data(&data_with_missing_value).expect("snapshot import");
+    assert!(
+        import_with_missing_value.coverage.values_resolved
+            < import_with_missing_value.coverage.values_total
+    );
     assert!(
         import_with_missing_value
             .missing
