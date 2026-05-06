@@ -14,8 +14,6 @@
 //! monomorphization.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::sync::OnceLock;
-
 use yulang_core_ir as core_ir;
 
 use crate::diagnostic::{
@@ -184,12 +182,9 @@ pub fn collect_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvi
 }
 
 fn source_only_expected_edge_evidence_enabled() -> bool {
-    static ENABLED: OnceLock<bool> = OnceLock::new();
-    *ENABLED.get_or_init(|| {
-        std::env::var_os("YULANG_DISABLE_PRINCIPAL_ELABORATE").is_none()
-            && std::env::var_os("YULANG_EXPORT_DEBUG_EVIDENCE").is_none()
-            && std::env::var_os("YULANG_COALESCE_EXPECTED_EDGE_EVIDENCE").is_none()
-    })
+    std::env::var_os("YULANG_DISABLE_PRINCIPAL_ELABORATE").is_none()
+        && std::env::var_os("YULANG_EXPORT_DEBUG_EVIDENCE").is_none()
+        && std::env::var_os("YULANG_COALESCE_EXPECTED_EDGE_EVIDENCE").is_none()
 }
 
 fn collect_source_only_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvidence> {
@@ -281,8 +276,7 @@ fn collect_expected_edge_evidence_for_derivation(state: &LowerState) -> Vec<Expe
 }
 
 fn coalesce_expected_edge_evidence_enabled() -> bool {
-    static ENABLED: OnceLock<bool> = OnceLock::new();
-    *ENABLED.get_or_init(|| std::env::var_os("YULANG_COALESCE_EXPECTED_EDGE_EVIDENCE").is_some())
+    std::env::var_os("YULANG_COALESCE_EXPECTED_EDGE_EVIDENCE").is_some()
 }
 
 pub fn derive_all_expected_edge_evidence(
