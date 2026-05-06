@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
+use serde::{Deserialize, Serialize};
+
 mod analysis;
 mod group;
 mod passes;
@@ -38,7 +40,7 @@ pub enum AlongItem {
     Exact(ExactKey),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactRoleConstraint {
     pub role: Path,
     pub args: Vec<CompactBounds>,

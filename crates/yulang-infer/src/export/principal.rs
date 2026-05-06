@@ -754,6 +754,7 @@ fn export_runtime_symbols(
     state: &LowerState,
     paths: &[(Path, DefId)],
 ) -> Vec<core_ir::RuntimeSymbol> {
+    let canonical_paths = state.ctx.canonical_value_paths();
     let mut symbols = paths
         .iter()
         .map(|(path, def)| {
@@ -763,6 +764,11 @@ fn export_runtime_symbols(
                 core_ir::RuntimeSymbolKind::RoleMethod
             } else {
                 core_ir::RuntimeSymbolKind::Value
+            };
+            let path = if kind == core_ir::RuntimeSymbolKind::EffectOperation {
+                canonical_paths.get(def).unwrap_or(path)
+            } else {
+                path
             };
             core_ir::RuntimeSymbol {
                 path: export_path(path),

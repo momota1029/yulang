@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 use yulang_infer::{
     SourceLowerCache, build_compiled_unit_artifacts, build_std_core_snapshot_data,
     build_std_infer_snapshot_data, collect_surface_diagnostics, export_core_program,
-    import_std_infer_snapshot_data, lower_source_set,
+    export_core_program_for_binding_paths, import_std_infer_snapshot_data, lower_source_set,
     lower_source_set_with_compiled_unit_artifacts_profiled,
     lower_source_set_with_std_cache_profiled, warm_std_source_cache,
 };
@@ -344,10 +344,19 @@ fn compile_and_run_with_embedded_std(
                     .iter()
                     .any(|result| matches!(result, runtime::VmResult::Request(_)))
             {
+                let requests = host_output
+                    .results
+                    .iter()
+                    .filter(|result| matches!(result, runtime::VmResult::Request(_)))
+                    .map(output::format_vm_result)
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 return compile_and_run_with_embedded_std(
                     raw_source,
                     false,
-                    Some("embedded std runtime left a root request unresolved".to_string()),
+                    Some(format!(
+                        "embedded std runtime left root requests unresolved: {requests}"
+                    )),
                 );
             }
 
@@ -434,13 +443,76 @@ fn lower_with_embedded_std_artifacts(
     let lowered =
         lower_source_set_with_compiled_unit_artifacts_profiled(source_set, &std_artifacts)
             .map_err(|error| format!("import embedded std artifacts: {error:?}"))?;
+    let bundled_paths = lowered
+        .runtime
+        .surface
+        .program
+        .program
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<std::collections::HashSet<_>>();
+    let builtin_surface =
+        compiled_builtin_runtime_surface(&lowered.lowered.lowered.state, &bundled_paths);
+    let runtime = yulang_infer::CompiledRuntimeBundle::from_surfaces([
+        &lowered.runtime.surface,
+        &builtin_surface,
+    ])
+    .map_err(|error| format!("merge embedded std builtin runtime surface: {error:?}"))?;
 
     Ok(EmbeddedStdLowering {
         lowered: lowered.lowered,
-        runtime: lowered.runtime,
+        runtime,
         artifacts: std_artifacts.len(),
         runtime_bindings,
     })
+}
+
+fn compiled_builtin_runtime_surface(
+    state: &yulang_infer::LowerState,
+    bundled_paths: &std::collections::HashSet<yulang_core_ir::Path>,
+) -> yulang_infer::CompiledRuntimeSurface {
+    let binding_paths = state
+        .ctx
+        .collect_all_binding_paths()
+        .into_iter()
+        .filter(|(path, def)| {
+            let core_path = yulang_core_ir::Path {
+                segments: path
+                    .segments
+                    .iter()
+                    .map(|segment| yulang_core_ir::Name(segment.0.clone()))
+                    .collect(),
+            };
+            path.segments
+                .first()
+                .is_some_and(|segment| segment.0.as_str() == "std")
+                && state.principal_bodies.contains_key(def)
+                && !bundled_paths.contains(&core_path)
+        })
+        .collect::<Vec<_>>();
+    let mut state = state.clone();
+    let mut program = export_core_program_for_binding_paths(&mut state, &binding_paths);
+    remove_program_paths(&mut program, bundled_paths);
+    yulang_infer::CompiledRuntimeSurface { program }
+}
+
+fn remove_program_paths(
+    program: &mut yulang_core_ir::CoreProgram,
+    paths: &std::collections::HashSet<yulang_core_ir::Path>,
+) {
+    program
+        .program
+        .bindings
+        .retain(|binding| !paths.contains(&binding.name));
+    program
+        .graph
+        .bindings
+        .retain(|node| !paths.contains(&node.binding));
+    program
+        .graph
+        .runtime_symbols
+        .retain(|symbol| !paths.contains(&symbol.path));
 }
 
 fn artifact_has_std_module(artifact: &yulang_infer::CompiledUnitArtifact) -> bool {
@@ -488,6 +560,16 @@ mod std_sources;
 mod tests {
     use super::*;
 
+    fn assert_compiled_std_cache_hit(output: &RunOutput) {
+        let timings = output.timings.as_ref().expect("run timings");
+        assert!(
+            timings.compiled_std_cache_hit,
+            "{:?}",
+            timings.compiled_std_fallback_reason
+        );
+        assert!(timings.compiled_std_fallback_reason.is_none());
+    }
+
     #[test]
     fn runs_undet_list_example() {
         std::thread::Builder::new()
@@ -527,6 +609,7 @@ g
                 assert!(names.contains(&"f"));
                 assert!(names.contains(&"g"));
                 assert!(!names.contains(&"hidden"));
+                assert_compiled_std_cache_hit(&output);
             })
             .unwrap()
             .join()
@@ -547,6 +630,7 @@ g
                 assert_eq!(output.results.len(), 2);
                 assert_eq!(output.results[0].value, "3");
                 assert_eq!(output.results[1].value, "7");
+                assert_compiled_std_cache_hit(&output);
             })
             .unwrap()
             .join()
@@ -560,17 +644,19 @@ g
             .spawn(|| {
                 let output = run_inner("1 + 2\n");
                 assert!(output.ok, "{:?}", output.diagnostics);
-                let timings = output.timings.expect("run timings");
+                let timings = output.timings.as_ref().expect("run timings");
                 assert!(timings.files > 1);
                 assert!(timings.total_ms >= 0.0);
                 assert_eq!(timings.source_cache_hits + timings.source_cache_misses, 1);
-                if timings.compiled_std_cache_hit {
-                    assert!(timings.compiled_std_artifacts > 1);
-                    assert!(timings.compiled_std_runtime_bindings > 10);
-                    assert!(timings.compiled_std_fallback_reason.is_none());
-                } else {
-                    assert!(timings.compiled_std_fallback_reason.is_some());
-                }
+                assert!(
+                    timings.compiled_std_cache_hit,
+                    "{:?}",
+                    timings.compiled_std_fallback_reason
+                );
+                assert!(timings.compiled_std_artifacts > 1);
+                assert!(timings.compiled_std_runtime_bindings > 10);
+                assert!(timings.compiled_std_fallback_reason.is_none());
+                assert_compiled_std_cache_hit(&output);
             })
             .unwrap()
             .join()

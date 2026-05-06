@@ -18,7 +18,7 @@ use crate::lower::primitives::install_builtin_primitives;
 use crate::lower::stmt::{finish_lowering, lower_root_in_module};
 use crate::lower::{LowerDetailProfile, LowerState};
 use crate::profile::{ProfileClock, with_profile_enabled};
-use crate::simplify::compact::CompactTypeScheme;
+use crate::simplify::compact::{CompactType, CompactTypeScheme};
 use crate::symbols::{ModuleId, Name, Namespace, OperatorFixity, Path, Visibility};
 use yulang_core_ir as core_ir;
 use yulang_core_ir::CoreProgram;
@@ -565,6 +565,8 @@ pub struct StdInferSnapshotRoleMethod {
 pub struct StdInferSnapshotRoleImpl {
     pub role: Vec<String>,
     pub args: Vec<String>,
+    pub compact_args: Vec<CompactType>,
+    pub prerequisites: Vec<crate::simplify::cooccur::CompactRoleConstraint>,
     pub members: Vec<StdInferSnapshotRoleImplMember>,
 }
 
@@ -586,6 +588,7 @@ pub struct StdInferSnapshotEffectMethod {
     pub effect: Vec<String>,
     pub symbol: u32,
     pub module: u32,
+    pub module_path: Vec<String>,
     pub visibility: StdInferSnapshotVisibility,
     pub receiver_expects_computation: bool,
 }
@@ -793,13 +796,14 @@ pub fn import_compiled_typed_surface(
         return Err(CompiledTypedImportError::InvalidTyped(typed_validation));
     }
 
-    let namespace_import = import_compiled_namespace_surface(namespace).map_err(
+    let mut namespace_import = import_compiled_namespace_surface(namespace).map_err(
         |CompiledNamespaceImportError::InvalidNamespace(validation)| {
             CompiledTypedImportError::InvalidNamespace(validation)
         },
     )?;
     let refs = import_compiled_typed_refs(typed, &namespace_import.values);
     import_compiled_compact_schemes(typed, &refs, &namespace_import.state);
+    import_compiled_typed_lookup_tables(typed, &refs, &mut namespace_import.state);
     let coverage = import_compiled_typed_coverage(&namespace_import, &refs);
 
     Ok(CompiledTypedImport {
@@ -841,6 +845,92 @@ fn import_compiled_compact_schemes(
             state.infer.frozen_schemes.borrow_mut().insert(*def, frozen);
         }
     }
+}
+
+fn import_compiled_typed_lookup_tables(
+    typed: &CompiledTypedSurface,
+    refs: &CompiledTypedImportRefs,
+    state: &mut LowerState,
+) {
+    for role in &typed.roles {
+        state.infer.register_role_arg_infos(
+            path_from_snapshot_segments(&role.path),
+            role.args
+                .iter()
+                .map(|arg| crate::solve::RoleArgInfo {
+                    name: arg.name.clone(),
+                    is_input: arg.is_input,
+                })
+                .collect(),
+        );
+    }
+
+    for (method, def) in typed.role_methods.iter().zip(&refs.role_methods) {
+        let Some(def) = def else {
+            continue;
+        };
+        let info = crate::solve::RoleMethodInfo {
+            name: Name(method.name.clone()),
+            def: *def,
+            role: path_from_snapshot_segments(&method.role),
+            args: Vec::new(),
+            sig: None,
+            has_receiver: method.has_receiver,
+            has_default_body: method.has_default_body,
+        };
+        state
+            .infer
+            .register_role_method(Name(method.name.clone()), info);
+    }
+
+    for (role_impl, member_defs) in typed.role_impls.iter().zip(&refs.role_impl_members) {
+        let member_defs = role_impl
+            .members
+            .iter()
+            .zip(member_defs)
+            .filter_map(|(member, def)| Some((Name(member.name.clone()), (*def)?)))
+            .collect::<HashMap<_, _>>();
+        if member_defs.is_empty() {
+            continue;
+        }
+        state
+            .infer
+            .register_role_impl_candidate(crate::solve::RoleImplCandidate {
+                role: path_from_snapshot_segments(&role_impl.role),
+                args: role_impl.args.clone(),
+                compact_args: role_impl.compact_args.clone(),
+                prerequisites: role_impl.prerequisites.clone(),
+                member_defs,
+            });
+    }
+
+    for effect in &typed.effects {
+        state
+            .effect_arities
+            .insert(path_from_snapshot_segments(&effect.path), effect.arity);
+    }
+
+    for (method, def) in typed.effect_methods.iter().zip(&refs.effect_methods) {
+        let Some(def) = def else {
+            continue;
+        };
+        let module = state
+            .ctx
+            .resolve_module_path(&path_from_snapshot_segments(&method.module_path))
+            .unwrap_or(state.ctx.current_module);
+        state
+            .infer
+            .register_effect_method(crate::solve::EffectMethodInfo {
+                name: Name(method.name.clone()),
+                effect: path_from_snapshot_segments(&method.effect),
+                def: *def,
+                module,
+                visibility: import_snapshot_visibility(method.visibility),
+                receiver_expects_computation: method.receiver_expects_computation,
+            });
+    }
+
+    state.mark_selection_lookup_dirty();
 }
 
 pub fn build_compiled_unit_artifacts(
@@ -1975,6 +2065,8 @@ fn collect_std_snapshot_role_impls(
             StdInferSnapshotRoleImpl {
                 role: snapshot_path_segments(&candidate.role),
                 args: candidate.args.clone(),
+                compact_args: candidate.compact_args.clone(),
+                prerequisites: candidate.prerequisites.clone(),
                 members,
             }
         })
@@ -2017,11 +2109,13 @@ fn collect_std_snapshot_effect_methods(
         .filter_map(|method| {
             let symbol = value_ids.get(&method.def).copied()?;
             let module = module_ids.get(&method.module).copied()?;
+            let module_path = state.ctx.module_path(method.module);
             Some(StdInferSnapshotEffectMethod {
                 name: method.name.0.clone(),
                 effect: snapshot_path_segments(&method.effect),
                 symbol,
                 module,
+                module_path: snapshot_path_segments(&module_path),
                 visibility: snapshot_visibility(method.visibility),
                 receiver_expects_computation: method.receiver_expects_computation,
             })
@@ -2159,14 +2253,24 @@ fn collect_namespace_surface_module_tree(
         .modules
         .node(module)
         .modules
-        .values()
-        .copied()
-        .filter(|child| state.ctx.modules.node(*child).parent == Some(module))
-        .filter(|child| state.companion_modules.contains(child))
+        .iter()
+        .filter_map(|(name, child)| {
+            (state.ctx.modules.node(*child).parent == Some(module)
+                && namespace_surface_includes_child_module(state, name, *child))
+            .then_some(*child)
+        })
         .collect::<Vec<_>>();
     for child in children {
         collect_namespace_surface_module_tree(state, child, out);
     }
+}
+
+fn namespace_surface_includes_child_module(
+    state: &LowerState,
+    name: &Name,
+    child: ModuleId,
+) -> bool {
+    state.companion_modules.contains(&child) || name.0.starts_with("&impl#")
 }
 
 fn compiled_unit_value_id_remap(
@@ -2207,10 +2311,117 @@ fn build_compiled_runtime_surfaces(
             let mut export_state = state.clone();
             let mut program =
                 crate::export_core_program_for_binding_paths(&mut export_state, &binding_paths);
+            let aliases = compiled_runtime_binding_aliases(state, &binding_paths);
+            add_core_program_binding_aliases(&mut program, &aliases);
             prune_core_program_to_modules(&mut program, &unit_paths);
             CompiledRuntimeSurface { program }
         })
         .collect()
+}
+
+fn compiled_runtime_binding_aliases(
+    state: &LowerState,
+    binding_paths: &[(Path, crate::ids::DefId)],
+) -> Vec<(core_ir::Path, core_ir::Path)> {
+    let canonical_paths = state.ctx.canonical_value_paths();
+    binding_paths
+        .iter()
+        .filter_map(|(path, def)| {
+            if state.effect_op_args.contains_key(def) || path_contains_impl_helper_module(path) {
+                return None;
+            }
+            let canonical = canonical_paths.get(def)?;
+            (canonical != path).then(|| {
+                (
+                    core_path_from_symbol_path(canonical),
+                    core_path_from_symbol_path(path),
+                )
+            })
+        })
+        .collect()
+}
+
+fn path_contains_impl_helper_module(path: &Path) -> bool {
+    path.segments
+        .iter()
+        .any(|segment| segment.0.starts_with("&impl#"))
+}
+
+fn add_core_program_binding_aliases(
+    program: &mut CoreProgram,
+    aliases: &[(core_ir::Path, core_ir::Path)],
+) {
+    let mut existing_bindings = program
+        .program
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<HashSet<_>>();
+    for (canonical, alias) in aliases {
+        if existing_bindings.contains(alias) {
+            continue;
+        }
+        let Some(mut binding) = program
+            .program
+            .bindings
+            .iter()
+            .find(|binding| binding.name == *canonical)
+            .cloned()
+        else {
+            continue;
+        };
+        binding.name = alias.clone();
+        existing_bindings.insert(alias.clone());
+        program.program.bindings.push(binding);
+    }
+
+    let mut existing_graph_bindings = program
+        .graph
+        .bindings
+        .iter()
+        .map(|node| node.binding.clone())
+        .collect::<HashSet<_>>();
+    for (canonical, alias) in aliases {
+        if existing_graph_bindings.contains(alias) {
+            continue;
+        }
+        let Some(mut node) = program
+            .graph
+            .bindings
+            .iter()
+            .find(|node| node.binding == *canonical)
+            .cloned()
+        else {
+            continue;
+        };
+        node.binding = alias.clone();
+        existing_graph_bindings.insert(alias.clone());
+        program.graph.bindings.push(node);
+    }
+
+    let mut existing_symbols = program
+        .graph
+        .runtime_symbols
+        .iter()
+        .map(|symbol| symbol.path.clone())
+        .collect::<HashSet<_>>();
+    for (canonical, alias) in aliases {
+        if existing_symbols.contains(alias) {
+            continue;
+        }
+        let Some(mut symbol) = program
+            .graph
+            .runtime_symbols
+            .iter()
+            .find(|symbol| symbol.path == *canonical)
+            .cloned()
+        else {
+            continue;
+        };
+        symbol.path = alias.clone();
+        existing_symbols.insert(alias.clone());
+        program.graph.runtime_symbols.push(symbol);
+    }
 }
 
 fn prune_core_program_to_modules(program: &mut CoreProgram, module_paths: &[Vec<String>]) {
@@ -2235,6 +2446,16 @@ fn core_path_belongs_to_modules(path: &core_ir::Path, modules: &[Vec<String>]) -
         .map(|segment| segment.0.clone())
         .collect::<Vec<_>>();
     path_belongs_to_modules(&segments, modules)
+}
+
+fn core_path_from_symbol_path(path: &Path) -> core_ir::Path {
+    core_ir::Path {
+        segments: path
+            .segments
+            .iter()
+            .map(|segment| core_ir::Name(segment.0.clone()))
+            .collect(),
+    }
 }
 
 fn merge_compiled_runtime_surfaces<'a>(
@@ -2673,6 +2894,8 @@ fn compiled_typed_surface_for_namespace(
                 StdInferSnapshotRoleImpl {
                     role: role_impl.role.clone(),
                     args: role_impl.args.clone(),
+                    compact_args: role_impl.compact_args.clone(),
+                    prerequisites: role_impl.prerequisites.clone(),
                     members,
                 }
             })
@@ -2692,6 +2915,7 @@ fn compiled_typed_surface_for_namespace(
                     effect: method.effect.clone(),
                     symbol,
                     module: method.module,
+                    module_path: method.module_path.clone(),
                     visibility: method.visibility,
                     receiver_expects_computation: method.receiver_expects_computation,
                 })
@@ -2852,8 +3076,6 @@ fn merge_compiled_namespace_surfaces<'a>(
         }));
     }
     modules.sort_by(|left, right| left.path.cmp(&right.path));
-    values.sort_by(|left, right| left.path.cmp(&right.path));
-    types.sort_by(|left, right| left.path.cmp(&right.path));
     CompiledNamespaceSurface {
         modules,
         values,
@@ -2971,6 +3193,11 @@ fn import_compiled_namespace_values(
         if slot.is_some() {
             continue;
         }
+        let path = path_from_snapshot_segments(&symbol.path);
+        if let Some(def) = state.ctx.resolve_path_value(&path) {
+            *slot = Some(def);
+            continue;
+        }
         let def = state.ctx.fresh_def();
         let tv = state.ctx.fresh_tv();
         let display_name = symbol
@@ -2996,6 +3223,11 @@ fn import_compiled_namespace_types(
             continue;
         };
         if slot.is_some() {
+            continue;
+        }
+        let path = path_from_snapshot_segments(&symbol.path);
+        if let Some(def) = state.ctx.resolve_path_type(&path) {
+            *slot = Some(def);
             continue;
         }
         let def = state.ctx.fresh_def();
