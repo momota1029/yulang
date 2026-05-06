@@ -19,7 +19,8 @@ pub(crate) fn lower_struct_decl(state: &mut LowerState, node: &SyntaxNode) {
         segments: struct_segments,
     };
     let type_scope = super::super::collect_act_type_scope(state, node);
-    let type_arg_tvs = crate::lower::signature::ordered_act_type_vars(node, &type_scope);
+    let type_param_names = crate::lower::signature::act_type_param_names(node);
+    let type_arg_tvs = crate::lower::signature::ordered_type_vars(&type_param_names, &type_scope);
 
     let type_def = state.fresh_def();
     let type_tv = state.fresh_tv();
@@ -128,6 +129,12 @@ pub(crate) fn lower_struct_decl(state: &mut LowerState, node: &SyntaxNode) {
         state.infer.mark_frozen_ref_committed(field_def);
     }
 
-    super::super::lower_struct_with_bindings(state, node, &struct_path, &type_arg_tvs);
+    super::super::lower_struct_with_bindings(
+        state,
+        node,
+        &struct_path,
+        &type_param_names,
+        &type_arg_tvs,
+    );
     state.ctx.leave_module(saved);
 }

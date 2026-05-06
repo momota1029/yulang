@@ -1217,6 +1217,46 @@ fn concrete_role_method_call_without_impl_surfaces_missing_impl_during_selection
 }
 
 #[test]
+fn struct_with_impl_uses_enclosing_type_as_first_role_arg() {
+    let mut state = parse_and_lower(
+        "role Display 'a:\n  our a.display: int\n\n\
+struct box 'a { value: 'a } with:\n\
+  impl Display:\n\
+    our x.display = 1\n\n\
+my shown = (box { value: true }).display\n",
+    );
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    let shown = rendered
+        .iter()
+        .find(|(name, _)| name == "shown")
+        .expect("shown should be rendered");
+    assert_eq!(shown.1, "int");
+}
+
+#[test]
+fn struct_with_impl_preserves_extra_role_args() {
+    let mut state = parse_and_lower(
+        "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\
+struct box 'a { value: 'a } with:\n\
+  impl Index int:\n\
+    type value = 'a\n\
+    our b.index i = b.value\n\n\
+my shown: bool = (box { value: true }).index 0\n",
+    );
+    state.finalize_compact_results();
+    let rendered = crate::display::dump::render_compact_results(&mut state);
+    let shown = rendered
+        .iter()
+        .find(|(name, _)| name == "shown")
+        .expect("shown should be rendered");
+    assert!(
+        shown.1.contains("bool"),
+        "attached multi-arg impl should connect associated output to box parameter, got {}",
+        shown.1
+    );
+}
+
+#[test]
 fn duplicate_impls_surface_ambiguous_impl_error() {
     let mut state = parse_and_lower(
         "role Display 'a:\n  our a.display: string\n\n\

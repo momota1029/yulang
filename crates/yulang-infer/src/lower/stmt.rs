@@ -77,8 +77,8 @@ pub(crate) use decl::GlobalExtensionMethodHeader;
 use decl::{
     current_module_effect_method_def, current_module_extension_method_def,
     effect_method_hidden_name, extension_method_hidden_name, global_extension_method_header,
-    lower_enum_decl, lower_impl_decl, lower_mod_decl, lower_role_decl, lower_type_decl,
-    lower_type_with_bindings, lower_use_decl, lower_where_clause,
+    lower_attached_impl_decl, lower_enum_decl, lower_impl_decl, lower_mod_decl, lower_role_decl,
+    lower_type_decl, lower_type_with_bindings, lower_use_decl, lower_where_clause,
 };
 pub use patterns::lower_pat;
 pub(crate) use patterns::{bind_pattern_locals, connect_pat_shape_and_locals};

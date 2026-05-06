@@ -233,13 +233,19 @@ pub(crate) fn lower_type_with_bindings(
         return;
     };
 
-    for binding in with_block
-        .children()
-        .filter(|c| c.kind() == SyntaxKind::Binding)
-    {
-        let method_scope = crate::lower::signature::fresh_type_scope(state, type_param_names);
-        let method_arg_tvs =
-            crate::lower::signature::ordered_type_vars(type_param_names, &method_scope);
-        super::super::lower_struct_with_binding(state, &binding, type_path, &method_arg_tvs);
+    for item in with_block.children() {
+        match item.kind() {
+            SyntaxKind::Binding => {
+                let method_scope =
+                    crate::lower::signature::fresh_type_scope(state, type_param_names);
+                let method_arg_tvs =
+                    crate::lower::signature::ordered_type_vars(type_param_names, &method_scope);
+                super::super::lower_struct_with_binding(state, &item, type_path, &method_arg_tvs);
+            }
+            SyntaxKind::ImplDecl => {
+                super::lower_attached_impl_decl(state, &item, type_path, type_param_names);
+            }
+            _ => {}
+        }
     }
 }

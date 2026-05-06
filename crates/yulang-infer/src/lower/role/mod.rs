@@ -32,7 +32,7 @@ mod runtime;
 mod subst;
 
 pub(super) use decl::lower_role_decl;
-pub(super) use impls::lower_impl_decl;
+pub(super) use impls::{lower_attached_impl_decl, lower_impl_decl};
 pub(super) use runtime::{export_runtime_path, export_runtime_sig_row, export_runtime_sig_type};
 
 use runtime::{runtime_export_role_method_scheme, runtime_export_scheme};

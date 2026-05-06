@@ -10,6 +10,7 @@ pub(crate) fn lower_struct_with_bindings(
     state: &mut LowerState,
     node: &SyntaxNode,
     struct_path: &Path,
+    type_param_names: &[String],
     type_arg_tvs: &[crate::ids::TypeVar],
 ) {
     let Some(with_block) = super::super::child_node(node, SyntaxKind::IndentBlock)
@@ -18,11 +19,16 @@ pub(crate) fn lower_struct_with_bindings(
         return;
     };
 
-    for binding in with_block
-        .children()
-        .filter(|c| c.kind() == SyntaxKind::Binding)
-    {
-        lower_struct_with_binding(state, &binding, struct_path, type_arg_tvs);
+    for item in with_block.children() {
+        match item.kind() {
+            SyntaxKind::Binding => {
+                lower_struct_with_binding(state, &item, struct_path, type_arg_tvs);
+            }
+            SyntaxKind::ImplDecl => {
+                super::super::lower_attached_impl_decl(state, &item, struct_path, type_param_names);
+            }
+            _ => {}
+        }
     }
 }
 

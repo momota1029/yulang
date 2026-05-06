@@ -3,13 +3,43 @@ use super::*;
 use crate::types::{Neg, Pos};
 
 pub(crate) fn lower_impl_decl(state: &mut LowerState, node: &SyntaxNode) {
+    lower_impl_decl_with_receiver(state, node, None, &[]);
+}
+
+pub(crate) fn lower_attached_impl_decl(
+    state: &mut LowerState,
+    node: &SyntaxNode,
+    receiver_path: &Path,
+    receiver_type_param_names: &[String],
+) {
+    lower_impl_decl_with_receiver(
+        state,
+        node,
+        Some(attached_impl_receiver_sig(
+            receiver_path,
+            receiver_type_param_names,
+            node.text_range(),
+        )),
+        receiver_type_param_names,
+    );
+}
+
+fn lower_impl_decl_with_receiver(
+    state: &mut LowerState,
+    node: &SyntaxNode,
+    attached_receiver: Option<SigType>,
+    attached_receiver_type_param_names: &[String],
+) {
     let impl_def = state.fresh_def();
     let Some(head) = child_node(node, SyntaxKind::TypeExpr) else {
         return;
     };
-    let Some(sig) = parse_sig_type_expr(&head) else {
+    let Some(mut sig) = parse_sig_type_expr(&head) else {
         return;
     };
+    if let Some(receiver) = attached_receiver {
+        sig = attach_impl_receiver_sig(sig, receiver);
+    }
     let Some((role, args)) = sig_type_head(&sig) else {
         return;
     };
@@ -17,6 +47,11 @@ pub(crate) fn lower_impl_decl(state: &mut LowerState, node: &SyntaxNode) {
     let assoc_eqs = collect_impl_assoc_type_equations(node);
     let role_infos = state.infer.role_arg_infos_of(&role);
     let mut impl_scope_names = binding_sig_var_names(node);
+    for name in attached_receiver_type_param_names {
+        if !impl_scope_names.contains(name) {
+            impl_scope_names.push(name.clone());
+        }
+    }
     for info in &role_infos {
         if !impl_scope_names.contains(&info.name) {
             impl_scope_names.push(info.name.clone());
@@ -94,6 +129,53 @@ pub(crate) fn lower_impl_decl(state: &mut LowerState, node: &SyntaxNode) {
         prerequisites,
         member_defs,
     });
+}
+
+fn attached_impl_receiver_sig(
+    path: &Path,
+    type_param_names: &[String],
+    span: rowan::TextRange,
+) -> SigType {
+    let args = type_param_names
+        .iter()
+        .map(|name| {
+            SigType::Var(SigVar {
+                name: name.clone(),
+                span,
+            })
+        })
+        .collect::<Vec<_>>();
+    if args.is_empty() {
+        SigType::Prim {
+            path: path.clone(),
+            span,
+        }
+    } else {
+        SigType::Apply {
+            path: path.clone(),
+            args,
+            span,
+        }
+    }
+}
+
+fn attach_impl_receiver_sig(sig: SigType, receiver: SigType) -> SigType {
+    match sig {
+        SigType::Prim { path, span } => SigType::Apply {
+            path,
+            args: vec![receiver],
+            span,
+        },
+        SigType::Apply {
+            path,
+            mut args,
+            span,
+        } => {
+            args.insert(0, receiver);
+            SigType::Apply { path, args, span }
+        }
+        other => other,
+    }
 }
 
 fn lower_impl_body(
