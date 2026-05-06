@@ -98,6 +98,12 @@ pub struct StdInferSnapshotData {
     pub modules: Vec<StdInferSnapshotModule>,
     pub values: Vec<StdInferSnapshotSymbol>,
     pub types: Vec<StdInferSnapshotSymbol>,
+    pub schemes: Vec<StdInferSnapshotScheme>,
+    pub roles: Vec<StdInferSnapshotRole>,
+    pub role_methods: Vec<StdInferSnapshotRoleMethod>,
+    pub role_impls: Vec<StdInferSnapshotRoleImpl>,
+    pub effects: Vec<StdInferSnapshotEffect>,
+    pub effect_methods: Vec<StdInferSnapshotEffectMethod>,
     pub effect_operations: Vec<StdInferSnapshotEffectOperation>,
 }
 
@@ -175,6 +181,62 @@ pub enum StdInferSnapshotOperatorFixity {
 pub struct StdInferSnapshotSymbol {
     pub path: Vec<String>,
     pub snapshot_id: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotScheme {
+    pub symbol: u32,
+    pub rendered: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotRole {
+    pub path: Vec<String>,
+    pub args: Vec<StdInferSnapshotRoleArg>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotRoleArg {
+    pub name: String,
+    pub is_input: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotRoleMethod {
+    pub role: Vec<String>,
+    pub name: String,
+    pub symbol: u32,
+    pub has_receiver: bool,
+    pub has_default_body: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotRoleImpl {
+    pub role: Vec<String>,
+    pub args: Vec<String>,
+    pub members: Vec<StdInferSnapshotRoleImplMember>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotRoleImplMember {
+    pub name: String,
+    pub symbol: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotEffect {
+    pub path: Vec<String>,
+    pub arity: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotEffectMethod {
+    pub name: String,
+    pub effect: Vec<String>,
+    pub symbol: u32,
+    pub module: u32,
+    pub visibility: StdInferSnapshotVisibility,
+    pub receiver_expects_computation: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -267,7 +329,7 @@ pub fn build_std_infer_snapshot(source_set: &SourceSet) -> Option<StdInferSnapsh
 }
 
 pub fn build_std_infer_snapshot_data(source_set: &SourceSet) -> Option<StdInferSnapshotData> {
-    build_std_infer_snapshot(source_set).map(|snapshot| snapshot.data().clone())
+    with_profile_enabled(false, || build_std_infer_snapshot_data_inner(source_set))
 }
 
 pub fn lower_source_set_with_std_snapshot(
@@ -515,6 +577,14 @@ impl StdInferSnapshotData {
         validate_snapshot_symbols("value", &self.values)?;
         validate_snapshot_symbols("type", &self.types)?;
         validate_snapshot_modules(&self.modules, self.values.len(), self.types.len())?;
+        validate_snapshot_schemes(&self.schemes, self.values.len())?;
+        validate_snapshot_role_methods(&self.role_methods, self.values.len())?;
+        validate_snapshot_role_impls(&self.role_impls, self.values.len())?;
+        validate_snapshot_effect_methods(
+            &self.effect_methods,
+            self.values.len(),
+            self.modules.len(),
+        )?;
         validate_snapshot_effect_operations(&self.effect_operations)?;
         Ok(())
     }
@@ -531,6 +601,12 @@ impl StdInferSnapshotData {
             modules: collect_std_snapshot_modules(state, &value_ids, &type_ids),
             values,
             types,
+            schemes: collect_std_snapshot_schemes(state, &value_ids),
+            roles: collect_std_snapshot_roles(state),
+            role_methods: collect_std_snapshot_role_methods(state, &value_ids),
+            role_impls: collect_std_snapshot_role_impls(state, &value_ids),
+            effects: collect_std_snapshot_effects(state),
+            effect_methods: collect_std_snapshot_effect_methods(state, &value_ids),
             effect_operations: collect_std_snapshot_effect_operations(state),
         }
     }
@@ -575,6 +651,27 @@ pub enum StdInferSnapshotDataError {
         name: String,
         child: u32,
     },
+    MissingSchemeSymbol {
+        symbol: u32,
+    },
+    MissingRoleMethodSymbol {
+        role: Vec<String>,
+        name: String,
+        symbol: u32,
+    },
+    MissingRoleImplMember {
+        role: Vec<String>,
+        name: String,
+        symbol: u32,
+    },
+    MissingEffectMethodSymbol {
+        name: String,
+        symbol: u32,
+    },
+    MissingEffectMethodModule {
+        name: String,
+        module: u32,
+    },
 }
 
 fn build_std_infer_snapshot_inner(
@@ -599,6 +696,21 @@ fn build_std_infer_snapshot_inner(
         lower_source_file_inner(file, &mut state, profile);
     }
     Some(StdInferSnapshot::new(key, state))
+}
+
+fn build_std_infer_snapshot_data_inner(source_set: &SourceSet) -> Option<StdInferSnapshotData> {
+    if source_set.std_files().next().is_none() {
+        return None;
+    }
+    let key = StdSourceCacheKey::from_source_set(source_set);
+    let mut state = LowerState::new();
+    install_builtin_primitives(&mut state);
+    let mut profile = SourceLowerProfile::default();
+    for file in source_set.std_files() {
+        lower_source_file_inner(file, &mut state, &mut profile);
+    }
+    finish_lowering(&mut state);
+    Some(StdInferSnapshotData::from_state(key, &state))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -752,6 +864,76 @@ fn validate_snapshot_modules(
     Ok(())
 }
 
+fn validate_snapshot_schemes(
+    schemes: &[StdInferSnapshotScheme],
+    values_len: usize,
+) -> Result<(), StdInferSnapshotDataError> {
+    for scheme in schemes {
+        if scheme.symbol as usize >= values_len {
+            return Err(StdInferSnapshotDataError::MissingSchemeSymbol {
+                symbol: scheme.symbol,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn validate_snapshot_role_methods(
+    methods: &[StdInferSnapshotRoleMethod],
+    values_len: usize,
+) -> Result<(), StdInferSnapshotDataError> {
+    for method in methods {
+        if method.symbol as usize >= values_len {
+            return Err(StdInferSnapshotDataError::MissingRoleMethodSymbol {
+                role: method.role.clone(),
+                name: method.name.clone(),
+                symbol: method.symbol,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn validate_snapshot_role_impls(
+    impls: &[StdInferSnapshotRoleImpl],
+    values_len: usize,
+) -> Result<(), StdInferSnapshotDataError> {
+    for role_impl in impls {
+        for member in &role_impl.members {
+            if member.symbol as usize >= values_len {
+                return Err(StdInferSnapshotDataError::MissingRoleImplMember {
+                    role: role_impl.role.clone(),
+                    name: member.name.clone(),
+                    symbol: member.symbol,
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_snapshot_effect_methods(
+    methods: &[StdInferSnapshotEffectMethod],
+    values_len: usize,
+    modules_len: usize,
+) -> Result<(), StdInferSnapshotDataError> {
+    for method in methods {
+        if method.symbol as usize >= values_len {
+            return Err(StdInferSnapshotDataError::MissingEffectMethodSymbol {
+                name: method.name.clone(),
+                symbol: method.symbol,
+            });
+        }
+        if method.module as usize >= modules_len {
+            return Err(StdInferSnapshotDataError::MissingEffectMethodModule {
+                name: method.name.clone(),
+                module: method.module,
+            });
+        }
+    }
+    Ok(())
+}
+
 fn validate_snapshot_effect_operations(
     operations: &[StdInferSnapshotEffectOperation],
 ) -> Result<(), StdInferSnapshotDataError> {
@@ -823,6 +1005,172 @@ fn collect_std_snapshot_types(
         types.into_iter().map(|(_, symbol)| symbol).collect(),
         id_map,
     )
+}
+
+fn collect_std_snapshot_schemes(
+    state: &LowerState,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<StdInferSnapshotScheme> {
+    let compact_schemes = state.infer.compact_schemes.borrow();
+    let infer_def_tvs = state.infer.def_tvs.borrow();
+    let mut schemes = value_ids
+        .iter()
+        .filter_map(|(def, symbol)| {
+            let rendered = if let Some(scheme) = compact_schemes.get(def) {
+                crate::display::dump::format_compact_scheme(scheme)
+            } else if let Some(tv) = state.def_tvs.get(def).or_else(|| infer_def_tvs.get(def)) {
+                let scheme = crate::simplify::compact::compact_type_var(&state.infer, *tv);
+                crate::display::dump::format_compact_scheme(&scheme)
+            } else {
+                return None;
+            };
+            Some(StdInferSnapshotScheme {
+                symbol: *symbol,
+                rendered,
+            })
+        })
+        .collect::<Vec<_>>();
+    schemes.sort_by(|lhs, rhs| lhs.symbol.cmp(&rhs.symbol));
+    schemes
+}
+
+fn collect_std_snapshot_roles(state: &LowerState) -> Vec<StdInferSnapshotRole> {
+    let mut roles = state
+        .infer
+        .role_arg_infos
+        .borrow()
+        .iter()
+        .map(|(role, args)| StdInferSnapshotRole {
+            path: snapshot_path_segments(role),
+            args: args
+                .iter()
+                .map(|arg| StdInferSnapshotRoleArg {
+                    name: arg.name.clone(),
+                    is_input: arg.is_input,
+                })
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+    roles.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
+    roles
+}
+
+fn collect_std_snapshot_role_methods(
+    state: &LowerState,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<StdInferSnapshotRoleMethod> {
+    let mut methods = state
+        .infer
+        .role_methods
+        .values()
+        .filter_map(|info| {
+            value_ids
+                .get(&info.def)
+                .copied()
+                .map(|symbol| StdInferSnapshotRoleMethod {
+                    role: snapshot_path_segments(&info.role),
+                    name: info.name.0.clone(),
+                    symbol,
+                    has_receiver: info.has_receiver,
+                    has_default_body: info.has_default_body,
+                })
+        })
+        .collect::<Vec<_>>();
+    methods.sort_by(|lhs, rhs| {
+        lhs.role
+            .cmp(&rhs.role)
+            .then_with(|| lhs.name.cmp(&rhs.name))
+    });
+    methods
+}
+
+fn collect_std_snapshot_role_impls(
+    state: &LowerState,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<StdInferSnapshotRoleImpl> {
+    let mut impls = state
+        .infer
+        .role_impl_candidates
+        .borrow()
+        .values()
+        .flat_map(|candidates| candidates.iter())
+        .map(|candidate| {
+            let mut members = candidate
+                .member_defs
+                .iter()
+                .filter_map(|(name, def)| {
+                    value_ids
+                        .get(def)
+                        .copied()
+                        .map(|symbol| StdInferSnapshotRoleImplMember {
+                            name: name.0.clone(),
+                            symbol,
+                        })
+                })
+                .collect::<Vec<_>>();
+            members.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+            StdInferSnapshotRoleImpl {
+                role: snapshot_path_segments(&candidate.role),
+                args: candidate.args.clone(),
+                members,
+            }
+        })
+        .collect::<Vec<_>>();
+    impls.sort_by(|lhs, rhs| {
+        lhs.role
+            .cmp(&rhs.role)
+            .then_with(|| lhs.args.cmp(&rhs.args))
+    });
+    impls
+}
+
+fn collect_std_snapshot_effects(state: &LowerState) -> Vec<StdInferSnapshotEffect> {
+    let mut effects = state
+        .effect_arities
+        .iter()
+        .map(|(path, arity)| StdInferSnapshotEffect {
+            path: snapshot_path_segments(path),
+            arity: *arity,
+        })
+        .collect::<Vec<_>>();
+    effects.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
+    effects
+}
+
+fn collect_std_snapshot_effect_methods(
+    state: &LowerState,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<StdInferSnapshotEffectMethod> {
+    let module_ids = collect_std_snapshot_module_paths(state)
+        .iter()
+        .enumerate()
+        .map(|(index, (module, _))| (*module, index as u32))
+        .collect::<HashMap<_, _>>();
+    let mut methods = state
+        .infer
+        .effect_methods
+        .values()
+        .flat_map(|methods| methods.iter())
+        .filter_map(|method| {
+            let symbol = value_ids.get(&method.def).copied()?;
+            let module = module_ids.get(&method.module).copied()?;
+            Some(StdInferSnapshotEffectMethod {
+                name: method.name.0.clone(),
+                effect: snapshot_path_segments(&method.effect),
+                symbol,
+                module,
+                visibility: snapshot_visibility(method.visibility),
+                receiver_expects_computation: method.receiver_expects_computation,
+            })
+        })
+        .collect::<Vec<_>>();
+    methods.sort_by(|lhs, rhs| {
+        lhs.effect
+            .cmp(&rhs.effect)
+            .then_with(|| lhs.name.cmp(&rhs.name))
+            .then_with(|| lhs.symbol.cmp(&rhs.symbol))
+    });
+    methods
 }
 
 fn collect_std_snapshot_effect_operations(

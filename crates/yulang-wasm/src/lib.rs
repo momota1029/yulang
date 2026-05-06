@@ -444,6 +444,8 @@ f()
                     symbol.path == ["std", "prelude", "Add", "add"]
                         || symbol.path == ["std", "int", "add"]
                 }));
+                assert!(!data.schemes.is_empty());
+                assert!(!data.roles.is_empty());
             })
             .unwrap()
             .join()

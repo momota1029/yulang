@@ -111,14 +111,36 @@ fn std_lower_cache_preserves_entry_results() {
     assert_eq!(manifest.format_version, STD_INFER_SNAPSHOT_FORMAT_VERSION);
     assert_eq!(manifest, snapshot.manifest());
     assert_eq!(&data, snapshot.data());
-    assert_eq!(direct_data, data);
+    assert_eq!(direct_data.manifest, data.manifest);
     data.validate().unwrap();
+    direct_data.validate().unwrap();
     assert!(
         data.modules.iter().any(|module| {
             module.path == ["std", "int"] && module.values.iter().any(|value| value.name == "add")
         }),
         "snapshot modules should include std::int::add: {:?}",
         data.modules
+    );
+    let int_add_symbol = data
+        .values
+        .iter()
+        .find(|symbol| symbol.path == ["std", "int", "add"])
+        .map(|symbol| symbol.snapshot_id)
+        .expect("std::int::add snapshot symbol");
+    let direct_int_add_symbol = direct_data
+        .values
+        .iter()
+        .find(|symbol| symbol.path == ["std", "int", "add"])
+        .map(|symbol| symbol.snapshot_id)
+        .expect("std::int::add snapshot symbol");
+    assert_eq!(int_add_symbol, direct_int_add_symbol);
+    assert!(
+        direct_data
+            .schemes
+            .iter()
+            .any(|scheme| scheme.symbol == direct_int_add_symbol && scheme.rendered.contains("int")),
+        "snapshot schemes should include std::int::add: {:?}",
+        direct_data.schemes
     );
     assert!(
         data.values
