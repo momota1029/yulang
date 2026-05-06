@@ -174,7 +174,10 @@ mod tests {
             },
             thunk_ty,
         );
-        let mut profile = RuntimeAdapterProfile::default();
+        let mut profile = RuntimeAdapterProfile {
+            collect_events: true,
+            ..RuntimeAdapterProfile::default()
+        };
 
         let prepared = prepare_expr_for_expected_with_adapter_source_profiled(
             expr,

@@ -68,9 +68,14 @@ struct LocalUseContextScope {
 
 impl PrincipalUnifier {
     fn new(module: Module, collect_profile: bool) -> Self {
+        let initial_reachable_bindings = root_reachable_binding_paths(&module);
         let bindings_by_path = module
             .bindings
             .iter()
+            .filter(|binding| {
+                initial_reachable_bindings.contains(&binding.name)
+                    || !binding_required_vars(binding).is_empty()
+            })
             .map(|binding| (binding.name.clone(), binding.clone()))
             .collect::<HashMap<_, _>>();
         let generic_bindings = module
@@ -81,7 +86,6 @@ impl PrincipalUnifier {
             .collect::<HashSet<_>>();
         let role_impls = principal_unify_role_impls(&module);
         let next_index = next_principal_unify_index(&module);
-        let initial_reachable_bindings = root_reachable_binding_paths(&module);
         Self {
             module,
             collect_profile,
