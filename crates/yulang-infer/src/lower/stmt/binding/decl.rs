@@ -108,12 +108,16 @@ pub(crate) fn lower_binding_with_type_scope(
             }
         };
 
-        let annotated_body_tv = raw_body.tv;
-        let body_expr = super::super::wrap_header_lambdas(state, raw_body, arg_pats);
+        let cast_body = if arg_pats.is_empty() {
+            super::super::apply_binding_type_annotation_cast(state, &header, raw_body)
+        } else {
+            super::super::connect_binding_type_annotation(state, &header, raw_body.tv);
+            raw_body
+        };
+        let body_expr = super::super::wrap_header_lambdas(state, cast_body, arg_pats);
         if let Some(def) = owner {
             state.principal_bodies.insert(def, body_expr.clone());
         }
-        super::super::connect_binding_type_annotation(state, &header, annotated_body_tv);
         let self_used = owner
             .map(|owner| state.take_recursive_self_use(owner))
             .unwrap_or(false);
@@ -220,10 +224,14 @@ fn lower_dotted_method_binding(
         }
     };
 
-    let annotated_body_tv = raw_body.tv;
-    let body_expr = super::super::wrap_header_lambdas(state, raw_body, arg_pats);
+    let cast_body = if arg_pats.is_empty() {
+        super::super::apply_binding_type_annotation_cast(state, header, raw_body)
+    } else {
+        super::super::connect_binding_type_annotation(state, header, raw_body.tv);
+        raw_body
+    };
+    let body_expr = super::super::wrap_header_lambdas(state, cast_body, arg_pats);
     state.principal_bodies.insert(def, body_expr.clone());
-    super::super::connect_binding_type_annotation(state, header, annotated_body_tv);
     let bind_pat = TypedPat {
         tv: state.fresh_tv(),
         kind: PatKind::UnresolvedName(hidden_name),

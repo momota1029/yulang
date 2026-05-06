@@ -62,12 +62,13 @@ pub(crate) use act::{
 };
 pub(super) use binding::preregister_binding_as_module_value;
 pub(crate) use binding::{
-    ArgPatInfo, HeaderArg, binding_sig_var_names, collect_header_args,
-    connect_pattern_sig_annotation, lower_binding_body, lower_binding_with_type_scope,
-    make_arg_pat_info, preregister_binding, wrap_header_lambdas,
+    ArgPatInfo, HeaderArg, apply_binding_type_annotation_cast, binding_sig_var_names,
+    collect_header_args, connect_binding_type_annotation, connect_pattern_sig_annotation,
+    lower_binding_body, lower_binding_with_type_scope, make_arg_pat_info, preregister_binding,
+    wrap_header_lambdas,
 };
 use binding::{
-    connect_binding_type_annotation, direct_binding_name, extract_binding_lhs, lower_binding,
+    direct_binding_name, extract_binding_lhs, lower_binding,
     preconstrain_recursive_binding_header_shape,
 };
 pub(super) use control::collect_block_items;

@@ -193,8 +193,8 @@ sub:
             "struct user_id { raw: int }\n\
              cast(x: user_id): int = x.raw\n\
              cast(x: int): user_id = user_id { raw: x }\n\
-             my id: user_id = 7.cast\n\
-             my raw: int = id.cast\n\
+             my id: user_id = 7\n\
+             my raw: int = id\n\
              raw\n",
         );
 

@@ -8,7 +8,10 @@ mod preregister;
 mod recursive;
 mod sig;
 
-pub(crate) use annotation::{connect_binding_type_annotation, connect_pattern_sig_annotation};
+pub(crate) use annotation::{
+    apply_binding_type_annotation_cast, connect_binding_type_annotation,
+    connect_pattern_sig_annotation,
+};
 pub(crate) use arg::{ArgPatInfo, HeaderArg, collect_header_args, make_arg_pat_info};
 pub(crate) use body::lower_binding_body;
 pub(crate) use decl::{lower_binding, lower_binding_with_type_scope};
