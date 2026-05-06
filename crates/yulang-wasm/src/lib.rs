@@ -4,12 +4,12 @@ use wasm_bindgen::prelude::*;
 
 use yulang_infer::{
     SourceLowerCache, collect_surface_diagnostics, export_core_program,
-    lower_source_set_with_std_cache_profiled,
+    lower_source_set_with_std_cache_profiled, warm_std_source_cache,
 };
 use yulang_runtime as runtime;
 
 pub use color::{ColorizeOutput, HighlightSpan};
-pub use output::{Diagnostic, RunOutput, RunResult, RunTimings, TypeResult};
+pub use output::{Diagnostic, RunOutput, RunResult, RunTimings, TypeResult, WarmupOutput};
 
 #[wasm_bindgen]
 pub fn run(source: &str) -> JsValue {
@@ -21,6 +21,26 @@ pub fn run(source: &str) -> JsValue {
 pub fn colorize(source: &str) -> JsValue {
     console_error_panic_hook::set_once();
     to_js_value(&color::colorize_source(source))
+}
+
+#[wasm_bindgen]
+pub fn warm_std_cache() -> JsValue {
+    console_error_panic_hook::set_once();
+    to_js_value(&warm_std_cache_inner())
+}
+
+fn warm_std_cache_inner() -> WarmupOutput {
+    let start = now_ms();
+    let source_set = std_sources::warm_source_set();
+    let profile = SOURCE_LOWER_CACHE
+        .with(|cache| warm_std_source_cache(&source_set, &mut cache.borrow_mut()));
+    WarmupOutput {
+        source_cache_hits: profile.hits,
+        source_cache_misses: profile.misses,
+        source_cache_clone_ms: profile.clone.as_secs_f64() * 1_000.0,
+        source_cache_build_ms: profile.build.as_secs_f64() * 1_000.0,
+        total_ms: elapsed_ms(start),
+    }
 }
 
 fn run_inner(source: &str) -> RunOutput {
@@ -253,6 +273,23 @@ g
                 assert!(timings.files > 1);
                 assert!(timings.total_ms >= 0.0);
                 assert_eq!(timings.source_cache_hits + timings.source_cache_misses, 1);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn warm_std_cache_makes_later_runs_hit() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let _ = warm_std_cache_inner();
+                let output = run_inner("1 + 2\n");
+                assert!(output.ok, "{:?}", output.diagnostics);
+                let timings = output.timings.expect("run timings");
+                assert_eq!(timings.source_cache_hits, 1);
+                assert_eq!(timings.source_cache_misses, 0);
             })
             .unwrap()
             .join()

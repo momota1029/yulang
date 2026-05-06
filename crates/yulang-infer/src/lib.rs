@@ -52,6 +52,7 @@ pub use source::{
     lower_source_file, lower_source_file_profiled, lower_source_set, lower_source_set_profiled,
     lower_source_set_with_std_cache, lower_source_set_with_std_cache_profiled,
     lower_virtual_source_with_options, lower_virtual_source_with_options_profiled,
+    warm_std_source_cache,
 };
 pub use surface_diagnostic::{SurfaceDiagnostic, collect_surface_diagnostics};
 pub use symbols::{

@@ -36,6 +36,15 @@ pub struct RunTimings {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct WarmupOutput {
+    pub source_cache_hits: usize,
+    pub source_cache_misses: usize,
+    pub source_cache_clone_ms: f64,
+    pub source_cache_build_ms: f64,
+    pub total_ms: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct RunResult {
     pub index: usize,
     pub value: String,

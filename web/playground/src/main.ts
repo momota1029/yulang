@@ -1,4 +1,4 @@
-import init, { colorize, run } from "./wasm/yulang_wasm.js";
+import init, { colorize, run, warm_std_cache } from "./wasm/yulang_wasm.js";
 import "./style.css";
 
 type Diagnostic = {
@@ -29,6 +29,13 @@ type RunTimings = {
   vm_eval_ms: number;
   total_ms: number;
   files: number;
+  entry_files: number;
+  std_files: number;
+  user_files: number;
+  source_cache_hits: number;
+  source_cache_misses: number;
+  source_cache_clone_ms: number;
+  source_cache_build_ms: number;
 };
 
 type RunResult = {
@@ -315,6 +322,8 @@ await init();
 setupExampleButtons();
 loadExample(0);
 renderColor();
+await nextPaint();
+console.debug("Yulang std cache warmup", warm_std_cache());
 void runSource();
 
 const editorRenderEvents = [

@@ -19,6 +19,14 @@ pub fn source_set(source: &str) -> SourceSet {
     )
 }
 
+pub fn warm_source_set() -> SourceSet {
+    let source = STD_SOURCES
+        .iter()
+        .map(|source| format!("use std::{}::*\n", source.name))
+        .collect::<String>();
+    source_set(&source)
+}
+
 pub fn inline_sources() -> impl Iterator<Item = InlineSource> {
     cached_inline_sources().iter().cloned()
 }

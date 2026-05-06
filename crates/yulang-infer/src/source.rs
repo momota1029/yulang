@@ -140,6 +140,21 @@ pub fn lower_source_set_with_std_cache_profiled(
     with_profile_enabled(true, || lower_source_set_cached_inner(source_set, cache))
 }
 
+pub fn warm_std_source_cache(
+    source_set: &SourceSet,
+    cache: &mut SourceLowerCache,
+) -> SourceStdCacheProfile {
+    with_profile_enabled(true, || {
+        let mut profile = SourceLowerProfile::default();
+        if source_set.std_files().next().is_none() {
+            profile.std_cache.disabled += 1;
+        } else {
+            let _ = cache.std_state(source_set, &mut profile);
+        }
+        profile.std_cache
+    })
+}
+
 pub fn lower_source_set_profiled(source_set: &SourceSet) -> ProfiledLoweredSources {
     lower_source_set_with_profile(source_set, true)
 }
@@ -295,7 +310,7 @@ impl SourceLowerCache {
         profile: &mut SourceLowerProfile,
     ) -> LowerState {
         let key = StdSourceCacheKey::from_source_set(source_set);
-        if let Some(state) = self.std_states.get(&key) {
+        if let Some(state) = self.covering_std_state(&key) {
             profile.std_cache.hits += 1;
             let clone_start = ProfileClock::now();
             let cloned = state.clone();
@@ -316,6 +331,14 @@ impl SourceLowerCache {
         profile.std_cache.clone += clone_start.elapsed();
         state
     }
+
+    fn covering_std_state(&self, key: &StdSourceCacheKey) -> Option<&LowerState> {
+        self.std_states.get(key).or_else(|| {
+            self.std_states
+                .iter()
+                .find_map(|(cached, state)| cached.covers(key).then_some(state))
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -331,6 +354,10 @@ impl StdSourceCacheKey {
                 .map(StdSourceFileCacheKey::from_file)
                 .collect(),
         }
+    }
+
+    fn covers(&self, requested: &StdSourceCacheKey) -> bool {
+        requested.files.iter().all(|file| self.files.contains(file))
     }
 }
 
