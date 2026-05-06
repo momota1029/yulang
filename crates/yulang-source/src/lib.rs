@@ -282,6 +282,7 @@ pub struct CompiledUnitDependency {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledSyntaxSurface {
+    pub modules: Vec<CompiledModuleSyntaxSurface>,
     pub direct_exports: Vec<CompiledSyntaxExport>,
     pub public_exports: Vec<CompiledSyntaxExport>,
 }
@@ -290,6 +291,13 @@ impl CompiledSyntaxSurface {
     pub fn public_op_table_contribution(&self) -> OpTable {
         compiled_exports_op_table(self.public_exports.iter())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledModuleSyntaxSurface {
+    pub module_path: ModulePath,
+    pub direct_exports: Vec<CompiledSyntaxExport>,
+    pub public_exports: Vec<CompiledSyntaxExport>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -341,6 +349,26 @@ impl CompiledOperatorSyntax {
             nullfix: self.nullfix,
         }
     }
+}
+
+pub fn op_table_from_compiled_syntax_imports(
+    meta: &SourceMeta,
+    artifacts: &[CompiledUnitSyntaxArtifact],
+) -> OpTable {
+    let mut table = standard_op_table();
+    for export in &meta.syntax_exports {
+        insert_table_op_def(&mut table.0, export.name.clone(), export.op.clone());
+    }
+
+    let public_exports = compiled_public_syntax_exports_by_module(artifacts);
+    for use_ in &meta.uses {
+        let imported = imported_compiled_syntax_exports(&use_.import, &public_exports);
+        for export in imported {
+            insert_table_op_def(&mut table.0, export.name.clone(), export.op.to_op_def());
+        }
+    }
+
+    table
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -960,6 +988,36 @@ fn compiled_syntax_surface(
     source_files: &[SourceFile],
     public_exports: &[HashMap<Name, OpDef>],
 ) -> CompiledSyntaxSurface {
+    let mut modules = unit
+        .files
+        .iter()
+        .map(|&file_idx| {
+            let direct_exports = source_files[file_idx]
+                .meta
+                .syntax_exports
+                .iter()
+                .map(compiled_syntax_export)
+                .collect::<Vec<_>>();
+            let mut public_exports = public_exports[file_idx]
+                .iter()
+                .map(|(name, op)| CompiledSyntaxExport {
+                    visibility: Visibility::Pub,
+                    name: name.clone(),
+                    op: CompiledOperatorSyntax::from_op_def(op),
+                })
+                .collect::<Vec<_>>();
+            let mut direct_exports = direct_exports;
+            sort_compiled_exports(&mut direct_exports);
+            sort_compiled_exports(&mut public_exports);
+            CompiledModuleSyntaxSurface {
+                module_path: source_files[file_idx].module_path.clone(),
+                direct_exports,
+                public_exports,
+            }
+        })
+        .collect::<Vec<_>>();
+    modules.sort_by(|left, right| left.module_path.segments.cmp(&right.module_path.segments));
+
     let mut direct_exports = Vec::new();
     for &file_idx in &unit.files {
         direct_exports.extend(
@@ -989,6 +1047,7 @@ fn compiled_syntax_surface(
     sort_compiled_exports(&mut public_unit_exports);
 
     CompiledSyntaxSurface {
+        modules,
         direct_exports,
         public_exports: public_unit_exports,
     }
@@ -1018,6 +1077,63 @@ fn compiled_exports_op_table<'a>(
         insert_table_op_def(&mut table.0, export.name.clone(), export.op.to_op_def());
     }
     table
+}
+
+fn compiled_public_syntax_exports_by_module(
+    artifacts: &[CompiledUnitSyntaxArtifact],
+) -> Vec<(ModulePath, Vec<CompiledSyntaxExport>)> {
+    let mut modules = Vec::new();
+    for artifact in artifacts {
+        for module in &artifact.syntax.modules {
+            modules.push((module.module_path.clone(), module.public_exports.clone()));
+        }
+    }
+    modules.sort_by(|left, right| left.0.segments.cmp(&right.0.segments));
+    modules
+}
+
+fn imported_compiled_syntax_exports(
+    import: &UseImport,
+    public_exports: &[(ModulePath, Vec<CompiledSyntaxExport>)],
+) -> Vec<CompiledSyntaxExport> {
+    match import {
+        UseImport::Alias { name, path } => {
+            let Some((module_path, imported_name)) =
+                path.segments.split_last().map(|(last, prefix)| {
+                    (
+                        ModulePath {
+                            segments: prefix.to_vec(),
+                        },
+                        last.clone(),
+                    )
+                })
+            else {
+                return Vec::new();
+            };
+            public_exports
+                .iter()
+                .find(|(candidate, _)| candidate == &module_path)
+                .and_then(|(_, exports)| exports.iter().find(|export| export.name == imported_name))
+                .cloned()
+                .map(|mut export| {
+                    export.name = name.clone();
+                    export
+                })
+                .into_iter()
+                .collect()
+        }
+        UseImport::Glob { prefix, excluded } => public_exports
+            .iter()
+            .find(|(candidate, _)| candidate == prefix)
+            .map(|(_, exports)| {
+                exports
+                    .iter()
+                    .filter(|export| !excluded.contains(&export.name))
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default(),
+    }
 }
 
 fn compiled_bp_vec(bp: &BpVec) -> Vec<i8> {
@@ -2300,6 +2416,38 @@ mod tests {
         }
         let parsed = SyntaxNode::<YulangLanguage>::new_root(
             yulang_parser::parse_module_to_green_with_ops("my y = 1 %% 2\n", table),
+        );
+
+        assert!(parsed.descendants_with_tokens().any(|item| {
+            matches!(
+                item,
+                NodeOrToken::Token(tok) if tok.kind() == SyntaxKind::Infix && tok.text() == "%%"
+            )
+        }));
+    }
+
+    #[test]
+    fn compiled_syntax_imports_build_downstream_operator_table_without_dependency_source() {
+        let dependency_set = collect_inline_source_files_with_options(
+            "mod ops;\n",
+            [InlineSource {
+                path: PathBuf::from("<ops>.yu"),
+                module_path: module_path(&["ops"]),
+                origin: SourceOrigin::User,
+                source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+        let artifacts = dependency_set.compiled_unit_syntax_artifacts();
+        let meta = parse_source_meta("use ops::*\nmy y = 1 %% 2\n");
+        let table = op_table_from_compiled_syntax_imports(&meta, &artifacts);
+        let parsed = SyntaxNode::<YulangLanguage>::new_root(
+            yulang_parser::parse_module_to_green_with_ops("use ops::*\nmy y = 1 %% 2\n", table),
         );
 
         assert!(parsed.descendants_with_tokens().any(|item| {
