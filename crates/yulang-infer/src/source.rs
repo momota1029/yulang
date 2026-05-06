@@ -112,7 +112,17 @@ pub struct StdInferSnapshotImport {
     pub modules: Vec<Option<ModuleId>>,
     pub values: Vec<Option<crate::ids::DefId>>,
     pub types: Vec<Option<crate::ids::DefId>>,
+    pub refs: StdInferSnapshotImportRefs,
     pub missing: StdInferSnapshotImportMissing,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StdInferSnapshotImportRefs {
+    pub schemes: Vec<Option<crate::ids::DefId>>,
+    pub role_methods: Vec<Option<crate::ids::DefId>>,
+    pub role_impl_members: Vec<Vec<Option<crate::ids::DefId>>>,
+    pub effect_methods: Vec<Option<crate::ids::DefId>>,
+    pub effect_method_modules: Vec<Option<ModuleId>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -370,6 +380,7 @@ pub fn import_std_infer_snapshot_data(
     let modules = import_std_snapshot_modules(&state, &data.modules);
     let values = import_std_snapshot_values(&state, &data.values);
     let types = import_std_snapshot_types(&state, &data.types);
+    let refs = import_std_snapshot_refs(data, &values, &modules);
     let missing = StdInferSnapshotImportMissing {
         modules: missing_snapshot_paths(&data.modules, &modules, |module| {
             (module.snapshot_id, &module.path)
@@ -387,6 +398,7 @@ pub fn import_std_infer_snapshot_data(
         modules,
         values,
         types,
+        refs,
         missing,
     })
 }
@@ -1048,6 +1060,46 @@ fn import_std_snapshot_types(
                 .resolve_path_type(&path_from_snapshot_segments(&symbol.path))
         })
         .collect()
+}
+
+fn import_std_snapshot_refs(
+    data: &StdInferSnapshotData,
+    values: &[Option<crate::ids::DefId>],
+    modules: &[Option<ModuleId>],
+) -> StdInferSnapshotImportRefs {
+    StdInferSnapshotImportRefs {
+        schemes: data
+            .schemes
+            .iter()
+            .map(|scheme| values[scheme.symbol as usize])
+            .collect(),
+        role_methods: data
+            .role_methods
+            .iter()
+            .map(|method| values[method.symbol as usize])
+            .collect(),
+        role_impl_members: data
+            .role_impls
+            .iter()
+            .map(|role_impl| {
+                role_impl
+                    .members
+                    .iter()
+                    .map(|member| values[member.symbol as usize])
+                    .collect()
+            })
+            .collect(),
+        effect_methods: data
+            .effect_methods
+            .iter()
+            .map(|method| values[method.symbol as usize])
+            .collect(),
+        effect_method_modules: data
+            .effect_methods
+            .iter()
+            .map(|method| modules[method.module as usize])
+            .collect(),
+    }
 }
 
 fn missing_snapshot_paths<T>(

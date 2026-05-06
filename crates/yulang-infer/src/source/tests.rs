@@ -192,6 +192,21 @@ fn std_snapshot_import_resolves_builtin_paths_and_reports_missing_std_paths() {
         import.values[int_add.snapshot_id as usize].is_some(),
         "builtin std::int::add should resolve during partial import"
     );
+    let int_add_scheme = data
+        .schemes
+        .iter()
+        .position(|scheme| scheme.symbol == int_add.snapshot_id)
+        .expect("std::int::add imported scheme ref");
+    assert_eq!(
+        import.refs.schemes[int_add_scheme], import.values[int_add.snapshot_id as usize],
+        "scheme refs should be resolved through imported value refs"
+    );
+    assert_eq!(import.refs.role_methods.len(), data.role_methods.len());
+    assert_eq!(import.refs.effect_methods.len(), data.effect_methods.len());
+    assert_eq!(
+        import.refs.effect_method_modules.len(),
+        data.effect_methods.len()
+    );
 
     let prelude = data
         .modules
