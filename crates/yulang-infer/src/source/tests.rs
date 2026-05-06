@@ -1867,6 +1867,51 @@ fn compiled_typed_artifact_preserves_schemes_and_validates_symbols() {
 }
 
 #[test]
+fn compiled_typed_import_resolves_scheme_refs() {
+    let source_set = collect_inline_source_files_with_options(
+        "use data::*\nmy y = id 1\n",
+        [InlineSource {
+            path: PathBuf::from("<data>.yu"),
+            module_path: CorePath::new(vec![CoreName("data".to_string())]),
+            origin: SourceOrigin::User,
+            source: "pub id x = x\n".to_string(),
+            meta: None,
+        }],
+        yulang_source::SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+    let artifacts = build_compiled_typed_artifacts(&source_set, &lowered.state);
+    let data_artifact = artifacts
+        .iter()
+        .find(|artifact| {
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["data"])
+        })
+        .expect("data typed artifact should exist");
+    let imported = import_compiled_typed_artifact(data_artifact).unwrap();
+
+    assert!(imported.validation.is_complete());
+    assert!(imported.coverage.has_complete_ref_resolution());
+    assert!(imported.coverage.schemes_total > 0);
+    assert_eq!(
+        imported.coverage.schemes_total,
+        imported.coverage.schemes_resolved
+    );
+    assert_eq!(
+        imported.refs.schemes.len(),
+        data_artifact.typed.schemes.len()
+    );
+    assert!(imported.refs.schemes.iter().all(Option::is_some));
+}
+
+#[test]
 fn compiled_typed_validation_reports_missing_scheme_symbol() {
     let typed = CompiledTypedSurface {
         schemes: vec![StdInferSnapshotScheme {
@@ -1879,6 +1924,23 @@ fn compiled_typed_validation_reports_missing_scheme_symbol() {
 
     assert!(!validation.is_complete());
     assert_eq!(validation.missing_scheme_symbols, vec![7]);
+}
+
+#[test]
+fn compiled_typed_import_rejects_missing_scheme_symbol() {
+    let typed = CompiledTypedSurface {
+        schemes: vec![StdInferSnapshotScheme {
+            symbol: 7,
+            rendered: "int".to_string(),
+        }],
+        ..CompiledTypedSurface::default()
+    };
+    let err = match import_compiled_typed_surface(&CompiledNamespaceSurface::default(), &typed) {
+        Ok(_) => panic!("invalid typed surface should be rejected"),
+        Err(err) => err,
+    };
+
+    assert!(matches!(err, CompiledTypedImportError::InvalidTyped(_)));
 }
 
 #[test]

@@ -1073,3 +1073,21 @@ Next direction:
 The expected win is first-run playground speed. The current warm cache improves
 second and later runs; a bundled snapshot should remove most std infer/lower
 fixed cost from the first run too.
+
+## Current Checkpoint: Compiled Unit Surfaces
+
+The persistent-cache prototype is now moving from std-specific snapshots toward
+file-SCC compiled-unit artifacts:
+
+- `CompiledSyntaxSurface` carries parser operator exports/reexports so a
+  downstream unit can parse without rereading dependency source syntax.
+- `CompiledNamespaceSurface` carries module/value/type/operator namespace
+  entries and can import them into fresh process-local ids.
+- `CompiledTypedSurface` carries typed metadata refs and now has an import
+  skeleton that resolves scheme/role/effect refs against the imported namespace.
+
+This is still not a replacement for lowering/inference. The next hard boundary
+is restoring real scheme/body/principal evidence into the imported state without
+faking source-defined defs. Keep the work unit-oriented, not std-special-cased:
+`SourceCompilationUnit -> CompiledUnit artifact -> importable syntax/namespace/
+typed/runtime surfaces`.

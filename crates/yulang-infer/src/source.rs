@@ -138,6 +138,51 @@ pub enum CompiledNamespaceImportError {
     InvalidNamespace(CompiledNamespaceValidation),
 }
 
+pub struct CompiledTypedImport {
+    pub namespace: CompiledNamespaceImport,
+    pub refs: CompiledTypedImportRefs,
+    pub coverage: CompiledTypedImportCoverage,
+    pub validation: CompiledTypedValidation,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CompiledTypedImportRefs {
+    pub schemes: Vec<Option<crate::ids::DefId>>,
+    pub role_methods: Vec<Option<crate::ids::DefId>>,
+    pub role_impl_members: Vec<Vec<Option<crate::ids::DefId>>>,
+    pub effect_methods: Vec<Option<crate::ids::DefId>>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledTypedImportCoverage {
+    pub namespace_values_total: usize,
+    pub namespace_values_resolved: usize,
+    pub namespace_types_total: usize,
+    pub namespace_types_resolved: usize,
+    pub schemes_total: usize,
+    pub schemes_resolved: usize,
+    pub role_methods_total: usize,
+    pub role_methods_resolved: usize,
+    pub effect_methods_total: usize,
+    pub effect_methods_resolved: usize,
+}
+
+impl CompiledTypedImportCoverage {
+    pub fn has_complete_ref_resolution(&self) -> bool {
+        self.namespace_values_total == self.namespace_values_resolved
+            && self.namespace_types_total == self.namespace_types_resolved
+            && self.schemes_total == self.schemes_resolved
+            && self.role_methods_total == self.role_methods_resolved
+            && self.effect_methods_total == self.effect_methods_resolved
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledTypedImportError {
+    InvalidNamespace(CompiledNamespaceValidation),
+    InvalidTyped(CompiledTypedValidation),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledUnitTypedArtifact {
     pub manifest: CompiledUnitManifest,
@@ -624,6 +669,44 @@ pub fn import_compiled_namespace_surface(
         values,
         types,
         validation,
+    })
+}
+
+pub fn import_compiled_typed_artifact(
+    artifact: &CompiledUnitTypedArtifact,
+) -> Result<CompiledTypedImport, CompiledTypedImportError> {
+    import_compiled_typed_surface(&artifact.namespace, &artifact.typed)
+}
+
+pub fn import_compiled_typed_surface(
+    namespace: &CompiledNamespaceSurface,
+    typed: &CompiledTypedSurface,
+) -> Result<CompiledTypedImport, CompiledTypedImportError> {
+    let namespace_validation = namespace.validate();
+    if !namespace_validation.is_complete() {
+        return Err(CompiledTypedImportError::InvalidNamespace(
+            namespace_validation,
+        ));
+    }
+
+    let typed_validation = typed.validate(namespace);
+    if !typed_validation.is_complete() {
+        return Err(CompiledTypedImportError::InvalidTyped(typed_validation));
+    }
+
+    let namespace_import = import_compiled_namespace_surface(namespace).map_err(
+        |CompiledNamespaceImportError::InvalidNamespace(validation)| {
+            CompiledTypedImportError::InvalidNamespace(validation)
+        },
+    )?;
+    let refs = import_compiled_typed_refs(typed, &namespace_import.values);
+    let coverage = import_compiled_typed_coverage(&namespace_import, &refs);
+
+    Ok(CompiledTypedImport {
+        namespace: namespace_import,
+        refs,
+        coverage,
+        validation: typed_validation,
     })
 }
 
@@ -1456,6 +1539,40 @@ fn import_std_snapshot_refs(
     }
 }
 
+fn import_compiled_typed_refs(
+    typed: &CompiledTypedSurface,
+    values: &[Option<crate::ids::DefId>],
+) -> CompiledTypedImportRefs {
+    CompiledTypedImportRefs {
+        schemes: typed
+            .schemes
+            .iter()
+            .map(|scheme| values[scheme.symbol as usize])
+            .collect(),
+        role_methods: typed
+            .role_methods
+            .iter()
+            .map(|method| values[method.symbol as usize])
+            .collect(),
+        role_impl_members: typed
+            .role_impls
+            .iter()
+            .map(|role_impl| {
+                role_impl
+                    .members
+                    .iter()
+                    .map(|member| values[member.symbol as usize])
+                    .collect()
+            })
+            .collect(),
+        effect_methods: typed
+            .effect_methods
+            .iter()
+            .map(|method| values[method.symbol as usize])
+            .collect(),
+    }
+}
+
 fn import_std_snapshot_coverage(
     modules: &[Option<ModuleId>],
     values: &[Option<crate::ids::DefId>],
@@ -1469,6 +1586,24 @@ fn import_std_snapshot_coverage(
         values_resolved: count_resolved(values),
         types_total: types.len(),
         types_resolved: count_resolved(types),
+        schemes_total: refs.schemes.len(),
+        schemes_resolved: count_resolved(&refs.schemes),
+        role_methods_total: refs.role_methods.len(),
+        role_methods_resolved: count_resolved(&refs.role_methods),
+        effect_methods_total: refs.effect_methods.len(),
+        effect_methods_resolved: count_resolved(&refs.effect_methods),
+    }
+}
+
+fn import_compiled_typed_coverage(
+    namespace: &CompiledNamespaceImport,
+    refs: &CompiledTypedImportRefs,
+) -> CompiledTypedImportCoverage {
+    CompiledTypedImportCoverage {
+        namespace_values_total: namespace.values.len(),
+        namespace_values_resolved: count_resolved(&namespace.values),
+        namespace_types_total: namespace.types.len(),
+        namespace_types_resolved: count_resolved(&namespace.types),
         schemes_total: refs.schemes.len(),
         schemes_resolved: count_resolved(&refs.schemes),
         role_methods_total: refs.role_methods.len(),
