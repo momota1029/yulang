@@ -462,6 +462,61 @@ pub fn export_principal_bindings(state: &mut LowerState) -> Vec<core_ir::Princip
     export_bindings_for_paths(state, &paths, &[], &edge_evidence)
 }
 
+pub fn export_core_program_for_binding_paths(
+    state: &mut LowerState,
+    paths: &[(Path, DefId)],
+) -> core_ir::CoreProgram {
+    state.refresh_selection_environment();
+    let target_defs = paths.iter().map(|(_, def)| *def).collect::<HashSet<_>>();
+    state.finalize_compact_results_for_defs(&target_defs);
+    state.refresh_selection_environment();
+    let expected_edge_evidence = collect_expected_edge_evidence(state);
+    let edge_evidence_cache = expected_edge_evidence
+        .iter()
+        .cloned()
+        .map(|e| (e.id, e))
+        .collect::<HashMap<_, _>>();
+    let root_exprs = Vec::new();
+    let mut bindings = export_bindings_for_paths(state, paths, &root_exprs, &edge_evidence_cache);
+    refine_runtime_binding_scheme_bodies(state, paths, &mut bindings);
+    let graph = export_type_graph_view_for_paths(state, paths, &bindings);
+    let export_debug_evidence = export_debug_principal_evidence_enabled();
+    let derived_edges = if export_debug_evidence {
+        derive_all_expected_edge_evidence(&expected_edge_evidence)
+    } else {
+        Vec::new()
+    };
+    let adapter_edges = if export_debug_evidence {
+        collect_expected_adapter_edge_evidence(state)
+    } else {
+        Vec::new()
+    };
+
+    core_ir::CoreProgram {
+        program: core_ir::PrincipalModule {
+            path: core_ir::Path::default(),
+            bindings,
+            root_exprs,
+            roots: Vec::new(),
+        },
+        graph,
+        evidence: core_ir::PrincipalEvidence {
+            expected_edges: expected_edge_evidence
+                .into_iter()
+                .map(export_expected_edge_evidence)
+                .collect(),
+            expected_adapter_edges: adapter_edges
+                .into_iter()
+                .map(export_expected_adapter_edge_evidence)
+                .collect(),
+            derived_expected_edges: derived_edges
+                .into_iter()
+                .map(export_derived_expected_edge_evidence)
+                .collect(),
+        },
+    }
+}
+
 fn build_edge_evidence_cache(state: &LowerState) -> HashMap<ExpectedEdgeId, ExpectedEdgeEvidence> {
     collect_expected_edge_evidence(state)
         .into_iter()

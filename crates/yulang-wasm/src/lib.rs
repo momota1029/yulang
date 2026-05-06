@@ -3,9 +3,9 @@ use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 
 use yulang_infer::{
-    SourceLowerCache, build_std_infer_snapshot_data, collect_surface_diagnostics,
-    export_core_program, import_std_infer_snapshot_data, lower_source_set_with_std_cache_profiled,
-    warm_std_source_cache,
+    SourceLowerCache, build_std_core_snapshot_data, build_std_infer_snapshot_data,
+    collect_surface_diagnostics, export_core_program, import_std_infer_snapshot_data,
+    lower_source_set_with_std_cache_profiled, warm_std_source_cache,
 };
 use yulang_runtime as runtime;
 
@@ -45,6 +45,13 @@ pub fn std_snapshot_import_coverage() -> JsValue {
         .and_then(|data| import_std_infer_snapshot_data(&data).ok())
         .map(|import| import.coverage);
     to_js_value(&coverage)
+}
+
+#[wasm_bindgen]
+pub fn std_core_snapshot_data() -> JsValue {
+    console_error_panic_hook::set_once();
+    let source_set = std_sources::warm_source_set();
+    to_js_value(&build_std_core_snapshot_data(&source_set))
 }
 
 fn warm_std_cache_inner() -> WarmupOutput {
@@ -328,6 +335,33 @@ g
                     import.coverage.modules_resolved
                 );
                 assert!(import.coverage.values_total > 0);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn builds_std_core_snapshot_data_for_wasm_export() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let source_set = std_sources::warm_source_set();
+                let data =
+                    build_std_core_snapshot_data(&source_set).expect("std core snapshot data");
+                assert!(data.program.program.bindings.len() > 10);
+                assert!(data.program.program.bindings.iter().any(|binding| {
+                    binding
+                        .name
+                        .segments
+                        .iter()
+                        .map(|name| name.0.as_str())
+                        .eq(["std", "list", "fold_impl"])
+                }));
+                assert_eq!(
+                    data.manifest.format_version,
+                    yulang_infer::STD_INFER_SNAPSHOT_FORMAT_VERSION
+                );
             })
             .unwrap()
             .join()

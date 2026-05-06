@@ -18,6 +18,7 @@ use crate::lower::stmt::{finish_lowering, lower_root_in_module};
 use crate::lower::{LowerDetailProfile, LowerState};
 use crate::profile::{ProfileClock, with_profile_enabled};
 use crate::symbols::{ModuleId, Name, Namespace, OperatorFixity, Path, Visibility};
+use yulang_core_ir::CoreProgram;
 
 pub struct LoweredSources {
     pub state: LowerState,
@@ -105,6 +106,12 @@ pub struct StdInferSnapshotData {
     pub effects: Vec<StdInferSnapshotEffect>,
     pub effect_methods: Vec<StdInferSnapshotEffectMethod>,
     pub effect_operations: Vec<StdInferSnapshotEffectOperation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdCoreSnapshotData {
+    pub manifest: StdInferSnapshotManifest,
+    pub program: CoreProgram,
 }
 
 pub struct StdInferSnapshotImport {
@@ -398,6 +405,10 @@ pub fn build_std_infer_snapshot(source_set: &SourceSet) -> Option<StdInferSnapsh
 
 pub fn build_std_infer_snapshot_data(source_set: &SourceSet) -> Option<StdInferSnapshotData> {
     with_profile_enabled(false, || build_std_infer_snapshot_data_inner(source_set))
+}
+
+pub fn build_std_core_snapshot_data(source_set: &SourceSet) -> Option<StdCoreSnapshotData> {
+    with_profile_enabled(false, || build_std_core_snapshot_data_inner(source_set))
 }
 
 pub fn import_std_infer_snapshot_data(
@@ -817,6 +828,27 @@ fn build_std_infer_snapshot_data_inner(source_set: &SourceSet) -> Option<StdInfe
     }
     finish_lowering(&mut state);
     Some(StdInferSnapshotData::from_state(key, &state))
+}
+
+fn build_std_core_snapshot_data_inner(source_set: &SourceSet) -> Option<StdCoreSnapshotData> {
+    if source_set.std_files().next().is_none() {
+        return None;
+    }
+    let key = StdSourceCacheKey::from_source_set(source_set);
+    let manifest = StdInferSnapshotManifest {
+        format_version: STD_INFER_SNAPSHOT_FORMAT_VERSION,
+        key,
+    };
+    let mut state = LowerState::new();
+    install_builtin_primitives(&mut state);
+    let mut profile = SourceLowerProfile::default();
+    for file in source_set.std_files() {
+        lower_source_file_inner(file, &mut state, &mut profile);
+    }
+    finish_lowering(&mut state);
+    let binding_paths = state.ctx.collect_all_binding_paths();
+    let program = crate::export_core_program_for_binding_paths(&mut state, &binding_paths);
+    Some(StdCoreSnapshotData { manifest, program })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

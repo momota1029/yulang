@@ -32,7 +32,8 @@ pub use export::{
     DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, EdgePolarity,
     ExpectedAdapterEdgeEvidence, ExpectedEdgeEvidence, collect_derived_expected_edge_evidence,
     collect_expected_adapter_edge_evidence, collect_expected_edge_evidence, export_core_program,
-    export_principal_bindings, export_principal_module, export_scheme_body,
+    export_core_program_for_binding_paths, export_principal_bindings, export_principal_module,
+    export_scheme_body,
 };
 pub use ids::{DefId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 pub use lower::stmt::{finish_lowering, lower_root, lower_root_in_module};
@@ -48,16 +49,17 @@ pub use solve::{
 };
 pub use source::{
     LoweredSources, ProfiledLoweredSources, STD_INFER_SNAPSHOT_FORMAT_VERSION, SourceLowerCache,
-    SourceLowerProfile, SourceStdCacheProfile, StdInferSnapshot, StdInferSnapshotData,
-    StdInferSnapshotDataError, StdInferSnapshotEffect, StdInferSnapshotEffectMethod,
-    StdInferSnapshotEffectOperation, StdInferSnapshotImport, StdInferSnapshotImportCoverage,
-    StdInferSnapshotImportError, StdInferSnapshotImportMissing, StdInferSnapshotImportRefs,
-    StdInferSnapshotManifest, StdInferSnapshotMissingPath, StdInferSnapshotModule,
-    StdInferSnapshotModuleChild, StdInferSnapshotModuleOperator, StdInferSnapshotModuleType,
-    StdInferSnapshotModuleValue, StdInferSnapshotNamespace, StdInferSnapshotOperatorFixity,
-    StdInferSnapshotReexport, StdInferSnapshotRole, StdInferSnapshotRoleArg,
-    StdInferSnapshotRoleImpl, StdInferSnapshotRoleImplMember, StdInferSnapshotRoleMethod,
-    StdInferSnapshotScheme, StdInferSnapshotSymbol, StdInferSnapshotVisibility, StdSourceCacheKey,
+    SourceLowerProfile, SourceStdCacheProfile, StdCoreSnapshotData, StdInferSnapshot,
+    StdInferSnapshotData, StdInferSnapshotDataError, StdInferSnapshotEffect,
+    StdInferSnapshotEffectMethod, StdInferSnapshotEffectOperation, StdInferSnapshotImport,
+    StdInferSnapshotImportCoverage, StdInferSnapshotImportError, StdInferSnapshotImportMissing,
+    StdInferSnapshotImportRefs, StdInferSnapshotManifest, StdInferSnapshotMissingPath,
+    StdInferSnapshotModule, StdInferSnapshotModuleChild, StdInferSnapshotModuleOperator,
+    StdInferSnapshotModuleType, StdInferSnapshotModuleValue, StdInferSnapshotNamespace,
+    StdInferSnapshotOperatorFixity, StdInferSnapshotReexport, StdInferSnapshotRole,
+    StdInferSnapshotRoleArg, StdInferSnapshotRoleImpl, StdInferSnapshotRoleImplMember,
+    StdInferSnapshotRoleMethod, StdInferSnapshotScheme, StdInferSnapshotSymbol,
+    StdInferSnapshotVisibility, StdSourceCacheKey, build_std_core_snapshot_data,
     build_std_infer_snapshot, build_std_infer_snapshot_data, import_std_infer_snapshot_data,
     lower_entry_with_options, lower_entry_with_options_profiled, lower_source_file,
     lower_source_file_profiled, lower_source_set, lower_source_set_profiled,

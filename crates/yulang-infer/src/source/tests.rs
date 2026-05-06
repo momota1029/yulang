@@ -87,7 +87,7 @@ fn std_lower_cache_preserves_entry_results() {
                 segments: vec![CoreName("std".to_string()), CoreName("prelude".to_string())],
             },
             origin: SourceOrigin::Std,
-            source: "pub my one = 1\n".to_string(),
+            source: "pub one = 1\n".to_string(),
             meta: None,
         }],
         SourceOptions {
@@ -261,6 +261,41 @@ fn std_snapshot_import_resolves_builtin_paths_and_reports_missing_std_paths() {
         "missing std value paths should be reported structurally: {:?}",
         import_with_missing_value.missing.values
     );
+}
+
+#[test]
+fn std_core_snapshot_data_round_trips_through_json() {
+    let source_set = collect_inline_source_files_with_options(
+        "use std::prelude::*\none",
+        [InlineSource {
+            path: PathBuf::from("<std>/prelude.yu"),
+            module_path: CorePath {
+                segments: vec![CoreName("std".to_string()), CoreName("prelude".to_string())],
+            },
+            origin: SourceOrigin::Std,
+            source: "pub my one = 1\n".to_string(),
+            meta: None,
+        }],
+        SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let data = build_std_core_snapshot_data(&source_set).expect("std core snapshot data");
+    assert!(
+        data.program.program.bindings.iter().any(|binding| binding
+            .name
+            .segments
+            .iter()
+            .map(|name| name.0.as_str())
+            .eq(["std", "int", "add"])),
+        "std core snapshot should include builtin bindings"
+    );
+    let json = serde_json::to_string(&data).expect("serialize std core snapshot");
+    let round_tripped: StdCoreSnapshotData =
+        serde_json::from_str(&json).expect("deserialize std core snapshot");
+    assert_eq!(round_tripped, data);
 }
 
 #[test]
