@@ -33,6 +33,10 @@ impl VmModule {
             .map(|index| interpreter.eval_root_expr(index))
             .collect()
     }
+
+    pub fn resume_request(&self, request: VmRequest, value: VmValue) -> Result<VmResult, VmError> {
+        VmInterpreter::new(&self.module).resume(request.continuation, value)
+    }
 }
 
 pub fn compile_vm_module(module: Module) -> Result<VmModule, VmError> {

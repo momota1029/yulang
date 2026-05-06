@@ -18,6 +18,10 @@ struct StdSource {
 
 const STD_SOURCES: &[StdSource] = &[
     StdSource {
+        name: "console",
+        text: include_str!("../../../lib/std/console.yu"),
+    },
+    StdSource {
         name: "flow",
         text: include_str!("../../../lib/std/flow.yu"),
     },

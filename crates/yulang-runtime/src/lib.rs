@@ -7,6 +7,7 @@
 //! observation-only variables are erased before validation.
 
 pub mod diagnostic;
+pub mod host;
 pub mod hygiene;
 pub mod invariant;
 pub mod ir;
@@ -19,6 +20,7 @@ pub mod validate;
 pub mod vm;
 
 pub use diagnostic::{RuntimeError, RuntimeResult, TypeSource};
+pub use host::{HostRunOutput, eval_root_with_basic_host, eval_roots_with_basic_host};
 pub use hygiene::{format_hygiene_expr, format_hygiene_module};
 pub use invariant::{RuntimeStage, check_runtime_invariants, check_strict_runtime_value_types};
 pub use ir::{

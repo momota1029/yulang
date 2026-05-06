@@ -7,9 +7,59 @@ updated as the project direction changes.
 
 Yulang now has a public repository, a working playground, and examples that show
 the language's main shape. The next goal is to make the language easier to try,
-debug, and trust.
+debug, trust, and connect to ordinary host capabilities.
 
-## Priority 1: Error Messages
+## Priority 1: Host Communication
+
+Goal: let Yulang programs communicate with the outside world without making
+effects feel like a special `perform` subsystem.
+
+The design direction:
+
+- User code calls ordinary functions such as `print`, `println`, `read_line`,
+  `now`, `random`, or later `fetch`.
+- Those functions are library-facing effect operations.
+- The VM reports unhandled operations as structured host requests.
+- CLI / Wasm / playground decide how to service or reject those requests.
+- User-facing examples should not print raw `request ... blocked=...` output
+  unless the example is intentionally demonstrating unhandled effects.
+
+First capability set:
+
+- Console output:
+  - `print` / `println` for strings and values that implement display-like
+    roles.
+  - CLI writes to stdout.
+  - Playground appends to an output pane.
+- Console input:
+  - `read_line` as an effectful request.
+  - CLI can start with queued input or a clear "input unsupported" diagnostic.
+  - Playground can expose a pending input prompt later.
+- Time/random:
+  - Add only after console output is stable.
+  - Keep deterministic test hooks so examples stay reproducible.
+- HTTP/file/process:
+  - Keep parked for now. They need a capability policy and playground story.
+
+Immediate tasks:
+
+1. Add a small `std::console` act with `print` / `println`.
+2. Teach CLI/Wasm host code to handle console output requests instead of
+   formatting them as unexpected raw requests.
+3. Add CLI, VM, and Wasm tests that run a tiny program and capture output.
+4. Add one short example that uses console output.
+5. Add an unhandled-effect diagnostic for unsupported host requests.
+
+Non-goals for the first slice:
+
+- No general FFI.
+- No filesystem access.
+- No network access.
+- No host capability object model.
+- No async runtime design beyond preserving continuations already carried by
+  `VmRequest`.
+
+## Priority 2: Error Messages
 
 Goal: when a playground visitor writes a broken program, the compiler should
 point to the right place and say what went wrong in language-level terms.
@@ -34,7 +84,7 @@ Useful first tests:
 - bad handler arm payload
 - polymorphic value that runtime cannot monomorphize
 
-## Priority 2: Stabilize Examples
+## Priority 3: Stabilize Examples
 
 Goal: examples are the public contract while the language is experimental.
 
@@ -57,8 +107,9 @@ Current key examples:
 - Junction
 - Types
 - Effects
+- Console Output
 
-## Priority 3: Refactoring
+## Priority 4: Refactoring
 
 Goal: reduce places where one change requires touching unrelated modules.
 
@@ -67,8 +118,10 @@ Goal: reduce places where one change requires touching unrelated modules.
 - Audit duplicate "export to core IR" helper code around ref projections.
 - Keep monomorphization responsibilities separate from effect/thunk lowering.
 - Move hot-path ad hoc rules behind named passes with clear inputs/outputs.
+- Keep host request formatting and host request handling out of core VM
+  evaluation logic when possible.
 
-## Priority 4: Language Semantics Still Needing Work
+## Priority 5: Language Semantics Still Needing Work
 
 Goal: finish semantics that are visible and likely to become examples/docs.
 
@@ -85,11 +138,16 @@ Goal: finish semantics that are visible and likely to become examples/docs.
   - handler type examples
   - unhandled effect diagnostics
   - hygiene/id stack documentation
+- Host communication:
+  - console output semantics
+  - input request continuation behavior
+  - deterministic testing hooks for time/random
+  - host capability policy for playground
 - Runtime:
   - remove remaining internal errors from user-facing paths
   - keep list/tree/string runtime behavior documented by tests
 
-## Priority 5: Public Docs
+## Priority 6: Public Docs
 
 Goal: make the repo understandable without reading implementation notes.
 
@@ -97,17 +155,19 @@ Goal: make the repo understandable without reading implementation notes.
 - Overview should describe what works today, not future intent.
 - Add a diagnostics page once error messages improve.
 - Add a "known limitations" section that is honest but not discouraging.
+- Add a short "host effects" page after console output lands.
 
 ## Suggested Next Step
 
-Start with error messages. They are the highest leverage now because the
-playground is public and more people are likely to try broken code than perfect
-examples.
+Start with console output. It is the smallest useful bridge to the outside world
+and gives playground visitors immediate feedback without exposing raw effect
+requests.
 
 Concrete first task:
 
-1. Collect 6-8 current bad diagnostics from small snippets.
-2. Pick the most common/embarrassing one.
-3. Add a regression test for the intended diagnostic.
-4. Improve only that diagnostic path.
-5. Repeat until the main playground failure modes are acceptable.
+1. Add `std::console` with a `print` or `println` operation.
+2. Teach CLI/Wasm host code to handle that operation and collect output.
+3. Add one VM-level test and one source-level example.
+4. Make unsupported host requests produce a language-level diagnostic, not raw
+   request text.
+5. Then resume diagnostics with the existing bad-snippet list.

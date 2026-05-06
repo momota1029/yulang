@@ -11,6 +11,7 @@ type Diagnostic = {
 type RunOutput = {
   ok: boolean;
   results: RunResult[];
+  stdout: string;
   types: TypeResult[];
   diagnostics: Diagnostic[];
 };
@@ -243,6 +244,14 @@ answer
 `,
   },
   {
+    label: { ja: "console", en: "Console" },
+    source: `// println is a library effect handled by the host.
+
+println "hello from Yulang"
+1 + 2
+`,
+  },
+  {
     label: { ja: "effect", en: "Effects" },
     source: `// A handler removes one effect and leaves the others.
 
@@ -433,7 +442,7 @@ function renderRunOutput(): void {
   result.classList.toggle("is-error", !output.ok);
   types.classList.toggle("is-error", !output.ok);
   if (output.ok) {
-    result.textContent = formatResults(output.results);
+    result.textContent = formatRunOutput(output);
     types.textContent = formatTypes(output.types);
   } else {
     result.textContent = output.diagnostics.map(formatDiagnostic).join("\n");
@@ -476,6 +485,23 @@ function nextPaint(): Promise<void> {
       window.setTimeout(resolve, 0);
     });
   });
+}
+
+function formatRunOutput(output: RunOutput): string {
+  const parts: string[] = [];
+  const stdout = output.stdout.endsWith("\n")
+    ? output.stdout.slice(0, -1)
+    : output.stdout;
+  if (stdout.length > 0) {
+    parts.push(stdout);
+  }
+  if (output.results.length > 0) {
+    parts.push(formatResults(output.results));
+  }
+  if (parts.length === 0) {
+    return t("noOutput");
+  }
+  return parts.join("\n");
 }
 
 function formatResults(results: RunResult[]): string {

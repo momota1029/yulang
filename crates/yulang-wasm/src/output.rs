@@ -7,6 +7,7 @@ use yulang_runtime as runtime;
 pub struct RunOutput {
     pub ok: bool,
     pub results: Vec<RunResult>,
+    pub stdout: String,
     pub types: Vec<TypeResult>,
     pub diagnostics: Vec<Diagnostic>,
 }

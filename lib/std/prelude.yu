@@ -23,6 +23,7 @@ pub use std::index::Index
 pub use std::var::*
 pub use std::junction::*
 pub use std::flow::LoopLabel
+pub use std::console::*
 
 pub role Eq 'a:
     our a.eq: 'a -> bool

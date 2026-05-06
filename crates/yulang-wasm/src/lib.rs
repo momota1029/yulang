@@ -22,22 +22,24 @@ pub fn colorize(source: &str) -> JsValue {
 
 fn run_inner(source: &str) -> RunOutput {
     match compile_and_run(source) {
-        Ok((results, types)) => RunOutput {
+        Ok((results, stdout, types)) => RunOutput {
             ok: true,
             results,
+            stdout,
             types,
             diagnostics: Vec::new(),
         },
         Err(message) => RunOutput {
             ok: false,
             results: Vec::new(),
+            stdout: String::new(),
             types: Vec::new(),
             diagnostics: vec![Diagnostic::error(message, source.len())],
         },
     }
 }
 
-fn compile_and_run(source: &str) -> Result<(Vec<RunResult>, Vec<TypeResult>), String> {
+fn compile_and_run(source: &str) -> Result<(Vec<RunResult>, String, Vec<TypeResult>), String> {
     let source = playground_source(source);
     let source_set = collect_inline_source_files_with_options(
         &source,
@@ -66,11 +68,12 @@ fn compile_and_run(source: &str) -> Result<(Vec<RunResult>, Vec<TypeResult>), St
         .and_then(runtime::monomorphize_module)
         .map_err(|error| error.to_string())?;
     let vm = runtime::compile_vm_module(module).map_err(|error| error.to_string())?;
-    vm.eval_roots()
+    runtime::eval_roots_with_basic_host(&vm)
         .map_err(|error| error.to_string())
-        .map(|results| {
+        .map(|host_output| {
             (
-                results
+                host_output
+                    .results
                     .iter()
                     .enumerate()
                     .map(|(index, result)| RunResult {
@@ -78,6 +81,7 @@ fn compile_and_run(source: &str) -> Result<(Vec<RunResult>, Vec<TypeResult>), St
                         value: output::format_vm_result(result),
                     })
                     .collect(),
+                host_output.stdout,
                 types,
             )
         })
@@ -160,6 +164,27 @@ g
                 assert_eq!(output.results.len(), 2);
                 assert_eq!(output.results[0].value, "3");
                 assert_eq!(output.results[1].value, "7");
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn captures_console_output() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner(
+                    r#"println "hello"
+1 + 2
+"#,
+                );
+                assert!(output.ok, "{:?}", output.diagnostics);
+                assert_eq!(output.stdout, "hello\n");
+                assert_eq!(output.results.len(), 2);
+                assert_eq!(output.results[0].value, "()");
+                assert_eq!(output.results[1].value, "3");
             })
             .unwrap()
             .join()

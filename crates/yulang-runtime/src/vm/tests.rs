@@ -159,6 +159,17 @@ sub:
     }
 
     #[test]
+    fn vm_host_handles_console_output_requests() {
+        let (results, stdout) = eval_source_with_std_host("println \"hello\"\n1 + 2\n");
+
+        assert_eq!(
+            results,
+            vec![TestValue::Unit, TestValue::Int("3".to_string())]
+        );
+        assert_eq!(stdout, "hello\n");
+    }
+
+    #[test]
     fn vm_runs_source_optional_record_argument_defaults() {
         let results = eval_source_with_std(
             "my area({width = 1, height = 2}) = width * height\n\
@@ -1216,6 +1227,17 @@ std::flow::sub::sub:
     fn eval_source_with_std(src: &str) -> Vec<TestValue> {
         let src = src.to_string();
         run_with_large_stack(move || eval_source_with_std_inner(&src))
+    }
+
+    fn eval_source_with_std_host(src: &str) -> (Vec<TestValue>, String) {
+        let src = src.to_string();
+        run_with_large_stack(move || {
+            let module = runtime_module_with_std_inner(&src);
+            let module = compile_vm_module(module).expect("compiled runtime VM module");
+            let output =
+                crate::eval_roots_with_basic_host(&module).expect("vm results with host output");
+            (test_values(output.results), output.stdout)
+        })
     }
 
     fn eval_source_with_std_inner(src: &str) -> Vec<TestValue> {

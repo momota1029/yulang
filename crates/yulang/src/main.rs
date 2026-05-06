@@ -658,13 +658,23 @@ fn run_infer_views(
             };
             let compile_duration = compile_start.elapsed();
             let eval_start = Instant::now();
-            let results = match module.eval_roots() {
-                Ok(results) => results,
-                Err(err) => {
-                    eprintln!("failed to evaluate runtime IR: {err}");
-                    process::exit(1);
+            let mut results = Vec::new();
+            let mut host_stdout = String::new();
+            for index in 0..module.module().root_exprs.len() {
+                let result =
+                    match runtime::eval_root_with_basic_host(&module, index, &mut host_stdout) {
+                        Ok(result) => result,
+                        Err(err) => {
+                            eprintln!("failed to evaluate runtime IR: {err}");
+                            process::exit(1);
+                        }
+                    };
+                if !host_stdout.is_empty() {
+                    print!("{host_stdout}");
+                    host_stdout.clear();
                 }
-            };
+                results.push(result);
+            }
             let eval_duration = eval_start.elapsed();
             if options.runtime_phase_timings {
                 print_runtime_phase_timings(
