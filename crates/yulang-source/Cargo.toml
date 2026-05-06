@@ -6,5 +6,9 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 rowan = "0.15"
+serde = { version = "1", features = ["derive"] }
 yulang-parser = { path = "../yulang-parser" }
 yulang-core-ir = { path = "../yulang-core-ir" }
+
+[dev-dependencies]
+serde_json = "1"

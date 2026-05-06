@@ -1290,6 +1290,8 @@ name = "yulang-source"
 version = "0.1.0"
 dependencies = [
  "rowan",
+ "serde",
+ "serde_json",
  "yulang-core-ir",
  "yulang-parser",
 ]

@@ -5,6 +5,7 @@ use std::io;
 use std::path::{Path as FsPath, PathBuf};
 
 use rowan::{NodeOrToken, SyntaxNode};
+use serde::{Deserialize, Serialize};
 use yulang_core_ir::{Name, Path as ModulePath};
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::op::{BpVec, OpDef, OpTable, standard_op_table};
@@ -63,6 +64,9 @@ pub fn collect_source_files_with_options(
     })
 }
 
+pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 1;
+pub const COMPILED_UNIT_PARSER_FORMAT_VERSION: u32 = 1;
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SourceOptions {
     pub std_root: Option<PathBuf>,
@@ -108,7 +112,7 @@ pub struct SyntaxExport {
     pub op: OpDef,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Visibility {
     Pub,
     Our,
@@ -140,6 +144,11 @@ impl SourceSet {
     pub fn compilation_units(&self) -> SourceCompilationUnits {
         SourceCompilationUnits::from_source_set(self)
     }
+
+    pub fn compiled_unit_syntax_artifacts(&self) -> Vec<CompiledUnitSyntaxArtifact> {
+        let units = self.compilation_units();
+        units.syntax_artifacts(self)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -156,7 +165,7 @@ pub struct SourceCompilationUnit {
     pub syntax_exports: Vec<SyntaxExport>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SourceCompilationUnitOrigin {
     Entry,
     Std,
@@ -213,9 +222,128 @@ impl SourceCompilationUnits {
             file_to_unit,
         }
     }
+
+    pub fn syntax_artifacts(&self, source_set: &SourceSet) -> Vec<CompiledUnitSyntaxArtifact> {
+        let public_exports = source_public_syntax_exports(&source_set.files);
+        let unit_hashes = self
+            .units
+            .iter()
+            .enumerate()
+            .map(|(unit_idx, unit)| {
+                compiled_unit_source_hash(unit_idx, unit, &source_set.files, &public_exports)
+            })
+            .collect::<Vec<_>>();
+
+        self.units
+            .iter()
+            .enumerate()
+            .map(|(unit_idx, unit)| {
+                let syntax = compiled_syntax_surface(unit, &source_set.files, &public_exports);
+                let manifest =
+                    compiled_unit_manifest(unit_idx, unit, source_set, &unit_hashes, &syntax);
+                CompiledUnitSyntaxArtifact { manifest, syntax }
+            })
+            .collect()
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitSyntaxArtifact {
+    pub manifest: CompiledUnitManifest,
+    pub syntax: CompiledSyntaxSurface,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitManifest {
+    pub artifact_format_version: u32,
+    pub parser_format_version: u32,
+    pub unit_index: usize,
+    pub origin: SourceCompilationUnitOrigin,
+    pub files: Vec<CompiledSourceFileIdentity>,
+    pub dependencies: Vec<CompiledUnitDependency>,
+    pub source_hash: u64,
+    pub syntax_hash: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledSourceFileIdentity {
+    pub path: String,
+    pub module_path: ModulePath,
+    pub origin: SourceOrigin,
+    pub source_len: usize,
+    pub source_hash: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledUnitDependency {
+    pub unit_index: usize,
+    pub source_hash: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledSyntaxSurface {
+    pub direct_exports: Vec<CompiledSyntaxExport>,
+    pub public_exports: Vec<CompiledSyntaxExport>,
+}
+
+impl CompiledSyntaxSurface {
+    pub fn public_op_table_contribution(&self) -> OpTable {
+        compiled_exports_op_table(self.public_exports.iter())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledSyntaxExport {
+    pub visibility: Visibility,
+    pub name: Name,
+    pub op: CompiledOperatorSyntax,
+}
+
+impl CompiledSyntaxExport {
+    pub fn to_syntax_export(&self) -> SyntaxExport {
+        SyntaxExport {
+            visibility: self.visibility,
+            name: self.name.clone(),
+            op: self.op.to_op_def(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompiledOperatorSyntax {
+    pub prefix: Option<Vec<i8>>,
+    pub infix: Option<(Vec<i8>, Vec<i8>)>,
+    pub suffix: Option<Vec<i8>>,
+    pub nullfix: bool,
+}
+
+impl CompiledOperatorSyntax {
+    pub fn from_op_def(op: &OpDef) -> Self {
+        Self {
+            prefix: op.prefix.as_ref().map(compiled_bp_vec),
+            infix: op
+                .infix
+                .as_ref()
+                .map(|(left, right)| (compiled_bp_vec(left), compiled_bp_vec(right))),
+            suffix: op.suffix.as_ref().map(compiled_bp_vec),
+            nullfix: op.nullfix,
+        }
+    }
+
+    pub fn to_op_def(&self) -> OpDef {
+        OpDef {
+            prefix: self.prefix.as_ref().map(|bp| runtime_bp_vec(bp)),
+            infix: self
+                .infix
+                .as_ref()
+                .map(|(left, right)| (runtime_bp_vec(left), runtime_bp_vec(right))),
+            suffix: self.suffix.as_ref().map(|bp| runtime_bp_vec(bp)),
+            nullfix: self.nullfix,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SourceOrigin {
     Entry,
     Std,
@@ -753,6 +881,300 @@ fn source_unit_syntax_exports(files: &[usize], source_files: &[SourceFile]) -> V
     exports
 }
 
+fn source_public_syntax_exports(source_files: &[SourceFile]) -> Vec<HashMap<Name, OpDef>> {
+    let module_paths = source_files
+        .iter()
+        .map(|file| file.module_path.clone())
+        .collect::<Vec<_>>();
+    let mut public_exports = source_files
+        .iter()
+        .map(|file| local_public_syntax_exports(&file.meta))
+        .collect::<Vec<_>>();
+
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for idx in 0..source_files.len() {
+            for use_ in &source_files[idx].meta.uses {
+                if use_.visibility == Visibility::My {
+                    continue;
+                }
+                let imported =
+                    imported_syntax_exports(&use_.import, &module_paths, &public_exports);
+                for (name, op) in imported {
+                    changed |= insert_export_op_def(&mut public_exports[idx], name, op);
+                }
+            }
+        }
+    }
+
+    public_exports
+}
+
+fn compiled_unit_manifest(
+    unit_idx: usize,
+    unit: &SourceCompilationUnit,
+    source_set: &SourceSet,
+    unit_hashes: &[u64],
+    syntax: &CompiledSyntaxSurface,
+) -> CompiledUnitManifest {
+    let files = unit
+        .files
+        .iter()
+        .map(|&file_idx| {
+            let file = &source_set.files[file_idx];
+            CompiledSourceFileIdentity {
+                path: file.path.to_string_lossy().to_string(),
+                module_path: file.module_path.clone(),
+                origin: file.origin,
+                source_len: file.source.len(),
+                source_hash: stable_hash_bytes(file.source.as_bytes()),
+            }
+        })
+        .collect::<Vec<_>>();
+    let dependencies = unit
+        .dependencies
+        .iter()
+        .map(|&dep| CompiledUnitDependency {
+            unit_index: dep,
+            source_hash: unit_hashes[dep],
+        })
+        .collect::<Vec<_>>();
+    let source_hash = unit_hashes[unit_idx];
+    let syntax_hash = stable_hash_compiled_exports(&syntax.public_exports);
+
+    CompiledUnitManifest {
+        artifact_format_version: COMPILED_UNIT_ARTIFACT_FORMAT_VERSION,
+        parser_format_version: COMPILED_UNIT_PARSER_FORMAT_VERSION,
+        unit_index: unit_idx,
+        origin: unit.origin,
+        files,
+        dependencies,
+        source_hash,
+        syntax_hash,
+    }
+}
+
+fn compiled_syntax_surface(
+    unit: &SourceCompilationUnit,
+    source_files: &[SourceFile],
+    public_exports: &[HashMap<Name, OpDef>],
+) -> CompiledSyntaxSurface {
+    let mut direct_exports = Vec::new();
+    for &file_idx in &unit.files {
+        direct_exports.extend(
+            source_files[file_idx]
+                .meta
+                .syntax_exports
+                .iter()
+                .map(compiled_syntax_export),
+        );
+    }
+    sort_compiled_exports(&mut direct_exports);
+
+    let mut public_unit_table = HashMap::new();
+    for &file_idx in &unit.files {
+        for (name, op) in &public_exports[file_idx] {
+            insert_export_op_def(&mut public_unit_table, name.clone(), op.clone());
+        }
+    }
+    let mut public_unit_exports = public_unit_table
+        .into_iter()
+        .map(|(name, op)| CompiledSyntaxExport {
+            visibility: Visibility::Pub,
+            name,
+            op: CompiledOperatorSyntax::from_op_def(&op),
+        })
+        .collect::<Vec<_>>();
+    sort_compiled_exports(&mut public_unit_exports);
+
+    CompiledSyntaxSurface {
+        direct_exports,
+        public_exports: public_unit_exports,
+    }
+}
+
+fn compiled_syntax_export(export: &SyntaxExport) -> CompiledSyntaxExport {
+    CompiledSyntaxExport {
+        visibility: export.visibility,
+        name: export.name.clone(),
+        op: CompiledOperatorSyntax::from_op_def(&export.op),
+    }
+}
+
+fn sort_compiled_exports(exports: &mut [CompiledSyntaxExport]) {
+    exports.sort_by(|left, right| {
+        left.name.cmp(&right.name).then_with(|| {
+            compiled_operator_sort_key(&left.op).cmp(&compiled_operator_sort_key(&right.op))
+        })
+    });
+}
+
+fn compiled_exports_op_table<'a>(
+    exports: impl IntoIterator<Item = &'a CompiledSyntaxExport>,
+) -> OpTable {
+    let mut table = OpTable::new();
+    for export in exports {
+        insert_table_op_def(&mut table.0, export.name.clone(), export.op.to_op_def());
+    }
+    table
+}
+
+fn compiled_bp_vec(bp: &BpVec) -> Vec<i8> {
+    bp.0.iter().copied().collect()
+}
+
+fn runtime_bp_vec(bp: &[i8]) -> BpVec {
+    BpVec::new(bp.to_vec())
+}
+
+fn compiled_unit_source_hash(
+    unit_idx: usize,
+    unit: &SourceCompilationUnit,
+    source_files: &[SourceFile],
+    public_exports: &[HashMap<Name, OpDef>],
+) -> u64 {
+    let mut hash = StableHash::new();
+    hash.write_u64(unit_idx as u64);
+    hash.write_str(source_unit_origin_tag(unit.origin));
+    for &file_idx in &unit.files {
+        let file = &source_files[file_idx];
+        hash.write_str(&file.path.to_string_lossy());
+        hash.write_path(&file.module_path);
+        hash.write_str(source_origin_tag(file.origin));
+        hash.write_u64(file.source.len() as u64);
+        hash.write_u64(stable_hash_bytes(file.source.as_bytes()));
+    }
+    for export in &compiled_syntax_surface(unit, source_files, public_exports).public_exports {
+        hash.write_compiled_export(export);
+    }
+    hash.finish()
+}
+
+fn stable_hash_bytes(bytes: &[u8]) -> u64 {
+    let mut hash = StableHash::new();
+    hash.write_bytes(bytes);
+    hash.finish()
+}
+
+fn stable_hash_compiled_exports(exports: &[CompiledSyntaxExport]) -> u64 {
+    let mut hash = StableHash::new();
+    for export in exports {
+        hash.write_compiled_export(export);
+    }
+    hash.finish()
+}
+
+fn compiled_operator_sort_key(op: &CompiledOperatorSyntax) -> String {
+    format!(
+        "p={:?};i={:?};s={:?};n={}",
+        op.prefix, op.infix, op.suffix, op.nullfix
+    )
+}
+
+fn source_origin_tag(origin: SourceOrigin) -> &'static str {
+    match origin {
+        SourceOrigin::Entry => "entry",
+        SourceOrigin::Std => "std",
+        SourceOrigin::User => "user",
+    }
+}
+
+fn source_unit_origin_tag(origin: SourceCompilationUnitOrigin) -> &'static str {
+    match origin {
+        SourceCompilationUnitOrigin::Entry => "entry",
+        SourceCompilationUnitOrigin::Std => "std",
+        SourceCompilationUnitOrigin::User => "user",
+        SourceCompilationUnitOrigin::Mixed => "mixed",
+    }
+}
+
+struct StableHash {
+    value: u64,
+}
+
+impl StableHash {
+    fn new() -> Self {
+        Self {
+            value: 0xcbf29ce484222325,
+        }
+    }
+
+    fn write_bytes(&mut self, bytes: &[u8]) {
+        self.write_u64(bytes.len() as u64);
+        self.write_raw_bytes(bytes);
+    }
+
+    fn write_raw_bytes(&mut self, bytes: &[u8]) {
+        for byte in bytes {
+            self.value ^= u64::from(*byte);
+            self.value = self.value.wrapping_mul(0x100000001b3);
+        }
+    }
+
+    fn write_u64(&mut self, value: u64) {
+        self.write_raw_bytes(&value.to_le_bytes());
+    }
+
+    fn write_str(&mut self, value: &str) {
+        self.write_bytes(value.as_bytes());
+    }
+
+    fn write_path(&mut self, path: &ModulePath) {
+        self.write_u64(path.segments.len() as u64);
+        for segment in &path.segments {
+            self.write_str(&segment.0);
+        }
+    }
+
+    fn write_compiled_export(&mut self, export: &CompiledSyntaxExport) {
+        self.write_str(visibility_tag(export.visibility));
+        self.write_str(&export.name.0);
+        self.write_operator(&export.op);
+    }
+
+    fn write_operator(&mut self, op: &CompiledOperatorSyntax) {
+        self.write_optional_bp(op.prefix.as_deref());
+        if let Some((left, right)) = &op.infix {
+            self.write_str("some-infix");
+            self.write_bp(left);
+            self.write_bp(right);
+        } else {
+            self.write_str("none-infix");
+        }
+        self.write_optional_bp(op.suffix.as_deref());
+        self.write_str(if op.nullfix { "nullfix" } else { "no-nullfix" });
+    }
+
+    fn write_optional_bp(&mut self, bp: Option<&[i8]>) {
+        if let Some(bp) = bp {
+            self.write_str("some-bp");
+            self.write_bp(bp);
+        } else {
+            self.write_str("none-bp");
+        }
+    }
+
+    fn write_bp(&mut self, bp: &[i8]) {
+        self.write_u64(bp.len() as u64);
+        for value in bp {
+            self.write_bytes(&value.to_le_bytes());
+        }
+    }
+
+    fn finish(self) -> u64 {
+        self.value
+    }
+}
+
+fn visibility_tag(visibility: Visibility) -> &'static str {
+    match visibility {
+        Visibility::Pub => "pub",
+        Visibility::Our => "our",
+        Visibility::My => "my",
+    }
+}
+
 fn import_module_path(import: &UseImport) -> Option<ModulePath> {
     match import {
         UseImport::Alias { path, .. } => {
@@ -861,27 +1283,7 @@ fn build_syntax_tables(files: &mut [SourceFile]) {
         .iter()
         .map(|file| file.module_path.clone())
         .collect::<Vec<_>>();
-    let mut public_exports = files
-        .iter()
-        .map(|file| local_public_syntax_exports(&file.meta))
-        .collect::<Vec<_>>();
-
-    let mut changed = true;
-    while changed {
-        changed = false;
-        for idx in 0..files.len() {
-            for use_ in &files[idx].meta.uses {
-                if use_.visibility == Visibility::My {
-                    continue;
-                }
-                let imported =
-                    imported_syntax_exports(&use_.import, &module_paths, &public_exports);
-                for (name, op) in imported {
-                    changed |= insert_export_op_def(&mut public_exports[idx], name, op);
-                }
-            }
-        }
-    }
+    let public_exports = source_public_syntax_exports(files);
 
     for idx in 0..files.len() {
         let mut table = standard_op_table();
@@ -1796,6 +2198,215 @@ mod tests {
                 .syntax_exports
                 .iter()
                 .any(|export| export.name == Name("not".to_string()))
+        );
+    }
+
+    #[test]
+    fn compiled_syntax_artifact_preserves_operator_exports_and_reexports() {
+        let set = collect_inline_source_files_with_options(
+            "use prelude::*\n1 %% 2\n",
+            [
+                InlineSource {
+                    path: PathBuf::from("<ops>.yu"),
+                    module_path: module_path(&["ops"]),
+                    origin: SourceOrigin::User,
+                    source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+                    meta: None,
+                },
+                InlineSource {
+                    path: PathBuf::from("<prelude>.yu"),
+                    module_path: module_path(&["prelude"]),
+                    origin: SourceOrigin::User,
+                    source: "pub use ops::*\n".to_string(),
+                    meta: None,
+                },
+            ],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+
+        let artifacts = set.compiled_unit_syntax_artifacts();
+        let ops_artifact = artifacts
+            .iter()
+            .find(|artifact| {
+                artifact
+                    .manifest
+                    .files
+                    .iter()
+                    .any(|file| names(&file.module_path) == vec!["ops"])
+            })
+            .expect("ops unit should exist");
+        assert!(
+            ops_artifact
+                .syntax
+                .direct_exports
+                .iter()
+                .any(|export| export.name == Name("%%".to_string()))
+        );
+
+        let prelude_artifact = artifacts
+            .iter()
+            .find(|artifact| {
+                artifact
+                    .manifest
+                    .files
+                    .iter()
+                    .any(|file| names(&file.module_path) == vec!["prelude"])
+            })
+            .expect("prelude unit should exist");
+        assert!(
+            prelude_artifact
+                .syntax
+                .public_exports
+                .iter()
+                .any(|export| export.name == Name("%%".to_string()))
+        );
+    }
+
+    #[test]
+    fn compiled_syntax_artifact_rebuilds_operator_table_for_parse() {
+        let set = collect_inline_source_files_with_options(
+            "use ops::*\n1 %% 2\n",
+            [InlineSource {
+                path: PathBuf::from("<ops>.yu"),
+                module_path: module_path(&["ops"]),
+                origin: SourceOrigin::User,
+                source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+        let artifact = set
+            .compiled_unit_syntax_artifacts()
+            .into_iter()
+            .find(|artifact| {
+                artifact
+                    .manifest
+                    .files
+                    .iter()
+                    .any(|file| names(&file.module_path) == vec!["ops"])
+            })
+            .expect("ops artifact should exist");
+        let mut table = standard_op_table();
+        for export in &artifact.syntax.public_exports {
+            insert_table_op_def(&mut table.0, export.name.clone(), export.op.to_op_def());
+        }
+        let parsed = SyntaxNode::<YulangLanguage>::new_root(
+            yulang_parser::parse_module_to_green_with_ops("my y = 1 %% 2\n", table),
+        );
+
+        assert!(parsed.descendants_with_tokens().any(|item| {
+            matches!(
+                item,
+                NodeOrToken::Token(tok) if tok.kind() == SyntaxKind::Infix && tok.text() == "%%"
+            )
+        }));
+    }
+
+    #[test]
+    fn compiled_syntax_artifact_round_trips_through_json() {
+        let set = collect_inline_source_files_with_options(
+            "use ops::*\n1 %% 2\n",
+            [InlineSource {
+                path: PathBuf::from("<ops>.yu"),
+                module_path: module_path(&["ops"]),
+                origin: SourceOrigin::User,
+                source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+        let artifact = set
+            .compiled_unit_syntax_artifacts()
+            .into_iter()
+            .find(|artifact| {
+                artifact
+                    .manifest
+                    .files
+                    .iter()
+                    .any(|file| names(&file.module_path) == vec!["ops"])
+            })
+            .expect("ops artifact should exist");
+
+        let encoded = serde_json::to_string(&artifact).unwrap();
+        let decoded: CompiledUnitSyntaxArtifact = serde_json::from_str(&encoded).unwrap();
+
+        assert_eq!(decoded, artifact);
+    }
+
+    #[test]
+    fn compiled_syntax_artifact_hash_changes_when_operator_changes() {
+        let first = collect_inline_source_files_with_options(
+            "use ops::*\n1 %% 2\n",
+            [InlineSource {
+                path: PathBuf::from("<ops>.yu"),
+                module_path: module_path(&["ops"]),
+                origin: SourceOrigin::User,
+                source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+        let second = collect_inline_source_files_with_options(
+            "use ops::*\n1 %% 2\n",
+            [InlineSource {
+                path: PathBuf::from("<ops>.yu"),
+                module_path: module_path(&["ops"]),
+                origin: SourceOrigin::User,
+                source: "pub infix (%%) 60 61 = \\x -> \\y -> x\n".to_string(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        );
+        let first_artifact = first
+            .compiled_unit_syntax_artifacts()
+            .into_iter()
+            .find(|artifact| {
+                artifact
+                    .manifest
+                    .files
+                    .iter()
+                    .any(|file| names(&file.module_path) == vec!["ops"])
+            })
+            .unwrap();
+        let second_artifact = second
+            .compiled_unit_syntax_artifacts()
+            .into_iter()
+            .find(|artifact| {
+                artifact
+                    .manifest
+                    .files
+                    .iter()
+                    .any(|file| names(&file.module_path) == vec!["ops"])
+            })
+            .unwrap();
+
+        assert_ne!(
+            first_artifact.manifest.source_hash,
+            second_artifact.manifest.source_hash
+        );
+        assert_ne!(
+            first_artifact.manifest.syntax_hash,
+            second_artifact.manifest.syntax_hash
         );
     }
 }
