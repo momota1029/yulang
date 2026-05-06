@@ -23,6 +23,7 @@ struct PrincipalUnifier {
     collect_profile: bool,
     bindings_by_path: HashMap<core_ir::Path, Binding>,
     generic_bindings: HashSet<core_ir::Path>,
+    required_vars_by_path: HashMap<core_ir::Path, BTreeSet<core_ir::TypeVar>>,
     role_impls: HashMap<core_ir::Name, Vec<Binding>>,
     specializations: HashMap<String, core_ir::Path>,
     root_specializations: HashMap<core_ir::Path, Vec<core_ir::Path>>,
@@ -69,19 +70,30 @@ struct LocalUseContextScope {
 impl PrincipalUnifier {
     fn new(module: Module, collect_profile: bool) -> Self {
         let initial_reachable_bindings = root_reachable_binding_paths(&module);
+        let required_vars_by_path = module
+            .bindings
+            .iter()
+            .map(|binding| (binding.name.clone(), binding_required_vars(binding)))
+            .collect::<HashMap<_, _>>();
         let bindings_by_path = module
             .bindings
             .iter()
             .filter(|binding| {
                 initial_reachable_bindings.contains(&binding.name)
-                    || !binding_required_vars(binding).is_empty()
+                    || required_vars_by_path
+                        .get(&binding.name)
+                        .is_some_and(|vars| !vars.is_empty())
             })
             .map(|binding| (binding.name.clone(), binding.clone()))
             .collect::<HashMap<_, _>>();
         let generic_bindings = module
             .bindings
             .iter()
-            .filter(|binding| !binding_required_vars(binding).is_empty())
+            .filter(|binding| {
+                required_vars_by_path
+                    .get(&binding.name)
+                    .is_some_and(|vars| !vars.is_empty())
+            })
             .map(|binding| binding.name.clone())
             .collect::<HashSet<_>>();
         let role_impls = principal_unify_role_impls(&module);
@@ -91,6 +103,7 @@ impl PrincipalUnifier {
             collect_profile,
             bindings_by_path,
             generic_bindings,
+            required_vars_by_path,
             role_impls,
             specializations: HashMap::new(),
             root_specializations: HashMap::new(),
@@ -168,7 +181,11 @@ impl PrincipalUnifier {
                 .bindings
                 .iter()
                 .filter(|binding| reachable.contains(&binding.name))
-                .filter(|binding| !binding_required_vars(binding).is_empty())
+                .filter(|binding| {
+                    self.required_vars_by_path
+                        .get(&binding.name)
+                        .is_some_and(|vars| !vars.is_empty())
+                })
                 .filter(|binding| !self.rewritten_template_bindings.contains(&binding.name))
                 .map(|binding| binding.name.clone())
                 .collect::<Vec<_>>();
@@ -205,7 +222,11 @@ impl PrincipalUnifier {
         if root_bindings.contains(&binding.name) {
             return true;
         }
-        if binding_required_vars(binding).is_empty() {
+        if self
+            .required_vars_by_path
+            .get(&binding.name)
+            .is_some_and(|vars| vars.is_empty())
+        {
             return true;
         }
         self.bump("principal-unify-skip-template-binding");
@@ -238,6 +259,13 @@ impl PrincipalUnifier {
             .contains(path)
             .then(|| self.bindings_by_path.get(path))
             .flatten()
+    }
+
+    fn required_vars_for_binding(&self, binding: &Binding) -> BTreeSet<core_ir::TypeVar> {
+        self.required_vars_by_path
+            .get(&binding.name)
+            .cloned()
+            .unwrap_or_else(|| binding_required_vars(binding))
     }
 
     fn bump_missing_vars(
@@ -971,7 +999,7 @@ impl PrincipalUnifier {
             self.bump("principal-unify-result-constructor-payload-completed-plan");
             plan = completed;
         }
-        let binding_required_vars = binding_required_vars(&original);
+        let binding_required_vars = self.required_vars_for_binding(&original);
         let plan_substitutions = plan_substitution_map(&plan);
         let effect_only_vars = binding_effect_only_vars(&original);
         if !plan.complete
@@ -1157,7 +1185,7 @@ impl PrincipalUnifier {
         original: &Binding,
         plan: &core_ir::PrincipalElaborationPlan,
     ) -> Option<core_ir::PrincipalElaborationPlan> {
-        let required_vars = binding_required_vars(original);
+        let required_vars = self.required_vars_for_binding(original);
         if required_vars.is_empty() {
             return None;
         }
@@ -1218,7 +1246,7 @@ impl PrincipalUnifier {
         original: &Binding,
         plan: &core_ir::PrincipalElaborationPlan,
     ) -> Option<core_ir::PrincipalElaborationPlan> {
-        let required_vars = binding_required_vars(original);
+        let required_vars = self.required_vars_for_binding(original);
         if required_vars.is_empty() {
             return None;
         }
@@ -1304,7 +1332,7 @@ impl PrincipalUnifier {
         original: &Binding,
         plan: &core_ir::PrincipalElaborationPlan,
     ) -> Option<core_ir::PrincipalElaborationPlan> {
-        let required_vars = binding_required_vars(original);
+        let required_vars = self.required_vars_for_binding(original);
         if required_vars.is_empty() {
             return None;
         }
@@ -1864,7 +1892,7 @@ impl PrincipalUnifier {
         spine: &PrincipalUnifyApplySpine<'_>,
         final_ty: &RuntimeType,
     ) -> Option<Expr> {
-        if !binding_required_vars(&original).is_empty() {
+        if !self.required_vars_for_binding(&original).is_empty() {
             return None;
         }
         let RuntimeType::Thunk { effect, value } = final_ty else {
@@ -2400,7 +2428,7 @@ impl PrincipalUnifier {
         original: &Binding,
         result_context: Option<&core_ir::TypeBounds>,
     ) -> Option<BTreeMap<core_ir::TypeVar, core_ir::Type>> {
-        let required = binding_required_vars(&original);
+        let required = self.required_vars_for_binding(original);
         if required.is_empty() {
             return None;
         }
@@ -2427,7 +2455,7 @@ impl PrincipalUnifier {
         &self,
         original: &Binding,
     ) -> Option<BTreeMap<core_ir::TypeVar, core_ir::Type>> {
-        let required = binding_required_vars(original);
+        let required = self.required_vars_for_binding(original);
         if required.is_empty() {
             return None;
         }
