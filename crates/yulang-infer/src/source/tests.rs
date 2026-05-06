@@ -1749,6 +1749,79 @@ fn compiled_namespace_validation_reports_missing_operator_symbol() {
 }
 
 #[test]
+fn compiled_namespace_import_restores_value_type_and_operator_resolution() {
+    let source_set = collect_inline_source_files_with_options(
+        "use data::*\nuse ops::*\nmy y = make (1 %% 2)\n",
+        [
+            InlineSource {
+                path: PathBuf::from("<data>.yu"),
+                module_path: CorePath::new(vec![CoreName("data".to_string())]),
+                origin: SourceOrigin::User,
+                source: "pub struct box 'a:\n  value: 'a\n\npub make x = box x\n".to_string(),
+                meta: None,
+            },
+            InlineSource {
+                path: PathBuf::from("<ops>.yu"),
+                module_path: CorePath::new(vec![CoreName("ops".to_string())]),
+                origin: SourceOrigin::User,
+                source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+                meta: None,
+            },
+        ],
+        yulang_source::SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+    let artifacts = build_compiled_namespace_artifacts(&source_set, &lowered.state);
+    let bundle = CompiledNamespaceBundle::from_artifacts(&artifacts);
+    let imported = import_compiled_namespace_surface(&bundle.surface).unwrap();
+    let data = Path {
+        segments: vec![Name("data".to_string())],
+    };
+    let ops = Path {
+        segments: vec![Name("ops".to_string())],
+    };
+    let data_module = imported.state.ctx.resolve_module_path(&data).unwrap();
+    let ops_module = imported.state.ctx.resolve_module_path(&ops).unwrap();
+
+    assert!(
+        imported
+            .state
+            .ctx
+            .resolve_path_value(&Path {
+                segments: vec![Name("data".to_string()), Name("make".to_string())],
+            })
+            .is_some()
+    );
+    assert!(
+        imported
+            .state
+            .ctx
+            .resolve_path_type(&Path {
+                segments: vec![Name("data".to_string()), Name("box".to_string())],
+            })
+            .is_some()
+    );
+    assert!(
+        imported
+            .state
+            .ctx
+            .resolve_operator_value_from(ops_module, &Name("%%".to_string()), OperatorFixity::Infix)
+            .is_some()
+    );
+    assert!(
+        imported
+            .state
+            .ctx
+            .resolve_value_from(data_module, &Name("make".to_string()))
+            .is_some()
+    );
+}
+
+#[test]
 fn lowers_var_sigils_across_multiple_top_level_bindings() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

@@ -82,6 +82,21 @@ pub struct CompiledNamespaceSymbol {
     pub unit_id: u32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct CompiledNamespaceBundle {
+    pub surface: CompiledNamespaceSurface,
+}
+
+impl CompiledNamespaceBundle {
+    pub fn from_artifacts(artifacts: &[CompiledUnitNamespaceArtifact]) -> Self {
+        Self {
+            surface: merge_compiled_namespace_surfaces(
+                artifacts.iter().map(|artifact| &artifact.namespace),
+            ),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CompiledNamespaceValidation {
     pub modules: usize,
@@ -109,6 +124,18 @@ impl CompiledNamespaceSurface {
     pub fn validate(&self) -> CompiledNamespaceValidation {
         validate_compiled_namespace_surface(self)
     }
+}
+
+pub struct CompiledNamespaceImport {
+    pub state: LowerState,
+    pub values: Vec<Option<crate::ids::DefId>>,
+    pub types: Vec<Option<crate::ids::DefId>>,
+    pub validation: CompiledNamespaceValidation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledNamespaceImportError {
+    InvalidNamespace(CompiledNamespaceValidation),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -528,6 +555,30 @@ pub fn build_compiled_namespace_artifacts(
             }
         })
         .collect()
+}
+
+pub fn import_compiled_namespace_surface(
+    surface: &CompiledNamespaceSurface,
+) -> Result<CompiledNamespaceImport, CompiledNamespaceImportError> {
+    let validation = surface.validate();
+    if !validation.is_complete() {
+        return Err(CompiledNamespaceImportError::InvalidNamespace(validation));
+    }
+
+    let mut state = LowerState::new();
+    install_builtin_primitives(&mut state);
+    import_compiled_namespace_module_skeletons(&mut state, &surface.modules);
+    let modules = import_compiled_namespace_module_map(&state, &surface.modules);
+    let values = import_compiled_namespace_values(&mut state, surface, &modules);
+    let types = import_compiled_namespace_types(&mut state, surface, &modules);
+    import_compiled_namespace_module_entries(&mut state, surface, &modules, &values, &types);
+
+    Ok(CompiledNamespaceImport {
+        state,
+        values,
+        types,
+        validation,
+    })
 }
 
 pub fn import_std_infer_snapshot_data(
@@ -1752,6 +1803,260 @@ fn validate_compiled_namespace_surface(
     }
 
     validation
+}
+
+fn merge_compiled_namespace_surfaces<'a>(
+    surfaces: impl IntoIterator<Item = &'a CompiledNamespaceSurface>,
+) -> CompiledNamespaceSurface {
+    let mut modules = Vec::new();
+    let mut values = Vec::new();
+    let mut types = Vec::new();
+    for surface in surfaces {
+        let value_offset = values.len() as u32;
+        let type_offset = types.len() as u32;
+        values.extend(surface.values.iter().cloned().map(|mut symbol| {
+            symbol.unit_id += value_offset;
+            symbol
+        }));
+        types.extend(surface.types.iter().cloned().map(|mut symbol| {
+            symbol.unit_id += type_offset;
+            symbol
+        }));
+        modules.extend(surface.modules.iter().cloned().map(|mut module| {
+            for value in &mut module.values {
+                value.symbol += value_offset;
+            }
+            for operator in &mut module.operators {
+                operator.symbol += value_offset;
+            }
+            for ty in &mut module.types {
+                ty.symbol += type_offset;
+            }
+            module
+        }));
+    }
+    modules.sort_by(|left, right| left.path.cmp(&right.path));
+    values.sort_by(|left, right| left.path.cmp(&right.path));
+    types.sort_by(|left, right| left.path.cmp(&right.path));
+    CompiledNamespaceSurface {
+        modules,
+        values,
+        types,
+    }
+}
+
+fn import_compiled_namespace_module_skeletons(
+    state: &mut LowerState,
+    modules: &[CompiledNamespaceModule],
+) {
+    let mut paths = modules
+        .iter()
+        .map(|module| Path {
+            segments: module.path.iter().cloned().map(Name).collect(),
+        })
+        .collect::<Vec<_>>();
+    paths.sort_by(|left, right| left.segments.len().cmp(&right.segments.len()));
+    paths.dedup();
+    for path in paths {
+        let saved = state.ctx.enter_module_path(&path);
+        state.ctx.leave_module_path(saved);
+    }
+}
+
+fn import_compiled_namespace_module_map(
+    state: &LowerState,
+    modules: &[CompiledNamespaceModule],
+) -> Vec<Option<ModuleId>> {
+    modules
+        .iter()
+        .map(|module| {
+            let path = yulang_core_ir::Path {
+                segments: module
+                    .path
+                    .iter()
+                    .cloned()
+                    .map(yulang_core_ir::Name)
+                    .collect(),
+            };
+            module_id_for_core_path(state, &path)
+        })
+        .collect()
+}
+
+fn import_compiled_namespace_values(
+    state: &mut LowerState,
+    surface: &CompiledNamespaceSurface,
+    _modules: &[Option<ModuleId>],
+) -> Vec<Option<crate::ids::DefId>> {
+    let mut out = vec![None; surface.values.len()];
+    for symbol in &surface.values {
+        let Some(slot) = out.get_mut(symbol.unit_id as usize) else {
+            continue;
+        };
+        if slot.is_some() {
+            continue;
+        }
+        let def = state.ctx.fresh_def();
+        let tv = state.ctx.fresh_tv();
+        let display_name = symbol
+            .path
+            .last()
+            .cloned()
+            .unwrap_or_else(|| format!("#unit-value{}", symbol.unit_id));
+        state.register_def_tv(def, tv);
+        state.register_def_name(def, Name(display_name));
+        *slot = Some(def);
+    }
+    out
+}
+
+fn import_compiled_namespace_types(
+    state: &mut LowerState,
+    surface: &CompiledNamespaceSurface,
+    _modules: &[Option<ModuleId>],
+) -> Vec<Option<crate::ids::DefId>> {
+    let mut out = vec![None; surface.types.len()];
+    for symbol in &surface.types {
+        let Some(slot) = out.get_mut(symbol.unit_id as usize) else {
+            continue;
+        };
+        if slot.is_some() {
+            continue;
+        }
+        let def = state.ctx.fresh_def();
+        let tv = state.ctx.fresh_tv();
+        let display_name = symbol
+            .path
+            .last()
+            .cloned()
+            .unwrap_or_else(|| format!("#unit-type{}", symbol.unit_id));
+        state.register_def_tv(def, tv);
+        state.register_def_name(def, Name(display_name));
+        *slot = Some(def);
+    }
+    out
+}
+
+fn import_compiled_namespace_module_entries(
+    state: &mut LowerState,
+    surface: &CompiledNamespaceSurface,
+    modules: &[Option<ModuleId>],
+    values: &[Option<crate::ids::DefId>],
+    types: &[Option<crate::ids::DefId>],
+) {
+    for module in &surface.modules {
+        let Some(module_idx) = compiled_namespace_module_index(surface, &module.path) else {
+            continue;
+        };
+        let Some(module_id) = modules.get(module_idx).and_then(|module| *module) else {
+            continue;
+        };
+        for operator in &module.operators {
+            let Some(def) = values.get(operator.symbol as usize).and_then(|def| *def) else {
+                continue;
+            };
+            state
+                .ctx
+                .mark_operator_def(def, import_snapshot_operator_fixity(operator.fixity));
+            state.ctx.modules.insert_operator_value_with_visibility(
+                module_id,
+                Name(operator.name.clone()),
+                import_snapshot_operator_fixity(operator.fixity),
+                def,
+                import_snapshot_visibility(operator.visibility),
+            );
+            state.ctx.record_canonical_value_path(
+                def,
+                compiled_namespace_symbol_path(&surface.values, operator.symbol),
+            );
+        }
+        for child in &module.modules {
+            let Some(child_idx) = compiled_namespace_module_index(surface, &child.module_path)
+            else {
+                continue;
+            };
+            let Some(child_id) = modules.get(child_idx).and_then(|module| *module) else {
+                continue;
+            };
+            state.ctx.modules.insert_module_alias_with_visibility(
+                module_id,
+                Name(child.name.clone()),
+                child_id,
+                import_snapshot_visibility(child.visibility),
+            );
+        }
+        for value in &module.values {
+            let Some(def) = values.get(value.symbol as usize).and_then(|def| *def) else {
+                continue;
+            };
+            state.insert_value_with_visibility(
+                module_id,
+                Name(value.name.clone()),
+                def,
+                import_snapshot_visibility(value.visibility),
+            );
+            state.ctx.record_canonical_value_path(
+                def,
+                compiled_namespace_symbol_path(&surface.values, value.symbol),
+            );
+        }
+        for ty in &module.types {
+            let Some(def) = types.get(ty.symbol as usize).and_then(|def| *def) else {
+                continue;
+            };
+            state.insert_type_with_visibility(
+                module_id,
+                Name(ty.name.clone()),
+                def,
+                import_snapshot_visibility(ty.visibility),
+            );
+            state.ctx.record_canonical_type_path(
+                def,
+                compiled_namespace_symbol_path(&surface.types, ty.symbol),
+            );
+        }
+    }
+}
+
+fn compiled_namespace_symbol_path(symbols: &[CompiledNamespaceSymbol], unit_id: u32) -> Path {
+    Path {
+        segments: symbols
+            .iter()
+            .find(|symbol| symbol.unit_id == unit_id)
+            .map(|symbol| symbol.path.as_slice())
+            .unwrap_or_default()
+            .iter()
+            .cloned()
+            .map(Name)
+            .collect(),
+    }
+}
+
+fn compiled_namespace_module_index(
+    surface: &CompiledNamespaceSurface,
+    path: &[String],
+) -> Option<usize> {
+    surface
+        .modules
+        .iter()
+        .position(|module| module.path == path)
+}
+
+fn import_snapshot_visibility(visibility: StdInferSnapshotVisibility) -> Visibility {
+    match visibility {
+        StdInferSnapshotVisibility::My => Visibility::My,
+        StdInferSnapshotVisibility::Our => Visibility::Our,
+        StdInferSnapshotVisibility::Pub => Visibility::Pub,
+    }
+}
+
+fn import_snapshot_operator_fixity(fixity: StdInferSnapshotOperatorFixity) -> OperatorFixity {
+    match fixity {
+        StdInferSnapshotOperatorFixity::Prefix => OperatorFixity::Prefix,
+        StdInferSnapshotOperatorFixity::Infix => OperatorFixity::Infix,
+        StdInferSnapshotOperatorFixity::Suffix => OperatorFixity::Suffix,
+        StdInferSnapshotOperatorFixity::Nullfix => OperatorFixity::Nullfix,
+    }
 }
 
 fn compiled_namespace_fixity_tag(fixity: StdInferSnapshotOperatorFixity) -> &'static str {
