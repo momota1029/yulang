@@ -196,6 +196,13 @@ fn std_snapshot_import_resolves_builtin_paths_and_reports_missing_std_paths() {
     assert_eq!(import.coverage.modules_resolved, data.modules.len());
     assert!(import.coverage.values_resolved <= import.coverage.values_total);
     assert_eq!(import.coverage.schemes_total, data.schemes.len());
+    assert_eq!(
+        import.coverage.can_replace_std_lowering(),
+        !import.coverage.has_partial_value_or_type_import()
+            && import.coverage.schemes_total == import.coverage.schemes_resolved
+            && import.coverage.role_methods_total == import.coverage.role_methods_resolved
+            && import.coverage.effect_methods_total == import.coverage.effect_methods_resolved
+    );
     let int_add_scheme = data
         .schemes
         .iter()
@@ -233,6 +240,16 @@ fn std_snapshot_import_resolves_builtin_paths_and_reports_missing_std_paths() {
     assert!(
         import_with_missing_value.coverage.values_resolved
             < import_with_missing_value.coverage.values_total
+    );
+    assert!(
+        import_with_missing_value
+            .coverage
+            .has_partial_value_or_type_import()
+    );
+    assert!(
+        !import_with_missing_value
+            .coverage
+            .can_replace_std_lowering()
     );
     assert!(
         import_with_missing_value

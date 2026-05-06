@@ -142,6 +142,21 @@ pub struct StdInferSnapshotImportCoverage {
     pub effect_methods_resolved: usize,
 }
 
+impl StdInferSnapshotImportCoverage {
+    pub fn can_replace_std_lowering(&self) -> bool {
+        self.modules_total == self.modules_resolved
+            && self.values_total == self.values_resolved
+            && self.types_total == self.types_resolved
+            && self.schemes_total == self.schemes_resolved
+            && self.role_methods_total == self.role_methods_resolved
+            && self.effect_methods_total == self.effect_methods_resolved
+    }
+
+    pub fn has_partial_value_or_type_import(&self) -> bool {
+        self.values_resolved < self.values_total || self.types_resolved < self.types_total
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StdInferSnapshotImportMissing {
     pub modules: Vec<StdInferSnapshotMissingPath>,
