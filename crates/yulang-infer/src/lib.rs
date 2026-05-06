@@ -50,12 +50,12 @@ pub use source::{
     LoweredSources, ProfiledLoweredSources, STD_INFER_SNAPSHOT_FORMAT_VERSION, SourceLowerCache,
     SourceLowerProfile, SourceStdCacheProfile, StdInferSnapshot, StdInferSnapshotData,
     StdInferSnapshotEffectOperation, StdInferSnapshotManifest, StdInferSnapshotSymbol,
-    StdSourceCacheKey, build_std_infer_snapshot, lower_entry_with_options,
-    lower_entry_with_options_profiled, lower_source_file, lower_source_file_profiled,
-    lower_source_set, lower_source_set_profiled, lower_source_set_with_std_cache,
-    lower_source_set_with_std_cache_profiled, lower_source_set_with_std_snapshot,
-    lower_virtual_source_with_options, lower_virtual_source_with_options_profiled,
-    warm_std_source_cache,
+    StdSourceCacheKey, build_std_infer_snapshot, build_std_infer_snapshot_data,
+    lower_entry_with_options, lower_entry_with_options_profiled, lower_source_file,
+    lower_source_file_profiled, lower_source_set, lower_source_set_profiled,
+    lower_source_set_with_std_cache, lower_source_set_with_std_cache_profiled,
+    lower_source_set_with_std_snapshot, lower_virtual_source_with_options,
+    lower_virtual_source_with_options_profiled, warm_std_source_cache,
 };
 pub use surface_diagnostic::{SurfaceDiagnostic, collect_surface_diagnostics};
 pub use symbols::{

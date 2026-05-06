@@ -103,12 +103,12 @@ pub struct StdInferSnapshotData {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StdInferSnapshotSymbol {
     pub path: Vec<String>,
-    pub def_id: u32,
+    pub snapshot_id: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StdInferSnapshotEffectOperation {
-    pub def_id: u32,
+    pub snapshot_id: u32,
     pub effect_path: Vec<String>,
 }
 
@@ -193,6 +193,10 @@ pub fn warm_std_source_cache(
 
 pub fn build_std_infer_snapshot(source_set: &SourceSet) -> Option<StdInferSnapshot> {
     with_profile_enabled(false, || build_std_infer_snapshot_inner(source_set, None))
+}
+
+pub fn build_std_infer_snapshot_data(source_set: &SourceSet) -> Option<StdInferSnapshotData> {
+    build_std_infer_snapshot(source_set).map(|snapshot| snapshot.data().clone())
 }
 
 pub fn lower_source_set_with_std_snapshot(
@@ -483,7 +487,7 @@ impl StdSourceCacheKey {
         }
     }
 
-    fn covers(&self, requested: &StdSourceCacheKey) -> bool {
+    pub fn covers(&self, requested: &StdSourceCacheKey) -> bool {
         requested.files.iter().all(|file| self.files.contains(file))
     }
 }
@@ -515,16 +519,13 @@ fn collect_std_snapshot_values(state: &LowerState) -> Vec<StdInferSnapshotSymbol
         .ctx
         .collect_all_binding_paths()
         .into_iter()
-        .map(|(path, def)| StdInferSnapshotSymbol {
+        .map(|(path, _)| StdInferSnapshotSymbol {
             path: snapshot_path_segments(&path),
-            def_id: def.0,
+            snapshot_id: 0,
         })
         .collect::<Vec<_>>();
-    values.sort_by(|lhs, rhs| {
-        lhs.path
-            .cmp(&rhs.path)
-            .then_with(|| lhs.def_id.cmp(&rhs.def_id))
-    });
+    values.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
+    assign_symbol_snapshot_ids(&mut values);
     values
 }
 
@@ -533,16 +534,13 @@ fn collect_std_snapshot_types(state: &LowerState) -> Vec<StdInferSnapshotSymbol>
         .ctx
         .collect_all_type_paths()
         .into_iter()
-        .map(|(path, def)| StdInferSnapshotSymbol {
+        .map(|(path, _)| StdInferSnapshotSymbol {
             path: snapshot_path_segments(&path),
-            def_id: def.0,
+            snapshot_id: 0,
         })
         .collect::<Vec<_>>();
-    types.sort_by(|lhs, rhs| {
-        lhs.path
-            .cmp(&rhs.path)
-            .then_with(|| lhs.def_id.cmp(&rhs.def_id))
-    });
+    types.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
+    assign_symbol_snapshot_ids(&mut types);
     types
 }
 
@@ -552,17 +550,22 @@ fn collect_std_snapshot_effect_operations(
     let mut operations = state
         .effect_op_effect_paths
         .iter()
-        .map(|(def, path)| StdInferSnapshotEffectOperation {
-            def_id: def.0,
+        .map(|(_, path)| StdInferSnapshotEffectOperation {
+            snapshot_id: 0,
             effect_path: snapshot_path_segments(path),
         })
         .collect::<Vec<_>>();
-    operations.sort_by(|lhs, rhs| {
-        lhs.effect_path
-            .cmp(&rhs.effect_path)
-            .then_with(|| lhs.def_id.cmp(&rhs.def_id))
-    });
+    operations.sort_by(|lhs, rhs| lhs.effect_path.cmp(&rhs.effect_path));
+    for (index, operation) in operations.iter_mut().enumerate() {
+        operation.snapshot_id = index as u32;
+    }
     operations
+}
+
+fn assign_symbol_snapshot_ids(symbols: &mut [StdInferSnapshotSymbol]) {
+    for (index, symbol) in symbols.iter_mut().enumerate() {
+        symbol.snapshot_id = index as u32;
+    }
 }
 
 fn snapshot_path_segments(path: &Path) -> Vec<String> {

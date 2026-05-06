@@ -3,8 +3,8 @@ use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 
 use yulang_infer::{
-    SourceLowerCache, collect_surface_diagnostics, export_core_program,
-    lower_source_set_with_std_cache_profiled, warm_std_source_cache,
+    SourceLowerCache, build_std_infer_snapshot_data, collect_surface_diagnostics,
+    export_core_program, lower_source_set_with_std_cache_profiled, warm_std_source_cache,
 };
 use yulang_runtime as runtime;
 
@@ -27,6 +27,13 @@ pub fn colorize(source: &str) -> JsValue {
 pub fn warm_std_cache() -> JsValue {
     console_error_panic_hook::set_once();
     to_js_value(&warm_std_cache_inner())
+}
+
+#[wasm_bindgen]
+pub fn std_snapshot_data() -> JsValue {
+    console_error_panic_hook::set_once();
+    let source_set = std_sources::warm_source_set();
+    to_js_value(&build_std_infer_snapshot_data(&source_set))
 }
 
 fn warm_std_cache_inner() -> WarmupOutput {
@@ -417,6 +424,26 @@ f()
                     !message.contains("could not determine the type"),
                     "{message}"
                 );
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn builds_std_snapshot_data_for_wasm_export() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let source_set = std_sources::warm_source_set();
+                let data = build_std_infer_snapshot_data(&source_set).expect("std snapshot data");
+                assert!(data.manifest.key.covers(
+                    &yulang_infer::StdSourceCacheKey::from_source_set(&source_set)
+                ));
+                assert!(data.values.iter().any(|symbol| {
+                    symbol.path == ["std", "prelude", "Add", "add"]
+                        || symbol.path == ["std", "int", "add"]
+                }));
             })
             .unwrap()
             .join()
