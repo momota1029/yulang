@@ -4,7 +4,8 @@ use wasm_bindgen::prelude::*;
 
 use yulang_infer::{
     SourceLowerCache, build_std_infer_snapshot_data, collect_surface_diagnostics,
-    export_core_program, lower_source_set_with_std_cache_profiled, warm_std_source_cache,
+    export_core_program, import_std_infer_snapshot_data, lower_source_set_with_std_cache_profiled,
+    warm_std_source_cache,
 };
 use yulang_runtime as runtime;
 
@@ -34,6 +35,16 @@ pub fn std_snapshot_data() -> JsValue {
     console_error_panic_hook::set_once();
     let source_set = std_sources::warm_source_set();
     to_js_value(&build_std_infer_snapshot_data(&source_set))
+}
+
+#[wasm_bindgen]
+pub fn std_snapshot_import_coverage() -> JsValue {
+    console_error_panic_hook::set_once();
+    let source_set = std_sources::warm_source_set();
+    let coverage = build_std_infer_snapshot_data(&source_set)
+        .and_then(|data| import_std_infer_snapshot_data(&data).ok())
+        .map(|import| import.coverage);
+    to_js_value(&coverage)
 }
 
 fn warm_std_cache_inner() -> WarmupOutput {
@@ -297,6 +308,26 @@ g
                 let timings = output.timings.expect("run timings");
                 assert_eq!(timings.source_cache_hits, 1);
                 assert_eq!(timings.source_cache_misses, 0);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn builds_std_snapshot_import_coverage_for_wasm_export() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let source_set = std_sources::warm_source_set();
+                let data = build_std_infer_snapshot_data(&source_set).expect("std snapshot data");
+                let import = import_std_infer_snapshot_data(&data).expect("std snapshot import");
+                assert!(import.coverage.modules_total > 0);
+                assert_eq!(
+                    import.coverage.modules_total,
+                    import.coverage.modules_resolved
+                );
+                assert!(import.coverage.values_total > 0);
             })
             .unwrap()
             .join()

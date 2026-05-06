@@ -126,7 +126,7 @@ pub struct StdInferSnapshotImportRefs {
     pub effect_method_modules: Vec<Option<ModuleId>>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StdInferSnapshotImportCoverage {
     pub modules_total: usize,
     pub modules_resolved: usize,
