@@ -83,6 +83,35 @@ pub struct CompiledNamespaceSymbol {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CompiledNamespaceValidation {
+    pub modules: usize,
+    pub values: usize,
+    pub types: usize,
+    pub operators: usize,
+    pub missing_value_symbols: Vec<CompiledNamespaceMissingSymbol>,
+    pub missing_type_symbols: Vec<CompiledNamespaceMissingSymbol>,
+}
+
+impl CompiledNamespaceValidation {
+    pub fn is_complete(&self) -> bool {
+        self.missing_value_symbols.is_empty() && self.missing_type_symbols.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompiledNamespaceMissingSymbol {
+    pub module_path: Vec<String>,
+    pub name: String,
+    pub symbol: u32,
+}
+
+impl CompiledNamespaceSurface {
+    pub fn validate(&self) -> CompiledNamespaceValidation {
+        validate_compiled_namespace_surface(self)
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SourceLowerProfile {
     pub collect: Duration,
     pub parse: Duration,
@@ -1654,6 +1683,83 @@ fn compiled_namespace_surface_for_modules(
         modules,
         values,
         types,
+    }
+}
+
+fn validate_compiled_namespace_surface(
+    surface: &CompiledNamespaceSurface,
+) -> CompiledNamespaceValidation {
+    let value_ids = surface
+        .values
+        .iter()
+        .map(|symbol| symbol.unit_id)
+        .collect::<std::collections::HashSet<_>>();
+    let type_ids = surface
+        .types
+        .iter()
+        .map(|symbol| symbol.unit_id)
+        .collect::<std::collections::HashSet<_>>();
+    let mut validation = CompiledNamespaceValidation {
+        modules: surface.modules.len(),
+        values: surface.values.len(),
+        types: surface.types.len(),
+        operators: surface
+            .modules
+            .iter()
+            .map(|module| module.operators.len())
+            .sum(),
+        ..CompiledNamespaceValidation::default()
+    };
+
+    for module in &surface.modules {
+        for value in &module.values {
+            if !value_ids.contains(&value.symbol) {
+                validation
+                    .missing_value_symbols
+                    .push(CompiledNamespaceMissingSymbol {
+                        module_path: module.path.clone(),
+                        name: value.name.clone(),
+                        symbol: value.symbol,
+                    });
+            }
+        }
+        for operator in &module.operators {
+            if !value_ids.contains(&operator.symbol) {
+                validation
+                    .missing_value_symbols
+                    .push(CompiledNamespaceMissingSymbol {
+                        module_path: module.path.clone(),
+                        name: format!(
+                            "#op:{}:{}",
+                            compiled_namespace_fixity_tag(operator.fixity),
+                            operator.name
+                        ),
+                        symbol: operator.symbol,
+                    });
+            }
+        }
+        for ty in &module.types {
+            if !type_ids.contains(&ty.symbol) {
+                validation
+                    .missing_type_symbols
+                    .push(CompiledNamespaceMissingSymbol {
+                        module_path: module.path.clone(),
+                        name: ty.name.clone(),
+                        symbol: ty.symbol,
+                    });
+            }
+        }
+    }
+
+    validation
+}
+
+fn compiled_namespace_fixity_tag(fixity: StdInferSnapshotOperatorFixity) -> &'static str {
+    match fixity {
+        StdInferSnapshotOperatorFixity::Prefix => "prefix",
+        StdInferSnapshotOperatorFixity::Infix => "infix",
+        StdInferSnapshotOperatorFixity::Suffix => "suffix",
+        StdInferSnapshotOperatorFixity::Nullfix => "nullfix",
     }
 }
 

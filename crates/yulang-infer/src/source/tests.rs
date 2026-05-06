@@ -1649,8 +1649,11 @@ fn compiled_namespace_artifact_preserves_operator_value_identity() {
         .iter()
         .find(|operator| operator.name == "%%")
         .expect("operator value should be exported");
+    let validation = ops_artifact.namespace.validate();
 
     assert_eq!(op.fixity, StdInferSnapshotOperatorFixity::Infix);
+    assert!(validation.is_complete());
+    assert_eq!(validation.operators, 1);
     assert!(
         ops_artifact
             .namespace
@@ -1717,6 +1720,32 @@ fn compiled_namespace_artifact_preserves_value_and_type_symbols() {
     let encoded = serde_json::to_string(data_artifact).unwrap();
     let decoded: CompiledUnitNamespaceArtifact = serde_json::from_str(&encoded).unwrap();
     assert_eq!(&decoded, data_artifact);
+    assert!(decoded.namespace.validate().is_complete());
+}
+
+#[test]
+fn compiled_namespace_validation_reports_missing_operator_symbol() {
+    let surface = CompiledNamespaceSurface {
+        modules: vec![CompiledNamespaceModule {
+            path: vec!["ops".to_string()],
+            values: Vec::new(),
+            operators: vec![CompiledNamespaceModuleOperator {
+                name: "%%".to_string(),
+                fixity: StdInferSnapshotOperatorFixity::Infix,
+                symbol: 0,
+                visibility: StdInferSnapshotVisibility::Pub,
+            }],
+            types: Vec::new(),
+            modules: Vec::new(),
+        }],
+        values: Vec::new(),
+        types: Vec::new(),
+    };
+    let validation = surface.validate();
+
+    assert!(!validation.is_complete());
+    assert_eq!(validation.missing_value_symbols.len(), 1);
+    assert_eq!(validation.missing_value_symbols[0].name, "#op:infix:%%");
 }
 
 #[test]
