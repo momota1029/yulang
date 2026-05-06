@@ -1,8 +1,9 @@
 use crate::graph::CoreGraphView;
 use crate::names::{Name, Path};
 use crate::types::{RecordField, RoleRequirement, Scheme, Type, TypeVar};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct PrincipalModule {
     pub path: Path,
     pub bindings: Vec<PrincipalBinding>,
@@ -10,14 +11,14 @@ pub struct PrincipalModule {
     pub roots: Vec<PrincipalRoot>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CoreProgram {
     pub program: PrincipalModule,
     pub graph: CoreGraphView,
     pub evidence: PrincipalEvidence,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct PrincipalEvidence {
     pub expected_edges: Vec<ExpectedEdgeEvidence>,
     pub expected_adapter_edges: Vec<ExpectedAdapterEdgeEvidence>,
@@ -45,7 +46,7 @@ impl PrincipalEvidence {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExpectedEdgeEvidence {
     pub id: u32,
     pub kind: ExpectedEdgeKind,
@@ -59,7 +60,7 @@ pub struct ExpectedEdgeEvidence {
     pub runtime_usable: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExpectedEdgeKind {
     IfCondition,
     IfBranch,
@@ -76,7 +77,7 @@ pub enum ExpectedEdgeKind {
     RepresentationCoerce,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExpectedAdapterEdgeEvidence {
     pub id: u32,
     pub source_expected_edge: Option<u32>,
@@ -91,13 +92,13 @@ pub struct ExpectedAdapterEdgeEvidence {
     pub runtime_usable: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceRange {
     pub start: u32,
     pub end: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExpectedAdapterEdgeKind {
     EffectOperationArgument,
     ValueToThunk,
@@ -108,7 +109,7 @@ pub enum ExpectedAdapterEdgeKind {
     ResumeArgument,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DerivedExpectedEdgeEvidence {
     pub parent: u32,
     pub kind: DerivedExpectedEdgeKind,
@@ -118,14 +119,14 @@ pub struct DerivedExpectedEdgeEvidence {
     pub expected: crate::types::TypeBounds,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EdgePolarity {
     Covariant,
     Contravariant,
     Invariant,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DerivedExpectedEdgeKind {
     RecordField,
     TupleItem,
@@ -134,7 +135,7 @@ pub enum DerivedExpectedEdgeKind {
     FunctionReturn,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EdgePathSegment {
     Field(Name),
     TupleIndex(usize),
@@ -144,26 +145,26 @@ pub enum EdgePathSegment {
     FunctionReturn,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ParamEffectAnnotation {
     Wildcard,
     Region(Name),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FunctionSigAllowedEffects {
     Wildcard,
     Effects(Vec<Path>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrincipalBinding {
     pub name: Path,
     pub scheme: Scheme,
     pub body: Expr,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrimitiveOp {
     BoolNot,
     BoolEq,
@@ -209,7 +210,7 @@ pub enum PrimitiveOp {
     BoolToString,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApplyEvidence {
     pub callee_source_edge: Option<u32>,
     pub arg_source_edge: Option<u32>,
@@ -225,7 +226,7 @@ pub struct ApplyEvidence {
     pub principal_elaboration: Option<PrincipalElaborationPlan>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrincipalElaborationPlan {
     pub target: Option<Path>,
     pub principal_callee: Type,
@@ -237,7 +238,7 @@ pub struct PrincipalElaborationPlan {
     pub incomplete_reasons: Vec<PrincipalElaborationIncompleteReason>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrincipalElaborationArg {
     pub index: usize,
     pub intrinsic: crate::types::TypeBounds,
@@ -246,14 +247,14 @@ pub struct PrincipalElaborationArg {
     pub source_edge: Option<u32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrincipalElaborationResult {
     pub intrinsic: crate::types::TypeBounds,
     pub contextual: Option<crate::types::TypeBounds>,
     pub expected_runtime: Option<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrincipalAdapterHole {
     pub kind: PrincipalAdapterKind,
     pub source_edge: Option<u32>,
@@ -261,7 +262,7 @@ pub struct PrincipalAdapterHole {
     pub expected: Type,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrincipalAdapterKind {
     Coerce,
     ValueToThunk,
@@ -272,7 +273,7 @@ pub enum PrincipalAdapterKind {
     ResumeArgument,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrincipalElaborationIncompleteReason {
     MissingPrincipalCallee,
     MissingTarget,
@@ -286,7 +287,7 @@ pub enum PrincipalElaborationIncompleteReason {
     AmbiguousRoleImpl,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrincipalSubstitutionCandidate {
     pub var: TypeVar,
     pub relation: PrincipalCandidateRelation,
@@ -295,14 +296,14 @@ pub struct PrincipalSubstitutionCandidate {
     pub path: Vec<PrincipalSlotPathSegment>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrincipalCandidateRelation {
     Lower,
     Upper,
     Exact,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrincipalSlotPathSegment {
     Callee,
     Arg,
@@ -315,31 +316,31 @@ pub enum PrincipalSlotPathSegment {
     FunctionReturn,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JoinEvidence {
     pub result: crate::types::TypeBounds,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoerceEvidence {
     pub source_edge: Option<u32>,
     pub actual: crate::types::TypeBounds,
     pub expected: crate::types::TypeBounds,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrincipalRoot {
     Binding(Path),
     Expr(usize),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Module {
     pub path: Path,
     pub items: Vec<Item>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Binding {
     pub visibility: BindingVisibility,
     pub name: Name,
@@ -347,7 +348,7 @@ pub struct Binding {
     pub body: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoleDecl {
     pub name: Path,
     pub params: Vec<TypeVar>,
@@ -355,7 +356,7 @@ pub struct RoleDecl {
     pub members: Vec<RoleMember>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImplDecl {
     pub role: Path,
     pub inputs: Vec<Type>,
@@ -364,14 +365,14 @@ pub struct ImplDecl {
     pub members: Vec<ImplMember>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Item {
     Binding(Binding),
     Role(RoleDecl),
     Impl(ImplDecl),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Expr {
     Var(Path),
     PrimitiveOp(PrimitiveOp),
@@ -430,7 +431,7 @@ pub enum Expr {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Pattern {
     Wildcard,
     Bind(Name),
@@ -459,59 +460,59 @@ pub enum Pattern {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RoleMember {
     pub name: Name,
     pub scheme: Scheme,
     pub has_receiver: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImplMember {
     pub name: Name,
     pub body: Binding,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordExprField {
     pub name: Name,
     pub value: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecordSpreadExpr {
     Head(Box<Expr>),
     Tail(Box<Expr>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordPatternField {
     pub name: Name,
     pub pattern: Pattern,
     pub default: Option<Expr>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecordSpreadPattern {
     Head(Box<Pattern>),
     Tail(Box<Pattern>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MatchArm {
     pub pattern: Pattern,
     pub guard: Option<Expr>,
     pub body: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Stmt {
     Let { pattern: Pattern, value: Expr },
     Expr(Expr),
     Module { def: Path, body: Box<Expr> },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HandleArm {
     pub effect: Path,
     pub payload: Pattern,
@@ -520,17 +521,54 @@ pub struct HandleArm {
     pub body: Expr,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BindingVisibility {
     Public,
     Private,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Lit {
     Int(String),
     Float(String),
     String(String),
     Bool(bool),
     Unit,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn core_program_round_trips_through_json() {
+        let program = CoreProgram {
+            program: PrincipalModule {
+                path: Path::new(vec![Name("std".to_string())]),
+                bindings: vec![PrincipalBinding {
+                    name: Path::new(vec![Name("std".to_string()), Name("one".to_string())]),
+                    scheme: Scheme {
+                        requirements: Vec::new(),
+                        body: Type::Named {
+                            path: Path::new(vec![Name("int".to_string())]),
+                            args: Vec::new(),
+                        },
+                    },
+                    body: Expr::Lit(Lit::Int("1".to_string())),
+                }],
+                root_exprs: Vec::new(),
+                roots: vec![PrincipalRoot::Binding(Path::new(vec![
+                    Name("std".to_string()),
+                    Name("one".to_string()),
+                ]))],
+            },
+            graph: CoreGraphView::default(),
+            evidence: PrincipalEvidence::default(),
+        };
+
+        let json = serde_json::to_string(&program).expect("serialize core program");
+        let round_tripped: CoreProgram =
+            serde_json::from_str(&json).expect("deserialize core program");
+        assert_eq!(round_tripped, program);
+    }
 }
