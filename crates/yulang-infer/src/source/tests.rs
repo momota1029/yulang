@@ -162,6 +162,59 @@ fn std_lower_cache_preserves_entry_results() {
 }
 
 #[test]
+fn std_snapshot_import_resolves_builtin_paths_and_reports_missing_std_paths() {
+    let source_set = collect_inline_source_files_with_options(
+        "use std::prelude::*\none",
+        [InlineSource {
+            path: PathBuf::from("<std>/prelude.yu"),
+            module_path: CorePath {
+                segments: vec![CoreName("std".to_string()), CoreName("prelude".to_string())],
+            },
+            origin: SourceOrigin::Std,
+            source: "pub my one = 1\n".to_string(),
+            meta: None,
+        }],
+        SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let data = build_std_infer_snapshot_data(&source_set).expect("std snapshot data");
+    let import = import_std_infer_snapshot_data(&data).expect("snapshot import");
+
+    let int_add = data
+        .values
+        .iter()
+        .find(|symbol| symbol.path == ["std", "int", "add"])
+        .expect("std::int::add snapshot symbol");
+    assert!(
+        import.values[int_add.snapshot_id as usize].is_some(),
+        "builtin std::int::add should resolve during partial import"
+    );
+
+    let prelude = data
+        .modules
+        .iter()
+        .find(|module| module.path == ["std", "prelude"])
+        .expect("std::prelude snapshot module");
+    assert!(
+        import.modules[prelude.snapshot_id as usize].is_none(),
+        "source-defined std::prelude module should remain missing until full module import exists"
+    );
+    assert!(
+        import
+            .missing
+            .modules
+            .iter()
+            .any(|missing| missing.snapshot_id == prelude.snapshot_id
+                && missing.path == ["std", "prelude"]),
+        "missing std module paths should be reported structurally: {:?}",
+        import.missing.modules
+    );
+}
+
+#[test]
 fn std_snapshot_data_validation_rejects_bad_symbol_refs() {
     let source_set = collect_inline_source_files_with_options(
         "use std::prelude::*\none",

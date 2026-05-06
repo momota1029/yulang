@@ -107,6 +107,32 @@ pub struct StdInferSnapshotData {
     pub effect_operations: Vec<StdInferSnapshotEffectOperation>,
 }
 
+pub struct StdInferSnapshotImport {
+    pub state: LowerState,
+    pub modules: Vec<Option<ModuleId>>,
+    pub values: Vec<Option<crate::ids::DefId>>,
+    pub types: Vec<Option<crate::ids::DefId>>,
+    pub missing: StdInferSnapshotImportMissing,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StdInferSnapshotImportMissing {
+    pub modules: Vec<StdInferSnapshotMissingPath>,
+    pub values: Vec<StdInferSnapshotMissingPath>,
+    pub types: Vec<StdInferSnapshotMissingPath>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StdInferSnapshotMissingPath {
+    pub snapshot_id: u32,
+    pub path: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StdInferSnapshotImportError {
+    InvalidData(StdInferSnapshotDataError),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StdInferSnapshotModule {
     pub path: Vec<String>,
@@ -330,6 +356,39 @@ pub fn build_std_infer_snapshot(source_set: &SourceSet) -> Option<StdInferSnapsh
 
 pub fn build_std_infer_snapshot_data(source_set: &SourceSet) -> Option<StdInferSnapshotData> {
     with_profile_enabled(false, || build_std_infer_snapshot_data_inner(source_set))
+}
+
+pub fn import_std_infer_snapshot_data(
+    data: &StdInferSnapshotData,
+) -> Result<StdInferSnapshotImport, StdInferSnapshotImportError> {
+    data.validate()
+        .map_err(StdInferSnapshotImportError::InvalidData)?;
+
+    let mut state = LowerState::new();
+    install_builtin_primitives(&mut state);
+
+    let modules = import_std_snapshot_modules(&state, &data.modules);
+    let values = import_std_snapshot_values(&state, &data.values);
+    let types = import_std_snapshot_types(&state, &data.types);
+    let missing = StdInferSnapshotImportMissing {
+        modules: missing_snapshot_paths(&data.modules, &modules, |module| {
+            (module.snapshot_id, &module.path)
+        }),
+        values: missing_snapshot_paths(&data.values, &values, |symbol| {
+            (symbol.snapshot_id, &symbol.path)
+        }),
+        types: missing_snapshot_paths(&data.types, &types, |symbol| {
+            (symbol.snapshot_id, &symbol.path)
+        }),
+    };
+
+    Ok(StdInferSnapshotImport {
+        state,
+        modules,
+        values,
+        types,
+        missing,
+    })
 }
 
 pub fn lower_source_set_with_std_snapshot(
@@ -949,6 +1008,68 @@ fn validate_snapshot_effect_operations(
     Ok(())
 }
 
+fn import_std_snapshot_modules(
+    state: &LowerState,
+    modules: &[StdInferSnapshotModule],
+) -> Vec<Option<ModuleId>> {
+    modules
+        .iter()
+        .map(|module| {
+            state
+                .ctx
+                .resolve_module_path(&path_from_snapshot_segments(&module.path))
+        })
+        .collect()
+}
+
+fn import_std_snapshot_values(
+    state: &LowerState,
+    values: &[StdInferSnapshotSymbol],
+) -> Vec<Option<crate::ids::DefId>> {
+    values
+        .iter()
+        .map(|symbol| {
+            state
+                .ctx
+                .resolve_path_value(&path_from_snapshot_segments(&symbol.path))
+        })
+        .collect()
+}
+
+fn import_std_snapshot_types(
+    state: &LowerState,
+    types: &[StdInferSnapshotSymbol],
+) -> Vec<Option<crate::ids::DefId>> {
+    types
+        .iter()
+        .map(|symbol| {
+            state
+                .ctx
+                .resolve_path_type(&path_from_snapshot_segments(&symbol.path))
+        })
+        .collect()
+}
+
+fn missing_snapshot_paths<T>(
+    items: &[T],
+    resolved: &[Option<impl Copy>],
+    item_path: impl Fn(&T) -> (u32, &Vec<String>),
+) -> Vec<StdInferSnapshotMissingPath> {
+    items
+        .iter()
+        .zip(resolved)
+        .filter_map(|(item, resolved)| {
+            resolved.is_none().then(|| {
+                let (snapshot_id, path) = item_path(item);
+                StdInferSnapshotMissingPath {
+                    snapshot_id,
+                    path: path.clone(),
+                }
+            })
+        })
+        .collect()
+}
+
 fn collect_std_snapshot_values(
     state: &LowerState,
 ) -> (Vec<StdInferSnapshotSymbol>, HashMap<crate::ids::DefId, u32>) {
@@ -1388,6 +1509,12 @@ fn snapshot_operator_fixity(fixity: OperatorFixity) -> StdInferSnapshotOperatorF
 
 fn snapshot_path_segments(path: &Path) -> Vec<String> {
     path.segments.iter().map(|name| name.0.clone()).collect()
+}
+
+fn path_from_snapshot_segments(segments: &[String]) -> Path {
+    Path {
+        segments: segments.iter().cloned().map(Name).collect(),
+    }
 }
 
 fn source_hash(source: &str) -> u64 {
