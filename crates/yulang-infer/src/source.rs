@@ -17,7 +17,7 @@ use crate::lower::primitives::install_builtin_primitives;
 use crate::lower::stmt::{finish_lowering, lower_root_in_module};
 use crate::lower::{LowerDetailProfile, LowerState};
 use crate::profile::{ProfileClock, with_profile_enabled};
-use crate::symbols::{Name, Path};
+use crate::symbols::{ModuleId, Name, Namespace, OperatorFixity, Path, Visibility};
 
 pub struct LoweredSources {
     pub state: LowerState,
@@ -95,9 +95,80 @@ pub struct StdInferSnapshotManifest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StdInferSnapshotData {
     pub manifest: StdInferSnapshotManifest,
+    pub modules: Vec<StdInferSnapshotModule>,
     pub values: Vec<StdInferSnapshotSymbol>,
     pub types: Vec<StdInferSnapshotSymbol>,
     pub effect_operations: Vec<StdInferSnapshotEffectOperation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotModule {
+    pub path: Vec<String>,
+    pub snapshot_id: u32,
+    pub parent: Option<u32>,
+    pub values: Vec<StdInferSnapshotModuleValue>,
+    pub operators: Vec<StdInferSnapshotModuleOperator>,
+    pub types: Vec<StdInferSnapshotModuleType>,
+    pub modules: Vec<StdInferSnapshotModuleChild>,
+    pub reexports: Vec<StdInferSnapshotReexport>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotModuleValue {
+    pub name: String,
+    pub symbol: u32,
+    pub visibility: StdInferSnapshotVisibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotModuleOperator {
+    pub name: String,
+    pub fixity: StdInferSnapshotOperatorFixity,
+    pub symbol: u32,
+    pub visibility: StdInferSnapshotVisibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotModuleType {
+    pub name: String,
+    pub symbol: u32,
+    pub visibility: StdInferSnapshotVisibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotModuleChild {
+    pub name: String,
+    pub module: u32,
+    pub visibility: StdInferSnapshotVisibility,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotReexport {
+    pub name: String,
+    pub path: Vec<String>,
+    pub namespace: StdInferSnapshotNamespace,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum StdInferSnapshotNamespace {
+    Value,
+    Type,
+    Module,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum StdInferSnapshotVisibility {
+    My,
+    Our,
+    Pub,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum StdInferSnapshotOperatorFixity {
+    Prefix,
+    Infix,
+    Suffix,
+    Nullfix,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -439,10 +510,13 @@ impl StdInferSnapshotData {
             format_version: STD_INFER_SNAPSHOT_FORMAT_VERSION,
             key,
         };
+        let (values, value_ids) = collect_std_snapshot_values(state);
+        let (types, type_ids) = collect_std_snapshot_types(state);
         Self {
             manifest,
-            values: collect_std_snapshot_values(state),
-            types: collect_std_snapshot_types(state),
+            modules: collect_std_snapshot_modules(state, &value_ids, &type_ids),
+            values,
+            types,
             effect_operations: collect_std_snapshot_effect_operations(state),
         }
     }
@@ -514,34 +588,95 @@ impl StdSourceFileCacheKey {
     }
 }
 
-fn collect_std_snapshot_values(state: &LowerState) -> Vec<StdInferSnapshotSymbol> {
+fn collect_std_snapshot_modules(
+    state: &LowerState,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+    type_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<StdInferSnapshotModule> {
+    let module_paths = collect_std_snapshot_module_paths(state);
+    let module_ids = module_paths
+        .iter()
+        .enumerate()
+        .map(|(index, (module, _))| (*module, index as u32))
+        .collect::<HashMap<_, _>>();
+
+    module_paths
+        .iter()
+        .map(|(module, path)| {
+            let node = state.ctx.modules.node(*module);
+            let parent = node
+                .parent
+                .and_then(|parent| module_ids.get(&parent).copied());
+            StdInferSnapshotModule {
+                path: snapshot_path_segments(path),
+                snapshot_id: module_ids[module],
+                parent,
+                values: snapshot_module_values(state, *module, &value_ids),
+                operators: snapshot_module_operators(state, *module, &value_ids),
+                types: snapshot_module_types(state, *module, &type_ids),
+                modules: snapshot_module_children(state, *module, &module_ids),
+                reexports: snapshot_module_reexports(state, *module),
+            }
+        })
+        .collect()
+}
+
+fn collect_std_snapshot_values(
+    state: &LowerState,
+) -> (Vec<StdInferSnapshotSymbol>, HashMap<crate::ids::DefId, u32>) {
     let mut values = state
         .ctx
         .collect_all_binding_paths()
         .into_iter()
-        .map(|(path, _)| StdInferSnapshotSymbol {
-            path: snapshot_path_segments(&path),
-            snapshot_id: 0,
+        .map(|(path, def)| {
+            (
+                def,
+                StdInferSnapshotSymbol {
+                    path: snapshot_path_segments(&path),
+                    snapshot_id: 0,
+                },
+            )
         })
         .collect::<Vec<_>>();
-    values.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
-    assign_symbol_snapshot_ids(&mut values);
-    values
+    values.sort_by(|(_, lhs), (_, rhs)| lhs.path.cmp(&rhs.path));
+    let mut id_map = HashMap::new();
+    for (index, (def, symbol)) in values.iter_mut().enumerate() {
+        symbol.snapshot_id = index as u32;
+        id_map.insert(*def, index as u32);
+    }
+    (
+        values.into_iter().map(|(_, symbol)| symbol).collect(),
+        id_map,
+    )
 }
 
-fn collect_std_snapshot_types(state: &LowerState) -> Vec<StdInferSnapshotSymbol> {
+fn collect_std_snapshot_types(
+    state: &LowerState,
+) -> (Vec<StdInferSnapshotSymbol>, HashMap<crate::ids::DefId, u32>) {
     let mut types = state
         .ctx
         .collect_all_type_paths()
         .into_iter()
-        .map(|(path, _)| StdInferSnapshotSymbol {
-            path: snapshot_path_segments(&path),
-            snapshot_id: 0,
+        .map(|(path, def)| {
+            (
+                def,
+                StdInferSnapshotSymbol {
+                    path: snapshot_path_segments(&path),
+                    snapshot_id: 0,
+                },
+            )
         })
         .collect::<Vec<_>>();
-    types.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
-    assign_symbol_snapshot_ids(&mut types);
-    types
+    types.sort_by(|(_, lhs), (_, rhs)| lhs.path.cmp(&rhs.path));
+    let mut id_map = HashMap::new();
+    for (index, (def, symbol)) in types.iter_mut().enumerate() {
+        symbol.snapshot_id = index as u32;
+        id_map.insert(*def, index as u32);
+    }
+    (
+        types.into_iter().map(|(_, symbol)| symbol).collect(),
+        id_map,
+    )
 }
 
 fn collect_std_snapshot_effect_operations(
@@ -562,9 +697,198 @@ fn collect_std_snapshot_effect_operations(
     operations
 }
 
-fn assign_symbol_snapshot_ids(symbols: &mut [StdInferSnapshotSymbol]) {
-    for (index, symbol) in symbols.iter_mut().enumerate() {
-        symbol.snapshot_id = index as u32;
+fn collect_std_snapshot_module_paths(state: &LowerState) -> Vec<(ModuleId, Path)> {
+    let mut out = Vec::new();
+    for module in state.ctx.modules.module_ids() {
+        if state.ctx.modules.node(module).parent.is_none() {
+            collect_std_snapshot_module_paths_from(
+                state,
+                module,
+                Path {
+                    segments: Vec::new(),
+                },
+                &mut out,
+            );
+        }
+    }
+    out.sort_by(|(_, lhs), (_, rhs)| snapshot_path_segments(lhs).cmp(&snapshot_path_segments(rhs)));
+    out
+}
+
+fn collect_std_snapshot_module_paths_from(
+    state: &LowerState,
+    module: ModuleId,
+    path: Path,
+    out: &mut Vec<(ModuleId, Path)>,
+) {
+    out.push((module, path.clone()));
+    let mut children = state
+        .ctx
+        .modules
+        .node(module)
+        .modules
+        .iter()
+        .filter_map(|(name, child)| {
+            (state.ctx.modules.node(*child).parent == Some(module)).then_some((name, *child))
+        })
+        .collect::<Vec<_>>();
+    children.sort_by(|(lhs, _), (rhs, _)| lhs.0.cmp(&rhs.0));
+    for (name, child) in children {
+        let mut child_path = path.clone();
+        child_path.segments.push(name.clone());
+        collect_std_snapshot_module_paths_from(state, child, child_path, out);
+    }
+}
+
+fn snapshot_module_values(
+    state: &LowerState,
+    module: ModuleId,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<StdInferSnapshotModuleValue> {
+    let node = state.ctx.modules.node(module);
+    let mut values = node
+        .values
+        .iter()
+        .filter_map(|(name, def)| {
+            value_ids
+                .get(def)
+                .copied()
+                .map(|symbol| StdInferSnapshotModuleValue {
+                    name: name.0.clone(),
+                    symbol,
+                    visibility: snapshot_visibility(
+                        state.ctx.modules.value_visibility(module, name),
+                    ),
+                })
+        })
+        .collect::<Vec<_>>();
+    values.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+    values
+}
+
+fn snapshot_module_operators(
+    state: &LowerState,
+    module: ModuleId,
+    value_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<StdInferSnapshotModuleOperator> {
+    let node = state.ctx.modules.node(module);
+    let mut operators = node
+        .operator_values
+        .iter()
+        .filter_map(|((name, fixity), def)| {
+            value_ids
+                .get(def)
+                .copied()
+                .map(|symbol| StdInferSnapshotModuleOperator {
+                    name: name.0.clone(),
+                    fixity: snapshot_operator_fixity(*fixity),
+                    symbol,
+                    visibility: snapshot_visibility(
+                        state.ctx.modules.operator_visibility(module, name, *fixity),
+                    ),
+                })
+        })
+        .collect::<Vec<_>>();
+    operators.sort_by(|lhs, rhs| {
+        lhs.name
+            .cmp(&rhs.name)
+            .then_with(|| lhs.fixity.cmp(&rhs.fixity))
+    });
+    operators
+}
+
+fn snapshot_module_types(
+    state: &LowerState,
+    module: ModuleId,
+    type_ids: &HashMap<crate::ids::DefId, u32>,
+) -> Vec<StdInferSnapshotModuleType> {
+    let node = state.ctx.modules.node(module);
+    let mut types = node
+        .types
+        .iter()
+        .filter_map(|(name, def)| {
+            type_ids
+                .get(def)
+                .copied()
+                .map(|symbol| StdInferSnapshotModuleType {
+                    name: name.0.clone(),
+                    symbol,
+                    visibility: snapshot_visibility(
+                        state.ctx.modules.type_visibility(module, name),
+                    ),
+                })
+        })
+        .collect::<Vec<_>>();
+    types.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+    types
+}
+
+fn snapshot_module_children(
+    state: &LowerState,
+    module: ModuleId,
+    module_ids: &HashMap<ModuleId, u32>,
+) -> Vec<StdInferSnapshotModuleChild> {
+    let node = state.ctx.modules.node(module);
+    let mut modules = node
+        .modules
+        .iter()
+        .filter_map(|(name, child)| {
+            module_ids
+                .get(child)
+                .copied()
+                .map(|module_id| StdInferSnapshotModuleChild {
+                    name: name.0.clone(),
+                    module: module_id,
+                    visibility: snapshot_visibility(
+                        state.ctx.modules.module_visibility(module, name),
+                    ),
+                })
+        })
+        .collect::<Vec<_>>();
+    modules.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+    modules
+}
+
+fn snapshot_module_reexports(
+    state: &LowerState,
+    module: ModuleId,
+) -> Vec<StdInferSnapshotReexport> {
+    let node = state.ctx.modules.node(module);
+    let mut reexports = node
+        .reexports
+        .iter()
+        .map(|(name, reexport)| StdInferSnapshotReexport {
+            name: name.0.clone(),
+            path: snapshot_path_segments(&reexport.path),
+            namespace: snapshot_namespace(reexport.ns),
+        })
+        .collect::<Vec<_>>();
+    reexports.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+    reexports
+}
+
+fn snapshot_visibility(visibility: Visibility) -> StdInferSnapshotVisibility {
+    match visibility {
+        Visibility::My => StdInferSnapshotVisibility::My,
+        Visibility::Our => StdInferSnapshotVisibility::Our,
+        Visibility::Pub => StdInferSnapshotVisibility::Pub,
+    }
+}
+
+fn snapshot_namespace(namespace: Namespace) -> StdInferSnapshotNamespace {
+    match namespace {
+        Namespace::Value => StdInferSnapshotNamespace::Value,
+        Namespace::Type => StdInferSnapshotNamespace::Type,
+        Namespace::Module => StdInferSnapshotNamespace::Module,
+    }
+}
+
+fn snapshot_operator_fixity(fixity: OperatorFixity) -> StdInferSnapshotOperatorFixity {
+    match fixity {
+        OperatorFixity::Prefix => StdInferSnapshotOperatorFixity::Prefix,
+        OperatorFixity::Infix => StdInferSnapshotOperatorFixity::Infix,
+        OperatorFixity::Suffix => StdInferSnapshotOperatorFixity::Suffix,
+        OperatorFixity::Nullfix => StdInferSnapshotOperatorFixity::Nullfix,
     }
 }
 

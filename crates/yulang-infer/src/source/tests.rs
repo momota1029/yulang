@@ -113,6 +113,13 @@ fn std_lower_cache_preserves_entry_results() {
     assert_eq!(&data, snapshot.data());
     assert_eq!(direct_data, data);
     assert!(
+        data.modules.iter().any(|module| {
+            module.path == ["std", "int"] && module.values.iter().any(|value| value.name == "add")
+        }),
+        "snapshot modules should include std::int::add: {:?}",
+        data.modules
+    );
+    assert!(
         data.values
             .iter()
             .any(|symbol| symbol.path == ["std", "int", "add"]),
