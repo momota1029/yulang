@@ -184,6 +184,16 @@ pub enum CompiledTypedImportError {
     InvalidTyped(CompiledTypedValidation),
 }
 
+pub struct CompiledUnitImport {
+    pub syntax: CompiledSyntaxSurface,
+    pub typed: CompiledTypedImport,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompiledUnitImportError {
+    InvalidTyped(CompiledTypedImportError),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompiledUnitTypedArtifact {
     pub manifest: CompiledUnitManifest,
@@ -685,6 +695,17 @@ pub fn import_compiled_typed_artifact(
     artifact: &CompiledUnitTypedArtifact,
 ) -> Result<CompiledTypedImport, CompiledTypedImportError> {
     import_compiled_typed_surface(&artifact.namespace, &artifact.typed)
+}
+
+pub fn import_compiled_unit_artifact(
+    artifact: &CompiledUnitArtifact,
+) -> Result<CompiledUnitImport, CompiledUnitImportError> {
+    let typed = import_compiled_typed_surface(&artifact.namespace, &artifact.typed)
+        .map_err(CompiledUnitImportError::InvalidTyped)?;
+    Ok(CompiledUnitImport {
+        syntax: artifact.syntax.clone(),
+        typed,
+    })
 }
 
 pub fn import_compiled_typed_surface(

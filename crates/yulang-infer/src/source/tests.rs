@@ -2020,6 +2020,47 @@ fn compiled_unit_artifact_bundles_syntax_namespace_and_typed_surfaces() {
 }
 
 #[test]
+fn compiled_unit_import_restores_syntax_and_typed_refs() {
+    let source_set = collect_inline_source_files_with_options(
+        "use ops::*\nmy y = 1 %% 2\n",
+        [InlineSource {
+            path: PathBuf::from("<ops>.yu"),
+            module_path: CorePath::new(vec![CoreName("ops".to_string())]),
+            origin: SourceOrigin::User,
+            source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
+            meta: None,
+        }],
+        yulang_source::SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let lowered = lower_source_set(&source_set);
+    let artifacts = build_compiled_unit_artifacts(&source_set, &lowered.state);
+    let ops_artifact = artifacts
+        .iter()
+        .find(|artifact| {
+            artifact
+                .namespace
+                .modules
+                .iter()
+                .any(|module| module.path == vec!["ops"])
+        })
+        .expect("ops unit artifact should exist");
+    let imported = import_compiled_unit_artifact(ops_artifact).unwrap();
+
+    assert!(
+        imported
+            .syntax
+            .public_exports
+            .iter()
+            .any(|export| export.name.0 == "%%")
+    );
+    assert!(imported.typed.coverage.has_complete_ref_resolution());
+}
+
+#[test]
 fn lowers_var_sigils_across_multiple_top_level_bindings() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
