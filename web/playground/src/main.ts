@@ -322,9 +322,7 @@ await init();
 setupExampleButtons();
 loadExample(0);
 renderColor();
-await nextPaint();
-console.debug("Yulang std cache warmup", warm_std_cache());
-void runSource();
+void runSource().finally(scheduleStdCacheWarmup);
 
 const editorRenderEvents = [
   "beforeinput",
@@ -504,6 +502,17 @@ function updateRunButton(): void {
   runButton.disabled = isRunning;
   runButton.classList.toggle("is-loading", isRunning);
   runButton.setAttribute("aria-busy", String(isRunning));
+}
+
+function scheduleStdCacheWarmup(): void {
+  const warm = () => {
+    console.debug("Yulang std cache warmup", warm_std_cache());
+  };
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(warm, { timeout: 1000 });
+  } else {
+    window.setTimeout(warm, 0);
+  }
 }
 
 function nextPaint(): Promise<void> {
