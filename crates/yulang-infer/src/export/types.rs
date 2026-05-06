@@ -82,6 +82,25 @@ pub fn export_type_bounds_for_tvs(
         .collect()
 }
 
+pub fn extend_export_type_bounds_cache_for_tvs(
+    infer: &Infer,
+    tvs: &[TypeVar],
+    cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+) {
+    let missing = tvs
+        .iter()
+        .copied()
+        .filter(|tv| !cache.contains_key(tv))
+        .collect::<Vec<_>>();
+    if missing.is_empty() {
+        return;
+    }
+    let schemes = compact_type_vars_in_order(infer, &missing);
+    for (tv, scheme) in missing.into_iter().zip(schemes.iter()) {
+        cache.insert(tv, export_type_bounds(scheme, &scheme.cty));
+    }
+}
+
 pub fn export_coalesced_type_bounds_for_tvs(
     infer: &Infer,
     tvs: &[TypeVar],
@@ -108,6 +127,23 @@ pub fn export_relevant_type_bounds_for_tv(
     relevant_vars: &BTreeSet<core_ir::TypeVar>,
 ) -> core_ir::TypeBounds {
     let bounds = export_type_bounds_for_tv(infer, tv);
+    project_type_bounds(bounds, relevant_vars)
+}
+
+pub fn export_relevant_type_bounds_for_tv_cached(
+    infer: &Infer,
+    tv: TypeVar,
+    relevant_vars: &BTreeSet<core_ir::TypeVar>,
+    cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+) -> core_ir::TypeBounds {
+    let bounds = match cache.get(&tv) {
+        Some(bounds) => bounds.clone(),
+        None => {
+            let bounds = export_type_bounds_for_tv(infer, tv);
+            cache.insert(tv, bounds.clone());
+            bounds
+        }
+    };
     project_type_bounds(bounds, relevant_vars)
 }
 

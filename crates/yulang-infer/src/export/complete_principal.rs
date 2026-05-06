@@ -14,6 +14,9 @@
 //! monomorphization.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::time::Duration;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use std::time::Instant;
 use yulang_core_ir as core_ir;
 
 use crate::diagnostic::{
@@ -27,7 +30,8 @@ use crate::solve::Infer;
 use super::types::{
     collect_core_type_vars, export_coalesced_apply_evidence_bounds,
     export_coalesced_coerce_evidence_bounds, export_coalesced_type_bounds_for_tv,
-    export_type_bounds_for_tv, export_type_bounds_for_tvs, project_core_value_type_or_any,
+    export_relevant_type_bounds_for_tv_cached, export_type_bounds_for_tv,
+    export_type_bounds_for_tvs, project_core_value_type_or_any,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +39,46 @@ pub(super) struct CompleteApplyPrincipalEvidence {
     pub(super) principal_callee: core_ir::Type,
     pub(super) substitutions: Vec<core_ir::TypeSubstitution>,
     pub(super) substitution_candidates: Vec<core_ir::PrincipalSubstitutionCandidate>,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct CompletePrincipalCache {
+    monomorphic_types: HashMap<TypeVar, Option<core_ir::Type>>,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct CompletePrincipalStepProfile {
+    pub substitutions: Duration,
+    pub substitution_slots: Duration,
+    pub substitution_export: Duration,
+    pub substitution_roles: Duration,
+    pub substitution_emit: Duration,
+    pub candidates: Duration,
+}
+
+struct CompletePrincipalClock {
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    start: Option<Instant>,
+}
+
+impl CompletePrincipalClock {
+    fn now(enabled: bool) -> Self {
+        Self {
+            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+            start: enabled.then(Instant::now),
+        }
+    }
+
+    fn elapsed(&self) -> Duration {
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+        {
+            self.start.map(|start| start.elapsed()).unwrap_or_default()
+        }
+        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+        {
+            Duration::ZERO
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -118,6 +162,7 @@ pub(super) fn complete_coerce_principal_evidence(
     }
 }
 
+#[allow(dead_code)]
 pub(super) fn complete_apply_principal_evidence(
     infer: &Infer,
     principal_scheme: core_ir::Scheme,
@@ -128,7 +173,8 @@ pub(super) fn complete_apply_principal_evidence(
     arg_edge_evidence: Option<&ExpectedEdgeEvidence>,
 ) -> Option<CompleteApplyPrincipalEvidence> {
     let slot_bounds = apply_slot_bounds(infer, callee_tv, arg_tv, result_tv);
-    complete_apply_principal_evidence_from_slot_bounds(
+    let mut cache = CompletePrincipalCache::default();
+    complete_apply_principal_evidence_from_slot_bounds_cached(
         infer,
         principal_scheme,
         arg_tv,
@@ -136,9 +182,11 @@ pub(super) fn complete_apply_principal_evidence(
         &slot_bounds,
         callee_edge_evidence,
         arg_edge_evidence,
+        &mut cache,
     )
 }
 
+#[allow(dead_code)]
 pub(super) fn complete_apply_principal_evidence_from_slot_bounds(
     infer: &Infer,
     principal_scheme: core_ir::Scheme,
@@ -148,15 +196,99 @@ pub(super) fn complete_apply_principal_evidence_from_slot_bounds(
     callee_edge_evidence: Option<&ExpectedEdgeEvidence>,
     arg_edge_evidence: Option<&ExpectedEdgeEvidence>,
 ) -> Option<CompleteApplyPrincipalEvidence> {
-    let substitutions =
-        apply_principal_substitutions(infer, &principal_scheme, arg_tv, result_tv, &slot_bounds);
-    let substitution_candidates = apply_principal_substitution_candidates(
+    let mut cache = CompletePrincipalCache::default();
+    complete_apply_principal_evidence_from_slot_bounds_cached(
         infer,
-        &principal_scheme,
+        principal_scheme,
+        arg_tv,
+        result_tv,
+        slot_bounds,
         callee_edge_evidence,
         arg_edge_evidence,
-        &slot_bounds,
+        &mut cache,
+    )
+}
+
+pub(super) fn complete_apply_principal_evidence_from_slot_bounds_cached(
+    infer: &Infer,
+    principal_scheme: core_ir::Scheme,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+    slot_bounds: &ApplySlotBounds,
+    callee_edge_evidence: Option<&ExpectedEdgeEvidence>,
+    arg_edge_evidence: Option<&ExpectedEdgeEvidence>,
+    cache: &mut CompletePrincipalCache,
+) -> Option<CompleteApplyPrincipalEvidence> {
+    complete_apply_principal_evidence_from_slot_bounds_cached_profiled(
+        infer,
+        principal_scheme,
+        arg_tv,
+        result_tv,
+        slot_bounds,
+        callee_edge_evidence,
+        arg_edge_evidence,
+        None,
+        cache,
+        None,
+    )
+}
+
+pub(super) fn complete_apply_principal_evidence_from_slot_bounds_cached_profiled(
+    infer: &Infer,
+    principal_scheme: core_ir::Scheme,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+    slot_bounds: &ApplySlotBounds,
+    callee_edge_evidence: Option<&ExpectedEdgeEvidence>,
+    arg_edge_evidence: Option<&ExpectedEdgeEvidence>,
+    base_bounds_cache: Option<&mut HashMap<TypeVar, core_ir::TypeBounds>>,
+    cache: &mut CompletePrincipalCache,
+    mut profile: Option<&mut CompletePrincipalStepProfile>,
+) -> Option<CompleteApplyPrincipalEvidence> {
+    let principal_callee = &principal_scheme.body;
+    let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
+        return None;
+    };
+    let params = collect_principal_params(principal_callee);
+    if params.is_empty() {
+        return None;
+    }
+
+    let t = CompletePrincipalClock::now(profile.is_some());
+    let substitutions = apply_principal_substitutions_from_parts(
+        infer,
+        &principal_scheme.requirements,
+        param,
+        ret,
+        &params,
+        arg_tv,
+        result_tv,
+        slot_bounds,
+        base_bounds_cache,
+        cache,
+        profile.as_deref_mut(),
     );
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.substitutions += t.elapsed();
+    }
+    let substitution_candidates = if substitution_vars_cover_params(&substitutions, &params) {
+        Vec::new()
+    } else {
+        let t = CompletePrincipalClock::now(profile.is_some());
+        let candidates = apply_principal_substitution_candidates_from_parts(
+            principal_callee,
+            param,
+            ret,
+            &params,
+            callee_edge_evidence,
+            arg_edge_evidence,
+            &slot_bounds,
+        );
+        if let Some(profile) = profile.as_deref_mut() {
+            profile.candidates += t.elapsed();
+        }
+        candidates
+    };
     (!substitutions.is_empty() || !substitution_candidates.is_empty()).then_some(
         CompleteApplyPrincipalEvidence {
             principal_callee: principal_scheme.body,
@@ -462,63 +594,89 @@ fn source_range(range: Option<rowan::TextRange>) -> Option<core_ir::SourceRange>
     })
 }
 
-fn apply_principal_substitutions(
+fn apply_principal_substitutions_from_parts(
     infer: &Infer,
-    principal_scheme: &core_ir::Scheme,
+    requirements: &[core_ir::RoleRequirement],
+    param: &core_ir::Type,
+    ret: &core_ir::Type,
+    params: &BTreeSet<core_ir::TypeVar>,
     arg_tv: TypeVar,
     result_tv: TypeVar,
     slot_bounds: &ApplySlotBounds,
+    mut base_bounds_cache: Option<&mut HashMap<TypeVar, core_ir::TypeBounds>>,
+    cache: &mut CompletePrincipalCache,
+    mut profile: Option<&mut CompletePrincipalStepProfile>,
 ) -> Vec<core_ir::TypeSubstitution> {
-    let principal_callee = &principal_scheme.body;
-    let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
-        return Vec::new();
-    };
-    let mut params = BTreeSet::new();
-    collect_core_type_vars(principal_callee, &mut params);
-    if params.is_empty() {
-        return Vec::new();
+    let mut unifier = PrincipalSubstitutionUnifier::new(&params);
+    let t = CompletePrincipalClock::now(profile.is_some());
+    if let Some(arg_ty) = monomorphic_type_from_bounds_ref(&slot_bounds.arg) {
+        unifier.infer_value(param, arg_ty);
+    }
+    if let Some(result_ty) = monomorphic_type_from_bounds_ref(&slot_bounds.result) {
+        unifier.infer_value(ret, result_ty);
+    }
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.substitution_slots += t.elapsed();
     }
 
-    let mut unifier = PrincipalSubstitutionUnifier::new(&params);
-    if let Some(arg_ty) = monomorphic_type_from_bounds(slot_bounds.arg.clone()) {
-        unifier.infer_value(param, &arg_ty);
-    }
-    if let Some(result_ty) = monomorphic_type_from_bounds(slot_bounds.result.clone()) {
-        unifier.infer_value(ret, &result_ty);
-    }
-    if unifier.is_empty() {
-        if let Some(arg_ty) = export_monomorphic_type_for_tv(infer, arg_tv) {
+    let t = CompletePrincipalClock::now(profile.is_some());
+    if !unifier.covers_params() {
+        if let Some(arg_ty) = export_monomorphic_type_for_tv_cached(
+            infer,
+            arg_tv,
+            base_bounds_cache.as_deref_mut(),
+            cache,
+        ) {
             unifier.infer_value(param, &arg_ty);
         }
-        if let Some(result_ty) = export_monomorphic_type_for_tv(infer, result_tv) {
+        if let Some(result_ty) = export_monomorphic_type_for_tv_cached(
+            infer,
+            result_tv,
+            base_bounds_cache.as_deref_mut(),
+            cache,
+        ) {
             unifier.infer_value(ret, &result_ty);
         }
     }
-    unifier.infer_role_associated_requirements(&principal_scheme.requirements);
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.substitution_export += t.elapsed();
+    }
 
-    unifier
+    let t = CompletePrincipalClock::now(profile.is_some());
+    if !requirements.is_empty() && !unifier.covers_params() {
+        unifier.infer_role_associated_requirements(requirements);
+    }
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.substitution_roles += t.elapsed();
+    }
+
+    let t = CompletePrincipalClock::now(profile.is_some());
+    let substitutions = unifier
         .into_substitutions()
         .filter(|(_, ty)| substitution_type_usable(ty, false))
         .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
-        .collect()
+        .collect();
+    if let Some(profile) = profile.as_deref_mut() {
+        profile.substitution_emit += t.elapsed();
+    }
+    substitutions
 }
 
-fn apply_principal_substitution_candidates(
-    _infer: &Infer,
-    principal_scheme: &core_ir::Scheme,
+fn collect_principal_params(principal_callee: &core_ir::Type) -> BTreeSet<core_ir::TypeVar> {
+    let mut params = BTreeSet::new();
+    collect_core_type_vars(principal_callee, &mut params);
+    params
+}
+
+fn apply_principal_substitution_candidates_from_parts(
+    principal_callee: &core_ir::Type,
+    param: &core_ir::Type,
+    ret: &core_ir::Type,
+    params: &BTreeSet<core_ir::TypeVar>,
     callee_edge_evidence: Option<&ExpectedEdgeEvidence>,
     arg_edge_evidence: Option<&ExpectedEdgeEvidence>,
     slot_bounds: &ApplySlotBounds,
 ) -> Vec<core_ir::PrincipalSubstitutionCandidate> {
-    let principal_callee = &principal_scheme.body;
-    let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
-        return Vec::new();
-    };
-    let mut params = BTreeSet::new();
-    collect_core_type_vars(principal_callee, &mut params);
-    if params.is_empty() {
-        return Vec::new();
-    }
     let mut candidates = Vec::new();
     collect_candidates_from_bounds(
         principal_callee,
@@ -564,6 +722,7 @@ fn apply_principal_substitution_candidates(
     candidates
 }
 
+#[allow(dead_code)]
 pub(super) fn residual_apply_principal_scheme(
     infer: &Infer,
     principal_scheme: &core_ir::Scheme,
@@ -571,29 +730,92 @@ pub(super) fn residual_apply_principal_scheme(
     arg_tv: TypeVar,
     result_tv: TypeVar,
 ) -> Option<core_ir::Scheme> {
-    let substitutions = complete_apply_principal_evidence(
+    let mut cache = CompletePrincipalCache::default();
+    residual_apply_principal_scheme_cached(
         infer,
-        principal_scheme.clone(),
+        principal_scheme,
         callee_tv,
         arg_tv,
         result_tv,
-        None,
-        None,
+        &mut cache,
     )
-    .map(|principal| {
-        principal
-            .substitutions
-            .into_iter()
-            .map(|substitution| (substitution.var, substitution.ty))
-            .collect::<BTreeMap<_, _>>()
-    })
-    .unwrap_or_default();
+}
+
+pub(super) fn residual_apply_principal_scheme_cached(
+    infer: &Infer,
+    principal_scheme: &core_ir::Scheme,
+    _callee_tv: TypeVar,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+    cache: &mut CompletePrincipalCache,
+) -> Option<core_ir::Scheme> {
+    let principal_callee = &principal_scheme.body;
+    let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
+        return None;
+    };
+    let params = collect_principal_params(principal_callee);
+    let substitutions = apply_principal_substitutions_from_monomorphic_tvs(
+        infer,
+        &principal_scheme.requirements,
+        param,
+        ret,
+        &params,
+        arg_tv,
+        result_tv,
+        cache,
+    );
+    let substitutions = substitutions
+        .into_iter()
+        .map(|substitution| (substitution.var, substitution.ty))
+        .collect::<BTreeMap<_, _>>();
     let body = substitute_core_type(&principal_scheme.body, &substitutions);
     let (_, ret) = principal_fun_param_ret(&body)?;
     Some(core_ir::Scheme {
         requirements: principal_scheme.requirements.clone(),
         body: ret.clone(),
     })
+}
+
+fn apply_principal_substitutions_from_monomorphic_tvs(
+    infer: &Infer,
+    requirements: &[core_ir::RoleRequirement],
+    param: &core_ir::Type,
+    ret: &core_ir::Type,
+    params: &BTreeSet<core_ir::TypeVar>,
+    arg_tv: TypeVar,
+    result_tv: TypeVar,
+    cache: &mut CompletePrincipalCache,
+) -> Vec<core_ir::TypeSubstitution> {
+    if params.is_empty() {
+        return Vec::new();
+    }
+    let mut unifier = PrincipalSubstitutionUnifier::new(params);
+    if let Some(arg_ty) = export_monomorphic_type_for_tv_cached(infer, arg_tv, None, cache) {
+        unifier.infer_value(param, &arg_ty);
+    }
+    if let Some(result_ty) = export_monomorphic_type_for_tv_cached(infer, result_tv, None, cache) {
+        unifier.infer_value(ret, &result_ty);
+    }
+    unifier.infer_role_associated_requirements(requirements);
+    unifier
+        .into_substitutions()
+        .filter(|(_, ty)| substitution_type_usable(ty, false))
+        .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
+        .collect()
+}
+
+fn substitution_vars_cover_params(
+    substitutions: &[core_ir::TypeSubstitution],
+    params: &BTreeSet<core_ir::TypeVar>,
+) -> bool {
+    if params.is_empty() {
+        return true;
+    }
+    let substitution_vars = substitutions
+        .iter()
+        .map(|substitution| &substitution.var)
+        .collect::<BTreeSet<_>>();
+    params.iter().all(|param| substitution_vars.contains(param))
 }
 
 pub(super) struct ApplySlotBounds {
@@ -619,6 +841,10 @@ fn apply_slot_bounds(
 }
 
 fn monomorphic_type_from_bounds(bounds: core_ir::TypeBounds) -> Option<core_ir::Type> {
+    monomorphic_type_from_bounds_ref(&bounds).cloned()
+}
+
+fn monomorphic_type_from_bounds_ref(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
     bounds
         .lower
         .as_deref()
@@ -629,7 +855,6 @@ fn monomorphic_type_from_bounds(bounds: core_ir::TypeBounds) -> Option<core_ir::
                 .as_deref()
                 .and_then(primary_structural_or_concrete_type)
         })
-        .cloned()
         .filter(|ty| substitution_type_usable(ty, false))
 }
 
@@ -641,6 +866,9 @@ fn collect_candidates_from_bounds(
     path: &mut Vec<core_ir::PrincipalSlotPathSegment>,
     out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
 ) {
+    if !type_mentions_any_param(template, params) {
+        return;
+    }
     if let Some(lower) = &bounds.lower {
         collect_candidates_from_type(
             template,
@@ -786,6 +1014,74 @@ fn collect_candidates_from_type(
             collect_candidates_from_type(template, body, params, relation, source_edge, path, out);
         }
         _ => {}
+    }
+}
+
+fn type_mentions_any_param(ty: &core_ir::Type, params: &BTreeSet<core_ir::TypeVar>) -> bool {
+    match ty {
+        core_ir::Type::Var(var) => params.contains(var),
+        core_ir::Type::Named { args, .. } => args
+            .iter()
+            .any(|arg| type_arg_mentions_any_param(arg, params)),
+        core_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => {
+            type_mentions_any_param(param, params)
+                || type_mentions_any_param(param_effect, params)
+                || type_mentions_any_param(ret_effect, params)
+                || type_mentions_any_param(ret, params)
+        }
+        core_ir::Type::Tuple(items)
+        | core_ir::Type::Union(items)
+        | core_ir::Type::Inter(items)
+        | core_ir::Type::Row { items, .. } => items
+            .iter()
+            .any(|item| type_mentions_any_param(item, params)),
+        core_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| type_mentions_any_param(&field.value, params))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                        type_mentions_any_param(ty, params)
+                    }
+                })
+        }
+        core_ir::Type::Variant(variant) => {
+            variant.cases.iter().any(|case| {
+                case.payloads
+                    .iter()
+                    .any(|payload| type_mentions_any_param(payload, params))
+            }) || variant
+                .tail
+                .as_ref()
+                .is_some_and(|tail| type_mentions_any_param(tail, params))
+        }
+        core_ir::Type::Recursive { body, .. } => type_mentions_any_param(body, params),
+        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => false,
+    }
+}
+
+fn type_arg_mentions_any_param(
+    arg: &core_ir::TypeArg,
+    params: &BTreeSet<core_ir::TypeVar>,
+) -> bool {
+    match arg {
+        core_ir::TypeArg::Type(ty) => type_mentions_any_param(ty, params),
+        core_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_ref()
+                .is_some_and(|ty| type_mentions_any_param(ty, params))
+                || bounds
+                    .upper
+                    .as_ref()
+                    .is_some_and(|ty| type_mentions_any_param(ty, params))
+        }
     }
 }
 
@@ -1100,15 +1396,30 @@ fn substitute_core_type_arg(
     }
 }
 
-fn export_monomorphic_type_for_tv(infer: &Infer, tv: TypeVar) -> Option<core_ir::Type> {
-    let bounds = export_type_bounds_for_tv(infer, tv);
-    bounds
+fn export_monomorphic_type_for_tv_cached(
+    infer: &Infer,
+    tv: TypeVar,
+    base_bounds_cache: Option<&mut HashMap<TypeVar, core_ir::TypeBounds>>,
+    cache: &mut CompletePrincipalCache,
+) -> Option<core_ir::Type> {
+    if let Some(cached) = cache.monomorphic_types.get(&tv) {
+        return cached.clone();
+    }
+    let bounds = match base_bounds_cache {
+        Some(cache) => {
+            export_relevant_type_bounds_for_tv_cached(infer, tv, &BTreeSet::new(), cache)
+        }
+        None => export_type_bounds_for_tv(infer, tv),
+    };
+    let ty = bounds
         .lower
         .as_deref()
         .or(bounds.upper.as_deref())
         .cloned()
         .map(|ty| project_core_value_type_or_any(ty, &BTreeSet::new()))
-        .filter(|ty| substitution_type_usable(ty, false))
+        .filter(|ty| substitution_type_usable(ty, false));
+    cache.monomorphic_types.insert(tv, ty.clone());
+    ty
 }
 
 fn derive_expected_edge_evidence(
@@ -1478,8 +1789,10 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
         }
     }
 
-    fn is_empty(&self) -> bool {
-        self.substitutions.is_empty()
+    fn covers_params(&self) -> bool {
+        self.params
+            .iter()
+            .all(|param| self.substitutions.contains_key(param))
     }
 
     fn into_substitutions(self) -> impl Iterator<Item = (core_ir::TypeVar, core_ir::Type)> {

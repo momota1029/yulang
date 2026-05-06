@@ -1,12 +1,15 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::time::Duration;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use std::time::Instant;
 
 use yulang_core_ir as core_ir;
 
 use super::complete_principal::{
-    ExpectedEdgeEvidence, collect_expected_adapter_edge_evidence, collect_expected_edge_evidence,
-    derive_all_expected_edge_evidence,
+    CompletePrincipalCache, ExpectedEdgeEvidence, collect_expected_adapter_edge_evidence,
+    collect_expected_edge_evidence, derive_all_expected_edge_evidence,
 };
-use super::expr::export_expr;
+use super::expr::{ExprExportProfile, ExprExporter, collect_expr_export_type_vars};
 use super::names::{export_path, path_key};
 use super::paths::{collect_canonical_binding_paths, complete_referenced_binding_closure};
 use super::roles::canonical_runtime_export_def;
@@ -15,24 +18,91 @@ use super::types::{
     collect_core_type_vars, export_coalesced_type_bounds_for_tv, export_frozen_scheme,
     export_frozen_scheme_body_type_vars, export_relevant_type_bounds_for_tv, export_scheme,
     export_scheme_body, export_scheme_body_type_vars, export_type_bounds_for_tv,
+    extend_export_type_bounds_cache_for_tvs,
 };
 use crate::ast::expr::{CatchArmKind, ExprKind, TypedBlock, TypedExpr, TypedStmt};
 use crate::diagnostic::ExpectedEdgeId;
-use crate::ids::DefId;
+use crate::ids::{DefId, TypeVar};
 use crate::lower::LowerState;
-use crate::profile::ProfileClock;
 use crate::simplify::compact::compact_type_var;
 use crate::simplify::cooccur::coalesce_by_co_occurrence;
 use crate::symbols::Path;
 
+struct ExportClock {
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    instant: Option<Instant>,
+}
+
+impl ExportClock {
+    fn now(enabled: bool) -> Self {
+        Self {
+            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+            instant: enabled.then(Instant::now),
+        }
+    }
+
+    fn elapsed(&self) -> Duration {
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+        {
+            return self
+                .instant
+                .map(|instant| instant.elapsed())
+                .unwrap_or_default();
+        }
+
+        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+        {
+            Duration::ZERO
+        }
+    }
+}
+
 pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
-    let t0 = ProfileClock::now();
     let export_timing = std::env::var_os("YULANG_EXPORT_TIMING").is_some();
+    let t0 = ExportClock::now(export_timing);
+    let t_setup_refresh_before = ExportClock::now(export_timing);
     state.refresh_selection_environment();
+    if export_timing {
+        eprintln!(
+            "  export: setup.refresh_before={:.3}ms",
+            t_setup_refresh_before.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+    let t_binding_paths = ExportClock::now(export_timing);
     let binding_paths = state.ctx.collect_all_binding_paths();
+    if export_timing {
+        eprintln!(
+            "  export: setup.binding_paths={:.3}ms count={}",
+            t_binding_paths.elapsed().as_secs_f64() * 1000.0,
+            binding_paths.len()
+        );
+    }
+    let t_target_defs = ExportClock::now(export_timing);
     let target_defs = collect_export_target_defs(state, &binding_paths);
+    if export_timing {
+        eprintln!(
+            "  export: setup.target_defs={:.3}ms count={}",
+            t_target_defs.elapsed().as_secs_f64() * 1000.0,
+            target_defs.len()
+        );
+    }
+    let t_finalize = ExportClock::now(export_timing);
     state.finalize_compact_results_for_defs(&target_defs);
+    if export_timing {
+        eprintln!(
+            "  export: setup.finalize={:.3}ms",
+            t_finalize.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+    let t_setup_refresh_after = ExportClock::now(export_timing);
     state.refresh_selection_environment();
+    if export_timing {
+        eprintln!(
+            "  export: setup.refresh_after={:.3}ms",
+            t_setup_refresh_after.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+    let t_selected_paths = ExportClock::now(export_timing);
     let selected_paths = binding_paths
         .iter()
         .filter(|(_, def)| target_defs.contains(def))
@@ -40,11 +110,18 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
         .collect::<Vec<_>>();
     if export_timing {
         eprintln!(
+            "  export: setup.selected_paths={:.3}ms count={}",
+            t_selected_paths.elapsed().as_secs_f64() * 1000.0,
+            selected_paths.len()
+        );
+    }
+    if export_timing {
+        eprintln!(
             "  export: setup={:.3}ms",
             t0.elapsed().as_secs_f64() * 1000.0
         );
     }
-    let t1 = ProfileClock::now();
+    let t1 = ExportClock::now(export_timing);
     let expected_edge_evidence = collect_expected_edge_evidence(state);
     if export_timing {
         eprintln!(
@@ -58,7 +135,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
         .cloned()
         .map(|e| (e.id, e))
         .collect();
-    let t2 = ProfileClock::now();
+    let t2 = ExportClock::now(export_timing);
     let root_exprs = export_root_exprs(state, &edge_evidence_cache);
     if export_timing {
         eprintln!(
@@ -66,7 +143,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
             t2.elapsed().as_secs_f64() * 1000.0
         );
     }
-    let t3 = ProfileClock::now();
+    let t3 = ExportClock::now(export_timing);
     let mut bindings =
         export_bindings_for_paths(state, &selected_paths, &root_exprs, &edge_evidence_cache);
     if export_timing {
@@ -76,7 +153,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
             bindings.len()
         );
     }
-    let t4 = ProfileClock::now();
+    let t4 = ExportClock::now(export_timing);
     refine_runtime_binding_scheme_bodies(state, &selected_paths, &mut bindings);
     if export_timing {
         eprintln!(
@@ -87,7 +164,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
     let roots = (0..root_exprs.len())
         .map(core_ir::PrincipalRoot::Expr)
         .collect();
-    let t5 = ProfileClock::now();
+    let t5 = ExportClock::now(export_timing);
     let graph = export_type_graph_view_for_paths(state, &selected_paths, &bindings);
     if export_timing {
         eprintln!(
@@ -95,7 +172,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
             t5.elapsed().as_secs_f64() * 1000.0
         );
     }
-    let t6 = ProfileClock::now();
+    let t6 = ExportClock::now(export_timing);
     let export_debug_evidence = export_debug_principal_evidence_enabled();
     let derived_edges = if export_debug_evidence {
         derive_all_expected_edge_evidence(&expected_edge_evidence)
@@ -424,16 +501,130 @@ fn export_bindings_for_paths(
     extra_exprs: &[core_ir::Expr],
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) -> Vec<core_ir::PrincipalBinding> {
+    let export_timing = std::env::var_os("YULANG_EXPORT_TIMING").is_some();
+    let t_canonical = ExportClock::now(export_timing);
     let canonical = collect_canonical_binding_paths(state);
-    let mut bindings = canonical
-        .into_iter()
-        .filter(|(def, _)| paths.iter().any(|(_, path_def)| path_def == def))
-        .filter_map(|(def, path)| export_principal_binding(state, &path, def, edge_evidence))
-        .collect::<Vec<_>>();
-    complete_referenced_binding_closure(state, &mut bindings, extra_exprs, edge_evidence);
+    if export_timing {
+        eprintln!(
+            "  export: bindings.canonical_paths={:.3}ms count={}",
+            t_canonical.elapsed().as_secs_f64() * 1000.0,
+            canonical.len()
+        );
+    }
+    let globals = canonical.clone();
+    let mut principal_scheme_cache = HashMap::new();
+    let mut base_bounds_cache = HashMap::new();
+    let mut complete_principal_cache = CompletePrincipalCache::default();
+    let target_def_set = paths.iter().map(|(_, def)| *def).collect::<HashSet<_>>();
+    let t_initial = ExportClock::now(export_timing);
+    let mut binding_times = Vec::new();
+    let mut bindings = Vec::new();
+    for (def, path) in canonical {
+        if !target_def_set.contains(&def) {
+            continue;
+        }
+        let t_binding = ExportClock::now(export_timing);
+        let mut expr_profile = export_timing.then(ExprExportProfile::default);
+        if let Some(binding) = export_principal_binding(
+            state,
+            &globals,
+            &mut principal_scheme_cache,
+            &mut base_bounds_cache,
+            &mut complete_principal_cache,
+            expr_profile.as_mut(),
+            &path,
+            def,
+            edge_evidence,
+        ) {
+            if export_timing {
+                binding_times.push((binding.name.clone(), t_binding.elapsed(), expr_profile));
+            }
+            bindings.push(binding);
+        }
+    }
+    if export_timing {
+        eprintln!(
+            "  export: bindings.initial={:.3}ms count={}",
+            t_initial.elapsed().as_secs_f64() * 1000.0,
+            bindings.len()
+        );
+        binding_times.sort_by(|(_, left, _), (_, right, _)| right.cmp(left));
+        for (path, duration, profile) in binding_times.into_iter().take(12) {
+            eprintln!(
+                "    export binding {}={:.3}ms",
+                format_core_path_for_export_timing(&path),
+                duration.as_secs_f64() * 1000.0
+            );
+            if let Some(profile) = profile {
+                eprintln!(
+                    "      exprs={}, applies={}, bounds_misses={}, bounds={:.3}ms, coalesced_apply_bounds={:.3}ms, principal_scheme={:.3}ms (direct={:.3}ms, residual={:.3}ms), principal_evidence={:.3}ms (subs={:.3}ms [slots={:.3}ms, export={:.3}ms, roles={:.3}ms, emit={:.3}ms], candidates={:.3}ms), principal_plan={:.3}ms",
+                    profile.exprs,
+                    profile.applies,
+                    profile.bounds_misses,
+                    profile.bounds.as_secs_f64() * 1000.0,
+                    profile.coalesced_apply_bounds.as_secs_f64() * 1000.0,
+                    profile.principal_scheme.as_secs_f64() * 1000.0,
+                    profile.principal_scheme_direct.as_secs_f64() * 1000.0,
+                    profile.principal_scheme_residual.as_secs_f64() * 1000.0,
+                    profile.principal_evidence.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_substitutions.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_substitution_slots.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_substitution_export.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_substitution_roles.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_substitution_emit.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_candidates.as_secs_f64() * 1000.0,
+                    profile.principal_plan.as_secs_f64() * 1000.0,
+                );
+            }
+        }
+    }
+    let t_closure = ExportClock::now(export_timing);
+    complete_referenced_binding_closure(
+        state,
+        &globals,
+        &mut principal_scheme_cache,
+        &mut base_bounds_cache,
+        &mut complete_principal_cache,
+        &mut bindings,
+        extra_exprs,
+        edge_evidence,
+    );
+    if export_timing {
+        eprintln!(
+            "  export: bindings.referenced_closure={:.3}ms count={}",
+            t_closure.elapsed().as_secs_f64() * 1000.0,
+            bindings.len()
+        );
+    }
+    let t_sort = ExportClock::now(export_timing);
     bindings.sort_by(|lhs, rhs| lhs.name.segments.cmp(&rhs.name.segments));
+    if export_timing {
+        eprintln!(
+            "  export: bindings.sort={:.3}ms",
+            t_sort.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+    let t_dedup = ExportClock::now(export_timing);
     dedup_bindings_by_runtime_path(&mut bindings);
+    if export_timing {
+        eprintln!(
+            "  export: bindings.dedup={:.3}ms count={}",
+            t_dedup.elapsed().as_secs_f64() * 1000.0,
+            bindings.len()
+        );
+    }
     bindings
+}
+
+fn format_core_path_for_export_timing(path: &core_ir::Path) -> String {
+    if path.segments.is_empty() {
+        return "<root>".to_string();
+    }
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
 }
 
 fn dedup_bindings_by_runtime_path(bindings: &mut Vec<core_ir::PrincipalBinding>) {
@@ -550,17 +741,34 @@ fn role_method_path(state: &LowerState, path: &Path) -> bool {
 
 pub(crate) fn export_principal_binding(
     state: &LowerState,
+    globals: &HashMap<DefId, Path>,
+    principal_scheme_cache: &mut HashMap<DefId, Option<core_ir::Scheme>>,
+    base_bounds_cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+    complete_principal_cache: &mut CompletePrincipalCache,
+    profile: Option<&mut ExprExportProfile>,
     path: &Path,
     def: DefId,
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) -> Option<core_ir::PrincipalBinding> {
     let body = state.principal_bodies.get(&def)?;
+    let mut profile = profile;
+    prefill_binding_bounds_cache(state, body, base_bounds_cache);
     if let Some(scheme) = state.runtime_export_schemes.get(&def) {
         let relevant_vars = collect_runtime_scheme_body_type_vars(scheme);
         return Some(core_ir::PrincipalBinding {
             name: export_path(path),
             scheme: scheme.clone(),
-            body: export_expr(state, body, relevant_vars, edge_evidence),
+            body: ExprExporter::new(
+                state,
+                globals,
+                principal_scheme_cache,
+                base_bounds_cache,
+                complete_principal_cache,
+                profile.as_deref_mut(),
+                relevant_vars,
+                edge_evidence,
+            )
+            .export_expr(body),
         });
     }
     let frozen_scheme = state.infer.frozen_schemes.borrow().get(&def).cloned();
@@ -618,8 +826,29 @@ pub(crate) fn export_principal_binding(
     Some(core_ir::PrincipalBinding {
         name: export_path(path),
         scheme,
-        body: export_expr(state, body, relevant_vars, edge_evidence),
+        body: ExprExporter::new(
+            state,
+            globals,
+            principal_scheme_cache,
+            base_bounds_cache,
+            complete_principal_cache,
+            profile.as_deref_mut(),
+            relevant_vars,
+            edge_evidence,
+        )
+        .export_expr(body),
     })
+}
+
+fn prefill_binding_bounds_cache(
+    state: &LowerState,
+    body: &TypedExpr,
+    base_bounds_cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+) {
+    let mut vars = HashSet::new();
+    collect_expr_export_type_vars(body, &mut vars);
+    let vars = vars.into_iter().collect::<Vec<_>>();
+    extend_export_type_bounds_cache_for_tvs(&state.infer, &vars, base_bounds_cache);
 }
 
 fn collect_runtime_scheme_body_type_vars(scheme: &core_ir::Scheme) -> BTreeSet<core_ir::TypeVar> {
@@ -856,12 +1085,32 @@ fn export_root_exprs(
     state: &LowerState,
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) -> Vec<core_ir::Expr> {
-    let owner_roots = export_owner_root_exprs(state, edge_evidence);
+    let globals = collect_canonical_binding_paths(state);
+    let mut principal_scheme_cache = HashMap::new();
+    let mut base_bounds_cache = HashMap::new();
+    let mut complete_principal_cache = CompletePrincipalCache::default();
+    let owner_roots = export_owner_root_exprs(
+        state,
+        &globals,
+        &mut principal_scheme_cache,
+        &mut base_bounds_cache,
+        &mut complete_principal_cache,
+        edge_evidence,
+    );
     if !owner_roots.is_empty() {
         return owner_roots;
     }
 
-    let mut exporter = super::expr::ExprExporter::new(state, BTreeSet::new(), edge_evidence);
+    let mut exporter = ExprExporter::new(
+        state,
+        &globals,
+        &mut principal_scheme_cache,
+        &mut base_bounds_cache,
+        &mut complete_principal_cache,
+        None,
+        BTreeSet::new(),
+        edge_evidence,
+    );
     let mut roots = Vec::new();
     for (path, block) in &state.top_level_blocks {
         if !path.segments.is_empty() {
@@ -881,6 +1130,10 @@ fn export_root_exprs(
 
 fn export_owner_root_exprs(
     state: &LowerState,
+    globals: &HashMap<DefId, Path>,
+    principal_scheme_cache: &mut HashMap<DefId, Option<core_ir::Scheme>>,
+    base_bounds_cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+    complete_principal_cache: &mut CompletePrincipalCache,
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) -> Vec<core_ir::Expr> {
     let mut roots = Vec::new();
@@ -888,7 +1141,16 @@ fn export_owner_root_exprs(
         let Some(body) = state.principal_bodies.get(owner) else {
             continue;
         };
-        let mut exporter = super::expr::ExprExporter::new(state, BTreeSet::new(), edge_evidence);
+        let mut exporter = ExprExporter::new(
+            state,
+            globals,
+            principal_scheme_cache,
+            base_bounds_cache,
+            complete_principal_cache,
+            None,
+            BTreeSet::new(),
+            edge_evidence,
+        );
         roots.push(exporter.export_expr(body));
     }
     roots

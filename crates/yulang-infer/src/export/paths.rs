@@ -1,15 +1,48 @@
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use std::time::Instant;
 
 use yulang_core_ir as core_ir;
 
 use crate::diagnostic::ExpectedEdgeId;
-use crate::ids::DefId;
+use crate::ids::{DefId, TypeVar};
 use crate::lower::LowerState;
 use crate::symbols::Path;
 
-use super::complete_principal::ExpectedEdgeEvidence;
+use super::complete_principal::{CompletePrincipalCache, ExpectedEdgeEvidence};
+use super::expr::ExprExportProfile;
 use super::names::export_path;
 use super::principal::export_principal_binding;
+
+struct PathExportClock {
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    instant: Option<Instant>,
+}
+
+impl PathExportClock {
+    fn now(enabled: bool) -> Self {
+        Self {
+            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+            instant: enabled.then(Instant::now),
+        }
+    }
+
+    fn elapsed(&self) -> Duration {
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+        {
+            return self
+                .instant
+                .map(|instant| instant.elapsed())
+                .unwrap_or_default();
+        }
+
+        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+        {
+            Duration::ZERO
+        }
+    }
+}
 
 pub(crate) fn collect_canonical_binding_paths(state: &LowerState) -> HashMap<DefId, Path> {
     let mut canonical = state.ctx.canonical_value_paths();
@@ -30,14 +63,20 @@ pub(crate) fn collect_canonical_binding_paths(state: &LowerState) -> HashMap<Def
 
 pub(crate) fn complete_referenced_binding_closure(
     state: &mut LowerState,
+    globals: &HashMap<DefId, Path>,
+    principal_scheme_cache: &mut HashMap<DefId, Option<core_ir::Scheme>>,
+    base_bounds_cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+    complete_principal_cache: &mut CompletePrincipalCache,
     bindings: &mut Vec<core_ir::PrincipalBinding>,
     extra_exprs: &[core_ir::Expr],
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) {
-    let all_paths = collect_canonical_binding_paths(state)
-        .into_iter()
-        .map(|(def, path)| (export_path(&path), (path, def)))
+    let export_timing = std::env::var_os("YULANG_EXPORT_TIMING").is_some();
+    let all_paths = globals
+        .iter()
+        .map(|(def, path)| (export_path(path), (path.clone(), *def)))
         .collect::<HashMap<_, _>>();
+    let mut binding_times = Vec::new();
     let mut exported = bindings
         .iter()
         .map(|binding| binding.name.clone())
@@ -59,10 +98,24 @@ pub(crate) fn complete_referenced_binding_closure(
             let Some((source_path, def)) = all_paths.get(&path).cloned() else {
                 continue;
             };
-            let Some(binding) = export_principal_binding(state, &source_path, def, edge_evidence)
-            else {
+            let started = PathExportClock::now(export_timing);
+            let mut expr_profile = export_timing.then(ExprExportProfile::default);
+            let Some(binding) = export_principal_binding(
+                state,
+                globals,
+                principal_scheme_cache,
+                base_bounds_cache,
+                complete_principal_cache,
+                expr_profile.as_mut(),
+                &source_path,
+                def,
+                edge_evidence,
+            ) else {
                 continue;
             };
+            if export_timing {
+                binding_times.push((binding.name.clone(), started.elapsed(), expr_profile));
+            }
             if exported.insert(binding.name.clone()) {
                 collect_expr_binding_refs(&binding.body, &mut pending_refs);
                 bindings.push(binding);
@@ -73,6 +126,48 @@ pub(crate) fn complete_referenced_binding_closure(
             break;
         }
     }
+    if export_timing {
+        binding_times.sort_by(|(_, left, _), (_, right, _)| right.cmp(left));
+        for (path, duration, profile) in binding_times.into_iter().take(12) {
+            eprintln!(
+                "    export closure binding {}={:.3}ms",
+                format_core_path_for_export_timing(&path),
+                duration.as_secs_f64() * 1000.0
+            );
+            if let Some(profile) = profile {
+                eprintln!(
+                    "      exprs={}, applies={}, bounds_misses={}, bounds={:.3}ms, coalesced_apply_bounds={:.3}ms, principal_scheme={:.3}ms (direct={:.3}ms, residual={:.3}ms), principal_evidence={:.3}ms (subs={:.3}ms [slots={:.3}ms, export={:.3}ms, roles={:.3}ms, emit={:.3}ms], candidates={:.3}ms), principal_plan={:.3}ms",
+                    profile.exprs,
+                    profile.applies,
+                    profile.bounds_misses,
+                    profile.bounds.as_secs_f64() * 1000.0,
+                    profile.coalesced_apply_bounds.as_secs_f64() * 1000.0,
+                    profile.principal_scheme.as_secs_f64() * 1000.0,
+                    profile.principal_scheme_direct.as_secs_f64() * 1000.0,
+                    profile.principal_scheme_residual.as_secs_f64() * 1000.0,
+                    profile.principal_evidence.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_substitutions.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_substitution_slots.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_substitution_export.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_substitution_roles.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_substitution_emit.as_secs_f64() * 1000.0,
+                    profile.principal_evidence_candidates.as_secs_f64() * 1000.0,
+                    profile.principal_plan.as_secs_f64() * 1000.0,
+                );
+            }
+        }
+    }
+}
+
+fn format_core_path_for_export_timing(path: &core_ir::Path) -> String {
+    if path.segments.is_empty() {
+        return "<root>".to_string();
+    }
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
 }
 
 fn choose_preferred_binding_path(current: &mut Path, candidate: Path) {

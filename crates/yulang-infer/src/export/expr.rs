@@ -1,6 +1,10 @@
 use std::collections::BTreeSet;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::OnceLock;
+use std::time::Duration;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use std::time::Instant;
 
 use crate::diagnostic::ExpectedEdgeId;
 
@@ -17,8 +21,9 @@ use crate::solve::role::role_method_info_for_path;
 use crate::symbols::{Name, Path};
 
 use super::complete_principal::{
-    ApplySlotBounds, ExpectedEdgeEvidence, complete_apply_principal_evidence_from_slot_bounds,
-    complete_coerce_principal_evidence, residual_apply_principal_scheme,
+    ApplySlotBounds, CompletePrincipalCache, CompletePrincipalStepProfile, ExpectedEdgeEvidence,
+    complete_apply_principal_evidence_from_slot_bounds_cached_profiled,
+    complete_coerce_principal_evidence, residual_apply_principal_scheme_cached,
 };
 use super::names::{export_name, export_path};
 use super::paths::collect_canonical_binding_paths;
@@ -26,7 +31,7 @@ use super::roles::canonical_runtime_export_def;
 use super::spine::{collect_apply_spine_with_apps, strip_transparent_wrappers};
 use super::types::{
     collect_core_type_vars, export_coalesced_apply_evidence_bounds_with_expected_arg,
-    export_relevant_type_bounds_for_tv, export_scheme,
+    export_relevant_type_bounds_for_tv_cached, export_scheme,
 };
 
 pub fn export_expr(
@@ -35,33 +40,262 @@ pub fn export_expr(
     relevant_vars: BTreeSet<core_ir::TypeVar>,
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) -> core_ir::Expr {
-    ExprExporter::new(state, relevant_vars, edge_evidence).export_expr(expr)
+    let globals = collect_canonical_binding_paths(state);
+    let mut principal_scheme_cache = HashMap::new();
+    let mut base_bounds_cache = HashMap::new();
+    let mut complete_principal_cache = CompletePrincipalCache::default();
+    ExprExporter::new(
+        state,
+        &globals,
+        &mut principal_scheme_cache,
+        &mut base_bounds_cache,
+        &mut complete_principal_cache,
+        None,
+        relevant_vars,
+        edge_evidence,
+    )
+    .export_expr(expr)
+}
+
+pub(super) fn collect_expr_export_type_vars(expr: &TypedExpr, vars: &mut HashSet<TypeVar>) {
+    vars.insert(expr.tv);
+    vars.insert(expr.eff);
+    match &expr.kind {
+        ExprKind::Lit(_) | ExprKind::PrimitiveOp(_) | ExprKind::Var(_) | ExprKind::Ref(_) => {}
+        ExprKind::App {
+            callee,
+            arg,
+            expected_callee_tv,
+            expected_arg_tv,
+            ..
+        } => {
+            vars.insert(*expected_callee_tv);
+            vars.insert(*expected_arg_tv);
+            collect_expr_export_type_vars(callee, vars);
+            collect_expr_export_type_vars(arg, vars);
+        }
+        ExprKind::RefSet { reference, value } => {
+            collect_expr_export_type_vars(reference, vars);
+            collect_expr_export_type_vars(value, vars);
+        }
+        ExprKind::Lam(_, body) | ExprKind::PackForall(_, body) => {
+            collect_expr_export_type_vars(body, vars);
+        }
+        ExprKind::Tuple(items) | ExprKind::PolyVariant(_, items) => {
+            for item in items {
+                collect_expr_export_type_vars(item, vars);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for (_, value) in fields {
+                collect_expr_export_type_vars(value, vars);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpread::Head(expr) | RecordSpread::Tail(expr) => {
+                        collect_expr_export_type_vars(expr, vars);
+                    }
+                }
+            }
+        }
+        ExprKind::Select { recv, .. } => collect_expr_export_type_vars(recv, vars),
+        ExprKind::Match(scrutinee, arms) => {
+            collect_expr_export_type_vars(scrutinee, vars);
+            for arm in arms {
+                collect_pat_export_type_vars(&arm.pat, vars);
+                if let Some(guard) = &arm.guard {
+                    collect_expr_export_type_vars(guard, vars);
+                }
+                collect_expr_export_type_vars(&arm.body, vars);
+            }
+        }
+        ExprKind::Catch(body, arms) => {
+            collect_expr_export_type_vars(body, vars);
+            for arm in arms {
+                vars.insert(arm.tv);
+                if let Some(guard) = &arm.guard {
+                    collect_expr_export_type_vars(guard, vars);
+                }
+                match &arm.kind {
+                    CatchArmKind::Value(pat, body) => {
+                        collect_pat_export_type_vars(pat, vars);
+                        collect_expr_export_type_vars(body, vars);
+                    }
+                    CatchArmKind::Effect { pat, body, .. } => {
+                        collect_pat_export_type_vars(pat, vars);
+                        collect_expr_export_type_vars(body, vars);
+                    }
+                }
+            }
+        }
+        ExprKind::Block(block) => collect_block_export_type_vars(block, vars),
+        ExprKind::Coerce {
+            actual_tv,
+            expected_tv,
+            expr,
+            ..
+        } => {
+            vars.insert(*actual_tv);
+            vars.insert(*expected_tv);
+            collect_expr_export_type_vars(expr, vars);
+        }
+    }
+}
+
+fn collect_block_export_type_vars(block: &TypedBlock, vars: &mut HashSet<TypeVar>) {
+    vars.insert(block.tv);
+    vars.insert(block.eff);
+    for stmt in &block.stmts {
+        match stmt {
+            TypedStmt::Let(pat, value) => {
+                collect_pat_export_type_vars(pat, vars);
+                collect_expr_export_type_vars(value, vars);
+            }
+            TypedStmt::Expr(expr) => collect_expr_export_type_vars(expr, vars),
+            TypedStmt::Module(_, block) => collect_block_export_type_vars(block, vars),
+        }
+    }
+    if let Some(tail) = &block.tail {
+        collect_expr_export_type_vars(tail, vars);
+    }
+}
+
+fn collect_pat_export_type_vars(pat: &TypedPat, vars: &mut HashSet<TypeVar>) {
+    vars.insert(pat.tv);
+    match &pat.kind {
+        PatKind::Wild | PatKind::Lit(_) | PatKind::UnresolvedName(_) => {}
+        PatKind::Tuple(items) | PatKind::PolyVariant(_, items) => {
+            for item in items {
+                collect_pat_export_type_vars(item, vars);
+            }
+        }
+        PatKind::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            for item in prefix {
+                collect_pat_export_type_vars(item, vars);
+            }
+            if let Some(spread) = spread {
+                collect_pat_export_type_vars(spread, vars);
+            }
+            for item in suffix {
+                collect_pat_export_type_vars(item, vars);
+            }
+        }
+        PatKind::Record { spread, fields } => {
+            if let Some(spread) = spread {
+                match spread {
+                    RecordPatSpread::Head(pat) | RecordPatSpread::Tail(pat) => {
+                        collect_pat_export_type_vars(pat, vars);
+                    }
+                }
+            }
+            for field in fields {
+                collect_pat_export_type_vars(&field.pat, vars);
+                if let Some(default) = &field.default {
+                    collect_expr_export_type_vars(default, vars);
+                }
+            }
+        }
+        PatKind::Con(_, payload) => {
+            if let Some(payload) = payload {
+                collect_pat_export_type_vars(payload, vars);
+            }
+        }
+        PatKind::Or(left, right) => {
+            collect_pat_export_type_vars(left, vars);
+            collect_pat_export_type_vars(right, vars);
+        }
+        PatKind::As(pat, _) => collect_pat_export_type_vars(pat, vars),
+    }
 }
 
 pub(super) struct ExprExporter<'a> {
     state: &'a LowerState,
-    globals: HashMap<DefId, Path>,
+    globals: &'a HashMap<DefId, Path>,
     locals: HashMap<DefId, Path>,
-    principal_scheme_cache: HashMap<DefId, Option<core_ir::Scheme>>,
+    principal_scheme_cache: &'a mut HashMap<DefId, Option<core_ir::Scheme>>,
+    base_bounds_cache: &'a mut HashMap<TypeVar, core_ir::TypeBounds>,
+    complete_principal_cache: &'a mut CompletePrincipalCache,
     principal_callee_scheme_cache: HashMap<TypeVar, Option<core_ir::Scheme>>,
     relevant_bounds_cache: HashMap<TypeVar, core_ir::TypeBounds>,
+    profile: Option<&'a mut ExprExportProfile>,
     relevant_vars: BTreeSet<core_ir::TypeVar>,
     edge_evidence: &'a HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct ExprExportProfile {
+    pub exprs: usize,
+    pub applies: usize,
+    pub bounds_misses: usize,
+    pub bounds: Duration,
+    pub coalesced_apply_bounds: Duration,
+    pub principal_scheme: Duration,
+    pub principal_scheme_direct: Duration,
+    pub principal_scheme_residual: Duration,
+    pub principal_evidence: Duration,
+    pub principal_evidence_substitutions: Duration,
+    pub principal_evidence_substitution_slots: Duration,
+    pub principal_evidence_substitution_export: Duration,
+    pub principal_evidence_substitution_roles: Duration,
+    pub principal_evidence_substitution_emit: Duration,
+    pub principal_evidence_candidates: Duration,
+    pub principal_plan: Duration,
+}
+
+struct ExprExportClock {
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    instant: Option<Instant>,
+}
+
+impl ExprExportClock {
+    fn now(enabled: bool) -> Self {
+        Self {
+            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+            instant: enabled.then(Instant::now),
+        }
+    }
+
+    fn elapsed(&self) -> Duration {
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+        {
+            return self
+                .instant
+                .map(|instant| instant.elapsed())
+                .unwrap_or_default();
+        }
+
+        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+        {
+            Duration::ZERO
+        }
+    }
 }
 
 impl<'a> ExprExporter<'a> {
     pub(super) fn new(
         state: &'a LowerState,
+        globals: &'a HashMap<DefId, Path>,
+        principal_scheme_cache: &'a mut HashMap<DefId, Option<core_ir::Scheme>>,
+        base_bounds_cache: &'a mut HashMap<TypeVar, core_ir::TypeBounds>,
+        complete_principal_cache: &'a mut CompletePrincipalCache,
+        profile: Option<&'a mut ExprExportProfile>,
         relevant_vars: BTreeSet<core_ir::TypeVar>,
         edge_evidence: &'a HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
     ) -> Self {
         Self {
             state,
-            globals: collect_canonical_binding_paths(state),
+            globals,
             locals: HashMap::new(),
-            principal_scheme_cache: HashMap::new(),
+            principal_scheme_cache,
+            base_bounds_cache,
+            complete_principal_cache,
             principal_callee_scheme_cache: HashMap::new(),
             relevant_bounds_cache: HashMap::new(),
+            profile,
             relevant_vars,
             edge_evidence,
         }
@@ -78,12 +312,25 @@ impl<'a> ExprExporter<'a> {
         if let Some(bounds) = self.relevant_bounds_cache.get(&tv) {
             return bounds.clone();
         }
-        let bounds = export_relevant_type_bounds_for_tv(&self.state.infer, tv, &self.relevant_vars);
+        let t = ExprExportClock::now(self.profile.is_some());
+        let bounds = export_relevant_type_bounds_for_tv_cached(
+            &self.state.infer,
+            tv,
+            &self.relevant_vars,
+            self.base_bounds_cache,
+        );
+        if let Some(profile) = self.profile.as_deref_mut() {
+            profile.bounds_misses += 1;
+            profile.bounds += t.elapsed();
+        }
         self.relevant_bounds_cache.insert(tv, bounds.clone());
         bounds
     }
 
     pub(super) fn export_expr(&mut self, expr: &TypedExpr) -> core_ir::Expr {
+        if let Some(profile) = self.profile.as_deref_mut() {
+            profile.exprs += 1;
+        }
         if let Some(exported) = self.export_resolved_role_method_call(expr) {
             return exported;
         }
@@ -405,10 +652,14 @@ impl<'a> ExprExporter<'a> {
         expected_arg_tv: TypeVar,
         include_principal: bool,
     ) -> core_ir::ApplyEvidence {
+        if let Some(profile) = self.profile.as_deref_mut() {
+            profile.applies += 1;
+        }
         let role_method = self.is_role_method_callee(callee);
         let expected_callee = self.export_relevant_bounds_for_tv(expected_callee_tv);
         let expected_arg = self.export_relevant_bounds_for_tv(expected_arg_tv);
         let mut evidence = if coalesce_apply_evidence_enabled() {
+            let t = ExprExportClock::now(self.profile.is_some());
             let (callee_bounds, arg, expected_arg, result) =
                 export_coalesced_apply_evidence_bounds_with_expected_arg(
                     &self.state.infer,
@@ -418,6 +669,9 @@ impl<'a> ExprExporter<'a> {
                     result.tv,
                     &self.relevant_vars,
                 );
+            if let Some(profile) = self.profile.as_deref_mut() {
+                profile.coalesced_apply_bounds += t.elapsed();
+            }
             core_ir::ApplyEvidence {
                 callee_source_edge: callee_source_edge.map(|id| id.0),
                 arg_source_edge: arg_source_edge.map(|id| id.0),
@@ -453,36 +707,71 @@ impl<'a> ExprExporter<'a> {
             }
         };
         let principal_target = self.principal_callee_target(callee);
-        if include_principal
-            && export_apply_substitutions_enabled()
-            && let Some(principal_scheme) = self.principal_callee_scheme(callee)
-        {
-            evidence.principal_callee = Some(principal_scheme.body.clone());
-            let slot_bounds = ApplySlotBounds {
-                callee: evidence.callee.clone(),
-                arg: evidence.arg.clone(),
-                result: evidence.result.clone(),
-            };
-            if let Some(principal) = complete_apply_principal_evidence_from_slot_bounds(
-                &self.state.infer,
-                principal_scheme,
-                arg.tv,
-                result.tv,
-                &slot_bounds,
-                self.lookup_edge_evidence(callee_source_edge),
-                self.lookup_edge_evidence(arg_source_edge),
-            ) {
-                evidence.principal_callee = Some(principal.principal_callee);
-                evidence.substitutions = principal.substitutions;
-                evidence.substitution_candidates = principal.substitution_candidates;
+        if include_principal && export_apply_substitutions_enabled() {
+            let t = ExprExportClock::now(self.profile.is_some());
+            let principal_scheme = self.principal_callee_scheme(callee);
+            if let Some(profile) = self.profile.as_deref_mut() {
+                profile.principal_scheme += t.elapsed();
+            }
+            if let Some(principal_scheme) = principal_scheme {
+                evidence.principal_callee = Some(principal_scheme.body.clone());
+                let slot_bounds = ApplySlotBounds {
+                    callee: evidence.callee.clone(),
+                    arg: evidence.arg.clone(),
+                    result: evidence.result.clone(),
+                };
+                let t = ExprExportClock::now(self.profile.is_some());
+                let callee_edge = self.lookup_edge_evidence(callee_source_edge).cloned();
+                let arg_edge = self.lookup_edge_evidence(arg_source_edge).cloned();
+                let mut step_profile = self
+                    .profile
+                    .is_some()
+                    .then(CompletePrincipalStepProfile::default);
+                if let Some(principal) =
+                    complete_apply_principal_evidence_from_slot_bounds_cached_profiled(
+                        &self.state.infer,
+                        principal_scheme,
+                        arg.tv,
+                        result.tv,
+                        &slot_bounds,
+                        callee_edge.as_ref(),
+                        arg_edge.as_ref(),
+                        Some(self.base_bounds_cache),
+                        self.complete_principal_cache,
+                        step_profile.as_mut(),
+                    )
+                {
+                    evidence.principal_callee = Some(principal.principal_callee);
+                    evidence.substitutions = principal.substitutions;
+                    evidence.substitution_candidates = principal.substitution_candidates;
+                }
+                if let Some(profile) = self.profile.as_deref_mut() {
+                    profile.principal_evidence += t.elapsed();
+                    if let Some(step_profile) = step_profile {
+                        profile.principal_evidence_substitutions += step_profile.substitutions;
+                        profile.principal_evidence_substitution_slots +=
+                            step_profile.substitution_slots;
+                        profile.principal_evidence_substitution_export +=
+                            step_profile.substitution_export;
+                        profile.principal_evidence_substitution_roles +=
+                            step_profile.substitution_roles;
+                        profile.principal_evidence_substitution_emit +=
+                            step_profile.substitution_emit;
+                        profile.principal_evidence_candidates += step_profile.candidates;
+                    }
+                }
             }
         }
         if include_principal
             && export_principal_elaboration_plans_enabled()
             && principal_elaboration_plan_needed(&evidence)
         {
+            let t = ExprExportClock::now(self.profile.is_some());
             evidence.principal_elaboration =
                 build_principal_elaboration_plan(&evidence, principal_target);
+            if let Some(profile) = self.profile.as_deref_mut() {
+                profile.principal_plan += t.elapsed();
+            }
         }
         evidence
     }
@@ -493,11 +782,27 @@ impl<'a> ExprExporter<'a> {
         }
         let scheme = match &expr.kind {
             ExprKind::Var(def) => {
-                self.intern_principal_scheme_for_def(canonical_runtime_export_def(self.state, *def))
+                let t = ExprExportClock::now(self.profile.is_some());
+                let scheme = self.intern_principal_scheme_for_def(canonical_runtime_export_def(
+                    self.state, *def,
+                ));
+                if let Some(profile) = self.profile.as_deref_mut() {
+                    profile.principal_scheme_direct += t.elapsed();
+                }
+                scheme
             }
-            ExprKind::Ref(ref_id) => self.state.ctx.refs.get(*ref_id).and_then(|def| {
-                self.intern_principal_scheme_for_def(canonical_runtime_export_def(self.state, def))
-            }),
+            ExprKind::Ref(ref_id) => {
+                let t = ExprExportClock::now(self.profile.is_some());
+                let scheme = self.state.ctx.refs.get(*ref_id).and_then(|def| {
+                    self.intern_principal_scheme_for_def(canonical_runtime_export_def(
+                        self.state, def,
+                    ))
+                });
+                if let Some(profile) = self.profile.as_deref_mut() {
+                    profile.principal_scheme_direct += t.elapsed();
+                }
+                scheme
+            }
             ExprKind::App {
                 callee: app_callee,
                 arg,
@@ -506,13 +811,19 @@ impl<'a> ExprExporter<'a> {
                 ..
             } => {
                 let scheme = self.principal_callee_scheme(app_callee)?;
-                residual_apply_principal_scheme(
+                let t = ExprExportClock::now(self.profile.is_some());
+                let residual = residual_apply_principal_scheme_cached(
                     &self.state.infer,
                     &scheme,
                     app_callee.tv,
                     arg.tv,
                     expr.tv,
-                )
+                    self.complete_principal_cache,
+                );
+                if let Some(profile) = self.profile.as_deref_mut() {
+                    profile.principal_scheme_residual += t.elapsed();
+                }
+                residual
             }
             _ => None,
         }?;
@@ -1125,18 +1436,39 @@ impl<'a> ExprExporter<'a> {
                 arg: evidence.arg.clone(),
                 result: evidence.result.clone(),
             };
-            if let Some(principal) = complete_apply_principal_evidence_from_slot_bounds(
-                &self.state.infer,
-                principal_scheme,
-                recv.tv,
-                result.tv,
-                &slot_bounds,
-                None,
-                None,
-            ) {
+            let t = ExprExportClock::now(self.profile.is_some());
+            let mut step_profile = self
+                .profile
+                .is_some()
+                .then(CompletePrincipalStepProfile::default);
+            if let Some(principal) =
+                complete_apply_principal_evidence_from_slot_bounds_cached_profiled(
+                    &self.state.infer,
+                    principal_scheme,
+                    recv.tv,
+                    result.tv,
+                    &slot_bounds,
+                    None,
+                    None,
+                    Some(self.base_bounds_cache),
+                    self.complete_principal_cache,
+                    step_profile.as_mut(),
+                )
+            {
                 evidence.principal_callee = Some(principal.principal_callee);
                 evidence.substitutions = principal.substitutions;
                 evidence.substitution_candidates = principal.substitution_candidates;
+            }
+            if let Some(profile) = self.profile.as_deref_mut()
+                && let Some(step_profile) = step_profile
+            {
+                profile.principal_evidence += t.elapsed();
+                profile.principal_evidence_substitutions += step_profile.substitutions;
+                profile.principal_evidence_substitution_slots += step_profile.substitution_slots;
+                profile.principal_evidence_substitution_export += step_profile.substitution_export;
+                profile.principal_evidence_substitution_roles += step_profile.substitution_roles;
+                profile.principal_evidence_substitution_emit += step_profile.substitution_emit;
+                profile.principal_evidence_candidates += step_profile.candidates;
             }
         }
         core_ir::Expr::Apply {
