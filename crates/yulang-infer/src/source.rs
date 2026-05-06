@@ -81,6 +81,7 @@ pub struct SourceLowerCache {
 pub struct StdInferSnapshot {
     key: StdSourceCacheKey,
     state: LowerState,
+    data: StdInferSnapshotData,
 }
 
 pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 0;
@@ -89,6 +90,26 @@ pub const STD_INFER_SNAPSHOT_FORMAT_VERSION: u32 = 0;
 pub struct StdInferSnapshotManifest {
     pub format_version: u32,
     pub key: StdSourceCacheKey,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotData {
+    pub manifest: StdInferSnapshotManifest,
+    pub values: Vec<StdInferSnapshotSymbol>,
+    pub types: Vec<StdInferSnapshotSymbol>,
+    pub effect_operations: Vec<StdInferSnapshotEffectOperation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotSymbol {
+    pub path: Vec<String>,
+    pub def_id: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StdInferSnapshotEffectOperation {
+    pub def_id: u32,
+    pub effect_path: Vec<String>,
 }
 
 pub fn lower_entry_with_options(
@@ -384,7 +405,8 @@ impl SourceLowerCache {
 
 impl StdInferSnapshot {
     fn new(key: StdSourceCacheKey, state: LowerState) -> Self {
-        Self { key, state }
+        let data = StdInferSnapshotData::from_state(key.clone(), &state);
+        Self { key, state, data }
     }
 
     fn instantiate(&self) -> LowerState {
@@ -399,6 +421,25 @@ impl StdInferSnapshot {
         StdInferSnapshotManifest {
             format_version: STD_INFER_SNAPSHOT_FORMAT_VERSION,
             key: self.key.clone(),
+        }
+    }
+
+    pub fn data(&self) -> &StdInferSnapshotData {
+        &self.data
+    }
+}
+
+impl StdInferSnapshotData {
+    fn from_state(key: StdSourceCacheKey, state: &LowerState) -> Self {
+        let manifest = StdInferSnapshotManifest {
+            format_version: STD_INFER_SNAPSHOT_FORMAT_VERSION,
+            key,
+        };
+        Self {
+            manifest,
+            values: collect_std_snapshot_values(state),
+            types: collect_std_snapshot_types(state),
+            effect_operations: collect_std_snapshot_effect_operations(state),
         }
     }
 }
@@ -467,6 +508,65 @@ impl StdSourceFileCacheKey {
             source_hash: source_hash(&file.source),
         }
     }
+}
+
+fn collect_std_snapshot_values(state: &LowerState) -> Vec<StdInferSnapshotSymbol> {
+    let mut values = state
+        .ctx
+        .collect_all_binding_paths()
+        .into_iter()
+        .map(|(path, def)| StdInferSnapshotSymbol {
+            path: snapshot_path_segments(&path),
+            def_id: def.0,
+        })
+        .collect::<Vec<_>>();
+    values.sort_by(|lhs, rhs| {
+        lhs.path
+            .cmp(&rhs.path)
+            .then_with(|| lhs.def_id.cmp(&rhs.def_id))
+    });
+    values
+}
+
+fn collect_std_snapshot_types(state: &LowerState) -> Vec<StdInferSnapshotSymbol> {
+    let mut types = state
+        .ctx
+        .collect_all_type_paths()
+        .into_iter()
+        .map(|(path, def)| StdInferSnapshotSymbol {
+            path: snapshot_path_segments(&path),
+            def_id: def.0,
+        })
+        .collect::<Vec<_>>();
+    types.sort_by(|lhs, rhs| {
+        lhs.path
+            .cmp(&rhs.path)
+            .then_with(|| lhs.def_id.cmp(&rhs.def_id))
+    });
+    types
+}
+
+fn collect_std_snapshot_effect_operations(
+    state: &LowerState,
+) -> Vec<StdInferSnapshotEffectOperation> {
+    let mut operations = state
+        .effect_op_effect_paths
+        .iter()
+        .map(|(def, path)| StdInferSnapshotEffectOperation {
+            def_id: def.0,
+            effect_path: snapshot_path_segments(path),
+        })
+        .collect::<Vec<_>>();
+    operations.sort_by(|lhs, rhs| {
+        lhs.effect_path
+            .cmp(&rhs.effect_path)
+            .then_with(|| lhs.def_id.cmp(&rhs.def_id))
+    });
+    operations
+}
+
+fn snapshot_path_segments(path: &Path) -> Vec<String> {
+    path.segments.iter().map(|name| name.0.clone()).collect()
 }
 
 fn source_hash(source: &str) -> u64 {

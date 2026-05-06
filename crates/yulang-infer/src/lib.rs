@@ -48,7 +48,8 @@ pub use solve::{
 };
 pub use source::{
     LoweredSources, ProfiledLoweredSources, STD_INFER_SNAPSHOT_FORMAT_VERSION, SourceLowerCache,
-    SourceLowerProfile, SourceStdCacheProfile, StdInferSnapshot, StdInferSnapshotManifest,
+    SourceLowerProfile, SourceStdCacheProfile, StdInferSnapshot, StdInferSnapshotData,
+    StdInferSnapshotEffectOperation, StdInferSnapshotManifest, StdInferSnapshotSymbol,
     StdSourceCacheKey, build_std_infer_snapshot, lower_entry_with_options,
     lower_entry_with_options_profiled, lower_source_file, lower_source_file_profiled,
     lower_source_set, lower_source_set_profiled, lower_source_set_with_std_cache,

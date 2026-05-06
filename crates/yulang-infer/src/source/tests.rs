@@ -103,10 +103,20 @@ fn std_lower_cache_preserves_entry_results() {
     let snapshot = build_std_infer_snapshot(&source_set).expect("std snapshot");
     let manifest_json = serde_json::to_string(&snapshot.manifest()).unwrap();
     let manifest: StdInferSnapshotManifest = serde_json::from_str(&manifest_json).unwrap();
+    let data_json = serde_json::to_string(snapshot.data()).unwrap();
+    let data: StdInferSnapshotData = serde_json::from_str(&data_json).unwrap();
     let mut snapshotted = lower_source_set_with_std_snapshot(&source_set, &snapshot).lowered;
 
     assert_eq!(manifest.format_version, STD_INFER_SNAPSHOT_FORMAT_VERSION);
     assert_eq!(manifest, snapshot.manifest());
+    assert_eq!(&data, snapshot.data());
+    assert!(
+        data.values
+            .iter()
+            .any(|symbol| symbol.path == ["std", "int", "add"]),
+        "snapshot values should include primitive std index: {:?}",
+        data.values
+    );
     assert_eq!(
         crate::render_exported_compact_results(&mut cached.state),
         crate::render_exported_compact_results(&mut uncached.state)
