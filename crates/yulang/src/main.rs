@@ -1444,7 +1444,25 @@ fn print_infer_phase_timings(
         "      detail.connect_pat_or: {}",
         format_duration(lower.detail.connect_pat_or)
     );
-    eprintln!("    files: {}", lower.files);
+    eprintln!(
+        "    files: {}  (entry={}, std={}, user={})",
+        lower.files, lower.entry_files, lower.std_files, lower.user_files
+    );
+    eprintln!(
+        "    entry: parse={} lower_roots={}",
+        format_duration(lower.entry.parse),
+        format_duration(lower.entry.lower_roots)
+    );
+    eprintln!(
+        "    std: parse={} lower_roots={}",
+        format_duration(lower.std.parse),
+        format_duration(lower.std.lower_roots)
+    );
+    eprintln!(
+        "    user: parse={} lower_roots={}",
+        format_duration(lower.user.parse),
+        format_duration(lower.user.lower_roots)
+    );
     eprintln!("  type_errors: {}", format_duration(error_collection));
     eprintln!(
         "  finalize: {}  (iterations={}, finalized_defs={})",

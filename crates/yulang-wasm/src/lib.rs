@@ -54,6 +54,9 @@ fn compile_and_run(source: &str) -> Result<CompileRunOutput, String> {
     let source_set = std_sources::source_set(&source);
     let source_set_ms = elapsed_ms(source_set_start);
     let files = source_set.files.len();
+    let entry_files = source_set.entry_files().count();
+    let std_files = source_set.std_files().count();
+    let user_files = source_set.user_files().count();
     let infer_lower_start = now_ms();
     let mut lowered = lower_source_set(&source_set);
     let infer_lower_ms = elapsed_ms(infer_lower_start);
@@ -112,6 +115,9 @@ fn compile_and_run(source: &str) -> Result<CompileRunOutput, String> {
                 vm_eval_ms: elapsed_ms(vm_eval_start),
                 total_ms: elapsed_ms(total_start),
                 files,
+                entry_files,
+                std_files,
+                user_files,
             },
         })
 }

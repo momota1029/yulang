@@ -5,8 +5,8 @@ use rowan::SyntaxNode;
 use yulang_parser::parse_module_to_green_with_ops;
 use yulang_parser::sink::YulangLanguage;
 use yulang_source::{
-    SourceFile, SourceLoadError, SourceOptions, SourceSet, collect_source_files_with_options,
-    collect_virtual_source_files_with_options,
+    SourceFile, SourceLoadError, SourceOptions, SourceOrigin, SourceSet,
+    collect_source_files_with_options, collect_virtual_source_files_with_options,
 };
 
 use crate::lower::primitives::install_builtin_primitives;
@@ -28,6 +28,12 @@ pub struct SourceLowerProfile {
     pub finish: Duration,
     pub detail: LowerDetailProfile,
     pub files: usize,
+    pub entry_files: usize,
+    pub std_files: usize,
+    pub user_files: usize,
+    pub entry: SourceOriginLowerProfile,
+    pub std: SourceOriginLowerProfile,
+    pub user: SourceOriginLowerProfile,
 }
 
 impl SourceLowerProfile {
@@ -38,6 +44,13 @@ impl SourceLowerProfile {
     pub fn infer_lower(&self) -> Duration {
         self.lower_roots + self.finish
     }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SourceOriginLowerProfile {
+    pub files: usize,
+    pub parse: Duration,
+    pub lower_roots: Duration,
 }
 
 pub struct ProfiledLoweredSources {
@@ -116,6 +129,9 @@ fn lower_source_set_inner(source_set: &SourceSet) -> ProfiledLoweredSources {
 
     let mut profile = SourceLowerProfile {
         files: source_set.files.len(),
+        entry_files: source_set.files_with_origin(SourceOrigin::Entry).count(),
+        std_files: source_set.files_with_origin(SourceOrigin::Std).count(),
+        user_files: source_set.files_with_origin(SourceOrigin::User).count(),
         ..SourceLowerProfile::default()
     };
     let mut state = LowerState::new();
@@ -159,11 +175,30 @@ fn lower_source_file_inner(
 ) {
     let parse_start = ProfileClock::now();
     let green = parse_module_to_green_with_ops(&file.source, file.op_table.clone());
-    profile.parse += parse_start.elapsed();
+    let parse = parse_start.elapsed();
+    profile.parse += parse;
     let root = SyntaxNode::<YulangLanguage>::new_root(green);
     let lower_start = ProfileClock::now();
     lower_root_in_module(state, &root, tir_module_path(file));
-    profile.lower_roots += lower_start.elapsed();
+    let lower_roots = lower_start.elapsed();
+    profile.lower_roots += lower_roots;
+    push_origin_profile(profile, file.origin, parse, lower_roots);
+}
+
+fn push_origin_profile(
+    profile: &mut SourceLowerProfile,
+    origin: SourceOrigin,
+    parse: Duration,
+    lower_roots: Duration,
+) {
+    let origin_profile = match origin {
+        SourceOrigin::Entry => &mut profile.entry,
+        SourceOrigin::Std => &mut profile.std,
+        SourceOrigin::User => &mut profile.user,
+    };
+    origin_profile.files += 1;
+    origin_profile.parse += parse;
+    origin_profile.lower_roots += lower_roots;
 }
 
 fn tir_module_path(file: &SourceFile) -> Path {

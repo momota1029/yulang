@@ -1,8 +1,10 @@
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use yulang_core_ir::{Name, Path};
 use yulang_source::{
-    InlineSource, SourceOptions, SourceSet, collect_inline_source_files_with_options,
+    InlineSource, SourceOptions, SourceOrigin, SourceSet, collect_inline_source_files_with_options,
+    parse_source_meta,
 };
 
 pub fn source_set(source: &str) -> SourceSet {
@@ -18,11 +20,28 @@ pub fn source_set(source: &str) -> SourceSet {
 }
 
 pub fn inline_sources() -> impl Iterator<Item = InlineSource> {
-    STD_SOURCES.iter().map(|source| InlineSource {
-        path: PathBuf::from(format!("<std>/{}.yu", source.name)),
-        module_path: module_path(source.name),
-        source: source.text.to_string(),
-    })
+    cached_inline_sources().iter().cloned()
+}
+
+fn cached_inline_sources() -> &'static [InlineSource] {
+    static SOURCES: OnceLock<Vec<InlineSource>> = OnceLock::new();
+    SOURCES
+        .get_or_init(|| {
+            STD_SOURCES
+                .iter()
+                .map(|source| {
+                    let source_text = source.text.to_string();
+                    InlineSource {
+                        path: PathBuf::from(format!("<std>/{}.yu", source.name)),
+                        module_path: module_path(source.name),
+                        origin: SourceOrigin::Std,
+                        meta: Some(parse_source_meta(&source_text)),
+                        source: source_text,
+                    }
+                })
+                .collect()
+        })
+        .as_slice()
 }
 
 struct StdSource {

@@ -26,6 +26,9 @@ pub struct RunTimings {
     pub vm_eval_ms: f64,
     pub total_ms: f64,
     pub files: usize,
+    pub entry_files: usize,
+    pub std_files: usize,
+    pub user_files: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]

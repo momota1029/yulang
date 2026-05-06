@@ -120,10 +120,36 @@ pub struct SourceSet {
     pub files: Vec<SourceFile>,
 }
 
+impl SourceSet {
+    pub fn files_with_origin(&self, origin: SourceOrigin) -> impl Iterator<Item = &SourceFile> {
+        self.files.iter().filter(move |file| file.origin == origin)
+    }
+
+    pub fn std_files(&self) -> impl Iterator<Item = &SourceFile> {
+        self.files_with_origin(SourceOrigin::Std)
+    }
+
+    pub fn entry_files(&self) -> impl Iterator<Item = &SourceFile> {
+        self.files_with_origin(SourceOrigin::Entry)
+    }
+
+    pub fn user_files(&self) -> impl Iterator<Item = &SourceFile> {
+        self.files_with_origin(SourceOrigin::User)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SourceOrigin {
+    Entry,
+    Std,
+    User,
+}
+
 #[derive(Debug, Clone)]
 pub struct SourceFile {
     pub path: PathBuf,
     pub module_path: ModulePath,
+    pub origin: SourceOrigin,
     pub op_table: OpTable,
     pub source: String,
     pub meta: SourceMeta,
@@ -133,7 +159,9 @@ pub struct SourceFile {
 pub struct InlineSource {
     pub path: PathBuf,
     pub module_path: ModulePath,
+    pub origin: SourceOrigin,
     pub source: String,
+    pub meta: Option<SourceMeta>,
 }
 
 #[derive(Debug)]
@@ -197,8 +225,10 @@ impl InlineSourceLoader {
         self.load_source(
             PathBuf::from("<virtual-entry>"),
             ModulePath { segments: vec![] },
+            SourceOrigin::Entry,
             source,
             source_prefix,
+            None,
         );
     }
 
@@ -212,17 +242,21 @@ impl InlineSourceLoader {
         let InlineSource {
             path,
             module_path,
+            origin,
             source,
+            meta,
         } = source;
-        self.load_source(path, module_path, &source, "");
+        self.load_source(path, module_path, origin, &source, "", meta);
     }
 
     fn load_source(
         &mut self,
         path: PathBuf,
         module_path: ModulePath,
+        origin: SourceOrigin,
         source: &str,
         source_prefix: &str,
+        cached_meta: Option<SourceMeta>,
     ) {
         if !self.seen.insert(module_path.clone()) {
             return;
@@ -232,11 +266,12 @@ impl InlineSourceLoader {
         if !source_prefix.is_empty() {
             source.insert_str(0, source_prefix);
         }
-        let meta = parse_source_meta(&source);
+        let meta = cached_meta.unwrap_or_else(|| parse_source_meta(&source));
         let dependencies = inline_dependencies(&module_path, &meta);
         self.files.push(SourceFile {
             path,
             module_path,
+            origin,
             op_table: standard_op_table(),
             source,
             meta,
@@ -262,7 +297,12 @@ impl SourceLoader {
         } else {
             ""
         };
-        self.load_module_with_prefix(path, ModulePath { segments: vec![] }, source_prefix)
+        self.load_module_with_prefix(
+            path,
+            ModulePath { segments: vec![] },
+            SourceOrigin::Entry,
+            source_prefix,
+        )
     }
 
     fn load_virtual_entry(
@@ -278,6 +318,7 @@ impl SourceLoader {
         self.load_virtual_module_with_prefix(
             source,
             ModulePath { segments: vec![] },
+            SourceOrigin::Entry,
             source_prefix,
             base_dir,
         )
@@ -287,14 +328,16 @@ impl SourceLoader {
         &mut self,
         path: &FsPath,
         module_path: ModulePath,
+        origin: SourceOrigin,
     ) -> Result<(), SourceLoadError> {
-        self.load_module_with_prefix(path, module_path, "")
+        self.load_module_with_prefix(path, module_path, origin, "")
     }
 
     fn load_module_with_prefix(
         &mut self,
         path: &FsPath,
         module_path: ModulePath,
+        origin: SourceOrigin,
         source_prefix: &str,
     ) -> Result<(), SourceLoadError> {
         let canonical = canonicalize_for_dedupe(path);
@@ -323,6 +366,7 @@ impl SourceLoader {
                         ModulePath {
                             segments: child_module,
                         },
+                        child_origin(origin),
                     )
                 })
             })
@@ -333,23 +377,24 @@ impl SourceLoader {
             .filter_map(|use_| import_module_path(&use_.import))
             .filter_map(|module_path| {
                 self.resolve_import_module_file(&module_path)
-                    .map(|path| (path, module_path))
+                    .map(|path| (path, module_path.clone(), import_origin(&module_path)))
             })
             .collect::<Vec<_>>();
 
         self.files.push(SourceFile {
             path: path.to_path_buf(),
             module_path,
+            origin,
             op_table: standard_op_table(),
             source,
             meta,
         });
 
-        for (path, module_path) in module_paths {
-            self.load_module(&path, module_path)?;
+        for (path, module_path, origin) in module_paths {
+            self.load_module(&path, module_path, origin)?;
         }
-        for (path, module_path) in imported_paths {
-            self.load_module(&path, module_path)?;
+        for (path, module_path, origin) in imported_paths {
+            self.load_module(&path, module_path, origin)?;
         }
         Ok(())
     }
@@ -358,6 +403,7 @@ impl SourceLoader {
         &mut self,
         source: &str,
         module_path: ModulePath,
+        origin: SourceOrigin,
         source_prefix: &str,
         base_dir: Option<&FsPath>,
     ) -> Result<(), SourceLoadError> {
@@ -387,6 +433,7 @@ impl SourceLoader {
                         ModulePath {
                             segments: child_module,
                         },
+                        child_origin(origin),
                     )
                 })
             })
@@ -397,23 +444,24 @@ impl SourceLoader {
             .filter_map(|use_| import_module_path(&use_.import))
             .filter_map(|module_path| {
                 self.resolve_import_module_file(&module_path)
-                    .map(|path| (path, module_path))
+                    .map(|path| (path, module_path.clone(), import_origin(&module_path)))
             })
             .collect::<Vec<_>>();
 
         self.files.push(SourceFile {
             path: synthetic_path,
             module_path,
+            origin,
             op_table: standard_op_table(),
             source,
             meta,
         });
 
-        for (path, module_path) in module_paths {
-            self.load_module(&path, module_path)?;
+        for (path, module_path, origin) in module_paths {
+            self.load_module(&path, module_path, origin)?;
         }
-        for (path, module_path) in imported_paths {
-            self.load_module(&path, module_path)?;
+        for (path, module_path, origin) in imported_paths {
+            self.load_module(&path, module_path, origin)?;
         }
         Ok(())
     }
@@ -436,6 +484,25 @@ impl SourceLoader {
             .search_paths
             .iter()
             .find_map(|root| resolve_module_path_under_root(root, &module_path.segments))
+    }
+}
+
+fn child_origin(parent: SourceOrigin) -> SourceOrigin {
+    match parent {
+        SourceOrigin::Std => SourceOrigin::Std,
+        SourceOrigin::Entry | SourceOrigin::User => SourceOrigin::User,
+    }
+}
+
+fn import_origin(module_path: &ModulePath) -> SourceOrigin {
+    if module_path
+        .segments
+        .first()
+        .is_some_and(|name| name.0 == "std")
+    {
+        SourceOrigin::Std
+    } else {
+        SourceOrigin::User
     }
 }
 
@@ -1148,6 +1215,38 @@ mod tests {
         ))
     }
 
+    fn module_path(segments: &[&str]) -> ModulePath {
+        ModulePath {
+            segments: segments
+                .iter()
+                .map(|segment| Name((*segment).to_string()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn inline_sources_keep_entry_and_std_origins() {
+        let set = collect_inline_source_files_with_options(
+            "1",
+            [InlineSource {
+                path: PathBuf::from("<std>/prelude.yu"),
+                module_path: module_path(&["std", "prelude"]),
+                origin: SourceOrigin::Std,
+                source: String::new(),
+                meta: None,
+            }],
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        );
+
+        assert_eq!(set.entry_files().count(), 1);
+        assert_eq!(set.std_files().count(), 1);
+        assert_eq!(set.user_files().count(), 0);
+    }
+
     #[test]
     fn parses_leading_mod_file_and_use_metadata() {
         let meta =
@@ -1443,6 +1542,9 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(module_paths, vec![vec!["std", "index"], Vec::<&str>::new()]);
+        assert_eq!(set.std_files().count(), 1);
+        assert_eq!(set.entry_files().count(), 1);
+        assert_eq!(set.user_files().count(), 0);
 
         let _ = fs::remove_dir_all(root);
     }

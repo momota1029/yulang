@@ -59,7 +59,8 @@ pub use symbols::{
 pub use types::arena::TypeArena;
 pub use types::{EffectAtom, Neg, Pos, RecordField, Variance};
 pub use yulang_source::{
-    SourceLoadError, SourceOptions, SourceSet, collect_virtual_source_files_with_options,
+    SourceLoadError, SourceOptions, SourceOrigin, SourceSet,
+    collect_virtual_source_files_with_options,
 };
 
 #[cfg(test)]
