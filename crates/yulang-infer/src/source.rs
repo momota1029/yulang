@@ -505,6 +505,20 @@ impl StdInferSnapshot {
 }
 
 impl StdInferSnapshotData {
+    pub fn validate(&self) -> Result<(), StdInferSnapshotDataError> {
+        if self.manifest.format_version != STD_INFER_SNAPSHOT_FORMAT_VERSION {
+            return Err(StdInferSnapshotDataError::UnsupportedFormatVersion {
+                actual: self.manifest.format_version,
+                expected: STD_INFER_SNAPSHOT_FORMAT_VERSION,
+            });
+        }
+        validate_snapshot_symbols("value", &self.values)?;
+        validate_snapshot_symbols("type", &self.types)?;
+        validate_snapshot_modules(&self.modules, self.values.len(), self.types.len())?;
+        validate_snapshot_effect_operations(&self.effect_operations)?;
+        Ok(())
+    }
+
     fn from_state(key: StdSourceCacheKey, state: &LowerState) -> Self {
         let manifest = StdInferSnapshotManifest {
             format_version: STD_INFER_SNAPSHOT_FORMAT_VERSION,
@@ -520,6 +534,47 @@ impl StdInferSnapshotData {
             effect_operations: collect_std_snapshot_effect_operations(state),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StdInferSnapshotDataError {
+    UnsupportedFormatVersion {
+        actual: u32,
+        expected: u32,
+    },
+    NonSequentialSymbolId {
+        table: &'static str,
+        index: usize,
+        snapshot_id: u32,
+    },
+    NonSequentialModuleId {
+        index: usize,
+        snapshot_id: u32,
+    },
+    MissingModuleParent {
+        module: u32,
+        parent: u32,
+    },
+    MissingModuleValue {
+        module: u32,
+        name: String,
+        symbol: u32,
+    },
+    MissingModuleOperator {
+        module: u32,
+        name: String,
+        symbol: u32,
+    },
+    MissingModuleType {
+        module: u32,
+        name: String,
+        symbol: u32,
+    },
+    MissingModuleChild {
+        module: u32,
+        name: String,
+        child: u32,
+    },
 }
 
 fn build_std_infer_snapshot_inner(
@@ -619,6 +674,97 @@ fn collect_std_snapshot_modules(
             }
         })
         .collect()
+}
+
+fn validate_snapshot_symbols(
+    table: &'static str,
+    symbols: &[StdInferSnapshotSymbol],
+) -> Result<(), StdInferSnapshotDataError> {
+    for (index, symbol) in symbols.iter().enumerate() {
+        if symbol.snapshot_id != index as u32 {
+            return Err(StdInferSnapshotDataError::NonSequentialSymbolId {
+                table,
+                index,
+                snapshot_id: symbol.snapshot_id,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn validate_snapshot_modules(
+    modules: &[StdInferSnapshotModule],
+    values_len: usize,
+    types_len: usize,
+) -> Result<(), StdInferSnapshotDataError> {
+    for (index, module) in modules.iter().enumerate() {
+        if module.snapshot_id != index as u32 {
+            return Err(StdInferSnapshotDataError::NonSequentialModuleId {
+                index,
+                snapshot_id: module.snapshot_id,
+            });
+        }
+        if let Some(parent) = module.parent {
+            if parent as usize >= modules.len() {
+                return Err(StdInferSnapshotDataError::MissingModuleParent {
+                    module: module.snapshot_id,
+                    parent,
+                });
+            }
+        }
+        for value in &module.values {
+            if value.symbol as usize >= values_len {
+                return Err(StdInferSnapshotDataError::MissingModuleValue {
+                    module: module.snapshot_id,
+                    name: value.name.clone(),
+                    symbol: value.symbol,
+                });
+            }
+        }
+        for operator in &module.operators {
+            if operator.symbol as usize >= values_len {
+                return Err(StdInferSnapshotDataError::MissingModuleOperator {
+                    module: module.snapshot_id,
+                    name: operator.name.clone(),
+                    symbol: operator.symbol,
+                });
+            }
+        }
+        for ty in &module.types {
+            if ty.symbol as usize >= types_len {
+                return Err(StdInferSnapshotDataError::MissingModuleType {
+                    module: module.snapshot_id,
+                    name: ty.name.clone(),
+                    symbol: ty.symbol,
+                });
+            }
+        }
+        for child in &module.modules {
+            if child.module as usize >= modules.len() {
+                return Err(StdInferSnapshotDataError::MissingModuleChild {
+                    module: module.snapshot_id,
+                    name: child.name.clone(),
+                    child: child.module,
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_snapshot_effect_operations(
+    operations: &[StdInferSnapshotEffectOperation],
+) -> Result<(), StdInferSnapshotDataError> {
+    for (index, operation) in operations.iter().enumerate() {
+        if operation.snapshot_id != index as u32 {
+            return Err(StdInferSnapshotDataError::NonSequentialSymbolId {
+                table: "effect_operation",
+                index,
+                snapshot_id: operation.snapshot_id,
+            });
+        }
+    }
+    Ok(())
 }
 
 fn collect_std_snapshot_values(

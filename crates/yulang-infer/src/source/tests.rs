@@ -112,6 +112,7 @@ fn std_lower_cache_preserves_entry_results() {
     assert_eq!(manifest, snapshot.manifest());
     assert_eq!(&data, snapshot.data());
     assert_eq!(direct_data, data);
+    data.validate().unwrap();
     assert!(
         data.modules.iter().any(|module| {
             module.path == ["std", "int"] && module.values.iter().any(|value| value.name == "add")
@@ -136,6 +137,42 @@ fn std_lower_cache_preserves_entry_results() {
     );
     assert_eq!(cached.diagnostic_source, uncached.diagnostic_source);
     assert_eq!(snapshotted.diagnostic_source, uncached.diagnostic_source);
+}
+
+#[test]
+fn std_snapshot_data_validation_rejects_bad_symbol_refs() {
+    let source_set = collect_inline_source_files_with_options(
+        "use std::prelude::*\none",
+        [InlineSource {
+            path: PathBuf::from("<std>/prelude.yu"),
+            module_path: CorePath {
+                segments: vec![CoreName("std".to_string()), CoreName("prelude".to_string())],
+            },
+            origin: SourceOrigin::Std,
+            source: "pub my one = 1\n".to_string(),
+            meta: None,
+        }],
+        SourceOptions {
+            std_root: None,
+            implicit_prelude: false,
+            search_paths: Vec::new(),
+        },
+    );
+    let mut data = build_std_infer_snapshot_data(&source_set).expect("std snapshot data");
+    data.validate().unwrap();
+
+    let missing_symbol = data.values.len() as u32;
+    let module = data
+        .modules
+        .iter_mut()
+        .find(|module| !module.values.is_empty())
+        .expect("module with values");
+    module.values[0].symbol = missing_symbol;
+
+    assert!(matches!(
+        data.validate(),
+        Err(StdInferSnapshotDataError::MissingModuleValue { .. })
+    ));
 }
 
 const PAT_RECORD_DEFAULT_SOURCE: &str = r#"act cfg:
