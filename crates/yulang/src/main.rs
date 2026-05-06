@@ -1463,6 +1463,14 @@ fn print_infer_phase_timings(
         format_duration(lower.user.parse),
         format_duration(lower.user.lower_roots)
     );
+    eprintln!(
+        "    std_cache: hits={} misses={} disabled={} clone={} build={}",
+        lower.std_cache.hits,
+        lower.std_cache.misses,
+        lower.std_cache.disabled,
+        format_duration(lower.std_cache.clone),
+        format_duration(lower.std_cache.build)
+    );
     eprintln!("  type_errors: {}", format_duration(error_collection));
     eprintln!(
         "  finalize: {}  (iterations={}, finalized_defs={})",

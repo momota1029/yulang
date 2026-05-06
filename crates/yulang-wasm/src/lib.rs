@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use yulang_infer::{
     SourceLowerCache, collect_surface_diagnostics, export_core_program,
-    lower_source_set_with_std_cache,
+    lower_source_set_with_std_cache_profiled,
 };
 use yulang_runtime as runtime;
 
@@ -62,7 +62,9 @@ fn compile_and_run(source: &str) -> Result<CompileRunOutput, String> {
     let std_files = source_set.std_files().count();
     let user_files = source_set.user_files().count();
     let infer_lower_start = now_ms();
-    let mut lowered = lower_with_cache(&source_set);
+    let profiled_lowered = lower_with_cache(&source_set);
+    let source_cache = profiled_lowered.profile.std_cache.clone();
+    let mut lowered = profiled_lowered.lowered;
     let infer_lower_ms = elapsed_ms(infer_lower_start);
     let type_render_start = now_ms();
     let types = yulang_infer::render_exported_compact_results(&mut lowered.state)
@@ -122,6 +124,10 @@ fn compile_and_run(source: &str) -> Result<CompileRunOutput, String> {
                 entry_files,
                 std_files,
                 user_files,
+                source_cache_hits: source_cache.hits,
+                source_cache_misses: source_cache.misses,
+                source_cache_clone_ms: source_cache.clone.as_secs_f64() * 1_000.0,
+                source_cache_build_ms: source_cache.build.as_secs_f64() * 1_000.0,
             },
         })
 }
@@ -130,9 +136,9 @@ thread_local! {
     static SOURCE_LOWER_CACHE: RefCell<SourceLowerCache> = RefCell::new(SourceLowerCache::default());
 }
 
-fn lower_with_cache(source_set: &yulang_source::SourceSet) -> yulang_infer::LoweredSources {
+fn lower_with_cache(source_set: &yulang_source::SourceSet) -> yulang_infer::ProfiledLoweredSources {
     SOURCE_LOWER_CACHE
-        .with(|cache| lower_source_set_with_std_cache(source_set, &mut cache.borrow_mut()))
+        .with(|cache| lower_source_set_with_std_cache_profiled(source_set, &mut cache.borrow_mut()))
 }
 
 fn playground_source(source: &str) -> String {
@@ -246,6 +252,7 @@ g
                 let timings = output.timings.expect("run timings");
                 assert!(timings.files > 1);
                 assert!(timings.total_ms >= 0.0);
+                assert_eq!(timings.source_cache_hits + timings.source_cache_misses, 1);
             })
             .unwrap()
             .join()

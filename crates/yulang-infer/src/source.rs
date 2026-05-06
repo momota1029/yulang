@@ -37,6 +37,7 @@ pub struct SourceLowerProfile {
     pub entry: SourceOriginLowerProfile,
     pub std: SourceOriginLowerProfile,
     pub user: SourceOriginLowerProfile,
+    pub std_cache: SourceStdCacheProfile,
 }
 
 impl SourceLowerProfile {
@@ -54,6 +55,15 @@ pub struct SourceOriginLowerProfile {
     pub files: usize,
     pub parse: Duration,
     pub lower_roots: Duration,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SourceStdCacheProfile {
+    pub hits: usize,
+    pub misses: usize,
+    pub disabled: usize,
+    pub clone: Duration,
+    pub build: Duration,
 }
 
 pub struct ProfiledLoweredSources {
@@ -120,7 +130,14 @@ pub fn lower_source_set_with_std_cache(
     source_set: &SourceSet,
     cache: &mut SourceLowerCache,
 ) -> LoweredSources {
-    with_profile_enabled(false, || lower_source_set_cached_inner(source_set, cache))
+    lower_source_set_with_std_cache_profiled(source_set, cache).lowered
+}
+
+pub fn lower_source_set_with_std_cache_profiled(
+    source_set: &SourceSet,
+    cache: &mut SourceLowerCache,
+) -> ProfiledLoweredSources {
+    with_profile_enabled(true, || lower_source_set_cached_inner(source_set, cache))
 }
 
 pub fn lower_source_set_profiled(source_set: &SourceSet) -> ProfiledLoweredSources {
@@ -171,9 +188,11 @@ fn lower_source_set_inner(source_set: &SourceSet) -> ProfiledLoweredSources {
 fn lower_source_set_cached_inner(
     source_set: &SourceSet,
     cache: &mut SourceLowerCache,
-) -> LoweredSources {
+) -> ProfiledLoweredSources {
     if source_set.std_files().next().is_none() {
-        return lower_source_set(source_set);
+        let mut lowered = lower_source_set_profiled(source_set);
+        lowered.profile.std_cache.disabled += 1;
+        return lowered;
     }
 
     let diagnostic_source = source_set
@@ -181,8 +200,14 @@ fn lower_source_set_cached_inner(
         .next()
         .map(|file| file.source.clone())
         .unwrap_or_default();
-    let mut state = cache.std_state(source_set);
-    let mut profile = SourceLowerProfile::default();
+    let mut profile = SourceLowerProfile {
+        files: source_set.files.len(),
+        entry_files: source_set.files_with_origin(SourceOrigin::Entry).count(),
+        std_files: source_set.files_with_origin(SourceOrigin::Std).count(),
+        user_files: source_set.files_with_origin(SourceOrigin::User).count(),
+        ..SourceLowerProfile::default()
+    };
+    let mut state = cache.std_state(source_set, &mut profile);
     for file in source_set
         .files
         .iter()
@@ -190,11 +215,17 @@ fn lower_source_set_cached_inner(
     {
         lower_source_file_inner(file, &mut state, &mut profile);
     }
+    let finish_start = ProfileClock::now();
     finish_lowering(&mut state);
+    profile.finish = finish_start.elapsed();
+    profile.detail = state.lower_detail.clone();
 
-    LoweredSources {
-        state,
-        diagnostic_source,
+    ProfiledLoweredSources {
+        lowered: LoweredSources {
+            state,
+            diagnostic_source,
+        },
+        profile,
     }
 }
 
@@ -258,19 +289,31 @@ fn tir_module_path(file: &SourceFile) -> Path {
 }
 
 impl SourceLowerCache {
-    fn std_state(&mut self, source_set: &SourceSet) -> LowerState {
+    fn std_state(
+        &mut self,
+        source_set: &SourceSet,
+        profile: &mut SourceLowerProfile,
+    ) -> LowerState {
         let key = StdSourceCacheKey::from_source_set(source_set);
         if let Some(state) = self.std_states.get(&key) {
-            return state.clone();
+            profile.std_cache.hits += 1;
+            let clone_start = ProfileClock::now();
+            let cloned = state.clone();
+            profile.std_cache.clone += clone_start.elapsed();
+            return cloned;
         }
 
+        profile.std_cache.misses += 1;
+        let build_start = ProfileClock::now();
         let mut state = LowerState::new();
         install_builtin_primitives(&mut state);
-        let mut profile = SourceLowerProfile::default();
         for file in source_set.std_files() {
-            lower_source_file_inner(file, &mut state, &mut profile);
+            lower_source_file_inner(file, &mut state, profile);
         }
+        profile.std_cache.build += build_start.elapsed();
+        let clone_start = ProfileClock::now();
         self.std_states.insert(key, state.clone());
+        profile.std_cache.clone += clone_start.elapsed();
         state
     }
 }

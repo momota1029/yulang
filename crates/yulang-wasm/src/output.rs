@@ -29,6 +29,10 @@ pub struct RunTimings {
     pub entry_files: usize,
     pub std_files: usize,
     pub user_files: usize,
+    pub source_cache_hits: usize,
+    pub source_cache_misses: usize,
+    pub source_cache_clone_ms: f64,
+    pub source_cache_build_ms: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
