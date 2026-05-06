@@ -110,11 +110,12 @@ pub(crate) fn make_app_with_cause(
         ExpectedEdgeKind::ApplicationCallee,
         cause.clone(),
     );
-    let arg_edge_id = state.expect_value(
-        arg.tv,
+    let (arg, arg_edge_id) = state.implicit_cast_boundary(
+        arg,
         expected_arg_tv,
         ExpectedEdgeKind::ApplicationArgument,
         cause.clone(),
+        false,
     );
     if matches!(&func.kind, ExprKind::Var(def) if state.effect_op_args.contains_key(def)) {
         state.record_expected_adapter_edge(

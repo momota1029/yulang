@@ -22,6 +22,7 @@ pub mod role;
 pub mod selection;
 
 pub use role::{RoleArgInfo, RoleConstraint, RoleConstraintArg, RoleImplCandidate, RoleMethodInfo};
+pub(crate) use selection::CastMethodResolution;
 
 pub trait IntoPosId {
     fn into_pos_id(self, infer: &Infer) -> PosId;

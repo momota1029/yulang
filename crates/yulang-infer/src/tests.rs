@@ -1305,6 +1305,71 @@ fn duplicate_role_method_impls_surface_ambiguous_impl_during_selection() {
 }
 
 #[test]
+fn missing_implicit_cast_surfaces_missing_cast_impl() {
+    let state = parse_and_lower(
+        "role Cast 'from:\n  type to\n  our from.cast: to\n\n\
+struct user_id { raw: int }\n\
+my id: user_id = 1\n",
+    );
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::MissingImpl { role, args }
+                if role == "Cast"
+                    && args.len() == 2
+                    && args[0] == "int"
+                    && args[1].contains("user_id")
+        )),
+        "expected missing Cast impl error, got {errors:?}",
+    );
+}
+
+#[test]
+fn same_type_annotation_does_not_require_cast_impl() {
+    let state = parse_and_lower(
+        "role Cast 'from:\n  type to\n  our from.cast: to\n\n\
+my x: int = 1\n",
+    );
+    let errors = state.infer.type_errors();
+    assert!(
+        !errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::MissingImpl { role, .. } if role == "Cast"
+        )),
+        "same-type annotation should not require Cast impl, got {errors:?}",
+    );
+}
+
+#[test]
+fn ambiguous_implicit_cast_surfaces_ambiguous_cast_impl() {
+    let state = parse_and_lower(
+        "role Cast 'from:\n  type to\n  our from.cast: to\n\n\
+struct user_id { raw: int }\n\
+cast(x: int): user_id = user_id { raw: x }\n\
+cast(x: int): user_id = user_id { raw: x + 1 }\n\
+my id: user_id = 1\n",
+    );
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::AmbiguousImpl {
+                role,
+                args,
+                candidates,
+                ..
+            } if role == "Cast"
+                && args.len() == 2
+                && args[0] == "int"
+                && args[1].contains("user_id")
+                && *candidates == 2
+        )),
+        "expected ambiguous Cast impl error, got {errors:?}",
+    );
+}
+
+#[test]
 fn concrete_multi_arg_role_constraint_without_impl_surfaces_missing_impl() {
     let mut state = parse_and_lower(
         "role Index 'container 'key:\n  type value\n  our container.index: 'key -> value\n\n\

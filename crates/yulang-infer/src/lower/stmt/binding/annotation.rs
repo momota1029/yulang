@@ -3,8 +3,6 @@ use yulang_parser::lex::SyntaxKind;
 use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::lower::{LowerState, SyntaxNode};
-use crate::solve::{DeferredRoleMethodCall, DeferredSelection};
-use crate::symbols::Name;
 use crate::types::{Neg, Pos};
 
 pub(crate) fn connect_binding_type_annotation(
@@ -40,17 +38,12 @@ pub(crate) fn apply_binding_type_annotation_cast(
     header: &SyntaxNode,
     body: crate::ast::expr::TypedExpr,
 ) -> crate::ast::expr::TypedExpr {
-    if binding_type_annotation_expr(header).is_none() {
+    let Some((ann_tv, cause)) = binding_type_annotation_tv(state, header) else {
         return body;
-    }
-    let cast_name = Name("cast".to_string());
-    if !state.infer.role_methods.contains_key(&cast_name) {
-        connect_binding_type_annotation(state, header, body.tv);
-        return body;
-    }
-    let cast = implicit_cast_select(state, body);
-    connect_binding_type_annotation(state, header, cast.tv);
-    cast
+    };
+    state
+        .implicit_cast_boundary(body, ann_tv, ExpectedEdgeKind::Annotation, cause, true)
+        .0
 }
 
 pub(crate) fn connect_pattern_sig_annotation(
@@ -152,51 +145,19 @@ fn binding_type_annotation_expr(header: &SyntaxNode) -> Option<SyntaxNode> {
         .and_then(|ann| super::super::child_node(&ann, SyntaxKind::TypeExpr))
 }
 
-fn implicit_cast_select(
+fn binding_type_annotation_tv(
     state: &mut LowerState,
-    body: crate::ast::expr::TypedExpr,
-) -> crate::ast::expr::TypedExpr {
-    let tv = state.fresh_tv();
-    let eff = state.fresh_tv();
-    let name = Name("cast".to_string());
+    header: &SyntaxNode,
+) -> Option<(TypeVar, ConstraintCause)> {
+    let type_expr = binding_type_annotation_expr(header)?;
+    let sig = crate::lower::signature::parse_sig_type_expr(&type_expr)?;
+    let mut vars = state.current_type_scope().cloned().unwrap_or_default();
+    let pos_sig = crate::lower::signature::lower_pure_sig_pos_id(state, &sig, &mut vars);
+    let mut neg_vars = vars.clone();
+    let neg_sig = crate::lower::signature::lower_pure_sig_neg_id(state, &sig, &mut neg_vars);
     let cause = ConstraintCause {
-        span: None,
+        span: Some(type_expr.text_range()),
         reason: ConstraintReason::Annotation,
     };
-    let owner = state.current_owner;
-    if let Some(owner) = owner {
-        state.infer.increment_pending_selection(owner);
-    }
-    state
-        .infer
-        .deferred_selections
-        .borrow_mut()
-        .entry(body.tv)
-        .or_default()
-        .push(DeferredSelection {
-            name: name.clone(),
-            module: state.ctx.current_module,
-            recv_eff: body.eff,
-            result_tv: tv,
-            result_eff: eff,
-            owner,
-            cause,
-        });
-    state
-        .infer
-        .push_deferred_role_method_call(DeferredRoleMethodCall {
-            name: name.clone(),
-            recv_tv: body.tv,
-            arg_tvs: Vec::new(),
-            result_tv: tv,
-        });
-
-    crate::ast::expr::TypedExpr {
-        tv,
-        eff,
-        kind: crate::ast::expr::ExprKind::Select {
-            recv: Box::new(body),
-            name,
-        },
-    }
+    Some((fresh_annotation_tv(state, pos_sig, neg_sig, &cause), cause))
 }

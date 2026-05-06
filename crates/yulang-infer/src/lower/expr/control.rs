@@ -44,23 +44,27 @@ pub(super) fn lower_case(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr
             state.ctx.push_local();
             bind_pattern_locals(state, &pat_node);
             let pat = crate::lower::stmt::lower_pat(state, &pat_node);
-            let guard = lower_arm_guard(state, &arm);
-            if let Some(guard) = guard.as_ref() {
+            let mut guard = lower_arm_guard(state, &arm);
+            if let Some(guard_expr) = guard.take() {
                 let cause = ConstraintCause {
                     span: Some(arm.text_range()),
                     reason: ConstraintReason::MatchGuard,
                 };
                 let expected_bool_tv = fresh_exact_bool_tv(state, &cause);
-                state.expect_value_and_effect(
-                    guard.tv,
-                    expected_bool_tv,
-                    guard.eff,
-                    eff,
-                    ExpectedEdgeKind::MatchGuard,
-                    cause.clone(),
+                guard = Some(
+                    state
+                        .implicit_cast_boundary_with_effects(
+                            guard_expr,
+                            expected_bool_tv,
+                            eff,
+                            ExpectedEdgeKind::MatchGuard,
+                            cause,
+                            false,
+                        )
+                        .0,
                 );
             }
-            let body = arm
+            let mut body = arm
                 .children()
                 .find(|c| {
                     matches!(
@@ -77,17 +81,19 @@ pub(super) fn lower_case(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr
             state
                 .infer
                 .constrain(Pos::Var(pat.tv), Neg::Var(scrutinee.tv));
-            state.expect_value_and_effect(
-                body.tv,
-                tv,
-                body.eff,
-                eff,
-                ExpectedEdgeKind::MatchBranch,
-                ConstraintCause {
-                    span: Some(arm.text_range()),
-                    reason: ConstraintReason::MatchBranch,
-                },
-            );
+            body = state
+                .implicit_cast_boundary_with_effects(
+                    body,
+                    tv,
+                    eff,
+                    ExpectedEdgeKind::MatchBranch,
+                    ConstraintCause {
+                        span: Some(arm.text_range()),
+                        reason: ConstraintReason::MatchBranch,
+                    },
+                    true,
+                )
+                .0;
             state.ctx.pop_local();
             Some(crate::ast::expr::TypedMatchArm { pat, guard, body })
         })
@@ -123,28 +129,32 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
             reason: ConstraintReason::IfCondition,
         };
         let expected_bool_tv = fresh_exact_bool_tv(state, &condition_cause);
-        state.expect_value_and_effect(
-            cond.tv,
-            expected_bool_tv,
-            cond.eff,
-            eff,
-            ExpectedEdgeKind::IfCondition,
-            condition_cause,
-        );
+        let cond = state
+            .implicit_cast_boundary_with_effects(
+                cond,
+                expected_bool_tv,
+                eff,
+                ExpectedEdgeKind::IfCondition,
+                condition_cause,
+                false,
+            )
+            .0;
 
-        let body = lower_if_arm_body(state, &arm);
+        let mut body = lower_if_arm_body(state, &arm);
         let branch_cause = ConstraintCause {
             span: Some(arm.text_range()),
             reason: ConstraintReason::IfBranch,
         };
-        state.expect_value_and_effect(
-            body.tv,
-            tv,
-            body.eff,
-            eff,
-            ExpectedEdgeKind::IfBranch,
-            branch_cause,
-        );
+        body = state
+            .implicit_cast_boundary_with_effects(
+                body,
+                tv,
+                eff,
+                ExpectedEdgeKind::IfBranch,
+                branch_cause,
+                true,
+            )
+            .0;
 
         if scrutinee.is_none() {
             scrutinee = Some(cond);
@@ -164,19 +174,21 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
 
     for arm in node.children().filter(|c| c.kind() == SyntaxKind::ElseArm) {
         has_else = true;
-        let body = lower_if_arm_body(state, &arm);
+        let mut body = lower_if_arm_body(state, &arm);
         let branch_cause = ConstraintCause {
             span: Some(arm.text_range()),
             reason: ConstraintReason::IfBranch,
         };
-        state.expect_value_and_effect(
-            body.tv,
-            tv,
-            body.eff,
-            eff,
-            ExpectedEdgeKind::IfBranch,
-            branch_cause,
-        );
+        body = state
+            .implicit_cast_boundary_with_effects(
+                body,
+                tv,
+                eff,
+                ExpectedEdgeKind::IfBranch,
+                branch_cause,
+                true,
+            )
+            .0;
         let pat = bool_lit_pat(state, false);
         connect_pat_shape_and_locals(state, &pat, body.eff);
         if let Some(scrutinee) = &scrutinee {
@@ -192,19 +204,21 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
     }
 
     if scrutinee.is_some() && !has_else {
-        let body = unit_expr(state);
+        let mut body = unit_expr(state);
         let branch_cause = ConstraintCause {
             span: Some(node.text_range()),
             reason: ConstraintReason::IfBranch,
         };
-        state.expect_value_and_effect(
-            body.tv,
-            tv,
-            body.eff,
-            eff,
-            ExpectedEdgeKind::IfBranch,
-            branch_cause,
-        );
+        body = state
+            .implicit_cast_boundary_with_effects(
+                body,
+                tv,
+                eff,
+                ExpectedEdgeKind::IfBranch,
+                branch_cause,
+                true,
+            )
+            .0;
         let pat = bool_lit_pat(state, false);
         connect_pat_shape_and_locals(state, &pat, body.eff);
         if let Some(scrutinee) = &scrutinee {

@@ -202,6 +202,51 @@ sub:
     }
 
     #[test]
+    fn vm_selects_cast_by_annotation_target() {
+        let results = eval_source_with_std(
+            "struct user_id { raw: int }\n\
+             struct order_id { raw: int }\n\
+             cast(x: int): user_id = user_id { raw: x + 10 }\n\
+             cast(x: int): order_id = order_id { raw: x + 20 }\n\
+             my user: user_id = 1\n\
+             my order: order_id = 1\n\
+             [user.raw, order.raw]\n",
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::List(vec![
+                TestValue::Int("11".to_string()),
+                TestValue::Int("21".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_inserts_cast_at_function_argument_boundary() {
+        let results = eval_source_with_std(
+            "struct user_id { raw: int }\n\
+             cast(x: int): user_id = user_id { raw: x + 10 }\n\
+             my read(x: user_id) = x.raw\n\
+             read 1\n",
+        );
+
+        assert_eq!(results, vec![TestValue::Int("11".to_string())]);
+    }
+
+    #[test]
+    fn vm_inserts_cast_at_if_branch_boundary() {
+        let results = eval_source_with_std(
+            "struct user_id { raw: int }\n\
+             cast(x: int): user_id = user_id { raw: x + 10 }\n\
+             my read(x: user_id) = x.raw\n\
+             read (if true: 1 else: user_id { raw: 0 })\n",
+        );
+
+        assert_eq!(results, vec![TestValue::Int("11".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_showcase_example() {
         let results = eval_source_with_std(SHOWCASE_SOURCE);
 

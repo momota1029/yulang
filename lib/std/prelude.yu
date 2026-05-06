@@ -55,10 +55,6 @@ pub role Cast 'from:
     type to
     our from.cast: to
 
-impl Cast 'a:
-    type to = 'a
-    our x.cast = x
-
 pub role LowerHex 'a:
     our a.lower_hex: str
 

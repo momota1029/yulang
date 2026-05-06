@@ -4,8 +4,13 @@ use crate::diagnostic::TypeErrorKind;
 use crate::ids::{DefId, TypeVar};
 use crate::simplify::compact::{CompactBounds, CompactType};
 use crate::solve::{DeferredRoleMethodCall, Infer, RoleArgInfo, RoleMethodInfo};
+use crate::symbols::Name;
 
 impl Infer {
+    pub(crate) fn has_cast_role_method(&self) -> bool {
+        self.role_methods.contains_key(&Name("cast".to_string()))
+    }
+
     pub(crate) fn push_deferred_role_method_call(&self, call: DeferredRoleMethodCall) {
         self.deferred_role_method_calls.borrow_mut().push(call);
     }
@@ -29,14 +34,101 @@ impl Infer {
         (!self.is_role_method_def(def)).then_some(def)
     }
 
+    pub(crate) fn resolve_cast_method_def(
+        &self,
+        source_tv: TypeVar,
+        target_tv: TypeVar,
+    ) -> Option<DefId> {
+        self.resolve_cast_method(source_tv, target_tv).def()
+    }
+
+    pub(crate) fn resolve_cast_method(
+        &self,
+        source_tv: TypeVar,
+        target_tv: TypeVar,
+    ) -> CastMethodResolution {
+        let Some(info) = self.role_methods.get(&Name("cast".to_string())) else {
+            return CastMethodResolution::Unresolved;
+        };
+        let arg_infos = self.role_arg_infos_of(&info.role);
+        let mut indices = Vec::new();
+        let mut concrete_args = Vec::new();
+        for (index, arg_info) in arg_infos.iter().enumerate() {
+            let tv = if arg_info.is_input {
+                source_tv
+            } else if arg_info.name == "to" {
+                target_tv
+            } else {
+                continue;
+            };
+            indices.push(index);
+            let concrete = if arg_info.is_input {
+                super::compact_repr::concrete_tv_lower_repr(self, tv, true)
+            } else {
+                super::compact_repr::concrete_tv_upper_repr(self, tv, true)
+            };
+            let Some(concrete) = concrete else {
+                return CastMethodResolution::Unresolved;
+            };
+            concrete_args.push(concrete);
+        }
+        if indices.len() < 2 {
+            return CastMethodResolution::Unresolved;
+        }
+        if concrete_args.iter().any(|arg| !is_nominal_cast_arg(arg)) {
+            return CastMethodResolution::Unresolved;
+        }
+        if concrete_args.len() >= 2 && concrete_args[0] == concrete_args[1] {
+            return CastMethodResolution::Unresolved;
+        }
+
+        let candidates = self.role_impl_candidates_of(&info.role);
+        let role_matches = candidates
+            .iter()
+            .filter(|candidate| {
+                super::role_candidate_input_subst(candidate, &indices, &concrete_args).is_some()
+            })
+            .collect::<Vec<_>>();
+        let matches = super::select_most_specific_role_candidates(
+            role_matches.iter().copied().collect(),
+            &indices,
+        );
+        match matches.as_slice() {
+            [candidate] => candidate
+                .member_defs
+                .get(&info.name)
+                .copied()
+                .map(CastMethodResolution::Concrete)
+                .unwrap_or(CastMethodResolution::Unresolved),
+            [] if role_matches.is_empty() => CastMethodResolution::Missing {
+                role: path_string(&info.role),
+                args: render_concrete_role_args(&concrete_args),
+            },
+            [] => CastMethodResolution::Unresolved,
+            _ => CastMethodResolution::Ambiguous {
+                role: path_string(&info.role),
+                args: render_concrete_role_args(&concrete_args),
+                candidates: matches.len(),
+                previews: role_candidate_previews(matches),
+            },
+        }
+    }
+
     pub(crate) fn resolve_deferred_role_method_calls(&self) {
         let calls = self.deferred_role_method_calls.borrow().clone();
         for call in calls {
             let Some(info) = self.role_methods.get(&call.name).cloned() else {
                 continue;
             };
-            let resolution =
-                resolve_role_method_call(self, &info, Some(call.recv_tv), &call.arg_tvs);
+            let resolution = if call.name.0 == "cast" {
+                self.resolve_cast_method_def(call.recv_tv, call.result_tv)
+                    .map(RoleMethodResolution::Concrete)
+                    .unwrap_or_else(|| {
+                        resolve_role_method_call(self, &info, Some(call.recv_tv), &call.arg_tvs)
+                    })
+            } else {
+                resolve_role_method_call(self, &info, Some(call.recv_tv), &call.arg_tvs)
+            };
             report_role_method_resolution_error(self, &info, &resolution, call.result_tv);
             let def = resolution.concrete_def().unwrap_or(info.def);
             self.resolved_selections
@@ -97,6 +189,46 @@ fn resolve_role_method_call(
             candidates: matches.len(),
             previews: role_candidate_previews(matches),
         },
+    }
+}
+
+fn is_nominal_cast_arg(arg: &CompactType) -> bool {
+    arg.vars.is_empty()
+        && arg.funs.is_empty()
+        && arg.records.is_empty()
+        && arg.record_spreads.is_empty()
+        && arg.variants.is_empty()
+        && arg.tuples.is_empty()
+        && arg.rows.is_empty()
+        && (arg.prims.len() + arg.cons.len() == 1)
+        && arg
+            .cons
+            .iter()
+            .all(|con| con.args.iter().all(|arg| arg.self_var.is_none()))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CastMethodResolution {
+    Concrete(DefId),
+    Missing {
+        role: String,
+        args: Vec<String>,
+    },
+    Ambiguous {
+        role: String,
+        args: Vec<String>,
+        candidates: usize,
+        previews: Vec<String>,
+    },
+    Unresolved,
+}
+
+impl CastMethodResolution {
+    pub(crate) fn def(&self) -> Option<DefId> {
+        match self {
+            CastMethodResolution::Concrete(def) => Some(*def),
+            _ => None,
+        }
     }
 }
 

@@ -3691,6 +3691,9 @@ fn infer_error_headline(state: &InferLowerState, error: &InferTypeError) -> Stri
             InferExpectedShape::Constructor => "expected constructor".to_string(),
         },
         InferTypeErrorKind::MissingImpl { role, args } => {
+            if role.ends_with("Cast") && args.len() >= 2 {
+                return format!("no implicit cast from {} to {}", args[0], args[1]);
+            }
             format!("no impl for {}<{}>", role, args.join(", "))
         }
         InferTypeErrorKind::MissingImplMember { role, member } => {
@@ -3705,6 +3708,12 @@ fn infer_error_headline(state: &InferLowerState, error: &InferTypeError) -> Stri
             candidates,
             previews,
         } => {
+            if role.ends_with("Cast") && args.len() >= 2 {
+                return format!(
+                    "ambiguous implicit cast from {} to {} ({} candidates)",
+                    args[0], args[1], candidates
+                );
+            }
             let preview_suffix = if previews.is_empty() {
                 String::new()
             } else {
@@ -4238,6 +4247,27 @@ mod tests {
     }
 
     #[test]
+    fn infer_error_headline_reports_missing_implicit_cast() {
+        let source = concat!(
+            "role Cast 'from:\n    type to\n    our from.cast: to\n\n",
+            "struct user_id { raw: int }\n",
+            "my id: user_id = 1\n",
+        );
+        let options = test_cli_options();
+        let root = SyntaxNode::<YulangLanguage>::new_root(
+            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
+        );
+        let (state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let errors = state.infer.type_errors();
+        let error = errors
+            .iter()
+            .find(|error| matches!(error.kind, InferTypeErrorKind::MissingImpl { .. }))
+            .expect("missing Cast impl error should be reported");
+
+        assert!(infer_error_headline(&state, error).starts_with("no implicit cast from int to "));
+    }
+
+    #[test]
     fn infer_error_context_reports_annotation_edge() {
         let source = "my x: int = \"s\"\n";
         let options = test_cli_options();
@@ -4337,6 +4367,31 @@ mod tests {
         assert_eq!(
             infer_error_headline(&state, error),
             "ambiguous impl for Display<int> (2 candidates: Display<int> vs Display<int>)"
+        );
+    }
+
+    #[test]
+    fn infer_error_headline_reports_ambiguous_implicit_cast() {
+        let source = concat!(
+            "role Cast 'from:\n    type to\n    our from.cast: to\n\n",
+            "struct user_id { raw: int }\n",
+            "cast(x: int): user_id = user_id { raw: x }\n",
+            "cast(x: int): user_id = user_id { raw: x + 1 }\n",
+            "my id: user_id = 1\n",
+        );
+        let options = test_cli_options();
+        let root = SyntaxNode::<YulangLanguage>::new_root(
+            yulang_parser::parse_module_to_green_with_ops(source, Default::default()),
+        );
+        let (state, _, _) = lower_infer_sources(None, &root, source, &options);
+        let errors = state.infer.type_errors();
+        let error = errors
+            .iter()
+            .find(|error| matches!(error.kind, InferTypeErrorKind::AmbiguousImpl { .. }))
+            .expect("ambiguous Cast impl error should be reported");
+
+        assert!(
+            infer_error_headline(&state, error).starts_with("ambiguous implicit cast from int to ")
         );
     }
 

@@ -7,7 +7,7 @@ use crate::diagnostic::{
 };
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::ctx::LowerCtx;
-use crate::solve::Infer;
+use crate::solve::{CastMethodResolution, DeferredRoleMethodCall, DeferredSelection, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{Neg, Pos};
 
@@ -285,6 +285,185 @@ impl LowerState {
         self.infer
             .constrain_with_cause(Pos::Var(actual_tv), Neg::Var(expected_tv), cause);
         edge_id
+    }
+
+    pub fn implicit_cast_boundary(
+        &mut self,
+        expr: TypedExpr,
+        expected_tv: TypeVar,
+        kind: ExpectedEdgeKind,
+        cause: ConstraintCause,
+        preserve_boundary_on_unresolved: bool,
+    ) -> (TypedExpr, ExpectedEdgeId) {
+        let edge_id = self.record_expected_edge(expr.tv, expected_tv, kind, cause.clone());
+        self.implicit_cast_boundary_from_edge(
+            expr,
+            expected_tv,
+            None,
+            kind,
+            edge_id,
+            cause,
+            preserve_boundary_on_unresolved,
+        )
+    }
+
+    pub fn implicit_cast_boundary_with_effects(
+        &mut self,
+        expr: TypedExpr,
+        expected_tv: TypeVar,
+        expected_eff: TypeVar,
+        kind: ExpectedEdgeKind,
+        cause: ConstraintCause,
+        preserve_boundary_on_unresolved: bool,
+    ) -> (TypedExpr, ExpectedEdgeId) {
+        let actual_eff = expr.eff;
+        let edge_id = self.record_expected_edge_with_effects(
+            expr.tv,
+            expected_tv,
+            Some(actual_eff),
+            Some(expected_eff),
+            kind,
+            cause.clone(),
+        );
+        self.implicit_cast_boundary_from_edge(
+            expr,
+            expected_tv,
+            Some((actual_eff, expected_eff)),
+            kind,
+            edge_id,
+            cause,
+            preserve_boundary_on_unresolved,
+        )
+    }
+
+    fn implicit_cast_boundary_from_edge(
+        &mut self,
+        expr: TypedExpr,
+        expected_tv: TypeVar,
+        effect_constraint: Option<(TypeVar, TypeVar)>,
+        kind: ExpectedEdgeKind,
+        edge_id: ExpectedEdgeId,
+        cause: ConstraintCause,
+        preserve_boundary_on_unresolved: bool,
+    ) -> (TypedExpr, ExpectedEdgeId) {
+        let cast_name = Name("cast".to_string());
+        match self.infer.resolve_cast_method(expr.tv, expected_tv) {
+            CastMethodResolution::Concrete(_) => {}
+            CastMethodResolution::Missing { role, args } => {
+                self.infer.report_synthetic_type_error(
+                    crate::diagnostic::TypeErrorKind::MissingImpl { role, args },
+                    format!("implicit cast edge {}", edge_id.0),
+                );
+                self.infer
+                    .constrain_with_cause(Pos::Var(expr.tv), Neg::Var(expected_tv), cause);
+                if let Some((actual_eff, expected_eff)) = effect_constraint {
+                    self.infer
+                        .constrain(Pos::Var(actual_eff), Neg::Var(expected_eff));
+                    return (
+                        expected_boundary_expr(expr, expected_tv, expected_eff, edge_id),
+                        edge_id,
+                    );
+                }
+                let eff = expr.eff;
+                return (
+                    expected_boundary_expr(expr, expected_tv, eff, edge_id),
+                    edge_id,
+                );
+            }
+            CastMethodResolution::Ambiguous {
+                role,
+                args,
+                candidates,
+                previews,
+            } => {
+                self.infer.report_synthetic_type_error(
+                    crate::diagnostic::TypeErrorKind::AmbiguousImpl {
+                        role,
+                        args,
+                        candidates,
+                        previews,
+                    },
+                    format!("implicit cast edge {}", edge_id.0),
+                );
+                self.infer
+                    .constrain_with_cause(Pos::Var(expr.tv), Neg::Var(expected_tv), cause);
+                if let Some((actual_eff, expected_eff)) = effect_constraint {
+                    self.infer
+                        .constrain(Pos::Var(actual_eff), Neg::Var(expected_eff));
+                    return (
+                        expected_boundary_expr(expr, expected_tv, expected_eff, edge_id),
+                        edge_id,
+                    );
+                }
+                let eff = expr.eff;
+                return (
+                    expected_boundary_expr(expr, expected_tv, eff, edge_id),
+                    edge_id,
+                );
+            }
+            CastMethodResolution::Unresolved => {
+                self.infer
+                    .constrain_with_cause(Pos::Var(expr.tv), Neg::Var(expected_tv), cause);
+                if let Some((actual_eff, expected_eff)) = effect_constraint {
+                    self.infer
+                        .constrain(Pos::Var(actual_eff), Neg::Var(expected_eff));
+                }
+                let should_preserve_boundary = preserve_boundary_on_unresolved
+                    && (kind == ExpectedEdgeKind::Annotation || self.infer.has_cast_role_method());
+                if should_preserve_boundary {
+                    let eff = effect_constraint
+                        .map(|(_, expected_eff)| expected_eff)
+                        .unwrap_or(expr.eff);
+                    return (
+                        expected_boundary_expr(expr, expected_tv, eff, edge_id),
+                        edge_id,
+                    );
+                }
+                return (expr, edge_id);
+            }
+        }
+
+        let result_eff = self.fresh_tv();
+        let owner = self.current_owner;
+        if let Some(owner) = owner {
+            self.infer.increment_pending_selection(owner);
+        }
+        self.infer
+            .deferred_selections
+            .borrow_mut()
+            .entry(expr.tv)
+            .or_default()
+            .push(DeferredSelection {
+                name: cast_name.clone(),
+                module: self.ctx.current_module,
+                recv_eff: expr.eff,
+                result_tv: expected_tv,
+                result_eff,
+                owner,
+                cause,
+            });
+        self.infer
+            .push_deferred_role_method_call(DeferredRoleMethodCall {
+                name: cast_name.clone(),
+                recv_tv: expr.tv,
+                arg_tvs: Vec::new(),
+                result_tv: expected_tv,
+            });
+        if let Some((_, expected_eff)) = effect_constraint {
+            self.infer
+                .constrain(Pos::Var(result_eff), Neg::Var(expected_eff));
+        }
+        (
+            TypedExpr {
+                tv: expected_tv,
+                eff: result_eff,
+                kind: ExprKind::Select {
+                    recv: Box::new(expr),
+                    name: cast_name,
+                },
+            },
+            edge_id,
+        )
     }
 
     pub fn expect_value_and_effect(
@@ -930,5 +1109,23 @@ impl LowerState {
         let out = f(self);
         self.pop_type_scope();
         out
+    }
+}
+
+fn expected_boundary_expr(
+    expr: TypedExpr,
+    expected_tv: TypeVar,
+    expected_eff: TypeVar,
+    edge_id: ExpectedEdgeId,
+) -> TypedExpr {
+    TypedExpr {
+        tv: expected_tv,
+        eff: expected_eff,
+        kind: ExprKind::Coerce {
+            edge_id: Some(edge_id),
+            actual_tv: expr.tv,
+            expected_tv,
+            expr: Box::new(expr),
+        },
     }
 }

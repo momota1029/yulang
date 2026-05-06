@@ -32,7 +32,7 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
             .map(|c| lower_expr(state, &c))
             .unwrap_or_else(|| unit_expr(state));
 
-        let arms: Vec<TypedCatchArm> = node
+        let mut arms: Vec<TypedCatchArm> = node
             .children()
             .filter(|c| c.kind() == SyntaxKind::CatchBlock)
             .flat_map(|b| collect_child_arms(&b, SyntaxKind::CatchArm))
@@ -46,22 +46,30 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
             Path,
             HashMap<crate::ids::TypeVar, crate::ids::TypeVar>,
         > = HashMap::new();
-        for arm in &arms {
-            match &arm.kind {
+        for arm in &mut arms {
+            match &mut arm.kind {
                 CatchArmKind::Value(pat, body) => {
                     saw_value_arm = true;
-                    let branch_edge_id = state.expect_value_and_effect(
-                        body.tv,
+                    let original_body = body.clone();
+                    let (new_body, branch_edge_id) = state.implicit_cast_boundary_with_effects(
+                        original_body.clone(),
                         tv,
-                        body.eff,
                         eff,
                         ExpectedEdgeKind::CatchBranch,
                         ConstraintCause {
                             span: None,
                             reason: ConstraintReason::CatchBranch,
                         },
+                        true,
                     );
-                    record_handler_return_adapter_edge(state, branch_edge_id, body, tv, eff);
+                    *body = new_body;
+                    record_handler_return_adapter_edge(
+                        state,
+                        branch_edge_id,
+                        &original_body,
+                        tv,
+                        eff,
+                    );
                     state.infer.constrain(Pos::Var(comp.tv), Neg::Var(pat.tv));
                 }
                 CatchArmKind::Effect {
@@ -149,18 +157,26 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
                         );
                     }
 
-                    let branch_edge_id = state.expect_value_and_effect(
-                        body.tv,
+                    let original_body = body.clone();
+                    let (new_body, branch_edge_id) = state.implicit_cast_boundary_with_effects(
+                        original_body.clone(),
                         tv,
-                        body.eff,
                         eff,
                         ExpectedEdgeKind::CatchBranch,
                         ConstraintCause {
                             span: None,
                             reason: ConstraintReason::CatchBranch,
                         },
+                        true,
                     );
-                    record_handler_return_adapter_edge(state, branch_edge_id, body, tv, eff);
+                    *body = new_body;
+                    record_handler_return_adapter_edge(
+                        state,
+                        branch_edge_id,
+                        &original_body,
+                        tv,
+                        eff,
+                    );
                 }
             }
         }
@@ -733,7 +749,7 @@ fn lower_catch_arm(
         .collect();
 
     state.ctx.push_local();
-    let guard = lower_arm_guard(state, node);
+    let mut guard = lower_arm_guard(state, node);
     let kind = if pats.len() >= 2 {
         let op_pat = pats[0].clone();
         let k_pat = pats[1].clone();
@@ -768,19 +784,23 @@ fn lower_catch_arm(
             })
             .map(|c| lower_expr(state, &c))
             .unwrap_or_else(|| unit_expr(state));
-        if let Some(guard) = guard.as_ref() {
+        if let Some(guard_expr) = guard.take() {
             let cause = ConstraintCause {
                 span: Some(node.text_range()),
                 reason: ConstraintReason::CatchGuard,
             };
             let expected_bool_tv = fresh_exact_bool_tv(state, &cause);
-            state.expect_value_and_effect(
-                guard.tv,
-                expected_bool_tv,
-                guard.eff,
-                body.eff,
-                ExpectedEdgeKind::CatchGuard,
-                cause.clone(),
+            guard = Some(
+                state
+                    .implicit_cast_boundary_with_effects(
+                        guard_expr,
+                        expected_bool_tv,
+                        body.eff,
+                        ExpectedEdgeKind::CatchGuard,
+                        cause,
+                        false,
+                    )
+                    .0,
             );
         }
         connect_pat_shape_and_locals(state, &payload_pat, body.eff);
@@ -814,19 +834,23 @@ fn lower_catch_arm(
             })
             .map(|c| lower_expr(state, &c))
             .unwrap_or_else(|| unit_expr(state));
-        if let Some(guard) = guard.as_ref() {
+        if let Some(guard_expr) = guard.take() {
             let cause = ConstraintCause {
                 span: Some(node.text_range()),
                 reason: ConstraintReason::CatchGuard,
             };
             let expected_bool_tv = fresh_exact_bool_tv(state, &cause);
-            state.expect_value_and_effect(
-                guard.tv,
-                expected_bool_tv,
-                guard.eff,
-                body.eff,
-                ExpectedEdgeKind::CatchGuard,
-                cause.clone(),
+            guard = Some(
+                state
+                    .implicit_cast_boundary_with_effects(
+                        guard_expr,
+                        expected_bool_tv,
+                        body.eff,
+                        ExpectedEdgeKind::CatchGuard,
+                        cause,
+                        false,
+                    )
+                    .0,
             );
         }
         connect_pat_shape_and_locals(state, &pat, body.eff);

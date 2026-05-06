@@ -237,20 +237,69 @@ impl<'a> ExprExporter<'a> {
                 actual_tv,
                 expected_tv,
                 expr,
-            } => core_ir::Expr::Coerce {
-                expr: Box::new(self.export_expr(expr)),
-                evidence: Some(complete_coerce_principal_evidence(
-                    &self.state.infer,
-                    *edge_id,
-                    *actual_tv,
-                    *expected_tv,
-                )),
-            },
+            } => self
+                .export_user_cast_boundary(*edge_id, *actual_tv, *expected_tv, expr)
+                .unwrap_or_else(|| {
+                    let edge_kind = self.lookup_edge_evidence(*edge_id).map(|edge| edge.kind);
+                    if edge_kind != Some(crate::diagnostic::ExpectedEdgeKind::RepresentationCoerce)
+                    {
+                        return self.export_expr(expr);
+                    }
+                    core_ir::Expr::Coerce {
+                        expr: Box::new(self.export_expr(expr)),
+                        evidence: Some(complete_coerce_principal_evidence(
+                            &self.state.infer,
+                            *edge_id,
+                            *actual_tv,
+                            *expected_tv,
+                        )),
+                    }
+                }),
             ExprKind::PackForall(var, expr) => core_ir::Expr::Pack {
                 var: core_ir::TypeVar(format!("t{}", var.0)),
                 expr: Box::new(self.export_expr(expr)),
             },
         }
+    }
+
+    fn export_user_cast_boundary(
+        &mut self,
+        edge_id: Option<ExpectedEdgeId>,
+        actual_tv: TypeVar,
+        expected_tv: TypeVar,
+        expr: &TypedExpr,
+    ) -> Option<core_ir::Expr> {
+        let edge = self.lookup_edge_evidence(edge_id)?;
+        if edge.kind == crate::diagnostic::ExpectedEdgeKind::RepresentationCoerce {
+            return None;
+        }
+        let arg_bounds = edge.actual.clone();
+        let result_bounds = edge.expected.clone();
+        let def = self
+            .state
+            .infer
+            .resolve_cast_method_def(actual_tv, expected_tv)?;
+        let def = canonical_runtime_export_def(self.state, def);
+        let callee_tv = self.state.def_tvs.get(&def).copied().unwrap_or(expected_tv);
+        let arg = self.export_expr(expr);
+        Some(core_ir::Expr::Apply {
+            callee: Box::new(core_ir::Expr::Var(self.path_for_def(def))),
+            arg: Box::new(arg),
+            evidence: Some(core_ir::ApplyEvidence {
+                callee_source_edge: None,
+                arg_source_edge: None,
+                callee: self.export_relevant_bounds_for_tv(callee_tv),
+                expected_callee: None,
+                arg: arg_bounds.clone(),
+                expected_arg: Some(arg_bounds),
+                result: result_bounds,
+                principal_callee: None,
+                substitutions: Vec::new(),
+                substitution_candidates: Vec::new(),
+                role_method: true,
+                principal_elaboration: None,
+            }),
+        })
     }
 
     fn export_ref_field_projection(

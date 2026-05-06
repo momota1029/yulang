@@ -2826,6 +2826,13 @@ fn records_expected_edges_for_case_guards_and_branches() {
 
 #[test]
 fn lowers_constant_case_guards() {
+    fn strip_expected_boundary(expr: &crate::ast::expr::TypedExpr) -> &crate::ast::expr::TypedExpr {
+        match &expr.kind {
+            crate::ast::expr::ExprKind::Coerce { expr, .. } => strip_expected_boundary(expr),
+            _ => expr,
+        }
+    }
+
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let std_root = repo_root.join("lib/std");
@@ -2853,11 +2860,11 @@ fn lowers_constant_case_guards() {
             crate::ast::expr::ExprKind::Match(_, arms) => {
                 assert_eq!(arms.len(), 2);
                 assert!(matches!(
-                    arms[0].body.kind,
+                    strip_expected_boundary(&arms[0].body).kind,
                     crate::ast::expr::ExprKind::Lit(crate::ast::expr::Lit::Int(1))
                 ));
                 assert!(matches!(
-                    arms[1].body.kind,
+                    strip_expected_boundary(&arms[1].body).kind,
                     crate::ast::expr::ExprKind::Lit(crate::ast::expr::Lit::Int(0))
                 ));
             }

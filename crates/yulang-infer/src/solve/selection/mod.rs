@@ -20,6 +20,7 @@ mod scheme_arg;
 
 pub(crate) use candidate::{role_candidate_input_subst, select_most_specific_role_candidates};
 pub(super) use compact_repr::concrete_tv_repr;
+pub(crate) use role_method::CastMethodResolution;
 
 impl Infer {
     pub(crate) fn resolved_selection_def(&self, result_tv: TypeVar) -> Option<DefId> {

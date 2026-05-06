@@ -13,6 +13,24 @@ pub(crate) fn concrete_tv_repr(
     concrete_bounds_repr(&scheme.cty, allow_boundary)
 }
 
+pub(super) fn concrete_tv_lower_repr(
+    infer: &Infer,
+    tv: TypeVar,
+    allow_boundary: bool,
+) -> Option<CompactType> {
+    let scheme = compact_type_var(infer, tv);
+    concrete_or_boundary_compact_type(&scheme.cty.lower, allow_boundary)
+}
+
+pub(super) fn concrete_tv_upper_repr(
+    infer: &Infer,
+    tv: TypeVar,
+    allow_boundary: bool,
+) -> Option<CompactType> {
+    let scheme = compact_type_var(infer, tv);
+    concrete_or_boundary_compact_type(&scheme.cty.upper, allow_boundary)
+}
+
 pub(super) fn concrete_bounds_repr(
     bounds: &CompactBounds,
     allow_boundary: bool,

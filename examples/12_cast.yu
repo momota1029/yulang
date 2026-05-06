@@ -1,5 +1,7 @@
 struct user_id { raw: int }
 
+// `cast` declares an implicit conversion rule.  Users do not write an explicit
+// cast expression; the rule is used at ordinary expected-type boundaries.
 cast(x: user_id): int = x.raw
 cast(x: int): user_id = user_id { raw: x }
 
