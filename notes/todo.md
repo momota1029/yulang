@@ -121,26 +121,41 @@ Current shape:
   monomorphize, VM compile, and VM eval.
 - Playground timing output is currently sent to the browser console, not the
   visible result pane.
-- A first std `SourceFile` cache attempt was reverted after measurement. Source
-  loading was not the dominant cost; infer/export/monomorphize are the current
-  bottlenecks.
+- Source loading now records `SourceOrigin::{Entry, Std, User}` so std and user
+  code are separated at the source-set boundary.
+- Wasm has a process-local lowered-std cache. The playground warms the bundled
+  std cache after the first run, and later runs report `source_cache_hits` /
+  `source_cache_misses` in `RunOutput.timings`.
+- This cache is not yet a build-time persistent artifact. It still stores a
+  cloned `LowerState` in memory after wasm startup.
 
 Next steps:
 
-- Use the timings to confirm whether the remaining fixed cost is infer/lower,
-  core export, runtime lower, monomorphize, or VM eval.
+- Design a persistent bundled std artifact for wasm startup:
+  - first target: a compact `StdInferSnapshot`, not serialized whole
+    `LowerState`;
+  - include module/name tables, resolved refs, exported public schemes,
+    syntax exports, role/impl lookup tables, effect metadata, principal bodies
+    and evidence needed by export/runtime;
+  - make def ids / type vars / frozen scheme ids importable without collision
+    with user code;
+  - keep a version/hash key based on std source text, compiler snapshot version,
+    and relevant feature flags.
+- Use the process-local lowered-std cache as the behavioral oracle while
+  designing the persistent artifact.
+- Measure first playground run separately from second run. The persistent cache
+  should reduce first-run `infer_lower_ms` and ideally make type rendering /
+  export cacheable later.
 - Keep deeper timing available locally:
   - `--infer-phase-timings`
   - `--runtime-phase-timings`
   - `YULANG_EXPORT_TIMING=1`
-- Split std from user code at the infer/export boundary only after the timing
-  data justifies it.
-- Treat a reusable std infer artifact as a real partial-compilation boundary:
-  def ids, type vars, role tables, syntax exports, and principal evidence must
-  have an explicit import/instantiation story before reuse.
-- Avoid a quick global clone of `LowerState` as the final answer. It may help as
-  a measurement step, but the long-term cache should expose a small artifact,
-  not a copy of the whole compiler state.
+- After the infer snapshot is stable, consider persistent core/export artifacts
+  for std public bindings and principal evidence. Do not serialize debug-only
+  derived evidence into the hot artifact unless a consumer needs it.
+- Avoid treating the current global clone of `LowerState` as the final answer.
+  It is a stepping stone and measurement baseline, not the long-term cache
+  format.
 
 ## Priority 5: Refactoring
 
@@ -192,18 +207,18 @@ Goal: make the repo understandable without reading implementation notes.
 
 ## Suggested Next Step
 
-Use the playground timing breakdown to choose the next partial-compilation
-boundary. Console output is now available, so the immediate performance work is
-to make the fixed std cost visible and then shrink it.
+Use the current playground cache timings to move from process-local std caching
+to a persistent bundled std infer snapshot.
 
 Concrete first task:
 
-1. Compare first and second playground runs using `RunOutput.timings`.
-2. If `source_set_ms` remains meaningful, avoid rebuilding syntax tables for
-   cached std files.
-3. If `infer_lower_ms` dominates, design a std infer artifact with explicit
-   imported def/type-var namespaces.
-4. If runtime lower / monomorphize dominates, continue shrinking fallback
-   monomorphize rather than expanding source-level caching.
+1. Write down the exact fields of `LowerState` that user lowering needs from
+   std after std lowering has completed.
+2. Split those fields into a small `StdInferSnapshot` structure and an
+   `instantiate_std_snapshot` import path.
+3. Add a test that compares uncached lowering, process-local cache lowering,
+   and snapshot-instantiated lowering on a tiny program.
+4. In wasm, replace warm-lowered-std cache construction with loading the
+   bundled snapshot once the snapshot path is equivalent.
 5. Keep diagnostics work in parallel, but do not let diagnostics add more CST
    rescans on the hot path.

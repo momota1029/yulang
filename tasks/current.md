@@ -975,3 +975,43 @@ Keep the near-term work focused on:
   bookkeeping in hot paths.
 - Continue moving missing runtime work into exported principal slot evidence or
   adapter holes, not into the old demand/fixpoint path.
+
+## Current Checkpoint: Std Cache Boundary
+
+The playground now has a process-local lowered-std cache:
+
+- `SourceFile` carries `SourceOrigin::{Entry, Std, User}`.
+- `SourceLowerCache` can cache a lowered std `LowerState`.
+- Wasm exports `warm_std_cache()` and reports cache hit/miss/build/clone timing
+  in `RunOutput.timings`.
+- The playground runs the first example first, then warms the full bundled std
+  cache during idle time so later runs hit the cache.
+
+This is intentionally not the final persistent cache design. It proves the
+partial-compilation boundary and gives a behavioral baseline.
+
+Next direction:
+
+1. Design `StdInferSnapshot` as a compact importable artifact instead of
+   serializing the whole `LowerState`.
+2. Snapshot only std information that user lowering/export/runtime actually
+   consumes:
+   - module/name tables and canonical paths
+   - resolved public refs and public schemes
+   - syntax exports/op tables
+   - role/impl/effect lookup metadata
+   - principal bodies/evidence needed by export/runtime
+   - stable id remapping data for `DefId`, `TypeVar`, `RefId`, and frozen
+     schemes
+3. Keep snapshot versioning explicit: std source hash, compiler snapshot format,
+   and relevant feature flags.
+4. Add equivalence tests that compare:
+   - normal full source lowering
+   - process-local lowered-std cache
+   - snapshot import once it exists
+5. Do not make diagnostics or debug evidence part of the hot persistent artifact
+   unless a concrete consumer requires it.
+
+The expected win is first-run playground speed. The current warm cache improves
+second and later runs; a bundled snapshot should remove most std infer/lower
+fixed cost from the first run too.
