@@ -582,6 +582,7 @@ mod tests {
                 assert_eq!(output.results.len(), 1);
                 assert_eq!(output.results[0].value, "[5, 6, 7, 6, 7, 8, 7, 8, 9]");
                 assert!(output.ok, "{:?}", output.diagnostics);
+                assert_compiled_std_cache_hit(&output);
             })
             .unwrap()
             .join()

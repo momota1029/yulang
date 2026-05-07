@@ -914,6 +914,8 @@ fn import_compiled_typed_lookup_tables(
         let Some(def) = def else {
             continue;
         };
+        let effect = path_from_snapshot_segments(&method.effect);
+        let def = compiled_effect_method_runtime_def(state, method, *def, &effect);
         let module = state
             .ctx
             .resolve_module_path(&path_from_snapshot_segments(&method.module_path))
@@ -922,8 +924,8 @@ fn import_compiled_typed_lookup_tables(
             .infer
             .register_effect_method(crate::solve::EffectMethodInfo {
                 name: Name(method.name.clone()),
-                effect: path_from_snapshot_segments(&method.effect),
-                def: *def,
+                effect,
+                def,
                 module,
                 visibility: import_snapshot_visibility(method.visibility),
                 receiver_expects_computation: method.receiver_expects_computation,
@@ -931,6 +933,27 @@ fn import_compiled_typed_lookup_tables(
     }
 
     state.mark_selection_lookup_dirty();
+}
+
+fn compiled_effect_method_runtime_def(
+    state: &LowerState,
+    method: &StdInferSnapshotEffectMethod,
+    method_def: crate::ids::DefId,
+    effect: &Path,
+) -> crate::ids::DefId {
+    if !method.receiver_expects_computation {
+        return method_def;
+    }
+    // Cached imports do not yet restore source helper bodies into LowerState.
+    // When std exposes both `(x: [_] _).m` and a direct `effect::m`, use the
+    // direct runtime handler target so downstream export can keep the
+    // computation receiver effect attached without re-lowering the helper.
+    let mut direct_path = effect.clone();
+    direct_path.segments.push(Name(method.name.clone()));
+    state
+        .ctx
+        .resolve_path_value(&direct_path)
+        .unwrap_or(method_def)
 }
 
 pub fn build_compiled_unit_artifacts(
@@ -2207,6 +2230,10 @@ fn compiled_namespace_surface_for_modules(
     }
     module_ids.sort_by_key(|module| module.0);
     module_ids.dedup();
+    let unit_paths = module_ids
+        .iter()
+        .map(|module| snapshot_path_segments(&state.ctx.module_path(*module)))
+        .collect::<Vec<_>>();
     let mut value_defs = HashMap::new();
     let mut type_defs = HashMap::new();
     let values = compiled_namespace_symbols_for_defs(
@@ -2221,13 +2248,18 @@ fn compiled_namespace_surface_for_modules(
                 .chain(state.ctx.modules.node(*module).operator_values.values())
                 .copied()
         }),
+        &state.ctx.canonical_value_paths(),
+        &unit_paths,
         &mut value_defs,
     );
+    let no_canonical_paths = HashMap::new();
     let types = compiled_namespace_symbols_for_defs(
         type_paths,
         module_ids
             .iter()
             .flat_map(|module| state.ctx.modules.node(*module).types.values().copied()),
+        &no_canonical_paths,
+        &unit_paths,
         &mut type_defs,
     );
     let modules = module_ids
@@ -2347,6 +2379,12 @@ fn path_contains_impl_helper_module(path: &Path) -> bool {
         .any(|segment| segment.0.starts_with("&impl#"))
 }
 
+fn path_contains_runtime_identity_segment_core(path: &core_ir::Path) -> bool {
+    path.segments
+        .iter()
+        .any(|segment| segment.0.starts_with("#effect-method:"))
+}
+
 fn add_core_program_binding_aliases(
     program: &mut CoreProgram,
     aliases: &[(core_ir::Path, core_ir::Path)],
@@ -2371,6 +2409,9 @@ fn add_core_program_binding_aliases(
             continue;
         };
         binding.name = alias.clone();
+        if path_contains_runtime_identity_segment_core(alias) {
+            binding.body = core_ir::Expr::Var(canonical.clone());
+        }
         existing_bindings.insert(alias.clone());
         program.program.bindings.push(binding);
     }
@@ -3384,6 +3425,8 @@ fn module_id_for_core_path(state: &LowerState, path: &yulang_core_ir::Path) -> O
 fn compiled_namespace_symbols_for_defs(
     all_paths: &[(Path, crate::ids::DefId)],
     defs: impl IntoIterator<Item = crate::ids::DefId>,
+    canonical_paths: &HashMap<crate::ids::DefId, Path>,
+    unit_paths: &[Vec<String>],
     out_ids: &mut HashMap<crate::ids::DefId, u32>,
 ) -> Vec<CompiledNamespaceSymbol> {
     let mut symbols = Vec::new();
@@ -3391,10 +3434,26 @@ fn compiled_namespace_symbols_for_defs(
     defs.sort_by_key(|def| def.0);
     defs.dedup();
     for def in defs {
-        let Some(path) = all_paths
+        let path = all_paths
             .iter()
-            .find_map(|(path, current)| (*current == def).then_some(path))
-        else {
+            .filter_map(|(path, current)| {
+                (*current == def).then(|| effect_method_hidden_canonical_path(path, unit_paths))?
+            })
+            .next()
+            .or_else(|| {
+                canonical_paths
+                    .get(&def)
+                    .filter(|path| {
+                        path_belongs_to_modules(&snapshot_path_segments(path), unit_paths)
+                    })
+                    .cloned()
+            })
+            .or_else(|| {
+                all_paths
+                    .iter()
+                    .find_map(|(path, current)| (*current == def).then(|| path.clone()))
+            });
+        let Some(path) = path else {
             continue;
         };
         let unit_id = out_ids.len() as u32;
@@ -3406,6 +3465,23 @@ fn compiled_namespace_symbols_for_defs(
     }
     symbols.sort_by(|left, right| left.path.cmp(&right.path));
     symbols
+}
+
+fn effect_method_hidden_canonical_path(path: &Path, unit_paths: &[Vec<String>]) -> Option<Path> {
+    let hidden_name = path.segments.last()?;
+    let rest = hidden_name.0.strip_prefix("#effect-method:")?;
+    let mut parts = rest.rsplitn(3, ':');
+    let _def = parts.next()?;
+    let _method = parts.next()?;
+    let effect = parts.next()?;
+    let mut segments = effect
+        .split("::")
+        .filter(|segment| !segment.is_empty())
+        .map(|segment| Name(segment.to_string()))
+        .collect::<Vec<_>>();
+    segments.push(hidden_name.clone());
+    let candidate = Path { segments };
+    path_belongs_to_modules(&snapshot_path_segments(&candidate), unit_paths).then_some(candidate)
 }
 
 fn compiled_namespace_module(
