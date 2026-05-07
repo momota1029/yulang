@@ -1292,7 +1292,7 @@ impl Lowerer<'_> {
             TypeSource::JoinEvidence,
         )?;
         Ok(HandleArm {
-            effect: arm.effect,
+            effect: self.resolve_handle_effect_operation_path(&arm.effect),
             payload,
             resume: arm.resume.map(|name| ResumeBinding {
                 name,
@@ -1760,6 +1760,44 @@ impl Lowerer<'_> {
             current = next.clone();
         }
         current
+    }
+
+    fn resolve_handle_effect_operation_path(&self, path: &core_ir::Path) -> core_ir::Path {
+        let Some(op) = path.segments.last() else {
+            return path.clone();
+        };
+        if op.0.ends_with("#effect") {
+            return path.clone();
+        }
+        let hidden_op = core_ir::Name(format!("{}#effect", op.0));
+        let mut hidden_path = path.clone();
+        if let Some(last) = hidden_path.segments.last_mut() {
+            *last = hidden_op.clone();
+        }
+        if self.runtime_symbols.contains_key(&hidden_path) {
+            return hidden_path;
+        }
+
+        let namespace = &path.segments[..path.segments.len().saturating_sub(1)];
+        self.runtime_symbols
+            .iter()
+            .find_map(|(candidate, kind)| {
+                if *kind != core_ir::RuntimeSymbolKind::EffectOperation {
+                    return None;
+                }
+                let Some(candidate_op) = candidate.segments.last() else {
+                    return None;
+                };
+                if candidate_op != &hidden_op {
+                    return None;
+                }
+                candidate
+                    .segments
+                    .get(..candidate.segments.len().saturating_sub(1))
+                    .is_some_and(|candidate_namespace| candidate_namespace.ends_with(namespace))
+                    .then(|| candidate.clone())
+            })
+            .unwrap_or_else(|| path.clone())
     }
 
     pub(super) fn fresh_type_var(&mut self, prefix: &str) -> core_ir::Type {

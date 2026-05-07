@@ -33,11 +33,25 @@ pub(crate) fn pattern_ctor_path(node: &SyntaxNode) -> Option<Path> {
 }
 
 pub(crate) fn enum_variant_def_for_pattern(state: &LowerState, path: &Path) -> Option<DefId> {
-    if path.segments.len() == 1 {
+    let def = if path.segments.len() == 1 {
         state.ctx.resolve_value(&path.segments[0])
     } else {
         state.ctx.resolve_path_value(path)
+    }?;
+    if state.enum_variant_tags.contains_key(&def) {
+        return Some(def);
     }
+    if let Some(value_def) = state.same_path_value_def_for_effect_op(def) {
+        return Some(value_def);
+    }
+
+    let canonical = state
+        .ctx
+        .canonical_value_paths()
+        .get(&def)
+        .cloned()
+        .unwrap_or_else(|| path.clone());
+    state.same_path_value_def_for_path(&canonical)
 }
 
 pub(crate) fn resolve_pattern_constructor_ref(state: &mut LowerState, def: DefId) -> RefId {

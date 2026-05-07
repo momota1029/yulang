@@ -541,6 +541,47 @@ fn effect_operation_application_records_adapter_edge() {
 }
 
 #[test]
+fn same_path_enum_constructor_and_effect_operation_are_both_tracked() {
+    let state = parse_and_lower(
+        "enum fs_err = not_found str\n\
+         act fs_err:\n  our not_found: str -> never\n\n\
+         my err: fs_err = fs_err::not_found \"x\"\n",
+    );
+    let path = symbols::Path {
+        segments: vec![
+            symbols::Name("fs_err".to_string()),
+            symbols::Name("not_found".to_string()),
+        ],
+    };
+    let visible_def = state
+        .ctx
+        .resolve_path_value(&path)
+        .expect("same path should resolve to the effect operation by default");
+    assert!(
+        state.effect_op_args.contains_key(&visible_def),
+        "visible same-path def should be the effect operation"
+    );
+
+    let constructor_def = state
+        .same_path_value_def_for_effect_op(visible_def)
+        .expect("same-path effect operation should keep the hidden constructor");
+    assert!(
+        state.enum_variant_tags.contains_key(&constructor_def),
+        "hidden same-path value should remain the enum constructor"
+    );
+    assert_eq!(
+        state.same_path_effect_op_for_path(&path),
+        Some(visible_def),
+        "canonical surface path should recover the effect operation"
+    );
+    assert_eq!(
+        state.same_path_value_def_for_path(&path),
+        Some(constructor_def),
+        "canonical surface path should recover the hidden constructor"
+    );
+}
+
+#[test]
 fn catch_records_handler_adapter_edges() {
     let mut state = parse_and_lower(
         "pub act out:\n  pub say: str -> ()\n\ncatch out::say \"hi\":\n    out::say msg, k -> k ()\n",

@@ -224,6 +224,7 @@ pub(super) struct ExprExporter<'a> {
     profile: Option<&'a mut ExprExportProfile>,
     relevant_vars: BTreeSet<core_ir::TypeVar>,
     edge_evidence: &'a HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
+    prefer_same_path_effect_ops: u32,
 }
 
 #[derive(Debug, Default)]
@@ -298,6 +299,7 @@ impl<'a> ExprExporter<'a> {
             profile,
             relevant_vars,
             edge_evidence,
+            prefer_same_path_effect_ops: 0,
         }
     }
 
@@ -347,7 +349,7 @@ impl<'a> ExprExporter<'a> {
                 arg_edge_id,
                 expected_arg_tv,
             } => core_ir::Expr::Apply {
-                callee: Box::new(self.export_expr(callee)),
+                callee: Box::new(self.export_apply_callee(callee, expr)),
                 arg: Box::new(self.export_expr(arg)),
                 evidence: Some(self.export_apply_evidence(
                     callee,
@@ -472,7 +474,9 @@ impl<'a> ExprExporter<'a> {
                 }),
             },
             ExprKind::Catch(body, arms) => core_ir::Expr::Handle {
-                body: Box::new(self.export_expr(body)),
+                body: Box::new(
+                    self.with_same_path_effect_ops_preferred(|this| this.export_expr(body)),
+                ),
                 arms: arms.iter().map(|arm| self.export_catch_arm(arm)).collect(),
                 evidence: Some(core_ir::JoinEvidence {
                     result: self.export_relevant_bounds_for_tv(expr.tv),
@@ -1112,7 +1116,7 @@ impl<'a> ExprExporter<'a> {
                 k,
                 body,
             } => core_ir::HandleArm {
-                effect: export_path(op_path),
+                effect: self.export_effect_operation_path(op_path),
                 payload: self.export_pat(pat),
                 resume: Some(self.local_name_for_def(*k)),
                 guard: arm.guard.as_ref().map(|guard| self.export_expr(guard)),
@@ -1273,6 +1277,51 @@ impl<'a> ExprExporter<'a> {
             return core_ir::Path::from_name(export_name(name));
         }
         export_path(&self.synthetic_local_path(def))
+    }
+
+    fn export_apply_callee(&mut self, callee: &TypedExpr, app: &TypedExpr) -> core_ir::Expr {
+        let ExprKind::Var(def) = &callee.kind else {
+            return self.export_expr(callee);
+        };
+        let Some(value_def) = self.state.same_path_value_def_for_effect_op(*def) else {
+            return self.export_expr(callee);
+        };
+        if self.prefer_same_path_effect_ops > 0 {
+            return self.export_expr(callee);
+        }
+        let result_bounds = self.export_relevant_bounds_for_tv(app.tv);
+        if type_bounds_expect_runtime_value(&result_bounds) {
+            return core_ir::Expr::Var(self.path_for_def(value_def));
+        }
+        self.export_expr(callee)
+    }
+
+    fn with_same_path_effect_ops_preferred<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.prefer_same_path_effect_ops += 1;
+        let result = f(self);
+        self.prefer_same_path_effect_ops -= 1;
+        result
+    }
+
+    fn export_effect_operation_path(&self, op_path: &Path) -> core_ir::Path {
+        let Some(def) = self.state.ctx.resolve_path_value(op_path) else {
+            return export_path(op_path);
+        };
+        if self.state.effect_op_args.contains_key(&def) {
+            return self.path_for_def(def);
+        }
+
+        let canonical = self
+            .state
+            .ctx
+            .canonical_value_paths()
+            .get(&def)
+            .cloned()
+            .unwrap_or_else(|| op_path.clone());
+        self.state
+            .same_path_effect_op_for_path(&canonical)
+            .map(|op_def| self.path_for_def(op_def))
+            .unwrap_or_else(|| export_path(op_path))
     }
 
     fn synthetic_local_path(&self, def: DefId) -> Path {
@@ -1805,6 +1854,36 @@ fn coalesce_apply_evidence_enabled() -> bool {
 
 fn export_rewritten_apply_slot_evidence_enabled() -> bool {
     export_apply_substitutions_enabled()
+}
+
+fn type_bounds_expect_runtime_value(bounds: &core_ir::TypeBounds) -> bool {
+    bounds
+        .lower
+        .as_deref()
+        .is_some_and(core_type_is_runtime_value)
+        || bounds
+            .upper
+            .as_deref()
+            .is_some_and(core_type_is_runtime_value)
+}
+
+fn core_type_is_runtime_value(ty: &core_ir::Type) -> bool {
+    match ty {
+        core_ir::Type::Named { .. }
+        | core_ir::Type::Tuple(_)
+        | core_ir::Type::Record(_)
+        | core_ir::Type::Variant(_) => true,
+        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            items.iter().any(core_type_is_runtime_value)
+        }
+        core_ir::Type::Recursive { body, .. } => core_type_is_runtime_value(body),
+        core_ir::Type::Unknown
+        | core_ir::Type::Never
+        | core_ir::Type::Any
+        | core_ir::Type::Var(_)
+        | core_ir::Type::Fun { .. }
+        | core_ir::Type::Row { .. } => false,
+    }
 }
 
 fn export_lit(lit: &TirLit) -> core_ir::Lit {

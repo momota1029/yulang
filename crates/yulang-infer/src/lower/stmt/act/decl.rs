@@ -45,7 +45,10 @@ pub(crate) fn lower_act_decl(state: &mut LowerState, node: &SyntaxNode) {
 
     let alias_owner = state.ctx.modules.node(mid).parent.unwrap_or(mid);
 
-    super::super::with_companion_module(state, name.clone(), |state| {
+    let saved_module = state.ctx.enter_or_create_module(name.clone());
+    state.mark_companion_module(state.ctx.current_module);
+    {
+        let state = &mut *state;
         state.insert_type_alias_with_visibility(alias_owner, name.clone(), def, visibility);
         state.insert_module_alias_with_visibility(
             alias_owner,
@@ -62,7 +65,8 @@ pub(crate) fn lower_act_decl(state: &mut LowerState, node: &SyntaxNode) {
         if let Some(body) = body_node {
             super::lower_act_body(state, &body, effect_path, &act_scope, &act_arg_tvs, None);
         }
-    });
+    }
+    state.ctx.leave_module(saved_module);
 }
 
 fn act_visibility(node: &SyntaxNode) -> Visibility {

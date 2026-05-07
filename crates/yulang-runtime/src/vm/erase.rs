@@ -375,7 +375,7 @@ impl EffectPathResolver {
             if resolved_namespace != namespace {
                 let mut segments = resolved_namespace.segments;
                 segments.push(op);
-                return core_ir::Path { segments };
+                return self.resolve_op_path(core_ir::Path { segments });
             }
         }
         self.resolve_op_path(path)
@@ -494,7 +494,14 @@ impl EffectPathResolver {
         let Some(op) = path.segments.last().cloned() else {
             return;
         };
-        self.ops_by_last.entry(op).or_insert_with(|| path.clone());
+        self.ops_by_last
+            .entry(op.clone())
+            .or_insert_with(|| path.clone());
+        if let Some(base) = op.0.strip_suffix("#effect") {
+            self.ops_by_last
+                .entry(core_ir::Name(base.to_string()))
+                .or_insert_with(|| path.clone());
+        }
         if path.segments.len() > 1 {
             let namespace = core_ir::Path {
                 segments: path.segments[..path.segments.len() - 1].to_vec(),

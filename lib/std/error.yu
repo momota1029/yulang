@@ -1,0 +1,2 @@
+pub role Throw 'e:
+    our e.throw: never

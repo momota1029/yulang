@@ -327,6 +327,23 @@ impl LowerCtx {
         parent
     }
 
+    pub fn enter_or_create_module(&mut self, name: Name) -> ModuleId {
+        let parent = self.current_module;
+        let child = self
+            .modules
+            .node(parent)
+            .modules
+            .get(&name)
+            .copied()
+            .unwrap_or_else(|| {
+                let child = self.modules.new_module();
+                self.modules.insert_module(parent, name, child);
+                child
+            });
+        self.current_module = child;
+        parent
+    }
+
     pub fn leave_module(&mut self, saved: ModuleId) {
         self.current_module = saved;
     }

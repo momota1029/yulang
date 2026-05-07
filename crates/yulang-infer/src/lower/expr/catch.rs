@@ -78,7 +78,7 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
                     k,
                     body,
                 } => {
-                    let op_def = state.ctx.resolve_path_value(op_path);
+                    let op_def = resolve_effect_op_def(state, op_path);
                     let effect_path = op_def
                         .and_then(|def| state.effect_op_effect_paths.get(&def).cloned())
                         .unwrap_or_else(|| effect_scope_path(op_path));
@@ -724,6 +724,21 @@ fn instantiate_effect_op_use(
     });
     state.lower_detail.instantiate_effect_op_use += start.elapsed();
     result
+}
+
+fn resolve_effect_op_def(state: &LowerState, op_path: &Path) -> Option<crate::ids::DefId> {
+    let def = state.ctx.resolve_path_value(op_path)?;
+    if state.effect_op_args.contains_key(&def) {
+        return Some(def);
+    }
+
+    let canonical = state
+        .ctx
+        .canonical_value_paths()
+        .get(&def)
+        .cloned()
+        .unwrap_or_else(|| op_path.clone());
+    state.same_path_effect_op_for_path(&canonical)
 }
 
 fn lower_catch_arm(

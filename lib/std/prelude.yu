@@ -16,6 +16,7 @@ pub infix (<..<) 4.0.0 4.0.0 = std::range::exclusive
 pub use std::int::*
 pub use std::str::*
 pub use std::fold::Fold
+pub use std::error::Throw
 pub use std::list::*
 pub use std::opt::*
 pub use std::fs::*

@@ -1,4 +1,5 @@
 use std::opt::*
+use std::error::Throw
 
 // TODO: This is the first minimal host-facing fs surface. Revisit the exact API
 // shape before treating it as stable, especially error reporting, path helpers,
@@ -9,5 +10,29 @@ pub act fs:
     pub exists: str -> bool
     pub is_file: str -> bool
     pub is_dir: str -> bool
+
+enum fs_err = not_found str | denied str | invalid_path str
+
+pub act fs_err:
+    pub not_found: str -> never
+    pub denied: str -> never
+    pub invalid_path: str -> never
+
+my throw_fs_err(e: fs_err): [fs_err] never = case e:
+    fs_err::not_found path -> fs_err::not_found path
+    fs_err::denied path -> fs_err::denied path
+    fs_err::invalid_path text -> fs_err::invalid_path text
+
+impl Throw fs_err:
+    our e.throw = throw_fs_err e
+
+// Transitional checked API for the error-effect prototype. The current host
+// request still collapses all read failures to nil, so nil maps conservatively
+// to not_found until host requests can return typed filesystem errors.
+pub read_text_or_throw path = case fs::read_text path:
+    opt::nil ->
+        my err: fs_err = fs_err::not_found path
+        err.throw
+    opt::just text -> text
 
 pub use std::fs::fs::*

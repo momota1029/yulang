@@ -204,6 +204,79 @@ my text = case read_text path:
     }
 
     #[test]
+    fn vm_distinguishes_same_path_error_constructor_and_operation() {
+        let results = eval_source_with_std(
+            r#"enum fs_err = not_found str | denied str | invalid_path str
+
+act fs_err:
+    our not_found: str -> never
+    our denied: str -> never
+    our invalid_path: str -> never
+
+{
+    my err: fs_err = fs_err::not_found "data.txt"
+    my value = case err:
+        fs_err::not_found path -> "value:" + path
+        fs_err::denied path -> "denied:" + path
+        fs_err::invalid_path text -> "invalid:" + text
+    catch fs_err::not_found "data.txt":
+        fs_err::not_found path, _ -> "missing:" + path
+        fs_err::denied path, _ -> "denied:" + path
+        fs_err::invalid_path text, _ -> "invalid:" + text
+}
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::String("missing:data.txt".to_string())]
+        );
+    }
+
+    #[test]
+    fn vm_handles_std_fs_err_throw_role() {
+        let results = eval_source_with_std(
+            r#"{
+    my err: fs_err = fs_err::not_found "data.txt"
+    catch err.throw:
+        fs_err::not_found path, _ -> "missing:" + path
+        fs_err::denied path, _ -> "denied:" + path
+        fs_err::invalid_path text, _ -> "invalid:" + text
+}
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::String("missing:data.txt".to_string())]
+        );
+    }
+
+    #[test]
+    fn vm_handles_std_read_text_or_throw_not_found() {
+        let path = temp_test_path("yulang-missing-text");
+        let source_path = yulang_string_literal(&path.to_string_lossy());
+        let source = format!(
+            r#"catch read_text_or_throw {source_path}:
+    fs_err::not_found path, _ -> "missing:" + path
+    fs_err::denied path, _ -> "denied:" + path
+    fs_err::invalid_path text, _ -> "invalid:" + text
+"#
+        );
+
+        let (results, stdout) = eval_source_with_std_host(&source);
+
+        assert!(stdout.is_empty());
+        assert_eq!(
+            results,
+            vec![TestValue::String(format!(
+                "missing:{}",
+                path.to_string_lossy()
+            ))]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_optional_record_argument_defaults() {
         let results = eval_source_with_std(
             "my area({width = 1, height = 2}) = width * height\n\

@@ -88,6 +88,16 @@ pub struct LowerState {
     pub effect_op_args: HashMap<DefId, Vec<(TypeVar, TypeVar)>>,
     /// operation DefId が属する effect path。
     pub effect_op_effect_paths: HashMap<DefId, Path>,
+    /// 同じ surface path で既存 value と衝突した operation。
+    ///
+    /// `enum fs_err = not_found ...` と `act fs_err: not_found ...` のような
+    /// 宣言では、source の値名前空間は後から宣言された operation を見る。
+    /// value construction / pattern / handler arm はこの表で同名の相手を取り戻す。
+    pub same_path_effect_ops: HashMap<Path, DefId>,
+    /// operation と同じ surface path で隠れた通常 value。
+    pub same_path_value_defs: HashMap<Path, DefId>,
+    /// 同名 operation DefId から隠れた value DefId へ戻る逆引き。
+    pub same_path_value_defs_by_effect_op: HashMap<DefId, DefId>,
     /// operation DefId ごとの明示シグネチャ。
     pub effect_op_pos_sigs: HashMap<DefId, PosId>,
     pub effect_op_neg_sigs: HashMap<DefId, NegId>,
@@ -150,6 +160,9 @@ impl LowerState {
             effect_args: HashMap::new(),
             effect_op_args: HashMap::new(),
             effect_op_effect_paths: HashMap::new(),
+            same_path_effect_ops: HashMap::new(),
+            same_path_value_defs: HashMap::new(),
+            same_path_value_defs_by_effect_op: HashMap::new(),
             effect_op_pos_sigs: HashMap::new(),
             effect_op_neg_sigs: HashMap::new(),
             act_templates: HashMap::new(),
@@ -871,6 +884,45 @@ impl LowerState {
         if self.companion_modules.contains(&module) {
             self.mark_selection_lookup_dirty();
         }
+    }
+
+    pub fn register_same_path_value_and_effect_op(
+        &mut self,
+        module: ModuleId,
+        name: crate::symbols::Name,
+        value_def: DefId,
+        effect_op_def: DefId,
+    ) {
+        let mut canonical_path = self.ctx.module_path(module).segments;
+        canonical_path.push(name.clone());
+        let path = Path {
+            segments: canonical_path,
+        };
+        self.same_path_value_defs.insert(path.clone(), value_def);
+        self.same_path_effect_ops.insert(path, effect_op_def);
+        self.same_path_value_defs_by_effect_op
+            .insert(effect_op_def, value_def);
+
+        let mut operation_path = self.ctx.module_path(module).segments;
+        operation_path.push(crate::symbols::Name(format!("{}#effect", name.0)));
+        self.ctx.record_canonical_value_path(
+            effect_op_def,
+            Path {
+                segments: operation_path,
+            },
+        );
+    }
+
+    pub fn same_path_effect_op_for_path(&self, path: &Path) -> Option<DefId> {
+        self.same_path_effect_ops.get(path).copied()
+    }
+
+    pub fn same_path_value_def_for_path(&self, path: &Path) -> Option<DefId> {
+        self.same_path_value_defs.get(path).copied()
+    }
+
+    pub fn same_path_value_def_for_effect_op(&self, def: DefId) -> Option<DefId> {
+        self.same_path_value_defs_by_effect_op.get(&def).copied()
     }
 
     pub fn insert_value_alias_with_visibility(

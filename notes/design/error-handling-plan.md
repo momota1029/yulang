@@ -154,6 +154,17 @@ catch read_text path:
 
 `error` can be a reserved word for this sugar.
 
+Current manual prototype note:
+
+- `std::fs` now manually defines both `enum fs_err` and `act fs_err` with the
+  same surface path.
+- Runtime lowering must keep constructor values and effect operations distinct
+  by context: value construction lowers as an ordinary binding, while an
+  effectful expected callee lowers as an effect operation.
+- `read_text_or_throw` is a transitional checked API. The host request still
+  collapses all read failures to `opt::nil`, so it maps `nil` conservatively to
+  `fs_err::not_found` until host requests can return typed filesystem errors.
+
 Aggregation remains explicit:
 
 ```text
@@ -247,14 +258,23 @@ be aggregated explicitly.
 
 ```text
 read_text: str -> opt str
+read_text_or_throw: str -> [fs_err] str
 write_text: (str, str) -> bool
 exists: str -> bool
 is_file: str -> bool
 is_dir: str -> bool
+enum fs_err = not_found str | denied str | invalid_path str
+act fs_err:
+  not_found: str -> never
+  denied: str -> never
+  invalid_path: str -> never
+impl Throw fs_err
 ```
 
-This is intentionally minimal and unstable. It proves host effect plumbing and
-basic native CLI behavior. It should not be documented as stable.
+This is intentionally minimal and unstable. It proves host effect plumbing,
+same-name constructor/operation lowering, and basic native CLI behavior. Native
+host errors are not typed yet, so `read_text_or_throw` still uses `not_found` as
+the conservative `nil` mapping. It should not be documented as stable.
 
 ## Implementation Phases
 

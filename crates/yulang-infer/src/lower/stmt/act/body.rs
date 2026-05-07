@@ -221,6 +221,9 @@ fn lower_act_operation_decl(
         .effect_op_effect_paths
         .insert(def, effect_path.clone());
     let mid = state.ctx.current_module;
+    if let Some(existing) = state.ctx.modules.node(mid).values.get(&name).copied() {
+        state.register_same_path_value_and_effect_op(mid, name.clone(), existing, def);
+    }
     state.insert_value_with_visibility(
         mid,
         name,
