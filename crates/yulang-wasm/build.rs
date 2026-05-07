@@ -94,6 +94,10 @@ const STD_SOURCES: &[StdSource] = &[
         text: include_str!("../../lib/std/opt.yu"),
     },
     StdSource {
+        name: "ops",
+        text: include_str!("../../lib/std/ops.yu"),
+    },
+    StdSource {
         name: "prelude",
         text: include_str!("../../lib/std/prelude.yu"),
     },
