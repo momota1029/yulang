@@ -70,6 +70,18 @@ pub fn export_type_bounds_for_tv(infer: &Infer, tv: TypeVar) -> core_ir::TypeBou
     export_type_bounds(&scheme, &scheme.cty)
 }
 
+pub fn export_compact_type_bounds(ty: &CompactType) -> core_ir::TypeBounds {
+    let scheme = CompactTypeScheme {
+        cty: CompactBounds {
+            self_var: None,
+            lower: ty.clone(),
+            upper: ty.clone(),
+        },
+        rec_vars: HashMap::new(),
+    };
+    export_type_bounds(&scheme, &scheme.cty)
+}
+
 pub fn export_type_bounds_for_tvs(
     infer: &Infer,
     tvs: &[TypeVar],

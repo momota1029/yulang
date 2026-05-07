@@ -15,9 +15,9 @@ use super::paths::{collect_canonical_binding_paths, complete_referenced_binding_
 use super::roles::canonical_runtime_export_def;
 use super::spine::collect_apply_spine;
 use super::types::{
-    collect_core_type_vars, export_coalesced_type_bounds_for_tv, export_frozen_scheme,
-    export_frozen_scheme_body_type_vars, export_relevant_type_bounds_for_tv, export_scheme,
-    export_scheme_body, export_scheme_body_type_vars, export_type_bounds_for_tv,
+    collect_core_type_vars, export_coalesced_type_bounds_for_tv, export_compact_type_bounds,
+    export_frozen_scheme, export_frozen_scheme_body_type_vars, export_relevant_type_bounds_for_tv,
+    export_scheme, export_scheme_body, export_scheme_body_type_vars, export_type_bounds_for_tv,
     extend_export_type_bounds_cache_for_tvs,
 };
 use crate::ast::expr::{CatchArmKind, ExprKind, TypedBlock, TypedExpr, TypedStmt};
@@ -743,11 +743,74 @@ fn export_type_graph_view_for_paths(
         .collect();
     let root_exprs = export_root_expr_nodes(state);
     let runtime_symbols = export_runtime_symbols(state, paths);
+    let role_impls = export_role_impl_graph_nodes(state, paths);
     core_ir::CoreGraphView {
         bindings: binding_nodes,
         root_exprs,
         runtime_symbols,
+        role_impls,
     }
+}
+
+fn export_role_impl_graph_nodes(
+    state: &LowerState,
+    paths: &[(Path, DefId)],
+) -> Vec<core_ir::RoleImplGraphNode> {
+    let def_paths = paths
+        .iter()
+        .map(|(path, def)| (*def, export_path(path)))
+        .collect::<HashMap<_, _>>();
+    let mut out = Vec::new();
+    for candidate in state
+        .infer
+        .role_impl_candidates
+        .borrow()
+        .values()
+        .flat_map(|candidates| candidates.iter())
+    {
+        let members = candidate
+            .member_defs
+            .iter()
+            .filter_map(|(name, def)| {
+                def_paths.get(def).map(|path| core_ir::RecordField {
+                    name: core_ir::Name(name.0.clone()),
+                    value: path.clone(),
+                    optional: false,
+                })
+            })
+            .collect::<Vec<_>>();
+        if members.is_empty() {
+            continue;
+        }
+        let role_infos = state.infer.role_arg_infos_of(&candidate.role);
+        let mut inputs = Vec::new();
+        let mut associated_types = Vec::new();
+        for (index, arg) in candidate.compact_args.iter().enumerate() {
+            let bounds = export_compact_type_bounds(arg);
+            match role_infos.get(index) {
+                Some(info) if !info.is_input => associated_types.push(core_ir::RecordField {
+                    name: core_ir::Name(info.name.clone()),
+                    value: bounds,
+                    optional: false,
+                }),
+                _ => inputs.push(bounds),
+            }
+        }
+        out.push(core_ir::RoleImplGraphNode {
+            role: export_path(&candidate.role),
+            inputs,
+            associated_types,
+            members,
+        });
+    }
+    out.sort_by(|lhs, rhs| {
+        lhs.role
+            .segments
+            .cmp(&rhs.role.segments)
+            .then_with(|| format!("{:?}", lhs.inputs).cmp(&format!("{:?}", rhs.inputs)))
+    });
+    out.dedup();
+    out
 }
 
 fn export_runtime_symbols(

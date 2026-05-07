@@ -513,6 +513,11 @@ fn remove_program_paths(
         .graph
         .runtime_symbols
         .retain(|symbol| !paths.contains(&symbol.path));
+    program.graph.role_impls.retain(|node| {
+        node.members
+            .iter()
+            .any(|member| !paths.contains(&member.value))
+    });
 }
 
 fn artifact_has_std_module(artifact: &yulang_infer::CompiledUnitArtifact) -> bool {
@@ -582,6 +587,28 @@ mod tests {
                 assert_eq!(output.results.len(), 1);
                 assert_eq!(output.results[0].value, "[5, 6, 7, 6, 7, 8, 7, 8, 9]");
                 assert!(output.ok, "{:?}", output.diagnostics);
+                assert_compiled_std_cache_hit(&output);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn runs_undet_once_range_example() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let source = r#"{
+    my a = each 1..
+    guard: a == 3
+    a
+}.once
+"#;
+                let output = run_inner(source);
+                assert!(output.ok, "{:?}", output.diagnostics);
+                assert_eq!(output.results.len(), 1);
+                assert_eq!(output.results[0].value, "just 3");
                 assert_compiled_std_cache_hit(&output);
             })
             .unwrap()
@@ -929,6 +956,11 @@ g
             .graph
             .runtime_symbols
             .retain(|symbol| !path_starts_with(&symbol.path, module));
+        program.graph.role_impls.retain(|node| {
+            node.members
+                .iter()
+                .any(|member| !path_starts_with(&member.value, module))
+        });
     }
 
     fn path_starts_with(path: &yulang_core_ir::Path, module: &str) -> bool {
@@ -961,6 +993,11 @@ g
             .graph
             .runtime_symbols
             .retain(|symbol| !bundled_paths.contains(&symbol.path));
+        program.graph.role_impls.retain(|node| {
+            node.members
+                .iter()
+                .any(|member| !bundled_paths.contains(&member.value))
+        });
     }
 
     #[test]

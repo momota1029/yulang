@@ -1117,6 +1117,7 @@ std::flow::sub::sub:
             bindings: Vec::new(),
             root_exprs: Vec::new(),
             roots: Vec::new(),
+            role_impls: Vec::new(),
         }
     }
 

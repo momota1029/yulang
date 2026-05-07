@@ -25,6 +25,7 @@ pub(super) fn erase_module(
             .map(|expr| erase_expr(expr, effects))
             .collect::<Result<Vec<_>, _>>()?,
         roots: module.roots,
+        role_impls: module.role_impls,
     })
 }
 

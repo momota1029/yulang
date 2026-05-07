@@ -215,6 +215,7 @@ fn emitted_binding_validates(module: &Module, binding: &Binding) -> bool {
         bindings: vec![binding.clone()],
         root_exprs: Vec::new(),
         roots: Vec::new(),
+        role_impls: module.role_impls.clone(),
     };
     match validate_module(&candidate) {
         Ok(()) => true,
@@ -622,6 +623,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let output = DemandEngine::from_module(&module)
@@ -686,6 +688,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let output = demand_monomorphize_module(module).expect("demand monomorphized");
@@ -711,6 +714,7 @@ mod tests {
             bindings: Vec::new(),
             root_exprs: Vec::new(),
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let wrapper = path_segments(&["std", "wrapper__ddmono0"]);
         let helper = path_segments(&["std", "helper__ddmono1"]);

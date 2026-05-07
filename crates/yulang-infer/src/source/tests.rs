@@ -2240,6 +2240,7 @@ fn runtime_surface_with_coerce_binding(name: &str, source_edge: u32) -> Compiled
                 }],
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: yulang_core_ir::PrincipalEvidence {
                 expected_edges: vec![yulang_core_ir::ExpectedEdgeEvidence {

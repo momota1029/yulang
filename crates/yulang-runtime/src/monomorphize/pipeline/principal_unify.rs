@@ -1,7 +1,7 @@
 use super::*;
 use crate::types::{
     core_type_contains_unknown, core_type_is_imprecise_runtime_slot, effect_compatible,
-    effect_paths, effect_paths_match, normalize_principal_elaboration_plan_with_requirements,
+    effect_paths, effect_paths_match, normalize_principal_elaboration_plan_with_role_impls,
     project_closed_substitutions_from_type, project_closed_substitutions_from_type_bounds,
     project_runtime_type_with_vars, runtime_core_type, runtime_type_contains_unknown,
     substitute_bounds, type_compatible,
@@ -26,6 +26,7 @@ struct PrincipalUnifier {
     generic_bindings: HashSet<core_ir::Path>,
     required_vars_by_path: HashMap<core_ir::Path, BTreeSet<core_ir::TypeVar>>,
     role_impls: HashMap<core_ir::Name, Vec<Binding>>,
+    role_associated_impls: Vec<core_ir::RoleImplGraphNode>,
     specializations: HashMap<String, core_ir::Path>,
     root_specializations: HashMap<core_ir::Path, Vec<core_ir::Path>>,
     role_method_rewrites: HashMap<core_ir::Path, Vec<core_ir::Path>>,
@@ -101,6 +102,7 @@ impl PrincipalUnifier {
             .map(|binding| binding.name.clone())
             .collect::<HashSet<_>>();
         let role_impls = principal_unify_role_impls(&module);
+        let role_associated_impls = module.role_impls.clone();
         let next_index = next_principal_unify_index(&module);
         Self {
             module,
@@ -109,6 +111,7 @@ impl PrincipalUnifier {
             generic_bindings,
             required_vars_by_path,
             role_impls,
+            role_associated_impls,
             specializations: HashMap::new(),
             root_specializations: HashMap::new(),
             role_method_rewrites: HashMap::new(),
@@ -1018,10 +1021,11 @@ impl PrincipalUnifier {
         if let Some(active) = self.active_specialization_for(spine.target).cloned() {
             debug_principal_unify_active(spine.target, &active.substitutions);
             merge_plan_substitutions(&mut plan, active.substitutions);
-            plan = normalize_principal_elaboration_plan_with_requirements(
+            plan = normalize_principal_elaboration_plan_with_role_impls(
                 plan,
                 &[],
                 &original.scheme.requirements,
+                &self.role_associated_impls,
             );
         }
         if let Some(completed) = self.complete_plan_from_principal_callee(&original, &plan) {
@@ -1084,10 +1088,11 @@ impl PrincipalUnifier {
                     ty: core_ir::Type::Never,
                 });
             }
-            plan = normalize_principal_elaboration_plan_with_requirements(
+            plan = normalize_principal_elaboration_plan_with_role_impls(
                 plan,
                 &[],
                 &original.scheme.requirements,
+                &self.role_associated_impls,
             );
         }
         if !plan.complete
@@ -1277,10 +1282,11 @@ impl PrincipalUnifier {
             .into_iter()
             .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
             .collect();
-        let mut normalized = normalize_principal_elaboration_plan_with_requirements(
+        let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
             plan,
             &[],
             &original.scheme.requirements,
+            &self.role_associated_impls,
         );
         preserve_projected_substitutions_if_normalized_empty(
             &mut normalized,
@@ -1363,10 +1369,11 @@ impl PrincipalUnifier {
             .into_iter()
             .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
             .collect();
-        let mut normalized = normalize_principal_elaboration_plan_with_requirements(
+        let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
             plan,
             &[],
             &original.scheme.requirements,
+            &self.role_associated_impls,
         );
         preserve_projected_substitutions_if_normalized_empty(
             &mut normalized,
@@ -1408,10 +1415,11 @@ impl PrincipalUnifier {
             .into_iter()
             .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
             .collect();
-        let mut normalized = normalize_principal_elaboration_plan_with_requirements(
+        let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
             plan,
             &[],
             &original.scheme.requirements,
+            &self.role_associated_impls,
         );
         preserve_projected_substitutions_if_normalized_empty(
             &mut normalized,
@@ -2117,6 +2125,16 @@ impl PrincipalUnifier {
             .iter()
             .all(|var| substitutions.contains_key(var));
         if !conflicts.is_empty() || (substitutions.len() == before && !required_vars_closed) {
+            if conflicts.is_empty()
+                && let Some(completed) = self.complete_runtime_effect_plan_from_role_impls(
+                    plan,
+                    args.len(),
+                    requirements,
+                    &substitutions,
+                )
+            {
+                return Some(completed);
+            }
             if !conflicts.is_empty() {
                 self.bump("principal-unify-runtime-effect-conflict");
                 debug_principal_unify_projection_outcome(
@@ -2153,8 +2171,12 @@ impl PrincipalUnifier {
             .collect();
         fill_plan_runtime_slots_from_principal(&mut plan, args.len());
         fill_effectful_input_runtime_slot_from_result(&mut plan, args.len());
-        let mut normalized =
-            normalize_principal_elaboration_plan_with_requirements(plan, &[], requirements);
+        let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
+            plan,
+            &[],
+            requirements,
+            &self.role_associated_impls,
+        );
         if normalized.complete && normalized.substitutions.is_empty() {
             normalized.substitutions = normalized_substitutions
                 .into_iter()
@@ -2163,6 +2185,32 @@ impl PrincipalUnifier {
         }
         debug_principal_unify_normalized_plan(&normalized);
         Some(normalized)
+    }
+
+    fn complete_runtime_effect_plan_from_role_impls(
+        &self,
+        plan: &core_ir::PrincipalElaborationPlan,
+        arg_count: usize,
+        requirements: &[core_ir::RoleRequirement],
+        substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    ) -> Option<core_ir::PrincipalElaborationPlan> {
+        let mut plan = plan.clone();
+        plan.substitutions = substitutions
+            .iter()
+            .map(|(var, ty)| core_ir::TypeSubstitution {
+                var: var.clone(),
+                ty: ty.clone(),
+            })
+            .collect();
+        fill_plan_runtime_slots_from_principal(&mut plan, arg_count);
+        fill_effectful_input_runtime_slot_from_result(&mut plan, arg_count);
+        let normalized = normalize_principal_elaboration_plan_with_role_impls(
+            plan,
+            &[],
+            requirements,
+            &self.role_associated_impls,
+        );
+        normalized.complete.then_some(normalized)
     }
 
     fn active_handler_residual_effect(&self, info: &HandlerBindingInfo) -> Option<core_ir::Type> {
@@ -2245,10 +2293,11 @@ impl PrincipalUnifier {
 
         let mut plan = plan.clone();
         plan.result.expected_runtime = Some(body_ret);
-        let normalized = normalize_principal_elaboration_plan_with_requirements(
+        let normalized = normalize_principal_elaboration_plan_with_role_impls(
             plan,
             &[],
             &original.scheme.requirements,
+            &self.role_associated_impls,
         );
         if normalized.complete {
             Some(normalized)
@@ -7532,6 +7581,7 @@ fn empty_module() -> Module {
         bindings: Vec::new(),
         root_exprs: Vec::new(),
         roots: Vec::new(),
+        role_impls: Vec::new(),
     }
 }
 
@@ -7623,6 +7673,7 @@ mod tests {
                 RuntimeType::core(int),
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let (module, profile) = principal_unify_module_profiled(module);

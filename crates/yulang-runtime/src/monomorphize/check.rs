@@ -3374,6 +3374,7 @@ mod tests {
             ],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(use_id.clone())],
+            role_impls: Vec::new(),
         };
         let demand = Demand::new(
             use_id,
@@ -3469,6 +3470,7 @@ mod tests {
             ],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(use_run.clone())],
+            role_impls: Vec::new(),
         };
         let demand = Demand::new(
             use_run,
@@ -3646,6 +3648,7 @@ mod tests {
             ],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(use_id.clone())],
+            role_impls: Vec::new(),
         };
         let demand = Demand::new(
             use_id,
@@ -4976,6 +4979,7 @@ mod tests {
             ],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(f.clone())],
+            role_impls: Vec::new(),
         };
         let demand = Demand::new(
             f,
@@ -5256,6 +5260,7 @@ mod tests {
             ],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(f.clone())],
+            role_impls: Vec::new(),
         };
         let demand = Demand::new(f, RuntimeType::core(named("int")));
 
@@ -5418,6 +5423,7 @@ mod tests {
             bindings: vec![binding],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(path("f"))],
+            role_impls: Vec::new(),
         }
     }
 

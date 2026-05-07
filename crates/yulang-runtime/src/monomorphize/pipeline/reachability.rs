@@ -79,6 +79,7 @@ pub(super) fn prune_unreachable_bindings(module: Module) -> Module {
         bindings,
         root_exprs: module.root_exprs,
         roots,
+        role_impls: module.role_impls,
     }
 }
 
@@ -97,6 +98,7 @@ pub(super) fn prune_unreachable_specializations(module: Module) -> Module {
         bindings,
         root_exprs: module.root_exprs,
         roots: module.roots,
+        role_impls: module.role_impls,
     }
 }
 

@@ -39,6 +39,7 @@ impl RefineRewriter {
             bindings,
             root_exprs,
             roots: module.roots,
+            role_impls: module.role_impls,
         };
         RefineModuleOutput { module, report }
     }

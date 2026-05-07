@@ -555,6 +555,7 @@ mod tests {
             roots: vec![Root::Binding(core_ir::Path::from_name(core_ir::Name(
                 "main".to_string(),
             )))],
+            role_impls: Vec::new(),
         }
     }
 

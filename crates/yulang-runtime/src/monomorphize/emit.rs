@@ -259,6 +259,7 @@ fn rewrite_module_uses_with_context(
             bindings,
             root_exprs,
             roots: module.roots,
+            role_impls: module.role_impls,
         },
         changed_roots,
         changed_bindings,
@@ -3443,6 +3444,7 @@ mod tests {
             bindings: vec![generic_identity(id.clone())],
             root_exprs: Vec::new(),
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let specialization = specialization(&id, "id__ddmono0", fun(core("int"), core("int")));
         let emitter = DemandEmitter::from_module(&module, std::slice::from_ref(&specialization));
@@ -3474,6 +3476,7 @@ mod tests {
             ],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(use_id.clone())],
+            role_impls: Vec::new(),
         };
         let id_spec = specialization(&id, "id__ddmono0", fun(core("int"), core("int")));
         let use_id_spec = specialization(&use_id, "use_id__ddmono1", fun(core("int"), core("int")));
@@ -3508,6 +3511,7 @@ mod tests {
             ],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(use_id.clone())],
+            role_impls: Vec::new(),
         };
         let id_spec = specialization(&id, "id__ddmono0", fun(core("int"), core("int")));
         let use_id_spec = specialization(&use_id, "use_id__ddmono1", fun(core("int"), core("int")));
@@ -3551,6 +3555,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let specialization = specialization(&id, "id__ddmono0", fun(core("int"), core("int")));
 
@@ -3609,6 +3614,7 @@ mod tests {
             }],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(use_id.clone())],
+            role_impls: Vec::new(),
         };
         let specialization = specialization(&id, "id__ddmono0", fun(core("int"), core("int")));
 
@@ -3683,6 +3689,7 @@ mod tests {
             }],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(use_id.clone())],
+            role_impls: Vec::new(),
         };
         let specialization = specialization(
             &id,
@@ -3731,6 +3738,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let specialization = DemandSpecialization {
             target: id.clone(),
@@ -3790,6 +3798,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let specialization = specialization(&id, "id__ddmono0", fun(core("int"), core("int")));
 
@@ -3831,6 +3840,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let first = DemandSpecialization {
             target: id.clone(),
@@ -3883,6 +3893,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let bottom = DemandSpecialization {
             target: id.clone(),
@@ -3958,6 +3969,7 @@ mod tests {
             bindings: Vec::new(),
             root_exprs: vec![call],
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let spec = specialization(
             &f,
@@ -4115,6 +4127,7 @@ mod tests {
             bindings: Vec::new(),
             root_exprs: vec![root],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
         let spec = specialization(
             &f,
@@ -4167,6 +4180,7 @@ mod tests {
             bindings: Vec::new(),
             root_exprs: vec![root],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
         let spec = specialization(
             &f,
@@ -4232,6 +4246,7 @@ mod tests {
             }],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(use_id.clone())],
+            role_impls: Vec::new(),
         };
         let id_spec = specialization(
             &id,
@@ -4290,6 +4305,7 @@ mod tests {
             bindings: Vec::new(),
             root_exprs: vec![root],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let rewrite = DemandEmitter::rewrite_module_uses_with_specializations_report(module, &[])
@@ -4332,6 +4348,7 @@ mod tests {
             bindings: Vec::new(),
             root_exprs: vec![root],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let rewrite = DemandEmitter::rewrite_module_uses_with_specializations_report(module, &[])
@@ -4432,6 +4449,7 @@ mod tests {
             bindings: Vec::new(),
             root_exprs: vec![root],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
         let spec = specialization(
             &fold_from,
@@ -4554,6 +4572,7 @@ mod tests {
             bindings: Vec::new(),
             root_exprs: vec![root],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
         let spec = specialization(
             &fold_from,
@@ -4641,6 +4660,7 @@ mod tests {
             bindings: Vec::new(),
             root_exprs: vec![root],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
         let spec = specialization(
             &f,
@@ -4667,6 +4687,7 @@ mod tests {
             bindings: vec![generic_identity(id.clone())],
             root_exprs: Vec::new(),
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let specialization = specialization(&id, "id__ddmono0", DemandSignature::Hole(3));
         let emitter = DemandEmitter::from_module(&module, std::slice::from_ref(&specialization));
@@ -4734,6 +4755,7 @@ mod tests {
             }],
             root_exprs: Vec::new(),
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let specialization = specialization(
             &make,
@@ -4813,6 +4835,7 @@ mod tests {
             }],
             root_exprs: Vec::new(),
             roots: Vec::new(),
+            role_impls: Vec::new(),
         };
         let opt_int = DemandCoreType::Named {
             path: path("opt"),

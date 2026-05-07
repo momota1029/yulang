@@ -2478,6 +2478,11 @@ fn prune_core_program_to_modules(program: &mut CoreProgram, module_paths: &[Vec<
         .graph
         .runtime_symbols
         .retain(|symbol| core_path_belongs_to_modules(&symbol.path, module_paths));
+    program.graph.role_impls.retain(|node| {
+        node.members
+            .iter()
+            .any(|member| core_path_belongs_to_modules(&member.value, module_paths))
+    });
 }
 
 fn core_path_belongs_to_modules(path: &core_ir::Path, modules: &[Vec<String>]) -> bool {
@@ -2776,6 +2781,7 @@ fn merge_core_program_into(
         &mut target.graph.runtime_symbols,
         source.graph.runtime_symbols,
     )?;
+    merge_role_impl_graph_nodes(&mut target.graph.role_impls, source.graph.role_impls);
     target
         .evidence
         .expected_edges
@@ -2789,6 +2795,17 @@ fn merge_core_program_into(
         .derived_expected_edges
         .extend(source.evidence.derived_expected_edges);
     Ok(())
+}
+
+fn merge_role_impl_graph_nodes(
+    target: &mut Vec<core_ir::RoleImplGraphNode>,
+    source: Vec<core_ir::RoleImplGraphNode>,
+) {
+    for node in source {
+        if !target.contains(&node) {
+            target.push(node);
+        }
+    }
 }
 
 fn merge_principal_bindings(

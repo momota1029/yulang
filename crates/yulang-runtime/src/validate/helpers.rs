@@ -421,6 +421,7 @@ mod tests {
                 thunk_ty,
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         validate_module(&module).expect("valid thunk row");
@@ -505,6 +506,7 @@ mod tests {
                 Type::core(int),
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         validate_module(&module).expect("valid record default pattern");

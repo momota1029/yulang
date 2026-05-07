@@ -6,6 +6,7 @@ pub struct Module {
     pub bindings: Vec<Binding>,
     pub root_exprs: Vec<Expr>,
     pub roots: Vec<Root>,
+    pub role_impls: Vec<core_ir::RoleImplGraphNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

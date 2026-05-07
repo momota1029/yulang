@@ -1093,6 +1093,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let mut collector = DemandCollector::from_module(&module);
@@ -1141,6 +1142,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let mut collector = DemandCollector::from_module(&module);
@@ -1185,6 +1187,7 @@ mod tests {
             ],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(path("use_id__mono3"))],
+            role_impls: Vec::new(),
         };
 
         let mut collector = DemandCollector::from_module(&module);
@@ -1242,6 +1245,7 @@ mod tests {
             ],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(main)],
+            role_impls: Vec::new(),
         };
 
         let mut collector = DemandCollector::from_module(&module);
@@ -1275,6 +1279,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let mut collector = DemandCollector::from_module(&module);
@@ -1325,6 +1330,7 @@ mod tests {
                 RuntimeType::core(named("bool")),
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let mut collector = DemandCollector::from_module(&module);
@@ -1372,6 +1378,7 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let mut collector = DemandCollector::from_module(&module);
@@ -1434,6 +1441,7 @@ mod tests {
                 RuntimeType::thunk(io, RuntimeType::core(named("int"))),
             )],
             roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
         };
 
         let mut collector = DemandCollector::from_module(&module);

@@ -18,6 +18,7 @@ mod tests {
                     bounds: core_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -66,6 +67,7 @@ mod tests {
                     },
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -337,6 +339,7 @@ mod tests {
                     bounds: core_ir::TypeBounds::exact(unit_type()),
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -427,6 +430,7 @@ mod tests {
                 }],
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -558,6 +562,7 @@ mod tests {
                     bounds: core_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -672,6 +677,7 @@ mod tests {
                     path: action_path,
                     kind: core_ir::RuntimeSymbolKind::EffectOperation,
                 }],
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -722,6 +728,7 @@ mod tests {
                     bounds: core_ir::TypeBounds::exact(bool_type()),
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -761,6 +768,7 @@ mod tests {
                     bounds: core_ir::TypeBounds::exact(named_type("float")),
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -803,6 +811,7 @@ mod tests {
                     bounds: core_ir::TypeBounds::exact(named_type("float")),
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -841,6 +850,7 @@ mod tests {
                     bounds: core_ir::TypeBounds::exact(named_type("float")),
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence {
                 expected_edges: vec![core_ir::ExpectedEdgeEvidence {
@@ -918,6 +928,7 @@ mod tests {
                     path: effect_path.clone(),
                     kind: core_ir::RuntimeSymbolKind::EffectOperation,
                 }],
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -993,6 +1004,7 @@ mod tests {
                     bounds: core_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -1043,6 +1055,7 @@ mod tests {
                     bounds: core_ir::TypeBounds::exact(tuple_ty.clone()),
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -1096,6 +1109,7 @@ mod tests {
                     bounds: core_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -1294,6 +1308,7 @@ mod tests {
                     path: effect_path,
                     kind: core_ir::RuntimeSymbolKind::EffectOperation,
                 }],
+                role_impls: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };

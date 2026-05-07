@@ -409,6 +409,7 @@ fn lower_principal_module_with_graph_and_evidence_inner(
         bindings,
         root_exprs,
         roots,
+        role_impls: graph.role_impls.clone(),
     };
     check_runtime_invariants(&module, RuntimeStage::Lowered)?;
     validate_module(&module)?;

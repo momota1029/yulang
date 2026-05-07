@@ -17,8 +17,8 @@ pub use expr::{
     RecordSpreadPattern, RoleDecl, RoleMember, SourceRange, Stmt,
 };
 pub use graph::{
-    BindingGraphNode, CoreGraphView, ExprGraphNode, GraphOwner, RuntimeSymbol, RuntimeSymbolKind,
-    TypeGraphView,
+    BindingGraphNode, CoreGraphView, ExprGraphNode, GraphOwner, RoleImplGraphNode, RuntimeSymbol,
+    RuntimeSymbolKind, TypeGraphView,
 };
 pub use names::{Name, Path};
 pub use type_order::{
