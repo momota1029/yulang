@@ -26,7 +26,7 @@ Yulang test file
 - `assert_eq`
 - `assert_some`
 - `assert_none`
-- `fail: str -> unit`
+- `fail_test: str -> unit` など、typed error `fail err` と衝突しない名前
 - test case を名前付きで集める仕組み
 
 ## Fixture と golden test

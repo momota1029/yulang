@@ -6,6 +6,7 @@ use crate::diagnostic::{
     ExpectedEdge, ExpectedEdgeId, ExpectedEdgeKind, TypeOrigin,
 };
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
+use crate::lower::builtin_types::{PrimitivePathTable, PrimitiveValueFamily};
 use crate::lower::ctx::LowerCtx;
 use crate::solve::{CastMethodResolution, DeferredRoleMethodCall, DeferredSelection, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
@@ -21,6 +22,7 @@ use super::{
 pub struct LowerState {
     pub ctx: LowerCtx,
     pub infer: Infer,
+    pub(crate) primitive_paths: PrimitivePathTable,
     pub lower_detail: LowerDetailProfile,
     /// let 多相のレベル（enter_let / leave_let で管理）
     pub current_level: u32,
@@ -124,9 +126,12 @@ pub struct LowerState {
 
 impl LowerState {
     pub fn new() -> Self {
+        let mut infer = Infer::new();
+        infer.register_ref_type_path(crate::ref_capability::standard_ref_type_path());
         Self {
             ctx: LowerCtx::new(),
-            infer: Infer::new(),
+            infer,
+            primitive_paths: PrimitivePathTable::standard(),
             lower_detail: LowerDetailProfile::default(),
             current_level: 0,
             def_tvs: HashMap::new(),
@@ -177,6 +182,19 @@ impl LowerState {
             suppress_top_level_expr_owners_depth: 0,
             synthetic_with_module_counter: 0,
         }
+    }
+
+    pub(crate) fn builtin_source_type_path(&self, name: &str) -> Path {
+        self.primitive_paths.source_type_path_by_name(name)
+    }
+
+    pub(crate) fn primitive_runtime_value_path(
+        &self,
+        family: PrimitiveValueFamily,
+    ) -> yulang_core_ir::Path {
+        self.primitive_paths
+            .runtime_value_path(family)
+            .unwrap_or_else(|| crate::lower::builtin_types::primitive_runtime_value_path(family))
     }
 
     /// let binding の body に入るとき。
@@ -459,6 +477,7 @@ impl LowerState {
         self.infer
             .push_deferred_role_method_call(DeferredRoleMethodCall {
                 name: cast_name.clone(),
+                role_path: None,
                 recv_tv: expr.tv,
                 arg_tvs: Vec::new(),
                 result_tv: expected_tv,

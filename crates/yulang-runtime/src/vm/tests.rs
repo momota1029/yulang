@@ -234,6 +234,36 @@ act fs_err:
     }
 
     #[test]
+    fn vm_runs_error_decl_constructor_and_operation() {
+        let results = eval_source_with_std(
+            r#"error fs_err:
+    not_found str
+    denied str
+    invalid_path str
+
+{
+    my err: fs_err = fs_err::not_found "data.txt"
+    my value = case err:
+        fs_err::not_found path -> "value:" + path
+        fs_err::denied path -> "denied:" + path
+        fs_err::invalid_path text -> "invalid:" + text
+    catch fs_err::not_found "data.txt":
+        fs_err::not_found path, _ -> value + "|missing:" + path
+        fs_err::denied path, _ -> "denied:" + path
+        fs_err::invalid_path text, _ -> "invalid:" + text
+}
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::String(
+                "value:data.txt|missing:data.txt".to_string()
+            )]
+        );
+    }
+
+    #[test]
     fn vm_handles_std_fs_err_throw_role() {
         let results = eval_source_with_std(
             r#"{
@@ -249,6 +279,22 @@ act fs_err:
         assert_eq!(
             results,
             vec![TestValue::String("missing:data.txt".to_string())]
+        );
+    }
+
+    #[test]
+    fn vm_handles_std_fs_err_fail_prefix() {
+        let results = eval_source_with_std(
+            r#"catch fail fs_err::invalid_path "bad/path":
+    fs_err::not_found path, _ -> "missing:" + path
+    fs_err::denied path, _ -> "denied:" + path
+    fs_err::invalid_path text, _ -> "invalid:" + text
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::String("invalid:bad/path".to_string())]
         );
     }
 
@@ -483,6 +529,30 @@ act fs_err:
                 TestValue::Bool(true),
             ])]
         );
+    }
+
+    #[test]
+    fn vm_runs_lazy_bool_operator_without_evaluating_rhs() {
+        let (results, stdout) = eval_source_with_std_host(
+            "my bad_and() = std::flow::sub::sub:\n\
+             \tprintln \"bad-and\"\n\
+             \ttrue\n\
+             my bad_or() = std::flow::sub::sub:\n\
+             \tprintln \"bad-or\"\n\
+             \tfalse\n\
+             my a = false and bad_and()\n\
+             my b = true or bad_or()\n\
+             (a, b)\n",
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Bool(false),
+                TestValue::Bool(true),
+            ])]
+        );
+        assert_eq!(stdout, "");
     }
 
     #[test]

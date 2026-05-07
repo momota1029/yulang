@@ -8,7 +8,9 @@ use crate::ir::{
 use crate::types::{runtime_core_type, thunk_effect};
 
 pub struct DemandEmitter<'a> {
+    semantics: DemandSemantics,
     bindings: HashMap<core_ir::Path, &'a Binding>,
+    pure_handler_bindings: HashMap<core_ir::Path, Vec<core_ir::Path>>,
     ordered_specializations: &'a [DemandSpecialization],
     specializations: HashMap<DemandKey, &'a DemandSpecialization>,
     checked: HashMap<DemandKey, &'a CheckedDemand>,
@@ -34,11 +36,13 @@ impl<'a> DemandEmitter<'a> {
         checked: &'a [CheckedDemand],
     ) -> Self {
         Self {
+            semantics: DemandSemantics::from_module(module),
             bindings: module
                 .bindings
                 .iter()
                 .map(|binding| (binding.name.clone(), binding))
                 .collect(),
+            pure_handler_bindings: pure_handler_bindings(module),
             ordered_specializations: emit_specializations,
             specializations: known_specializations
                 .iter()
@@ -158,10 +162,14 @@ impl<'a> DemandEmitter<'a> {
             .ok_or_else(|| DemandEmitError::MissingBinding(specialization.target.clone()))?;
         let solved_ty = runtime_type(&specialization.solved)?;
         let checked = self.checked.get(&specialization.key);
-        let mut rewriter = BodyEmitter::new(&self.specializations)
-            .with_current_specialization(specialization)
-            .with_checked_locals(checked.map(|checked| &checked.local_signatures))
-            .with_next_effect_id(next_effect_id_after_expr(&original.body));
+        let mut rewriter = BodyEmitter::new(
+            &self.semantics,
+            &self.specializations,
+            &self.pure_handler_bindings,
+        )
+        .with_current_specialization(specialization)
+        .with_checked_locals(checked.map(|checked| &checked.local_signatures))
+        .with_next_effect_id(next_effect_id_after_expr(&original.body));
         let mut body = rewriter.rewrite_expr(&original.body, Some(&specialization.solved))?;
         let missing_demands = rewriter.into_missing_demands();
         body.ty = solved_ty;
@@ -211,6 +219,8 @@ fn rewrite_module_uses_with_context(
     specializations: &HashMap<DemandKey, &DemandSpecialization>,
     checked: &HashMap<DemandKey, &CheckedDemand>,
 ) -> Result<DemandRewriteOutput, DemandEmitError> {
+    let pure_handler_bindings = pure_handler_bindings(&module);
+    let semantics = DemandSemantics::from_module(&module);
     let specializations_by_path = specializations
         .values()
         .map(|specialization| (specialization.path.clone(), *specialization))
@@ -219,11 +229,15 @@ fn rewrite_module_uses_with_context(
     let mut missing_demands = Vec::new();
     let mut root_exprs = Vec::with_capacity(module.root_exprs.len());
     for (index, expr) in module.root_exprs.into_iter().enumerate() {
-        let rewritten = rewrite_root_expr(expr.clone(), specializations).map_err(|source| {
-            DemandEmitError::RootRewrite {
-                index,
-                source: Box::new(source),
-            }
+        let rewritten = rewrite_root_expr(
+            expr.clone(),
+            &semantics,
+            specializations,
+            &pure_handler_bindings,
+        )
+        .map_err(|source| DemandEmitError::RootRewrite {
+            index,
+            source: Box::new(source),
         })?;
         if rewritten.expr != expr {
             changed_roots += 1;
@@ -241,6 +255,8 @@ fn rewrite_module_uses_with_context(
             specializations,
             &specializations_by_path,
             checked,
+            &semantics,
+            &pure_handler_bindings,
         )
         .map_err(|source| DemandEmitError::BindingRewrite {
             path,
@@ -279,11 +295,13 @@ struct DemandBindingRewriteOutput {
 
 fn rewrite_root_expr(
     expr: Expr,
+    semantics: &DemandSemantics,
     specializations: &HashMap<DemandKey, &DemandSpecialization>,
+    pure_handler_bindings: &HashMap<core_ir::Path, Vec<core_ir::Path>>,
 ) -> Result<DemandExprRewriteOutput, DemandEmitError> {
     let expected = DemandSignature::from_runtime_type(&expr.ty);
     let expected = expected.is_closed().then_some(expected);
-    let mut rewriter = BodyEmitter::new(specializations);
+    let mut rewriter = BodyEmitter::new(semantics, specializations, pure_handler_bindings);
     let expr = rewriter.rewrite_expr(&expr, expected.as_ref())?;
     Ok(DemandExprRewriteOutput {
         expr,
@@ -296,6 +314,8 @@ fn rewrite_binding_uses(
     specializations: &HashMap<DemandKey, &DemandSpecialization>,
     specializations_by_path: &HashMap<core_ir::Path, &DemandSpecialization>,
     checked: &HashMap<DemandKey, &CheckedDemand>,
+    semantics: &DemandSemantics,
+    pure_handler_bindings: &HashMap<core_ir::Path, Vec<core_ir::Path>>,
 ) -> Result<DemandBindingRewriteOutput, DemandEmitError> {
     if binding_needs_demand_monomorphization(&binding) {
         return Ok(DemandBindingRewriteOutput {
@@ -308,7 +328,7 @@ fn rewrite_binding_uses(
         .map(|specialization| specialization.solved.clone())
         .unwrap_or_else(|| DemandSignature::from_runtime_type(&binding.body.ty));
     let expected = expected.is_closed().then_some(expected);
-    let mut rewriter = BodyEmitter::new(specializations);
+    let mut rewriter = BodyEmitter::new(semantics, specializations, pure_handler_bindings);
     if let Some(specialization) = current_specialization {
         rewriter = rewriter.with_current_specialization(specialization);
         rewriter = rewriter.with_checked_locals(
@@ -352,16 +372,6 @@ fn is_recoverable_legacy_rewrite_error(error: &DemandEmitError) -> bool {
     )
 }
 
-fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
-    path.segments.len() >= suffix.len()
-        && path
-            .segments
-            .iter()
-            .rev()
-            .zip(suffix.iter().rev())
-            .all(|(segment, expected)| segment.0 == *expected)
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DemandEmitError {
     MissingBinding(core_ir::Path),
@@ -385,7 +395,9 @@ pub enum DemandEmitError {
 }
 
 struct BodyEmitter<'a> {
+    semantics: &'a DemandSemantics,
     specializations: &'a HashMap<DemandKey, &'a DemandSpecialization>,
+    pure_handler_bindings: &'a HashMap<core_ir::Path, Vec<core_ir::Path>>,
     current_specialization: Option<&'a DemandSpecialization>,
     enclosing_thunk_effects: Vec<DemandEffect>,
     locals: HashMap<core_ir::Path, DemandSignature>,
@@ -395,9 +407,15 @@ struct BodyEmitter<'a> {
 }
 
 impl<'a> BodyEmitter<'a> {
-    fn new(specializations: &'a HashMap<DemandKey, &'a DemandSpecialization>) -> Self {
+    fn new(
+        semantics: &'a DemandSemantics,
+        specializations: &'a HashMap<DemandKey, &'a DemandSpecialization>,
+        pure_handler_bindings: &'a HashMap<core_ir::Path, Vec<core_ir::Path>>,
+    ) -> Self {
         Self {
+            semantics,
             specializations,
+            pure_handler_bindings,
             current_specialization: None,
             enclosing_thunk_effects: Vec::new(),
             locals: HashMap::new(),
@@ -806,9 +824,13 @@ impl<'a> BodyEmitter<'a> {
     ) -> crate::ir::HandleEffect {
         let mut handler = handler.clone();
         if handler.consumes.is_empty()
-            && let Some(consumed) = self
-                .current_specialization
-                .map(|specialization| known_consumed_effects_for_target(&specialization.target))
+            && let Some(consumed) = self.current_specialization.map(|specialization| {
+                consumed_effects_for_target(
+                    self.semantics,
+                    self.pure_handler_bindings,
+                    &specialization.target,
+                )
+            })
             && !consumed.is_empty()
         {
             handler.consumes = consumed;
@@ -841,10 +863,13 @@ impl<'a> BodyEmitter<'a> {
         let Some(specialization) = self.current_specialization else {
             return Ok(body);
         };
-        let Some(consumed) = known_consumed_effects_for_target(&specialization.target)
-            .into_iter()
-            .next()
-        else {
+        let Some(consumed) = consumed_effects_for_target(
+            self.semantics,
+            self.pure_handler_bindings,
+            &specialization.target,
+        )
+        .into_iter()
+        .next() else {
             return Ok(body);
         };
         let effect = core_ir::Type::Named {
@@ -926,19 +951,26 @@ impl<'a> BodyEmitter<'a> {
                     .unwrap_or(signature)
             })
             .collect::<Vec<_>>();
+        let consumed =
+            consumed_effects_for_target(self.semantics, self.pure_handler_bindings, &demand_target);
         let arg_signatures =
-            strengthen_handler_arg_signatures(&demand_target, arg_signatures, &param_hints, &ret);
+            strengthen_handler_arg_signatures(&consumed, arg_signatures, &param_hints, &ret);
         let ret = if is_role_method_path(&demand_target) {
             return_effect_from_args(ret, &arg_signatures)
         } else {
             ret
         };
-        let signature = close_known_associated_type_signature(
+        let signature = close_known_associated_type_signature_with_semantics(
+            self.semantics,
             &demand_target,
             curried_signatures(&arg_signatures, ret),
         );
         let signature = close_default_effect_holes(signature);
-        let signature = close_known_associated_type_signature(&demand_target, signature);
+        let signature = close_known_associated_type_signature_with_semantics(
+            self.semantics,
+            &demand_target,
+            signature,
+        );
         let key = DemandKey::from_signature(demand_target.clone(), signature);
         let Some(specialization) = self
             .find_specialization(&key)
@@ -1041,7 +1073,8 @@ impl<'a> BodyEmitter<'a> {
         target: &core_ir::Path,
         ret: DemandSignature,
     ) -> DemandSignature {
-        if known_consumed_effects_for_target(target).is_empty()
+        if consumed_effects_for_target(self.semantics, self.pure_handler_bindings, target)
+            .is_empty()
             || matches!(ret, DemandSignature::Thunk { .. })
         {
             return ret;
@@ -1103,12 +1136,14 @@ impl<'a> BodyEmitter<'a> {
             .collect::<Vec<_>>();
         let ret =
             self.lift_higher_order_call_return_to_enclosing_effect(target, &provisional_args, ret);
-        let closed = close_known_associated_type_signature(
+        let closed = close_known_associated_type_signature_with_semantics(
+            self.semantics,
             target,
             curried_signatures(&provisional_args, ret.clone()),
         );
         let closed = close_default_effect_holes(closed);
-        let closed = close_known_associated_type_signature(target, closed);
+        let closed =
+            close_known_associated_type_signature_with_semantics(self.semantics, target, closed);
         let (closed_args, closed_ret) = uncurried_emit_signatures(closed);
         if closed_args.len() == args.len() {
             return (closed_args.into_iter().map(Some).collect(), closed_ret);
@@ -1133,13 +1168,15 @@ impl<'a> BodyEmitter<'a> {
         match (op, args.as_slice()) {
             (core_ir::PrimitiveOp::ListSingleton, [item]) => {
                 let item = signature_core_value(&self.local_or_runtime_signature(item));
-                Some(DemandSignature::Core(list_demand_core(item)))
+                named_single_arg_signature_like(&self.expr_signature(expr), item)
+                    .map(DemandSignature::Core)
             }
             (core_ir::PrimitiveOp::ListMerge, [left, right]) => {
                 let left = self.local_or_runtime_signature(left);
                 let right = self.local_or_runtime_signature(right);
                 let item = prefer_informative_list_item(&left, &right)?;
-                Some(DemandSignature::Core(list_demand_core(item)))
+                named_single_arg_signature_like(&self.expr_signature(expr), item)
+                    .map(DemandSignature::Core)
             }
             _ => None,
         }
@@ -1152,7 +1189,7 @@ impl<'a> BodyEmitter<'a> {
         ret: DemandSignature,
     ) -> DemandSignature {
         if matches!(ret, DemandSignature::Thunk { .. })
-            || !is_effect_polymorphic_higher_order_target(target)
+            || !is_effect_polymorphic_higher_order_target(self.semantics, target)
             || !args.iter().any(signature_has_effectful_result)
         {
             return ret;
@@ -1187,6 +1224,8 @@ impl<'a> BodyEmitter<'a> {
                 specialization.target == key.target
                     && signature_arity(&key.signature) == signature_arity(&specialization.solved)
                     && signatures_compatible_for_target_call(
+                        self.semantics,
+                        self.pure_handler_bindings,
                         &key.target,
                         &key.signature,
                         &specialization.solved,
@@ -1679,19 +1718,12 @@ fn transparent_call_head(mut expr: &Expr) -> &Expr {
     }
 }
 
-fn list_demand_core(item: DemandCoreType) -> DemandCoreType {
-    DemandCoreType::Named {
-        path: path_segments(&["std", "list", "list"]),
-        args: vec![DemandTypeArg::Type(item)],
-    }
-}
-
 fn list_item_signature(signature: &DemandSignature) -> Option<DemandCoreType> {
-    let DemandSignature::Core(DemandCoreType::Named { path, args }) = signature_value(signature)
+    let DemandSignature::Core(DemandCoreType::Named { args, .. }) = signature_value(signature)
     else {
         return None;
     };
-    if !path_ends_with(&path, &["std", "list", "list"]) {
+    if args.len() != 1 {
         return None;
     }
     let DemandTypeArg::Type(item) = args.first()? else {
@@ -1716,6 +1748,23 @@ fn prefer_informative_list_item(
                 .flatten()
                 .find(|item| !core_signature_is_uninformative(item))
         })
+}
+
+fn named_single_arg_signature_like(
+    signature: &DemandSignature,
+    item: DemandCoreType,
+) -> Option<DemandCoreType> {
+    Some(DemandCoreType::Named {
+        path: named_signature_path(signature)?,
+        args: vec![DemandTypeArg::Type(item)],
+    })
+}
+
+fn named_signature_path(signature: &DemandSignature) -> Option<core_ir::Path> {
+    match signature_value(signature) {
+        DemandSignature::Core(DemandCoreType::Named { path, .. }) => Some(path),
+        _ => None,
+    }
 }
 
 fn uncurried_emit_signatures(
@@ -2261,11 +2310,11 @@ fn signature_has_effectful_result(signature: &DemandSignature) -> bool {
     }
 }
 
-fn is_effect_polymorphic_higher_order_target(target: &core_ir::Path) -> bool {
-    target
-        .segments
-        .last()
-        .is_some_and(|name| name.0 == "fold" || name.0 == "fold_impl" || name.0 == "for_in")
+fn is_effect_polymorphic_higher_order_target(
+    semantics: &DemandSemantics,
+    target: &core_ir::Path,
+) -> bool {
+    semantics.is_effect_polymorphic_higher_order_target(target)
 }
 
 fn signature_is_uninformative(signature: &DemandSignature) -> bool {
@@ -2330,6 +2379,8 @@ fn signatures_compatible_for_call(expected: &DemandSignature, candidate: &Demand
 }
 
 fn signatures_compatible_for_target_call(
+    semantics: &DemandSemantics,
+    pure_handler_bindings: &HashMap<core_ir::Path, Vec<core_ir::Path>>,
     target: &core_ir::Path,
     expected: &DemandSignature,
     candidate: &DemandSignature,
@@ -2337,7 +2388,7 @@ fn signatures_compatible_for_target_call(
     if signatures_compatible_for_call(expected, candidate) {
         return true;
     }
-    let consumed = known_consumed_effects_for_target(target);
+    let consumed = consumed_effects_for_target(semantics, pure_handler_bindings, target);
     if consumed.is_empty() {
         return false;
     }
@@ -2496,12 +2547,12 @@ fn role_impl_receiver_compatible(candidate: &DemandSignature, call: &DemandSigna
 }
 
 fn strengthen_handler_arg_signatures(
-    target: &core_ir::Path,
+    consumed: &[core_ir::Path],
     mut args: Vec<DemandSignature>,
     hints: &[Option<DemandSignature>],
     ret: &DemandSignature,
 ) -> Vec<DemandSignature> {
-    if known_consumed_effects_for_target(target).is_empty() {
+    if consumed.is_empty() {
         return args;
     }
     let Some(first) = args.first_mut() else {
@@ -2604,57 +2655,6 @@ fn erase_consumed_return_thunks(
     }
 }
 
-fn known_consumed_effects_for_target(target: &core_ir::Path) -> Vec<core_ir::Path> {
-    if let Some(effect) = local_ref_run_effect_path(target) {
-        return vec![effect];
-    }
-    if path_ends_with(target, &["std", "undet", "undet", "once"])
-        || path_ends_with(target, &["std", "undet", "undet", "list"])
-        || path_ends_with(target, &["std", "undet", "undet", "logic"])
-    {
-        return vec![path_segments(&["std", "undet", "undet"])];
-    }
-    if path_ends_with(target, &["std", "flow", "sub", "sub"])
-        || path_ends_with(target, &["std", "sub", "sub"])
-    {
-        return vec![path_segments(&["std", "flow", "sub"])];
-    }
-    if path_ends_with(target, &["std", "fold", "Fold", "find"]) {
-        return vec![path_segments(&["std", "flow", "sub"])];
-    }
-    if path_ends_with(target, &["std", "junction", "junction", "junction"]) {
-        return vec![path_segments(&["std", "junction", "junction"])];
-    }
-    if path_ends_with(target, &["std", "flow", "loop", "last", "sub"]) {
-        return vec![path_segments(&["std", "flow", "loop", "last"])];
-    }
-    if path_ends_with(target, &["std", "flow", "loop", "next", "sub"]) {
-        return vec![path_segments(&["std", "flow", "loop", "next"])];
-    }
-    if path_ends_with(target, &["std", "flow", "loop", "redo", "judge"]) {
-        return vec![path_segments(&["std", "flow", "loop", "redo"])];
-    }
-    if path_ends_with(target, &["std", "flow", "label_loop", "last", "sub"]) {
-        return vec![path_segments(&["std", "flow", "label_loop", "last"])];
-    }
-    if path_ends_with(target, &["std", "flow", "label_loop", "next", "sub"]) {
-        return vec![path_segments(&["std", "flow", "label_loop", "next"])];
-    }
-    if path_ends_with(target, &["std", "flow", "label_loop", "redo", "judge"]) {
-        return vec![path_segments(&["std", "flow", "label_loop", "redo"])];
-    }
-    Vec::new()
-}
-
-fn local_ref_run_effect_path(target: &core_ir::Path) -> Option<core_ir::Path> {
-    let [namespace, name] = target.segments.as_slice() else {
-        return None;
-    };
-    (name.0 == "run" && namespace.0.starts_with('&')).then(|| core_ir::Path {
-        segments: vec![namespace.clone()],
-    })
-}
-
 fn core_effect_is_unknown(effect: &core_ir::Type) -> bool {
     matches!(effect, core_ir::Type::Any | core_ir::Type::Var(_))
 }
@@ -2708,8 +2708,6 @@ fn demand_effect_path(ty: &DemandCoreType) -> Option<&core_ir::Path> {
 
 fn effect_paths_match(left: &core_ir::Path, right: &core_ir::Path) -> bool {
     left == right
-        || left.segments.ends_with(right.segments.as_slice())
-        || right.segments.ends_with(left.segments.as_slice())
         || qualified_prefix_effect_paths_match(left, right)
         || qualified_prefix_effect_paths_match(right, left)
 }
@@ -2718,15 +2716,6 @@ fn qualified_prefix_effect_paths_match(parent: &core_ir::Path, child: &core_ir::
     parent.segments.len() > 1
         && child.segments.len() > parent.segments.len()
         && child.segments.starts_with(parent.segments.as_slice())
-}
-
-fn path_segments(segments: &[&str]) -> core_ir::Path {
-    core_ir::Path {
-        segments: segments
-            .iter()
-            .map(|segment| core_ir::Name((*segment).to_string()))
-            .collect(),
-    }
 }
 
 fn bind_here_result_type(
@@ -4021,7 +4010,9 @@ mod tests {
     #[test]
     fn emitter_removes_bind_here_when_inner_is_already_a_value() {
         let specializations = HashMap::new();
-        let mut rewriter = BodyEmitter::new(&specializations);
+        let pure_handler_bindings = HashMap::new();
+        let semantics = DemandSemantics::default();
+        let mut rewriter = BodyEmitter::new(&semantics, &specializations, &pure_handler_bindings);
         let expr = Expr::typed(
             ExprKind::BindHere {
                 expr: Box::new(Expr::typed(ExprKind::Var(path("f")), rt_fun("int", "int"))),
@@ -4066,7 +4057,9 @@ mod tests {
             RuntimeType::thunk(undet.clone(), RuntimeType::core(core_ir::Type::Never)),
         );
         let specializations = HashMap::new();
-        let mut rewriter = BodyEmitter::new(&specializations);
+        let pure_handler_bindings = HashMap::new();
+        let semantics = DemandSemantics::default();
+        let mut rewriter = BodyEmitter::new(&semantics, &specializations, &pure_handler_bindings);
 
         let rewritten = rewriter
             .rewrite_expr(&expr, Some(&expected))

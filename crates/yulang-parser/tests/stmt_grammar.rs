@@ -1137,6 +1137,33 @@ fn stmt_enum_decl_inline_with_block() {
 }
 
 #[test]
+fn stmt_error_decl_indent_variants() {
+    let got = parse_stmt_once("error fs_err:\n  not_found str\n  denied str");
+    let expected = vec![
+        "(ErrorDecl",
+        "  Error \"error\"",
+        "  Ident \"fs_err\"",
+        "  (TypeVars",
+        "  )",
+        "  Colon \":\"",
+        "  (EnumVariant",
+        "    Ident \"not_found\"",
+        "    (TypeExpr",
+        "      Ident \"str\"",
+        "    )",
+        "  )",
+        "  (EnumVariant",
+        "    Ident \"denied\"",
+        "    (TypeExpr",
+        "      Ident \"str\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_use_decl_simple_path() {
     let got = parse_stmt_once("use std::io");
     let expected = vec![
@@ -1339,6 +1366,32 @@ fn stmt_op_def_infix() {
         "    ParenR \")\"",
         "    Number \"50\"",
         "    Number \"50\"",
+        "    Equal \"=\"",
+        "  )",
+        "  (OpDefBody",
+        "    (Expr",
+        "      Ident \"x\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_lazy_op_def_infix() {
+    let got = parse_stmt_once("pub lazy infix (and) 20 20 = x");
+    let expected = vec![
+        "(OpDef",
+        "  (OpDefHeader",
+        "    Pub \"pub\"",
+        "    Lazy \"lazy\"",
+        "    Infix \"infix\"",
+        "    ParenL \"(\"",
+        "    OpName \"and\"",
+        "    ParenR \")\"",
+        "    Number \"20\"",
+        "    Number \"20\"",
         "    Equal \"=\"",
         "  )",
         "  (OpDefBody",

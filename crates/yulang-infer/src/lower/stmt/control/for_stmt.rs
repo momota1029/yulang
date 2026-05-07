@@ -15,7 +15,7 @@ pub(crate) fn lower_for_stmt(state: &mut LowerState, node: &SyntaxNode) -> Typed
         super::super::materialize_synthetic_act(
             state,
             spec,
-            &std_flow_label_loop_synthetic_act_source(),
+            &standard_label_loop_synthetic_act_source(),
         );
     }
 
@@ -28,10 +28,7 @@ pub(crate) fn lower_for_stmt(state: &mut LowerState, node: &SyntaxNode) -> Typed
     } else {
         crate::lower::expr::resolve_path_expr(
             state,
-            ["std", "flow", "loop", "for_in"]
-                .into_iter()
-                .map(|segment| Name(segment.to_string()))
-                .collect(),
+            crate::flow_capability::standard_loop_for_in_path(),
         )
     };
     let applied_iter = crate::lower::expr::make_app(state, for_in, iter);
@@ -117,9 +114,9 @@ fn for_label_name(node: &SyntaxNode) -> Option<Name> {
         .map(|token| Name(token.text().to_string()))
 }
 
-fn std_flow_label_loop_synthetic_act_source() -> super::super::SyntheticActSource {
+fn standard_label_loop_synthetic_act_source() -> super::super::SyntheticActSource {
     super::super::SyntheticActSource {
-        source_module_path: std_flow_label_loop_path(),
+        source_module_path: crate::flow_capability::standard_label_loop_path(),
         source_copy_path: Path {
             segments: vec![Name("label_loop".to_string())],
         },
@@ -128,15 +125,6 @@ fn std_flow_label_loop_synthetic_act_source() -> super::super::SyntheticActSourc
             .map(|segment| Name(segment.to_string()))
             .collect(),
         selected_template_items: vec![Name("label".to_string()), Name("LoopLabel".to_string())],
-    }
-}
-
-fn std_flow_label_loop_path() -> Path {
-    Path {
-        segments: ["std", "flow", "label_loop"]
-            .into_iter()
-            .map(|segment| Name(segment.to_string()))
-            .collect(),
     }
 }
 

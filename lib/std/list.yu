@@ -1,3 +1,4 @@
+use std::ops::*
 use std::opt::*
 use std::fold::*
 use std::index::*
@@ -8,6 +9,7 @@ enum list_view 'a = empty | leaf 'a | node(list 'a, list 'a)
 type list 'a with:
     our xs.append ys = std::list::append xs ys
     our xs.splice r ys = std::list::splice xs r ys
+    our xs.last = std::list::last xs
     our &xs.push x = &xs = $xs.append [x]
 
 impl Index (list 'a) int:

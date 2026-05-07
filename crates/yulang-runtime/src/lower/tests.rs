@@ -77,6 +77,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &program.graph,
             runtime_symbols: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: principal_module_type_vars(&program.program),
             expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
@@ -276,6 +277,7 @@ mod tests {
                 role_path.clone(),
                 core_ir::RuntimeSymbolKind::RoleMethod,
             )]),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
@@ -1339,6 +1341,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,
@@ -1398,6 +1401,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: true,
@@ -1487,6 +1491,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: principal_evidence
                 .expected_edges
@@ -1586,6 +1591,7 @@ mod tests {
             aliases: HashMap::new(),
             graph: &core_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: principal_evidence
                 .expected_edges
@@ -1674,6 +1680,24 @@ mod tests {
                 RuntimeType::core(core_ir::Type::Var(item.clone())),
             ),
         );
+        let fold_role = core_ir::Path::new(vec![
+            core_ir::Name("std".to_string()),
+            core_ir::Name("fold".to_string()),
+            core_ir::Name("Fold".to_string()),
+        ]);
+        let graph = core_ir::CoreGraphView {
+            role_impls: vec![core_ir::RoleImplGraphNode {
+                role: fold_role.clone(),
+                inputs: vec![core_ir::TypeBounds::exact(list_int.clone())],
+                associated_types: vec![core_ir::RecordField {
+                    name: core_ir::Name("item".to_string()),
+                    value: core_ir::TypeBounds::exact(named_type("int")),
+                    optional: false,
+                }],
+                members: Vec::new(),
+            }],
+            ..core_ir::CoreGraphView::default()
+        };
         let mut lowerer = Lowerer {
             env: HashMap::from([(each_path.clone(), each_ty.clone())]),
             binding_infos: HashMap::from([(
@@ -1682,11 +1706,7 @@ mod tests {
                     ty: each_ty,
                     type_params: vec![container.clone(), item.clone()],
                     requirements: vec![core_ir::RoleRequirement {
-                        role: core_ir::Path::new(vec![
-                            core_ir::Name("std".to_string()),
-                            core_ir::Name("fold".to_string()),
-                            core_ir::Name("Fold".to_string()),
-                        ]),
+                        role: fold_role,
                         args: vec![
                             core_ir::RoleRequirementArg::Input(core_ir::TypeBounds::exact(
                                 core_ir::Type::Var(container),
@@ -1700,8 +1720,9 @@ mod tests {
                 },
             )]),
             aliases: HashMap::new(),
-            graph: &core_ir::CoreGraphView::default(),
+            graph: &graph,
             runtime_symbols: HashMap::new(),
+            primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
             expected_edges_by_id: HashMap::new(),
             use_expected_arg_evidence: false,

@@ -98,8 +98,6 @@ pub(crate) fn effect_path(ty: &core_ir::Type) -> Option<core_ir::Path> {
 
 pub(crate) fn effect_paths_match(left: &core_ir::Path, right: &core_ir::Path) -> bool {
     left == right
-        || left.segments.ends_with(right.segments.as_slice())
-        || right.segments.ends_with(left.segments.as_slice())
         || qualified_prefix_effect_paths_match(left, right)
         || qualified_prefix_effect_paths_match(right, left)
 }

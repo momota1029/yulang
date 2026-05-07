@@ -498,11 +498,7 @@ fn debug_demand_queue_source(source: &str, queue: &DemandQueue) {
 }
 
 fn debug_demand_source(source: &str, target: &core_ir::Path, signature: &DemandSignature) {
-    if std::env::var_os("YULANG_DEBUG_DEMAND_SOURCE").is_none()
-        || !(engine_path_ends_with(target, &["std", "list", "fold_impl"])
-            || engine_path_ends_with(target, &["std", "list", "view_raw"])
-            || engine_path_ends_with(target, &["std", "fold", "Fold", "fold"]))
-    {
+    if std::env::var_os("YULANG_DEBUG_DEMAND_SOURCE").is_none() {
         return;
     }
     let status = if signature.is_closed() {
@@ -511,16 +507,6 @@ fn debug_demand_source(source: &str, target: &core_ir::Path, signature: &DemandS
         "open"
     };
     eprintln!("demand source {source} {status} {target:?}: {signature:?}");
-}
-
-fn engine_path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
-    path.segments.len() >= suffix.len()
-        && path
-            .segments
-            .iter()
-            .rev()
-            .zip(suffix.iter().rev())
-            .all(|(segment, expected)| segment.0 == *expected)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

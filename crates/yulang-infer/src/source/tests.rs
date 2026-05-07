@@ -56,6 +56,19 @@ fn normalize_runtime_scheme_vars(text: &str) -> String {
     out
 }
 
+fn write_real_std_prelude(root: &std::path::Path) {
+    fs::write(
+        root.join("std").join("ops.yu"),
+        include_str!("../../../../lib/std/ops.yu"),
+    )
+    .unwrap();
+    fs::write(
+        root.join("std").join("prelude.yu"),
+        include_str!("../../../../lib/std/prelude.yu"),
+    )
+    .unwrap();
+}
+
 fn assert_expected_edge_value_constraint(
     state: &LowerState,
     edge: &crate::diagnostic::ExpectedEdge,
@@ -521,11 +534,7 @@ fn lowers_implicit_prelude_primitive_binding_from_source_loader() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my y = add 1 2\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -557,11 +566,7 @@ fn lowers_pipeline_as_first_argument_to_rhs_spine() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my y = 1 | add 2\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -620,11 +625,7 @@ fn lowers_builtin_arithmetic_syntax_from_implicit_prelude() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my y = 1 + 2\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -652,11 +653,7 @@ fn lowers_mixed_float_arithmetic_syntax_from_implicit_prelude() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my y = 1.0 + 2\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -684,11 +681,7 @@ fn lowers_builtin_float_primitive_from_source_loader() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my y = std::float::add 1.0 2.0\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -716,11 +709,7 @@ fn lowers_builtin_not_syntax_from_implicit_prelude() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my x = not false\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -748,11 +737,7 @@ fn lowers_list_len_helper_from_implicit_prelude() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my size(xs: list int) = len xs\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -787,11 +772,7 @@ fn lowers_list_view_raw_from_source_loader() {
         "my inspect(xs: list int) = std::list::view_raw xs\n",
     )
     .unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -822,11 +803,7 @@ fn lowers_list_literal_from_source_loader() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my xs = [1, 2, 3]\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1051,11 +1028,7 @@ fn lowers_list_merge_from_implicit_prelude() {
         "my joined(xs: list int, ys: list int) = merge xs ys\n",
     )
     .unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1090,11 +1063,7 @@ fn lowers_list_index_range_raw_from_source_loader() {
         "my slice(xs: list int) = std::list::index_range_raw xs 1 3\n",
     )
     .unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1126,11 +1095,7 @@ fn lowers_list_splice_raw_from_source_loader() {
         "my replace(xs: list int, ys: list int) = std::list::splice_raw xs 1 3 ys\n",
     )
     .unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1165,11 +1130,7 @@ fn lowers_list_splice_from_source_loader() {
         "my replace(xs: list int, ys: list int) = std::list::splice xs (range 1 3) ys\n",
     )
     .unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1317,11 +1278,7 @@ fn lowers_nested_not_syntax_from_implicit_prelude() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my x = not not true\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1349,11 +1306,7 @@ fn lowers_boolean_short_circuit_syntax_from_implicit_prelude() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my x = true and false\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1381,11 +1334,7 @@ fn lowers_builtin_eq_syntax_from_implicit_prelude() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my x = 1 == 1\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1413,11 +1362,7 @@ fn lowers_mixed_float_comparison_syntax_from_implicit_prelude() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my x = 1.0 <= 2\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1445,11 +1390,7 @@ fn lowers_expansive_role_binding_to_concrete_result_from_source_loader() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my f() = Add::add 1 1\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1477,11 +1418,7 @@ fn lowers_mixed_expansive_role_binding_to_float_from_source_loader() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my f() = Add::add 1.0 2\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1509,11 +1446,7 @@ fn lowers_prelude_arithmetic_helper_to_simplified_role_scheme_from_source_loader
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(root.join("std")).unwrap();
     fs::write(root.join("main.yu"), "my plus1 x = x + 1\n").unwrap();
-    fs::write(
-        root.join("std").join("prelude.yu"),
-        include_str!("../../../../lib/std/prelude.yu"),
-    )
-    .unwrap();
+    write_real_std_prelude(&root);
 
     let mut lowered = lower_entry_with_options(
         root.join("main.yu"),
@@ -1734,6 +1667,7 @@ fn compiled_namespace_validation_reports_missing_operator_symbol() {
                 fixity: StdInferSnapshotOperatorFixity::Infix,
                 symbol: 0,
                 visibility: StdInferSnapshotVisibility::Pub,
+                lazy: false,
             }],
             types: Vec::new(),
             modules: Vec::new(),
@@ -3182,7 +3116,7 @@ fn lowers_std_list_helpers_through_implicit_prelude() {
             "my take_is_empty(xs: list int) = is_empty xs\n\
              my take_uncons(xs: list int) = uncons xs\n\
              my take_first(xs: list int) = first xs\n\
-             my take_last(xs: list int) = last xs\n\
+             my take_last(xs: list int) = xs.last\n\
              my take_rev(xs: list int) = rev xs\n\
              my take_index(xs: list int) = xs.index 0\n\
              my take_index_bracket(xs: list int) = xs[0]\n\
@@ -3339,7 +3273,7 @@ fn constrained_effectful_function_reference_keeps_effectful_result_var() {
              use std::undet::*\n\
              my eachish xs = sub::sub {\n\
                  xs.fold () (\\() x -> if undet::branch() { sub::return x } else ())\n\
-                 undet::fail()\n\
+                 undet::reject()\n\
              }\n\
              my e = eachish\n",
             Some(repo_root),

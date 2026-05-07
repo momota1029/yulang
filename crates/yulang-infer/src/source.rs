@@ -63,6 +63,8 @@ pub struct CompiledNamespaceModuleOperator {
     pub fixity: StdInferSnapshotOperatorFixity,
     pub symbol: u32,
     pub visibility: StdInferSnapshotVisibility,
+    #[serde(default)]
+    pub lazy: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -3323,6 +3325,9 @@ fn import_compiled_namespace_module_entries(
             state
                 .ctx
                 .mark_operator_def(def, import_snapshot_operator_fixity(operator.fixity));
+            if operator.lazy {
+                state.ctx.mark_lazy_operator_def(def);
+            }
             state.ctx.modules.insert_operator_value_with_visibility(
                 module_id,
                 Name(operator.name.clone()),
@@ -3573,6 +3578,7 @@ fn compiled_namespace_module_operators(
                     visibility: snapshot_visibility(
                         state.ctx.modules.operator_visibility(module, name, *fixity),
                     ),
+                    lazy: state.ctx.is_lazy_operator_def(*def),
                 })
         })
         .collect::<Vec<_>>();

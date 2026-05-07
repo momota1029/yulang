@@ -1083,6 +1083,16 @@ fn extend_target_defs_from_expr(
             }
         }
         ExprKind::App { callee, arg, .. } => {
+            if let Some((def, args)) = collect_transparent_role_wrapper_application_def(state, expr)
+            {
+                if exportable_defs.contains(&def) && target_defs.insert(def) {
+                    pending.push(def);
+                }
+                for arg in args {
+                    extend_target_defs_from_expr(state, arg, exportable_defs, target_defs, pending);
+                }
+                return;
+            }
             for def in collect_export_method_defs(state, expr) {
                 if exportable_defs.contains(&def) && target_defs.insert(def) {
                     pending.push(def);
@@ -1281,6 +1291,9 @@ fn export_owner_root_exprs(
 }
 
 fn collect_export_method_defs(state: &LowerState, expr: &TypedExpr) -> Vec<DefId> {
+    if let Some((def, _)) = collect_transparent_role_wrapper_application_def(state, expr) {
+        return vec![def];
+    }
     if let Some(def) = state.infer.resolved_selection_def(expr.tv) {
         return vec![canonical_runtime_export_def(state, def)];
     }
@@ -1310,6 +1323,66 @@ fn collect_export_select_defs(
         return vec![canonical_runtime_export_def(state, def)];
     }
     Vec::new()
+}
+
+fn collect_transparent_role_wrapper_application_def<'a>(
+    state: &LowerState,
+    expr: &'a TypedExpr,
+) -> Option<(DefId, Vec<&'a TypedExpr>)> {
+    let (head, args) = collect_apply_spine(expr);
+    let ExprKind::Var(def) = &head.kind else {
+        return None;
+    };
+    if !state.ctx.is_operator_def(*def) {
+        return None;
+    }
+    let (method_name, role_arg_count) = transparent_role_wrapper_method(state, *def)?;
+    let info = state.infer.role_methods.get(&method_name)?;
+    let (recv, rest) = args.split_first()?;
+    let role_args = rest
+        .iter()
+        .take(role_arg_count)
+        .map(|arg| arg.tv)
+        .collect::<Vec<_>>();
+    let def = state
+        .infer
+        .resolve_concrete_role_method_call_def(info, Some(recv.tv), &role_args)?;
+    Some((canonical_runtime_export_def(state, def), args))
+}
+
+fn transparent_role_wrapper_method(
+    state: &LowerState,
+    def: DefId,
+) -> Option<(crate::symbols::Name, usize)> {
+    let body = state.principal_bodies.get(&def)?;
+    let mut params = Vec::new();
+    let mut current = body;
+    while let ExprKind::Lam(param, body) = &current.kind {
+        params.push(*param);
+        current = body;
+    }
+    let (head, args) = collect_apply_spine(current);
+    let ExprKind::Select { recv, name } = &head.kind else {
+        return None;
+    };
+    let ExprKind::Var(recv_def) = recv.kind else {
+        return None;
+    };
+    if params.first().copied() != Some(recv_def) {
+        return None;
+    }
+    if args.len() + 1 != params.len() {
+        return None;
+    }
+    for (arg, param) in args.iter().zip(params.iter().skip(1)) {
+        let ExprKind::Var(arg_def) = arg.kind else {
+            return None;
+        };
+        if arg_def != *param {
+            return None;
+        }
+    }
+    Some((name.clone(), args.len()))
 }
 
 fn collect_hir_role_rewrite_support_defs(state: &LowerState) -> Vec<DefId> {
@@ -1632,6 +1705,72 @@ mod tests {
             }
             other => panic!("expected concrete helper body, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn export_principal_bindings_resolve_role_methods_through_generic_wrapper() {
+        let mut state = parse_and_lower(
+            "role Add 'a:\n  our a.add: 'a -> 'a\n\n\
+             impl Add int:\n  our x.add y = x\n\n\
+             my plus x y = x.add y\n\
+             my shown = plus 1 2\n",
+        );
+        let bindings = export_principal_bindings(&mut state);
+        let shown = bindings
+            .iter()
+            .find(|binding| {
+                binding.name.segments.last().map(|name| name.0.as_str()) == Some("shown")
+            })
+            .unwrap();
+        assert!(
+            !format!("{:?}", shown.body).contains("ref_"),
+            "generic role wrapper should not export unresolved ref paths: {:?}",
+            shown.body
+        );
+    }
+
+    #[test]
+    fn export_principal_bindings_resolve_direct_role_method_generic_wrapper() {
+        let mut state = parse_and_lower(
+            "role Add 'a:\n  our a.add: 'a -> 'a\n\n\
+             impl Add int:\n  our x.add y = x\n\n\
+             my plus = \\x -> \\y -> Add::add x y\n\
+             my shown = plus 1 2\n",
+        );
+        let bindings = export_principal_bindings(&mut state);
+        let shown = bindings
+            .iter()
+            .find(|binding| {
+                binding.name.segments.last().map(|name| name.0.as_str()) == Some("shown")
+            })
+            .unwrap();
+        assert!(
+            !format!("{:?}", shown.body).contains("ref_"),
+            "direct role method wrapper should not export unresolved ref paths: {:?}",
+            shown.body
+        );
+    }
+
+    #[test]
+    fn export_principal_bindings_resolve_forward_role_method_generic_wrapper() {
+        let mut state = parse_and_lower(
+            "my plus = \\x -> \\y -> Add::add x y\n\n\
+             role Add 'a:\n  our a.add: 'a -> 'a\n\n\
+             impl Add int:\n  our x.add y = x\n\n\
+             my shown = plus 1 2\n",
+        );
+        let bindings = export_principal_bindings(&mut state);
+        let shown = bindings
+            .iter()
+            .find(|binding| {
+                binding.name.segments.last().map(|name| name.0.as_str()) == Some("shown")
+            })
+            .unwrap();
+        assert!(
+            !format!("{:?}", shown.body).contains("ref_"),
+            "forward role method wrapper should not export unresolved ref paths: {:?}",
+            shown.body
+        );
     }
 
     #[test]

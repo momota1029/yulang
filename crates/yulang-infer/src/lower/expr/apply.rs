@@ -215,13 +215,14 @@ fn register_role_method_call_spine(state: &mut LowerState, expr: &TypedExpr) {
                 .infer
                 .push_deferred_role_method_call(DeferredRoleMethodCall {
                     name: name.clone(),
+                    role_path: None,
                     recv_tv: recv.tv,
                     arg_tvs: args.iter().map(|arg| arg.tv).collect(),
                     result_tv: expr.tv,
                 });
         }
         ExprKind::Var(def) => {
-            let Some(info) = role_method_info_for_direct_call_def(state, *def) else {
+            let Some((info, role_path)) = role_method_info_for_direct_call_def(state, *def) else {
                 return;
             };
             let Some((recv, rest)) = args.split_first() else {
@@ -231,6 +232,24 @@ fn register_role_method_call_spine(state: &mut LowerState, expr: &TypedExpr) {
                 .infer
                 .push_deferred_role_method_call(DeferredRoleMethodCall {
                     name: info.name,
+                    role_path,
+                    recv_tv: recv.tv,
+                    arg_tvs: rest.iter().map(|arg| arg.tv).collect(),
+                    result_tv: expr.tv,
+                });
+        }
+        ExprKind::Ref(ref_id) => {
+            let Some((name, role_path)) = unresolved_role_method_path(state, *ref_id) else {
+                return;
+            };
+            let Some((recv, rest)) = args.split_first() else {
+                return;
+            };
+            state
+                .infer
+                .push_deferred_role_method_call(DeferredRoleMethodCall {
+                    name,
+                    role_path: Some(role_path),
                     recv_tv: recv.tv,
                     arg_tvs: rest.iter().map(|arg| arg.tv).collect(),
                     result_tv: expr.tv,
@@ -243,27 +262,33 @@ fn register_role_method_call_spine(state: &mut LowerState, expr: &TypedExpr) {
 fn role_method_info_for_direct_call_def(
     state: &LowerState,
     def: crate::ids::DefId,
-) -> Option<RoleMethodInfo> {
+) -> Option<(RoleMethodInfo, Option<crate::symbols::Path>)> {
     state
         .infer
         .role_method_info_for_def(def)
-        .or_else(|| role_method_info_for_direct_call_path(state, def))
+        .map(|info| (info, direct_call_path(state, def)))
+        .or_else(|| {
+            let path = direct_call_path(state, def)?;
+            role_method_info_for_path(&state.infer.role_methods, &path)
+                .map(|info| (info, Some(path)))
+        })
 }
 
-fn role_method_info_for_direct_call_path(
-    state: &LowerState,
-    def: crate::ids::DefId,
-) -> Option<RoleMethodInfo> {
-    let name = state.def_name(def)?;
-    if !state.infer.role_methods.contains_key(name) {
-        return None;
-    }
-    let path = state
+fn direct_call_path(state: &LowerState, def: crate::ids::DefId) -> Option<crate::symbols::Path> {
+    state
         .ctx
         .collect_all_binding_paths()
         .into_iter()
-        .find_map(|(path, path_def)| (path_def == def).then_some(path))?;
-    role_method_info_for_path(&state.infer.role_methods, &path)
+        .find_map(|(path, path_def)| (path_def == def).then_some(path))
+}
+
+fn unresolved_role_method_path(
+    state: &LowerState,
+    ref_id: crate::ids::RefId,
+) -> Option<(crate::symbols::Name, crate::symbols::Path)> {
+    let path = state.ctx.refs.unresolved_info(ref_id)?.path.clone();
+    let name = path.segments.last()?.clone();
+    (path.segments.len() > 1).then_some((name, path))
 }
 
 fn collect_app_spine<'a>(expr: &'a TypedExpr) -> (&'a TypedExpr, Vec<&'a TypedExpr>) {

@@ -5,7 +5,7 @@ use yulang_parser::lex::SyntaxKind;
 use crate::ast::expr::{ExprKind, PatKind, TypedBlock, TypedExpr, TypedPat, TypedStmt};
 use crate::ids::{DefId, TypeVar};
 use crate::lower::{LowerState, SyntaxNode};
-use crate::symbols::{Name, Path};
+use crate::symbols::Name;
 use crate::types::{Neg, Pos};
 
 use super::sigil::VarBinding;
@@ -244,9 +244,10 @@ fn constrain_var_ref_binding_to_init(
     };
     let eff_tv = state.fresh_tv();
     let ref_args = invariant_ref_args(state, &[(eff_tv, eff_tv), (init_tv, init_tv)]);
-    state
-        .infer
-        .constrain(Pos::Con(std_var_ref_path(), ref_args), Neg::Var(ref_tv));
+    state.infer.constrain(
+        Pos::Con(crate::ref_capability::standard_ref_type_path(), ref_args),
+        Neg::Var(ref_tv),
+    );
 }
 
 fn lower_var_run_expr(
@@ -301,13 +302,7 @@ fn materialize_var_act_helpers(
 }
 
 fn std_var_synthetic_act_source(selected_names: Vec<Name>) -> super::super::SyntheticActSource {
-    let source_path = Path {
-        segments: vec![
-            Name("std".to_string()),
-            Name("var".to_string()),
-            Name("var".to_string()),
-        ],
-    };
+    let source_path = crate::ref_capability::standard_var_act_path();
     super::super::SyntheticActSource {
         source_module_path: source_path.clone(),
         source_copy_path: source_path,
@@ -352,14 +347,4 @@ fn invariant_ref_args(
             )
         })
         .collect()
-}
-
-fn std_var_ref_path() -> Path {
-    Path {
-        segments: vec![
-            Name("std".to_string()),
-            Name("var".to_string()),
-            Name("ref".to_string()),
-        ],
-    }
 }

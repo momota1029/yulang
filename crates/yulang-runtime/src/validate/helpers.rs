@@ -353,7 +353,7 @@ pub(super) fn is_constructor_path_for_type(path: &core_ir::Path, ty: &RuntimeTyp
     match ty {
         RuntimeType::Core(core_ir::Type::Named {
             path: type_path, ..
-        }) => constructor_parent_matches(path, type_path, "nil"),
+        }) => constructor_parent_matches(path, type_path),
         RuntimeType::Fun { ret, .. } => {
             let RuntimeType::Core(core_ir::Type::Named {
                 path: type_path, ..
@@ -361,19 +361,14 @@ pub(super) fn is_constructor_path_for_type(path: &core_ir::Path, ty: &RuntimeTyp
             else {
                 return false;
             };
-            constructor_parent_matches(path, type_path, "just")
+            constructor_parent_matches(path, type_path)
         }
         _ => false,
     }
 }
 
-pub(super) fn constructor_parent_matches(
-    path: &core_ir::Path,
-    type_path: &core_ir::Path,
-    tag: &str,
-) -> bool {
+pub(super) fn constructor_parent_matches(path: &core_ir::Path, type_path: &core_ir::Path) -> bool {
     path.segments.len() == type_path.segments.len() + 1
-        && path.segments.last().is_some_and(|name| name.0 == tag)
         && path
             .segments
             .iter()

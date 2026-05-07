@@ -3,6 +3,7 @@ use yulang_parser::lex::SyntaxKind;
 
 use crate::ast::expr::{ExprKind, Lit, TypedExpr};
 use crate::diagnostic::{TypeOrigin, TypeOriginKind};
+use crate::lower::builtin_types::PrimitiveValueFamily;
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::Name;
 use crate::types::Neg;
@@ -90,11 +91,12 @@ fn string_lit_expr(state: &mut LowerState, text: String) -> TypedExpr {
 fn concat_expr(state: &mut LowerState, lhs: TypedExpr, rhs: TypedExpr) -> TypedExpr {
     let concat = resolve_path_expr(
         state,
-        vec![
-            Name("std".to_string()),
-            Name("str".to_string()),
-            Name("concat".to_string()),
-        ],
+        state
+            .primitive_runtime_value_path(PrimitiveValueFamily::StrConcat)
+            .segments
+            .into_iter()
+            .map(|segment| Name(segment.0))
+            .collect(),
     );
     let app = make_app(state, concat, lhs);
     make_app(state, app, rhs)

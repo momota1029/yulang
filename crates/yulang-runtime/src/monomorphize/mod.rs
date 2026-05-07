@@ -19,6 +19,7 @@ mod collect;
 mod emit;
 mod engine;
 mod pipeline;
+mod semantics;
 mod solve;
 mod specialize;
 
@@ -36,11 +37,13 @@ pub use pipeline::{
     SubstitutionSpecializeTargetRewrites, SubstitutionSpecializeTargetSkips, monomorphize_module,
     monomorphize_module_profiled,
 };
+use semantics::*;
 pub use solve::*;
 pub use specialize::*;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct DemandQueue {
+    semantics: DemandSemantics,
     queue: VecDeque<Demand>,
     seen: HashSet<DemandKey>,
     profile: DemandQueueProfile,
@@ -204,8 +207,15 @@ static DEMAND_EVIDENCE_PROFILE: DemandEvidenceProfileCounters =
     DemandEvidenceProfileCounters::new();
 
 impl DemandQueue {
+    pub(super) fn with_semantics(semantics: DemandSemantics) -> Self {
+        Self {
+            semantics,
+            ..Self::default()
+        }
+    }
+
     pub fn push(&mut self, target: core_ir::Path, expected: RuntimeType) -> bool {
-        let demand = Demand::new(target, expected);
+        let demand = Demand::new_with_semantics(&self.semantics, target, expected);
         self.push_demand(demand)
     }
 
@@ -215,7 +225,8 @@ impl DemandQueue {
         expected: RuntimeType,
         signature: DemandSignature,
     ) -> bool {
-        let demand = Demand::with_signature(target, expected, signature);
+        let demand =
+            Demand::with_signature_and_semantics(&self.semantics, target, expected, signature);
         self.push_demand(demand)
     }
 
@@ -459,7 +470,19 @@ pub struct Demand {
 
 impl Demand {
     pub fn new(target: core_ir::Path, expected: RuntimeType) -> Self {
+        Self::new_with_semantics(&DemandSemantics::default(), target, expected)
+    }
+
+    pub(super) fn new_with_semantics(
+        semantics: &DemandSemantics,
+        target: core_ir::Path,
+        expected: RuntimeType,
+    ) -> Self {
         let key = DemandKey::new(target.clone(), &expected);
+        let key = DemandKey::from_signature(
+            target.clone(),
+            close_known_associated_type_signature_with_semantics(semantics, &target, key.signature),
+        );
         Self {
             target,
             expected,
@@ -472,7 +495,17 @@ impl Demand {
         expected: RuntimeType,
         signature: DemandSignature,
     ) -> Self {
-        let signature = close_known_associated_type_signature(&target, signature);
+        Self::with_signature_and_semantics(&DemandSemantics::default(), target, expected, signature)
+    }
+
+    pub(super) fn with_signature_and_semantics(
+        semantics: &DemandSemantics,
+        target: core_ir::Path,
+        expected: RuntimeType,
+        signature: DemandSignature,
+    ) -> Self {
+        let signature =
+            close_known_associated_type_signature_with_semantics(semantics, &target, signature);
         let key = DemandKey::from_signature(target.clone(), signature);
         Self {
             target,
@@ -1979,8 +2012,11 @@ mod tests {
 
     #[test]
     fn fold_demand_closes_list_item_and_accumulator_callback_types() {
-        let demand = Demand::with_signature(
-            path_segments(&["std", "list", "&impl#187", "fold"]),
+        let target = path_segments(&["std", "list", "&impl#187", "fold"]);
+        let semantics = list_fold_semantics(target.clone());
+        let demand = Demand::with_signature_and_semantics(
+            &semantics,
+            target,
             RuntimeType::core(core_ir::Type::Any),
             fold_signature(DemandSignature::Fun {
                 param: Box::new(DemandSignature::Hole(0)),
@@ -2014,9 +2050,35 @@ mod tests {
     }
 
     #[test]
-    fn fold_impl_demand_wraps_callback_in_empty_thunk() {
+    fn add_named_user_binding_does_not_receive_list_merge_signature_closure() {
+        let list_int = DemandSignature::Core(DemandCoreType::Named {
+            path: path_segments(&["std", "list", "list"]),
+            args: vec![DemandTypeArg::Type(DemandCoreType::Named {
+                path: path("int"),
+                args: Vec::new(),
+            })],
+        });
+        let original = curried_signatures(
+            &[list_int, DemandSignature::Hole(0)],
+            DemandSignature::Hole(1),
+        );
+
         let demand = Demand::with_signature(
-            path_segments(&["std", "list", "fold_impl"]),
+            path_segments(&["user", "math", "add"]),
+            RuntimeType::core(core_ir::Type::Any),
+            original.clone(),
+        );
+
+        assert_eq!(demand.key.signature, original);
+    }
+
+    #[test]
+    fn fold_impl_demand_wraps_callback_in_empty_thunk() {
+        let target = path_segments(&["std", "list", "fold_impl"]);
+        let semantics = list_fold_semantics(path_segments(&["std", "list", "&impl#187", "fold"]));
+        let demand = Demand::with_signature_and_semantics(
+            &semantics,
+            target,
             RuntimeType::core(core_ir::Type::Any),
             fold_signature(DemandSignature::Fun {
                 param: Box::new(DemandSignature::Hole(0)),
@@ -2053,9 +2115,141 @@ mod tests {
     }
 
     #[test]
-    fn fold_demand_closes_range_item_as_int() {
+    fn fold_named_user_binding_does_not_receive_fold_signature_closure() {
+        let original = fold_signature(DemandSignature::Fun {
+            param: Box::new(DemandSignature::Hole(0)),
+            ret: Box::new(DemandSignature::Fun {
+                param: Box::new(DemandSignature::Hole(1)),
+                ret: Box::new(unit_thunk()),
+            }),
+        });
+
         let demand = Demand::with_signature(
-            path_segments(&["std", "range", "&impl#120", "fold"]),
+            path_segments(&["user", "container", "fold"]),
+            RuntimeType::core(core_ir::Type::Any),
+            original.clone(),
+        );
+
+        assert_eq!(demand.key.signature, original);
+    }
+
+    #[test]
+    fn fold_impl_named_user_binding_does_not_receive_fold_signature_closure() {
+        let original = fold_signature(DemandSignature::Fun {
+            param: Box::new(DemandSignature::Hole(0)),
+            ret: Box::new(DemandSignature::Fun {
+                param: Box::new(DemandSignature::Hole(1)),
+                ret: Box::new(unit_thunk()),
+            }),
+        });
+
+        let demand = Demand::with_signature(
+            path_segments(&["user", "list", "fold_impl"]),
+            RuntimeType::core(core_ir::Type::Any),
+            original.clone(),
+        );
+
+        assert_eq!(demand.key.signature, original);
+    }
+
+    #[test]
+    fn find_named_user_binding_does_not_receive_fold_find_signature_closure() {
+        let list_int = DemandSignature::Core(DemandCoreType::Named {
+            path: path_segments(&["std", "list", "list"]),
+            args: vec![DemandTypeArg::Type(DemandCoreType::Named {
+                path: path("int"),
+                args: Vec::new(),
+            })],
+        });
+        let opt_int = DemandSignature::Core(DemandCoreType::Named {
+            path: path_segments(&["std", "opt", "opt"]),
+            args: vec![DemandTypeArg::Type(DemandCoreType::Named {
+                path: path("int"),
+                args: Vec::new(),
+            })],
+        });
+        let original = curried_signatures(
+            &[
+                list_int,
+                DemandSignature::Fun {
+                    param: Box::new(DemandSignature::Hole(0)),
+                    ret: Box::new(DemandSignature::Hole(1)),
+                },
+            ],
+            opt_int,
+        );
+
+        let demand = Demand::with_signature(
+            path_segments(&["user", "container", "find"]),
+            RuntimeType::core(core_ir::Type::Any),
+            original.clone(),
+        );
+
+        assert_eq!(demand.key.signature, original);
+    }
+
+    #[test]
+    fn fold_find_method_uses_fold_role_semantics_for_signature_closure() {
+        let list_int = DemandSignature::Core(DemandCoreType::Named {
+            path: path_segments(&["std", "list", "list"]),
+            args: vec![DemandTypeArg::Type(DemandCoreType::Named {
+                path: path("int"),
+                args: Vec::new(),
+            })],
+        });
+        let opt_int = DemandSignature::Core(DemandCoreType::Named {
+            path: path_segments(&["std", "opt", "opt"]),
+            args: vec![DemandTypeArg::Type(DemandCoreType::Named {
+                path: path("int"),
+                args: Vec::new(),
+            })],
+        });
+        let target = path_segments(&["std", "fold", "Fold", "find"]);
+        let semantics = list_fold_semantics(path_segments(&["std", "list", "&impl#187", "fold"]));
+
+        let demand = Demand::with_signature_and_semantics(
+            &semantics,
+            target,
+            RuntimeType::core(core_ir::Type::Any),
+            curried_signatures(
+                &[
+                    list_int,
+                    DemandSignature::Fun {
+                        param: Box::new(DemandSignature::Hole(0)),
+                        ret: Box::new(DemandSignature::Hole(1)),
+                    },
+                ],
+                opt_int.clone(),
+            ),
+        );
+
+        let DemandSignature::Fun { ret, .. } = demand.key.signature else {
+            panic!("expected find function");
+        };
+        let DemandSignature::Fun { param, ret } = *ret else {
+            panic!("expected predicate function");
+        };
+
+        assert_eq!(
+            *param,
+            DemandSignature::Fun {
+                param: Box::new(int_signature()),
+                ret: Box::new(DemandSignature::Core(DemandCoreType::Named {
+                    path: path("bool"),
+                    args: Vec::new(),
+                })),
+            }
+        );
+        assert_eq!(*ret, opt_int);
+    }
+
+    #[test]
+    fn fold_demand_closes_range_item_as_int() {
+        let target = path_segments(&["std", "range", "&impl#120", "fold"]);
+        let semantics = range_fold_semantics(target.clone());
+        let demand = Demand::with_signature_and_semantics(
+            &semantics,
+            target,
             RuntimeType::core(core_ir::Type::Any),
             curried_signatures(
                 &[
@@ -2100,8 +2294,11 @@ mod tests {
 
     #[test]
     fn for_in_demand_marks_callback_result_as_ignored() {
-        let demand = Demand::with_signature(
-            path_segments(&["std", "flow", "loop", "for_in"]),
+        let target = path_segments(&["std", "flow", "loop", "for_in"]);
+        let semantics = range_fold_semantics(path_segments(&["std", "range", "&impl#120", "fold"]));
+        let demand = Demand::with_signature_and_semantics(
+            &semantics,
+            target,
             RuntimeType::core(core_ir::Type::Any),
             curried_signatures(
                 &[
@@ -2155,8 +2352,11 @@ mod tests {
             path: path_segments(&["std", "range", "range"]),
             args: Vec::new(),
         });
-        let demand = Demand::with_signature(
-            path_segments(&["std", "flow", "loop", "for_in"]),
+        let target = path_segments(&["std", "flow", "loop", "for_in"]);
+        let semantics = range_fold_semantics(path_segments(&["std", "range", "&impl#120", "fold"]));
+        let demand = Demand::with_signature_and_semantics(
+            &semantics,
+            target,
             RuntimeType::core(core_ir::Type::Any),
             curried_signatures(
                 &[
@@ -2207,8 +2407,11 @@ mod tests {
             path: path_segments(&["std", "flow", "sub"]),
             args: vec![DemandTypeArg::Type(DemandCoreType::Hole(0))],
         });
-        let demand = Demand::with_signature(
-            path_segments(&["std", "flow", "loop", "for_in"]),
+        let target = path_segments(&["std", "flow", "loop", "for_in"]);
+        let semantics = range_fold_semantics(path_segments(&["std", "range", "&impl#120", "fold"]));
+        let demand = Demand::with_signature_and_semantics(
+            &semantics,
+            target,
             RuntimeType::core(core_ir::Type::Any),
             curried_signatures(
                 &[
@@ -2260,8 +2463,11 @@ mod tests {
             path: path_segments(&["std", "flow", "sub"]),
             args: Vec::new(),
         });
-        let demand = Demand::with_signature(
-            path_segments(&["std", "flow", "loop", "for_in"]),
+        let target = path_segments(&["std", "flow", "loop", "for_in"]);
+        let semantics = range_fold_semantics(path_segments(&["std", "range", "&impl#120", "fold"]));
+        let demand = Demand::with_signature_and_semantics(
+            &semantics,
+            target,
             RuntimeType::core(core_ir::Type::Any),
             curried_signatures(
                 &[
@@ -2302,8 +2508,11 @@ mod tests {
 
     #[test]
     fn undet_list_demand_uses_result_item_as_input_value() {
-        let demand = Demand::with_signature(
-            path_segments(&["std", "undet", "undet", "list"]),
+        let target = path_segments(&["std", "undet", "undet", "list"]);
+        let semantics = handler_collection_semantics(target.clone(), list_type(named("int")));
+        let demand = Demand::with_signature_and_semantics(
+            &semantics,
+            target,
             RuntimeType::core(core_ir::Type::Any),
             curried_signatures(
                 &[DemandSignature::Thunk {
@@ -2345,8 +2554,11 @@ mod tests {
                 args: Vec::new(),
             })],
         });
-        let demand = Demand::with_signature(
-            path_segments(&["std", "undet", "undet", "once"]),
+        let target = path_segments(&["std", "undet", "undet", "once"]);
+        let semantics = handler_collection_semantics(target.clone(), opt_type(named("int")));
+        let demand = Demand::with_signature_and_semantics(
+            &semantics,
+            target,
             RuntimeType::core(core_ir::Type::Any),
             curried_signatures(
                 &[DemandSignature::Thunk {
@@ -2391,6 +2603,150 @@ mod tests {
         )
     }
 
+    fn list_fold_semantics(member: core_ir::Path) -> DemandSemantics {
+        let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
+        fold_semantics(
+            member,
+            core_ir::Type::Named {
+                path: path_segments(&["std", "list", "list"]),
+                args: vec![core_ir::TypeArg::Type(item.clone())],
+            },
+            item,
+        )
+    }
+
+    fn range_fold_semantics(member: core_ir::Path) -> DemandSemantics {
+        fold_semantics(
+            member,
+            core_ir::Type::Named {
+                path: path_segments(&["std", "range", "range"]),
+                args: Vec::new(),
+            },
+            named("int"),
+        )
+    }
+
+    fn handler_collection_semantics(
+        target: core_ir::Path,
+        result: core_ir::Type,
+    ) -> DemandSemantics {
+        let undet = core_ir::Type::Named {
+            path: path_segments(&["std", "undet", "undet"]),
+            args: Vec::new(),
+        };
+        DemandSemantics::from_module(&crate::ir::Module {
+            path: path_segments(&["std"]),
+            bindings: vec![crate::ir::Binding {
+                name: target,
+                type_params: Vec::new(),
+                scheme: core_ir::Scheme {
+                    requirements: Vec::new(),
+                    body: core_ir::Type::Any,
+                },
+                body: crate::ir::Expr::typed(
+                    crate::ir::ExprKind::Lambda {
+                        param: core_ir::Name("x".to_string()),
+                        param_effect_annotation: None,
+                        param_function_allowed_effects: None,
+                        body: Box::new(crate::ir::Expr::typed(
+                            crate::ir::ExprKind::Lit(core_ir::Lit::Unit),
+                            RuntimeType::core(result.clone()),
+                        )),
+                    },
+                    RuntimeType::fun(
+                        RuntimeType::thunk(undet, RuntimeType::core(core_ir::Type::Any)),
+                        RuntimeType::core(result),
+                    ),
+                ),
+            }],
+            root_exprs: Vec::new(),
+            roots: Vec::new(),
+            role_impls: Vec::new(),
+        })
+    }
+
+    fn fold_semantics(
+        member: core_ir::Path,
+        input: core_ir::Type,
+        item: core_ir::Type,
+    ) -> DemandSemantics {
+        DemandSemantics::from_module(&crate::ir::Module {
+            path: path_segments(&["std"]),
+            bindings: vec![
+                for_in_semantics_binding(),
+                list_fold_impl_semantics_binding(),
+            ],
+            root_exprs: Vec::new(),
+            roots: Vec::new(),
+            role_impls: vec![core_ir::RoleImplGraphNode {
+                role: path_segments(&["std", "fold", "Fold"]),
+                inputs: vec![core_ir::TypeBounds::exact(input)],
+                associated_types: vec![core_ir::RecordField {
+                    name: core_ir::Name("item".to_string()),
+                    value: core_ir::TypeBounds::exact(item),
+                    optional: false,
+                }],
+                members: vec![core_ir::RecordField {
+                    name: core_ir::Name("fold".to_string()),
+                    value: member,
+                    optional: false,
+                }],
+            }],
+        })
+    }
+
+    fn for_in_semantics_binding() -> crate::ir::Binding {
+        let loop_effect = core_ir::Type::Named {
+            path: path_segments(&["std", "flow", "loop"]),
+            args: Vec::new(),
+        };
+        crate::ir::Binding {
+            name: path_segments(&["std", "flow", "loop", "for_in"]),
+            type_params: Vec::new(),
+            scheme: core_ir::Scheme {
+                requirements: Vec::new(),
+                body: core_ir::Type::Any,
+            },
+            body: crate::ir::Expr::typed(
+                crate::ir::ExprKind::Lit(core_ir::Lit::Unit),
+                RuntimeType::fun(
+                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::fun(
+                        RuntimeType::fun(
+                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::thunk(loop_effect, RuntimeType::core(core_ir::Type::Any)),
+                        ),
+                        RuntimeType::core(core_ir::Type::Any),
+                    ),
+                ),
+            ),
+        }
+    }
+
+    fn list_fold_impl_semantics_binding() -> crate::ir::Binding {
+        crate::ir::Binding {
+            name: path_segments(&["std", "list", "fold_impl"]),
+            type_params: Vec::new(),
+            scheme: core_ir::Scheme {
+                requirements: Vec::new(),
+                body: core_ir::Type::Any,
+            },
+            body: crate::ir::Expr::typed(
+                crate::ir::ExprKind::PrimitiveOp(core_ir::PrimitiveOp::ListViewRaw),
+                RuntimeType::fun(
+                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::fun(
+                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::fun(
+                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(core_ir::Type::Any),
+                        ),
+                    ),
+                ),
+            ),
+        }
+    }
+
     fn unit_thunk() -> DemandSignature {
         DemandSignature::Thunk {
             effect: undet_effect(),
@@ -2430,6 +2786,20 @@ mod tests {
         core_ir::Type::Named {
             path: path(name),
             args: Vec::new(),
+        }
+    }
+
+    fn list_type(item: core_ir::Type) -> core_ir::Type {
+        core_ir::Type::Named {
+            path: path_segments(&["std", "list", "list"]),
+            args: vec![core_ir::TypeArg::Type(item)],
+        }
+    }
+
+    fn opt_type(item: core_ir::Type) -> core_ir::Type {
+        core_ir::Type::Named {
+            path: path_segments(&["std", "opt", "opt"]),
+            args: vec![core_ir::TypeArg::Type(item)],
         }
     }
 

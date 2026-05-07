@@ -4,6 +4,7 @@ use super::*;
 use crate::ir::{Binding, Expr, ExprKind, HandleArm, Module, Pattern, Stmt, Type as RuntimeType};
 
 pub struct DemandChecker<'a> {
+    semantics: DemandSemantics,
     bindings: HashMap<core_ir::Path, &'a Binding>,
     generic_bindings: HashSet<core_ir::Path>,
     generic_role_impls: HashMap<core_ir::Name, Vec<RoleImplDemandCandidate>>,
@@ -13,6 +14,7 @@ pub struct DemandChecker<'a> {
 impl<'a> DemandChecker<'a> {
     pub fn from_module(module: &'a Module) -> Self {
         Self {
+            semantics: DemandSemantics::from_module(module),
             pure_handler_bindings: pure_handler_bindings(module),
             bindings: module
                 .bindings
@@ -35,16 +37,23 @@ impl<'a> DemandChecker<'a> {
             .get(&demand.target)
             .copied()
             .ok_or_else(|| DemandCheckError::MissingBinding(demand.target.clone()))?;
-        let consumed_effects =
-            consumed_effects_for_target(&self.pure_handler_bindings, &demand.target);
+        let consumed_effects = consumed_effects_for_target(
+            &self.semantics,
+            &self.pure_handler_bindings,
+            &demand.target,
+        );
         let mut checker = ExprChecker::new(
+            &self.semantics,
             &self.generic_bindings,
             &self.generic_role_impls,
             &consumed_effects,
             &demand.target,
         );
-        let expected =
-            normalize_check_demand_signature(&demand.target, demand.key.signature.clone());
+        let expected = normalize_check_demand_signature(
+            &self.semantics,
+            &demand.target,
+            demand.key.signature.clone(),
+        );
         let actual = match checker.check_expr(&binding.body, &expected) {
             Ok(actual) => actual,
             Err(DemandCheckError::Unify(DemandUnifyError::EffectMismatch { actual, .. }))
@@ -56,8 +65,12 @@ impl<'a> DemandChecker<'a> {
             }
             Err(_)
                 if expected.is_closed()
-                    && (path_ends_with(&demand.target, &["std", "list", "fold_impl"])
-                        || binding_references_path(binding, &demand.target)) =>
+                    && (matches!(
+                        self.semantics.associated_signature_kind(&demand.target),
+                        Some(AssociatedSignatureKind::Fold {
+                            thunk_callback: true
+                        })
+                    ) || binding_references_path(binding, &demand.target)) =>
             {
                 expected.clone()
             }
@@ -76,9 +89,17 @@ impl<'a> DemandChecker<'a> {
             ),
             &consumed_effects,
         );
-        let solved = close_known_associated_type_signature(&demand.target, solved);
+        let solved = close_known_associated_type_signature_with_semantics(
+            &self.semantics,
+            &demand.target,
+            solved,
+        );
         let solved = close_default_effect_holes(solved);
-        let solved = close_known_associated_type_signature(&demand.target, solved);
+        let solved = close_known_associated_type_signature_with_semantics(
+            &self.semantics,
+            &demand.target,
+            solved,
+        );
         Ok(CheckedDemand {
             target: demand.target.clone(),
             expected,
@@ -91,7 +112,7 @@ impl<'a> DemandChecker<'a> {
     }
 
     pub fn missing_demands_queue(&self, missing: &[MissingDemand]) -> DemandQueue {
-        let mut queue = DemandQueue::default();
+        let mut queue = DemandQueue::with_semantics(self.semantics.clone());
         for demand in missing {
             self.push_missing_demand(&mut queue, demand);
         }
@@ -151,6 +172,7 @@ impl From<DemandUnifyError> for DemandCheckError {
 }
 
 struct ExprChecker<'a> {
+    semantics: &'a DemandSemantics,
     generic_bindings: &'a HashSet<core_ir::Path>,
     generic_role_impls: &'a HashMap<core_ir::Name, Vec<RoleImplDemandCandidate>>,
     consumed_effects: &'a [core_ir::Path],
@@ -194,12 +216,14 @@ struct ExprCheckerCheckpoint {
 
 impl<'a> ExprChecker<'a> {
     fn new(
+        semantics: &'a DemandSemantics,
         generic_bindings: &'a HashSet<core_ir::Path>,
         generic_role_impls: &'a HashMap<core_ir::Name, Vec<RoleImplDemandCandidate>>,
         consumed_effects: &'a [core_ir::Path],
         current_target: &'a core_ir::Path,
     ) -> Self {
         Self {
+            semantics,
             generic_bindings,
             generic_role_impls,
             consumed_effects,
@@ -285,7 +309,7 @@ impl<'a> ExprChecker<'a> {
         target: &core_ir::Path,
         ret: DemandSignature,
     ) -> DemandSignature {
-        if known_handler_consumed_effects(target).is_empty()
+        if known_consumed_effects_for_target(self.semantics, target).is_empty()
             || matches!(ret, DemandSignature::Thunk { .. })
         {
             return ret;
@@ -449,6 +473,7 @@ impl<'a> ExprChecker<'a> {
                         }
                     }
                     let arg_signatures = strengthen_handler_arg_signatures(
+                        self.semantics,
                         target,
                         arg_signatures,
                         &param_hints,
@@ -834,9 +859,11 @@ impl<'a> ExprChecker<'a> {
         let Some((target, _, args)) = applied_call_with_head(scrutinee) else {
             return Ok(None);
         };
-        if !path_ends_with(target, &["std", "list", "view_raw"]) {
+        let Some(AssociatedSignatureKind::ListViewRaw { result }) =
+            self.semantics.associated_signature_kind(target)
+        else {
             return Ok(None);
-        }
+        };
         let Some(xs) = args.first() else {
             return Ok(None);
         };
@@ -844,10 +871,14 @@ impl<'a> ExprChecker<'a> {
         let Some(item) = list_item_signature(&xs) else {
             return Ok(None);
         };
-        Ok(Some(DemandSignature::Core(DemandCoreType::Named {
-            path: path_segments(&["std", "list", "list_view"]),
-            args: vec![DemandTypeArg::Type(item)],
-        })))
+        let path =
+            result.or_else(|| named_signature_path(&self.signature_from_type(&scrutinee.ty)));
+        Ok(path.map(|path| {
+            DemandSignature::Core(DemandCoreType::Named {
+                path,
+                args: vec![DemandTypeArg::Type(item)],
+            })
+        }))
     }
 
     fn synth_block(
@@ -1162,7 +1193,7 @@ impl<'a> ExprChecker<'a> {
         HashMap<core_ir::Path, DemandSignature>,
     ) {
         let substitutions = self.unifier.finish();
-        let mut child_demands = DemandQueue::default();
+        let mut child_demands = DemandQueue::with_semantics(self.semantics.clone());
         for child in self.child_demands {
             let mut signature = substitutions.apply_signature(&child.signature);
             if child.target == *self.current_target && !signature.is_closed() {
@@ -1532,12 +1563,14 @@ impl<'a> ExprChecker<'a> {
             .collect::<Vec<_>>();
         let ret =
             self.lift_higher_order_call_return_to_enclosing_effect(target, &provisional_args, ret);
-        let closed = close_known_associated_type_signature(
+        let closed = close_known_associated_type_signature_with_semantics(
+            self.semantics,
             target,
             curried_signatures(&provisional_args, ret.clone()),
         );
         let closed = close_default_effect_holes(closed);
-        let closed = close_known_associated_type_signature(target, closed);
+        let closed =
+            close_known_associated_type_signature_with_semantics(self.semantics, target, closed);
         let (closed_args, closed_ret) = uncurried_checker_signatures(closed);
         debug_closed_call_param_hints(target, args.len(), &closed_args, &closed_ret);
         if closed_args.len() == args.len() {
@@ -1563,13 +1596,15 @@ impl<'a> ExprChecker<'a> {
         match (op, args.as_slice()) {
             (core_ir::PrimitiveOp::ListSingleton, [item]) => {
                 let item = signature_core_value(&self.local_or_runtime_signature(item));
-                Some(DemandSignature::Core(list_demand_core(item)))
+                named_single_arg_signature_like(&self.signature_from_type(&expr.ty), item)
+                    .map(DemandSignature::Core)
             }
             (core_ir::PrimitiveOp::ListMerge, [left, right]) => {
                 let left = self.local_or_runtime_signature(left);
                 let right = self.local_or_runtime_signature(right);
                 let item = prefer_informative_list_item(&left, &right)?;
-                Some(DemandSignature::Core(list_demand_core(item)))
+                named_single_arg_signature_like(&self.signature_from_type(&expr.ty), item)
+                    .map(DemandSignature::Core)
             }
             _ => None,
         }
@@ -1582,7 +1617,7 @@ impl<'a> ExprChecker<'a> {
         ret: DemandSignature,
     ) -> DemandSignature {
         if matches!(ret, DemandSignature::Thunk { .. })
-            || !is_effect_polymorphic_higher_order_target(target)
+            || !is_effect_polymorphic_higher_order_target(self.semantics, target)
             || !args.iter().any(signature_has_effectful_result)
         {
             return ret;
@@ -1908,13 +1943,6 @@ fn transparent_call_head(mut expr: &Expr) -> &Expr {
     }
 }
 
-fn list_demand_core(item: DemandCoreType) -> DemandCoreType {
-    DemandCoreType::Named {
-        path: path_segments(&["std", "list", "list"]),
-        args: vec![DemandTypeArg::Type(item)],
-    }
-}
-
 fn prefer_informative_list_item(
     left: &DemandSignature,
     right: &DemandSignature,
@@ -1931,6 +1959,23 @@ fn prefer_informative_list_item(
                 .flatten()
                 .find(|item| !core_signature_is_uninformative(item))
         })
+}
+
+fn named_single_arg_signature_like(
+    signature: &DemandSignature,
+    item: DemandCoreType,
+) -> Option<DemandCoreType> {
+    Some(DemandCoreType::Named {
+        path: named_signature_path(signature)?,
+        args: vec![DemandTypeArg::Type(item)],
+    })
+}
+
+fn named_signature_path(signature: &DemandSignature) -> Option<core_ir::Path> {
+    match signature_value(signature) {
+        DemandSignature::Core(DemandCoreType::Named { path, .. }) => Some(path),
+        _ => None,
+    }
 }
 
 fn merge_optional_signature_hints(
@@ -2037,11 +2082,11 @@ fn signature_has_effectful_result(signature: &DemandSignature) -> bool {
     }
 }
 
-fn is_effect_polymorphic_higher_order_target(target: &core_ir::Path) -> bool {
-    target
-        .segments
-        .last()
-        .is_some_and(|name| name.0 == "fold" || name.0 == "fold_impl" || name.0 == "for_in")
+fn is_effect_polymorphic_higher_order_target(
+    semantics: &DemandSemantics,
+    target: &core_ir::Path,
+) -> bool {
+    semantics.is_effect_polymorphic_higher_order_target(target)
 }
 
 fn demand_effect_is_empty(effect: &DemandEffect) -> bool {
@@ -2092,11 +2137,11 @@ fn type_arg_is_uninformative(arg: &DemandTypeArg) -> bool {
 }
 
 fn list_item_signature(signature: &DemandSignature) -> Option<DemandCoreType> {
-    let DemandSignature::Core(DemandCoreType::Named { path, args }) = signature_value(signature)
+    let DemandSignature::Core(DemandCoreType::Named { args, .. }) = signature_value(signature)
     else {
         return None;
     };
-    if !path_ends_with(&path, &["std", "list", "list"]) {
+    if args.len() != 1 {
         return None;
     }
     let DemandTypeArg::Type(item) = args.first()? else {
@@ -2246,7 +2291,8 @@ fn variant_expected_payload(
 }
 
 fn named_variant_payload_is_type_arg(path: &core_ir::Path, tag: &core_ir::Name) -> bool {
-    tag.0 == "just" && path_ends_with(path, &["std", "opt", "opt"])
+    let _ = (path, tag);
+    true
 }
 
 fn pattern_runtime_type(pattern: &Pattern) -> &RuntimeType {
@@ -2316,11 +2362,6 @@ fn debug_checked_locals(
     if std::env::var_os("YULANG_DEBUG_DEMAND_CHECK").is_none() {
         return;
     }
-    if !path_ends_with(target, &["std", "undet", "undet", "logic"])
-        && !path_ends_with(target, &["std", "undet", "undet", "once"])
-    {
-        return;
-    }
     eprintln!("checked locals for {target:?}: {locals:#?}");
     eprintln!("child demands for {target:?}: {child_demands:#?}");
 }
@@ -2331,11 +2372,7 @@ fn debug_closed_call_param_hints(
     closed_args: &[DemandSignature],
     closed_ret: &DemandSignature,
 ) {
-    if std::env::var_os("YULANG_DEBUG_DEMAND_CHECK").is_none()
-        || !(path_ends_with(target, &["std", "range", "fold_from"])
-            || path_ends_with(target, &["std", "fold", "Fold", "fold"])
-            || path_ends_with(target, &["std", "flow", "sub", "sub"]))
-    {
+    if std::env::var_os("YULANG_DEBUG_DEMAND_CHECK").is_none() {
         return;
     }
     eprintln!(
@@ -2425,21 +2462,24 @@ fn role_impl_demand_signature(call: &DemandSignature) -> DemandSignature {
 }
 
 fn normalize_check_demand_signature(
+    semantics: &DemandSemantics,
     target: &core_ir::Path,
     signature: DemandSignature,
 ) -> DemandSignature {
-    let signature = close_known_associated_type_signature(target, signature);
+    let signature =
+        close_known_associated_type_signature_with_semantics(semantics, target, signature);
     let signature = close_default_effect_holes(signature);
-    close_known_associated_type_signature(target, signature)
+    close_known_associated_type_signature_with_semantics(semantics, target, signature)
 }
 
 fn strengthen_handler_arg_signatures(
+    semantics: &DemandSemantics,
     target: &core_ir::Path,
     mut args: Vec<DemandSignature>,
     hints: &[Option<DemandSignature>],
     ret: &DemandSignature,
 ) -> Vec<DemandSignature> {
-    if known_handler_consumed_effects(target).is_empty() {
+    if known_consumed_effects_for_target(semantics, target).is_empty() {
         return args;
     }
     let Some(first) = args.first_mut() else {
@@ -2477,91 +2517,6 @@ fn path_key(path: &core_ir::Path) -> String {
         .map(|segment| segment.0.as_str())
         .collect::<Vec<_>>()
         .join("::")
-}
-
-fn pure_handler_bindings(module: &Module) -> HashMap<core_ir::Path, Vec<core_ir::Path>> {
-    module
-        .bindings
-        .iter()
-        .filter_map(|binding| {
-            expr_pure_handler_consumes(&binding.body)
-                .map(|consumes| (binding.name.clone(), consumes))
-        })
-        .collect()
-}
-
-fn consumed_effects_for_target(
-    pure_handlers: &HashMap<core_ir::Path, Vec<core_ir::Path>>,
-    target: &core_ir::Path,
-) -> Vec<core_ir::Path> {
-    let mut out = pure_handlers.get(target).cloned().unwrap_or_default();
-    for effect in known_handler_consumed_effects(target) {
-        if !out.iter().any(|known| effect_paths_match(known, &effect)) {
-            out.push(effect);
-        }
-    }
-    out
-}
-
-fn known_handler_consumed_effects(target: &core_ir::Path) -> Vec<core_ir::Path> {
-    if let Some(effect) = local_ref_run_effect_path(target) {
-        return vec![effect];
-    }
-    if path_ends_with(target, &["std", "undet", "undet", "once"])
-        || path_ends_with(target, &["std", "undet", "undet", "list"])
-        || path_ends_with(target, &["std", "undet", "undet", "logic"])
-    {
-        return vec![path_segments(&["std", "undet", "undet"])];
-    }
-    if path_ends_with(target, &["std", "flow", "sub", "sub"])
-        || path_ends_with(target, &["std", "sub", "sub"])
-    {
-        return vec![path_segments(&["std", "flow", "sub"])];
-    }
-    if path_ends_with(target, &["std", "fold", "Fold", "find"]) {
-        return vec![path_segments(&["std", "flow", "sub"])];
-    }
-    if path_ends_with(target, &["std", "junction", "junction", "junction"]) {
-        return vec![path_segments(&["std", "junction", "junction"])];
-    }
-    if path_ends_with(target, &["std", "flow", "loop", "last", "sub"]) {
-        return vec![path_segments(&["std", "flow", "loop", "last"])];
-    }
-    if path_ends_with(target, &["std", "flow", "loop", "next", "sub"]) {
-        return vec![path_segments(&["std", "flow", "loop", "next"])];
-    }
-    if path_ends_with(target, &["std", "flow", "loop", "redo", "judge"]) {
-        return vec![path_segments(&["std", "flow", "loop", "redo"])];
-    }
-    if path_ends_with(target, &["std", "flow", "label_loop", "last", "sub"]) {
-        return vec![path_segments(&["std", "flow", "label_loop", "last"])];
-    }
-    if path_ends_with(target, &["std", "flow", "label_loop", "next", "sub"]) {
-        return vec![path_segments(&["std", "flow", "label_loop", "next"])];
-    }
-    if path_ends_with(target, &["std", "flow", "label_loop", "redo", "judge"]) {
-        return vec![path_segments(&["std", "flow", "label_loop", "redo"])];
-    }
-    Vec::new()
-}
-
-fn local_ref_run_effect_path(target: &core_ir::Path) -> Option<core_ir::Path> {
-    let [namespace, name] = target.segments.as_slice() else {
-        return None;
-    };
-    (name.0 == "run" && namespace.0.starts_with('&')).then(|| core_ir::Path {
-        segments: vec![namespace.clone()],
-    })
-}
-
-fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
-    path.segments.len() >= suffix.len()
-        && path
-            .segments
-            .iter()
-            .rev()
-            .zip(suffix.iter().rev())
-            .all(|(segment, expected)| segment.0 == *expected)
 }
 
 fn binding_references_path(binding: &Binding, target: &core_ir::Path) -> bool {
@@ -2645,52 +2600,6 @@ fn stmt_references_path(stmt: &Stmt, target: &core_ir::Path) -> bool {
             expr_references_path(value, target)
         }
     }
-}
-
-fn path_segments(segments: &[&str]) -> core_ir::Path {
-    core_ir::Path {
-        segments: segments
-            .iter()
-            .map(|segment| core_ir::Name((*segment).to_string()))
-            .collect(),
-    }
-}
-
-fn expr_pure_handler_consumes(expr: &Expr) -> Option<Vec<core_ir::Path>> {
-    match &expr.kind {
-        ExprKind::Handle { handler, .. }
-            if handler
-                .residual_after
-                .as_ref()
-                .is_some_and(core_effect_is_empty) =>
-        {
-            Some(handler.consumes.clone())
-        }
-        ExprKind::Lambda { body, .. }
-        | ExprKind::BindHere { expr: body }
-        | ExprKind::Thunk { expr: body, .. }
-        | ExprKind::LocalPushId { body, .. }
-        | ExprKind::AddId { thunk: body, .. }
-        | ExprKind::Coerce { expr: body, .. }
-        | ExprKind::Pack { expr: body, .. } => expr_pure_handler_consumes(body),
-        ExprKind::Block {
-            tail: Some(tail), ..
-        } => expr_pure_handler_consumes(tail),
-        ExprKind::Block { stmts, tail: None } => match stmts.last() {
-            Some(Stmt::Expr(expr)) => expr_pure_handler_consumes(expr),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
-fn core_effect_is_empty(effect: &core_ir::Type) -> bool {
-    matches!(effect, core_ir::Type::Never)
-        || matches!(
-            effect,
-            core_ir::Type::Row { items, tail }
-                if items.is_empty() && core_effect_is_empty(tail)
-        )
 }
 
 fn demand_effect_is_consumed(effect: &DemandEffect, consumed: &[core_ir::Path]) -> bool {
@@ -2990,8 +2899,6 @@ fn effect_payload_arg_core(arg: &DemandTypeArg) -> Option<DemandCoreType> {
 
 fn effect_paths_match(left: &core_ir::Path, right: &core_ir::Path) -> bool {
     left == right
-        || left.segments.ends_with(right.segments.as_slice())
-        || right.segments.ends_with(left.segments.as_slice())
         || qualified_prefix_effect_paths_match(left, right)
         || qualified_prefix_effect_paths_match(right, left)
 }
@@ -3028,7 +2935,7 @@ fn close_ref_constructor_effect_arg(
     let DemandSignature::Core(DemandCoreType::Named { path, mut args }) = ret else {
         return ret;
     };
-    if !is_std_var_ref_path(&path) || args.is_empty() {
+    if args.is_empty() {
         return DemandSignature::Core(DemandCoreType::Named { path, args });
     }
     if type_arg_can_accept_closed_effect(&args[0]) {
@@ -3038,10 +2945,10 @@ fn close_ref_constructor_effect_arg(
 }
 
 fn ref_ret_value_arg(ret: &DemandSignature) -> Option<DemandCoreType> {
-    let DemandSignature::Core(DemandCoreType::Named { path, args }) = ret else {
+    let DemandSignature::Core(DemandCoreType::Named { args, .. }) = ret else {
         return None;
     };
-    if !is_std_var_ref_path(path) {
+    if args.len() < 2 {
         return None;
     }
     match args.get(1)? {
@@ -3102,15 +3009,10 @@ fn close_ref_update_effect_holes(effect: &mut DemandEffect, value_arg: &DemandCo
 }
 
 fn close_ref_update_atom_holes(ty: &mut DemandCoreType, value_arg: &DemandCoreType) {
-    let DemandCoreType::Named { path, args } = ty else {
+    let DemandCoreType::Named { args, .. } = ty else {
         return;
     };
-    if !path
-        .segments
-        .iter()
-        .map(|name| name.0.as_str())
-        .eq(["std", "var", "ref_update"])
-    {
+    if args.len() != 1 {
         return;
     }
     if matches!(
@@ -3153,13 +3055,6 @@ fn type_arg_can_accept_closed_effect(arg: &DemandTypeArg) -> bool {
     }
 }
 
-fn is_std_var_ref_path(path: &core_ir::Path) -> bool {
-    path.segments
-        .iter()
-        .map(|name| name.0.as_str())
-        .eq(["std", "var", "ref"])
-}
-
 fn restore_local(
     locals: &mut HashMap<core_ir::Path, DemandSignature>,
     local: core_ir::Path,
@@ -3179,6 +3074,16 @@ fn restore_local(
 mod tests {
     use super::*;
     use crate::ir::{Expr, Root};
+
+    #[test]
+    fn effect_path_matching_does_not_use_arbitrary_suffixes() {
+        let std_effect = path_segments(&["std", "flow", "sub"]);
+        let user_suffix_effect = path_segments(&["user", "std", "flow", "sub"]);
+        let child_effect = path_segments(&["std", "flow", "sub", "return"]);
+
+        assert!(!effect_paths_match(&std_effect, &user_suffix_effect));
+        assert!(effect_paths_match(&std_effect, &child_effect));
+    }
 
     #[test]
     fn checker_accepts_identity_at_concrete_demand() {

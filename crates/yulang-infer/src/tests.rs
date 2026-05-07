@@ -582,6 +582,29 @@ fn same_path_enum_constructor_and_effect_operation_are_both_tracked() {
 }
 
 #[test]
+fn error_decl_tracks_constructor_and_effect_operation() {
+    let state = parse_and_lower(
+        "error fs_err:\n  not_found str\n  denied str\n\nmy err: fs_err = fs_err::not_found \"x\"\n",
+    );
+    let path = symbols::Path {
+        segments: vec![
+            symbols::Name("fs_err".to_string()),
+            symbols::Name("not_found".to_string()),
+        ],
+    };
+    let visible_def = state
+        .ctx
+        .resolve_path_value(&path)
+        .expect("error operation should resolve by the public surface path");
+    assert!(state.effect_op_args.contains_key(&visible_def));
+
+    let constructor_def = state
+        .same_path_value_def_for_effect_op(visible_def)
+        .expect("error operation should keep the same-path constructor");
+    assert!(state.enum_variant_tags.contains_key(&constructor_def));
+}
+
+#[test]
 fn catch_records_handler_adapter_edges() {
     let mut state = parse_and_lower(
         "pub act out:\n  pub say: str -> ()\n\ncatch out::say \"hi\":\n    out::say msg, k -> k ()\n",

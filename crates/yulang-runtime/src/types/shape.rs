@@ -47,7 +47,6 @@ pub(crate) fn is_nullary_constructor_path_for_type(path: &core_ir::Path, ty: &Ru
         return false;
     };
     path.segments.len() == type_path.segments.len() + 1
-        && path.segments.last().is_some_and(|name| name.0 == "nil")
         && path
             .segments
             .iter()

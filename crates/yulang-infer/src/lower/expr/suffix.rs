@@ -7,11 +7,11 @@ use crate::diagnostic::{ConstraintCause, ConstraintReason};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::solve::DeferredRoleMethodCall;
 use crate::symbols::Name;
+use crate::types::{Neg, Pos};
 
 use super::{
-    infix_op_ref, lower_expr, lower_not_equal_infix, lower_short_circuit_infix,
-    lower_var_assignment, make_app_with_cause, prefix_op_ref, resolve_path_expr, suffix_op_ref,
-    unit_expr,
+    infix_op_ref, lower_expr, lower_var_assignment, make_app_with_cause, neg_prim_type,
+    prefix_op_ref, prim_type, resolve_path_expr, suffix_op_ref, unit_expr,
 };
 
 /// サフィックスノードを acc に適用して新しい TypedExpr を返す。
@@ -30,11 +30,13 @@ pub(super) fn apply_suffix(
         SyntaxKind::InfixNode => apply_infix_suffix(state, acc, suffix),
         SyntaxKind::PrefixNode => {
             let op_ref = prefix_op_ref(state, suffix);
-            make_app_with_cause(state, op_ref, acc, apply_arg_cause(suffix))
+            let arg = lazy_operator_arg(state, &op_ref, acc);
+            make_app_with_cause(state, op_ref, arg, apply_arg_cause(suffix))
         }
         SyntaxKind::SuffixNode => {
             let op_ref = suffix_op_ref(state, suffix);
-            make_app_with_cause(state, op_ref, acc, apply_arg_cause(suffix))
+            let arg = lazy_operator_arg(state, &op_ref, acc);
+            make_app_with_cause(state, op_ref, arg, apply_arg_cause(suffix))
         }
         SyntaxKind::Index => apply_index_suffix(state, acc, suffix),
         _ => acc,
@@ -152,20 +154,68 @@ fn apply_colon_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNod
 }
 
 fn apply_infix_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -> TypedExpr {
-    if let Some(short_circuit) = lower_short_circuit_infix(state, acc.clone(), suffix) {
-        return short_circuit;
-    }
     let rhs_node = suffix.children().find(|c| c.kind() == SyntaxKind::Expr);
     if let Some(rhs_node) = rhs_node {
         let rhs = lower_expr(state, &rhs_node);
-        if let Some(not_equal) = lower_not_equal_infix(state, acc.clone(), rhs.clone(), suffix) {
-            return not_equal;
-        }
         let op_ref = infix_op_ref(state, suffix);
-        let app1 = make_app_with_cause(state, op_ref, acc, apply_arg_cause(suffix));
+        let lazy = is_lazy_operator_expr(state, &op_ref);
+        let lhs = if lazy {
+            unit_thunk_expr(state, acc)
+        } else {
+            acc
+        };
+        let rhs = if lazy {
+            unit_thunk_expr(state, rhs)
+        } else {
+            rhs
+        };
+        let app1 = make_app_with_cause(state, op_ref, lhs, apply_arg_cause(suffix));
         make_app_with_cause(state, app1, rhs, apply_arg_cause(suffix))
     } else {
         acc
+    }
+}
+
+fn lazy_operator_arg(state: &mut LowerState, op_ref: &TypedExpr, arg: TypedExpr) -> TypedExpr {
+    if is_lazy_operator_expr(state, op_ref) {
+        unit_thunk_expr(state, arg)
+    } else {
+        arg
+    }
+}
+
+fn is_lazy_operator_expr(state: &LowerState, op_ref: &TypedExpr) -> bool {
+    matches!(&op_ref.kind, ExprKind::Var(def) if state.ctx.is_lazy_operator_def(*def))
+}
+
+fn unit_thunk_expr(state: &mut LowerState, body: TypedExpr) -> TypedExpr {
+    let def = state.fresh_def();
+    let param_tv = state.fresh_tv();
+    let arg_eff_tv = state.fresh_exact_pure_eff_tv();
+    let tv = state.fresh_tv();
+
+    state.register_def_tv(def, param_tv);
+    if let Some(owner) = state.current_owner {
+        state.register_def_owner(def, owner);
+    }
+    state.infer.constrain(prim_type("unit"), Neg::Var(param_tv));
+    state
+        .infer
+        .constrain(Pos::Var(param_tv), neg_prim_type("unit"));
+    state.infer.constrain(
+        state.pos_fun(
+            Neg::Var(param_tv),
+            Neg::Var(arg_eff_tv),
+            Pos::Var(body.eff),
+            Pos::Var(body.tv),
+        ),
+        Neg::Var(tv),
+    );
+    let eff = super::super::stmt::lambda_expr_eff_tv(state, &body, &[def]);
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::Lam(def, Box::new(body)),
     }
 }
 
@@ -228,6 +278,7 @@ fn push_deferred_selection(
         .infer
         .push_deferred_role_method_call(DeferredRoleMethodCall {
             name: name.clone(),
+            role_path: None,
             recv_tv: acc.tv,
             arg_tvs: Vec::new(),
             result_tv: tv,

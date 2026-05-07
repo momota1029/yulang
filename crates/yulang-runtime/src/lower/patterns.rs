@@ -68,7 +68,7 @@ pub(super) fn lower_core_pattern(
             })
         }
         core_ir::Pattern::Lit(lit) => {
-            let lit_ty = lit_type(&lit);
+            let lit_ty = lowerer.primitive_paths.lit_type(&lit);
             require_same_type(ty, &lit_ty, TypeSource::Literal)?;
             Ok(Pattern::Lit {
                 lit,
@@ -111,7 +111,7 @@ pub(super) fn lower_core_pattern(
             spread,
             suffix,
         } => {
-            let item_ty = list_item_type(ty)
+            let item_ty = unary_runtime_container_item_type(ty)
                 .or_else(|| matches!(ty, core_ir::Type::Any).then_some(core_ir::Type::Any))
                 .ok_or_else(|| RuntimeError::UnsupportedPatternShape {
                     pattern: "list",

@@ -1,7 +1,18 @@
 use std::str::*
+pub use std::ops::*
+pub use std::error::*
 
 pub nullfix (..) = std::range::full()
 
+pub nullfix(return) = std::flow::sub::return ()
+pub prefix(return) 1.0.0 = std::flow::sub::return
+pub prefix(fail) 1.0.0 = \e -> e
+pub nullfix(last) = loop_last()
+pub nullfix(next) = loop_next()
+pub nullfix(redo) = loop_redo()
+pub prefix(last) 8.0.0 = label_last
+pub prefix(next) 8.0.0 = label_next
+pub prefix(redo) 8.0.0 = label_redo
 pub prefix (..) 8.0.0 = std::range::to_included
 pub prefix (..<) 8.0.0 = std::range::to_excluded
 
@@ -16,7 +27,6 @@ pub infix (<..<) 4.0.0 4.0.0 = std::range::exclusive
 pub use std::int::*
 pub use std::str::*
 pub use std::fold::Fold
-pub use std::error::Throw
 pub use std::list::*
 pub use std::opt::*
 pub use std::fs::*
@@ -139,8 +149,6 @@ impl Len str:
 impl Len (list 'a):
     our xs.len = std::list::len xs
 
-pub prefix(not) 8.0.0 = std::bool::not
-
 pub len x = x.len
 
 pub id x = x
@@ -153,15 +161,5 @@ my loop_redo() = std::flow::loop::redo()
 my label_last(label) = label.last()
 my label_next(label) = label.next()
 my label_redo(label) = label.redo()
-
-pub nullfix(last) = loop_last()
-pub nullfix(next) = loop_next()
-pub nullfix(redo) = loop_redo()
-pub nullfix(return) = return ()
-
-pub prefix(last) 8.0.0 = label_last
-pub prefix(next) 8.0.0 = label_next
-pub prefix(redo) 8.0.0 = label_redo
-pub prefix(return) 1.0.0 = std::flow::sub::return
 
 pub use std::list::*

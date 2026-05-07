@@ -207,13 +207,19 @@ impl Infer {
 
         let recv_ref_args = invariant_type_args(self, &[eff_tv, inner_tv]);
         self.constrain_with_cause(
-            self.alloc_pos(Pos::Con(std_var_ref_path(), recv_ref_args.clone())),
+            self.alloc_pos(Pos::Con(
+                crate::ref_capability::standard_ref_type_path(),
+                recv_ref_args.clone(),
+            )),
             self.alloc_neg(Neg::Var(recv_tv)),
             selection.cause.clone(),
         );
         self.constrain_with_cause(
             self.alloc_pos(Pos::Var(recv_tv)),
-            self.alloc_neg(Neg::Con(std_var_ref_path(), recv_ref_args)),
+            self.alloc_neg(Neg::Con(
+                crate::ref_capability::standard_ref_type_path(),
+                recv_ref_args,
+            )),
             selection.cause.clone(),
         );
 
@@ -230,13 +236,19 @@ impl Infer {
 
         let result_ref_args = invariant_type_args(self, &[eff_tv, field_tv]);
         self.constrain_with_cause(
-            self.alloc_pos(Pos::Con(std_var_ref_path(), result_ref_args.clone())),
+            self.alloc_pos(Pos::Con(
+                crate::ref_capability::standard_ref_type_path(),
+                result_ref_args.clone(),
+            )),
             self.alloc_neg(Neg::Var(selection.result_tv)),
             selection.cause.clone(),
         );
         self.constrain_with_cause(
             self.alloc_pos(Pos::Var(selection.result_tv)),
-            self.alloc_neg(Neg::Con(std_var_ref_path(), result_ref_args)),
+            self.alloc_neg(Neg::Con(
+                crate::ref_capability::standard_ref_type_path(),
+                result_ref_args,
+            )),
             selection.cause.clone(),
         );
 
@@ -433,7 +445,7 @@ impl Infer {
 
         for lower in self.lower_refs_of(recv_tv) {
             match self.arena.get_pos(lower) {
-                Pos::Con(path, args) if is_std_var_ref_path(&path) && args.len() >= 2 => {
+                Pos::Con(path, args) if self.is_ref_type_path(&path) && args.len() >= 2 => {
                     if let Some(projection) = self
                         .resolve_ref_field_projection_from_inner_pos(args[1].0, name, recv_tv, seen)
                     {
@@ -523,7 +535,7 @@ impl Infer {
         seen: &mut HashSet<TypeVar>,
     ) -> Option<RefFieldProjection> {
         for con in &ty.cons {
-            if is_std_var_ref_path(&con.path) && con.args.len() >= 2 {
+            if self.is_ref_type_path(&con.path) && con.args.len() >= 2 {
                 if let Some(projection) = self.resolve_ref_field_projection_from_compact_inner_type(
                     &con.args[1].lower,
                     subst,
@@ -625,23 +637,6 @@ impl Infer {
 enum SelectedReceiverStyle {
     Value,
     Computation,
-}
-
-fn std_var_ref_path() -> Path {
-    Path {
-        segments: vec![
-            Name("std".to_string()),
-            Name("var".to_string()),
-            Name("ref".to_string()),
-        ],
-    }
-}
-
-fn is_std_var_ref_path(path: &Path) -> bool {
-    let [std, var, reference] = path.segments.as_slice() else {
-        return false;
-    };
-    std.0 == "std" && var.0 == "var" && reference.0 == "ref"
 }
 
 fn invariant_type_args(

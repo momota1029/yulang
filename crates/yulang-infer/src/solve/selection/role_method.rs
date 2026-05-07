@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::diagnostic::TypeErrorKind;
 use crate::ids::{DefId, TypeVar};
 use crate::simplify::compact::{CompactBounds, CompactType};
+use crate::solve::role::role_method_info_for_path;
 use crate::solve::{DeferredRoleMethodCall, Infer, RoleArgInfo, RoleMethodInfo};
 use crate::symbols::Name;
 
@@ -117,7 +118,12 @@ impl Infer {
     pub(crate) fn resolve_deferred_role_method_calls(&self) {
         let calls = self.deferred_role_method_calls.borrow().clone();
         for call in calls {
-            let Some(info) = self.role_methods.get(&call.name).cloned() else {
+            let Some(info) = call
+                .role_path
+                .as_ref()
+                .and_then(|path| role_method_info_for_path(&self.role_methods, path))
+                .or_else(|| self.role_methods.get(&call.name).cloned())
+            else {
                 continue;
             };
             let resolution = if call.name.0 == "cast" {

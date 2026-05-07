@@ -11,12 +11,10 @@ pub act fs:
     pub is_file: str -> bool
     pub is_dir: str -> bool
 
-enum fs_err = not_found str | denied str | invalid_path str
-
-pub act fs_err:
-    pub not_found: str -> never
-    pub denied: str -> never
-    pub invalid_path: str -> never
+pub error fs_err:
+    not_found str
+    denied str
+    invalid_path str
 
 my throw_fs_err(e: fs_err): [fs_err] never = case e:
     fs_err::not_found path -> fs_err::not_found path

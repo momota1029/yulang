@@ -49,21 +49,11 @@ where
 
         let trailing_trivia = scan_trivia(i.rb())?;
         let post_info = trailing_trivia.info();
-        let text = I::seq(start_cp.clone(), end_cp.clone());
         if is_call_or_path_sensitive_operator(def.kinds())
             && matches!(post_info, TriviaInfo::None)
             && i.lookahead(one_of("(:").skip()).is_some()
         {
             return None;
-        }
-        if is_loop_control_op(text.as_ref()) {
-            if matches!(post_info, TriviaInfo::Space)
-                && i.lookahead(one_of("'").skip()).is_none()
-                && i.lookahead(from_fn(|i| value_start(i, &post_info)))
-                    .is_some()
-            {
-                return None;
-            }
         }
         let is_eof = i.maybe(eoi)?.is_some();
         let post_ws = !matches!(post_info, TriviaInfo::None) || is_eof || next_is_expr_stop(i.rb());
@@ -128,10 +118,6 @@ fn should_prefer_prefix_with_argument(kinds: OpKindSet, post_ws: bool) -> bool {
     post_ws && is_call_or_path_sensitive_operator(kinds)
 }
 
-fn is_loop_control_op(text: &str) -> bool {
-    matches!(text, "last" | "next" | "redo")
-}
-
 fn next_is_expr_stop<I: EventInput, S: EventSink>(mut i: context::In<I, S>) -> bool {
     i.lookahead(from_fn(|mut i: context::In<I, S>| {
         let (kind, _) = scan_punct_expr(i.rb())?;
@@ -149,7 +135,7 @@ fn value_start<I: EventInput, S: EventSink>(
     }
 
     let string_or_group = one_of("\"([{$\\").skip();
-    let sigil = one_of("$%_").skip();
+    let sigil = one_of("$%_'").skip();
     let ident_start = one_of(is_xid_start).skip();
     let digit = one_of(|c: char| c.is_ascii_digit()).skip();
     let dot = one_of(".").skip();

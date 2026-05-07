@@ -60,6 +60,12 @@ impl RefTable {
         &self.unresolved
     }
 
+    pub fn unresolved_info(&self, ref_id: RefId) -> Option<&UnresolvedRef> {
+        self.unresolved
+            .iter()
+            .find_map(|(id, info)| (*id == ref_id).then_some(info))
+    }
+
     pub fn has_unresolved(&self) -> bool {
         !self.unresolved.is_empty()
     }

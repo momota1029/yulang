@@ -10,9 +10,7 @@ impl RefineRewriter {
         let constructor_expected = is_expected_nullary_constructor(expr, expected);
         let local_ty = expr_var_path(expr).and_then(|path| self.locals.get(path).cloned());
         let binding_ty = expr_var_path(expr)
-            .filter(|path| {
-                !constructor_expected && local_ty.is_none() && !is_data_constructor_path(path)
-            })
+            .filter(|_| !constructor_expected && local_ty.is_none())
             .and_then(|path| self.binding_types.get(path).cloned());
         let original_ty = local_ty.or(binding_ty.clone()).unwrap_or(original_ty);
         refine_expr_type_from_context(

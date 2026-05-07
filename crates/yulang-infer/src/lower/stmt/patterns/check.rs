@@ -8,7 +8,6 @@ use crate::diagnostic::{ConstraintCause, ConstraintReason};
 use crate::ids::{DefId, TypeVar};
 use crate::lower::builtin_types::builtin_source_type_path;
 use crate::lower::{LowerState, SyntaxNode};
-use crate::symbols::{Name, Path};
 use crate::types::RecordField;
 use crate::types::{Neg, Pos};
 
@@ -92,13 +91,7 @@ pub(crate) fn connect_pat_shape_and_locals(
         } => {
             let branch_start = Instant::now();
             let item_tv = state.fresh_tv();
-            let list_path = Path {
-                segments: vec![
-                    Name("std".to_string()),
-                    Name("list".to_string()),
-                    Name("list".to_string()),
-                ],
-            };
+            let list_path = state.builtin_source_type_path("list");
             let list_args = vec![(Pos::Var(item_tv), Neg::Var(item_tv))];
             state.infer.constrain(
                 state.pos_con(list_path.clone(), list_args.clone()),
@@ -115,13 +108,7 @@ pub(crate) fn connect_pat_shape_and_locals(
             }
             if let Some(spread) = spread {
                 let spread_args = vec![(Pos::Var(item_tv), Neg::Var(item_tv))];
-                let spread_list_path = Path {
-                    segments: vec![
-                        Name("std".to_string()),
-                        Name("list".to_string()),
-                        Name("list".to_string()),
-                    ],
-                };
+                let spread_list_path = state.builtin_source_type_path("list");
                 state.infer.constrain(
                     state.pos_con(spread_list_path.clone(), spread_args.clone()),
                     Neg::Var(spread.tv),

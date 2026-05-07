@@ -1063,7 +1063,7 @@ act sub 'a:
 `lib/std/undet.yu` は nondeterminism を effect として定義する。
 
 - `branch`
-- `fail`
+- `reject`
 - `guard`
 - `each`
 - `list`
@@ -1488,10 +1488,10 @@ use std::undet::*
 ```yu
 pub act undet:
     pub branch: () -> bool
-    pub fail: () -> never
+    pub reject: () -> never
 ```
 
-`each xs` は `branch()` によって各候補を選び、選べなければ `fail()` する。`.list`、`.logic`、`.once` は computation receiver を受ける extension method として定義されている。
+`each xs` は `branch()` によって各候補を選び、選べなければ `reject()` する。`.list`、`.logic`、`.once` は computation receiver を受ける extension method として定義されている。
 
 ```yu
 pub (x: [_] _).list = list x

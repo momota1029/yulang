@@ -94,54 +94,13 @@ pub(super) fn select_field_type(
     }
 }
 
-pub(super) fn list_item_type(ty: &core_ir::Type) -> Option<core_ir::Type> {
+pub(super) fn unary_runtime_container_item_type(ty: &core_ir::Type) -> Option<core_ir::Type> {
     match ty {
-        core_ir::Type::Named { path, args }
-            if path.segments.last().is_some_and(|name| name.0 == "list") =>
-        {
+        core_ir::Type::Named { args, .. } if args.len() == 1 => {
             args.first().and_then(|arg| match arg {
                 core_ir::TypeArg::Type(ty) => Some(ty.clone()),
                 core_ir::TypeArg::Bounds(bounds) => runtime_bounds_type(bounds),
             })
-        }
-        _ => None,
-    }
-}
-
-pub(super) fn index_value_type(
-    container: &core_ir::Type,
-    key: &core_ir::Type,
-) -> Option<core_ir::Type> {
-    match (container, key) {
-        (
-            core_ir::Type::Named { path, .. },
-            core_ir::Type::Named {
-                path: key_path,
-                args,
-            },
-        ) if path.segments.last().is_some_and(|name| name.0 == "str")
-            && key_path
-                .segments
-                .last()
-                .is_some_and(|name| name.0 == "int" || name.0 == "range")
-            && args.is_empty() =>
-        {
-            Some(container.clone())
-        }
-        (core_ir::Type::Named { path, .. }, core_ir::Type::Named { path: key_path, .. })
-            if path.segments.last().is_some_and(|name| name.0 == "list")
-                && key_path.segments.last().is_some_and(|name| name.0 == "int") =>
-        {
-            list_item_type(container)
-        }
-        (core_ir::Type::Named { path, .. }, core_ir::Type::Named { path: key_path, .. })
-            if path.segments.last().is_some_and(|name| name.0 == "list")
-                && key_path
-                    .segments
-                    .last()
-                    .is_some_and(|name| name.0 == "range") =>
-        {
-            Some(container.clone())
         }
         _ => None,
     }

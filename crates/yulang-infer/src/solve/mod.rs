@@ -70,6 +70,7 @@ pub struct DeferredSelection {
 #[derive(Debug, Clone)]
 pub struct DeferredRoleMethodCall {
     pub name: Name,
+    pub role_path: Option<Path>,
     pub recv_tv: TypeVar,
     pub arg_tvs: Vec<TypeVar>,
     pub result_tv: TypeVar,
@@ -150,6 +151,7 @@ pub struct Infer {
     pub type_fields: HashMap<Path, HashMap<Name, DefId>>,
     pub type_field_owners: HashMap<DefId, Path>,
     pub type_field_sets: HashMap<Path, TypeFieldSet>,
+    pub ref_type_paths: HashSet<Path>,
     pub ref_type_methods: HashMap<Path, HashMap<Name, DefId>>,
     pub effect_methods: HashMap<Name, Vec<EffectMethodInfo>>,
     pub role_methods: HashMap<Name, RoleMethodInfo>,
@@ -194,6 +196,7 @@ impl Infer {
             type_fields: HashMap::new(),
             type_field_owners: HashMap::new(),
             type_field_sets: HashMap::new(),
+            ref_type_paths: HashSet::new(),
             ref_type_methods: HashMap::new(),
             effect_methods: HashMap::new(),
             role_methods: HashMap::new(),
@@ -624,10 +627,19 @@ impl Infer {
     }
 
     pub fn register_ref_type_method(&mut self, type_path: Path, name: Name, def: DefId) {
+        self.register_ref_type_path(type_path.clone());
         self.ref_type_methods
             .entry(type_path)
             .or_default()
             .insert(name, def);
+    }
+
+    pub fn register_ref_type_path(&mut self, type_path: Path) {
+        self.ref_type_paths.insert(type_path);
+    }
+
+    pub fn is_ref_type_path(&self, type_path: &Path) -> bool {
+        self.ref_type_paths.contains(type_path)
     }
 
     pub fn register_type_field(&mut self, type_path: Path, name: Name, def: DefId) {

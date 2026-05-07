@@ -10,12 +10,14 @@ pub struct SpecializationTable {
     known: Vec<DemandSpecialization>,
     fresh: Vec<DemandSpecialization>,
     next_index: usize,
+    semantics: DemandSemantics,
 }
 
 impl SpecializationTable {
     pub fn from_module(module: &Module) -> Self {
         let mut table = Self {
             next_index: next_specialization_index(module),
+            semantics: DemandSemantics::from_module(module),
             ..Self::default()
         };
         table.seed_existing(module);
@@ -24,7 +26,7 @@ impl SpecializationTable {
 
     pub fn intern(&mut self, checked: &CheckedDemand) -> core_ir::Path {
         let key = checked_key(checked);
-        if !should_materialize_demand(&key) {
+        if !should_materialize_demand(&self.semantics, &key) {
             return checked.target.clone();
         }
         if let Some(path) = self.cache.get(&key) {
@@ -148,43 +150,8 @@ fn existing_specialization(
     }
 }
 
-fn should_materialize_demand(key: &DemandKey) -> bool {
-    let arity = signature_arity(&key.signature);
-    if path_ends_with(&key.target, &["std", "range", "fold_from"]) {
-        return arity >= 3;
-    }
-    if path_ends_with(&key.target, &["std", "range", "fold_ints"]) {
-        return arity >= 4;
-    }
+fn should_materialize_demand(_semantics: &DemandSemantics, _key: &DemandKey) -> bool {
     true
-}
-
-fn signature_arity(signature: &DemandSignature) -> usize {
-    let mut arity = 0;
-    let mut current = signature;
-    loop {
-        match current {
-            DemandSignature::Fun { ret, .. } => {
-                arity += 1;
-                current = ret;
-            }
-            DemandSignature::Thunk { effect, value }
-                if demand_effect_is_empty_for_arity(effect) =>
-            {
-                current = value;
-            }
-            _ => break,
-        }
-    }
-    arity
-}
-
-fn demand_effect_is_empty_for_arity(effect: &DemandEffect) -> bool {
-    match effect {
-        DemandEffect::Empty => true,
-        DemandEffect::Row(items) => items.iter().all(demand_effect_is_empty_for_arity),
-        DemandEffect::Hole(_) | DemandEffect::Atom(_) => false,
-    }
 }
 
 fn debug_seed_existing_specialization(
@@ -193,23 +160,10 @@ fn debug_seed_existing_specialization(
     path: &core_ir::Path,
     signature: Option<&DemandSignature>,
 ) {
-    if std::env::var_os("YULANG_DEBUG_DEMAND_SOURCE").is_none()
-        || !(path_ends_with(target, &["std", "list", "fold_impl"])
-            || path_ends_with(target, &["std", "list", "view_raw"]))
-    {
+    if std::env::var_os("YULANG_DEBUG_DEMAND_SOURCE").is_none() {
         return;
     }
     eprintln!("specialization seed {action} {target:?} <- {path:?}: {signature:?}");
-}
-
-fn path_ends_with(path: &core_ir::Path, suffix: &[&str]) -> bool {
-    path.segments.len() >= suffix.len()
-        && path
-            .segments
-            .iter()
-            .rev()
-            .zip(suffix.iter().rev())
-            .all(|(segment, expected)| segment.0 == *expected)
 }
 
 fn next_specialization_index(module: &Module) -> usize {

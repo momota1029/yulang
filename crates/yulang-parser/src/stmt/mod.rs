@@ -18,6 +18,7 @@ mod block;
 mod cast_decl;
 mod common;
 mod enum_decl;
+mod error_decl;
 mod for_stmt;
 mod impl_decl;
 mod mod_decl;
@@ -52,11 +53,13 @@ fn parse_statement_from_stop<I: EventInput, S: EventSink>(
         SyntaxKind::Type => type_decl::parse_type_decl(i, None, stop),
         SyntaxKind::Struct => struct_decl::parse_struct_decl(i, None, stop),
         SyntaxKind::Enum => enum_decl::parse_enum_decl(i, None, stop),
+        SyntaxKind::Error => error_decl::parse_error_decl(i, None, stop),
         SyntaxKind::Role => role_decl::parse_role_decl(i, None, stop),
         SyntaxKind::Impl => impl_decl::parse_impl_decl(i, None, stop),
         SyntaxKind::Cast => cast_decl::parse_cast_decl(i, None, stop),
         SyntaxKind::Act => act_decl::parse_act_decl(i, None, stop),
         SyntaxKind::For => for_stmt::parse_for_stmt(i, stop),
+        SyntaxKind::Lazy => op_def::parse_lazy_op_def_stmt(i, None, stop),
         SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
             op_def::parse_op_def_stmt(i, None, stop)
         }
@@ -147,10 +150,12 @@ fn parse_visibility_stmt<I: EventInput, S: EventSink>(
             SyntaxKind::Type => type_decl::parse_type_decl(i, vis, nud.lex),
             SyntaxKind::Struct => struct_decl::parse_struct_decl(i, vis, nud.lex),
             SyntaxKind::Enum => enum_decl::parse_enum_decl(i, vis, nud.lex),
+            SyntaxKind::Error => error_decl::parse_error_decl(i, vis, nud.lex),
             SyntaxKind::Role => role_decl::parse_role_decl(i, vis, nud.lex),
             SyntaxKind::Impl => impl_decl::parse_impl_decl(i, vis, nud.lex),
             SyntaxKind::Cast => cast_decl::parse_cast_decl(i, vis, nud.lex),
             SyntaxKind::Act => act_decl::parse_act_decl(i, vis, nud.lex),
+            SyntaxKind::Lazy => op_def::parse_lazy_op_def_stmt(i, vis, nud.lex),
             SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix => {
                 op_def::parse_op_def_stmt(i, vis, nud.lex)
             }

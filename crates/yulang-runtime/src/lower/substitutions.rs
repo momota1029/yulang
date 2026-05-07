@@ -268,6 +268,7 @@ pub(super) fn infer_hir_type_substitutions(
 
 pub(super) fn infer_role_requirement_substitutions(
     requirements: &[core_ir::RoleRequirement],
+    role_impls: &[core_ir::RoleImplGraphNode],
     params: &BTreeSet<core_ir::TypeVar>,
     substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
 ) {
@@ -286,7 +287,9 @@ pub(super) fn infer_role_requirement_substitutions(
             let core_ir::RoleRequirementArg::Associated { name, bounds } = arg else {
                 continue;
             };
-            let Some(resolved) = resolve_associated_requirement(requirement, name, &inputs) else {
+            let Some(resolved) =
+                resolve_associated_requirement(requirement, name, &inputs, role_impls)
+            else {
                 continue;
             };
             let Some(template) = substituted_requirement_bound(bounds, substitutions) else {
@@ -309,13 +312,56 @@ pub(super) fn resolve_associated_requirement(
     requirement: &core_ir::RoleRequirement,
     name: &core_ir::Name,
     inputs: &[core_ir::Type],
+    role_impls: &[core_ir::RoleImplGraphNode],
 ) -> Option<core_ir::Type> {
-    let role = requirement.role.segments.last()?;
-    match (role.0.as_str(), name.0.as_str(), inputs) {
-        ("Fold", "item", [container]) => list_item_type(container),
-        ("Index", "value", [container, key]) => index_value_type(container, key),
-        _ => None,
+    let mut resolved = None;
+    for role_impl in role_impls.iter().filter(|role_impl| {
+        role_impl.role == requirement.role && role_impl.inputs.len() == inputs.len()
+    }) {
+        let Some(associated) = role_impl
+            .associated_types
+            .iter()
+            .find(|associated| associated.name == *name)
+        else {
+            continue;
+        };
+        let Some(candidate) =
+            project_role_impl_associated_type(&role_impl.inputs, inputs, &associated.value)
+        else {
+            continue;
+        };
+        match &resolved {
+            Some(existing) if existing != &candidate => return None,
+            Some(_) => {}
+            None => resolved = Some(candidate),
+        }
     }
+    resolved
+}
+
+fn project_role_impl_associated_type(
+    impl_inputs: &[core_ir::TypeBounds],
+    actual_inputs: &[core_ir::Type],
+    associated: &core_ir::TypeBounds,
+) -> Option<core_ir::Type> {
+    let mut impl_vars = BTreeSet::new();
+    let templates = impl_inputs
+        .iter()
+        .map(|bounds| {
+            let template = choose_bounds_type(bounds, BoundsChoice::TirEvidence)?;
+            collect_type_vars(&template, &mut impl_vars);
+            Some(template)
+        })
+        .collect::<Option<Vec<_>>>()?;
+    collect_type_bounds_vars(associated, &mut impl_vars);
+    let mut substitutions = BTreeMap::new();
+    for (template, actual) in templates.iter().zip(actual_inputs) {
+        infer_type_substitutions(template, actual, &impl_vars, &mut substitutions);
+    }
+    choose_bounds_type(
+        &substitute_bounds(associated.clone(), &substitutions),
+        BoundsChoice::TirEvidence,
+    )
 }
 
 pub(super) fn visible_apply_result_type(

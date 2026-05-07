@@ -23,6 +23,7 @@ pub struct LowerCtx {
     canonical_type_paths: HashMap<DefId, Path>,
     operator_defs: HashSet<DefId>,
     operator_fixities: HashMap<DefId, OperatorFixity>,
+    lazy_operator_defs: HashSet<DefId>,
 
     /// ローカルスコープのスタック（値名前空間のみ）。
     /// push_local / pop_local でフレームを管理する。
@@ -50,6 +51,7 @@ impl LowerCtx {
             canonical_type_paths: HashMap::new(),
             operator_defs: HashSet::new(),
             operator_fixities: HashMap::new(),
+            lazy_operator_defs: HashSet::new(),
             // ルートレベルのベースフレーム。
             // module-level `my` は module private として modules 側へ積む。
             locals: vec![HashMap::new()],
@@ -714,8 +716,16 @@ impl LowerCtx {
         self.operator_fixities.insert(def, fixity);
     }
 
+    pub fn mark_lazy_operator_def(&mut self, def: DefId) {
+        self.lazy_operator_defs.insert(def);
+    }
+
     pub fn is_operator_def(&self, def: DefId) -> bool {
         self.operator_defs.contains(&def)
+    }
+
+    pub fn is_lazy_operator_def(&self, def: DefId) -> bool {
+        self.lazy_operator_defs.contains(&def)
     }
 
     pub fn operator_fixity(&self, def: DefId) -> Option<OperatorFixity> {

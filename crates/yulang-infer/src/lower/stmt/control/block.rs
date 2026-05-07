@@ -218,6 +218,10 @@ fn lower_block_items(
                 flush_tail_into_stmt(stmts, tail);
                 super::super::lower_enum_decl(state, &child);
             }
+            SyntaxKind::ErrorDecl => {
+                flush_tail_into_stmt(stmts, tail);
+                super::super::lower_error_decl(state, &child);
+            }
             SyntaxKind::TypeDecl => {
                 flush_tail_into_stmt(stmts, tail);
                 super::super::lower_type_decl(state, &child);

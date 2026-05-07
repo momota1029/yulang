@@ -64,8 +64,6 @@ fn lower_expr_chain_prefix_with_pipe_arg(
 
         let mut path_segs: Vec<Name> = Vec::new();
         let mut head_expr: Option<TypedExpr> = None;
-        let mut nullfix_head: Option<Name> = None;
-
         match &head {
             Token(t) if t.kind() == SyntaxKind::SigilIdent && t.text().starts_with('$') => {
                 head_expr = Some(lower_var_read_expr(state, t.text()));
@@ -99,7 +97,6 @@ fn lower_expr_chain_prefix_with_pipe_arg(
             }
             Token(t) if t.kind() == SyntaxKind::Nullfix => {
                 let name = Name(t.text().to_string());
-                nullfix_head = Some(name.clone());
                 head_expr = Some(resolve_nullfix_operator_expr(state, name, t.text_range()));
             }
             _ => return unit_expr(state),
@@ -131,39 +128,7 @@ fn lower_expr_chain_prefix_with_pipe_arg(
             }
         }
 
-        let special_prefix_acc = if let Some(op_name) = nullfix_head
-            .as_ref()
-            .filter(|name| is_loop_control_op(name))
-        {
-            match items.peek() {
-                Some(Node(n)) if n.kind() == SyntaxKind::ApplyML => {
-                    let arg = label_arg_expr(n);
-                    let node = n.clone();
-                    arg.map(|arg| {
-                        items.next();
-                        let op_ref =
-                            resolve_operator_expr(state, op_name.clone(), OperatorFixity::Prefix);
-                        let arg = lower_expr(state, &arg);
-                        make_app_with_cause(
-                            state,
-                            op_ref,
-                            arg,
-                            ConstraintCause {
-                                span: Some(node.text_range()),
-                                reason: ConstraintReason::ApplyArg,
-                            },
-                        )
-                    })
-                }
-                _ => None,
-            }
-        } else {
-            None
-        };
-
-        let mut acc = if let Some(expr) = special_prefix_acc {
-            expr
-        } else if head_expr.is_none() && path_segs.len() == 1 && path_segs[0].0 == "sub" {
+        let mut acc = if head_expr.is_none() && path_segs.len() == 1 && path_segs[0].0 == "sub" {
             if let Some(expr) = lower_sub_syntax(state, &mut items) {
                 expr
             } else {
@@ -342,7 +307,7 @@ fn lower_sub_syntax(state: &mut LowerState, items: &mut ChainItems) -> Option<Ty
     })?;
     match label {
         None => {
-            let sub = resolve_path_expr(state, std_flow_sub_path("sub"));
+            let sub = resolve_path_expr(state, crate::flow_capability::standard_sub_call_path());
             state.ctx.push_local();
             bind_unlabeled_sub_operator_helpers(state);
             let body = lower_expr(state, &body);
@@ -409,13 +374,6 @@ fn lower_sub_syntax(state: &mut LowerState, items: &mut ChainItems) -> Option<Ty
     }
 }
 
-fn std_flow_sub_path(name: &str) -> Vec<Name> {
-    ["std", "flow", "sub", name]
-        .into_iter()
-        .map(|segment| Name(segment.to_string()))
-        .collect()
-}
-
 fn label_sigil_name(node: &SyntaxNode) -> Option<Name> {
     node.children_with_tokens()
         .filter_map(|item| item.into_token())
@@ -431,7 +389,7 @@ fn prepare_sub_label_act(state: &mut LowerState, label_name: &Name) -> stmt::Syn
 }
 
 fn materialize_sub_label_act_helpers(state: &mut LowerState, spec: &stmt::SyntheticActSpec) {
-    stmt::materialize_synthetic_act(state, spec, &std_flow_sub_synthetic_act_source());
+    stmt::materialize_synthetic_act(state, spec, &standard_sub_synthetic_act_source());
 }
 
 fn bind_sub_label_operator_helpers(state: &mut LowerState, spec: &stmt::SyntheticActSpec) {
@@ -449,7 +407,7 @@ fn bind_sub_label_operator_helpers(state: &mut LowerState, spec: &stmt::Syntheti
 fn bind_unlabeled_sub_operator_helpers(state: &mut LowerState) {
     let member = sub_label_return_member_name();
     let path = Path {
-        segments: std_flow_sub_path_segments_with(member.clone()),
+        segments: crate::flow_capability::standard_sub_member_path(member.clone()),
     };
     if let Some(def) = state.ctx.resolve_path_value(&path) {
         state
@@ -473,25 +431,6 @@ fn bind_sub_label_field_helpers(
     );
 }
 
-fn std_flow_sub_effect_path() -> Path {
-    Path {
-        segments: std_flow_sub_path_segments(),
-    }
-}
-
-fn std_flow_sub_path_segments() -> Vec<Name> {
-    ["std", "flow", "sub"]
-        .into_iter()
-        .map(|segment| Name(segment.to_string()))
-        .collect()
-}
-
-fn std_flow_sub_path_segments_with(member: Name) -> Vec<Name> {
-    let mut segments = std_flow_sub_path_segments();
-    segments.push(member);
-    segments
-}
-
 fn selected_sub_label_helper_names() -> Vec<Name> {
     vec![
         sub_label_return_member_name(),
@@ -504,9 +443,9 @@ fn sub_label_return_member_name() -> Name {
     Name("return".to_string())
 }
 
-fn std_flow_sub_synthetic_act_source() -> stmt::SyntheticActSource {
+fn standard_sub_synthetic_act_source() -> stmt::SyntheticActSource {
     stmt::SyntheticActSource {
-        source_module_path: std_flow_sub_effect_path(),
+        source_module_path: crate::flow_capability::standard_sub_path(),
         source_copy_path: Path {
             segments: vec![Name("sub".to_string())],
         },
@@ -564,10 +503,6 @@ fn field_suffix_ident(node: &SyntaxNode) -> Option<Name> {
         .filter_map(|it| it.into_token())
         .find(|t| t.kind() == SyntaxKind::DotField)
         .map(|t| Name(t.text().trim_start_matches('.').to_string()))
-}
-
-fn is_loop_control_op(name: &Name) -> bool {
-    matches!(name.0.as_str(), "last" | "next" | "redo")
 }
 
 fn label_arg_expr(node: &SyntaxNode) -> Option<SyntaxNode> {

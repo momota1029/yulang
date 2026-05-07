@@ -70,7 +70,7 @@ fn lower_list_part_expr(
 }
 
 fn constrain_list_expr(state: &mut LowerState, item_tv: TypeVar, expr: &TypedExpr) {
-    let list_path = builtin_list_path();
+    let list_path = builtin_list_path(state);
     let list_args = vec![(Pos::Var(item_tv), Neg::Var(item_tv))];
     state.infer.constrain(
         state.pos_con(list_path.clone(), list_args.clone()),
@@ -87,7 +87,7 @@ fn specialized_list_empty_expr(state: &mut LowerState, item_tv: TypeVar) -> Type
     let unit_path = Path {
         segments: vec![Name("unit".to_string())],
     };
-    let list_path = builtin_list_path();
+    let list_path = builtin_list_path(state);
     let list_args = vec![(Pos::Var(item_tv), Neg::Var(item_tv))];
     let pos_arg_eff = state.fresh_exact_pure_eff_tv();
     let pos_ret_eff = state.fresh_exact_pure_eff_tv();
@@ -121,7 +121,7 @@ fn specialized_list_empty_expr(state: &mut LowerState, item_tv: TypeVar) -> Type
 fn specialized_list_singleton_expr(state: &mut LowerState, item_tv: TypeVar) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_exact_pure_eff_tv();
-    let list_path = builtin_list_path();
+    let list_path = builtin_list_path(state);
     let list_args = vec![(Pos::Var(item_tv), Neg::Var(item_tv))];
     let pos_arg_eff = state.fresh_exact_pure_eff_tv();
     let pos_ret_eff = state.fresh_exact_pure_eff_tv();
@@ -155,7 +155,7 @@ fn specialized_list_singleton_expr(state: &mut LowerState, item_tv: TypeVar) -> 
 fn specialized_list_merge_expr(state: &mut LowerState, item_tv: TypeVar) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_exact_pure_eff_tv();
-    let list_path = builtin_list_path();
+    let list_path = builtin_list_path(state);
     let list_args = vec![(Pos::Var(item_tv), Neg::Var(item_tv))];
     let pos_outer_arg_eff = state.fresh_exact_pure_eff_tv();
     let pos_outer_ret_eff = state.fresh_exact_pure_eff_tv();
@@ -200,12 +200,6 @@ fn specialized_list_merge_expr(state: &mut LowerState, item_tv: TypeVar) -> Type
     }
 }
 
-fn builtin_list_path() -> Path {
-    Path {
-        segments: vec![
-            Name("std".to_string()),
-            Name("list".to_string()),
-            Name("list".to_string()),
-        ],
-    }
+fn builtin_list_path(state: &LowerState) -> Path {
+    state.builtin_source_type_path("list")
 }

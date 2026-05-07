@@ -43,6 +43,9 @@ pub(crate) fn preregister_binding(state: &mut LowerState, node: &SyntaxNode) -> 
         state.register_def_name(def, name.clone());
         if let Some(fixity) = operator_fixity {
             state.ctx.mark_operator_def(def, fixity);
+            if super::super::header_operator_is_lazy(&header) {
+                state.ctx.mark_lazy_operator_def(def);
+            }
         }
         if is_pub {
             state.insert_value(state.ctx.current_module, name, def);
@@ -109,6 +112,9 @@ pub(crate) fn preregister_binding_as_module_value(
         state.register_def_name(def, name.clone());
         if let Some(fixity) = operator_fixity {
             state.ctx.mark_operator_def(def, fixity);
+            if super::super::header_operator_is_lazy(&header) {
+                state.ctx.mark_lazy_operator_def(def);
+            }
             state.ctx.modules.insert_operator_value_with_visibility(
                 state.ctx.current_module,
                 name.clone(),

@@ -94,7 +94,7 @@ pub(super) fn parse_enum_decl<I: EventInput, S: EventSink>(
     Some(out)
 }
 
-fn parse_enum_variants_after_open<I: EventInput, S: EventSink>(
+pub(super) fn parse_enum_variants_after_open<I: EventInput, S: EventSink>(
     i: In<I, S>,
     open: Lex,
 ) -> Option<TriviaInfo> {
@@ -102,7 +102,7 @@ fn parse_enum_variants_after_open<I: EventInput, S: EventSink>(
     machine.parse_delimited_list(i, open)
 }
 
-fn parse_enum_variants_indent_block<I: EventInput, S: EventSink>(
+pub(super) fn parse_enum_variants_indent_block<I: EventInput, S: EventSink>(
     i: In<I, S>,
     leading_info: TriviaInfo,
     base_indent: usize,
@@ -111,7 +111,7 @@ fn parse_enum_variants_indent_block<I: EventInput, S: EventSink>(
     machine.parse_indent_list(i, leading_info, base_indent)
 }
 
-fn parse_enum_variants_inline<I: EventInput, S: EventSink>(
+pub(super) fn parse_enum_variants_inline<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     mut leading_info: TriviaInfo,
 ) -> Option<Either<TriviaInfo, Lex>> {

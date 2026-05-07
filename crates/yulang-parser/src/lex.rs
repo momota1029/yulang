@@ -231,6 +231,8 @@ pub enum SyntaxKind {
     YmStarSigil = 204,
     YmStrongSigil = 205,
     YmDocBlockSigil = 206,
+    Error = 207,
+    Lazy = 208,
 
     // nodes
     InvalidToken = 500,
@@ -385,6 +387,7 @@ pub enum SyntaxKind {
     ForBody = 630,
     ForLabel = 631,
     ExprSpread = 632,
+    ErrorDecl = 634,
 }
 
 #[derive(Debug, Clone)]

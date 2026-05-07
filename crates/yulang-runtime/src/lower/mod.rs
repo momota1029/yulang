@@ -45,7 +45,7 @@ mod function;
 mod hints;
 mod lowerer;
 mod patterns;
-mod std_types;
+mod primitive_types;
 mod substitutions;
 mod thunk;
 
@@ -58,7 +58,7 @@ use expr::*;
 use function::*;
 use hints::*;
 use patterns::*;
-use std_types::*;
+use primitive_types::*;
 use substitutions::*;
 use thunk::*;
 
@@ -324,6 +324,7 @@ fn lower_principal_module_with_graph_and_evidence_inner(
             .iter()
             .map(|symbol| (symbol.path.clone(), symbol.kind))
             .collect(),
+        primitive_paths: RuntimePrimitivePathTable::standard(),
         principal_vars,
         expected_edges_by_id,
         use_expected_arg_evidence: std::env::var_os("YULANG_USE_EXPECTED_ARG_EVIDENCE").is_some(),
@@ -717,6 +718,7 @@ struct Lowerer<'a> {
     aliases: HashMap<core_ir::Path, core_ir::Path>,
     graph: &'a core_ir::CoreGraphView,
     runtime_symbols: HashMap<core_ir::Path, core_ir::RuntimeSymbolKind>,
+    primitive_paths: RuntimePrimitivePathTable,
     principal_vars: BTreeSet<core_ir::TypeVar>,
     expected_edges_by_id: HashMap<u32, &'a core_ir::ExpectedEdgeEvidence>,
     use_expected_arg_evidence: bool,

@@ -103,7 +103,7 @@ types and ordinary effects:
 - each error family has a concrete algebraic data type;
 - the same error family has a corresponding effect/act;
 - each error constructor is also an effect operation;
-- throwing a data value is provided through a `Throw` role or equivalent sugar;
+- failing with a data value is provided through generated `fail` support;
 - APIs expose the concrete error type in their effect row;
 - callers peel errors by handling that effect;
 - larger API boundaries aggregate errors through explicit `from` entries, casts,
@@ -136,15 +136,24 @@ act fs_err:
   denied: path -> never
   invalid_path: str -> never
 
-impl Throw fs_err:
-  our e.throw = case e:
-    fs_err::not_found path -> fs_err::not_found path
-    fs_err::denied path -> fs_err::denied path
-    fs_err::invalid_path text -> fs_err::invalid_path text
+fail e = case e:
+  fs_err::not_found path -> fs_err::not_found path
+  fs_err::denied path -> fs_err::denied path
+  fs_err::invalid_path text -> fs_err::invalid_path text
 ```
 
-The exact `Throw` role signature still needs design. The important point is
-that operation names mirror constructor names. This makes handlers direct:
+The exact `fail` surface still needs design. The intended user-facing spelling
+is prefix-like:
+
+```text
+fail fs_err::not_found path
+```
+
+This keeps detailed error construction direct without forcing receiver-heavy
+spelling such as `(fs_err::not_found path).fail`.
+
+The important point is that operation names mirror constructor names. This
+makes handlers direct:
 
 ```text
 catch read_text path:
@@ -154,18 +163,40 @@ catch read_text path:
 
 `error` can be a reserved word for this sugar.
 
-Current manual prototype note:
+Current prototype note:
 
-- `std::fs` now manually defines both `enum fs_err` and `act fs_err` with the
-  same surface path.
+- `std::fs` now uses `error fs_err:` to define both the data constructors and
+  same-name effect operations.
 - Runtime lowering must keep constructor values and effect operations distinct
   by context: value construction lowers as an ordinary binding, while an
   effectful expected callee lowers as an effect operation.
+- `std::prelude` currently exports `prefix(fail)` as parser-visible operator
+  syntax. The provisional implementation is identity-like, so
+  `fail fs_err::not_found path` works by letting the same-name effect operation
+  execute. This is intentionally not the final generated data-value `fail`
+  surface.
+- `std::fs` still uses a manual `Throw fs_err` shim. Generated `fail` support
+  should replace that shim once the surface is implemented.
+- A direct generic `prefix(fail) = \e -> e.throw` does not yet work under the
+  current principal-only monomorphize path: the operator wrapper can remain as a
+  residual polymorphic binding when the argument's constructor/effect operation
+  context is still open. The real fix belongs in generated error lowering or in
+  principal elaboration, not in a parser/lower special case.
 - `read_text_or_throw` is a transitional checked API. The host request still
   collapses all read failures to `opt::nil`, so it maps `nil` conservatively to
   `fs_err::not_found` until host requests can return typed filesystem errors.
 
-Aggregation remains explicit:
+Script-level convenience names should stay separate from typed error effects:
+
+- `die`: unrecoverable panic/trap-like termination;
+- `warn`: warning/log effect;
+- `say`: stdout line output;
+- `fail err`: recoverable typed error effect;
+- `reject`: non-deterministic branch rejection in `std::undet`.
+
+Aggregation remains explicit. The `from` entry is not limited to `error`
+sugar: ordinary enum variants should be able to request the same generated
+`Cast` implementation when the variant has exactly one payload.
 
 ```text
 error io_err:
@@ -189,16 +220,17 @@ impl Cast parse_err:
   our e.cast = io_err::parse e
 ```
 
-On top of that, the generated error namespace can provide an aggregation
-handler such as `io_err::unite`. That handler catches child error effects and
-rethrows the parent error effect. This lets code collect errors as effects by
-placing a handler expression, instead of only by writing a fully annotated
-return type.
+The generated error namespace should also provide an aggregation handler named
+`raise`. This is not a role method. It is a generated function in the wider
+error namespace that catches child error effects and rethrows the parent error
+effect through the corresponding wrapper constructor. This lets code collect
+errors as effects by placing a handler expression, instead of only by writing a
+fully annotated return type.
 
 Sketch:
 
 ```text
-io_err::unite:
+io_err::raise:
   [_; fs_err; parse_err; e] a -> [io_err; e] a
 ```
 
@@ -263,11 +295,10 @@ write_text: (str, str) -> bool
 exists: str -> bool
 is_file: str -> bool
 is_dir: str -> bool
-enum fs_err = not_found str | denied str | invalid_path str
-act fs_err:
-  not_found: str -> never
-  denied: str -> never
-  invalid_path: str -> never
+error fs_err:
+  not_found str
+  denied str
+  invalid_path str
 impl Throw fs_err
 ```
 
@@ -309,7 +340,7 @@ Success condition:
 - Add explicit aggregation examples such as `error io_err: fs from fs_err`.
 - Decide how explicit casts/wrapping are written and how generated `from`
   entries interact with ordinary user-defined casts.
-- Implement handler-based aggregation such as `io_err::unite` that catches
+- Implement handler-based aggregation such as `io_err::raise` that catches
   narrower error effects and throws the wider API error effect.
 
 Success condition:

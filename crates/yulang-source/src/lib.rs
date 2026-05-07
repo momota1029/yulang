@@ -2154,10 +2154,10 @@ mod tests {
         let root = temp_root("implicit-prelude-operator-syntax");
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("std")).unwrap();
-        fs::write(root.join("main.yu"), "my y = 1 %% true\n").unwrap();
+        fs::write(root.join("main.yu"), "my y = 1 %% fail true\n").unwrap();
         fs::write(
             root.join("std").join("prelude.yu"),
-            "pub infix (%%) 50 51 = \\x -> \\y -> x\n",
+            "pub prefix(fail) 70 = \\x -> x\npub infix (%%) 50 51 = \\x -> \\y -> x\n",
         )
         .unwrap();
 
@@ -2183,6 +2183,12 @@ mod tests {
             matches!(
                 item,
                 NodeOrToken::Token(tok) if tok.kind() == SyntaxKind::Infix && tok.text() == "%%"
+            )
+        }));
+        assert!(parsed.descendants_with_tokens().any(|item| {
+            matches!(
+                item,
+                NodeOrToken::Token(tok) if tok.kind() == SyntaxKind::Prefix && tok.text() == "fail"
             )
         }));
 

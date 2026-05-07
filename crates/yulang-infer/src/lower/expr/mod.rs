@@ -28,7 +28,6 @@ use crate::profile::ProfileClock as Instant;
 
 use yulang_parser::lex::SyntaxKind;
 
-use super::stmt::connect_pat_shape_and_locals;
 use super::{LowerState, SyntaxNode};
 use crate::ast::expr::{ExprKind, Lit, TypedExpr};
 use crate::diagnostic::TypeOrigin;
@@ -37,7 +36,6 @@ use crate::types::Neg;
 mod apply;
 mod arms;
 mod atom;
-mod bool_ops;
 mod catch;
 mod chain;
 mod control;
@@ -56,7 +54,6 @@ mod var;
 pub(super) use apply::{make_app, make_app_with_cause};
 pub(super) use arms::collect_child_arms;
 use atom::lower_expr_atom;
-use bool_ops::{lower_not_equal_infix, lower_short_circuit_infix};
 use catch::{debug_dump_effect_tv, lower_catch};
 use chain::lower_expr_chain;
 use control::{lower_case, lower_if};
@@ -64,7 +61,7 @@ pub(super) use effect_rows::{neg_id_is_pure_row, pos_id_is_empty_row};
 use lambda::lower_lambda;
 use list::lower_list_expr;
 use literal::{lower_number_token, lower_string_lit};
-use operator::{infix_op_name, infix_op_ref, prefix_op_ref, suffix_op_ref};
+use operator::{infix_op_ref, prefix_op_ref, suffix_op_ref};
 use path::{resolve_bound_def_expr, resolve_operator_expr};
 pub(super) use path::{
     resolve_path_expr, try_resolve_local_operator_expr, try_resolve_operator_expr,

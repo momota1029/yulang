@@ -1,0 +1,107 @@
+use rowan::TextRange;
+use yulang_parser::lex::SyntaxKind;
+
+use crate::lower::signature::{SigType, act_type_param_names, fresh_type_scope};
+use crate::lower::{LowerState, SyntaxNode};
+use crate::symbols::{Name, Path, Visibility};
+
+/// `error E: ...` を enum + same-name act operation として lowering する。
+///
+/// 最初の sugar は同名 constructor / operation を安定して生成することに絞る。
+/// `from` と generated `raise` は、衝突規則と handler 展開が固まってから足す。
+pub(crate) fn lower_error_decl(state: &mut LowerState, node: &SyntaxNode) {
+    let Some(name) = super::super::ident_name(node) else {
+        return;
+    };
+    let visibility = error_visibility(node);
+    let mut effect_segments = state.ctx.current_module_path().segments;
+    effect_segments.push(name.clone());
+    let effect_path = Path {
+        segments: effect_segments,
+    };
+
+    super::lower_enum_decl(state, node);
+
+    let act_scope = fresh_type_scope(state, &act_type_param_names(node));
+    let act_arg_tvs = crate::lower::signature::ordered_act_type_vars(node, &act_scope);
+    let act_args = act_arg_tvs
+        .iter()
+        .copied()
+        .map(|tv| (tv, tv))
+        .collect::<Vec<_>>();
+
+    let def = state.fresh_def();
+    let tv = state.fresh_tv();
+    state.register_def_tv(def, tv);
+
+    let mid = state.ctx.current_module;
+    state.insert_type_with_visibility(mid, name.clone(), def, visibility);
+    state
+        .effect_arities
+        .insert(effect_path.clone(), act_arg_tvs.len());
+    state.effect_args.insert(effect_path.clone(), act_args);
+
+    let alias_owner = state.ctx.modules.node(mid).parent.unwrap_or(mid);
+    let saved_module = state.ctx.enter_or_create_module(name.clone());
+    state.mark_companion_module(state.ctx.current_module);
+    state.insert_type_alias_with_visibility(alias_owner, name.clone(), def, visibility);
+    state.insert_module_alias_with_visibility(
+        alias_owner,
+        name,
+        state.ctx.current_module,
+        visibility,
+    );
+
+    for variant in super::super::child_nodes(node, SyntaxKind::EnumVariant) {
+        let Some(variant_name) = super::super::ident_name(&variant) else {
+            continue;
+        };
+        let sig = error_operation_sig(&variant);
+        super::super::register_act_operation_sig(
+            state,
+            variant_name,
+            visibility,
+            effect_path.clone(),
+            &act_scope,
+            &act_arg_tvs,
+            sig,
+        );
+    }
+
+    state.ctx.leave_module(saved_module);
+}
+
+fn error_operation_sig(variant: &SyntaxNode) -> SigType {
+    let span = variant.text_range();
+    let ret = never_sig(span);
+    let Some(payload) = super::enum_variant_payload_sig(variant) else {
+        return ret;
+    };
+    SigType::Fun {
+        arg: Box::new(payload),
+        ret_eff: None,
+        ret: Box::new(ret),
+        span,
+    }
+}
+
+fn never_sig(span: TextRange) -> SigType {
+    SigType::Prim {
+        path: Path {
+            segments: vec![Name("never".to_string())],
+        },
+        span,
+    }
+}
+
+fn error_visibility(node: &SyntaxNode) -> Visibility {
+    if super::super::has_token(node, SyntaxKind::Pub) {
+        Visibility::Pub
+    } else if super::super::has_token(node, SyntaxKind::Our) {
+        Visibility::Our
+    } else if super::super::has_token(node, SyntaxKind::My) {
+        Visibility::My
+    } else {
+        Visibility::Pub
+    }
+}

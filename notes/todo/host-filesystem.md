@@ -22,8 +22,8 @@
 
 ## まず error handling
 
-- `result` の安定化や `std::fs` 拡張より先に、`error` sugar を設計する。
-- `error fs_err:` を filesystem error family の有力候補として扱う。
+- `result` の安定化や `std::fs` 拡張より先に、`error` sugar を固める。
+- `std::fs` は `error fs_err:` の暫定 prototype を持つ。
 - 現在の `opt str` / `bool` 返り値は暫定として扱う。
 - host capability failure を何として表すか決める。
   - typed error effects
@@ -62,7 +62,7 @@
 ## 最初の安定 slice 候補
 
 - `path` decision.
-- `error fs_err:` design.
+- `error fs_err:` と host failure mapping の安定化。
 - `read_text: path -> [fs; fs_err] str`
 - `write_text: (path, str) -> [fs; fs_err] unit`
 - `exists: path -> [fs] bool`

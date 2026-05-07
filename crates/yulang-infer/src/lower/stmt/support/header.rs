@@ -33,6 +33,10 @@ pub(crate) fn header_operator_fixity(header: &SyntaxNode) -> Option<OperatorFixi
     }
 }
 
+pub(crate) fn header_operator_is_lazy(header: &SyntaxNode) -> bool {
+    super::has_token(header, SyntaxKind::Lazy)
+}
+
 pub(crate) fn header_value_name(header: &SyntaxNode) -> Option<Name> {
     if header.kind() == SyntaxKind::OpDefHeader {
         return op_name(header);

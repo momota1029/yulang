@@ -5,7 +5,7 @@ use yulang_parser::lex::SyntaxKind;
 
 use crate::ids::{NegId, PosId};
 use crate::lower::{LowerState, SyntaxNode};
-use crate::symbols::{Name, Path};
+use crate::symbols::{Name, Path, Visibility};
 use crate::types::{Neg, Pos};
 
 /// act 本体ブロック内の操作宣言（`our op: sig`）を登録する。
@@ -210,6 +210,27 @@ fn lower_act_operation_decl(
     };
     let header = super::super::child_node(node, header_kind)?;
     let name = super::super::header_value_name(&header)?;
+    let visibility = super::super::header_module_visibility(&header);
+    register_act_operation_sig(
+        state,
+        name,
+        visibility,
+        effect_path,
+        act_scope,
+        act_arg_tvs,
+        lower_op_sig(&header)?,
+    )
+}
+
+pub(crate) fn register_act_operation_sig(
+    state: &mut LowerState,
+    name: Name,
+    visibility: Visibility,
+    effect_path: Path,
+    act_scope: &HashMap<String, crate::ids::TypeVar>,
+    act_arg_tvs: &[crate::ids::TypeVar],
+    sig: crate::lower::signature::SigType,
+) -> Option<()> {
     let def = state.fresh_def();
     let tv = state.fresh_tv();
     state.register_def_tv(def, tv);
@@ -224,46 +245,41 @@ fn lower_act_operation_decl(
     if let Some(existing) = state.ctx.modules.node(mid).values.get(&name).copied() {
         state.register_same_path_value_and_effect_op(mid, name.clone(), existing, def);
     }
-    state.insert_value_with_visibility(
-        mid,
-        name,
+    state.insert_value_with_visibility(mid, name, def, visibility);
+    let (pos_sig, neg_sig) = lower_op_signatures(state, &sig, effect_path, act_scope, act_arg_tvs);
+    state.effect_op_pos_sigs.insert(def, pos_sig);
+    state.effect_op_neg_sigs.insert(def, neg_sig);
+    state.infer.constrain(pos_sig, Neg::Var(tv));
+    state.infer.constrain(Pos::Var(tv), neg_sig);
+    state.infer.store_frozen_scheme(
         def,
-        super::super::header_module_visibility(&header),
+        crate::scheme::freeze_pos_scheme(&state.infer, state.effect_op_pos_sigs[&def]),
     );
-    if let Some((pos_sig, neg_sig)) =
-        lower_op_signatures(state, &header, effect_path, act_scope, act_arg_tvs)
-    {
-        state.effect_op_pos_sigs.insert(def, pos_sig);
-        state.effect_op_neg_sigs.insert(def, neg_sig);
-        state.infer.constrain(pos_sig, Neg::Var(tv));
-        state.infer.constrain(Pos::Var(tv), neg_sig);
-        state.infer.store_frozen_scheme(
-            def,
-            crate::scheme::freeze_pos_scheme(&state.infer, state.effect_op_pos_sigs[&def]),
-        );
-    }
     Some(())
+}
+
+fn lower_op_sig(header: &SyntaxNode) -> Option<crate::lower::signature::SigType> {
+    let type_expr = super::super::descendant_node(header, SyntaxKind::TypeExpr)?;
+    crate::lower::signature::parse_sig_type_expr(&type_expr)
 }
 
 fn lower_op_signatures(
     state: &mut LowerState,
-    header: &SyntaxNode,
+    sig: &crate::lower::signature::SigType,
     effect_path: Path,
     act_scope: &HashMap<String, crate::ids::TypeVar>,
     act_arg_tvs: &[crate::ids::TypeVar],
-) -> Option<(PosId, NegId)> {
-    let type_expr = super::super::descendant_node(header, SyntaxKind::TypeExpr)?;
-    let sig = crate::lower::signature::parse_sig_type_expr(&type_expr)?;
+) -> (PosId, NegId) {
     let mut pos_vars = act_scope.clone();
     let mut neg_vars = act_scope.clone();
-    Some((
+    (
         crate::lower::signature::lower_sig_pos_id(
             state,
-            &sig,
+            sig,
             &mut pos_vars,
             effect_path,
             act_arg_tvs,
         ),
-        crate::lower::signature::lower_sig_neg_id(state, &sig, &mut neg_vars, act_arg_tvs),
-    ))
+        crate::lower::signature::lower_sig_neg_id(state, sig, &mut neg_vars, act_arg_tvs),
+    )
 }

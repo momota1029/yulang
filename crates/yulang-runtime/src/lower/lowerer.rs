@@ -121,7 +121,7 @@ impl Lowerer<'_> {
                 Ok(Expr::typed(ExprKind::PrimitiveOp(op), ty))
             }
             core_ir::Expr::Lit(lit) => {
-                let ty = lit_type(&lit);
+                let ty = self.primitive_paths.lit_type(&lit);
                 if let Some(expected) = expected {
                     if matches!(expected, RuntimeType::Unknown) {
                         return Ok(Expr::typed(ExprKind::Lit(lit), ty));
@@ -659,7 +659,8 @@ impl Lowerer<'_> {
                 }
                 let arg_value_core = runtime_core_type(value_hir_type(&arg.ty));
                 if let ExprKind::EffectOp(path) = &callee.kind
-                    && let Some(effect) = effect_operation_effect(path, &arg_value_core)
+                    && let Some(effect) =
+                        effect_operation_effect(&self.primitive_paths, path, &arg_value_core)
                 {
                     final_fun_parts.ret =
                         attach_effect_to_hir_type(final_fun_parts.ret.clone(), effect);
@@ -689,7 +690,9 @@ impl Lowerer<'_> {
                 if let Some((path, arg_ty)) = effect_operation
                     && !matches!(apply.ty, RuntimeType::Thunk { .. })
                 {
-                    if let Some(effect) = effect_operation_effect(&path, &arg_ty) {
+                    if let Some(effect) =
+                        effect_operation_effect(&self.primitive_paths, &path, &arg_ty)
+                    {
                         apply = attach_expr_effect(apply, effect);
                     }
                 }
@@ -711,7 +714,7 @@ impl Lowerer<'_> {
                 let result_hir_ty = RuntimeType::core(result_ty.clone());
                 let cond = self.lower_expr(
                     *cond,
-                    Some(&RuntimeType::core(bool_type())),
+                    Some(&RuntimeType::core(self.primitive_paths.bool_type())),
                     locals,
                     TypeSource::Expected,
                 )?;
@@ -926,7 +929,7 @@ impl Lowerer<'_> {
                             .map(|guard| {
                                 self.lower_expr(
                                     guard,
-                                    Some(&RuntimeType::core(bool_type())),
+                                    Some(&RuntimeType::core(self.primitive_paths.bool_type())),
                                     &mut arm_locals,
                                     TypeSource::Expected,
                                 )
@@ -976,7 +979,9 @@ impl Lowerer<'_> {
                     _ => None,
                 });
                 let stmt_expected = expected.and_then(|ty| match ty {
-                    RuntimeType::Thunk { .. } => Some(RuntimeType::core(unit_type())),
+                    RuntimeType::Thunk { .. } => {
+                        Some(RuntimeType::core(self.primitive_paths.unit_type()))
+                    }
                     _ => None,
                 });
                 let stmts = stmts
@@ -1004,7 +1009,7 @@ impl Lowerer<'_> {
                 let ty = tail
                     .as_ref()
                     .map(|tail| tail.ty.clone())
-                    .unwrap_or_else(|| RuntimeType::core(unit_type()));
+                    .unwrap_or_else(|| RuntimeType::core(self.primitive_paths.unit_type()));
                 propagate_refined_locals(locals, &block_locals);
                 let expr = Expr {
                     ty,
@@ -1032,10 +1037,12 @@ impl Lowerer<'_> {
                         result_hint
                     };
                 let body = self.lower_expr(*body, None, locals, TypeSource::Expected)?;
-                let handled = handler_consumes_from_core_arms(&arms, &result_ty)
+                let handled = self
+                    .handler_consumes_from_core_arms(&arms, &result_ty)
                     .unwrap_or_else(|| handler_consumes_from_body_type(&body.ty));
                 let body_effect_before =
                     expr_forced_effect(&body).or_else(|| thunk_effect(&body.ty));
+                let handled = canonicalize_handled_effects(handled, body_effect_before.as_ref());
                 let resume_effect = body_effect_before
                     .as_ref()
                     .map(|effect| handler_body_residual(effect, &handled));
@@ -1048,6 +1055,7 @@ impl Lowerer<'_> {
                             &body_value_ty,
                             resume_effect.as_ref(),
                             &result_ty,
+                            &handled,
                             locals,
                         )
                     })
@@ -1247,20 +1255,32 @@ impl Lowerer<'_> {
         body_ty: &core_ir::Type,
         body_effect: Option<&core_ir::Type>,
         result_ty: &core_ir::Type,
+        handled: &core_ir::Type,
         locals: &HashMap<core_ir::Path, RuntimeType>,
     ) -> RuntimeResult<HandleArm> {
         let mut arm_locals = locals.clone();
         let payload_ty = if arm.effect == core_ir::Path::default() {
             body_ty.clone()
         } else {
-            infer_handle_payload_type(&arm.payload, arm.guard.as_ref(), &arm.body, result_ty)
-                .unwrap_or(core_ir::Type::Unknown)
+            infer_handle_payload_type(
+                &self.primitive_paths,
+                &arm.payload,
+                arm.guard.as_ref(),
+                &arm.body,
+                result_ty,
+            )
+            .unwrap_or(core_ir::Type::Unknown)
         };
         let payload = lower_pattern(self, arm.payload, &payload_ty, &mut arm_locals)?;
         let resume_ty = arm.resume.as_ref().map(|resume| {
-            let param_ty =
-                infer_resume_param_type(resume, arm.guard.as_ref(), &arm.body, &arm_locals)
-                    .unwrap_or(core_ir::Type::Unknown);
+            let param_ty = infer_resume_param_type(
+                &self.primitive_paths,
+                resume,
+                arm.guard.as_ref(),
+                &arm.body,
+                &arm_locals,
+            )
+            .unwrap_or(core_ir::Type::Unknown);
             let ret = body_effect
                 .filter(|effect| should_thunk_effect(effect))
                 .cloned()
@@ -1279,7 +1299,7 @@ impl Lowerer<'_> {
             .map(|guard| {
                 self.lower_expr(
                     guard,
-                    Some(&RuntimeType::core(bool_type())),
+                    Some(&RuntimeType::core(self.primitive_paths.bool_type())),
                     &mut arm_locals,
                     TypeSource::Expected,
                 )
@@ -1292,7 +1312,7 @@ impl Lowerer<'_> {
             TypeSource::JoinEvidence,
         )?;
         Ok(HandleArm {
-            effect: self.resolve_handle_effect_operation_path(&arm.effect),
+            effect: self.resolve_handle_effect_operation_path_for_handle(&arm.effect, handled),
             payload,
             resume: arm.resume.map(|name| ResumeBinding {
                 name,
@@ -1300,6 +1320,97 @@ impl Lowerer<'_> {
             }),
             guard,
             body,
+        })
+    }
+
+    fn resolve_handle_effect_operation_path_for_handle(
+        &self,
+        path: &core_ir::Path,
+        handled: &core_ir::Type,
+    ) -> core_ir::Path {
+        let resolved = self.resolve_handle_effect_operation_path(path);
+        if self.runtime_symbol_kind(&resolved) == Some(core_ir::RuntimeSymbolKind::EffectOperation)
+        {
+            return resolved;
+        }
+        let Some(op) = path.segments.last() else {
+            return resolved;
+        };
+        let namespace = core_ir::Path {
+            segments: path
+                .segments
+                .iter()
+                .take(path.segments.len().saturating_sub(1))
+                .cloned()
+                .collect(),
+        };
+        for consumed in effect_paths(handled) {
+            if namespace.segments.len() == 1
+                && consumed
+                    .segments
+                    .last()
+                    .is_some_and(|name| Some(name) == namespace.segments.last())
+            {
+                let mut candidate = consumed.clone();
+                candidate
+                    .segments
+                    .push(core_ir::Name(format!("{}#effect", op.0)));
+                if self.runtime_symbol_kind(&candidate)
+                    == Some(core_ir::RuntimeSymbolKind::EffectOperation)
+                {
+                    return candidate;
+                }
+            }
+        }
+        resolved
+    }
+
+    fn handler_consumes_from_core_arms(
+        &self,
+        arms: &[core_ir::HandleArm],
+        result_ty: &core_ir::Type,
+    ) -> Option<core_ir::Type> {
+        let items = arms
+            .iter()
+            .filter_map(|arm| self.consumed_effect_from_core_arm(arm, result_ty))
+            .collect::<Vec<_>>();
+        (!items.is_empty()).then(|| effect_row_from_items(items))
+    }
+
+    fn consumed_effect_from_core_arm(
+        &self,
+        arm: &core_ir::HandleArm,
+        result_ty: &core_ir::Type,
+    ) -> Option<core_ir::Type> {
+        let effect = self.resolve_handle_effect_operation_path(&arm.effect);
+        if effect.segments.is_empty() {
+            return None;
+        }
+        let effect_path = core_ir::Path {
+            segments: effect
+                .segments
+                .iter()
+                .take(effect.segments.len().saturating_sub(1))
+                .cloned()
+                .collect(),
+        };
+        if effect_path.segments.is_empty() {
+            return None;
+        }
+        let payload_ty = infer_handle_payload_type(
+            &self.primitive_paths,
+            &arm.payload,
+            arm.guard.as_ref(),
+            &arm.body,
+            result_ty,
+        );
+        let args = payload_ty
+            .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
+            .map(|ty| vec![core_ir::TypeArg::Type(ty)])
+            .unwrap_or_default();
+        Some(core_ir::Type::Named {
+            path: effect_path,
+            args,
         })
     }
 
@@ -1666,7 +1777,7 @@ impl Lowerer<'_> {
         match expr {
             core_ir::Expr::Var(path) => self.env.get(path).map(diagnostic_core_type),
             core_ir::Expr::PrimitiveOp(_) => None,
-            core_ir::Expr::Lit(lit) => Some(lit_type(lit)),
+            core_ir::Expr::Lit(lit) => Some(self.primitive_paths.lit_type(lit)),
             core_ir::Expr::Apply {
                 callee,
                 arg,
@@ -1763,41 +1874,35 @@ impl Lowerer<'_> {
     }
 
     fn resolve_handle_effect_operation_path(&self, path: &core_ir::Path) -> core_ir::Path {
-        let Some(op) = path.segments.last() else {
+        let resolved = self.resolve_alias_path(path);
+        let Some(op) = resolved.segments.last() else {
             return path.clone();
         };
-        if op.0.ends_with("#effect") {
-            return path.clone();
+        if self.runtime_symbol_kind(&resolved) == Some(core_ir::RuntimeSymbolKind::EffectOperation)
+        {
+            return resolved;
         }
         let hidden_op = core_ir::Name(format!("{}#effect", op.0));
-        let mut hidden_path = path.clone();
+        let mut hidden_path = resolved.clone();
         if let Some(last) = hidden_path.segments.last_mut() {
             *last = hidden_op.clone();
         }
         if self.runtime_symbols.contains_key(&hidden_path) {
             return hidden_path;
         }
-
-        let namespace = &path.segments[..path.segments.len().saturating_sub(1)];
-        self.runtime_symbols
-            .iter()
-            .find_map(|(candidate, kind)| {
-                if *kind != core_ir::RuntimeSymbolKind::EffectOperation {
-                    return None;
-                }
-                let Some(candidate_op) = candidate.segments.last() else {
-                    return None;
-                };
-                if candidate_op != &hidden_op {
-                    return None;
-                }
-                candidate
-                    .segments
-                    .get(..candidate.segments.len().saturating_sub(1))
-                    .is_some_and(|candidate_namespace| candidate_namespace.ends_with(namespace))
-                    .then(|| candidate.clone())
-            })
-            .unwrap_or_else(|| path.clone())
+        let mut local_hidden_path = path.clone();
+        if let Some(local_op) = path.segments.last() {
+            if let Some(last) = local_hidden_path.segments.last_mut() {
+                *last = core_ir::Name(format!("{}#effect", local_op.0));
+            }
+            let resolved_hidden = self.resolve_alias_path(&local_hidden_path);
+            if self.runtime_symbol_kind(&resolved_hidden)
+                == Some(core_ir::RuntimeSymbolKind::EffectOperation)
+            {
+                return resolved_hidden;
+            }
+        }
+        resolved
     }
 
     pub(super) fn fresh_type_var(&mut self, prefix: &str) -> core_ir::Type {
@@ -1899,7 +2004,12 @@ impl Lowerer<'_> {
         if let Some(callee_hint) = callee_hint {
             infer_hir_type_substitutions(&template_ty, callee_hint, &params, &mut substitutions);
         }
-        infer_role_requirement_substitutions(&info.requirements, &params, &mut substitutions);
+        infer_role_requirement_substitutions(
+            &info.requirements,
+            &self.graph.role_impls,
+            &params,
+            &mut substitutions,
+        );
         let substituted_ty = substitute_hir_type(&template_ty, &substitutions);
         let args = info
             .type_params
@@ -1965,46 +2075,46 @@ fn has_added_wildcard_thunk(expected: &RuntimeType, actual: &RuntimeType) -> boo
     }
 }
 
-fn handler_consumes_from_core_arms(
-    arms: &[core_ir::HandleArm],
-    result_ty: &core_ir::Type,
-) -> Option<core_ir::Type> {
-    let items = arms
-        .iter()
-        .filter_map(|arm| consumed_effect_from_core_arm(arm, result_ty))
-        .collect::<Vec<_>>();
-    (!items.is_empty()).then(|| effect_row_from_items(items))
+fn canonicalize_handled_effects(
+    handled: core_ir::Type,
+    body_effect_before: Option<&core_ir::Type>,
+) -> core_ir::Type {
+    let Some(body_effect_before) = body_effect_before else {
+        return handled;
+    };
+    let body_paths = effect_paths(&project_runtime_effect(body_effect_before));
+    if body_paths.len() != 1 {
+        return handled;
+    }
+    replace_single_unqualified_effect_path(handled, &body_paths[0])
 }
 
-fn consumed_effect_from_core_arm(
-    arm: &core_ir::HandleArm,
-    result_ty: &core_ir::Type,
-) -> Option<core_ir::Type> {
-    if arm.effect.segments.is_empty() {
-        return None;
+fn replace_single_unqualified_effect_path(
+    effect: core_ir::Type,
+    canonical: &core_ir::Path,
+) -> core_ir::Type {
+    match effect {
+        core_ir::Type::Named { path, args }
+            if path.segments.len() == 1
+                && canonical
+                    .segments
+                    .last()
+                    .is_some_and(|name| Some(name) == path.segments.last()) =>
+        {
+            core_ir::Type::Named {
+                path: canonical.clone(),
+                args,
+            }
+        }
+        core_ir::Type::Row { items, tail } => core_ir::Type::Row {
+            items: items
+                .into_iter()
+                .map(|item| replace_single_unqualified_effect_path(item, canonical))
+                .collect(),
+            tail: Box::new(replace_single_unqualified_effect_path(*tail, canonical)),
+        },
+        other => other,
     }
-    let effect_path = core_ir::Path {
-        segments: arm
-            .effect
-            .segments
-            .iter()
-            .take(arm.effect.segments.len().saturating_sub(1))
-            .cloned()
-            .collect(),
-    };
-    if effect_path.segments.is_empty() {
-        return None;
-    }
-    let payload_ty =
-        infer_handle_payload_type(&arm.payload, arm.guard.as_ref(), &arm.body, result_ty);
-    let args = payload_ty
-        .filter(|ty| !matches!(ty, core_ir::Type::Any | core_ir::Type::Var(_)))
-        .map(|ty| vec![core_ir::TypeArg::Type(ty)])
-        .unwrap_or_default();
-    Some(core_ir::Type::Named {
-        path: effect_path,
-        args,
-    })
 }
 
 fn prepare_effect_operation_arg(

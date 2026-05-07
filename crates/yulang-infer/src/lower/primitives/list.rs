@@ -2,7 +2,7 @@ use yulang_core_ir as core_ir;
 
 use crate::ast::expr::TypedExpr;
 use crate::lower::LowerState;
-use crate::symbols::{ModuleId, Name, Path};
+use crate::symbols::{ModuleId, Name};
 use crate::types::{Neg, Pos};
 
 use super::support::{named_path, named_runtime_path};
@@ -150,13 +150,7 @@ pub(super) fn install_list_index_range_primitive(
     state.insert_value(module, name, def);
 
     let list_path = named_path("list");
-    let range_path = Path {
-        segments: vec![
-            Name("std".to_string()),
-            Name("range".to_string()),
-            Name("range".to_string()),
-        ],
-    };
+    let range_path = named_path("range");
     let list_args = vec![(Pos::Var(item_tv), Neg::Var(item_tv))];
     let pos_outer_arg_eff = state.fresh_exact_pure_eff_tv();
     let pos_outer_ret_eff = state.fresh_exact_pure_eff_tv();
@@ -280,13 +274,7 @@ pub(super) fn install_list_splice_primitive(
     state.insert_value(module, name, def);
 
     let list_path = named_path("list");
-    let range_path = Path {
-        segments: vec![
-            Name("std".to_string()),
-            Name("range".to_string()),
-            Name("range".to_string()),
-        ],
-    };
+    let range_path = named_path("range");
     let list_args = vec![(Pos::Var(item_tv), Neg::Var(item_tv))];
     let pos_outer_arg_eff = state.fresh_exact_pure_eff_tv();
     let pos_outer_ret_eff = state.fresh_exact_pure_eff_tv();
@@ -923,13 +911,7 @@ fn list_view_scheme_body() -> core_ir::Type {
         args: vec![core_ir::TypeArg::Type(item.clone())],
     };
     let list_view = core_ir::Type::Named {
-        path: core_ir::Path {
-            segments: vec![
-                core_ir::Name("std".to_string()),
-                core_ir::Name("list".to_string()),
-                core_ir::Name("list_view".to_string()),
-            ],
-        },
+        path: named_runtime_path("list_view"),
         args: vec![core_ir::TypeArg::Type(item)],
     };
     core_ir::Type::Fun {
@@ -942,26 +924,14 @@ fn list_view_scheme_body() -> core_ir::Type {
 
 fn list_view_pos_type(state: &LowerState, item_tv: crate::ids::TypeVar) -> Pos {
     state.pos_con(
-        Path {
-            segments: vec![
-                Name("std".to_string()),
-                Name("list".to_string()),
-                Name("list_view".to_string()),
-            ],
-        },
+        named_path("list_view"),
         vec![(Pos::Var(item_tv), Neg::Var(item_tv))],
     )
 }
 
 fn list_view_neg_type(state: &LowerState, item_tv: crate::ids::TypeVar) -> Neg {
     state.neg_con(
-        Path {
-            segments: vec![
-                Name("std".to_string()),
-                Name("list".to_string()),
-                Name("list_view".to_string()),
-            ],
-        },
+        named_path("list_view"),
         vec![(Pos::Var(item_tv), Neg::Var(item_tv))],
     )
 }

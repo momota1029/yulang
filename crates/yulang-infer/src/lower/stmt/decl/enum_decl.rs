@@ -137,7 +137,9 @@ fn lower_enum_variant(
         .store_frozen_scheme(ctor_def, frozen_ctor_scheme);
 }
 
-fn enum_variant_payload_sig(variant_node: &SyntaxNode) -> Option<crate::lower::signature::SigType> {
+pub(crate) fn enum_variant_payload_sig(
+    variant_node: &SyntaxNode,
+) -> Option<crate::lower::signature::SigType> {
     if let Some(type_expr) = super::super::child_node(variant_node, SyntaxKind::TypeExpr) {
         return crate::lower::signature::parse_sig_type_expr(&type_expr);
     }

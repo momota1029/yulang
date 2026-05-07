@@ -16,6 +16,8 @@ use crate::ast::expr::{
 };
 use crate::ids::{DefId, RefId, TypeVar};
 use crate::lower::LowerState;
+use crate::lower::builtin_types::PrimitiveValueFamily;
+use crate::ref_capability::{core_standard_ref_member_path, core_standard_ref_update_member_path};
 use crate::solve::RefFieldProjection;
 use crate::solve::role::role_method_info_for_path;
 use crate::symbols::{Name, Path};
@@ -610,7 +612,7 @@ impl<'a> ExprExporter<'a> {
         };
 
         let child_ref = apply_expr(
-            core_ir::Expr::Var(std_var_ref_path()),
+            core_ir::Expr::Var(crate::ref_capability::core_standard_ref_type_path()),
             core_ir::Expr::Record {
                 fields: vec![
                     core_ir::RecordExprField {
@@ -902,7 +904,7 @@ impl<'a> ExprExporter<'a> {
 
         let get_body = apply_expr(
             apply_expr(
-                core_ir::Expr::Var(std_list_index_raw_path()),
+                core_ir::Expr::Var(std_list_index_raw_path(self.state)),
                 apply_unit(apply_expr(
                     core_ir::Expr::Var(std_var_ref_get_path()),
                     local_var(&parent_name),
@@ -913,7 +915,7 @@ impl<'a> ExprExporter<'a> {
 
         let old_item = apply_expr(
             apply_expr(
-                core_ir::Expr::Var(std_list_index_raw_path()),
+                core_ir::Expr::Var(std_list_index_raw_path(self.state)),
                 local_var(&old_name),
             ),
             local_var(&index_name),
@@ -973,7 +975,7 @@ impl<'a> ExprExporter<'a> {
         };
 
         let child_ref = apply_expr(
-            core_ir::Expr::Var(std_var_ref_path()),
+            core_ir::Expr::Var(crate::ref_capability::core_standard_ref_type_path()),
             core_ir::Expr::Record {
                 fields: vec![
                     core_ir::RecordExprField {
@@ -1382,6 +1384,22 @@ impl<'a> ExprExporter<'a> {
                 Some(out)
             }
             ExprKind::Var(def) => {
+                if let Some(resolved) =
+                    self.concrete_transparent_role_wrapper_application_def(*def, &args)
+                {
+                    let resolved = canonical_runtime_export_def(self.state, resolved);
+                    let mut concrete_callee_type = self
+                        .intern_principal_scheme_for_def(resolved)
+                        .map(|scheme| scheme.body);
+                    let mut out = core_ir::Expr::Var(self.path_for_def(resolved));
+                    for app in apps {
+                        let slot = concrete_callee_type
+                            .as_mut()
+                            .and_then(take_rewritten_apply_slot_evidence);
+                        out = self.export_rewritten_apply(out, app, slot);
+                    }
+                    return Some(out);
+                }
                 if let Some(resolved) = self.state.infer.resolved_selection_def(expr.tv) {
                     let resolved = self
                         .concrete_role_method_application_def(resolved, head, &args)
@@ -1404,6 +1422,27 @@ impl<'a> ExprExporter<'a> {
             }
             _ => None,
         }
+    }
+
+    fn concrete_transparent_role_wrapper_application_def(
+        &self,
+        def: DefId,
+        args: &[&TypedExpr],
+    ) -> Option<DefId> {
+        if !self.state.ctx.is_operator_def(def) {
+            return None;
+        }
+        let (method_name, role_arg_count) = transparent_role_wrapper_method(self.state, def)?;
+        let info = self.state.infer.role_methods.get(&method_name)?;
+        let (recv, rest) = args.split_first()?;
+        let role_args = rest
+            .iter()
+            .take(role_arg_count)
+            .map(|arg| arg.tv)
+            .collect::<Vec<_>>();
+        self.state
+            .infer
+            .resolve_concrete_role_method_call_def(info, Some(recv.tv), &role_args)
     }
 
     fn export_rewritten_apply(
@@ -1628,6 +1667,41 @@ fn apply_unit(callee: core_ir::Expr) -> core_ir::Expr {
     apply_expr(callee, core_ir::Expr::Lit(core_ir::Lit::Unit))
 }
 
+fn transparent_role_wrapper_method(state: &LowerState, def: DefId) -> Option<(Name, usize)> {
+    let body = state.principal_bodies.get(&def)?;
+    let mut params = Vec::new();
+    let mut current = body;
+    while let ExprKind::Lam(param, body) = &current.kind {
+        params.push(*param);
+        current = body;
+    }
+    let (head, args) = collect_apply_spine_with_apps(current);
+    let ExprKind::Select { recv, name } = &head.kind else {
+        return None;
+    };
+    let ExprKind::Var(recv_def) = recv.kind else {
+        return None;
+    };
+    if params.first().copied() != Some(recv_def) {
+        return None;
+    }
+    if args.len() + 1 != params.len() {
+        return None;
+    }
+    for (arg_expr, param) in args.iter().zip(params.iter().skip(1)) {
+        let ExprKind::App { arg, .. } = &arg_expr.kind else {
+            return None;
+        };
+        let ExprKind::Var(arg_def) = arg.kind else {
+            return None;
+        };
+        if arg_def != *param {
+            return None;
+        }
+    }
+    Some((name.clone(), args.len()))
+}
+
 fn apply_expr(callee: core_ir::Expr, arg: core_ir::Expr) -> core_ir::Expr {
     core_ir::Expr::Apply {
         callee: Box::new(callee),
@@ -1787,47 +1861,20 @@ fn type_bounds_empty(bounds: &core_ir::TypeBounds) -> bool {
     bounds.lower.is_none() && bounds.upper.is_none()
 }
 
-fn std_var_ref_path() -> core_ir::Path {
-    core_ir::Path::new(vec![
-        core_ir::Name("std".to_string()),
-        core_ir::Name("var".to_string()),
-        core_ir::Name("ref".to_string()),
-    ])
-}
-
 fn std_var_ref_get_path() -> core_ir::Path {
-    core_ir::Path::new(vec![
-        core_ir::Name("std".to_string()),
-        core_ir::Name("var".to_string()),
-        core_ir::Name("ref".to_string()),
-        core_ir::Name("get".to_string()),
-    ])
+    core_standard_ref_member_path("get")
 }
 
 fn std_var_ref_update_effect_path() -> core_ir::Path {
-    core_ir::Path::new(vec![
-        core_ir::Name("std".to_string()),
-        core_ir::Name("var".to_string()),
-        core_ir::Name("ref".to_string()),
-        core_ir::Name("update_effect".to_string()),
-    ])
+    core_standard_ref_member_path("update_effect")
 }
 
 fn std_ref_update_update_path() -> core_ir::Path {
-    core_ir::Path::new(vec![
-        core_ir::Name("std".to_string()),
-        core_ir::Name("var".to_string()),
-        core_ir::Name("ref_update".to_string()),
-        core_ir::Name("update".to_string()),
-    ])
+    core_standard_ref_update_member_path("update")
 }
 
-fn std_list_index_raw_path() -> core_ir::Path {
-    core_ir::Path::new(vec![
-        core_ir::Name("std".to_string()),
-        core_ir::Name("list".to_string()),
-        core_ir::Name("index_raw".to_string()),
-    ])
+fn std_list_index_raw_path(state: &LowerState) -> core_ir::Path {
+    state.primitive_runtime_value_path(PrimitiveValueFamily::ListIndexRaw)
 }
 
 fn export_apply_substitutions_enabled() -> bool {

@@ -230,7 +230,7 @@ fn constrain_ref_method_receiver(
     );
     constrain_value_method_receiver(state, value_tv, struct_path, type_arg_tvs);
     let ref_args = [eff_tv, value_tv];
-    let ref_path = std_var_ref_path();
+    let ref_path = crate::ref_capability::standard_ref_type_path();
     state.infer.constrain(
         state.pos_con(ref_path.clone(), super::super::invariant_args(&ref_args)),
         Neg::Var(recv_tv),
@@ -239,14 +239,4 @@ fn constrain_ref_method_receiver(
         Pos::Var(recv_tv),
         state.neg_con(ref_path, super::super::invariant_args(&ref_args)),
     );
-}
-
-fn std_var_ref_path() -> Path {
-    Path {
-        segments: vec![
-            Name("std".to_string()),
-            Name("var".to_string()),
-            Name("ref".to_string()),
-        ],
-    }
 }

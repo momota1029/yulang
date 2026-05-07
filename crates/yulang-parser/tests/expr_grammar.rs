@@ -6,17 +6,21 @@ use reborrow_generic::Reborrow as _;
 use yulang_parser::context::{Env, State};
 use yulang_parser::expr::parse_expr;
 use yulang_parser::lex::SyntaxKind;
-use yulang_parser::op::standard_op_table;
+use yulang_parser::op::{BpVec, OpDef, OpTable, standard_op_table};
 use yulang_parser::scan::trivia::scan_trivia;
 use yulang_parser::sink::{Event, EventSink, VecSink};
 
 fn parse_expression_result(source: &str) -> Option<Vec<String>> {
+    parse_expression_result_with_ops(source, standard_op_table())
+}
+
+fn parse_expression_result_with_ops(source: &str, ops: OpTable) -> Option<Vec<String>> {
     let mut state: State<VecSink> = State::default();
     let mut input = source.with_counter(0usize);
     let mut errors = LatestSink::new();
     let mut cut_flag = false;
     let base_in = In::new(&mut input, &mut errors, IsCut::new(&mut cut_flag));
-    let env = Env::new(&mut state, standard_op_table(), 0, HashSet::new());
+    let env = Env::new(&mut state, ops, 0, HashSet::new());
     let mut i = base_in.set_env(env);
 
     let leading = i.run(scan_trivia).map(|t| t.info());
@@ -34,6 +38,41 @@ fn parse_expression_result(source: &str) -> Option<Vec<String>> {
 
 fn parse_expression(source: &str) -> Vec<String> {
     parse_expression_result(source).expect("expression")
+}
+
+fn parse_expression_with_word_ops(source: &str) -> Vec<String> {
+    parse_expression_result_with_ops(source, word_operator_table()).expect("expression")
+}
+
+fn word_operator_table() -> OpTable {
+    let mut table = standard_op_table();
+    insert_prefix(&mut table, "not", 70);
+    insert_prefix_nullfix(&mut table, "last", 80);
+    insert_prefix_nullfix(&mut table, "next", 80);
+    insert_prefix_nullfix(&mut table, "redo", 80);
+    insert_prefix_nullfix(&mut table, "return", 1);
+    table
+}
+
+fn insert_prefix(table: &mut OpTable, name: &str, bp: i8) {
+    table.0.insert(
+        name.into(),
+        OpDef {
+            prefix: Some(BpVec::new(vec![bp])),
+            ..OpDef::default()
+        },
+    );
+}
+
+fn insert_prefix_nullfix(table: &mut OpTable, name: &str, bp: i8) {
+    table.0.insert(
+        name.into(),
+        OpDef {
+            prefix: Some(BpVec::new(vec![bp])),
+            nullfix: true,
+            ..OpDef::default()
+        },
+    );
 }
 
 fn dump(events: &[Event], lexs: &[yulang_parser::lex::Lex]) -> Vec<String> {
@@ -61,7 +100,7 @@ fn dump(events: &[Event], lexs: &[yulang_parser::lex::Lex]) -> Vec<String> {
 
 #[test]
 fn expr_prefix_not() {
-    let got = parse_expression("not x");
+    let got = parse_expression_with_word_ops("not x");
     let expected = vec![
         "(Expr",
         "  (PrefixNode",
@@ -77,14 +116,14 @@ fn expr_prefix_not() {
 
 #[test]
 fn expr_loop_control_nullfix_last() {
-    let got = parse_expression("last");
+    let got = parse_expression_with_word_ops("last");
     let expected = vec!["(Expr", "  Nullfix \"last\"", ")"];
     assert_eq!(got, expected);
 }
 
 #[test]
 fn expr_loop_control_call_remains_ident_call() {
-    let got = parse_expression("last()");
+    let got = parse_expression_with_word_ops("last()");
     let expected = vec![
         "(Expr",
         "  Ident \"last\"",
@@ -98,12 +137,12 @@ fn expr_loop_control_call_remains_ident_call() {
 }
 
 #[test]
-fn expr_loop_control_value_arg_remains_ident_apply() {
-    let got = parse_expression("last xs");
+fn expr_loop_control_value_arg_uses_prefix_operator() {
+    let got = parse_expression_with_word_ops("last xs");
     let expected = vec![
         "(Expr",
-        "  Ident \"last\"",
-        "  (ApplyML",
+        "  (PrefixNode",
+        "    Prefix \"last\"",
         "    (Expr",
         "      Ident \"xs\"",
         "    )",
@@ -115,7 +154,7 @@ fn expr_loop_control_value_arg_remains_ident_apply() {
 
 #[test]
 fn expr_loop_control_qualified_name_remains_path() {
-    let got = parse_expression("last::sub");
+    let got = parse_expression_with_word_ops("last::sub");
     let expected = vec![
         "(Expr",
         "  Ident \"last\"",
@@ -129,12 +168,12 @@ fn expr_loop_control_qualified_name_remains_path() {
 }
 
 #[test]
-fn expr_loop_control_label_form_is_nullfix_apply() {
-    let got = parse_expression("last 'outer");
+fn expr_loop_control_label_form_uses_prefix_operator() {
+    let got = parse_expression_with_word_ops("last 'outer");
     let expected = vec![
         "(Expr",
-        "  Nullfix \"last\"",
-        "  (ApplyML",
+        "  (PrefixNode",
+        "    Prefix \"last\"",
         "    (Expr",
         "      SigilIdent \"'outer\"",
         "    )",
@@ -146,7 +185,7 @@ fn expr_loop_control_label_form_is_nullfix_apply() {
 
 #[test]
 fn expr_return_prefix() {
-    let got = parse_expression("return x");
+    let got = parse_expression_with_word_ops("return x");
     let expected = vec![
         "(Expr",
         "  (PrefixNode",
@@ -162,7 +201,7 @@ fn expr_return_prefix() {
 
 #[test]
 fn expr_return_prefix_captures_infix_rhs() {
-    let got = parse_expression("return 1 + 2 + 3 + 4");
+    let got = parse_expression_with_word_ops("return 1 + 2 + 3 + 4");
     let expected = vec![
         "(Expr",
         "  (PrefixNode",
@@ -196,7 +235,7 @@ fn expr_return_prefix_captures_infix_rhs() {
 
 #[test]
 fn expr_return_prefix_captures_multiline_infix_rhs() {
-    let got = parse_expression("return\n    1 + 2 + 3 + 4");
+    let got = parse_expression_with_word_ops("return\n    1 + 2 + 3 + 4");
     let expected = vec![
         "(Expr",
         "  (PrefixNode",
@@ -230,14 +269,14 @@ fn expr_return_prefix_captures_multiline_infix_rhs() {
 
 #[test]
 fn expr_return_nullfix() {
-    let got = parse_expression("return");
+    let got = parse_expression_with_word_ops("return");
     let expected = vec!["(Expr", "  Nullfix \"return\"", ")"];
     assert_eq!(got, expected);
 }
 
 #[test]
 fn expr_return_call_remains_ident_call() {
-    let got = parse_expression("return()");
+    let got = parse_expression_with_word_ops("return()");
     let expected = vec![
         "(Expr",
         "  Ident \"return\"",
@@ -252,7 +291,7 @@ fn expr_return_call_remains_ident_call() {
 
 #[test]
 fn expr_return_qualified_name_remains_path() {
-    let got = parse_expression("sub::return");
+    let got = parse_expression_with_word_ops("sub::return");
     let expected = vec![
         "(Expr",
         "  Ident \"sub\"",
@@ -269,7 +308,7 @@ fn expr_return_qualified_name_remains_path() {
 fn expr_prefix_then_infix() {
     // `not x and y` → PrefixNode[not, x] then InfixNode[and, y]
     // not(bp=70) > and(lbp=20), so `and` stops rhs parse and continues outer tail
-    let got = parse_expression("not x and y");
+    let got = parse_expression_with_word_ops("not x and y");
     let expected = vec![
         "(Expr",
         "  (PrefixNode",

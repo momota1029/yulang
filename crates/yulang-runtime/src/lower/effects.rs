@@ -142,6 +142,7 @@ pub(super) fn stmt_forced_effect(stmt: &Stmt) -> Option<core_ir::Type> {
 }
 
 pub(super) fn effect_operation_effect(
+    primitive_paths: &RuntimePrimitivePathTable,
     path: &core_ir::Path,
     arg_ty: &core_ir::Type,
 ) -> Option<core_ir::Type> {
@@ -160,7 +161,7 @@ pub(super) fn effect_operation_effect(
     let args = (!matches!(
         arg_ty,
         core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_)
-    ) && arg_ty != &unit_type())
+    ) && arg_ty != &primitive_paths.unit_type())
         .then(|| vec![core_ir::TypeArg::Type(arg_ty.clone())])
         .unwrap_or_default();
     Some(core_ir::Type::Row {

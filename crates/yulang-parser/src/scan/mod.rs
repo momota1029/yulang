@@ -173,6 +173,7 @@ fn keyword_kind(text: &str) -> Option<SyntaxKind> {
         "type" => Some(SyntaxKind::Type),
         "struct" => Some(SyntaxKind::Struct),
         "enum" => Some(SyntaxKind::Enum),
+        "error" => Some(SyntaxKind::Error),
         "role" => Some(SyntaxKind::Role),
         "impl" => Some(SyntaxKind::Impl),
         "cast" => Some(SyntaxKind::Cast),
@@ -189,6 +190,7 @@ fn keyword_kind(text: &str) -> Option<SyntaxKind> {
         "infix" => Some(SyntaxKind::Infix),
         "suffix" => Some(SyntaxKind::Suffix),
         "nullfix" => Some(SyntaxKind::Nullfix),
+        "lazy" => Some(SyntaxKind::Lazy),
         _ => None,
     }
 }

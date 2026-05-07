@@ -1,4 +1,5 @@
 mod enum_decl;
+mod error_decl;
 mod extension;
 mod module_decl;
 mod role_decl;
@@ -6,7 +7,8 @@ mod type_decl;
 mod use_decl;
 mod where_decl;
 
-pub(super) use enum_decl::lower_enum_decl;
+pub(super) use enum_decl::{enum_variant_payload_sig, lower_enum_decl};
+pub(super) use error_decl::lower_error_decl;
 pub(crate) use extension::{
     GlobalExtensionMethodHeader, current_module_effect_method_def,
     current_module_extension_method_def, effect_method_hidden_name, extension_method_hidden_name,

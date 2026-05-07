@@ -300,9 +300,3 @@ pub(super) fn record_field_type(ty: &RuntimeType, name: &core_ir::Name) -> Optio
         _ => None,
     }
 }
-
-pub(super) fn is_data_constructor_path(path: &core_ir::Path) -> bool {
-    path.segments
-        .last()
-        .is_some_and(|name| matches!(name.0.as_str(), "nil" | "just"))
-}

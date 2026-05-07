@@ -19,11 +19,43 @@ pub(super) fn parse_op_def_stmt<I: EventInput, S: EventSink>(
     visibility: Option<Lex>,
     fixity_kw: Lex,
 ) -> Option<Either<TriviaInfo, Lex>> {
+    parse_op_def_stmt_inner(i.rb(), visibility, None, fixity_kw)
+}
+
+pub(super) fn parse_lazy_op_def_stmt<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    visibility: Option<Lex>,
+    lazy_kw: Lex,
+) -> Option<Either<TriviaInfo, Lex>> {
+    let after_lazy = lazy_kw.trailing_trivia_info();
+    let Some(fixity_kw) = scan_stmt_lex(after_lazy, i.rb()) else {
+        return Some(Either::Left(after_lazy));
+    };
+    if !matches!(
+        fixity_kw.kind,
+        SyntaxKind::Prefix | SyntaxKind::Infix | SyntaxKind::Suffix | SyntaxKind::Nullfix
+    ) {
+        let next = fixity_kw.trailing_trivia_info();
+        emit_invalid(i.rb(), fixity_kw);
+        return Some(Either::Left(next));
+    }
+    parse_op_def_stmt_inner(i.rb(), visibility, Some(lazy_kw), fixity_kw)
+}
+
+fn parse_op_def_stmt_inner<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    visibility: Option<Lex>,
+    lazy_kw: Option<Lex>,
+    fixity_kw: Lex,
+) -> Option<Either<TriviaInfo, Lex>> {
     i.env.state.sink.start(SyntaxKind::OpDef);
     i.env.state.sink.start(SyntaxKind::OpDefHeader);
 
     if let Some(vis) = visibility {
         i.env.state.sink.lex(&vis);
+    }
+    if let Some(lazy_kw) = lazy_kw {
+        i.env.state.sink.lex(&lazy_kw);
     }
 
     let fixity = fixity_from_kind(fixity_kw.kind);

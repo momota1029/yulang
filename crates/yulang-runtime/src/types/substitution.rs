@@ -1405,10 +1405,7 @@ fn project_substitutions_from_role_requirements(
                     associated.0,
                     &inputs,
                     role_impls,
-                )
-                .or_else(|| {
-                    resolve_builtin_associated_requirement(requirement, associated.0, &inputs)
-                }) {
+                ) {
                     project_associated_substitution(
                         associated,
                         &resolved,
@@ -1538,41 +1535,12 @@ fn collect_type_bounds_vars(bounds: &core_ir::TypeBounds, vars: &mut BTreeSet<co
     }
 }
 
-fn resolve_builtin_associated_requirement(
-    requirement: &core_ir::RoleRequirement,
-    name: &core_ir::Name,
-    inputs: &[core_ir::Type],
-) -> Option<core_ir::Type> {
-    let role = requirement.role.segments.last()?;
-    match (role.0.as_str(), name.0.as_str()) {
-        ("Fold", "item") => inputs.first().and_then(fold_item_type),
-        _ => None,
-    }
-}
-
 fn requirement_associated(
     arg: &core_ir::RoleRequirementArg,
 ) -> Option<(&core_ir::Name, &core_ir::TypeBounds)> {
     match arg {
         core_ir::RoleRequirementArg::Associated { name, bounds } => Some((name, bounds)),
         core_ir::RoleRequirementArg::Input(_) => None,
-    }
-}
-
-fn fold_item_type(ty: &core_ir::Type) -> Option<core_ir::Type> {
-    let core_ir::Type::Named { path, args } = ty else {
-        return None;
-    };
-    match path.segments.last().map(|name| name.0.as_str()) {
-        Some("list") => match args.first()? {
-            core_ir::TypeArg::Type(ty) => {
-                principal_plan_substitution_type_usable(ty, false).then(|| ty.clone())
-            }
-            core_ir::TypeArg::Bounds(bounds) => {
-                principal_plan_bounds_slot_type(Some(bounds), false)
-            }
-        },
-        _ => None,
     }
 }
 
@@ -2975,7 +2943,7 @@ mod tests {
     }
 
     #[test]
-    fn plan_normalization_projects_list_item_role_requirement() {
+    fn plan_normalization_does_not_infer_fold_item_from_list_shape_without_impl_graph() {
         let mut plan = core_ir::PrincipalElaborationPlan {
             target: Some(core_ir::Path::from_name(core_ir::Name("all".to_string()))),
             principal_callee: core_ir::Type::Fun {
@@ -3023,15 +2991,10 @@ mod tests {
             }],
         );
 
-        assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);
-        assert!(
-            normalized
-                .substitutions
-                .contains(&core_ir::TypeSubstitution {
-                    var: tv("item"),
-                    ty: named("int"),
-                })
-        );
+        assert!(!normalized.complete);
+        assert!(normalized.incomplete_reasons.contains(
+            &core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("item"))
+        ));
     }
 
     #[test]
