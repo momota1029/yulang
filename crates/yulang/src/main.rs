@@ -960,7 +960,11 @@ fn print_runtime_phase_timings(
 
 fn print_principal_elaborate_profile(profile: &runtime::MonomorphizePassProfile) {
     let subst = &profile.principal_elaborate;
-    if subst.stats.is_empty() && subst.timings.is_empty() && subst.target_skips.is_empty() {
+    if subst.stats.is_empty()
+        && subst.timings.is_empty()
+        && subst.target_skips.is_empty()
+        && subst.target_rewrites.is_empty()
+    {
         return;
     }
     let mut stats = subst.stats.iter().collect::<Vec<_>>();
@@ -1046,6 +1050,107 @@ fn print_principal_elaborate_profile(profile: &runtime::MonomorphizePassProfile)
             reasons,
             missing_vars,
             no_complete_causes,
+        );
+    }
+    for target in subst.target_rewrites.iter().take(12) {
+        let contexts = target
+            .contexts
+            .iter()
+            .take(6)
+            .map(|context| format!("{}={}", context.context, context.count))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let phases = target
+            .phases
+            .iter()
+            .take(4)
+            .map(|phase| format!("{}={}", phase.phase, format_duration(phase.duration)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        eprintln!(
+            "                rewrite_target {} visits={} rewrites={} cached_incomplete={} incomplete={} max_depth={} contexts=[{}] phases=[{}]",
+            format_core_path(&target.target),
+            target.total_apply_visits,
+            target.rewrites,
+            target.cached_incomplete,
+            target.incomplete,
+            target.max_specialization_depth,
+            contexts,
+            phases,
+        );
+    }
+    let mut phase_targets = subst
+        .target_rewrites
+        .iter()
+        .filter(|target| !target.phases.is_empty())
+        .map(|target| {
+            let total = target
+                .phases
+                .iter()
+                .map(|phase| phase.duration)
+                .sum::<Duration>();
+            (target, total)
+        })
+        .collect::<Vec<_>>();
+    phase_targets.sort_by(|(left, left_total), (right, right_total)| {
+        right_total
+            .cmp(left_total)
+            .then_with(|| format_core_path(&left.target).cmp(&format_core_path(&right.target)))
+    });
+    for (target, total) in phase_targets.into_iter().take(12) {
+        let phases = target
+            .phases
+            .iter()
+            .take(4)
+            .map(|phase| format!("{}={}", phase.phase, format_duration(phase.duration)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        eprintln!(
+            "                rewrite_phase_target {} total={} rewrites={} phases=[{}]",
+            format_core_path(&target.target),
+            format_duration(total),
+            target.rewrites,
+            phases,
+        );
+    }
+    let mut expr_kind_targets = subst
+        .target_rewrites
+        .iter()
+        .filter(|target| !target.expr_kinds.is_empty())
+        .map(|target| {
+            let total = target
+                .expr_kinds
+                .iter()
+                .map(|kind| kind.duration)
+                .sum::<Duration>();
+            (target, total)
+        })
+        .collect::<Vec<_>>();
+    expr_kind_targets.sort_by(|(left, left_total), (right, right_total)| {
+        right_total
+            .cmp(left_total)
+            .then_with(|| format_core_path(&left.target).cmp(&format_core_path(&right.target)))
+    });
+    for (target, total) in expr_kind_targets.into_iter().take(12) {
+        let kinds = target
+            .expr_kinds
+            .iter()
+            .take(8)
+            .map(|kind| {
+                format!(
+                    "{}={}({})",
+                    kind.kind,
+                    format_duration(kind.duration),
+                    kind.count
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        eprintln!(
+            "                rewrite_expr_kind_target {} total={} kinds=[{}]",
+            format_core_path(&target.target),
+            format_duration(total),
+            kinds,
         );
     }
     for target in subst.target_inferences.iter().take(12) {

@@ -39,7 +39,9 @@ pub use monomorphize::{
     DemandEvidenceProfile, DemandQueueProfile, MonomorphizePassProfile, MonomorphizeProfile,
     MonomorphizeProgress, SubstitutionSpecializeInferenceCount,
     SubstitutionSpecializeMissingVarCount, SubstitutionSpecializeProfile,
-    SubstitutionSpecializeSkipCount, SubstitutionSpecializeTargetInferences,
+    SubstitutionSpecializeRewriteContextCount, SubstitutionSpecializeRewriteExprKindTiming,
+    SubstitutionSpecializeRewritePhaseTiming, SubstitutionSpecializeSkipCount,
+    SubstitutionSpecializeTargetInferences, SubstitutionSpecializeTargetRewrites,
     SubstitutionSpecializeTargetSkips, monomorphize_module, monomorphize_module_profiled,
 };
 pub use refine::refine_module_types;

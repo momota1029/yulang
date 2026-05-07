@@ -6,7 +6,7 @@
 //! introduced by runtime lowering must be preserved rather than reconstructed
 //! from erased value types.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::time::Duration;
 
 use yulang_core_ir as core_ir;
@@ -129,6 +129,7 @@ pub struct SubstitutionSpecializeProfile {
     pub timings: HashMap<&'static str, Duration>,
     pub target_skips: Vec<SubstitutionSpecializeTargetSkips>,
     pub target_inferences: Vec<SubstitutionSpecializeTargetInferences>,
+    pub target_rewrites: Vec<SubstitutionSpecializeTargetRewrites>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,6 +152,38 @@ pub struct SubstitutionSpecializeSkipCount {
 pub struct SubstitutionSpecializeMissingVarCount {
     pub var: core_ir::TypeVar,
     pub count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionSpecializeTargetRewrites {
+    pub target: core_ir::Path,
+    pub total_apply_visits: usize,
+    pub rewrites: usize,
+    pub cached_incomplete: usize,
+    pub incomplete: usize,
+    pub max_specialization_depth: usize,
+    pub contexts: Vec<SubstitutionSpecializeRewriteContextCount>,
+    pub phases: Vec<SubstitutionSpecializeRewritePhaseTiming>,
+    pub expr_kinds: Vec<SubstitutionSpecializeRewriteExprKindTiming>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionSpecializeRewriteContextCount {
+    pub context: &'static str,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionSpecializeRewritePhaseTiming {
+    pub phase: &'static str,
+    pub duration: Duration,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubstitutionSpecializeRewriteExprKindTiming {
+    pub kind: &'static str,
+    pub count: usize,
+    pub duration: Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

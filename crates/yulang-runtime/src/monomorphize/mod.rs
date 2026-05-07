@@ -30,8 +30,10 @@ pub use engine::*;
 pub use pipeline::{
     MonomorphizePassProfile, MonomorphizeProfile, MonomorphizeProgress,
     SubstitutionSpecializeInferenceCount, SubstitutionSpecializeMissingVarCount,
-    SubstitutionSpecializeProfile, SubstitutionSpecializeSkipCount,
-    SubstitutionSpecializeTargetInferences, SubstitutionSpecializeTargetSkips, monomorphize_module,
+    SubstitutionSpecializeProfile, SubstitutionSpecializeRewriteContextCount,
+    SubstitutionSpecializeRewriteExprKindTiming, SubstitutionSpecializeRewritePhaseTiming,
+    SubstitutionSpecializeSkipCount, SubstitutionSpecializeTargetInferences,
+    SubstitutionSpecializeTargetRewrites, SubstitutionSpecializeTargetSkips, monomorphize_module,
     monomorphize_module_profiled,
 };
 pub use solve::*;

@@ -107,6 +107,7 @@ core-only.
 Detailed plan:
 
 - `notes/design/partial-compilation-cache-plan.md`
+- `notes/design/static-analysis-speed-plan.md`
 
 Recent std snapshot work is useful as a serialization prototype:
 

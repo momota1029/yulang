@@ -3,8 +3,9 @@ use std::collections::HashSet;
 use std::sync::OnceLock;
 
 use crate::ast::expr::{ExprKind, Lit, TypedExpr};
+use crate::ids::DefId;
 use crate::lower::LowerState;
-use crate::symbols::{Name, OperatorFixity, Path};
+use crate::symbols::{ModuleId, Name, OperatorFixity, Path};
 use crate::types::{Neg, Pos};
 
 use super::prim_type;
@@ -46,6 +47,33 @@ pub(in crate::lower) fn resolve_path_expr(state: &mut LowerState, segs: Vec<Name
         return result;
     }
 
+    match resolve_value_use(state, path) {
+        ResolvedValueUse::Resolved(def) => {
+            let result = resolve_bound_def_expr(state, def);
+            state.lower_detail.resolve_path_expr += start.elapsed();
+            result
+        }
+        ResolvedValueUse::Unresolved(unresolved) => {
+            let result = unresolved_value_use_expr(state, unresolved);
+            state.lower_detail.resolve_path_expr += start.elapsed();
+            result
+        }
+    }
+}
+
+enum ResolvedValueUse {
+    Resolved(DefId),
+    Unresolved(UnresolvedValueUse),
+}
+
+struct UnresolvedValueUse {
+    path: Path,
+    module: ModuleId,
+    use_paths: Vec<Path>,
+    owner: Option<DefId>,
+}
+
+fn resolve_value_use(state: &LowerState, path: Path) -> ResolvedValueUse {
     let def = if path.segments.len() == 1 {
         state.ctx.resolve_value(&path.segments[0])
     } else {
@@ -53,32 +81,36 @@ pub(in crate::lower) fn resolve_path_expr(state: &mut LowerState, segs: Vec<Name
     };
 
     if let Some(def) = def {
-        let result = resolve_bound_def_expr(state, def);
-        state.lower_detail.resolve_path_expr += start.elapsed();
-        return result;
+        return ResolvedValueUse::Resolved(def);
     }
 
-    // 解決できなかった → 未解決参照として記録
+    ResolvedValueUse::Unresolved(UnresolvedValueUse {
+        path,
+        module: state.ctx.current_module,
+        use_paths: state.ctx.current_use_paths(),
+        owner: state.current_owner,
+    })
+}
+
+fn unresolved_value_use_expr(state: &mut LowerState, unresolved: UnresolvedValueUse) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_exact_pure_eff_tv();
     let ref_id = state.ctx.fresh_ref();
     state.ctx.refs.push_unresolved(
         ref_id,
         crate::ref_table::UnresolvedRef {
-            path,
-            module: state.ctx.current_module,
-            use_paths: state.ctx.current_use_paths(),
+            path: unresolved.path,
+            module: unresolved.module,
+            use_paths: unresolved.use_paths,
             ref_tv: tv,
-            owner: state.current_owner,
+            owner: unresolved.owner,
         },
     );
-    let result = TypedExpr {
+    TypedExpr {
         tv,
         eff,
         kind: ExprKind::Ref(ref_id),
-    };
-    state.lower_detail.resolve_path_expr += start.elapsed();
-    result
+    }
 }
 
 fn alias_same_owner_ref_expr(state: &mut LowerState, def: crate::ids::DefId) -> Option<TypedExpr> {
