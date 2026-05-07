@@ -170,6 +170,40 @@ sub:
     }
 
     #[test]
+    fn vm_host_handles_fs_text_requests() {
+        let path = temp_test_path("yulang-fs-text");
+        let source_path = yulang_string_literal(&path.to_string_lossy());
+        let source = format!(
+            r#"my path = {source_path}
+my before = exists path
+my wrote = write_text (path, "hello")
+my after = exists path
+my file = is_file path
+my dir = is_dir path
+my text = case read_text path:
+    std::opt::opt::nil -> "missing"
+    std::opt::opt::just text -> text
+(before, wrote, after, file, dir, text)
+"#
+        );
+        let (results, stdout) = eval_source_with_std_host(&source);
+        let _ = std::fs::remove_file(&path);
+
+        assert!(stdout.is_empty());
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Bool(false),
+                TestValue::Bool(true),
+                TestValue::Bool(true),
+                TestValue::Bool(true),
+                TestValue::Bool(false),
+                TestValue::String("hello".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_optional_record_argument_defaults() {
         let results = eval_source_with_std(
             "my area({width = 1, height = 2}) = width * height\n\
@@ -1436,5 +1470,29 @@ std::flow::sub::sub:
             .expect("spawn large-stack runtime VM test thread")
             .join()
             .unwrap()
+    }
+
+    fn temp_test_path(prefix: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time after epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("{prefix}-{nanos}.txt"))
+    }
+
+    fn yulang_string_literal(value: &str) -> String {
+        let mut out = String::from("\"");
+        for ch in value.chars() {
+            match ch {
+                '\\' => out.push_str("\\\\"),
+                '"' => out.push_str("\\\""),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                ch => out.push(ch),
+            }
+        }
+        out.push('"');
+        out
     }
 }

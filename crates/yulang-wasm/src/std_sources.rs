@@ -67,6 +67,10 @@ const STD_SOURCES: &[StdSource] = &[
         text: include_str!("../../../lib/std/flow.yu"),
     },
     StdSource {
+        name: "fs",
+        text: include_str!("../../../lib/std/fs.yu"),
+    },
+    StdSource {
         name: "fold",
         text: include_str!("../../../lib/std/fold.yu"),
     },

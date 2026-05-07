@@ -1,0 +1,13 @@
+use std::opt::*
+
+// TODO: This is the first minimal host-facing fs surface. Revisit the exact API
+// shape before treating it as stable, especially error reporting, path helpers,
+// directory listing, and wasm/browser behavior.
+pub act fs:
+    pub read_text: str -> opt str
+    pub write_text: (str, str) -> bool
+    pub exists: str -> bool
+    pub is_file: str -> bool
+    pub is_dir: str -> bool
+
+pub use std::fs::fs::*

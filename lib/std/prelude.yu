@@ -18,6 +18,7 @@ pub use std::str::*
 pub use std::fold::Fold
 pub use std::list::*
 pub use std::opt::*
+pub use std::fs::*
 pub use std::range::*
 pub use std::index::Index
 pub use std::var::*

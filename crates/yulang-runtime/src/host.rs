@@ -26,27 +26,32 @@ pub fn eval_root_with_basic_host(
 ) -> Result<VmResult, VmError> {
     let mut result = module.eval_root_expr(index)?;
     loop {
-        let request = match result {
+        match result {
             VmResult::Value(_) => return Ok(result),
-            VmResult::Request(request) if !handle_console_request(&request, stdout) => {
-                return Ok(VmResult::Request(request));
+            VmResult::Request(request) => {
+                let Some(value) = handle_host_request(&request, stdout) else {
+                    return Ok(VmResult::Request(request));
+                };
+                result = module.resume_request(request, value)?;
             }
-            VmResult::Request(request) => request,
-        };
-        result = module.resume_request(request, VmValue::Unit)?;
+        }
     }
 }
 
-fn handle_console_request(request: &VmRequest, stdout: &mut String) -> bool {
+fn handle_host_request(request: &VmRequest, stdout: &mut String) -> Option<VmValue> {
+    handle_console_request(request, stdout).or_else(|| handle_fs_request(request))
+}
+
+fn handle_console_request(request: &VmRequest, stdout: &mut String) -> Option<VmValue> {
     if console_effect_is(&request.effect, "print") {
         stdout.push_str(&host_string(&request.payload));
-        true
+        Some(VmValue::Unit)
     } else if console_effect_is(&request.effect, "println") {
         stdout.push_str(&host_string(&request.payload));
         stdout.push('\n');
-        true
+        Some(VmValue::Unit)
     } else {
-        false
+        None
     }
 }
 
@@ -59,6 +64,84 @@ fn console_effect_is(path: &core_ir::Path, op: &str) -> bool {
         && console_module.0 == "console"
         && console_act.0 == "console"
         && operation.0 == op
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn handle_fs_request(request: &VmRequest) -> Option<VmValue> {
+    use std::fs;
+    use std::path::Path;
+
+    let op = fs_effect_operation(&request.effect)?;
+    match op {
+        "read_text" => {
+            let path = host_path_string(&request.payload)?;
+            Some(match fs::read_to_string(path) {
+                Ok(text) => host_opt_some(VmValue::String(text.into())),
+                Err(_) => host_opt_none(),
+            })
+        }
+        "write_text" => {
+            let (path, text) = host_path_text_pair(&request.payload)?;
+            Some(VmValue::Bool(fs::write(path, text).is_ok()))
+        }
+        "exists" => {
+            let path = host_path_string(&request.payload)?;
+            Some(VmValue::Bool(Path::new(&path).exists()))
+        }
+        "is_file" => {
+            let path = host_path_string(&request.payload)?;
+            Some(VmValue::Bool(Path::new(&path).is_file()))
+        }
+        "is_dir" => {
+            let path = host_path_string(&request.payload)?;
+            Some(VmValue::Bool(Path::new(&path).is_dir()))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn handle_fs_request(_request: &VmRequest) -> Option<VmValue> {
+    None
+}
+
+fn fs_effect_operation(path: &core_ir::Path) -> Option<&str> {
+    let [std, fs_module, fs_act, operation] = path.segments.as_slice() else {
+        return None;
+    };
+
+    (std.0 == "std" && fs_module.0 == "fs" && fs_act.0 == "fs").then_some(operation.0.as_str())
+}
+
+fn host_path_string(value: &VmValue) -> Option<String> {
+    match value {
+        VmValue::String(value) => Some(value.to_flat_string()),
+        _ => None,
+    }
+}
+
+fn host_path_text_pair(value: &VmValue) -> Option<(String, String)> {
+    let VmValue::Tuple(items) = value else {
+        return None;
+    };
+    let [path, text] = items.as_slice() else {
+        return None;
+    };
+    Some((host_path_string(path)?, host_path_string(text)?))
+}
+
+fn host_opt_some(value: VmValue) -> VmValue {
+    VmValue::Variant {
+        tag: core_ir::Name("just".to_string()),
+        value: Some(Box::new(value)),
+    }
+}
+
+fn host_opt_none() -> VmValue {
+    VmValue::Variant {
+        tag: core_ir::Name("nil".to_string()),
+        value: None,
+    }
 }
 
 fn host_string(value: &VmValue) -> String {
