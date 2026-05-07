@@ -1,47 +1,49 @@
-# Current Task: post-core roadmap
+# 現在のタスク: post-core roadmap
 
-Yulang has enough core language/runtime functionality to move from "can this
-language work?" toward "can this become a practical scripting language?".
+Yulang は、"この言語は成立するか" から "実用的な scripting language になれるか" へ
+進むだけの core language / runtime 機能を持ち始めた。
 
-The current work should be organized around three main tracks.
+現在の作業は、主に 3 つの track を中心に整理する。
+
+広い backlog:
+
+- `notes/todo/index.md`
 
 ## Track 1: Native Backend
 
-Build a Cranelift backend through an explicit control representation.
+明示的な control representation を通して Cranelift backend を作る。
 
-Near-term shape:
+近い形:
 
 ```text
 runtime/core IR
-  -> CPS or CPS-like control IR
+  -> CPS または CPS 風 control IR
   -> closure/environment layout
   -> Cranelift IR
 ```
 
-Immediate TODO:
+直近 TODO:
 
-- Write a design note for the CPS/Cranelift boundary.
-- Pick the first supported subset:
-  - pure first-order functions;
-  - primitive numeric/string operations;
-  - simple records/variants if representation is clear.
-- Keep algebraic effects and resumptions in the design, but do not make them
-  the first compiled milestone.
-- Add a small VM-vs-Cranelift comparison harness before optimizing.
+- CPS / Cranelift 境界の design note を書く。
+- 最初に support する subset を選ぶ。
+  - pure first-order functions
+  - primitive numeric/string operations
+  - representation が明確なら simple records / variants
+- algebraic effects と resumptions は design に残すが、最初の compiled milestone にはしない。
+- 最適化の前に、小さな VM-vs-Cranelift comparison harness を追加する。
 
-Key constraint:
+重要な制約:
 
-- The VM remains the behavioral oracle. Native code should be added beside it,
-  not as a replacement.
+- VM は behavioral oracle のままにする。Native code は置き換えではなく、VM の横に追加する。
 
 ## Track 2: Parser Combinators
 
-Implement parser combinators as a Yulang-facing capability.
+parser combinators を Yulang 側から使える capability として実装する。
 
-Immediate TODO:
+直近 TODO:
 
-- Define the public parser result and error type.
-- Implement the minimal combinator kernel:
+- public parser result と error type を定義する。
+- minimal combinator kernel を実装する。
   - `item`
   - `satisfy`
   - `map`
@@ -49,84 +51,92 @@ Immediate TODO:
   - choice
   - repetition
   - token/string matching
-- Decide how cut/commit and error merging should behave.
-- Add examples after the first API can parse something nontrivial.
+- cut / commit と error merging の挙動を決める。
+- 最初の API が nontrivial なものを parse できるようになってから examples を追加する。
 
-Key constraint:
+重要な制約:
 
-- Do not rewrite the compiler parser yet. The library parser API should prove
-  itself independently first.
+- compiler parser はまだ書き直さない。library parser API を先に独立して試す。
 
 ## Track 3: Host / Filesystem Semantics
 
-Stabilize host capabilities, especially filesystem behavior.
+host capabilities、特に filesystem behavior を安定させる。
 
-Design reference:
+設計参照:
 
 - `notes/design/error-handling-plan.md`
 
-Current implementation:
+現在の実装:
 
-- `std::console` has `print` / `println`.
-- `std::fs` exists as a provisional native-host surface:
+- `std::console` は `print` / `println` を持つ。
+- `std::fs` は暫定 native-host surface として存在する。
   - `read_text: str -> opt str`
   - `write_text: (str, str) -> bool`
   - `exists: str -> bool`
   - `is_file: str -> bool`
   - `is_dir: str -> bool`
-- Native CLI/basic host handles these requests.
-- Wasm/playground leaves filesystem requests unresolved.
+- native CLI / basic host はこれらの request を処理する。
+- wasm / playground は filesystem request を unresolved のまま残す。
 
-Immediate TODO:
+直近 TODO:
 
-- Do error handling design before introducing/stabilizing `result`.
-- Treat the exact `std::fs` API as unstable.
-- Decide error handling before expanding the API:
+- `result` の導入 / 安定化より先に error handling design を進める。
+- 正確な `std::fs` API は unstable として扱う。
+- API 拡張の前に error handling を決める。
   - `opt`
   - `result`
   - structured host-request errors
   - effect-style error operations
-- Decide whether paths stay as `str` or become a `path` type.
-- Decide the first directory API, probably after text read/write settles.
-- Decide playground capability policy before making browser examples.
+- path を `str` のままにするか、`path` type にするか決める。
+- text read/write が落ち着いた後に、最初の directory API を決める。
+- browser examples を作る前に playground capability policy を決める。
 
-Key constraint:
+重要な制約:
 
-- Do not accidentally make native-only filesystem behavior look portable to
-  wasm/playground.
+- native-only filesystem behavior が wasm / playground でも portable に見えないようにする。
 
 ## Ongoing: Static Analysis Speed
 
-The recent performance work is still aligned with the playground goal.
+最近の performance work は、引き続き playground の目標と揃っている。
 
-Current references:
+現在の参照:
 
 - `notes/design/static-analysis-speed-plan.md`
 - `notes/design/partial-compilation-cache-plan.md`
 
-Current checkpoint:
+現在の checkpoint:
 
-- Principal-unify is the default monomorphize route.
-- Specialization body rewrite is now queued and profiled by target.
-- Block rewrite avoids a redundant pre-walk and significantly reduces
-  `showcase` monomorphize time.
-- Compiled-unit artifacts exist for syntax/namespace/typed/runtime surfaces.
-- Wasm embeds std compiled-unit artifacts and uses source std as fallback.
+- principal-unify は default monomorphize route。
+- specialization body rewrite は queue 化され、target ごとに profile される。
+- block rewrite は redundant pre-walk を避け、`showcase` の monomorphize time を大きく減らす。
+- compiled-unit artifacts は syntax / namespace / typed / runtime surfaces を持つ。
+- wasm は std compiled-unit artifacts を embed し、source std を fallback として使う。
 
-Next TODO:
+次 TODO:
 
-- Expand role/impl/effect fidelity in typed-surface import.
-- Tighten compiled-unit manifest validation.
-- Generalize persistent cache to user dependency SCCs.
-- Keep `bench/static_analysis_bench.sh` representative.
+- typed-surface import の role / impl / effect fidelity を広げる。
+- compiled-unit manifest validation を厳しくする。
+- persistent cache を user dependency SCCs に一般化する。
+- `bench/static_analysis_bench.sh` を代表性のある benchmark として保つ。
 
 ## Ongoing: Diagnostics and Examples
 
-Keep examples as the public contract while the language is experimental.
+言語が experimental な間は、examples を public contract として保つ。
 
 TODO:
 
-- Keep playground examples runnable from CLI.
-- Add examples only when the feature behavior is stable enough to explain.
-- Improve user-facing diagnostics for parser/type/runtime errors.
-- Avoid exposing internal monomorphize/runtime errors in ordinary user paths.
+- playground examples を CLI からも runnable に保つ。
+- feature behavior を説明できる程度に安定してから examples を追加する。
+- parser / type / runtime errors の user-facing diagnostics を改善する。
+- ordinary user paths で internal monomorphize / runtime errors を露出しない。
+
+## Ongoing: Testing
+
+Yulang code から小さい regression test を書ける形を作る。
+
+次 TODO:
+
+- Yulang-facing test API の最小形を決める。
+- fixture 置き場と CLI runner の入口を決める。
+- examples のうち重要なものを regression test に写す。
+- diagnostics golden は必要な範囲だけ固定する。
