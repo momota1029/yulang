@@ -16,10 +16,12 @@ use crate::ast::expr::{
 };
 use crate::ids::{DefId, RefId, TypeVar};
 use crate::lower::LowerState;
-use crate::lower::builtin_types::PrimitiveValueFamily;
-use crate::ref_capability::{core_standard_ref_member_path, core_standard_ref_update_member_path};
 use crate::solve::RefFieldProjection;
 use crate::solve::role::role_method_info_for_path;
+use crate::std_ref_paths::{
+    core_standard_ref_member_path, core_standard_ref_type_path,
+    core_standard_ref_update_member_path,
+};
 use crate::symbols::{Name, Path};
 
 use super::complete_principal::{
@@ -572,18 +574,18 @@ impl<'a> ExprExporter<'a> {
         let get_body = apply_expr(
             core_ir::Expr::Var(self.path_for_def(projection.field.def)),
             apply_unit(apply_expr(
-                core_ir::Expr::Var(std_var_ref_get_path()),
+                core_ir::Expr::Var(ref_get_path(self.state)),
                 local_var(&parent_name),
             )),
         );
 
         let update_body = core_ir::Expr::Handle {
             body: Box::new(apply_unit(apply_expr(
-                core_ir::Expr::Var(std_var_ref_update_effect_path()),
+                core_ir::Expr::Var(ref_update_effect_path(self.state)),
                 local_var(&parent_name),
             ))),
             arms: vec![core_ir::HandleArm {
-                effect: std_ref_update_update_path(),
+                effect: ref_update_operation_path(self.state),
                 payload: core_ir::Pattern::Bind(old_name.clone()),
                 resume: Some(resume_name.clone()),
                 guard: None,
@@ -591,7 +593,7 @@ impl<'a> ExprExporter<'a> {
                     stmts: vec![core_ir::Stmt::Let {
                         pattern: core_ir::Pattern::Bind(new_field_name.clone()),
                         value: apply_expr(
-                            core_ir::Expr::Var(std_ref_update_update_path()),
+                            core_ir::Expr::Var(ref_update_operation_path(self.state)),
                             self.export_ref_field_old_value(projection, name, &old_name),
                         ),
                     }],
@@ -612,7 +614,7 @@ impl<'a> ExprExporter<'a> {
         };
 
         let child_ref = apply_expr(
-            core_ir::Expr::Var(crate::ref_capability::core_standard_ref_type_path()),
+            core_ir::Expr::Var(core_standard_ref_type_path()),
             core_ir::Expr::Record {
                 fields: vec![
                     core_ir::RecordExprField {
@@ -866,17 +868,15 @@ impl<'a> ExprExporter<'a> {
         core_ir::Expr::Block {
             stmts: vec![core_ir::Stmt::Let {
                 pattern: core_ir::Pattern::Bind(ref_name.clone()),
-                value: self
-                    .export_ref_index_projection(reference)
-                    .unwrap_or_else(|| self.export_expr(reference)),
+                value: self.export_expr(reference),
             }],
             tail: Some(Box::new(core_ir::Expr::Handle {
                 body: Box::new(apply_unit(apply_expr(
-                    core_ir::Expr::Var(std_var_ref_update_effect_path()),
+                    core_ir::Expr::Var(ref_update_effect_path(self.state)),
                     local_var(&ref_name),
                 ))),
                 arms: vec![core_ir::HandleArm {
-                    effect: std_ref_update_update_path(),
+                    effect: ref_update_operation_path(self.state),
                     payload: core_ir::Pattern::Bind(old_name),
                     resume: Some(resume_name.clone()),
                     guard: None,
@@ -886,144 +886,6 @@ impl<'a> ExprExporter<'a> {
                     result: core_ir::TypeBounds::exact(core_unit_type()),
                 }),
             })),
-        }
-    }
-
-    fn export_ref_index_projection(&mut self, expr: &TypedExpr) -> Option<core_ir::Expr> {
-        let (recv, index) = ref_index_projection_parts(expr)?;
-        if !self.is_ref_projection_receiver(recv) {
-            return None;
-        }
-        let parent_name = core_ir::Name(format!("__ref_index_parent_t{}", expr.tv.0));
-        let index_name = core_ir::Name(format!("__ref_index_key_t{}", expr.tv.0));
-        let unit_get = core_ir::Name(format!("__ref_index_get_unit_t{}", expr.tv.0));
-        let unit_update = core_ir::Name(format!("__ref_index_update_unit_t{}", expr.tv.0));
-        let old_name = core_ir::Name(format!("__ref_index_old_t{}", expr.tv.0));
-        let resume_name = core_ir::Name(format!("__ref_index_resume_t{}", expr.tv.0));
-        let new_item_name = core_ir::Name(format!("__ref_index_new_t{}", expr.tv.0));
-
-        let get_body = apply_expr(
-            apply_expr(
-                core_ir::Expr::Var(std_list_index_raw_path(self.state)),
-                apply_unit(apply_expr(
-                    core_ir::Expr::Var(std_var_ref_get_path()),
-                    local_var(&parent_name),
-                )),
-            ),
-            local_var(&index_name),
-        );
-
-        let old_item = apply_expr(
-            apply_expr(
-                core_ir::Expr::Var(std_list_index_raw_path(self.state)),
-                local_var(&old_name),
-            ),
-            local_var(&index_name),
-        );
-        let end_index = apply_expr(
-            apply_expr(
-                core_ir::Expr::PrimitiveOp(core_ir::PrimitiveOp::IntAdd),
-                local_var(&index_name),
-            ),
-            core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string())),
-        );
-        let replacement = apply_expr(
-            core_ir::Expr::PrimitiveOp(core_ir::PrimitiveOp::ListSingleton),
-            local_var(&new_item_name),
-        );
-        let rebuilt_parent = apply_expr(
-            apply_expr(
-                apply_expr(
-                    apply_expr(
-                        core_ir::Expr::PrimitiveOp(core_ir::PrimitiveOp::ListSpliceRaw),
-                        local_var(&old_name),
-                    ),
-                    local_var(&index_name),
-                ),
-                end_index,
-            ),
-            replacement,
-        );
-
-        let update_body = core_ir::Expr::Handle {
-            body: Box::new(apply_unit(apply_expr(
-                core_ir::Expr::Var(std_var_ref_update_effect_path()),
-                local_var(&parent_name),
-            ))),
-            arms: vec![core_ir::HandleArm {
-                effect: std_ref_update_update_path(),
-                payload: core_ir::Pattern::Bind(old_name),
-                resume: Some(resume_name.clone()),
-                guard: None,
-                body: core_ir::Expr::Block {
-                    stmts: vec![core_ir::Stmt::Let {
-                        pattern: core_ir::Pattern::Bind(new_item_name),
-                        value: apply_expr(
-                            core_ir::Expr::Var(std_ref_update_update_path()),
-                            old_item,
-                        ),
-                    }],
-                    tail: Some(Box::new(apply_expr(
-                        local_var(&resume_name),
-                        rebuilt_parent,
-                    ))),
-                },
-            }],
-            evidence: Some(core_ir::JoinEvidence {
-                result: core_ir::TypeBounds::exact(core_unit_type()),
-            }),
-        };
-
-        let child_ref = apply_expr(
-            core_ir::Expr::Var(crate::ref_capability::core_standard_ref_type_path()),
-            core_ir::Expr::Record {
-                fields: vec![
-                    core_ir::RecordExprField {
-                        name: core_ir::Name("get".to_string()),
-                        value: core_ir::Expr::Lambda {
-                            param: unit_get,
-                            param_effect_annotation: None,
-                            param_function_allowed_effects: None,
-                            body: Box::new(get_body),
-                        },
-                    },
-                    core_ir::RecordExprField {
-                        name: core_ir::Name("update_effect".to_string()),
-                        value: core_ir::Expr::Lambda {
-                            param: unit_update,
-                            param_effect_annotation: None,
-                            param_function_allowed_effects: None,
-                            body: Box::new(update_body),
-                        },
-                    },
-                ],
-                spread: None,
-            },
-        );
-
-        Some(core_ir::Expr::Block {
-            stmts: vec![
-                core_ir::Stmt::Let {
-                    pattern: core_ir::Pattern::Bind(parent_name),
-                    value: self.export_expr(recv),
-                },
-                core_ir::Stmt::Let {
-                    pattern: core_ir::Pattern::Bind(index_name),
-                    value: self.export_expr(index),
-                },
-            ],
-            tail: Some(Box::new(child_ref)),
-        })
-    }
-
-    fn is_ref_projection_receiver(&self, expr: &TypedExpr) -> bool {
-        match &strip_transparent_wrappers(expr).kind {
-            ExprKind::Ref(_) => true,
-            ExprKind::Var(def) => self
-                .state
-                .def_name(*def)
-                .is_some_and(|name| name.0.starts_with('&')),
-            _ => false,
         }
     }
 
@@ -1714,19 +1576,6 @@ fn local_var(name: &core_ir::Name) -> core_ir::Expr {
     core_ir::Expr::Var(core_ir::Path::from_name(name.clone()))
 }
 
-fn ref_index_projection_parts(expr: &TypedExpr) -> Option<(&TypedExpr, &TypedExpr)> {
-    let ExprKind::App {
-        callee, arg: index, ..
-    } = &strip_transparent_wrappers(expr).kind
-    else {
-        return None;
-    };
-    match &strip_transparent_wrappers(callee).kind {
-        ExprKind::Select { recv, name } if name.0 == "index" => Some((recv, index)),
-        _ => None,
-    }
-}
-
 fn core_unit_type() -> core_ir::Type {
     core_ir::Type::Named {
         path: core_ir::Path::from_name(core_ir::Name("unit".to_string())),
@@ -1861,20 +1710,19 @@ fn type_bounds_empty(bounds: &core_ir::TypeBounds) -> bool {
     bounds.lower.is_none() && bounds.upper.is_none()
 }
 
-fn std_var_ref_get_path() -> core_ir::Path {
+fn ref_get_path(state: &LowerState) -> core_ir::Path {
+    let _ = state;
     core_standard_ref_member_path("get")
 }
 
-fn std_var_ref_update_effect_path() -> core_ir::Path {
+fn ref_update_effect_path(state: &LowerState) -> core_ir::Path {
+    let _ = state;
     core_standard_ref_member_path("update_effect")
 }
 
-fn std_ref_update_update_path() -> core_ir::Path {
+fn ref_update_operation_path(state: &LowerState) -> core_ir::Path {
+    let _ = state;
     core_standard_ref_update_member_path("update")
-}
-
-fn std_list_index_raw_path(state: &LowerState) -> core_ir::Path {
-    state.primitive_runtime_value_path(PrimitiveValueFamily::ListIndexRaw)
 }
 
 fn export_apply_substitutions_enabled() -> bool {

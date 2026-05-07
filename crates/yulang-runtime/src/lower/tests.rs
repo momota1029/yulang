@@ -19,6 +19,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -26,6 +27,44 @@ mod tests {
         let module = lower_core_program(program).expect("lowered");
 
         assert_eq!(core_type(&module.root_exprs[0].ty), &named_type("int"));
+    }
+
+    #[test]
+    pub(super) fn lower_literal_uses_graph_primitive_type_metadata() {
+        let custom_int = core_ir::Path::new(vec![
+            core_ir::Name("runtime".to_string()),
+            core_ir::Name("int".to_string()),
+        ]);
+        let program = core_ir::CoreProgram {
+            program: core_ir::PrincipalModule {
+                path: core_ir::Path::default(),
+                bindings: Vec::new(),
+                root_exprs: vec![core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))],
+                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+            },
+            graph: core_ir::CoreGraphView {
+                root_exprs: vec![core_ir::ExprGraphNode {
+                    owner: core_ir::GraphOwner::RootExpr(0),
+                    bounds: core_ir::TypeBounds::exact(core_ir::Type::Any),
+                }],
+                primitive_types: vec![core_ir::PrimitiveTypeGraphNode {
+                    family: core_ir::PrimitiveTypeFamily::Int,
+                    path: custom_int.clone(),
+                }],
+                ..core_ir::CoreGraphView::default()
+            },
+            evidence: core_ir::PrincipalEvidence::default(),
+        };
+
+        let module = lower_core_program(program).expect("lowered");
+
+        assert_eq!(
+            core_type(&module.root_exprs[0].ty),
+            &core_ir::Type::Named {
+                path: custom_int,
+                args: Vec::new(),
+            }
+        );
     }
 
     #[test]
@@ -68,6 +107,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -342,6 +382,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -433,6 +474,7 @@ mod tests {
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -565,6 +607,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -680,6 +723,7 @@ mod tests {
                     kind: core_ir::RuntimeSymbolKind::EffectOperation,
                 }],
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -731,6 +775,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -771,6 +816,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -814,6 +860,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -853,6 +900,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence {
                 expected_edges: vec![core_ir::ExpectedEdgeEvidence {
@@ -931,6 +979,7 @@ mod tests {
                     kind: core_ir::RuntimeSymbolKind::EffectOperation,
                 }],
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -1007,6 +1056,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -1058,6 +1108,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -1112,6 +1163,7 @@ mod tests {
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };
@@ -1311,6 +1363,7 @@ mod tests {
                     kind: core_ir::RuntimeSymbolKind::EffectOperation,
                 }],
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: core_ir::PrincipalEvidence::default(),
         };

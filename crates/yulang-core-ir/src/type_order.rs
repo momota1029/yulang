@@ -1,52 +1,19 @@
 use crate::{Name, Path, Type};
 
-pub fn can_widen_named_leaves(actual: &str, expected: &str) -> bool {
-    actual == expected || is_reachable_named_leaf(actual, expected)
-}
-
-pub fn join_named_leaves(left: &str, right: &str) -> Option<String> {
-    if left == right {
-        return Some(left.to_string());
-    }
-    if can_widen_named_leaves(left, right) {
-        return Some(right.to_string());
-    }
-    if can_widen_named_leaves(right, left) {
-        return Some(left.to_string());
-    }
-
-    let left_supertypes = named_supertype_chain(left);
-    let right_supertypes = named_supertype_chain(right);
-    let common = left_supertypes
-        .iter()
-        .find(|left_name| right_supertypes.contains(left_name))?;
-    Some((*common).to_string())
-}
-
 pub fn can_widen_named_paths(actual: &Path, expected: &Path) -> bool {
-    let Some(actual_leaf) = named_leaf(actual) else {
-        return false;
-    };
-    let Some(expected_leaf) = named_leaf(expected) else {
-        return false;
-    };
-    can_widen_named_leaves(actual_leaf, expected_leaf)
+    actual == expected || is_standard_int_path(actual) && is_standard_float_path(expected)
 }
 
 pub fn join_named_paths(left: &Path, right: &Path) -> Option<Path> {
-    let left_leaf = named_leaf(left)?;
-    let right_leaf = named_leaf(right)?;
-    let joined = join_named_leaves(left_leaf, right_leaf)?;
-    if joined == left_leaf {
-        if can_widen_named_paths(right, left) {
-            return Some(left.clone());
-        }
-        return Some(Path::from_name(Name(joined)));
+    if left == right {
+        return Some(left.clone());
     }
-    if joined == right_leaf && can_widen_named_paths(left, right) {
-        return Some(right.clone());
+    if is_standard_int_path(left) && is_standard_float_path(right)
+        || is_standard_float_path(left) && is_standard_int_path(right)
+    {
+        return Some(standard_float_path());
     }
-    Some(Path::from_name(Name(joined)))
+    None
 }
 
 pub fn join_types(left: &Type, right: &Type) -> Option<Type> {
@@ -89,45 +56,20 @@ pub fn normalize_union_members(items: Vec<Type>) -> Vec<Type> {
     out
 }
 
-fn named_leaf(path: &Path) -> Option<&str> {
-    path.segments.last().map(|name| name.0.as_str())
+fn is_standard_int_path(path: &Path) -> bool {
+    path == &standard_int_path()
 }
 
-fn is_reachable_named_leaf(actual: &str, expected: &str) -> bool {
-    named_supertype_chain(actual)
-        .into_iter()
-        .any(|name| name == expected)
+fn is_standard_float_path(path: &Path) -> bool {
+    path == &standard_float_path()
 }
 
-fn named_supertype_chain(name: &str) -> Vec<&'static str> {
-    let mut out = vec![intern_named_leaf(name)];
-    let mut cursor = name;
-    while let Some(next) = direct_named_supertypes(cursor).first().copied() {
-        if out.contains(&next) {
-            break;
-        }
-        out.push(next);
-        cursor = next;
-    }
-    out
+fn standard_int_path() -> Path {
+    Path::from_name(Name("int".to_string()))
 }
 
-fn direct_named_supertypes(name: &str) -> &'static [&'static str] {
-    match name {
-        "int" => &["float"],
-        _ => &[],
-    }
-}
-
-fn intern_named_leaf(name: &str) -> &'static str {
-    match name {
-        "int" => "int",
-        "float" => "float",
-        "bool" => "bool",
-        "unit" => "unit",
-        "str" => "str",
-        other => Box::leak(other.to_string().into_boxed_str()),
-    }
+fn standard_float_path() -> Path {
+    Path::from_name(Name("float".to_string()))
 }
 
 #[cfg(test)]
@@ -158,6 +100,21 @@ mod tests {
             &Path::from_name(Name("int".to_string())),
             &Path::from_name(Name("float".to_string())),
         ));
+    }
+
+    #[test]
+    fn does_not_widen_by_leaf_name() {
+        assert!(!can_widen_named_paths(
+            &Path::new(vec![Name("user".to_string()), Name("int".to_string())]),
+            &Path::from_name(Name("float".to_string())),
+        ));
+        assert_eq!(
+            join_named_paths(
+                &Path::new(vec![Name("user".to_string()), Name("int".to_string())]),
+                &Path::from_name(Name("float".to_string())),
+            ),
+            None
+        );
     }
 
     #[test]

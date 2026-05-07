@@ -9,6 +9,8 @@ pub struct CoreGraphView {
     pub runtime_symbols: Vec<RuntimeSymbol>,
     #[serde(default)]
     pub role_impls: Vec<RoleImplGraphNode>,
+    #[serde(default)]
+    pub primitive_types: Vec<PrimitiveTypeGraphNode>,
 }
 
 pub type TypeGraphView = CoreGraphView;
@@ -30,6 +32,24 @@ pub struct ExprGraphNode {
 pub struct RuntimeSymbol {
     pub path: Path,
     pub kind: RuntimeSymbolKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PrimitiveTypeGraphNode {
+    pub family: PrimitiveTypeFamily,
+    pub path: Path,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PrimitiveTypeFamily {
+    Int,
+    Float,
+    Bool,
+    Unit,
+    Str,
+    List,
+    ListView,
+    Range,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

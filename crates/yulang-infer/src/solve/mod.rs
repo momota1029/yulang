@@ -71,6 +71,7 @@ pub struct DeferredSelection {
 pub struct DeferredRoleMethodCall {
     pub name: Name,
     pub role_path: Option<Path>,
+    pub cast_coercion: bool,
     pub recv_tv: TypeVar,
     pub arg_tvs: Vec<TypeVar>,
     pub result_tv: TypeVar,
@@ -640,6 +641,10 @@ impl Infer {
 
     pub fn is_ref_type_path(&self, type_path: &Path) -> bool {
         self.ref_type_paths.contains(type_path)
+    }
+
+    pub fn primary_ref_type_path(&self) -> Option<Path> {
+        self.ref_type_paths.iter().next().cloned()
     }
 
     pub fn register_type_field(&mut self, type_path: Path, name: Name, def: DefId) {

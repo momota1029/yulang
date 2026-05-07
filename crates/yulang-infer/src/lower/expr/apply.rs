@@ -216,6 +216,7 @@ fn register_role_method_call_spine(state: &mut LowerState, expr: &TypedExpr) {
                 .push_deferred_role_method_call(DeferredRoleMethodCall {
                     name: name.clone(),
                     role_path: None,
+                    cast_coercion: false,
                     recv_tv: recv.tv,
                     arg_tvs: args.iter().map(|arg| arg.tv).collect(),
                     result_tv: expr.tv,
@@ -233,6 +234,7 @@ fn register_role_method_call_spine(state: &mut LowerState, expr: &TypedExpr) {
                 .push_deferred_role_method_call(DeferredRoleMethodCall {
                     name: info.name,
                     role_path,
+                    cast_coercion: false,
                     recv_tv: recv.tv,
                     arg_tvs: rest.iter().map(|arg| arg.tv).collect(),
                     result_tv: expr.tv,
@@ -250,6 +252,7 @@ fn register_role_method_call_spine(state: &mut LowerState, expr: &TypedExpr) {
                 .push_deferred_role_method_call(DeferredRoleMethodCall {
                     name,
                     role_path: Some(role_path),
+                    cast_coercion: false,
                     recv_tv: recv.tv,
                     arg_tvs: rest.iter().map(|arg| arg.tv).collect(),
                     result_tv: expr.tv,

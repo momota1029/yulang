@@ -48,12 +48,11 @@
 
 撤去方針:
 
-- `DemandSemantics` に semantic tag を集約する。
-- `Fold` member / `Fold::find` は role impl graph から判定する。任意の末尾名
-  `fold` / `find` 判定は使わない。
+- monomorphize は binding shape から `Fold` / `for_in` / handler collection などを
+  推測して signature hole を閉じない。
 - list / opt / ref の primitive family table は、今後の bootstrap metadata として
   追加する。現時点の monomorphize は、型に現れた constructor を再利用する。
-- `associated.rs` は `AssociatedSignatureKind` の dispatch だけを見る形へ寄せる。
+- `associated.rs` は default effect hole closure だけを担当する。
 
 ### Runtime Lower
 
@@ -67,9 +66,10 @@
 
 残っている主な特例:
 
-- primitive type family は `primitive_types.rs` に集約し、`Lowerer` が
-  `RuntimePrimitivePathTable` を持つところまで進んだ。ただし、まだ core metadata
-  から渡される table ではなく固定 bootstrap table。
+- primitive type family は `CoreGraphView::primitive_types` から runtime lower へ
+  渡すところまで進んだ。
+- graph metadata が欠ける古い artifact / test fixture では、保守的に fixed
+  bootstrap table へ fallback する。
 - effect operation の path 解決で `#effect` suffix や candidate path suffix を見る。
 
 問題:
@@ -79,8 +79,8 @@
 
 撤去方針:
 
-- primitive type family を core metadata に持たせ、`Lowerer` の table 初期化元を
-  fixed bootstrap から metadata へ置き換える。
+- primitive type family を compiled-unit artifact metadata に載せ、`CoreGraphView`
+  と同じ family id / path を artifact import へ渡す。
 - `list` / `str` / `int` / `range` の判定は path 文字列ではなく family id で行う。
 - effect operation の suffix fallback は、act/effect namespace 由来の構造化解決に
   置き換える。
@@ -96,9 +96,10 @@
 
 残っている主な特例:
 
-- primitive family は `builtin_types.rs` に集約済みだが、まだ std source の import
-  artifact 由来ではなく固定 bootstrap table。
-- `ref_capability` / `flow_capability` は sugar/bootstrap 入口として `std` path を持つ。
+- primitive family は `builtin_types.rs` に集約済みだが、まだ compiled-unit artifact
+  由来ではなく固定 bootstrap table。
+- `std_ref_paths` / `std_flow_paths` は sugar/bootstrap の標準展開先として
+  `std` path を持つ。
 
 問題:
 
@@ -160,25 +161,46 @@
 - `crates/yulang-runtime/src/diagnostic.rs` の std int op 表示名。
 - `YULANG_DEBUG_*` 系の target path filter。
 
-ただし、debug filter でも suffix matching は誤診断の原因になるので最終的には
-semantic tag へ寄せる。
+ただし、debug filter でも suffix matching は誤診断の原因になるので、挙動判定からは
+外していく。
 
 ## Recently Removed
 
 - 任意の末尾名 `add` だけで list merge signature closure を入れる処理。
 - 任意の末尾名 `fold` / `fold_impl` だけで Fold signature closure を入れる処理。
 - `std::fold::Fold::find` exact path だけで Fold find signature closure を入れる処理。
-  - 現在は `Fold` role impl graph から method path を導出する。
 - handler consumed effect は binding body の `handle` 構造から拾う入口を追加した。
   - 残る exact std path は bootstrap fallback として隔離中。
-- associated demand signature closure の target 判定は `DemandSemantics` の
-  `AssociatedSignatureKind` に集約した。
-  - `associated.rs` / `check.rs` / `emit.rs` / `specialize.rs` は、`fold_impl` /
-    `for_in` / `view_raw` / range fold helper を直接 path で判定しない。
-  - consumed-effect 判定も `AssociatedSignatureKind` を再利用し、同じ target 群を
-    別々の path if 列で重複判定しない。
-  - `DemandSemantics::from_module` は binding path から
-    bootstrap tag を作る互換 fallback をまだ持つ。
+- `AssociatedSignatureKind` と associated demand signature closure を撤去した。
+  - `for_in` / `Fold` / `Fold::find` / `ListViewRaw` / handler collection /
+    local var ref/run について、binding body/type/primitive/role impl graph から
+    target を分類して signature hole を補完する処理は残さない。
+  - 既知 target として consumed effect を補う処理も撤去し、pure handler body から
+    直接読める consumed effect だけを見る。
+- complete principal export から、role requirement の `item` associated type を
+  `list` / `range` の path 末尾名で逆算する処理を撤去した。
+  - substitution は call slot / exported bounds / expected evidence から取れる情報だけで
+    作る。
+- runtime effect compatibility から、`std::flow::loop` を含む expected effect が
+  任意の actual effect を通す特例を撤去した。
+  - effect parent と child operation の prefix match は通常規則として残す。
+- core/runtime/infer の numeric widening から、任意 path の末尾名 `int` / `float`
+  判定を撤去した。
+  - 現時点では context を持たない層なので、bare `int` -> bare `float` の完全一致だけを
+    bootstrap fallback として残す。
+- runtime VM の int-to-float cast 判定から、任意 path の末尾名 `float` 判定を撤去した。
+- monomorphize type normalization から、末尾名 `sub` の effect payload を value type で
+  後付け補完する処理を撤去した。
+- VM effect operation erase から、consumed effect namespace の末尾名と単一 operation 名が
+  一致したとき namespace 自体へ解決する分岐を撤去した。
+  - 単一 operation 名は consumed effect namespace に operation 名を足す通常解決だけを使う。
+- ordinary role method call resolution から、method 名 `cast` の特別分岐を撤去した。
+  - 明示 coercion 用の `resolve_cast_method` は残るが、通常の `.cast` method call は
+    他の role method と同じ resolver を通る。
+- ref list index projection は compiler export の専用分岐から外し、
+  `lib/std/list.yu` の `Index (ref 'e (list 'a)) int` impl へ移した。
+  - `&xs[i] = v` は通常の index selection で child ref を得て、通常の ref set export を通る。
+  - `foo.index(x)` と suffix `foo[x]` を compiler export が区別して覚える必要はなくなった。
 - lower の handle effect operation 解決から、runtime symbol 候補の namespace suffix
   fallback を撤去した。既に `RuntimeSymbolKind::EffectOperation` として登録済みの
   path か、同一 namespace の `#effect` hidden path だけを使う。
@@ -191,32 +213,15 @@ semantic tag へ寄せる。
 - demand check / associated / emit の list / opt payload 抽出は、`std::list::list` /
   `std::opt::opt` の path ではなく単一 type arg shape を見る。
 - demand check / associated の `std::var::ref` / `std::var::ref_update` 再判定は、
-  entrypoint の semantic kind に任せ、内部 refine では type arg shape を見る。
+  内部 refine では type arg shape を見る。
 - debug filter のためだけの `std` target path 判定を撤去した。
-- Fold member collection は `std::fold::Fold` path ではなく、role impl graph 上の
-  `item` associated type と member surface から拾う。
-- production query はまず `associated_signature_kinds` map / role impl graph /
-  local synthetic ref metadata を見る。
-  - bootstrap classifier は撤去済み。
+- Fold member collection と associated signature closure 用の role impl graph scan を
+  撤去した。
 - effect path matching から任意 suffix match を外した。
   - `std::flow::sub` と `user::std::flow::sub` は一致しない。
   - parent effect と child operation の prefix 関係だけは残す。
-- `Fold::item` の demand closure は `std::list::list` / `std::range::range` の
-  path 判定から外した。
-  - `DemandSemantics` は role impl graph から汎用 `AssociatedTypeProjection` を作る。
-  - `associated.rs` は role path を固定せず、`item` associated type projection が
-    一意に決まるときだけ問い合わせる。
-  - list / range の item は、テスト上も `impl Fold ...: type item = ...` から
-    得る形にした。
-- `DemandSemantics` の bootstrap classifier を撤去した。
-  - `for_in` は binding type の callback effect から `ForIn` tag を作る。
-  - `sub` handler は binding body/type の consumed effect から `SubHandler` tag を作る。
-  - `std::undet::{list,logic,once}` は pure handler shape と result type shape から
-    collection handler として扱う。
-  - `fold_impl` は body 内の `ListViewRaw` primitive と function arity から
-    thunk-callback fold helper として扱う。
-  - `std::list::uncons` / `std::range::{fold_from,fold_ints}` / `std::var::ref`
-    exact fallback は撤去した。
+- `Fold::item` の demand closure 自体を撤去した。list/range item を role impl graph
+  から推測して callback signature を補う処理は残さない。
 - demand unifier の `std::flow::loop::{last,next,redo}` /
   `std::flow::label_loop::{last,next,redo}` family match を撤去した。
 - runtime monomorphize / lower / refine / validate の production scan で、
@@ -225,36 +230,56 @@ semantic tag へ寄せる。
 - infer の `std_var_ref_path` / `is_std_var_ref_path` を撤去した。
   - `Infer` が `ref_type_paths` metadata を持つ。
   - selection は path 文字列ではなく `Infer::is_ref_type_path` を見る。
-  - `std::var::ref` の path 構築は `ref_capability` の sugar/bootstrap 入口へ集約した。
+  - `std::var::ref` の path 構築は `std_ref_paths` の sugar/bootstrap 入口へ集約した。
 - infer の role method prefix suffix match を撤去し、canonical role path の完全一致にした。
 - `for` / `sub` / labelled loop sugar 入口の `std::flow` path 構築を
-  `flow_capability` へ集約した。
-  - lowering 本体は `crate::flow_capability::*` を呼ぶ。
-  - `std::flow` の文字列は sugar/bootstrap capability module だけに置く。
+  `std_flow_paths` へ集約した。
+  - lowering 本体は `crate::std_flow_paths::*` を呼ぶ。
+  - `std::flow` の文字列は sugar/bootstrap path module だけに置く。
 - `associated.rs` / `check.rs` / `emit.rs` の runtime type constructor 生成から
   `std::list` / `std::opt` / `std::var` の直書きを外した。
   - constructor は expected/runtime signature に含まれる `Named` path を再利用する。
-  - `ListViewRaw` は `DemandSemantics` tag に result constructor を持たせる。
 - runtime lower の `std_types.rs` を `primitive_types.rs` に置き換え、literal /
   bool / unit の型生成を `PrimitiveTypeFamily` 経由にした。
 - runtime lower の `Lowerer` が `RuntimePrimitivePathTable` を持つようにした。
   - expression / pattern / evidence / effect helper は、裸の `bool_type` /
     `unit_type` / literal type helper ではなく `Lowerer` の table を通す。
+- `CoreGraphView::primitive_types` に primitive type family metadata を追加した。
+  - infer export は `LowerState::primitive_paths` から `PrimitiveTypeGraphNode` を吐く。
+  - runtime lower は `RuntimePrimitivePathTable::from_graph` で graph metadata を
+    優先し、欠けた family だけ fixed bootstrap path に fallback する。
+  - compiled runtime surface merge は primitive metadata を dedupe し、同じ family が
+    異なる path を指す場合は conflict として拒否する。
 - infer lower の primitive type/value path を `builtin_types.rs` に集約した。
   - `LowerState` は `PrimitivePathTable` を持つ。
   - list literal、list pattern、list primitive installer は `std::list::list` /
     `std::range::range` / `std::list::list_view` を直接組み立てない。
-  - string concat と export-time `std::list::index_raw` は `PrimitiveValueFamily`
-    経由にし、state の table から path を読む入口を作った。
-  - `$x` fallback と var synthetic act source は `ref_capability` 経由にした。
+  - string concat は `PrimitiveValueFamily` 経由にし、state の table から path を読む入口を作った。
+  - ref list index projection は std の `Index` impl へ移したため、export-time
+    `std::list::index_raw` path は不要になった。
+- `$x` fallback と var synthetic act helper source は `std_ref_paths` 経由にした。
+- `for` / `sub` / labelled loop / `$x` / `&x = v` は Rust の `for in` と同じく、
+  標準 protocol への糖衣展開として扱う。ここに新しい compiled artifact
+  metadata は導入しない。
+- ref field projection selection は `Infer::primary_ref_type_path` を使い、固定
+  `std::var::ref` path を推論判定として再生成しない。
+- ref field projection export は `std_ref_paths` の標準 path helper へ集約した。
+  ref index projection export は撤去し、std の `Index` impl に寄せた。
+- runtime symbol export は root binding path だけでなく、lowered program が知る
+  effect operation def も `RuntimeSymbolKind::EffectOperation` として出す。
+  - std/user module 越しに参照された operation が、root binding でなくても runtime
+    lower で束縛済み symbol として扱われる。
 
 ## Next Removal Order
 
-1. primitive family table を core metadata / compiled-unit artifact に渡す。
-   - 今の monomorphize は型 constructor 再利用まで進んだので、次は lower/runtime 間で
-     family id を明示的に渡す。
-2. infer/runtime の固定 bootstrap table を std source / compiled-unit import artifact
-   由来の capability metadata へ置き換える。
-3. sugar 入口の `for` / `sub` / labelled loop path 構築を semantic table へ寄せる。
-   - 現在は `flow_capability` に集約済み。次は `std` source の import artifact から
-     capability を解決する形へ進める。
+1. primitive family table を compiled-unit artifact metadata に渡す。
+   - `CoreGraphView` までは family id を明示的に渡せるようになった。
+   - `CompiledRuntimeSurface` は `CoreProgram` ごと primitive metadata を保持し、
+     merge でも落とさない。
+   - 次は persistent artifact の manifest / runtime surface へ同じ metadata を
+     入れる。
+2. sugar 展開先の `std_ref_paths` / `std_flow_paths` は、当面標準 protocol として
+   受け入れる。
+   - std source に専用 metadata は持たせない。
+   - compiled namespace artifact に ref/flow sugar metadata は載せない。
+   - ここを一般化するより、推論・runtime 側の path 判定を減らす作業を優先する。

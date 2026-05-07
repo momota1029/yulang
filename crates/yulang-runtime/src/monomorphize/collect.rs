@@ -397,6 +397,12 @@ fn generic_role_impls(module: &Module) -> HashMap<core_ir::Name, Vec<RoleImplCol
     generic_role_impls
 }
 
+pub(super) fn is_impl_method_path(path: &core_ir::Path) -> bool {
+    path.segments
+        .iter()
+        .any(|segment| segment.0.starts_with("&impl#"))
+}
+
 fn role_impl_candidate_accepts(candidate: &DemandSignature, call: &DemandSignature) -> bool {
     let (candidate_args, _) = uncurried_collect_signatures(candidate.clone());
     if candidate_args.is_empty() {
@@ -459,12 +465,6 @@ pub(super) fn is_role_method_path(path: &core_ir::Path) -> bool {
         return false;
     };
     role.0.chars().next().is_some_and(char::is_uppercase)
-}
-
-pub(super) fn is_impl_method_path(path: &core_ir::Path) -> bool {
-    path.segments
-        .iter()
-        .any(|segment| segment.0.starts_with("&impl#"))
 }
 
 fn is_materialized_specialization_binding(path: &core_ir::Path) -> bool {
@@ -1326,7 +1326,16 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: vec![Root::Expr(0)],
-            role_impls: Vec::new(),
+            role_impls: vec![core_ir::RoleImplGraphNode {
+                role: path_segments(&["std", "prelude", "Add"]),
+                inputs: Vec::new(),
+                associated_types: Vec::new(),
+                members: vec![core_ir::RecordField {
+                    name: core_ir::Name("add".to_string()),
+                    value: impl_add.clone(),
+                    optional: false,
+                }],
+            }],
         };
 
         let mut collector = DemandCollector::from_module(&module);

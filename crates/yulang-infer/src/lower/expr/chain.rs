@@ -307,7 +307,7 @@ fn lower_sub_syntax(state: &mut LowerState, items: &mut ChainItems) -> Option<Ty
     })?;
     match label {
         None => {
-            let sub = resolve_path_expr(state, crate::flow_capability::standard_sub_call_path());
+            let sub = resolve_path_expr(state, crate::std_flow_paths::standard_sub_call_path());
             state.ctx.push_local();
             bind_unlabeled_sub_operator_helpers(state);
             let body = lower_expr(state, &body);
@@ -407,7 +407,7 @@ fn bind_sub_label_operator_helpers(state: &mut LowerState, spec: &stmt::Syntheti
 fn bind_unlabeled_sub_operator_helpers(state: &mut LowerState) {
     let member = sub_label_return_member_name();
     let path = Path {
-        segments: crate::flow_capability::standard_sub_member_path(member.clone()),
+        segments: crate::std_flow_paths::standard_sub_member_path(member.clone()),
     };
     if let Some(def) = state.ctx.resolve_path_value(&path) {
         state
@@ -445,7 +445,7 @@ fn sub_label_return_member_name() -> Name {
 
 fn standard_sub_synthetic_act_source() -> stmt::SyntheticActSource {
     stmt::SyntheticActSource {
-        source_module_path: crate::flow_capability::standard_sub_path(),
+        source_module_path: crate::std_flow_paths::standard_sub_path(),
         source_copy_path: Path {
             segments: vec![Name("sub".to_string())],
         },

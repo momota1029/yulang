@@ -88,6 +88,52 @@ impl PrimitivePathTable {
     pub(crate) fn runtime_value_path(&self, family: PrimitiveValueFamily) -> Option<core_ir::Path> {
         self.runtime_values.get(&family).cloned()
     }
+
+    pub(crate) fn export_core_type_nodes(&self) -> Vec<core_ir::PrimitiveTypeGraphNode> {
+        let mut nodes = vec![
+            core_primitive_type_node(core_ir::PrimitiveTypeFamily::Int, bare_runtime_path("int")),
+            core_primitive_type_node(
+                core_ir::PrimitiveTypeFamily::Float,
+                bare_runtime_path("float"),
+            ),
+            core_primitive_type_node(
+                core_ir::PrimitiveTypeFamily::Bool,
+                bare_runtime_path("bool"),
+            ),
+            core_primitive_type_node(
+                core_ir::PrimitiveTypeFamily::Unit,
+                bare_runtime_path("unit"),
+            ),
+        ];
+        nodes.extend([
+            self.core_type_node(PrimitiveTypeFamily::Str, core_ir::PrimitiveTypeFamily::Str),
+            self.core_type_node(
+                PrimitiveTypeFamily::List,
+                core_ir::PrimitiveTypeFamily::List,
+            ),
+            self.core_type_node(
+                PrimitiveTypeFamily::ListView,
+                core_ir::PrimitiveTypeFamily::ListView,
+            ),
+            self.core_type_node(
+                PrimitiveTypeFamily::Range,
+                core_ir::PrimitiveTypeFamily::Range,
+            ),
+        ]);
+        nodes
+    }
+
+    fn core_type_node(
+        &self,
+        source_family: PrimitiveTypeFamily,
+        core_family: core_ir::PrimitiveTypeFamily,
+    ) -> core_ir::PrimitiveTypeGraphNode {
+        let path = self
+            .source_type_path(source_family)
+            .map(runtime_path)
+            .unwrap_or_else(|| runtime_path(standard_source_type_path(source_family)));
+        core_primitive_type_node(core_family, path)
+    }
 }
 
 impl Default for PrimitivePathTable {
@@ -130,6 +176,17 @@ fn standard_runtime_value_path(family: PrimitiveValueFamily) -> core_ir::Path {
         core_ir::Name(module.to_string()),
         core_ir::Name(value_name.to_string()),
     ])
+}
+
+fn core_primitive_type_node(
+    family: core_ir::PrimitiveTypeFamily,
+    path: core_ir::Path,
+) -> core_ir::PrimitiveTypeGraphNode {
+    core_ir::PrimitiveTypeGraphNode { family, path }
+}
+
+fn bare_runtime_path(name: &str) -> core_ir::Path {
+    core_ir::Path::from_name(core_ir::Name(name.to_string()))
 }
 
 fn primitive_std_type_segments(family: PrimitiveTypeFamily) -> (&'static str, &'static str) {

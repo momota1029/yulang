@@ -9,70 +9,9 @@ pub(super) fn normalize_hir_function_type(ty: RuntimeType) -> RuntimeType {
         ),
         RuntimeType::Thunk { effect, value } => {
             let value = normalize_hir_function_type(*value);
-            let effect = specialize_sub_effect_payload_from_value(effect, &value);
             RuntimeType::thunk(effect, value)
         }
         other => other,
-    }
-}
-
-pub(super) fn specialize_sub_effect_payload_from_value(
-    effect: core_ir::Type,
-    value: &RuntimeType,
-) -> core_ir::Type {
-    let payload = core_value_type(value);
-    if core_type_has_vars(&payload) || matches!(payload, core_ir::Type::Any) {
-        return effect;
-    }
-    specialize_sub_effect_payload(effect, &payload)
-}
-
-fn specialize_sub_effect_payload(effect: core_ir::Type, payload: &core_ir::Type) -> core_ir::Type {
-    match effect {
-        core_ir::Type::Named { path, args }
-            if path.segments.last().is_some_and(|name| name.0 == "sub")
-                && args.iter().any(type_arg_needs_mono_payload) =>
-        {
-            core_ir::Type::Named {
-                path,
-                args: vec![core_ir::TypeArg::Type(payload.clone())],
-            }
-        }
-        core_ir::Type::Row { items, tail } => core_ir::Type::Row {
-            items: items
-                .into_iter()
-                .map(|item| specialize_sub_effect_payload(item, payload))
-                .collect(),
-            tail: Box::new(specialize_sub_effect_payload(*tail, payload)),
-        },
-        core_ir::Type::Union(items) => core_ir::Type::Union(
-            items
-                .into_iter()
-                .map(|item| specialize_sub_effect_payload(item, payload))
-                .collect(),
-        ),
-        core_ir::Type::Inter(items) => core_ir::Type::Inter(
-            items
-                .into_iter()
-                .map(|item| specialize_sub_effect_payload(item, payload))
-                .collect(),
-        ),
-        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
-            var,
-            body: Box::new(specialize_sub_effect_payload(*body, payload)),
-        },
-        other => other,
-    }
-}
-
-fn type_arg_needs_mono_payload(arg: &core_ir::TypeArg) -> bool {
-    match arg {
-        core_ir::TypeArg::Type(core_ir::Type::Any | core_ir::Type::Var(_)) => true,
-        core_ir::TypeArg::Type(ty) => core_type_has_vars(ty),
-        core_ir::TypeArg::Bounds(bounds) => {
-            bounds.lower.as_deref().is_some_and(core_type_has_vars)
-                || bounds.upper.as_deref().is_some_and(core_type_has_vars)
-        }
     }
 }
 

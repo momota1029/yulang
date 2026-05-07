@@ -1707,7 +1707,6 @@ impl PrincipalUnifier {
         spine: &PrincipalUnifyApplySpine<'_>,
         result_context: Option<&core_ir::TypeBounds>,
     ) -> Option<Expr> {
-        let method = spine.target.segments.last()?;
         if !is_role_method_path(spine.target) || spine.args.is_empty() {
             return None;
         }
@@ -1724,6 +1723,7 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "skip-imprecise-role-receiver");
             return None;
         }
+        let method = spine.target.segments.last()?;
         let candidates = self.role_impls.get(method)?.clone();
         if runtime_type_value_is_function(&expr.ty) && !closed_slot_type_usable(&receiver_ty, false)
         {
@@ -6738,6 +6738,12 @@ fn principal_unify_role_impls(module: &Module) -> HashMap<core_ir::Name, Vec<Bin
     out
 }
 
+fn is_impl_method_path(path: &core_ir::Path) -> bool {
+    path.segments
+        .iter()
+        .any(|segment| segment.0.starts_with("&impl#"))
+}
+
 fn role_impl_closed_substitutions(
     binding: &Binding,
     spine: &PrincipalUnifyApplySpine<'_>,
@@ -7912,12 +7918,6 @@ fn receiver_bounds_match(left: &core_ir::TypeBounds, right: &core_ir::TypeBounds
         }
         _ => false,
     }
-}
-
-fn is_impl_method_path(path: &core_ir::Path) -> bool {
-    path.segments
-        .iter()
-        .any(|segment| segment.0.starts_with("&impl#"))
 }
 
 fn principal_unify_key(

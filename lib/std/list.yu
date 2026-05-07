@@ -3,6 +3,7 @@ use std::opt::*
 use std::fold::*
 use std::index::*
 use std::range::*
+use std::var::*
 
 enum list_view 'a = empty | leaf 'a | node(list 'a, list 'a)
 
@@ -19,6 +20,18 @@ impl Index (list 'a) int:
 impl Index (list 'a) range:
     type value = list 'a
     our xs.index r = std::list::index_range xs r
+
+impl Index (ref 'e (list 'a)) int:
+    type value = ref 'e 'a
+    our r.index i = ref {
+        get: \() -> std::list::index_raw (r.get()) i,
+        update_effect: \() ->
+            my loop(x: [_] _) = catch x:
+                ref_update::update old, k ->
+                    my new_item = ref_update::update (std::list::index_raw old i)
+                    loop(k(std::list::splice_raw old i (i + 1) [new_item]))
+            loop:r.update_effect()
+    }
 
 my fold_impl xs z f = case std::list::view_raw xs:
     list_view::empty -> z

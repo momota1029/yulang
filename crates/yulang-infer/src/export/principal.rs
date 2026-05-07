@@ -744,11 +744,13 @@ fn export_type_graph_view_for_paths(
     let root_exprs = export_root_expr_nodes(state);
     let runtime_symbols = export_runtime_symbols(state, paths);
     let role_impls = export_role_impl_graph_nodes(state, paths);
+    let primitive_types = state.primitive_paths.export_core_type_nodes();
     core_ir::CoreGraphView {
         bindings: binding_nodes,
         root_exprs,
         runtime_symbols,
         role_impls,
+        primitive_types,
     }
 }
 
@@ -756,10 +758,16 @@ fn export_role_impl_graph_nodes(
     state: &LowerState,
     paths: &[(Path, DefId)],
 ) -> Vec<core_ir::RoleImplGraphNode> {
-    let def_paths = paths
+    let mut def_paths = paths
         .iter()
         .map(|(path, def)| (*def, export_path(path)))
         .collect::<HashMap<_, _>>();
+    for (def, path) in collect_canonical_binding_paths(state) {
+        def_paths.entry(def).or_insert_with(|| export_path(&path));
+    }
+    for (path, def) in state.ctx.collect_all_binding_paths() {
+        def_paths.entry(def).or_insert_with(|| export_path(&path));
+    }
     let mut out = Vec::new();
     for candidate in state
         .infer
@@ -818,7 +826,22 @@ fn export_runtime_symbols(
     paths: &[(Path, DefId)],
 ) -> Vec<core_ir::RuntimeSymbol> {
     let canonical_paths = state.ctx.canonical_value_paths();
-    let mut symbols = paths
+    let mut symbol_paths = paths.to_vec();
+    let all_binding_paths = state.ctx.collect_all_binding_paths();
+    for def in state.effect_op_args.keys().copied() {
+        if symbol_paths.iter().any(|(_, current)| *current == def) {
+            continue;
+        }
+        if let Some(path) = canonical_paths.get(&def).cloned().or_else(|| {
+            all_binding_paths
+                .iter()
+                .find_map(|(path, current)| (*current == def).then_some(path))
+                .cloned()
+        }) {
+            symbol_paths.push((path, def));
+        }
+    }
+    let mut symbols = symbol_paths
         .iter()
         .map(|(path, def)| {
             let kind = if state.effect_op_args.contains_key(def) {
@@ -1904,6 +1927,26 @@ mod tests {
                 core_ir::Expr::Lit(core_ir::Lit::Bool(true)),
             ]
         );
+    }
+
+    #[test]
+    fn export_core_program_includes_primitive_type_graph_nodes() {
+        let mut state = parse_and_lower("my x = \"ok\"\n");
+        let program = export_core_program(&mut state);
+
+        assert!(program.graph.primitive_types.iter().any(|node| {
+            node.family == core_ir::PrimitiveTypeFamily::Str
+                && node.path
+                    == core_ir::Path::new(vec![
+                        core_ir::Name("std".to_string()),
+                        core_ir::Name("str".to_string()),
+                        core_ir::Name("str".to_string()),
+                    ])
+        }));
+        assert!(program.graph.primitive_types.iter().any(|node| {
+            node.family == core_ir::PrimitiveTypeFamily::Int
+                && node.path == core_ir::Path::from_name(core_ir::Name("int".to_string()))
+        }));
     }
 
     #[test]

@@ -253,9 +253,18 @@ pub struct CompiledRuntimeBundle {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompiledRuntimeMergeError {
-    ConflictingBinding { path: core_ir::Path },
-    ConflictingGraphBinding { path: core_ir::Path },
-    ConflictingRuntimeSymbol { path: core_ir::Path },
+    ConflictingBinding {
+        path: core_ir::Path,
+    },
+    ConflictingGraphBinding {
+        path: core_ir::Path,
+    },
+    ConflictingRuntimeSymbol {
+        path: core_ir::Path,
+    },
+    ConflictingPrimitiveType {
+        family: core_ir::PrimitiveTypeFamily,
+    },
 }
 
 impl CompiledRuntimeBundle {
@@ -2784,6 +2793,10 @@ fn merge_core_program_into(
         source.graph.runtime_symbols,
     )?;
     merge_role_impl_graph_nodes(&mut target.graph.role_impls, source.graph.role_impls);
+    merge_primitive_type_graph_nodes(
+        &mut target.graph.primitive_types,
+        source.graph.primitive_types,
+    )?;
     target
         .evidence
         .expected_edges
@@ -2796,6 +2809,27 @@ fn merge_core_program_into(
         .evidence
         .derived_expected_edges
         .extend(source.evidence.derived_expected_edges);
+    Ok(())
+}
+
+fn merge_primitive_type_graph_nodes(
+    target: &mut Vec<core_ir::PrimitiveTypeGraphNode>,
+    source: Vec<core_ir::PrimitiveTypeGraphNode>,
+) -> Result<(), CompiledRuntimeMergeError> {
+    for node in source {
+        match target
+            .iter()
+            .find(|existing| existing.family == node.family)
+        {
+            Some(existing) if existing.path != node.path => {
+                return Err(CompiledRuntimeMergeError::ConflictingPrimitiveType {
+                    family: node.family,
+                });
+            }
+            Some(_) => {}
+            None => target.push(node),
+        }
+    }
     Ok(())
 }
 
@@ -3108,10 +3142,11 @@ fn validate_compiled_namespace_surface(
 fn merge_compiled_namespace_surfaces<'a>(
     surfaces: impl IntoIterator<Item = &'a CompiledNamespaceSurface>,
 ) -> CompiledNamespaceSurface {
+    let surfaces = surfaces.into_iter().collect::<Vec<_>>();
     let mut modules = Vec::new();
     let mut values = Vec::new();
     let mut types = Vec::new();
-    for surface in surfaces {
+    for surface in &surfaces {
         let value_offset = values.len() as u32;
         let type_offset = types.len() as u32;
         values.extend(surface.values.iter().cloned().map(|mut symbol| {

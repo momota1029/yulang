@@ -127,7 +127,7 @@ pub struct LowerState {
 impl LowerState {
     pub fn new() -> Self {
         let mut infer = Infer::new();
-        infer.register_ref_type_path(crate::ref_capability::standard_ref_type_path());
+        infer.register_ref_type_path(crate::std_ref_paths::standard_ref_type_path());
         Self {
             ctx: LowerCtx::new(),
             infer,
@@ -478,6 +478,7 @@ impl LowerState {
             .push_deferred_role_method_call(DeferredRoleMethodCall {
                 name: cast_name.clone(),
                 role_path: None,
+                cast_coercion: true,
                 recv_tv: expr.tv,
                 arg_tvs: Vec::new(),
                 result_tv: expected_tv,

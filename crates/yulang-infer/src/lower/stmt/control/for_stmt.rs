@@ -28,7 +28,7 @@ pub(crate) fn lower_for_stmt(state: &mut LowerState, node: &SyntaxNode) -> Typed
     } else {
         crate::lower::expr::resolve_path_expr(
             state,
-            crate::flow_capability::standard_loop_for_in_path(),
+            crate::std_flow_paths::standard_loop_for_in_path(),
         )
     };
     let applied_iter = crate::lower::expr::make_app(state, for_in, iter);
@@ -116,7 +116,7 @@ fn for_label_name(node: &SyntaxNode) -> Option<Name> {
 
 fn standard_label_loop_synthetic_act_source() -> super::super::SyntheticActSource {
     super::super::SyntheticActSource {
-        source_module_path: crate::flow_capability::standard_label_loop_path(),
+        source_module_path: crate::std_flow_paths::standard_label_loop_path(),
         source_copy_path: Path {
             segments: vec![Name("label_loop".to_string())],
         },

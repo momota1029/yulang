@@ -9,13 +9,15 @@ pub(super) fn is_builtin_numeric_widening(
     actual: &crate::symbols::Path,
     expected: &crate::symbols::Path,
 ) -> bool {
-    let Some(actual_leaf) = actual.segments.last().map(|name| name.0.as_str()) else {
-        return false;
-    };
-    let Some(expected_leaf) = expected.segments.last().map(|name| name.0.as_str()) else {
-        return false;
-    };
-    yulang_core_ir::can_widen_named_leaves(actual_leaf, expected_leaf)
+    actual == expected || is_standard_int_path(actual) && is_standard_float_path(expected)
+}
+
+fn is_standard_int_path(path: &crate::symbols::Path) -> bool {
+    matches!(path.segments.as_slice(), [Name(name)] if name == "int")
+}
+
+fn is_standard_float_path(path: &crate::symbols::Path) -> bool {
+    matches!(path.segments.as_slice(), [Name(name)] if name == "float")
 }
 
 pub(super) fn same_row_tail_var_nodes(pos: &Pos, neg: &Neg) -> bool {

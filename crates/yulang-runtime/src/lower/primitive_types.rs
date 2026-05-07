@@ -1,23 +1,37 @@
 use super::*;
+use std::collections::HashMap;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
-pub(super) enum PrimitiveTypeFamily {
-    Int,
-    Float,
-    Bool,
-    Unit,
-    Str,
-    List,
-    Range,
+type PrimitiveTypeFamily = core_ir::PrimitiveTypeFamily;
+
+#[derive(Debug, Clone)]
+pub(super) struct RuntimePrimitivePathTable {
+    types: HashMap<PrimitiveTypeFamily, core_ir::Path>,
 }
-
-#[derive(Debug, Clone, Default)]
-pub(super) struct RuntimePrimitivePathTable;
 
 impl RuntimePrimitivePathTable {
     pub(super) fn standard() -> Self {
-        Self
+        let mut types = HashMap::new();
+        for family in [
+            PrimitiveTypeFamily::Int,
+            PrimitiveTypeFamily::Float,
+            PrimitiveTypeFamily::Bool,
+            PrimitiveTypeFamily::Unit,
+            PrimitiveTypeFamily::Str,
+            PrimitiveTypeFamily::List,
+            PrimitiveTypeFamily::ListView,
+            PrimitiveTypeFamily::Range,
+        ] {
+            types.insert(family, standard_primitive_type_path(family));
+        }
+        Self { types }
+    }
+
+    pub(super) fn from_graph(graph: &core_ir::CoreGraphView) -> Self {
+        let mut table = Self::standard();
+        for node in &graph.primitive_types {
+            table.types.insert(node.family, node.path.clone());
+        }
+        table
     }
 
     pub(super) fn lit_type(&self, lit: &core_ir::Lit) -> core_ir::Type {
@@ -45,9 +59,22 @@ impl RuntimePrimitivePathTable {
         args: Vec<core_ir::TypeArg>,
     ) -> core_ir::Type {
         core_ir::Type::Named {
-            path: primitive_type_path(family),
+            path: self.primitive_type_path(family),
             args,
         }
+    }
+
+    fn primitive_type_path(&self, family: PrimitiveTypeFamily) -> core_ir::Path {
+        self.types
+            .get(&family)
+            .cloned()
+            .unwrap_or_else(|| standard_primitive_type_path(family))
+    }
+}
+
+impl Default for RuntimePrimitivePathTable {
+    fn default() -> Self {
+        Self::standard()
     }
 }
 
@@ -61,7 +88,7 @@ pub(super) fn unit_type() -> core_ir::Type {
     RuntimePrimitivePathTable::standard().unit_type()
 }
 
-pub(super) fn primitive_type_path(family: PrimitiveTypeFamily) -> core_ir::Path {
+fn standard_primitive_type_path(family: PrimitiveTypeFamily) -> core_ir::Path {
     match family {
         PrimitiveTypeFamily::Int => bare_path("int"),
         PrimitiveTypeFamily::Float => bare_path("float"),
@@ -69,6 +96,7 @@ pub(super) fn primitive_type_path(family: PrimitiveTypeFamily) -> core_ir::Path 
         PrimitiveTypeFamily::Unit => bare_path("unit"),
         PrimitiveTypeFamily::Str => std_path("str", "str"),
         PrimitiveTypeFamily::List => std_path("list", "list"),
+        PrimitiveTypeFamily::ListView => std_path("list", "list_view"),
         PrimitiveTypeFamily::Range => std_path("range", "range"),
     }
 }

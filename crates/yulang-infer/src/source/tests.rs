@@ -2093,6 +2093,63 @@ fn compiled_runtime_bundle_merges_surfaces_and_remaps_evidence_ids() {
 }
 
 #[test]
+fn compiled_runtime_bundle_merges_primitive_type_metadata() {
+    let mut left = runtime_surface_with_coerce_binding("left", 0);
+    let mut right = runtime_surface_with_coerce_binding("right", 0);
+    left.program
+        .graph
+        .primitive_types
+        .push(primitive_type_node("int"));
+    right
+        .program
+        .graph
+        .primitive_types
+        .push(primitive_type_node("int"));
+    right
+        .program
+        .graph
+        .primitive_types
+        .push(primitive_type_node("bool"));
+
+    let bundle = CompiledRuntimeBundle::from_surfaces([&left, &right]).unwrap();
+
+    assert_eq!(
+        bundle.surface.program.graph.primitive_types,
+        vec![primitive_type_node("int"), primitive_type_node("bool")]
+    );
+}
+
+#[test]
+fn compiled_runtime_bundle_rejects_conflicting_primitive_type_metadata() {
+    let mut left = runtime_surface_with_coerce_binding("left", 0);
+    let mut right = runtime_surface_with_coerce_binding("right", 0);
+    left.program
+        .graph
+        .primitive_types
+        .push(primitive_type_node("int"));
+    right
+        .program
+        .graph
+        .primitive_types
+        .push(yulang_core_ir::PrimitiveTypeGraphNode {
+            family: yulang_core_ir::PrimitiveTypeFamily::Int,
+            path: CorePath::new(vec![
+                CoreName("other".to_string()),
+                CoreName("int".to_string()),
+            ]),
+        });
+
+    let err = CompiledRuntimeBundle::from_surfaces([&left, &right]).unwrap_err();
+
+    assert!(matches!(
+        err,
+        CompiledRuntimeMergeError::ConflictingPrimitiveType {
+            family: yulang_core_ir::PrimitiveTypeFamily::Int
+        }
+    ));
+}
+
+#[test]
 fn compiled_runtime_bundle_rejects_conflicting_binding_paths() {
     let left = runtime_surface_with_coerce_binding("same", 0);
     let mut right = runtime_surface_with_coerce_binding("same", 0);
@@ -2139,6 +2196,18 @@ fn compiled_runtime_bundle_merges_before_user_program_and_remaps_user_evidence()
     assert_eq!(evidence.source_edge, Some(1));
 }
 
+fn primitive_type_node(name: &str) -> yulang_core_ir::PrimitiveTypeGraphNode {
+    let family = match name {
+        "int" => yulang_core_ir::PrimitiveTypeFamily::Int,
+        "bool" => yulang_core_ir::PrimitiveTypeFamily::Bool,
+        other => panic!("unsupported primitive test family: {other}"),
+    };
+    yulang_core_ir::PrimitiveTypeGraphNode {
+        family,
+        path: CorePath::from_name(CoreName(name.to_string())),
+    }
+}
+
 fn runtime_surface_with_coerce_binding(name: &str, source_edge: u32) -> CompiledRuntimeSurface {
     let path = CorePath::new(vec![CoreName(name.to_string())]);
     let any_scheme = yulang_core_ir::Scheme {
@@ -2175,6 +2244,7 @@ fn runtime_surface_with_coerce_binding(name: &str, source_edge: u32) -> Compiled
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
+                primitive_types: Vec::new(),
             },
             evidence: yulang_core_ir::PrincipalEvidence {
                 expected_edges: vec![yulang_core_ir::ExpectedEdgeEvidence {

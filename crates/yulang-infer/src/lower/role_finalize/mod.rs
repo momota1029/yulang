@@ -280,18 +280,25 @@ fn normalize_named_compact_type_order(ty: &mut CompactType) {
 }
 
 fn join_local_named_paths(left: &Path, right: &Path) -> Option<Path> {
-    let left_leaf = left.segments.last()?.0.as_str();
-    let right_leaf = right.segments.last()?.0.as_str();
-    let joined = yulang_core_ir::join_named_leaves(left_leaf, right_leaf)?;
-    if joined == left_leaf {
+    if left == right {
         return Some(left.clone());
     }
-    if joined == right_leaf {
-        return Some(right.clone());
+    if is_standard_int_path(left) && is_standard_float_path(right)
+        || is_standard_float_path(left) && is_standard_int_path(right)
+    {
+        return Some(Path {
+            segments: vec![Name("float".to_string())],
+        });
     }
-    Some(Path {
-        segments: vec![Name(joined)],
-    })
+    None
+}
+
+fn is_standard_int_path(path: &Path) -> bool {
+    matches!(path.segments.as_slice(), [Name(name)] if name == "int")
+}
+
+fn is_standard_float_path(path: &Path) -> bool {
+    matches!(path.segments.as_slice(), [Name(name)] if name == "float")
 }
 
 fn path_string(path: &Path) -> String {

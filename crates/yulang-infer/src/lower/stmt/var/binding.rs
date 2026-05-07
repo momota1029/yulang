@@ -245,7 +245,7 @@ fn constrain_var_ref_binding_to_init(
     let eff_tv = state.fresh_tv();
     let ref_args = invariant_ref_args(state, &[(eff_tv, eff_tv), (init_tv, init_tv)]);
     state.infer.constrain(
-        Pos::Con(crate::ref_capability::standard_ref_type_path(), ref_args),
+        Pos::Con(crate::std_ref_paths::standard_ref_type_path(), ref_args),
         Neg::Var(ref_tv),
     );
 }
@@ -302,7 +302,7 @@ fn materialize_var_act_helpers(
 }
 
 fn std_var_synthetic_act_source(selected_names: Vec<Name>) -> super::super::SyntheticActSource {
-    let source_path = crate::ref_capability::standard_var_act_path();
+    let source_path = crate::std_ref_paths::standard_var_act_path();
     super::super::SyntheticActSource {
         source_module_path: source_path.clone(),
         source_copy_path: source_path,

@@ -337,18 +337,6 @@ impl EffectPathResolver {
         }
         if path.segments.len() == 1 {
             let op = path.segments[0].clone();
-            let mut direct_candidates = Vec::new();
-            for namespace in consumes {
-                let namespace = strip_synthetic_with_segments(namespace.clone());
-                if namespace.segments.last() == Some(&op) && !direct_candidates.contains(&namespace)
-                {
-                    direct_candidates.push(namespace);
-                }
-            }
-            if direct_candidates.len() == 1 {
-                return direct_candidates.remove(0);
-            }
-
             let mut candidates = Vec::new();
             for namespace in consumes {
                 let namespace = strip_synthetic_with_segments(namespace.clone());

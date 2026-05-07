@@ -279,6 +279,7 @@ fn push_deferred_selection(
         .push_deferred_role_method_call(DeferredRoleMethodCall {
             name: name.clone(),
             role_path: None,
+            cast_coercion: false,
             recv_tv: acc.tv,
             arg_tvs: Vec::new(),
             result_tv: tv,

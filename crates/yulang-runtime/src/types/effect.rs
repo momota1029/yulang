@@ -38,15 +38,11 @@ pub(crate) fn effect_compatible(expected: &core_ir::Type, actual: &core_ir::Type
     if effect_has_open_var(expected) {
         return true;
     }
-    if expected_paths.iter().any(is_internal_loop_parent_effect) {
-        return true;
-    }
     if effect_has_open_var(actual) {
         return actual_paths.iter().all(|actual| {
-            is_internal_loop_parent_effect(actual)
-                || expected_paths
-                    .iter()
-                    .any(|expected| effect_paths_match(expected, actual))
+            expected_paths
+                .iter()
+                .any(|expected| effect_paths_match(expected, actual))
         });
     }
     actual_paths.iter().all(|actual| {
@@ -106,14 +102,6 @@ fn qualified_prefix_effect_paths_match(parent: &core_ir::Path, child: &core_ir::
     parent.segments.len() > 1
         && child.segments.len() > parent.segments.len()
         && child.segments.starts_with(parent.segments.as_slice())
-}
-
-fn is_internal_loop_parent_effect(path: &core_ir::Path) -> bool {
-    matches!(
-        path.segments.as_slice(),
-        [core_ir::Name(std), core_ir::Name(flow), core_ir::Name(loop_)]
-            if std == "std" && flow == "flow" && loop_ == "loop"
-    )
 }
 
 fn effect_has_open_var(effect: &core_ir::Type) -> bool {

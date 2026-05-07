@@ -33,7 +33,7 @@ pub(super) fn lower_var_read_expr(state: &mut LowerState, sigil: &str) -> TypedE
 fn lower_ref_get_read(state: &mut LowerState, reference_name: Name) -> TypedExpr {
     let get = resolve_path_expr(
         state,
-        crate::ref_capability::standard_ref_member_path(Name("get".to_string())),
+        crate::std_ref_paths::standard_ref_member_path(Name("get".to_string())),
     );
     let reference = resolve_path_expr(state, vec![reference_name]);
     let get_ref = make_app(state, get, reference);
@@ -148,7 +148,7 @@ fn constrain_ref_set_assignment(
         &[(ref_eff, ref_eff), (expected_value_tv, expected_value_tv)],
     );
     state.infer.constrain(
-        Pos::Con(crate::ref_capability::standard_ref_type_path(), ref_args),
+        Pos::Con(crate::std_ref_paths::standard_ref_type_path(), ref_args),
         Neg::Var(reference.tv),
     );
 }

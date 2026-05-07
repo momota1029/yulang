@@ -126,7 +126,7 @@ impl Infer {
             else {
                 continue;
             };
-            let resolution = if call.name.0 == "cast" {
+            let resolution = if call.cast_coercion {
                 self.resolve_cast_method_def(call.recv_tv, call.result_tv)
                     .map(RoleMethodResolution::Concrete)
                     .unwrap_or_else(|| {

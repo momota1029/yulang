@@ -134,5 +134,9 @@ pub(super) fn effect_path_matches_allowed(allowed: &core_ir::Path, effect: &core
 }
 
 pub(super) fn is_float_type(ty: &core_ir::Type) -> bool {
-    matches!(ty, core_ir::Type::Named { path, args } if args.is_empty() && path.segments.last().is_some_and(|name| name.0 == "float"))
+    matches!(ty, core_ir::Type::Named { path, args } if args.is_empty() && path == &standard_float_path())
+}
+
+fn standard_float_path() -> core_ir::Path {
+    core_ir::Path::from_name(core_ir::Name("float".to_string()))
 }

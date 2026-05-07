@@ -63,15 +63,7 @@ impl<'a> DemandChecker<'a> {
             {
                 expected.clone()
             }
-            Err(_)
-                if expected.is_closed()
-                    && (matches!(
-                        self.semantics.associated_signature_kind(&demand.target),
-                        Some(AssociatedSignatureKind::Fold {
-                            thunk_callback: true
-                        })
-                    ) || binding_references_path(binding, &demand.target)) =>
-            {
+            Err(_) if expected.is_closed() && binding_references_path(binding, &demand.target) => {
                 expected.clone()
             }
             Err(error) => {
@@ -854,31 +846,9 @@ impl<'a> ExprChecker<'a> {
 
     fn match_scrutinee_expr_hint(
         &mut self,
-        scrutinee: &Expr,
+        _scrutinee: &Expr,
     ) -> Result<Option<DemandSignature>, DemandCheckError> {
-        let Some((target, _, args)) = applied_call_with_head(scrutinee) else {
-            return Ok(None);
-        };
-        let Some(AssociatedSignatureKind::ListViewRaw { result }) =
-            self.semantics.associated_signature_kind(target)
-        else {
-            return Ok(None);
-        };
-        let Some(xs) = args.first() else {
-            return Ok(None);
-        };
-        let xs = self.synth_expr(xs, None)?;
-        let Some(item) = list_item_signature(&xs) else {
-            return Ok(None);
-        };
-        let path =
-            result.or_else(|| named_signature_path(&self.signature_from_type(&scrutinee.ty)));
-        Ok(path.map(|path| {
-            DemandSignature::Core(DemandCoreType::Named {
-                path,
-                args: vec![DemandTypeArg::Type(item)],
-            })
-        }))
+        Ok(None)
     }
 
     fn synth_block(
@@ -4634,62 +4604,6 @@ mod tests {
     }
 
     #[test]
-    fn checker_uses_known_handler_target_to_remove_consumed_effect() {
-        let once = path_segments(&["std", "undet", "undet", "once"]);
-        let undet = core_ir::Type::Named {
-            path: path_segments(&["std", "undet", "undet"]),
-            args: Vec::new(),
-        };
-        let opt_int = core_ir::Type::Named {
-            path: path_segments(&["std", "opt", "opt"]),
-            args: vec![core_ir::TypeArg::Type(named("int"))],
-        };
-        let module = module_with_binding(binding(
-            once.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
-            RuntimeType::fun(
-                RuntimeType::thunk(undet.clone(), RuntimeType::core(core_ir::Type::Any)),
-                RuntimeType::thunk(undet.clone(), RuntimeType::core(core_ir::Type::Any)),
-            ),
-            ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
-                param_effect_annotation: None,
-                param_function_allowed_effects: None,
-                body: Box::new(Expr::typed(
-                    ExprKind::Thunk {
-                        effect: undet.clone(),
-                        value: RuntimeType::core(opt_int.clone()),
-                        expr: Box::new(Expr::typed(
-                            ExprKind::Variant {
-                                tag: core_ir::Name("nil".to_string()),
-                                value: None,
-                            },
-                            RuntimeType::core(opt_int.clone()),
-                        )),
-                    },
-                    RuntimeType::thunk(undet.clone(), RuntimeType::core(opt_int.clone())),
-                )),
-            },
-        ));
-        let demand = Demand::new(
-            once,
-            RuntimeType::fun(
-                RuntimeType::thunk(undet, RuntimeType::core(named("int"))),
-                RuntimeType::core(opt_int),
-            ),
-        );
-
-        let checked = DemandChecker::from_module(&module)
-            .check_demand(&demand)
-            .expect("checked known handler");
-
-        assert_eq!(
-            checked.solved,
-            DemandSignature::from_runtime_type(&demand.expected)
-        );
-    }
-
-    #[test]
     fn checker_checks_coerce_inner_against_from_type() {
         let f = path("f");
         let from = core_ir::Type::Record(core_ir::RecordType {
@@ -5232,96 +5146,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn checker_descends_into_consumed_thunk_and_records_local_signature() {
-        let sub_handler = path_segments(&["std", "flow", "sub", "sub"]);
-        let sub_effect = path_segments(&["std", "flow", "sub"]);
-        let loop_name = core_ir::Name("loop".to_string());
-        let module = module_with_binding(binding(
-            sub_handler.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
-            RuntimeType::fun(
-                RuntimeType::thunk(
-                    effect_named(sub_effect.clone()),
-                    RuntimeType::core(named("int")),
-                ),
-                RuntimeType::core(named("int")),
-            ),
-            ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
-                param_effect_annotation: None,
-                param_function_allowed_effects: None,
-                body: Box::new(Expr::typed(
-                    ExprKind::Thunk {
-                        effect: effect_named(sub_effect.clone()),
-                        value: RuntimeType::core(named("int")),
-                        expr: Box::new(Expr::typed(
-                            ExprKind::Block {
-                                stmts: vec![Stmt::Let {
-                                    pattern: Pattern::Bind {
-                                        name: loop_name.clone(),
-                                        ty: rt_fun_any(),
-                                    },
-                                    value: Expr::typed(
-                                        ExprKind::Lambda {
-                                            param: core_ir::Name("y".to_string()),
-                                            param_effect_annotation: None,
-                                            param_function_allowed_effects: None,
-                                            body: Box::new(Expr::typed(
-                                                ExprKind::Var(path("y")),
-                                                RuntimeType::core(core_ir::Type::Any),
-                                            )),
-                                        },
-                                        rt_fun_any(),
-                                    ),
-                                }],
-                                tail: Some(Box::new(Expr::typed(
-                                    ExprKind::Apply {
-                                        callee: Box::new(Expr::typed(
-                                            ExprKind::Var(path("loop")),
-                                            rt_fun_any(),
-                                        )),
-                                        arg: Box::new(Expr::typed(
-                                            ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
-                                            RuntimeType::core(named("int")),
-                                        )),
-                                        evidence: None,
-                                        instantiation: None,
-                                    },
-                                    RuntimeType::core(core_ir::Type::Any),
-                                ))),
-                            },
-                            RuntimeType::core(named("int")),
-                        )),
-                    },
-                    RuntimeType::thunk(
-                        effect_named(sub_effect.clone()),
-                        RuntimeType::core(named("int")),
-                    ),
-                )),
-            },
-        ));
-        let demand = Demand::new(
-            sub_handler,
-            RuntimeType::fun(
-                RuntimeType::thunk(effect_named(sub_effect), RuntimeType::core(named("int"))),
-                RuntimeType::core(named("int")),
-            ),
-        );
-
-        let checked = DemandChecker::from_module(&module)
-            .check_demand(&demand)
-            .expect("checked consumed thunk");
-
-        assert_eq!(
-            checked.local_signatures.get(&path("loop")),
-            Some(&DemandSignature::Fun {
-                param: Box::new(DemandSignature::Core(named_demand("int"))),
-                ret: Box::new(DemandSignature::Core(named_demand("int"))),
-            })
-        );
-    }
-
     fn module_with_binding(binding: Binding) -> Module {
         Module {
             path: core_ir::Path::default(),
@@ -5375,20 +5199,6 @@ mod tests {
             param_effect: Box::new(core_ir::Type::Never),
             ret_effect: Box::new(core_ir::Type::Never),
             ret: Box::new(ret),
-        }
-    }
-
-    fn rt_fun_any() -> RuntimeType {
-        RuntimeType::fun(
-            RuntimeType::core(core_ir::Type::Any),
-            RuntimeType::core(core_ir::Type::Any),
-        )
-    }
-
-    fn effect_named(path: core_ir::Path) -> core_ir::Type {
-        core_ir::Type::Named {
-            path,
-            args: Vec::new(),
         }
     }
 

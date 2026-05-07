@@ -204,22 +204,19 @@ impl Infer {
         else {
             return false;
         };
+        let Some(ref_type_path) = self.primary_ref_type_path() else {
+            return false;
+        };
 
         let recv_ref_args = invariant_type_args(self, &[eff_tv, inner_tv]);
         self.constrain_with_cause(
-            self.alloc_pos(Pos::Con(
-                crate::ref_capability::standard_ref_type_path(),
-                recv_ref_args.clone(),
-            )),
+            self.alloc_pos(Pos::Con(ref_type_path.clone(), recv_ref_args.clone())),
             self.alloc_neg(Neg::Var(recv_tv)),
             selection.cause.clone(),
         );
         self.constrain_with_cause(
             self.alloc_pos(Pos::Var(recv_tv)),
-            self.alloc_neg(Neg::Con(
-                crate::ref_capability::standard_ref_type_path(),
-                recv_ref_args,
-            )),
+            self.alloc_neg(Neg::Con(ref_type_path.clone(), recv_ref_args)),
             selection.cause.clone(),
         );
 
@@ -236,19 +233,13 @@ impl Infer {
 
         let result_ref_args = invariant_type_args(self, &[eff_tv, field_tv]);
         self.constrain_with_cause(
-            self.alloc_pos(Pos::Con(
-                crate::ref_capability::standard_ref_type_path(),
-                result_ref_args.clone(),
-            )),
+            self.alloc_pos(Pos::Con(ref_type_path.clone(), result_ref_args.clone())),
             self.alloc_neg(Neg::Var(selection.result_tv)),
             selection.cause.clone(),
         );
         self.constrain_with_cause(
             self.alloc_pos(Pos::Var(selection.result_tv)),
-            self.alloc_neg(Neg::Con(
-                crate::ref_capability::standard_ref_type_path(),
-                result_ref_args,
-            )),
+            self.alloc_neg(Neg::Con(ref_type_path, result_ref_args)),
             selection.cause.clone(),
         );
 

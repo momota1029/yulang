@@ -324,7 +324,7 @@ fn lower_principal_module_with_graph_and_evidence_inner(
             .iter()
             .map(|symbol| (symbol.path.clone(), symbol.kind))
             .collect(),
-        primitive_paths: RuntimePrimitivePathTable::standard(),
+        primitive_paths: RuntimePrimitivePathTable::from_graph(graph),
         principal_vars,
         expected_edges_by_id,
         use_expected_arg_evidence: std::env::var_os("YULANG_USE_EXPECTED_ARG_EVIDENCE").is_some(),
