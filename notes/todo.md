@@ -1,258 +1,162 @@
 # Yulang Todo
 
-This is a local working note. It is intentionally short-lived and should be
-updated as the project direction changes.
+This is a local working note. Keep it short and update it when the project
+direction changes.
 
 ## Current Direction
 
-Yulang now has a public repository, a working playground, and examples that show
-the language's main shape. The next goal is to make the language easier to try,
-debug, trust, and connect to ordinary host capabilities.
+Yulang now has the core language shape, a working VM, wasm playground, std
+library prototypes, host effects, compiled-unit cache prototypes, and enough
+examples to show the intended scripting experience.
 
-## Priority 1: Host Communication
+The next work should focus on three large tracks:
 
-Goal: let Yulang programs communicate with the outside world without making
-effects feel like a special `perform` subsystem.
+1. compile to native-quality code;
+2. make parsing a first-class Yulang/library capability;
+3. stabilize host/filesystem specifications.
 
-The design direction:
+## Priority 1: Native Backend
 
-- User code calls ordinary functions such as `print`, `println`, `read_line`,
-  `now`, `random`, or later `fetch`.
-- Those functions are library-facing effect operations.
-- The VM reports unhandled operations as structured host requests.
-- CLI / Wasm / playground decide how to service or reject those requests.
-- User-facing examples should not print raw `request ... blocked=...` output
-  unless the example is intentionally demonstrating unhandled effects.
+Goal: compile Yulang programs through CPS-style lowering into Cranelift, while
+keeping the current VM as the reference implementation and debugging target.
 
-First capability set:
+Target shape:
 
-- Console output:
-  - `print` / `println` for strings and values that implement display-like
-    roles.
-  - CLI writes to stdout.
-  - Playground appends to an output pane.
-- Console input:
-  - `read_line` as an effectful request.
-  - CLI can start with queued input or a clear "input unsupported" diagnostic.
-  - Playground can expose a pending input prompt later.
-- Time/random:
-  - Add only after console output is stable.
-  - Keep deterministic test hooks so examples stay reproducible.
-- HTTP/file/process:
-  - Keep parked for now. They need a capability policy and playground story.
+```text
+Core / runtime IR
+  -> explicit control/effect representation
+  -> CPS or CPS-like continuation lowering
+  -> closure/environment representation
+  -> Cranelift IR
+  -> native object / executable / JIT
+```
 
-Immediate tasks:
+TODO:
 
-1. Add a small `std::console` act with `print` / `println`.
-2. Teach CLI/Wasm host code to handle console output requests instead of
-   formatting them as unexpected raw requests.
-3. Add CLI, VM, and Wasm tests that run a tiny program and capture output.
-4. Add one short example that uses console output.
-5. Add an unhandled-effect diagnostic for unsupported host requests.
+- Define the IR boundary that feeds CPS lowering.
+- Decide how algebraic effects, resumptions, and `bind_here` map to
+  continuations.
+- Decide closure and environment layout.
+- Decide value representation for ints/floats/bools/unit/strings/lists/records
+  and variants.
+- Keep VM and Cranelift output comparable with small golden/runtime tests.
+- Start with pure functions and first-order calls before effect handlers.
+- Add a benchmark path that compares VM vs Cranelift for the same examples.
 
 Non-goals for the first slice:
 
-- No general FFI.
-- No filesystem access.
-- No network access.
-- No host capability object model.
-- No async runtime design beyond preserving continuations already carried by
-  `VmRequest`.
+- Do not remove the VM.
+- Do not compile every runtime feature at once.
+- Do not optimize before the representation boundary is clear.
 
-## Priority 2: Error Messages
+## Priority 2: Parser Combinators
 
-Goal: when a playground visitor writes a broken program, the compiler should
-point to the right place and say what went wrong in language-level terms.
+Goal: implement parser combinators as a language/library capability, not only as
+compiler internals.
 
-- Parser errors should identify the unexpected token and nearby expected forms.
-- Type errors should name the surface expression, not only internal variables.
-- Role resolution failures should say which role/method was searched for.
-- Method/field errors should distinguish missing field, missing method, and
-  ambiguous role method.
-- Effect errors should explain unhandled effects and handler mismatch.
-- Runtime lowering errors should not leak "residual polymorphic runtime IR" to
-  ordinary users without a higher-level explanation.
-- Playground diagnostics should show line/column and a compact code frame.
+Target shape:
 
-Useful first tests:
+```text
+source text / stream
+  -> parser value
+  -> success(value, rest) | structured parse error
+```
 
-- missing `else` / broken indentation
-- unknown variable
-- `1 + true`
-- missing method such as `1.foo`
-- unhandled `console::read()`
-- bad handler arm payload
-- polymorphic value that runtime cannot monomorphize
+TODO:
 
-## Priority 3: Stabilize Examples
+- Decide whether the first parser API is pure, effectful, or both.
+- Define parser result and error types.
+- Implement the minimal combinator set:
+  - `item`
+  - `satisfy`
+  - `map`
+  - `and_then`
+  - choice
+  - repetition
+  - optional
+  - token/string matching
+- Decide how backtracking, cut/commit, and error merging work.
+- Add examples that parse a small expression language and a config-like format.
+- Keep the compiler parser separate unless/until the library API is proven.
 
-Goal: examples are the public contract while the language is experimental.
+Non-goals for the first slice:
 
-- Keep every playground example runnable from CLI.
-- Mirror important examples into VM/source tests.
-- Add one small example for each public-facing feature before expanding docs.
-- Prefer short examples over one huge demo.
-- Track examples that infer but do not run as bugs, not documentation caveats.
+- Do not rewrite the compiler parser around the new library immediately.
+- Do not expose parser internals that would freeze the compiler parser design.
 
-Current key examples:
+## Priority 3: Host / Filesystem Specification
 
-- Tour
-- Struct
-- Optional Args
-- References
-- List Update
-- Sub Return
-- Nondet List
-- Nondet Once
-- Junction
-- Types
-- Effects
-- Console Output
-
-## Priority 4: Partial Compilation / Std Cache
-
-Goal: make playground runs fast enough that small edits do not feel like a full
-compiler restart.
+Goal: make ordinary script host capabilities feel stable and predictable without
+making the playground unsafe or pretending every host supports the same things.
 
 Detailed plan:
 
+- `notes/design/error-handling-plan.md`
+
+Current status:
+
+- `std::console` provides `print` / `println`.
+- `std::fs` is a first minimal native-host surface:
+  - `read_text: str -> opt str`
+  - `write_text: (str, str) -> bool`
+  - `exists: str -> bool`
+  - `is_file: str -> bool`
+  - `is_dir: str -> bool`
+- The exact filesystem API is intentionally TODO. Current names and return
+  shapes are a prototype, not a stable contract.
+- Native CLI/basic host handles `std::fs` requests through Rust `std::fs`.
+- Wasm/playground leaves filesystem requests unresolved for now.
+
+TODO:
+
+- Design error handling before stabilizing `result` or expanding `std::fs`.
+- Decide the stable error model:
+  - `opt`
+  - `result`
+  - exception/effect-style errors
+  - structured diagnostics from host requests
+- Decide path handling:
+  - plain `str`
+  - `path` type
+  - path join/dirname/basename/extension helpers
+- Decide directory operations:
+  - `list_dir`
+  - recursive walking
+  - metadata
+- Decide input/output streams:
+  - stdin/stdout/stderr
+  - binary bytes vs text-only first API
+- Decide capability policy:
+  - native CLI defaults
+  - playground behavior
+  - explicit deny/allow list
+- Add examples only after the API is no longer obviously provisional.
+
+## Supporting Track: Static Analysis Speed
+
+Goal: keep playground and scripting latency low.
+
+Detailed plan:
+
+- `notes/design/static-analysis-speed-plan.md`
 - `notes/design/partial-compilation-cache-plan.md`
 
-Important correction:
+TODO:
 
-- The cache unit should not be "std only" and should not be only a serialized
-  `CoreProgram`.
-- Yulang source files export syntax as well as values/types. Operator tables,
-  `use` / reexport information, module namespace, role/impl/effect lookup
-  tables, and type evidence all belong to the reusable artifact boundary.
-- The long-term unit is a file dependency SCC. A cached unit must restore both:
-  - parse/lower environment contributions such as operator syntax and module
-    names;
-  - typed/exported artifacts such as schemes, core bindings, role impls, and
-    principal evidence.
-- The current std snapshot / std core snapshot work is a prototype for payload
-  shape and serialization only. It is not the final cache architecture.
+- Continue moving principal elaboration toward measured one-pass execution.
+- Expand compiled-unit typed-surface import for role/impl/effect lookup fidelity.
+- Tighten compiled-unit manifest validation.
+- Generalize persistent cache from std to user dependency SCCs.
+- Keep benchmark scripts and phase timings current.
 
-Current shape:
+## Supporting Track: Diagnostics and Docs
 
-- Wasm `RunOutput.timings` reports phase timings for source loading, infer
-  lowering, type rendering, diagnostics, core export, runtime lowering,
-  monomorphize, VM compile, and VM eval.
-- Playground timing output is currently sent to the browser console, not the
-  visible result pane.
-- Source loading now records `SourceOrigin::{Entry, Std, User}` so std and user
-  code are separated at the source-set boundary.
-- Wasm has a process-local lowered-std cache. The playground warms the bundled
-  std cache after the first run, and later runs report `source_cache_hits` /
-  `source_cache_misses` in `RunOutput.timings`.
-- This cache is not yet a build-time persistent artifact. It still stores a
-  cloned `LowerState` in memory after wasm startup.
-- `SourceSet::compilation_units()` now exposes file SCCs with unit dependencies
-  and syntax exports. This is the intended boundary for the next cache design.
+Goal: make the language usable without reading implementation notes.
 
-Next steps:
+TODO:
 
-- Follow the phase order in `notes/design/partial-compilation-cache-plan.md`.
-- Immediate next slice: `CompiledUnitManifest + CompiledSyntaxSurface` from
-  `SourceCompilationUnit`.
-- The syntax slice must include cached operator syntax:
-  - stable `CompiledOperatorSyntax` data, not raw parser implementation state;
-  - direct exports and reexports;
-  - enough data to rebuild downstream `OpTable` before parsing.
-- Operator value identity is a later namespace-surface task:
-  - `(operator name, fixity) -> UnitValueId -> DefId`;
-  - keep this separate from parser-facing operator syntax.
-- Design a persistent compiled-unit artifact for file SCCs:
-  - source identity: file paths, module paths, source hash, origin, compiler
-    snapshot version, and relevant feature flags;
-  - dependency edges: imported module SCCs and syntax-export dependencies;
-  - syntax surface: exported operator definitions and imported operator table
-    contributions;
-  - namespace surface: modules, values, types, reexports, visibility, and
-    canonical paths;
-  - typed surface: public schemes, frozen schemes needed by downstream units,
-    role/impl lookup tables, effect metadata, expected/principal evidence;
-  - runtime surface: core bindings that can be merged into a downstream
-    `CoreProgram` without re-exporting the source unit.
-- Use the process-local lowered-std cache as the behavioral oracle while
-  designing the persistent artifact. It proves behavior; it is not the final
-  format.
-- Measure first playground run separately from second run. The persistent cache
-  should reduce first-run `infer_lower_ms` and ideally make type rendering /
-  export cacheable later.
-- Keep deeper timing available locally:
-  - `--infer-phase-timings`
-  - `--runtime-phase-timings`
-  - `YULANG_EXPORT_TIMING=1`
-- Treat `StdCoreSnapshotData` as a useful experiment, not the destination. It
-  proves that exported core artifacts can be serialized, but it does not carry
-  enough source/lower environment to replace file-level compilation.
-- Avoid treating the current global clone of `LowerState` as the final answer.
-  It is a stepping stone and measurement baseline, not the long-term cache
-  format.
-
-## Priority 5: Refactoring
-
-Goal: reduce places where one change requires touching unrelated modules.
-
-- Split diagnostic construction from inference/lowering logic.
-- Keep playground sample data separate from DOM wiring if it grows again.
-- Audit duplicate "export to core IR" helper code around ref projections.
-- Keep monomorphization responsibilities separate from effect/thunk lowering.
-- Move hot-path ad hoc rules behind named passes with clear inputs/outputs.
-- Keep host request formatting and host request handling out of core VM
-  evaluation logic when possible.
-
-## Priority 6: Language Semantics Still Needing Work
-
-Goal: finish semantics that are visible and likely to become examples/docs.
-
-- Optional records:
-  - default evaluation order
-  - interaction with subtyping
-  - runtime behavior for missing fields
-  - error messages for bad patterns
-- References:
-  - nested projections such as `&xs[0].field`
-  - string index update, if intended
-  - clearer explanation of `$x` and `&x`
-- Effects:
-  - handler type examples
-  - unhandled effect diagnostics
-  - hygiene/id stack documentation
-- Host communication:
-  - console output semantics
-  - input request continuation behavior
-  - deterministic testing hooks for time/random
-  - host capability policy for playground
-- Runtime:
-  - remove remaining internal errors from user-facing paths
-  - keep list/tree/string runtime behavior documented by tests
-
-## Priority 7: Public Docs
-
-Goal: make the repo understandable without reading implementation notes.
-
-- README should stay short and point to playground, examples, overview.
-- Overview should describe what works today, not future intent.
-- Add a diagnostics page once error messages improve.
-- Add a "known limitations" section that is honest but not discouraging.
-- Add a short "host effects" page after console output lands.
-
-## Suggested Next Step
-
-Use the current playground cache timings to move from process-local std caching
-to a persistent bundled std infer snapshot.
-
-Concrete first task:
-
-1. Write down the exact fields of `LowerState` that user lowering needs from
-   std after std lowering has completed.
-2. Split those fields into a small `StdInferSnapshot` structure and an
-   `instantiate_std_snapshot` import path.
-3. Add a test that compares uncached lowering, process-local cache lowering,
-   and snapshot-instantiated lowering on a tiny program.
-4. In wasm, replace warm-lowered-std cache construction with loading the
-   bundled snapshot once the snapshot path is equivalent.
-5. Keep diagnostics work in parallel, but do not let diagnostics add more CST
-   rescans on the hot path.
+- Improve parser/type/runtime diagnostics with source frames.
+- Keep examples runnable from CLI and playground.
+- Add docs for host effects once filesystem semantics settle.
+- Add known limitations that match the current implementation.
+- Keep README short and point to playground, examples, and design notes.
