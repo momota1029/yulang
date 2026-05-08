@@ -414,6 +414,37 @@ act fs_err:
     }
 
     #[test]
+    fn vm_runs_source_optional_record_defaults_left_to_right() {
+        let results = eval_source_with_std(
+            "my f({a = 1, b = a + 1, c = b + 1}) = (a, b, c)\n\
+             f {}\n\
+             f { a: 10 }\n\
+             f { a: 10, b: 20 }\n",
+        );
+
+        assert_eq!(
+            results,
+            vec![
+                TestValue::Tuple(vec![
+                    TestValue::Int("1".to_string()),
+                    TestValue::Int("2".to_string()),
+                    TestValue::Int("3".to_string()),
+                ]),
+                TestValue::Tuple(vec![
+                    TestValue::Int("10".to_string()),
+                    TestValue::Int("11".to_string()),
+                    TestValue::Int("12".to_string()),
+                ]),
+                TestValue::Tuple(vec![
+                    TestValue::Int("10".to_string()),
+                    TestValue::Int("20".to_string()),
+                    TestValue::Int("21".to_string()),
+                ]),
+            ]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_cast_declarations() {
         let results = eval_source_with_std(
             "struct user_id { raw: int }\n\

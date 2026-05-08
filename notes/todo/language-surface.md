@@ -105,6 +105,10 @@ TODO:
 
 - `notes/design/optional-records.md`
 
+現在:
+
+- runtime test で previous field を参照する default と、left-to-right default evaluation order の例を固定している。
+
 TODO:
 
 - default evaluation order を明確にする。
