@@ -70,45 +70,42 @@ impl<T> ListTree<T> {
         if start > end || end > self.len() {
             return None;
         }
-        if start == 0 && end == self.len() {
-            return Some(self.clone());
-        }
-        match self {
-            Self::Empty => Some(Self::Empty),
-            Self::Leaf(_) => match (start, end) {
-                (0, 0) | (1, 1) => Some(Self::Empty),
-                (0, 1) => Some(self.clone()),
-                _ => None,
-            },
-            Self::Node(node) => {
-                let left_len = node.left.len();
-                if end <= left_len {
-                    node.left.index_range(start, end)
-                } else if start >= left_len {
-                    node.right.index_range(start - left_len, end - left_len)
-                } else {
-                    let left = node.left.index_range(start, left_len)?;
-                    let right = node.right.index_range(0, end - left_len)?;
-                    Some(Self::concat(left, right))
-                }
-            }
-        }
+        let (_, suffix) = self.split_at(start)?;
+        let (range, _) = suffix.split_at(end - start)?;
+        Some(range)
     }
 
     pub fn splice(&self, start: usize, end: usize, insert: Self) -> Option<Self> {
         if start > end || end > self.len() {
             return None;
         }
-        let prefix = self.index_range(0, start)?;
-        let suffix = self.index_range(end, self.len())?;
+        let (prefix, rest) = self.split_at(start)?;
+        let (_, suffix) = rest.split_at(end - start)?;
         Some(Self::concat(prefix, Self::concat(insert, suffix)))
+    }
+
+    pub fn split_at(&self, index: usize) -> Option<(Self, Self)> {
+        if index > self.len() {
+            return None;
+        }
+        Some(self.split_at_unchecked(index))
     }
 
     pub fn concat(left: Self, right: Self) -> Self {
         match (left, right) {
             (Self::Empty, right) => right,
             (left, Self::Empty) => left,
-            (left, right) => Self::black_node(left, right),
+            (left, right) => {
+                let left_height = left.black_height();
+                let right_height = right.black_height();
+                if left_height == right_height {
+                    Self::black_node(left, right)
+                } else if left_height > right_height {
+                    Self::blacken(join_right(left, right, right_height))
+                } else {
+                    Self::blacken(join_left(left, right, left_height))
+                }
+            }
         }
     }
 
@@ -132,6 +129,15 @@ impl<T> ListTree<T> {
 
     fn red_node(left: Self, right: Self) -> Self {
         Self::node(Color::Red, left, right)
+    }
+
+    fn blacken(tree: Self) -> Self {
+        match tree {
+            Self::Node(node) if node.color == Color::Red => {
+                Self::black_node(node.left.clone(), node.right.clone())
+            }
+            tree => tree,
+        }
     }
 
     fn node(color: Color, left: Self, right: Self) -> Self {
@@ -167,6 +173,26 @@ impl<T> ListTree<T> {
         match self {
             Self::Node(node) => Some(node.color),
             _ => None,
+        }
+    }
+
+    fn split_at_unchecked(&self, index: usize) -> (Self, Self) {
+        match self {
+            Self::Empty => (Self::Empty, Self::Empty),
+            Self::Leaf(_) if index == 0 => (Self::Empty, self.clone()),
+            Self::Leaf(_) => (self.clone(), Self::Empty),
+            Self::Node(node) => {
+                let left_len = node.left.len();
+                if index < left_len {
+                    let (prefix, left_suffix) = node.left.split_at_unchecked(index);
+                    (prefix, Self::concat(left_suffix, node.right.clone()))
+                } else if index > left_len {
+                    let (right_prefix, suffix) = node.right.split_at_unchecked(index - left_len);
+                    (Self::concat(node.left.clone(), right_prefix), suffix)
+                } else {
+                    (node.left.clone(), node.right.clone())
+                }
+            }
         }
     }
 }
@@ -258,6 +284,87 @@ fn build_balanced<T>(mut items: Vec<ListTree<T>>) -> ListTree<T> {
     items.pop().unwrap_or(ListTree::Empty)
 }
 
+fn join_right<T>(left: ListTree<T>, right: ListTree<T>, right_height: usize) -> ListTree<T> {
+    match left {
+        ListTree::Node(node) if node.right.black_height() > right_height => {
+            let joined = join_right(node.right.clone(), right, right_height);
+            balance(node.color, node.left.clone(), joined)
+        }
+        ListTree::Node(node) => {
+            let joined = ListTree::red_node(node.right.clone(), right);
+            balance(node.color, node.left.clone(), joined)
+        }
+        left => ListTree::red_node(left, right),
+    }
+}
+
+fn join_left<T>(left: ListTree<T>, right: ListTree<T>, left_height: usize) -> ListTree<T> {
+    match right {
+        ListTree::Node(node) if node.left.black_height() > left_height => {
+            let joined = join_left(left, node.left.clone(), left_height);
+            balance(node.color, joined, node.right.clone())
+        }
+        ListTree::Node(node) => {
+            let joined = ListTree::red_node(left, node.left.clone());
+            balance(node.color, joined, node.right.clone())
+        }
+        right => ListTree::red_node(left, right),
+    }
+}
+
+fn balance<T>(color: Color, left: ListTree<T>, right: ListTree<T>) -> ListTree<T> {
+    if color != Color::Black {
+        return ListTree::node(color, left, right);
+    }
+
+    if let ListTree::Node(left_node) = &left
+        && left_node.color == Color::Red
+    {
+        if let ListTree::Node(left_left_node) = &left_node.left
+            && left_left_node.color == Color::Red
+        {
+            return ListTree::red_node(
+                ListTree::black_node(left_left_node.left.clone(), left_left_node.right.clone()),
+                ListTree::black_node(left_node.right.clone(), right),
+            );
+        }
+        if let ListTree::Node(left_right_node) = &left_node.right
+            && left_right_node.color == Color::Red
+        {
+            return ListTree::red_node(
+                ListTree::black_node(left_node.left.clone(), left_right_node.left.clone()),
+                ListTree::black_node(left_right_node.right.clone(), right),
+            );
+        }
+    }
+
+    if let ListTree::Node(right_node) = &right
+        && right_node.color == Color::Red
+    {
+        if let ListTree::Node(right_left_node) = &right_node.left
+            && right_left_node.color == Color::Red
+        {
+            return ListTree::red_node(
+                ListTree::black_node(left, right_left_node.left.clone()),
+                ListTree::black_node(right_left_node.right.clone(), right_node.right.clone()),
+            );
+        }
+        if let ListTree::Node(right_right_node) = &right_node.right
+            && right_right_node.color == Color::Red
+        {
+            return ListTree::red_node(
+                ListTree::black_node(left, right_node.left.clone()),
+                ListTree::black_node(
+                    right_right_node.left.clone(),
+                    right_right_node.right.clone(),
+                ),
+            );
+        }
+    }
+
+    ListTree::black_node(left, right)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Color, ListTree, ListView};
@@ -298,6 +405,59 @@ mod tests {
                 .unwrap()
                 .to_vec(),
             vec![10, 99, 98, 40]
+        );
+    }
+
+    #[test]
+    fn list_tree_split_preserves_red_black_shape() {
+        let list = ListTree::from_items(0..4096);
+
+        for index in [0, 1, 17, 2048, 4095, 4096] {
+            let (prefix, suffix) = list.split_at(index).unwrap();
+            assert!(prefix.is_red_black_well_formed(), "prefix index={index}");
+            assert!(suffix.is_red_black_well_formed(), "suffix index={index}");
+            assert_eq!(prefix.len(), index);
+            assert_eq!(suffix.len(), 4096 - index);
+            assert_eq!(ListTree::concat(prefix, suffix).to_vec(), list.to_vec());
+        }
+    }
+
+    #[test]
+    fn list_tree_range_preserves_red_black_shape() {
+        let list = ListTree::from_items(0..4096);
+        let range = list.index_range(17, 4095).unwrap();
+
+        assert!(range.is_red_black_well_formed());
+        assert_eq!(range.len(), 4078);
+        assert_eq!(range.index(0).as_deref(), Some(&17));
+        assert_eq!(range.index(4077).as_deref(), Some(&4094));
+    }
+
+    #[test]
+    fn list_tree_repeated_singleton_concat_stays_balanced() {
+        let mut list = ListTree::empty();
+        for item in 0..4096 {
+            list = ListTree::concat(list, ListTree::singleton(item));
+        }
+
+        assert!(list.is_red_black_well_formed());
+        assert_eq!(
+            list.index_range(4090, 4096).unwrap().to_vec(),
+            vec![4090, 4091, 4092, 4093, 4094, 4095]
+        );
+    }
+
+    #[test]
+    fn list_tree_repeated_singleton_prepend_stays_balanced() {
+        let mut list = ListTree::empty();
+        for item in 0..4096 {
+            list = ListTree::concat(ListTree::singleton(item), list);
+        }
+
+        assert!(list.is_red_black_well_formed());
+        assert_eq!(
+            list.index_range(0, 6).unwrap().to_vec(),
+            vec![4095, 4094, 4093, 4092, 4091, 4090]
         );
     }
 }
