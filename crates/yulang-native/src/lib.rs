@@ -9,6 +9,7 @@ pub mod compare;
 pub mod control_ir;
 pub mod cps_capture;
 pub mod cps_compare;
+pub mod cps_env;
 pub mod cps_eval;
 pub mod cps_ir;
 pub mod cps_lower;
@@ -23,6 +24,10 @@ pub use control_ir::{
 };
 pub use cps_capture::infer_cps_captures;
 pub use cps_compare::{CpsCompareError, compare_cps_module};
+pub use cps_env::{
+    CpsContinuationEnvironmentLayout, CpsEnvironmentLayout, CpsEnvironmentSlot,
+    CpsFunctionEnvironmentLayout, layout_cps_environments,
+};
 pub use cps_eval::{CpsEvalError, eval_cps_module};
 pub use cps_ir::{
     CpsContinuation, CpsContinuationId, CpsFunction, CpsHandler, CpsHandlerContextId, CpsHandlerId,

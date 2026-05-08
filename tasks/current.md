@@ -58,7 +58,8 @@ runtime/core IR
   - perform site ごとに resume continuation を作る形へ広げた。
   - if body は、条件が pure で両分岐が同じ handled effect を投げる限定形を CPS lowering できる。
   - CPS continuation に `captures` field を追加した。lowering 後に `infer_cps_captures` を走らせ、validator は continuation params と captures だけを visible value として扱う。
-  - 次は capture を environment layout に落とし、複数 effect operation が入れ子になる body の扱いを決める。
+  - `layout_cps_environments` は continuation captures を stable slot layout に落とす。これは closure conversion / backend が読む environment layout の最初の形。
+  - 次は environment layout を使う closure conversion skeleton を作り、複数 effect operation が入れ子になる body の扱いを決める。
 
 重要な制約:
 
