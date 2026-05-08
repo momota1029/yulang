@@ -115,7 +115,7 @@ textarea {
   height: calc(100vh - 48px);
   min-height: 520px;
   display: grid;
-  grid-template-rows: auto minmax(420px, 1fr);
+  grid-template-rows: auto auto minmax(320px, 1fr);
 }
 
 .pane-head {
@@ -247,11 +247,9 @@ html[data-lang="en"] .lang-ja {
 }
 
 .examples-panel {
-  max-width: 1320px;
-  margin: 18px auto 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-bg);
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted-surface-bg);
   overflow: hidden;
 }
 
@@ -259,13 +257,12 @@ html[data-lang="en"] .lang-ja {
   display: flex;
   align-items: baseline;
   gap: 12px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
+  padding: 9px 14px 0;
 }
 
 .examples-head h2 {
   padding: 0;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .examples-head p {
@@ -276,18 +273,20 @@ html[data-lang="en"] .lang-ja {
 
 .example-buttons {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: 6px;
+  padding: 8px 14px 10px;
+  overflow-x: auto;
+  scrollbar-gutter: stable;
 }
 
 .example-button {
-  min-height: 32px;
-  padding: 4px 10px;
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 3px 10px;
   border: 1px solid var(--control-border);
-  border-radius: 6px;
+  border-radius: 999px;
   color: var(--link-text);
-  background: var(--muted-surface-bg);
+  background: var(--surface-bg);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
