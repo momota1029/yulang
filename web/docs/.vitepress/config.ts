@@ -9,6 +9,7 @@ export default defineConfig({
 
   base: "/docs/",
   outDir: "../dist/docs",
+  appearance: false,
 
   ignoreDeadLinks: [/^\/playground\//],
 
