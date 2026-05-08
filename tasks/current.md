@@ -55,7 +55,9 @@ runtime/core IR
   - body が direct effect operation application の形と、primitive / direct call の引数位置に effect operation が出る形は、rest-of-computation を resume continuation に落とす。
   - block の let-binding / expr statement に effect operation が出る形も、残りの stmt/tail を resume continuation に落とす。
   - effectful handle body の `BindHere* -> Thunk -> body` は handle body 実行 wrapper の 1 塊として扱う。`BindHere` 単体を個別に剥がさない。
-  - 次は if など複数 perform site を持つ body のために、perform site ごとに resume continuation を作る形へ広げる。あわせて continuation capture / environment layout を明示する。
+  - perform site ごとに resume continuation を作る形へ広げた。
+  - if body は、条件が pure で両分岐が同じ handled effect を投げる限定形を CPS lowering できる。
+  - 次は continuation capture / environment layout を明示し、複数 effect operation が入れ子になる body の扱いを決める。
 
 重要な制約:
 

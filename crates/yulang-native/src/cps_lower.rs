@@ -429,13 +429,12 @@ impl<'a> FunctionLowerer<'a> {
         let saved_locals = self.locals.clone();
         let saved_resumptions = self.resumptions.clone();
 
-        let resume_cont = self.fresh_continuation();
         let handler_cont = self.fresh_continuation();
         let merge_cont = self.fresh_continuation();
         let handler = self.fresh_handler();
         let result = self.fresh_value();
 
-        let effect = self.lower_handled_body(body, &arm.effect, resume_cont, handler)?;
+        let effect = self.lower_handled_body(body, &arm.effect, handler)?;
         self.handlers.push(CpsHandler {
             id: handler,
             effect: effect.clone(),
@@ -469,21 +468,15 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         body: &runtime::Expr,
         expected_effect: &core_ir::Path,
-        resume_cont: CpsContinuationId,
         handler: CpsHandlerId,
     ) -> CpsLowerResult<core_ir::Path> {
         if let Some(expr) = handle_body_execution_inner(body) {
-            return self.lower_handled_body(expr, expected_effect, resume_cont, handler);
+            return self.lower_handled_body(expr, expected_effect, handler);
         }
 
         if let Some((effect, payload)) = effect_apply(body) {
-            let (effect, resumed_value) = self.begin_resume_after_perform(
-                effect,
-                payload,
-                expected_effect,
-                resume_cont,
-                handler,
-            )?;
+            let (effect, resumed_value) =
+                self.begin_resume_after_perform(effect, payload, expected_effect, handler)?;
             self.terminate(CpsTerminator::Return(resumed_value));
             self.finish_current();
             return Ok(effect);
@@ -507,13 +500,8 @@ impl<'a> FunctionLowerer<'a> {
                     kind: "handler body continuation",
                 });
             };
-            let (effect, resumed_value) = self.begin_resume_after_perform(
-                effect,
-                payload,
-                expected_effect,
-                resume_cont,
-                handler,
-            )?;
+            let (effect, resumed_value) =
+                self.begin_resume_after_perform(effect, payload, expected_effect, handler)?;
             let mut lowered_args = Vec::with_capacity(args.len());
             for (index, arg) in args.into_iter().enumerate() {
                 if index == effect_index {
@@ -543,13 +531,8 @@ impl<'a> FunctionLowerer<'a> {
                     kind: "handler body continuation",
                 });
             };
-            let (effect, resumed_value) = self.begin_resume_after_perform(
-                effect,
-                payload,
-                expected_effect,
-                resume_cont,
-                handler,
-            )?;
+            let (effect, resumed_value) =
+                self.begin_resume_after_perform(effect, payload, expected_effect, handler)?;
             let mut lowered_args = Vec::with_capacity(args.len());
             for (index, arg) in args.into_iter().enumerate() {
                 if index == effect_index {
@@ -569,14 +552,18 @@ impl<'a> FunctionLowerer<'a> {
             return Ok(effect);
         }
 
+        if let runtime::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } = &body.kind
+        {
+            return self.lower_handled_if(cond, then_branch, else_branch, expected_effect, handler);
+        }
+
         if let runtime::ExprKind::Block { stmts, tail } = &body.kind {
-            return self.lower_handled_block(
-                stmts,
-                tail.as_deref(),
-                expected_effect,
-                resume_cont,
-                handler,
-            );
+            return self.lower_handled_block(stmts, tail.as_deref(), expected_effect, handler);
         }
 
         Err(CpsLowerError::UnsupportedExpr {
@@ -584,12 +571,52 @@ impl<'a> FunctionLowerer<'a> {
         })
     }
 
+    fn lower_handled_if(
+        &mut self,
+        cond: &runtime::Expr,
+        then_branch: &runtime::Expr,
+        else_branch: &runtime::Expr,
+        expected_effect: &core_ir::Path,
+        handler: CpsHandlerId,
+    ) -> CpsLowerResult<core_ir::Path> {
+        let cond = self.lower_expr(cond)?;
+        let saved_locals = self.locals.clone();
+        let saved_resumptions = self.resumptions.clone();
+        let then_cont = self.fresh_continuation();
+        let else_cont = self.fresh_continuation();
+
+        self.terminate(CpsTerminator::Branch {
+            cond,
+            then_cont,
+            else_cont,
+        });
+        self.finish_current();
+
+        self.current = ContinuationBuilder::new(then_cont, Vec::new());
+        self.locals = saved_locals.clone();
+        self.resumptions = saved_resumptions.clone();
+        let then_effect = self.lower_handled_body(then_branch, expected_effect, handler)?;
+
+        self.current = ContinuationBuilder::new(else_cont, Vec::new());
+        self.locals = saved_locals.clone();
+        self.resumptions = saved_resumptions.clone();
+        let else_effect = self.lower_handled_body(else_branch, expected_effect, handler)?;
+        if then_effect != else_effect {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "handler effect mismatch",
+            });
+        }
+
+        self.locals = saved_locals;
+        self.resumptions = saved_resumptions;
+        Ok(then_effect)
+    }
+
     fn lower_handled_block(
         &mut self,
         stmts: &[runtime::Stmt],
         tail: Option<&runtime::Expr>,
         expected_effect: &core_ir::Path,
-        resume_cont: CpsContinuationId,
         handler: CpsHandlerId,
     ) -> CpsLowerResult<core_ir::Path> {
         for (index, stmt) in stmts.iter().enumerate() {
@@ -600,7 +627,6 @@ impl<'a> FunctionLowerer<'a> {
                             effect,
                             payload,
                             expected_effect,
-                            resume_cont,
                             handler,
                         )?;
                         self.bind_pattern(pattern, resumed_value)?;
@@ -619,7 +645,6 @@ impl<'a> FunctionLowerer<'a> {
                             effect,
                             payload,
                             expected_effect,
-                            resume_cont,
                             handler,
                         )?;
                         let value = self.lower_block(&stmts[index + 1..], tail)?;
@@ -639,7 +664,7 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         match tail {
-            Some(tail) => self.lower_handled_body(tail, expected_effect, resume_cont, handler),
+            Some(tail) => self.lower_handled_body(tail, expected_effect, handler),
             None => Err(CpsLowerError::UnsupportedExpr {
                 kind: "handler body continuation",
             }),
@@ -651,7 +676,6 @@ impl<'a> FunctionLowerer<'a> {
         effect: core_ir::Path,
         payload: &runtime::Expr,
         expected_effect: &core_ir::Path,
-        resume_cont: CpsContinuationId,
         handler: CpsHandlerId,
     ) -> CpsLowerResult<(core_ir::Path, CpsValueId)> {
         if &effect != expected_effect {
@@ -660,6 +684,7 @@ impl<'a> FunctionLowerer<'a> {
             });
         }
         let payload = self.lower_expr(payload)?;
+        let resume_cont = self.fresh_continuation();
         self.terminate(CpsTerminator::Perform {
             effect: effect.clone(),
             payload,
@@ -1404,6 +1429,49 @@ mod tests {
             CpsLowerError::UnsupportedExpr {
                 kind: "handler body continuation",
             }
+        );
+    }
+
+    #[test]
+    fn lowers_if_branches_with_distinct_resume_continuations() {
+        let then_branch = apply(
+            apply(
+                primitive(core_ir::PrimitiveOp::IntAdd),
+                apply(
+                    effect_op("choose"),
+                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                ),
+            ),
+            unknown_lit(core_ir::Lit::Int("10".to_string())),
+        );
+        let else_branch = apply(
+            apply(
+                primitive(core_ir::PrimitiveOp::IntAdd),
+                apply(
+                    effect_op("choose"),
+                    unknown_lit(core_ir::Lit::Int("2".to_string())),
+                ),
+            ),
+            unknown_lit(core_ir::Lit::Int("20".to_string())),
+        );
+        let body = if_expr(
+            unknown_lit(core_ir::Lit::Bool(true)),
+            then_branch,
+            else_branch,
+        );
+        let resume_x = apply(var("k"), var("x"));
+        let resume_three = apply(var("k"), unknown_lit(core_ir::Lit::Int("3".to_string())));
+        let arm_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            resume_three,
+        );
+        let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("24".to_string())]
         );
     }
 
