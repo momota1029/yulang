@@ -7,6 +7,7 @@ const assetsDir = new URL("assets/", docsOutDir);
 await mkdir(assetsDir, { recursive: true });
 await externalizeInlineScripts(docsOutDir);
 await externalizeCssDataSvgs(assetsDir);
+await writeDocsIndexRedirect();
 
 async function externalizeInlineScripts(dirUrl) {
   const entries = await readdir(dirUrl, { withFileTypes: true });
@@ -92,4 +93,27 @@ async function externalizeCssFileDataSvgs(cssUrl) {
 function svgAssetName(svg) {
   const hash = createHash("sha256").update(svg).digest("hex").slice(0, 16);
   return `icon-${hash}.svg`;
+}
+
+async function writeDocsIndexRedirect() {
+  await writeFile(
+    new URL("index.html", docsOutDir),
+    `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta http-equiv="refresh" content="0; url=/docs/guide/">
+    <link rel="canonical" href="/docs/guide/">
+    <title>Yulang Docs</title>
+  </head>
+  <body>
+    <main>
+      <p>Redirecting to <a href="/docs/guide/">Yulang Guide</a>.</p>
+    </main>
+  </body>
+</html>
+`,
+    "utf8",
+  );
 }
