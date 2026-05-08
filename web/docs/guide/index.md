@@ -1,6 +1,9 @@
 # Introduction
 
-Yulang is a statically-typed, expression-based language designed around algebraic effects.
+Yulang is an experimental, statically typed language with role-based
+polymorphism and algebraic effects. The implementation is still moving, so this
+documentation describes the current compiler and standard library rather than a
+frozen language specification.
 
 ::: tip Playground
 You can try everything on this page in the <a href="/" target="_self">Playground</a>.
@@ -8,9 +11,14 @@ You can try everything on this page in the <a href="/" target="_self">Playground
 
 ## What makes Yulang different?
 
-Most languages treat side effects as either unrestricted (call anything anywhere) or controlled only at the type level through monads or IO wrappers. Yulang takes a third path: **algebraic effects with static tracking**.
+Yulang has ordinary functions and user-defined operators, but several common
+features are expressed through the same mechanisms as user code:
 
-An effect is declared as an interface, handled at the call site, and tracked in the type. The type of a function tells you exactly what effects it may perform — and the effect can be removed by providing a handler.
+- Operators such as `+`, `return`, `last`, and `or` are exported from the
+  standard prelude rather than being parser-only builtins.
+- Interfaces are written as `role` declarations and implemented with `impl`.
+- Effects are declared with `act`, invoked as operations, and handled with
+  `catch`.
 
 ```yulang
 act console:
@@ -18,7 +26,7 @@ act console:
 
 our ask() = console::read()
 
-our run_console(action: [console] _) = catch action:
+our run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console(k 42)
 
 run_console:
@@ -27,14 +35,24 @@ run_console:
 
 ## Core concepts
 
-- **Values are expressions.** Everything is an expression; blocks return their last value.
-- **Mutable bindings are explicit.** `my $x = ...` introduces a mutable binding; `$x` reads it; `&x = v` writes it.
-- **Effects are first-class.** Functions carry an effect row in their type: `[eff] α -> β`.
-- **Roles are interfaces.** `role Add 'a:` declares an interface that types implement with `impl Add int:`.
-- **Structs have companions.** `with:` attaches methods to a struct after definition.
+- **Programs are statement sequences.** Top-level expressions are evaluated and
+  shown by the CLI/playground. Blocks evaluate their statements and return the
+  final expression.
+- **Bindings use patterns.** `my f x = ...` is a binding whose left-hand side is
+  a name followed by argument patterns. `my (a, b) = pair` destructures.
+- **Mutable bindings are explicit.** `my $x = ...` introduces a mutable binding;
+  `$x` reads it; `&x = v` writes it.
+- **Roles are interfaces.** `role Add 'a:` declares methods for a type variable,
+  and `impl Add int:` implements them for `int`.
+- **Effects are tracked in types.** A value such as `x: [console] int` is an
+  effectful computation returning `int`; `catch` handles operations and removes
+  handled effects.
+- **Companions hold generated names.** `struct`, `enum`, `act`, `error`, and
+  `role` create companion modules for methods, variants, operations, or role
+  entries.
 - **Comments.** `//` is a line comment. `--` and `---` blocks are documentation comments.
 
 ## Next steps
 
 - [Tour](./tour) — a guided walkthrough of the language features
-- [Reference](/reference/) — full language specification
+- [Reference](/reference/) — syntax and feature details

@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::ast::expr::{ExprKind, TypedExpr};
 use crate::diagnostic::{
@@ -48,7 +49,7 @@ pub struct LowerState {
     pub lambda_param_function_allowed_effects:
         HashMap<DefId, yulang_core_ir::FunctionSigAllowedEffects>,
     /// top-level / observable binding の desugar 済み body。
-    pub principal_bodies: HashMap<DefId, TypedExpr>,
+    pub principal_bodies: HashMap<DefId, Arc<TypedExpr>>,
     /// lowering 中の self recursive binding が self-call で使う provisional scheme。
     pub provisional_self_schemes: HashMap<DefId, crate::FrozenScheme>,
     /// lowering 中の self recursive binding が body 内で共有する monomorphic root tv。
@@ -184,6 +185,16 @@ impl LowerState {
             synthetic_with_module_counter: 0,
             synthetic_path_rewrites: Vec::new(),
         }
+    }
+
+    pub fn insert_principal_body(&mut self, def: DefId, body: TypedExpr) {
+        self.principal_bodies.insert(def, Arc::new(body));
+    }
+
+    pub fn clone_principal_body(&self, def: DefId) -> Option<TypedExpr> {
+        self.principal_bodies
+            .get(&def)
+            .map(|body| body.as_ref().clone())
     }
 
     pub(crate) fn builtin_source_type_path(&self, name: &str) -> Path {

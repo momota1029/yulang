@@ -116,7 +116,7 @@ pub(crate) fn lower_binding_with_type_scope(
         };
         let body_expr = super::super::wrap_header_lambdas(state, cast_body, arg_pats);
         if let Some(def) = owner {
-            state.principal_bodies.insert(def, body_expr.clone());
+            state.insert_principal_body(def, body_expr.clone());
         }
         let self_used = owner
             .map(|owner| state.take_recursive_self_use(owner))
@@ -231,7 +231,7 @@ fn lower_dotted_method_binding(
         raw_body
     };
     let body_expr = super::super::wrap_header_lambdas(state, cast_body, arg_pats);
-    state.principal_bodies.insert(def, body_expr.clone());
+    state.insert_principal_body(def, body_expr.clone());
     let bind_pat = TypedPat {
         tv: state.fresh_tv(),
         kind: PatKind::UnresolvedName(hidden_name),

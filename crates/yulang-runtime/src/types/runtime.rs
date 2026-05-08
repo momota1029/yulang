@@ -171,7 +171,7 @@ pub(super) fn contains_non_runtime_type_inner(
                 .is_some_and(|tail| contains_non_runtime_type_inner(tail, false, allowed_vars))
         }
         core_ir::Type::Recursive { body, .. } => {
-            contains_non_runtime_type_inner(body, false, allowed_vars)
+            contains_non_runtime_type_inner(body, effect_slot, allowed_vars)
         }
     }
 }

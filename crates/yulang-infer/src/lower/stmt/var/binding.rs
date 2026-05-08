@@ -329,10 +329,7 @@ fn std_var_synthetic_act_source(selected_names: Vec<Name>) -> super::super::Synt
         .filter(|name| name.0 == "get" || name.0 == "set")
         .cloned()
         .collect();
-    let selected_template_items = selected_names
-        .into_iter()
-        .filter(|name| name.0 == "run" || name.0 == "var_ref")
-        .collect();
+    let selected_template_items = selected_names;
     super::super::SyntheticActSource {
         source_module_path: source_path.clone(),
         source_copy_path: source_path,

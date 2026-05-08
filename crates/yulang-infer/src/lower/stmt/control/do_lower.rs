@@ -116,7 +116,7 @@ pub(crate) fn lower_expr_with_synthetic_owner_if_top_level(
         crate::types::Pos::Var(owner_tv),
         crate::types::Neg::Var(expr.tv),
     );
-    state.principal_bodies.insert(owner, expr.clone());
+    state.insert_principal_body(owner, expr.clone());
     state.record_top_level_expr_owner(owner);
     expr
 }

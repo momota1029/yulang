@@ -1515,6 +1515,7 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "imprecise-principal-specialization");
             return None;
         }
+        let handler_info = handler_binding_info(&original);
         let mut callee_ty = substitute_type(&original.scheme.body, &binding_substitutions);
         let Some((mut params, mut ret, _ret_effect)) =
             core_fun_spine_parts_exact(&callee_ty, spine.args.len())
@@ -1522,7 +1523,9 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "non-function-principal");
             return None;
         };
-        if !borrowed_args_accept_specialization_inputs(&spine.args, &params) {
+        if handler_info.is_none()
+            && !borrowed_args_accept_specialization_inputs(&spine.args, &params)
+        {
             let Some(adjusted) =
                 self.complete_plan_from_argument_runtime_types(&original, &plan, &spine.args)
             else {
@@ -1553,7 +1556,6 @@ impl PrincipalUnifier {
                 return None;
             }
         }
-        let handler_info = handler_binding_info(&original);
         let is_handler_binding = handler_info.is_some();
         let rewritten_args = spine
             .args

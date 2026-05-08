@@ -42,27 +42,25 @@ Collectors are written as method calls on a nondeterministic expression:
 |--------|-------------|-------------|
 | `.list` | `list 'a` | All results, in branch order |
 | `.logic` | `list 'a` | All results with breadth-first scheduling (suitable for infinite branches) |
-| `.once` | `opt 'a` | First result if any, otherwise `opt::nil` |
+| `.once` | `opt 'a` | First result if any, otherwise `nil` |
 
 Each collector handles `branch` and `reject`, removing the `undet` effect from the type.
 
 ## Example: Pythagorean triples
 
 ```yulang
-use std::undet::*
-
-({
+{
     my a = each 1..
-    my b = each 1..
-    my c = each 1..
+    my b = each a<..
+    my c = each b<..
 
-    guard: a <= b
-    guard: b <= c
     guard: a * a + b * b == c * c
 
     (a, b, c)
-}).once
+} .once
 ```
+
+The same program can be written with independent infinite choices and `guard: a <= b` / `guard: b <= c`, but the bounded form above is friendlier to the current VM and to browser Wasm stacks.
 
 ## Junctions
 

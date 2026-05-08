@@ -31,7 +31,7 @@ The `with:` block attaches methods to the struct. `our` makes them part of the p
 Record patterns with defaults act like optional named arguments:
 
 ```yulang
-my area({width = 1, height = 2}) = width * height
+my area {width = 1, height = 2} = width * height
 
 area { width: 3 }
 area {}
@@ -41,7 +41,7 @@ area { width: 3, height: 4 }
 Defaults are evaluated left-to-right and may reference earlier fields:
 
 ```yulang
-my f({a = 1, b = a + 1, c = b + 1}) = (a, b, c)
+my f {a = 1, b = a + 1, c = b + 1} = (a, b, c)
 f {}             // (1, 2, 3)
 f { a: 10 }      // (10, 11, 12)
 ```
@@ -51,21 +51,17 @@ f { a: 10 }      // (10, 11, 12)
 A binding declared with `my $x = ...` is mutable. `$x` reads it, and `&x = v` writes it:
 
 ```yulang
-{
-    my $x = 10
-    &x = $x + 1
-    $x
-}
+my $x = 10
+&x = $x + 1
+$x
 ```
 
 The same `&` form also works for fields and indexed elements:
 
 ```yulang
-{
-    my $xs = [2, 3, 4]
-    &xs[1] = 6
-    $xs
-}
+my $xs = [2, 3, 4]
+&xs[1] = 6
+$xs
 ```
 
 ## Nondeterminism
@@ -73,27 +69,21 @@ The same `&` form also works for fields and indexed elements:
 `each` makes a choice; `.list` collects all results:
 
 ```yulang
-use std::undet::*
-
 (each [1, 2, 3] + each [4, 5, 6]).list
 ```
 
-`.once` returns the first useful result as `opt`:
+`.once` returns the first useful result as `opt`. With infinite choices, constrain later choices from earlier ones so the search reaches a result quickly:
 
 ```yulang
-use std::undet::*
-
-({
+{
     my a = each 1..
-    my b = each 1..
-    my c = each 1..
+    my b = each a<..
+    my c = each b<..
 
-    guard: a <= b
-    guard: b <= c
     guard: a * a + b * b == c * c
 
     (a, b, c)
-}).once
+} .once
 ```
 
 ## Junctions
@@ -117,7 +107,7 @@ act console:
 
 our ask() = console::read()
 
-our run_console(action: [console] _) = catch action:
+our run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console(k 42)
 
 run_console:

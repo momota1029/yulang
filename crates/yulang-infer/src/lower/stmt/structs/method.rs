@@ -143,7 +143,7 @@ pub(crate) fn lower_struct_with_binding(
     });
     all_arg_pats.extend(arg_pats);
     let body = super::super::wrap_header_lambdas(state, body, all_arg_pats);
-    state.principal_bodies.insert(method_def, body.clone());
+    state.insert_principal_body(method_def, body.clone());
     state
         .infer
         .constrain(Pos::Var(body.tv), Neg::Var(method_tv));

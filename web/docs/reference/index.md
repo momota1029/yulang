@@ -19,6 +19,8 @@ A Yulang program is a sequence of top-level statements. Statements include decla
 ```yulang
 // This is a line comment.
 
+/* This is a block comment. */
+
 -- This is a single-line doc comment (not a line comment).
 
 ---
@@ -27,13 +29,22 @@ It can contain markdown and ```yulang fences.
 ---
 ```
 
-`//` is the only ordinary line comment. `--` and `---` blocks are documentation comments — they may appear in syntax trees and tooling, so they are not interchangeable with `//`.
+`//` is an ordinary line comment, and `/* ... */` is an ordinary block comment.
+`--` and `---` blocks are documentation comments — they may appear in syntax
+trees and tooling, so they are not interchangeable with `//`.
 
 ## See also
 
 - [Values & Types](./types)
 - [Functions](./functions)
+- [Control Flow](./control-flow)
+- [Strings](./strings)
 - [Structs & Roles](./structs)
+- [Casts](./casts)
 - [Effects](./effects)
 - [Pattern Matching](./patterns)
+- [Application & Operators](./application)
+- [Syntax Style](./syntax-style)
+- [Operator Declarations](./operators)
 - [Modules](./modules)
+- [Core Standard Library](./std/core)

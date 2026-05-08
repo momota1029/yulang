@@ -372,7 +372,7 @@ fn lower_role_method_default_body(
         }
         let principal_body = wrap_header_lambdas(state, body.clone(), all_arg_pats);
         let principal_body_tv = principal_body.tv;
-        state.principal_bodies.insert(method_def, principal_body);
+        state.insert_principal_body(method_def, principal_body);
         state.infer.constrain(
             crate::types::Pos::Var(principal_body_tv),
             crate::types::Neg::Var(method_tv),

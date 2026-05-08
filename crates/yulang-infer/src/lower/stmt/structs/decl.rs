@@ -109,7 +109,7 @@ pub(crate) fn lower_struct_decl_with_scope(
         Neg::Var(ctor_tv),
     );
     let ctor_body = super::super::synthetic_struct_constructor_body(state, ctor_def);
-    state.principal_bodies.insert(ctor_def, ctor_body.clone());
+    state.insert_principal_body(ctor_def, ctor_body.clone());
     state
         .infer
         .constrain(Pos::Var(ctor_body.tv), Neg::Var(ctor_tv));
@@ -131,7 +131,7 @@ pub(crate) fn lower_struct_decl_with_scope(
             field_def,
             &field_name,
         );
-        state.principal_bodies.insert(field_def, body.clone());
+        state.insert_principal_body(field_def, body.clone());
         state.infer.constrain(Pos::Var(body.tv), Neg::Var(field_tv));
         state.infer.constrain(Pos::Var(field_tv), Neg::Var(body.tv));
         state.infer.store_frozen_scheme(

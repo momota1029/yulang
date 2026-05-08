@@ -1,7 +1,6 @@
 import init, {
   colorize,
   embedded_std_compiled_unit_artifact_status,
-  run,
 } from "./wasm/yulang_wasm.js";
 import "./style.css";
 
@@ -82,6 +81,26 @@ type RunWorkerRequest =
       kind: "warm-std-cache";
     };
 
+type WorkerRequestTrace = {
+  id: number;
+  kind: RunWorkerRequest["kind"];
+  started_ms: number;
+  finished_ms?: number;
+  source_chars?: number;
+  ok?: boolean;
+  continuation_steps?: number;
+  cache_cleared?: boolean;
+};
+
+type WorkerDebugContext = {
+  worker_age_ms: number;
+  handled_requests: number;
+  last_started?: WorkerRequestTrace;
+  last_completed?: WorkerRequestTrace;
+  last_run_used_continuations: boolean;
+  last_run_cleared_cache: boolean;
+};
+
 type RunWorkerErrorResponse<Kind extends RunWorkerRequest["kind"]> = {
   id: number;
   kind: Kind;
@@ -89,6 +108,7 @@ type RunWorkerErrorResponse<Kind extends RunWorkerRequest["kind"]> = {
   message: string;
   name?: string;
   stack?: string;
+  context?: WorkerDebugContext;
 };
 
 type RunWorkerResponse =
@@ -162,11 +182,12 @@ type MessageKey =
   | "types"
   | "typesAria"
   | "examples"
-  | "examplesLead"
   | "noOutput"
   | "noExportedTypes"
   | "notRunYet"
   | "resultLine";
+
+type DocLinkKey = "guide" | "reference";
 
 const messages: Record<Lang, Record<MessageKey, string>> = {
   ja: {
@@ -176,8 +197,6 @@ const messages: Record<Lang, Record<MessageKey, string>> = {
     types: "型",
     typesAria: "型推論",
     examples: "例",
-    examplesLead:
-      "気になる機能を選ぶと editor に読み込まれて、そのまま実行されます。",
     noOutput: "(出力なし)",
     noExportedTypes: "(公開された型なし)",
     notRunYet: "実行すると結果がここに表示されます。",
@@ -190,8 +209,6 @@ const messages: Record<Lang, Record<MessageKey, string>> = {
     types: "Types",
     typesAria: "Type inference",
     examples: "Examples",
-    examplesLead:
-      "Choose an example to load it into the editor and run it immediately.",
     noOutput: "(no output)",
     noExportedTypes: "(no exported types)",
     notRunYet: "Run the program to show results here.",
@@ -199,19 +216,28 @@ const messages: Record<Lang, Record<MessageKey, string>> = {
   },
 };
 
+const docLinks: Record<Lang, Record<DocLinkKey, { href: string; text: string }>> = {
+  ja: {
+    guide: { href: "/ja/guide/", text: "ガイド" },
+    reference: { href: "/ja/reference/", text: "リファレンス" },
+  },
+  en: {
+    guide: { href: "/guide/", text: "Guide" },
+    reference: { href: "/reference/", text: "Reference" },
+  },
+};
+
 const examples: Example[] = [
   {
     label: { ja: "ツアー", en: "Tour" },
-    source: `// A compact tour of Yulang's current shape.
-
-use std::undet::*
+    source: `// A compact tour: data, methods, local mutation, sub, and effects.
 
 struct point { x: int, y: int } with:
     our p.norm2: int = p.x * p.x + p.y * p.y
 
-my inflate({base = 1, extra = base + 1}) = base + extra
+my score {base = 1, bonus = base + 1} = base + bonus
 
-inflate { base: 3 }
+score { base: 3 }
 
 {
     my $xs = [
@@ -225,23 +251,25 @@ inflate { base: 3 }
 
 sub:
     for x in 0..:
-        if x == 5: return x
-        else: ()
+        if x == 5:
+            return x
+        else:
+            ()
     0
 
-({
+{
     my y = if all [1, 2, 3] < any [2, 3, 4]:
         each [3, 4, 5]
     else:
         2
 
     point { x: 3, y: y } .norm2
-}).once
+} .once
 `,
   },
   {
-    label: { ja: "構造体", en: "Struct" },
-    source: `// Attach a method to a struct with with:.
+    label: { ja: "データとメソッド", en: "Data & Methods" },
+    source: `// Struct methods live next to the data they extend.
 
 struct point { x: int, y: int } with:
     our p.norm2 = p.x * p.x + p.y * p.y
@@ -250,84 +278,81 @@ point { x: 3, y: 4 } .norm2
 `,
   },
   {
-    label: { ja: "省略可能引数", en: "Optional Args" },
-    source: `// Record pattern defaults act like optional named arguments.
+    label: { ja: "名前付き既定値", en: "Named Defaults" },
+    source: `// Record patterns make named options lightweight.
 
-my area({width = 1, height = 2}) = width * height
+my box {width = 1, height = width} =
+    width * height
 
-area { width: 3 }
-area {}
-area { width: 3, height: 4 }
+box {}
+box { width: 3 }
+box { width: 3, height: 4 }
 `,
   },
   {
-    label: { ja: "参照", en: "References" },
-    source: `// References are explicit: $x reads, &x = value writes.
+    label: { ja: "局所的な変更", en: "Local Change" },
+    source: `// A mutable binding stays local to the surrounding block.
 
-{
-    my $x = 10
-    &x = $x + 1
-    $x
-}
+my $total = 0
+for x in 1..5:
+    &total = $total + x
+$total
 `,
   },
   {
     label: { ja: "リスト更新", en: "List Update" },
-    source: `// A list element can be updated through a child reference.
+    source: `// Child references make nested updates direct.
 
-{
-    my $xs = [
-        2
-        3
-        4
-    ]
-    &xs[1] = 6
-    $xs
-}
+my $xs = [
+    2
+    3
+    4
+]
+&xs[1] = 6
+$xs
 `,
   },
   {
     label: { ja: "sub return", en: "Sub Return" },
-    source: `// return binds weakly, so its value can live on the next line.
+    source: `// sub gives an expression a local return.
 
-my f() = sub:
+my first_over(limit) = sub:
+    for x in 0..:
+        if x * x > limit:
+            return x
+        else:
+            ()
     return
-        1 + 2 + 3 + 4
+        0
 
-f()
+first_over 40
 `,
   },
   {
     label: { ja: "非決定 list", en: "Nondet List" },
-    source: `// each chooses values. .list collects every result.
-
-use std::undet::*
+    source: `// each branches; .list collects every result.
 
 (each [1, 2, 3] + each [4, 5, 6]).list
 `,
   },
   {
     label: { ja: "非決定 once", en: "Nondet Once" },
-    source: `// .once returns the first useful result as opt.
+    source: `// Narrow infinite choices as early as possible.
 
-use std::undet::*
-
-({
+{
     my a = each 1..
-    my b = each 1..
-    my c = each 1..
+    my b = each a<..
+    my c = each b<..
 
-    guard: a <= b
-    guard: b <= c
     guard: a * a + b * b == c * c
 
     (a, b, c)
-}).once
+} .once
 `,
   },
   {
     label: { ja: "junction", en: "Junction" },
-    source: `// all and any make if conditions effectful.
+    source: `// all and any lift comparison into many choices.
 
 if all [1, 2, 3] < any [2, 3, 4]:
     1
@@ -337,12 +362,14 @@ else:
   },
   {
     label: { ja: "型", en: "Types" },
-    source: `// our and pub bindings are shown in the Types pane.
+    source: `// our and pub bindings appear in the Types pane.
 
-our twice x = x + x
-pub answer = twice 21
+our id x = x
+pub answer = id 42
+pub name = id "Yulang"
+pub pair = (answer, name)
 
-answer
+pair
 `,
   },
   {
@@ -355,15 +382,16 @@ println "hello from Yulang"
   },
   {
     label: { ja: "effect", en: "Effects" },
-    source: `// A handler removes one effect and leaves the others.
+    source: `// A handler removes one effect and leaves the rest.
 
 act console:
     our read: () -> int
 
 our ask() = console::read()
 
-our run_console(action: [console] _) = catch action:
-    console::read(), k -> run_console(k 42)
+our run_console(action: [console] _) =
+    catch action:
+        console::read(), k -> run_console(k 42)
 
 run_console:
     ask()
@@ -387,6 +415,8 @@ const translatableNodes =
   document.querySelectorAll<HTMLElement>("[data-i18n]");
 const translatableAriaNodes =
   document.querySelectorAll<HTMLElement>("[data-i18n-aria]");
+const docLinkNodes =
+  document.querySelectorAll<HTMLAnchorElement>("[data-doc-link]");
 
 let pendingRenderColor = 0;
 let activeExampleIndex = 0;
@@ -395,30 +425,8 @@ let latestRunOutput: RunOutput | undefined;
 let runGeneration = 0;
 let isRunning = false;
 let nextWorkerRequestId = 0;
-let workerFailure: Error | undefined;
 const pendingWorkerRequests = new Map<number, PendingWorkerRequest>();
-let runWorker: Worker | undefined = new Worker(new URL("./run-worker.ts", import.meta.url), {
-  type: "module",
-});
-
-runWorker.addEventListener("message", (event: MessageEvent<RunWorkerResponse>) => {
-  const pending = pendingWorkerRequests.get(event.data.id);
-  if (!pending) {
-    return;
-  }
-  pendingWorkerRequests.delete(event.data.id);
-  pending.resolve(event.data);
-});
-
-runWorker.addEventListener("error", (event) => {
-  rejectPendingWorkerRequests(
-    new Error(event.message || "Yulang worker failed"),
-  );
-});
-
-runWorker.addEventListener("messageerror", () => {
-  rejectPendingWorkerRequests(new Error("Yulang worker response is unreadable"));
-});
+let runWorker: Worker | undefined = createRunWorker();
 
 setupI18n();
 
@@ -496,6 +504,14 @@ function applyLanguage(): void {
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-pressed", String(isActive));
   });
+  docLinkNodes.forEach((link) => {
+    const key = link.dataset.docLink;
+    if (isDocLinkKey(key)) {
+      const docLink = docLinks[activeLang][key];
+      link.href = docLink.href;
+      link.textContent = docLink.text;
+    }
+  });
   updateRunButton();
   if (isRunning) {
     result.textContent = t("running");
@@ -546,28 +562,12 @@ async function runSource(): Promise<void> {
   if (generation !== runGeneration) {
     return;
   }
-  let response: RunResponse;
-  try {
-    response = await requestRun(source);
-  } catch (error) {
-    response = {
-      id: generation,
-      kind: "run",
-      ok: false,
-      message: error instanceof Error ? error.message : String(error),
-    };
-  }
+  const response = await requestRunWithWorkerRetry(source, generation);
   if (generation !== runGeneration) {
     return;
   }
   if (response.ok) {
     latestRunOutput = response.output;
-  } else if (shouldRetryOnMainThread(response.message)) {
-    logWorkerRunFailure(response);
-    disableRunWorker(
-      `Yulang worker became unsafe after wasm trap: ${response.message}`,
-    );
-    latestRunOutput = runOnMainThread(source);
   } else {
     logWorkerRunFailure(response);
     latestRunOutput = workerErrorOutput(response.message);
@@ -634,13 +634,13 @@ function updateRunButton(): void {
 
 function scheduleStdCacheWarmup(): void {
   const warm = () => {
-    if (workerFailure) {
-      return;
-    }
     void requestWarmStdCache()
       .then((response) => {
         if (response.ok) {
           console.debug("Yulang std cache warmup", response.output);
+        } else if (shouldRetryInFreshWorker(response.message)) {
+          console.warn("Yulang std cache warmup failed", response.message);
+          resetRunWorker(`Yulang worker warmup trapped: ${response.message}`);
         } else {
           console.warn("Yulang std cache warmup failed", response.message);
         }
@@ -663,6 +663,43 @@ function logEmbeddedStdArtifacts(): void {
   );
 }
 
+async function requestRunWithWorkerRetry(
+  source: string,
+  generation: number,
+): Promise<RunResponse> {
+  const first = await requestRunOrError(source, generation);
+  if (first.ok) {
+    resetWorkerAfterContinuationRun(first.output);
+    return first;
+  }
+  if (!shouldRetryInFreshWorker(first.message)) {
+    return first;
+  }
+  logWorkerRunFailure(first);
+  resetRunWorker(`Yulang worker trapped: ${first.message}`);
+  const retry = await requestRunOrError(source, generation);
+  if (retry.ok) {
+    resetWorkerAfterContinuationRun(retry.output);
+  }
+  return retry;
+}
+
+async function requestRunOrError(
+  source: string,
+  generation: number,
+): Promise<RunResponse> {
+  try {
+    return await requestRun(source);
+  } catch (error) {
+    return {
+      id: generation,
+      kind: "run",
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 function requestRun(source: string): Promise<RunResponse> {
   return requestWorker({
     id: nextWorkerRequestId++,
@@ -679,11 +716,8 @@ function requestWarmStdCache(): Promise<WarmStdCacheResponse> {
 }
 
 function requestWorker(request: RunWorkerRequest): Promise<RunWorkerResponse> {
-  if (workerFailure) {
-    return Promise.reject(workerFailure);
-  }
   if (!runWorker) {
-    return Promise.reject(new Error("Yulang worker is not available"));
+    runWorker = createRunWorker();
   }
   const worker = runWorker;
   return new Promise((resolve, reject) => {
@@ -698,19 +732,38 @@ function requestWorker(request: RunWorkerRequest): Promise<RunWorkerResponse> {
 }
 
 function rejectPendingWorkerRequests(reason: unknown): void {
-  disableRunWorker(reason);
+  resetRunWorker(reason);
 }
 
-function disableRunWorker(reason: unknown): void {
-  if (!workerFailure) {
-    workerFailure = reason instanceof Error ? reason : new Error(String(reason));
-  }
+function resetRunWorker(reason: unknown): void {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
   runWorker?.terminate();
-  runWorker = undefined;
+  runWorker = createRunWorker();
   for (const pending of pendingWorkerRequests.values()) {
-    pending.reject(workerFailure);
+    pending.reject(error);
   }
   pendingWorkerRequests.clear();
+}
+
+function createRunWorker(): Worker {
+  const worker = new Worker(new URL("./run-worker.ts", import.meta.url), {
+    type: "module",
+  });
+  worker.addEventListener("message", (event: MessageEvent<RunWorkerResponse>) => {
+    const pending = pendingWorkerRequests.get(event.data.id);
+    if (!pending) {
+      return;
+    }
+    pendingWorkerRequests.delete(event.data.id);
+    pending.resolve(event.data);
+  });
+  worker.addEventListener("error", (event) => {
+    rejectPendingWorkerRequests(new Error(event.message || "Yulang worker failed"));
+  });
+  worker.addEventListener("messageerror", () => {
+    rejectPendingWorkerRequests(new Error("Yulang worker response is unreadable"));
+  });
+  return worker;
 }
 
 function workerErrorOutput(message: string): RunOutput {
@@ -734,26 +787,23 @@ function logWorkerRunFailure(response: RunWorkerErrorResponse<"run">): void {
   console.warn("Yulang worker run failed", {
     name: response.name,
     message: response.message,
+    context: response.context,
     stack: response.stack,
   });
 }
 
-function shouldRetryOnMainThread(message: string): boolean {
+function resetWorkerAfterContinuationRun(output: RunOutput): void {
+  if ((output.timings?.vm_continuation_steps ?? 0) === 0) {
+    return;
+  }
+  resetRunWorker("Yulang worker recycled after continuation-heavy run");
+}
+
+function shouldRetryInFreshWorker(message: string): boolean {
   return (
     message.includes("Maximum call stack size exceeded") ||
     message.includes("unreachable")
   );
-}
-
-function runOnMainThread(source: string): RunOutput {
-  console.warn(
-    "Yulang worker hit the browser worker stack limit; retrying on the main thread.",
-  );
-  try {
-    return run(source) as RunOutput;
-  } catch (error) {
-    return workerErrorOutput(error instanceof Error ? error.message : String(error));
-  }
 }
 
 function nextPaint(): Promise<void> {
@@ -883,6 +933,10 @@ function t(key: MessageKey): string {
 
 function isMessageKey(key: string | undefined): key is MessageKey {
   return key !== undefined && key in messages.en;
+}
+
+function isDocLinkKey(key: string | undefined): key is DocLinkKey {
+  return key !== undefined && key in docLinks.en;
 }
 
 function requireElement<T extends Element>(selector: string): T {

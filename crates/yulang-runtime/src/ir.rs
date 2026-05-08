@@ -17,7 +17,7 @@ pub struct Binding {
     pub body: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Expr {
     pub ty: Type,
     pub kind: ExprKind,
@@ -32,7 +32,225 @@ impl Expr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+impl Clone for Expr {
+    fn clone(&self) -> Self {
+        clone_expr_without_apply_spine_recursion(self)
+    }
+}
+
+fn clone_expr_without_apply_spine_recursion(expr: &Expr) -> Expr {
+    enum Frame<'a> {
+        Apply {
+            ty: &'a Type,
+            arg: &'a Expr,
+            evidence: &'a Option<core_ir::ApplyEvidence>,
+            instantiation: &'a Option<TypeInstantiation>,
+        },
+        Select {
+            ty: &'a Type,
+            field: &'a core_ir::Name,
+        },
+        Variant {
+            ty: &'a Type,
+            tag: &'a core_ir::Name,
+        },
+        BindHere {
+            ty: &'a Type,
+        },
+        Thunk {
+            ty: &'a Type,
+            effect: &'a core_ir::Type,
+            value: &'a Type,
+        },
+        LocalPushId {
+            ty: &'a Type,
+            id: EffectIdVar,
+        },
+        AddId {
+            ty: &'a Type,
+            id: EffectIdRef,
+            allowed: &'a core_ir::Type,
+        },
+        Coerce {
+            ty: &'a Type,
+            from: &'a core_ir::Type,
+            to: &'a core_ir::Type,
+        },
+        Pack {
+            ty: &'a Type,
+            var: &'a core_ir::TypeVar,
+        },
+    }
+
+    let mut current = expr;
+    let mut frames = Vec::new();
+    loop {
+        match &current.kind {
+            ExprKind::Apply {
+                callee,
+                arg,
+                evidence,
+                instantiation,
+            } => {
+                frames.push(Frame::Apply {
+                    ty: &current.ty,
+                    arg,
+                    evidence,
+                    instantiation,
+                });
+                current = callee;
+            }
+            ExprKind::Select { base, field } => {
+                frames.push(Frame::Select {
+                    ty: &current.ty,
+                    field,
+                });
+                current = base;
+            }
+            ExprKind::Variant {
+                tag,
+                value: Some(value),
+            } => {
+                frames.push(Frame::Variant {
+                    ty: &current.ty,
+                    tag,
+                });
+                current = value;
+            }
+            ExprKind::BindHere { expr } => {
+                frames.push(Frame::BindHere { ty: &current.ty });
+                current = expr;
+            }
+            ExprKind::Thunk {
+                effect,
+                value,
+                expr,
+            } => {
+                frames.push(Frame::Thunk {
+                    ty: &current.ty,
+                    effect,
+                    value,
+                });
+                current = expr;
+            }
+            ExprKind::LocalPushId { id, body } => {
+                frames.push(Frame::LocalPushId {
+                    ty: &current.ty,
+                    id: *id,
+                });
+                current = body;
+            }
+            ExprKind::AddId { id, allowed, thunk } => {
+                frames.push(Frame::AddId {
+                    ty: &current.ty,
+                    id: *id,
+                    allowed,
+                });
+                current = thunk;
+            }
+            ExprKind::Coerce { from, to, expr } => {
+                frames.push(Frame::Coerce {
+                    ty: &current.ty,
+                    from,
+                    to,
+                });
+                current = expr;
+            }
+            ExprKind::Pack { var, expr } => {
+                frames.push(Frame::Pack {
+                    ty: &current.ty,
+                    var,
+                });
+                current = expr;
+            }
+            _ => break,
+        }
+    }
+
+    let mut cloned = Expr {
+        ty: current.ty.clone(),
+        kind: current.kind.clone(),
+    };
+    for frame in frames.into_iter().rev() {
+        cloned = match frame {
+            Frame::Apply {
+                ty,
+                arg,
+                evidence,
+                instantiation,
+            } => Expr {
+                ty: ty.clone(),
+                kind: ExprKind::Apply {
+                    callee: Box::new(cloned),
+                    arg: Box::new(arg.clone()),
+                    evidence: evidence.clone(),
+                    instantiation: instantiation.clone(),
+                },
+            },
+            Frame::Select { ty, field } => Expr {
+                ty: ty.clone(),
+                kind: ExprKind::Select {
+                    base: Box::new(cloned),
+                    field: field.clone(),
+                },
+            },
+            Frame::Variant { ty, tag } => Expr {
+                ty: ty.clone(),
+                kind: ExprKind::Variant {
+                    tag: tag.clone(),
+                    value: Some(Box::new(cloned)),
+                },
+            },
+            Frame::BindHere { ty } => Expr {
+                ty: ty.clone(),
+                kind: ExprKind::BindHere {
+                    expr: Box::new(cloned),
+                },
+            },
+            Frame::Thunk { ty, effect, value } => Expr {
+                ty: ty.clone(),
+                kind: ExprKind::Thunk {
+                    effect: effect.clone(),
+                    value: value.clone(),
+                    expr: Box::new(cloned),
+                },
+            },
+            Frame::LocalPushId { ty, id } => Expr {
+                ty: ty.clone(),
+                kind: ExprKind::LocalPushId {
+                    id,
+                    body: Box::new(cloned),
+                },
+            },
+            Frame::AddId { ty, id, allowed } => Expr {
+                ty: ty.clone(),
+                kind: ExprKind::AddId {
+                    id,
+                    allowed: allowed.clone(),
+                    thunk: Box::new(cloned),
+                },
+            },
+            Frame::Coerce { ty, from, to } => Expr {
+                ty: ty.clone(),
+                kind: ExprKind::Coerce {
+                    from: from.clone(),
+                    to: to.clone(),
+                    expr: Box::new(cloned),
+                },
+            },
+            Frame::Pack { ty, var } => Expr {
+                ty: ty.clone(),
+                kind: ExprKind::Pack {
+                    var: var.clone(),
+                    expr: Box::new(cloned),
+                },
+            },
+        };
+    }
+    cloned
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Type {
     Unknown,
     Core(core_ir::Type),
@@ -73,6 +291,54 @@ impl Type {
         match self {
             Type::Core(ty) => Some(ty),
             Type::Unknown | Type::Fun { .. } | Type::Thunk { .. } => None,
+        }
+    }
+}
+
+impl Clone for Type {
+    fn clone(&self) -> Self {
+        clone_type_without_fun_spine_recursion(self)
+    }
+}
+
+fn clone_type_without_fun_spine_recursion(ty: &Type) -> Type {
+    enum Frame<'a> {
+        Fun { param: &'a Type },
+        Thunk { effect: &'a core_ir::Type },
+    }
+
+    let mut current = ty;
+    let mut frames = Vec::new();
+    loop {
+        match current {
+            Type::Fun { param, ret } => {
+                frames.push(Frame::Fun { param });
+                current = ret;
+            }
+            Type::Thunk { effect, value } => {
+                frames.push(Frame::Thunk { effect });
+                current = value;
+            }
+            Type::Unknown => {
+                let mut cloned = Type::Unknown;
+                for frame in frames.into_iter().rev() {
+                    cloned = match frame {
+                        Frame::Fun { param } => Type::fun(param.clone(), cloned),
+                        Frame::Thunk { effect } => Type::thunk(effect.clone(), cloned),
+                    };
+                }
+                return cloned;
+            }
+            Type::Core(core) => {
+                let mut cloned = Type::Core(core.clone());
+                for frame in frames.into_iter().rev() {
+                    cloned = match frame {
+                        Frame::Fun { param } => Type::fun(param.clone(), cloned),
+                        Frame::Thunk { effect } => Type::thunk(effect.clone(), cloned),
+                    };
+                }
+                return cloned;
+            }
         }
     }
 }
@@ -303,4 +569,46 @@ pub struct HandleEffect {
 pub enum Root {
     Binding(core_ir::Path),
     Expr(usize),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clones_deep_runtime_adapter_spine_without_recursing() {
+        let mut expr = Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), Type::unknown());
+        for index in 0..20_000 {
+            expr = match index % 3 {
+                0 => Expr::typed(
+                    ExprKind::BindHere {
+                        expr: Box::new(expr),
+                    },
+                    Type::unknown(),
+                ),
+                1 => Expr::typed(
+                    ExprKind::Thunk {
+                        effect: core_ir::Type::Unknown,
+                        value: Type::unknown(),
+                        expr: Box::new(expr),
+                    },
+                    Type::unknown(),
+                ),
+                _ => Expr::typed(
+                    ExprKind::Coerce {
+                        from: core_ir::Type::Unknown,
+                        to: core_ir::Type::Any,
+                        expr: Box::new(expr),
+                    },
+                    Type::unknown(),
+                ),
+            };
+        }
+
+        let cloned = expr.clone();
+
+        assert_eq!(cloned.ty, Type::unknown());
+        std::mem::forget(expr);
+        std::mem::forget(cloned);
+    }
 }

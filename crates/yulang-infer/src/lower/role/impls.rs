@@ -470,9 +470,7 @@ fn lower_synthetic_variant_cast_body(
             unit_arg: false,
         }],
     );
-    state
-        .principal_bodies
-        .insert(method_def, principal_body.clone());
+    state.insert_principal_body(method_def, principal_body.clone());
     state
         .infer
         .constrain(Pos::Var(principal_body.tv), Neg::Var(method_tv));
@@ -540,9 +538,7 @@ fn lower_synthetic_error_throw_body(
             unit_arg: false,
         }],
     );
-    state
-        .principal_bodies
-        .insert(method_def, principal_body.clone());
+    state.insert_principal_body(method_def, principal_body.clone());
     state
         .infer
         .constrain(Pos::Var(principal_body.tv), Neg::Var(method_tv));
@@ -646,9 +642,7 @@ fn lower_synthetic_error_wrap_body(
             unit_arg: false,
         }],
     );
-    state
-        .principal_bodies
-        .insert(wrap_def, principal_body.clone());
+    state.insert_principal_body(wrap_def, principal_body.clone());
     state
         .infer
         .constrain(Pos::Var(principal_body.tv), Neg::Var(wrap_tv));
@@ -1125,9 +1119,7 @@ fn lower_cast_method_body(
     constrain_cast_result_target(state, body.tv, target_sig, impl_scope);
 
     let principal_body = wrap_header_lambdas(state, body.clone(), vec![arg]);
-    state
-        .principal_bodies
-        .insert(method_def, principal_body.clone());
+    state.insert_principal_body(method_def, principal_body.clone());
     state
         .infer
         .constrain(Pos::Var(principal_body.tv), Neg::Var(method_tv));
@@ -1648,7 +1640,7 @@ fn lower_impl_receiver_member(
         });
         all_arg_pats.extend(arg_pats);
         let principal_body = wrap_header_lambdas(state, body, all_arg_pats);
-        state.principal_bodies.insert(method_def, principal_body);
+        state.insert_principal_body(method_def, principal_body);
 
         state.runtime_export_schemes.insert(
             method_def,

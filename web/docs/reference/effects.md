@@ -28,37 +28,64 @@ Calling an operation acquires its effect on the enclosing function's type. A fun
 ## Handling an effect
 
 ```yulang
-our run_console(action: [console] _) = catch action:
+our run_console(action: [console] 'a): 'a = catch action:
     console::read(),    k -> run_console(k 42)
     console::println _, k -> run_console(k ())
 ```
 
 `catch expr:` introduces a handler. Each operation arm receives the operation's arguments and a continuation `k`; calling `k value` resumes the original computation with that value. A handler may also include a final value arm `v -> ...` that runs when the inner computation completes normally.
 
-The handler removes the effect from the type: if `action : [console; r] α`, then `run_console action : [r] α`.
+The handler removes the handled effect from the row. Informally, if `action`
+has a computation type like `[console; e] 'a`, then `run_console action` keeps
+only the remaining effects and returns `'a`.
 
 ## Effect rows
 
 Effect rows appear in type signatures with `[...]`:
 
-```
-[console; r] str -> ()
+```yulang
+[console; e] str
+() -> [console; e] str
 ```
 
-A row lists named effects, optionally followed by `; r` (a row variable) standing for any other effects. A function that performs no effects has an empty row `[]` or a row variable that solves to empty.
+A row lists named effects, optionally followed by a row variable such as `; e`
+standing for any other effects. `[_]` can be used in annotations as a
+placeholder when the exact row should be inferred, but it is not itself the
+canonical type syntax for an effect row.
 
-A wildcard `[_]` is also accepted in annotations and stands for "any effects" without binding a name.
+Effects may also have type arguments:
+
+```yulang
+act ref_update 'a:
+    our update: 'a -> never
+```
+
+Rows can therefore contain entries such as `ref_update int`. The type printer
+may render inferred rows with Greek variables; source annotations normally use
+names such as `e` for row tails.
+
+Effect-row methods are selected from the receiver's effect row, not from a
+nominal value companion:
+
+```yulang
+use std::undet::*
+
+(each [1, 2, 3]).list
+```
+
+If two effects in the same row provide a method with the same name, selection is
+ambiguous until the row is constrained.
 
 ## Propagation
 
 Effects propagate automatically. A function that calls an effectful function acquires that effect in its own type — unless it provides a handler.
 
 ```yulang
-// ask has type [console] str
+// ask has a type like () -> [console] str
 our ask() = console::read()
 
 // run_console removes console from the row
-our run_console(action: [console] _) = catch action:
+our run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console(k "42")
 ```
 
@@ -81,3 +108,9 @@ error io_err:
 ```
 
 This generates a `Cast` impl from the source error type, so an `fs_err` value implicitly lifts to an `io_err` at an annotation boundary.
+
+`error` also generates a `wrap` helper for converting a throwing computation to
+a `result` value for that single error type. General multi-error stringification
+is not part of the current surface.
+
+Ordinary `enum` variants may also use `from`; see [Casts](./casts).

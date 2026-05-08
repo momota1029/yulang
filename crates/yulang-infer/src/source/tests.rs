@@ -2584,6 +2584,31 @@ fn lowers_std_var_ref_through_top_level_alias() {
 }
 
 #[test]
+fn lowers_ref_list_assignment_with_local_var_act() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my edited =\n  my ($xs) = [2, 3, 4]\n  &xs[1] = 6\n  $xs\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+        let edited = rendered_type(&rendered, "edited");
+
+        assert!(
+            edited.contains("std::list::list<int") || edited.contains("list<int"),
+            "edited should keep the list element type after ref assignment: {edited}",
+        );
+    });
+}
+
+#[test]
 fn lowers_record_head_spread_literal() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -3120,6 +3145,72 @@ fn lowers_std_opt_constructors_through_implicit_prelude() {
 }
 
 #[test]
+fn lowers_std_opt_and_result_unqualified_through_implicit_prelude() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my maybe: opt int = just 1\n\
+             my converted: result int str = case maybe:\n\
+               nil -> err \"empty\"\n\
+               just x -> ok x\n\
+             my recovered: int = case converted:\n\
+               err _ -> 0\n\
+               ok x -> x\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+
+        assert_eq!(rendered_type(&rendered, "maybe"), "std::opt::opt<int>");
+        assert_eq!(
+            rendered_type(&rendered, "converted"),
+            "std::result::result<int, std::str::str>"
+        );
+        assert_eq!(rendered_type(&rendered, "recovered"), "int");
+    });
+}
+
+#[test]
+fn lowers_std_undet_entrypoints_through_implicit_prelude() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my e = each\n\
+             my g = guard\n\
+             my collected = (each [1, 2, 3] + each [4, 5, 6]).list\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+
+        assert_eq!(
+            rendered_type(&rendered, "e"),
+            "Fold<α, item = β> => α -> [std::undet::undet] β"
+        );
+        assert_eq!(
+            rendered_type(&rendered, "g"),
+            "bool -> [std::undet::undet] unit"
+        );
+        assert_eq!(
+            rendered_type(&rendered, "collected"),
+            "std::list::list<int>"
+        );
+    });
+}
+
+#[test]
 fn lowers_opt_if_join_to_single_concrete_payload_shape() {
     let mut lowered = lower_virtual_source_with_options(
         "enum opt 'a = nil | just 'a\n\
@@ -3442,6 +3533,30 @@ fn undet_list_reference_keeps_handled_input_effect_requirement() {
         let mut lowered = lower_virtual_source_with_options(
             "use std::undet::*\n\
              my l = undet::list\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+        assert_eq!(
+            rendered_type(&rendered, "l"),
+            "α [std::undet::undet; β] -> [β] std::list::list<α>"
+        );
+    });
+}
+
+#[test]
+fn undet_logic_reference_keeps_result_item_var() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "use std::undet::*\n\
+             my l = undet::logic\n",
             Some(repo_root),
             SourceOptions {
                 std_root: Some(std_root),

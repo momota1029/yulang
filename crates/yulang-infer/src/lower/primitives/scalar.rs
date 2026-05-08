@@ -82,7 +82,7 @@ pub(super) fn install_int_binary_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -149,7 +149,7 @@ pub(super) fn install_float_binary_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -302,7 +302,7 @@ fn install_unary_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -370,7 +370,7 @@ fn install_binary_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -450,7 +450,7 @@ fn install_mixed_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -548,7 +548,7 @@ fn install_binary_predicate_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {

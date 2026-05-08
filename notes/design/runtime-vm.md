@@ -18,3 +18,9 @@
 - `&record.field = ...` still has fragile spots around runtime lowering.
 - Effectful defaults may expose gaps in pattern-binding continuation handling.
 - Reachability needs to include every expression stored inside patterns and handlers.
+- Nondeterministic search currently clones continuations that own `Expr`, handler
+  arms, and `Env` data.  Wide `.once` searches such as three independent
+  `each 1..` ranges can be fine on native builds but overflow browser Wasm
+  stacks.  Until the VM is replaced or refactored, examples should constrain
+  infinite choices early (`b = each a<..`, `c = each b<..`).  A deeper fix is to
+  make continuation frames share expression and handler data by reference.

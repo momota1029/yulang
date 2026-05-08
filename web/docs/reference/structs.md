@@ -25,7 +25,14 @@ struct point { x: int, y: int } with:
     our p.scale n = point { x: p.x * n, y: p.y * n }
 ```
 
-`with:` attaches definitions to the struct's companion module. Methods use a receiver name — here `p` — that stands for the value being called on. `our` makes the method accessible both as `point::norm2` and as `.norm2` on a `point` value.
+`with:` attaches definitions to the struct's companion module. Methods use a
+receiver name — here `p` — that stands for the value being called on. Receiver
+style bindings are registered as methods; examples conventionally use `our`
+when the method should be visible from outside the companion body.
+
+The same `with:` machinery also works for `type` declarations, so standard
+types such as `list`, `str`, and `ref` can define methods in their companion
+modules.
 
 ## Roles
 
@@ -64,7 +71,9 @@ impl Index str int:
 
 The first type after the role name fills the role's first type variable; further types fill the rest.
 
-A struct can attach an `impl` inside its `with:` block — the enclosing struct fills the role's first type argument automatically:
+A struct can attach an `impl` inside its `with:` block. The enclosing struct is
+prepended as the role's first type argument; any role arguments written after
+the role name fill the remaining role inputs:
 
 ```yulang
 struct box 'a { value: 'a } with:
@@ -83,4 +92,6 @@ my twice(x: 'a) =
     x.add x
 ```
 
-`where` clauses also work inside `role` bodies (they propagate to the role's methods) and inside `impl` bodies.
+`where` clauses also work inside `role` bodies and `impl` bodies. In a role
+body, the constraint is inherited by the role methods. In an impl body, the
+constraint becomes a prerequisite for that impl candidate.

@@ -52,7 +52,7 @@ pub(super) fn install_list_len_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -121,7 +121,7 @@ pub(super) fn install_list_index_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -190,7 +190,7 @@ pub(super) fn install_list_index_range_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -245,7 +245,7 @@ pub(super) fn install_list_empty_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -331,7 +331,7 @@ pub(super) fn install_list_splice_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -385,7 +385,7 @@ pub(super) fn install_list_singleton_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -456,7 +456,7 @@ pub(super) fn install_list_merge_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -539,7 +539,7 @@ pub(super) fn install_list_index_range_raw_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -636,7 +636,7 @@ pub(super) fn install_list_splice_raw_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {
@@ -690,7 +690,7 @@ pub(super) fn install_list_view_raw_primitive(
         eff: state.fresh_exact_pure_eff_tv(),
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
-    state.principal_bodies.insert(def, body);
+    state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
         core_ir::Scheme {

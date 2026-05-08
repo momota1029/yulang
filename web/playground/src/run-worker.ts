@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import init, {
+  clear_std_cache,
   run,
   warm_std_cache,
 } from "./wasm/yulang_wasm.js";
@@ -36,35 +37,88 @@ type RunWorkerResponse =
       message: string;
       name?: string;
       stack?: string;
+      context: WorkerDebugContext;
     };
 
 const workerSelf = self as DedicatedWorkerGlobalScope;
+const workerStartedAt = Date.now();
+let handledRequests = 0;
+let lastStarted: WorkerRequestTrace | undefined;
+let lastCompleted: WorkerRequestTrace | undefined;
+let lastRunUsedContinuations = false;
+let lastRunClearedCache = false;
 const wasmReady = init();
+
+type WorkerRequestTrace = {
+  id: number;
+  kind: RunWorkerRequest["kind"];
+  started_ms: number;
+  finished_ms?: number;
+  source_chars?: number;
+  ok?: boolean;
+  continuation_steps?: number;
+  cache_cleared?: boolean;
+};
+
+type WorkerDebugContext = {
+  worker_age_ms: number;
+  handled_requests: number;
+  last_started?: WorkerRequestTrace;
+  last_completed?: WorkerRequestTrace;
+  last_run_used_continuations: boolean;
+  last_run_cleared_cache: boolean;
+};
 
 workerSelf.addEventListener("message", (event: MessageEvent<RunWorkerRequest>) => {
   void handleRequest(event.data);
 });
 
 async function handleRequest(request: RunWorkerRequest): Promise<void> {
+  const trace: WorkerRequestTrace = {
+    id: request.id,
+    kind: request.kind,
+    started_ms: Date.now() - workerStartedAt,
+    source_chars: request.kind === "run" ? request.source.length : undefined,
+  };
+  lastStarted = trace;
+  handledRequests += 1;
   try {
     await wasmReady;
     if (request.kind === "run") {
+      const output = run(request.source);
+      const continuationSteps = continuationStepsOf(output);
+      trace.continuation_steps = continuationSteps;
+      trace.cache_cleared = continuationSteps > 0;
+      lastRunUsedContinuations = continuationSteps > 0;
+      lastRunClearedCache = continuationSteps > 0;
+      if (continuationSteps > 0) {
+        clear_std_cache();
+      }
+      markCompleted(trace, true);
       postResponse({
         id: request.id,
         kind: request.kind,
         ok: true,
-        output: run(request.source),
+        output,
       });
       return;
     }
+    const output = warm_std_cache();
+    markCompleted(trace, true);
     postResponse({
       id: request.id,
       kind: request.kind,
       ok: true,
-      output: warm_std_cache(),
+      output,
     });
   } catch (error) {
     const details = errorDetails(error);
+    markCompleted(trace, false);
+    console.warn("Yulang worker request failed", {
+      trace,
+      context: debugContext(),
+      error: details,
+    });
     postResponse({
       id: request.id,
       kind: request.kind,
@@ -72,8 +126,41 @@ async function handleRequest(request: RunWorkerRequest): Promise<void> {
       message: details.message,
       name: details.name,
       stack: details.stack,
+      context: debugContext(),
     });
   }
+}
+
+function markCompleted(trace: WorkerRequestTrace, ok: boolean): void {
+  trace.finished_ms = Date.now() - workerStartedAt;
+  trace.ok = ok;
+  lastCompleted = { ...trace };
+}
+
+function debugContext(): WorkerDebugContext {
+  return {
+    worker_age_ms: Date.now() - workerStartedAt,
+    handled_requests: handledRequests,
+    last_started: lastStarted,
+    last_completed: lastCompleted,
+    last_run_used_continuations: lastRunUsedContinuations,
+    last_run_cleared_cache: lastRunClearedCache,
+  };
+}
+
+function continuationStepsOf(output: unknown): number {
+  if (
+    typeof output !== "object" ||
+    output === null ||
+    !("timings" in output) ||
+    typeof output.timings !== "object" ||
+    output.timings === null ||
+    !("vm_continuation_steps" in output.timings) ||
+    typeof output.timings.vm_continuation_steps !== "number"
+  ) {
+    return 0;
+  }
+  return output.timings.vm_continuation_steps;
 }
 
 function postResponse(response: RunWorkerResponse): void {

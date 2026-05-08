@@ -1270,6 +1270,42 @@ std::flow::sub::sub:
     }
 
     #[test]
+    fn vm_runs_std_undet_each_and_once_from_prelude() {
+        let results = eval_source_with_std(
+            r#"
+(each [1, 2, 3] + each [4, 5, 6]).list
+
+{
+    my a = each 1..
+    guard: a == 3
+    a
+} .once
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![
+                TestValue::List(vec![
+                    TestValue::Int("5".to_string()),
+                    TestValue::Int("6".to_string()),
+                    TestValue::Int("7".to_string()),
+                    TestValue::Int("6".to_string()),
+                    TestValue::Int("7".to_string()),
+                    TestValue::Int("8".to_string()),
+                    TestValue::Int("7".to_string()),
+                    TestValue::Int("8".to_string()),
+                    TestValue::Int("9".to_string()),
+                ]),
+                TestValue::Variant {
+                    tag: "just".to_string(),
+                    value: Some(Box::new(TestValue::Int("3".to_string()))),
+                },
+            ]
+        );
+    }
+
+    #[test]
     fn monomorphizes_std_undet_each_with_observed_value_type() {
         let module =
             runtime_module_with_std("use std::undet::*\n(each [1, 2, 3] + each [4, 5, 6]).list\n");

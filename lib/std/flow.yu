@@ -1,6 +1,6 @@
 pub act sub 'a:
     pub return: 'a -> never
-    pub sub(x: [_] _) = catch x:
+    pub sub(x: [_] 'a): 'a = catch x:
         return a, _ -> a
         a -> a
 
@@ -10,7 +10,7 @@ pub act label_sub 'a:
         marker: unit
     }
     our control_label = label_sub::label {marker: ()}
-    pub sub(x: [_] _) = catch x:
+    pub sub(x: [_] 'a): 'a = catch x:
         label_sub::return a, _ -> a
         sub::return a, _ -> a
         a -> a

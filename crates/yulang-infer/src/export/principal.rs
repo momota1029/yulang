@@ -1379,7 +1379,7 @@ fn transparent_role_wrapper_method(
 ) -> Option<(crate::symbols::Name, usize)> {
     let body = state.principal_bodies.get(&def)?;
     let mut params = Vec::new();
-    let mut current = body;
+    let mut current: &TypedExpr = body;
     while let ExprKind::Lam(param, body) = &current.kind {
         params.push(*param);
         current = body;

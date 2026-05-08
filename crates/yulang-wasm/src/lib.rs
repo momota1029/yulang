@@ -36,6 +36,13 @@ pub fn warm_std_cache() -> JsValue {
 }
 
 #[wasm_bindgen]
+pub fn clear_std_cache() {
+    SOURCE_LOWER_CACHE.with(|cache| {
+        *cache.borrow_mut() = SourceLowerCache::default();
+    });
+}
+
+#[wasm_bindgen]
 pub fn std_snapshot_data() -> JsValue {
     console_error_panic_hook::set_once();
     let source_set = std_sources::warm_source_set();
@@ -682,6 +689,34 @@ sub:
     }
 
     #[test]
+    fn runs_playground_undet_once_example() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let source = r#"({
+    my a = each 1..
+    my b = each 1..
+    my c = each 1..
+
+    guard: a <= b
+    guard: b <= c
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
+}).once
+"#;
+                let output = run_inner(source);
+                assert!(output.ok, "{:?}", output.diagnostics);
+                assert_eq!(output.results.len(), 1);
+                assert_eq!(output.results[0].value, "just (3, 4, 5)");
+                assert_std_oracle_cache_used(&output);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
     fn std_oracle_runs_ref_list_assignment_example() {
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
@@ -1167,6 +1202,28 @@ g
 
     #[test]
     fn runs_multiline_sub_return_expression() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner(
+                    r#"my f(): int = sub:
+    return
+        1 + 2 + 3 + 4
+
+f()
+"#,
+                );
+                assert!(output.ok, "{:?}", output.diagnostics);
+                assert_eq!(output.results.len(), 1);
+                assert_eq!(output.results[0].value, "10");
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn runs_unannotated_multiline_sub_return_expression() {
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
             .spawn(|| {

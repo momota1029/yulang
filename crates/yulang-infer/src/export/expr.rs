@@ -1532,7 +1532,7 @@ fn apply_unit(callee: core_ir::Expr) -> core_ir::Expr {
 fn transparent_role_wrapper_method(state: &LowerState, def: DefId) -> Option<(Name, usize)> {
     let body = state.principal_bodies.get(&def)?;
     let mut params = Vec::new();
-    let mut current = body;
+    let mut current: &crate::ast::expr::TypedExpr = body;
     while let ExprKind::Lam(param, body) = &current.kind {
         params.push(*param);
         current = body;

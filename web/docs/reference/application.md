@@ -8,10 +8,11 @@ Yulang has several ways to write a function call. They all lower to the same cur
 |------|--------|-------|
 | ML-style juxtaposition | `f x y` | Whitespace-separated |
 | C-style call | `f(x, y)` | **No whitespace** between callee and `(` |
-| Method call | `x.method`, `x.method y`, `x.method(y)` | Dot selection on a value |
+| Field/method selection | `x.method`, `x.method y`, `x.method(y)` | Select a value, then optionally apply it |
 | Colon block call | `f: body` | Body becomes the single argument |
 
-All four desugar to curried application:
+The call forms lower to curried application. Dot selection by itself is a
+selection; when followed by arguments, the selected value is applied:
 
 ```yulang
 f x y           ≡  ((f x) y)
@@ -126,7 +127,23 @@ a == b and c == d         // (a == b) and (c == d)
 1..n + 1                  // 1..(n + 1)    -- range outside +
 ```
 
-User-defined operators set their own levels (`pub infix (++) 5.0.0 5.0.0 = ...`).
+User-defined operators set their own binding powers:
+
+```yulang
+pub prefix(not) 8.0.0 = bool_not
+pub infix(++) 5.0.0 5.0.1 = append
+pub suffix(..) 8.0.0 = range_from
+```
+
+Binding powers are vectors of small integers, written with dots. They are
+compared lexicographically; missing components compare as `0`, so `5`, `5.0`,
+and `5.0.0` are equivalent, while `5.0.1` is slightly tighter than `5.0.0`.
+
+Prefix and suffix operators each take one binding power. Infix operators take
+two: left binding power and right binding power. These can differ, which is how
+associativity and fine-grained grouping are expressed. For example, a right
+binding power just above the left one makes the next same-level operator bind
+outside the current right-hand side.
 
 ## ML application stops at whitespace boundaries
 
@@ -181,15 +198,11 @@ It also works with indented blocks — the body is a sequence of statements whos
 run_console:
     my line = ask()
     line + "!"
-
-// equivalent in spirit to
-run_console ({
-    my line = ask()
-    line + "!"
-})
 ```
 
-The same form drives `if`, `case`, `catch`, `for`, `sub`, lambda bodies, struct/role/effect bodies — they are all "head + colon + block":
+Colon syntax is also used by several dedicated control and declaration forms.
+Those forms are not all ordinary `ApplyColon` calls, but they share the same
+surface habit of putting the body after `:`:
 
 ```yulang
 if cond: 1 else: 2
@@ -222,11 +235,12 @@ g (f: x)        // g (f x)
 1 + (f: x)      // 1 + (f x)
 ```
 
-Colon also stays out of ML arguments:
+Colon does not become part of an ML argument by accident. If a colon appears
+after an ML application, it binds outside that application:
 
 ```yulang
-my y = f sub: 1   // sub: 1 — the colon binds to sub, not to f
-my z = f (sub: 1) // explicit; same lowering
+my y = f sub: 1   // (f sub): 1
+my z = f (sub: 1) // f (sub: 1)
 ```
 
 ## `if` / `case` / `catch` are expressions

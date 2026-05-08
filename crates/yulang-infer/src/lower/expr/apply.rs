@@ -350,9 +350,10 @@ fn selected_value_method_accepts_pure_next_arg(state: &LowerState, func: &TypedE
     let Some(def) = state.infer.resolve_selection_def(recv.tv, name) else {
         return false;
     };
-    let Some(mut body) = state.principal_bodies.get(&def) else {
+    let Some(body) = state.principal_bodies.get(&def) else {
         return false;
     };
+    let mut body: &TypedExpr = body;
     for _ in 0..2 {
         match &body.kind {
             ExprKind::Coerce { expr, .. } | ExprKind::PackForall(_, expr) => {
@@ -381,9 +382,10 @@ fn selected_value_method_accepts_pure_next_arg(state: &LowerState, func: &TypedE
 }
 
 fn def_expects_computation_argument(state: &LowerState, def: crate::ids::DefId) -> bool {
-    let Some(mut body) = state.principal_bodies.get(&def) else {
+    let Some(body) = state.principal_bodies.get(&def) else {
         return false;
     };
+    let mut body: &TypedExpr = body;
     loop {
         match &body.kind {
             ExprKind::Coerce { expr, .. } | ExprKind::PackForall(_, expr) => {

@@ -441,14 +441,13 @@ fn run_mono_fixpoint(
     debug: bool,
 ) -> RuntimeResult<Module> {
     for round in 0..limit {
-        let round_start = module.clone();
         let mut round_progress = MonoProgress::default();
         for pass in passes {
             let step = run_profiled_mono_pass(module, *pass, profile, debug)?;
             module = step.module;
             round_progress.merge(step.progress);
         }
-        if !round_progress.changed() || module == round_start {
+        if !round_progress.changed() {
             if debug {
                 eprintln!("mono fixpoint {name} converged after {round} rounds");
             }
@@ -643,6 +642,14 @@ impl MonoProgress {
         }
     }
 
+    fn from_stats(before: MonoStats, after: MonoStats) -> Self {
+        Self {
+            changed_bindings: before.bindings.abs_diff(after.bindings),
+            changed_roots: before.roots.abs_diff(after.roots),
+            added_specializations: after.bindings.saturating_sub(before.bindings),
+        }
+    }
+
     fn format(self) -> String {
         if !self.changed() {
             return "none".to_string();
@@ -676,10 +683,37 @@ fn run_tracked_pass<F>(module: Module, f: F) -> RuntimeResult<MonoStep>
 where
     F: FnOnce(Module) -> RuntimeResult<Module>,
 {
-    let before = module.clone();
+    if std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_some()
+        || std::env::var_os("YULANG_MONO_ACCURATE_PROGRESS").is_some()
+    {
+        let before = module.clone();
+        let module = f(module)?;
+        let progress = MonoProgress::from_modules(&before, &module);
+        let added_binding_paths = added_binding_paths(&before, &module);
+        return Ok(MonoStep {
+            module,
+            progress,
+            demand_queue: DemandQueueProfile::default(),
+            principal_elaborate: SubstitutionSpecializeProfile::default(),
+            added_binding_paths,
+            added_specializations: Vec::new(),
+        });
+    }
+
+    let before = MonoStats::from_module(&module);
+    let before_paths = module
+        .bindings
+        .iter()
+        .map(|binding| binding.name.clone())
+        .collect::<HashSet<_>>();
     let module = f(module)?;
-    let progress = MonoProgress::from_modules(&before, &module);
-    let added_binding_paths = added_binding_paths(&before, &module);
+    let progress = MonoProgress::from_stats(before, MonoStats::from_module(&module));
+    let added_binding_paths = module
+        .bindings
+        .iter()
+        .filter(|binding| !before_paths.contains(&binding.name))
+        .map(|binding| binding.name.clone())
+        .collect();
     Ok(MonoStep {
         module,
         progress,

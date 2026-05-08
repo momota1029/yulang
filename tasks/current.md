@@ -24,7 +24,7 @@ runtime/core IR
 
 直近 TODO:
 
-- CPS / Cranelift 境界の design note を書く。
+- `notes/design/native-backend-plan.md` に沿って native control IR skeleton を作る。
 - 最初に support する subset を選ぶ。
   - pure first-order functions
   - primitive numeric/string operations
@@ -35,6 +35,8 @@ runtime/core IR
 重要な制約:
 
 - VM は behavioral oracle のままにする。Native code は置き換えではなく、VM の横に追加する。
+- 現 VM は nondet continuation の clone cost が大きい。playground/docs examples では
+  無限選択を早めに絞り、VM 参照化は native backend / control IR 作業と一緒に扱う。
 
 ## Track 2: Parser Combinators
 

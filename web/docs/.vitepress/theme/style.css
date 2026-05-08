@@ -1,0 +1,175 @@
+:root {
+  --vp-font-family-base:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --vp-font-family-mono:
+    ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+
+  --vp-c-bg: #f5f2ec;
+  --vp-c-bg-alt: #faf5ec;
+  --vp-c-bg-elv: #fffdf8;
+  --vp-c-bg-soft: #faf5ec;
+  --vp-c-text-1: #202124;
+  --vp-c-text-2: #5f635f;
+  --vp-c-text-3: #57534c;
+  --vp-c-divider: #d5cdc0;
+  --vp-c-gutter: #ebe4d9;
+  --vp-c-border: #d5cdc0;
+  --vp-c-brand-1: #1f6f66;
+  --vp-c-brand-2: #185d56;
+  --vp-c-brand-3: #2b8278;
+  --vp-c-brand-soft: rgba(31, 111, 102, 0.16);
+  --vp-c-tip-1: #1f6f66;
+  --vp-c-tip-2: #185d56;
+  --vp-c-tip-3: #2b8278;
+  --vp-c-tip-soft: rgba(31, 111, 102, 0.14);
+  --vp-c-warning-soft: rgba(154, 77, 33, 0.14);
+  --vp-c-danger-1: #a43d30;
+  --vp-code-color: #28323a;
+  --vp-code-bg: #f1ece4;
+  --vp-code-block-bg: #fffdf8;
+  --vp-code-line-highlight-color: rgba(31, 111, 102, 0.08);
+  --vp-button-brand-border: #1f6f66;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-bg: #1f6f66;
+  --vp-button-brand-hover-border: #185d56;
+  --vp-button-brand-hover-bg: #185d56;
+  --vp-button-alt-border: #b9afa0;
+  --vp-button-alt-text: #304d49;
+  --vp-button-alt-bg: #faf5ec;
+  --vp-button-alt-hover-border: #1f6f66;
+  --vp-button-alt-hover-text: #1f6f66;
+  --vp-button-alt-hover-bg: #edf6f3;
+  --vp-nav-bg-color: rgba(245, 242, 236, 0.92);
+  --vp-sidebar-bg-color: #faf5ec;
+  --vp-custom-block-tip-border: #1f6f66;
+  --vp-custom-block-tip-text: #202124;
+  --vp-custom-block-tip-bg: rgba(31, 111, 102, 0.1);
+  --vp-home-hero-name-color: #202124;
+}
+
+.dark {
+  --vp-c-bg: #15130f;
+  --vp-c-bg-alt: #211f1a;
+  --vp-c-bg-elv: #211f1a;
+  --vp-c-bg-soft: #29251f;
+  --vp-c-text-1: #ebe5db;
+  --vp-c-text-2: #b7afa3;
+  --vp-c-text-3: #c8bfb2;
+  --vp-c-divider: #443d34;
+  --vp-c-gutter: #383229;
+  --vp-c-border: #443d34;
+  --vp-c-brand-1: #67cbbd;
+  --vp-c-brand-2: #4db7a8;
+  --vp-c-brand-3: #9bd6ca;
+  --vp-c-brand-soft: rgba(77, 183, 168, 0.22);
+  --vp-c-tip-1: #67cbbd;
+  --vp-c-tip-2: #4db7a8;
+  --vp-c-tip-3: #9bd6ca;
+  --vp-c-tip-soft: rgba(77, 183, 168, 0.18);
+  --vp-c-warning-soft: rgba(230, 160, 107, 0.16);
+  --vp-c-danger-1: #ff9588;
+  --vp-code-color: #f0e8dc;
+  --vp-code-bg: #2c2821;
+  --vp-code-block-bg: #211f1a;
+  --vp-code-line-highlight-color: rgba(77, 183, 168, 0.12);
+  --vp-button-brand-border: #4db7a8;
+  --vp-button-brand-text: #10211e;
+  --vp-button-brand-bg: #4db7a8;
+  --vp-button-brand-hover-border: #67cbbd;
+  --vp-button-brand-hover-bg: #67cbbd;
+  --vp-button-alt-border: #61574b;
+  --vp-button-alt-text: #9bd6ca;
+  --vp-button-alt-bg: #29251f;
+  --vp-button-alt-hover-border: #67cbbd;
+  --vp-button-alt-hover-text: #67cbbd;
+  --vp-button-alt-hover-bg: #20332f;
+  --vp-nav-bg-color: rgba(21, 19, 15, 0.92);
+  --vp-sidebar-bg-color: #211f1a;
+  --vp-custom-block-tip-border: #4db7a8;
+  --vp-custom-block-tip-text: #ebe5db;
+  --vp-custom-block-tip-bg: rgba(77, 183, 168, 0.14);
+  --vp-home-hero-name-color: #ebe5db;
+}
+
+:root {
+  background: var(--vp-c-bg);
+}
+
+.VPNavBarTitle .title,
+.VPNavBarMenuLink,
+.VPSidebarItem .text {
+  letter-spacing: 0;
+}
+
+.VPNavBarTitle .title {
+  font-weight: 760;
+}
+
+.VPNavBarMenuLink,
+.external-nav-link {
+  font-weight: 650;
+}
+
+.external-nav-link {
+  border: 1px solid var(--vp-button-alt-border);
+  border-radius: 6px;
+  background: var(--vp-button-alt-bg);
+  color: var(--vp-button-alt-text) !important;
+  min-height: 32px;
+  padding: 0 10px !important;
+}
+
+.external-nav-link:hover {
+  border-color: var(--vp-button-alt-hover-border);
+  background: var(--vp-button-alt-hover-bg);
+  color: var(--vp-button-alt-hover-text) !important;
+}
+
+.VPDoc .container > .content {
+  background: var(--vp-c-bg);
+}
+
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3 {
+  letter-spacing: 0;
+}
+
+.vp-doc h1 {
+  font-weight: 760;
+}
+
+.vp-doc a {
+  color: var(--vp-c-brand-1);
+}
+
+.vp-doc table {
+  background: var(--vp-c-bg-elv);
+}
+
+.vp-doc th {
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc div[class*="language-"],
+.vp-doc [class*="language-"] pre,
+.vp-doc [class*="language-"] code {
+  font-family: var(--vp-font-family-mono);
+}
+
+.vp-doc div[class*="language-"] {
+  border: 1px solid var(--vp-c-border);
+  border-radius: 8px;
+}
+
+.vp-doc :not(pre) > code {
+  border-radius: 4px;
+  color: var(--vp-code-color);
+  background: var(--vp-code-bg);
+}
+
+.custom-block {
+  border-radius: 8px;
+}

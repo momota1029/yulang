@@ -17,19 +17,19 @@ pub act undet:
 
     pub logic(x: [_] _) = loop x [] [] with:
         our loop(x: [_] _, queue, res) = catch x:
-            branch(), k -> loop(k true, queue + [k], res)
+            branch(), k -> loop(k true, std::list::append queue [k], res)
             reject(), _ -> case std::list::uncons queue:
                 std::opt::opt::nil -> res
                 std::opt::opt::just (k, queue) -> loop(k false, queue, res)
             v -> case std::list::uncons queue:
-                std::opt::opt::nil -> res + [v]
-                std::opt::opt::just (k, queue) -> loop(k false, queue, res + [v])
+                std::opt::opt::nil -> std::list::append res [v]
+                std::opt::opt::just (k, queue) -> loop(k false, queue, std::list::append res [v])
 
 
     // 何個も解が要らないときにつかう
     pub once(x: [_] _) = loop x [] with:
         our loop(x: [_] _, queue) = catch x:
-            branch(), k -> loop(k true, queue + [k])
+            branch(), k -> loop(k true, std::list::append queue [k])
             reject(), _ -> case std::list::uncons queue:
                 std::opt::opt::nil -> std::opt::opt::nil
                 std::opt::opt::just (k, queue) -> loop(k false, queue)

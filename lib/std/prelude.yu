@@ -32,6 +32,8 @@ pub use std::opt::*
 pub use std::result::*
 pub use std::fs::*
 pub use std::range::*
+pub use std::undet::each
+pub use std::undet::guard
 pub use std::index::Index
 pub use std::var::*
 pub use std::junction::*

@@ -276,7 +276,7 @@ fn contains_non_runtime_type_inner(
             })
         }
         core_ir::Type::Recursive { body, .. } => {
-            contains_non_runtime_type_inner(body, false, allowed_vars, type_arg_kinds)
+            contains_non_runtime_type_inner(body, effect_slot, allowed_vars, type_arg_kinds)
         }
     }
 }
@@ -420,6 +420,36 @@ mod tests {
         };
 
         validate_module(&module).expect("valid thunk row");
+    }
+
+    #[test]
+    fn thunk_type_allows_recursive_effect_row() {
+        let value_ty = bool_type();
+        let effect = core_ir::Type::Recursive {
+            var: core_ir::TypeVar("e".to_string()),
+            body: Box::new(core_ir::Type::Row {
+                items: vec![named_type("undet")],
+                tail: Box::new(core_ir::Type::Var(core_ir::TypeVar("e".to_string()))),
+            }),
+        };
+        let inner = Expr::typed(ExprKind::Lit(core_ir::Lit::Bool(true)), value_ty.clone());
+        let thunk_ty = Type::thunk(effect.clone(), Type::core(value_ty.clone()));
+        let module = Module {
+            path: core_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![Expr::typed(
+                ExprKind::Thunk {
+                    effect,
+                    value: Type::core(value_ty),
+                    expr: Box::new(inner),
+                },
+                thunk_ty,
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        validate_module(&module).expect("valid recursive thunk row");
     }
 
     #[test]

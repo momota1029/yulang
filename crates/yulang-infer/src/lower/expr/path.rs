@@ -417,9 +417,10 @@ fn can_alias_direct_ref(state: &LowerState, def: crate::ids::DefId) -> bool {
 }
 
 fn principal_body_is_lambda_value(state: &LowerState, def: crate::ids::DefId) -> bool {
-    let Some(mut body) = state.principal_bodies.get(&def) else {
+    let Some(body) = state.principal_bodies.get(&def) else {
         return false;
     };
+    let mut body: &TypedExpr = body;
     loop {
         match &body.kind {
             ExprKind::Coerce { expr, .. } | ExprKind::PackForall(_, expr) => {

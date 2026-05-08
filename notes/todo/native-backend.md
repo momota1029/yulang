@@ -36,7 +36,7 @@ Core / runtime IR
 
 ## 最初の slice
 
-- `notes/design/native-backend-plan.md` を書く。
+- `notes/design/native-backend-plan.md` を設計境界として保つ。
 - pure first-order subset を選ぶ。
 - primitive numeric/string operations をコンパイルする。
 - direct call をコンパイルする。

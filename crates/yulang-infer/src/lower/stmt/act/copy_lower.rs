@@ -183,7 +183,7 @@ fn try_copy_lowered_act_body(
 
     let mut finalized_defs = HashSet::new();
     for (_name, source_def, def, tv, copied_body_subst) in copied_defs {
-        if let Some(source_body) = state.principal_bodies.get(&source_def).cloned() {
+        if let Some(source_body) = state.clone_principal_body(source_def) {
             let body_tv_subst = merge_type_substs(subst.as_slice(), copied_body_subst.as_slice());
             let copied = super::transform_copied_principal_body_with_subst(
                 state,
@@ -216,7 +216,7 @@ fn try_copy_lowered_act_body(
             state
                 .infer
                 .store_compact_role_constraints(def, compact_constraints);
-            state.principal_bodies.insert(def, copied.body);
+            state.insert_principal_body(def, copied.body);
         }
         finalized_defs.insert(def);
 

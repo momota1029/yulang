@@ -129,7 +129,7 @@ fn lower_enum_variant(
         synthetic_enum_nullary_constructor_body(state, &variant_name, enum_pos, enum_neg)
     };
 
-    state.principal_bodies.insert(ctor_def, body.clone());
+    state.insert_principal_body(ctor_def, body.clone());
     state.infer.constrain(Pos::Var(body.tv), Neg::Var(ctor_tv));
     state.infer.constrain(Pos::Var(ctor_tv), Neg::Var(body.tv));
     state
