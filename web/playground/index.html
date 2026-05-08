@@ -12,6 +12,7 @@
           <div class="pane-head">
             <h1>Yulang</h1>
             <div class="pane-actions">
+              <a class="repo-link" href="/docs/">Docs</a>
               <a
                 class="repo-link"
                 href="https://github.com/momota1029/yulang"
@@ -60,6 +61,34 @@
           <section class="output-pane" aria-label="Type inference" data-i18n-aria="typesAria">
             <h2 data-i18n="types">Types</h2>
             <pre id="types"></pre>
+          </section>
+          <section class="docs-pane i18n-block lang-ja" aria-labelledby="docs-pane-title-ja">
+            <div class="docs-pane-head">
+              <h2 id="docs-pane-title-ja">Docs</h2>
+              <p>この画面で試しながら、必要なところだけ文書へ飛べます。</p>
+            </div>
+            <div class="docs-links">
+              <a href="/docs/guide/">Guide</a>
+              <a href="/docs/reference/">Reference</a>
+              <a href="/docs/reference/effects">Effects</a>
+              <a href="/docs/reference/std/undet">std::undet</a>
+            </div>
+          </section>
+          <section
+            class="docs-pane i18n-block lang-en"
+            aria-labelledby="docs-pane-title-en"
+            lang="en"
+          >
+            <div class="docs-pane-head">
+              <h2 id="docs-pane-title-en">Docs</h2>
+              <p>Try code here, then jump to the relevant reference when needed.</p>
+            </div>
+            <div class="docs-links">
+              <a href="/docs/guide/">Guide</a>
+              <a href="/docs/reference/">Reference</a>
+              <a href="/docs/reference/effects">Effects</a>
+              <a href="/docs/reference/std/undet">std::undet</a>
+            </div>
           </section>
         </div>
       </section>
@@ -487,12 +516,13 @@ twice 21</code></pre>
           <article class="guide-section">
             <h3>詳しい文書</h3>
             <p>
-              もう少し広い説明は repository の overview にあります。
-              現在の文書は実装に合わせて更新中で、安定仕様ではありません。
+              もう少し広い説明は Guide と Reference にあります。
+              この画面は実行して確かめる場所、文書は読み返す場所として分けています。
             </p>
             <p class="guide-links">
-              <a href="https://github.com/momota1029/yulang/blob/main/docs/language/overview.md">English overview</a>
-              <a href="https://github.com/momota1029/yulang/blob/main/docs/language/overview.ja.md">日本語 overview</a>
+              <a href="/docs/guide/">Guide</a>
+              <a href="/docs/reference/">Reference</a>
+              <a href="/docs/reference/effects">Effects</a>
             </p>
           </article>
         </div>
@@ -572,12 +602,13 @@ twice 21</code></pre>
           <article class="guide-section">
             <h3>More docs</h3>
             <p>
-              The repository overview has a broader explanation.
-              The current docs are being updated along with the implementation and are not a stable spec.
+              The Guide and Reference have the broader explanation.
+              Keep this page for running code, and use the docs when you need a stable place to reread details.
             </p>
             <p class="guide-links">
-              <a href="https://github.com/momota1029/yulang/blob/main/docs/language/overview.md">English overview</a>
-              <a href="https://github.com/momota1029/yulang/blob/main/docs/language/overview.ja.md">Japanese overview</a>
+              <a href="/docs/guide/">Guide</a>
+              <a href="/docs/reference/">Reference</a>
+              <a href="/docs/reference/effects">Effects</a>
             </p>
           </article>
         </div>

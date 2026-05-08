@@ -382,12 +382,63 @@ html[data-lang="en"] .lang-ja {
 
 .side-pane {
   display: grid;
-  grid-template-rows: minmax(160px, auto);
+  grid-template-rows: minmax(150px, auto) minmax(120px, auto) auto;
   gap: 16px;
 }
 
-.output-pane {
+.output-pane,
+.docs-pane {
   overflow: hidden;
+}
+
+.docs-pane {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-bg);
+}
+
+.docs-pane-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.docs-pane-head h2 {
+  padding: 0;
+  font-size: 13px;
+}
+
+.docs-pane-head p {
+  margin: 6px 0 0;
+  color: var(--muted-text);
+  font-size: 13px;
+}
+
+.docs-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+
+.docs-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  color: var(--link-text);
+  background: var(--muted-surface-bg);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.docs-links a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--hover-surface-bg);
 }
 
 #result,
@@ -691,6 +742,10 @@ code {
     justify-content: flex-end;
   }
 
+  .docs-links {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .guide-grid {
     grid-template-columns: 1fr;
   }
@@ -698,5 +753,11 @@ code {
   .guide-section,
   .guide-section:nth-child(3n) {
     border-right: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .docs-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
