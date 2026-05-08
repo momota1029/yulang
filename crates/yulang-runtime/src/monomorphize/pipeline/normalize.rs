@@ -25,6 +25,9 @@ pub(super) fn refresh_specialized_scheme_from_body(binding: &mut Binding) {
     if hir_type_has_vars(&binding.body.ty) {
         return;
     }
+    if matches!(binding.body.kind, ExprKind::PrimitiveOp(_)) {
+        return;
+    }
     binding.scheme = core_ir::Scheme {
         requirements: Vec::new(),
         body: core_value_type(&binding.body.ty),
@@ -34,12 +37,21 @@ pub(super) fn refresh_specialized_scheme_from_body(binding: &mut Binding) {
 
 pub(super) fn refresh_closed_specialized_schemes(mut module: Module) -> Module {
     for binding in &mut module.bindings {
+        let was_closed_binding = binding.type_params.is_empty();
         close_unbound_effect_vars(binding);
-        if is_specialized_path(&binding.name) {
+        if is_specialized_path(&binding.name)
+            || (was_closed_binding && is_synthetic_local_act_helper_path(&binding.name))
+        {
             refresh_specialized_scheme_from_body(binding);
         }
     }
     module
+}
+
+fn is_synthetic_local_act_helper_path(path: &core_ir::Path) -> bool {
+    path.segments
+        .first()
+        .is_some_and(|segment| segment.0.starts_with('&') && segment.0.contains('#'))
 }
 
 fn close_unbound_effect_vars(binding: &mut Binding) {

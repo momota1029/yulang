@@ -2,7 +2,6 @@ import init, {
   colorize,
   embedded_std_compiled_unit_artifact_status,
   run,
-  warm_std_cache,
 } from "./wasm/yulang_wasm.js";
 import "./style.css";
 
@@ -45,6 +44,10 @@ type RunTimings = {
   compiled_std_runtime_bindings: number;
   compiled_std_cache_hit: boolean;
   compiled_std_fallback_reason?: string;
+  vm_eval_expr_calls: number;
+  vm_max_eval_depth: number;
+  vm_continuation_steps: number;
+  vm_max_continuation_frames: number;
 };
 
 type EmbeddedStdArtifactsOutput = {
@@ -67,6 +70,53 @@ type WarmupOutput = {
   embedded_std_artifacts_fallback_reason?: string;
   total_ms: number;
 };
+
+type RunWorkerRequest =
+  | {
+      id: number;
+      kind: "run";
+      source: string;
+    }
+  | {
+      id: number;
+      kind: "warm-std-cache";
+    };
+
+type RunWorkerErrorResponse<Kind extends RunWorkerRequest["kind"]> = {
+  id: number;
+  kind: Kind;
+  ok: false;
+  message: string;
+  name?: string;
+  stack?: string;
+};
+
+type RunWorkerResponse =
+  | {
+      id: number;
+      kind: "run";
+      ok: true;
+      output: RunOutput;
+    }
+  | {
+      id: number;
+      kind: "warm-std-cache";
+      ok: true;
+      output: WarmupOutput;
+    }
+  | RunWorkerErrorResponse<RunWorkerRequest["kind"]>;
+
+type PendingWorkerRequest = {
+  reject: (reason?: unknown) => void;
+  resolve: (response: RunWorkerResponse) => void;
+};
+
+type RunResponse =
+  | Extract<RunWorkerResponse, { kind: "run"; ok: true }>
+  | RunWorkerErrorResponse<"run">;
+type WarmStdCacheResponse =
+  | Extract<RunWorkerResponse, { kind: "warm-std-cache"; ok: true }>
+  | RunWorkerErrorResponse<"warm-std-cache">;
 
 type RunResult = {
   index: number;
@@ -344,6 +394,31 @@ let activeLang = resolveInitialLang();
 let latestRunOutput: RunOutput | undefined;
 let runGeneration = 0;
 let isRunning = false;
+let nextWorkerRequestId = 0;
+let workerFailure: Error | undefined;
+const pendingWorkerRequests = new Map<number, PendingWorkerRequest>();
+let runWorker: Worker | undefined = new Worker(new URL("./run-worker.ts", import.meta.url), {
+  type: "module",
+});
+
+runWorker.addEventListener("message", (event: MessageEvent<RunWorkerResponse>) => {
+  const pending = pendingWorkerRequests.get(event.data.id);
+  if (!pending) {
+    return;
+  }
+  pendingWorkerRequests.delete(event.data.id);
+  pending.resolve(event.data);
+});
+
+runWorker.addEventListener("error", (event) => {
+  rejectPendingWorkerRequests(
+    new Error(event.message || "Yulang worker failed"),
+  );
+});
+
+runWorker.addEventListener("messageerror", () => {
+  rejectPendingWorkerRequests(new Error("Yulang worker response is unreadable"));
+});
 
 setupI18n();
 
@@ -471,9 +546,31 @@ async function runSource(): Promise<void> {
   if (generation !== runGeneration) {
     return;
   }
-  latestRunOutput = run(source) as RunOutput;
+  let response: RunResponse;
+  try {
+    response = await requestRun(source);
+  } catch (error) {
+    response = {
+      id: generation,
+      kind: "run",
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
   if (generation !== runGeneration) {
     return;
+  }
+  if (response.ok) {
+    latestRunOutput = response.output;
+  } else if (shouldRetryOnMainThread(response.message)) {
+    logWorkerRunFailure(response);
+    disableRunWorker(
+      `Yulang worker became unsafe after wasm trap: ${response.message}`,
+    );
+    latestRunOutput = runOnMainThread(source);
+  } else {
+    logWorkerRunFailure(response);
+    latestRunOutput = workerErrorOutput(response.message);
   }
   isRunning = false;
   updateRunButton();
@@ -537,12 +634,25 @@ function updateRunButton(): void {
 
 function scheduleStdCacheWarmup(): void {
   const warm = () => {
-    console.debug("Yulang std cache warmup", warm_std_cache() as WarmupOutput);
+    if (workerFailure) {
+      return;
+    }
+    void requestWarmStdCache()
+      .then((response) => {
+        if (response.ok) {
+          console.debug("Yulang std cache warmup", response.output);
+        } else {
+          console.warn("Yulang std cache warmup failed", response.message);
+        }
+      })
+      .catch((error) => {
+        console.warn("Yulang std cache warmup failed", error);
+      });
   };
   if ("requestIdleCallback" in window) {
     window.requestIdleCallback(warm, { timeout: 1000 });
   } else {
-    window.setTimeout(warm, 0);
+    globalThis.setTimeout(warm, 0);
   }
 }
 
@@ -551,6 +661,99 @@ function logEmbeddedStdArtifacts(): void {
     "Yulang embedded std artifacts",
     embedded_std_compiled_unit_artifact_status() as EmbeddedStdArtifactsOutput,
   );
+}
+
+function requestRun(source: string): Promise<RunResponse> {
+  return requestWorker({
+    id: nextWorkerRequestId++,
+    kind: "run",
+    source,
+  }) as Promise<RunResponse>;
+}
+
+function requestWarmStdCache(): Promise<WarmStdCacheResponse> {
+  return requestWorker({
+    id: nextWorkerRequestId++,
+    kind: "warm-std-cache",
+  }) as Promise<WarmStdCacheResponse>;
+}
+
+function requestWorker(request: RunWorkerRequest): Promise<RunWorkerResponse> {
+  if (workerFailure) {
+    return Promise.reject(workerFailure);
+  }
+  if (!runWorker) {
+    return Promise.reject(new Error("Yulang worker is not available"));
+  }
+  const worker = runWorker;
+  return new Promise((resolve, reject) => {
+    pendingWorkerRequests.set(request.id, { reject, resolve });
+    try {
+      worker.postMessage(request);
+    } catch (error) {
+      pendingWorkerRequests.delete(request.id);
+      reject(error);
+    }
+  });
+}
+
+function rejectPendingWorkerRequests(reason: unknown): void {
+  disableRunWorker(reason);
+}
+
+function disableRunWorker(reason: unknown): void {
+  if (!workerFailure) {
+    workerFailure = reason instanceof Error ? reason : new Error(String(reason));
+  }
+  runWorker?.terminate();
+  runWorker = undefined;
+  for (const pending of pendingWorkerRequests.values()) {
+    pending.reject(workerFailure);
+  }
+  pendingWorkerRequests.clear();
+}
+
+function workerErrorOutput(message: string): RunOutput {
+  return {
+    ok: false,
+    results: [],
+    stdout: "",
+    types: [],
+    diagnostics: [
+      {
+        severity: "error",
+        message,
+        start: 0,
+        end: 0,
+      },
+    ],
+  };
+}
+
+function logWorkerRunFailure(response: RunWorkerErrorResponse<"run">): void {
+  console.warn("Yulang worker run failed", {
+    name: response.name,
+    message: response.message,
+    stack: response.stack,
+  });
+}
+
+function shouldRetryOnMainThread(message: string): boolean {
+  return (
+    message.includes("Maximum call stack size exceeded") ||
+    message.includes("unreachable")
+  );
+}
+
+function runOnMainThread(source: string): RunOutput {
+  console.warn(
+    "Yulang worker hit the browser worker stack limit; retrying on the main thread.",
+  );
+  try {
+    return run(source) as RunOutput;
+  } catch (error) {
+    return workerErrorOutput(error instanceof Error ? error.message : String(error));
+  }
 }
 
 function nextPaint(): Promise<void> {

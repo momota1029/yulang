@@ -15,7 +15,7 @@ act var 't:
     our get: () -> 't
     our set: 't -> ()
 
-    my var_ref() = ref {
+    my var_ref(): ref '[var 't] 't = ref {
         get: \() -> get(),
         update_effect: \() -> set:ref_update::update:get()
     }

@@ -5,6 +5,8 @@ pub(super) struct VmInterpreter<'m> {
     bindings: HashMap<core_ir::Path, usize>,
     next_guard_id: u64,
     guard_stack: GuardStack,
+    eval_depth: usize,
+    profile: VmProfile,
 }
 
 impl<'m> VmInterpreter<'m> {
@@ -19,7 +21,13 @@ impl<'m> VmInterpreter<'m> {
                 .collect(),
             next_guard_id: 0,
             guard_stack: GuardStack::default(),
+            eval_depth: 0,
+            profile: VmProfile::default(),
         }
+    }
+
+    pub(super) fn profile(&self) -> VmProfile {
+        self.profile
     }
 
     pub(super) fn eval_root_expr(&mut self, index: usize) -> Result<VmResult, VmError> {
@@ -36,6 +44,15 @@ impl<'m> VmInterpreter<'m> {
     }
 
     pub(super) fn eval_expr(&mut self, expr: &Expr, env: &Env) -> Result<VmResult, VmError> {
+        self.profile.eval_expr_calls += 1;
+        self.eval_depth += 1;
+        self.profile.max_eval_depth = self.profile.max_eval_depth.max(self.eval_depth);
+        let result = self.eval_expr_inner(expr, env);
+        self.eval_depth -= 1;
+        result
+    }
+
+    fn eval_expr_inner(&mut self, expr: &Expr, env: &Env) -> Result<VmResult, VmError> {
         match &expr.kind {
             ExprKind::Var(path) => self.eval_var(path, env),
             ExprKind::EffectOp(path) => Ok(VmResult::Value(VmValue::EffectOp(path.clone()))),
@@ -754,12 +771,31 @@ impl<'m> VmInterpreter<'m> {
     pub(super) fn resume(
         &mut self,
         mut continuation: VmContinuation,
-        value: VmValue,
+        mut value: VmValue,
     ) -> Result<VmResult, VmError> {
         let previous = std::mem::replace(&mut self.guard_stack, continuation.guard_stack.clone());
-        let result = match continuation.frames.pop() {
-            Some(frame) => self.apply_frame(frame, continuation, value),
-            None => Ok(VmResult::Value(value)),
+        self.profile.max_continuation_frames = self
+            .profile
+            .max_continuation_frames
+            .max(continuation.frames.len());
+        let result = loop {
+            let Some(frame) = continuation.frames.pop() else {
+                break Ok(VmResult::Value(value));
+            };
+            self.profile.continuation_steps += 1;
+            self.profile.max_continuation_frames = self
+                .profile
+                .max_continuation_frames
+                .max(continuation.frames.len());
+            match self.apply_frame(frame, &mut continuation, value)? {
+                VmResult::Value(next) => {
+                    value = next;
+                }
+                VmResult::Request(mut request) => {
+                    prepend_frames(&mut request.continuation, continuation.frames);
+                    break self.propagate_request(request);
+                }
+            }
         };
         self.guard_stack = previous;
         result
@@ -768,39 +804,24 @@ impl<'m> VmInterpreter<'m> {
     pub(super) fn apply_frame(
         &mut self,
         frame: Frame,
-        continuation: VmContinuation,
+        continuation: &mut VmContinuation,
         value: VmValue,
     ) -> Result<VmResult, VmError> {
         match frame {
-            Frame::BindHere => {
-                let result = self.bind_here(value)?;
-                self.continue_result(result, continuation)
-            }
+            Frame::BindHere => self.bind_here(value),
             Frame::ApplyCallee {
                 arg,
                 env,
                 delay_arg,
-            } => {
-                let result = self.continue_apply_arg(value, &arg, &env, delay_arg)?;
-                self.continue_result(result, continuation)
-            }
-            Frame::ApplyArg { callee } => {
-                let result = self.apply(callee, value)?;
-                self.continue_result(result, continuation)
-            }
+            } => self.continue_apply_arg(value, &arg, &env, delay_arg),
+            Frame::ApplyArg { callee } => self.apply(callee, value),
             Frame::If {
                 then_branch,
                 else_branch,
                 env,
             } => match value {
-                VmValue::Bool(true) => {
-                    let result = self.eval_expr(&then_branch, &env)?;
-                    self.continue_result(result, continuation)
-                }
-                VmValue::Bool(false) => {
-                    let result = self.eval_expr(&else_branch, &env)?;
-                    self.continue_result(result, continuation)
-                }
+                VmValue::Bool(true) => self.eval_expr(&then_branch, &env),
+                VmValue::Bool(false) => self.eval_expr(&else_branch, &env),
                 other => Err(VmError::ExpectedBool(other)),
             },
             Frame::Tuple {
@@ -809,17 +830,10 @@ impl<'m> VmInterpreter<'m> {
                 env,
             } => {
                 done.push(value);
-                let result = self.eval_tuple(done, remaining, env)?;
-                self.continue_result(result, continuation)
+                self.eval_tuple(done, remaining, env)
             }
-            Frame::Select { field } => {
-                let result = self.select_field(value, &field)?;
-                self.continue_result(result, continuation)
-            }
-            Frame::Match { arms, env } => {
-                let result = self.eval_match(value, &arms, &env)?;
-                self.continue_result(result, continuation)
-            }
+            Frame::Select { field } => self.select_field(value, &field),
+            Frame::Match { arms, env } => self.eval_match(value, &arms, &env),
             Frame::BlockLet {
                 pattern,
                 remaining,
@@ -827,17 +841,13 @@ impl<'m> VmInterpreter<'m> {
                 mut env,
             } => {
                 self.bind_pattern(&pattern, value, &mut env)?;
-                let result = self.eval_block(remaining, tail, env)?;
-                self.continue_result(result, continuation)
+                self.eval_block(remaining, tail, env)
             }
             Frame::BlockExpr {
                 remaining,
                 tail,
                 env,
-            } => {
-                let result = self.eval_block(remaining, tail, env)?;
-                self.continue_result(result, continuation)
-            }
+            } => self.eval_block(remaining, tail, env),
             Frame::Handle {
                 id,
                 arms,
@@ -846,20 +856,17 @@ impl<'m> VmInterpreter<'m> {
             } => match value {
                 VmValue::Thunk(thunk) => {
                     let result = self.bind_here(VmValue::Thunk(thunk))?;
-                    let mut continuation = continuation;
                     continuation.frames.push(Frame::Handle {
                         id,
                         arms,
                         env,
                         guard_stack,
                     });
-                    self.continue_result(result, continuation)
+                    Ok(result)
                 }
                 value => {
-                    let result = self.handle_value(value, &arms, &env)?;
-                    let mut continuation = continuation;
                     continuation.guard_stack = guard_stack;
-                    self.continue_result(result, continuation)
+                    self.handle_value(value, &arms, &env)
                 }
             },
             Frame::HandleGuard {
@@ -871,23 +878,14 @@ impl<'m> VmInterpreter<'m> {
                 env,
                 arm_env,
                 body,
-            } => {
-                let result = self
-                    .continue_handle_guard(value, request, outer, id, arms, env, arm_env, body)?;
-                self.continue_result(result, continuation)
-            }
+            } => self.continue_handle_guard(value, request, outer, id, arms, env, arm_env, body),
             Frame::LocalPushId { parent } => {
-                let mut continuation = continuation;
                 continuation.guard_stack = parent;
-                self.resume(continuation, value)
+                Ok(VmResult::Value(value))
             }
-            Frame::Coerce { to } => {
-                let result = VmResult::Value(cast_value(value, &to));
-                self.continue_result(result, continuation)
-            }
+            Frame::Coerce { to } => Ok(VmResult::Value(cast_value(value, &to))),
             Frame::WrapThunkResult { expected_ty } => {
-                let result = VmResult::Value(wrap_value_for_type(value, &expected_ty));
-                self.continue_result(result, continuation)
+                Ok(VmResult::Value(wrap_value_for_type(value, &expected_ty)))
             }
         }
     }

@@ -226,6 +226,10 @@ impl PrincipalUnifier {
         let started = self.profile_timer();
         self.rewrite_surviving_template_bindings(&mut module);
         self.finish_profile_timer("rewrite-surviving-template-bindings", started);
+        let started = self.profile_timer();
+        self.process_pending_specializations();
+        self.flush_emitted_specializations(&mut module);
+        self.finish_profile_timer("flush-final-specialization-refs", started);
         let profile = self.finish_profile();
         (module, profile)
     }
@@ -279,6 +283,7 @@ impl PrincipalUnifier {
                 self.pop_rewrite_context();
                 module.bindings[index].body = project_runtime_expr_types(body);
             }
+            self.process_pending_specializations();
             self.flush_emitted_specializations(module);
         }
     }
@@ -871,7 +876,7 @@ impl PrincipalUnifier {
                     arms: arms
                         .into_iter()
                         .map(|arm| MatchArm {
-                            pattern: arm.pattern,
+                            pattern: self.rewrite_pattern_defaults(arm.pattern),
                             guard: arm.guard.map(|guard| self.rewrite_expr(guard, None)),
                             body: {
                                 let body_context = self
@@ -908,7 +913,7 @@ impl PrincipalUnifier {
                         .into_iter()
                         .map(|arm| HandleArm {
                             effect: arm.effect,
-                            payload: arm.payload,
+                            payload: self.rewrite_pattern_defaults(arm.payload),
                             resume: arm.resume,
                             guard: arm.guard.map(|guard| self.rewrite_expr(guard, None)),
                             body: self.rewrite_expr(arm.body, arm_context.clone()),
@@ -1079,6 +1084,7 @@ impl PrincipalUnifier {
             Stmt::Let { pattern, value } => {
                 let value_context = pattern_value_context(&pattern);
                 let value = self.rewrite_expr(value, value_context);
+                let pattern = self.rewrite_pattern_defaults(pattern);
                 self.record_local_value_type(&pattern, &value.ty);
                 Stmt::Let { pattern, value }
             }
@@ -1096,6 +1102,77 @@ impl PrincipalUnifier {
                 let body = self.rewrite_expr(body, body_context);
                 Stmt::Module { def, body }
             }
+        }
+    }
+
+    fn rewrite_pattern_defaults(&mut self, pattern: Pattern) -> Pattern {
+        match pattern {
+            Pattern::Tuple { items, ty } => Pattern::Tuple {
+                items: items
+                    .into_iter()
+                    .map(|item| self.rewrite_pattern_defaults(item))
+                    .collect(),
+                ty,
+            },
+            Pattern::List {
+                prefix,
+                spread,
+                suffix,
+                ty,
+            } => Pattern::List {
+                prefix: prefix
+                    .into_iter()
+                    .map(|item| self.rewrite_pattern_defaults(item))
+                    .collect(),
+                spread: spread.map(|item| Box::new(self.rewrite_pattern_defaults(*item))),
+                suffix: suffix
+                    .into_iter()
+                    .map(|item| self.rewrite_pattern_defaults(item))
+                    .collect(),
+                ty,
+            },
+            Pattern::Record { fields, spread, ty } => Pattern::Record {
+                fields: fields
+                    .into_iter()
+                    .map(|field| {
+                        let pattern = self.rewrite_pattern_defaults(field.pattern);
+                        let default_context = pattern_value_context(&pattern);
+                        let default = field
+                            .default
+                            .map(|default| self.rewrite_expr(default, default_context));
+                        RecordPatternField {
+                            name: field.name,
+                            pattern,
+                            default,
+                        }
+                    })
+                    .collect(),
+                spread: spread.map(|spread| match spread {
+                    RecordSpreadPattern::Head(pattern) => {
+                        RecordSpreadPattern::Head(Box::new(self.rewrite_pattern_defaults(*pattern)))
+                    }
+                    RecordSpreadPattern::Tail(pattern) => {
+                        RecordSpreadPattern::Tail(Box::new(self.rewrite_pattern_defaults(*pattern)))
+                    }
+                }),
+                ty,
+            },
+            Pattern::Variant { tag, value, ty } => Pattern::Variant {
+                tag,
+                value: value.map(|value| Box::new(self.rewrite_pattern_defaults(*value))),
+                ty,
+            },
+            Pattern::Or { left, right, ty } => Pattern::Or {
+                left: Box::new(self.rewrite_pattern_defaults(*left)),
+                right: Box::new(self.rewrite_pattern_defaults(*right)),
+                ty,
+            },
+            Pattern::As { pattern, name, ty } => Pattern::As {
+                pattern: Box::new(self.rewrite_pattern_defaults(*pattern)),
+                name,
+                ty,
+            },
+            Pattern::Wildcard { .. } | Pattern::Bind { .. } | Pattern::Lit { .. } => pattern,
         }
     }
 
@@ -1164,6 +1241,7 @@ impl PrincipalUnifier {
                             .cloned()
                     });
                     let value = self.rewrite_expr(value, value_context);
+                    let pattern = self.rewrite_pattern_defaults(pattern);
                     self.record_local_value_type(&pattern, &value.ty);
                     Stmt::Let { pattern, value }
                 }
@@ -1423,8 +1501,8 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "missing-adapter-hole-execution");
             return None;
         }
-        let substitutions = plan_substitution_map(&plan);
-        let Some(binding_substitutions) =
+        let mut substitutions = plan_substitution_map(&plan);
+        let Some(mut binding_substitutions) =
             complete_required_substitutions(&original, &substitutions)
         else {
             self.bump_skip(spine.target, "incomplete-binding-substitution");
@@ -1437,13 +1515,44 @@ impl PrincipalUnifier {
             self.bump_skip(spine.target, "imprecise-principal-specialization");
             return None;
         }
-        let callee_ty = substitute_type(&original.scheme.body, &binding_substitutions);
-        let Some((params, ret, _ret_effect)) =
+        let mut callee_ty = substitute_type(&original.scheme.body, &binding_substitutions);
+        let Some((mut params, mut ret, _ret_effect)) =
             core_fun_spine_parts_exact(&callee_ty, spine.args.len())
         else {
             self.bump_skip(spine.target, "non-function-principal");
             return None;
         };
+        if !borrowed_args_accept_specialization_inputs(&spine.args, &params) {
+            let Some(adjusted) =
+                self.complete_plan_from_argument_runtime_types(&original, &plan, &spine.args)
+            else {
+                self.bump_skip(spine.target, "conflicting-specialization-inputs");
+                return None;
+            };
+            plan = adjusted;
+            substitutions = plan_substitution_map(&plan);
+            let Some(adjusted_binding_substitutions) =
+                complete_required_substitutions(&original, &substitutions)
+            else {
+                self.bump_skip(spine.target, "incomplete-argument-runtime-substitution");
+                self.bump_missing_vars(spine.target, &original, &substitutions);
+                return None;
+            };
+            binding_substitutions = adjusted_binding_substitutions;
+            callee_ty = substitute_type(&original.scheme.body, &binding_substitutions);
+            let Some((adjusted_params, adjusted_ret, _adjusted_ret_effect)) =
+                core_fun_spine_parts_exact(&callee_ty, spine.args.len())
+            else {
+                self.bump_skip(spine.target, "non-function-argument-runtime-substitution");
+                return None;
+            };
+            params = adjusted_params;
+            ret = adjusted_ret;
+            if !borrowed_args_accept_specialization_inputs(&spine.args, &params) {
+                self.bump_skip(spine.target, "conflicting-specialization-inputs");
+                return None;
+            }
+        }
         let handler_info = handler_binding_info(&original);
         let is_handler_binding = handler_info.is_some();
         let rewritten_args = spine
@@ -1576,6 +1685,79 @@ impl PrincipalUnifier {
         );
         debug_principal_unify_normalized_plan(&normalized);
         Some(normalized)
+    }
+
+    fn complete_plan_from_argument_runtime_types(
+        &mut self,
+        original: &Binding,
+        plan: &core_ir::PrincipalElaborationPlan,
+        args: &[&Expr],
+    ) -> Option<core_ir::PrincipalElaborationPlan> {
+        let required_vars = self.required_vars_for_binding(original);
+        if required_vars.is_empty() {
+            return None;
+        }
+        let Some((params, _ret, _ret_effect)) =
+            core_fun_spine_parts_exact(&original.scheme.body, args.len())
+        else {
+            return None;
+        };
+        let mut projected = BTreeMap::new();
+        let mut conflicts = BTreeSet::new();
+        for (arg, (param, param_effect)) in args.iter().zip(&params) {
+            let (actual_value, actual_effect) = runtime_value_and_effect(&arg.ty);
+            if !core_type_contains_unknown(&actual_value) && !core_type_has_vars(&actual_value) {
+                project_closed_substitutions_from_type(
+                    param,
+                    &actual_value,
+                    &required_vars,
+                    &mut projected,
+                    &mut conflicts,
+                    false,
+                    64,
+                );
+            }
+            if !core_type_contains_unknown(&actual_effect) && !core_type_has_vars(&actual_effect) {
+                project_closed_substitutions_from_type(
+                    param_effect,
+                    &actual_effect,
+                    &required_vars,
+                    &mut projected,
+                    &mut conflicts,
+                    false,
+                    64,
+                );
+            }
+        }
+        if projected.is_empty() || !conflicts.is_empty() {
+            return None;
+        }
+        let mut substitutions = plan_substitution_map(plan);
+        let before = substitutions.clone();
+        for (var, ty) in projected {
+            substitutions.insert(var, ty);
+        }
+        if substitutions == before {
+            return None;
+        }
+        let projected_substitutions = substitutions.clone();
+        let mut plan = plan.clone();
+        plan.substitutions = substitutions
+            .into_iter()
+            .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
+            .collect();
+        let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
+            plan,
+            &[],
+            &original.scheme.requirements,
+            &self.role_associated_impls,
+        );
+        preserve_projected_substitutions_if_normalized_empty(
+            &mut normalized,
+            projected_substitutions,
+        );
+        debug_principal_unify_normalized_plan(&normalized);
+        normalized.complete.then_some(normalized)
     }
 
     fn complete_plan_from_binding_scheme_slots(
@@ -3096,9 +3278,6 @@ fn add_single_specialization_aliases(
         .collect::<HashMap<_, _>>();
     let mut aliases = Vec::new();
     for (original, specializations) in root_specializations {
-        if original.segments.len() != 1 {
-            continue;
-        }
         let [specialized] = specializations.as_slice() else {
             continue;
         };
@@ -3114,15 +3293,8 @@ fn add_single_specialization_aliases(
             },
             body: Expr::typed(ExprKind::Var(specialized.clone()), ty),
         };
-        if let Some(existing) = module
-            .bindings
-            .iter_mut()
-            .find(|binding| &binding.name == original)
-        {
-            *existing = alias;
-        } else {
-            aliases.push(alias);
-        }
+        module.bindings.retain(|binding| &binding.name != original);
+        aliases.push(alias);
     }
     module.bindings.extend(aliases);
 }
@@ -3243,16 +3415,16 @@ fn rewrite_contextual_specialization_refs_expr_inner(
     let Some(spine) = principal_unify_apply_spine(expr) else {
         return;
     };
-    if spine
-        .target
+    let lookup_target = unspecialized_path(spine.target).unwrap_or_else(|| spine.target.clone());
+    if lookup_target
         .segments
         .as_slice()
         .first()
-        .is_some_and(|name| spine.target.segments.len() == 1 && shadowed.contains(name))
+        .is_some_and(|name| lookup_target.segments.len() == 1 && shadowed.contains(name))
     {
         return;
     }
-    let Some(candidates) = root_specializations.get(spine.target) else {
+    let Some(candidates) = root_specializations.get(&lookup_target) else {
         return;
     };
     let args = spine
@@ -3264,7 +3436,10 @@ fn rewrite_contextual_specialization_refs_expr_inner(
         .iter()
         .filter_map(|path| {
             let ty = binding_types.get(path)?;
-            core_fun_spine_parts_exact(ty, args.len())?;
+            let (params, _, _) = core_fun_spine_parts_exact(ty, args.len())?;
+            if !owned_args_fit_contextual_specialization(&args, &params) {
+                return None;
+            }
             let context_score =
                 rebuilt_specialization_call_score(ty, args.len(), &expr.ty, &spine.evidences)
                     .unwrap_or(0);
@@ -4629,6 +4804,46 @@ fn owned_args_fit_without_adapter(
     args.iter()
         .zip(params)
         .all(|(arg, (param, effect))| principal_arg_adapter(arg, param, effect).is_some())
+}
+
+fn borrowed_args_accept_specialization_inputs(
+    args: &[&Expr],
+    params: &[(core_ir::Type, core_ir::Type)],
+) -> bool {
+    args.iter().zip(params).all(|(arg, (param, effect))| {
+        let actual = runtime_core_type(&arg.ty);
+        if runtime_type_contains_unknown(&arg.ty)
+            || core_type_contains_unknown(&actual)
+            || core_type_contains_unknown(param)
+            || core_type_contains_unknown(effect)
+            || core_type_has_vars(&actual)
+            || core_type_has_vars(param)
+            || core_type_has_vars(effect)
+        {
+            return true;
+        }
+        principal_arg_adapter(arg, param, effect).is_some()
+    })
+}
+
+fn owned_args_fit_contextual_specialization(
+    args: &[Expr],
+    params: &[(core_ir::Type, core_ir::Type)],
+) -> bool {
+    args.iter().zip(params).all(|(arg, (param, effect))| {
+        let actual = runtime_core_type(&arg.ty);
+        if runtime_type_contains_unknown(&arg.ty)
+            || core_type_contains_unknown(&actual)
+            || core_type_contains_unknown(param)
+            || core_type_contains_unknown(effect)
+            || core_type_has_vars(&actual)
+            || core_type_has_vars(param)
+            || core_type_has_vars(effect)
+        {
+            return true;
+        }
+        principal_arg_adapter(arg, param, effect).is_some()
+    })
 }
 
 fn handler_plan_is_supported(boundary: &HandlerCallBoundary, plan: &HandlerAdapterPlan) -> bool {

@@ -673,7 +673,7 @@ fn run_infer_views(
                     print!("{host_stdout}");
                     host_stdout.clear();
                 }
-                results.push(result);
+                results.push(result.0);
             }
             let eval_duration = eval_start.elapsed();
             if options.runtime_phase_timings {

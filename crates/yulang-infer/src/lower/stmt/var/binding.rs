@@ -324,11 +324,20 @@ fn materialize_var_act_helpers(
 
 fn std_var_synthetic_act_source(selected_names: Vec<Name>) -> super::super::SyntheticActSource {
     let source_path = crate::std_ref_paths::standard_var_act_path();
+    let selected_values = selected_names
+        .iter()
+        .filter(|name| name.0 == "get" || name.0 == "set")
+        .cloned()
+        .collect();
+    let selected_template_items = selected_names
+        .into_iter()
+        .filter(|name| name.0 == "run" || name.0 == "var_ref")
+        .collect();
     super::super::SyntheticActSource {
         source_module_path: source_path.clone(),
         source_copy_path: source_path,
-        selected_values: selected_names,
-        selected_template_items: Vec::new(),
+        selected_values,
+        selected_template_items,
     }
 }
 

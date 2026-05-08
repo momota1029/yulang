@@ -27,15 +27,36 @@ impl VmModule {
         VmInterpreter::new(&self.module).eval_root_expr(index)
     }
 
-    pub fn eval_roots(&self) -> Result<Vec<VmResult>, VmError> {
+    pub fn eval_root_expr_profiled(&self, index: usize) -> Result<(VmResult, VmProfile), VmError> {
         let mut interpreter = VmInterpreter::new(&self.module);
-        (0..self.module.root_exprs.len())
+        let result = interpreter.eval_root_expr(index)?;
+        Ok((result, interpreter.profile()))
+    }
+
+    pub fn eval_roots(&self) -> Result<Vec<VmResult>, VmError> {
+        Ok(self.eval_roots_profiled()?.0)
+    }
+
+    pub fn eval_roots_profiled(&self) -> Result<(Vec<VmResult>, VmProfile), VmError> {
+        let mut interpreter = VmInterpreter::new(&self.module);
+        let results = (0..self.module.root_exprs.len())
             .map(|index| interpreter.eval_root_expr(index))
-            .collect()
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok((results, interpreter.profile()))
     }
 
     pub fn resume_request(&self, request: VmRequest, value: VmValue) -> Result<VmResult, VmError> {
         VmInterpreter::new(&self.module).resume(request.continuation, value)
+    }
+
+    pub fn resume_request_profiled(
+        &self,
+        request: VmRequest,
+        value: VmValue,
+    ) -> Result<(VmResult, VmProfile), VmError> {
+        let mut interpreter = VmInterpreter::new(&self.module);
+        let result = interpreter.resume(request.continuation, value)?;
+        Ok((result, interpreter.profile()))
     }
 }
 
@@ -97,7 +118,7 @@ use erase::*;
 use guard::*;
 use interpreter::*;
 use model::*;
-pub use model::{VmContinuation, VmPrimitive, VmRequest, VmResult, VmValue};
+pub use model::{VmContinuation, VmPrimitive, VmProfile, VmRequest, VmResult, VmValue};
 use primitive::*;
 use value::*;
 

@@ -4,7 +4,7 @@ use super::util::{
     find_record_field, is_builtin_numeric_widening, live_neg_var_is_empty_row, neg_id_direct_var,
     optionalized_neg_field, pos_id_direct_var, singleton_neg_record,
 };
-use super::{FrozenStepCache, Infer};
+use super::{FrozenStepCache, Infer, StepCache};
 use crate::diagnostic::{ConstraintCause, ExpectedShape, TypeErrorKind};
 use crate::ids::{NegId, PosId, TypeVar};
 use crate::scheme::{OwnedSchemeInstance, read_neg_with_subst, read_pos_with_subst};
@@ -52,7 +52,7 @@ impl Infer {
         match (pos_node, neg_node) {
             (Pos::Var(tv), _) | (Pos::Raw(tv), _) => {
                 let live_pos = self.alloc_pos(Pos::Var(subst_lookup_small(subst, tv)));
-                let mut live_cache = FxHashSet::default();
+                let mut live_cache = StepCache::default();
                 self.constrain_step_with_hint(live_pos, neg, cause, origin_hint, &mut live_cache);
             }
             (Pos::Bot, _) | (_, Neg::Top) => {}
@@ -88,7 +88,7 @@ impl Infer {
                     &mut FxHashSet::default(),
                 );
                 if arg_eff_pure {
-                    let mut live_cache = FxHashSet::default();
+                    let mut live_cache = StepCache::default();
                     self.constrain_step(arg_eff_pos, ret_eff_neg, cause, &mut live_cache);
                 } else {
                     self.constrain_pos_to_frozen_neg(arg_eff_pos, arena, arg_eff_neg, subst, cause);
@@ -283,7 +283,7 @@ impl Infer {
             }
             (Pos::Row(..), Neg::Row(..)) => {
                 let materialized = materialize_frozen_pos(self, arena, pos, subst);
-                let mut live_cache = FxHashSet::default();
+                let mut live_cache = StepCache::default();
                 self.constrain_step_with_hint(
                     materialized,
                     neg,
@@ -360,7 +360,7 @@ impl Infer {
         cause: &ConstraintCause,
     ) {
         let materialized = materialize_frozen_neg(self, arena, neg, subst);
-        let mut live_cache = FxHashSet::default();
+        let mut live_cache = StepCache::default();
         self.constrain_step(pos, materialized, cause, &mut live_cache);
     }
 

@@ -81,6 +81,25 @@ pub struct VmContinuation {
     pub(super) guard_stack: GuardStack,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct VmProfile {
+    pub eval_expr_calls: usize,
+    pub max_eval_depth: usize,
+    pub continuation_steps: usize,
+    pub max_continuation_frames: usize,
+}
+
+impl VmProfile {
+    pub fn merge(&mut self, other: Self) {
+        self.eval_expr_calls += other.eval_expr_calls;
+        self.max_eval_depth = self.max_eval_depth.max(other.max_eval_depth);
+        self.continuation_steps += other.continuation_steps;
+        self.max_continuation_frames = self
+            .max_continuation_frames
+            .max(other.max_continuation_frames);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(super) struct GuardStack(pub(super) PersistentVector<GuardEntry>);
 

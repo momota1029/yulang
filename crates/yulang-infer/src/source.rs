@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use rowan::SyntaxNode;
 use serde::{Deserialize, Serialize};
+use yulang_parser::lex::SyntaxKind;
 use yulang_parser::parse_module_to_green_with_ops;
 use yulang_parser::sink::YulangLanguage;
 use yulang_source::{
@@ -1182,6 +1183,7 @@ fn lower_source_set_from_std_state(
         .next()
         .map(|file| file.source.clone())
         .unwrap_or_default();
+    seed_cached_source_act_templates(source_set, &mut state, &mut profile);
     for file in source_set
         .files
         .iter()
@@ -1201,6 +1203,54 @@ fn lower_source_set_from_std_state(
         },
         profile,
     }
+}
+
+fn seed_cached_source_act_templates(
+    source_set: &SourceSet,
+    state: &mut LowerState,
+    profile: &mut SourceLowerProfile,
+) {
+    if !state.act_templates.is_empty() {
+        return;
+    }
+    for file in source_set
+        .files
+        .iter()
+        .filter(|file| file.origin == SourceOrigin::Std)
+    {
+        if !file.source.contains("act ") {
+            continue;
+        }
+        let parse_start = ProfileClock::now();
+        let green = parse_module_to_green_with_ops(&file.source, file.op_table.clone());
+        let parse = parse_start.elapsed();
+        profile.parse += parse;
+        push_origin_profile(profile, file.origin, parse, Duration::ZERO);
+        let root = SyntaxNode::<YulangLanguage>::new_root(green);
+        for act in root
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::ActDecl)
+        {
+            let Some(name) = act_decl_name(&act) else {
+                continue;
+            };
+            let mut segments = file
+                .module_path
+                .segments
+                .iter()
+                .map(|segment| Name(segment.0.clone()))
+                .collect::<Vec<_>>();
+            segments.push(name);
+            state.act_templates.insert(Path { segments }, act);
+        }
+    }
+}
+
+fn act_decl_name(node: &SyntaxNode<YulangLanguage>) -> Option<Name> {
+    node.children_with_tokens()
+        .filter_map(|it| it.into_token())
+        .find(|token| matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent))
+        .map(|token| Name(token.text().to_string()))
 }
 
 pub fn lower_source_file(file: &SourceFile, state: &mut LowerState) {
@@ -2357,6 +2407,7 @@ fn build_compiled_runtime_surfaces(
             let aliases = compiled_runtime_binding_aliases(state, &binding_paths);
             add_core_program_binding_aliases(&mut program, &aliases);
             prune_core_program_to_modules(&mut program, &unit_paths);
+            clear_core_program_roots(&mut program);
             CompiledRuntimeSurface { program }
         })
         .collect()
@@ -2526,6 +2577,7 @@ fn merge_compiled_runtime_surfaces<'a>(
         let adapter_edge_offset = next_adapter_id;
         let root_expr_offset = merged.program.program.root_exprs.len();
         let mut program = surface.program.clone();
+        clear_core_program_roots(&mut program);
         remap_core_program_runtime_ids(
             &mut program,
             expected_edge_offset,
@@ -2544,6 +2596,7 @@ fn merge_runtime_bundle_with_user_program(
     mut user_program: CoreProgram,
 ) -> Result<CoreProgram, CompiledRuntimeMergeError> {
     let mut merged = dependencies.program.clone();
+    clear_core_program_roots(&mut merged);
     prune_user_program_dependency_runtime_duplicates(&mut user_program, &merged);
     let expected_edge_offset = next_expected_edge_id(&merged);
     let adapter_edge_offset = next_adapter_edge_id(&merged);
@@ -2556,6 +2609,12 @@ fn merge_runtime_bundle_with_user_program(
     );
     merge_core_program_into(&mut merged, user_program)?;
     Ok(merged)
+}
+
+fn clear_core_program_roots(program: &mut CoreProgram) {
+    program.program.root_exprs.clear();
+    program.program.roots.clear();
+    program.graph.root_exprs.clear();
 }
 
 fn prune_user_program_dependency_runtime_duplicates(

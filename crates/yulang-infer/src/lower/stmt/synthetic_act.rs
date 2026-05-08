@@ -59,12 +59,12 @@ pub(crate) fn materialize_synthetic_act(
     source: &SyntheticActSource,
 ) {
     super::with_companion_module(state, spec.name.clone(), |state| {
+        materialize_value_helpers(state, spec, source);
         state.with_synthetic_path_rewrite(
             source.source_copy_path.clone(),
             spec.effect_path.clone(),
             |state| materialize_template_items(state, spec, source),
         );
-        materialize_value_helpers(state, spec, source);
     });
 }
 

@@ -284,15 +284,18 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
     let mut profile = MonomorphizeProfile::default();
     reset_demand_evidence_profile();
     if std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_none() {
-        let step =
-            run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, &mut profile, debug)?;
-        module = step.module;
         let step = run_profiled_mono_pass(
             module,
             MonoPass::InlinePolymorphicWrappers,
             &mut profile,
             debug,
         )?;
+        module = step.module;
+        let step =
+            run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, &mut profile, debug)?;
+        module = step.module;
+        let step =
+            run_profiled_mono_pass(module, MonoPass::RefreshClosedSchemes, &mut profile, debug)?;
         module = step.module;
         let step = run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
         module = step.module;
@@ -340,8 +343,9 @@ fn run_mono_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
     if std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_some() {
         return run_mono_pipeline(module).map(|(module, _profile)| module);
     }
-    let mut module = principal_elaborate_module(module);
-    module = inline_polymorphic_wrappers(module);
+    let mut module = inline_polymorphic_wrappers(module);
+    module = principal_elaborate_module(module);
+    module = refresh_closed_specialized_schemes(module);
     module = prune_unreachable_bindings(module);
     if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
         && let Some(context) = principal_elaborate_strict_failure(&module)

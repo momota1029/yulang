@@ -98,6 +98,14 @@ fn try_copy_lowered_act_body(
         state.lower_detail.try_copy_lowered_act_body += start.elapsed();
         return false;
     }
+    if source_values.iter().any(|(_, def)| {
+        !state.principal_bodies.contains_key(def)
+            && !state.effect_op_pos_sigs.contains_key(def)
+            && !state.effect_op_neg_sigs.contains_key(def)
+    }) {
+        state.lower_detail.try_copy_lowered_act_body += start.elapsed();
+        return false;
+    }
     for (_, def) in &source_values {
         if state.infer.frozen_schemes.borrow().contains_key(def) {
             continue;

@@ -37,6 +37,10 @@ pub struct RunTimings {
     pub compiled_std_runtime_bindings: usize,
     pub compiled_std_cache_hit: bool,
     pub compiled_std_fallback_reason: Option<String>,
+    pub vm_eval_expr_calls: usize,
+    pub vm_max_eval_depth: usize,
+    pub vm_continuation_steps: usize,
+    pub vm_max_continuation_frames: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]

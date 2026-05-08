@@ -1,38 +1,48 @@
 use yulang_core_ir as core_ir;
 
-use crate::vm::{VmError, VmModule, VmRequest, VmResult, VmValue};
+use crate::vm::{VmError, VmModule, VmProfile, VmRequest, VmResult, VmValue};
 
 pub struct HostRunOutput {
     pub results: Vec<VmResult>,
     pub stdout: String,
+    pub vm_profile: VmProfile,
 }
 
 pub fn eval_roots_with_basic_host(module: &VmModule) -> Result<HostRunOutput, VmError> {
     let mut results = Vec::new();
     let mut stdout = String::new();
+    let mut vm_profile = VmProfile::default();
 
     for index in 0..module.module().root_exprs.len() {
         let result = eval_root_with_basic_host(module, index, &mut stdout)?;
+        vm_profile.merge(result.1);
+        let result = result.0;
         results.push(result);
     }
 
-    Ok(HostRunOutput { results, stdout })
+    Ok(HostRunOutput {
+        results,
+        stdout,
+        vm_profile,
+    })
 }
 
 pub fn eval_root_with_basic_host(
     module: &VmModule,
     index: usize,
     stdout: &mut String,
-) -> Result<VmResult, VmError> {
-    let mut result = module.eval_root_expr(index)?;
+) -> Result<(VmResult, VmProfile), VmError> {
+    let (mut result, mut vm_profile) = module.eval_root_expr_profiled(index)?;
     loop {
         match result {
-            VmResult::Value(_) => return Ok(result),
+            VmResult::Value(_) => return Ok((result, vm_profile)),
             VmResult::Request(request) => {
                 let Some(value) = handle_host_request(&request, stdout) else {
-                    return Ok(VmResult::Request(request));
+                    return Ok((VmResult::Request(request), vm_profile));
                 };
-                result = module.resume_request(request, value)?;
+                let resumed = module.resume_request_profiled(request, value)?;
+                result = resumed.0;
+                vm_profile.merge(resumed.1);
             }
         }
     }

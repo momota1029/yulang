@@ -19,8 +19,22 @@ mod util;
 mod vars;
 
 use compact::compact_instance_direct_var;
-type StepCache = FxHashSet<(PosId, NegId)>;
+#[derive(Debug, Default)]
+struct StepCache {
+    seen: FxHashSet<(PosId, NegId)>,
+    pending: Vec<ConstraintStep>,
+    depth: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ConstraintStep {
+    pos: PosId,
+    neg: NegId,
+    origin_hint: Option<TypeVar>,
+}
+
 type FrozenStepCache = FxHashSet<(usize, PosId, NegId)>;
+const MAX_INLINE_CONSTRAINT_DEPTH: usize = 128;
 
 impl Infer {
     // ── constrain ────────────────────────────────────────────────────────────
@@ -40,14 +54,14 @@ impl Infer {
     ) {
         let pos = pos.into_pos_id(self);
         let neg = neg.into_neg_id(self);
-        let mut cache = FxHashSet::default();
+        let mut cache = StepCache::default();
         self.constrain_step(pos, neg, &cause, &mut cache);
     }
 
     pub fn constrain_instantiated_ref(&self, pos: PosId, target: TypeVar) {
         let cause = ConstraintCause::unknown();
         let pos = self.extrude_pos(pos, self.level_of(target));
-        let mut cache = FxHashSet::default();
+        let mut cache = StepCache::default();
         if self.add_lower_bound(target, pos, &cause, &mut cache) {
             let uppers = self.upper_refs_of(target);
             if !uppers.is_empty() {
@@ -70,7 +84,7 @@ impl Infer {
                 if !self.is_through(source) {
                     self.clear_through(target);
                 }
-                let mut cache = FxHashSet::default();
+                let mut cache = StepCache::default();
                 self.propagate_through(source, target, &cause, &mut cache);
             } else if !self.compact_instance_preserves_through(&instance) {
                 self.clear_through(target);
@@ -110,9 +124,36 @@ impl Infer {
         origin_hint: Option<TypeVar>,
         cache: &mut StepCache,
     ) {
-        if !cache.insert((pos, neg)) {
+        if !cache.seen.insert((pos, neg)) {
             return;
         }
+        cache.pending.push(ConstraintStep {
+            pos,
+            neg,
+            origin_hint,
+        });
+        if cache.depth >= MAX_INLINE_CONSTRAINT_DEPTH {
+            return;
+        }
+
+        while let Some(step) = cache.pending.pop() {
+            cache.depth += 1;
+            self.constrain_step_now(step.pos, step.neg, cause, step.origin_hint, cache);
+            cache.depth -= 1;
+            if cache.depth > 0 {
+                break;
+            }
+        }
+    }
+
+    fn constrain_step_now(
+        &self,
+        pos: PosId,
+        neg: NegId,
+        cause: &ConstraintCause,
+        origin_hint: Option<TypeVar>,
+        cache: &mut StepCache,
+    ) {
         let pos_node = self.arena.get_pos(pos);
         let neg_node = self.arena.get_neg(neg);
         match (pos_node, neg_node) {
