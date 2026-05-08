@@ -1,4 +1,8 @@
-use crate::control_ir::{NativeFunction, NativeModule, ValueId};
+use std::collections::HashSet;
+
+use crate::control_ir::{
+    BlockId, NativeFunction, NativeModule, NativeStmt, NativeTerminator, ValueId,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeClosureModule {
@@ -11,7 +15,21 @@ pub struct NativeClosureFunction {
     pub name: String,
     pub params: Vec<ValueId>,
     pub environment: NativeClosureEnvironment,
-    pub code: NativeFunction,
+    pub blocks: Vec<NativeClosureBlock>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeClosureBlock {
+    pub id: BlockId,
+    pub params: Vec<ValueId>,
+    pub stmts: Vec<NativeClosureStmt>,
+    pub terminator: NativeTerminator,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeClosureStmt {
+    LoadEnv { dest: ValueId, slot: usize },
+    Native(NativeStmt),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,27 +55,70 @@ pub fn closure_convert_module(module: &NativeModule) -> NativeClosureModule {
 }
 
 fn closure_convert_function(function: &NativeFunction) -> NativeClosureFunction {
-    let environment_slots = function
-        .captures
-        .iter()
-        .copied()
-        .enumerate()
-        .map(|(index, value)| NativeClosureSlot { index, value })
-        .collect();
+    let environment_slots = closure_environment_slots(function);
+    let capture_values = function.captures.iter().copied().collect::<HashSet<_>>();
     let params = function
         .params
         .iter()
         .copied()
-        .filter(|param| !function.captures.contains(param))
+        .filter(|param| !capture_values.contains(param))
         .collect();
+    let blocks = closure_convert_blocks(function, &environment_slots, &capture_values);
     NativeClosureFunction {
         name: function.name.clone(),
         params,
         environment: NativeClosureEnvironment {
             slots: environment_slots,
         },
-        code: function.clone(),
+        blocks,
     }
+}
+
+fn closure_environment_slots(function: &NativeFunction) -> Vec<NativeClosureSlot> {
+    function
+        .captures
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(index, value)| NativeClosureSlot { index, value })
+        .collect()
+}
+
+fn closure_convert_blocks(
+    function: &NativeFunction,
+    environment_slots: &[NativeClosureSlot],
+    capture_values: &HashSet<ValueId>,
+) -> Vec<NativeClosureBlock> {
+    let entry = function.blocks.first().map(|block| block.id);
+    function
+        .blocks
+        .iter()
+        .map(|block| {
+            let mut stmts = Vec::new();
+            if Some(block.id) == entry {
+                stmts.extend(
+                    environment_slots
+                        .iter()
+                        .map(|slot| NativeClosureStmt::LoadEnv {
+                            dest: slot.value,
+                            slot: slot.index,
+                        }),
+                );
+            }
+            stmts.extend(block.stmts.iter().cloned().map(NativeClosureStmt::Native));
+            NativeClosureBlock {
+                id: block.id,
+                params: block
+                    .params
+                    .iter()
+                    .copied()
+                    .filter(|param| !capture_values.contains(param))
+                    .collect(),
+                stmts,
+                terminator: block.terminator.clone(),
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -98,7 +159,20 @@ mod tests {
                 name: "root".to_string(),
                 params: vec![ValueId(0)],
                 environment: NativeClosureEnvironment { slots: Vec::new() },
-                code: function,
+                blocks: function
+                    .blocks
+                    .into_iter()
+                    .map(|block| NativeClosureBlock {
+                        id: block.id,
+                        params: block.params,
+                        stmts: block
+                            .stmts
+                            .into_iter()
+                            .map(NativeClosureStmt::Native)
+                            .collect(),
+                        terminator: block.terminator,
+                    })
+                    .collect(),
             }]
         );
     }
@@ -124,6 +198,7 @@ mod tests {
         let converted = closure_convert_module(&module);
 
         assert_eq!(converted.functions[0].params, vec![ValueId(1)]);
+        assert_eq!(converted.functions[0].blocks[0].params, vec![ValueId(1)]);
         assert_eq!(
             converted.functions[0].environment,
             NativeClosureEnvironment {
@@ -133,6 +208,16 @@ mod tests {
                 }]
             }
         );
-        assert_eq!(converted.functions[0].code, function);
+        assert_eq!(
+            converted.functions[0].blocks[0].stmts,
+            vec![NativeClosureStmt::LoadEnv {
+                dest: ValueId(0),
+                slot: 0,
+            }]
+        );
+        assert_eq!(
+            converted.functions[0].blocks[0].terminator,
+            NativeTerminator::Return(ValueId(1))
+        );
     }
 }
