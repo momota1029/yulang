@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/",
+  base: "/yulang/",
   build: {
     target: "es2022",
     outDir: "../dist",

@@ -7,7 +7,7 @@ const { Layout } = DefaultTheme;
 <template>
   <Layout>
     <template #nav-bar-content-after>
-      <a class="external-nav-link" href="/" target="_self">Playground</a>
+      <a class="external-nav-link" href="/yulang/" target="_self">Playground</a>
     </template>
   </Layout>
 </template>

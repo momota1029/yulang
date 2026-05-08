@@ -1,6 +1,6 @@
 # Tour
 
-A compact walkthrough of Yulang's key features. You can run all examples in the <a href="/" target="_self">Playground</a>.
+A compact walkthrough of Yulang's key features. You can run all examples in the <a href="/yulang/" target="_self">Playground</a>.
 
 ## Basics
 
