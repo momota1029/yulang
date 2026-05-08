@@ -320,11 +320,45 @@ impl<'a> SigParser<'a> {
     }
 
     fn skip_ws(&mut self) {
-        while let Some(ch) = self.peek() {
-            if ch.is_ascii_whitespace() {
+        loop {
+            while let Some(ch) = self.peek() {
+                if !ch.is_ascii_whitespace() {
+                    break;
+                }
                 self.i += 1;
-            } else {
+            }
+            match self.chars.get(self.i..self.i + 2) {
+                Some(b"//") => self.skip_line_comment(),
+                Some(b"/*") => self.skip_block_comment(),
+                _ => break,
+            }
+        }
+    }
+
+    fn skip_line_comment(&mut self) {
+        self.i += 2;
+        while let Some(ch) = self.peek() {
+            if matches!(ch, b'\r' | b'\n') {
                 break;
+            }
+            self.i += 1;
+        }
+    }
+
+    fn skip_block_comment(&mut self) {
+        self.i += 2;
+        let mut depth = 1_usize;
+        while self.i < self.chars.len() && depth > 0 {
+            match self.chars.get(self.i..self.i + 2) {
+                Some(b"/*") => {
+                    self.i += 2;
+                    depth += 1;
+                }
+                Some(b"*/") => {
+                    self.i += 2;
+                    depth -= 1;
+                }
+                _ => self.i += 1,
             }
         }
     }
@@ -390,6 +424,28 @@ mod tests {
             panic!("expected record type");
         };
         assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn sig_parser_treats_line_comment_as_trivia() {
+        let mut parser = SigParser::new("str\n// comment\n", TextSize::from(0));
+        let sig = parser
+            .parse_type()
+            .expect("line comment should not invalidate a type signature");
+        assert!(parser.is_eof());
+
+        assert!(matches!(sig, SigType::Prim { .. }));
+    }
+
+    #[test]
+    fn sig_parser_treats_block_comment_as_trivia() {
+        let mut parser = SigParser::new("str /* outer /* inner */ done */", TextSize::from(0));
+        let sig = parser
+            .parse_type()
+            .expect("block comment should not invalidate a type signature");
+        assert!(parser.is_eof());
+
+        assert!(matches!(sig, SigType::Prim { .. }));
     }
 
     #[test]

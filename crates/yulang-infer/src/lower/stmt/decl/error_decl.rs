@@ -1,7 +1,8 @@
 use rowan::TextRange;
 use yulang_parser::lex::SyntaxKind;
 
-use crate::lower::signature::{SigType, act_type_param_names, fresh_type_scope};
+use crate::lower::role::ErrorThrowVariant;
+use crate::lower::signature::{SigType, SigVar, act_type_param_names, fresh_type_scope};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::{Name, Path, Visibility};
 
@@ -52,23 +53,37 @@ pub(crate) fn lower_error_decl(state: &mut LowerState, node: &SyntaxNode) {
         visibility,
     );
 
+    let mut throw_variants = Vec::new();
     for variant in super::super::child_nodes(node, SyntaxKind::EnumVariant) {
         let Some(variant_name) = super::super::ident_name(&variant) else {
             continue;
         };
+        let payload_sig = super::enum_variant_payload_sig(&variant);
         let sig = error_operation_sig(&variant);
-        super::super::register_act_operation_sig(
+        let Some(operation_def) = super::super::register_act_operation_sig(
             state,
-            variant_name,
+            variant_name.clone(),
             visibility,
             effect_path.clone(),
             &act_scope,
             &act_arg_tvs,
             sig,
-        );
+        ) else {
+            continue;
+        };
+        let Some(constructor_def) = state.same_path_value_def_for_effect_op(operation_def) else {
+            continue;
+        };
+        throw_variants.push(ErrorThrowVariant {
+            payload_sig,
+            constructor_def,
+            operation_def,
+        });
     }
-
+    let error_sig = error_type_sig(&effect_path, &act_type_param_names(node), node.text_range());
+    crate::lower::role::lower_synthetic_error_wrap(state, &error_sig, &throw_variants, visibility);
     state.ctx.leave_module(saved_module);
+    crate::lower::role::lower_synthetic_error_throw(state, &error_sig, throw_variants);
 }
 
 fn error_operation_sig(variant: &SyntaxNode) -> SigType {
@@ -91,6 +106,30 @@ fn never_sig(span: TextRange) -> SigType {
             segments: vec![Name("never".to_string())],
         },
         span,
+    }
+}
+
+fn error_type_sig(effect_path: &Path, type_param_names: &[String], span: TextRange) -> SigType {
+    let args = type_param_names
+        .iter()
+        .map(|name| {
+            SigType::Var(SigVar {
+                name: name.clone(),
+                span,
+            })
+        })
+        .collect::<Vec<_>>();
+    if args.is_empty() {
+        SigType::Prim {
+            path: effect_path.clone(),
+            span,
+        }
+    } else {
+        SigType::Apply {
+            path: effect_path.clone(),
+            args,
+            span,
+        }
     }
 }
 

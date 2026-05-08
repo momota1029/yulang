@@ -165,22 +165,36 @@ fn parse_enum_variant<I: EventInput, S: EventSink>(
 
     if !matches!(info, TriviaInfo::Newline { .. }) {
         if let Some(next) = peek_stmt_lex(info, i.rb()) {
-            match next.kind {
-                SyntaxKind::BraceL => {
-                    let open = scan_stmt_lex(info, i.rb())?;
-                    info = parse_struct_named_fields_after_open(i.rb(), open)?;
+            if next.kind == SyntaxKind::Ident && next.text.as_ref() == "from" {
+                let from = scan_stmt_lex(info, i.rb())?;
+                i.env.state.sink.lex(&from);
+                let parsed =
+                    parse_type_with_stops(i.rb(), from.trailing_trivia_info(), type_stops)?;
+                match parsed {
+                    Either::Left(next_info) => info = next_info,
+                    Either::Right(stop) => {
+                        i.env.state.sink.finish();
+                        return Some((stop.trailing_trivia_info(), Some(stop)));
+                    }
                 }
-                SyntaxKind::ParenL => {
-                    let open = scan_stmt_lex(info, i.rb())?;
-                    info = parse_struct_tuple_fields_after_open(i.rb(), open)?;
-                }
-                _ => {
-                    let parsed = parse_type_with_stops(i.rb(), info, type_stops)?;
-                    match parsed {
-                        Either::Left(next_info) => info = next_info,
-                        Either::Right(stop) => {
-                            i.env.state.sink.finish();
-                            return Some((stop.trailing_trivia_info(), Some(stop)));
+            } else {
+                match next.kind {
+                    SyntaxKind::BraceL => {
+                        let open = scan_stmt_lex(info, i.rb())?;
+                        info = parse_struct_named_fields_after_open(i.rb(), open)?;
+                    }
+                    SyntaxKind::ParenL => {
+                        let open = scan_stmt_lex(info, i.rb())?;
+                        info = parse_struct_tuple_fields_after_open(i.rb(), open)?;
+                    }
+                    _ => {
+                        let parsed = parse_type_with_stops(i.rb(), info, type_stops)?;
+                        match parsed {
+                            Either::Left(next_info) => info = next_info,
+                            Either::Right(stop) => {
+                                i.env.state.sink.finish();
+                                return Some((stop.trailing_trivia_info(), Some(stop)));
+                            }
                         }
                     }
                 }

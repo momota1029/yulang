@@ -186,10 +186,7 @@ pub(crate) fn try_resolve_local_operator_expr(
         .map(|def| resolve_bound_def_expr(state, def))
 }
 
-pub(in crate::lower::expr) fn resolve_bound_def_expr(
-    state: &mut LowerState,
-    def: crate::ids::DefId,
-) -> TypedExpr {
+pub(crate) fn resolve_bound_def_expr(state: &mut LowerState, def: crate::ids::DefId) -> TypedExpr {
     let debug_ref = debug_ref_enabled();
     if debug_ref {
         eprintln!(

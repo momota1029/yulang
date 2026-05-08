@@ -135,6 +135,19 @@ fn lower_enum_variant(
     state
         .infer
         .store_frozen_scheme(ctor_def, frozen_ctor_scheme);
+
+    if enum_variant_has_from_marker(variant_node) {
+        if let Some(source_sig) = enum_variant_payload_sig(variant_node) {
+            let target_sig =
+                enum_target_sig(enum_path, type_param_names, variant_node.text_range());
+            crate::lower::role::lower_synthetic_variant_cast(
+                state,
+                &source_sig,
+                &target_sig,
+                &variant_name,
+            );
+        }
+    }
 }
 
 pub(crate) fn enum_variant_payload_sig(
@@ -157,6 +170,52 @@ pub(crate) fn enum_variant_payload_sig(
             items: tuple_items,
             span: variant_node.text_range(),
         })
+    }
+}
+
+fn enum_variant_has_from_marker(variant_node: &SyntaxNode) -> bool {
+    let mut seen_name = false;
+    for token in variant_node
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+    {
+        if token.kind() != SyntaxKind::Ident {
+            continue;
+        }
+        if !seen_name {
+            seen_name = true;
+            continue;
+        }
+        return token.text() == "from";
+    }
+    false
+}
+
+fn enum_target_sig(
+    enum_path: &Path,
+    type_param_names: &[String],
+    span: rowan::TextRange,
+) -> crate::lower::signature::SigType {
+    let args = type_param_names
+        .iter()
+        .map(|name| {
+            crate::lower::signature::SigType::Var(crate::lower::signature::SigVar {
+                name: name.clone(),
+                span,
+            })
+        })
+        .collect::<Vec<_>>();
+    if args.is_empty() {
+        crate::lower::signature::SigType::Prim {
+            path: enum_path.clone(),
+            span,
+        }
+    } else {
+        crate::lower::signature::SigType::Apply {
+            path: enum_path.clone(),
+            args,
+            span,
+        }
     }
 }
 

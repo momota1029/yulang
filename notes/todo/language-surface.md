@@ -21,19 +21,23 @@
 - `die` / `warn` / `say` は Perl/Raku 系の scripting convenience として別枠で扱う。
 - `std::undet` の分岐破棄は `reject` に寄せ、error の `fail` と分ける。
 - `from` entry は広い error family への cast / wrapper を生成する。`error` 専用ではなく、ordinary enum でも使える方向にする。
+- `variant from source_type` は ordinary enum / error の単一 payload variant として parse され、`Cast source_type -> enum_type` impl を生成する。
+- `std::result::result 'ok 'err` は入っている。
+- `error E:` は `E::wrap` を生成する。これは対応する単一 error effect を捕まえて `result ok E` に閉じる helper として扱う。
 - `io_err::raise` のような generated aggregation handler は狭い error effect を広いものへ集約する。role method ではなく、error namespace に生える関数として扱う。
 
 TODO:
 
-- `error` の `from` entry まで含めた正確な grammar を定義する。
+- `from` entry の collision rule と diagnostics を固める。
 - generated `fail` surface の正確な形を定義する。特に data constructor と same-name effect operation の文脈解決を固定する。
 - `die` / `warn` / `say` の std placement と host behavior を決める。
 - `Cast` を role、builtin relation、syntax-directed conversion のどれにするか決める。
 - `enum` variant の `from` grammar と collision rule を決める。
 - generated `raise` handler の signature と desugaring を決める。
+- anyhow 的な `any_err` と、`Display E` を要求して `result ok any_err` に落とす primitive `catch_any` / `wrap_any` を設計する。
 - constructor-like effect arms の handler syntax を決める。
 - `never` が user-facing signature にどう現れるか決める。
-- error effects と `result` の関係を決める。
+- `E::wrap` で `never` 計算を包む時に成功側型をどう明示・既定化するか決める。
 
 ## Special-case reduction
 
@@ -59,13 +63,13 @@ TODO:
 
 ## Result type
 
-- `result 'ok 'err = ok 'ok | err 'err` は error effects が明確になってから追加する。
+- `result 'ok 'err = ok 'ok | err 'err` は `std::result` に追加済み。
 - `result` は最初の error mechanism ではなく、effectful computation を value に閉じる方法として扱う。
+- `std::result` には `map` / `and_then` / `unwrap_or` を追加済み。
 - helper function を決める。
-  - `map`
-  - `and_then`
-  - `unwrap_or`
-  - error effects と result values の変換
+  - `map_err`
+  - `or_else`
+  - `E::wrap` 以外の error effects と result values の変換
 
 ## Casts
 
@@ -78,6 +82,22 @@ TODO:
 - どの cast を implicit、explicit、forbidden にするか決める。
 - `from` cast は variant に由来する predictable な widening として扱う。
 - ambiguous casts に対して予測しやすい diagnostics を保つ。
+
+## Derive
+
+目的: `error` sugar、`from`、`Display`、`any_err` で増える定型 impl
+生成を、後から見ても責務が分かる surface に整理する。
+
+TODO:
+
+- `derive Display` の対象と生成規則を決める。
+- `derive via` の構文を決める。
+- `derive via` が委譲してよい role / method / assoc type の範囲を決める。
+- `error` sugar が暗黙生成する `Throw` / `wrap` / 将来の `Display` と
+  explicit derive の責務境界を決める。
+- `variant from source_type` と derive-based cast generation の関係を整理する。
+- generated impl の由来を diagnostics / IR で追えるようにする。
+- derive が role selection の曖昧さを増やす場合の diagnostics を決める。
 
 ## Optional records
 

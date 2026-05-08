@@ -23,6 +23,9 @@ pub(super) fn lower_case(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr
         .find(|c| c.kind() == SyntaxKind::Expr)
         .map(|c| lower_expr(state, &c))
         .unwrap_or_else(|| unit_expr(state));
+    state
+        .infer
+        .constrain(Pos::Var(scrutinee.eff), Neg::Var(eff));
 
     let arm_nodes: Vec<_> = node
         .children()

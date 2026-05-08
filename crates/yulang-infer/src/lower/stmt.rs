@@ -82,7 +82,9 @@ use decl::{
     lower_where_clause,
 };
 pub use patterns::lower_pat;
-pub(crate) use patterns::{bind_pattern_locals, connect_pat_shape_and_locals};
+pub(crate) use patterns::{
+    bind_pattern_locals, connect_pat_shape_and_locals, resolve_pattern_constructor_ref,
+};
 use patterns::{connect_let_pattern, pattern_binding_name};
 use structs::{
     export_runtime_struct_method_type, export_runtime_struct_receiver_type, invariant_args,

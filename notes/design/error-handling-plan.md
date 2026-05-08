@@ -167,24 +167,37 @@ Current prototype note:
 
 - `std::fs` now uses `error fs_err:` to define both the data constructors and
   same-name effect operations.
+- `variant from source_type` now parses as a single-payload wrapper variant for
+  both `enum` and `error`, and lowering generates the corresponding
+  `Cast source_type -> enum_type` implementation.
 - Runtime lowering must keep constructor values and effect operations distinct
   by context: value construction lowers as an ordinary binding, while an
   effectful expected callee lowers as an effect operation.
+- `result ok err` now exists in `std::result` as a value container for
+  effectful computations that are intentionally closed into values.
+- `error E:` now generates `E::wrap`, which catches exactly the corresponding
+  error effect and returns `result ok E`.
 - `std::prelude` currently exports `prefix(fail)` as parser-visible operator
   syntax. The provisional implementation is identity-like, so
   `fail fs_err::not_found path` works by letting the same-name effect operation
   execute. This is intentionally not the final generated data-value `fail`
   surface.
-- `std::fs` still uses a manual `Throw fs_err` shim. Generated `fail` support
-  should replace that shim once the surface is implemented.
+- `std::fs` no longer carries a manual `Throw fs_err` shim; `Throw fs_err` is
+  generated from the `error fs_err:` declaration.
 - A direct generic `prefix(fail) = \e -> e.throw` does not yet work under the
   current principal-only monomorphize path: the operator wrapper can remain as a
   residual polymorphic binding when the argument's constructor/effect operation
   context is still open. The real fix belongs in generated error lowering or in
   principal elaboration, not in a parser/lower special case.
+- `E::wrap` is intentionally single-error for now. It does not aggregate
+  several effects or preserve an open effect tail.
 - `read_text_or_throw` is a transitional checked API. The host request still
   collapses all read failures to `opt::nil`, so it maps `nil` conservatively to
   `fs_err::not_found` until host requests can return typed filesystem errors.
+- An anyhow-like boundary should be added separately: likely an `any_err` value
+  plus a primitive `catch_any`/`wrap_any` that requires `Display E` and uses the
+  compiler-known error operation table to turn handled error operations back
+  into values before stringifying.
 
 Script-level convenience names should stay separate from typed error effects:
 

@@ -1164,6 +1164,83 @@ fn stmt_error_decl_indent_variants() {
 }
 
 #[test]
+fn stmt_error_decl_from_variant() {
+    let got = parse_stmt_once("error io_err:\n  fs from fs_err");
+    let expected = vec![
+        "(ErrorDecl",
+        "  Error \"error\"",
+        "  Ident \"io_err\"",
+        "  (TypeVars",
+        "  )",
+        "  Colon \":\"",
+        "  (EnumVariant",
+        "    Ident \"fs\"",
+        "    Ident \"from\"",
+        "    (TypeExpr",
+        "      Ident \"fs_err\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_error_decl_four_space_final_underscore_variant() {
+    let got = parse_stmt_all(
+        "pub error fs_err:\n    not_found str\n    denied str\n    invalid_path str\n\n// comment\npub read_text_or_throw path = x",
+    );
+    let expected = vec![
+        "(ErrorDecl",
+        "  Pub \"pub\"",
+        "  Error \"error\"",
+        "  Ident \"fs_err\"",
+        "  (TypeVars",
+        "  )",
+        "  Colon \":\"",
+        "  (EnumVariant",
+        "    Ident \"not_found\"",
+        "    (TypeExpr",
+        "      Ident \"str\"",
+        "    )",
+        "  )",
+        "  (EnumVariant",
+        "    Ident \"denied\"",
+        "    (TypeExpr",
+        "      Ident \"str\"",
+        "    )",
+        "  )",
+        "  (EnumVariant",
+        "    Ident \"invalid_path\"",
+        "    (TypeExpr",
+        "      Ident \"str\"",
+        "    )",
+        "  )",
+        ")",
+        "(Binding",
+        "  (BindingHeader",
+        "    Pub \"pub\"",
+        "    (Pattern",
+        "      Ident \"read_text_or_throw\"",
+        "      (ApplyML",
+        "        (Pattern",
+        "          Ident \"path\"",
+        "        )",
+        "      )",
+        "    )",
+        "    Equal \"=\"",
+        "  )",
+        "  (BindingBody",
+        "    (Expr",
+        "      Ident \"x\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_use_decl_simple_path() {
     let got = parse_stmt_once("use std::io");
     let expected = vec![

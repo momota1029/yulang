@@ -1345,12 +1345,13 @@ impl Lowerer<'_> {
                 .collect(),
         };
         for consumed in effect_paths(handled) {
-            if namespace.segments.len() == 1
-                && consumed
-                    .segments
-                    .last()
-                    .is_some_and(|name| Some(name) == namespace.segments.last())
-            {
+            let namespace_matches_consumed = namespace == consumed
+                || (namespace.segments.len() == 1
+                    && consumed
+                        .segments
+                        .last()
+                        .is_some_and(|name| Some(name) == namespace.segments.last()));
+            if namespace_matches_consumed {
                 let mut candidate = consumed.clone();
                 candidate
                     .segments
@@ -2083,38 +2084,45 @@ fn canonicalize_handled_effects(
         return handled;
     };
     let body_paths = effect_paths(&project_runtime_effect(body_effect_before));
-    if body_paths.len() != 1 {
-        return handled;
-    }
-    replace_single_unqualified_effect_path(handled, &body_paths[0])
+    replace_unqualified_effect_paths(handled, &body_paths)
 }
 
-fn replace_single_unqualified_effect_path(
+fn replace_unqualified_effect_paths(
     effect: core_ir::Type,
-    canonical: &core_ir::Path,
+    canonical_paths: &[core_ir::Path],
 ) -> core_ir::Type {
     match effect {
         core_ir::Type::Named { path, args }
             if path.segments.len() == 1
-                && canonical
-                    .segments
-                    .last()
-                    .is_some_and(|name| Some(name) == path.segments.last()) =>
+                && let Some(canonical) = unique_canonical_effect_suffix(&path, canonical_paths) =>
         {
             core_ir::Type::Named {
-                path: canonical.clone(),
+                path: canonical,
                 args,
             }
         }
         core_ir::Type::Row { items, tail } => core_ir::Type::Row {
             items: items
                 .into_iter()
-                .map(|item| replace_single_unqualified_effect_path(item, canonical))
+                .map(|item| replace_unqualified_effect_paths(item, canonical_paths))
                 .collect(),
-            tail: Box::new(replace_single_unqualified_effect_path(*tail, canonical)),
+            tail: Box::new(replace_unqualified_effect_paths(*tail, canonical_paths)),
         },
         other => other,
     }
+}
+
+fn unique_canonical_effect_suffix(
+    path: &core_ir::Path,
+    canonical_paths: &[core_ir::Path],
+) -> Option<core_ir::Path> {
+    let suffix = path.segments.last()?;
+    let mut matches = canonical_paths
+        .iter()
+        .filter(|canonical| canonical.segments.last().is_some_and(|name| name == suffix))
+        .cloned();
+    let first = matches.next()?;
+    matches.next().is_none().then_some(first)
 }
 
 fn prepare_effect_operation_arg(

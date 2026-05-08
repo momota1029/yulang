@@ -15,8 +15,10 @@ use super::stmt::{
 };
 use super::where_clause::lower_where_clause;
 use super::{LowerState, SyntaxNode};
-use crate::ast::expr::TypedPat;
-use crate::diagnostic::{ConstraintReason, TypeErrorKind};
+use crate::ast::expr::{
+    CatchArmKind, ExprKind, PatKind, TypedCatchArm, TypedExpr, TypedMatchArm, TypedPat,
+};
+use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind, TypeErrorKind};
 use crate::ids::TypeVar;
 use crate::scheme::freeze_pos_scheme_with_non_generic;
 use crate::simplify::compact::{CompactBounds, compact_neg_expr, compact_pos_expr};
@@ -32,7 +34,10 @@ mod runtime;
 mod subst;
 
 pub(super) use decl::lower_role_decl;
-pub(super) use impls::{lower_attached_impl_decl, lower_cast_decl, lower_impl_decl};
+pub(super) use impls::{
+    ErrorThrowVariant, lower_attached_impl_decl, lower_cast_decl, lower_impl_decl,
+    lower_synthetic_error_throw, lower_synthetic_error_wrap, lower_synthetic_variant_cast,
+};
 pub(super) use runtime::{export_runtime_path, export_runtime_sig_row, export_runtime_sig_type};
 
 use runtime::{runtime_export_role_method_scheme, runtime_export_scheme};

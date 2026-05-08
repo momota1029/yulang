@@ -1382,6 +1382,14 @@ impl PrincipalUnifier {
             plan.complete = true;
             plan.incomplete_reasons.clear();
         }
+        if !plan.complete
+            && plan_only_lacks_effect_only_missing_substitutions(&plan, &original)
+            && missing_required_vars(&original, &plan_substitution_map(&plan)).is_empty()
+        {
+            self.bump("principal-unify-effect-only-missing-plan-completed");
+            plan.complete = true;
+            plan.incomplete_reasons.clear();
+        }
         self.finish_profile_timer("complete-plan", started);
         if !plan.complete {
             if let Some(expr) = self.rewrite_single_emitted_specialized_call(&spine, &expr.ty) {
@@ -2395,7 +2403,7 @@ impl PrincipalUnifier {
         }
         let required_vars_closed = required_vars
             .iter()
-            .all(|var| substitutions.contains_key(var));
+            .all(|var| substitutions.contains_key(var) || effect_only_vars.contains(var));
         if !conflicts.is_empty() || (substitutions.len() == before && !required_vars_closed) {
             if conflicts.is_empty()
                 && let Some(completed) = self.complete_runtime_effect_plan_from_role_impls(
@@ -2525,10 +2533,6 @@ impl PrincipalUnifier {
             return None;
         }
         let substitutions = plan_substitution_map(plan);
-        if substitutions.is_empty() {
-            self.bump("principal-unify-body-result-skip-no-substitutions");
-            return None;
-        }
         let substituted = substitute_binding(original.clone(), &substitutions);
         let Some(body) = binding_body_after_applied_args(&substituted.body, plan.args.len()) else {
             self.bump("principal-unify-body-result-skip-no-body");
@@ -4605,6 +4609,21 @@ fn plan_only_lacks_open_slot_precision(plan: &core_ir::PrincipalElaborationPlan)
                 reason,
                 core_ir::PrincipalElaborationIncompleteReason::OpenArgType(_)
                     | core_ir::PrincipalElaborationIncompleteReason::OpenResultType
+            )
+        })
+}
+
+fn plan_only_lacks_effect_only_missing_substitutions(
+    plan: &core_ir::PrincipalElaborationPlan,
+    binding: &Binding,
+) -> bool {
+    let effect_only_vars = binding_effect_only_vars(binding);
+    !plan.incomplete_reasons.is_empty()
+        && plan.incomplete_reasons.iter().all(|reason| {
+            matches!(
+                reason,
+                core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var)
+                    if effect_only_vars.contains(var)
             )
         })
 }

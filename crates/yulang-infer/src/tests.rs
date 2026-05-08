@@ -584,7 +584,7 @@ fn same_path_enum_constructor_and_effect_operation_are_both_tracked() {
 #[test]
 fn error_decl_tracks_constructor_and_effect_operation() {
     let state = parse_and_lower(
-        "error fs_err:\n  not_found str\n  denied str\n\nmy err: fs_err = fs_err::not_found \"x\"\n",
+        "error fs_err:\n  not_found str\n  denied str\n  invalid_path str\n\nmy err: fs_err = fs_err::not_found \"x\"\n",
     );
     let path = symbols::Path {
         segments: vec![
@@ -597,11 +597,174 @@ fn error_decl_tracks_constructor_and_effect_operation() {
         .resolve_path_value(&path)
         .expect("error operation should resolve by the public surface path");
     assert!(state.effect_op_args.contains_key(&visible_def));
+    assert!(
+        matches!(
+            state
+                .infer
+                .arena
+                .get_pos(state.effect_op_pos_sigs[&visible_def]),
+            types::Pos::Fun { .. }
+        ),
+        "payload error operation should have a function signature"
+    );
+    let invalid_path = symbols::Path {
+        segments: vec![
+            symbols::Name("fs_err".to_string()),
+            symbols::Name("invalid_path".to_string()),
+        ],
+    };
+    let invalid_path_def = state
+        .ctx
+        .resolve_path_value(&invalid_path)
+        .expect("underscore error operation should resolve");
+    assert!(
+        matches!(
+            state
+                .infer
+                .arena
+                .get_pos(state.effect_op_pos_sigs[&invalid_path_def]),
+            types::Pos::Fun { .. }
+        ),
+        "underscore payload error operation should have a function signature"
+    );
 
     let constructor_def = state
         .same_path_value_def_for_effect_op(visible_def)
         .expect("error operation should keep the same-path constructor");
     assert!(state.enum_variant_tags.contains_key(&constructor_def));
+}
+
+#[test]
+fn error_decl_generates_throw_impl() {
+    let mut state = parse_and_lower(
+        "role Throw 'e:\n  our e.throw: never\n\n\
+error fs_err:\n  not_found str\n  denied str\n\n\
+my raise(e: fs_err): [fs_err] never = e.throw\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        !errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::MissingImpl { role, .. } if role == "Throw"
+        )),
+        "error declaration should generate a Throw impl, got {errors:?}",
+    );
+}
+
+#[test]
+fn std_fs_error_operations_keep_payload_signatures() {
+    run_with_large_stack(|| {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            "",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let path = symbols::Path {
+            segments: vec![
+                symbols::Name("std".to_string()),
+                symbols::Name("fs".to_string()),
+                symbols::Name("fs_err".to_string()),
+                symbols::Name("invalid_path".to_string()),
+            ],
+        };
+        let def = lowered.state.ctx.resolve_path_value(&path).unwrap();
+        assert!(
+            matches!(
+                lowered
+                    .state
+                    .infer
+                    .arena
+                    .get_pos(lowered.state.effect_op_pos_sigs[&def]),
+                types::Pos::Fun { .. }
+            ),
+            "std fs invalid_path operation should keep its payload signature"
+        );
+    });
+}
+
+#[test]
+fn std_fs_error_generates_wrap_helper() {
+    run_with_large_stack(|| {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            "my wrapped = fs_err::wrap 1\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let path = symbols::Path {
+            segments: vec![
+                symbols::Name("std".to_string()),
+                symbols::Name("fs".to_string()),
+                symbols::Name("fs_err".to_string()),
+                symbols::Name("wrap".to_string()),
+            ],
+        };
+        let wrap_def = lowered
+            .state
+            .ctx
+            .resolve_path_value(&path)
+            .expect("error declaration should generate a companion wrap helper");
+        assert!(
+            lowered.state.principal_bodies.contains_key(&wrap_def),
+            "generated wrap helper should have a principal body"
+        );
+        assert!(
+            lowered.state.infer.type_errors().is_empty(),
+            "generated wrap helper should typecheck"
+        );
+    });
+}
+
+#[test]
+fn error_from_variant_generates_cast_impl() {
+    let mut state = parse_and_lower(
+        "role Cast 'from:\n  type to\n  our from.cast: to\n\n\
+error fs_err:\n  not_found str\n\n\
+error io_err:\n  fs from fs_err\n\n\
+my err: io_err = fs_err::not_found \"x\"\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        !errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::MissingImpl { role, .. } if role == "Cast"
+        )),
+        "from variant should generate a Cast impl, got {errors:?}",
+    );
+}
+
+#[test]
+fn enum_from_variant_generates_cast_impl() {
+    let mut state = parse_and_lower(
+        "role Cast 'from:\n  type to\n  our from.cast: to\n\n\
+enum fs_err = not_found str\n\
+enum io_err = fs from fs_err\n\n\
+my err: io_err = fs_err::not_found \"x\"\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        !errors.iter().any(|error| matches!(
+            &error.kind,
+            TypeErrorKind::MissingImpl { role, .. } if role == "Cast"
+        )),
+        "from variant should generate a Cast impl for ordinary enum, got {errors:?}",
+    );
 }
 
 #[test]

@@ -202,7 +202,7 @@ fn lower_act_operation_decl(
     effect_path: Path,
     act_scope: &HashMap<String, crate::ids::TypeVar>,
     act_arg_tvs: &[crate::ids::TypeVar],
-) -> Option<()> {
+) -> Option<crate::ids::DefId> {
     let header_kind = match node.kind() {
         SyntaxKind::Binding => SyntaxKind::BindingHeader,
         SyntaxKind::OpDef => SyntaxKind::OpDefHeader,
@@ -230,7 +230,7 @@ pub(crate) fn register_act_operation_sig(
     act_scope: &HashMap<String, crate::ids::TypeVar>,
     act_arg_tvs: &[crate::ids::TypeVar],
     sig: crate::lower::signature::SigType,
-) -> Option<()> {
+) -> Option<crate::ids::DefId> {
     let def = state.fresh_def();
     let tv = state.fresh_tv();
     state.register_def_tv(def, tv);
@@ -255,7 +255,7 @@ pub(crate) fn register_act_operation_sig(
         def,
         crate::scheme::freeze_pos_scheme(&state.infer, state.effect_op_pos_sigs[&def]),
     );
-    Some(())
+    Some(def)
 }
 
 fn lower_op_sig(header: &SyntaxNode) -> Option<crate::lower::signature::SigType> {

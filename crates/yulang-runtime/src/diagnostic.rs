@@ -245,13 +245,16 @@ This usually means a name, field, method, or operator could not be resolved."
                 )
             }
             RuntimeError::ResidualPolymorphicBinding { path, vars, source } => {
+                let plural = if vars.len() == 1 { "" } else { "s" };
                 write!(
                     f,
-                    "binding {} is still polymorphic after runtime specialization \
-                     (remaining in {}): {}",
+                    "cannot infer all runtime types needed for `{}`. \
+                     Add a type annotation that fixes the remaining type \
+                     variable{}: {}. Source: {}.",
                     display_path(path),
-                    source.description(),
-                    display_type_vars(vars)
+                    plural,
+                    display_type_vars(vars),
+                    source.description()
                 )
             }
             RuntimeError::InvariantViolation {
@@ -352,15 +355,27 @@ fn display_type_vars(vars: &[core_ir::TypeVar]) -> String {
         return "<none>".to_string();
     }
     vars.iter()
-        .map(|var| var.0.as_str())
+        .map(display_type_var)
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+fn display_type_var(var: &core_ir::TypeVar) -> &str {
+    let name = var.0.as_str();
+    if name
+        .strip_prefix('t')
+        .is_some_and(|rest| !rest.is_empty() && rest.chars().all(|ch| ch.is_ascii_digit()))
+    {
+        "'a"
+    } else {
+        name
+    }
 }
 
 fn display_type(ty: &core_ir::Type) -> String {
     match ty {
         core_ir::Type::Unknown => "?".to_string(),
-        core_ir::Type::Var(var) => var.0.clone(),
+        core_ir::Type::Var(var) => display_type_var(var).to_string(),
         core_ir::Type::Never => "never".to_string(),
         core_ir::Type::Any => "_".to_string(),
         core_ir::Type::Named { path, args } => {
@@ -553,9 +568,25 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "binding f is still polymorphic after runtime specialization \
-             (remaining in runtime body, scheme, or role requirements): \
-             a"
+            "cannot infer all runtime types needed for `f`. \
+             Add a type annotation that fixes the remaining type variable: a. \
+             Source: runtime body, scheme, or role requirements."
+        );
+    }
+
+    #[test]
+    fn displays_internal_type_vars_as_user_type_vars() {
+        let error = RuntimeError::ResidualPolymorphicBinding {
+            path: core_ir::Path::from_name(core_ir::Name("wrap".to_string())),
+            vars: vec![core_ir::TypeVar("t4230".to_string())],
+            source: ResidualPolymorphicSource::TypeParams,
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "cannot infer all runtime types needed for `wrap`. \
+             Add a type annotation that fixes the remaining type variable: 'a. \
+             Source: binding type parameters."
         );
     }
 

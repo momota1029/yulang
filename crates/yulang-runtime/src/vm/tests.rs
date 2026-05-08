@@ -323,6 +323,68 @@ act fs_err:
     }
 
     #[test]
+    fn vm_wraps_std_fs_error_as_result() {
+        let path = temp_test_path("yulang-wrap-missing-text");
+        let source_path = yulang_string_literal(&path.to_string_lossy());
+        let source = format!("fs_err::wrap (read_text_or_throw {source_path})\n");
+
+        let (results, stdout) = eval_source_with_std_host(&source);
+
+        assert!(stdout.is_empty());
+        assert_eq!(
+            results,
+            vec![TestValue::Variant {
+                tag: "err".to_string(),
+                value: Some(Box::new(TestValue::Variant {
+                    tag: "not_found".to_string(),
+                    value: Some(Box::new(TestValue::String(
+                        path.to_string_lossy().to_string()
+                    ))),
+                })),
+            }]
+        );
+    }
+
+    #[test]
+    fn vm_runs_std_result_helpers() {
+        let results = eval_source_with_std(
+            r#"(
+    std::result::map (result::ok 2) (\x -> x + 3),
+    std::result::map (result::err "bad") (\x -> x + 3),
+    std::result::and_then (result::ok 2) (\x -> result::ok (x * 4)),
+    std::result::and_then (result::err "bad") (\x -> result::ok (x * 4)),
+    std::result::unwrap_or (result::ok 7) 0,
+    std::result::unwrap_or (result::err "bad") 9
+)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Variant {
+                    tag: "ok".to_string(),
+                    value: Some(Box::new(TestValue::Int("5".to_string()))),
+                },
+                TestValue::Variant {
+                    tag: "err".to_string(),
+                    value: Some(Box::new(TestValue::String("bad".to_string()))),
+                },
+                TestValue::Variant {
+                    tag: "ok".to_string(),
+                    value: Some(Box::new(TestValue::Int("8".to_string()))),
+                },
+                TestValue::Variant {
+                    tag: "err".to_string(),
+                    value: Some(Box::new(TestValue::String("bad".to_string()))),
+                },
+                TestValue::Int("7".to_string()),
+                TestValue::Int("9".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_optional_record_argument_defaults() {
         let results = eval_source_with_std(
             "my area({width = 1, height = 2}) = width * height\n\
