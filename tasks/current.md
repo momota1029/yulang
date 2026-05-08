@@ -57,7 +57,8 @@ runtime/core IR
   - effectful handle body の `BindHere* -> Thunk -> body` は handle body 実行 wrapper の 1 塊として扱う。`BindHere` 単体を個別に剥がさない。
   - perform site ごとに resume continuation を作る形へ広げた。
   - if body は、条件が pure で両分岐が同じ handled effect を投げる限定形を CPS lowering できる。
-  - 次は continuation capture / environment layout を明示し、複数 effect operation が入れ子になる body の扱いを決める。
+  - CPS continuation に `captures` field を追加した。lowering 後に `infer_cps_captures` を走らせ、validator は continuation params と captures だけを visible value として扱う。
+  - 次は capture を environment layout に落とし、複数 effect operation が入れ子になる body の扱いを決める。
 
 重要な制約:
 

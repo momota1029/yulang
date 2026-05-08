@@ -19,6 +19,7 @@ pub struct CpsFunction {
 pub struct CpsContinuation {
     pub id: CpsContinuationId,
     pub params: Vec<CpsValueId>,
+    pub captures: Vec<CpsValueId>,
     pub shot_kind: CpsShotKind,
     pub stmts: Vec<CpsStmt>,
     pub terminator: CpsTerminator,

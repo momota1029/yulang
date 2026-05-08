@@ -4,6 +4,7 @@ use std::fmt;
 use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
 
+use crate::cps_capture::infer_cps_captures;
 use crate::cps_ir::{
     CpsContinuation, CpsContinuationId, CpsFunction, CpsHandler, CpsHandlerId, CpsLiteral,
     CpsModule, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
@@ -124,7 +125,9 @@ pub fn lower_cps_module(module: &runtime::Module) -> CpsLowerResult<CpsModule> {
             }
         }
     }
-    Ok(CpsModule { functions, roots })
+    let mut module = CpsModule { functions, roots };
+    infer_cps_captures(&mut module);
+    Ok(module)
 }
 
 fn lower_binding(
@@ -778,6 +781,7 @@ impl<'a> FunctionLowerer<'a> {
         self.continuations.push(CpsContinuation {
             id: self.current.id,
             params: std::mem::take(&mut self.current.params),
+            captures: std::mem::take(&mut self.current.captures),
             shot_kind: CpsShotKind::MultiShot,
             stmts: std::mem::take(&mut self.current.stmts),
             terminator,
@@ -788,6 +792,7 @@ impl<'a> FunctionLowerer<'a> {
 struct ContinuationBuilder {
     id: CpsContinuationId,
     params: Vec<CpsValueId>,
+    captures: Vec<CpsValueId>,
     stmts: Vec<CpsStmt>,
     terminator: Option<CpsTerminator>,
 }
@@ -797,6 +802,7 @@ impl ContinuationBuilder {
         Self {
             id,
             params,
+            captures: Vec::new(),
             stmts: Vec::new(),
             terminator: None,
         }
@@ -1409,6 +1415,49 @@ mod tests {
         let lowered = lower_cps_module(&module).expect("lowered");
 
         validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("23".to_string())]
+        );
+    }
+
+    #[test]
+    fn infers_capture_for_block_value_used_after_effect() {
+        let body = block(
+            vec![
+                runtime::Stmt::Let {
+                    pattern: bind_pattern("z"),
+                    value: unknown_lit(core_ir::Lit::Int("10".to_string())),
+                },
+                runtime::Stmt::Let {
+                    pattern: bind_pattern("y"),
+                    value: apply(
+                        effect_op("choose"),
+                        unknown_lit(core_ir::Lit::Int("1".to_string())),
+                    ),
+                },
+            ],
+            apply(
+                apply(primitive(core_ir::PrimitiveOp::IntAdd), var("y")),
+                var("z"),
+            ),
+        );
+        let resume_x = apply(var("k"), var("x"));
+        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let arm_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            resume_two,
+        );
+        let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert!(
+            lowered.roots[0]
+                .continuations
+                .iter()
+                .any(|continuation| !continuation.captures.is_empty())
+        );
         assert_eq!(
             eval_cps_module(&lowered).expect("evaluated"),
             vec![runtime::VmValue::Int("23".to_string())]

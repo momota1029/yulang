@@ -7,6 +7,7 @@
 
 pub mod compare;
 pub mod control_ir;
+pub mod cps_capture;
 pub mod cps_compare;
 pub mod cps_eval;
 pub mod cps_ir;
@@ -20,6 +21,7 @@ pub use control_ir::{
     BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeStmt,
     NativeTerminator, ValueId,
 };
+pub use cps_capture::infer_cps_captures;
 pub use cps_compare::{CpsCompareError, compare_cps_module};
 pub use cps_eval::{CpsEvalError, eval_cps_module};
 pub use cps_ir::{

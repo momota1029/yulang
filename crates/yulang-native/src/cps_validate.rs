@@ -123,10 +123,36 @@ fn validate_function(function: &CpsFunction) -> Result<(), CpsValidateError> {
         require_continuation(function, &continuation_ids, handler.entry)?;
     }
 
+    let defined_values = function_defined_values(function);
     for continuation in &function.continuations {
-        validate_continuation(function, continuation, &continuation_ids, &handler_ids)?;
+        validate_continuation(
+            function,
+            continuation,
+            &continuation_ids,
+            &handler_ids,
+            &defined_values,
+        )?;
     }
     Ok(())
+}
+
+fn function_defined_values(function: &CpsFunction) -> HashSet<CpsValueId> {
+    let mut values = function.params.iter().copied().collect::<HashSet<_>>();
+    for continuation in &function.continuations {
+        values.extend(continuation.params.iter().copied());
+        for stmt in &continuation.stmts {
+            match stmt {
+                CpsStmt::Literal { dest, .. }
+                | CpsStmt::Primitive { dest, .. }
+                | CpsStmt::DirectCall { dest, .. }
+                | CpsStmt::CloneContinuation { dest, .. }
+                | CpsStmt::Resume { dest, .. } => {
+                    values.insert(*dest);
+                }
+            }
+        }
+    }
+    values
 }
 
 fn validate_continuation(
@@ -134,9 +160,13 @@ fn validate_continuation(
     continuation: &CpsContinuation,
     continuation_ids: &HashSet<CpsContinuationId>,
     handler_ids: &HashSet<CpsHandlerId>,
+    defined_values: &HashSet<CpsValueId>,
 ) -> Result<(), CpsValidateError> {
-    let mut values = function.params.iter().copied().collect::<HashSet<_>>();
-    values.extend(continuation.params.iter().copied());
+    let mut values = continuation.params.iter().copied().collect::<HashSet<_>>();
+    for capture in &continuation.captures {
+        require_value(function, defined_values, *capture)?;
+        values.insert(*capture);
+    }
 
     for stmt in &continuation.stmts {
         match stmt {

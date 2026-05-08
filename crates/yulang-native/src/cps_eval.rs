@@ -623,6 +623,7 @@ mod tests {
                     CpsContinuation {
                         id: CpsContinuationId(0),
                         params: Vec::new(),
+                        captures: Vec::new(),
                         shot_kind: CpsShotKind::MultiShot,
                         stmts: vec![CpsStmt::Literal {
                             dest: CpsValueId(0),
@@ -638,6 +639,7 @@ mod tests {
                     CpsContinuation {
                         id: CpsContinuationId(1),
                         params: vec![CpsValueId(1)],
+                        captures: Vec::new(),
                         shot_kind: CpsShotKind::MultiShot,
                         stmts: vec![
                             CpsStmt::Literal {
@@ -655,6 +657,7 @@ mod tests {
                     CpsContinuation {
                         id: CpsContinuationId(2),
                         params: vec![CpsValueId(4), CpsValueId(5)],
+                        captures: Vec::new(),
                         shot_kind: CpsShotKind::MultiShot,
                         stmts: vec![
                             CpsStmt::Literal {
