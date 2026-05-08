@@ -131,6 +131,11 @@ TODO:
 
 ## Effects
 
+現在:
+
+- value arm、effect operation を返す handler arm、effectful role method と helper binding 経由の handler は runtime example で固定している。
+- direct effect handler return と resumed continuation を含む handler example は ignored regression として置いている。
+
 TODO:
 
 - handler type examples を追加する。

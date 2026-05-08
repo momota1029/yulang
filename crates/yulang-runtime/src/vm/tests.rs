@@ -1042,6 +1042,41 @@ act fs_err:
     }
 
     #[test]
+    fn vm_runs_source_effect_handler_return_example() {
+        let results = eval_source_with_std(
+            r#"pub act out:
+  pub say: str -> ()
+
+catch out::say "hi":
+    out::say msg, _ -> "handled:" + msg
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::String("handled:hi".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_source_effect_handler_return_and_resume_example() {
+        let results = eval_source_with_std(
+            r#"pub act out:
+  pub say: str -> ()
+
+catch out::say "hi":
+    out::say msg, _ -> "handled:" + msg
+
+catch out::say "hi":
+    out::say _, k -> k ()
+    value -> value
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::String("handled:hi".to_string()), TestValue::Unit,]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_for_loop_last_examples() {
         let results = eval_source_with_std(FOR_LOOP_LAST_SOURCE);
 
