@@ -18,6 +18,7 @@ pub mod cps_lower;
 pub mod cps_validate;
 pub mod eval;
 pub mod lower;
+pub mod source;
 
 pub use closure::{
     NativeClosureEnvironment, NativeClosureFunction, NativeClosureModule, NativeClosureSlot,
@@ -46,3 +47,7 @@ pub use cps_lower::{CpsLowerError, CpsLowerResult, lower_cps_module};
 pub use cps_validate::{CpsValidateError, validate_cps_module};
 pub use eval::{NativeEvalError, eval_module};
 pub use lower::{NativeLowerError, NativeLowerResult, lower_module};
+pub use source::{
+    NativeSourceError, NativeSourceResult, compile_source, compile_source_with_options,
+    eval_source, eval_source_with_options, runtime_module_from_source_with_options,
+};

@@ -1268,6 +1268,7 @@ name = "yulang-native"
 version = "0.1.0"
 dependencies = [
  "yulang-core-ir",
+ "yulang-infer",
  "yulang-runtime",
 ]
 
