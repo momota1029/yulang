@@ -1264,6 +1264,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "yulang-native"
+version = "0.1.0"
+dependencies = [
+ "yulang-core-ir",
+ "yulang-runtime",
+]
+
+[[package]]
 name = "yulang-parser"
 version = "0.1.0"
 dependencies = [

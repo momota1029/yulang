@@ -24,13 +24,21 @@ runtime/core IR
 
 直近 TODO:
 
-- `notes/design/native-backend-plan.md` に沿って native control IR skeleton を作る。
-- 最初に support する subset を選ぶ。
+- `crates/yulang-native` の native control IR skeleton を育てる。
+- 最初に support する subset を小さい compare harness で固定する。
   - pure first-order functions
   - primitive numeric/string operations
   - representation が明確なら simple records / variants
+- VM result と native-control result を比較する test helper を広げる。
+- direct monomorphic calls の範囲を広げる。
+  - `if` は branch + merge block param として lowering / native-control eval / VM compare まで追加済み。
+  - local block binding は simple `Bind` / `Wildcard` pattern だけ lowering / VM compare まで追加済み。
+  - direct monomorphic call は non-polymorphic binding の curried lambda を `NativeFunction` に落とし、root expression からの direct call を lowering / native-control eval / VM compare まで追加済み。
+  - call arity mismatch は lowering の構造化エラーにした。
+  - 複数 binding と小さい再帰 call は VM compare まで追加済み。
+  - 次は root binding の扱いと、closure capture を明示拒否する diagnostics を決める。
 - algebraic effects と resumptions は design に残すが、最初の compiled milestone にはしない。
-- 最適化の前に、小さな VM-vs-Cranelift comparison harness を追加する。
+- Cranelift dependency は control IR / compare harness が安定してから入れる。
 
 重要な制約:
 

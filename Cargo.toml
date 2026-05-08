@@ -9,6 +9,7 @@ members = [
   "crates/yulang-source",
   "crates/yulang-core-ir",
   "crates/yulang-runtime",
+  "crates/yulang-native",
   "crates/yulang-wasm",
   "crates/yulang-infer",
 ]

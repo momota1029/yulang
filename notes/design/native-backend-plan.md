@@ -237,8 +237,16 @@ IR can be tested before native codegen.
 
 ### Phase 1: Native Control IR
 
+Status: started.
+
 - Define native control IR types.
 - Lower a pure monomorphic root expression to control IR.
+- Lower `if` as branch blocks plus a merge block parameter.
+- Lower simple block-local `Bind` / `Wildcard` patterns.
+- Lower non-polymorphic curried-lambda bindings as native functions and direct
+  monomorphic calls as call statements.
+- Reject direct-call arity mismatch during native lowering.
+- Compare multiple bindings and small recursive calls against the VM.
 - Validate no unsupported runtime IR forms appear.
 - Add tests that print or structurally compare control IR.
 
@@ -247,6 +255,8 @@ Success condition:
 - A pure arithmetic root can lower to native control IR.
 
 ### Phase 2: VM Compare Harness
+
+Status: started.
 
 - Add a CLI or test helper that runs VM output and native-control interpreter
   output, if a tiny control interpreter is useful.
@@ -300,6 +310,8 @@ Success condition:
 
 ## Near-Term Next Step
 
-Create the native control IR skeleton and a lowering function that accepts a
-monomorphized runtime `Module`, rejects unsupported forms structurally, and
-lowers one pure arithmetic root.
+Decide how much of function shape to accept before Cranelift: whether root
+bindings are native roots or just callable functions, and how to reject closure
+capture explicitly before closure conversion exists.  Keep unsupported forms as
+structured `NativeLowerError` / `NativeEvalError` values until each form has a
+VM comparison test.
