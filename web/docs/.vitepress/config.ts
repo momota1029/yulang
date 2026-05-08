@@ -7,7 +7,7 @@ export default defineConfig({
     "A statically-typed language with algebraic effects and role-based polymorphism.",
   lang: "en",
 
-  base: "/yulang/docs/",
+  base: "/docs/",
   outDir: "../dist/docs",
 
   ignoreDeadLinks: [/^\/playground\//],

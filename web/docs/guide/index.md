@@ -3,7 +3,7 @@
 Yulang is a statically-typed, expression-based language designed around algebraic effects.
 
 ::: tip Playground
-You can try everything on this page in the <a href="/yulang/" target="_self">Playground</a>.
+You can try everything on this page in the <a href="/" target="_self">Playground</a>.
 :::
 
 ## What makes Yulang different?
