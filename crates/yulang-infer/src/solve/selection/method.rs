@@ -19,6 +19,10 @@ impl Infer {
             self.resolve_deferred_selections_for(recv_tv);
         }
         self.resolve_deferred_role_method_calls();
+        let keys: Vec<_> = self.deferred_selections.borrow().keys().copied().collect();
+        for recv_tv in keys {
+            self.resolve_deferred_selections_for(recv_tv);
+        }
     }
 
     pub(crate) fn resolve_selection_def(
@@ -128,7 +132,15 @@ impl Infer {
                     }
                 }
                 Pos::Var(inner) | Pos::Raw(inner) => {
+                    self.add_selection_var_dependent(inner, recv_tv);
                     if let Some(def) = self.resolve_selection_def_inner(inner, name, seen) {
+                        return Some(def);
+                    }
+                }
+                Pos::Union(left, right) => {
+                    if let Some(def) =
+                        self.resolve_selection_def_from_pos_union(left, right, name, recv_tv, seen)
+                    {
                         return Some(def);
                     }
                 }
@@ -140,6 +152,20 @@ impl Infer {
             if let Some(def) = super::compact_lookup::resolve_selection_def_from_compact_instance(
                 self, &instance, name, seen,
             ) {
+                return Some(def);
+            }
+        }
+
+        for upper in self.upper_refs_of(recv_tv) {
+            if let Some(def) = self.resolve_selection_def_from_neg(upper, name, recv_tv, seen) {
+                return Some(def);
+            }
+        }
+
+        if let Some(concrete) = super::concrete_tv_repr(self, recv_tv, true) {
+            if let Some(def) =
+                self.resolve_selection_def_from_concrete_compact_type(&concrete, name)
+            {
                 return Some(def);
             }
         }
@@ -353,7 +379,7 @@ impl Infer {
             .insert(selection.result_tv, def);
     }
 
-    fn selection_method_use_tv(
+    pub(super) fn selection_method_use_tv(
         &self,
         def: DefId,
         level_source: TypeVar,
@@ -444,6 +470,7 @@ impl Infer {
                     }
                 }
                 Pos::Var(inner) | Pos::Raw(inner) => {
+                    self.add_selection_var_dependent(inner, recv_tv);
                     if let Some(projection) =
                         self.resolve_ref_field_projection_info_inner(inner, name, seen)
                     {
@@ -458,6 +485,26 @@ impl Infer {
             if let Some(projection) = self
                 .resolve_ref_field_projection_from_compact_instance(&instance, name, recv_tv, seen)
             {
+                return Some(projection);
+            }
+        }
+
+        for upper in self.upper_refs_of(recv_tv) {
+            if let Some(projection) =
+                self.resolve_ref_field_projection_from_neg(upper, name, recv_tv, seen)
+            {
+                return Some(projection);
+            }
+        }
+
+        if let Some(concrete) = super::concrete_tv_repr(self, recv_tv, true) {
+            if let Some(projection) = self.resolve_ref_field_projection_from_compact_type(
+                &concrete,
+                &[],
+                name,
+                recv_tv,
+                seen,
+            ) {
                 return Some(projection);
             }
         }
@@ -497,6 +544,9 @@ impl Infer {
                 }
                 None
             }
+            Pos::Union(left, right) => self.resolve_ref_field_projection_from_inner_pos_union(
+                left, right, name, dependent, seen,
+            ),
             _ => None,
         }
     }
@@ -621,6 +671,156 @@ impl Infer {
             fields: field_set.fields.clone(),
             constructor: field_set.constructor,
         })
+    }
+
+    fn resolve_selection_def_from_neg(
+        &self,
+        neg: crate::ids::NegId,
+        name: &Name,
+        dependent: TypeVar,
+        seen: &mut HashSet<TypeVar>,
+    ) -> Option<DefId> {
+        match self.arena.get_neg(neg) {
+            Neg::Con(path, _) => self
+                .type_methods
+                .get(&path)
+                .and_then(|methods| methods.get(name).copied()),
+            Neg::Var(inner) => {
+                self.add_selection_var_dependent(inner, dependent);
+                self.resolve_selection_def_inner(inner, name, seen)
+            }
+            Neg::Intersection(left, right) => merge_unique_selection_def(
+                self.resolve_selection_def_from_neg(left, name, dependent, &mut seen.clone()),
+                self.resolve_selection_def_from_neg(right, name, dependent, seen),
+            ),
+            _ => None,
+        }
+    }
+
+    fn resolve_ref_field_projection_from_neg(
+        &self,
+        neg: crate::ids::NegId,
+        name: &Name,
+        dependent: TypeVar,
+        seen: &mut HashSet<TypeVar>,
+    ) -> Option<RefFieldProjection> {
+        match self.arena.get_neg(neg) {
+            Neg::Con(path, args) if self.is_ref_type_path(&path) && args.len() >= 2 => {
+                self.resolve_ref_field_projection_from_inner_pos(args[1].0, name, dependent, seen)
+            }
+            Neg::Var(inner) => {
+                self.add_selection_var_dependent(inner, dependent);
+                self.resolve_ref_field_projection_info_inner(inner, name, seen)
+            }
+            Neg::Intersection(left, right) => merge_unique_ref_field_projection(
+                self.resolve_ref_field_projection_from_neg(
+                    left,
+                    name,
+                    dependent,
+                    &mut seen.clone(),
+                ),
+                self.resolve_ref_field_projection_from_neg(right, name, dependent, seen),
+            ),
+            _ => None,
+        }
+    }
+
+    fn resolve_selection_def_from_concrete_compact_type(
+        &self,
+        ty: &CompactType,
+        name: &Name,
+    ) -> Option<DefId> {
+        for con in &ty.cons {
+            if let Some(def) = self
+                .type_methods
+                .get(&con.path)
+                .and_then(|methods| methods.get(name).copied())
+            {
+                return Some(def);
+            }
+        }
+        None
+    }
+
+    fn resolve_selection_def_from_pos_union(
+        &self,
+        left: crate::ids::PosId,
+        right: crate::ids::PosId,
+        name: &Name,
+        dependent: TypeVar,
+        seen: &mut HashSet<TypeVar>,
+    ) -> Option<DefId> {
+        merge_unique_selection_def(
+            self.resolve_selection_def_from_pos(left, name, dependent, &mut seen.clone()),
+            self.resolve_selection_def_from_pos(right, name, dependent, seen),
+        )
+    }
+
+    fn resolve_selection_def_from_pos(
+        &self,
+        pos: crate::ids::PosId,
+        name: &Name,
+        dependent: TypeVar,
+        seen: &mut HashSet<TypeVar>,
+    ) -> Option<DefId> {
+        match self.arena.get_pos(pos) {
+            Pos::Con(path, _) => self
+                .type_methods
+                .get(&path)
+                .and_then(|methods| methods.get(name).copied()),
+            Pos::Var(inner) | Pos::Raw(inner) => {
+                self.add_selection_var_dependent(inner, dependent);
+                self.resolve_selection_def_inner(inner, name, seen)
+            }
+            Pos::Union(left, right) => {
+                self.resolve_selection_def_from_pos_union(left, right, name, dependent, seen)
+            }
+            _ => None,
+        }
+    }
+
+    fn resolve_ref_field_projection_from_inner_pos_union(
+        &self,
+        left: crate::ids::PosId,
+        right: crate::ids::PosId,
+        name: &Name,
+        dependent: TypeVar,
+        seen: &mut HashSet<TypeVar>,
+    ) -> Option<RefFieldProjection> {
+        merge_unique_ref_field_projection(
+            self.resolve_ref_field_projection_from_inner_pos(
+                left,
+                name,
+                dependent,
+                &mut seen.clone(),
+            ),
+            self.resolve_ref_field_projection_from_inner_pos(right, name, dependent, seen),
+        )
+    }
+}
+
+fn merge_unique_selection_def(left: Option<DefId>, right: Option<DefId>) -> Option<DefId> {
+    match (left, right) {
+        (Some(left), Some(right)) if left == right => Some(left),
+        (Some(_), Some(_)) => None,
+        (Some(def), None) | (None, Some(def)) => Some(def),
+        (None, None) => None,
+    }
+}
+
+fn merge_unique_ref_field_projection(
+    left: Option<RefFieldProjection>,
+    right: Option<RefFieldProjection>,
+) -> Option<RefFieldProjection> {
+    match (left, right) {
+        (Some(left), Some(right))
+            if left.type_path == right.type_path && left.field.def == right.field.def =>
+        {
+            Some(left)
+        }
+        (Some(_), Some(_)) => None,
+        (Some(projection), None) | (None, Some(projection)) => Some(projection),
+        (None, None) => None,
     }
 }
 

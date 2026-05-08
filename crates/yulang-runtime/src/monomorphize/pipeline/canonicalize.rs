@@ -59,7 +59,7 @@ pub(super) fn canonicalize_equivalent_specializations(mut module: Module) -> Mod
     module
 }
 
-pub(super) fn inline_polymorphic_nullary_constructors(mut module: Module) -> Module {
+pub(super) fn inline_polymorphic_wrappers(mut module: Module) -> Module {
     let constructors = module
         .bindings
         .iter()
@@ -71,14 +71,41 @@ pub(super) fn inline_polymorphic_nullary_constructors(mut module: Module) -> Mod
             Some((binding.name.clone(), tag.clone()))
         })
         .collect::<HashMap<_, _>>();
-    if constructors.is_empty() {
+    let identity_wrappers = module
+        .bindings
+        .iter()
+        .filter_map(|binding| {
+            if binding.type_params.is_empty() {
+                return None;
+            }
+            unary_identity_wrapper_param(&binding.body)?;
+            Some(binding.name.clone())
+        })
+        .collect::<HashSet<_>>();
+    let field_accessors = module
+        .bindings
+        .iter()
+        .filter_map(|binding| {
+            if binding.type_params.is_empty() {
+                return None;
+            }
+            let accessor = unary_field_accessor(&binding.body)?;
+            Some((binding.name.clone(), accessor))
+        })
+        .collect::<HashMap<_, _>>();
+    if constructors.is_empty() && identity_wrappers.is_empty() && field_accessors.is_empty() {
         return module;
     }
     for binding in &mut module.bindings {
-        inline_constructor_expr(&mut binding.body, &constructors);
+        inline_constructor_expr(
+            &mut binding.body,
+            &constructors,
+            &identity_wrappers,
+            &field_accessors,
+        );
     }
     for expr in &mut module.root_exprs {
-        inline_constructor_expr(expr, &constructors);
+        inline_constructor_expr(expr, &constructors, &identity_wrappers, &field_accessors);
     }
     module
 }
@@ -87,6 +114,55 @@ fn nullary_constructor_tag(expr: &Expr) -> Option<&core_ir::Name> {
     match &expr.kind {
         ExprKind::Variant { tag, value: None } => Some(tag),
         ExprKind::Coerce { expr, .. } => nullary_constructor_tag(expr),
+        _ => None,
+    }
+}
+
+fn unary_identity_wrapper_param(expr: &Expr) -> Option<&core_ir::Name> {
+    let ExprKind::Lambda { param, body, .. } = &expr.kind else {
+        return None;
+    };
+    identity_body_param(body).filter(|body_param| *body_param == param)
+}
+
+fn identity_body_param(expr: &Expr) -> Option<&core_ir::Name> {
+    match &expr.kind {
+        ExprKind::Var(path) if path.segments.len() == 1 => path.segments.first(),
+        ExprKind::Coerce { expr, .. } | ExprKind::Pack { expr, .. } => identity_body_param(expr),
+        _ => None,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FieldAccessorInline {
+    field: core_ir::Name,
+    base_type: core_ir::Type,
+}
+
+fn unary_field_accessor(expr: &Expr) -> Option<FieldAccessorInline> {
+    let ExprKind::Lambda { param, body, .. } = &expr.kind else {
+        return None;
+    };
+    let ExprKind::Select { base, field } = &body.kind else {
+        return None;
+    };
+    let base_type = accessor_base_type(base, param)?;
+    Some(FieldAccessorInline {
+        field: field.clone(),
+        base_type,
+    })
+}
+
+fn accessor_base_type(expr: &Expr, param: &core_ir::Name) -> Option<core_ir::Type> {
+    match &expr.kind {
+        ExprKind::Var(path) if path.segments.as_slice() == std::slice::from_ref(param) => {
+            Some(runtime_core_type(&expr.ty))
+        }
+        ExprKind::Coerce { to, expr, .. } => {
+            accessor_base_type(expr, param)?;
+            Some(to.clone())
+        }
+        ExprKind::Pack { expr, .. } => accessor_base_type(expr, param),
         _ => None,
     }
 }
@@ -214,7 +290,12 @@ fn count_residual_stmt_refs(stmt: &Stmt, residual_originals: &HashSet<core_ir::P
     }
 }
 
-fn inline_constructor_expr(expr: &mut Expr, constructors: &HashMap<core_ir::Path, core_ir::Name>) {
+fn inline_constructor_expr(
+    expr: &mut Expr,
+    constructors: &HashMap<core_ir::Path, core_ir::Name>,
+    identity_wrappers: &HashSet<core_ir::Path>,
+    field_accessors: &HashMap<core_ir::Path, FieldAccessorInline>,
+) {
     if let ExprKind::Var(path) = &expr.kind
         && let Some(tag) = constructors.get(path)
     {
@@ -224,11 +305,42 @@ fn inline_constructor_expr(expr: &mut Expr, constructors: &HashMap<core_ir::Path
         };
         return;
     }
+    if let ExprKind::Apply { callee, arg, .. } = &mut expr.kind
+        && let ExprKind::Var(path) = &callee.kind
+        && identity_wrappers.contains(path)
+    {
+        expr.kind = ExprKind::Coerce {
+            from: runtime_core_type(&arg.ty),
+            to: runtime_core_type(&expr.ty),
+            expr: Box::new((**arg).clone()),
+        };
+        return;
+    }
+    if let ExprKind::Apply { callee, arg, .. } = &mut expr.kind
+        && let ExprKind::Var(path) = &callee.kind
+        && let Some(accessor) = field_accessors.get(path)
+    {
+        let base = Expr::typed(
+            ExprKind::Coerce {
+                from: runtime_core_type(&arg.ty),
+                to: accessor.base_type.clone(),
+                expr: Box::new((**arg).clone()),
+            },
+            RuntimeType::core(accessor.base_type.clone()),
+        );
+        expr.kind = ExprKind::Select {
+            base: Box::new(base),
+            field: accessor.field.clone(),
+        };
+        return;
+    }
     match &mut expr.kind {
-        ExprKind::Lambda { body, .. } => inline_constructor_expr(body, constructors),
+        ExprKind::Lambda { body, .. } => {
+            inline_constructor_expr(body, constructors, identity_wrappers, field_accessors)
+        }
         ExprKind::Apply { callee, arg, .. } => {
-            inline_constructor_expr(callee, constructors);
-            inline_constructor_expr(arg, constructors);
+            inline_constructor_expr(callee, constructors, identity_wrappers, field_accessors);
+            inline_constructor_expr(arg, constructors, identity_wrappers, field_accessors);
         }
         ExprKind::If {
             cond,
@@ -236,65 +348,113 @@ fn inline_constructor_expr(expr: &mut Expr, constructors: &HashMap<core_ir::Path
             else_branch,
             ..
         } => {
-            inline_constructor_expr(cond, constructors);
-            inline_constructor_expr(then_branch, constructors);
-            inline_constructor_expr(else_branch, constructors);
+            inline_constructor_expr(cond, constructors, identity_wrappers, field_accessors);
+            inline_constructor_expr(
+                then_branch,
+                constructors,
+                identity_wrappers,
+                field_accessors,
+            );
+            inline_constructor_expr(
+                else_branch,
+                constructors,
+                identity_wrappers,
+                field_accessors,
+            );
         }
         ExprKind::Tuple(items) => {
             for item in items {
-                inline_constructor_expr(item, constructors);
+                inline_constructor_expr(item, constructors, identity_wrappers, field_accessors);
             }
         }
         ExprKind::Record { fields, spread } => {
             for field in fields {
-                inline_constructor_expr(&mut field.value, constructors);
+                inline_constructor_expr(
+                    &mut field.value,
+                    constructors,
+                    identity_wrappers,
+                    field_accessors,
+                );
             }
             if let Some(spread) = spread {
                 match spread {
                     RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
-                        inline_constructor_expr(expr, constructors);
+                        inline_constructor_expr(
+                            expr,
+                            constructors,
+                            identity_wrappers,
+                            field_accessors,
+                        );
                     }
                 }
             }
         }
         ExprKind::Variant {
             value: Some(value), ..
-        } => inline_constructor_expr(value, constructors),
-        ExprKind::Select { base, .. } => inline_constructor_expr(base, constructors),
+        } => inline_constructor_expr(value, constructors, identity_wrappers, field_accessors),
+        ExprKind::Select { base, .. } => {
+            inline_constructor_expr(base, constructors, identity_wrappers, field_accessors)
+        }
         ExprKind::Match {
             scrutinee, arms, ..
         } => {
-            inline_constructor_expr(scrutinee, constructors);
+            inline_constructor_expr(scrutinee, constructors, identity_wrappers, field_accessors);
             for arm in arms {
                 if let Some(guard) = &mut arm.guard {
-                    inline_constructor_expr(guard, constructors);
+                    inline_constructor_expr(
+                        guard,
+                        constructors,
+                        identity_wrappers,
+                        field_accessors,
+                    );
                 }
-                inline_constructor_expr(&mut arm.body, constructors);
+                inline_constructor_expr(
+                    &mut arm.body,
+                    constructors,
+                    identity_wrappers,
+                    field_accessors,
+                );
             }
         }
         ExprKind::Block { stmts, tail } => {
             for stmt in stmts {
-                inline_constructor_stmt(stmt, constructors);
+                inline_constructor_stmt(stmt, constructors, identity_wrappers, field_accessors);
             }
             if let Some(tail) = tail {
-                inline_constructor_expr(tail, constructors);
+                inline_constructor_expr(tail, constructors, identity_wrappers, field_accessors);
             }
         }
         ExprKind::Handle { body, arms, .. } => {
-            inline_constructor_expr(body, constructors);
+            inline_constructor_expr(body, constructors, identity_wrappers, field_accessors);
             for arm in arms {
                 if let Some(guard) = &mut arm.guard {
-                    inline_constructor_expr(guard, constructors);
+                    inline_constructor_expr(
+                        guard,
+                        constructors,
+                        identity_wrappers,
+                        field_accessors,
+                    );
                 }
-                inline_constructor_expr(&mut arm.body, constructors);
+                inline_constructor_expr(
+                    &mut arm.body,
+                    constructors,
+                    identity_wrappers,
+                    field_accessors,
+                );
             }
         }
         ExprKind::BindHere { expr }
         | ExprKind::Thunk { expr, .. }
         | ExprKind::Coerce { expr, .. }
-        | ExprKind::Pack { expr, .. } => inline_constructor_expr(expr, constructors),
-        ExprKind::LocalPushId { body, .. } => inline_constructor_expr(body, constructors),
-        ExprKind::AddId { thunk, .. } => inline_constructor_expr(thunk, constructors),
+        | ExprKind::Pack { expr, .. } => {
+            inline_constructor_expr(expr, constructors, identity_wrappers, field_accessors)
+        }
+        ExprKind::LocalPushId { body, .. } => {
+            inline_constructor_expr(body, constructors, identity_wrappers, field_accessors)
+        }
+        ExprKind::AddId { thunk, .. } => {
+            inline_constructor_expr(thunk, constructors, identity_wrappers, field_accessors)
+        }
         ExprKind::Var(_)
         | ExprKind::EffectOp(_)
         | ExprKind::PrimitiveOp(_)
@@ -305,10 +465,15 @@ fn inline_constructor_expr(expr: &mut Expr, constructors: &HashMap<core_ir::Path
     }
 }
 
-fn inline_constructor_stmt(stmt: &mut Stmt, constructors: &HashMap<core_ir::Path, core_ir::Name>) {
+fn inline_constructor_stmt(
+    stmt: &mut Stmt,
+    constructors: &HashMap<core_ir::Path, core_ir::Name>,
+    identity_wrappers: &HashSet<core_ir::Path>,
+    field_accessors: &HashMap<core_ir::Path, FieldAccessorInline>,
+) {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
-            inline_constructor_expr(value, constructors);
+            inline_constructor_expr(value, constructors, identity_wrappers, field_accessors);
         }
     }
 }

@@ -5,7 +5,6 @@ use yulang_parser::lex::SyntaxKind;
 use crate::ast::expr::{ExprKind, TypedExpr};
 use crate::diagnostic::{ConstraintCause, ConstraintReason};
 use crate::lower::{LowerState, SyntaxNode};
-use crate::solve::DeferredRoleMethodCall;
 use crate::symbols::Name;
 use crate::types::{Neg, Pos};
 
@@ -273,16 +272,6 @@ fn push_deferred_selection(
                 span: Some(suffix.text_range()),
                 reason: ConstraintReason::FieldSelection,
             },
-        });
-    state
-        .infer
-        .push_deferred_role_method_call(DeferredRoleMethodCall {
-            name: name.clone(),
-            role_path: None,
-            cast_coercion: false,
-            recv_tv: acc.tv,
-            arg_tvs: Vec::new(),
-            result_tv: tv,
         });
     TypedExpr {
         tv,

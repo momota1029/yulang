@@ -41,6 +41,14 @@ impl Infer {
             }
         }
 
+        if let Some(concrete) = super::concrete_tv_repr(self, recv_tv, true) {
+            if let Some(def) =
+                self.resolve_ref_selection_def_from_compact_type(&concrete, &[], name, seen)
+            {
+                return Some(def);
+            }
+        }
+
         if self.recv_has_ref_type_lower(recv_tv, &mut HashSet::new()) {
             self.unique_ref_type_method_named(name)
         } else {
@@ -128,6 +136,9 @@ impl Infer {
         match self.arena.get_pos(pos) {
             Pos::Con(path, _) => self.is_ref_type_path(&path),
             Pos::Var(inner) | Pos::Raw(inner) => self.recv_has_ref_type_lower(inner, seen),
+            Pos::Union(left, right) => {
+                self.pos_has_ref_type_lower(left, seen) || self.pos_has_ref_type_lower(right, seen)
+            }
             _ => false,
         }
     }
@@ -145,6 +156,10 @@ impl Infer {
             Pos::Var(inner) | Pos::Raw(inner) => {
                 self.resolve_ref_selection_def_inner(inner, name, seen)
             }
+            Pos::Union(left, right) => merge_unique_ref_selection_def(
+                self.resolve_ref_selection_def_from_pos(left, name, &mut seen.clone()),
+                self.resolve_ref_selection_def_from_pos(right, name, seen),
+            ),
             _ => None,
         }
     }
@@ -173,6 +188,10 @@ impl Infer {
                 }
                 None
             }
+            Pos::Union(left, right) => merge_unique_ref_selection_def(
+                self.resolve_ref_inner_selection_def_from_pos(left, name, &mut seen.clone()),
+                self.resolve_ref_inner_selection_def_from_pos(right, name, seen),
+            ),
             _ => None,
         }
     }
@@ -227,4 +246,13 @@ fn lookup_small_subst(subst: &[(TypeVar, TypeVar)], tv: TypeVar) -> TypeVar {
         .iter()
         .find_map(|(from, to)| (*from == tv).then_some(*to))
         .unwrap_or(tv)
+}
+
+fn merge_unique_ref_selection_def(left: Option<DefId>, right: Option<DefId>) -> Option<DefId> {
+    match (left, right) {
+        (Some(left), Some(right)) if left == right => Some(left),
+        (Some(_), Some(_)) => None,
+        (Some(def), None) | (None, Some(def)) => Some(def),
+        (None, None) => None,
+    }
 }

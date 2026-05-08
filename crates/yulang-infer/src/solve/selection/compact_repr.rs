@@ -22,6 +22,13 @@ pub(super) fn concrete_tv_lower_repr(
     concrete_or_boundary_compact_type(&scheme.cty.lower, allow_boundary)
 }
 
+pub(super) fn concrete_lower_bounds_repr(
+    bounds: &CompactBounds,
+    allow_boundary: bool,
+) -> Option<CompactType> {
+    concrete_or_boundary_compact_type(&bounds.lower, allow_boundary)
+}
+
 pub(super) fn concrete_tv_upper_repr(
     infer: &Infer,
     tv: TypeVar,
@@ -55,7 +62,7 @@ fn concrete_or_boundary_compact_type(
 ) -> Option<CompactType> {
     if allow_boundary {
         boundary_concrete_compact_type(ty)
-    } else if is_concrete_compact_type(ty) {
+    } else if is_concrete_compact_type(ty, false) {
         Some(ty.clone())
     } else {
         None
@@ -63,55 +70,98 @@ fn concrete_or_boundary_compact_type(
 }
 
 fn boundary_concrete_compact_type(ty: &CompactType) -> Option<CompactType> {
-    if is_concrete_compact_type(ty) {
-        let mut normalized = ty.clone();
+    if let Some(mut normalized) = normalize_boundary_compact_type(ty) {
         normalize_builtin_numeric_compact_type(&mut normalized);
         return Some(normalized);
     }
     let mut stripped = ty.clone();
     stripped.vars.clear();
     normalize_builtin_numeric_compact_type(&mut stripped);
-    (stripped != CompactType::default() && is_concrete_compact_type(&stripped)).then_some(stripped)
+    if stripped != CompactType::default() && is_concrete_compact_type(&stripped, true) {
+        return Some(stripped);
+    }
+
+    let widened = normalize_boundary_compact_type(&stripped)?;
+    (widened != CompactType::default() && is_concrete_compact_type(&widened, true))
+        .then_some(widened)
 }
 
-fn is_concrete_compact_type(ty: &CompactType) -> bool {
+fn normalize_boundary_compact_type(ty: &CompactType) -> Option<CompactType> {
+    let mut normalized = ty.clone();
+    normalized.vars.clear();
+    for con in &mut normalized.cons {
+        for arg in &mut con.args {
+            *arg = boundary_lower_bounds(arg);
+        }
+    }
+    (normalized != CompactType::default()).then_some(normalized)
+}
+
+fn boundary_lower_bounds(bounds: &CompactBounds) -> CompactBounds {
+    if let Some(concrete) = concrete_lower_bounds_repr(bounds, true) {
+        if concrete != CompactType::default() {
+            return exact_compact_bounds(concrete);
+        }
+    }
+    if bounds.self_var.is_none() && bounds.lower != CompactType::default() {
+        return exact_compact_bounds(bounds.lower.clone());
+    }
+    CompactBounds::default()
+}
+
+fn exact_compact_bounds(ty: CompactType) -> CompactBounds {
+    CompactBounds {
+        self_var: None,
+        lower: ty.clone(),
+        upper: ty,
+    }
+}
+
+fn is_concrete_compact_type(ty: &CompactType, allow_boundary: bool) -> bool {
     ty.vars.is_empty()
         && ty.cons.iter().all(|con| {
-            con.args
-                .iter()
-                .all(|arg| arg.self_var.is_none() && concrete_bounds_repr(arg, false).is_some())
+            con.args.iter().all(|arg| {
+                arg.self_var.is_none()
+                    && (concrete_bounds_repr(arg, allow_boundary).is_some()
+                        || (allow_boundary && *arg == CompactBounds::default()))
+            })
         })
         && ty.funs.iter().all(|fun| {
-            is_concrete_compact_type(&fun.arg)
-                && is_concrete_compact_type(&fun.arg_eff)
-                && is_concrete_compact_type(&fun.ret_eff)
-                && is_concrete_compact_type(&fun.ret)
+            is_concrete_compact_type(&fun.arg, allow_boundary)
+                && is_concrete_compact_type(&fun.arg_eff, allow_boundary)
+                && is_concrete_compact_type(&fun.ret_eff, allow_boundary)
+                && is_concrete_compact_type(&fun.ret, allow_boundary)
         })
         && ty.records.iter().all(|record| {
             record
                 .fields
                 .iter()
-                .all(|field| is_concrete_compact_type(&field.value))
+                .all(|field| is_concrete_compact_type(&field.value, allow_boundary))
         })
         && ty.record_spreads.iter().all(|record| {
             record
                 .fields
                 .iter()
-                .all(|field| is_concrete_compact_type(&field.value))
-                && is_concrete_compact_type(&record.tail)
+                .all(|field| is_concrete_compact_type(&field.value, allow_boundary))
+                && is_concrete_compact_type(&record.tail, allow_boundary)
         })
         && ty.variants.iter().all(|variant| {
-            variant
-                .items
-                .iter()
-                .all(|(_, items)| items.iter().all(is_concrete_compact_type))
+            variant.items.iter().all(|(_, items)| {
+                items
+                    .iter()
+                    .all(|item| is_concrete_compact_type(item, allow_boundary))
+            })
         })
-        && ty
-            .tuples
-            .iter()
-            .all(|items| items.iter().all(is_concrete_compact_type))
+        && ty.tuples.iter().all(|items| {
+            items
+                .iter()
+                .all(|item| is_concrete_compact_type(item, allow_boundary))
+        })
         && ty.rows.iter().all(|row| {
-            row.items.iter().all(is_concrete_compact_type) && is_concrete_compact_type(&row.tail)
+            row.items
+                .iter()
+                .all(|item| is_concrete_compact_type(item, allow_boundary))
+                && is_concrete_compact_type(&row.tail, allow_boundary)
         })
 }
 

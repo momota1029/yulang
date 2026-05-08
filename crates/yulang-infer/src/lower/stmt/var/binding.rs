@@ -6,7 +6,7 @@ use crate::ast::expr::{ExprKind, PatKind, TypedBlock, TypedExpr, TypedPat, Typed
 use crate::ids::{DefId, TypeVar};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::Name;
-use crate::types::{Neg, Pos};
+use crate::types::{EffectAtom, Neg, Pos};
 
 use super::sigil::VarBinding;
 
@@ -41,7 +41,7 @@ pub(crate) fn lower_var_binding_suffix(
     let mut ref_stmts = Vec::new();
     for item in &prepared {
         if item.needs_ref_binding {
-            if let Some(stmt) = lower_var_ref_binding(state, &item.binding, &item.act.name) {
+            if let Some(stmt) = lower_var_ref_binding(state, &item.binding, &item.act) {
                 ref_stmts.push(stmt);
             }
         } else {
@@ -202,25 +202,25 @@ fn register_var_ref_alias(state: &mut LowerState, binding: &VarBinding, act_name
 fn lower_var_ref_binding(
     state: &mut LowerState,
     binding: &VarBinding,
-    act_name: &Name,
+    act: &super::super::SyntheticActSpec,
 ) -> Option<TypedStmt> {
     let def = define_local_value(state, binding.reference.clone());
     state
         .ctx
-        .bind_var_ref_alias(binding.reference.clone(), act_name.clone());
-    state.var_ref_acts.insert(def, act_name.clone());
+        .bind_var_ref_alias(binding.reference.clone(), act.name.clone());
+    state.var_ref_acts.insert(def, act.name.clone());
     let tv = state.def_tvs.get(&def).copied()?;
     let body = state.with_owner(def, |state| {
         let var_ref = crate::lower::expr::resolve_path_expr(
             state,
-            vec![act_name.clone(), Name("var_ref".to_string())],
+            vec![act.name.clone(), Name("var_ref".to_string())],
         );
         let unit = crate::lower::expr::unit_expr(state);
         crate::lower::expr::make_app(state, var_ref, unit)
     });
     state.infer.constrain(Pos::Var(body.tv), Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), Neg::Var(body.tv));
-    constrain_var_ref_binding_to_init(state, tv, binding);
+    constrain_var_ref_binding_to_init(state, tv, binding, act);
     Some(TypedStmt::Let(
         TypedPat {
             tv,
@@ -234,6 +234,7 @@ fn constrain_var_ref_binding_to_init(
     state: &mut LowerState,
     ref_tv: TypeVar,
     binding: &VarBinding,
+    act: &super::super::SyntheticActSpec,
 ) {
     let Some(init_tv) = state
         .ctx
@@ -243,10 +244,30 @@ fn constrain_var_ref_binding_to_init(
         return;
     };
     let eff_tv = state.fresh_tv();
+    constrain_var_ref_effect_row_to_act(state, eff_tv, act);
     let ref_args = invariant_ref_args(state, &[(eff_tv, eff_tv), (init_tv, init_tv)]);
     state.infer.constrain(
         Pos::Con(crate::std_ref_paths::standard_ref_type_path(), ref_args),
         Neg::Var(ref_tv),
+    );
+}
+
+fn constrain_var_ref_effect_row_to_act(
+    state: &LowerState,
+    eff_tv: TypeVar,
+    act: &super::super::SyntheticActSpec,
+) {
+    let atom = EffectAtom {
+        path: act.effect_path.clone(),
+        args: act.args.clone(),
+    };
+    state.infer.constrain(
+        state.pos_row(vec![Pos::Atom(atom.clone())], Pos::Bot),
+        Neg::Var(eff_tv),
+    );
+    state.infer.constrain(
+        Pos::Var(eff_tv),
+        state.neg_row(vec![Neg::Atom(atom)], Neg::Top),
     );
 }
 

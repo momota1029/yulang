@@ -26,7 +26,7 @@ use crate::refine::refine_module_types_with_report;
 use crate::types::{
     collect_expr_type_vars, collect_hir_type_vars, collect_type_vars as collect_core_type_vars,
     core_type_has_vars, effect_is_empty, effect_paths_match, hir_type_has_vars,
-    project_runtime_effect, project_runtime_type_with_vars, should_thunk_effect,
+    project_runtime_effect, project_runtime_type_with_vars, runtime_core_type, should_thunk_effect,
     substitute_apply_evidence, substitute_join_evidence, substitute_scheme, substitute_type,
 };
 use crate::validate::validate_module;
@@ -218,7 +218,7 @@ enum MonoPass {
     RefineTypes,
     RefreshClosedSchemes,
     CanonicalizeSpecializations,
-    InlineNullaryConstructors,
+    InlinePolymorphicWrappers,
     PruneUnreachableSpecializations,
     PruneUnreachable,
 }
@@ -231,7 +231,7 @@ impl MonoPass {
             MonoPass::RefineTypes => "refine-types",
             MonoPass::RefreshClosedSchemes => "refresh-closed-schemes",
             MonoPass::CanonicalizeSpecializations => "canonicalize-specializations",
-            MonoPass::InlineNullaryConstructors => "inline-nullary-constructors",
+            MonoPass::InlinePolymorphicWrappers => "inline-polymorphic-wrappers",
             MonoPass::PruneUnreachableSpecializations => "prune-unreachable-specializations",
             MonoPass::PruneUnreachable => "prune-unreachable",
         }
@@ -269,7 +269,7 @@ const MONO_PIPELINE: &[MonoStage] = &[
         times: 1,
     },
     MonoStage::Pass(MonoPass::CanonicalizeSpecializations),
-    MonoStage::Pass(MonoPass::InlineNullaryConstructors),
+    MonoStage::Pass(MonoPass::InlinePolymorphicWrappers),
     MonoStage::Fixpoint {
         name: "role-specialization",
         passes: SPECIALIZATION_FIXPOINT,
@@ -286,6 +286,13 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
     if std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_none() {
         let step =
             run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, &mut profile, debug)?;
+        module = step.module;
+        let step = run_profiled_mono_pass(
+            module,
+            MonoPass::InlinePolymorphicWrappers,
+            &mut profile,
+            debug,
+        )?;
         module = step.module;
         let step = run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
         module = step.module;
@@ -334,6 +341,7 @@ fn run_mono_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
         return run_mono_pipeline(module).map(|(module, _profile)| module);
     }
     let mut module = principal_elaborate_module(module);
+    module = inline_polymorphic_wrappers(module);
     module = prune_unreachable_bindings(module);
     if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
         && let Some(context) = principal_elaborate_strict_failure(&module)
@@ -498,8 +506,8 @@ fn apply_mono_pass(module: Module, pass: MonoPass) -> RuntimeResult<MonoStep> {
         MonoPass::CanonicalizeSpecializations => {
             run_tracked_infallible_pass(module, canonicalize_equivalent_specializations)
         }
-        MonoPass::InlineNullaryConstructors => {
-            run_tracked_infallible_pass(module, inline_polymorphic_nullary_constructors)
+        MonoPass::InlinePolymorphicWrappers => {
+            run_tracked_infallible_pass(module, inline_polymorphic_wrappers)
         }
         MonoPass::PruneUnreachableSpecializations => {
             run_tracked_infallible_pass(module, prune_unreachable_specializations)

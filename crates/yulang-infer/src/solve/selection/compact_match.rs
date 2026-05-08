@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::ids::TypeVar;
 use crate::simplify::compact::{CompactBounds, CompactType};
 
-use super::compact_repr::concrete_bounds_repr;
+use super::compact_repr::concrete_lower_bounds_repr;
 use super::compact_var::single_compact_var;
 
 pub(super) fn match_compact_type_pattern(
@@ -29,22 +29,25 @@ pub(super) fn match_compact_type_pattern(
         return false;
     }
 
-    if pattern.cons.len() != concrete.cons.len()
-        || !pattern
-            .cons
-            .iter()
-            .zip(&concrete.cons)
-            .all(|(pattern, concrete)| {
-                pattern.path == concrete.path
+    if pattern.cons.len() > concrete.cons.len()
+        || !pattern.cons.iter().all(|pattern| {
+            concrete.cons.iter().any(|concrete| {
+                let mut trial = subst.clone();
+                let matches = pattern.path == concrete.path
                     && pattern.args.len() == concrete.args.len()
                     && pattern
                         .args
                         .iter()
                         .zip(&concrete.args)
                         .all(|(pattern, concrete)| {
-                            match_compact_bounds_pattern(pattern, concrete, subst)
-                        })
+                            match_compact_bounds_pattern(pattern, concrete, &mut trial)
+                        });
+                if matches {
+                    *subst = trial;
+                }
+                matches
             })
+        })
     {
         return false;
     }
@@ -180,12 +183,29 @@ fn match_compact_bounds_pattern(
     subst: &mut HashMap<TypeVar, CompactType>,
 ) -> bool {
     if let Some(var) = exact_compact_bounds_var(pattern) {
-        let ty = concrete_bounds_repr(concrete, true).unwrap_or_default();
+        let ty = concrete_lower_bounds_repr(concrete, true).unwrap_or_default();
         return bind_compact_type_var_pattern(var, &ty, subst);
     }
-    pattern.self_var == concrete.self_var
+    if pattern.self_var == concrete.self_var
         && match_compact_type_pattern(&pattern.lower, &concrete.lower, subst)
         && match_compact_type_pattern(&pattern.upper, &concrete.upper, subst)
+    {
+        return true;
+    }
+    let Some(concrete_ty) = concrete_lower_bounds_repr(concrete, true) else {
+        return false;
+    };
+    let mut trial = subst.clone();
+    if pattern.self_var.is_none()
+        && concrete.self_var.is_none()
+        && match_compact_type_pattern(&pattern.lower, &concrete_ty, &mut trial)
+        && match_compact_type_pattern(&pattern.upper, &concrete_ty, &mut trial)
+    {
+        *subst = trial;
+        true
+    } else {
+        false
+    }
 }
 
 fn exact_compact_bounds_var(bounds: &CompactBounds) -> Option<TypeVar> {

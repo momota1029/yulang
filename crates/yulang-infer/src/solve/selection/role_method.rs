@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
-use crate::diagnostic::TypeErrorKind;
 use crate::ids::{DefId, TypeVar};
-use crate::simplify::compact::{CompactBounds, CompactType};
+use crate::scheme::compact_pos_type;
+use crate::simplify::compact::{
+    CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRecordSpread, CompactRow,
+    CompactType, CompactTypeScheme, CompactVariant,
+};
 use crate::solve::role::role_method_info_for_path;
 use crate::solve::{DeferredRoleMethodCall, Infer, RoleArgInfo, RoleMethodInfo};
 use crate::symbols::Name;
+use crate::types::{Neg, RecordField};
 
 impl Infer {
     pub(crate) fn has_cast_role_method(&self) -> bool {
@@ -82,6 +86,10 @@ impl Infer {
         if concrete_args.len() >= 2 && concrete_args[0] == concrete_args[1] {
             return CastMethodResolution::Unresolved;
         }
+        if concrete_args.len() >= 2 && same_nominal_cast_head(&concrete_args[0], &concrete_args[1])
+        {
+            return CastMethodResolution::Unresolved;
+        }
 
         let candidates = self.role_impl_candidates_of(&info.role);
         let role_matches = candidates
@@ -128,19 +136,34 @@ impl Infer {
             };
             let resolution = if call.cast_coercion {
                 self.resolve_cast_method_def(call.recv_tv, call.result_tv)
-                    .map(RoleMethodResolution::Concrete)
+                    .map(|def| RoleMethodResolution::Selected {
+                        def: Some(def),
+                        output: None,
+                    })
                     .unwrap_or_else(|| {
                         resolve_role_method_call(self, &info, Some(call.recv_tv), &call.arg_tvs)
                     })
             } else {
                 resolve_role_method_call(self, &info, Some(call.recv_tv), &call.arg_tvs)
             };
-            report_role_method_resolution_error(self, &info, &resolution, call.result_tv);
-            let def = resolution.concrete_def().unwrap_or(info.def);
-            self.resolved_selections
-                .borrow_mut()
-                .insert(call.result_tv, def);
+            if let RoleMethodResolution::Selected {
+                output: Some(output),
+                ..
+            } = &resolution
+            {
+                self.constrain_role_method_call_output(output, call.result_tv);
+            }
+            if let Some(def) = resolution.concrete_def() {
+                self.resolved_selections
+                    .borrow_mut()
+                    .insert(call.result_tv, def);
+            }
         }
+    }
+
+    fn constrain_role_method_call_output(&self, output: &CompactType, result_tv: TypeVar) {
+        let pos = compact_pos_type(&self.arena, output, &CompactTypeScheme::default(), false);
+        self.constrain(pos, Neg::Var(result_tv));
     }
 }
 
@@ -162,7 +185,7 @@ fn resolve_role_method_call(
     let allow_boundary = true;
     let Some(concrete_inputs) = role_input_tvs
         .iter()
-        .map(|tv| super::concrete_tv_repr(infer, *tv, allow_boundary))
+        .map(|tv| super::compact_repr::concrete_tv_lower_repr(infer, *tv, allow_boundary))
         .collect::<Option<Vec<_>>>()
     else {
         return RoleMethodResolution::Unresolved;
@@ -179,13 +202,30 @@ fn resolve_role_method_call(
         &input_indices,
     );
     match matches.as_slice() {
-        [candidate] => candidate
-            .member_defs
-            .get(&info.name)
-            .copied()
-            .or_else(|| info.has_default_body.then_some(info.def))
-            .map(RoleMethodResolution::Concrete)
-            .unwrap_or(RoleMethodResolution::Unresolved),
+        [candidate] => {
+            let def = candidate
+                .member_defs
+                .get(&info.name)
+                .copied()
+                .or_else(|| info.has_default_body.then_some(info.def));
+            let output = role_method_output_compact_type(
+                candidate,
+                &arg_infos,
+                &input_indices,
+                &concrete_inputs,
+            );
+            match (def, output) {
+                (Some(def), output) => RoleMethodResolution::Selected {
+                    def: Some(def),
+                    output,
+                },
+                (None, Some(output)) => RoleMethodResolution::Selected {
+                    def: None,
+                    output: Some(output),
+                },
+                (None, None) => RoleMethodResolution::Unresolved,
+            }
+        }
         [] if role_matches.is_empty() => RoleMethodResolution::Missing {
             args: render_concrete_role_args(&concrete_inputs),
         },
@@ -211,6 +251,19 @@ fn is_nominal_cast_arg(arg: &CompactType) -> bool {
             .cons
             .iter()
             .all(|con| con.args.iter().all(|arg| arg.self_var.is_none()))
+}
+
+fn same_nominal_cast_head(source: &CompactType, target: &CompactType) -> bool {
+    match (
+        source.prims.len(),
+        source.cons.len(),
+        target.prims.len(),
+        target.cons.len(),
+    ) {
+        (1, 0, 1, 0) => source.prims == target.prims,
+        (0, 1, 0, 1) => source.cons[0].path == target.cons[0].path,
+        _ => false,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -240,7 +293,10 @@ impl CastMethodResolution {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum RoleMethodResolution {
-    Concrete(DefId),
+    Selected {
+        def: Option<DefId>,
+        output: Option<CompactType>,
+    },
     Missing {
         args: Vec<String>,
     },
@@ -255,7 +311,7 @@ enum RoleMethodResolution {
 impl RoleMethodResolution {
     fn def(&self) -> Option<DefId> {
         match self {
-            RoleMethodResolution::Concrete(def) => Some(*def),
+            RoleMethodResolution::Selected { def, .. } => *def,
             _ => None,
         }
     }
@@ -265,35 +321,149 @@ impl RoleMethodResolution {
     }
 }
 
-fn report_role_method_resolution_error(
-    infer: &Infer,
-    info: &RoleMethodInfo,
-    resolution: &RoleMethodResolution,
-    result_tv: TypeVar,
-) {
-    match resolution {
-        RoleMethodResolution::Missing { args } => infer.report_synthetic_type_error(
-            TypeErrorKind::MissingImpl {
-                role: path_string(&info.role),
-                args: args.clone(),
-            },
-            format!("role method call {}", result_tv.0),
-        ),
-        RoleMethodResolution::Ambiguous {
-            args,
-            candidates,
-            previews,
-        } => infer.report_synthetic_type_error(
-            TypeErrorKind::AmbiguousImpl {
-                role: path_string(&info.role),
-                args: args.clone(),
-                candidates: *candidates,
-                previews: previews.clone(),
-            },
-            format!("role method call {}", result_tv.0),
-        ),
-        RoleMethodResolution::Concrete(_) | RoleMethodResolution::Unresolved => {}
+fn role_method_output_compact_type(
+    candidate: &crate::solve::RoleImplCandidate,
+    arg_infos: &[RoleArgInfo],
+    input_indices: &[usize],
+    concrete_inputs: &[CompactType],
+) -> Option<CompactType> {
+    let subst = super::role_candidate_input_subst(candidate, input_indices, concrete_inputs)?;
+    let output_index = arg_infos
+        .iter()
+        .enumerate()
+        .find_map(|(index, info)| (!info.is_input).then_some(index))?;
+    candidate
+        .compact_args
+        .get(output_index)
+        .map(|output| subst_compact_type_with_compact(output, &subst))
+}
+
+fn subst_compact_type_with_compact(
+    ty: &CompactType,
+    subst: &HashMap<TypeVar, CompactType>,
+) -> CompactType {
+    let mut out = CompactType::default();
+    for var in &ty.vars {
+        if let Some(replacement) = subst.get(var) {
+            merge_compact_type(&mut out, replacement.clone());
+        } else {
+            out.vars.insert(*var);
+        }
     }
+    out.prims.extend(ty.prims.iter().cloned());
+    out.cons.extend(ty.cons.iter().map(|con| {
+        CompactCon {
+            path: con.path.clone(),
+            args: con
+                .args
+                .iter()
+                .map(|arg| subst_compact_bounds_with_compact(arg, subst))
+                .collect(),
+        }
+    }));
+    out.funs.extend(ty.funs.iter().map(|fun| CompactFun {
+        arg: subst_compact_type_with_compact(&fun.arg, subst),
+        arg_eff: subst_compact_type_with_compact(&fun.arg_eff, subst),
+        ret_eff: subst_compact_type_with_compact(&fun.ret_eff, subst),
+        ret: subst_compact_type_with_compact(&fun.ret, subst),
+    }));
+    out.records.extend(ty.records.iter().map(|record| {
+        CompactRecord {
+            fields: record
+                .fields
+                .iter()
+                .map(|field| RecordField {
+                    name: field.name.clone(),
+                    value: subst_compact_type_with_compact(&field.value, subst),
+                    optional: field.optional,
+                })
+                .collect(),
+        }
+    }));
+    out.record_spreads
+        .extend(ty.record_spreads.iter().map(|spread| {
+            CompactRecordSpread {
+                fields: spread
+                    .fields
+                    .iter()
+                    .map(|field| RecordField {
+                        name: field.name.clone(),
+                        value: subst_compact_type_with_compact(&field.value, subst),
+                        optional: field.optional,
+                    })
+                    .collect(),
+                tail: Box::new(subst_compact_type_with_compact(&spread.tail, subst)),
+                tail_wins: spread.tail_wins,
+            }
+        }));
+    out.variants.extend(ty.variants.iter().map(|variant| {
+        CompactVariant {
+            items: variant
+                .items
+                .iter()
+                .map(|(name, payloads)| {
+                    (
+                        name.clone(),
+                        payloads
+                            .iter()
+                            .map(|payload| subst_compact_type_with_compact(payload, subst))
+                            .collect(),
+                    )
+                })
+                .collect(),
+        }
+    }));
+    out.tuples.extend(ty.tuples.iter().map(|items| {
+        items
+            .iter()
+            .map(|item| subst_compact_type_with_compact(item, subst))
+            .collect()
+    }));
+    out.rows.extend(ty.rows.iter().map(|row| {
+        CompactRow {
+            items: row
+                .items
+                .iter()
+                .map(|item| subst_compact_type_with_compact(item, subst))
+                .collect(),
+            tail: Box::new(subst_compact_type_with_compact(&row.tail, subst)),
+        }
+    }));
+    out
+}
+
+fn subst_compact_bounds_with_compact(
+    bounds: &CompactBounds,
+    subst: &HashMap<TypeVar, CompactType>,
+) -> CompactBounds {
+    if bounds.self_var.is_none()
+        && bounds.lower == bounds.upper
+        && let Some(var) = super::compact_var::single_compact_var(&bounds.lower)
+        && let Some(replacement) = subst.get(&var)
+    {
+        return CompactBounds {
+            self_var: None,
+            lower: replacement.clone(),
+            upper: replacement.clone(),
+        };
+    }
+    CompactBounds {
+        self_var: bounds.self_var,
+        lower: subst_compact_type_with_compact(&bounds.lower, subst),
+        upper: subst_compact_type_with_compact(&bounds.upper, subst),
+    }
+}
+
+fn merge_compact_type(out: &mut CompactType, replacement: CompactType) {
+    out.vars.extend(replacement.vars);
+    out.prims.extend(replacement.prims);
+    out.cons.extend(replacement.cons);
+    out.funs.extend(replacement.funs);
+    out.records.extend(replacement.records);
+    out.record_spreads.extend(replacement.record_spreads);
+    out.variants.extend(replacement.variants);
+    out.tuples.extend(replacement.tuples);
+    out.rows.extend(replacement.rows);
 }
 
 fn render_concrete_role_args(inputs: &[CompactType]) -> Vec<String> {
