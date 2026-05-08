@@ -3,23 +3,54 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Yulang Playground</title>
+    <title>Yulang</title>
+    <meta
+      name="description"
+      content="Yulang playground and documentation for an experimental language with type inference, roles, and algebraic effects."
+    />
   </head>
   <body>
     <main class="app">
+      <header class="site-intro" aria-labelledby="site-title">
+        <div class="site-copy i18n-block lang-ja">
+          <p class="site-kicker">Playground + Docs</p>
+          <h1 id="site-title">Yulang</h1>
+          <p>
+            型推論、role、代数的 effect を試しながら読める実験的プログラミング言語。
+          </p>
+        </div>
+        <div class="site-copy i18n-block lang-en" lang="en">
+          <p class="site-kicker">Playground + Docs</p>
+          <h1>Yulang</h1>
+          <p>
+            An experimental programming language for trying type inference, roles,
+            and algebraic effects in the browser.
+          </p>
+        </div>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/guide/">Guide</a>
+          <a href="/reference/">Reference</a>
+          <a href="/reference/effects">Effects</a>
+          <a
+            href="https://github.com/momota1029/yulang"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub
+          </a>
+        </nav>
+      </header>
       <section class="workspace" aria-label="Yulang playground">
         <div class="editor-pane">
           <div class="pane-head">
-            <h1>Yulang</h1>
+            <div class="pane-title">
+              <h2>Playground</h2>
+              <p class="i18n-block lang-ja">コードを書いて、値と推論された型を確認する。</p>
+              <p class="i18n-block lang-en" lang="en">
+                Edit code and inspect values with inferred types.
+              </p>
+            </div>
             <div class="pane-actions">
-              <a class="repo-link" href="/guide/">Docs</a>
-              <a
-                class="repo-link"
-                href="https://github.com/momota1029/yulang"
-                target="_blank"
-                rel="noreferrer"
-                >GitHub</a
-              >
               <div class="language-switch" aria-label="Language">
                 <button
                   class="language-button"

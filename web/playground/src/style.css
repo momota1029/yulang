@@ -96,6 +96,69 @@ textarea {
   padding: 24px;
 }
 
+.site-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1320px;
+  margin: 0 auto 16px;
+}
+
+.site-copy {
+  max-width: 720px;
+}
+
+.site-kicker {
+  margin: 0 0 3px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.site-copy h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 760;
+  line-height: 1.05;
+}
+
+.site-copy p:last-child {
+  max-width: 620px;
+  margin: 7px 0 0;
+  color: var(--muted-text);
+  font-size: 15px;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  color: var(--link-text);
+  background: var(--surface-bg);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.site-nav a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--hover-surface-bg);
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
@@ -112,7 +175,7 @@ textarea {
 }
 
 .editor-pane {
-  height: calc(100vh - 48px);
+  height: calc(100vh - 156px);
   min-height: 520px;
   display: grid;
   grid-template-rows: auto auto minmax(320px, 1fr);
@@ -143,6 +206,21 @@ h2 {
   padding: 12px 14px 0;
   font-size: 13px;
   font-weight: 650;
+}
+
+.pane-title {
+  min-width: 0;
+}
+
+.pane-title h2 {
+  padding: 0;
+  font-size: 15px;
+}
+
+.pane-title p {
+  margin: 4px 0 0;
+  color: var(--muted-text);
+  font-size: 13px;
 }
 
 .pane-actions {
@@ -709,6 +787,20 @@ code {
 @media (max-width: 860px) {
   .app {
     padding: 12px;
+  }
+
+  .site-intro {
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  .site-copy h1 {
+    font-size: 28px;
+  }
+
+  .site-nav {
+    justify-content: flex-start;
+    margin-top: 12px;
   }
 
   .workspace {
