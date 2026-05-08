@@ -118,6 +118,11 @@ TODO:
 
 ## References
 
+現在:
+
+- `$x` / `&x` の scalar assignment、field assignment、list index assignment は runtime example で固定している。
+- `&xs[0].field` のような nested projection は ignored regression として置いている。
+
 TODO:
 
 - `&xs[0].field` のような nested projections を明確にする。

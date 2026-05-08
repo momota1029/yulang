@@ -384,19 +384,22 @@ fn debug_ref_enabled() -> bool {
 }
 
 fn can_alias_direct_ref(state: &LowerState, def: crate::ids::DefId) -> bool {
-    if !state.infer.role_constraints_of(def).is_empty() {
-        return false;
-    }
+    let has_role_constraints = !state.infer.role_constraints_of(def).is_empty();
 
     if let Some(owner) = state.current_owner {
         let same_owner = def == owner || state.def_owner(def) == Some(owner);
-        let aliasable_same_owner = def == owner || !state.is_let_bound_def(def);
-        if same_owner && aliasable_same_owner {
+        let lambda_value = principal_body_is_lambda_value(state, def);
+        let aliasable_same_owner = def == owner || !state.is_let_bound_def(def) || !lambda_value;
+        if same_owner && aliasable_same_owner && !(has_role_constraints && lambda_value) {
             return match state.infer.frozen_schemes.borrow().get(&def) {
                 Some(scheme) => scheme.quantified.is_empty(),
                 None => true,
             };
         }
+    }
+
+    if has_role_constraints {
+        return false;
     }
 
     let ownerless_frozen_mono = state.current_owner.is_none()

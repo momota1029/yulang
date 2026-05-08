@@ -604,6 +604,43 @@ act fs_err:
     }
 
     #[test]
+    fn vm_runs_source_ref_multiple_scalar_assignment_example() {
+        let results = eval_source_with_std(
+            r#"{
+    my $x = 1
+    my $y = 10
+    &x = $x + 4
+    &y = $y + $x
+    ($x, $y)
+}
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Int("5".to_string()),
+                TestValue::Int("15".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_source_ref_nested_projection_assignment_example() {
+        let results = eval_source_with_std(
+            r#"struct point { x: int, y: int }
+{
+    my $rows = [point { x: 1, y: 2 }, point { x: 3, y: 4 }]
+    &rows[1].y = 9
+    $rows[1].y
+}
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("9".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_bool_and_comparison_examples() {
         let results = eval_source_with_std(
             "my a = not false\n\

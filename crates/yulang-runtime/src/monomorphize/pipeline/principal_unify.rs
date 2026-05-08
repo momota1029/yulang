@@ -1132,6 +1132,8 @@ impl PrincipalUnifier {
         let refreshed = refresh_local_expr_types(Expr { ty, kind });
         let refreshed =
             self.rewrite_refreshed_block_let_initializers(refreshed, local_use_contexts);
+        let refreshed = refresh_local_expr_types(refreshed);
+        let refreshed = self.rewrite_refreshed_block_let_initializers(refreshed, BTreeMap::new());
         project_runtime_expr_types(refresh_local_expr_types(refreshed))
     }
 
@@ -2366,6 +2368,12 @@ impl PrincipalUnifier {
             &mut conflicts,
             true,
             64,
+        );
+        project_ref_effect_arg_vars_from_value_arg(
+            &ret,
+            &required_vars,
+            &mut substitutions,
+            &mut conflicts,
         );
         if let Some(info) = handler_binding_info(original)
             && let Some(active_residual_effect) = self.active_handler_residual_effect(&info)
@@ -4057,6 +4065,7 @@ fn collect_block_local_use_contexts(
     if let Some(tail) = tail {
         collect_expr_local_use_contexts(tail, &mut uses, &mut conflicts);
     }
+    propagate_block_alias_local_use_contexts(stmts, &mut uses, &mut conflicts);
     for conflict in conflicts {
         uses.remove(&conflict);
     }
@@ -4128,6 +4137,7 @@ fn collect_expr_local_use_contexts(
             collect_expr_local_use_contexts(body, uses, conflicts);
         }
         ExprKind::Apply { callee, arg, .. } => {
+            collect_apply_arg_local_use_context(callee, arg, uses, conflicts);
             collect_expr_local_use_contexts(callee, uses, conflicts);
             collect_expr_local_use_contexts(arg, uses, conflicts);
         }
@@ -4178,12 +4188,8 @@ fn collect_expr_local_use_contexts(
             }
         }
         ExprKind::Block { stmts, tail } => {
-            for stmt in stmts {
-                collect_stmt_local_use_contexts(stmt, uses, conflicts);
-            }
-            if let Some(tail) = tail {
-                collect_expr_local_use_contexts(tail, uses, conflicts);
-            }
+            let block_uses = collect_block_local_use_contexts(stmts, tail.as_deref());
+            merge_collected_local_use_contexts(uses, conflicts, block_uses);
         }
         ExprKind::Handle { body, arms, .. } => {
             collect_expr_local_use_contexts(body, uses, conflicts);
@@ -4206,6 +4212,63 @@ fn collect_expr_local_use_contexts(
     }
 }
 
+fn collect_apply_arg_local_use_context(
+    callee: &Expr,
+    arg: &Expr,
+    uses: &mut BTreeMap<core_ir::Name, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::Name>,
+) {
+    let ExprKind::Var(path) = &arg.kind else {
+        return;
+    };
+    let [name] = path.segments.as_slice() else {
+        return;
+    };
+    let Some(param) = runtime_function_param_type(&callee.ty) else {
+        return;
+    };
+    if closed_slot_type_usable(&param, false) {
+        insert_local_use_context(uses, conflicts, name.clone(), param);
+    }
+}
+
+fn propagate_block_alias_local_use_contexts(
+    stmts: &[Stmt],
+    uses: &mut BTreeMap<core_ir::Name, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::Name>,
+) {
+    for stmt in stmts.iter().rev() {
+        let Stmt::Let { pattern, value } = stmt else {
+            continue;
+        };
+        let Some(alias) = pattern_bind_name(pattern) else {
+            continue;
+        };
+        let Some(alias_ty) = uses.get(alias).cloned() else {
+            continue;
+        };
+        let ExprKind::Var(path) = &value.kind else {
+            continue;
+        };
+        let [source] = path.segments.as_slice() else {
+            continue;
+        };
+        insert_local_use_context(uses, conflicts, source.clone(), alias_ty);
+    }
+}
+
+fn merge_collected_local_use_contexts(
+    uses: &mut BTreeMap<core_ir::Name, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::Name>,
+    source: BTreeMap<core_ir::Name, core_ir::TypeBounds>,
+) {
+    for (name, bounds) in source {
+        if let Some(ty) = closed_type_from_bounds(Some(&bounds)) {
+            insert_local_use_context(uses, conflicts, name, ty);
+        }
+    }
+}
+
 fn insert_local_use_context(
     uses: &mut BTreeMap<core_ir::Name, core_ir::Type>,
     conflicts: &mut BTreeSet<core_ir::Name>,
@@ -4216,18 +4279,14 @@ fn insert_local_use_context(
         return;
     }
     match uses.get(&name) {
-        Some(existing)
-            if matches!(existing, core_ir::Type::Unknown | core_ir::Type::Any)
-                && !matches!(ty, core_ir::Type::Unknown | core_ir::Type::Any) =>
-        {
-            uses.insert(name, ty);
+        Some(existing) => {
+            if let Some(merged) = merge_projected_value_type_precision(existing, &ty) {
+                uses.insert(name, merged);
+            } else {
+                uses.remove(&name);
+                conflicts.insert(name);
+            }
         }
-        Some(_) if matches!(ty, core_ir::Type::Unknown | core_ir::Type::Any) => {}
-        Some(existing) if existing != &ty => {
-            uses.remove(&name);
-            conflicts.insert(name);
-        }
-        Some(_) => {}
         None => {
             uses.insert(name, ty);
         }
@@ -7770,9 +7829,10 @@ fn collect_type_var_effect_usage(
                 entry.0 = true;
             }
         }
-        core_ir::Type::Named { args, .. } => {
-            for arg in args {
-                collect_type_arg_effect_usage(arg, in_effect, usage);
+        core_ir::Type::Named { path, args } => {
+            for (index, arg) in args.iter().enumerate() {
+                let arg_in_effect = in_effect || (is_std_var_ref_path(path) && index == 0);
+                collect_type_arg_effect_usage(arg, arg_in_effect, usage);
             }
         }
         core_ir::Type::Fun {
@@ -7816,6 +7876,85 @@ fn collect_type_var_effect_usage(
             collect_type_var_effect_usage(body, in_effect, usage);
         }
         core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => {}
+    }
+}
+
+fn is_std_var_ref_path(path: &core_ir::Path) -> bool {
+    let [std, var, ref_name] = path.segments.as_slice() else {
+        return false;
+    };
+    std.0 == "std" && var.0 == "var" && ref_name.0 == "ref"
+}
+
+fn project_ref_effect_arg_vars_from_value_arg(
+    ty: &core_ir::Type,
+    required_vars: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+) {
+    let core_ir::Type::Named { path, args } = ty else {
+        return;
+    };
+    if !is_std_var_ref_path(path) || args.len() < 2 {
+        return;
+    }
+    let Some(value_arg) = closed_type_arg(&args[1], substitutions) else {
+        return;
+    };
+    for var in ref_effect_arg_vars(&args[0]) {
+        if required_vars.contains(&var) {
+            insert_projected_value_substitution(substitutions, conflicts, var, value_arg.clone());
+        }
+    }
+}
+
+fn closed_type_arg(
+    arg: &core_ir::TypeArg,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> Option<core_ir::Type> {
+    let ty = match arg {
+        core_ir::TypeArg::Type(ty) => substitute_type(ty, substitutions),
+        core_ir::TypeArg::Bounds(bounds) => {
+            let bounds = substitute_bounds(bounds.clone(), substitutions);
+            closed_type_from_bounds(Some(&bounds))?
+        }
+    };
+    (!core_type_has_vars(&ty) && !core_type_contains_unknown(&ty)).then_some(ty)
+}
+
+fn ref_effect_arg_vars(arg: &core_ir::TypeArg) -> Vec<core_ir::TypeVar> {
+    let mut vars = BTreeSet::new();
+    match arg {
+        core_ir::TypeArg::Type(ty) => collect_ref_effect_arg_vars(ty, &mut vars),
+        core_ir::TypeArg::Bounds(bounds) => {
+            if let Some(lower) = bounds.lower.as_deref() {
+                collect_ref_effect_arg_vars(lower, &mut vars);
+            }
+            if let Some(upper) = bounds.upper.as_deref() {
+                collect_ref_effect_arg_vars(upper, &mut vars);
+            }
+        }
+    }
+    vars.into_iter().collect()
+}
+
+fn collect_ref_effect_arg_vars(ty: &core_ir::Type, vars: &mut BTreeSet<core_ir::TypeVar>) {
+    match ty {
+        core_ir::Type::Var(var) => {
+            vars.insert(var.clone());
+        }
+        core_ir::Type::Named { args, .. } => {
+            for arg in args {
+                vars.extend(ref_effect_arg_vars(arg));
+            }
+        }
+        core_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_ref_effect_arg_vars(item, vars);
+            }
+            collect_ref_effect_arg_vars(tail, vars);
+        }
+        _ => {}
     }
 }
 
