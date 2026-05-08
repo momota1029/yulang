@@ -11,13 +11,19 @@ Yulang は、"この言語は成立するか" から "実用的な scripting lan
 
 ## Track 1: Native Backend
 
-明示的な control representation を通して Cranelift backend を作る。
+明示的な control representation と effect-aware CPS lowering の両方を見ながら、
+Cranelift backend を作る。
+
+設計参照:
+
+- `notes/design/native-backend-plan.md`
+- `notes/design/cps-effect-lowering-plan.md`
 
 近い形:
 
 ```text
 runtime/core IR
-  -> CPS または CPS 風 control IR
+  -> pure debug control IR / effect-aware CPS IR
   -> closure/environment layout
   -> Cranelift IR
 ```
@@ -39,6 +45,10 @@ runtime/core IR
   - 次は root binding の扱いと、closure capture を明示拒否する diagnostics を決める。
 - algebraic effects と resumptions は design に残すが、最初の compiled milestone にはしない。
 - Cranelift dependency は control IR / compare harness が安定してから入れる。
+- effectful 本線は CPS / continuation lowering を先に設計し、その後に closure conversion へ渡す。
+  - `MultiShot` continuation は最初の CPS IR から持つ。
+  - Yulang の値・closure・environment は不変なので、continuation / closure clone は構造共有を基本にする。
+  - `std::undet` 系の finite nondet は early target として扱い、後付けの難物にしない。
 
 重要な制約:
 

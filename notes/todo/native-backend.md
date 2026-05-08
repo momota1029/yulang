@@ -19,6 +19,9 @@ Core / runtime IR
 - どの IR 境界から CPS lowering に入るか。
 - 最初の control IR は direct-style ANF、CPS、小さな continuation graph のどれに近いか。
 - algebraic effects、resumptions、`bind_here` を continuation にどう対応させるか。
+- multi-shot continuation を最初の CPS IR からどう表すか。
+- Yulang の不変な値・closure・environment を使って、continuation / closure clone を
+  構造共有にするにはどの handle 表現がよいか。
 - closure / environment layout はどうするか。
 - runtime value representation をどうするか。
   - ints
@@ -34,6 +37,11 @@ Core / runtime IR
 - native code を source example と照らしてデバッグできるようにするには、
   どの程度の metadata が必要か。
 
+設計参照:
+
+- `notes/design/native-backend-plan.md`
+- `notes/design/cps-effect-lowering-plan.md`
+
 ## 最初の slice
 
 - `notes/design/native-backend-plan.md` を設計境界として保つ。
@@ -45,6 +53,8 @@ Core / runtime IR
 
 ## 後の slice
 
+- effect-aware CPS / continuation lowering
+- finite nondet / multi-shot resumption の early target
 - closures と captured environments
 - tail calls と continuation allocation policy
 - algebraic effect operations
