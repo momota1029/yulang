@@ -7,6 +7,11 @@
 
 pub mod compare;
 pub mod control_ir;
+pub mod cps_compare;
+pub mod cps_eval;
+pub mod cps_ir;
+pub mod cps_lower;
+pub mod cps_validate;
 pub mod eval;
 pub mod lower;
 
@@ -15,5 +20,13 @@ pub use control_ir::{
     BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeStmt,
     NativeTerminator, ValueId,
 };
+pub use cps_compare::{CpsCompareError, compare_cps_module};
+pub use cps_eval::{CpsEvalError, eval_cps_module};
+pub use cps_ir::{
+    CpsContinuation, CpsContinuationId, CpsFunction, CpsHandler, CpsHandlerContextId, CpsHandlerId,
+    CpsLiteral, CpsModule, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
+};
+pub use cps_lower::{CpsLowerError, CpsLowerResult, lower_cps_module};
+pub use cps_validate::{CpsValidateError, validate_cps_module};
 pub use eval::{NativeEvalError, eval_module};
 pub use lower::{NativeLowerError, NativeLowerResult, lower_module};

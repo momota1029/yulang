@@ -49,6 +49,10 @@ runtime/core IR
   - `MultiShot` continuation は最初の CPS IR から持つ。
   - Yulang の値・closure・environment は不変なので、continuation / closure clone は構造共有を基本にする。
   - `std::undet` 系の finite nondet は early target として扱い、後付けの難物にしない。
+  - CPS IR skeleton / validator / evaluator は追加済み。pure subset は `VM == native-control eval == CPS eval` で比較している。
+  - effect operation / handler / resumption value の最小 IR と evaluator は追加済み。手書き CPS IR で同じ `MultiShot` resumption を二回呼ぶ finite nondet 核を確認している。
+  - runtime `Handle` / `EffectOp` / resumption call から CPS IR への最小 lowering を追加済み。現時点では single arm / no guard / body が direct effect operation application の形だけを扱う。
+  - 次は body の途中で effect operation が出る場合の rest-of-computation continuation 化と、runtime lower が作る thunked handler body との接続を見る。
 
 重要な制約:
 

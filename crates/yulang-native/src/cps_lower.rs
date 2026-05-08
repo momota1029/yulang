@@ -1,0 +1,1028 @@
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+
+use yulang_core_ir as core_ir;
+use yulang_runtime as runtime;
+
+use crate::cps_ir::{
+    CpsContinuation, CpsContinuationId, CpsFunction, CpsHandler, CpsHandlerId, CpsLiteral,
+    CpsModule, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
+};
+
+pub type CpsLowerResult<T> = Result<T, CpsLowerError>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CpsLowerError {
+    UnsupportedRoot {
+        root: runtime::Root,
+    },
+    MissingRootExpr {
+        index: usize,
+    },
+    UnsupportedExpr {
+        kind: &'static str,
+    },
+    UnsupportedPattern {
+        kind: &'static str,
+    },
+    UnsupportedBinding {
+        path: core_ir::Path,
+        reason: &'static str,
+    },
+    PrimitiveArityMismatch {
+        op: core_ir::PrimitiveOp,
+        expected: usize,
+        actual: usize,
+    },
+    CallArityMismatch {
+        target: String,
+        expected: usize,
+        actual: usize,
+    },
+}
+
+impl fmt::Display for CpsLowerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CpsLowerError::UnsupportedRoot { root } => {
+                write!(f, "CPS lowering does not support root {root:?} yet")
+            }
+            CpsLowerError::MissingRootExpr { index } => {
+                write!(f, "runtime module has no root expression at index {index}")
+            }
+            CpsLowerError::UnsupportedExpr { kind } => {
+                write!(f, "CPS lowering does not support {kind} expressions yet")
+            }
+            CpsLowerError::UnsupportedPattern { kind } => {
+                write!(f, "CPS lowering does not support {kind} patterns yet")
+            }
+            CpsLowerError::UnsupportedBinding { path, reason } => {
+                write!(
+                    f,
+                    "CPS lowering does not support binding {} yet: {reason}",
+                    path_name(path)
+                )
+            }
+            CpsLowerError::PrimitiveArityMismatch {
+                op,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "CPS lowering expected {expected} arguments for primitive {op:?}, got {actual}"
+            ),
+            CpsLowerError::CallArityMismatch {
+                target,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "CPS lowering expected {expected} arguments for call to {target}, got {actual}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CpsLowerError {}
+
+pub fn lower_cps_module(module: &runtime::Module) -> CpsLowerResult<CpsModule> {
+    let function_table = module
+        .bindings
+        .iter()
+        .map(|binding| {
+            let (params, _) = collect_lambda_params(&binding.body);
+            (
+                binding.name.clone(),
+                FunctionInfo {
+                    name: path_name(&binding.name),
+                    arity: params.len(),
+                },
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let functions = module
+        .bindings
+        .iter()
+        .map(|binding| lower_binding(binding, &function_table))
+        .collect::<CpsLowerResult<Vec<_>>>()?;
+
+    let mut roots = Vec::new();
+    for root in &module.roots {
+        match root {
+            runtime::Root::Expr(index) => {
+                let expr = module
+                    .root_exprs
+                    .get(*index)
+                    .ok_or(CpsLowerError::MissingRootExpr { index: *index })?;
+                roots.push(
+                    FunctionLowerer::new(format!("root_{index}"), &function_table, Vec::new())
+                        .lower_root(expr)?,
+                );
+            }
+            runtime::Root::Binding(_) => {
+                return Err(CpsLowerError::UnsupportedRoot { root: root.clone() });
+            }
+        }
+    }
+    Ok(CpsModule { functions, roots })
+}
+
+fn lower_binding(
+    binding: &runtime::Binding,
+    functions: &HashMap<core_ir::Path, FunctionInfo>,
+) -> CpsLowerResult<CpsFunction> {
+    if !binding.type_params.is_empty() {
+        return Err(CpsLowerError::UnsupportedBinding {
+            path: binding.name.clone(),
+            reason: "residual type parameters",
+        });
+    }
+    let (params, body) = collect_lambda_params(&binding.body);
+    if params.is_empty() {
+        return Err(CpsLowerError::UnsupportedBinding {
+            path: binding.name.clone(),
+            reason: "non-function body",
+        });
+    }
+    FunctionLowerer::new(path_name(&binding.name), functions, params).lower_root(body)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FunctionInfo {
+    name: String,
+    arity: usize,
+}
+
+struct FunctionLowerer<'a> {
+    name: String,
+    functions: &'a HashMap<core_ir::Path, FunctionInfo>,
+    next_value: usize,
+    next_continuation: usize,
+    next_handler: usize,
+    continuations: Vec<CpsContinuation>,
+    handlers: Vec<CpsHandler>,
+    current: ContinuationBuilder,
+    locals: HashMap<core_ir::Path, CpsValueId>,
+    resumptions: HashSet<core_ir::Path>,
+    params: Vec<CpsValueId>,
+}
+
+impl<'a> FunctionLowerer<'a> {
+    fn new(
+        name: String,
+        functions: &'a HashMap<core_ir::Path, FunctionInfo>,
+        params: Vec<core_ir::Name>,
+    ) -> Self {
+        let mut next_value = 0;
+        let mut param_values = Vec::with_capacity(params.len());
+        let mut locals = HashMap::new();
+        for param in params {
+            let value = CpsValueId(next_value);
+            next_value += 1;
+            locals.insert(core_ir::Path::from_name(param), value);
+            param_values.push(value);
+        }
+        Self {
+            name,
+            functions,
+            next_value,
+            next_continuation: 1,
+            next_handler: 0,
+            continuations: Vec::new(),
+            handlers: Vec::new(),
+            current: ContinuationBuilder::new(CpsContinuationId(0), param_values.clone()),
+            locals,
+            resumptions: HashSet::new(),
+            params: param_values,
+        }
+    }
+
+    fn lower_root(mut self, expr: &runtime::Expr) -> CpsLowerResult<CpsFunction> {
+        let value = self.lower_expr(expr)?;
+        self.terminate(CpsTerminator::Return(value));
+        self.finish_current();
+        Ok(CpsFunction {
+            name: self.name,
+            params: self.params,
+            entry: CpsContinuationId(0),
+            continuations: self.continuations,
+            handlers: self.handlers,
+        })
+    }
+
+    fn lower_expr(&mut self, expr: &runtime::Expr) -> CpsLowerResult<CpsValueId> {
+        if let Some((op, args)) = primitive_apply(expr) {
+            let expected = primitive_arity(op);
+            if args.len() != expected {
+                return Err(CpsLowerError::PrimitiveArityMismatch {
+                    op,
+                    expected,
+                    actual: args.len(),
+                });
+            }
+            let args = args
+                .into_iter()
+                .map(|arg| self.lower_expr(arg))
+                .collect::<CpsLowerResult<Vec<_>>>()?;
+            let dest = self.fresh_value();
+            self.current
+                .stmts
+                .push(CpsStmt::Primitive { dest, op, args });
+            return Ok(dest);
+        }
+
+        if let Some((target, args)) = direct_apply(expr, self.functions)? {
+            let args = args
+                .into_iter()
+                .map(|arg| self.lower_expr(arg))
+                .collect::<CpsLowerResult<Vec<_>>>()?;
+            let dest = self.fresh_value();
+            self.current
+                .stmts
+                .push(CpsStmt::DirectCall { dest, target, args });
+            return Ok(dest);
+        }
+
+        if let Some((resumption, arg)) = self.resume_apply(expr) {
+            let arg = self.lower_expr(arg)?;
+            let dest = self.fresh_value();
+            self.current.stmts.push(CpsStmt::Resume {
+                dest,
+                resumption,
+                arg,
+            });
+            return Ok(dest);
+        }
+
+        match &expr.kind {
+            runtime::ExprKind::Lit(lit) => {
+                let dest = self.fresh_value();
+                self.current.stmts.push(CpsStmt::Literal {
+                    dest,
+                    literal: lower_literal(lit),
+                });
+                Ok(dest)
+            }
+            runtime::ExprKind::PrimitiveOp(_) => Err(CpsLowerError::UnsupportedExpr {
+                kind: "bare primitive",
+            }),
+            runtime::ExprKind::Var(path) => self
+                .locals
+                .get(path)
+                .copied()
+                .ok_or(CpsLowerError::UnsupportedExpr { kind: "free var" }),
+            runtime::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+                ..
+            } => self.lower_if(cond, then_branch, else_branch),
+            runtime::ExprKind::Block { stmts, tail } => self.lower_block(stmts, tail.as_deref()),
+            runtime::ExprKind::EffectOp(_) => Err(CpsLowerError::UnsupportedExpr {
+                kind: "bare effect operation",
+            }),
+            runtime::ExprKind::Lambda { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "lambda" })
+            }
+            runtime::ExprKind::Apply { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "apply" })
+            }
+            runtime::ExprKind::Tuple(_) => Err(CpsLowerError::UnsupportedExpr { kind: "tuple" }),
+            runtime::ExprKind::Record { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "record" })
+            }
+            runtime::ExprKind::Variant { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "variant" })
+            }
+            runtime::ExprKind::Select { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "select" })
+            }
+            runtime::ExprKind::Match { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "match" })
+            }
+            runtime::ExprKind::Handle { body, arms, .. } => self.lower_handle(body, arms),
+            runtime::ExprKind::BindHere { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "bind_here" })
+            }
+            runtime::ExprKind::Thunk { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "thunk" })
+            }
+            runtime::ExprKind::LocalPushId { .. } => Err(CpsLowerError::UnsupportedExpr {
+                kind: "local effect id scope",
+            }),
+            runtime::ExprKind::PeekId => Err(CpsLowerError::UnsupportedExpr { kind: "peek_id" }),
+            runtime::ExprKind::FindId { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "find_id" })
+            }
+            runtime::ExprKind::AddId { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "add_id" })
+            }
+            runtime::ExprKind::Coerce { .. } => {
+                Err(CpsLowerError::UnsupportedExpr { kind: "coerce" })
+            }
+            runtime::ExprKind::Pack { .. } => Err(CpsLowerError::UnsupportedExpr { kind: "pack" }),
+        }
+    }
+
+    fn lower_if(
+        &mut self,
+        cond: &runtime::Expr,
+        then_branch: &runtime::Expr,
+        else_branch: &runtime::Expr,
+    ) -> CpsLowerResult<CpsValueId> {
+        let cond = self.lower_expr(cond)?;
+        let saved_locals = self.locals.clone();
+        let then_cont = self.fresh_continuation();
+        let else_cont = self.fresh_continuation();
+        let merge_cont = self.fresh_continuation();
+        let result = self.fresh_value();
+
+        self.terminate(CpsTerminator::Branch {
+            cond,
+            then_cont,
+            else_cont,
+        });
+        self.finish_current();
+
+        self.current = ContinuationBuilder::new(then_cont, Vec::new());
+        self.locals = saved_locals.clone();
+        let then_value = self.lower_expr(then_branch)?;
+        self.terminate(CpsTerminator::Continue {
+            target: merge_cont,
+            args: vec![then_value],
+        });
+        self.finish_current();
+
+        self.current = ContinuationBuilder::new(else_cont, Vec::new());
+        self.locals = saved_locals.clone();
+        let else_value = self.lower_expr(else_branch)?;
+        self.terminate(CpsTerminator::Continue {
+            target: merge_cont,
+            args: vec![else_value],
+        });
+        self.finish_current();
+
+        self.current = ContinuationBuilder::new(merge_cont, vec![result]);
+        self.locals = saved_locals;
+        Ok(result)
+    }
+
+    fn lower_block(
+        &mut self,
+        stmts: &[runtime::Stmt],
+        tail: Option<&runtime::Expr>,
+    ) -> CpsLowerResult<CpsValueId> {
+        let saved_locals = self.locals.clone();
+        for stmt in stmts {
+            match stmt {
+                runtime::Stmt::Let { pattern, value } => {
+                    let value = self.lower_expr(value)?;
+                    self.bind_pattern(pattern, value)?;
+                }
+                runtime::Stmt::Expr(expr) => {
+                    self.lower_expr(expr)?;
+                }
+                runtime::Stmt::Module { .. } => {
+                    self.locals = saved_locals;
+                    return Err(CpsLowerError::UnsupportedExpr {
+                        kind: "module statement",
+                    });
+                }
+            }
+        }
+        let value = match tail {
+            Some(tail) => self.lower_expr(tail)?,
+            None => {
+                let value = self.fresh_value();
+                self.current.stmts.push(CpsStmt::Literal {
+                    dest: value,
+                    literal: CpsLiteral::Unit,
+                });
+                value
+            }
+        };
+        self.locals = saved_locals;
+        Ok(value)
+    }
+
+    fn lower_handle(
+        &mut self,
+        body: &runtime::Expr,
+        arms: &[runtime::HandleArm],
+    ) -> CpsLowerResult<CpsValueId> {
+        if arms.len() != 1 {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "multi-arm handler",
+            });
+        }
+        let arm = &arms[0];
+        if arm.guard.is_some() {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "handler guard",
+            });
+        }
+        let Some(resume) = &arm.resume else {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "handler without resume",
+            });
+        };
+        let Some((effect, payload)) = effect_apply(body) else {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "handler body continuation",
+            });
+        };
+        if effect != arm.effect {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "handler effect mismatch",
+            });
+        }
+
+        let payload = self.lower_expr(payload)?;
+        let saved_locals = self.locals.clone();
+        let saved_resumptions = self.resumptions.clone();
+
+        let resume_cont = self.fresh_continuation();
+        let handler_cont = self.fresh_continuation();
+        let merge_cont = self.fresh_continuation();
+        let handler = self.fresh_handler();
+        let result = self.fresh_value();
+
+        self.handlers.push(CpsHandler {
+            id: handler,
+            effect: effect.clone(),
+            entry: handler_cont,
+        });
+        self.terminate(CpsTerminator::Perform {
+            effect,
+            payload,
+            resume: resume_cont,
+            handler,
+        });
+        self.finish_current();
+
+        let resumed_value = self.fresh_value();
+        self.current = ContinuationBuilder::new(resume_cont, vec![resumed_value]);
+        self.locals = saved_locals.clone();
+        self.resumptions = saved_resumptions.clone();
+        self.terminate(CpsTerminator::Return(resumed_value));
+        self.finish_current();
+
+        let handler_payload = self.fresh_value();
+        let handler_resume = self.fresh_value();
+        self.current =
+            ContinuationBuilder::new(handler_cont, vec![handler_payload, handler_resume]);
+        self.locals = saved_locals.clone();
+        self.resumptions = saved_resumptions.clone();
+        self.bind_pattern(&arm.payload, handler_payload)?;
+        let resume_path = core_ir::Path::from_name(resume.name.clone());
+        self.locals.insert(resume_path.clone(), handler_resume);
+        self.resumptions.insert(resume_path);
+        let handled = self.lower_expr(&arm.body)?;
+        self.terminate(CpsTerminator::Continue {
+            target: merge_cont,
+            args: vec![handled],
+        });
+        self.finish_current();
+
+        self.current = ContinuationBuilder::new(merge_cont, vec![result]);
+        self.locals = saved_locals;
+        self.resumptions = saved_resumptions;
+        Ok(result)
+    }
+
+    fn bind_pattern(
+        &mut self,
+        pattern: &runtime::Pattern,
+        value: CpsValueId,
+    ) -> CpsLowerResult<()> {
+        match pattern {
+            runtime::Pattern::Wildcard { .. } => Ok(()),
+            runtime::Pattern::Bind { name, .. } => {
+                self.locals
+                    .insert(core_ir::Path::from_name(name.clone()), value);
+                Ok(())
+            }
+            runtime::Pattern::Lit { .. } => {
+                Err(CpsLowerError::UnsupportedPattern { kind: "literal" })
+            }
+            runtime::Pattern::Tuple { .. } => {
+                Err(CpsLowerError::UnsupportedPattern { kind: "tuple" })
+            }
+            runtime::Pattern::List { .. } => {
+                Err(CpsLowerError::UnsupportedPattern { kind: "list" })
+            }
+            runtime::Pattern::Record { .. } => {
+                Err(CpsLowerError::UnsupportedPattern { kind: "record" })
+            }
+            runtime::Pattern::Variant { .. } => {
+                Err(CpsLowerError::UnsupportedPattern { kind: "variant" })
+            }
+            runtime::Pattern::Or { .. } => Err(CpsLowerError::UnsupportedPattern { kind: "or" }),
+            runtime::Pattern::As { .. } => Err(CpsLowerError::UnsupportedPattern { kind: "as" }),
+        }
+    }
+
+    fn fresh_value(&mut self) -> CpsValueId {
+        let value = CpsValueId(self.next_value);
+        self.next_value += 1;
+        value
+    }
+
+    fn fresh_continuation(&mut self) -> CpsContinuationId {
+        let continuation = CpsContinuationId(self.next_continuation);
+        self.next_continuation += 1;
+        continuation
+    }
+
+    fn fresh_handler(&mut self) -> CpsHandlerId {
+        let handler = CpsHandlerId(self.next_handler);
+        self.next_handler += 1;
+        handler
+    }
+
+    fn resume_apply<'expr>(
+        &self,
+        expr: &'expr runtime::Expr,
+    ) -> Option<(CpsValueId, &'expr runtime::Expr)> {
+        let runtime::ExprKind::Apply { callee, arg, .. } = &expr.kind else {
+            return None;
+        };
+        let runtime::ExprKind::Var(path) = &callee.kind else {
+            return None;
+        };
+        if !self.resumptions.contains(path) {
+            return None;
+        }
+        let resumption = *self.locals.get(path)?;
+        Some((resumption, arg.as_ref()))
+    }
+
+    fn terminate(&mut self, terminator: CpsTerminator) {
+        self.current.terminator = Some(terminator);
+    }
+
+    fn finish_current(&mut self) {
+        let terminator = self
+            .current
+            .terminator
+            .take()
+            .expect("CPS lowerer finished an unterminated continuation");
+        self.continuations.push(CpsContinuation {
+            id: self.current.id,
+            params: std::mem::take(&mut self.current.params),
+            shot_kind: CpsShotKind::MultiShot,
+            stmts: std::mem::take(&mut self.current.stmts),
+            terminator,
+        });
+    }
+}
+
+struct ContinuationBuilder {
+    id: CpsContinuationId,
+    params: Vec<CpsValueId>,
+    stmts: Vec<CpsStmt>,
+    terminator: Option<CpsTerminator>,
+}
+
+impl ContinuationBuilder {
+    fn new(id: CpsContinuationId, params: Vec<CpsValueId>) -> Self {
+        Self {
+            id,
+            params,
+            stmts: Vec::new(),
+            terminator: None,
+        }
+    }
+}
+
+fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, &runtime::Expr) {
+    let mut params = Vec::new();
+    let mut current = expr;
+    while let runtime::ExprKind::Lambda { param, body, .. } = &current.kind {
+        params.push(param.clone());
+        current = body;
+    }
+    (params, current)
+}
+
+fn lower_literal(lit: &core_ir::Lit) -> CpsLiteral {
+    match lit {
+        core_ir::Lit::Int(value) => CpsLiteral::Int(value.clone()),
+        core_ir::Lit::Float(value) => CpsLiteral::Float(value.clone()),
+        core_ir::Lit::String(value) => CpsLiteral::String(value.clone()),
+        core_ir::Lit::Bool(value) => CpsLiteral::Bool(*value),
+        core_ir::Lit::Unit => CpsLiteral::Unit,
+    }
+}
+
+fn primitive_apply(expr: &runtime::Expr) -> Option<(core_ir::PrimitiveOp, Vec<&runtime::Expr>)> {
+    let mut args = Vec::new();
+    let mut current = expr;
+    while let runtime::ExprKind::Apply { callee, arg, .. } = &current.kind {
+        args.push(arg.as_ref());
+        current = callee;
+    }
+    let runtime::ExprKind::PrimitiveOp(op) = &current.kind else {
+        return None;
+    };
+    args.reverse();
+    Some((*op, args))
+}
+
+fn effect_apply(expr: &runtime::Expr) -> Option<(core_ir::Path, &runtime::Expr)> {
+    let runtime::ExprKind::Apply { callee, arg, .. } = &expr.kind else {
+        return None;
+    };
+    let runtime::ExprKind::EffectOp(effect) = &callee.kind else {
+        return None;
+    };
+    Some((effect.clone(), arg.as_ref()))
+}
+
+fn direct_apply<'expr>(
+    expr: &'expr runtime::Expr,
+    functions: &HashMap<core_ir::Path, FunctionInfo>,
+) -> CpsLowerResult<Option<(String, Vec<&'expr runtime::Expr>)>> {
+    let mut args = Vec::new();
+    let mut current = expr;
+    while let runtime::ExprKind::Apply { callee, arg, .. } = &current.kind {
+        args.push(arg.as_ref());
+        current = callee;
+    }
+    let runtime::ExprKind::Var(path) = &current.kind else {
+        return Ok(None);
+    };
+    let Some(target) = functions.get(path) else {
+        return Ok(None);
+    };
+    if args.len() != target.arity {
+        return Err(CpsLowerError::CallArityMismatch {
+            target: target.name.clone(),
+            expected: target.arity,
+            actual: args.len(),
+        });
+    }
+    args.reverse();
+    Ok(Some((target.name.clone(), args)))
+}
+
+fn primitive_arity(op: core_ir::PrimitiveOp) -> usize {
+    use core_ir::PrimitiveOp;
+    match op {
+        PrimitiveOp::BoolNot
+        | PrimitiveOp::ListEmpty
+        | PrimitiveOp::ListSingleton
+        | PrimitiveOp::ListLen
+        | PrimitiveOp::ListViewRaw
+        | PrimitiveOp::StringLen
+        | PrimitiveOp::IntToString
+        | PrimitiveOp::IntToHex
+        | PrimitiveOp::IntToUpperHex
+        | PrimitiveOp::FloatToString
+        | PrimitiveOp::BoolToString => 1,
+        PrimitiveOp::BoolEq
+        | PrimitiveOp::ListMerge
+        | PrimitiveOp::ListIndex
+        | PrimitiveOp::ListIndexRange
+        | PrimitiveOp::StringIndex
+        | PrimitiveOp::StringIndexRange
+        | PrimitiveOp::IntAdd
+        | PrimitiveOp::IntSub
+        | PrimitiveOp::IntMul
+        | PrimitiveOp::IntDiv
+        | PrimitiveOp::IntEq
+        | PrimitiveOp::IntLt
+        | PrimitiveOp::IntLe
+        | PrimitiveOp::IntGt
+        | PrimitiveOp::IntGe
+        | PrimitiveOp::FloatAdd
+        | PrimitiveOp::FloatSub
+        | PrimitiveOp::FloatMul
+        | PrimitiveOp::FloatDiv
+        | PrimitiveOp::FloatEq
+        | PrimitiveOp::FloatLt
+        | PrimitiveOp::FloatLe
+        | PrimitiveOp::FloatGt
+        | PrimitiveOp::FloatGe
+        | PrimitiveOp::StringConcat => 2,
+        PrimitiveOp::ListSplice
+        | PrimitiveOp::ListIndexRangeRaw
+        | PrimitiveOp::StringSplice
+        | PrimitiveOp::StringIndexRangeRaw => 3,
+        PrimitiveOp::ListSpliceRaw | PrimitiveOp::StringSpliceRaw => 4,
+    }
+}
+
+fn path_name(path: &core_ir::Path) -> String {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::cps_eval::eval_cps_module;
+    use crate::cps_validate::validate_cps_module;
+
+    use super::*;
+
+    fn unknown_lit(lit: core_ir::Lit) -> runtime::Expr {
+        runtime::Expr::typed(runtime::ExprKind::Lit(lit), runtime::Type::unknown())
+    }
+
+    fn primitive(op: core_ir::PrimitiveOp) -> runtime::Expr {
+        runtime::Expr::typed(runtime::ExprKind::PrimitiveOp(op), runtime::Type::unknown())
+    }
+
+    fn apply(callee: runtime::Expr, arg: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Apply {
+                callee: Box::new(callee),
+                arg: Box::new(arg),
+                evidence: None,
+                instantiation: None,
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn if_expr(
+        cond: runtime::Expr,
+        then_branch: runtime::Expr,
+        else_branch: runtime::Expr,
+    ) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::If {
+                cond: Box::new(cond),
+                then_branch: Box::new(then_branch),
+                else_branch: Box::new(else_branch),
+                evidence: None,
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn var(name: &str) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Var(core_ir::Path::from_name(core_ir::Name(name.to_string()))),
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn effect_op(name: &str) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::EffectOp(core_ir::Path::from_name(core_ir::Name(name.to_string()))),
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn bind_pattern(name: &str) -> runtime::Pattern {
+        runtime::Pattern::Bind {
+            name: core_ir::Name(name.to_string()),
+            ty: runtime::Type::unknown(),
+        }
+    }
+
+    fn handle_once(
+        effect: &str,
+        payload: &str,
+        resume: &str,
+        body: runtime::Expr,
+        arm_body: runtime::Expr,
+    ) -> runtime::Expr {
+        let effect = core_ir::Path::from_name(core_ir::Name(effect.to_string()));
+        runtime::Expr::typed(
+            runtime::ExprKind::Handle {
+                body: Box::new(body),
+                arms: vec![runtime::HandleArm {
+                    effect: effect.clone(),
+                    payload: bind_pattern(payload),
+                    resume: Some(runtime::ResumeBinding {
+                        name: core_ir::Name(resume.to_string()),
+                        ty: runtime::Type::unknown(),
+                    }),
+                    guard: None,
+                    body: arm_body,
+                }],
+                evidence: runtime::JoinEvidence {
+                    result: core_ir::Type::Unknown,
+                },
+                handler: runtime::HandleEffect {
+                    consumes: vec![effect],
+                    residual_before: None,
+                    residual_after: None,
+                },
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn lambda(param: &str, body: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Lambda {
+                param: core_ir::Name(param.to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(body),
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn binding(name: &str, body: runtime::Expr) -> runtime::Binding {
+        runtime::Binding {
+            name: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+            type_params: Vec::new(),
+            scheme: core_ir::Scheme {
+                requirements: Vec::new(),
+                body: core_ir::Type::Unknown,
+            },
+            body,
+        }
+    }
+
+    fn module_with_root(expr: runtime::Expr) -> runtime::Module {
+        module_with_bindings_and_root(Vec::new(), expr)
+    }
+
+    fn module_with_bindings_and_root(
+        bindings: Vec<runtime::Binding>,
+        expr: runtime::Expr,
+    ) -> runtime::Module {
+        runtime::Module {
+            path: core_ir::Path::default(),
+            bindings,
+            root_exprs: vec![expr],
+            roots: vec![runtime::Root::Expr(0)],
+            role_impls: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn lowers_pure_int_add_to_multishot_cps() {
+        let expr = apply(
+            apply(
+                primitive(core_ir::PrimitiveOp::IntAdd),
+                unknown_lit(core_ir::Lit::Int("20".to_string())),
+            ),
+            unknown_lit(core_ir::Lit::Int("22".to_string())),
+        );
+        let module = module_with_root(expr);
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(lowered.roots.len(), 1);
+        assert_eq!(lowered.roots[0].continuations.len(), 1);
+        assert_eq!(
+            lowered.roots[0].continuations[0].shot_kind,
+            CpsShotKind::MultiShot
+        );
+        assert_eq!(
+            lowered.roots[0].continuations[0].stmts,
+            vec![
+                CpsStmt::Literal {
+                    dest: CpsValueId(0),
+                    literal: CpsLiteral::Int("20".to_string()),
+                },
+                CpsStmt::Literal {
+                    dest: CpsValueId(1),
+                    literal: CpsLiteral::Int("22".to_string()),
+                },
+                CpsStmt::Primitive {
+                    dest: CpsValueId(2),
+                    op: core_ir::PrimitiveOp::IntAdd,
+                    args: vec![CpsValueId(0), CpsValueId(1)],
+                },
+            ]
+        );
+        assert_eq!(
+            lowered.roots[0].continuations[0].terminator,
+            CpsTerminator::Return(CpsValueId(2))
+        );
+    }
+
+    #[test]
+    fn lowers_if_to_multishot_continuation_graph() {
+        let module = module_with_root(if_expr(
+            unknown_lit(core_ir::Lit::Bool(true)),
+            unknown_lit(core_ir::Lit::Int("1".to_string())),
+            unknown_lit(core_ir::Lit::Int("2".to_string())),
+        ));
+        let lowered = lower_cps_module(&module).expect("lowered");
+        let root = &lowered.roots[0];
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(root.continuations.len(), 4);
+        assert!(
+            root.continuations
+                .iter()
+                .all(|continuation| continuation.shot_kind == CpsShotKind::MultiShot)
+        );
+        assert_eq!(
+            root.continuations[0].terminator,
+            CpsTerminator::Branch {
+                cond: CpsValueId(0),
+                then_cont: CpsContinuationId(1),
+                else_cont: CpsContinuationId(2),
+            }
+        );
+        assert_eq!(root.continuations[3].params, vec![CpsValueId(1)]);
+        assert_eq!(
+            root.continuations[3].terminator,
+            CpsTerminator::Return(CpsValueId(1))
+        );
+    }
+
+    #[test]
+    fn lowers_direct_call_to_cps() {
+        let inc = binding(
+            "inc",
+            lambda(
+                "x",
+                apply(
+                    apply(primitive(core_ir::PrimitiveOp::IntAdd), var("x")),
+                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                ),
+            ),
+        );
+        let root = apply(var("inc"), unknown_lit(core_ir::Lit::Int("41".to_string())));
+        let module = module_with_bindings_and_root(vec![inc], root);
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(lowered.functions.len(), 1);
+        assert_eq!(lowered.functions[0].name, "inc");
+        assert_eq!(lowered.functions[0].params, vec![CpsValueId(0)]);
+        assert_eq!(
+            lowered.roots[0].continuations[0].stmts,
+            vec![
+                CpsStmt::Literal {
+                    dest: CpsValueId(0),
+                    literal: CpsLiteral::Int("41".to_string()),
+                },
+                CpsStmt::DirectCall {
+                    dest: CpsValueId(1),
+                    target: "inc".to_string(),
+                    args: vec![CpsValueId(0)],
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn lowers_single_effect_handler_with_resumption() {
+        let body = apply(
+            effect_op("choose"),
+            unknown_lit(core_ir::Lit::Int("1".to_string())),
+        );
+        let resume_x = apply(var("k"), var("x"));
+        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let arm_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            resume_two,
+        );
+        let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
+        let lowered = lower_cps_module(&module).expect("lowered");
+        let root = &lowered.roots[0];
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(root.handlers.len(), 1);
+        assert!(
+            root.continuations.iter().any(|continuation| matches!(
+                continuation.terminator,
+                CpsTerminator::Perform { .. }
+            ))
+        );
+        assert!(
+            root.continuations
+                .iter()
+                .flat_map(|continuation| &continuation.stmts)
+                .any(|stmt| matches!(stmt, CpsStmt::Resume { .. }))
+        );
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("3".to_string())]
+        );
+    }
+
+    #[test]
+    fn rejects_direct_call_arity_mismatch() {
+        let inc = binding("inc", lambda("x", var("x")));
+        let root = apply(
+            apply(var("inc"), unknown_lit(core_ir::Lit::Int("1".to_string()))),
+            unknown_lit(core_ir::Lit::Int("2".to_string())),
+        );
+        let module = module_with_bindings_and_root(vec![inc], root);
+
+        assert_eq!(
+            lower_cps_module(&module).expect_err("arity mismatch"),
+            CpsLowerError::CallArityMismatch {
+                target: "inc".to_string(),
+                expected: 1,
+                actual: 2,
+            }
+        );
+    }
+}
