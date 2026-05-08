@@ -1,13 +1,14 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 
-const docsOutDir = new URL("../../dist/docs/", import.meta.url);
+const docsOutDir = new URL("../../dist-docs/", import.meta.url);
+const webOutDir = new URL("../../dist/", import.meta.url);
 const assetsDir = new URL("assets/", docsOutDir);
 
 await mkdir(assetsDir, { recursive: true });
 await externalizeInlineScripts(docsOutDir);
 await externalizeCssDataSvgs(assetsDir);
-await writeDocsIndexRedirect();
+await mergeDocsOutput();
 
 async function externalizeInlineScripts(dirUrl) {
   const entries = await readdir(dirUrl, { withFileTypes: true });
@@ -36,7 +37,7 @@ async function externalizeHtmlScripts(htmlUrl) {
       changed = true;
       const name = inlineScriptName(body);
       writes.push(writeFile(new URL(name, assetsDir), body, "utf8"));
-      return `<script${attrs} src="/docs/assets/${name}"></script>`;
+      return `<script${attrs} src="/assets/${name}"></script>`;
     },
   );
 
@@ -79,7 +80,7 @@ async function externalizeCssFileDataSvgs(cssUrl) {
       const name = svgAssetName(svg);
       writes.push(writeFile(new URL(name, assetsDir), svg, "utf8"));
       changed = true;
-      return `url(${quote}/docs/assets/${name}${quote})`;
+      return `url(${quote}/assets/${name}${quote})`;
     },
   );
 
@@ -95,25 +96,8 @@ function svgAssetName(svg) {
   return `icon-${hash}.svg`;
 }
 
-async function writeDocsIndexRedirect() {
-  await writeFile(
-    new URL("index.html", docsOutDir),
-    `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta http-equiv="refresh" content="0; url=/docs/guide/">
-    <link rel="canonical" href="/docs/guide/">
-    <title>Yulang Docs</title>
-  </head>
-  <body>
-    <main>
-      <p>Redirecting to <a href="/docs/guide/">Yulang Guide</a>.</p>
-    </main>
-  </body>
-</html>
-`,
-    "utf8",
-  );
+async function mergeDocsOutput() {
+  await mkdir(webOutDir, { recursive: true });
+  await cp(docsOutDir, webOutDir, { recursive: true, force: true });
+  await rm(docsOutDir, { recursive: true, force: true });
 }

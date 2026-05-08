@@ -7,8 +7,8 @@ export default defineConfig({
     "A statically-typed language with algebraic effects and role-based polymorphism.",
   lang: "en",
 
-  base: "/docs/",
-  outDir: "../dist/docs",
+  base: "/",
+  outDir: "../dist-docs",
   appearance: false,
 
   ignoreDeadLinks: [/^\/playground\//],
