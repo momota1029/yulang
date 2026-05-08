@@ -666,6 +666,35 @@ g
     }
 
     #[test]
+    fn embedded_std_prelude_operators_survive_artifact_import() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner(
+                    r#"1 + 2
+2 * 3
+1 == 1
+1 < 2
+2 <= 2
+"#,
+                );
+                assert!(output.ok, "{:?}", output.diagnostics);
+                assert_eq!(
+                    output
+                        .results
+                        .iter()
+                        .map(|result| result.value.as_str())
+                        .collect::<Vec<_>>(),
+                    vec!["3", "6", "true", "true", "true"]
+                );
+                assert_compiled_std_cache_hit(&output);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
     fn reports_compile_timings() {
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)

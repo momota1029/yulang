@@ -57,68 +57,9 @@ struct StdSource {
     text: &'static str,
 }
 
-const STD_SOURCES: &[StdSource] = &[
-    StdSource {
-        name: "console",
-        text: include_str!("../../../lib/std/console.yu"),
-    },
-    StdSource {
-        name: "error",
-        text: include_str!("../../../lib/std/error.yu"),
-    },
-    StdSource {
-        name: "flow",
-        text: include_str!("../../../lib/std/flow.yu"),
-    },
-    StdSource {
-        name: "fs",
-        text: include_str!("../../../lib/std/fs.yu"),
-    },
-    StdSource {
-        name: "fold",
-        text: include_str!("../../../lib/std/fold.yu"),
-    },
-    StdSource {
-        name: "index",
-        text: include_str!("../../../lib/std/index.yu"),
-    },
-    StdSource {
-        name: "junction",
-        text: include_str!("../../../lib/std/junction.yu"),
-    },
-    StdSource {
-        name: "list",
-        text: include_str!("../../../lib/std/list.yu"),
-    },
-    StdSource {
-        name: "opt",
-        text: include_str!("../../../lib/std/opt.yu"),
-    },
-    StdSource {
-        name: "ops",
-        text: include_str!("../../../lib/std/ops.yu"),
-    },
-    StdSource {
-        name: "prelude",
-        text: include_str!("../../../lib/std/prelude.yu"),
-    },
-    StdSource {
-        name: "range",
-        text: include_str!("../../../lib/std/range.yu"),
-    },
-    StdSource {
-        name: "str",
-        text: include_str!("../../../lib/std/str.yu"),
-    },
-    StdSource {
-        name: "undet",
-        text: include_str!("../../../lib/std/undet.yu"),
-    },
-    StdSource {
-        name: "var",
-        text: include_str!("../../../lib/std/var.yu"),
-    },
-];
+include!("../std_sources_manifest.rs");
+
+const STD_SOURCES: &[StdSource] = yulang_std_sources!("../../../lib/std/");
 
 fn module_path(name: &str) -> Path {
     Path {
