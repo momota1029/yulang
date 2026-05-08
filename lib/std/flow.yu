@@ -1,11 +1,18 @@
 pub act sub 'a:
     pub return: 'a -> never
-    pub struct label {
-        return: 'a -> [sub 'a] never
-    }
-    our control_label = sub::label {return: sub::return}
     pub sub(x: [_] _) = catch x:
         return a, _ -> a
+        a -> a
+
+pub act label_sub 'a:
+    pub return: 'a -> never
+    pub struct label {
+        marker: unit
+    }
+    our control_label = label_sub::label {marker: ()}
+    pub sub(x: [_] _) = catch x:
+        label_sub::return a, _ -> a
+        sub::return a, _ -> a
         a -> a
 
 pub act loop:
@@ -53,14 +60,19 @@ pub act label_loop:
     my act next = last
     my act redo = last
 
-    my control_label = label_loop::label {last: label_loop::last, next: label_loop::next, redo: label_loop::redo}
+    my control_label = label_loop::label {
+        last: label_loop::last,
+        next: label_loop::next,
+        redo: label_loop::redo
+    }
 
     impl std::flow::LoopLabel label:
         our x.last = label::last(x)
         our x.next = label::next(x)
         our x.redo = label::redo(x)
 
-    our for_in(xs, f) =
+    our for_in(xs: 'container, f: label -> 'item -> [label_loop; loop] _) =
+        where 'container: std::fold::Fold 'item
         last::sub:xs.fold (): \() x -> next::sub:loop true with:
             our loop b = if b: loop:redo::judge:catch f control_label x:
                 last(), _ -> last::break()

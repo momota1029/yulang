@@ -57,8 +57,7 @@ mod var;
 pub(crate) use act::ActCopy;
 use act::lower_act_decl;
 pub(crate) use act::{
-    lower_act_body, lower_act_copy_body, register_act_operation_sig,
-    transform_copied_frozen_scheme, transform_copied_principal_body,
+    lower_act_body, lower_act_copy_body, register_act_operation_sig, transform_copied_frozen_scheme,
 };
 pub(super) use binding::preregister_binding_as_module_value;
 pub(crate) use binding::{
@@ -87,8 +86,9 @@ pub(crate) use patterns::{bind_pattern_locals, connect_pat_shape_and_locals};
 use patterns::{connect_let_pattern, pattern_binding_name};
 use structs::{
     export_runtime_struct_method_type, export_runtime_struct_receiver_type, invariant_args,
-    lower_struct_decl, lower_struct_field_type, lower_struct_with_binding,
-    lower_struct_with_bindings, synthetic_struct_constructor_body, synthetic_struct_field_body,
+    lower_struct_decl, lower_struct_decl_with_scope, lower_struct_field_type,
+    lower_struct_with_binding, lower_struct_with_bindings, synthetic_struct_constructor_body,
+    synthetic_struct_field_body,
 };
 pub(crate) use support::with_companion_module;
 pub(super) use support::{

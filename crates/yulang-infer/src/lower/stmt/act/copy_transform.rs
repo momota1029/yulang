@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::ast::expr::{
     CatchArmKind, ExprKind, PatKind, RecordPatField, RecordPatSpread, RecordSpread, TypedBlock,
@@ -6,20 +6,38 @@ use crate::ast::expr::{
 };
 use crate::ids::{DefId, NegId, PosId, TypeVar};
 use crate::lower::LowerState;
-use crate::symbols::Path;
+use crate::solve::{RefFieldProjection, TypeFieldInfo};
+use crate::symbols::{Name, Path};
 use crate::types::{EffectAtom, Neg, Pos, RecordField};
 
-pub(crate) fn transform_copied_principal_body(
+pub(crate) struct CopiedPrincipalBody {
+    pub(crate) body: TypedExpr,
+    pub(crate) type_subst: Vec<(TypeVar, TypeVar)>,
+}
+
+pub(crate) fn transform_copied_principal_body_with_subst(
     state: &mut LowerState,
     expr: &TypedExpr,
     def_subst: &HashMap<DefId, DefId>,
     tv_subst: &[(TypeVar, TypeVar)],
     source_path: &Path,
+    source_path_aliases: &[Path],
     dest_path: &Path,
     dest_args: &[(TypeVar, TypeVar)],
-) -> TypedExpr {
-    let mut types = CopiedTypeVars::new(state, tv_subst, source_path, dest_path, dest_args);
-    transform_copied_principal_body_inner(&mut types, expr, def_subst)
+) -> CopiedPrincipalBody {
+    let mut types = CopiedTypeVars::new(
+        state,
+        tv_subst,
+        source_path,
+        source_path_aliases,
+        dest_path,
+        dest_args,
+    );
+    let body = transform_copied_principal_body_inner(&mut types, expr, def_subst);
+    CopiedPrincipalBody {
+        body,
+        type_subst: types.into_subst(),
+    }
 }
 
 fn transform_copied_principal_body_inner(
@@ -27,10 +45,70 @@ fn transform_copied_principal_body_inner(
     expr: &TypedExpr,
     def_subst: &HashMap<DefId, DefId>,
 ) -> TypedExpr {
+    let tv = types.copy_tv(expr.tv);
+    let eff = types.copy_tv(expr.eff);
+    copy_resolved_expr_info(types.state, expr.tv, tv, def_subst);
+    match &expr.kind {
+        ExprKind::Var(def) => types.link_local_var_ref(*def, tv),
+        ExprKind::Ref(ref_id) => {
+            if let Some(def) = types.state.ctx.refs.get(*ref_id) {
+                types.link_local_var_ref(def, tv);
+            }
+        }
+        _ => {}
+    }
     TypedExpr {
-        tv: types.copy_tv(expr.tv),
-        eff: types.copy_tv(expr.eff),
+        tv,
+        eff,
         kind: transform_copied_expr_kind(types, &expr.kind, def_subst),
+    }
+}
+
+fn copy_resolved_expr_info(
+    state: &mut LowerState,
+    source_tv: TypeVar,
+    dest_tv: TypeVar,
+    def_subst: &HashMap<DefId, DefId>,
+) {
+    if let Some(def) = state.infer.resolved_selection_def(source_tv) {
+        state
+            .infer
+            .resolved_selections
+            .borrow_mut()
+            .insert(dest_tv, def_subst.get(&def).copied().unwrap_or(def));
+    }
+    if let Some(projection) = state.infer.resolved_ref_field_projection(source_tv) {
+        state
+            .infer
+            .resolved_ref_field_projections
+            .borrow_mut()
+            .insert(dest_tv, subst_ref_field_projection(projection, def_subst));
+    }
+}
+
+fn subst_ref_field_projection(
+    projection: RefFieldProjection,
+    def_subst: &HashMap<DefId, DefId>,
+) -> RefFieldProjection {
+    RefFieldProjection {
+        type_path: projection.type_path,
+        field: subst_type_field_info(projection.field, def_subst),
+        fields: projection
+            .fields
+            .into_iter()
+            .map(|field| subst_type_field_info(field, def_subst))
+            .collect(),
+        constructor: def_subst
+            .get(&projection.constructor)
+            .copied()
+            .unwrap_or(projection.constructor),
+    }
+}
+
+fn subst_type_field_info(field: TypeFieldInfo, def_subst: &HashMap<DefId, DefId>) -> TypeFieldInfo {
+    TypeFieldInfo {
+        name: field.name,
+        def: def_subst.get(&field.def).copied().unwrap_or(field.def),
     }
 }
 
@@ -42,13 +120,13 @@ fn transform_copied_expr_kind(
     match kind {
         ExprKind::PrimitiveOp(op) => ExprKind::PrimitiveOp(*op),
         ExprKind::Lit(lit) => ExprKind::Lit(lit.clone()),
-        ExprKind::Var(def) => ExprKind::Var(def_subst.get(def).copied().unwrap_or(*def)),
+        ExprKind::Var(def) => ExprKind::Var(types.subst_expr_def(*def, def_subst)),
         ExprKind::Ref(ref_id) => types
             .state
             .ctx
             .refs
             .get(*ref_id)
-            .and_then(|def| def_subst.get(&def).copied())
+            .map(|def| types.subst_expr_def(def, def_subst))
             .map(ExprKind::Var)
             .unwrap_or(ExprKind::Ref(*ref_id)),
         ExprKind::App {
@@ -76,12 +154,68 @@ fn transform_copied_expr_kind(
                 types, value, def_subst,
             )),
         },
-        ExprKind::Lam(def, body) => ExprKind::Lam(
-            *def,
-            Box::new(transform_copied_principal_body_inner(
-                types, body, def_subst,
-            )),
-        ),
+        ExprKind::Lam(def, body) => {
+            let copied_def = types.copy_local_def(*def);
+            let source_local_defs = types
+                .state
+                .lambda_local_defs
+                .get(def)
+                .cloned()
+                .unwrap_or_default();
+            let copied_local_defs = source_local_defs
+                .iter()
+                .map(|local_def| types.copy_local_def(*local_def))
+                .collect::<Vec<_>>();
+            if !copied_local_defs.is_empty() {
+                types
+                    .state
+                    .lambda_local_defs
+                    .insert(copied_def, copied_local_defs);
+            }
+            if let Some(pat) = types.state.lambda_param_pats.get(def).cloned() {
+                let pat = transform_copied_pat(&pat, types, def_subst);
+                types.state.lambda_param_pats.insert(copied_def, pat);
+            }
+            if let Some(annotation) = types
+                .state
+                .lambda_param_effect_annotations
+                .get(def)
+                .cloned()
+            {
+                types
+                    .state
+                    .lambda_param_effect_annotations
+                    .insert(copied_def, annotation);
+            }
+            if let Some(hint) = types
+                .state
+                .lambda_param_function_sig_hints
+                .get(def)
+                .cloned()
+            {
+                types
+                    .state
+                    .lambda_param_function_sig_hints
+                    .insert(copied_def, hint);
+            }
+            if let Some(allowed) = types
+                .state
+                .lambda_param_function_allowed_effects
+                .get(def)
+                .cloned()
+            {
+                types
+                    .state
+                    .lambda_param_function_allowed_effects
+                    .insert(copied_def, allowed);
+            }
+            let mut local_defs = vec![*def];
+            local_defs.extend(source_local_defs);
+            let previous = types.enter_local_defs(local_defs.as_slice());
+            let body = transform_copied_principal_body_inner(types, body, def_subst);
+            types.restore_local_defs(previous);
+            ExprKind::Lam(copied_def, Box::new(body))
+        }
         ExprKind::Tuple(items) => ExprKind::Tuple(
             items
                 .iter()
@@ -155,9 +289,10 @@ fn transform_copied_expr_kind(
                             k,
                             body,
                         } => CatchArmKind::Effect {
-                            op_path: replace_copied_effect_path(
+                            op_path: replace_copied_catch_op_path(
                                 op_path,
                                 types.source_path,
+                                types.source_path_aliases,
                                 types.dest_path,
                             ),
                             pat: transform_copied_pat(pat, types, def_subst),
@@ -268,7 +403,7 @@ mod tests {
     }
 
     fn copy_expr(state: &mut LowerState, expr: &TypedExpr) -> TypedExpr {
-        transform_copied_principal_body(
+        transform_copied_principal_body_with_subst(
             state,
             expr,
             &HashMap::new(),
@@ -276,11 +411,13 @@ mod tests {
             &Path {
                 segments: Vec::new(),
             },
+            &[],
             &Path {
                 segments: Vec::new(),
             },
             &[],
         )
+        .body
     }
 
     fn unit_expr(tv: TypeVar, eff: TypeVar) -> TypedExpr {
@@ -304,15 +441,20 @@ fn transform_copied_block(
             .stmts
             .iter()
             .map(|stmt| match stmt {
-                TypedStmt::Let(pat, value) => TypedStmt::Let(
-                    transform_copied_pat(pat, types, def_subst),
-                    transform_copied_principal_body_inner(types, value, def_subst),
-                ),
+                TypedStmt::Let(pat, value) => {
+                    if let PatKind::UnresolvedName(name) = &pat.kind {
+                        types.enter_named_local(name.clone());
+                    }
+                    TypedStmt::Let(
+                        transform_copied_pat(pat, types, def_subst),
+                        transform_copied_principal_body_inner(types, value, def_subst),
+                    )
+                }
                 TypedStmt::Expr(expr) => TypedStmt::Expr(transform_copied_principal_body_inner(
                     types, expr, def_subst,
                 )),
                 TypedStmt::Module(def, body) => TypedStmt::Module(
-                    def_subst.get(def).copied().unwrap_or(*def),
+                    types.subst_expr_def(*def, def_subst),
                     transform_copied_block(body, types, def_subst),
                 ),
             })
@@ -398,27 +540,57 @@ fn transform_copied_pat(
             ),
             PatKind::As(pattern, def) => PatKind::As(
                 Box::new(transform_copied_pat(pattern, types, def_subst)),
-                *def,
+                types.copy_local_def(*def),
             ),
         },
     }
 }
 
-fn replace_copied_effect_path(path: &Path, source_path: &Path, dest_path: &Path) -> Path {
+fn replace_copied_effect_path(
+    path: &Path,
+    source_path: &Path,
+    source_path_aliases: &[Path],
+    dest_path: &Path,
+) -> Path {
     if path.segments.starts_with(&source_path.segments) {
         let mut segments = dest_path.segments.clone();
         segments.extend_from_slice(&path.segments[source_path.segments.len()..]);
         Path { segments }
     } else {
+        for alias in source_path_aliases {
+            if path.segments.starts_with(&alias.segments) {
+                let mut segments = dest_path.segments.clone();
+                segments.extend_from_slice(&path.segments[alias.segments.len()..]);
+                return Path { segments };
+            }
+        }
         path.clone()
     }
+}
+
+fn replace_copied_catch_op_path(
+    path: &Path,
+    source_path: &Path,
+    source_path_aliases: &[Path],
+    dest_path: &Path,
+) -> Path {
+    if path.segments.len() == 1 {
+        let mut segments = dest_path.segments.clone();
+        segments.extend_from_slice(&path.segments);
+        return Path { segments };
+    }
+    replace_copied_effect_path(path, source_path, source_path_aliases, dest_path)
 }
 
 struct CopiedTypeVars<'a> {
     state: &'a mut LowerState,
     fixed: HashMap<TypeVar, TypeVar>,
     copied: HashMap<TypeVar, TypeVar>,
+    local_def_subst: HashMap<DefId, DefId>,
+    local_name_subst: HashMap<Name, DefId>,
+    local_defs: HashSet<DefId>,
     source_path: &'a Path,
+    source_path_aliases: &'a [Path],
     dest_path: &'a Path,
     dest_args: &'a [(TypeVar, TypeVar)],
 }
@@ -428,6 +600,7 @@ impl<'a> CopiedTypeVars<'a> {
         state: &'a mut LowerState,
         fixed: &[(TypeVar, TypeVar)],
         source_path: &'a Path,
+        source_path_aliases: &'a [Path],
         dest_path: &'a Path,
         dest_args: &'a [(TypeVar, TypeVar)],
     ) -> Self {
@@ -435,9 +608,104 @@ impl<'a> CopiedTypeVars<'a> {
             state,
             fixed: fixed.iter().copied().collect(),
             copied: HashMap::new(),
+            local_def_subst: HashMap::new(),
+            local_name_subst: HashMap::new(),
+            local_defs: HashSet::new(),
             source_path,
+            source_path_aliases,
             dest_path,
             dest_args,
+        }
+    }
+
+    fn enter_local_defs(&mut self, defs: &[DefId]) -> Vec<(DefId, bool)> {
+        defs.iter()
+            .map(|def| (*def, self.local_defs.insert(*def)))
+            .collect()
+    }
+
+    fn restore_local_defs(&mut self, previous: Vec<(DefId, bool)>) {
+        for (def, inserted) in previous.into_iter().rev() {
+            if inserted {
+                self.local_defs.remove(&def);
+            }
+        }
+    }
+
+    fn link_local_var_ref(&mut self, def: DefId, tv: TypeVar) {
+        if !self.local_defs.contains(&def) {
+            return;
+        }
+        let Some(def_tv) = self.state.def_tvs.get(&def).copied() else {
+            return;
+        };
+        let copied_def_tv = self.copy_tv(def_tv);
+        self.state
+            .infer
+            .constrain(Pos::Var(copied_def_tv), Neg::Var(tv));
+        self.state
+            .infer
+            .constrain(Pos::Var(tv), Neg::Var(copied_def_tv));
+    }
+
+    fn enter_named_local(&mut self, name: Name) -> DefId {
+        let copied = self.state.fresh_def();
+        self.state.register_def_name(copied, name.clone());
+        self.local_name_subst.insert(name, copied);
+        copied
+    }
+
+    fn subst_expr_def(&mut self, def: DefId, def_subst: &HashMap<DefId, DefId>) -> DefId {
+        if let Some(copied) = def_subst.get(&def).copied() {
+            return copied;
+        }
+        if let Some(copied) = self.local_def_subst.get(&def).copied() {
+            return copied;
+        }
+        if let Some(name) = self.state.def_name(def).cloned()
+            && let Some(copied) = self.local_name_subst.get(&name).copied()
+        {
+            self.local_def_subst.insert(def, copied);
+            self.copy_local_def_data_into(def, copied);
+            return copied;
+        }
+        def
+    }
+
+    fn copy_local_def(&mut self, def: DefId) -> DefId {
+        if let Some(copied) = self.local_def_subst.get(&def).copied() {
+            return copied;
+        }
+        let copied = self.state.fresh_def();
+        self.local_def_subst.insert(def, copied);
+        self.copy_local_def_data_into(def, copied);
+        copied
+    }
+
+    fn copy_local_def_data_into(&mut self, def: DefId, copied: DefId) {
+        if let Some(tv) = self.state.def_tvs.get(&def).copied() {
+            let copied_tv = self.copy_tv(tv);
+            self.state.def_tvs.entry(copied).or_insert(copied_tv);
+        }
+        if let Some(name) = self.state.def_name(def).cloned() {
+            self.state.register_def_name(copied, name);
+        }
+        if let Some(eff) = self.state.def_eff_tvs.get(&def).copied() {
+            let copied_eff = self.copy_tv(eff);
+            self.state.def_eff_tvs.insert(copied, copied_eff);
+        }
+        if self.state.let_bound_defs.contains(&def) {
+            self.state.let_bound_defs.insert(copied);
+        }
+        if self.state.continuation_defs.contains(&def) {
+            self.state.continuation_defs.insert(copied);
+        }
+        if let Some(owner) = self.state.def_owners.get(&def).copied() {
+            let copied_owner = self.local_def_subst.get(&owner).copied().unwrap_or(owner);
+            self.state.register_def_owner(copied, copied_owner);
+        }
+        if let Some(act) = self.state.var_ref_acts.get(&def).cloned() {
+            self.state.var_ref_acts.insert(copied, act);
         }
     }
 
@@ -475,6 +743,10 @@ impl<'a> CopiedTypeVars<'a> {
         mapped
     }
 
+    fn into_subst(self) -> Vec<(TypeVar, TypeVar)> {
+        self.fixed.into_iter().chain(self.copied).collect()
+    }
+
     fn copy_pos_id(&mut self, id: PosId) -> PosId {
         let pos = self.state.infer.arena.get_pos(id);
         let pos = self.copy_pos(pos);
@@ -497,7 +769,12 @@ impl<'a> CopiedTypeVars<'a> {
                 self.copy_pos_id(body),
             ),
             Pos::Con(path, args) => Pos::Con(
-                replace_copied_effect_path(&path, self.source_path, self.dest_path),
+                replace_copied_effect_path(
+                    &path,
+                    self.source_path,
+                    self.source_path_aliases,
+                    self.dest_path,
+                ),
                 args.into_iter()
                     .map(|(pos, neg)| (self.copy_pos_id(pos), self.copy_neg_id(neg)))
                     .collect(),
@@ -587,7 +864,12 @@ impl<'a> CopiedTypeVars<'a> {
                 self.copy_neg_id(body),
             ),
             Neg::Con(path, args) => Neg::Con(
-                replace_copied_effect_path(&path, self.source_path, self.dest_path),
+                replace_copied_effect_path(
+                    &path,
+                    self.source_path,
+                    self.source_path_aliases,
+                    self.dest_path,
+                ),
                 args.into_iter()
                     .map(|(pos, neg)| (self.copy_pos_id(pos), self.copy_neg_id(neg)))
                     .collect(),
@@ -654,7 +936,12 @@ impl<'a> CopiedTypeVars<'a> {
             };
         }
         EffectAtom {
-            path: replace_copied_effect_path(&atom.path, self.source_path, self.dest_path),
+            path: replace_copied_effect_path(
+                &atom.path,
+                self.source_path,
+                self.source_path_aliases,
+                self.dest_path,
+            ),
             args: atom
                 .args
                 .into_iter()

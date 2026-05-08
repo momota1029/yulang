@@ -564,7 +564,9 @@ pub(super) fn scoped_sig_prim_var(
 }
 
 pub(super) fn canonical_sig_type_path(state: &LowerState, path: &Path) -> Path {
-    state.ctx.canonical_current_type_path(path)
+    state
+        .ctx
+        .canonical_current_type_path(&state.rewrite_synthetic_path(path))
 }
 
 pub(super) fn sig_var(

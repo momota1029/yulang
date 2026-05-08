@@ -124,7 +124,10 @@ fn standard_label_loop_synthetic_act_source() -> super::super::SyntheticActSourc
             .into_iter()
             .map(|segment| Name(segment.to_string()))
             .collect(),
-        selected_template_items: vec![Name("label".to_string()), Name("LoopLabel".to_string())],
+        selected_template_items: ["last", "next", "redo", "label", "LoopLabel"]
+            .into_iter()
+            .map(|segment| Name(segment.to_string()))
+            .collect(),
     }
 }
 

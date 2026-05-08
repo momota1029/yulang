@@ -46,7 +46,7 @@ pub(crate) fn lower_act_body(
     }
 
     for child in &structs {
-        super::super::lower_struct_decl(state, child);
+        super::super::lower_struct_decl_with_scope(state, child, act_scope);
     }
 
     for child in &impls {

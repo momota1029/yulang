@@ -1372,7 +1372,7 @@ impl<'a> ExprExporter<'a> {
             principal_callee,
             substitutions: Vec::new(),
             substitution_candidates: Vec::new(),
-            role_method: false,
+            role_method: self.state.infer.is_role_method_def(def),
             principal_elaboration: None,
         };
         if let Some(slot) = concrete_slot {

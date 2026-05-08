@@ -445,9 +445,9 @@ fn sub_label_return_member_name() -> Name {
 
 fn standard_sub_synthetic_act_source() -> stmt::SyntheticActSource {
     stmt::SyntheticActSource {
-        source_module_path: crate::std_flow_paths::standard_sub_path(),
+        source_module_path: crate::std_flow_paths::standard_label_sub_path(),
         source_copy_path: Path {
-            segments: vec![Name("sub".to_string())],
+            segments: vec![Name("label_sub".to_string())],
         },
         selected_values: selected_sub_label_helper_names(),
         selected_template_items: vec![Name("label".to_string())],

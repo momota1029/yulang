@@ -122,6 +122,7 @@ pub struct LowerState {
     force_local_bindings_depth: u32,
     suppress_top_level_expr_owners_depth: u32,
     synthetic_with_module_counter: u32,
+    synthetic_path_rewrites: Vec<(Path, Path)>,
 }
 
 impl LowerState {
@@ -181,11 +182,35 @@ impl LowerState {
             force_local_bindings_depth: 0,
             suppress_top_level_expr_owners_depth: 0,
             synthetic_with_module_counter: 0,
+            synthetic_path_rewrites: Vec::new(),
         }
     }
 
     pub(crate) fn builtin_source_type_path(&self, name: &str) -> Path {
         self.primitive_paths.source_type_path_by_name(name)
+    }
+
+    pub(crate) fn with_synthetic_path_rewrite<T>(
+        &mut self,
+        source: Path,
+        dest: Path,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        self.synthetic_path_rewrites.push((source, dest));
+        let out = f(self);
+        self.synthetic_path_rewrites.pop();
+        out
+    }
+
+    pub(crate) fn rewrite_synthetic_path(&self, path: &Path) -> Path {
+        for (source, dest) in self.synthetic_path_rewrites.iter().rev() {
+            if path.segments.starts_with(&source.segments) {
+                let mut segments = dest.segments.clone();
+                segments.extend_from_slice(&path.segments[source.segments.len()..]);
+                return Path { segments };
+            }
+        }
+        path.clone()
     }
 
     pub(crate) fn primitive_runtime_value_path(

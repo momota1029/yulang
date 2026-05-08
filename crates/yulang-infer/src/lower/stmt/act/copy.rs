@@ -8,9 +8,11 @@ use crate::symbols::{Name, Path};
 #[derive(Debug, Clone)]
 pub(crate) struct ActCopy {
     pub(crate) source_path: Path,
+    pub(crate) source_path_aliases: Vec<Path>,
     pub(crate) source_args: Vec<(crate::ids::TypeVar, crate::ids::TypeVar)>,
     pub(crate) source_module: crate::symbols::ModuleId,
     pub(crate) selected_names: Option<Vec<Name>>,
+    pub(crate) template_item_names: Vec<Name>,
 }
 
 pub(crate) fn prepare_act_copy(
@@ -44,9 +46,11 @@ pub(crate) fn prepare_act_copy(
 
     Some(ActCopy {
         source_path: canonical_source_path,
+        source_path_aliases: vec![source_path],
         source_args,
         source_module,
         selected_names: None,
+        template_item_names: Vec::new(),
     })
 }
 

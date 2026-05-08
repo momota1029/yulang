@@ -59,7 +59,11 @@ pub(crate) fn materialize_synthetic_act(
     source: &SyntheticActSource,
 ) {
     super::with_companion_module(state, spec.name.clone(), |state| {
-        materialize_template_items(state, spec, source);
+        state.with_synthetic_path_rewrite(
+            source.source_copy_path.clone(),
+            spec.effect_path.clone(),
+            |state| materialize_template_items(state, spec, source),
+        );
         materialize_value_helpers(state, spec, source);
     });
 }
@@ -118,9 +122,14 @@ fn materialize_value_helpers(
         source_path: state
             .ctx
             .canonical_current_type_path(&source.source_module_path),
+        source_path_aliases: vec![
+            source.source_copy_path.clone(),
+            source.source_module_path.clone(),
+        ],
         source_args: spec.args.clone(),
         source_module,
         selected_names: Some(source.selected_values.clone()),
+        template_item_names: source.selected_template_items.clone(),
     };
     super::lower_act_copy_body(state, copy, &spec.effect_path, &spec.args);
 }

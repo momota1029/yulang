@@ -92,7 +92,7 @@ fn collect_impl_assoc_type_equations_inner(node: &SyntaxNode, out: &mut HashMap<
         }
     }
 }
-fn compact_role_constraints(
+pub(crate) fn compact_role_constraints(
     infer: &crate::solve::Infer,
     def: crate::ids::DefId,
 ) -> Vec<CompactRoleConstraint> {

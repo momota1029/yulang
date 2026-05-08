@@ -16,6 +16,12 @@ pub(crate) fn standard_label_loop_path() -> Path {
     }
 }
 
+pub(crate) fn standard_label_sub_path() -> Path {
+    Path {
+        segments: path_segments(["std", "flow", "label_sub"]),
+    }
+}
+
 pub(crate) fn standard_sub_path() -> Path {
     Path {
         segments: path_segments(["std", "flow", "sub"]),

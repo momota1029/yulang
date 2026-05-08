@@ -967,6 +967,27 @@ f()
     }
 
     #[test]
+    fn vm_runs_source_labeled_sub_return_examples() {
+        let results = eval_source_with_std(
+            r#"sub 'outer:
+    return 7
+
+sub 'outer:
+    'outer.return 42
+    0
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![
+                TestValue::Int("7".to_string()),
+                TestValue::Int("42".to_string())
+            ]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_helper_sub_return_from_suffix_range_loop() {
         let results = eval_source_with_std(
             r#"my f x = return x
@@ -1027,6 +1048,39 @@ std::flow::sub::sub:
         let results = eval_source_with_std(FOR_LOOP_LAST_MIXED_SOURCE);
 
         assert_eq!(results, vec![TestValue::Unit, TestValue::Unit]);
+    }
+
+    #[test]
+    fn vm_runs_source_labeled_for_loop_control_examples() {
+        let results = eval_source_with_std(
+            r#"sub:
+    for 'outer x in [1, 2, 3]:
+        if x == 2:
+            last 'outer
+        else:
+            ()
+    return 7
+    0
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("7".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_source_labeled_for_next_inside_sub_callback() {
+        let results = eval_source_with_std(
+            r#"sub:
+    for 'outer x in [1, 2, 3]:
+        if x == 1:
+            next 'outer
+        else:
+            return x
+    0
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("2".to_string())]);
     }
 
     #[test]

@@ -61,11 +61,6 @@ pub(crate) fn transform_copied_frozen_scheme(
         .iter()
         .copied()
         .filter(|tv| !fixed_frozen_tvs.contains(tv))
-        .filter(|tv| {
-            quantified_sources
-                .iter()
-                .any(|(_, frozen_tv)| *frozen_tv == *tv)
-        })
         .collect::<Vec<_>>();
     let through = source
         .through

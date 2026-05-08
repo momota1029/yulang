@@ -10,6 +10,15 @@ use crate::types::{Neg, Pos};
 /// - コンストラクタ（`point { x, y }`）を値名前空間に登録
 /// - フィールドアクセサ（`point::x`, `point::y`）を companion module に登録
 pub(crate) fn lower_struct_decl(state: &mut LowerState, node: &SyntaxNode) {
+    let type_scope = super::super::collect_act_type_scope(state, node);
+    lower_struct_decl_with_scope(state, node, &type_scope);
+}
+
+pub(crate) fn lower_struct_decl_with_scope(
+    state: &mut LowerState,
+    node: &SyntaxNode,
+    outer_type_scope: &std::collections::HashMap<String, crate::ids::TypeVar>,
+) {
     let Some(name) = super::super::ident_name(node) else {
         return;
     };
@@ -18,8 +27,11 @@ pub(crate) fn lower_struct_decl(state: &mut LowerState, node: &SyntaxNode) {
     let struct_path = Path {
         segments: struct_segments,
     };
-    let type_scope = super::super::collect_act_type_scope(state, node);
     let type_param_names = crate::lower::signature::act_type_param_names(node);
+    let mut type_scope = outer_type_scope.clone();
+    for (name, tv) in super::super::collect_act_type_scope(state, node) {
+        type_scope.insert(name, tv);
+    }
     let type_arg_tvs = crate::lower::signature::ordered_type_vars(&type_param_names, &type_scope);
 
     let type_def = state.fresh_def();

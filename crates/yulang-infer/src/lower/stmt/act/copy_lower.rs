@@ -1,5 +1,5 @@
 use crate::profile::ProfileClock as Instant;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use yulang_parser::lex::SyntaxKind;
 
@@ -7,7 +7,8 @@ use super::ActCopy;
 use crate::ids::DefId;
 use crate::lower::LowerState;
 use crate::scheme::{
-    freeze_type_var_with_non_generic, instantiate_frozen_scheme, subst_neg_id, subst_pos_id,
+    SmallSubst, freeze_type_var_with_non_generic, instantiate_frozen_body_with_subst,
+    instantiate_frozen_scheme_with_subst, subst_neg_id, subst_pos_id,
 };
 use crate::symbols::{Name, Path};
 use crate::types::{Neg, Pos};
@@ -19,13 +20,15 @@ pub(crate) fn lower_act_copy_body(
     dest_args: &[(crate::ids::TypeVar, crate::ids::TypeVar)],
 ) {
     let start = Instant::now();
-    let lowered = try_copy_lowered_act_body(state, &copy, dest_path, dest_args);
-    if !lowered {
-        let from_template = try_lower_act_copy_from_template(state, &copy, dest_path, dest_args);
-        if !from_template {
-            copy_effect_ops_from_source_module(state, &copy, dest_path, dest_args);
-        }
+    if try_copy_lowered_act_body(state, &copy, dest_path, dest_args) {
+        state.lower_detail.lower_act_copy_body += start.elapsed();
+        return;
     }
+    if try_lower_act_copy_from_template(state, &copy, dest_path, dest_args) {
+        state.lower_detail.lower_act_copy_body += start.elapsed();
+        return;
+    }
+    copy_effect_ops_from_source_module(state, &copy, dest_path, dest_args);
     state.lower_detail.lower_act_copy_body += start.elapsed();
 }
 
@@ -148,30 +151,66 @@ fn try_copy_lowered_act_body(
         let tv = state.fresh_tv();
         state.register_def_tv(def, tv);
         state.register_def_name(def, name.clone());
-        state.insert_value(state.ctx.current_module, name, def);
-        instantiate_frozen_scheme(&state.infer, &frozen, tv);
-        state.infer.store_frozen_scheme(def, frozen);
-        copied_defs.push((source_def, def, tv));
+        state.insert_value(state.ctx.current_module, name.clone(), def);
+        let has_source_body = state.principal_bodies.contains_key(&source_def);
+        let copied_scheme_subst = if has_source_body {
+            instantiate_frozen_body_with_subst(&state.infer, &frozen, state.infer.level_of(tv), &[])
+                .1
+        } else {
+            instantiate_frozen_scheme_with_subst(&state.infer, &frozen, tv, &[])
+        };
+        let copied_body_subst =
+            translate_frozen_subst_to_original(frozen.as_ref(), copied_scheme_subst.as_slice());
+        if !has_source_body {
+            state.infer.store_frozen_scheme(def, frozen);
+        }
+        copied_defs.push((name, source_def, def, tv, copied_body_subst));
     }
 
     let copied_def_subst = copied_defs
         .iter()
-        .map(|(source_def, def, _)| (*source_def, *def))
+        .map(|(_, source_def, def, _, _)| (*source_def, *def))
+        .chain(collect_act_copy_template_def_subst(state, copy))
         .collect::<HashMap<_, _>>();
 
-    for (source_def, def, tv) in copied_defs {
+    let mut finalized_defs = HashSet::new();
+    for (_name, source_def, def, tv, copied_body_subst) in copied_defs {
         if let Some(source_body) = state.principal_bodies.get(&source_def).cloned() {
-            let body = super::super::transform_copied_principal_body(
+            let body_tv_subst = merge_type_substs(subst.as_slice(), copied_body_subst.as_slice());
+            let copied = super::transform_copied_principal_body_with_subst(
                 state,
                 &source_body,
                 &copied_def_subst,
-                subst.as_slice(),
+                body_tv_subst.as_slice(),
                 &copy.source_path,
+                &copy.source_path_aliases,
                 dest_path,
                 dest_args,
             );
-            state.principal_bodies.insert(def, body);
+            state
+                .infer
+                .constrain(Pos::Var(tv), Neg::Var(copied.body.tv));
+            state
+                .infer
+                .constrain(Pos::Var(copied.body.tv), Neg::Var(tv));
+            let role_tv_subst =
+                merge_type_substs(body_tv_subst.as_slice(), copied.type_subst.as_slice());
+            state
+                .infer
+                .instantiate_role_constraints_for_owner_with_scheme(
+                    source_def,
+                    def,
+                    role_tv_subst.as_slice(),
+                    None,
+                );
+            let compact_constraints =
+                crate::lower::role::compact_role_constraints(&state.infer, def);
+            state
+                .infer
+                .store_compact_role_constraints(def, compact_constraints);
+            state.principal_bodies.insert(def, copied.body);
         }
+        finalized_defs.insert(def);
 
         if let (Some(source_pos_sig), Some(source_neg_sig)) = (
             state.effect_op_pos_sigs.get(&source_def),
@@ -203,8 +242,44 @@ fn try_copy_lowered_act_body(
             state.infer.constrain(Pos::Var(tv), neg_sig);
         }
     }
+    state.finalize_compact_results_for_defs(&finalized_defs);
     state.lower_detail.try_copy_lowered_act_body += start.elapsed();
     true
+}
+
+fn translate_frozen_subst_to_original(
+    scheme: &crate::scheme::Scheme,
+    subst: &[(crate::ids::TypeVar, crate::ids::TypeVar)],
+) -> SmallSubst {
+    let mut translated = SmallSubst::with_capacity(subst.len());
+    for (from, to) in subst {
+        let original = scheme
+            .quantified_sources
+            .iter()
+            .find_map(|(source, frozen)| (*frozen == *from).then_some(*source))
+            .unwrap_or(*from);
+        push_type_subst(&mut translated, original, *to);
+    }
+    translated
+}
+
+fn merge_type_substs(
+    base: &[(crate::ids::TypeVar, crate::ids::TypeVar)],
+    extra: &[(crate::ids::TypeVar, crate::ids::TypeVar)],
+) -> SmallSubst {
+    let mut merged = SmallSubst::with_capacity(base.len() + extra.len());
+    for (from, to) in base.iter().chain(extra.iter()) {
+        push_type_subst(&mut merged, *from, *to);
+    }
+    merged
+}
+
+fn push_type_subst(subst: &mut SmallSubst, from: crate::ids::TypeVar, to: crate::ids::TypeVar) {
+    if let Some(slot) = subst.iter_mut().find(|(existing, _)| *existing == from) {
+        slot.1 = to;
+    } else {
+        subst.push((from, to));
+    }
 }
 
 fn copy_effect_ops_from_source_module(
@@ -316,4 +391,51 @@ fn collect_act_copy_source_values(state: &LowerState, copy: &ActCopy) -> Vec<(Na
     };
     source_values.sort_by(|lhs, rhs| lhs.0.0.cmp(&rhs.0.0));
     source_values
+}
+
+fn collect_act_copy_template_def_subst(state: &LowerState, copy: &ActCopy) -> Vec<(DefId, DefId)> {
+    let dest_module = state.ctx.current_module;
+    let mut out = Vec::new();
+    for name in &copy.template_item_names {
+        collect_named_value_subst(state, copy.source_module, dest_module, name, &mut out);
+        collect_child_value_subst(state, copy.source_module, dest_module, name, &mut out);
+    }
+    out
+}
+
+fn collect_named_value_subst(
+    state: &LowerState,
+    source_module: crate::symbols::ModuleId,
+    dest_module: crate::symbols::ModuleId,
+    name: &Name,
+    out: &mut Vec<(DefId, DefId)>,
+) {
+    let Some(source_def) = state.ctx.modules.node(source_module).values.get(name) else {
+        return;
+    };
+    let Some(dest_def) = state.ctx.modules.node(dest_module).values.get(name) else {
+        return;
+    };
+    out.push((*source_def, *dest_def));
+}
+
+fn collect_child_value_subst(
+    state: &LowerState,
+    source_module: crate::symbols::ModuleId,
+    dest_module: crate::symbols::ModuleId,
+    name: &Name,
+    out: &mut Vec<(DefId, DefId)>,
+) {
+    let Some(source_child) = state.ctx.modules.node(source_module).modules.get(name) else {
+        return;
+    };
+    let Some(dest_child) = state.ctx.modules.node(dest_module).modules.get(name) else {
+        return;
+    };
+    for (child_name, source_def) in &state.ctx.modules.node(*source_child).values {
+        let Some(dest_def) = state.ctx.modules.node(*dest_child).values.get(child_name) else {
+            continue;
+        };
+        out.push((*source_def, *dest_def));
+    }
 }
