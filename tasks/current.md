@@ -51,8 +51,11 @@ runtime/core IR
   - `std::undet` 系の finite nondet は early target として扱い、後付けの難物にしない。
   - CPS IR skeleton / validator / evaluator は追加済み。pure subset は `VM == native-control eval == CPS eval` で比較している。
   - effect operation / handler / resumption value の最小 IR と evaluator は追加済み。手書き CPS IR で同じ `MultiShot` resumption を二回呼ぶ finite nondet 核を確認している。
-  - runtime `Handle` / `EffectOp` / resumption call から CPS IR への最小 lowering を追加済み。現時点では single arm / no guard / body が direct effect operation application の形だけを扱う。
-  - 次は body の途中で effect operation が出る場合の rest-of-computation continuation 化と、runtime lower が作る thunked handler body との接続を見る。
+  - runtime `Handle` / `EffectOp` / resumption call から CPS IR への最小 lowering を追加済み。現時点では single arm / no guard を扱う。
+  - body が direct effect operation application の形と、primitive / direct call の引数位置に effect operation が出る形は、rest-of-computation を resume continuation に落とす。
+  - block の let-binding / expr statement に effect operation が出る形も、残りの stmt/tail を resume continuation に落とす。
+  - effectful handle body の `BindHere* -> Thunk -> body` は handle body 実行 wrapper の 1 塊として扱う。`BindHere` 単体を個別に剥がさない。
+  - 次は if など複数 perform site を持つ body のために、perform site ごとに resume continuation を作る形へ広げる。あわせて continuation capture / environment layout を明示する。
 
 重要な制約:
 

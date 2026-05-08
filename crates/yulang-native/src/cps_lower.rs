@@ -426,18 +426,6 @@ impl<'a> FunctionLowerer<'a> {
                 kind: "handler without resume",
             });
         };
-        let Some((effect, payload)) = effect_apply(body) else {
-            return Err(CpsLowerError::UnsupportedExpr {
-                kind: "handler body continuation",
-            });
-        };
-        if effect != arm.effect {
-            return Err(CpsLowerError::UnsupportedExpr {
-                kind: "handler effect mismatch",
-            });
-        }
-
-        let payload = self.lower_expr(payload)?;
         let saved_locals = self.locals.clone();
         let saved_resumptions = self.resumptions.clone();
 
@@ -447,25 +435,12 @@ impl<'a> FunctionLowerer<'a> {
         let handler = self.fresh_handler();
         let result = self.fresh_value();
 
+        let effect = self.lower_handled_body(body, &arm.effect, resume_cont, handler)?;
         self.handlers.push(CpsHandler {
             id: handler,
             effect: effect.clone(),
             entry: handler_cont,
         });
-        self.terminate(CpsTerminator::Perform {
-            effect,
-            payload,
-            resume: resume_cont,
-            handler,
-        });
-        self.finish_current();
-
-        let resumed_value = self.fresh_value();
-        self.current = ContinuationBuilder::new(resume_cont, vec![resumed_value]);
-        self.locals = saved_locals.clone();
-        self.resumptions = saved_resumptions.clone();
-        self.terminate(CpsTerminator::Return(resumed_value));
-        self.finish_current();
 
         let handler_payload = self.fresh_value();
         let handler_resume = self.fresh_value();
@@ -488,6 +463,214 @@ impl<'a> FunctionLowerer<'a> {
         self.locals = saved_locals;
         self.resumptions = saved_resumptions;
         Ok(result)
+    }
+
+    fn lower_handled_body(
+        &mut self,
+        body: &runtime::Expr,
+        expected_effect: &core_ir::Path,
+        resume_cont: CpsContinuationId,
+        handler: CpsHandlerId,
+    ) -> CpsLowerResult<core_ir::Path> {
+        if let Some(expr) = handle_body_execution_inner(body) {
+            return self.lower_handled_body(expr, expected_effect, resume_cont, handler);
+        }
+
+        if let Some((effect, payload)) = effect_apply(body) {
+            let (effect, resumed_value) = self.begin_resume_after_perform(
+                effect,
+                payload,
+                expected_effect,
+                resume_cont,
+                handler,
+            )?;
+            self.terminate(CpsTerminator::Return(resumed_value));
+            self.finish_current();
+            return Ok(effect);
+        }
+
+        if let Some((op, args)) = primitive_apply(body) {
+            let expected = primitive_arity(op);
+            if args.len() != expected {
+                return Err(CpsLowerError::PrimitiveArityMismatch {
+                    op,
+                    expected,
+                    actual: args.len(),
+                });
+            }
+            let effect_arg = args
+                .iter()
+                .enumerate()
+                .find_map(|(index, arg)| effect_apply(arg).map(|effect| (index, effect)));
+            let Some((effect_index, (effect, payload))) = effect_arg else {
+                return Err(CpsLowerError::UnsupportedExpr {
+                    kind: "handler body continuation",
+                });
+            };
+            let (effect, resumed_value) = self.begin_resume_after_perform(
+                effect,
+                payload,
+                expected_effect,
+                resume_cont,
+                handler,
+            )?;
+            let mut lowered_args = Vec::with_capacity(args.len());
+            for (index, arg) in args.into_iter().enumerate() {
+                if index == effect_index {
+                    lowered_args.push(resumed_value);
+                } else {
+                    lowered_args.push(self.lower_expr(arg)?);
+                }
+            }
+            let dest = self.fresh_value();
+            self.current.stmts.push(CpsStmt::Primitive {
+                dest,
+                op,
+                args: lowered_args,
+            });
+            self.terminate(CpsTerminator::Return(dest));
+            self.finish_current();
+            return Ok(effect);
+        }
+
+        if let Some((target, args)) = direct_apply(body, self.functions)? {
+            let effect_arg = args
+                .iter()
+                .enumerate()
+                .find_map(|(index, arg)| effect_apply(arg).map(|effect| (index, effect)));
+            let Some((effect_index, (effect, payload))) = effect_arg else {
+                return Err(CpsLowerError::UnsupportedExpr {
+                    kind: "handler body continuation",
+                });
+            };
+            let (effect, resumed_value) = self.begin_resume_after_perform(
+                effect,
+                payload,
+                expected_effect,
+                resume_cont,
+                handler,
+            )?;
+            let mut lowered_args = Vec::with_capacity(args.len());
+            for (index, arg) in args.into_iter().enumerate() {
+                if index == effect_index {
+                    lowered_args.push(resumed_value);
+                } else {
+                    lowered_args.push(self.lower_expr(arg)?);
+                }
+            }
+            let dest = self.fresh_value();
+            self.current.stmts.push(CpsStmt::DirectCall {
+                dest,
+                target,
+                args: lowered_args,
+            });
+            self.terminate(CpsTerminator::Return(dest));
+            self.finish_current();
+            return Ok(effect);
+        }
+
+        if let runtime::ExprKind::Block { stmts, tail } = &body.kind {
+            return self.lower_handled_block(
+                stmts,
+                tail.as_deref(),
+                expected_effect,
+                resume_cont,
+                handler,
+            );
+        }
+
+        Err(CpsLowerError::UnsupportedExpr {
+            kind: "handler body continuation",
+        })
+    }
+
+    fn lower_handled_block(
+        &mut self,
+        stmts: &[runtime::Stmt],
+        tail: Option<&runtime::Expr>,
+        expected_effect: &core_ir::Path,
+        resume_cont: CpsContinuationId,
+        handler: CpsHandlerId,
+    ) -> CpsLowerResult<core_ir::Path> {
+        for (index, stmt) in stmts.iter().enumerate() {
+            match stmt {
+                runtime::Stmt::Let { pattern, value } => {
+                    if let Some((effect, payload)) = effect_apply(value) {
+                        let (effect, resumed_value) = self.begin_resume_after_perform(
+                            effect,
+                            payload,
+                            expected_effect,
+                            resume_cont,
+                            handler,
+                        )?;
+                        self.bind_pattern(pattern, resumed_value)?;
+                        let value = self.lower_block(&stmts[index + 1..], tail)?;
+                        self.terminate(CpsTerminator::Return(value));
+                        self.finish_current();
+                        return Ok(effect);
+                    }
+
+                    let value = self.lower_expr(value)?;
+                    self.bind_pattern(pattern, value)?;
+                }
+                runtime::Stmt::Expr(expr) => {
+                    if let Some((effect, payload)) = effect_apply(expr) {
+                        let (effect, _) = self.begin_resume_after_perform(
+                            effect,
+                            payload,
+                            expected_effect,
+                            resume_cont,
+                            handler,
+                        )?;
+                        let value = self.lower_block(&stmts[index + 1..], tail)?;
+                        self.terminate(CpsTerminator::Return(value));
+                        self.finish_current();
+                        return Ok(effect);
+                    }
+
+                    self.lower_expr(expr)?;
+                }
+                runtime::Stmt::Module { .. } => {
+                    return Err(CpsLowerError::UnsupportedExpr {
+                        kind: "module statement",
+                    });
+                }
+            }
+        }
+
+        match tail {
+            Some(tail) => self.lower_handled_body(tail, expected_effect, resume_cont, handler),
+            None => Err(CpsLowerError::UnsupportedExpr {
+                kind: "handler body continuation",
+            }),
+        }
+    }
+
+    fn begin_resume_after_perform(
+        &mut self,
+        effect: core_ir::Path,
+        payload: &runtime::Expr,
+        expected_effect: &core_ir::Path,
+        resume_cont: CpsContinuationId,
+        handler: CpsHandlerId,
+    ) -> CpsLowerResult<(core_ir::Path, CpsValueId)> {
+        if &effect != expected_effect {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "handler effect mismatch",
+            });
+        }
+        let payload = self.lower_expr(payload)?;
+        self.terminate(CpsTerminator::Perform {
+            effect: effect.clone(),
+            payload,
+            resume: resume_cont,
+            handler,
+        });
+        self.finish_current();
+
+        let resumed_value = self.fresh_value();
+        self.current = ContinuationBuilder::new(resume_cont, vec![resumed_value]);
+        Ok((effect, resumed_value))
     }
 
     fn bind_pattern(
@@ -637,6 +820,19 @@ fn effect_apply(expr: &runtime::Expr) -> Option<(core_ir::Path, &runtime::Expr)>
         return None;
     };
     Some((effect.clone(), arg.as_ref()))
+}
+
+fn handle_body_execution_inner(expr: &runtime::Expr) -> Option<&runtime::Expr> {
+    // VM handle evaluation runs a thunk-valued body inside the handler boundary.
+    // Treat only the whole BindHere* -> Thunk wrapper as that execution marker.
+    let mut current = expr;
+    while let runtime::ExprKind::BindHere { expr } = &current.kind {
+        current = expr;
+    }
+    let runtime::ExprKind::Thunk { expr, .. } = &current.kind else {
+        return None;
+    };
+    Some(expr)
 }
 
 fn direct_apply<'expr>(
@@ -814,6 +1010,36 @@ mod tests {
                     residual_before: None,
                     residual_after: None,
                 },
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn block(stmts: Vec<runtime::Stmt>, tail: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Block {
+                stmts,
+                tail: Some(Box::new(tail)),
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn thunk(expr: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Thunk {
+                effect: core_ir::Type::Unknown,
+                value: runtime::Type::unknown(),
+                expr: Box::new(expr),
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn bind_here(expr: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::BindHere {
+                expr: Box::new(expr),
             },
             runtime::Type::unknown(),
         )
@@ -1004,6 +1230,180 @@ mod tests {
         assert_eq!(
             eval_cps_module(&lowered).expect("evaluated"),
             vec![runtime::VmValue::Int("3".to_string())]
+        );
+    }
+
+    #[test]
+    fn lowers_effect_handler_body_rest_into_resumption_continuation() {
+        let choose_one = apply(
+            effect_op("choose"),
+            unknown_lit(core_ir::Lit::Int("1".to_string())),
+        );
+        let body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), choose_one),
+            unknown_lit(core_ir::Lit::Int("10".to_string())),
+        );
+        let resume_x = apply(var("k"), var("x"));
+        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let arm_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            resume_two,
+        );
+        let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("23".to_string())]
+        );
+    }
+
+    #[test]
+    fn lowers_direct_call_rest_into_resumption_continuation() {
+        let inc = binding(
+            "inc",
+            lambda(
+                "x",
+                apply(
+                    apply(primitive(core_ir::PrimitiveOp::IntAdd), var("x")),
+                    unknown_lit(core_ir::Lit::Int("10".to_string())),
+                ),
+            ),
+        );
+        let body = apply(
+            var("inc"),
+            apply(
+                effect_op("choose"),
+                unknown_lit(core_ir::Lit::Int("1".to_string())),
+            ),
+        );
+        let resume_x = apply(var("k"), var("x"));
+        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let arm_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            resume_two,
+        );
+        let module = module_with_bindings_and_root(
+            vec![inc],
+            handle_once("choose", "x", "k", body, arm_body),
+        );
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("23".to_string())]
+        );
+    }
+
+    #[test]
+    fn lowers_block_rest_into_resumption_continuation() {
+        let body = block(
+            vec![runtime::Stmt::Let {
+                pattern: bind_pattern("y"),
+                value: apply(
+                    effect_op("choose"),
+                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                ),
+            }],
+            apply(
+                apply(primitive(core_ir::PrimitiveOp::IntAdd), var("y")),
+                unknown_lit(core_ir::Lit::Int("10".to_string())),
+            ),
+        );
+        let resume_x = apply(var("k"), var("x"));
+        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let arm_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            resume_two,
+        );
+        let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("23".to_string())]
+        );
+    }
+
+    #[test]
+    fn lowers_block_expr_statement_rest_into_resumption_continuation() {
+        let body = block(
+            vec![runtime::Stmt::Expr(apply(
+                effect_op("choose"),
+                unknown_lit(core_ir::Lit::Int("1".to_string())),
+            ))],
+            apply(
+                apply(
+                    primitive(core_ir::PrimitiveOp::IntAdd),
+                    unknown_lit(core_ir::Lit::Int("10".to_string())),
+                ),
+                unknown_lit(core_ir::Lit::Int("20".to_string())),
+            ),
+        );
+        let resume_x = apply(var("k"), var("x"));
+        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let arm_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            resume_two,
+        );
+        let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("60".to_string())]
+        );
+    }
+
+    #[test]
+    fn unwraps_thunked_handle_body_before_cps_effect_lowering() {
+        let body = bind_here(thunk(block(
+            vec![runtime::Stmt::Let {
+                pattern: bind_pattern("y"),
+                value: apply(
+                    effect_op("choose"),
+                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                ),
+            }],
+            apply(
+                apply(primitive(core_ir::PrimitiveOp::IntAdd), var("y")),
+                unknown_lit(core_ir::Lit::Int("10".to_string())),
+            ),
+        )));
+        let resume_x = apply(var("k"), var("x"));
+        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let arm_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            resume_two,
+        );
+        let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("23".to_string())]
+        );
+    }
+
+    #[test]
+    fn does_not_unwrap_bind_here_without_thunked_handle_body() {
+        let body = bind_here(apply(
+            effect_op("choose"),
+            unknown_lit(core_ir::Lit::Int("1".to_string())),
+        ));
+        let arm_body = apply(var("k"), var("x"));
+        let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
+
+        assert_eq!(
+            lower_cps_module(&module).expect_err("bind-here alone is not a handle body wrapper"),
+            CpsLowerError::UnsupportedExpr {
+                kind: "handler body continuation",
+            }
         );
     }
 
