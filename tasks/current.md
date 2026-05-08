@@ -59,7 +59,12 @@ runtime/core IR
   - if body は、条件が pure で両分岐が同じ handled effect を投げる限定形を CPS lowering できる。
   - CPS continuation に `captures` field を追加した。lowering 後に `infer_cps_captures` を走らせ、validator は continuation params と captures だけを visible value として扱う。
   - `layout_cps_environments` は continuation captures を stable slot layout に落とす。これは closure conversion / backend が読む environment layout の最初の形。
-  - 次は environment layout を使う closure conversion skeleton を作り、複数 effect operation が入れ子になる body の扱いを決める。
+  - `closure_convert_cps_module` は CPS continuation を code id / params / environment slots の組へ変換する。
+  - ordinary native-control closure conversion skeleton として `closure_convert_module` を追加した。
+  - runtime `Lambda` は native-control の generated function + `MakeClosure` に lowering する。non-direct `Apply` は `ClosureCall` に lowering する。
+  - immediate lambda call と captured local を持つ lambda call は VM compare まで追加済み。
+  - `NativeFunction.captures` で closure-generated function の capture params を明示する。`closure_convert_module` は captures を environment slots に分離し、通常 params と分ける。
+  - 次は closure-converted body 側で environment slot load を明示し、closure value を backend 表現に落とす。
 
 重要な制約:
 

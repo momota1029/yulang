@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use yulang_core_ir as core_ir;
@@ -100,11 +100,12 @@ pub fn lower_module(module: &runtime::Module) -> NativeLowerResult<NativeModule>
             )
         })
         .collect::<HashMap<_, _>>();
-    let functions = module
-        .bindings
-        .iter()
-        .map(|binding| lower_binding(binding, &function_table))
-        .collect::<NativeLowerResult<Vec<_>>>()?;
+    let mut functions = Vec::new();
+    for binding in &module.bindings {
+        let lowered = lower_binding(binding, &function_table)?;
+        functions.push(lowered.function);
+        functions.extend(lowered.generated);
+    }
 
     let mut roots = Vec::new();
     for root in &module.roots {
@@ -114,10 +115,11 @@ pub fn lower_module(module: &runtime::Module) -> NativeLowerResult<NativeModule>
                     .root_exprs
                     .get(*index)
                     .ok_or(NativeLowerError::MissingRootExpr { index: *index })?;
-                roots.push(
+                let lowered =
                     FunctionLowerer::new(format!("root_{index}"), &function_table, Vec::new())
-                        .lower_root(expr)?,
-                );
+                        .lower_root(expr)?;
+                roots.push(lowered.function);
+                functions.extend(lowered.generated);
             }
             runtime::Root::Binding(_) => {
                 return Err(NativeLowerError::UnsupportedRoot { root: root.clone() });
@@ -130,7 +132,7 @@ pub fn lower_module(module: &runtime::Module) -> NativeLowerResult<NativeModule>
 fn lower_binding(
     binding: &runtime::Binding,
     functions: &HashMap<core_ir::Path, FunctionInfo>,
-) -> NativeLowerResult<NativeFunction> {
+) -> NativeLowerResult<LoweredFunction> {
     if !binding.type_params.is_empty() {
         return Err(NativeLowerError::UnsupportedBinding {
             path: binding.name.clone(),
@@ -145,6 +147,11 @@ fn lower_binding(
         });
     }
     FunctionLowerer::new(path_name(&binding.name), functions, params).lower_root(body)
+}
+
+struct LoweredFunction {
+    function: NativeFunction,
+    generated: Vec<NativeFunction>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,6 +169,9 @@ struct FunctionLowerer<'a> {
     current: BlockBuilder,
     locals: HashMap<core_ir::Path, ValueId>,
     params: Vec<ValueId>,
+    captures: Vec<ValueId>,
+    generated: Vec<NativeFunction>,
+    next_lambda: usize,
 }
 
 impl<'a> FunctionLowerer<'a> {
@@ -188,17 +198,59 @@ impl<'a> FunctionLowerer<'a> {
             current: BlockBuilder::new(BlockId(0), param_values.clone()),
             locals,
             params: param_values,
+            captures: Vec::new(),
+            generated: Vec::new(),
+            next_lambda: 0,
         }
     }
 
-    fn lower_root(mut self, expr: &runtime::Expr) -> NativeLowerResult<NativeFunction> {
+    fn new_closure(
+        name: String,
+        functions: &'a HashMap<core_ir::Path, FunctionInfo>,
+        captures: Vec<core_ir::Path>,
+        param: core_ir::Name,
+    ) -> Self {
+        let mut next_value = 0;
+        let mut params = Vec::with_capacity(captures.len() + 1);
+        let mut locals = HashMap::new();
+        for capture in captures {
+            let value = ValueId(next_value);
+            next_value += 1;
+            locals.insert(capture, value);
+            params.push(value);
+        }
+        let captures = params.clone();
+        let param_value = ValueId(next_value);
+        next_value += 1;
+        locals.insert(core_ir::Path::from_name(param), param_value);
+        params.push(param_value);
+        Self {
+            name,
+            functions,
+            next_value,
+            next_block: 1,
+            blocks: Vec::new(),
+            current: BlockBuilder::new(BlockId(0), params.clone()),
+            locals,
+            params,
+            captures,
+            generated: Vec::new(),
+            next_lambda: 0,
+        }
+    }
+
+    fn lower_root(mut self, expr: &runtime::Expr) -> NativeLowerResult<LoweredFunction> {
         let value = self.lower_expr(expr)?;
         self.terminate(NativeTerminator::Return(value));
         self.finish_current();
-        Ok(NativeFunction {
-            name: self.name,
-            params: self.params,
-            blocks: self.blocks,
+        Ok(LoweredFunction {
+            function: NativeFunction {
+                name: self.name,
+                captures: self.captures,
+                params: self.params,
+                blocks: self.blocks,
+            },
+            generated: self.generated,
         })
     }
 
@@ -235,6 +287,18 @@ impl<'a> FunctionLowerer<'a> {
             return Ok(dest);
         }
 
+        if let runtime::ExprKind::Apply { callee, arg, .. } = &expr.kind {
+            let callee = self.lower_expr(callee)?;
+            let arg = self.lower_expr(arg)?;
+            let dest = self.fresh_value();
+            self.current.stmts.push(NativeStmt::ClosureCall {
+                dest,
+                callee,
+                args: vec![arg],
+            });
+            return Ok(dest);
+        }
+
         match &expr.kind {
             runtime::ExprKind::Lit(lit) => {
                 let dest = self.fresh_value();
@@ -255,9 +319,7 @@ impl<'a> FunctionLowerer<'a> {
             runtime::ExprKind::EffectOp(_) => Err(NativeLowerError::UnsupportedExpr {
                 kind: "effect operation",
             }),
-            runtime::ExprKind::Lambda { .. } => {
-                Err(NativeLowerError::UnsupportedExpr { kind: "lambda" })
-            }
+            runtime::ExprKind::Lambda { param, body, .. } => self.lower_lambda(param, body),
             runtime::ExprKind::Apply { .. } => {
                 Err(NativeLowerError::UnsupportedExpr { kind: "apply" })
             }
@@ -402,6 +464,51 @@ impl<'a> FunctionLowerer<'a> {
         Ok(value)
     }
 
+    fn lower_lambda(
+        &mut self,
+        param: &core_ir::Name,
+        body: &runtime::Expr,
+    ) -> NativeLowerResult<ValueId> {
+        let mut bound = HashSet::new();
+        bound.insert(core_ir::Path::from_name(param.clone()));
+        let mut capture_paths = free_vars(body, &mut bound)
+            .into_iter()
+            .filter(|path| self.locals.contains_key(path))
+            .collect::<Vec<_>>();
+        capture_paths.sort_by_key(path_name);
+        let captures = capture_paths
+            .iter()
+            .map(|path| {
+                self.locals
+                    .get(path)
+                    .copied()
+                    .ok_or(NativeLowerError::UnsupportedExpr {
+                        kind: "lambda capture",
+                    })
+            })
+            .collect::<NativeLowerResult<Vec<_>>>()?;
+
+        let target = format!("{}#lambda{}", self.name, self.next_lambda);
+        self.next_lambda += 1;
+        let lowered = FunctionLowerer::new_closure(
+            target.clone(),
+            self.functions,
+            capture_paths,
+            param.clone(),
+        )
+        .lower_root(body)?;
+        self.generated.push(lowered.function);
+        self.generated.extend(lowered.generated);
+
+        let dest = self.fresh_value();
+        self.current.stmts.push(NativeStmt::MakeClosure {
+            dest,
+            target,
+            captures,
+        });
+        Ok(dest)
+    }
+
     fn bind_pattern(
         &mut self,
         pattern: &runtime::Pattern,
@@ -461,6 +568,196 @@ fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, &runtime:
         current = body;
     }
     (params, current)
+}
+
+fn free_vars(expr: &runtime::Expr, bound: &mut HashSet<core_ir::Path>) -> HashSet<core_ir::Path> {
+    match &expr.kind {
+        runtime::ExprKind::Var(path) => {
+            if bound.contains(path) {
+                HashSet::new()
+            } else {
+                {
+                    let mut set = HashSet::new();
+                    set.insert(path.clone());
+                    set
+                }
+            }
+        }
+        runtime::ExprKind::Lambda { param, body, .. } => {
+            let path = core_ir::Path::from_name(param.clone());
+            let inserted = bound.insert(path.clone());
+            let vars = free_vars(body, bound);
+            if inserted {
+                bound.remove(&path);
+            }
+            vars
+        }
+        runtime::ExprKind::Apply { callee, arg, .. } => {
+            let mut vars = free_vars(callee, bound);
+            vars.extend(free_vars(arg, bound));
+            vars
+        }
+        runtime::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            let mut vars = free_vars(cond, bound);
+            vars.extend(free_vars(then_branch, bound));
+            vars.extend(free_vars(else_branch, bound));
+            vars
+        }
+        runtime::ExprKind::Block { stmts, tail } => {
+            let mut vars = HashSet::new();
+            let mut inserted = Vec::new();
+            for stmt in stmts {
+                match stmt {
+                    runtime::Stmt::Let { pattern, value } => {
+                        vars.extend(free_vars(value, bound));
+                        for name in pattern_bind_names(pattern) {
+                            let path = core_ir::Path::from_name(name);
+                            if bound.insert(path.clone()) {
+                                inserted.push(path);
+                            }
+                        }
+                    }
+                    runtime::Stmt::Expr(expr) => vars.extend(free_vars(expr, bound)),
+                    runtime::Stmt::Module { body, .. } => vars.extend(free_vars(body, bound)),
+                }
+            }
+            if let Some(tail) = tail {
+                vars.extend(free_vars(tail, bound));
+            }
+            for path in inserted {
+                bound.remove(&path);
+            }
+            vars
+        }
+        runtime::ExprKind::Tuple(items) => {
+            let mut vars = HashSet::new();
+            for item in items {
+                vars.extend(free_vars(item, bound));
+            }
+            vars
+        }
+        runtime::ExprKind::Record { fields, spread } => {
+            let mut vars = HashSet::new();
+            for field in fields {
+                vars.extend(free_vars(&field.value, bound));
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    runtime::RecordSpreadExpr::Head(expr)
+                    | runtime::RecordSpreadExpr::Tail(expr) => vars.extend(free_vars(expr, bound)),
+                }
+            }
+            vars
+        }
+        runtime::ExprKind::Variant { value, .. } => value
+            .as_deref()
+            .map(|value| free_vars(value, bound))
+            .unwrap_or_default(),
+        runtime::ExprKind::Select { base, .. } => free_vars(base, bound),
+        runtime::ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            let mut vars = free_vars(scrutinee, bound);
+            for arm in arms {
+                let mut arm_bound = bound.clone();
+                for name in pattern_bind_names(&arm.pattern) {
+                    arm_bound.insert(core_ir::Path::from_name(name));
+                }
+                if let Some(guard) = &arm.guard {
+                    vars.extend(free_vars(guard, &mut arm_bound));
+                }
+                vars.extend(free_vars(&arm.body, &mut arm_bound));
+            }
+            vars
+        }
+        runtime::ExprKind::Handle { body, arms, .. } => {
+            let mut vars = free_vars(body, bound);
+            for arm in arms {
+                let mut arm_bound = bound.clone();
+                for name in pattern_bind_names(&arm.payload) {
+                    arm_bound.insert(core_ir::Path::from_name(name));
+                }
+                if let Some(resume) = &arm.resume {
+                    arm_bound.insert(core_ir::Path::from_name(resume.name.clone()));
+                }
+                if let Some(guard) = &arm.guard {
+                    vars.extend(free_vars(guard, &mut arm_bound));
+                }
+                vars.extend(free_vars(&arm.body, &mut arm_bound));
+            }
+            vars
+        }
+        runtime::ExprKind::BindHere { expr }
+        | runtime::ExprKind::Thunk { expr, .. }
+        | runtime::ExprKind::Coerce { expr, .. }
+        | runtime::ExprKind::Pack { expr, .. } => free_vars(expr, bound),
+        runtime::ExprKind::LocalPushId { body, .. } => free_vars(body, bound),
+        runtime::ExprKind::AddId { thunk, .. } => free_vars(thunk, bound),
+        runtime::ExprKind::PrimitiveOp(_)
+        | runtime::ExprKind::EffectOp(_)
+        | runtime::ExprKind::Lit(_)
+        | runtime::ExprKind::PeekId
+        | runtime::ExprKind::FindId { .. } => HashSet::new(),
+    }
+}
+
+fn pattern_bind_names(pattern: &runtime::Pattern) -> Vec<core_ir::Name> {
+    match pattern {
+        runtime::Pattern::Bind { name, .. } => vec![name.clone()],
+        runtime::Pattern::Tuple { items, .. } => {
+            items.iter().flat_map(pattern_bind_names).collect()
+        }
+        runtime::Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            let mut names = prefix
+                .iter()
+                .flat_map(pattern_bind_names)
+                .collect::<Vec<_>>();
+            if let Some(spread) = spread {
+                names.extend(pattern_bind_names(spread));
+            }
+            names.extend(suffix.iter().flat_map(pattern_bind_names));
+            names
+        }
+        runtime::Pattern::Record { fields, spread, .. } => {
+            let mut names = fields
+                .iter()
+                .flat_map(|field| pattern_bind_names(&field.pattern))
+                .collect::<Vec<_>>();
+            if let Some(spread) = spread {
+                match spread {
+                    runtime::RecordSpreadPattern::Head(pattern)
+                    | runtime::RecordSpreadPattern::Tail(pattern) => {
+                        names.extend(pattern_bind_names(pattern));
+                    }
+                }
+            }
+            names
+        }
+        runtime::Pattern::Variant { value, .. } => {
+            value.as_deref().map(pattern_bind_names).unwrap_or_default()
+        }
+        runtime::Pattern::Or { left, right, .. } => {
+            let mut names = pattern_bind_names(left);
+            names.extend(pattern_bind_names(right));
+            names
+        }
+        runtime::Pattern::As { pattern, name, .. } => {
+            let mut names = pattern_bind_names(pattern);
+            names.push(name.clone());
+            names
+        }
+        runtime::Pattern::Wildcard { .. } | runtime::Pattern::Lit { .. } => Vec::new(),
+    }
 }
 
 struct BlockBuilder {

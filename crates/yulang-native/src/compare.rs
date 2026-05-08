@@ -335,4 +335,44 @@ mod tests {
 
         compare_module(&module).expect("native control matches VM");
     }
+
+    #[test]
+    fn compares_immediate_lambda_call_with_vm() {
+        let expr = apply(
+            lambda(
+                "x",
+                apply(
+                    apply(primitive(core_ir::PrimitiveOp::IntAdd), var("x")),
+                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                ),
+            ),
+            unknown_lit(core_ir::Lit::Int("41".to_string())),
+        );
+        let module = module_with_root(expr);
+
+        compare_module(&module).expect("native control matches VM");
+    }
+
+    #[test]
+    fn compares_lambda_capture_with_vm() {
+        let expr = block(
+            vec![runtime::Stmt::Let {
+                pattern: bind_pattern("y"),
+                value: unknown_lit(core_ir::Lit::Int("10".to_string())),
+            }],
+            apply(
+                lambda(
+                    "x",
+                    apply(
+                        apply(primitive(core_ir::PrimitiveOp::IntAdd), var("x")),
+                        var("y"),
+                    ),
+                ),
+                unknown_lit(core_ir::Lit::Int("32".to_string())),
+            ),
+        );
+        let module = module_with_root(expr);
+
+        compare_module(&module).expect("native control matches VM");
+    }
 }

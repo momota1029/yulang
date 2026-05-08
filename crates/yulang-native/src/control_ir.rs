@@ -9,6 +9,7 @@ pub struct NativeModule {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeFunction {
     pub name: String,
+    pub captures: Vec<ValueId>,
     pub params: Vec<ValueId>,
     pub blocks: Vec<NativeBlock>,
 }
@@ -35,6 +36,16 @@ pub enum NativeStmt {
     DirectCall {
         dest: ValueId,
         target: String,
+        args: Vec<ValueId>,
+    },
+    MakeClosure {
+        dest: ValueId,
+        target: String,
+        captures: Vec<ValueId>,
+    },
+    ClosureCall {
+        dest: ValueId,
+        callee: ValueId,
         args: Vec<ValueId>,
     },
 }

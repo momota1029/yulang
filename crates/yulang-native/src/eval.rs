@@ -29,6 +29,12 @@ pub enum NativeEvalError {
     MissingValue {
         id: ValueId,
     },
+    ExpectedPlainValue {
+        id: ValueId,
+    },
+    ExpectedClosure {
+        id: ValueId,
+    },
     UnsupportedPrimitive {
         op: core_ir::PrimitiveOp,
     },
@@ -68,6 +74,12 @@ impl fmt::Display for NativeEvalError {
             NativeEvalError::MissingValue { id } => {
                 write!(f, "native control value {id:?} is missing")
             }
+            NativeEvalError::ExpectedPlainValue { id } => {
+                write!(f, "native control expected plain value {id:?}")
+            }
+            NativeEvalError::ExpectedClosure { id } => {
+                write!(f, "native control expected closure value {id:?}")
+            }
             NativeEvalError::UnsupportedPrimitive { op } => {
                 write!(
                     f,
@@ -104,6 +116,21 @@ fn eval_function(
     function: &NativeFunction,
     args: Vec<runtime::VmValue>,
 ) -> NativeEvalResult<runtime::VmValue> {
+    into_plain_value(
+        ValueId(usize::MAX),
+        eval_function_value(
+            module,
+            function,
+            args.into_iter().map(NativeRuntimeValue::Plain).collect(),
+        )?,
+    )
+}
+
+fn eval_function_value(
+    module: &NativeModule,
+    function: &NativeFunction,
+    args: Vec<NativeRuntimeValue>,
+) -> NativeEvalResult<NativeRuntimeValue> {
     if function.params.len() != args.len() {
         return Err(NativeEvalError::BlockArgumentMismatch {
             id: BlockId(0),
@@ -124,9 +151,9 @@ fn eval_blocks(
     module: &NativeModule,
     function: &NativeFunction,
     entry: BlockId,
-    initial_args: Vec<runtime::VmValue>,
-) -> NativeEvalResult<runtime::VmValue> {
-    let mut values = Vec::<Option<runtime::VmValue>>::new();
+    initial_args: Vec<NativeRuntimeValue>,
+) -> NativeEvalResult<NativeRuntimeValue> {
+    let mut values = Vec::<Option<NativeRuntimeValue>>::new();
     let mut current = entry;
     let mut args = initial_args;
     loop {
@@ -137,14 +164,22 @@ fn eval_blocks(
         for stmt in &block.stmts {
             match stmt {
                 NativeStmt::Literal { dest, literal } => {
-                    write_value(&mut values, *dest, eval_literal(literal));
+                    write_value(
+                        &mut values,
+                        *dest,
+                        NativeRuntimeValue::Plain(eval_literal(literal)),
+                    );
                 }
                 NativeStmt::Primitive { dest, op, args } => {
                     let args = args
                         .iter()
-                        .map(|id| read_value(&values, *id))
+                        .map(|id| read_plain_value(&values, *id))
                         .collect::<NativeEvalResult<Vec<_>>>()?;
-                    write_value(&mut values, *dest, eval_primitive(*op, &args)?);
+                    write_value(
+                        &mut values,
+                        *dest,
+                        NativeRuntimeValue::Plain(eval_primitive(*op, &args)?),
+                    );
                 }
                 NativeStmt::DirectCall { dest, target, args } => {
                     let function = module
@@ -158,7 +193,50 @@ fn eval_blocks(
                         .iter()
                         .map(|id| read_value(&values, *id))
                         .collect::<NativeEvalResult<Vec<_>>>()?;
-                    write_value(&mut values, *dest, eval_function(module, function, args)?);
+                    write_value(
+                        &mut values,
+                        *dest,
+                        eval_function_value(module, function, args)?,
+                    );
+                }
+                NativeStmt::MakeClosure {
+                    dest,
+                    target,
+                    captures,
+                } => {
+                    let captures = captures
+                        .iter()
+                        .map(|id| read_value(&values, *id))
+                        .collect::<NativeEvalResult<Vec<_>>>()?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        NativeRuntimeValue::Closure(NativeClosureValue {
+                            target: target.clone(),
+                            captures,
+                        }),
+                    );
+                }
+                NativeStmt::ClosureCall { dest, callee, args } => {
+                    let closure = read_closure(&values, *callee)?;
+                    let mut call_args = closure.captures;
+                    call_args.extend(
+                        args.iter()
+                            .map(|id| read_value(&values, *id))
+                            .collect::<NativeEvalResult<Vec<_>>>()?,
+                    );
+                    let function = module
+                        .functions
+                        .iter()
+                        .find(|function| function.name == closure.target)
+                        .ok_or_else(|| NativeEvalError::MissingFunction {
+                            name: closure.target,
+                        })?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        eval_function_value(module, function, call_args)?,
+                    );
                 }
             }
         }
@@ -179,7 +257,7 @@ fn eval_blocks(
                 then_block,
                 else_block,
             } => {
-                let cond = read_value(&values, *cond)?;
+                let cond = read_plain_value(&values, *cond)?;
                 current = if bool_value(core_ir::PrimitiveOp::BoolNot, &cond)? {
                     *then_block
                 } else {
@@ -199,9 +277,9 @@ fn block_by_id(function: &NativeFunction, id: BlockId) -> NativeEvalResult<&Nati
 }
 
 fn assign_block_args(
-    values: &mut Vec<Option<runtime::VmValue>>,
+    values: &mut Vec<Option<NativeRuntimeValue>>,
     block: &NativeBlock,
-    args: Vec<runtime::VmValue>,
+    args: Vec<NativeRuntimeValue>,
 ) -> NativeEvalResult<()> {
     if block.params.len() != args.len() {
         return Err(NativeEvalError::BlockArgumentMismatch {
@@ -216,7 +294,11 @@ fn assign_block_args(
     Ok(())
 }
 
-fn write_value(values: &mut Vec<Option<runtime::VmValue>>, id: ValueId, value: runtime::VmValue) {
+fn write_value(
+    values: &mut Vec<Option<NativeRuntimeValue>>,
+    id: ValueId,
+    value: NativeRuntimeValue,
+) {
     if values.len() <= id.0 {
         values.resize_with(id.0 + 1, || None);
     }
@@ -224,13 +306,49 @@ fn write_value(values: &mut Vec<Option<runtime::VmValue>>, id: ValueId, value: r
 }
 
 fn read_value(
-    values: &[Option<runtime::VmValue>],
+    values: &[Option<NativeRuntimeValue>],
     id: ValueId,
-) -> NativeEvalResult<runtime::VmValue> {
+) -> NativeEvalResult<NativeRuntimeValue> {
     values
         .get(id.0)
         .and_then(Clone::clone)
         .ok_or(NativeEvalError::MissingValue { id })
+}
+
+fn read_plain_value(
+    values: &[Option<NativeRuntimeValue>],
+    id: ValueId,
+) -> NativeEvalResult<runtime::VmValue> {
+    into_plain_value(id, read_value(values, id)?)
+}
+
+fn read_closure(
+    values: &[Option<NativeRuntimeValue>],
+    id: ValueId,
+) -> NativeEvalResult<NativeClosureValue> {
+    match read_value(values, id)? {
+        NativeRuntimeValue::Closure(value) => Ok(value),
+        NativeRuntimeValue::Plain(_) => Err(NativeEvalError::ExpectedClosure { id }),
+    }
+}
+
+fn into_plain_value(id: ValueId, value: NativeRuntimeValue) -> NativeEvalResult<runtime::VmValue> {
+    match value {
+        NativeRuntimeValue::Plain(value) => Ok(value),
+        NativeRuntimeValue::Closure(_) => Err(NativeEvalError::ExpectedPlainValue { id }),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum NativeRuntimeValue {
+    Plain(runtime::VmValue),
+    Closure(NativeClosureValue),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct NativeClosureValue {
+    target: String,
+    captures: Vec<NativeRuntimeValue>,
 }
 
 fn eval_literal(lit: &NativeLiteral) -> runtime::VmValue {

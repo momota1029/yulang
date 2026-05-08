@@ -5,9 +5,11 @@
 //! supported runtime IR lowers explicitly and unsupported runtime IR fails with
 //! a structured reason.
 
+pub mod closure;
 pub mod compare;
 pub mod control_ir;
 pub mod cps_capture;
+pub mod cps_closure;
 pub mod cps_compare;
 pub mod cps_env;
 pub mod cps_eval;
@@ -17,12 +19,19 @@ pub mod cps_validate;
 pub mod eval;
 pub mod lower;
 
+pub use closure::{
+    NativeClosureEnvironment, NativeClosureFunction, NativeClosureModule, NativeClosureSlot,
+    closure_convert_module,
+};
 pub use compare::{NativeCompareError, compare_module};
 pub use control_ir::{
     BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeStmt,
     NativeTerminator, ValueId,
 };
 pub use cps_capture::infer_cps_captures;
+pub use cps_closure::{
+    CpsClosureContinuation, CpsClosureFunction, CpsClosureModule, closure_convert_cps_module,
+};
 pub use cps_compare::{CpsCompareError, compare_cps_module};
 pub use cps_env::{
     CpsContinuationEnvironmentLayout, CpsEnvironmentLayout, CpsEnvironmentSlot,
