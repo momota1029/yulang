@@ -31,3 +31,4 @@ CLAUDE.md
 GEMINI.md
 web/dist/
 web/docs/node_modules/
+web/docs/.vitepress/cache/

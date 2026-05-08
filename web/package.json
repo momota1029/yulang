@@ -1,0 +1,10 @@
+{
+  "name": "yulang-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "npm --prefix playground run build && npm --prefix docs run build",
+    "deploy:dir": "npm run build && sh -c 'test -n \"$YULANG_DEPLOY_DIR\" || { echo \"set YULANG_DEPLOY_DIR\" >&2; exit 2; }; mkdir -p \"$YULANG_DEPLOY_DIR\" && rsync -a --delete dist/ \"$YULANG_DEPLOY_DIR\"'"
+  }
+}
