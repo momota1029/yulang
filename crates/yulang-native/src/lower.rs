@@ -362,9 +362,7 @@ impl<'a> FunctionLowerer<'a> {
             runtime::ExprKind::AddId { .. } => {
                 Err(NativeLowerError::UnsupportedExpr { kind: "add_id" })
             }
-            runtime::ExprKind::Coerce { .. } => {
-                Err(NativeLowerError::UnsupportedExpr { kind: "coerce" })
-            }
+            runtime::ExprKind::Coerce { expr, .. } => self.lower_expr(expr),
             runtime::ExprKind::Pack { .. } => {
                 Err(NativeLowerError::UnsupportedExpr { kind: "pack" })
             }

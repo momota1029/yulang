@@ -1,9 +1,14 @@
 use std::fmt;
 
+use yulang_infer as infer;
 use yulang_runtime as runtime;
 
+use crate::abi::lower_closure_module_to_abi;
+use crate::closure::closure_convert_module;
+use crate::cranelift::{NativeCraneliftError, compile_abi_module};
 use crate::eval::{NativeEvalError, eval_module};
 use crate::lower::{NativeLowerError, lower_module};
+use crate::source::{NativeSourceError, runtime_module_from_source_with_options};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NativeCompareError {
@@ -91,6 +96,193 @@ pub fn compare_module(module: &runtime::Module) -> Result<(), NativeCompareError
         }
     }
     Ok(())
+}
+
+#[derive(Debug)]
+pub enum NativeSourceCompareError {
+    Source(NativeSourceError),
+    Lower(NativeLowerError),
+    Eval(NativeEvalError),
+    Vm(runtime::VmError),
+    Cranelift(NativeCraneliftError),
+    ResidualRequest {
+        index: usize,
+        request: runtime::VmRequest,
+    },
+    RootCountMismatch {
+        vm: usize,
+        native: usize,
+        cranelift: usize,
+    },
+    UnsupportedVmScalar {
+        index: usize,
+        value: runtime::VmValue,
+    },
+    UnsupportedNativeScalar {
+        index: usize,
+        value: runtime::VmValue,
+    },
+    NativeMismatch {
+        index: usize,
+        vm: i64,
+        native: i64,
+    },
+    CraneliftMismatch {
+        index: usize,
+        vm: i64,
+        cranelift: i64,
+    },
+}
+
+impl fmt::Display for NativeSourceCompareError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NativeSourceCompareError::Source(error) => write!(f, "{error}"),
+            NativeSourceCompareError::Lower(error) => write!(f, "{error}"),
+            NativeSourceCompareError::Eval(error) => write!(f, "{error}"),
+            NativeSourceCompareError::Vm(error) => write!(f, "{error}"),
+            NativeSourceCompareError::Cranelift(error) => write!(f, "{error}"),
+            NativeSourceCompareError::ResidualRequest { index, request } => write!(
+                f,
+                "VM root {index} produced a host/effect request instead of a value: {request:?}"
+            ),
+            NativeSourceCompareError::RootCountMismatch {
+                vm,
+                native,
+                cranelift,
+            } => write!(
+                f,
+                "root count mismatch: VM {vm}, native control {native}, Cranelift {cranelift}"
+            ),
+            NativeSourceCompareError::UnsupportedVmScalar { index, value } => write!(
+                f,
+                "VM root {index} produced non-scalar prototype value {value:?}"
+            ),
+            NativeSourceCompareError::UnsupportedNativeScalar { index, value } => write!(
+                f,
+                "native control root {index} produced non-scalar prototype value {value:?}"
+            ),
+            NativeSourceCompareError::NativeMismatch { index, vm, native } => write!(
+                f,
+                "native control root {index} mismatch: VM scalar {vm}, native scalar {native}"
+            ),
+            NativeSourceCompareError::CraneliftMismatch {
+                index,
+                vm,
+                cranelift,
+            } => write!(
+                f,
+                "Cranelift root {index} mismatch: VM scalar {vm}, Cranelift scalar {cranelift}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for NativeSourceCompareError {}
+
+impl From<NativeSourceError> for NativeSourceCompareError {
+    fn from(error: NativeSourceError) -> Self {
+        NativeSourceCompareError::Source(error)
+    }
+}
+
+impl From<NativeLowerError> for NativeSourceCompareError {
+    fn from(error: NativeLowerError) -> Self {
+        NativeSourceCompareError::Lower(error)
+    }
+}
+
+impl From<NativeEvalError> for NativeSourceCompareError {
+    fn from(error: NativeEvalError) -> Self {
+        NativeSourceCompareError::Eval(error)
+    }
+}
+
+impl From<runtime::VmError> for NativeSourceCompareError {
+    fn from(error: runtime::VmError) -> Self {
+        NativeSourceCompareError::Vm(error)
+    }
+}
+
+impl From<NativeCraneliftError> for NativeSourceCompareError {
+    fn from(error: NativeCraneliftError) -> Self {
+        NativeSourceCompareError::Cranelift(error)
+    }
+}
+
+pub fn compare_source_i64(source: &str) -> Result<(), NativeSourceCompareError> {
+    compare_source_i64_with_options(source, infer::SourceOptions::default())
+}
+
+pub fn compare_source_i64_with_options(
+    source: &str,
+    options: infer::SourceOptions,
+) -> Result<(), NativeSourceCompareError> {
+    let runtime_module = runtime_module_from_source_with_options(source, options)?;
+    let native_module = lower_module(&runtime_module)?;
+    let native_values = eval_module(&native_module)?;
+    let closure_module = closure_convert_module(&native_module);
+    let abi_module = lower_closure_module_to_abi(&closure_module);
+    let mut jit = compile_abi_module(&abi_module)?;
+    let cranelift_values = jit.run_roots_i64()?;
+
+    let vm_results = runtime::compile_vm_module(runtime_module)?.eval_roots()?;
+    if vm_results.len() != native_values.len() || vm_results.len() != cranelift_values.len() {
+        return Err(NativeSourceCompareError::RootCountMismatch {
+            vm: vm_results.len(),
+            native: native_values.len(),
+            cranelift: cranelift_values.len(),
+        });
+    }
+
+    for (index, ((vm_result, native_value), cranelift_value)) in vm_results
+        .into_iter()
+        .zip(native_values)
+        .zip(cranelift_values)
+        .enumerate()
+    {
+        let vm_value = match vm_result {
+            runtime::VmResult::Value(value) => value,
+            runtime::VmResult::Request(request) => {
+                return Err(NativeSourceCompareError::ResidualRequest { index, request });
+            }
+        };
+        let vm_scalar =
+            scalar_i64(vm_value.clone()).ok_or(NativeSourceCompareError::UnsupportedVmScalar {
+                index,
+                value: vm_value,
+            })?;
+        let native_scalar = scalar_i64(native_value.clone()).ok_or(
+            NativeSourceCompareError::UnsupportedNativeScalar {
+                index,
+                value: native_value,
+            },
+        )?;
+        if vm_scalar != native_scalar {
+            return Err(NativeSourceCompareError::NativeMismatch {
+                index,
+                vm: vm_scalar,
+                native: native_scalar,
+            });
+        }
+        if vm_scalar != cranelift_value {
+            return Err(NativeSourceCompareError::CraneliftMismatch {
+                index,
+                vm: vm_scalar,
+                cranelift: cranelift_value,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn scalar_i64(value: runtime::VmValue) -> Option<i64> {
+    match value {
+        runtime::VmValue::Int(value) => value.parse().ok(),
+        runtime::VmValue::Bool(value) => Some(i64::from(value)),
+        runtime::VmValue::Unit => Some(0),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -374,5 +566,20 @@ mod tests {
         let module = module_with_root(expr);
 
         compare_module(&module).expect("native control matches VM");
+    }
+
+    #[test]
+    fn compares_source_int_literal_with_vm_native_and_cranelift() {
+        compare_source_i64("41").expect("source scalar paths match");
+    }
+
+    #[test]
+    fn compares_source_bool_literal_with_vm_native_and_cranelift() {
+        compare_source_i64("true").expect("source scalar paths match");
+    }
+
+    #[test]
+    fn compares_source_simple_function_call_with_vm_native_and_cranelift() {
+        compare_source_i64("my id x = x\nid 41").expect("source scalar paths match");
     }
 }
