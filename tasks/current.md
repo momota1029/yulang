@@ -67,7 +67,10 @@ runtime/core IR
   - `yulang-native::source` に実験用の文字列 source entrypoint を追加した。現時点では `source -> infer/export -> runtime lower/monomorphize -> native-control eval` の薄い adapter で、backend 本体は引き続き `runtime::Module` を入口にする。
   - closure-converted body 側に `LoadEnv` を追加し、capture param を entry block param から外して environment slot load として明示するところまで追加済み。
   - `MakeClosure` は closure-converted IR 上で code target + environment slot values の allocation として表す。
-  - 次は closure call ABI と direct/indirect call の backend lowering 境界を決める。
+  - closure-converted function は `NativeClosureAbi` を持ち、code ref / environment slot count / non-capture params を backend が読める形に分ける。
+  - `lower_closure_module_to_abi` は closure-converted IR を backend-neutral ABI IR に落とす。`LoadEnv` / `AllocateClosure` / `IndirectClosureCall` / `DirectCall` が Cranelift 手前の境界になる。
+  - `validate_abi_module` は function/block/value uniqueness、use-before-def、env slot range、terminator target を検査する。
+  - 次は primitive-only subset の Cranelift prototype に入る前の unsupported form 整理。
 
 重要な制約:
 

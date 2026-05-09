@@ -5,6 +5,8 @@
 //! supported runtime IR lowers explicitly and unsupported runtime IR fails with
 //! a structured reason.
 
+pub mod abi;
+pub mod abi_validate;
 pub mod closure;
 pub mod compare;
 pub mod control_ir;
@@ -20,9 +22,14 @@ pub mod eval;
 pub mod lower;
 pub mod source;
 
+pub use abi::{
+    NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt, lower_closure_module_to_abi,
+};
+pub use abi_validate::{NativeAbiValidateError, validate_abi_module};
 pub use closure::{
-    NativeClosureBlock, NativeClosureCapture, NativeClosureEnvironment, NativeClosureFunction,
-    NativeClosureModule, NativeClosureSlot, NativeClosureStmt, closure_convert_module,
+    NativeClosureAbi, NativeClosureBlock, NativeClosureCapture, NativeClosureCodeRef,
+    NativeClosureEnvRef, NativeClosureEnvironment, NativeClosureFunction, NativeClosureModule,
+    NativeClosureSlot, NativeClosureStmt, closure_convert_module,
 };
 pub use compare::{NativeCompareError, compare_module};
 pub use control_ir::{

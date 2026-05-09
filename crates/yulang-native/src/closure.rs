@@ -15,6 +15,7 @@ pub struct NativeClosureFunction {
     pub name: String,
     pub params: Vec<ValueId>,
     pub environment: NativeClosureEnvironment,
+    pub abi: NativeClosureAbi,
     pub blocks: Vec<NativeClosureBlock>,
 }
 
@@ -48,6 +49,23 @@ pub enum NativeClosureStmt {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeClosureEnvironment {
     pub slots: Vec<NativeClosureSlot>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeClosureAbi {
+    pub code: NativeClosureCodeRef,
+    pub environment: NativeClosureEnvRef,
+    pub params: Vec<ValueId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeClosureCodeRef {
+    pub function: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeClosureEnvRef {
+    pub slots: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,6 +104,20 @@ fn closure_convert_function(function: &NativeFunction) -> NativeClosureFunction 
     NativeClosureFunction {
         name: function.name.clone(),
         params,
+        abi: NativeClosureAbi {
+            code: NativeClosureCodeRef {
+                function: function.name.clone(),
+            },
+            environment: NativeClosureEnvRef {
+                slots: environment_slots.len(),
+            },
+            params: function
+                .params
+                .iter()
+                .copied()
+                .filter(|param| !capture_values.contains(param))
+                .collect(),
+        },
         environment: NativeClosureEnvironment {
             slots: environment_slots,
         },
@@ -199,6 +231,13 @@ mod tests {
             vec![NativeClosureFunction {
                 name: "root".to_string(),
                 params: vec![ValueId(0)],
+                abi: NativeClosureAbi {
+                    code: NativeClosureCodeRef {
+                        function: "root".to_string(),
+                    },
+                    environment: NativeClosureEnvRef { slots: 0 },
+                    params: vec![ValueId(0)],
+                },
                 environment: NativeClosureEnvironment { slots: Vec::new() },
                 blocks: function
                     .blocks
@@ -235,6 +274,16 @@ mod tests {
         let converted = closure_convert_module(&module);
 
         assert_eq!(converted.functions[0].params, vec![ValueId(1)]);
+        assert_eq!(
+            converted.functions[0].abi,
+            NativeClosureAbi {
+                code: NativeClosureCodeRef {
+                    function: "root#lambda0".to_string(),
+                },
+                environment: NativeClosureEnvRef { slots: 1 },
+                params: vec![ValueId(1)],
+            }
+        );
         assert_eq!(converted.functions[0].blocks[0].params, vec![ValueId(1)]);
         assert_eq!(
             converted.functions[0].environment,
