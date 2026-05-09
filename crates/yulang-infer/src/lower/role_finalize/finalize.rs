@@ -387,7 +387,7 @@ impl LowerState {
                     .all(|(_, value)| self.is_syntactic_value_expr(value))
                     && spread.is_none()
             }
-            crate::ast::expr::ExprKind::PolyVariant(_, payloads) => payloads
+            crate::ast::expr::ExprKind::PolyVariant(_, payloads, _) => payloads
                 .iter()
                 .all(|payload| self.is_syntactic_value_expr(payload)),
             crate::ast::expr::ExprKind::Coerce { expr, .. }

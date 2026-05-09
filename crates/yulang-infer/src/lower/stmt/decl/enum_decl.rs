@@ -230,7 +230,11 @@ fn synthetic_enum_nullary_constructor_body(
     let variant = TypedExpr {
         tv: variant_tv,
         eff: state.fresh_exact_pure_eff_tv(),
-        kind: ExprKind::PolyVariant(tag.clone(), Vec::new()),
+        kind: ExprKind::PolyVariant(
+            tag.clone(),
+            Vec::new(),
+            crate::ast::expr::PolyVariantOrigin::Constructor,
+        ),
     };
     state.infer.constrain(
         state.pos_variant(vec![(tag.clone(), Vec::new())]),
@@ -289,7 +293,11 @@ fn synthetic_enum_unary_constructor_body(
     let variant = TypedExpr {
         tv: variant_tv,
         eff: state.fresh_exact_pure_eff_tv(),
-        kind: ExprKind::PolyVariant(tag.clone(), vec![payload]),
+        kind: ExprKind::PolyVariant(
+            tag.clone(),
+            vec![payload],
+            crate::ast::expr::PolyVariantOrigin::Constructor,
+        ),
     };
     state.infer.constrain(
         state.pos_variant(vec![(tag.clone(), vec![Pos::Var(payload_tv)])]),

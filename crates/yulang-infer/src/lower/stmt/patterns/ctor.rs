@@ -16,6 +16,11 @@ pub(crate) fn pattern_ctor_path(node: &SyntaxNode) -> Option<Path> {
                     segments.push(Name(token.text().to_string()));
                 }
             }
+            rowan::NodeOrToken::Token(token) if token.kind() == SyntaxKind::Symbol => {
+                if segments.is_empty() {
+                    segments.push(Name(token.text().trim_start_matches(':').to_string()));
+                }
+            }
             rowan::NodeOrToken::Node(child) if child.kind() == SyntaxKind::PathSep => {
                 if let Some(segment) = child
                     .children_with_tokens()

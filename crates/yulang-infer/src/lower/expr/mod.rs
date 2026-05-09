@@ -69,7 +69,7 @@ pub(super) use path::{
 };
 use prim::{neg_prim_type, prim_type};
 use record::lower_record_literal;
-use suffix::{apply_suffix, apply_synthetic_field_selection};
+use suffix::{apply_suffix, apply_synthetic_field_selection, lower_poly_variant_expr};
 use tuple::lower_tuple_expr;
 use var::{lower_var_assignment, lower_var_read_expr};
 

@@ -352,7 +352,7 @@ pub(super) fn validate_match_arm(
     locals: &HashMap<core_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     let mut arm_locals = locals.clone();
-    validate_pattern(&arm.pattern, scrutinee_ty, type_arg_kinds, &mut arm_locals)?;
+    validate_match_pattern(&arm.pattern, scrutinee_ty, type_arg_kinds, &mut arm_locals)?;
     if let Some(guard) = &arm.guard {
         validate_expr(guard, bindings, type_arg_kinds, &mut arm_locals)?;
         require_same_type(&bool_type(), core_type(&guard.ty), TypeSource::Expected)?;
@@ -363,6 +363,43 @@ pub(super) fn validate_match_arm(
         &diagnostic_core_type(&arm.body.ty),
         TypeSource::JoinEvidence,
     )
+}
+
+fn validate_match_pattern(
+    pattern: &Pattern,
+    scrutinee_ty: &core_ir::Type,
+    type_arg_kinds: &TypeArgKinds,
+    locals: &mut HashMap<core_ir::Path, RuntimeType>,
+) -> RuntimeResult<()> {
+    if let Pattern::Or { left, right, .. } = pattern {
+        validate_match_pattern(left, scrutinee_ty, type_arg_kinds, locals)?;
+        return validate_match_pattern(right, scrutinee_ty, type_arg_kinds, locals);
+    }
+    if variant_pattern_is_disjoint_from_scrutinee(pattern, scrutinee_ty) {
+        return validate_pattern(
+            pattern,
+            core_type(pattern_ty(pattern)),
+            type_arg_kinds,
+            locals,
+        );
+    }
+    validate_pattern(pattern, scrutinee_ty, type_arg_kinds, locals)
+}
+
+fn variant_pattern_is_disjoint_from_scrutinee(
+    pattern: &Pattern,
+    scrutinee_ty: &core_ir::Type,
+) -> bool {
+    match pattern {
+        Pattern::Variant { tag, .. } => match scrutinee_ty {
+            core_ir::Type::Variant(variant) => !variant.cases.iter().any(|case| case.name == *tag),
+            _ => false,
+        },
+        Pattern::As { pattern, .. } => {
+            variant_pattern_is_disjoint_from_scrutinee(pattern, scrutinee_ty)
+        }
+        _ => false,
+    }
 }
 
 pub(super) fn validate_handle_arm(

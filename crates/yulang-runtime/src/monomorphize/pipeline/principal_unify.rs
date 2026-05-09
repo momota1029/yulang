@@ -62,6 +62,7 @@ struct PendingPrincipalSpecialization {
     original: Binding,
     substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
     handler_plan: Option<HandlerAdapterPlan>,
+    input_shapes: Option<Vec<core_ir::Type>>,
     path: core_ir::Path,
 }
 
@@ -1623,8 +1624,13 @@ impl PrincipalUnifier {
                 )
             })
             .unwrap_or_else(|| callee_ty.clone());
-        let path =
-            self.intern_specialization(original, binding_substitutions, handler_adapter_plan)?;
+        let specialization_inputs = specialization_input_shapes(&rewritten_args);
+        let path = self.intern_specialization(
+            original,
+            binding_substitutions,
+            handler_adapter_plan,
+            Some(specialization_inputs),
+        )?;
         self.record_target_rewrite(spine.target);
         self.bump("principal-unify-rewrite");
         debug_principal_unify_rewrite(spine.target, &path);
@@ -2091,7 +2097,7 @@ impl PrincipalUnifier {
         let (path, impl_ty, final_ty) = if let Some(effect_context) = effect_context {
             effect_context
         } else {
-            let path = self.intern_specialization(original, substitutions, None)?;
+            let path = self.intern_specialization(original, substitutions, None, None)?;
             (path, impl_ty, role_result_ty)
         };
         self.bump("principal-unify-role-rewrite");
@@ -2142,7 +2148,7 @@ impl PrincipalUnifier {
             (candidate.name.clone(), impl_ty)
         } else {
             let path =
-                self.intern_specialization(candidate.clone(), substitutions.clone(), None)?;
+                self.intern_specialization(candidate.clone(), substitutions.clone(), None, None)?;
             let impl_ty = self
                 .binding_by_path_or_emitted(&path)
                 .map(|binding| binding.scheme.body.clone())
@@ -2290,7 +2296,7 @@ impl PrincipalUnifier {
         let path = if substitutions.is_empty() {
             candidate.name
         } else {
-            self.intern_specialization(candidate, substitutions, None)?
+            self.intern_specialization(candidate, substitutions, None, None)?
         };
         self.bump("principal-unify-impl-method-corrected");
         debug_principal_unify_rewrite(spine.target, &path);
@@ -2794,11 +2800,17 @@ impl PrincipalUnifier {
         original: Binding,
         substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
         handler_plan: Option<HandlerAdapterPlan>,
+        input_shapes: Option<Vec<core_ir::Type>>,
     ) -> Option<core_ir::Path> {
         if substitutions.is_empty() && handler_plan.is_none() {
             return Some(original.name);
         }
-        let key = principal_unify_key(&original.name, &substitutions, handler_plan.as_ref());
+        let key = principal_unify_key(
+            &original.name,
+            &substitutions,
+            handler_plan.as_ref(),
+            input_shapes.as_deref(),
+        );
         if let Some(path) = self.specializations.get(&key) {
             return Some(path.clone());
         }
@@ -2815,6 +2827,7 @@ impl PrincipalUnifier {
                 original,
                 substitutions,
                 handler_plan,
+                input_shapes,
                 path: path.clone(),
             });
         Some(path)
@@ -2834,6 +2847,7 @@ impl PrincipalUnifier {
             original,
             substitutions,
             handler_plan,
+            input_shapes,
             path,
         } = request;
         let original_name = original.name.clone();
@@ -2859,6 +2873,12 @@ impl PrincipalUnifier {
                     .body
             })
             .unwrap_or_else(|| binding.scheme.body.clone());
+        let binding_body_context = input_shapes
+            .as_deref()
+            .and_then(|input_shapes| {
+                core_fun_spine_with_input_shapes(&binding_body_context, input_shapes)
+            })
+            .unwrap_or(binding_body_context);
         let binding_body_context = core_ir::TypeBounds::exact(binding_body_context);
         let started = self.profile_timer();
         self.push_rewrite_context("intern");
@@ -2997,7 +3017,7 @@ impl PrincipalUnifier {
             .nullary_generic_substitutions_from_context(&original, result_context)
             .or_else(|| self.nullary_generic_substitutions_from_active_context(&original))?;
         let specialized_ty = substitute_type(&original.scheme.body, &substitutions);
-        let specialized = self.intern_specialization(original, substitutions, None)?;
+        let specialized = self.intern_specialization(original, substitutions, None, None)?;
         self.bump("principal-unify-nullary-context-rewrite");
         Some(Expr::typed(
             ExprKind::Var(specialized),
@@ -5211,6 +5231,35 @@ fn core_fun_spine_with_final_ret_effect(
     })
 }
 
+fn core_fun_spine_with_input_shapes(
+    ty: &core_ir::Type,
+    input_shapes: &[core_ir::Type],
+) -> Option<core_ir::Type> {
+    if input_shapes.is_empty() {
+        return Some(ty.clone());
+    }
+    let core_ir::Type::Fun {
+        param_effect,
+        ret_effect,
+        ret,
+        ..
+    } = ty
+    else {
+        return None;
+    };
+    let ret = if input_shapes.len() == 1 {
+        ret.as_ref().clone()
+    } else {
+        core_fun_spine_with_input_shapes(ret, &input_shapes[1..])?
+    };
+    Some(core_ir::Type::Fun {
+        param: Box::new(input_shapes[0].clone()),
+        param_effect: param_effect.clone(),
+        ret_effect: ret_effect.clone(),
+        ret: Box::new(ret),
+    })
+}
+
 fn wrap_runtime_fun_spine_return_effect(
     expr: Expr,
     arity: usize,
@@ -5335,7 +5384,10 @@ fn principal_arg_adapter(
     if core_type_contains_unknown(param) || core_type_contains_unknown(&actual) {
         return Some(arg.clone());
     }
-    if actual != *param && !type_compatible(param, &actual) {
+    if actual != *param
+        && !type_compatible(param, &actual)
+        && !variant_row_accepts_actual(param, &actual)
+    {
         return None;
     }
     if matches!(
@@ -5399,6 +5451,26 @@ fn principal_arg_adapter(
         }
         (_, false) => Some(arg.clone()),
     }
+}
+
+fn variant_row_accepts_actual(param: &core_ir::Type, actual: &core_ir::Type) -> bool {
+    let core_ir::Type::Variant(_) = actual else {
+        return false;
+    };
+    match param {
+        core_ir::Type::Variant(_) => {
+            type_compatible(param, actual) || type_compatible(actual, param)
+        }
+        core_ir::Type::Inter(items) => items.iter().any(|item| {
+            matches!(item, core_ir::Type::Variant(_))
+                && (type_compatible(item, actual) || type_compatible(actual, item))
+        }),
+        _ => false,
+    }
+}
+
+fn specialization_input_shapes(args: &[Expr]) -> Vec<core_ir::Type> {
+    args.iter().map(|arg| runtime_core_type(&arg.ty)).collect()
 }
 
 fn retag_nested_imprecise_thunk_effect(
@@ -7724,6 +7796,26 @@ fn project_closed_value_substitutions_from_type(
                 );
             }
         }
+        (core_ir::Type::Variant(variant), core_ir::Type::Variant(actual_variant)) => {
+            for case in &variant.cases {
+                let Some(actual_case) = actual_variant.cases.iter().find(|actual_case| {
+                    actual_case.name == case.name
+                        && actual_case.payloads.len() == case.payloads.len()
+                }) else {
+                    continue;
+                };
+                for (payload, actual_payload) in case.payloads.iter().zip(&actual_case.payloads) {
+                    project_closed_value_substitutions_from_type(
+                        payload,
+                        actual_payload,
+                        params,
+                        substitutions,
+                        conflicts,
+                        depth - 1,
+                    );
+                }
+            }
+        }
         (core_ir::Type::Union(items) | core_ir::Type::Inter(items), actual)
             if closed_slot_type_usable(
                 &normalize_projected_value_substitution_type(actual, substitutions),
@@ -8369,6 +8461,7 @@ fn principal_unify_key(
     target: &core_ir::Path,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
     handler_plan: Option<&HandlerAdapterPlan>,
+    input_shapes: Option<&[core_ir::Type]>,
 ) -> String {
     let mut key = canonical_path(target);
     for (var, ty) in substitutions {
@@ -8376,6 +8469,12 @@ fn principal_unify_key(
         key.push_str(&var.0);
         key.push('=');
         canonical_type(ty, &mut key);
+    }
+    if let Some(input_shapes) = input_shapes {
+        for shape in input_shapes {
+            key.push_str("|input=");
+            canonical_type(shape, &mut key);
+        }
     }
     if let Some(plan) = handler_plan {
         if let Some(effect) = &plan.residual_before {

@@ -402,6 +402,8 @@ pub enum Expr {
     Variant {
         tag: Name,
         value: Option<Box<Expr>>,
+        #[serde(default)]
+        source: VariantExprSource,
     },
     Select {
         base: Box<Expr>,
@@ -432,6 +434,13 @@ pub enum Expr {
         var: TypeVar,
         expr: Box<Expr>,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum VariantExprSource {
+    #[default]
+    Constructor,
+    PolyVariantSyntax,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

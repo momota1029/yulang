@@ -241,12 +241,13 @@ fn transform_copied_expr_kind(
                 )),
             }),
         },
-        ExprKind::PolyVariant(tag, payloads) => ExprKind::PolyVariant(
+        ExprKind::PolyVariant(tag, payloads, origin) => ExprKind::PolyVariant(
             tag.clone(),
             payloads
                 .iter()
                 .map(|payload| transform_copied_principal_body_inner(types, payload, def_subst))
                 .collect(),
+            *origin,
         ),
         ExprKind::Select { recv, name } => ExprKind::Select {
             recv: Box::new(transform_copied_principal_body_inner(

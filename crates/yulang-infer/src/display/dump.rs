@@ -278,7 +278,7 @@ fn format_core_type(ty: &core_ir::Type) -> String {
             if let Some(tail) = &variant.tail {
                 items.push(format!("..{}", format_core_type(tail)));
             }
-            format!(":[{}]", items.join(", "))
+            format!(":{{{}}}", items.join(", "))
         }
         core_ir::Type::Row { items, tail } => {
             let items = items
@@ -775,7 +775,7 @@ fn format_pos_id(infer: &Infer, pos: PosId, namer: &mut VarNamer, needs_paren: b
                 .join(", "),
         ),
         Pos::PolyVariant(items) => format!(
-            ":[{}]",
+            ":{{{}}}",
             items
                 .iter()
                 .map(|(name, payloads)| {
@@ -889,7 +889,7 @@ fn format_neg_id(infer: &Infer, neg: NegId, namer: &mut VarNamer, needs_paren: b
                 .join(", ")
         ),
         Neg::PolyVariant(items) => format!(
-            ":[{}]",
+            ":{{{}}}",
             items
                 .iter()
                 .map(|(name, payloads)| {
@@ -1235,7 +1235,7 @@ fn format_compact_variant(variant: &CompactVariant, namer: &mut VarNamer) -> Str
         })
         .collect::<Vec<_>>()
         .join(", ");
-    format!(":[{items}]")
+    format!(":{{{items}}}")
 }
 
 fn format_compact_row(row: &CompactRow, namer: &mut VarNamer) -> String {

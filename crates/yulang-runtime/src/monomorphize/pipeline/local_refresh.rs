@@ -518,11 +518,12 @@ fn project_pattern_runtime_types(pattern: Pattern) -> Pattern {
             }),
             ty: substitute_hir_type(ty, &BTreeMap::new()),
         },
-        Pattern::Variant { tag, value, ty } => Pattern::Variant {
-            tag,
-            value: value.map(|value| Box::new(project_pattern_runtime_types(*value))),
-            ty: substitute_hir_type(ty, &BTreeMap::new()),
-        },
+        Pattern::Variant { tag, value, ty } => {
+            let value = value.map(|value| Box::new(project_pattern_runtime_types(*value)));
+            let ty = substitute_hir_type(ty, &BTreeMap::new());
+            let ty = variant_pattern_runtime_type(&tag, value.as_deref(), ty);
+            Pattern::Variant { tag, value, ty }
+        }
         Pattern::Lit { lit, ty } => Pattern::Lit {
             lit,
             ty: substitute_hir_type(ty, &BTreeMap::new()),
@@ -904,4 +905,24 @@ fn effected_core_as_hir_type(value: &core_ir::Type, effect: &core_ir::Type) -> R
     } else {
         value
     }
+}
+
+fn variant_pattern_runtime_type(
+    tag: &core_ir::Name,
+    value: Option<&Pattern>,
+    fallback: RuntimeType,
+) -> RuntimeType {
+    if matches!(fallback, RuntimeType::Core(core_ir::Type::Named { .. })) {
+        return fallback;
+    }
+    RuntimeType::core(core_ir::Type::Variant(core_ir::VariantType {
+        cases: vec![core_ir::VariantCase {
+            name: tag.clone(),
+            payloads: value
+                .iter()
+                .map(|value| runtime_core_type(&pattern_type(value)))
+                .collect(),
+        }],
+        tail: None,
+    }))
 }

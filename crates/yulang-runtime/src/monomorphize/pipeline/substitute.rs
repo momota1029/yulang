@@ -246,11 +246,12 @@ pub(super) fn substitute_pattern(
             }),
             ty: substitute_hir_type(ty, substitutions),
         },
-        Pattern::Variant { tag, value, ty } => Pattern::Variant {
-            tag,
-            value: value.map(|value| Box::new(substitute_pattern(*value, substitutions))),
-            ty: substitute_hir_type(ty, substitutions),
-        },
+        Pattern::Variant { tag, value, ty } => {
+            let value = value.map(|value| Box::new(substitute_pattern(*value, substitutions)));
+            let ty = substitute_hir_type(ty, substitutions);
+            let ty = variant_pattern_runtime_type(&tag, value.as_deref(), ty);
+            Pattern::Variant { tag, value, ty }
+        }
         Pattern::Or { left, right, ty } => Pattern::Or {
             left: Box::new(substitute_pattern(*left, substitutions)),
             right: Box::new(substitute_pattern(*right, substitutions)),
@@ -262,6 +263,26 @@ pub(super) fn substitute_pattern(
             ty: substitute_hir_type(ty, substitutions),
         },
     }
+}
+
+fn variant_pattern_runtime_type(
+    tag: &core_ir::Name,
+    value: Option<&Pattern>,
+    fallback: RuntimeType,
+) -> RuntimeType {
+    if matches!(fallback, RuntimeType::Core(core_ir::Type::Named { .. })) {
+        return fallback;
+    }
+    RuntimeType::core(core_ir::Type::Variant(core_ir::VariantType {
+        cases: vec![core_ir::VariantCase {
+            name: tag.clone(),
+            payloads: value
+                .iter()
+                .map(|value| runtime_core_type(&pattern_type(value)))
+                .collect(),
+        }],
+        tail: None,
+    }))
 }
 
 pub(super) fn substitute_hir_type(

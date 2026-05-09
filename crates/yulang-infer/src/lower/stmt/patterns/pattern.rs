@@ -39,7 +39,7 @@ fn record_pat_spread_alias_def(state: &LowerState, spread: &RecordPatSpread) -> 
 fn pattern_has_poly_variant_colon(node: &SyntaxNode) -> bool {
     node.children_with_tokens()
         .filter_map(|item| item.into_token())
-        .any(|token| token.kind() == SyntaxKind::Colon)
+        .any(|token| matches!(token.kind(), SyntaxKind::Colon | SyntaxKind::Symbol))
 }
 
 fn pattern_payload_node(node: &SyntaxNode) -> Option<SyntaxNode> {

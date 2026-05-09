@@ -45,7 +45,7 @@ pub enum ExprKind {
         fields: Vec<(Name, TypedExpr)>,
         spread: Option<RecordSpread>,
     },
-    PolyVariant(Name, Vec<TypedExpr>),
+    PolyVariant(Name, Vec<TypedExpr>, PolyVariantOrigin),
     Select {
         recv: Box<TypedExpr>,
         name: Name,
@@ -61,6 +61,12 @@ pub enum ExprKind {
         expr: Box<TypedExpr>,
     },
     PackForall(TypeVar, Box<TypedExpr>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolyVariantOrigin {
+    Syntax,
+    Constructor,
 }
 
 #[derive(Debug, Clone)]

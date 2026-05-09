@@ -1265,6 +1265,8 @@ fn combine_types(parts: Vec<Type>, positive: bool) -> Type {
         flat.retain(|item| !is_int_like_type(item));
     }
 
+    flat = merge_variant_parts(flat, positive);
+
     match flat.len() {
         0 => {
             if positive {
@@ -1280,6 +1282,45 @@ fn combine_types(parts: Vec<Type>, positive: bool) -> Type {
             } else {
                 Type::Inter(flat)
             }
+        }
+    }
+}
+
+fn merge_variant_parts(parts: Vec<Type>, positive: bool) -> Vec<Type> {
+    let mut out = Vec::new();
+    let mut variant_items = Vec::<(Name, Vec<Type>)>::new();
+
+    for part in parts {
+        match part {
+            Type::Variant(items) => merge_variant_items(&mut variant_items, items, positive),
+            other => out.push(other),
+        }
+    }
+
+    if !variant_items.is_empty() {
+        out.push(Type::Variant(variant_items));
+    }
+    out
+}
+
+fn merge_variant_items(
+    out: &mut Vec<(Name, Vec<Type>)>,
+    items: Vec<(Name, Vec<Type>)>,
+    positive: bool,
+) {
+    for (name, payloads) in items {
+        if let Some((_, existing_payloads)) =
+            out.iter_mut().find(|(existing_name, existing_payloads)| {
+                *existing_name == name && existing_payloads.len() == payloads.len()
+            })
+        {
+            *existing_payloads = std::mem::take(existing_payloads)
+                .into_iter()
+                .zip(payloads.into_iter())
+                .map(|(lhs, rhs)| combine_types(vec![lhs, rhs], positive))
+                .collect();
+        } else {
+            out.push((name, payloads));
         }
     }
 }
@@ -1404,7 +1445,7 @@ fn format_type_inner(ty: &Type, namer: &mut VarNamer, needs_paren: bool) -> Stri
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!(":[{items}]")
+            format!(":{{{items}}}")
         }
         Type::Tuple(items) => {
             let items = items
@@ -1772,7 +1813,7 @@ fn format_compact_variant(variant: &CompactVariant, namer: &mut VarNamer) -> Str
         })
         .collect::<Vec<_>>()
         .join(", ");
-    format!(":[{items}]")
+    format!(":{{{items}}}")
 }
 
 fn format_compact_row(row: &CompactRow, namer: &mut VarNamer) -> String {

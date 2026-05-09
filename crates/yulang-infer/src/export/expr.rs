@@ -85,7 +85,7 @@ pub(super) fn collect_expr_export_type_vars(expr: &TypedExpr, vars: &mut HashSet
         ExprKind::Lam(_, body) | ExprKind::PackForall(_, body) => {
             collect_expr_export_type_vars(body, vars);
         }
-        ExprKind::Tuple(items) | ExprKind::PolyVariant(_, items) => {
+        ExprKind::Tuple(items) | ExprKind::PolyVariant(_, items, _) => {
             for item in items {
                 collect_expr_export_type_vars(item, vars);
             }
@@ -406,11 +406,19 @@ impl<'a> ExprExporter<'a> {
                     }
                 }),
             },
-            ExprKind::PolyVariant(name, payloads) => core_ir::Expr::Variant {
+            ExprKind::PolyVariant(name, payloads, origin) => core_ir::Expr::Variant {
                 tag: export_name(name),
                 value: payloads
                     .first()
                     .map(|payload| Box::new(self.export_expr(payload))),
+                source: match origin {
+                    crate::ast::expr::PolyVariantOrigin::Syntax => {
+                        core_ir::VariantExprSource::PolyVariantSyntax
+                    }
+                    crate::ast::expr::PolyVariantOrigin::Constructor => {
+                        core_ir::VariantExprSource::Constructor
+                    }
+                },
             },
             ExprKind::Select { recv, name } => {
                 if let Some(projection) = self.state.infer.resolved_ref_field_projection(expr.tv) {

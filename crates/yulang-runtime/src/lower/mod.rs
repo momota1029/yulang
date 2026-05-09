@@ -285,7 +285,18 @@ fn lower_principal_module_with_graph_and_evidence_inner(
             (
                 binding.name.clone(),
                 BindingInfo {
-                    type_params: principal_hir_type_params(&ty),
+                    type_params: {
+                        if is_constructor_variant_expr(&binding.body) {
+                            principal_core_constructor_type_params(&binding.scheme.body)
+                        } else {
+                            let core_type_params = principal_core_type_params(&binding.scheme.body);
+                            if core_type_params.is_empty() {
+                                principal_hir_type_params(&ty)
+                            } else {
+                                core_type_params
+                            }
+                        }
+                    },
                     ty,
                     requirements: binding.scheme.requirements.clone(),
                 },
@@ -434,6 +445,16 @@ fn lower_principal_module_with_graph_and_evidence_inner(
             runtime_adapters,
         },
     })
+}
+
+fn is_constructor_variant_expr(expr: &core_ir::Expr) -> bool {
+    matches!(
+        expr,
+        core_ir::Expr::Variant {
+            source: core_ir::VariantExprSource::Constructor,
+            ..
+        }
+    )
 }
 
 fn collect_observed_adapter_evidence(

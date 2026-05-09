@@ -385,6 +385,27 @@ act fs_err:
     }
 
     #[test]
+    fn vm_runs_symbol_variant_roots_through_case_function() {
+        let results = eval_source_with_std(
+            r#"my button option = case option:
+    :label text -> "<button>" + text + "</button>"
+    :disabled -> "<button disabled></button>"
+
+button: :label "send"
+button: :disabled
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![
+                TestValue::String("<button>send</button>".to_string()),
+                TestValue::String("<button disabled></button>".to_string()),
+            ]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_optional_record_argument_defaults() {
         let results = eval_source_with_std(
             "my area({width = 1, height = 2}) = width * height\n\

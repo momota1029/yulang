@@ -1158,7 +1158,7 @@ fn extend_target_defs_from_expr(
                 }
             }
         }
-        ExprKind::PolyVariant(_, payloads) => {
+        ExprKind::PolyVariant(_, payloads, _) => {
             for payload in payloads {
                 extend_target_defs_from_expr(state, payload, exportable_defs, target_defs, pending);
             }

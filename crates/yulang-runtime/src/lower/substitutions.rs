@@ -391,6 +391,69 @@ pub(super) fn principal_hir_type_params(ty: &RuntimeType) -> Vec<core_ir::TypeVa
     vars.into_iter().collect()
 }
 
+pub(super) fn principal_core_type_params(ty: &core_ir::Type) -> Vec<core_ir::TypeVar> {
+    if !matches!(ty, core_ir::Type::Fun { .. }) {
+        return Vec::new();
+    }
+    let mut vars = BTreeSet::new();
+    collect_core_variant_payload_type_vars(ty, &mut vars);
+    vars.retain(|var| !is_anonymous_type_var(var));
+    vars.into_iter().collect()
+}
+
+pub(super) fn principal_core_constructor_type_params(ty: &core_ir::Type) -> Vec<core_ir::TypeVar> {
+    let mut vars = BTreeSet::new();
+    collect_type_vars(ty, &mut vars);
+    vars.retain(|var| !is_anonymous_type_var(var));
+    vars.into_iter().collect()
+}
+
+fn collect_core_variant_payload_type_vars(
+    ty: &core_ir::Type,
+    vars: &mut BTreeSet<core_ir::TypeVar>,
+) {
+    match ty {
+        core_ir::Type::Unknown
+        | core_ir::Type::Never
+        | core_ir::Type::Any
+        | core_ir::Type::Var(_)
+        | core_ir::Type::Named { .. }
+        | core_ir::Type::Row { .. } => {}
+        core_ir::Type::Fun { param, ret, .. } => {
+            collect_core_variant_payload_type_vars(param, vars);
+            collect_core_variant_payload_type_vars(ret, vars);
+        }
+        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            for item in items {
+                collect_core_variant_payload_type_vars(item, vars);
+            }
+        }
+        core_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_core_variant_payload_type_vars(&field.value, vars);
+            }
+            if let Some(spread) = &record.spread {
+                match spread {
+                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                        collect_core_variant_payload_type_vars(ty, vars);
+                    }
+                }
+            }
+        }
+        core_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_type_vars(payload, vars);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_core_variant_payload_type_vars(tail, vars);
+            }
+        }
+        core_ir::Type::Recursive { body, .. } => collect_core_variant_payload_type_vars(body, vars),
+    }
+}
+
 pub(super) fn refine_lambda_hir_type(expected: &RuntimeType, actual: &RuntimeType) -> RuntimeType {
     match (expected, actual) {
         (

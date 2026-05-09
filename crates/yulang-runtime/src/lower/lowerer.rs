@@ -5,6 +5,7 @@ impl Lowerer<'_> {
         &mut self,
         binding: core_ir::PrincipalBinding,
     ) -> RuntimeResult<Binding> {
+        let body_is_constructor_variant = is_constructor_variant_expr(&binding.body);
         let old_binding = self.current_binding.replace(binding.name.clone());
         let body_ty = self.binding_runtime_type(&binding);
         let alias_runtime_ty = self.alias_target_runtime_type(&binding);
@@ -18,16 +19,31 @@ impl Lowerer<'_> {
         self.current_binding = old_binding;
         let body = body_result?;
         require_same_hir_type(&body_ty, &body.ty, TypeSource::BindingScheme)?;
-        let type_params = principal_hir_type_params(&body.ty);
+        let core_type_params = if body_is_constructor_variant {
+            principal_core_constructor_type_params(&binding.scheme.body)
+        } else {
+            principal_core_type_params(&binding.scheme.body)
+        };
+        let core_type_params_empty = core_type_params.is_empty();
+        let stored_ty = if core_type_params_empty {
+            body.ty.clone()
+        } else {
+            body_ty.clone()
+        };
+        let type_params = if core_type_params_empty {
+            principal_hir_type_params(&stored_ty)
+        } else {
+            core_type_params
+        };
         let mut scheme = binding.scheme;
         if alias_runtime_ty.is_some() || has_added_wildcard_thunk(&body_ty, &body.ty) {
             scheme.body = runtime_core_type(&body.ty);
         }
-        self.env.insert(binding.name.clone(), body.ty.clone());
+        self.env.insert(binding.name.clone(), stored_ty.clone());
         self.binding_infos.insert(
             binding.name.clone(),
             BindingInfo {
-                ty: body.ty.clone(),
+                ty: stored_ty,
                 type_params: type_params.clone(),
                 requirements: scheme.requirements.clone(),
             },
@@ -286,13 +302,34 @@ impl Lowerer<'_> {
                             Some(core_ir::Expr::Var(path)) => self.env.get(path).cloned(),
                             _ => None,
                         });
-                let callee_hint =
-                    choose_apply_callee_type(evidence_callee, callee_stored_hint.clone());
+                let callee_is_polymorphic_binding = callee_expr.as_ref().is_some_and(|expr| {
+                    let core_ir::Expr::Var(path) = expr else {
+                        return false;
+                    };
+                    self.binding_infos
+                        .get(path)
+                        .is_some_and(|info| !info.type_params.is_empty())
+                });
+                let polymorphic_arg_hint = evidence_expected_arg.clone().filter(|hint| {
+                    callee_is_polymorphic_binding
+                        && self.use_principal_elaboration
+                        && expected_arg_evidence_runtime_usable(hint)
+                        && matches!(hint, RuntimeType::Core(core_ir::Type::Variant(_)))
+                });
+                let use_polymorphic_arg_hint = polymorphic_arg_hint.is_some();
+                let callee_hint = if polymorphic_arg_hint.is_some() {
+                    None
+                } else {
+                    choose_apply_callee_type(evidence_callee, callee_stored_hint.clone())
+                };
                 let mut callee = None;
                 let mut fun_parts = callee_hint
                     .as_ref()
                     .and_then(|ty| function_parts(ty).ok())
                     .or_else(|| {
+                        if use_polymorphic_arg_hint {
+                            return None;
+                        }
                         callee_stored_hint
                             .as_ref()
                             .and_then(|ty| function_parts(ty).ok())
@@ -391,12 +428,18 @@ impl Lowerer<'_> {
                             .or(evidence_expected_arg_for_imprecise)
                             .or(Some(param_hint))
                     }
+                    (Some(param_hint), Some(expected_arg))
+                        if self.use_principal_elaboration
+                            && should_use_variant_arg_hint(&param_hint, &expected_arg) =>
+                    {
+                        Some(expected_arg)
+                    }
                     (Some(param_hint), _) => Some(param_hint),
                     (None, Some(expected_arg)) if self.use_expected_arg_evidence => {
                         self.expected_arg_evidence_profile.used_as_arg_type_hint += 1;
                         Some(expected_arg)
                     }
-                    (None, _) => expected_callee_param_hint,
+                    (None, _) => polymorphic_arg_hint.or(expected_callee_param_hint),
                 };
                 let selected_arg_hint = param_or_expected_arg_hint.clone();
                 let arg_ty = match choose_apply_arg_type(evidence_arg, param_or_expected_arg_hint) {
@@ -436,6 +479,9 @@ impl Lowerer<'_> {
                                 if !hir_type_contains_unknown(ty) =>
                             {
                                 Some(ty.clone())
+                            }
+                            None if use_polymorphic_arg_hint => {
+                                Some(erased_fun_type(arg_ty.clone(), result_ty.clone()))
                             }
                             None => callee_stored_hint.clone().or_else(|| {
                                 Some(erased_fun_type(arg_ty.clone(), result_ty.clone()))
@@ -836,10 +882,10 @@ impl Lowerer<'_> {
                     self.current_runtime_adapter_source.clone(),
                 )
             }
-            core_ir::Expr::Variant { tag, value } => {
+            core_ir::Expr::Variant { tag, value, source } => {
+                let expected_core = expected.and_then(RuntimeType::as_core);
                 let expected_payload =
-                    variant_payload_expected(expected.and_then(RuntimeType::as_core), &tag)
-                        .map(RuntimeType::core);
+                    variant_payload_expected(expected_core, &tag).map(RuntimeType::core);
                 let value = value
                     .map(|value| {
                         self.lower_expr(
@@ -857,7 +903,13 @@ impl Lowerer<'_> {
                     .transpose()?;
                 let ty = expected
                     .and_then(RuntimeType::as_core)
-                    .cloned()
+                    .and_then(|expected| {
+                        if source == core_ir::VariantExprSource::PolyVariantSyntax {
+                            variant_expr_expected(Some(expected), &tag)
+                        } else {
+                            Some(expected.clone())
+                        }
+                    })
                     .unwrap_or_else(|| {
                         core_ir::Type::Variant(core_ir::VariantType {
                             cases: vec![core_ir::VariantCase {
@@ -2254,9 +2306,38 @@ fn choose_final_apply_param(
 ) -> RuntimeType {
     match (selected_arg_hint, final_param) {
         (Some(hint @ RuntimeType::Thunk { .. }), _) if callee_is_local => hint.clone(),
+        (Some(hint), param) if should_use_variant_arg_hint(param, hint) => hint.clone(),
         (Some(hint), param) if runtime_type_is_imprecise_runtime_slot(param) => hint.clone(),
         _ => final_param.clone(),
     }
+}
+
+fn should_use_variant_arg_hint(param: &RuntimeType, hint: &RuntimeType) -> bool {
+    let RuntimeType::Core(core_ir::Type::Variant(_)) = hint else {
+        return false;
+    };
+    if !expected_arg_evidence_runtime_usable(hint) {
+        return false;
+    }
+    match param {
+        RuntimeType::Core(core_ir::Type::Variant(_)) => true,
+        RuntimeType::Core(core_ir::Type::Inter(items)) => items.iter().any(|item| {
+            matches!(item, core_ir::Type::Variant(_))
+                && (core_types_compatible(item, &diagnostic_core_type(hint))
+                    || core_types_compatible(&diagnostic_core_type(hint), item))
+        }),
+        _ => false,
+    }
+}
+
+fn is_constructor_variant_expr(expr: &core_ir::Expr) -> bool {
+    matches!(
+        expr,
+        core_ir::Expr::Variant {
+            source: core_ir::VariantExprSource::Constructor,
+            ..
+        }
+    )
 }
 
 fn effect_operation_payload_param_hint(

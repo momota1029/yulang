@@ -2,7 +2,7 @@ use crate::profile::ProfileClock as Instant;
 
 use yulang_parser::lex::SyntaxKind;
 
-use crate::ast::expr::{ExprKind, TypedExpr};
+use crate::ast::expr::{ExprKind, PolyVariantOrigin, TypedExpr};
 use crate::diagnostic::{ConstraintCause, ConstraintReason};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::Name;
@@ -79,6 +79,9 @@ fn apply_field_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNod
 }
 
 fn apply_ml_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -> TypedExpr {
+    if matches!(acc.kind, ExprKind::PolyVariant(_, _, _)) {
+        return apply_variant_payload_suffix(state, acc, suffix);
+    }
     let mut result = acc;
     for child in suffix.children().filter(|c| c.kind() == SyntaxKind::Expr) {
         let arg = lower_expr(state, &child);
@@ -96,6 +99,9 @@ fn apply_ml_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) 
 }
 
 fn apply_c_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -> TypedExpr {
+    if matches!(acc.kind, ExprKind::PolyVariant(_, _, _)) {
+        return apply_variant_payload_suffix(state, acc, suffix);
+    }
     let args: Vec<_> = suffix
         .children()
         .filter(|c| c.kind() == SyntaxKind::Expr)
@@ -127,6 +133,61 @@ fn apply_c_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -
             );
         }
         result
+    }
+}
+
+fn apply_variant_payload_suffix(
+    state: &mut LowerState,
+    acc: TypedExpr,
+    suffix: &SyntaxNode,
+) -> TypedExpr {
+    let ExprKind::PolyVariant(tag, mut payloads, origin) = acc.kind else {
+        return acc;
+    };
+    payloads.extend(
+        suffix
+            .children()
+            .filter(|child| child.kind() == SyntaxKind::Expr)
+            .map(|child| lower_expr(state, &child)),
+    );
+    lower_poly_variant_expr(state, tag, payloads, origin)
+}
+
+pub(super) fn lower_poly_variant_expr(
+    state: &mut LowerState,
+    tag: Name,
+    payloads: Vec<TypedExpr>,
+    origin: PolyVariantOrigin,
+) -> TypedExpr {
+    let tv = state.fresh_tv();
+    let eff = state.fresh_exact_pure_eff_tv();
+    for payload in &payloads {
+        state.infer.constrain(Pos::Var(payload.eff), Neg::Var(eff));
+    }
+    state.infer.constrain(
+        state.pos_variant(vec![(
+            tag.clone(),
+            payloads
+                .iter()
+                .map(|payload| Pos::Var(payload.tv))
+                .collect(),
+        )]),
+        Neg::Var(tv),
+    );
+    state.infer.constrain(
+        Pos::Var(tv),
+        Neg::PolyVariant(vec![(
+            tag.clone(),
+            payloads
+                .iter()
+                .map(|payload| state.infer.alloc_neg(Neg::Var(payload.tv)))
+                .collect(),
+        )]),
+    );
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::PolyVariant(tag, payloads, origin),
     }
 }
 

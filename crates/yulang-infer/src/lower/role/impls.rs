@@ -436,7 +436,11 @@ fn lower_synthetic_variant_cast_body(
     let variant = TypedExpr {
         tv: variant_tv,
         eff: state.fresh_exact_pure_eff_tv(),
-        kind: ExprKind::PolyVariant(variant_name.clone(), vec![arg_expr]),
+        kind: ExprKind::PolyVariant(
+            variant_name.clone(),
+            vec![arg_expr],
+            crate::ast::expr::PolyVariantOrigin::Constructor,
+        ),
     };
     state.infer.constrain(
         state.pos_variant(vec![(variant_name.clone(), vec![Pos::Var(arg_tv)])]),

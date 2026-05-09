@@ -14,7 +14,7 @@ pub use expr::{
     PrincipalElaborationIncompleteReason, PrincipalElaborationPlan, PrincipalElaborationResult,
     PrincipalEvidence, PrincipalModule, PrincipalRoot, PrincipalSlotPathSegment,
     PrincipalSubstitutionCandidate, RecordExprField, RecordPatternField, RecordSpreadExpr,
-    RecordSpreadPattern, RoleDecl, RoleMember, SourceRange, Stmt,
+    RecordSpreadPattern, RoleDecl, RoleMember, SourceRange, Stmt, VariantExprSource,
 };
 pub use graph::{
     BindingGraphNode, CoreGraphView, ExprGraphNode, GraphOwner, PrimitiveTypeFamily,

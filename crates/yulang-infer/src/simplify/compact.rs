@@ -181,7 +181,7 @@ pub(crate) fn merge_compact_types(
     lhs.funs = merge_funs(positive, lhs.funs, rhs_funs);
     lhs.records = merge_records(positive, lhs.records, rhs_records);
     lhs.record_spreads = merge_unique_owned(lhs.record_spreads, rhs_record_spreads);
-    lhs.variants = merge_unique_owned(lhs.variants, rhs_variants);
+    lhs.variants = merge_variants(positive, lhs.variants, rhs_variants);
     lhs.tuples = merge_tuples(positive, lhs.tuples, rhs_tuples);
     lhs.rows = merge_rows(positive, lhs.rows, rhs_rows);
     lhs
@@ -1019,6 +1019,37 @@ fn merge_records(
     vec![acc]
 }
 
+fn merge_variants(
+    positive: bool,
+    lhs: Vec<CompactVariant>,
+    rhs: Vec<CompactVariant>,
+) -> Vec<CompactVariant> {
+    let mut items = Vec::<(Name, Vec<CompactType>)>::new();
+    for variant in lhs.into_iter().chain(rhs) {
+        for (name, payloads) in variant.items {
+            if let Some((_, existing_payloads)) =
+                items.iter_mut().find(|(existing_name, existing_payloads)| {
+                    *existing_name == name && existing_payloads.len() == payloads.len()
+                })
+            {
+                *existing_payloads = mem::take(existing_payloads)
+                    .into_iter()
+                    .zip(payloads.into_iter())
+                    .map(|(lhs, rhs)| merge_compact_types(positive, lhs, rhs))
+                    .collect();
+            } else {
+                items.push((name, payloads));
+            }
+        }
+    }
+
+    if items.is_empty() {
+        Vec::new()
+    } else {
+        vec![CompactVariant { items }]
+    }
+}
+
 fn merge_tuples(
     positive: bool,
     lhs: Vec<Vec<CompactType>>,
@@ -1205,6 +1236,61 @@ mod tests {
         assert_eq!(row.items.len(), 1);
         assert_eq!(row.items[0].cons.len(), 1);
         assert_eq!(row.items[0].cons[0].args.len(), 1);
+    }
+
+    #[test]
+    fn compact_type_var_merges_poly_variant_rows() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let payload_tv = fresh_type_var();
+        for current in [tv, payload_tv] {
+            infer.register_level(current, 0);
+        }
+
+        infer.add_lower(
+            tv,
+            Pos::PolyVariant(vec![(
+                Name("label".to_string()),
+                vec![infer.alloc_pos(Pos::Var(payload_tv))],
+            )]),
+        );
+        infer.add_lower(
+            tv,
+            Pos::PolyVariant(vec![(Name("disabled".to_string()), Vec::new())]),
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        assert_eq!(compact.cty.lower.variants.len(), 1);
+        assert_eq!(compact.cty.lower.variants[0].items.len(), 2);
+        let rendered = crate::display::format::format_coalesced_scheme(&compact);
+        assert!(rendered.contains(":{label β, disabled}"), "{rendered}");
+        assert!(!rendered.contains(" & :{disabled}"), "{rendered}");
+    }
+
+    #[test]
+    fn compact_type_var_merges_poly_variant_upper_rows() {
+        let infer = Infer::new();
+        let tv = fresh_type_var();
+        let payload_tv = fresh_type_var();
+        for current in [tv, payload_tv] {
+            infer.register_level(current, 0);
+        }
+
+        infer.add_upper(
+            tv,
+            Neg::PolyVariant(vec![(
+                Name("label".to_string()),
+                vec![infer.alloc_neg(Neg::Var(payload_tv))],
+            )]),
+        );
+        infer.add_upper(
+            tv,
+            Neg::PolyVariant(vec![(Name("disabled".to_string()), Vec::new())]),
+        );
+
+        let compact = compact_type_var(&infer, tv);
+        assert_eq!(compact.cty.upper.variants.len(), 1);
+        assert_eq!(compact.cty.upper.variants[0].items.len(), 2);
     }
 
     #[test]

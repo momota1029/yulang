@@ -3,15 +3,16 @@ use crate::profile::ProfileClock as Instant;
 use rowan::NodeOrToken;
 use yulang_parser::lex::SyntaxKind;
 
+use crate::ast::expr::PolyVariantOrigin;
 use crate::ast::expr::TypedExpr;
 use crate::diagnostic::{ConstraintCause, ConstraintReason};
 use crate::lower::{LowerState, SyntaxNode, stmt};
 use crate::symbols::{Name, OperatorFixity, Path};
 
 use super::{
-    apply_suffix, lower_expr, lower_expr_atom, lower_number_token, lower_var_read_expr,
-    make_app_with_cause, resolve_operator_expr, resolve_path_expr, try_resolve_local_operator_expr,
-    try_resolve_operator_expr, unit_expr,
+    apply_suffix, lower_expr, lower_expr_atom, lower_number_token, lower_poly_variant_expr,
+    lower_var_read_expr, make_app_with_cause, resolve_operator_expr, resolve_path_expr,
+    try_resolve_local_operator_expr, try_resolve_operator_expr, unit_expr,
 };
 
 // ── chain lowering ────────────────────────────────────────────────────────────
@@ -70,6 +71,14 @@ fn lower_expr_chain_prefix_with_pipe_arg(
             }
             Token(t) if matches!(t.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent) => {
                 path_segs.push(Name(t.text().to_string()));
+            }
+            Token(t) if t.kind() == SyntaxKind::Symbol => {
+                head_expr = Some(lower_poly_variant_expr(
+                    state,
+                    symbol_variant_name(t.text()),
+                    Vec::new(),
+                    PolyVariantOrigin::Syntax,
+                ));
             }
             Token(t) if t.kind() == SyntaxKind::Do => {
                 let expr = state
@@ -185,6 +194,10 @@ fn lower_expr_chain_prefix_with_pipe_arg(
 
         acc
     })()
+}
+
+fn symbol_variant_name(text: &str) -> Name {
+    Name(text.trim_start_matches(':').to_string())
 }
 
 fn resolve_nullfix_operator_expr(

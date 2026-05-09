@@ -23,7 +23,7 @@ pub(crate) fn direct_param_source_eff_tv(body: &TypedExpr, param_def: DefId) -> 
                     }
                 })
             }),
-        ExprKind::PolyVariant(_, items) => items
+        ExprKind::PolyVariant(_, items, _) => items
             .iter()
             .find_map(|item| direct_param_source_eff_tv(item, param_def)),
         ExprKind::Block(block) => block
@@ -148,7 +148,7 @@ fn collect_lambda_capture_effs(
                 }
             }
         }
-        ExprKind::PolyVariant(_, items) => {
+        ExprKind::PolyVariant(_, items, _) => {
             for item in items {
                 collect_lambda_capture_effs(state, item, local_defs, out);
             }
