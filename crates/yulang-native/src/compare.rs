@@ -8,7 +8,9 @@ use crate::closure::closure_convert_module;
 use crate::cranelift::{NativeCraneliftError, compile_abi_module};
 use crate::eval::{NativeEvalError, eval_module};
 use crate::lower::{NativeLowerError, lower_module};
-use crate::source::{NativeSourceError, runtime_module_from_source_with_options};
+use crate::source::{
+    NativeSourceError, native_default_source_options, runtime_module_from_source_with_options,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NativeCompareError {
@@ -211,7 +213,7 @@ impl From<NativeCraneliftError> for NativeSourceCompareError {
 }
 
 pub fn compare_source_i64(source: &str) -> Result<(), NativeSourceCompareError> {
-    compare_source_i64_with_options(source, infer::SourceOptions::default())
+    compare_source_i64_with_options(source, native_default_source_options())
 }
 
 pub fn compare_source_i64_with_options(
@@ -570,16 +572,35 @@ mod tests {
 
     #[test]
     fn compares_source_int_literal_with_vm_native_and_cranelift() {
-        compare_source_i64("41").expect("source scalar paths match");
+        compare_source_with_large_stack("41");
     }
 
     #[test]
     fn compares_source_bool_literal_with_vm_native_and_cranelift() {
-        compare_source_i64("true").expect("source scalar paths match");
+        compare_source_with_large_stack("true");
     }
 
     #[test]
     fn compares_source_simple_function_call_with_vm_native_and_cranelift() {
-        compare_source_i64("my id x = x\nid 41").expect("source scalar paths match");
+        compare_source_with_large_stack("my id x = x\nid 41");
+    }
+
+    #[test]
+    fn compares_source_int_add_operator_with_vm_native_and_cranelift() {
+        compare_source_with_large_stack("1 + 2");
+    }
+
+    #[test]
+    fn compares_source_int_comparison_with_vm_native_and_cranelift() {
+        compare_source_with_large_stack("1 < 2");
+    }
+
+    fn compare_source_with_large_stack(source: &'static str) {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || compare_source_i64(source).expect("source scalar paths match"))
+            .expect("spawn source compare thread")
+            .join()
+            .expect("join source compare thread");
     }
 }

@@ -225,12 +225,18 @@ fn create_blocks(
     builder: &mut FunctionBuilder<'_>,
     function: &NativeAbiFunction,
 ) -> HashMap<BlockId, ir::Block> {
+    let entry = function.blocks.first().map(|block| block.id);
     function
         .blocks
         .iter()
         .map(|block| {
             let clif_block = builder.create_block();
-            for _ in &block.params {
+            let params = if Some(block.id) == entry && block.params.starts_with(&function.params) {
+                &block.params[function.params.len()..]
+            } else {
+                block.params.as_slice()
+            };
+            for _ in params {
                 builder.append_block_param(clif_block, types::I64);
             }
             (block.id, clif_block)

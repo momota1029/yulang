@@ -77,7 +77,7 @@ impl From<NativeCraneliftError> for NativeSourceError {
 }
 
 pub fn compile_source(source: &str) -> NativeSourceResult<NativeModule> {
-    compile_source_with_options(source, default_source_options())
+    compile_source_with_options(source, native_default_source_options())
 }
 
 pub fn compile_source_with_options(
@@ -89,7 +89,7 @@ pub fn compile_source_with_options(
 }
 
 pub fn eval_source(source: &str) -> NativeSourceResult<Vec<runtime::VmValue>> {
-    eval_source_with_options(source, default_source_options())
+    eval_source_with_options(source, native_default_source_options())
 }
 
 pub fn eval_source_with_options(
@@ -101,7 +101,7 @@ pub fn eval_source_with_options(
 }
 
 pub fn eval_source_i64(source: &str) -> NativeSourceResult<Vec<i64>> {
-    eval_source_i64_with_options(source, default_source_options())
+    eval_source_i64_with_options(source, native_default_source_options())
 }
 
 pub fn eval_source_i64_with_options(
@@ -135,7 +135,7 @@ pub fn runtime_module_from_source_with_options(
         .map_err(NativeSourceError::from)
 }
 
-fn default_source_options() -> infer::SourceOptions {
+pub fn native_default_source_options() -> infer::SourceOptions {
     let std_root = default_std_root();
     infer::SourceOptions {
         implicit_prelude: std_root.is_some(),

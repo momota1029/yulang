@@ -90,12 +90,12 @@ pub fn lower_module(module: &runtime::Module) -> NativeLowerResult<NativeModule>
         .bindings
         .iter()
         .map(|binding| {
-            let (params, _) = collect_lambda_params(&binding.body);
+            let arity = binding_arity(binding);
             (
                 binding.name.clone(),
                 FunctionInfo {
                     name: path_name(&binding.name),
-                    arity: params.len(),
+                    arity,
                 },
             )
         })
@@ -139,6 +139,9 @@ fn lower_binding(
             reason: "residual type parameters",
         });
     }
+    if let runtime::ExprKind::PrimitiveOp(op) = binding.body.kind {
+        return lower_primitive_binding(&binding.name, op);
+    }
     let (params, body) = collect_lambda_params(&binding.body);
     if params.is_empty() {
         return Err(NativeLowerError::UnsupportedBinding {
@@ -147,6 +150,41 @@ fn lower_binding(
         });
     }
     FunctionLowerer::new(path_name(&binding.name), functions, params).lower_root(body)
+}
+
+fn binding_arity(binding: &runtime::Binding) -> usize {
+    if let runtime::ExprKind::PrimitiveOp(op) = binding.body.kind {
+        primitive_arity(op)
+    } else {
+        collect_lambda_params(&binding.body).0.len()
+    }
+}
+
+fn lower_primitive_binding(
+    path: &core_ir::Path,
+    op: core_ir::PrimitiveOp,
+) -> NativeLowerResult<LoweredFunction> {
+    let arity = primitive_arity(op);
+    let params = (0..arity).map(ValueId).collect::<Vec<_>>();
+    let dest = ValueId(arity);
+    Ok(LoweredFunction {
+        function: NativeFunction {
+            name: path_name(path),
+            captures: Vec::new(),
+            params: params.clone(),
+            blocks: vec![NativeBlock {
+                id: BlockId(0),
+                params: params.clone(),
+                stmts: vec![NativeStmt::Primitive {
+                    dest,
+                    op,
+                    args: params,
+                }],
+                terminator: NativeTerminator::Return(dest),
+            }],
+        },
+        generated: Vec::new(),
+    })
 }
 
 struct LoweredFunction {

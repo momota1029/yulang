@@ -75,7 +75,9 @@ runtime/core IR
   - `compile_abi_module` は Cranelift JIT prototype を追加した。現時点では `i64` scalar ABI として int/bool/unit literal、int/bool primitive、direct call、branch/jump/return を扱う。float/string/list/closure/env は runtime ABI が固まるまで scalar JIT では unsupported。
   - `eval_source_i64_with_options` は `source -> runtime -> native control -> closure -> ABI -> Cranelift JIT` を一本で通す scalar prototype entrypoint。
   - `compare_source_i64_with_options` は source 起点で VM / native-control / Cranelift scalar result を比較する。std に依存しない int/bool/function-call examples を固定した。
-  - 次は source-level compare を CLI flag か bench harness に繋げ、primitive-only examples を増やす。
+  - `compare_source_i64` は native default source options を使い、std prelude operator から primitive binding へ繋がる `1 + 2` / `1 < 2` も VM / native-control / Cranelift で比較する。
+  - 関数内の `x + 1` は role impl wrapper が closure を返す形になるため、closure call ABI 対応後に source-level compare へ戻す。
+  - 次は source-level compare を CLI flag か bench harness に繋げる。
 
 重要な制約:
 

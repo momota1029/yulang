@@ -66,5 +66,5 @@ pub use lower::{NativeLowerError, NativeLowerResult, lower_module};
 pub use source::{
     NativeSourceError, NativeSourceResult, compile_source, compile_source_with_options,
     eval_source, eval_source_i64, eval_source_i64_with_options, eval_source_with_options,
-    runtime_module_from_source_with_options,
+    native_default_source_options, runtime_module_from_source_with_options,
 };

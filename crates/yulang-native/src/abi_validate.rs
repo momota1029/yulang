@@ -116,8 +116,9 @@ fn validate_function(function: &NativeAbiFunction) -> NativeAbiValidateResult<()
             });
         }
     }
+    let entry = function.blocks.first().map(|block| block.id);
     for block in &function.blocks {
-        validate_block(function, block, &blocks)?;
+        validate_block(function, block, &blocks, Some(block.id) == entry)?;
     }
     Ok(())
 }
@@ -126,9 +127,24 @@ fn validate_block(
     function: &NativeAbiFunction,
     block: &NativeAbiBlock,
     blocks: &HashSet<BlockId>,
+    is_entry: bool,
 ) -> NativeAbiValidateResult<()> {
     let mut values = HashSet::new();
-    for param in function.params.iter().chain(&block.params) {
+    for param in &function.params {
+        if !values.insert(*param) {
+            return Err(NativeAbiValidateError::DuplicateBlockParam {
+                function: function.name.clone(),
+                block: block.id,
+                value: *param,
+            });
+        }
+    }
+    let block_params = if is_entry && block.params.starts_with(&function.params) {
+        &block.params[function.params.len()..]
+    } else {
+        block.params.as_slice()
+    };
+    for param in block_params {
         if !values.insert(*param) {
             return Err(NativeAbiValidateError::DuplicateBlockParam {
                 function: function.name.clone(),
