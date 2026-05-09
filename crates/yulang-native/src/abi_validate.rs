@@ -177,6 +177,7 @@ fn validate_stmt_uses(
         NativeAbiStmt::Literal { .. } => Ok(()),
         NativeAbiStmt::Primitive { args, .. }
         | NativeAbiStmt::DirectCall { args, .. }
+        | NativeAbiStmt::Tuple { items: args, .. }
         | NativeAbiStmt::IndirectClosureCall { args, .. } => {
             for arg in args {
                 require_value(function, block, values, *arg)?;
@@ -186,6 +187,19 @@ fn validate_stmt_uses(
             }
             Ok(())
         }
+        NativeAbiStmt::Record { fields, .. } => {
+            for field in fields {
+                require_value(function, block, values, field.value)?;
+            }
+            Ok(())
+        }
+        NativeAbiStmt::Variant { value, .. } => {
+            if let Some(value) = value {
+                require_value(function, block, values, *value)?;
+            }
+            Ok(())
+        }
+        NativeAbiStmt::Select { base, .. } => require_value(function, block, values, *base),
         NativeAbiStmt::LoadEnv { slot, .. } => {
             if *slot >= function.environment_slots {
                 return Err(NativeAbiValidateError::EnvSlotOutOfRange {
@@ -238,6 +252,10 @@ fn stmt_dest(stmt: &NativeAbiStmt) -> ValueId {
         NativeAbiStmt::Literal { dest, .. }
         | NativeAbiStmt::Primitive { dest, .. }
         | NativeAbiStmt::DirectCall { dest, .. }
+        | NativeAbiStmt::Tuple { dest, .. }
+        | NativeAbiStmt::Record { dest, .. }
+        | NativeAbiStmt::Variant { dest, .. }
+        | NativeAbiStmt::Select { dest, .. }
         | NativeAbiStmt::LoadEnv { dest, .. }
         | NativeAbiStmt::AllocateClosure { dest, .. }
         | NativeAbiStmt::IndirectClosureCall { dest, .. } => *dest,

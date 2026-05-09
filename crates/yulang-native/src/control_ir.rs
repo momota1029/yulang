@@ -38,6 +38,24 @@ pub enum NativeStmt {
         target: String,
         args: Vec<ValueId>,
     },
+    Tuple {
+        dest: ValueId,
+        items: Vec<ValueId>,
+    },
+    Record {
+        dest: ValueId,
+        fields: Vec<NativeRecordField>,
+    },
+    Variant {
+        dest: ValueId,
+        tag: core_ir::Name,
+        value: Option<ValueId>,
+    },
+    Select {
+        dest: ValueId,
+        base: ValueId,
+        field: core_ir::Name,
+    },
     MakeClosure {
         dest: ValueId,
         target: String,
@@ -48,6 +66,12 @@ pub enum NativeStmt {
         callee: ValueId,
         args: Vec<ValueId>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeRecordField {
+    pub name: core_ir::Name,
+    pub value: ValueId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

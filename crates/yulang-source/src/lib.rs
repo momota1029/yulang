@@ -12,6 +12,13 @@ use yulang_parser::op::{BpVec, OpDef, OpTable, standard_op_table};
 use yulang_parser::parse_module_to_green;
 use yulang_parser::sink::YulangLanguage;
 
+mod cache;
+
+pub use cache::{
+    YULANG_LOCK_FILE, YULANG_MANIFEST_FILE, YULANG_TARGET_DIR, YulangCachePaths,
+    default_user_cache_root, project_target_root,
+};
+
 pub fn parse_source_meta(source: &str) -> SourceMeta {
     let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
     let mut meta = SourceMeta::default();
@@ -32,9 +39,11 @@ pub fn collect_virtual_source_files_with_options(
     loader.load_virtual_entry(source, base_dir.as_deref())?;
     sort_files_topologically(&mut loader.files);
     build_syntax_tables(&mut loader.files);
-    Ok(SourceSet {
-        files: loader.files,
-    })
+    Ok(SourceSet::from_files_with_realm(
+        loader.files,
+        virtual_single_file_realm_id(),
+        SourceRealmRoot::Virtual,
+    ))
 }
 
 pub fn collect_inline_source_files_with_options(
@@ -46,9 +55,11 @@ pub fn collect_inline_source_files_with_options(
     loader.load_entry(source);
     sort_files_topologically(&mut loader.files);
     build_syntax_tables(&mut loader.files);
-    SourceSet {
-        files: loader.files,
-    }
+    SourceSet::from_files_with_realm(
+        loader.files,
+        inline_realm_id(),
+        SourceRealmRoot::Embedded("inline".to_string()),
+    )
 }
 
 pub fn collect_source_files_with_options(
@@ -59,9 +70,11 @@ pub fn collect_source_files_with_options(
     loader.load_entry(entry.as_ref())?;
     sort_files_topologically(&mut loader.files);
     build_syntax_tables(&mut loader.files);
-    Ok(SourceSet {
-        files: loader.files,
-    })
+    Ok(SourceSet::from_files_with_realm(
+        loader.files,
+        local_realm_id(entry.as_ref()),
+        SourceRealmRoot::Local(local_realm_root(entry.as_ref())),
+    ))
 }
 
 pub const COMPILED_UNIT_ARTIFACT_FORMAT_VERSION: u32 = 1;
@@ -72,6 +85,102 @@ pub struct SourceOptions {
     pub std_root: Option<PathBuf>,
     pub implicit_prelude: bool,
     pub search_paths: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RealmIdentity(pub String);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RealmVersion(pub String);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ResolvedRealmId {
+    pub identity: RealmIdentity,
+    pub version: Option<RealmVersion>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SourceRealmRoot {
+    Local(PathBuf),
+    Cached(PathBuf),
+    Embedded(String),
+    Virtual,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceRealmDependency {
+    pub identity: RealmIdentity,
+    pub requirement: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceRealm {
+    pub id: ResolvedRealmId,
+    pub root: SourceRealmRoot,
+    pub dependencies: Vec<SourceRealmDependency>,
+    pub bands: Vec<SourceBand>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BandPath {
+    pub segments: Vec<Name>,
+}
+
+impl BandPath {
+    pub fn root() -> Self {
+        Self::default()
+    }
+
+    pub fn from_segments(segments: Vec<Name>) -> Self {
+        Self { segments }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ResolvedBandId {
+    pub realm: ResolvedRealmId,
+    pub band: BandPath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceBand {
+    pub path: BandPath,
+    pub files: Vec<usize>,
+    pub entry: bool,
+}
+
+impl SourceRealm {
+    pub fn band(&self, path: &BandPath) -> Option<&SourceBand> {
+        self.bands.iter().find(|band| &band.path == path)
+    }
+}
+
+fn virtual_single_file_realm_id() -> ResolvedRealmId {
+    ResolvedRealmId {
+        identity: RealmIdentity("virtual:entry".to_string()),
+        version: None,
+    }
+}
+
+fn inline_realm_id() -> ResolvedRealmId {
+    ResolvedRealmId {
+        identity: RealmIdentity("embedded:inline".to_string()),
+        version: None,
+    }
+}
+
+fn local_realm_id(entry: &FsPath) -> ResolvedRealmId {
+    ResolvedRealmId {
+        identity: RealmIdentity(format!("file://{}", local_realm_root(entry).display())),
+        version: None,
+    }
+}
+
+fn local_realm_root(entry: &FsPath) -> PathBuf {
+    let path = canonicalize_for_dedupe(entry);
+    path.parent()
+        .map(FsPath::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -122,9 +231,52 @@ pub enum Visibility {
 #[derive(Debug, Clone)]
 pub struct SourceSet {
     pub files: Vec<SourceFile>,
+    pub realms: Vec<SourceRealm>,
 }
 
 impl SourceSet {
+    pub fn from_files(files: Vec<SourceFile>) -> Self {
+        Self::from_files_with_realm(
+            files,
+            virtual_single_file_realm_id(),
+            SourceRealmRoot::Virtual,
+        )
+    }
+
+    pub fn from_files_with_realm(
+        mut files: Vec<SourceFile>,
+        realm: ResolvedRealmId,
+        root: SourceRealmRoot,
+    ) -> Self {
+        let bands = assign_source_bands(&mut files, &realm);
+        Self {
+            files,
+            realms: vec![SourceRealm {
+                id: realm,
+                root,
+                dependencies: Vec::new(),
+                bands,
+            }],
+        }
+    }
+
+    pub fn resolved_band(&self, id: &ResolvedBandId) -> Option<&SourceBand> {
+        self.realms
+            .iter()
+            .find(|realm| realm.id == id.realm)?
+            .band(&id.band)
+    }
+
+    pub fn entry_bands(&self) -> impl Iterator<Item = (&SourceRealm, &SourceBand)> {
+        self.realms.iter().flat_map(|realm| {
+            realm
+                .bands
+                .iter()
+                .filter(|band| band.entry)
+                .map(move |band| (realm, band))
+        })
+    }
+
     pub fn files_with_origin(&self, origin: SourceOrigin) -> impl Iterator<Item = &SourceFile> {
         self.files.iter().filter(move |file| file.origin == origin)
     }
@@ -383,6 +535,7 @@ pub struct SourceFile {
     pub path: PathBuf,
     pub module_path: ModulePath,
     pub origin: SourceOrigin,
+    pub band: Option<ResolvedBandId>,
     pub op_table: OpTable,
     pub source: String,
     pub meta: SourceMeta,
@@ -399,8 +552,19 @@ pub struct InlineSource {
 
 #[derive(Debug)]
 pub enum SourceLoadError {
-    Io { path: PathBuf, error: io::Error },
-    ModuleNotFound { parent: PathBuf, name: Name },
+    Io {
+        path: PathBuf,
+        error: io::Error,
+    },
+    ModuleNotFound {
+        parent: PathBuf,
+        name: Name,
+    },
+    AmbiguousModuleFile {
+        current: PathBuf,
+        name: Name,
+        candidates: Vec<PathBuf>,
+    },
 }
 
 impl fmt::Display for SourceLoadError {
@@ -416,6 +580,22 @@ impl fmt::Display for SourceLoadError {
                     name.0,
                     parent.display()
                 )
+            }
+            SourceLoadError::AmbiguousModuleFile {
+                current,
+                name,
+                candidates,
+            } => {
+                write!(
+                    f,
+                    "module file for `{}` from {} is ambiguous",
+                    name.0,
+                    current.display()
+                )?;
+                for candidate in candidates {
+                    write!(f, ": {}", candidate.display())?;
+                }
+                Ok(())
             }
         }
     }
@@ -505,6 +685,7 @@ impl InlineSourceLoader {
             path,
             module_path,
             origin,
+            band: None,
             op_table: standard_op_table(),
             source,
             meta,
@@ -586,14 +767,13 @@ impl SourceLoader {
             source.insert_str(0, source_prefix);
         }
         let meta = parse_source_meta(&source);
-        let parent = path.parent().unwrap_or_else(|| FsPath::new("."));
         let module_paths = meta
             .module_files
             .iter()
             .map(|decl| {
                 let mut child_module = module_path.segments.clone();
                 child_module.push(decl.name.clone());
-                resolve_module_file(parent, &decl.name).map(|path| {
+                resolve_module_file(path, &decl.name).map(|path| {
                     (
                         path,
                         ModulePath {
@@ -618,6 +798,7 @@ impl SourceLoader {
             path: path.to_path_buf(),
             module_path,
             origin,
+            band: None,
             op_table: standard_op_table(),
             source,
             meta,
@@ -653,14 +834,13 @@ impl SourceLoader {
             source.insert_str(0, source_prefix);
         }
         let meta = parse_source_meta(&source);
-        let parent = base_dir.unwrap_or_else(|| FsPath::new("."));
         let module_paths = meta
             .module_files
             .iter()
             .map(|decl| {
                 let mut child_module = module_path.segments.clone();
                 child_module.push(decl.name.clone());
-                resolve_module_file(parent, &decl.name).map(|path| {
+                resolve_module_file(&synthetic_path, &decl.name).map(|path| {
                     (
                         path,
                         ModulePath {
@@ -685,6 +865,7 @@ impl SourceLoader {
             path: synthetic_path,
             module_path,
             origin,
+            band: None,
             op_table: standard_op_table(),
             source,
             meta,
@@ -800,14 +981,89 @@ fn sort_files_topologically(files: &mut Vec<SourceFile>) {
         .collect();
 }
 
-fn source_dependencies(file: &SourceFile, module_paths: &[ModulePath]) -> Vec<usize> {
-    let mut deps = Vec::new();
-
-    for decl in &file.meta.module_files {
-        let mut child = file.module_path.segments.clone();
-        child.push(decl.name.clone());
-        push_module_dependency(&child, &file.module_path, module_paths, &mut deps);
+fn assign_source_bands(files: &mut [SourceFile], realm: &ResolvedRealmId) -> Vec<SourceBand> {
+    let module_paths = files
+        .iter()
+        .map(|file| file.module_path.clone())
+        .collect::<Vec<_>>();
+    let mod_dependencies = files
+        .iter()
+        .map(|file| source_mod_dependencies(file, &module_paths))
+        .collect::<Vec<_>>();
+    let mut incoming = vec![0usize; files.len()];
+    for deps in &mod_dependencies {
+        for &dep in deps {
+            incoming[dep] += 1;
+        }
     }
+
+    let mut roots = incoming
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, count)| (*count == 0).then_some(idx))
+        .collect::<Vec<_>>();
+    if roots.is_empty() && !files.is_empty() {
+        roots.push(0);
+    }
+
+    let mut assigned = vec![false; files.len()];
+    let mut bands = Vec::new();
+    for root_idx in roots {
+        if assigned[root_idx] {
+            continue;
+        }
+        let band_path = BandPath::from_segments(files[root_idx].module_path.segments.clone());
+        let band_id = ResolvedBandId {
+            realm: realm.clone(),
+            band: band_path.clone(),
+        };
+        let mut stack = vec![root_idx];
+        let mut band_files = Vec::new();
+        while let Some(file_idx) = stack.pop() {
+            if assigned[file_idx] {
+                continue;
+            }
+            assigned[file_idx] = true;
+            files[file_idx].band = Some(band_id.clone());
+            band_files.push(file_idx);
+            for &dep in &mod_dependencies[file_idx] {
+                stack.push(dep);
+            }
+        }
+        band_files.sort_unstable();
+        let entry = band_files
+            .iter()
+            .any(|&file_idx| files[file_idx].origin == SourceOrigin::Entry);
+        bands.push(SourceBand {
+            path: band_path,
+            files: band_files,
+            entry,
+        });
+    }
+
+    for file_idx in 0..files.len() {
+        if assigned[file_idx] {
+            continue;
+        }
+        let band_path = BandPath::from_segments(files[file_idx].module_path.segments.clone());
+        let band_id = ResolvedBandId {
+            realm: realm.clone(),
+            band: band_path.clone(),
+        };
+        files[file_idx].band = Some(band_id);
+        bands.push(SourceBand {
+            path: band_path,
+            files: vec![file_idx],
+            entry: files[file_idx].origin == SourceOrigin::Entry,
+        });
+    }
+
+    bands.sort_by(|a, b| a.path.segments.cmp(&b.path.segments));
+    bands
+}
+
+fn source_dependencies(file: &SourceFile, module_paths: &[ModulePath]) -> Vec<usize> {
+    let mut deps = source_mod_dependencies(file, module_paths);
 
     for use_ in &file.meta.uses {
         match &use_.import {
@@ -820,6 +1076,18 @@ fn source_dependencies(file: &SourceFile, module_paths: &[ModulePath]) -> Vec<us
         }
     }
 
+    deps.sort_unstable();
+    deps.dedup();
+    deps
+}
+
+fn source_mod_dependencies(file: &SourceFile, module_paths: &[ModulePath]) -> Vec<usize> {
+    let mut deps = Vec::new();
+    for decl in &file.meta.module_files {
+        let mut child = file.module_path.segments.clone();
+        child.push(decl.name.clone());
+        push_module_dependency(&child, &file.module_path, module_paths, &mut deps);
+    }
     deps.sort_unstable();
     deps.dedup();
     deps
@@ -1826,14 +2094,27 @@ fn direct_visibility(node: &SyntaxNode<YulangLanguage>) -> Option<Visibility> {
     None
 }
 
-fn resolve_module_file(parent: &FsPath, name: &Name) -> Result<PathBuf, SourceLoadError> {
+fn resolve_module_file(current: &FsPath, name: &Name) -> Result<PathBuf, SourceLoadError> {
+    let parent = current.parent().unwrap_or_else(|| FsPath::new("."));
     let direct = parent.join(format!("{}.yu", name.0));
+    let stem_child = current.with_extension("").join(format!("{}.yu", name.0));
+    let mut candidates = Vec::new();
     if direct.is_file() {
-        return Ok(direct);
+        candidates.push(direct);
     }
-    let nested = parent.join(&name.0).join("mod.yu");
-    if nested.is_file() {
-        return Ok(nested);
+    if stem_child.is_file() {
+        candidates.push(stem_child);
+    }
+    match candidates.len() {
+        1 => return Ok(candidates.remove(0)),
+        len if len > 1 => {
+            return Err(SourceLoadError::AmbiguousModuleFile {
+                current: current.to_path_buf(),
+                name: name.clone(),
+                candidates,
+            });
+        }
+        _ => {}
     }
     Err(SourceLoadError::ModuleNotFound {
         parent: parent.to_path_buf(),
@@ -2006,7 +2287,7 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("list")).unwrap();
         fs::write(root.join("main.yu"), "mod list;\nmy x = 1").unwrap();
-        fs::write(root.join("list").join("mod.yu"), "mod inner;\nmy y = 2").unwrap();
+        fs::write(root.join("list.yu"), "mod inner;\nmy y = 2").unwrap();
         fs::write(root.join("list").join("inner.yu"), "my z = 3").unwrap();
 
         let set = collect_source_files(root.join("main.yu")).unwrap();
@@ -2015,7 +2296,7 @@ mod tests {
             .iter()
             .map(|file| file.path.file_name().unwrap().to_string_lossy().to_string())
             .collect::<Vec<_>>();
-        assert_eq!(file_names, vec!["inner.yu", "mod.yu", "main.yu"]);
+        assert_eq!(file_names, vec!["inner.yu", "list.yu", "main.yu"]);
         let module_paths = set
             .files
             .iter()
@@ -2025,6 +2306,43 @@ mod tests {
             module_paths,
             vec![vec!["list", "inner"], vec!["list"], Vec::<&str>::new()]
         );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mod_file_can_use_stem_child_layout() {
+        let root = temp_root("stem-child-module-file");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("main")).unwrap();
+        fs::write(root.join("main.yu"), "mod child;\nchild::x\n").unwrap();
+        fs::write(root.join("main").join("child.yu"), "pub x = 1\n").unwrap();
+
+        let set = collect_source_files(root.join("main.yu")).unwrap();
+        let module_paths = set
+            .files
+            .iter()
+            .map(|file| names(&file.module_path))
+            .collect::<Vec<_>>();
+        assert_eq!(module_paths, vec![vec!["child"], Vec::<&str>::new()]);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mod_file_reports_ambiguous_sibling_and_stem_child() {
+        let root = temp_root("ambiguous-module-file");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("main")).unwrap();
+        fs::write(root.join("main.yu"), "mod child;\nchild::x\n").unwrap();
+        fs::write(root.join("child.yu"), "pub x = 1\n").unwrap();
+        fs::write(root.join("main").join("child.yu"), "pub x = 2\n").unwrap();
+
+        let err = collect_source_files(root.join("main.yu")).unwrap_err();
+        assert!(matches!(
+            err,
+            SourceLoadError::AmbiguousModuleFile { name, .. } if name == Name("child".to_string())
+        ));
 
         let _ = fs::remove_dir_all(root);
     }
@@ -2562,5 +2880,94 @@ mod tests {
             first_artifact.manifest.syntax_hash,
             second_artifact.manifest.syntax_hash
         );
+    }
+
+    #[test]
+    fn virtual_source_set_has_resolved_entry_band() {
+        let set = collect_virtual_source_files_with_options(
+            "1\n",
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(set.realms.len(), 1);
+        assert_eq!(set.realms[0].id.identity.0, "virtual:entry");
+        assert_eq!(set.entry_bands().count(), 1);
+        assert_eq!(set.realms[0].bands[0].files, vec![0]);
+        assert_eq!(
+            set.files[0].band.as_ref(),
+            Some(&ResolvedBandId {
+                realm: set.realms[0].id.clone(),
+                band: BandPath::root(),
+            })
+        );
+    }
+
+    #[test]
+    fn local_source_set_has_file_realm_and_entry_band() {
+        let root = temp_root("local-realm-band");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "mod child;\nchild::x\n").unwrap();
+        fs::write(root.join("child.yu"), "pub x = 1\n").unwrap();
+
+        let set = collect_source_files(root.join("main.yu")).unwrap();
+
+        assert_eq!(set.realms.len(), 1);
+        assert!(set.realms[0].id.identity.0.starts_with("file://"));
+        assert_eq!(set.entry_bands().count(), 1);
+        assert_eq!(set.realms[0].bands[0].files.len(), 2);
+        assert!(set.files.iter().all(|file| file.band.as_ref()
+            == Some(&ResolvedBandId {
+                realm: set.realms[0].id.clone(),
+                band: BandPath::root(),
+            })));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn use_imported_source_starts_a_separate_band() {
+        let root = temp_root("use-import-band");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.yu"), "use util::*\nx\n").unwrap();
+        fs::write(root.join("util.yu"), "pub x = 1\n").unwrap();
+
+        let set = collect_source_files_with_options(
+            root.join("main.yu"),
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: vec![root.clone()],
+            },
+        )
+        .unwrap();
+        let realm = &set.realms[0];
+        let root_band = realm.band(&BandPath::root()).unwrap();
+        let util_band = realm
+            .band(&BandPath::from_segments(vec![Name("util".to_string())]))
+            .unwrap();
+
+        assert_eq!(realm.bands.len(), 2);
+        assert!(root_band.entry);
+        assert!(!util_band.entry);
+        assert_eq!(root_band.files.len(), 1);
+        assert_eq!(util_band.files.len(), 1);
+        assert_eq!(
+            set.files[root_band.files[0]].band.as_ref().unwrap().band,
+            BandPath::root()
+        );
+        assert_eq!(
+            set.files[util_band.files[0]].band.as_ref().unwrap().band,
+            BandPath::from_segments(vec![Name("util".to_string())])
+        );
+
+        let _ = fs::remove_dir_all(root);
     }
 }

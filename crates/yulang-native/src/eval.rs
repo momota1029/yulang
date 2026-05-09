@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
 use yulang_core_ir as core_ir;
@@ -198,6 +199,49 @@ fn eval_blocks(
                         *dest,
                         eval_function_value(module, function, args)?,
                     );
+                }
+                NativeStmt::Tuple { dest, items } => {
+                    let items = items
+                        .iter()
+                        .map(|id| read_plain_value(&values, *id))
+                        .collect::<NativeEvalResult<Vec<_>>>()?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        NativeRuntimeValue::Plain(runtime::VmValue::Tuple(items)),
+                    );
+                }
+                NativeStmt::Record { dest, fields } => {
+                    let mut record = BTreeMap::new();
+                    for field in fields {
+                        record.insert(field.name.clone(), read_plain_value(&values, field.value)?);
+                    }
+                    write_value(
+                        &mut values,
+                        *dest,
+                        NativeRuntimeValue::Plain(runtime::VmValue::Record(record)),
+                    );
+                }
+                NativeStmt::Variant { dest, tag, value } => {
+                    let value = value
+                        .map(|value| read_plain_value(&values, value).map(Box::new))
+                        .transpose()?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        NativeRuntimeValue::Plain(runtime::VmValue::Variant {
+                            tag: tag.clone(),
+                            value,
+                        }),
+                    );
+                }
+                NativeStmt::Select { dest, base, field } => {
+                    let value = match read_plain_value(&values, *base)? {
+                        runtime::VmValue::Record(fields) => fields.get(field).cloned(),
+                        _ => None,
+                    }
+                    .ok_or(NativeEvalError::ExpectedPlainValue { id: *base })?;
+                    write_value(&mut values, *dest, NativeRuntimeValue::Plain(value));
                 }
                 NativeStmt::MakeClosure {
                     dest,

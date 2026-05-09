@@ -2,14 +2,24 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use cranelift_codegen::ir::{self, AbiParam, InstBuilder, types};
+use cranelift_codegen::settings;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_jit::{JITBuilder, JITModule};
-use cranelift_module::{FuncId, Linkage, Module};
+use cranelift_module::{DataDescription, FuncId, Linkage, Module};
+use cranelift_object::{ObjectBuilder, ObjectModule};
 use yulang_runtime as runtime;
 
 use crate::abi::{NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
 use crate::abi_validate::{NativeAbiValidateError, validate_abi_module};
 use crate::control_ir::{BlockId, NativeLiteral, NativeTerminator, ValueId};
+use crate::native_runtime::{
+    NativeRuntimeContext, yulang_native_concat_string, yulang_native_list_empty,
+    yulang_native_list_index, yulang_native_list_len, yulang_native_list_merge,
+    yulang_native_list_singleton, yulang_native_make_bool, yulang_native_make_float,
+    yulang_native_make_int, yulang_native_make_string, yulang_native_make_unit,
+    yulang_native_record_empty, yulang_native_record_insert, yulang_native_record_select,
+    yulang_native_tuple_empty, yulang_native_tuple_push, yulang_native_variant,
+};
 
 pub type NativeValueCraneliftResult<T> = Result<T, NativeValueCraneliftError>;
 
@@ -107,10 +117,10 @@ impl NativeValueJitModule {
                 let call = unsafe {
                     std::mem::transmute::<
                         _,
-                        extern "C" fn(*mut NativeValueContext) -> *mut runtime::VmValue,
+                        extern "C" fn(*mut NativeRuntimeContext) -> *mut runtime::VmValue,
                     >(ptr)
                 };
-                let mut context = NativeValueContext::default();
+                let mut context = NativeRuntimeContext::new();
                 let value = call(&mut context);
                 if value.is_null() {
                     return Err(NativeValueCraneliftError::Cranelift(
@@ -123,9 +133,24 @@ impl NativeValueJitModule {
     }
 }
 
-#[derive(Default)]
-struct NativeValueContext {
-    values: Vec<Box<runtime::VmValue>>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeValueObjectModule {
+    bytes: Vec<u8>,
+    roots: Vec<String>,
+}
+
+impl NativeValueObjectModule {
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn roots(&self) -> &[String] {
+        &self.roots
+    }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.bytes
+    }
 }
 
 pub fn compile_value_abi_module(
@@ -141,15 +166,75 @@ pub fn compile_value_abi_module(
         yulang_native_make_string as *const u8,
     );
     builder.symbol(
+        "yulang_native_make_int",
+        yulang_native_make_int as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_make_float",
+        yulang_native_make_float as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_make_bool",
+        yulang_native_make_bool as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_make_unit",
+        yulang_native_make_unit as *const u8,
+    );
+    builder.symbol(
         "yulang_native_concat_string",
         yulang_native_concat_string as *const u8,
     );
+    builder.symbol(
+        "yulang_native_list_empty",
+        yulang_native_list_empty as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_list_singleton",
+        yulang_native_list_singleton as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_list_merge",
+        yulang_native_list_merge as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_list_len",
+        yulang_native_list_len as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_list_index",
+        yulang_native_list_index as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_tuple_empty",
+        yulang_native_tuple_empty as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_tuple_push",
+        yulang_native_tuple_push as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_record_empty",
+        yulang_native_record_empty as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_record_insert",
+        yulang_native_record_insert as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_record_select",
+        yulang_native_record_select as *const u8,
+    );
+    builder.symbol("yulang_native_variant", yulang_native_variant as *const u8);
     let mut jit = JITModule::new(builder);
 
     let helpers = declare_helpers(&mut jit)?;
     let mut strings = Vec::new();
     let functions = declare_functions(&mut jit, module)?;
-    define_functions(&mut jit, module, &functions, &helpers, &mut strings)?;
+    let mut literals = HostLiteralStore {
+        strings: &mut strings,
+    };
+    define_functions(&mut jit, module, &functions, &helpers, &mut literals)?;
     Ok(NativeValueJitModule {
         module: jit,
         roots: module
@@ -168,6 +253,37 @@ pub fn compile_value_abi_module(
     })
 }
 
+pub fn compile_value_abi_module_to_object(
+    module: &NativeAbiModule,
+) -> NativeValueCraneliftResult<NativeValueObjectModule> {
+    validate_abi_module(module)?;
+    validate_value_prototype_subset(module)?;
+
+    let isa_builder = cranelift_native::builder().map_err(cranelift_error)?;
+    let flags = settings::Flags::new(settings::builder());
+    let isa = isa_builder.finish(flags).map_err(cranelift_error)?;
+    let builder = ObjectBuilder::new(
+        isa,
+        "yulang_native_value_object".to_string(),
+        cranelift_module::default_libcall_names(),
+    )
+    .map_err(cranelift_error)?;
+    let mut object = ObjectModule::new(builder);
+
+    let helpers = declare_helpers(&mut object)?;
+    let functions = declare_functions(&mut object, module)?;
+    let mut literals = ObjectLiteralStore::default();
+    define_functions(&mut object, module, &functions, &helpers, &mut literals)?;
+    let roots = module
+        .roots
+        .iter()
+        .map(|root| root.name.clone())
+        .collect::<Vec<_>>();
+    let product = object.finish();
+    let bytes = product.emit().map_err(cranelift_error)?;
+    Ok(NativeValueObjectModule { bytes, roots })
+}
+
 fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCraneliftResult<()> {
     for function in module.functions.iter().chain(&module.roots) {
         if function.environment_slots != 0 {
@@ -180,17 +296,28 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
             for stmt in &block.stmts {
                 match stmt {
                     NativeAbiStmt::Literal {
+                        literal:
+                            NativeLiteral::Int(_)
+                            | NativeLiteral::Float(_)
+                            | NativeLiteral::Bool(_)
+                            | NativeLiteral::Unit,
+                        ..
+                    } => {}
+                    NativeAbiStmt::Literal {
                         literal: NativeLiteral::String(_),
                         ..
                     } => {}
-                    NativeAbiStmt::Literal { literal, .. } => {
-                        return Err(NativeValueCraneliftError::UnsupportedLiteral {
-                            function: function.name.clone(),
-                            literal: literal.clone(),
-                        });
-                    }
                     NativeAbiStmt::Primitive {
                         op: yulang_core_ir::PrimitiveOp::StringConcat,
+                        ..
+                    } => {}
+                    NativeAbiStmt::Primitive {
+                        op:
+                            yulang_core_ir::PrimitiveOp::ListEmpty
+                            | yulang_core_ir::PrimitiveOp::ListSingleton
+                            | yulang_core_ir::PrimitiveOp::ListMerge
+                            | yulang_core_ir::PrimitiveOp::ListLen
+                            | yulang_core_ir::PrimitiveOp::ListIndex,
                         ..
                     } => {}
                     NativeAbiStmt::Primitive { .. } => {
@@ -200,6 +327,10 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                         });
                     }
                     NativeAbiStmt::DirectCall { .. } => {}
+                    NativeAbiStmt::Tuple { .. }
+                    | NativeAbiStmt::Record { .. }
+                    | NativeAbiStmt::Variant { .. }
+                    | NativeAbiStmt::Select { .. } => {}
                     NativeAbiStmt::LoadEnv { .. } => {
                         return Err(NativeValueCraneliftError::UnsupportedStmt {
                             function: function.name.clone(),
@@ -234,14 +365,14 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
     Ok(())
 }
 
-fn declare_functions(
-    jit: &mut JITModule,
+fn declare_functions<M: Module>(
+    module_backend: &mut M,
     module: &NativeAbiModule,
 ) -> NativeValueCraneliftResult<HashMap<String, FuncId>> {
     let mut functions = HashMap::new();
     for function in module.functions.iter().chain(&module.roots) {
-        let sig = value_function_signature(jit, function);
-        let id = jit
+        let sig = value_function_signature(module_backend, function);
+        let id = module_backend
             .declare_function(&function.name, Linkage::Export, &sig)
             .map_err(cranelift_error)?;
         functions.insert(function.name.clone(), id);
@@ -249,12 +380,12 @@ fn declare_functions(
     Ok(functions)
 }
 
-fn define_functions(
-    jit: &mut JITModule,
+fn define_functions<M: Module, L: ValueLiteralStore>(
+    module_backend: &mut M,
     module: &NativeAbiModule,
     functions: &HashMap<String, FuncId>,
     helpers: &ValueHelpers,
-    strings: &mut Vec<Box<str>>,
+    literals: &mut L,
 ) -> NativeValueCraneliftResult<()> {
     for function in module.functions.iter().chain(&module.roots) {
         let id = functions.get(&function.name).copied().ok_or_else(|| {
@@ -263,50 +394,252 @@ fn define_functions(
                 reason: "function was not declared",
             }
         })?;
-        let mut ctx = jit.make_context();
-        ctx.func.signature = value_function_signature(jit, function);
-        lower_value_function(jit, &mut ctx, function, functions, helpers, strings)?;
-        jit.define_function(id, &mut ctx).map_err(cranelift_error)?;
-        jit.clear_context(&mut ctx);
+        let mut ctx = module_backend.make_context();
+        ctx.func.signature = value_function_signature(module_backend, function);
+        lower_value_function(
+            module_backend,
+            &mut ctx,
+            function,
+            functions,
+            helpers,
+            literals,
+        )?;
+        module_backend
+            .define_function(id, &mut ctx)
+            .map_err(cranelift_error)?;
+        module_backend.clear_context(&mut ctx);
     }
     Ok(())
 }
 
 #[derive(Debug, Clone, Copy)]
 struct ValueHelpers {
+    make_int: FuncId,
+    make_float: FuncId,
+    make_bool: FuncId,
+    make_unit: FuncId,
     make_string: FuncId,
     concat_string: FuncId,
+    list_empty: FuncId,
+    list_singleton: FuncId,
+    list_merge: FuncId,
+    list_len: FuncId,
+    list_index: FuncId,
+    tuple_empty: FuncId,
+    tuple_push: FuncId,
+    record_empty: FuncId,
+    record_insert: FuncId,
+    record_select: FuncId,
+    variant: FuncId,
 }
 
-fn declare_helpers(jit: &mut JITModule) -> NativeValueCraneliftResult<ValueHelpers> {
+fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<ValueHelpers> {
     Ok(ValueHelpers {
-        make_string: declare_make_string(jit)?,
-        concat_string: declare_concat_string(jit)?,
+        make_int: declare_make_int(module_backend)?,
+        make_float: declare_make_float(module_backend)?,
+        make_bool: declare_make_bool(module_backend)?,
+        make_unit: declare_make_unit(module_backend)?,
+        make_string: declare_make_string(module_backend)?,
+        concat_string: declare_concat_string(module_backend)?,
+        list_empty: declare_list_empty(module_backend)?,
+        list_singleton: declare_list_singleton(module_backend)?,
+        list_merge: declare_list_merge(module_backend)?,
+        list_len: declare_list_len(module_backend)?,
+        list_index: declare_list_index(module_backend)?,
+        tuple_empty: declare_tuple_empty(module_backend)?,
+        tuple_push: declare_tuple_push(module_backend)?,
+        record_empty: declare_record_empty(module_backend)?,
+        record_insert: declare_record_insert(module_backend)?,
+        record_select: declare_record_select(module_backend)?,
+        variant: declare_variant(module_backend)?,
     })
 }
 
-fn declare_make_string(jit: &mut JITModule) -> NativeValueCraneliftResult<FuncId> {
-    let mut sig = jit.make_signature();
+fn declare_make_int<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
     sig.params.push(AbiParam::new(types::I64));
     sig.params.push(AbiParam::new(types::I64));
     sig.params.push(AbiParam::new(types::I64));
     sig.returns.push(AbiParam::new(types::I64));
-    jit.declare_function("yulang_native_make_string", Linkage::Import, &sig)
+    module_backend
+        .declare_function("yulang_native_make_int", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
-fn declare_concat_string(jit: &mut JITModule) -> NativeValueCraneliftResult<FuncId> {
-    let mut sig = jit.make_signature();
+fn declare_make_float<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
     sig.params.push(AbiParam::new(types::I64));
     sig.params.push(AbiParam::new(types::I64));
     sig.params.push(AbiParam::new(types::I64));
     sig.returns.push(AbiParam::new(types::I64));
-    jit.declare_function("yulang_native_concat_string", Linkage::Import, &sig)
+    module_backend
+        .declare_function("yulang_native_make_float", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
-fn value_function_signature(jit: &JITModule, function: &NativeAbiFunction) -> ir::Signature {
-    let mut sig = jit.make_signature();
+fn declare_make_bool<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_make_bool", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_make_unit<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_make_unit", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_make_string<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_make_string", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_list_empty<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_list_empty", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_list_singleton<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_list_singleton", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_list_merge<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_list_merge", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_list_len<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_list_len", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_list_index<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_list_index", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_tuple_empty<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_tuple_empty", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_tuple_push<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_tuple_push", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_record_empty<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_record_empty", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_record_insert<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_record_insert", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_record_select<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_record_select", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_variant<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_variant", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_concat_string<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_concat_string", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn value_function_signature<M: Module>(
+    module_backend: &M,
+    function: &NativeAbiFunction,
+) -> ir::Signature {
+    let mut sig = module_backend.make_signature();
     sig.params.push(AbiParam::new(types::I64));
     sig.params
         .extend(function.params.iter().map(|_| AbiParam::new(types::I64)));
@@ -314,13 +647,13 @@ fn value_function_signature(jit: &JITModule, function: &NativeAbiFunction) -> ir
     sig
 }
 
-fn lower_value_function(
-    jit: &mut JITModule,
+fn lower_value_function<M: Module, L: ValueLiteralStore>(
+    module_backend: &mut M,
     ctx: &mut cranelift_codegen::Context,
     function: &NativeAbiFunction,
     functions: &HashMap<String, FuncId>,
     helpers: &ValueHelpers,
-    strings: &mut Vec<Box<str>>,
+    literals: &mut L,
 ) -> NativeValueCraneliftResult<()> {
     let mut builder_context = FunctionBuilderContext::new();
     let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
@@ -349,7 +682,7 @@ fn lower_value_function(
     }
     for stmt in &block.stmts {
         let dest = lower_value_stmt(
-            jit,
+            module_backend,
             &mut builder,
             function,
             stmt,
@@ -357,7 +690,7 @@ fn lower_value_function(
             helpers,
             context,
             &values,
-            strings,
+            literals,
         )?;
         values.insert(dest, ());
     }
@@ -384,8 +717,8 @@ fn lower_value_function(
     Ok(())
 }
 
-fn lower_value_stmt(
-    jit: &mut JITModule,
+fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &NativeAbiFunction,
     stmt: &NativeAbiStmt,
@@ -393,20 +726,82 @@ fn lower_value_stmt(
     helpers: &ValueHelpers,
     context: ir::Value,
     defined: &HashMap<ValueId, ()>,
-    strings: &mut Vec<Box<str>>,
+    literals: &mut L,
 ) -> NativeValueCraneliftResult<ValueId> {
     match stmt {
         NativeAbiStmt::Literal {
             dest,
+            literal: NativeLiteral::Int(value),
+        } => {
+            let (ptr, len) = literals.literal_bytes(module_backend, builder, value.as_bytes())?;
+            let callee = module_backend.declare_func_in_func(helpers.make_int, builder.func);
+            let call = builder.ins().call(callee, &[context, ptr, len]);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeValueCraneliftError::InvalidReturnArity {
+                    function: "yulang_native_make_int".to_string(),
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Literal {
+            dest,
+            literal: NativeLiteral::Float(value),
+        } => {
+            let (ptr, len) = literals.literal_bytes(module_backend, builder, value.as_bytes())?;
+            let callee = module_backend.declare_func_in_func(helpers.make_float, builder.func);
+            let call = builder.ins().call(callee, &[context, ptr, len]);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeValueCraneliftError::InvalidReturnArity {
+                    function: "yulang_native_make_float".to_string(),
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Literal {
+            dest,
+            literal: NativeLiteral::Bool(value),
+        } => {
+            let raw = builder.ins().iconst(types::I64, i64::from(*value));
+            let callee = module_backend.declare_func_in_func(helpers.make_bool, builder.func);
+            let call = builder.ins().call(callee, &[context, raw]);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeValueCraneliftError::InvalidReturnArity {
+                    function: "yulang_native_make_bool".to_string(),
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Literal {
+            dest,
+            literal: NativeLiteral::Unit,
+        } => {
+            let callee = module_backend.declare_func_in_func(helpers.make_unit, builder.func);
+            let call = builder.ins().call(callee, &[context]);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeValueCraneliftError::InvalidReturnArity {
+                    function: "yulang_native_make_unit".to_string(),
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Literal {
+            dest,
             literal: NativeLiteral::String(value),
         } => {
-            let text = value.clone().into_boxed_str();
-            let ptr = text.as_ptr() as i64;
-            let len = text.len() as i64;
-            strings.push(text);
-            let callee = jit.declare_func_in_func(helpers.make_string, builder.func);
-            let ptr = builder.ins().iconst(types::I64, ptr);
-            let len = builder.ins().iconst(types::I64, len);
+            let (ptr, len) = literals.literal_bytes(module_backend, builder, value.as_bytes())?;
+            let callee = module_backend.declare_func_in_func(helpers.make_string, builder.func);
             let call = builder.ins().call(callee, &[context, ptr, len]);
             let results = builder.inst_results(call);
             if results.len() != 1 {
@@ -418,24 +813,113 @@ fn lower_value_stmt(
             builder.def_var(variable(*dest), results[0]);
             Ok(*dest)
         }
-        NativeAbiStmt::Literal { literal, .. } => {
-            Err(NativeValueCraneliftError::UnsupportedLiteral {
-                function: function.name.clone(),
-                literal: literal.clone(),
-            })
-        }
         NativeAbiStmt::Primitive {
             dest,
             op: yulang_core_ir::PrimitiveOp::StringConcat,
             args,
         } => {
             let args = read_values(builder, function, defined, args)?;
-            let callee = jit.declare_func_in_func(helpers.concat_string, builder.func);
+            let callee = module_backend.declare_func_in_func(helpers.concat_string, builder.func);
             let call = builder.ins().call(callee, &[context, args[0], args[1]]);
             let results = builder.inst_results(call);
             if results.len() != 1 {
                 return Err(NativeValueCraneliftError::InvalidReturnArity {
                     function: "yulang_native_concat_string".to_string(),
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Primitive {
+            dest,
+            op: yulang_core_ir::PrimitiveOp::ListEmpty,
+            args,
+        } => {
+            if !args.is_empty() {
+                return Err(NativeValueCraneliftError::UnsupportedStmt {
+                    function: function.name.clone(),
+                    kind: "list empty arity",
+                });
+            }
+            let callee = module_backend.declare_func_in_func(helpers.list_empty, builder.func);
+            let call = builder.ins().call(callee, &[context]);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeValueCraneliftError::InvalidReturnArity {
+                    function: "yulang_native_list_empty".to_string(),
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Primitive {
+            dest,
+            op: yulang_core_ir::PrimitiveOp::ListSingleton,
+            args,
+        } => {
+            let args = read_values(builder, function, defined, args)?;
+            let callee = module_backend.declare_func_in_func(helpers.list_singleton, builder.func);
+            let call = builder.ins().call(callee, &[context, args[0]]);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeValueCraneliftError::InvalidReturnArity {
+                    function: "yulang_native_list_singleton".to_string(),
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Primitive {
+            dest,
+            op: yulang_core_ir::PrimitiveOp::ListMerge,
+            args,
+        } => {
+            let args = read_values(builder, function, defined, args)?;
+            let callee = module_backend.declare_func_in_func(helpers.list_merge, builder.func);
+            let call = builder.ins().call(callee, &[context, args[0], args[1]]);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeValueCraneliftError::InvalidReturnArity {
+                    function: "yulang_native_list_merge".to_string(),
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Primitive {
+            dest,
+            op: yulang_core_ir::PrimitiveOp::ListLen,
+            args,
+        } => {
+            let args = read_values(builder, function, defined, args)?;
+            let callee = module_backend.declare_func_in_func(helpers.list_len, builder.func);
+            let call = builder.ins().call(callee, &[context, args[0]]);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeValueCraneliftError::InvalidReturnArity {
+                    function: "yulang_native_list_len".to_string(),
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Primitive {
+            dest,
+            op: yulang_core_ir::PrimitiveOp::ListIndex,
+            args,
+        } => {
+            let args = read_values(builder, function, defined, args)?;
+            let callee = module_backend.declare_func_in_func(helpers.list_index, builder.func);
+            let call = builder.ins().call(callee, &[context, args[0], args[1]]);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeValueCraneliftError::InvalidReturnArity {
+                    function: "yulang_native_list_index".to_string(),
                     arity: results.len(),
                 });
             }
@@ -453,7 +937,7 @@ fn lower_value_stmt(
                     reason: "target was not declared",
                 }
             })?;
-            let callee = jit.declare_func_in_func(id, builder.func);
+            let callee = module_backend.declare_func_in_func(id, builder.func);
             let mut call_args = vec![context];
             call_args.extend(read_values(builder, function, defined, args)?);
             let call = builder.ins().call(callee, &call_args);
@@ -465,6 +949,82 @@ fn lower_value_stmt(
                 });
             }
             builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Tuple { dest, items } => {
+            let callee = module_backend.declare_func_in_func(helpers.tuple_empty, builder.func);
+            let call = builder.ins().call(callee, &[context]);
+            let mut tuple = single_call_result(builder, call, "yulang_native_tuple_empty")?;
+            for item in read_values(builder, function, defined, items)? {
+                let callee = module_backend.declare_func_in_func(helpers.tuple_push, builder.func);
+                let call = builder.ins().call(callee, &[context, tuple, item]);
+                tuple = single_call_result(builder, call, "yulang_native_tuple_push")?;
+            }
+            builder.def_var(variable(*dest), tuple);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Record { dest, fields } => {
+            let callee = module_backend.declare_func_in_func(helpers.record_empty, builder.func);
+            let call = builder.ins().call(callee, &[context]);
+            let mut record = single_call_result(builder, call, "yulang_native_record_empty")?;
+            for field in fields {
+                if !defined.contains_key(&field.value) {
+                    return Err(NativeValueCraneliftError::MissingValue {
+                        function: function.name.clone(),
+                        value: field.value,
+                    });
+                }
+                let value = builder.use_var(variable(field.value));
+                let (name_ptr, name_len) =
+                    literals.literal_bytes(module_backend, builder, field.name.0.as_bytes())?;
+                let callee =
+                    module_backend.declare_func_in_func(helpers.record_insert, builder.func);
+                let call = builder
+                    .ins()
+                    .call(callee, &[context, record, name_ptr, name_len, value]);
+                record = single_call_result(builder, call, "yulang_native_record_insert")?;
+            }
+            builder.def_var(variable(*dest), record);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Variant { dest, tag, value } => {
+            let (tag_ptr, tag_len) =
+                literals.literal_bytes(module_backend, builder, tag.0.as_bytes())?;
+            let value = if let Some(value) = value {
+                if !defined.contains_key(value) {
+                    return Err(NativeValueCraneliftError::MissingValue {
+                        function: function.name.clone(),
+                        value: *value,
+                    });
+                }
+                builder.use_var(variable(*value))
+            } else {
+                builder.ins().iconst(types::I64, 0)
+            };
+            let callee = module_backend.declare_func_in_func(helpers.variant, builder.func);
+            let call = builder
+                .ins()
+                .call(callee, &[context, tag_ptr, tag_len, value]);
+            let result = single_call_result(builder, call, "yulang_native_variant")?;
+            builder.def_var(variable(*dest), result);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Select { dest, base, field } => {
+            if !defined.contains_key(base) {
+                return Err(NativeValueCraneliftError::MissingValue {
+                    function: function.name.clone(),
+                    value: *base,
+                });
+            }
+            let base = builder.use_var(variable(*base));
+            let (field_ptr, field_len) =
+                literals.literal_bytes(module_backend, builder, field.0.as_bytes())?;
+            let callee = module_backend.declare_func_in_func(helpers.record_select, builder.func);
+            let call = builder
+                .ins()
+                .call(callee, &[context, base, field_ptr, field_len]);
+            let result = single_call_result(builder, call, "yulang_native_record_select")?;
+            builder.def_var(variable(*dest), result);
             Ok(*dest)
         }
         NativeAbiStmt::LoadEnv { .. } => Err(NativeValueCraneliftError::UnsupportedStmt {
@@ -482,6 +1042,21 @@ fn lower_value_stmt(
             })
         }
     }
+}
+
+fn single_call_result(
+    builder: &FunctionBuilder<'_>,
+    call: cranelift_codegen::ir::Inst,
+    function: &str,
+) -> NativeValueCraneliftResult<ir::Value> {
+    let results = builder.inst_results(call);
+    if results.len() != 1 {
+        return Err(NativeValueCraneliftError::InvalidReturnArity {
+            function: function.to_string(),
+            arity: results.len(),
+        });
+    }
+    Ok(results[0])
 }
 
 fn read_values(
@@ -514,6 +1089,10 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
                 NativeAbiStmt::Literal { dest, .. }
                 | NativeAbiStmt::Primitive { dest, .. }
                 | NativeAbiStmt::DirectCall { dest, .. }
+                | NativeAbiStmt::Tuple { dest, .. }
+                | NativeAbiStmt::Record { dest, .. }
+                | NativeAbiStmt::Variant { dest, .. }
+                | NativeAbiStmt::Select { dest, .. }
                 | NativeAbiStmt::LoadEnv { dest, .. }
                 | NativeAbiStmt::AllocateClosure { dest, .. }
                 | NativeAbiStmt::IndirectClosureCall { dest, .. } => values.push(*dest),
@@ -527,53 +1106,71 @@ fn variable(value: ValueId) -> Variable {
     Variable::from_u32(value.0 as u32)
 }
 
+trait ValueLiteralStore {
+    fn literal_bytes<M: Module>(
+        &mut self,
+        module_backend: &mut M,
+        builder: &mut FunctionBuilder<'_>,
+        bytes: &[u8],
+    ) -> NativeValueCraneliftResult<(ir::Value, ir::Value)>;
+}
+
+struct HostLiteralStore<'a> {
+    strings: &'a mut Vec<Box<str>>,
+}
+
+impl ValueLiteralStore for HostLiteralStore<'_> {
+    fn literal_bytes<M: Module>(
+        &mut self,
+        _module_backend: &mut M,
+        builder: &mut FunctionBuilder<'_>,
+        bytes: &[u8],
+    ) -> NativeValueCraneliftResult<(ir::Value, ir::Value)> {
+        let text = unsafe { std::str::from_utf8_unchecked(bytes) }
+            .to_string()
+            .into_boxed_str();
+        let ptr = text.as_ptr() as i64;
+        let len = text.len() as i64;
+        self.strings.push(text);
+        Ok((
+            builder.ins().iconst(types::I64, ptr),
+            builder.ins().iconst(types::I64, len),
+        ))
+    }
+}
+
+#[derive(Default)]
+struct ObjectLiteralStore {
+    next_id: usize,
+}
+
+impl ValueLiteralStore for ObjectLiteralStore {
+    fn literal_bytes<M: Module>(
+        &mut self,
+        module_backend: &mut M,
+        builder: &mut FunctionBuilder<'_>,
+        bytes: &[u8],
+    ) -> NativeValueCraneliftResult<(ir::Value, ir::Value)> {
+        let name = format!("__yulang_lit_{}", self.next_id);
+        self.next_id += 1;
+        let data_id = module_backend
+            .declare_data(&name, Linkage::Local, false, false)
+            .map_err(cranelift_error)?;
+        let mut data = DataDescription::new();
+        data.define(bytes.to_vec().into_boxed_slice());
+        module_backend
+            .define_data(data_id, &data)
+            .map_err(cranelift_error)?;
+        let global = module_backend.declare_data_in_func(data_id, builder.func);
+        Ok((
+            builder.ins().symbol_value(types::I64, global),
+            builder.ins().iconst(types::I64, bytes.len() as i64),
+        ))
+    }
+}
+
 fn cranelift_error(error: impl fmt::Display) -> NativeValueCraneliftError {
     NativeValueCraneliftError::Cranelift(error.to_string())
-}
-
-extern "C" fn yulang_native_make_string(
-    context: *mut NativeValueContext,
-    ptr: *const u8,
-    len: usize,
-) -> *mut runtime::VmValue {
-    if context.is_null() || ptr.is_null() {
-        return std::ptr::null_mut();
-    }
-    let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
-    let text = unsafe { std::str::from_utf8_unchecked(bytes) };
-    let context = unsafe { &mut *context };
-    context.values.push(Box::new(runtime::VmValue::String(
-        runtime::runtime::string_tree::StringTree::from_str(text),
-    )));
-    context
-        .values
-        .last_mut()
-        .map(|value| value.as_mut() as *mut runtime::VmValue)
-        .unwrap_or(std::ptr::null_mut())
-}
-
-extern "C" fn yulang_native_concat_string(
-    context: *mut NativeValueContext,
-    left: *mut runtime::VmValue,
-    right: *mut runtime::VmValue,
-) -> *mut runtime::VmValue {
-    if context.is_null() || left.is_null() || right.is_null() {
-        return std::ptr::null_mut();
-    }
-    let left = unsafe { &*left };
-    let right = unsafe { &*right };
-    let (runtime::VmValue::String(left), runtime::VmValue::String(right)) = (left, right) else {
-        return std::ptr::null_mut();
-    };
-    let context = unsafe { &mut *context };
-    context.values.push(Box::new(runtime::VmValue::String(
-        runtime::runtime::string_tree::StringTree::concat(left.clone(), right.clone()),
-    )));
-    context
-        .values
-        .last_mut()
-        .map(|value| value.as_mut() as *mut runtime::VmValue)
-        .unwrap_or(std::ptr::null_mut())
 }
 
 #[cfg(test)]
@@ -666,8 +1263,8 @@ mod tests {
     }
 
     #[test]
-    fn rejects_int_literal_in_value_prototype_for_now() {
-        let error = match compile_value_abi_module(&NativeAbiModule {
+    fn jit_runs_list_literal_root() {
+        let mut module = compile_value_abi_module(&NativeAbiModule {
             functions: Vec::new(),
             roots: vec![NativeAbiFunction {
                 name: "root".to_string(),
@@ -676,21 +1273,175 @@ mod tests {
                 blocks: vec![NativeAbiBlock {
                     id: BlockId(0),
                     params: Vec::new(),
-                    stmts: vec![NativeAbiStmt::Literal {
-                        dest: ValueId(0),
-                        literal: NativeLiteral::Int("1".to_string()),
-                    }],
-                    terminator: NativeTerminator::Return(ValueId(0)),
+                    stmts: vec![
+                        NativeAbiStmt::Literal {
+                            dest: ValueId(0),
+                            literal: NativeLiteral::Int("1".to_string()),
+                        },
+                        NativeAbiStmt::Primitive {
+                            dest: ValueId(1),
+                            op: yulang_core_ir::PrimitiveOp::ListSingleton,
+                            args: vec![ValueId(0)],
+                        },
+                        NativeAbiStmt::Literal {
+                            dest: ValueId(2),
+                            literal: NativeLiteral::Int("2".to_string()),
+                        },
+                        NativeAbiStmt::Primitive {
+                            dest: ValueId(3),
+                            op: yulang_core_ir::PrimitiveOp::ListSingleton,
+                            args: vec![ValueId(2)],
+                        },
+                        NativeAbiStmt::Primitive {
+                            dest: ValueId(4),
+                            op: yulang_core_ir::PrimitiveOp::ListMerge,
+                            args: vec![ValueId(1), ValueId(3)],
+                        },
+                    ],
+                    terminator: NativeTerminator::Return(ValueId(4)),
                 }],
             }],
-        }) {
-            Ok(_) => panic!("expected unsupported int literal"),
-            Err(error) => error,
-        };
+        })
+        .expect("compiled");
 
-        assert!(matches!(
-            error,
-            NativeValueCraneliftError::UnsupportedLiteral { .. }
-        ));
+        let values = module.run_roots().expect("ran");
+        let [runtime::VmValue::List(list)] = values.as_slice() else {
+            panic!("expected one list value");
+        };
+        assert_eq!(
+            list.to_vec()
+                .into_iter()
+                .map(|value| value.as_ref().clone())
+                .collect::<Vec<_>>(),
+            vec![
+                runtime::VmValue::Int("1".to_string()),
+                runtime::VmValue::Int("2".to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn jit_runs_scalar_literal_roots() {
+        let mut module = compile_value_abi_module(&NativeAbiModule {
+            functions: Vec::new(),
+            roots: vec![
+                literal_root("bool_root", NativeLiteral::Bool(true)),
+                literal_root("unit_root", NativeLiteral::Unit),
+                literal_root("float_root", NativeLiteral::Float("1.5".to_string())),
+            ],
+        })
+        .expect("compiled");
+
+        assert_eq!(
+            module.run_roots().expect("ran"),
+            vec![
+                runtime::VmValue::Bool(true),
+                runtime::VmValue::Unit,
+                runtime::VmValue::Float("1.5".to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn jit_runs_list_len_and_index() {
+        let mut module = compile_value_abi_module(&NativeAbiModule {
+            functions: Vec::new(),
+            roots: vec![
+                NativeAbiFunction {
+                    name: "len_root".to_string(),
+                    params: Vec::new(),
+                    environment_slots: 0,
+                    blocks: vec![NativeAbiBlock {
+                        id: BlockId(0),
+                        params: Vec::new(),
+                        stmts: list_with_len_or_index_stmts(ValueId(6), None),
+                        terminator: NativeTerminator::Return(ValueId(6)),
+                    }],
+                },
+                NativeAbiFunction {
+                    name: "index_root".to_string(),
+                    params: Vec::new(),
+                    environment_slots: 0,
+                    blocks: vec![NativeAbiBlock {
+                        id: BlockId(0),
+                        params: Vec::new(),
+                        stmts: list_with_len_or_index_stmts(ValueId(7), Some(ValueId(5))),
+                        terminator: NativeTerminator::Return(ValueId(7)),
+                    }],
+                },
+            ],
+        })
+        .expect("compiled");
+
+        assert_eq!(
+            module.run_roots().expect("ran"),
+            vec![
+                runtime::VmValue::Int("2".to_string()),
+                runtime::VmValue::Int("2".to_string())
+            ]
+        );
+    }
+
+    fn literal_root(name: &str, literal: NativeLiteral) -> NativeAbiFunction {
+        NativeAbiFunction {
+            name: name.to_string(),
+            params: Vec::new(),
+            environment_slots: 0,
+            blocks: vec![NativeAbiBlock {
+                id: BlockId(0),
+                params: Vec::new(),
+                stmts: vec![NativeAbiStmt::Literal {
+                    dest: ValueId(0),
+                    literal,
+                }],
+                terminator: NativeTerminator::Return(ValueId(0)),
+            }],
+        }
+    }
+
+    fn list_with_len_or_index_stmts(dest: ValueId, index: Option<ValueId>) -> Vec<NativeAbiStmt> {
+        let mut stmts = vec![
+            NativeAbiStmt::Literal {
+                dest: ValueId(0),
+                literal: NativeLiteral::Int("1".to_string()),
+            },
+            NativeAbiStmt::Primitive {
+                dest: ValueId(1),
+                op: yulang_core_ir::PrimitiveOp::ListSingleton,
+                args: vec![ValueId(0)],
+            },
+            NativeAbiStmt::Literal {
+                dest: ValueId(2),
+                literal: NativeLiteral::Int("2".to_string()),
+            },
+            NativeAbiStmt::Primitive {
+                dest: ValueId(3),
+                op: yulang_core_ir::PrimitiveOp::ListSingleton,
+                args: vec![ValueId(2)],
+            },
+            NativeAbiStmt::Primitive {
+                dest: ValueId(4),
+                op: yulang_core_ir::PrimitiveOp::ListMerge,
+                args: vec![ValueId(1), ValueId(3)],
+            },
+        ];
+        if let Some(index) = index {
+            stmts.push(NativeAbiStmt::Literal {
+                dest: index,
+                literal: NativeLiteral::Int("1".to_string()),
+            });
+            stmts.push(NativeAbiStmt::Primitive {
+                dest,
+                op: yulang_core_ir::PrimitiveOp::ListIndex,
+                args: vec![ValueId(4), index],
+            });
+        } else {
+            stmts.push(NativeAbiStmt::Primitive {
+                dest,
+                op: yulang_core_ir::PrimitiveOp::ListLen,
+                args: vec![ValueId(4)],
+            });
+        }
+        stmts
     }
 }

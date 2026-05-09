@@ -57,6 +57,32 @@ fn format_stmt(stmt: &NativeAbiStmt) -> String {
             format_value(*dest),
             format_values(args)
         ),
+        NativeAbiStmt::Tuple { dest, items } => {
+            format!("{} = tuple({})", format_value(*dest), format_values(items))
+        }
+        NativeAbiStmt::Record { dest, fields } => format!(
+            "{} = record({})",
+            format_value(*dest),
+            fields
+                .iter()
+                .map(|field| format!("{}: {}", field.name.0, format_value(field.value)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        NativeAbiStmt::Variant { dest, tag, value } => format!(
+            "{} = variant :{}({})",
+            format_value(*dest),
+            tag.0,
+            value
+                .map(format_value)
+                .unwrap_or_else(|| "none".to_string())
+        ),
+        NativeAbiStmt::Select { dest, base, field } => format!(
+            "{} = select {}.{}",
+            format_value(*dest),
+            format_value(*base),
+            field.0
+        ),
         NativeAbiStmt::LoadEnv { dest, slot } => {
             format!("{} = load_env[{slot}]", format_value(*dest))
         }

@@ -16,10 +16,15 @@ use crate::closure::closure_convert_module;
 use crate::control_ir::NativeModule;
 use crate::cps_compare::CpsCompareError;
 use crate::cps_repr_cranelift::{CpsReprCraneliftError, compile_runtime_module_to_cps_repr_jit};
-use crate::cranelift::{NativeCraneliftError, compile_abi_module};
+use crate::cranelift::{
+    NativeCraneliftError, NativeObjectModule, compile_abi_module, compile_abi_module_to_object,
+};
 use crate::eval::{NativeEvalError, eval_module};
 use crate::lower::{NativeLowerError, lower_module};
-use crate::value_cranelift::{NativeValueCraneliftError, compile_value_abi_module};
+use crate::value_cranelift::{
+    NativeValueCraneliftError, NativeValueObjectModule, compile_value_abi_module,
+    compile_value_abi_module_to_object,
+};
 
 pub type NativeSourceResult<T> = Result<T, NativeSourceError>;
 
@@ -143,6 +148,20 @@ pub fn eval_source_i64_with_options(
     jit.run_roots_i64().map_err(NativeSourceError::from)
 }
 
+pub fn compile_source_object(source: &str) -> NativeSourceResult<NativeObjectModule> {
+    compile_source_object_with_options(source, native_default_source_options())
+}
+
+pub fn compile_source_object_with_options(
+    source: &str,
+    options: infer::SourceOptions,
+) -> NativeSourceResult<NativeObjectModule> {
+    let native_module = compile_source_with_options(source, options)?;
+    let closure_module = closure_convert_module(&native_module);
+    let abi_module = lower_closure_module_to_abi(&closure_module);
+    compile_abi_module_to_object(&abi_module).map_err(NativeSourceError::from)
+}
+
 pub fn eval_source_value_lane(source: &str) -> NativeSourceResult<Vec<runtime::VmValue>> {
     eval_source_value_lane_with_options(source, native_default_source_options())
 }
@@ -157,6 +176,21 @@ pub fn eval_source_value_lane_with_options(
     let abi_module = lower_closure_module_to_abi(&closure_module);
     let mut jit = compile_value_abi_module(&abi_module)?;
     jit.run_roots().map_err(NativeSourceError::from)
+}
+
+pub fn compile_source_value_object(source: &str) -> NativeSourceResult<NativeValueObjectModule> {
+    compile_source_value_object_with_options(source, native_default_source_options())
+}
+
+pub fn compile_source_value_object_with_options(
+    source: &str,
+    options: infer::SourceOptions,
+) -> NativeSourceResult<NativeValueObjectModule> {
+    let runtime_module = runtime_module_from_source_with_options(source, options)?;
+    let native_module = lower_module(&runtime_module)?;
+    let closure_module = closure_convert_module(&native_module);
+    let abi_module = lower_closure_module_to_abi(&closure_module);
+    compile_value_abi_module_to_object(&abi_module).map_err(NativeSourceError::from)
 }
 
 pub fn eval_source_cps_repr_i64(source: &str) -> NativeSourceResult<Vec<i64>> {
@@ -236,6 +270,8 @@ fn default_std_root() -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use crate::{NativeAbiRepr, NativeAbiValueLane, NativeRuntimePtrKind};
 
     use super::*;
@@ -252,6 +288,13 @@ mod tests {
         let values = eval_source_i64_with_options("41", infer::SourceOptions::default())
             .expect("native source jit eval");
         assert_eq!(values, vec![41]);
+    }
+
+    #[test]
+    fn emits_literal_source_object() {
+        let object = compile_source_object_with_options("41", infer::SourceOptions::default())
+            .expect("native source object compile");
+        assert!(!object.bytes().is_empty());
     }
 
     #[test]
@@ -325,6 +368,193 @@ catch choose::pick 41:
     }
 
     #[test]
+    fn compares_prelude_source_multishot_effect_handler_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 41:
+    choose::pick x, k -> k 1 + k 2
+"#,
+            )
+            .expect("source multishot CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_handler_arm_direct_call_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+my id x = x
+
+catch choose::pick 41:
+    choose::pick x, k -> id (k x)
+"#,
+            )
+            .expect("source handler direct-call CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_handler_arm_block_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 41:
+    choose::pick x, k ->
+        my y = k x
+        y + 1
+"#,
+            )
+            .expect("source handler block CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_effect_inside_primitive_arg_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 1 + 2:
+    choose::pick x, k -> k x
+"#,
+            )
+            .expect("source effect-in-primitive CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_handler_value_arm_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 41:
+    choose::pick x, k -> k x
+    value -> value + 1
+"#,
+            )
+            .expect("source handler value-arm CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_handler_arm_bool_if_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 41:
+    choose::pick x, k -> if true: k x else: k x + 1
+"#,
+            )
+            .expect("source handler bool-if CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_handler_arm_comparison_if_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 41:
+    choose::pick x, k -> if x < 0: k x else: k x + 1
+"#,
+            )
+            .expect("source handler comparison-if CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_handler_arm_or_if_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 41:
+    choose::pick x, k -> if x < 0 or x == 0: k x else: k x + 1
+"#,
+            )
+            .expect("source handler or-if CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_handler_arm_and_if_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 41:
+    choose::pick x, k -> if x < 0 and x == 0: k x else: k x + 1
+"#,
+            )
+            .expect("source handler and-if CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_handler_arm_not_if_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 41:
+    choose::pick x, k -> if not (x < 0): k x else: k x + 1
+"#,
+            )
+            .expect("source handler not-if CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_handler_arm_nested_if_condition_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 41:
+    choose::pick x, k -> if if x < 0: false else: true: k x else: k x + 1
+"#,
+            )
+            .expect("source handler nested-if condition CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_handler_arm_let_condition_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 41:
+    choose::pick x, k ->
+        my c = x < 0 or x == 0
+        if c: k x else: k x + 1
+"#,
+            )
+            .expect("source handler let condition CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
     fn compares_std_sub_return_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64("std::flow::sub::sub { std::flow::sub::return 41 }")
@@ -375,6 +605,104 @@ catch choose::pick 41:
         });
 
         assert_eq!(value, "ab");
+    }
+
+    #[test]
+    fn evals_scalar_sources_through_cranelift_value_lane() {
+        let values =
+            eval_source_value_lane_with_options("true\n()\n1.5", infer::SourceOptions::default())
+                .expect("native value jit eval");
+
+        assert_eq!(
+            values,
+            vec![
+                runtime::VmValue::Bool(true),
+                runtime::VmValue::Unit,
+                runtime::VmValue::Float("1.5".to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn evals_list_literal_source_through_cranelift_value_lane() {
+        let items = run_with_large_stack(|| {
+            let values = eval_source_value_lane("[1, 2, 3]").expect("native value jit eval");
+            let [runtime::VmValue::List(list)] = values.as_slice() else {
+                panic!("expected one list value");
+            };
+            list.to_vec()
+                .into_iter()
+                .map(|value| match value.as_ref() {
+                    runtime::VmValue::Int(value) => value.clone(),
+                    value => panic!("expected int list item, got {value:?}"),
+                })
+                .collect::<Vec<_>>()
+        });
+
+        assert_eq!(items, vec!["1", "2", "3"]);
+    }
+
+    #[test]
+    fn evals_list_len_and_index_source_through_cranelift_value_lane() {
+        let values = run_with_large_stack(|| {
+            eval_source_value_lane("[1, 2].len\n[1, 2].index 1")
+                .expect("native value jit eval")
+                .into_iter()
+                .map(|value| match value {
+                    runtime::VmValue::Int(value) => value,
+                    value => panic!("expected int value, got {value:?}"),
+                })
+                .collect::<Vec<_>>()
+        });
+
+        assert_eq!(values, vec!["2", "2"]);
+    }
+
+    #[test]
+    fn evals_structural_sources_through_cranelift_value_lane() {
+        let values = eval_source_value_lane_with_options(
+            "(1, 2)\n{x: 1, y: 2}\n{x: 1, y: 2}.x\nmy get_y p = p.y\nget_y {x: 3, y: 4}\n:label \"send\"",
+            infer::SourceOptions::default(),
+        )
+        .expect("native value jit eval");
+
+        assert_eq!(
+            values,
+            vec![
+                runtime::VmValue::Tuple(vec![
+                    runtime::VmValue::Int("1".to_string()),
+                    runtime::VmValue::Int("2".to_string())
+                ]),
+                runtime::VmValue::Record(BTreeMap::from([
+                    (
+                        yulang_core_ir::Name("x".to_string()),
+                        runtime::VmValue::Int("1".to_string())
+                    ),
+                    (
+                        yulang_core_ir::Name("y".to_string()),
+                        runtime::VmValue::Int("2".to_string())
+                    )
+                ])),
+                runtime::VmValue::Int("1".to_string()),
+                runtime::VmValue::Int("4".to_string()),
+                runtime::VmValue::Variant {
+                    tag: yulang_core_ir::Name("label".to_string()),
+                    value: Some(Box::new(runtime::VmValue::String(
+                        runtime::runtime::string_tree::StringTree::from_str("send")
+                    )))
+                }
+            ]
+        );
+    }
+
+    #[test]
+    fn emits_string_source_value_object() {
+        let object =
+            compile_source_value_object_with_options("\"hello\"", infer::SourceOptions::default())
+                .expect("native value object");
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(object.roots(), &["root_0".to_string()]);
     }
 
     #[test]

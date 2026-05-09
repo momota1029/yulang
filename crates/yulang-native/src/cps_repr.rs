@@ -145,6 +145,11 @@ pub struct CpsReprEnvironmentSlot {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CpsReprHandler {
     pub id: CpsHandlerId,
+    pub arms: Vec<CpsReprHandlerArm>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsReprHandlerArm {
     pub effect: core_ir::Path,
     pub entry: CpsContinuationId,
 }
@@ -339,8 +344,14 @@ fn lower_function(function: &CpsFunction) -> CpsReprFunction {
             .iter()
             .map(|handler| CpsReprHandler {
                 id: handler.id,
-                effect: handler.effect.clone(),
-                entry: handler.entry,
+                arms: handler
+                    .arms
+                    .iter()
+                    .map(|arm| CpsReprHandlerArm {
+                        effect: arm.effect.clone(),
+                        entry: arm.entry,
+                    })
+                    .collect(),
             })
             .collect(),
     }
@@ -373,12 +384,14 @@ fn analyze_function_abi_lanes(
         values.insert(*param, CpsReprAbiLane::Unknown);
     }
     for handler in &function.handlers {
-        if let Some(entry) = continuation_by_id_opt(function, handler.entry) {
-            if let Some(payload) = entry.params.first() {
-                values.insert(*payload, CpsReprAbiLane::Unknown);
-            }
-            if let Some(resumption) = entry.params.get(1) {
-                values.insert(*resumption, CpsReprAbiLane::ResumptionPtr);
+        for arm in &handler.arms {
+            if let Some(entry) = continuation_by_id_opt(function, arm.entry) {
+                if let Some(payload) = entry.params.first() {
+                    values.insert(*payload, CpsReprAbiLane::Unknown);
+                }
+                if let Some(resumption) = entry.params.get(1) {
+                    values.insert(*resumption, CpsReprAbiLane::ResumptionPtr);
+                }
             }
         }
     }
@@ -445,14 +458,14 @@ fn propagate_terminator_argument_lanes(
             merge_param_lanes(values, &target.params, args)
         }
         CpsTerminator::Perform {
+            effect,
             payload,
             resume,
             handler,
-            ..
         } => {
             let mut changed = false;
-            if let Some(handler) = function.handlers.iter().find(|entry| entry.id == *handler)
-                && let Some(entry) = continuation_by_id_opt(function, handler.entry)
+            if let Some(arm) = handler_arm_for_effect(function, *handler, effect)
+                && let Some(entry) = continuation_by_id_opt(function, arm.entry)
                 && let Some(param) = entry.params.first()
             {
                 let lane = abi_lane(values, *payload);
@@ -488,16 +501,18 @@ fn analyze_function_values(function: &CpsReprFunction) -> CpsReprFunctionValueAn
         values.insert(*param, CpsReprValueKind::Plain);
     }
     for handler in &function.handlers {
-        if let Some(entry) = function
-            .continuations
-            .iter()
-            .find(|continuation| continuation.id == handler.entry)
-        {
-            if let Some(payload) = entry.params.first() {
-                values.insert(*payload, CpsReprValueKind::Plain);
-            }
-            if let Some(resumption) = entry.params.get(1) {
-                values.insert(*resumption, CpsReprValueKind::Resumption);
+        for arm in &handler.arms {
+            if let Some(entry) = function
+                .continuations
+                .iter()
+                .find(|continuation| continuation.id == arm.entry)
+            {
+                if let Some(payload) = entry.params.first() {
+                    values.insert(*payload, CpsReprValueKind::Plain);
+                }
+                if let Some(resumption) = entry.params.get(1) {
+                    values.insert(*resumption, CpsReprValueKind::Resumption);
+                }
             }
         }
     }
@@ -545,11 +560,10 @@ fn analyze_function_values(function: &CpsReprFunction) -> CpsReprFunctionValueAn
                             .copied()
                             .unwrap_or(CpsReprValueKind::Unknown),
                     ),
-                CpsTerminator::Perform { handler, .. } => function
-                    .handlers
-                    .iter()
-                    .find(|entry| entry.id == *handler)
-                    .and_then(|entry| continuation_returns.get(&entry.entry))
+                CpsTerminator::Perform {
+                    effect, handler, ..
+                } => handler_arm_for_effect(function, *handler, effect)
+                    .and_then(|arm| continuation_returns.get(&arm.entry))
                     .copied()
                     .unwrap_or(CpsReprValueKind::Unknown),
             };
@@ -649,11 +663,10 @@ fn terminator_return_lane(
                     .copied()
                     .unwrap_or(CpsReprAbiLane::Unknown),
             ),
-        CpsTerminator::Perform { handler, .. } => function
-            .handlers
-            .iter()
-            .find(|entry| entry.id == *handler)
-            .and_then(|entry| continuation_returns.get(&entry.entry))
+        CpsTerminator::Perform {
+            effect, handler, ..
+        } => handler_arm_for_effect(function, *handler, effect)
+            .and_then(|arm| continuation_returns.get(&arm.entry))
             .copied()
             .unwrap_or(CpsReprAbiLane::Unknown),
     }
@@ -671,20 +684,24 @@ fn resumption_target_return_lane(
     function
         .handlers
         .iter()
-        .filter(|handler| {
-            continuation_by_id_opt(function, handler.entry).and_then(|entry| entry.params.get(1))
+        .flat_map(|handler| handler.arms.iter().map(move |arm| (handler.id, arm)))
+        .filter(|(_, arm)| {
+            continuation_by_id_opt(function, arm.entry).and_then(|entry| entry.params.get(1))
                 == Some(&resumption)
         })
-        .filter_map(|handler| {
+        .filter_map(|(handler_id, arm)| {
             function
                 .continuations
                 .iter()
                 .filter_map(|continuation| match continuation.terminator {
                     CpsTerminator::Perform {
                         handler: used,
+                        ref effect,
                         resume,
                         ..
-                    } if used == handler.id => continuation_returns.get(&resume).copied(),
+                    } if used == handler_id && effect_matches(&arm.effect, effect) => {
+                        continuation_returns.get(&resume).copied()
+                    }
                     _ => None,
                 })
                 .fold(None, |current, lane| {
@@ -695,6 +712,28 @@ fn resumption_target_return_lane(
             Some(current.map_or(lane, |current: CpsReprAbiLane| current.merge(lane)))
         })
         .unwrap_or(CpsReprAbiLane::Unknown)
+}
+
+fn handler_arm_for_effect<'a>(
+    function: &'a CpsReprFunction,
+    id: CpsHandlerId,
+    effect: &core_ir::Path,
+) -> Option<&'a CpsReprHandlerArm> {
+    function
+        .handlers
+        .iter()
+        .find(|handler| handler.id == id)?
+        .arms
+        .iter()
+        .find(|arm| effect_matches(&arm.effect, effect))
+}
+
+fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
+    actual == expected
+        || (!expected.segments.is_empty()
+            && actual.segments.len() == expected.segments.len() + 1
+            && actual.segments.starts_with(&expected.segments))
+        || (expected.segments.len() == 1 && actual.segments.last() == expected.segments.first())
 }
 
 fn abi_lane(values: &HashMap<CpsValueId, CpsReprAbiLane>, value: CpsValueId) -> CpsReprAbiLane {
@@ -835,11 +874,9 @@ fn eval_continuations(
                         CpsReprRuntimeValue::Plain(eval_function(module, target_function, args)?),
                     );
                 }
-                CpsStmt::CloneContinuation { .. } => {
-                    return Err(CpsReprEvalError::UnsupportedStmt {
-                        function: function.name.clone(),
-                        kind: "clone continuation",
-                    });
+                CpsStmt::CloneContinuation { dest, source } => {
+                    let value = read_value(function, &values, *source)?;
+                    values.insert(*dest, value);
                 }
                 CpsStmt::Resume {
                     dest,
@@ -882,13 +919,19 @@ fn eval_continuations(
                 };
             }
             CpsTerminator::Perform {
+                effect,
                 payload,
                 resume,
                 handler,
-                ..
             } => {
                 let payload = read_plain_value(function, &values, *payload)?;
-                let handler = handler_by_id(function, *handler)?;
+                let handler =
+                    handler_arm_for_effect(function, *handler, effect).ok_or_else(|| {
+                        CpsReprEvalError::MissingHandler {
+                            function: function.name.clone(),
+                            id: *handler,
+                        }
+                    })?;
                 let resumption = CpsReprRuntimeValue::Resumption(CpsReprResumption {
                     target: *resume,
                     values: values.clone(),
@@ -927,20 +970,6 @@ fn continuation_by_id_opt(
         .continuations
         .iter()
         .find(|continuation| continuation.id == id)
-}
-
-fn handler_by_id(
-    function: &CpsReprFunction,
-    id: CpsHandlerId,
-) -> CpsReprEvalResult<&CpsReprHandler> {
-    function
-        .handlers
-        .iter()
-        .find(|handler| handler.id == id)
-        .ok_or_else(|| CpsReprEvalError::MissingHandler {
-            function: function.name.clone(),
-            id,
-        })
 }
 
 fn read_value(
@@ -1193,6 +1222,10 @@ mod tests {
             Some(CpsReprValueKind::Resumption)
         );
         assert_eq!(
+            analysis.value_kind("root", CpsValueId(10)),
+            Some(CpsReprValueKind::Resumption)
+        );
+        assert_eq!(
             analysis.value_kind("root", CpsValueId(7)),
             Some(CpsReprValueKind::Plain)
         );
@@ -1287,8 +1320,10 @@ mod tests {
                 entry: CpsContinuationId(0),
                 handlers: vec![crate::cps_ir::CpsHandler {
                     id: CpsHandlerId(0),
-                    effect: effect.clone(),
-                    entry: CpsContinuationId(2),
+                    arms: vec![crate::cps_ir::CpsHandlerArm {
+                        effect: effect.clone(),
+                        entry: CpsContinuationId(2),
+                    }],
                 }],
                 continuations: vec![
                     CpsContinuation {
@@ -1331,6 +1366,10 @@ mod tests {
                         captures: Vec::new(),
                         shot_kind: CpsShotKind::MultiShot,
                         stmts: vec![
+                            CpsStmt::CloneContinuation {
+                                dest: CpsValueId(10),
+                                source: CpsValueId(5),
+                            },
                             CpsStmt::Literal {
                                 dest: CpsValueId(6),
                                 literal: CpsLiteral::Int("2".to_string()),
@@ -1342,7 +1381,7 @@ mod tests {
                             },
                             CpsStmt::Resume {
                                 dest: CpsValueId(8),
-                                resumption: CpsValueId(5),
+                                resumption: CpsValueId(10),
                                 arg: CpsValueId(6),
                             },
                             CpsStmt::Primitive {

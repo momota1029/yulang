@@ -38,6 +38,18 @@ pub enum CpsCompareError {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsReprI64CompareReport {
+    pub roots: Vec<CpsReprI64RootCompare>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsReprI64RootCompare {
+    pub index: usize,
+    pub vm: i64,
+    pub cps_cranelift: i64,
+}
+
 impl fmt::Display for CpsCompareError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -129,6 +141,12 @@ pub fn compare_cps_module(module: &runtime::Module) -> Result<(), CpsCompareErro
 }
 
 pub fn compare_cps_repr_cranelift_i64(module: &runtime::Module) -> Result<(), CpsCompareError> {
+    compare_cps_repr_cranelift_i64_report(module).map(|_| ())
+}
+
+pub fn compare_cps_repr_cranelift_i64_report(
+    module: &runtime::Module,
+) -> Result<CpsReprI64CompareReport, CpsCompareError> {
     let mut jit = compile_runtime_module_to_cps_repr_jit(module)?;
     let cps_values = jit.run_roots_i64()?;
     let vm_results = runtime::compile_vm_module(module.clone())?.eval_roots()?;
@@ -138,6 +156,7 @@ pub fn compare_cps_repr_cranelift_i64(module: &runtime::Module) -> Result<(), Cp
             cps: cps_values.len(),
         });
     }
+    let mut roots = Vec::with_capacity(vm_results.len());
     for (index, (vm_result, cps_cranelift)) in vm_results.into_iter().zip(cps_values).enumerate() {
         let value = match vm_result {
             runtime::VmResult::Value(value) => value,
@@ -163,8 +182,13 @@ pub fn compare_cps_repr_cranelift_i64(module: &runtime::Module) -> Result<(), Cp
                 cps_cranelift,
             });
         }
+        roots.push(CpsReprI64RootCompare {
+            index,
+            vm,
+            cps_cranelift,
+        });
     }
-    Ok(())
+    Ok(CpsReprI64CompareReport { roots })
 }
 
 #[cfg(test)]

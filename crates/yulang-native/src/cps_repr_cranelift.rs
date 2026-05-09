@@ -2,9 +2,11 @@ use std::collections::HashMap;
 use std::fmt;
 
 use cranelift_codegen::ir::{self, AbiParam, InstBuilder, types};
+use cranelift_codegen::settings;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module};
+use cranelift_object::{ObjectBuilder, ObjectModule};
 use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
 
@@ -152,9 +154,14 @@ impl From<CpsValidateError> for CpsReprCraneliftError {
 pub struct CpsReprJitModule {
     module: JITModule,
     roots: Vec<FuncId>,
+    cranelift_ir: Vec<String>,
 }
 
 impl CpsReprJitModule {
+    pub fn cranelift_ir(&self) -> &[String] {
+        &self.cranelift_ir
+    }
+
     pub fn run_roots_i64(&mut self) -> CpsReprCraneliftResult<Vec<i64>> {
         self.module
             .finalize_definitions()
@@ -167,6 +174,26 @@ impl CpsReprJitModule {
                 Ok(call())
             })
             .collect()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsReprObjectModule {
+    bytes: Vec<u8>,
+    roots: Vec<String>,
+}
+
+impl CpsReprObjectModule {
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn roots(&self) -> &[String] {
+        &self.roots
+    }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.bytes
     }
 }
 
@@ -197,10 +224,30 @@ pub fn compile_cps_repr_abi_module(
         "yulang_cps_make_resumption_i64_4",
         yulang_cps_make_resumption_i64_4 as *const u8,
     );
+    builder.symbol(
+        "yulang_cps_make_env_i64_0",
+        yulang_cps_make_env_i64_0 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_make_env_i64_1",
+        yulang_cps_make_env_i64_1 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_make_env_i64_2",
+        yulang_cps_make_env_i64_2 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_make_env_i64_3",
+        yulang_cps_make_env_i64_3 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_make_env_i64_4",
+        yulang_cps_make_env_i64_4 as *const u8,
+    );
     builder.symbol("yulang_cps_resume_i64", yulang_cps_resume_i64 as *const u8);
     let mut jit = JITModule::new(builder);
     let functions = declare_functions(&mut jit, module)?;
-    define_functions(&mut jit, module, &functions)?;
+    let cranelift_ir = define_functions(&mut jit, module, &functions)?;
     let roots = module
         .roots
         .iter()
@@ -212,7 +259,38 @@ pub fn compile_cps_repr_abi_module(
             })
         })
         .collect::<CpsReprCraneliftResult<Vec<_>>>()?;
-    Ok(CpsReprJitModule { module: jit, roots })
+    Ok(CpsReprJitModule {
+        module: jit,
+        roots,
+        cranelift_ir,
+    })
+}
+
+pub fn compile_cps_repr_abi_module_to_object(
+    module: &CpsReprAbiModule,
+) -> CpsReprCraneliftResult<CpsReprObjectModule> {
+    validate_scalar_subset(module)?;
+
+    let isa_builder = cranelift_native::builder().map_err(cranelift_error)?;
+    let flags = settings::Flags::new(settings::builder());
+    let isa = isa_builder.finish(flags).map_err(cranelift_error)?;
+    let builder = ObjectBuilder::new(
+        isa,
+        "yulang_cps_repr_object".to_string(),
+        cranelift_module::default_libcall_names(),
+    )
+    .map_err(cranelift_error)?;
+    let mut object = ObjectModule::new(builder);
+    let functions = declare_functions(&mut object, module)?;
+    let _ = define_functions(&mut object, module, &functions)?;
+    let roots = module
+        .roots
+        .iter()
+        .map(|root| root.name.clone())
+        .collect::<Vec<_>>();
+    let product = object.finish();
+    let bytes = product.emit().map_err(cranelift_error)?;
+    Ok(CpsReprObjectModule { bytes, roots })
 }
 
 pub fn compile_runtime_module_to_cps_repr_jit(
@@ -225,23 +303,33 @@ pub fn compile_runtime_module_to_cps_repr_jit(
     compile_cps_repr_abi_module(&abi)
 }
 
-fn declare_functions(
-    jit: &mut JITModule,
+pub fn compile_runtime_module_to_cps_repr_object(
+    module: &runtime::Module,
+) -> CpsReprCraneliftResult<CpsReprObjectModule> {
+    let cps = lower_cps_module(module)?;
+    validate_cps_module(&cps)?;
+    let repr = crate::cps_repr::lower_cps_repr_module(&cps);
+    let abi = lower_cps_repr_abi_module(&repr);
+    compile_cps_repr_abi_module_to_object(&abi)
+}
+
+fn declare_functions<M: Module>(
+    module_backend: &mut M,
     module: &CpsReprAbiModule,
 ) -> CpsReprCraneliftResult<DeclaredFunctions> {
     let mut functions = HashMap::new();
     let mut continuations = HashMap::new();
     for function in module.functions.iter().chain(&module.roots) {
-        let sig = function_signature(jit, function);
-        let id = jit
+        let sig = function_signature(module_backend, function);
+        let id = module_backend
             .declare_function(&function.name, Linkage::Export, &sig)
             .map_err(cranelift_error)?;
         functions.insert(function.name.clone(), id);
         if function_has_effect_flow(function) {
             for continuation in &function.continuations {
                 let name = continuation_symbol(function, continuation.id);
-                let sig = continuation_signature(jit, continuation);
-                let id = jit
+                let sig = continuation_signature(module_backend, continuation);
+                let id = module_backend
                     .declare_function(&name, Linkage::Local, &sig)
                     .map_err(cranelift_error)?;
                 continuations.insert((function.name.clone(), continuation.id), id);
@@ -254,11 +342,12 @@ fn declare_functions(
     })
 }
 
-fn define_functions(
-    jit: &mut JITModule,
+fn define_functions<M: Module>(
+    module_backend: &mut M,
     module: &CpsReprAbiModule,
     functions: &DeclaredFunctions,
-) -> CpsReprCraneliftResult<()> {
+) -> CpsReprCraneliftResult<Vec<String>> {
+    let mut cranelift_ir = Vec::new();
     for function in module.functions.iter().chain(&module.roots) {
         let id = functions
             .functions
@@ -268,19 +357,30 @@ fn define_functions(
                 name: function.name.clone(),
             })?;
         if function_has_effect_flow(function) {
-            define_effectful_function(jit, function, functions)?;
+            cranelift_ir.extend(define_effectful_function(
+                module_backend,
+                function,
+                functions,
+            )?);
         }
-        let mut ctx = jit.make_context();
-        ctx.func.signature = function_signature(jit, function);
+        let mut ctx = module_backend.make_context();
+        ctx.func.signature = function_signature(module_backend, function);
         if function_has_effect_flow(function) {
-            lower_effectful_function_wrapper(jit, &mut ctx, function, functions)?;
+            lower_effectful_function_wrapper(module_backend, &mut ctx, function, functions)?;
         } else {
-            lower_function(jit, &mut ctx, function, functions)?;
+            lower_function(module_backend, &mut ctx, function, functions)?;
         }
-        jit.define_function(id, &mut ctx).map_err(cranelift_error)?;
-        jit.clear_context(&mut ctx);
+        cranelift_ir.push(format!(
+            ";; cps-repr function {}\n{}",
+            function.name,
+            ctx.func.display()
+        ));
+        module_backend
+            .define_function(id, &mut ctx)
+            .map_err(cranelift_error)?;
+        module_backend.clear_context(&mut ctx);
     }
-    Ok(())
+    Ok(cranelift_ir)
 }
 
 #[derive(Debug, Default)]
@@ -289,11 +389,12 @@ struct DeclaredFunctions {
     continuations: HashMap<(String, CpsContinuationId), FuncId>,
 }
 
-fn define_effectful_function(
-    jit: &mut JITModule,
+fn define_effectful_function<M: Module>(
+    module_backend: &mut M,
     function: &CpsReprAbiFunction,
     functions: &DeclaredFunctions,
-) -> CpsReprCraneliftResult<()> {
+) -> CpsReprCraneliftResult<Vec<String>> {
+    let mut cranelift_ir = Vec::new();
     for continuation in &function.continuations {
         let id = functions
             .continuations
@@ -303,17 +404,25 @@ fn define_effectful_function(
                 function: function.name.clone(),
                 continuation: continuation.id,
             })?;
-        let mut ctx = jit.make_context();
-        ctx.func.signature = continuation_signature(jit, continuation);
-        lower_continuation_function(jit, &mut ctx, function, continuation, functions)?;
-        jit.define_function(id, &mut ctx).map_err(cranelift_error)?;
-        jit.clear_context(&mut ctx);
+        let mut ctx = module_backend.make_context();
+        ctx.func.signature = continuation_signature(module_backend, continuation);
+        lower_continuation_function(module_backend, &mut ctx, function, continuation, functions)?;
+        cranelift_ir.push(format!(
+            ";; cps-repr continuation {}::{:?}\n{}",
+            function.name,
+            continuation.id,
+            ctx.func.display()
+        ));
+        module_backend
+            .define_function(id, &mut ctx)
+            .map_err(cranelift_error)?;
+        module_backend.clear_context(&mut ctx);
     }
-    Ok(())
+    Ok(cranelift_ir)
 }
 
-fn lower_effectful_function_wrapper(
-    jit: &mut JITModule,
+fn lower_effectful_function_wrapper<M: Module>(
+    module_backend: &mut M,
     ctx: &mut cranelift_codegen::Context,
     function: &CpsReprAbiFunction,
     functions: &DeclaredFunctions,
@@ -324,7 +433,13 @@ fn lower_effectful_function_wrapper(
     builder.append_block_params_for_function_params(block);
     builder.switch_to_block(block);
 
-    let entry = continuation_func_ref(jit, &mut builder, function, function.entry, functions)?;
+    let entry = continuation_func_ref(
+        module_backend,
+        &mut builder,
+        function,
+        function.entry,
+        functions,
+    )?;
     let null_env = builder.ins().iconst(types::I64, 0);
     let mut args = vec![null_env];
     args.extend(builder.block_params(block).iter().copied());
@@ -354,8 +469,11 @@ fn function_has_effect_flow(function: &CpsReprAbiFunction) -> bool {
         })
 }
 
-fn continuation_signature(jit: &JITModule, continuation: &CpsReprAbiContinuation) -> ir::Signature {
-    let mut sig = jit.make_signature();
+fn continuation_signature<M: Module>(
+    module_backend: &M,
+    continuation: &CpsReprAbiContinuation,
+) -> ir::Signature {
+    let mut sig = module_backend.make_signature();
     sig.params.push(AbiParam::new(types::I64));
     sig.params.extend(
         continuation
@@ -371,8 +489,8 @@ fn continuation_symbol(function: &CpsReprAbiFunction, id: CpsContinuationId) -> 
     format!("{}$k{}", function.name, id.0)
 }
 
-fn continuation_func_ref(
-    jit: &mut JITModule,
+fn continuation_func_ref<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     id: CpsContinuationId,
@@ -386,11 +504,11 @@ fn continuation_func_ref(
             function: function.name.clone(),
             continuation: id,
         })?;
-    Ok(jit.declare_func_in_func(id, builder.func))
+    Ok(module_backend.declare_func_in_func(id, builder.func))
 }
 
-fn lower_continuation_function(
-    jit: &mut JITModule,
+fn lower_continuation_function<M: Module>(
+    module_backend: &mut M,
     ctx: &mut cranelift_codegen::Context,
     function: &CpsReprAbiFunction,
     continuation: &CpsReprAbiContinuation,
@@ -416,9 +534,15 @@ fn lower_continuation_function(
     }
 
     for stmt in &continuation.stmts {
-        lower_effect_stmt(jit, &mut builder, function, stmt, functions)?;
+        lower_effect_stmt(module_backend, &mut builder, function, stmt, functions)?;
     }
-    lower_effect_terminator(jit, &mut builder, function, continuation, functions)?;
+    lower_effect_terminator(
+        module_backend,
+        &mut builder,
+        function,
+        continuation,
+        functions,
+    )?;
     builder.seal_all_blocks();
     builder.finalize();
     Ok(())
@@ -446,8 +570,8 @@ fn bind_environment_slots(
     Ok(())
 }
 
-fn lower_effect_stmt(
-    jit: &mut JITModule,
+fn lower_effect_stmt<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     stmt: &CpsStmt,
@@ -469,7 +593,7 @@ fn lower_effect_stmt(
                     name: target.clone(),
                 }
             })?;
-            let callee = jit.declare_func_in_func(id, builder.func);
+            let callee = module_backend.declare_func_in_func(id, builder.func);
             let args = read_values(builder, function, args)?;
             let call = builder.ins().call(callee, &args);
             let results = builder.inst_results(call);
@@ -481,11 +605,9 @@ fn lower_effect_stmt(
             }
             builder.def_var(variable(*dest), results[0]);
         }
-        CpsStmt::CloneContinuation { .. } => {
-            return Err(CpsReprCraneliftError::UnsupportedStmt {
-                function: function.name.clone(),
-                kind: "clone continuation",
-            });
+        CpsStmt::CloneContinuation { dest, source } => {
+            let source = read_value(builder, function, *source)?;
+            builder.def_var(variable(*dest), source);
         }
         CpsStmt::Resume {
             dest,
@@ -493,7 +615,7 @@ fn lower_effect_stmt(
             arg,
         } => {
             let helper = declare_import(
-                jit,
+                module_backend,
                 builder,
                 "yulang_cps_resume_i64",
                 &[types::I64, types::I64],
@@ -509,8 +631,8 @@ fn lower_effect_stmt(
     Ok(())
 }
 
-fn lower_effect_terminator(
-    jit: &mut JITModule,
+fn lower_effect_terminator<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     continuation: &CpsReprAbiContinuation,
@@ -522,7 +644,8 @@ fn lower_effect_terminator(
             builder.ins().return_(&[value]);
         }
         CpsTerminator::Continue { target, args } => {
-            let value = call_continuation(jit, builder, function, *target, args, functions)?;
+            let value =
+                call_continuation(module_backend, builder, function, *target, args, functions)?;
             builder.ins().return_(&[value]);
         }
         CpsTerminator::Branch {
@@ -531,27 +654,41 @@ fn lower_effect_terminator(
             else_cont,
         } => {
             lower_effect_branch(
-                jit, builder, function, *cond, *then_cont, *else_cont, functions,
+                module_backend,
+                builder,
+                function,
+                *cond,
+                *then_cont,
+                *else_cont,
+                functions,
             )?;
         }
         CpsTerminator::Perform {
+            effect,
             payload,
             resume,
             handler,
-            ..
         } => {
             let handler_entry = function
                 .handlers
                 .iter()
                 .find(|candidate| candidate.id == *handler)
-                .map(|candidate| candidate.entry)
+                .and_then(|handler| {
+                    handler
+                        .arms
+                        .iter()
+                        .find(|arm| effect_matches(&arm.effect, effect))
+                        .map(|arm| arm.entry)
+                })
                 .ok_or_else(|| CpsReprCraneliftError::UnsupportedTerminator {
                     function: function.name.clone(),
                     kind: "perform without handler entry",
                 })?;
-            let resumption = make_resumption(jit, builder, function, *resume, functions)?;
+            let resumption =
+                make_resumption(module_backend, builder, function, *resume, functions)?;
             let payload = read_value(builder, function, *payload)?;
-            let callee = continuation_func_ref(jit, builder, function, handler_entry, functions)?;
+            let callee =
+                continuation_func_ref(module_backend, builder, function, handler_entry, functions)?;
             let null_env = builder.ins().iconst(types::I64, 0);
             let call = builder.ins().call(callee, &[null_env, payload, resumption]);
             let results = builder.inst_results(call);
@@ -568,8 +705,8 @@ fn lower_effect_terminator(
     Ok(())
 }
 
-fn lower_effect_branch(
-    jit: &mut JITModule,
+fn lower_effect_branch<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     cond: CpsValueId,
@@ -589,13 +726,15 @@ fn lower_effect_branch(
     builder.ins().brif(cond, then_block, &[], else_block, &[]);
 
     builder.switch_to_block(then_block);
-    let then_value = call_continuation(jit, builder, function, then_cont, &[], functions)?;
+    let then_value =
+        call_continuation(module_backend, builder, function, then_cont, &[], functions)?;
     builder
         .ins()
         .jump(merge_block, &[ir::BlockArg::Value(then_value)]);
 
     builder.switch_to_block(else_block);
-    let else_value = call_continuation(jit, builder, function, else_cont, &[], functions)?;
+    let else_value =
+        call_continuation(module_backend, builder, function, else_cont, &[], functions)?;
     builder
         .ins()
         .jump(merge_block, &[ir::BlockArg::Value(else_value)]);
@@ -606,16 +745,16 @@ fn lower_effect_branch(
     Ok(())
 }
 
-fn call_continuation(
-    jit: &mut JITModule,
+fn call_continuation<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     target: CpsContinuationId,
     args: &[CpsValueId],
     functions: &DeclaredFunctions,
 ) -> CpsReprCraneliftResult<ir::Value> {
-    let callee = continuation_func_ref(jit, builder, function, target, functions)?;
-    let env = continuation_environment_argument(builder, function, target)?;
+    let callee = continuation_func_ref(module_backend, builder, function, target, functions)?;
+    let env = continuation_environment_argument(module_backend, builder, function, target)?;
     let mut call_args = vec![env];
     call_args.extend(read_values(builder, function, args)?);
     let call = builder.ins().call(callee, &call_args);
@@ -629,7 +768,8 @@ fn call_continuation(
     Ok(results[0])
 }
 
-fn continuation_environment_argument(
+fn continuation_environment_argument<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     target: CpsContinuationId,
@@ -638,14 +778,22 @@ fn continuation_environment_argument(
     if target.environment.is_empty() {
         return Ok(builder.ins().iconst(types::I64, 0));
     }
-    Err(CpsReprCraneliftError::UnsupportedTerminator {
-        function: function.name.clone(),
-        kind: "continue to captured continuation",
-    })
+    if target.environment.len() > 4 {
+        return Err(CpsReprCraneliftError::UnsupportedTerminator {
+            function: function.name.clone(),
+            kind: "continuation environment larger than four slots",
+        });
+    }
+    let mut args = Vec::with_capacity(target.environment.len());
+    for slot in &target.environment {
+        validate_environment_lane(function, slot.value, slot.lane)?;
+        args.push(read_value(builder, function, slot.value)?);
+    }
+    make_env(module_backend, builder, function, &args)
 }
 
-fn make_resumption(
-    jit: &mut JITModule,
+fn make_resumption<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     resume: CpsContinuationId,
@@ -665,7 +813,7 @@ fn make_resumption(
         });
     }
 
-    let func_ref = continuation_func_ref(jit, builder, function, resume, functions)?;
+    let func_ref = continuation_func_ref(module_backend, builder, function, resume, functions)?;
     let code = builder.ins().func_addr(types::I64, func_ref);
     let mut args = vec![code];
     for slot in &resume_continuation.environment {
@@ -681,8 +829,34 @@ fn make_resumption(
         _ => unreachable!("environment length checked above"),
     };
     let params = vec![types::I64; args.len()];
-    let helper = declare_import(jit, builder, helper_name, &params, types::I64)?;
+    let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
     let call = builder.ins().call(helper, &args);
+    let results = builder.inst_results(call);
+    Ok(results[0])
+}
+
+fn make_env<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    args: &[ir::Value],
+) -> CpsReprCraneliftResult<ir::Value> {
+    let helper_name = match args.len() {
+        0 => "yulang_cps_make_env_i64_0",
+        1 => "yulang_cps_make_env_i64_1",
+        2 => "yulang_cps_make_env_i64_2",
+        3 => "yulang_cps_make_env_i64_3",
+        4 => "yulang_cps_make_env_i64_4",
+        _ => {
+            return Err(CpsReprCraneliftError::UnsupportedTerminator {
+                function: function.name.clone(),
+                kind: "continuation environment larger than four slots",
+            });
+        }
+    };
+    let params = vec![types::I64; args.len()];
+    let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
+    let call = builder.ins().call(helper, args);
     let results = builder.inst_results(call);
     Ok(results[0])
 }
@@ -701,32 +875,35 @@ fn continuation(
         })
 }
 
-fn declare_import(
-    jit: &mut JITModule,
+fn declare_import<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     name: &str,
     params: &[ir::Type],
     ret: ir::Type,
 ) -> CpsReprCraneliftResult<ir::FuncRef> {
-    let mut sig = jit.make_signature();
+    let mut sig = module_backend.make_signature();
     sig.params.extend(params.iter().copied().map(AbiParam::new));
     sig.returns.push(AbiParam::new(ret));
-    let id = jit
+    let id = module_backend
         .declare_function(name, Linkage::Import, &sig)
         .map_err(cranelift_error)?;
-    Ok(jit.declare_func_in_func(id, builder.func))
+    Ok(module_backend.declare_func_in_func(id, builder.func))
 }
 
-fn function_signature(jit: &JITModule, function: &CpsReprAbiFunction) -> ir::Signature {
-    let mut sig = jit.make_signature();
+fn function_signature<M: Module>(
+    module_backend: &M,
+    function: &CpsReprAbiFunction,
+) -> ir::Signature {
+    let mut sig = module_backend.make_signature();
     sig.params
         .extend(function.params.iter().map(|_| AbiParam::new(types::I64)));
     sig.returns.push(AbiParam::new(types::I64));
     sig
 }
 
-fn lower_function(
-    jit: &mut JITModule,
+fn lower_function<M: Module>(
+    module_backend: &mut M,
     ctx: &mut cranelift_codegen::Context,
     function: &CpsReprAbiFunction,
     functions: &DeclaredFunctions,
@@ -742,7 +919,7 @@ fn lower_function(
         builder.switch_to_block(block);
         bind_continuation_params(&mut builder, function, continuation, block)?;
         for stmt in &continuation.stmts {
-            lower_stmt(jit, &mut builder, function, stmt, functions)?;
+            lower_stmt(module_backend, &mut builder, function, stmt, functions)?;
         }
         lower_terminator(&mut builder, function, &blocks, &continuation.terminator)?;
     }
@@ -785,19 +962,30 @@ fn bind_function_params(
     builder.append_block_params_for_function_params(entry);
     builder.switch_to_block(entry);
     let params = builder.block_params(entry).to_vec();
-    if function
+    let entry_continuation = function
         .continuations
         .iter()
         .find(|continuation| continuation.id == function.entry)
-        .is_some_and(|continuation| !continuation.params.is_empty())
-    {
+        .ok_or(CpsReprCraneliftError::MissingContinuation {
+            function: function.name.clone(),
+            continuation: function.entry,
+        })?;
+    if entry_continuation.params.len() != function.params.len() {
         return Err(CpsReprCraneliftError::UnsupportedFunction {
             function: function.name.clone(),
-            reason: "entry continuation parameters",
+            reason: "entry continuation parameter arity",
         });
     }
-    for (param, value) in function.params.iter().zip(params) {
-        builder.def_var(variable(param.value), value);
+    for ((function_param, continuation_param), value) in function
+        .params
+        .iter()
+        .zip(&entry_continuation.params)
+        .zip(params)
+    {
+        builder.def_var(variable(function_param.value), value);
+        if continuation_param.value != function_param.value {
+            builder.def_var(variable(continuation_param.value), value);
+        }
     }
     Ok(())
 }
@@ -818,8 +1006,8 @@ fn bind_continuation_params(
     Ok(())
 }
 
-fn lower_stmt(
-    jit: &mut JITModule,
+fn lower_stmt<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     stmt: &CpsStmt,
@@ -841,7 +1029,7 @@ fn lower_stmt(
                     name: target.clone(),
                 }
             })?;
-            let callee = jit.declare_func_in_func(id, builder.func);
+            let callee = module_backend.declare_func_in_func(id, builder.func);
             let args = read_values(builder, function, args)?;
             let call = builder.ins().call(callee, &args);
             let results = builder.inst_results(call);
@@ -853,11 +1041,9 @@ fn lower_stmt(
             }
             builder.def_var(variable(*dest), results[0]);
         }
-        CpsStmt::CloneContinuation { .. } => {
-            return Err(CpsReprCraneliftError::UnsupportedStmt {
-                function: function.name.clone(),
-                kind: "clone continuation",
-            });
+        CpsStmt::CloneContinuation { dest, source } => {
+            let source = read_value(builder, function, *source)?;
+            builder.def_var(variable(*dest), source);
         }
         CpsStmt::Resume { .. } => {
             return Err(CpsReprCraneliftError::UnsupportedStmt {
@@ -906,6 +1092,14 @@ fn lower_terminator(
         }
     }
     Ok(())
+}
+
+fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
+    actual == expected
+        || (!expected.segments.is_empty()
+            && actual.segments.len() == expected.segments.len() + 1
+            && actual.segments.starts_with(&expected.segments))
+        || (expected.segments.len() == 1 && actual.segments.last() == expected.segments.first())
 }
 
 fn lower_literal(
@@ -1027,13 +1221,7 @@ fn validate_scalar_subset(module: &CpsReprAbiModule) -> CpsReprCraneliftResult<(
                         }
                     },
                     CpsStmt::Primitive { op, .. } => validate_primitive(function, *op)?,
-                    CpsStmt::DirectCall { .. } => {}
-                    CpsStmt::CloneContinuation { .. } => {
-                        return Err(CpsReprCraneliftError::UnsupportedStmt {
-                            function: function.name.clone(),
-                            kind: "clone continuation",
-                        });
-                    }
+                    CpsStmt::DirectCall { .. } | CpsStmt::CloneContinuation { .. } => {}
                     CpsStmt::Resume { .. } if has_effect_flow => {}
                     CpsStmt::Resume { .. } => {
                         return Err(CpsReprCraneliftError::UnsupportedStmt {
@@ -1077,7 +1265,9 @@ fn validate_environment_lane(
     lane: CpsReprAbiLane,
 ) -> CpsReprCraneliftResult<()> {
     match lane {
-        CpsReprAbiLane::ScalarI64 | CpsReprAbiLane::Unknown => Ok(()),
+        CpsReprAbiLane::ScalarI64 | CpsReprAbiLane::ResumptionPtr | CpsReprAbiLane::Unknown => {
+            Ok(())
+        }
         lane => Err(CpsReprCraneliftError::UnsupportedLane {
             function: function.name.clone(),
             value,
@@ -1207,6 +1397,10 @@ fn make_native_i64_resumption(code: usize, env: Vec<i64>) -> *mut NativeCpsI64Re
     }))
 }
 
+fn make_native_i64_env(env: Vec<i64>) -> *const i64 {
+    Box::leak(env.into_boxed_slice()).as_ptr()
+}
+
 extern "C" fn yulang_cps_make_resumption_i64_0(code: usize) -> *mut NativeCpsI64Resumption {
     make_native_i64_resumption(code, Vec::new())
 }
@@ -1240,6 +1434,26 @@ extern "C" fn yulang_cps_make_resumption_i64_4(
     d: i64,
 ) -> *mut NativeCpsI64Resumption {
     make_native_i64_resumption(code, vec![a, b, c, d])
+}
+
+extern "C" fn yulang_cps_make_env_i64_0() -> *const i64 {
+    make_native_i64_env(Vec::new())
+}
+
+extern "C" fn yulang_cps_make_env_i64_1(a: i64) -> *const i64 {
+    make_native_i64_env(vec![a])
+}
+
+extern "C" fn yulang_cps_make_env_i64_2(a: i64, b: i64) -> *const i64 {
+    make_native_i64_env(vec![a, b])
+}
+
+extern "C" fn yulang_cps_make_env_i64_3(a: i64, b: i64, c: i64) -> *const i64 {
+    make_native_i64_env(vec![a, b, c])
+}
+
+extern "C" fn yulang_cps_make_env_i64_4(a: i64, b: i64, c: i64, d: i64) -> *const i64 {
+    make_native_i64_env(vec![a, b, c, d])
 }
 
 extern "C" fn yulang_cps_resume_i64(resumption: *const NativeCpsI64Resumption, arg: i64) -> i64 {
@@ -1277,6 +1491,15 @@ mod tests {
         let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
 
         assert_eq!(jit.run_roots_i64().expect("ran"), vec![22]);
+    }
+
+    #[test]
+    fn object_compiles_multishot_resumption_calls() {
+        let abi = multishot_resume_effect_abi();
+        let object = compile_cps_repr_abi_module_to_object(&abi).expect("compiled");
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(object.roots(), &["root".to_string()]);
     }
 
     #[test]
@@ -1394,8 +1617,10 @@ mod tests {
                 entry: CpsContinuationId(0),
                 handlers: vec![crate::cps_ir::CpsHandler {
                     id: crate::cps_ir::CpsHandlerId(0),
-                    effect: effect.clone(),
-                    entry: CpsContinuationId(2),
+                    arms: vec![crate::cps_ir::CpsHandlerArm {
+                        effect: effect.clone(),
+                        entry: CpsContinuationId(2),
+                    }],
                 }],
                 continuations: vec![
                     CpsContinuation {
@@ -1465,8 +1690,10 @@ mod tests {
                 entry: CpsContinuationId(0),
                 handlers: vec![crate::cps_ir::CpsHandler {
                     id: crate::cps_ir::CpsHandlerId(0),
-                    effect: effect.clone(),
-                    entry: CpsContinuationId(2),
+                    arms: vec![crate::cps_ir::CpsHandlerArm {
+                        effect: effect.clone(),
+                        entry: CpsContinuationId(2),
+                    }],
                 }],
                 continuations: vec![
                     CpsContinuation {
@@ -1509,6 +1736,10 @@ mod tests {
                         captures: Vec::new(),
                         shot_kind: CpsShotKind::MultiShot,
                         stmts: vec![
+                            CpsStmt::CloneContinuation {
+                                dest: CpsValueId(9),
+                                source: CpsValueId(5),
+                            },
                             CpsStmt::Resume {
                                 dest: CpsValueId(6),
                                 resumption: CpsValueId(5),
@@ -1516,7 +1747,7 @@ mod tests {
                             },
                             CpsStmt::Resume {
                                 dest: CpsValueId(7),
-                                resumption: CpsValueId(5),
+                                resumption: CpsValueId(9),
                                 arg: CpsValueId(4),
                             },
                             CpsStmt::Primitive {

@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 use crate::cps_ir::{CpsFunction, CpsModule, CpsStmt, CpsTerminator, CpsValueId};
 
@@ -9,18 +9,32 @@ pub fn infer_cps_captures(module: &mut CpsModule) {
 }
 
 fn infer_function_captures(function: &mut CpsFunction) {
-    for continuation in &mut function.continuations {
-        let local_defs = continuation
-            .params
+    loop {
+        let current_captures = function
+            .continuations
             .iter()
-            .copied()
-            .chain(continuation_defs(continuation))
-            .collect::<BTreeSet<_>>();
-        let captures = continuation_uses(continuation)
-            .into_iter()
-            .filter(|value| !local_defs.contains(value))
-            .collect::<Vec<_>>();
-        continuation.captures = captures;
+            .map(|continuation| (continuation.id, continuation.captures.clone()))
+            .collect::<HashMap<_, _>>();
+        let mut changed = false;
+        for continuation in &mut function.continuations {
+            let local_defs = continuation
+                .params
+                .iter()
+                .copied()
+                .chain(continuation_defs(continuation))
+                .collect::<BTreeSet<_>>();
+            let captures = continuation_uses(continuation, &current_captures)
+                .into_iter()
+                .filter(|value| !local_defs.contains(value))
+                .collect::<Vec<_>>();
+            if continuation.captures != captures {
+                continuation.captures = captures;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
     }
 }
 
@@ -38,7 +52,10 @@ fn continuation_defs(continuation: &crate::cps_ir::CpsContinuation) -> Vec<CpsVa
         .collect()
 }
 
-fn continuation_uses(continuation: &crate::cps_ir::CpsContinuation) -> Vec<CpsValueId> {
+fn continuation_uses(
+    continuation: &crate::cps_ir::CpsContinuation,
+    continuation_captures: &HashMap<crate::cps_ir::CpsContinuationId, Vec<CpsValueId>>,
+) -> Vec<CpsValueId> {
     let mut uses = BTreeSet::new();
     for stmt in &continuation.stmts {
         match stmt {
@@ -61,14 +78,48 @@ fn continuation_uses(continuation: &crate::cps_ir::CpsContinuation) -> Vec<CpsVa
         CpsTerminator::Return(value) => {
             uses.insert(*value);
         }
-        CpsTerminator::Continue { args, .. } => {
+        CpsTerminator::Continue { target, args } => {
             uses.extend(args.iter().copied());
+            uses.extend(
+                continuation_captures
+                    .get(target)
+                    .into_iter()
+                    .flatten()
+                    .copied(),
+            );
         }
-        CpsTerminator::Branch { cond, .. } => {
+        CpsTerminator::Branch {
+            cond,
+            then_cont,
+            else_cont,
+        } => {
             uses.insert(*cond);
+            uses.extend(
+                continuation_captures
+                    .get(then_cont)
+                    .into_iter()
+                    .flatten()
+                    .copied(),
+            );
+            uses.extend(
+                continuation_captures
+                    .get(else_cont)
+                    .into_iter()
+                    .flatten()
+                    .copied(),
+            );
         }
-        CpsTerminator::Perform { payload, .. } => {
+        CpsTerminator::Perform {
+            payload, resume, ..
+        } => {
             uses.insert(*payload);
+            uses.extend(
+                continuation_captures
+                    .get(resume)
+                    .into_iter()
+                    .flatten()
+                    .copied(),
+            );
         }
     }
     uses.into_iter().collect()

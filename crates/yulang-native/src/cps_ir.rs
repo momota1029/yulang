@@ -81,6 +81,11 @@ pub enum CpsTerminator {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CpsHandler {
     pub id: CpsHandlerId,
+    pub arms: Vec<CpsHandlerArm>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsHandlerArm {
     pub effect: core_ir::Path,
     pub entry: CpsContinuationId,
 }

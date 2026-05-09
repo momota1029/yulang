@@ -9,7 +9,9 @@ use yulang_core_ir as core_ir;
 use crate::closure::{
     NativeClosureBlock, NativeClosureFunction, NativeClosureModule, NativeClosureStmt,
 };
-use crate::control_ir::{BlockId, NativeLiteral, NativeStmt, NativeTerminator, ValueId};
+use crate::control_ir::{
+    BlockId, NativeLiteral, NativeRecordField, NativeStmt, NativeTerminator, ValueId,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeAbiModule {
@@ -48,6 +50,24 @@ pub enum NativeAbiStmt {
         dest: ValueId,
         target: String,
         args: Vec<ValueId>,
+    },
+    Tuple {
+        dest: ValueId,
+        items: Vec<ValueId>,
+    },
+    Record {
+        dest: ValueId,
+        fields: Vec<NativeRecordField>,
+    },
+    Variant {
+        dest: ValueId,
+        tag: core_ir::Name,
+        value: Option<ValueId>,
+    },
+    Select {
+        dest: ValueId,
+        base: ValueId,
+        field: core_ir::Name,
     },
     LoadEnv {
         dest: ValueId,
@@ -131,6 +151,24 @@ fn lower_native_stmt(stmt: &NativeStmt) -> NativeAbiStmt {
             dest: *dest,
             target: target.clone(),
             args: args.clone(),
+        },
+        NativeStmt::Tuple { dest, items } => NativeAbiStmt::Tuple {
+            dest: *dest,
+            items: items.clone(),
+        },
+        NativeStmt::Record { dest, fields } => NativeAbiStmt::Record {
+            dest: *dest,
+            fields: fields.clone(),
+        },
+        NativeStmt::Variant { dest, tag, value } => NativeAbiStmt::Variant {
+            dest: *dest,
+            tag: tag.clone(),
+            value: *value,
+        },
+        NativeStmt::Select { dest, base, field } => NativeAbiStmt::Select {
+            dest: *dest,
+            base: *base,
+            field: field.clone(),
         },
         NativeStmt::MakeClosure {
             dest,

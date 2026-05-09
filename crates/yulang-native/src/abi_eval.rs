@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
 use yulang_core_ir as core_ir;
@@ -203,6 +204,41 @@ fn eval_blocks(
                         *dest,
                         eval_function_value(module, function, Vec::new(), args)?,
                     );
+                }
+                NativeAbiStmt::Tuple { dest, items } => {
+                    let items = items
+                        .iter()
+                        .map(|id| read_plain_value(&values, *id))
+                        .collect::<NativeAbiEvalResult<Vec<_>>>()?;
+                    write_value(&mut values, *dest, plain(runtime::VmValue::Tuple(items)));
+                }
+                NativeAbiStmt::Record { dest, fields } => {
+                    let mut record = BTreeMap::new();
+                    for field in fields {
+                        record.insert(field.name.clone(), read_plain_value(&values, field.value)?);
+                    }
+                    write_value(&mut values, *dest, plain(runtime::VmValue::Record(record)));
+                }
+                NativeAbiStmt::Variant { dest, tag, value } => {
+                    let value = value
+                        .map(|value| read_plain_value(&values, value).map(Box::new))
+                        .transpose()?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        plain(runtime::VmValue::Variant {
+                            tag: tag.clone(),
+                            value,
+                        }),
+                    );
+                }
+                NativeAbiStmt::Select { dest, base, field } => {
+                    let value = match read_plain_value(&values, *base)? {
+                        runtime::VmValue::Record(fields) => fields.get(field).cloned(),
+                        _ => None,
+                    }
+                    .ok_or(NativeAbiEvalError::ExpectedPlainValue { id: *base })?;
+                    write_value(&mut values, *dest, plain(value));
                 }
                 NativeAbiStmt::LoadEnv { dest, slot } => {
                     let value = env.get(*slot).cloned().ok_or_else(|| {

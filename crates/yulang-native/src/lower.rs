@@ -5,8 +5,8 @@ use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
 
 use crate::control_ir::{
-    BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeStmt,
-    NativeTerminator, ValueId,
+    BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeRecordField,
+    NativeStmt, NativeTerminator, ValueId,
 };
 
 pub type NativeLowerResult<T> = Result<T, NativeLowerError>;
@@ -394,16 +394,10 @@ impl<'a> FunctionLowerer<'a> {
                 else_branch,
                 ..
             } => self.lower_if(cond, then_branch, else_branch),
-            runtime::ExprKind::Tuple(_) => Err(NativeLowerError::UnsupportedExpr { kind: "tuple" }),
-            runtime::ExprKind::Record { .. } => {
-                Err(NativeLowerError::UnsupportedExpr { kind: "record" })
-            }
-            runtime::ExprKind::Variant { .. } => {
-                Err(NativeLowerError::UnsupportedExpr { kind: "variant" })
-            }
-            runtime::ExprKind::Select { .. } => {
-                Err(NativeLowerError::UnsupportedExpr { kind: "select" })
-            }
+            runtime::ExprKind::Tuple(items) => self.lower_tuple(items),
+            runtime::ExprKind::Record { fields, spread } => self.lower_record(fields, spread),
+            runtime::ExprKind::Variant { tag, value } => self.lower_variant(tag, value.as_deref()),
+            runtime::ExprKind::Select { base, field } => self.lower_select(base, field),
             runtime::ExprKind::Match {
                 scrutinee, arms, ..
             } => self.lower_match(scrutinee, arms),
@@ -434,6 +428,70 @@ impl<'a> FunctionLowerer<'a> {
         let block = BlockId(self.next_block);
         self.next_block += 1;
         block
+    }
+
+    fn lower_tuple(&mut self, items: &[runtime::Expr]) -> NativeLowerResult<ValueId> {
+        let items = items
+            .iter()
+            .map(|item| self.lower_expr(item))
+            .collect::<NativeLowerResult<Vec<_>>>()?;
+        let dest = self.fresh_value();
+        self.current.stmts.push(NativeStmt::Tuple { dest, items });
+        Ok(dest)
+    }
+
+    fn lower_record(
+        &mut self,
+        fields: &[runtime::RecordExprField],
+        spread: &Option<runtime::RecordSpreadExpr>,
+    ) -> NativeLowerResult<ValueId> {
+        if spread.is_some() {
+            return Err(NativeLowerError::UnsupportedExpr {
+                kind: "record spread",
+            });
+        }
+        let fields = fields
+            .iter()
+            .map(|field| {
+                Ok(NativeRecordField {
+                    name: field.name.clone(),
+                    value: self.lower_expr(&field.value)?,
+                })
+            })
+            .collect::<NativeLowerResult<Vec<_>>>()?;
+        let dest = self.fresh_value();
+        self.current.stmts.push(NativeStmt::Record { dest, fields });
+        Ok(dest)
+    }
+
+    fn lower_variant(
+        &mut self,
+        tag: &core_ir::Name,
+        value: Option<&runtime::Expr>,
+    ) -> NativeLowerResult<ValueId> {
+        let value = value.map(|value| self.lower_expr(value)).transpose()?;
+        let dest = self.fresh_value();
+        self.current.stmts.push(NativeStmt::Variant {
+            dest,
+            tag: tag.clone(),
+            value,
+        });
+        Ok(dest)
+    }
+
+    fn lower_select(
+        &mut self,
+        base: &runtime::Expr,
+        field: &core_ir::Name,
+    ) -> NativeLowerResult<ValueId> {
+        let base = self.lower_expr(base)?;
+        let dest = self.fresh_value();
+        self.current.stmts.push(NativeStmt::Select {
+            dest,
+            base,
+            field: field.clone(),
+        });
+        Ok(dest)
     }
 
     fn lower_if(

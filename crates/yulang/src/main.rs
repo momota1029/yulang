@@ -4,10 +4,11 @@ use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::{self, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
+use std::process::Command;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use chasa::error::LatestSink;
 use chasa::input::{In, Input as _, IsCut};
@@ -83,8 +84,13 @@ struct CliOptions {
     hygiene_ir: bool,
     run_vm: bool,
     native_compare_i64: bool,
-    native_cps_repr_i64: bool,
     native_abi_lanes: bool,
+    native_object: Option<NativeOutput>,
+    native_exe: Option<NativeOutput>,
+    native_value_exe: Option<NativeOutput>,
+    native_run_exe: Option<NativeOutput>,
+    native_run_value_exe: Option<NativeOutput>,
+    native_run_cps_repr_exe: Option<NativeOutput>,
     verbose_ir: bool,
     infer_phase_timings: bool,
     runtime_phase_timings: bool,
@@ -104,6 +110,12 @@ enum ParserMode {
     Mark,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum NativeOutput {
+    Path(String),
+    Default,
+}
+
 fn parse_args() -> CliOptions {
     let mut show_cst = false;
     let mut parse_mode = None;
@@ -113,8 +125,13 @@ fn parse_args() -> CliOptions {
     let mut hygiene_ir = false;
     let mut run_vm = false;
     let mut native_compare_i64 = false;
-    let mut native_cps_repr_i64 = false;
     let mut native_abi_lanes = false;
+    let mut native_object = None;
+    let mut native_exe = None;
+    let mut native_value_exe = None;
+    let mut native_run_exe = None;
+    let mut native_run_value_exe = None;
+    let mut native_run_cps_repr_exe = None;
     let mut verbose_ir = false;
     let mut infer_phase_timings = false;
     let mut runtime_phase_timings = false;
@@ -123,7 +140,7 @@ fn parse_args() -> CliOptions {
     let mut std_root = None;
     let mut profile_flamegraph = None;
     let mut profile_repeat = 1usize;
-    let mut args = env::args().skip(1);
+    let mut args = env::args().skip(1).peekable();
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--help" | "-h" => {
@@ -142,8 +159,25 @@ fn parse_args() -> CliOptions {
             "--hygiene-ir" => hygiene_ir = true,
             "--run" => run_vm = true,
             "--native-compare-i64" => native_compare_i64 = true,
-            "--native-cps-repr-i64" => native_cps_repr_i64 = true,
             "--native-abi-lanes" => native_abi_lanes = true,
+            "--native-object" => {
+                native_object = Some(parse_optional_native_output(&mut args));
+            }
+            "--native-exe" | "--native-executable" => {
+                native_exe = Some(parse_optional_native_output(&mut args));
+            }
+            "--native-value-exe" => {
+                native_value_exe = Some(parse_optional_native_output(&mut args));
+            }
+            "--native-run-exe" | "--native-run-executable" => {
+                native_run_exe = Some(parse_optional_native_output(&mut args));
+            }
+            "--native-run-value-exe" => {
+                native_run_value_exe = Some(parse_optional_native_output(&mut args));
+            }
+            "--native-run" | "--native-run-cps-repr-exe" => {
+                native_run_cps_repr_exe = Some(parse_optional_native_output(&mut args));
+            }
             "--verbose-ir" => verbose_ir = true,
             "--infer-phase-timings" => infer_phase_timings = true,
             "--runtime-phase-timings" => runtime_phase_timings = true,
@@ -200,8 +234,13 @@ fn parse_args() -> CliOptions {
         && !hygiene_ir
         && !run_vm
         && !native_compare_i64
-        && !native_cps_repr_i64
         && !native_abi_lanes
+        && native_object.is_none()
+        && native_exe.is_none()
+        && native_value_exe.is_none()
+        && native_run_exe.is_none()
+        && native_run_value_exe.is_none()
+        && native_run_cps_repr_exe.is_none()
     {
         infer = true;
     }
@@ -214,8 +253,13 @@ fn parse_args() -> CliOptions {
         hygiene_ir,
         run_vm,
         native_compare_i64,
-        native_cps_repr_i64,
         native_abi_lanes,
+        native_object,
+        native_exe,
+        native_value_exe,
+        native_run_exe,
+        native_run_value_exe,
+        native_run_cps_repr_exe,
         verbose_ir,
         infer_phase_timings,
         runtime_phase_timings,
@@ -224,6 +268,18 @@ fn parse_args() -> CliOptions {
         std_root,
         profile_flamegraph,
         profile_repeat,
+    }
+}
+
+fn parse_optional_native_output(
+    args: &mut std::iter::Peekable<impl Iterator<Item = String>>,
+) -> NativeOutput {
+    match args.peek() {
+        Some(next) if !next.starts_with("--") => NativeOutput::Path(
+            args.next()
+                .expect("peeked native output argument should be present"),
+        ),
+        _ => NativeOutput::Default,
     }
 }
 
@@ -249,7 +305,7 @@ fn read_source(path: Option<&str>) -> String {
 
 fn print_usage() {
     eprintln!(
-        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--native-compare-i64] [--native-cps-repr-i64] [--native-abi-lanes] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
+        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--native-run [path]] [--native-compare-i64] [--native-abi-lanes] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
     );
     eprintln!("       (no path = read from stdin)");
     eprintln!("       --cst         also print the CST before types");
@@ -266,8 +322,9 @@ fn print_usage() {
     eprintln!(
         "       --native-compare-i64  compare VM/native-control/native-ABI/Cranelift scalar i64 results"
     );
-    eprintln!("       --native-cps-repr-i64  compare VM and CPS-repr Cranelift scalar i64 results");
     eprintln!("       --native-abi-lanes  print native ABI value representation classification");
+    eprintln!("       --native-run [path]  link and run a native executable");
+    eprintln!("       native output path defaults to target/yulang/bin/ when omitted");
     eprintln!("       --verbose-ir  include detailed graph/evidence sections in IR dumps");
     eprintln!("       --infer-phase-timings  print coarse timing breakdown for the infer pipeline");
     eprintln!(
@@ -307,8 +364,13 @@ fn run(options: &CliOptions) {
             || options.hygiene_ir
             || options.run_vm
             || options.native_compare_i64
-            || options.native_cps_repr_i64
             || options.native_abi_lanes
+            || options.native_object.is_some()
+            || options.native_exe.is_some()
+            || options.native_value_exe.is_some()
+            || options.native_run_exe.is_some()
+            || options.native_run_value_exe.is_some()
+            || options.native_run_cps_repr_exe.is_some()
         {
             run_infer_views(
                 options.path.as_deref(),
@@ -567,8 +629,13 @@ fn run_infer_views(
             || options.hygiene_ir
             || options.run_vm
             || options.native_compare_i64
-            || options.native_cps_repr_i64
-            || options.native_abi_lanes)
+            || options.native_abi_lanes
+            || options.native_object.is_some()
+            || options.native_exe.is_some()
+            || options.native_value_exe.is_some()
+            || options.native_run_exe.is_some()
+            || options.native_run_value_exe.is_some()
+            || options.native_run_cps_repr_exe.is_some())
     {
         Some(export_core_program(&mut state))
     } else {
@@ -588,8 +655,13 @@ fn run_infer_views(
                 || options.hygiene_ir
                 || options.run_vm
                 || options.native_compare_i64
-                || options.native_cps_repr_i64
-                || options.native_abi_lanes)
+                || options.native_abi_lanes
+                || options.native_object.is_some()
+                || options.native_exe.is_some()
+                || options.native_value_exe.is_some()
+                || options.native_run_exe.is_some()
+                || options.native_run_value_exe.is_some()
+                || options.native_run_cps_repr_exe.is_some())
         {
             process::exit(1);
         }
@@ -728,8 +800,12 @@ fn run_infer_views(
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_vm
-                || options.native_cps_repr_i64
                 || options.native_abi_lanes
+                || options.native_object.is_some()
+                || options.native_exe.is_some()
+                || options.native_value_exe.is_some()
+                || options.native_run_exe.is_some()
+                || options.native_run_value_exe.is_some()
             {
                 println!();
             }
@@ -753,37 +829,6 @@ fn run_infer_views(
             }
             println!("native-compare-i64: ok");
         }
-        if options.native_cps_repr_i64 {
-            if options.infer
-                || options.core_ir
-                || options.runtime_ir
-                || options.hygiene_ir
-                || options.run_vm
-                || options.native_compare_i64
-                || options.native_abi_lanes
-            {
-                println!();
-            }
-            let lowered = lower_runtime_module_or_exit(
-                infer_program.as_ref().expect("core program"),
-                options.runtime_phase_timings,
-                &diagnostic_source,
-            );
-            let compare_start = Instant::now();
-            if let Err(err) = yulang_native::compare_cps_repr_cranelift_i64(&lowered.module) {
-                eprintln!("native CPS repr compare failed: {err}");
-                process::exit(1);
-            }
-            let compare_duration = compare_start.elapsed();
-            if options.runtime_phase_timings {
-                print_runtime_phase_timings(&lowered.profile, None, None);
-                eprintln!(
-                    "    native_cps_repr_i64: {}",
-                    format_duration(compare_duration)
-                );
-            }
-            println!("native-cps-repr-i64: ok");
-        }
         if options.native_abi_lanes {
             if options.infer
                 || options.core_ir
@@ -791,7 +836,9 @@ fn run_infer_views(
                 || options.hygiene_ir
                 || options.run_vm
                 || options.native_compare_i64
-                || options.native_cps_repr_i64
+                || options.native_object.is_some()
+                || options.native_exe.is_some()
+                || options.native_value_exe.is_some()
             {
                 println!();
             }
@@ -801,6 +848,148 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             print_native_abi_lanes_or_exit(&lowered.module);
+        }
+        if let Some(path) = &options.native_object {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+                || options.native_compare_i64
+                || options.native_abi_lanes
+                || options.native_exe.is_some()
+                || options.native_value_exe.is_some()
+                || options.native_run_exe.is_some()
+                || options.native_run_value_exe.is_some()
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let path = native_object_output_path(path, options.path.as_deref());
+            write_native_object_or_exit(&lowered.module, &path);
+        }
+        if let Some(path) = &options.native_exe {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+                || options.native_compare_i64
+                || options.native_abi_lanes
+                || options.native_object.is_some()
+                || options.native_value_exe.is_some()
+                || options.native_run_exe.is_some()
+                || options.native_run_value_exe.is_some()
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let path = native_executable_output_path(path, options.path.as_deref());
+            write_native_executable_or_exit(&lowered.module, &path);
+        }
+        if let Some(path) = &options.native_value_exe {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+                || options.native_compare_i64
+                || options.native_abi_lanes
+                || options.native_object.is_some()
+                || options.native_exe.is_some()
+                || options.native_run_exe.is_some()
+                || options.native_run_value_exe.is_some()
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let path = native_value_executable_output_path(path, options.path.as_deref());
+            write_native_value_executable_or_exit(&lowered.module, &path);
+        }
+        if let Some(path) = &options.native_run_exe {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+                || options.native_compare_i64
+                || options.native_abi_lanes
+                || options.native_object.is_some()
+                || options.native_exe.is_some()
+                || options.native_value_exe.is_some()
+                || options.native_run_value_exe.is_some()
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let path = native_executable_output_path(path, options.path.as_deref());
+            write_native_executable_or_exit(&lowered.module, &path);
+            run_native_executable_or_exit(&path, "native-run-exe");
+        }
+        if let Some(path) = &options.native_run_value_exe {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+                || options.native_compare_i64
+                || options.native_abi_lanes
+                || options.native_object.is_some()
+                || options.native_exe.is_some()
+                || options.native_value_exe.is_some()
+                || options.native_run_exe.is_some()
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let path = native_value_executable_output_path(path, options.path.as_deref());
+            write_native_value_executable_or_exit(&lowered.module, &path);
+            run_native_executable_or_exit(&path, "native-run-value-exe");
+        }
+        if let Some(path) = &options.native_run_cps_repr_exe {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+                || options.native_compare_i64
+                || options.native_abi_lanes
+                || options.native_object.is_some()
+                || options.native_exe.is_some()
+                || options.native_value_exe.is_some()
+                || options.native_run_exe.is_some()
+                || options.native_run_value_exe.is_some()
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let path = native_cps_repr_executable_output_path(path, options.path.as_deref());
+            write_native_cps_repr_executable_or_exit(&lowered.module, &path);
+            run_native_executable_or_exit(&path, "native-run");
         }
         if options.infer_phase_timings && options.infer {
             print_infer_phase_timings(
@@ -906,6 +1095,579 @@ fn print_native_abi_lanes_or_exit(module: &runtime::Module) {
     }
 }
 
+fn write_native_object_or_exit(module: &runtime::Module, path: &Path) {
+    let (object, _) = compile_native_object_or_exit(module);
+    ensure_parent_dir_or_exit(path, "native object");
+    if let Err(err) = fs::write(path, object.bytes()) {
+        eprintln!("failed to write native object {}: {err}", path.display());
+        process::exit(1);
+    }
+    println!(
+        "native-object: wrote {} bytes to {}",
+        object.bytes().len(),
+        path.display()
+    );
+}
+
+fn write_native_executable_or_exit(module: &runtime::Module, path: &Path) {
+    let (object, roots) = compile_native_object_or_exit(module);
+    ensure_parent_dir_or_exit(path, "native executable");
+    let temp_dir = native_link_temp_dir();
+    if let Err(err) = fs::create_dir_all(&temp_dir) {
+        eprintln!(
+            "failed to create native link temp dir {}: {err}",
+            temp_dir.display()
+        );
+        process::exit(1);
+    }
+    let object_path = temp_dir.join("module.o");
+    let harness_path = temp_dir.join("main.rs");
+    let cleanup = || {
+        let _ = fs::remove_dir_all(&temp_dir);
+    };
+    if let Err(err) = fs::write(&object_path, object.bytes()) {
+        eprintln!(
+            "failed to write native object {}: {err}",
+            object_path.display()
+        );
+        cleanup();
+        process::exit(1);
+    }
+    let harness = native_executable_harness(&roots);
+    if let Err(err) = fs::write(&harness_path, harness) {
+        eprintln!(
+            "failed to write native executable harness {}: {err}",
+            harness_path.display()
+        );
+        cleanup();
+        process::exit(1);
+    }
+    let output = match Command::new("cc")
+        .arg(&harness_path)
+        .arg(&object_path)
+        .arg("-o")
+        .arg(path)
+        .output()
+    {
+        Ok(output) => output,
+        Err(err) => {
+            eprintln!("failed to run cc for native executable: {err}");
+            cleanup();
+            process::exit(1);
+        }
+    };
+    if !output.status.success() {
+        eprintln!("failed to link native executable with cc");
+        if !output.stdout.is_empty() {
+            eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+        }
+        if !output.stderr.is_empty() {
+            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+        cleanup();
+        process::exit(1);
+    }
+    cleanup();
+    println!("native-exe: wrote {}", path.display());
+}
+
+fn write_native_value_executable_or_exit(module: &runtime::Module, path: &Path) {
+    let object = compile_native_value_object_or_exit(module);
+    let support_library = build_native_runtime_staticlib_or_exit();
+    ensure_parent_dir_or_exit(path, "native value executable");
+    let temp_dir = native_link_temp_dir();
+    if let Err(err) = fs::create_dir_all(&temp_dir) {
+        eprintln!(
+            "failed to create native value link temp dir {}: {err}",
+            temp_dir.display()
+        );
+        process::exit(1);
+    }
+    let object_path = temp_dir.join("module.o");
+    let harness_path = temp_dir.join("main.c");
+    let cleanup = || {
+        let _ = fs::remove_dir_all(&temp_dir);
+    };
+    if let Err(err) = fs::write(&object_path, object.bytes()) {
+        eprintln!(
+            "failed to write native value object {}: {err}",
+            object_path.display()
+        );
+        cleanup();
+        process::exit(1);
+    }
+    let harness = native_value_executable_harness(object.roots());
+    if let Err(err) = fs::write(&harness_path, harness) {
+        eprintln!(
+            "failed to write native value executable harness {}: {err}",
+            harness_path.display()
+        );
+        cleanup();
+        process::exit(1);
+    }
+    let output = match Command::new("cc")
+        .arg(&harness_path)
+        .arg(&object_path)
+        .arg(&support_library)
+        .arg("-pthread")
+        .arg("-ldl")
+        .arg("-lm")
+        .arg("-o")
+        .arg(path)
+        .output()
+    {
+        Ok(output) => output,
+        Err(err) => {
+            eprintln!("failed to run cc for native value executable: {err}");
+            cleanup();
+            process::exit(1);
+        }
+    };
+    if !output.status.success() {
+        eprintln!("failed to link native value executable with cc");
+        if !output.stdout.is_empty() {
+            eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+        }
+        if !output.stderr.is_empty() {
+            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+        cleanup();
+        process::exit(1);
+    }
+    cleanup();
+    println!("native-value-exe: wrote {}", path.display());
+}
+
+fn write_native_cps_repr_executable_or_exit(module: &runtime::Module, path: &Path) {
+    let object = compile_native_cps_repr_object_or_exit(module);
+    let support_library = build_native_runtime_staticlib_or_exit();
+    ensure_parent_dir_or_exit(path, "native CPS repr executable");
+    let temp_dir = native_link_temp_dir();
+    if let Err(err) = fs::create_dir_all(&temp_dir) {
+        eprintln!(
+            "failed to create native CPS repr link temp dir {}: {err}",
+            temp_dir.display()
+        );
+        process::exit(1);
+    }
+    let object_path = temp_dir.join("module.o");
+    let harness_path = temp_dir.join("main.rs");
+    let cleanup = || {
+        let _ = fs::remove_dir_all(&temp_dir);
+    };
+    if let Err(err) = fs::write(&object_path, object.bytes()) {
+        eprintln!(
+            "failed to write native CPS repr object {}: {err}",
+            object_path.display()
+        );
+        cleanup();
+        process::exit(1);
+    }
+    let harness = native_cps_repr_executable_harness(object.roots());
+    if let Err(err) = fs::write(&harness_path, harness) {
+        eprintln!(
+            "failed to write native CPS repr executable harness {}: {err}",
+            harness_path.display()
+        );
+        cleanup();
+        process::exit(1);
+    }
+    let output = match Command::new("rustc")
+        .arg("--edition=2024")
+        .arg(&harness_path)
+        .arg("-C")
+        .arg("relocation-model=static")
+        .arg("-C")
+        .arg("link-arg=-no-pie")
+        .arg("-C")
+        .arg(format!("link-arg={}", object_path.display()))
+        .arg("-C")
+        .arg(format!("link-arg={}", support_library.display()))
+        .arg("-o")
+        .arg(path)
+        .output()
+    {
+        Ok(output) => output,
+        Err(err) => {
+            eprintln!("failed to run rustc for native CPS repr executable: {err}");
+            cleanup();
+            process::exit(1);
+        }
+    };
+    if !output.status.success() {
+        eprintln!("failed to link native CPS repr executable with rustc");
+        if !output.stdout.is_empty() {
+            eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+        }
+        if !output.stderr.is_empty() {
+            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+        cleanup();
+        process::exit(1);
+    }
+    cleanup();
+    println!("native-run: wrote {}", path.display());
+}
+
+fn run_native_executable_or_exit(path: &Path, label: &str) {
+    let output = match Command::new(path).output() {
+        Ok(output) => output,
+        Err(err) => {
+            eprintln!("failed to run native executable {}: {err}", path.display());
+            process::exit(1);
+        }
+    };
+    if !output.stdout.is_empty() {
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+    if !output.stderr.is_empty() {
+        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+    if !output.status.success() {
+        eprintln!("{label}: executable exited with {}", output.status);
+        process::exit(output.status.code().unwrap_or(1));
+    }
+}
+
+fn native_object_output_path(output: &NativeOutput, input_path: Option<&str>) -> PathBuf {
+    match output {
+        NativeOutput::Path(path) => PathBuf::from(path),
+        NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
+            .project_obj
+            .join(format!("{}.o", native_output_stem(input_path))),
+    }
+}
+
+fn native_executable_output_path(output: &NativeOutput, input_path: Option<&str>) -> PathBuf {
+    match output {
+        NativeOutput::Path(path) => PathBuf::from(path),
+        NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
+            .project_bin
+            .join(native_output_stem(input_path)),
+    }
+}
+
+fn native_value_executable_output_path(output: &NativeOutput, input_path: Option<&str>) -> PathBuf {
+    match output {
+        NativeOutput::Path(path) => PathBuf::from(path),
+        NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
+            .project_bin
+            .join(format!("{}-value", native_output_stem(input_path))),
+    }
+}
+
+fn native_cps_repr_executable_output_path(
+    output: &NativeOutput,
+    input_path: Option<&str>,
+) -> PathBuf {
+    match output {
+        NativeOutput::Path(path) => PathBuf::from(path),
+        NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
+            .project_bin
+            .join(format!("{}-cps-repr", native_output_stem(input_path))),
+    }
+}
+
+fn native_output_stem(input_path: Option<&str>) -> String {
+    let stem = input_path
+        .and_then(|path| Path::new(path).file_stem())
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("stdin");
+    let sanitized = stem
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.') {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    if sanitized.is_empty() {
+        "main".to_string()
+    } else {
+        sanitized
+    }
+}
+
+fn build_native_runtime_staticlib_or_exit() -> PathBuf {
+    let workspace = workspace_root();
+    if let Some(path) = env::var_os("YULANG_NATIVE_RUNTIME_LIB").map(PathBuf::from) {
+        if path.is_file() {
+            return path;
+        }
+        eprintln!(
+            "YULANG_NATIVE_RUNTIME_LIB points to a missing file: {}",
+            path.display()
+        );
+        process::exit(1);
+    }
+    let path = native_runtime_staticlib_path(&workspace);
+    if native_runtime_support_is_fresh(&workspace, &path) {
+        return path;
+    }
+    let output = match Command::new("cargo")
+        .arg("build")
+        .arg("-q")
+        .arg("-p")
+        .arg("yulang-native")
+        .current_dir(&workspace)
+        .output()
+    {
+        Ok(output) => output,
+        Err(err) => {
+            eprintln!("failed to run cargo build for native runtime support: {err}");
+            process::exit(1);
+        }
+    };
+    if !output.status.success() {
+        eprintln!("failed to build native runtime support static library");
+        if !output.stdout.is_empty() {
+            eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+        }
+        if !output.stderr.is_empty() {
+            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+        process::exit(1);
+    }
+    if !path.is_file() {
+        eprintln!(
+            "native runtime support static library was not produced at {}",
+            path.display()
+        );
+        process::exit(1);
+    }
+    path
+}
+
+fn native_runtime_staticlib_path(workspace: &Path) -> PathBuf {
+    native_target_dir(workspace).join("debug/libyulang_native.a")
+}
+
+fn native_target_dir(workspace: &Path) -> PathBuf {
+    match env::var_os("CARGO_TARGET_DIR").map(PathBuf::from) {
+        Some(path) if path.is_absolute() => path,
+        Some(path) => workspace.join(path),
+        None => workspace.join("target"),
+    }
+}
+
+fn native_runtime_support_is_fresh(workspace: &Path, library: &Path) -> bool {
+    let Ok(library_modified) = file_modified(library) else {
+        return false;
+    };
+    let source_roots = [
+        workspace.join("Cargo.lock"),
+        workspace.join("crates/yulang-native/Cargo.toml"),
+        workspace.join("crates/yulang-native/src"),
+        workspace.join("crates/yulang-runtime/Cargo.toml"),
+        workspace.join("crates/yulang-runtime/src"),
+        workspace.join("crates/yulang-core-ir/Cargo.toml"),
+        workspace.join("crates/yulang-core-ir/src"),
+    ];
+    let newest_source = source_roots
+        .iter()
+        .filter_map(|path| newest_modified(path).ok())
+        .max();
+    newest_source.is_some_and(|modified| modified <= library_modified)
+}
+
+fn newest_modified(path: &Path) -> io::Result<SystemTime> {
+    let metadata = fs::metadata(path)?;
+    if metadata.is_file() {
+        return metadata.modified();
+    }
+    let mut newest = metadata.modified()?;
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let modified = newest_modified(&entry.path())?;
+        if modified > newest {
+            newest = modified;
+        }
+    }
+    Ok(newest)
+}
+
+fn file_modified(path: &Path) -> io::Result<SystemTime> {
+    fs::metadata(path)?.modified()
+}
+
+fn compile_native_object_or_exit(
+    module: &runtime::Module,
+) -> (yulang_native::NativeObjectModule, Vec<String>) {
+    let native = match yulang_native::lower_module(module) {
+        Ok(module) => module,
+        Err(err) => {
+            eprintln!("failed to lower native control IR: {err}");
+            process::exit(1);
+        }
+    };
+    let closure = yulang_native::closure_convert_module(&native);
+    let abi = yulang_native::lower_closure_module_to_abi(&closure);
+    let roots = abi
+        .roots
+        .iter()
+        .map(|root| root.name.clone())
+        .collect::<Vec<_>>();
+    let object = match yulang_native::compile_abi_module_to_object(&abi) {
+        Ok(object) => object,
+        Err(err) => {
+            eprintln!("failed to compile native object: {err}");
+            process::exit(1);
+        }
+    };
+    (object, roots)
+}
+
+fn compile_native_value_object_or_exit(
+    module: &runtime::Module,
+) -> yulang_native::NativeValueObjectModule {
+    let native = match yulang_native::lower_module(module) {
+        Ok(module) => module,
+        Err(err) => {
+            eprintln!("failed to lower native control IR: {err}");
+            process::exit(1);
+        }
+    };
+    let closure = yulang_native::closure_convert_module(&native);
+    let abi = yulang_native::lower_closure_module_to_abi(&closure);
+    match yulang_native::compile_value_abi_module_to_object(&abi) {
+        Ok(object) => object,
+        Err(err) => {
+            eprintln!("failed to compile native value object: {err}");
+            process::exit(1);
+        }
+    }
+}
+
+fn compile_native_cps_repr_object_or_exit(
+    module: &runtime::Module,
+) -> yulang_native::CpsReprObjectModule {
+    match yulang_native::compile_runtime_module_to_cps_repr_object(module) {
+        Ok(object) => object,
+        Err(err) => {
+            eprintln!("failed to compile native CPS repr object: {err}");
+            process::exit(1);
+        }
+    }
+}
+
+fn ensure_parent_dir_or_exit(path: &Path, kind: &str) {
+    let Some(parent) = path.parent() else {
+        return;
+    };
+    if parent.as_os_str().is_empty() {
+        return;
+    }
+    if let Err(err) = fs::create_dir_all(parent) {
+        eprintln!(
+            "failed to create {kind} output directory {}: {err}",
+            parent.display()
+        );
+        process::exit(1);
+    }
+}
+
+fn native_link_temp_dir() -> PathBuf {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    yulang_source::YulangCachePaths::for_project(workspace_root())
+        .project_build
+        .join(format!("native-link-{}-{millis}", process::id()))
+}
+
+fn workspace_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
+}
+
+fn native_executable_harness(roots: &[String]) -> String {
+    let mut source = String::from("#include <stdio.h>\n#include <stdint.h>\n\n");
+    for root in roots {
+        if !is_c_identifier(root) {
+            eprintln!("native root symbol `{root}` cannot be called from the C harness");
+            process::exit(1);
+        }
+        source.push_str("int64_t ");
+        source.push_str(root);
+        source.push_str("(void);\n");
+    }
+    source.push_str("\nint main(void) {\n");
+    for root in roots {
+        source.push_str("    printf(\"%lld\\n\", (long long)");
+        source.push_str(root);
+        source.push_str("());\n");
+    }
+    source.push_str("    return 0;\n}\n");
+    source
+}
+
+fn native_value_executable_harness(roots: &[String]) -> String {
+    let mut source = String::from(
+        r#"#include <stdint.h>
+#include <stdio.h>
+
+void *yulang_native_context_new(void);
+void yulang_native_context_free(void *context);
+void yulang_native_print_value(void *value);
+
+"#,
+    );
+    for root in roots {
+        if !is_c_identifier(root) {
+            eprintln!("native root symbol `{root}` cannot be called from the C harness");
+            process::exit(1);
+        }
+        source.push_str("void *");
+        source.push_str(root);
+        source.push_str("(void *context);\n");
+    }
+    source.push_str("\nint main(void) {\n    void *context = yulang_native_context_new();\n");
+    for root in roots {
+        source.push_str("    yulang_native_print_value(");
+        source.push_str(root);
+        source.push_str("(context));\n    putchar('\\n');\n    fflush(stdout);\n");
+    }
+    source.push_str("    yulang_native_context_free(context);\n    return 0;\n}\n");
+    source
+}
+
+fn native_cps_repr_executable_harness(roots: &[String]) -> String {
+    let mut source = String::from("unsafe extern \"C\" {\n");
+    for root in roots {
+        if !is_c_identifier(root) {
+            eprintln!(
+                "native CPS repr root symbol `{root}` cannot be called from the Rust harness"
+            );
+            process::exit(1);
+        }
+        source.push_str("    fn ");
+        source.push_str(root);
+        source.push_str("() -> i64;\n");
+    }
+    source.push_str("}\n\nfn main() {\n");
+    for root in roots {
+        source.push_str("    println!(\"{}\", unsafe { ");
+        source.push_str(root);
+        source.push_str("() });\n");
+    }
+    source.push_str("}\n");
+    source
+}
+
+fn is_c_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    (first == '_' || first.is_ascii_alphabetic())
+        && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+}
+
 fn format_native_abi_repr(repr: &yulang_native::NativeAbiRepr) -> String {
     match repr {
         yulang_native::NativeAbiRepr::Unit => "unit".to_string(),
@@ -915,6 +1677,33 @@ fn format_native_abi_repr(repr: &yulang_native::NativeAbiRepr) -> String {
         yulang_native::NativeAbiRepr::List(element) => {
             format!("list<{}>", format_native_abi_repr(element))
         }
+        yulang_native::NativeAbiRepr::Tuple(items) => format!(
+            "tuple<{}>",
+            items
+                .iter()
+                .map(format_native_abi_repr)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        yulang_native::NativeAbiRepr::Record(fields) => format!(
+            "record<{}>",
+            fields
+                .iter()
+                .map(|field| format!("{}: {}", field.name.0, format_native_abi_repr(&field.value)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        yulang_native::NativeAbiRepr::Variant(cases) => format!(
+            "variant<{}>",
+            cases
+                .iter()
+                .map(|case| match &case.value {
+                    Some(value) => format!(":{} {}", case.tag.0, format_native_abi_repr(value)),
+                    None => format!(":{}", case.tag.0),
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         yulang_native::NativeAbiRepr::RuntimeValuePtr(kind) => match kind {
             yulang_native::NativeRuntimePtrKind::String => "ptr:str".to_string(),
             yulang_native::NativeRuntimePtrKind::RuntimeValue => "ptr:value".to_string(),
@@ -4426,8 +5215,13 @@ mod tests {
             hygiene_ir: false,
             run_vm: false,
             native_compare_i64: false,
-            native_cps_repr_i64: false,
             native_abi_lanes: false,
+            native_object: None,
+            native_exe: None,
+            native_value_exe: None,
+            native_run_exe: None,
+            native_run_value_exe: None,
+            native_run_cps_repr_exe: None,
             verbose_ir: false,
             infer_phase_timings: false,
             runtime_phase_timings: false,
@@ -4437,6 +5231,33 @@ mod tests {
             profile_flamegraph: None,
             profile_repeat: 1,
         }
+    }
+
+    #[test]
+    fn native_default_output_paths_use_target_yulang() {
+        let object = native_object_output_path(&NativeOutput::Default, Some("examples/hello.yu"));
+        let executable =
+            native_executable_output_path(&NativeOutput::Default, Some("examples/hello.yu"));
+        let value_executable =
+            native_value_executable_output_path(&NativeOutput::Default, Some("examples/hello.yu"));
+        let cps_repr_executable = native_cps_repr_executable_output_path(
+            &NativeOutput::Default,
+            Some("examples/hello.yu"),
+        );
+
+        assert!(object.ends_with("target/yulang/obj/hello.o"));
+        assert!(executable.ends_with("target/yulang/bin/hello"));
+        assert!(value_executable.ends_with("target/yulang/bin/hello-value"));
+        assert!(cps_repr_executable.ends_with("target/yulang/bin/hello-cps-repr"));
+    }
+
+    #[test]
+    fn native_output_stem_sanitizes_input_name() {
+        assert_eq!(
+            native_output_stem(Some("dir/hello world.yu")),
+            "hello_world"
+        );
+        assert_eq!(native_output_stem(None), "stdin");
     }
 
     #[test]

@@ -73,6 +73,10 @@ fn validate_stmt(function: &NativeAbiFunction, stmt: &NativeAbiStmt) -> NativeAb
             op: *op,
         }),
         NativeAbiStmt::DirectCall { .. } => Ok(()),
+        NativeAbiStmt::Tuple { .. }
+        | NativeAbiStmt::Record { .. }
+        | NativeAbiStmt::Variant { .. }
+        | NativeAbiStmt::Select { .. } => Ok(()),
         NativeAbiStmt::LoadEnv { .. }
         | NativeAbiStmt::AllocateClosure { .. }
         | NativeAbiStmt::IndirectClosureCall { .. } => Ok(()),

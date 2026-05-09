@@ -2,9 +2,11 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use cranelift_codegen::ir::{self, AbiParam, InstBuilder, types};
+use cranelift_codegen::settings;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module};
+use cranelift_object::{ObjectBuilder, ObjectModule};
 use yulang_core_ir as core_ir;
 
 use crate::abi::{NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
@@ -25,6 +27,10 @@ pub enum NativeCraneliftError {
     UnsupportedScalarPrimitive {
         function: String,
         op: core_ir::PrimitiveOp,
+    },
+    UnsupportedStmt {
+        function: String,
+        kind: &'static str,
     },
     UnsupportedEnvironment {
         function: String,
@@ -69,6 +75,10 @@ impl fmt::Display for NativeCraneliftError {
             NativeCraneliftError::UnsupportedScalarPrimitive { function, op } => write!(
                 f,
                 "native Cranelift scalar prototype does not support primitive {op:?} in `{function}`"
+            ),
+            NativeCraneliftError::UnsupportedStmt { function, kind } => write!(
+                f,
+                "native Cranelift scalar prototype does not support {kind} in `{function}`"
             ),
             NativeCraneliftError::UnsupportedEnvironment { function, slots } => write!(
                 f,
@@ -147,6 +157,21 @@ impl NativeJitModule {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeObjectModule {
+    bytes: Vec<u8>,
+}
+
+impl NativeObjectModule {
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.bytes
+    }
+}
+
 pub fn compile_abi_module(module: &NativeAbiModule) -> NativeCraneliftResult<NativeJitModule> {
     validate_abi_module(module)?;
     validate_cranelift_prototype_subset(module)?;
@@ -174,15 +199,42 @@ pub fn compile_abi_module(module: &NativeAbiModule) -> NativeCraneliftResult<Nat
     Ok(NativeJitModule { module: jit, roots })
 }
 
-fn declare_functions(
-    jit: &mut JITModule,
+pub fn compile_abi_module_to_object(
+    module: &NativeAbiModule,
+) -> NativeCraneliftResult<NativeObjectModule> {
+    validate_abi_module(module)?;
+    validate_cranelift_prototype_subset(module)?;
+    let reachable = reachable_function_names(module);
+    validate_scalar_subset(module, &reachable)?;
+
+    let isa_builder = cranelift_native::builder().map_err(cranelift_error)?;
+    let flags = settings::Flags::new(settings::builder());
+    let isa = isa_builder.finish(flags).map_err(cranelift_error)?;
+    let builder = ObjectBuilder::new(
+        isa,
+        "yulang_native_object".to_string(),
+        cranelift_module::default_libcall_names(),
+    )
+    .map_err(cranelift_error)?;
+    let mut object = ObjectModule::new(builder);
+
+    let signatures =
+        FunctionSignatures::new(declare_functions(&mut object, module, &reachable)?, module);
+    define_functions(&mut object, module, &reachable, &signatures)?;
+    let product = object.finish();
+    let bytes = product.emit().map_err(cranelift_error)?;
+    Ok(NativeObjectModule { bytes })
+}
+
+fn declare_functions<M: Module>(
+    module_backend: &mut M,
     module: &NativeAbiModule,
     reachable: &HashSet<String>,
 ) -> NativeCraneliftResult<HashMap<String, FuncId>> {
     let mut declared = HashMap::new();
     for function in reachable_functions(module, reachable) {
-        let sig = function_signature(jit, function);
-        let id = jit
+        let sig = function_signature(module_backend, function);
+        let id = module_backend
             .declare_function(&function.name, Linkage::Export, &sig)
             .map_err(cranelift_error)?;
         declared.insert(function.name.clone(), id);
@@ -190,8 +242,8 @@ fn declare_functions(
     Ok(declared)
 }
 
-fn define_functions(
-    jit: &mut JITModule,
+fn define_functions<M: Module>(
+    module_backend: &mut M,
     module: &NativeAbiModule,
     reachable: &HashSet<String>,
     signatures: &FunctionSignatures<'_>,
@@ -202,18 +254,22 @@ fn define_functions(
                 name: function.name.clone(),
             }
         })?;
-        let mut ctx = jit.make_context();
-        ctx.func.signature = function_signature(jit, function);
-        lower_function(jit, &mut ctx, function, signatures)?;
-        jit.define_function(func_id, &mut ctx)
+        let mut ctx = module_backend.make_context();
+        ctx.func.signature = function_signature(module_backend, function);
+        lower_function(module_backend, &mut ctx, function, signatures)?;
+        module_backend
+            .define_function(func_id, &mut ctx)
             .map_err(cranelift_error)?;
-        jit.clear_context(&mut ctx);
+        module_backend.clear_context(&mut ctx);
     }
     Ok(())
 }
 
-fn function_signature(jit: &JITModule, function: &NativeAbiFunction) -> ir::Signature {
-    let mut sig = jit.make_signature();
+fn function_signature<M: Module>(
+    module_backend: &M,
+    function: &NativeAbiFunction,
+) -> ir::Signature {
+    let mut sig = module_backend.make_signature();
     sig.params
         .extend((0..function.environment_slots).map(|_| AbiParam::new(types::I64)));
     sig.params
@@ -222,8 +278,8 @@ fn function_signature(jit: &JITModule, function: &NativeAbiFunction) -> ir::Sign
     sig
 }
 
-fn lower_function(
-    jit: &mut JITModule,
+fn lower_function<M: Module>(
+    module_backend: &mut M,
     ctx: &mut cranelift_codegen::Context,
     function: &NativeAbiFunction,
     signatures: &FunctionSignatures<'_>,
@@ -240,7 +296,7 @@ fn lower_function(
         builder.switch_to_block(clif_block);
         bind_block_params(&mut builder, function, block, clif_block)?;
         for stmt in &block.stmts {
-            lower_stmt(jit, &mut builder, stmt, &mut state)?;
+            lower_stmt(module_backend, &mut builder, stmt, &mut state)?;
         }
         lower_terminator(&mut builder, &state, &blocks, &block.terminator)?;
     }
@@ -341,8 +397,8 @@ fn bind_block_params(
     Ok(())
 }
 
-fn lower_stmt(
-    jit: &mut JITModule,
+fn lower_stmt<M: Module>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     stmt: &NativeAbiStmt,
     state: &mut FunctionLowering<'_>,
@@ -371,7 +427,7 @@ fn lower_stmt(
                     name: target.clone(),
                 }
             })?;
-            let callee = jit.declare_func_in_func(func_id, builder.func);
+            let callee = module_backend.declare_func_in_func(func_id, builder.func);
             let args = read_values(builder, state, args)?;
             let call = builder.ins().call(callee, &args);
             let results = builder.inst_results(call);
@@ -382,6 +438,15 @@ fn lower_stmt(
                 });
             }
             builder.def_var(variable(*dest), results[0]);
+        }
+        NativeAbiStmt::Tuple { .. }
+        | NativeAbiStmt::Record { .. }
+        | NativeAbiStmt::Variant { .. }
+        | NativeAbiStmt::Select { .. } => {
+            return Err(NativeCraneliftError::UnsupportedStmt {
+                function: state.function.name.clone(),
+                kind: "value-lane structural stmt",
+            });
         }
         NativeAbiStmt::LoadEnv { dest, slot } => {
             let value = state.env_params.get(*slot).copied().ok_or_else(|| {
@@ -420,7 +485,7 @@ fn lower_stmt(
                 .ok_or_else(|| NativeCraneliftError::MissingFunction {
                     name: closure.target.clone(),
                 })?;
-            let callee = jit.declare_func_in_func(func_id, builder.func);
+            let callee = module_backend.declare_func_in_func(func_id, builder.func);
             let env_args = read_values(builder, state, &closure.environment)?;
             let value_args = read_values(builder, state, args)?;
             let call_args = env_args.into_iter().chain(value_args).collect::<Vec<_>>();
@@ -649,6 +714,10 @@ fn function_call_targets(function: &NativeAbiFunction) -> Vec<String> {
                 | NativeAbiStmt::AllocateClosure { target, .. } => targets.push(target.clone()),
                 NativeAbiStmt::Literal { .. }
                 | NativeAbiStmt::Primitive { .. }
+                | NativeAbiStmt::Tuple { .. }
+                | NativeAbiStmt::Record { .. }
+                | NativeAbiStmt::Variant { .. }
+                | NativeAbiStmt::Select { .. }
                 | NativeAbiStmt::LoadEnv { .. }
                 | NativeAbiStmt::IndirectClosureCall { .. } => {}
             }
@@ -689,6 +758,13 @@ fn validate_scalar_stmt(
             }),
         },
         NativeAbiStmt::DirectCall { .. } => Ok(()),
+        NativeAbiStmt::Tuple { .. }
+        | NativeAbiStmt::Record { .. }
+        | NativeAbiStmt::Variant { .. }
+        | NativeAbiStmt::Select { .. } => Err(NativeCraneliftError::UnsupportedStmt {
+            function: function.name.clone(),
+            kind: "value-lane structural stmt",
+        }),
         NativeAbiStmt::LoadEnv { .. }
         | NativeAbiStmt::AllocateClosure { .. }
         | NativeAbiStmt::IndirectClosureCall { .. } => Ok(()),
@@ -759,6 +835,10 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
                 NativeAbiStmt::Literal { dest, .. }
                 | NativeAbiStmt::Primitive { dest, .. }
                 | NativeAbiStmt::DirectCall { dest, .. }
+                | NativeAbiStmt::Tuple { dest, .. }
+                | NativeAbiStmt::Record { dest, .. }
+                | NativeAbiStmt::Variant { dest, .. }
+                | NativeAbiStmt::Select { dest, .. }
                 | NativeAbiStmt::LoadEnv { dest, .. }
                 | NativeAbiStmt::AllocateClosure { dest, .. }
                 | NativeAbiStmt::IndirectClosureCall { dest, .. } => values.push(*dest),
@@ -811,6 +891,23 @@ mod tests {
         .expect("compiled");
 
         assert_eq!(module.run_roots_i64().expect("ran"), vec![41]);
+    }
+
+    #[test]
+    fn object_emits_int_literal_root() {
+        let module = compile_abi_module_to_object(&NativeAbiModule {
+            functions: Vec::new(),
+            roots: vec![root_with_stmt(
+                NativeAbiStmt::Literal {
+                    dest: ValueId(0),
+                    literal: NativeLiteral::Int("41".to_string()),
+                },
+                ValueId(0),
+            )],
+        })
+        .expect("compiled object");
+
+        assert!(!module.bytes().is_empty());
     }
 
     #[test]

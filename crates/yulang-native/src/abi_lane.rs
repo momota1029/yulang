@@ -12,9 +12,24 @@ pub enum NativeAbiRepr {
     Int,
     Float,
     List(Box<NativeAbiRepr>),
+    Tuple(Vec<NativeAbiRepr>),
+    Record(Vec<NativeAbiRecordFieldRepr>),
+    Variant(Vec<NativeAbiVariantCaseRepr>),
     RuntimeValuePtr(NativeRuntimePtrKind),
     ClosurePtr,
     Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeAbiRecordFieldRepr {
+    pub name: core_ir::Name,
+    pub value: NativeAbiRepr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeAbiVariantCaseRepr {
+    pub tag: core_ir::Name,
+    pub value: Option<NativeAbiRepr>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,9 +54,11 @@ impl NativeAbiRepr {
                 NativeAbiValueLane::ScalarI64
             }
             NativeAbiRepr::Float => NativeAbiValueLane::NativeFloat,
-            NativeAbiRepr::List(_) | NativeAbiRepr::RuntimeValuePtr(_) => {
-                NativeAbiValueLane::RuntimeValuePtr
-            }
+            NativeAbiRepr::List(_)
+            | NativeAbiRepr::Tuple(_)
+            | NativeAbiRepr::Record(_)
+            | NativeAbiRepr::Variant(_)
+            | NativeAbiRepr::RuntimeValuePtr(_) => NativeAbiValueLane::RuntimeValuePtr,
             NativeAbiRepr::ClosurePtr => NativeAbiValueLane::ClosurePtr,
             NativeAbiRepr::Unknown => NativeAbiValueLane::Unknown,
         }
@@ -146,6 +163,54 @@ fn classify_stmt(
                     .unwrap_or(NativeAbiRepr::Unknown),
             );
         }
+        NativeAbiStmt::Tuple { dest, items } => {
+            values.insert(
+                *dest,
+                NativeAbiRepr::Tuple(
+                    items
+                        .iter()
+                        .map(|item| values.get(item).cloned().unwrap_or(NativeAbiRepr::Unknown))
+                        .collect(),
+                ),
+            );
+        }
+        NativeAbiStmt::Record { dest, fields } => {
+            values.insert(
+                *dest,
+                NativeAbiRepr::Record(
+                    fields
+                        .iter()
+                        .map(|field| NativeAbiRecordFieldRepr {
+                            name: field.name.clone(),
+                            value: values
+                                .get(&field.value)
+                                .cloned()
+                                .unwrap_or(NativeAbiRepr::Unknown),
+                        })
+                        .collect(),
+                ),
+            );
+        }
+        NativeAbiStmt::Variant { dest, tag, value } => {
+            values.insert(
+                *dest,
+                NativeAbiRepr::Variant(vec![NativeAbiVariantCaseRepr {
+                    tag: tag.clone(),
+                    value: value
+                        .and_then(|value| values.get(&value).cloned())
+                        .or_else(|| value.map(|_| NativeAbiRepr::Unknown)),
+                }]),
+            );
+        }
+        NativeAbiStmt::Select { dest, base, field } => {
+            values.insert(
+                *dest,
+                record_field_repr(
+                    values.get(base).cloned().unwrap_or(NativeAbiRepr::Unknown),
+                    field,
+                ),
+            );
+        }
         NativeAbiStmt::LoadEnv { dest, .. } => {
             values.insert(*dest, NativeAbiRepr::Unknown);
         }
@@ -155,6 +220,17 @@ fn classify_stmt(
         NativeAbiStmt::IndirectClosureCall { dest, .. } => {
             values.insert(*dest, NativeAbiRepr::Unknown);
         }
+    }
+}
+
+fn record_field_repr(repr: NativeAbiRepr, field: &core_ir::Name) -> NativeAbiRepr {
+    match repr {
+        NativeAbiRepr::Record(fields) => fields
+            .into_iter()
+            .find(|item| item.name == *field)
+            .map(|item| item.value)
+            .unwrap_or(NativeAbiRepr::Unknown),
+        _ => NativeAbiRepr::Unknown,
     }
 }
 

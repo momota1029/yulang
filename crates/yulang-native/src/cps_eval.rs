@@ -5,7 +5,7 @@ use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
 
 use crate::cps_ir::{
-    CpsContinuation, CpsContinuationId, CpsFunction, CpsHandler, CpsHandlerId, CpsLiteral,
+    CpsContinuation, CpsContinuationId, CpsFunction, CpsHandlerArm, CpsHandlerId, CpsLiteral,
     CpsModule, CpsStmt, CpsTerminator, CpsValueId,
 };
 
@@ -250,13 +250,13 @@ fn eval_continuations(
                 };
             }
             CpsTerminator::Perform {
+                effect,
                 payload,
                 resume,
                 handler,
-                ..
             } => {
                 let payload = read_plain_value(function, &values, *payload)?;
-                let handler = handler_by_id(function, *handler)?;
+                let handler = handler_arm_for_effect(function, *handler, effect)?;
                 let resumption = CpsRuntimeValue::Resumption(Rc::new(CpsResumption {
                     target: *resume,
                     values: Rc::new(values.clone()),
@@ -287,15 +287,33 @@ fn continuation_by_id(
         })
 }
 
-fn handler_by_id(function: &CpsFunction, id: CpsHandlerId) -> CpsEvalResult<&CpsHandler> {
+fn handler_arm_for_effect<'a>(
+    function: &'a CpsFunction,
+    id: CpsHandlerId,
+    effect: &core_ir::Path,
+) -> CpsEvalResult<&'a CpsHandlerArm> {
     function
         .handlers
         .iter()
         .find(|handler| handler.id == id)
+        .and_then(|handler| {
+            handler
+                .arms
+                .iter()
+                .find(|arm| effect_matches(&arm.effect, effect))
+        })
         .ok_or_else(|| CpsEvalError::MissingHandler {
             function: function.name.clone(),
             id,
         })
+}
+
+fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
+    actual == expected
+        || (!expected.segments.is_empty()
+            && actual.segments.len() == expected.segments.len() + 1
+            && actual.segments.starts_with(&expected.segments))
+        || (expected.segments.len() == 1 && actual.segments.last() == expected.segments.first())
 }
 
 fn assign_continuation_args(
@@ -598,8 +616,8 @@ fn value_from_string(value: &str) -> runtime::VmValue {
 #[cfg(test)]
 mod tests {
     use crate::cps_ir::{
-        CpsContinuation, CpsContinuationId, CpsFunction, CpsHandler, CpsHandlerId, CpsLiteral,
-        CpsModule, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
+        CpsContinuation, CpsContinuationId, CpsFunction, CpsHandler, CpsHandlerArm, CpsHandlerId,
+        CpsLiteral, CpsModule, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
     };
     use crate::cps_validate::validate_cps_module;
 
@@ -616,8 +634,10 @@ mod tests {
                 entry: CpsContinuationId(0),
                 handlers: vec![CpsHandler {
                     id: CpsHandlerId(0),
-                    effect: effect.clone(),
-                    entry: CpsContinuationId(2),
+                    arms: vec![CpsHandlerArm {
+                        effect: effect.clone(),
+                        entry: CpsContinuationId(2),
+                    }],
                 }],
                 continuations: vec![
                     CpsContinuation {

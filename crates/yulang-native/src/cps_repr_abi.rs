@@ -4,6 +4,8 @@
 //! lanes to continuation parameters, captured environment slots, and returns so
 //! the Cranelift lowering can distinguish plain values from resumption pointers.
 
+use yulang_core_ir as core_ir;
+
 use crate::cps_ir::{
     CpsContinuationId, CpsHandlerId, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
 };
@@ -54,6 +56,12 @@ pub struct CpsReprAbiEnvironmentSlot {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CpsReprAbiHandler {
     pub id: CpsHandlerId,
+    pub arms: Vec<CpsReprAbiHandlerArm>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsReprAbiHandlerArm {
+    pub effect: core_ir::Path,
     pub entry: CpsContinuationId,
 }
 
@@ -129,7 +137,14 @@ fn lower_continuation(
 fn lower_handler(handler: &CpsReprHandler) -> CpsReprAbiHandler {
     CpsReprAbiHandler {
         id: handler.id,
-        entry: handler.entry,
+        arms: handler
+            .arms
+            .iter()
+            .map(|arm| CpsReprAbiHandlerArm {
+                effect: arm.effect.clone(),
+                entry: arm.entry,
+            })
+            .collect(),
     }
 }
 
@@ -158,7 +173,7 @@ fn value_lane(
 mod tests {
     use yulang_core_ir as core_ir;
 
-    use crate::cps_ir::{CpsFunction, CpsHandler, CpsLiteral, CpsModule};
+    use crate::cps_ir::{CpsFunction, CpsHandler, CpsHandlerArm, CpsLiteral, CpsModule};
     use crate::cps_repr::lower_cps_repr_module;
 
     use super::*;
@@ -174,8 +189,10 @@ mod tests {
                 entry: CpsContinuationId(0),
                 handlers: vec![CpsHandler {
                     id: CpsHandlerId(0),
-                    effect: effect.clone(),
-                    entry: CpsContinuationId(2),
+                    arms: vec![CpsHandlerArm {
+                        effect: effect.clone(),
+                        entry: CpsContinuationId(2),
+                    }],
                 }],
                 continuations: vec![
                     crate::cps_ir::CpsContinuation {

@@ -120,7 +120,9 @@ fn validate_function(function: &CpsFunction) -> Result<(), CpsValidateError> {
                 id: handler.id,
             });
         }
-        require_continuation(function, &continuation_ids, handler.entry)?;
+        for arm in &handler.arms {
+            require_continuation(function, &continuation_ids, arm.entry)?;
+        }
     }
 
     let defined_values = function_defined_values(function);
