@@ -1578,6 +1578,7 @@ dependencies = [
  "rowan",
  "yulang-core-ir",
  "yulang-infer",
+ "yulang-native",
  "yulang-parser",
  "yulang-runtime",
 ]

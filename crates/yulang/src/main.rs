@@ -82,6 +82,7 @@ struct CliOptions {
     runtime_ir: bool,
     hygiene_ir: bool,
     run_vm: bool,
+    native_compare_i64: bool,
     verbose_ir: bool,
     infer_phase_timings: bool,
     runtime_phase_timings: bool,
@@ -109,6 +110,7 @@ fn parse_args() -> CliOptions {
     let mut runtime_ir = false;
     let mut hygiene_ir = false;
     let mut run_vm = false;
+    let mut native_compare_i64 = false;
     let mut verbose_ir = false;
     let mut infer_phase_timings = false;
     let mut runtime_phase_timings = false;
@@ -135,6 +137,7 @@ fn parse_args() -> CliOptions {
             "--runtime-ir" => runtime_ir = true,
             "--hygiene-ir" => hygiene_ir = true,
             "--run" => run_vm = true,
+            "--native-compare-i64" => native_compare_i64 = true,
             "--verbose-ir" => verbose_ir = true,
             "--infer-phase-timings" => infer_phase_timings = true,
             "--runtime-phase-timings" => runtime_phase_timings = true,
@@ -190,6 +193,7 @@ fn parse_args() -> CliOptions {
         && !runtime_ir
         && !hygiene_ir
         && !run_vm
+        && !native_compare_i64
     {
         infer = true;
     }
@@ -201,6 +205,7 @@ fn parse_args() -> CliOptions {
         runtime_ir,
         hygiene_ir,
         run_vm,
+        native_compare_i64,
         verbose_ir,
         infer_phase_timings,
         runtime_phase_timings,
@@ -234,7 +239,7 @@ fn read_source(path: Option<&str>) -> String {
 
 fn print_usage() {
     eprintln!(
-        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
+        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--native-compare-i64] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
     );
     eprintln!("       (no path = read from stdin)");
     eprintln!("       --cst         also print the CST before types");
@@ -248,6 +253,9 @@ fn print_usage() {
     eprintln!("       --runtime-ir  print strict typed runtime IR lowered from principal core-ir");
     eprintln!("       --hygiene-ir  print runtime effect-id hygiene operations");
     eprintln!("       --run         execute the program and print results");
+    eprintln!(
+        "       --native-compare-i64  compare VM/native-control/native-ABI/Cranelift scalar i64 results"
+    );
     eprintln!("       --verbose-ir  include detailed graph/evidence sections in IR dumps");
     eprintln!("       --infer-phase-timings  print coarse timing breakdown for the infer pipeline");
     eprintln!(
@@ -286,6 +294,7 @@ fn run(options: &CliOptions) {
             || options.runtime_ir
             || options.hygiene_ir
             || options.run_vm
+            || options.native_compare_i64
         {
             run_infer_views(
                 options.path.as_deref(),
@@ -539,7 +548,11 @@ fn run_infer_views(
     };
 
     let infer_program = if surface_diagnostics.is_empty()
-        && (options.core_ir || options.runtime_ir || options.hygiene_ir || options.run_vm)
+        && (options.core_ir
+            || options.runtime_ir
+            || options.hygiene_ir
+            || options.run_vm
+            || options.native_compare_i64)
     {
         Some(export_core_program(&mut state))
     } else {
@@ -554,7 +567,11 @@ fn run_infer_views(
             print_infer_surface_diagnostic(diagnostic, &diagnostic_source);
         }
         if !surface_diagnostics.is_empty()
-            && (options.core_ir || options.runtime_ir || options.hygiene_ir || options.run_vm)
+            && (options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+                || options.native_compare_i64)
         {
             process::exit(1);
         }
@@ -686,6 +703,35 @@ fn run_infer_views(
             for (index, result) in results.iter().enumerate() {
                 println!("[{index}] {}", format_runtime_vm_result(result));
             }
+        }
+        if options.native_compare_i64 {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let compare_start = Instant::now();
+            if let Err(err) = yulang_native::compare_module_i64(&lowered.module) {
+                eprintln!("native compare failed: {err}");
+                process::exit(1);
+            }
+            let compare_duration = compare_start.elapsed();
+            if options.runtime_phase_timings {
+                print_runtime_phase_timings(&lowered.profile, None, None);
+                eprintln!(
+                    "    native_compare_i64: {}",
+                    format_duration(compare_duration)
+                );
+            }
+            println!("native-compare-i64: ok");
         }
         if options.infer_phase_timings && options.infer {
             print_infer_phase_timings(
@@ -4269,6 +4315,7 @@ mod tests {
             runtime_ir: false,
             hygiene_ir: false,
             run_vm: false,
+            native_compare_i64: false,
             verbose_ir: false,
             infer_phase_timings: false,
             runtime_phase_timings: false,

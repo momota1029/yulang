@@ -81,7 +81,8 @@ runtime/core IR
   - Cranelift scalar prototype は、局所 `AllocateClosure` を lowering 中の target/capture table として保持し、`IndirectClosureCall` を hidden env args 付き direct call へ戻す限定形を扱う。closure value を return / block arg / scalar primitive へ流す形はまだ unsupported。
   - Native lower は `fun x -> block(...; fun y -> body)` 形の curried wrapper に、元の partial-call 用関数を残したまま追加 direct arity target を生成する。Cranelift は root から reachable な関数だけ JIT するため、未使用の closure-returning wrapper は compile しない。
   - 関数内の `x + 1` は source-level compare へ戻した。`my inc x = x + 1; inc 41` は VM / native-control / ABI eval / Cranelift で比較している。
-  - 次は source-level compare を CLI flag か bench harness に繋げる。
+  - CLI は `--native-compare-i64` で VM / native-control / ABI eval / Cranelift scalar result を比較できる。`bench/native_compare.sh` は同じ入口を quick bench/debug 用に呼ぶ。
+  - 次は source-level compare examples を bool / if / small function へ広げる。
 
 重要な制約:
 

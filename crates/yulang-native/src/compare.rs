@@ -274,11 +274,21 @@ pub fn compare_source_i64(source: &str) -> Result<(), NativeSourceCompareError> 
     compare_source_i64_with_options(source, native_default_source_options())
 }
 
+pub fn compare_module_i64(module: &runtime::Module) -> Result<(), NativeSourceCompareError> {
+    compare_runtime_module_i64(module.clone())
+}
+
 pub fn compare_source_i64_with_options(
     source: &str,
     options: infer::SourceOptions,
 ) -> Result<(), NativeSourceCompareError> {
     let runtime_module = runtime_module_from_source_with_options(source, options)?;
+    compare_runtime_module_i64(runtime_module)
+}
+
+fn compare_runtime_module_i64(
+    runtime_module: runtime::Module,
+) -> Result<(), NativeSourceCompareError> {
     let native_module = lower_module(&runtime_module)?;
     let native_values = eval_module(&native_module)?;
     let closure_module = closure_convert_module(&native_module);
@@ -648,6 +658,23 @@ mod tests {
     }
 
     #[test]
+    fn compares_if_with_vm_native_abi_and_cranelift() {
+        let module = module_with_root(if_expr(
+            apply(
+                apply(
+                    primitive(core_ir::PrimitiveOp::IntLt),
+                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                ),
+                unknown_lit(core_ir::Lit::Int("2".to_string())),
+            ),
+            unknown_lit(core_ir::Lit::Int("10".to_string())),
+            unknown_lit(core_ir::Lit::Int("20".to_string())),
+        ));
+
+        compare_module_i64(&module).expect("scalar paths match");
+    }
+
+    #[test]
     fn compares_source_int_literal_with_vm_native_and_cranelift() {
         compare_source_with_large_stack("41");
     }
@@ -675,6 +702,11 @@ mod tests {
     #[test]
     fn compares_source_int_comparison_with_vm_native_and_cranelift() {
         compare_source_with_large_stack("1 < 2");
+    }
+
+    #[test]
+    fn compares_source_nested_function_calls_with_vm_native_and_cranelift() {
+        compare_source_with_large_stack("my inc x = x + 1\nmy twice x = inc (inc x)\ntwice 40");
     }
 
     fn compare_source_with_large_stack(source: &'static str) {
