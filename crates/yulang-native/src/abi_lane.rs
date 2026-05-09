@@ -1,41 +1,100 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use yulang_core_ir as core_ir;
 
 use crate::abi::{NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
-use crate::control_ir::{NativeLiteral, NativeTerminator};
+use crate::control_ir::{NativeLiteral, NativeTerminator, ValueId};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeAbiRepr {
+    Unit,
+    Bool,
+    Int,
+    Float,
+    RuntimeValuePtr(NativeRuntimePtrKind),
+    ClosurePtr,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeRuntimePtrKind {
+    String,
+    List,
+    RuntimeValue,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NativeAbiValueLane {
     ScalarI64,
+    NativeFloat,
     RuntimeValuePtr,
+    ClosurePtr,
+    Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NativeAbiLaneAnalysis {
-    pub functions: HashMap<String, NativeAbiValueLane>,
-}
-
-impl NativeAbiLaneAnalysis {
-    pub fn function_lane(&self, name: &str) -> Option<NativeAbiValueLane> {
-        self.functions.get(name).copied()
+impl NativeAbiRepr {
+    pub fn lane(&self) -> NativeAbiValueLane {
+        match self {
+            NativeAbiRepr::Unit | NativeAbiRepr::Bool | NativeAbiRepr::Int => {
+                NativeAbiValueLane::ScalarI64
+            }
+            NativeAbiRepr::Float => NativeAbiValueLane::NativeFloat,
+            NativeAbiRepr::RuntimeValuePtr(_) => NativeAbiValueLane::RuntimeValuePtr,
+            NativeAbiRepr::ClosurePtr => NativeAbiValueLane::ClosurePtr,
+            NativeAbiRepr::Unknown => NativeAbiValueLane::Unknown,
+        }
     }
 }
 
-pub fn analyze_abi_value_lanes(module: &NativeAbiModule) -> NativeAbiLaneAnalysis {
-    let functions = module
-        .functions
-        .iter()
-        .chain(&module.roots)
-        .map(|function| (function.name.clone(), NativeAbiValueLane::ScalarI64))
-        .collect::<HashMap<_, _>>();
-    let mut analysis = NativeAbiLaneAnalysis { functions };
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeAbiReprAnalysis {
+    pub functions: HashMap<String, NativeAbiRepr>,
+    pub values: HashMap<String, HashMap<ValueId, NativeAbiRepr>>,
+}
+
+impl NativeAbiReprAnalysis {
+    pub fn function_repr(&self, name: &str) -> Option<&NativeAbiRepr> {
+        self.functions.get(name)
+    }
+
+    pub fn function_lane(&self, name: &str) -> Option<NativeAbiValueLane> {
+        self.function_repr(name).map(NativeAbiRepr::lane)
+    }
+
+    pub fn value_repr(&self, function: &str, value: ValueId) -> Option<&NativeAbiRepr> {
+        self.values.get(function)?.get(&value)
+    }
+}
+
+pub type NativeAbiLaneAnalysis = NativeAbiReprAnalysis;
+
+pub fn analyze_abi_value_lanes(module: &NativeAbiModule) -> NativeAbiReprAnalysis {
+    analyze_abi_reprs(module)
+}
+
+pub fn analyze_abi_reprs(module: &NativeAbiModule) -> NativeAbiReprAnalysis {
+    let mut analysis = NativeAbiReprAnalysis {
+        functions: module
+            .functions
+            .iter()
+            .chain(&module.roots)
+            .map(|function| (function.name.clone(), NativeAbiRepr::Unknown))
+            .collect(),
+        values: HashMap::new(),
+    };
     loop {
         let mut changed = false;
         for function in module.functions.iter().chain(&module.roots) {
-            let lane = classify_function(function, &analysis);
-            if analysis.functions.get(&function.name).copied() != Some(lane) {
-                analysis.functions.insert(function.name.clone(), lane);
+            let value_reprs = classify_values(function, &analysis);
+            let return_repr = classify_function_return(function, &value_reprs);
+            if analysis.values.get(&function.name) != Some(&value_reprs) {
+                analysis.values.insert(function.name.clone(), value_reprs);
+                changed = true;
+            }
+            if analysis.functions.get(&function.name) != Some(&return_repr) {
+                analysis
+                    .functions
+                    .insert(function.name.clone(), return_repr);
                 changed = true;
             }
         }
@@ -45,83 +104,127 @@ pub fn analyze_abi_value_lanes(module: &NativeAbiModule) -> NativeAbiLaneAnalysi
     }
 }
 
-fn classify_function(
+fn classify_values(
     function: &NativeAbiFunction,
-    analysis: &NativeAbiLaneAnalysis,
-) -> NativeAbiValueLane {
-    if function.environment_slots != 0 {
-        return NativeAbiValueLane::RuntimeValuePtr;
+    analysis: &NativeAbiReprAnalysis,
+) -> HashMap<ValueId, NativeAbiRepr> {
+    let mut values = HashMap::new();
+    for param in &function.params {
+        values.insert(*param, NativeAbiRepr::Unknown);
     }
     for block in &function.blocks {
+        for param in &block.params {
+            values.entry(*param).or_insert(NativeAbiRepr::Unknown);
+        }
         for stmt in &block.stmts {
-            if stmt_lane(stmt, analysis) == NativeAbiValueLane::RuntimeValuePtr {
-                return NativeAbiValueLane::RuntimeValuePtr;
-            }
-        }
-        if terminator_uses_runtime_value(&block.terminator, analysis, function) {
-            return NativeAbiValueLane::RuntimeValuePtr;
+            classify_stmt(stmt, &mut values, analysis);
         }
     }
-    NativeAbiValueLane::ScalarI64
+    values
 }
 
-fn stmt_lane(stmt: &NativeAbiStmt, analysis: &NativeAbiLaneAnalysis) -> NativeAbiValueLane {
+fn classify_stmt(
+    stmt: &NativeAbiStmt,
+    values: &mut HashMap<ValueId, NativeAbiRepr>,
+    analysis: &NativeAbiReprAnalysis,
+) {
     match stmt {
-        NativeAbiStmt::Literal { literal, .. } => literal_lane(literal),
-        NativeAbiStmt::Primitive { op, .. } => primitive_lane(*op),
-        NativeAbiStmt::DirectCall { target, .. } => analysis
-            .function_lane(target)
-            .unwrap_or(NativeAbiValueLane::RuntimeValuePtr),
-        NativeAbiStmt::LoadEnv { .. }
-        | NativeAbiStmt::AllocateClosure { .. }
-        | NativeAbiStmt::IndirectClosureCall { .. } => NativeAbiValueLane::RuntimeValuePtr,
-    }
-}
-
-fn literal_lane(literal: &NativeLiteral) -> NativeAbiValueLane {
-    match literal {
-        NativeLiteral::Int(_) | NativeLiteral::Bool(_) | NativeLiteral::Unit => {
-            NativeAbiValueLane::ScalarI64
+        NativeAbiStmt::Literal { dest, literal } => {
+            values.insert(*dest, literal_repr(literal));
         }
-        NativeLiteral::Float(_) | NativeLiteral::String(_) => NativeAbiValueLane::RuntimeValuePtr,
+        NativeAbiStmt::Primitive { dest, op, .. } => {
+            values.insert(*dest, primitive_result_repr(*op));
+        }
+        NativeAbiStmt::DirectCall { dest, target, .. } => {
+            values.insert(
+                *dest,
+                analysis
+                    .function_repr(target)
+                    .cloned()
+                    .unwrap_or(NativeAbiRepr::Unknown),
+            );
+        }
+        NativeAbiStmt::LoadEnv { dest, .. } => {
+            values.insert(*dest, NativeAbiRepr::Unknown);
+        }
+        NativeAbiStmt::AllocateClosure { dest, .. } => {
+            values.insert(*dest, NativeAbiRepr::ClosurePtr);
+        }
+        NativeAbiStmt::IndirectClosureCall { dest, .. } => {
+            values.insert(*dest, NativeAbiRepr::Unknown);
+        }
     }
 }
 
-fn primitive_lane(op: core_ir::PrimitiveOp) -> NativeAbiValueLane {
+fn classify_function_return(
+    function: &NativeAbiFunction,
+    values: &HashMap<ValueId, NativeAbiRepr>,
+) -> NativeAbiRepr {
+    let mut return_repr = None;
+    for block in &function.blocks {
+        if let NativeTerminator::Return(value) = &block.terminator {
+            let block_return = values.get(value).cloned().unwrap_or(NativeAbiRepr::Unknown);
+            return_repr = Some(match return_repr {
+                Some(current) => merge_reprs(current, block_return),
+                None => block_return,
+            });
+        }
+    }
+    return_repr.unwrap_or(NativeAbiRepr::Unknown)
+}
+
+fn merge_reprs(left: NativeAbiRepr, right: NativeAbiRepr) -> NativeAbiRepr {
+    if left == right {
+        left
+    } else {
+        NativeAbiRepr::Unknown
+    }
+}
+
+fn literal_repr(literal: &NativeLiteral) -> NativeAbiRepr {
+    match literal {
+        NativeLiteral::Int(_) => NativeAbiRepr::Int,
+        NativeLiteral::Float(_) => NativeAbiRepr::Float,
+        NativeLiteral::String(_) => NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::String),
+        NativeLiteral::Bool(_) => NativeAbiRepr::Bool,
+        NativeLiteral::Unit => NativeAbiRepr::Unit,
+    }
+}
+
+fn primitive_result_repr(op: core_ir::PrimitiveOp) -> NativeAbiRepr {
     use core_ir::PrimitiveOp;
     match op {
         PrimitiveOp::BoolNot
         | PrimitiveOp::BoolEq
-        | PrimitiveOp::IntAdd
-        | PrimitiveOp::IntSub
-        | PrimitiveOp::IntMul
-        | PrimitiveOp::IntDiv
         | PrimitiveOp::IntEq
         | PrimitiveOp::IntLt
         | PrimitiveOp::IntLe
         | PrimitiveOp::IntGt
-        | PrimitiveOp::IntGe => NativeAbiValueLane::ScalarI64,
-        PrimitiveOp::FloatAdd
-        | PrimitiveOp::FloatSub
-        | PrimitiveOp::FloatMul
-        | PrimitiveOp::FloatDiv
+        | PrimitiveOp::IntGe
         | PrimitiveOp::FloatEq
         | PrimitiveOp::FloatLt
         | PrimitiveOp::FloatLe
         | PrimitiveOp::FloatGt
-        | PrimitiveOp::FloatGe
-        | PrimitiveOp::ListEmpty
+        | PrimitiveOp::FloatGe => NativeAbiRepr::Bool,
+        PrimitiveOp::IntAdd | PrimitiveOp::IntSub | PrimitiveOp::IntMul | PrimitiveOp::IntDiv => {
+            NativeAbiRepr::Int
+        }
+        PrimitiveOp::FloatAdd
+        | PrimitiveOp::FloatSub
+        | PrimitiveOp::FloatMul
+        | PrimitiveOp::FloatDiv => NativeAbiRepr::Float,
+        PrimitiveOp::ListLen => NativeAbiRepr::Int,
+        PrimitiveOp::StringLen => NativeAbiRepr::Int,
+        PrimitiveOp::ListEmpty
         | PrimitiveOp::ListSingleton
-        | PrimitiveOp::ListLen
         | PrimitiveOp::ListMerge
         | PrimitiveOp::ListIndex
         | PrimitiveOp::ListIndexRange
         | PrimitiveOp::ListSplice
         | PrimitiveOp::ListIndexRangeRaw
         | PrimitiveOp::ListSpliceRaw
-        | PrimitiveOp::ListViewRaw
-        | PrimitiveOp::StringLen
-        | PrimitiveOp::StringIndex
+        | PrimitiveOp::ListViewRaw => NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::List),
+        PrimitiveOp::StringIndex
         | PrimitiveOp::StringIndexRange
         | PrimitiveOp::StringSplice
         | PrimitiveOp::StringIndexRangeRaw
@@ -131,50 +234,7 @@ fn primitive_lane(op: core_ir::PrimitiveOp) -> NativeAbiValueLane {
         | PrimitiveOp::IntToHex
         | PrimitiveOp::IntToUpperHex
         | PrimitiveOp::FloatToString
-        | PrimitiveOp::BoolToString => NativeAbiValueLane::RuntimeValuePtr,
-    }
-}
-
-fn terminator_uses_runtime_value(
-    terminator: &NativeTerminator,
-    analysis: &NativeAbiLaneAnalysis,
-    function: &NativeAbiFunction,
-) -> bool {
-    let value_defs = runtime_value_defs(function, analysis);
-    terminator_values(terminator)
-        .into_iter()
-        .any(|value| value_defs.contains(&value))
-}
-
-fn runtime_value_defs(
-    function: &NativeAbiFunction,
-    analysis: &NativeAbiLaneAnalysis,
-) -> HashSet<crate::control_ir::ValueId> {
-    let mut values = HashSet::new();
-    for block in &function.blocks {
-        for stmt in &block.stmts {
-            if stmt_lane(stmt, analysis) == NativeAbiValueLane::RuntimeValuePtr {
-                match stmt {
-                    NativeAbiStmt::Literal { dest, .. }
-                    | NativeAbiStmt::Primitive { dest, .. }
-                    | NativeAbiStmt::DirectCall { dest, .. }
-                    | NativeAbiStmt::LoadEnv { dest, .. }
-                    | NativeAbiStmt::AllocateClosure { dest, .. }
-                    | NativeAbiStmt::IndirectClosureCall { dest, .. } => {
-                        values.insert(*dest);
-                    }
-                }
-            }
-        }
-    }
-    values
-}
-
-fn terminator_values(terminator: &NativeTerminator) -> Vec<crate::control_ir::ValueId> {
-    match terminator {
-        NativeTerminator::Return(value) => vec![*value],
-        NativeTerminator::Jump { args, .. } => args.clone(),
-        NativeTerminator::Branch { cond, .. } => vec![*cond],
+        | PrimitiveOp::BoolToString => NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::String),
     }
 }
 
@@ -182,7 +242,7 @@ fn terminator_values(terminator: &NativeTerminator) -> Vec<crate::control_ir::Va
 mod tests {
     use super::*;
     use crate::abi::{NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
-    use crate::control_ir::{BlockId, ValueId};
+    use crate::control_ir::BlockId;
 
     #[test]
     fn classifies_scalar_function() {
@@ -197,11 +257,34 @@ mod tests {
             )],
         };
 
-        let lanes = analyze_abi_value_lanes(&module);
+        let analysis = analyze_abi_reprs(&module);
 
+        assert_eq!(analysis.function_repr("root"), Some(&NativeAbiRepr::Int));
         assert_eq!(
-            lanes.function_lane("root"),
+            analysis.function_lane("root"),
             Some(NativeAbiValueLane::ScalarI64)
+        );
+    }
+
+    #[test]
+    fn classifies_float_as_native_float() {
+        let module = NativeAbiModule {
+            functions: Vec::new(),
+            roots: vec![root_with_stmt(
+                NativeAbiStmt::Literal {
+                    dest: ValueId(0),
+                    literal: NativeLiteral::Float("1.5".to_string()),
+                },
+                ValueId(0),
+            )],
+        };
+
+        let analysis = analyze_abi_reprs(&module);
+
+        assert_eq!(analysis.function_repr("root"), Some(&NativeAbiRepr::Float));
+        assert_eq!(
+            analysis.function_lane("root"),
+            Some(NativeAbiValueLane::NativeFloat)
         );
     }
 
@@ -218,16 +301,22 @@ mod tests {
             )],
         };
 
-        let lanes = analyze_abi_value_lanes(&module);
+        let analysis = analyze_abi_reprs(&module);
 
         assert_eq!(
-            lanes.function_lane("root"),
+            analysis.function_repr("root"),
+            Some(&NativeAbiRepr::RuntimeValuePtr(
+                NativeRuntimePtrKind::String
+            ))
+        );
+        assert_eq!(
+            analysis.function_lane("root"),
             Some(NativeAbiValueLane::RuntimeValuePtr)
         );
     }
 
     #[test]
-    fn propagates_runtime_value_lane_through_direct_call() {
+    fn propagates_runtime_value_repr_through_direct_call() {
         let module = NativeAbiModule {
             functions: vec![NativeAbiFunction {
                 name: "make_text".to_string(),
@@ -260,20 +349,24 @@ mod tests {
             }],
         };
 
-        let lanes = analyze_abi_value_lanes(&module);
+        let analysis = analyze_abi_reprs(&module);
 
         assert_eq!(
-            lanes.function_lane("make_text"),
-            Some(NativeAbiValueLane::RuntimeValuePtr)
+            analysis.function_repr("make_text"),
+            Some(&NativeAbiRepr::RuntimeValuePtr(
+                NativeRuntimePtrKind::String
+            ))
         );
         assert_eq!(
-            lanes.function_lane("root"),
-            Some(NativeAbiValueLane::RuntimeValuePtr)
+            analysis.function_repr("root"),
+            Some(&NativeAbiRepr::RuntimeValuePtr(
+                NativeRuntimePtrKind::String
+            ))
         );
     }
 
     #[test]
-    fn classifies_list_primitive_as_runtime_value() {
+    fn classifies_list_primitive_as_list_pointer() {
         let module = NativeAbiModule {
             functions: Vec::new(),
             roots: vec![root_with_stmt(
@@ -286,16 +379,16 @@ mod tests {
             )],
         };
 
-        let lanes = analyze_abi_value_lanes(&module);
+        let analysis = analyze_abi_reprs(&module);
 
         assert_eq!(
-            lanes.function_lane("root"),
-            Some(NativeAbiValueLane::RuntimeValuePtr)
+            analysis.function_repr("root"),
+            Some(&NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::List))
         );
     }
 
     #[test]
-    fn classifies_hosted_closure_call_as_runtime_value_lane() {
+    fn classifies_hosted_closure_call_as_unknown_result() {
         let module = NativeAbiModule {
             functions: vec![NativeAbiFunction {
                 name: "add_capture".to_string(),
@@ -339,15 +432,19 @@ mod tests {
             }],
         };
 
-        let lanes = analyze_abi_value_lanes(&module);
+        let analysis = analyze_abi_reprs(&module);
 
         assert_eq!(
-            lanes.function_lane("add_capture"),
-            Some(NativeAbiValueLane::RuntimeValuePtr)
+            analysis.function_lane("add_capture"),
+            Some(NativeAbiValueLane::Unknown)
         );
         assert_eq!(
-            lanes.function_lane("root"),
-            Some(NativeAbiValueLane::RuntimeValuePtr)
+            analysis.function_repr("root"),
+            Some(&NativeAbiRepr::Unknown)
+        );
+        assert_eq!(
+            analysis.value_repr("root", ValueId(1)),
+            Some(&NativeAbiRepr::ClosurePtr)
         );
     }
 

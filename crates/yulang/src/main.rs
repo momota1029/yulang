@@ -261,7 +261,7 @@ fn print_usage() {
     eprintln!(
         "       --native-compare-i64  compare VM/native-control/native-ABI/Cranelift scalar i64 results"
     );
-    eprintln!("       --native-abi-lanes  print native ABI scalar/value lane classification");
+    eprintln!("       --native-abi-lanes  print native ABI value representation classification");
     eprintln!("       --verbose-ir  include detailed graph/evidence sections in IR dumps");
     eprintln!("       --infer-phase-timings  print coarse timing breakdown for the infer pipeline");
     eprintln!(
@@ -855,16 +855,28 @@ fn print_native_abi_lanes_or_exit(module: &runtime::Module) {
     };
     let closure = yulang_native::closure_convert_module(&native);
     let abi = yulang_native::lower_closure_module_to_abi(&closure);
-    let lanes = yulang_native::analyze_abi_value_lanes(&abi);
-    let mut entries = lanes.functions.into_iter().collect::<Vec<_>>();
+    let reprs = yulang_native::analyze_abi_reprs(&abi);
+    let mut entries = reprs.functions.into_iter().collect::<Vec<_>>();
     entries.sort_by(|(left, _), (right, _)| left.cmp(right));
-    println!("native-abi-lanes:");
-    for (name, lane) in entries {
-        let lane = match lane {
-            yulang_native::NativeAbiValueLane::ScalarI64 => "scalar-i64",
-            yulang_native::NativeAbiValueLane::RuntimeValuePtr => "runtime-value-ptr",
-        };
-        println!("  {name}: {lane}");
+    println!("native-abi-reprs:");
+    for (name, repr) in entries {
+        println!("  {name}: {}", format_native_abi_repr(&repr));
+    }
+}
+
+fn format_native_abi_repr(repr: &yulang_native::NativeAbiRepr) -> &'static str {
+    match repr {
+        yulang_native::NativeAbiRepr::Unit => "unit",
+        yulang_native::NativeAbiRepr::Bool => "bool",
+        yulang_native::NativeAbiRepr::Int => "int",
+        yulang_native::NativeAbiRepr::Float => "float",
+        yulang_native::NativeAbiRepr::RuntimeValuePtr(kind) => match kind {
+            yulang_native::NativeRuntimePtrKind::String => "ptr:str",
+            yulang_native::NativeRuntimePtrKind::List => "ptr:list",
+            yulang_native::NativeRuntimePtrKind::RuntimeValue => "ptr:value",
+        },
+        yulang_native::NativeAbiRepr::ClosurePtr => "ptr:closure",
+        yulang_native::NativeAbiRepr::Unknown => "unknown",
     }
 }
 

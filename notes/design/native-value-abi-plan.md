@@ -21,9 +21,15 @@ runtime value representation instead of treating every value as `i64`.
 Keep the scalar path as a fast debug subset, and add a second ABI lane:
 
 ```text
-NativeAbiValue
-  ScalarI64
-  RuntimeValuePtr
+NativeAbiRepr
+  Unit
+  Bool
+  Int
+  Float
+  Tuple([...])
+  Record([...])
+  RuntimeValuePtr(...)
+  ClosurePtr
 ```
 
 The Cranelift boundary should be explicit about which lane a function uses.
@@ -131,8 +137,8 @@ because closure environments need to store arbitrary values.
 
 ## Next Implementation Steps
 
-1. Add a `NativeAbiValueLane` analysis that classifies functions as
-   `ScalarI64` or `RuntimeValuePtr`.
+1. Add a `NativeAbiRepr` analysis that classifies ABI functions/values by
+   native representation.
 2. Keep `compile_abi_module` scalar-only and add a separate experimental
    `compile_value_abi_module`.
 3. Add a small Rust helper surface for `str` construction and concatenation.
