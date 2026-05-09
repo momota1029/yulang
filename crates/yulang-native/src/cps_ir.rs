@@ -37,6 +37,43 @@ pub enum CpsStmt {
         dest: CpsValueId,
         literal: CpsLiteral,
     },
+    FreshGuard {
+        dest: CpsValueId,
+        var: yulang_runtime::EffectIdVar,
+    },
+    PeekGuard {
+        dest: CpsValueId,
+    },
+    FindGuard {
+        dest: CpsValueId,
+        guard: CpsValueId,
+    },
+    MakeThunk {
+        dest: CpsValueId,
+        entry: CpsContinuationId,
+    },
+    ForceThunk {
+        dest: CpsValueId,
+        thunk: CpsValueId,
+    },
+    Tuple {
+        dest: CpsValueId,
+        items: Vec<CpsValueId>,
+    },
+    Record {
+        dest: CpsValueId,
+        fields: Vec<CpsRecordField>,
+    },
+    Variant {
+        dest: CpsValueId,
+        tag: core_ir::Name,
+        value: Option<CpsValueId>,
+    },
+    Select {
+        dest: CpsValueId,
+        base: CpsValueId,
+        field: core_ir::Name,
+    },
     Primitive {
         dest: CpsValueId,
         op: core_ir::PrimitiveOp,
@@ -56,6 +93,25 @@ pub enum CpsStmt {
         resumption: CpsValueId,
         arg: CpsValueId,
     },
+    ResumeWithHandler {
+        dest: CpsValueId,
+        resumption: CpsValueId,
+        arg: CpsValueId,
+        handler: CpsHandlerId,
+        envs: Vec<CpsHandlerEnv>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsRecordField {
+    pub name: core_ir::Name,
+    pub value: CpsValueId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CpsHandlerEnv {
+    pub entry: CpsContinuationId,
+    pub values: Vec<CpsValueId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,6 +131,7 @@ pub enum CpsTerminator {
         payload: CpsValueId,
         resume: CpsContinuationId,
         handler: CpsHandlerId,
+        blocked: Option<CpsValueId>,
     },
 }
 

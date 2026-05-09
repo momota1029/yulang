@@ -313,6 +313,34 @@ mod tests {
     }
 
     #[test]
+    fn evals_structural_source_through_cps_repr_interpreter() {
+        let module = runtime_module_from_source_with_options(
+            "(1, 2)\n{x: 1, y: 2}.y\n:label 3",
+            infer::SourceOptions::default(),
+        )
+        .expect("runtime module");
+        let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS module");
+        crate::cps_validate::validate_cps_module(&cps).expect("valid CPS module");
+        let direct = crate::cps_eval::eval_cps_module(&cps).expect("CPS eval");
+        let repr = crate::cps_repr::lower_cps_repr_module(&cps);
+        let repr_values = crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
+
+        let expected = vec![
+            runtime::VmValue::Tuple(vec![
+                runtime::VmValue::Int("1".to_string()),
+                runtime::VmValue::Int("2".to_string()),
+            ]),
+            runtime::VmValue::Int("2".to_string()),
+            runtime::VmValue::Variant {
+                tag: yulang_core_ir::Name("label".to_string()),
+                value: Some(Box::new(runtime::VmValue::Int("3".to_string()))),
+            },
+        ];
+        assert_eq!(direct, expected);
+        assert_eq!(repr_values, expected);
+    }
+
+    #[test]
     fn compares_source_effect_handler_through_cps_repr_cranelift() {
         compare_source_cps_repr_i64_with_options(
             r#"pub act choose:
@@ -563,6 +591,35 @@ catch choose::pick 41:
     }
 
     #[test]
+    fn evals_mutable_ref_edit_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            let source = r#"
+{
+    my $x = 1
+    &x = $x + 2
+    $x
+}
+"#;
+            let module =
+                runtime_module_from_source_with_options(source, native_default_source_options())
+                    .expect("mutable ref runtime module");
+            let cps = crate::cps_lower::lower_cps_module(&module)
+                .expect("mutable ref CPS lowering should preserve recursive thunk calls");
+            crate::cps_validate::validate_cps_module(&cps).expect("mutable ref CPS validation");
+
+            let lowered = format!("{cps:#?}");
+            assert!(lowered.contains("&x#"));
+            assert!(lowered.contains("MakeThunk"));
+            assert!(lowered.contains("ForceThunk"));
+            assert!(lowered.contains("ResumeWithHandler"));
+
+            compare_source_cps_repr_i64(source).expect("mutable ref CPS repr Cranelift compare");
+            let values = eval_source_cps_repr_i64(source).expect("mutable ref CPS repr Cranelift");
+            assert_eq!(values, vec![3]);
+        });
+    }
+
+    #[test]
     fn analyzes_string_source_as_runtime_pointer_lane() {
         let analysis =
             analyze_source_abi_reprs_with_options("\"hello\"", infer::SourceOptions::default())
@@ -621,6 +678,59 @@ catch choose::pick 41:
                 runtime::VmValue::Float("1.5".to_string())
             ]
         );
+    }
+
+    #[test]
+    fn evals_numeric_and_bool_primitives_through_cranelift_value_lane() {
+        let values = run_with_large_stack(|| {
+            eval_source_value_lane("1 + 2\n5 - 3\n2 * 4\n8 / 2\n1 < 2\nnot false")
+                .expect("native value jit eval")
+                .into_iter()
+                .map(|value| match value {
+                    runtime::VmValue::Int(value) => format!("int:{value}"),
+                    runtime::VmValue::Bool(value) => format!("bool:{value}"),
+                    value => panic!("expected int or bool value, got {value:?}"),
+                })
+                .collect::<Vec<_>>()
+        });
+
+        assert_eq!(
+            values,
+            vec![
+                "int:3".to_string(),
+                "int:2".to_string(),
+                "int:8".to_string(),
+                "int:4".to_string(),
+                "bool:true".to_string(),
+                "bool:true".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn evals_local_and_top_level_bindings_through_cranelift_value_lane() {
+        let values = run_with_large_stack(|| {
+            eval_source_value_lane(
+                r#"
+my top = 2
+my total = top + 3
+
+{
+    my local = total + 4
+    {answer: local}.answer
+}
+"#,
+            )
+            .expect("native value jit eval")
+            .into_iter()
+            .map(|value| match value {
+                runtime::VmValue::Int(value) => value,
+                value => panic!("expected int value, got {value:?}"),
+            })
+            .collect::<Vec<_>>()
+        });
+
+        assert_eq!(values, vec!["9"]);
     }
 
     #[test]

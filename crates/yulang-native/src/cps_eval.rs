@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 use std::rc::Rc;
 
@@ -59,6 +60,20 @@ pub enum CpsEvalError {
         expected: usize,
         actual: usize,
     },
+    ExpectedRecord {
+        function: String,
+        value: runtime::VmValue,
+    },
+    MissingRecordField {
+        function: String,
+        field: core_ir::Name,
+    },
+    MissingGuard,
+    ExpectedGuard {
+        function: String,
+        id: CpsValueId,
+        value: runtime::VmValue,
+    },
 }
 
 impl fmt::Display for CpsEvalError {
@@ -116,6 +131,27 @@ impl fmt::Display for CpsEvalError {
                 f,
                 "CPS primitive {op:?} expected {expected} arguments, got {actual}"
             ),
+            CpsEvalError::ExpectedRecord { function, value } => {
+                write!(
+                    f,
+                    "CPS function {function} expected record value, got {value:?}"
+                )
+            }
+            CpsEvalError::MissingRecordField { function, field } => {
+                write!(
+                    f,
+                    "CPS function {function} selected missing record field {field:?}"
+                )
+            }
+            CpsEvalError::MissingGuard => write!(f, "CPS evaluator has no active guard id"),
+            CpsEvalError::ExpectedGuard {
+                function,
+                id,
+                value,
+            } => write!(
+                f,
+                "CPS function {function} expected guard value {id:?}, got {value:?}"
+            ),
         }
     }
 }
@@ -148,6 +184,8 @@ fn eval_function(
         function.entry,
         args.into_iter().map(CpsRuntimeValue::Plain).collect(),
         Vec::new(),
+        Vec::new(),
+        Vec::new(),
     )?;
     into_plain_value(function, CpsValueId(usize::MAX), value)
 }
@@ -158,10 +196,18 @@ fn eval_continuations(
     entry: CpsContinuationId,
     initial_args: Vec<CpsRuntimeValue>,
     initial_values: Vec<Option<CpsRuntimeValue>>,
+    active_handlers: Vec<CpsHandlerFrame>,
+    guard_stack: Vec<CpsGuardEntry>,
 ) -> CpsEvalResult<CpsRuntimeValue> {
     let mut values = initial_values;
     let mut current = entry;
     let mut args = initial_args;
+    let mut guard_stack = guard_stack;
+    let mut next_guard_id = guard_stack
+        .iter()
+        .map(|entry| entry.id)
+        .max()
+        .map_or(0, |id| id + 1);
     loop {
         let continuation = continuation_by_id(function, current)?;
         assign_continuation_args(&mut values, function, continuation, args)?;
@@ -175,6 +221,124 @@ fn eval_continuations(
                         *dest,
                         CpsRuntimeValue::Plain(eval_literal(literal)),
                     );
+                }
+                CpsStmt::FreshGuard { dest, var } => {
+                    let id = next_guard_id;
+                    next_guard_id += 1;
+                    guard_stack.push(CpsGuardEntry { var: *var, id });
+                    write_value(
+                        &mut values,
+                        *dest,
+                        CpsRuntimeValue::Plain(runtime::VmValue::EffectId(id)),
+                    );
+                }
+                CpsStmt::PeekGuard { dest } => {
+                    let id = guard_stack
+                        .last()
+                        .map(|entry| entry.id)
+                        .ok_or(CpsEvalError::MissingGuard)?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        CpsRuntimeValue::Plain(runtime::VmValue::EffectId(id)),
+                    );
+                }
+                CpsStmt::FindGuard { dest, guard } => {
+                    let guard = read_effect_id(function, &values, *guard)?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        CpsRuntimeValue::Plain(runtime::VmValue::Bool(
+                            guard_stack.iter().any(|entry| entry.id == guard),
+                        )),
+                    );
+                }
+                CpsStmt::MakeThunk { dest, entry } => {
+                    let thunk_values = values.clone();
+                    write_value(
+                        &mut values,
+                        *dest,
+                        CpsRuntimeValue::Thunk(Rc::new(CpsThunk {
+                            entry: *entry,
+                            values: Rc::new(thunk_values),
+                            handlers: Rc::new(active_handlers.clone()),
+                            guard_stack: Rc::new(guard_stack.clone()),
+                        })),
+                    );
+                }
+                CpsStmt::ForceThunk { dest, thunk } => {
+                    let value = read_value(function, &values, *thunk)?;
+                    let result = match value {
+                        CpsRuntimeValue::Thunk(thunk) => eval_continuations(
+                            module,
+                            function,
+                            thunk.entry,
+                            Vec::new(),
+                            thunk.values.as_ref().clone(),
+                            thunk.handlers.as_ref().clone(),
+                            thunk.guard_stack.as_ref().clone(),
+                        )?,
+                        value => value,
+                    };
+                    write_value(&mut values, *dest, result);
+                }
+                CpsStmt::Tuple { dest, items } => {
+                    let items = items
+                        .iter()
+                        .map(|id| read_plain_value(function, &values, *id))
+                        .collect::<CpsEvalResult<Vec<_>>>()?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        CpsRuntimeValue::Plain(runtime::VmValue::Tuple(items)),
+                    );
+                }
+                CpsStmt::Record { dest, fields } => {
+                    let mut record = BTreeMap::new();
+                    for field in fields {
+                        record.insert(
+                            field.name.clone(),
+                            read_plain_value(function, &values, field.value)?,
+                        );
+                    }
+                    write_value(
+                        &mut values,
+                        *dest,
+                        CpsRuntimeValue::Plain(runtime::VmValue::Record(record)),
+                    );
+                }
+                CpsStmt::Variant { dest, tag, value } => {
+                    let value = value
+                        .map(|id| read_plain_value(function, &values, id))
+                        .transpose()?
+                        .map(Box::new);
+                    write_value(
+                        &mut values,
+                        *dest,
+                        CpsRuntimeValue::Plain(runtime::VmValue::Variant {
+                            tag: tag.clone(),
+                            value,
+                        }),
+                    );
+                }
+                CpsStmt::Select { dest, base, field } => {
+                    let value = match read_plain_value(function, &values, *base)? {
+                        runtime::VmValue::Record(fields) => {
+                            fields.get(field).cloned().ok_or_else(|| {
+                                CpsEvalError::MissingRecordField {
+                                    function: function.name.clone(),
+                                    field: field.clone(),
+                                }
+                            })?
+                        }
+                        value => {
+                            return Err(CpsEvalError::ExpectedRecord {
+                                function: function.name.clone(),
+                                value,
+                            });
+                        }
+                    };
+                    write_value(&mut values, *dest, CpsRuntimeValue::Plain(value));
                 }
                 CpsStmt::Primitive { dest, op, args } => {
                     let args = args
@@ -222,6 +386,32 @@ fn eval_continuations(
                         resumption.target,
                         vec![CpsRuntimeValue::Plain(arg)],
                         resumption.values.as_ref().clone(),
+                        resumption.handlers.as_ref().clone(),
+                        resumption.guard_stack.as_ref().clone(),
+                    )?;
+                    write_value(&mut values, *dest, result);
+                }
+                CpsStmt::ResumeWithHandler {
+                    dest,
+                    resumption,
+                    arg,
+                    handler,
+                    envs: _,
+                } => {
+                    let resumption = read_resumption(function, &values, *resumption)?;
+                    let arg = read_plain_value(function, &values, *arg)?;
+                    let result = eval_continuations(
+                        module,
+                        function,
+                        resumption.target,
+                        vec![CpsRuntimeValue::Plain(arg)],
+                        resumption.values.as_ref().clone(),
+                        handler_stack_with_pushed(
+                            resumption.handlers.as_ref(),
+                            *handler,
+                            &guard_stack,
+                        ),
+                        resumption.guard_stack.as_ref().clone(),
                     )?;
                     write_value(&mut values, *dest, result);
                 }
@@ -254,19 +444,30 @@ fn eval_continuations(
                 payload,
                 resume,
                 handler,
+                blocked,
             } => {
                 let payload = read_plain_value(function, &values, *payload)?;
-                let handler = handler_arm_for_effect(function, *handler, effect)?;
+                let blocked = blocked
+                    .map(|blocked| read_effect_id(function, &values, blocked))
+                    .transpose()?;
+                let handler_stack =
+                    handler_stack_with_static(&active_handlers, *handler, &guard_stack);
+                let (handler, handler_body_stack) =
+                    handler_arm_for_stack(function, &handler_stack, effect, blocked)?;
                 let resumption = CpsRuntimeValue::Resumption(Rc::new(CpsResumption {
                     target: *resume,
                     values: Rc::new(values.clone()),
+                    handlers: Rc::new(handler_stack),
+                    guard_stack: Rc::new(guard_stack.clone()),
                 }));
                 return eval_continuations(
                     module,
                     function,
                     handler.entry,
                     vec![CpsRuntimeValue::Plain(payload), resumption],
-                    Vec::new(),
+                    values,
+                    handler_body_stack,
+                    guard_stack,
                 );
             }
         }
@@ -287,25 +488,63 @@ fn continuation_by_id(
         })
 }
 
-fn handler_arm_for_effect<'a>(
+fn handler_arm_for_stack<'a>(
     function: &'a CpsFunction,
-    id: CpsHandlerId,
+    stack: &[CpsHandlerFrame],
     effect: &core_ir::Path,
-) -> CpsEvalResult<&'a CpsHandlerArm> {
-    function
-        .handlers
-        .iter()
-        .find(|handler| handler.id == id)
-        .and_then(|handler| {
-            handler
-                .arms
-                .iter()
-                .find(|arm| effect_matches(&arm.effect, effect))
-        })
-        .ok_or_else(|| CpsEvalError::MissingHandler {
-            function: function.name.clone(),
-            id,
-        })
+    blocked: Option<u64>,
+) -> CpsEvalResult<(&'a CpsHandlerArm, Vec<CpsHandlerFrame>)> {
+    for (index, frame) in stack.iter().enumerate().rev() {
+        if blocked.is_some_and(|blocked| frame.guard_stack.iter().any(|entry| entry.id == blocked))
+        {
+            continue;
+        }
+        if let Some(arm) = function
+            .handlers
+            .iter()
+            .find(|handler| handler.id == frame.handler)
+            .and_then(|handler| {
+                handler
+                    .arms
+                    .iter()
+                    .find(|arm| effect_matches(&arm.effect, effect))
+            })
+        {
+            return Ok((arm, stack[..index].to_vec()));
+        }
+    }
+    Err(CpsEvalError::MissingHandler {
+        function: function.name.clone(),
+        id: stack.last().expect("handler stack is non-empty").handler,
+    })
+}
+
+fn handler_stack_with_static(
+    active_handlers: &[CpsHandlerFrame],
+    fallback: CpsHandlerId,
+    guard_stack: &[CpsGuardEntry],
+) -> Vec<CpsHandlerFrame> {
+    if active_handlers.is_empty() {
+        vec![CpsHandlerFrame {
+            handler: fallback,
+            guard_stack: guard_stack.to_vec(),
+        }]
+    } else {
+        active_handlers.to_vec()
+    }
+}
+
+fn handler_stack_with_pushed(
+    active_handlers: &[CpsHandlerFrame],
+    handler: CpsHandlerId,
+    guard_stack: &[CpsGuardEntry],
+) -> Vec<CpsHandlerFrame> {
+    let mut stack = active_handlers.to_vec();
+    stack.push(CpsHandlerFrame {
+        handler,
+        guard_stack: guard_stack.to_vec(),
+    });
+    stack
 }
 
 fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
@@ -365,6 +604,21 @@ fn read_plain_value(
     into_plain_value(function, id, read_value(function, values, id)?)
 }
 
+fn read_effect_id(
+    function: &CpsFunction,
+    values: &[Option<CpsRuntimeValue>],
+    id: CpsValueId,
+) -> CpsEvalResult<u64> {
+    match read_plain_value(function, values, id)? {
+        runtime::VmValue::EffectId(value_id) => Ok(value_id),
+        value => Err(CpsEvalError::ExpectedGuard {
+            function: function.name.clone(),
+            id,
+            value,
+        }),
+    }
+}
+
 fn into_plain_value(
     function: &CpsFunction,
     id: CpsValueId,
@@ -372,10 +626,12 @@ fn into_plain_value(
 ) -> CpsEvalResult<runtime::VmValue> {
     match value {
         CpsRuntimeValue::Plain(value) => Ok(value),
-        CpsRuntimeValue::Resumption(_) => Err(CpsEvalError::ExpectedPlainValue {
-            function: function.name.clone(),
-            id,
-        }),
+        CpsRuntimeValue::Resumption(_) | CpsRuntimeValue::Thunk(_) => {
+            Err(CpsEvalError::ExpectedPlainValue {
+                function: function.name.clone(),
+                id,
+            })
+        }
     }
 }
 
@@ -386,10 +642,12 @@ fn read_resumption(
 ) -> CpsEvalResult<Rc<CpsResumption>> {
     match read_value(function, values, id)? {
         CpsRuntimeValue::Resumption(resumption) => Ok(resumption),
-        CpsRuntimeValue::Plain(_) => Err(CpsEvalError::ExpectedResumption {
-            function: function.name.clone(),
-            id,
-        }),
+        CpsRuntimeValue::Plain(_) | CpsRuntimeValue::Thunk(_) => {
+            Err(CpsEvalError::ExpectedResumption {
+                function: function.name.clone(),
+                id,
+            })
+        }
     }
 }
 
@@ -397,12 +655,35 @@ fn read_resumption(
 enum CpsRuntimeValue {
     Plain(runtime::VmValue),
     Resumption(Rc<CpsResumption>),
+    Thunk(Rc<CpsThunk>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 struct CpsResumption {
     target: CpsContinuationId,
     values: Rc<Vec<Option<CpsRuntimeValue>>>,
+    handlers: Rc<Vec<CpsHandlerFrame>>,
+    guard_stack: Rc<Vec<CpsGuardEntry>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsThunk {
+    entry: CpsContinuationId,
+    values: Rc<Vec<Option<CpsRuntimeValue>>>,
+    handlers: Rc<Vec<CpsHandlerFrame>>,
+    guard_stack: Rc<Vec<CpsGuardEntry>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsHandlerFrame {
+    handler: CpsHandlerId,
+    guard_stack: Vec<CpsGuardEntry>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CpsGuardEntry {
+    var: runtime::EffectIdVar,
+    id: u64,
 }
 
 fn eval_literal(lit: &CpsLiteral) -> runtime::VmValue {
@@ -654,6 +935,7 @@ mod tests {
                             payload: CpsValueId(0),
                             resume: CpsContinuationId(1),
                             handler: CpsHandlerId(0),
+                            blocked: None,
                         },
                     },
                     CpsContinuation {
@@ -711,5 +993,129 @@ mod tests {
             eval_cps_module(&module).expect("evaluated"),
             vec![runtime::VmValue::Int("23".to_string())]
         );
+    }
+
+    #[test]
+    fn evaluates_resumption_under_fresh_handler_stack() {
+        let module = rebased_resumption_module();
+
+        validate_cps_module(&module).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&module).expect("evaluated"),
+            vec![runtime::VmValue::Int("13".to_string())]
+        );
+    }
+
+    fn rebased_resumption_module() -> CpsModule {
+        let effect = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: vec![
+                    CpsHandler {
+                        id: CpsHandlerId(0),
+                        arms: vec![CpsHandlerArm {
+                            effect: effect.clone(),
+                            entry: CpsContinuationId(2),
+                        }],
+                    },
+                    CpsHandler {
+                        id: CpsHandlerId(1),
+                        arms: vec![CpsHandlerArm {
+                            effect: effect.clone(),
+                            entry: CpsContinuationId(4),
+                        }],
+                    },
+                ],
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("1".to_string()),
+                        }],
+                        terminator: CpsTerminator::Perform {
+                            effect: effect.clone(),
+                            payload: CpsValueId(0),
+                            resume: CpsContinuationId(1),
+                            handler: CpsHandlerId(0),
+                            blocked: None,
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(1)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(2),
+                            literal: CpsLiteral::Int("2".to_string()),
+                        }],
+                        terminator: CpsTerminator::Perform {
+                            effect: effect.clone(),
+                            payload: CpsValueId(2),
+                            resume: CpsContinuationId(3),
+                            handler: CpsHandlerId(0),
+                            blocked: None,
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: vec![CpsValueId(4), CpsValueId(5)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::ResumeWithHandler {
+                            dest: CpsValueId(6),
+                            resumption: CpsValueId(5),
+                            arg: CpsValueId(4),
+                            handler: CpsHandlerId(1),
+                            envs: Vec::new(),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(6)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(3),
+                        params: vec![CpsValueId(9)],
+                        captures: vec![CpsValueId(1)],
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Primitive {
+                            dest: CpsValueId(13),
+                            op: core_ir::PrimitiveOp::IntAdd,
+                            args: vec![CpsValueId(1), CpsValueId(9)],
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(13)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(4),
+                        params: vec![CpsValueId(7), CpsValueId(8)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(10),
+                                literal: CpsLiteral::Int("10".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(11),
+                                op: core_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(7), CpsValueId(10)],
+                            },
+                            CpsStmt::Resume {
+                                dest: CpsValueId(12),
+                                resumption: CpsValueId(8),
+                                arg: CpsValueId(11),
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(12)),
+                    },
+                ],
+            }],
+        }
     }
 }

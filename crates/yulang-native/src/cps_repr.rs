@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 use yulang_core_ir as core_ir;
@@ -62,6 +62,7 @@ pub enum CpsReprAbiLane {
     ScalarI64,
     NativeFloat,
     RuntimeValuePtr,
+    ThunkPtr,
     ResumptionPtr,
     Unknown,
 }
@@ -190,6 +191,14 @@ pub enum CpsReprEvalError {
         function: String,
         id: CpsValueId,
     },
+    ExpectedGuard {
+        function: String,
+        id: CpsValueId,
+        value: runtime::VmValue,
+    },
+    MissingGuard {
+        function: String,
+    },
     UnsupportedStmt {
         function: String,
         kind: &'static str,
@@ -200,6 +209,14 @@ pub enum CpsReprEvalError {
     PrimitiveTypeMismatch {
         op: core_ir::PrimitiveOp,
         value: runtime::VmValue,
+    },
+    ExpectedRecord {
+        function: String,
+        value: runtime::VmValue,
+    },
+    MissingRecordField {
+        function: String,
+        field: core_ir::Name,
     },
 }
 
@@ -249,6 +266,17 @@ impl fmt::Display for CpsReprEvalError {
                 f,
                 "CPS repr function {function} expected resumption value {id:?}"
             ),
+            CpsReprEvalError::ExpectedGuard {
+                function,
+                id,
+                value,
+            } => write!(
+                f,
+                "CPS repr function {function} expected guard value {id:?}, got {value:?}"
+            ),
+            CpsReprEvalError::MissingGuard { function } => {
+                write!(f, "CPS repr function {function} has no active guard id")
+            }
             CpsReprEvalError::UnsupportedStmt { function, kind } => write!(
                 f,
                 "CPS repr evaluator does not support {kind} statements in `{function}` yet"
@@ -262,6 +290,14 @@ impl fmt::Display for CpsReprEvalError {
             CpsReprEvalError::PrimitiveTypeMismatch { op, value } => {
                 write!(f, "CPS repr primitive {op:?} cannot accept value {value:?}")
             }
+            CpsReprEvalError::ExpectedRecord { function, value } => write!(
+                f,
+                "CPS repr function {function} expected record value, got {value:?}"
+            ),
+            CpsReprEvalError::MissingRecordField { function, field } => write!(
+                f,
+                "CPS repr function {function} selected missing record field {field:?}"
+            ),
         }
     }
 }
@@ -294,6 +330,40 @@ pub fn analyze_cps_repr_values(module: &CpsReprModule) -> CpsReprValueAnalysis {
     }
 }
 
+fn propagate_direct_call_argument_lanes(
+    module: &CpsReprModule,
+    analysis: &mut CpsReprAbiAnalysis,
+) -> bool {
+    let function_params = module
+        .functions
+        .iter()
+        .chain(&module.roots)
+        .map(|function| (function.name.as_str(), function.params.as_slice()))
+        .collect::<HashMap<_, _>>();
+    let mut changed = false;
+    for function in module.functions.iter().chain(&module.roots) {
+        for continuation in &function.continuations {
+            for stmt in &continuation.stmts {
+                let CpsStmt::DirectCall { target, args, .. } = stmt else {
+                    continue;
+                };
+                let Some(params) = function_params.get(target.as_str()).copied() else {
+                    continue;
+                };
+                for (param, arg) in params.iter().zip(args) {
+                    let lane = analysis
+                        .value_lane(&function.name, *arg)
+                        .unwrap_or(CpsReprAbiLane::Unknown);
+                    if let Some(target_analysis) = analysis.functions.get_mut(target) {
+                        changed |= merge_abi_lane(&mut target_analysis.values, *param, lane);
+                    }
+                }
+            }
+        }
+    }
+    changed
+}
+
 pub fn analyze_cps_repr_abi_lanes(module: &CpsReprModule) -> CpsReprAbiAnalysis {
     let mut analysis = CpsReprAbiAnalysis {
         functions: module
@@ -323,6 +393,7 @@ pub fn analyze_cps_repr_abi_lanes(module: &CpsReprModule) -> CpsReprAbiAnalysis 
                 changed = true;
             }
         }
+        changed |= propagate_direct_call_argument_lanes(module, &mut analysis);
         if !changed {
             return analysis;
         }
@@ -374,14 +445,32 @@ fn lower_continuation(continuation: &CpsContinuation) -> CpsReprContinuation {
     }
 }
 
+fn make_thunk_entries(function: &CpsReprFunction) -> HashMap<CpsValueId, CpsContinuationId> {
+    let mut entries = HashMap::new();
+    for continuation in &function.continuations {
+        for stmt in &continuation.stmts {
+            if let CpsStmt::MakeThunk { dest, entry } = stmt {
+                entries.insert(*dest, *entry);
+            }
+        }
+    }
+    entries
+}
+
 fn analyze_function_abi_lanes(
     function: &CpsReprFunction,
     module_analysis: &CpsReprAbiAnalysis,
 ) -> CpsReprFunctionAbiAnalysis {
     let mut values = HashMap::new();
     let mut continuation_returns = HashMap::new();
+    let thunk_entries = make_thunk_entries(function);
     for param in &function.params {
-        values.insert(*param, CpsReprAbiLane::Unknown);
+        values.insert(
+            *param,
+            module_analysis
+                .value_lane(&function.name, *param)
+                .unwrap_or(CpsReprAbiLane::Unknown),
+        );
     }
     for handler in &function.handlers {
         for arm in &handler.arms {
@@ -408,17 +497,32 @@ fn analyze_function_abi_lanes(
             for stmt in &continuation.stmts {
                 let lane = match stmt {
                     CpsStmt::Literal { literal, .. } => literal_lane(literal),
+                    CpsStmt::FreshGuard { .. }
+                    | CpsStmt::PeekGuard { .. }
+                    | CpsStmt::FindGuard { .. } => CpsReprAbiLane::ScalarI64,
+                    CpsStmt::MakeThunk { .. } => CpsReprAbiLane::ThunkPtr,
+                    CpsStmt::Tuple { .. }
+                    | CpsStmt::Record { .. }
+                    | CpsStmt::Variant { .. }
+                    | CpsStmt::Select { .. } => CpsReprAbiLane::RuntimeValuePtr,
                     CpsStmt::Primitive { op, .. } => primitive_result_lane(*op),
                     CpsStmt::DirectCall { target, .. } => module_analysis
                         .function_return_lane(target)
                         .unwrap_or(CpsReprAbiLane::Unknown),
                     CpsStmt::CloneContinuation { source, .. } => abi_lane(&values, *source),
-                    CpsStmt::Resume { resumption, .. } => resumption_target_return_lane(
-                        function,
-                        &values,
-                        &continuation_returns,
-                        *resumption,
-                    ),
+                    CpsStmt::ForceThunk { thunk, .. } => thunk_entries
+                        .get(thunk)
+                        .and_then(|entry| continuation_returns.get(entry).copied())
+                        .unwrap_or(CpsReprAbiLane::Unknown),
+                    CpsStmt::Resume { resumption, .. }
+                    | CpsStmt::ResumeWithHandler { resumption, .. } => {
+                        resumption_target_return_lane(
+                            function,
+                            &values,
+                            &continuation_returns,
+                            *resumption,
+                        )
+                    }
                 };
                 if merge_abi_lane(&mut values, stmt_dest(stmt), lane) {
                     changed = true;
@@ -462,8 +566,12 @@ fn propagate_terminator_argument_lanes(
             payload,
             resume,
             handler,
+            blocked,
         } => {
             let mut changed = false;
+            if let Some(blocked) = blocked {
+                changed |= merge_abi_lane(values, *blocked, CpsReprAbiLane::ScalarI64);
+            }
             if let Some(arm) = handler_arm_for_effect(function, *handler, effect)
                 && let Some(entry) = continuation_by_id_opt(function, arm.entry)
                 && let Some(param) = entry.params.first()
@@ -497,6 +605,7 @@ fn merge_param_lanes(
 fn analyze_function_values(function: &CpsReprFunction) -> CpsReprFunctionValueAnalysis {
     let mut values = HashMap::new();
     let mut continuation_returns = HashMap::new();
+    let thunk_entries = make_thunk_entries(function);
     for param in &function.params {
         values.insert(*param, CpsReprValueKind::Plain);
     }
@@ -531,10 +640,24 @@ fn analyze_function_values(function: &CpsReprFunction) -> CpsReprFunctionValueAn
             for stmt in &continuation.stmts {
                 let kind = match stmt {
                     CpsStmt::Literal { .. }
+                    | CpsStmt::FreshGuard { .. }
+                    | CpsStmt::PeekGuard { .. }
+                    | CpsStmt::FindGuard { .. }
+                    | CpsStmt::MakeThunk { .. }
+                    | CpsStmt::Tuple { .. }
+                    | CpsStmt::Record { .. }
+                    | CpsStmt::Variant { .. }
+                    | CpsStmt::Select { .. }
                     | CpsStmt::Primitive { .. }
                     | CpsStmt::DirectCall { .. } => CpsReprValueKind::Plain,
+                    CpsStmt::ForceThunk { thunk, .. } => thunk_entries
+                        .get(thunk)
+                        .and_then(|entry| continuation_returns.get(entry).copied())
+                        .unwrap_or(CpsReprValueKind::Unknown),
                     CpsStmt::CloneContinuation { source, .. } => value_kind(&values, *source),
-                    CpsStmt::Resume { .. } => CpsReprValueKind::Plain,
+                    CpsStmt::Resume { .. } | CpsStmt::ResumeWithHandler { .. } => {
+                        CpsReprValueKind::Plain
+                    }
                 };
                 if merge_value_kind(&mut values, stmt_dest(stmt), kind) {
                     changed = true;
@@ -728,6 +851,55 @@ fn handler_arm_for_effect<'a>(
         .find(|arm| effect_matches(&arm.effect, effect))
 }
 
+fn handler_arm_for_stack<'a>(
+    function: &'a CpsReprFunction,
+    stack: &[CpsReprHandlerFrame],
+    effect: &core_ir::Path,
+    blocked: Option<u64>,
+) -> CpsReprEvalResult<(&'a CpsReprHandlerArm, Vec<CpsReprHandlerFrame>)> {
+    for (index, frame) in stack.iter().enumerate().rev() {
+        if blocked.is_some_and(|blocked| frame.guard_stack.iter().any(|entry| entry.id == blocked))
+        {
+            continue;
+        }
+        if let Some(arm) = handler_arm_for_effect(function, frame.handler, effect) {
+            return Ok((arm, stack[..index].to_vec()));
+        }
+    }
+    Err(CpsReprEvalError::MissingHandler {
+        function: function.name.clone(),
+        id: stack.last().expect("handler stack is non-empty").handler,
+    })
+}
+
+fn handler_stack_with_static(
+    active_handlers: &[CpsReprHandlerFrame],
+    fallback: CpsHandlerId,
+    guard_stack: &[CpsReprGuardEntry],
+) -> Vec<CpsReprHandlerFrame> {
+    if active_handlers.is_empty() {
+        vec![CpsReprHandlerFrame {
+            handler: fallback,
+            guard_stack: guard_stack.to_vec(),
+        }]
+    } else {
+        active_handlers.to_vec()
+    }
+}
+
+fn handler_stack_with_pushed(
+    active_handlers: &[CpsReprHandlerFrame],
+    handler: CpsHandlerId,
+    guard_stack: &[CpsReprGuardEntry],
+) -> Vec<CpsReprHandlerFrame> {
+    let mut stack = active_handlers.to_vec();
+    stack.push(CpsReprHandlerFrame {
+        handler,
+        guard_stack: guard_stack.to_vec(),
+    });
+    stack
+}
+
 fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
     actual == expected
         || (!expected.segments.is_empty()
@@ -764,10 +936,20 @@ fn merge_abi_lane(
 fn stmt_dest(stmt: &CpsStmt) -> CpsValueId {
     match stmt {
         CpsStmt::Literal { dest, .. }
+        | CpsStmt::FreshGuard { dest, .. }
+        | CpsStmt::PeekGuard { dest }
+        | CpsStmt::FindGuard { dest, .. }
+        | CpsStmt::MakeThunk { dest, .. }
+        | CpsStmt::ForceThunk { dest, .. }
+        | CpsStmt::Tuple { dest, .. }
+        | CpsStmt::Record { dest, .. }
+        | CpsStmt::Variant { dest, .. }
+        | CpsStmt::Select { dest, .. }
         | CpsStmt::Primitive { dest, .. }
         | CpsStmt::DirectCall { dest, .. }
         | CpsStmt::CloneContinuation { dest, .. }
-        | CpsStmt::Resume { dest, .. } => *dest,
+        | CpsStmt::Resume { dest, .. }
+        | CpsStmt::ResumeWithHandler { dest, .. } => *dest,
     }
 }
 
@@ -811,12 +993,16 @@ fn eval_function(
             actual: args.len(),
         });
     }
-    let mut values = HashMap::new();
-    for (param, value) in function.params.iter().copied().zip(args) {
-        values.insert(param, CpsReprRuntimeValue::Plain(value));
-    }
-    eval_continuations(module, function, function.entry, Vec::new(), values)
-        .and_then(|value| into_plain_value(function, CpsValueId(usize::MAX), value))
+    eval_continuations(
+        module,
+        function,
+        function.entry,
+        args.into_iter().map(CpsReprRuntimeValue::Plain).collect(),
+        HashMap::new(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .and_then(|value| into_plain_value(function, CpsValueId(usize::MAX), value))
 }
 
 fn eval_continuations(
@@ -825,8 +1011,16 @@ fn eval_continuations(
     entry: CpsContinuationId,
     mut args: Vec<CpsReprRuntimeValue>,
     mut values: HashMap<CpsValueId, CpsReprRuntimeValue>,
+    active_handlers: Vec<CpsReprHandlerFrame>,
+    guard_stack: Vec<CpsReprGuardEntry>,
 ) -> CpsReprEvalResult<CpsReprRuntimeValue> {
     let mut current = entry;
+    let mut guard_stack = guard_stack;
+    let mut next_guard_id = guard_stack
+        .iter()
+        .map(|entry| entry.id)
+        .max()
+        .map_or(0, |id| id + 1);
     loop {
         let continuation = continuation_by_id(function, current)?;
         if continuation.params.len() != args.len() {
@@ -846,6 +1040,116 @@ fn eval_continuations(
             match stmt {
                 CpsStmt::Literal { dest, literal } => {
                     values.insert(*dest, CpsReprRuntimeValue::Plain(eval_literal(literal)));
+                }
+                CpsStmt::FreshGuard { dest, var } => {
+                    let id = next_guard_id;
+                    next_guard_id += 1;
+                    guard_stack.push(CpsReprGuardEntry { var: *var, id });
+                    values.insert(
+                        *dest,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::EffectId(id)),
+                    );
+                }
+                CpsStmt::PeekGuard { dest } => {
+                    let id = guard_stack.last().map(|entry| entry.id).ok_or_else(|| {
+                        CpsReprEvalError::MissingGuard {
+                            function: function.name.clone(),
+                        }
+                    })?;
+                    values.insert(
+                        *dest,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::EffectId(id)),
+                    );
+                }
+                CpsStmt::FindGuard { dest, guard } => {
+                    let guard = read_effect_id(function, &values, *guard)?;
+                    values.insert(
+                        *dest,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Bool(
+                            guard_stack.iter().any(|entry| entry.id == guard),
+                        )),
+                    );
+                }
+                CpsStmt::MakeThunk { dest, entry } => {
+                    values.insert(
+                        *dest,
+                        CpsReprRuntimeValue::Thunk(CpsReprThunk {
+                            entry: *entry,
+                            values: values.clone(),
+                            handlers: active_handlers.clone(),
+                            guard_stack: guard_stack.clone(),
+                        }),
+                    );
+                }
+                CpsStmt::ForceThunk { dest, thunk } => {
+                    let result = match read_value(function, &values, *thunk)? {
+                        CpsReprRuntimeValue::Thunk(thunk) => eval_continuations(
+                            module,
+                            function,
+                            thunk.entry,
+                            Vec::new(),
+                            thunk.values,
+                            thunk.handlers,
+                            thunk.guard_stack,
+                        )?,
+                        value => value,
+                    };
+                    values.insert(*dest, result);
+                }
+                CpsStmt::Tuple { dest, items } => {
+                    let items = items
+                        .iter()
+                        .map(|id| read_plain_value(function, &values, *id))
+                        .collect::<CpsReprEvalResult<Vec<_>>>()?;
+                    values.insert(
+                        *dest,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Tuple(items)),
+                    );
+                }
+                CpsStmt::Record { dest, fields } => {
+                    let mut record = BTreeMap::new();
+                    for field in fields {
+                        record.insert(
+                            field.name.clone(),
+                            read_plain_value(function, &values, field.value)?,
+                        );
+                    }
+                    values.insert(
+                        *dest,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Record(record)),
+                    );
+                }
+                CpsStmt::Variant { dest, tag, value } => {
+                    let value = value
+                        .map(|id| read_plain_value(function, &values, id))
+                        .transpose()?
+                        .map(Box::new);
+                    values.insert(
+                        *dest,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Variant {
+                            tag: tag.clone(),
+                            value,
+                        }),
+                    );
+                }
+                CpsStmt::Select { dest, base, field } => {
+                    let value = match read_plain_value(function, &values, *base)? {
+                        runtime::VmValue::Record(fields) => {
+                            fields.get(field).cloned().ok_or_else(|| {
+                                CpsReprEvalError::MissingRecordField {
+                                    function: function.name.clone(),
+                                    field: field.clone(),
+                                }
+                            })?
+                        }
+                        value => {
+                            return Err(CpsReprEvalError::ExpectedRecord {
+                                function: function.name.clone(),
+                                value,
+                            });
+                        }
+                    };
+                    values.insert(*dest, CpsReprRuntimeValue::Plain(value));
                 }
                 CpsStmt::Primitive { dest, op, args } => {
                     let args = args
@@ -891,6 +1195,28 @@ fn eval_continuations(
                         resumption.target,
                         vec![CpsReprRuntimeValue::Plain(arg)],
                         resumption.values.clone(),
+                        resumption.handlers.clone(),
+                        resumption.guard_stack.clone(),
+                    )?;
+                    values.insert(*dest, result);
+                }
+                CpsStmt::ResumeWithHandler {
+                    dest,
+                    resumption,
+                    arg,
+                    handler,
+                    envs: _,
+                } => {
+                    let resumption = read_resumption(function, &values, *resumption)?;
+                    let arg = read_plain_value(function, &values, *arg)?;
+                    let result = eval_continuations(
+                        module,
+                        function,
+                        resumption.target,
+                        vec![CpsReprRuntimeValue::Plain(arg)],
+                        resumption.values.clone(),
+                        handler_stack_with_pushed(&resumption.handlers, *handler, &guard_stack),
+                        resumption.guard_stack.clone(),
                     )?;
                     values.insert(*dest, result);
                 }
@@ -923,18 +1249,21 @@ fn eval_continuations(
                 payload,
                 resume,
                 handler,
+                blocked,
             } => {
                 let payload = read_plain_value(function, &values, *payload)?;
-                let handler =
-                    handler_arm_for_effect(function, *handler, effect).ok_or_else(|| {
-                        CpsReprEvalError::MissingHandler {
-                            function: function.name.clone(),
-                            id: *handler,
-                        }
-                    })?;
+                let blocked = blocked
+                    .map(|blocked| read_effect_id(function, &values, blocked))
+                    .transpose()?;
+                let handler_stack =
+                    handler_stack_with_static(&active_handlers, *handler, &guard_stack);
+                let (handler, handler_body_stack) =
+                    handler_arm_for_stack(function, &handler_stack, effect, blocked)?;
                 let resumption = CpsReprRuntimeValue::Resumption(CpsReprResumption {
                     target: *resume,
                     values: values.clone(),
+                    handlers: handler_stack,
+                    guard_stack: guard_stack.clone(),
                 });
                 return eval_continuations(
                     module,
@@ -942,6 +1271,8 @@ fn eval_continuations(
                     handler.entry,
                     vec![CpsReprRuntimeValue::Plain(payload), resumption],
                     values,
+                    handler_body_stack,
+                    guard_stack,
                 );
             }
         }
@@ -994,16 +1325,33 @@ fn read_plain_value(
     into_plain_value(function, id, read_value(function, values, id)?)
 }
 
+fn read_effect_id(
+    function: &CpsReprFunction,
+    values: &HashMap<CpsValueId, CpsReprRuntimeValue>,
+    id: CpsValueId,
+) -> CpsReprEvalResult<u64> {
+    match read_plain_value(function, values, id)? {
+        runtime::VmValue::EffectId(value_id) => Ok(value_id),
+        value => Err(CpsReprEvalError::ExpectedGuard {
+            function: function.name.clone(),
+            id,
+            value,
+        }),
+    }
+}
+
 fn read_resumption(
     function: &CpsReprFunction,
     values: &HashMap<CpsValueId, CpsReprRuntimeValue>,
     id: CpsValueId,
 ) -> CpsReprEvalResult<CpsReprResumption> {
     match read_value(function, values, id)? {
-        CpsReprRuntimeValue::Plain(_) => Err(CpsReprEvalError::ExpectedResumption {
-            function: function.name.clone(),
-            id,
-        }),
+        CpsReprRuntimeValue::Plain(_) | CpsReprRuntimeValue::Thunk(_) => {
+            Err(CpsReprEvalError::ExpectedResumption {
+                function: function.name.clone(),
+                id,
+            })
+        }
         CpsReprRuntimeValue::Resumption(resumption) => Ok(resumption),
     }
 }
@@ -1015,10 +1363,12 @@ fn into_plain_value(
 ) -> CpsReprEvalResult<runtime::VmValue> {
     match value {
         CpsReprRuntimeValue::Plain(value) => Ok(value),
-        CpsReprRuntimeValue::Resumption(_) => Err(CpsReprEvalError::ExpectedPlainValue {
-            function: function.name.clone(),
-            id,
-        }),
+        CpsReprRuntimeValue::Resumption(_) | CpsReprRuntimeValue::Thunk(_) => {
+            Err(CpsReprEvalError::ExpectedPlainValue {
+                function: function.name.clone(),
+                id,
+            })
+        }
     }
 }
 
@@ -1026,12 +1376,35 @@ fn into_plain_value(
 enum CpsReprRuntimeValue {
     Plain(runtime::VmValue),
     Resumption(CpsReprResumption),
+    Thunk(CpsReprThunk),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 struct CpsReprResumption {
     target: CpsContinuationId,
     values: HashMap<CpsValueId, CpsReprRuntimeValue>,
+    handlers: Vec<CpsReprHandlerFrame>,
+    guard_stack: Vec<CpsReprGuardEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsReprThunk {
+    entry: CpsContinuationId,
+    values: HashMap<CpsValueId, CpsReprRuntimeValue>,
+    handlers: Vec<CpsReprHandlerFrame>,
+    guard_stack: Vec<CpsReprGuardEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsReprHandlerFrame {
+    handler: CpsHandlerId,
+    guard_stack: Vec<CpsReprGuardEntry>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CpsReprGuardEntry {
+    var: runtime::EffectIdVar,
+    id: u64,
 }
 
 fn eval_literal(literal: &CpsLiteral) -> runtime::VmValue {
@@ -1209,6 +1582,28 @@ mod tests {
     }
 
     #[test]
+    fn evaluates_resumption_under_fresh_handler_stack() {
+        let module = rebased_resumption_module();
+        let lowered = lower_cps_repr_module(&module);
+
+        assert_eq!(
+            eval_cps_repr_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("13".to_string())]
+        );
+    }
+
+    #[test]
+    fn skips_handler_frame_blocked_by_guard_snapshot() {
+        let module = blocked_handler_snapshot_module();
+        let lowered = lower_cps_repr_module(&module);
+
+        assert_eq!(
+            eval_cps_repr_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("100".to_string())]
+        );
+    }
+
+    #[test]
     fn analyzes_resumption_value_kind() {
         let lowered = lower_cps_repr_module(&multishot_resumption_module());
         let analysis = analyze_cps_repr_values(&lowered);
@@ -1340,6 +1735,7 @@ mod tests {
                             payload: CpsValueId(0),
                             resume: CpsContinuationId(1),
                             handler: CpsHandlerId(0),
+                            blocked: None,
                         },
                     },
                     CpsContinuation {
@@ -1391,6 +1787,240 @@ mod tests {
                             },
                         ],
                         terminator: CpsTerminator::Return(CpsValueId(9)),
+                    },
+                ],
+            }],
+        }
+    }
+
+    fn rebased_resumption_module() -> CpsModule {
+        let effect = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: vec![
+                    crate::cps_ir::CpsHandler {
+                        id: CpsHandlerId(0),
+                        arms: vec![crate::cps_ir::CpsHandlerArm {
+                            effect: effect.clone(),
+                            entry: CpsContinuationId(2),
+                        }],
+                    },
+                    crate::cps_ir::CpsHandler {
+                        id: CpsHandlerId(1),
+                        arms: vec![crate::cps_ir::CpsHandlerArm {
+                            effect: effect.clone(),
+                            entry: CpsContinuationId(4),
+                        }],
+                    },
+                ],
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("1".to_string()),
+                        }],
+                        terminator: CpsTerminator::Perform {
+                            effect: effect.clone(),
+                            payload: CpsValueId(0),
+                            resume: CpsContinuationId(1),
+                            handler: CpsHandlerId(0),
+                            blocked: None,
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(1)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(2),
+                            literal: CpsLiteral::Int("2".to_string()),
+                        }],
+                        terminator: CpsTerminator::Perform {
+                            effect: effect.clone(),
+                            payload: CpsValueId(2),
+                            resume: CpsContinuationId(3),
+                            handler: CpsHandlerId(0),
+                            blocked: None,
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: vec![CpsValueId(4), CpsValueId(5)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::ResumeWithHandler {
+                            dest: CpsValueId(6),
+                            resumption: CpsValueId(5),
+                            arg: CpsValueId(4),
+                            handler: CpsHandlerId(1),
+                            envs: Vec::new(),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(6)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(3),
+                        params: vec![CpsValueId(9)],
+                        captures: vec![CpsValueId(1)],
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Primitive {
+                            dest: CpsValueId(13),
+                            op: core_ir::PrimitiveOp::IntAdd,
+                            args: vec![CpsValueId(1), CpsValueId(9)],
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(13)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(4),
+                        params: vec![CpsValueId(7), CpsValueId(8)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(10),
+                                literal: CpsLiteral::Int("10".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(11),
+                                op: core_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(7), CpsValueId(10)],
+                            },
+                            CpsStmt::Resume {
+                                dest: CpsValueId(12),
+                                resumption: CpsValueId(8),
+                                arg: CpsValueId(11),
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(12)),
+                    },
+                ],
+            }],
+        }
+    }
+
+    fn blocked_handler_snapshot_module() -> CpsModule {
+        let start = core_ir::Path::from_name(core_ir::Name("start".to_string()));
+        let choose = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: vec![
+                    crate::cps_ir::CpsHandler {
+                        id: CpsHandlerId(0),
+                        arms: vec![
+                            crate::cps_ir::CpsHandlerArm {
+                                effect: start.clone(),
+                                entry: CpsContinuationId(2),
+                            },
+                            crate::cps_ir::CpsHandlerArm {
+                                effect: choose.clone(),
+                                entry: CpsContinuationId(5),
+                            },
+                        ],
+                    },
+                    crate::cps_ir::CpsHandler {
+                        id: CpsHandlerId(1),
+                        arms: vec![crate::cps_ir::CpsHandlerArm {
+                            effect: choose.clone(),
+                            entry: CpsContinuationId(4),
+                        }],
+                    },
+                ],
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("1".to_string()),
+                        }],
+                        terminator: CpsTerminator::Perform {
+                            effect: start,
+                            payload: CpsValueId(0),
+                            resume: CpsContinuationId(1),
+                            handler: CpsHandlerId(0),
+                            blocked: None,
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(1)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(2),
+                            literal: CpsLiteral::Int("0".to_string()),
+                        }],
+                        terminator: CpsTerminator::Perform {
+                            effect: choose.clone(),
+                            payload: CpsValueId(2),
+                            resume: CpsContinuationId(3),
+                            handler: CpsHandlerId(0),
+                            blocked: Some(CpsValueId(1)),
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: vec![CpsValueId(3), CpsValueId(4)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![
+                            CpsStmt::FreshGuard {
+                                dest: CpsValueId(5),
+                                var: yulang_runtime::EffectIdVar(0),
+                            },
+                            CpsStmt::ResumeWithHandler {
+                                dest: CpsValueId(6),
+                                resumption: CpsValueId(4),
+                                arg: CpsValueId(5),
+                                handler: CpsHandlerId(1),
+                                envs: Vec::new(),
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(6)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(3),
+                        params: vec![CpsValueId(7)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(7)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(4),
+                        params: vec![CpsValueId(8), CpsValueId(9)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(10),
+                            literal: CpsLiteral::Int("200".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(10)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(5),
+                        params: vec![CpsValueId(11), CpsValueId(12)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(13),
+                            literal: CpsLiteral::Int("100".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(13)),
                     },
                 ],
             }],

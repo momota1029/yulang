@@ -44,10 +44,20 @@ fn continuation_defs(continuation: &crate::cps_ir::CpsContinuation) -> Vec<CpsVa
         .iter()
         .map(|stmt| match stmt {
             CpsStmt::Literal { dest, .. }
+            | CpsStmt::FreshGuard { dest, .. }
+            | CpsStmt::PeekGuard { dest }
+            | CpsStmt::FindGuard { dest, .. }
+            | CpsStmt::MakeThunk { dest, .. }
+            | CpsStmt::ForceThunk { dest, .. }
+            | CpsStmt::Tuple { dest, .. }
+            | CpsStmt::Record { dest, .. }
+            | CpsStmt::Variant { dest, .. }
+            | CpsStmt::Select { dest, .. }
             | CpsStmt::Primitive { dest, .. }
             | CpsStmt::DirectCall { dest, .. }
             | CpsStmt::CloneContinuation { dest, .. }
-            | CpsStmt::Resume { dest, .. } => *dest,
+            | CpsStmt::Resume { dest, .. }
+            | CpsStmt::ResumeWithHandler { dest, .. } => *dest,
         })
         .collect()
 }
@@ -59,7 +69,34 @@ fn continuation_uses(
     let mut uses = BTreeSet::new();
     for stmt in &continuation.stmts {
         match stmt {
-            CpsStmt::Literal { .. } => {}
+            CpsStmt::Literal { .. } | CpsStmt::FreshGuard { .. } | CpsStmt::PeekGuard { .. } => {}
+            CpsStmt::FindGuard { guard, .. } => {
+                uses.insert(*guard);
+            }
+            CpsStmt::MakeThunk { entry, .. } => {
+                uses.extend(
+                    continuation_captures
+                        .get(entry)
+                        .into_iter()
+                        .flatten()
+                        .copied(),
+                );
+            }
+            CpsStmt::ForceThunk { thunk, .. } => {
+                uses.insert(*thunk);
+            }
+            CpsStmt::Tuple { items, .. } => {
+                uses.extend(items.iter().copied());
+            }
+            CpsStmt::Record { fields, .. } => {
+                uses.extend(fields.iter().map(|field| field.value));
+            }
+            CpsStmt::Variant { value, .. } => {
+                uses.extend(value.iter().copied());
+            }
+            CpsStmt::Select { base, .. } => {
+                uses.insert(*base);
+            }
             CpsStmt::Primitive { args, .. } | CpsStmt::DirectCall { args, .. } => {
                 uses.extend(args.iter().copied());
             }
@@ -71,6 +108,18 @@ fn continuation_uses(
             } => {
                 uses.insert(*resumption);
                 uses.insert(*arg);
+            }
+            CpsStmt::ResumeWithHandler {
+                resumption,
+                arg,
+                envs,
+                ..
+            } => {
+                uses.insert(*resumption);
+                uses.insert(*arg);
+                for env in envs {
+                    uses.extend(env.values.iter().copied());
+                }
             }
         }
     }
@@ -110,9 +159,13 @@ fn continuation_uses(
             );
         }
         CpsTerminator::Perform {
-            payload, resume, ..
+            payload,
+            resume,
+            blocked,
+            ..
         } => {
             uses.insert(*payload);
+            uses.extend(blocked.iter().copied());
             uses.extend(
                 continuation_captures
                     .get(resume)

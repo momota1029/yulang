@@ -145,10 +145,20 @@ fn function_defined_values(function: &CpsFunction) -> HashSet<CpsValueId> {
         for stmt in &continuation.stmts {
             match stmt {
                 CpsStmt::Literal { dest, .. }
+                | CpsStmt::FreshGuard { dest, .. }
+                | CpsStmt::PeekGuard { dest }
+                | CpsStmt::FindGuard { dest, .. }
+                | CpsStmt::MakeThunk { dest, .. }
+                | CpsStmt::ForceThunk { dest, .. }
+                | CpsStmt::Tuple { dest, .. }
+                | CpsStmt::Record { dest, .. }
+                | CpsStmt::Variant { dest, .. }
+                | CpsStmt::Select { dest, .. }
                 | CpsStmt::Primitive { dest, .. }
                 | CpsStmt::DirectCall { dest, .. }
                 | CpsStmt::CloneContinuation { dest, .. }
-                | CpsStmt::Resume { dest, .. } => {
+                | CpsStmt::Resume { dest, .. }
+                | CpsStmt::ResumeWithHandler { dest, .. } => {
                     values.insert(*dest);
                 }
             }
@@ -175,6 +185,43 @@ fn validate_continuation(
             CpsStmt::Literal { dest, .. } => {
                 values.insert(*dest);
             }
+            CpsStmt::FreshGuard { dest, .. } | CpsStmt::PeekGuard { dest } => {
+                values.insert(*dest);
+            }
+            CpsStmt::FindGuard { dest, guard } => {
+                require_value(function, &values, *guard)?;
+                values.insert(*dest);
+            }
+            CpsStmt::MakeThunk { dest, entry } => {
+                require_continuation(function, continuation_ids, *entry)?;
+                values.insert(*dest);
+            }
+            CpsStmt::ForceThunk { dest, thunk } => {
+                require_value(function, &values, *thunk)?;
+                values.insert(*dest);
+            }
+            CpsStmt::Tuple { dest, items } => {
+                for item in items {
+                    require_value(function, &values, *item)?;
+                }
+                values.insert(*dest);
+            }
+            CpsStmt::Record { dest, fields } => {
+                for field in fields {
+                    require_value(function, &values, field.value)?;
+                }
+                values.insert(*dest);
+            }
+            CpsStmt::Variant { dest, value, .. } => {
+                if let Some(value) = value {
+                    require_value(function, &values, *value)?;
+                }
+                values.insert(*dest);
+            }
+            CpsStmt::Select { dest, base, .. } => {
+                require_value(function, &values, *base)?;
+                values.insert(*dest);
+            }
             CpsStmt::Primitive { dest, args, .. } | CpsStmt::DirectCall { dest, args, .. } => {
                 for arg in args {
                     require_value(function, &values, *arg)?;
@@ -192,6 +239,22 @@ fn validate_continuation(
             } => {
                 require_value(function, &values, *resumption)?;
                 require_value(function, &values, *arg)?;
+                values.insert(*dest);
+            }
+            CpsStmt::ResumeWithHandler {
+                dest,
+                resumption,
+                arg,
+                envs,
+                ..
+            } => {
+                require_value(function, &values, *resumption)?;
+                require_value(function, &values, *arg)?;
+                for env in envs {
+                    for value in &env.values {
+                        require_value(function, &values, *value)?;
+                    }
+                }
                 values.insert(*dest);
             }
         }
@@ -233,10 +296,14 @@ fn validate_continuation(
         CpsTerminator::Perform {
             payload,
             resume,
+            blocked,
             handler,
             ..
         } => {
             require_value(function, &values, *payload)?;
+            if let Some(blocked) = blocked {
+                require_value(function, &values, *blocked)?;
+            }
             require_continuation(function, continuation_ids, *resume)?;
             require_handler(function, handler_ids, *handler)
         }

@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use cranelift_codegen::ir::{self, AbiParam, InstBuilder, types};
@@ -10,7 +11,9 @@ use cranelift_object::{ObjectBuilder, ObjectModule};
 use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
 
-use crate::cps_ir::{CpsContinuationId, CpsLiteral, CpsStmt, CpsTerminator, CpsValueId};
+use crate::cps_ir::{
+    CpsContinuationId, CpsHandlerId, CpsLiteral, CpsStmt, CpsTerminator, CpsValueId,
+};
 use crate::cps_lower::{CpsLowerError, lower_cps_module};
 use crate::cps_repr::CpsReprAbiLane;
 use crate::cps_repr_abi::{
@@ -169,6 +172,7 @@ impl CpsReprJitModule {
         self.roots
             .iter()
             .map(|root| {
+                reset_native_i64_cps_state();
                 let ptr = self.module.get_finalized_function(*root);
                 let call = unsafe { std::mem::transmute::<_, extern "C" fn() -> i64>(ptr) };
                 Ok(call())
@@ -245,6 +249,58 @@ pub fn compile_cps_repr_abi_module(
         yulang_cps_make_env_i64_4 as *const u8,
     );
     builder.symbol("yulang_cps_resume_i64", yulang_cps_resume_i64 as *const u8);
+    builder.symbol(
+        "yulang_cps_resume_with_handler_i64",
+        yulang_cps_resume_with_handler_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_select_handler_i64",
+        yulang_cps_select_handler_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_capture_handler_env_i64",
+        yulang_cps_capture_handler_env_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_selected_handler_env_or_i64",
+        yulang_cps_selected_handler_env_or_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_make_thunk_i64_0",
+        yulang_cps_make_thunk_i64_0 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_make_thunk_i64_1",
+        yulang_cps_make_thunk_i64_1 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_make_thunk_i64_2",
+        yulang_cps_make_thunk_i64_2 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_make_thunk_i64_3",
+        yulang_cps_make_thunk_i64_3 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_make_thunk_i64_4",
+        yulang_cps_make_thunk_i64_4 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_force_thunk_i64",
+        yulang_cps_force_thunk_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_fresh_guard_i64",
+        yulang_cps_fresh_guard_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_peek_guard_i64",
+        yulang_cps_peek_guard_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_find_guard_i64",
+        yulang_cps_find_guard_i64 as *const u8,
+    );
     let mut jit = JITModule::new(builder);
     let functions = declare_functions(&mut jit, module)?;
     let cranelift_ir = define_functions(&mut jit, module, &functions)?;
@@ -444,28 +500,54 @@ fn lower_effectful_function_wrapper<M: Module>(
     let mut args = vec![null_env];
     args.extend(builder.block_params(block).iter().copied());
     let call = builder.ins().call(entry, &args);
-    let results = builder.inst_results(call);
-    if results.len() != 1 {
-        return Err(CpsReprCraneliftError::InvalidReturnArity {
-            function: function.name.clone(),
-            arity: results.len(),
-        });
-    }
-    let result = results[0];
+    let result = match builder.inst_results(call) {
+        [result] => *result,
+        results => {
+            return Err(CpsReprCraneliftError::InvalidReturnArity {
+                function: function.name.clone(),
+                arity: results.len(),
+            });
+        }
+    };
+    let result = force_function_result_if_thunk(module_backend, &mut builder, function, result)?;
     builder.ins().return_(&[result]);
     builder.seal_all_blocks();
     builder.finalize();
     Ok(())
 }
 
+fn force_function_result_if_thunk<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    result: ir::Value,
+) -> CpsReprCraneliftResult<ir::Value> {
+    let entry = continuation(function, function.entry)?;
+    if entry.return_lane != CpsReprAbiLane::ThunkPtr {
+        return Ok(result);
+    }
+    let helper = declare_import(
+        module_backend,
+        builder,
+        "yulang_cps_force_thunk_i64",
+        &[types::I64],
+        types::I64,
+    )?;
+    let call = builder.ins().call(helper, &[result]);
+    Ok(builder.inst_results(call)[0])
+}
+
 fn function_has_effect_flow(function: &CpsReprAbiFunction) -> bool {
     !function.handlers.is_empty()
         || function.continuations.iter().any(|continuation| {
-            matches!(continuation.terminator, CpsTerminator::Perform { .. })
-                || continuation
-                    .stmts
-                    .iter()
-                    .any(|stmt| matches!(stmt, CpsStmt::Resume { .. }))
+            !continuation.environment.is_empty()
+                || matches!(continuation.terminator, CpsTerminator::Perform { .. })
+                || continuation.stmts.iter().any(|stmt| {
+                    matches!(
+                        stmt,
+                        CpsStmt::Resume { .. } | CpsStmt::ResumeWithHandler { .. }
+                    )
+                })
         })
 }
 
@@ -533,8 +615,24 @@ fn lower_continuation_function<M: Module>(
         builder.def_var(variable(param.value), *value);
     }
 
+    let mut defined_values = continuation
+        .environment
+        .iter()
+        .map(|slot| slot.value)
+        .chain(continuation.params.iter().map(|param| param.value))
+        .collect::<HashSet<_>>();
     for stmt in &continuation.stmts {
+        capture_handler_envs_for_stmt(
+            module_backend,
+            &mut builder,
+            function,
+            stmt,
+            &defined_values,
+        )?;
         lower_effect_stmt(module_backend, &mut builder, function, stmt, functions)?;
+        if let Some(dest) = stmt_dest(stmt) {
+            defined_values.insert(dest);
+        }
     }
     lower_effect_terminator(
         module_backend,
@@ -570,6 +668,70 @@ fn bind_environment_slots(
     Ok(())
 }
 
+fn capture_handler_envs_for_stmt<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    stmt: &CpsStmt,
+    defined_values: &HashSet<CpsValueId>,
+) -> CpsReprCraneliftResult<()> {
+    if !matches!(stmt, CpsStmt::MakeThunk { .. }) || function.handlers.is_empty() {
+        return Ok(());
+    }
+
+    for handler in &function.handlers {
+        for arm in &handler.arms {
+            let entry = continuation(function, arm.entry)?;
+            if !entry
+                .environment
+                .iter()
+                .all(|slot| defined_values.contains(&slot.value))
+            {
+                continue;
+            }
+            let env =
+                continuation_environment_argument(module_backend, builder, function, arm.entry)?;
+            let handler = builder.ins().iconst(types::I64, handler.id.0 as i64);
+            let entry = builder.ins().iconst(types::I64, arm.entry.0 as i64);
+            let _ = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_capture_handler_env_i64",
+                &[handler, entry, env],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn capture_handler_envs<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    handler: CpsHandlerId,
+    envs: &[crate::cps_ir::CpsHandlerEnv],
+) -> CpsReprCraneliftResult<()> {
+    for env in envs {
+        if env.values.len() > 4 {
+            return Err(CpsReprCraneliftError::UnsupportedStmt {
+                function: function.name.clone(),
+                kind: "handler environment larger than four slots",
+            });
+        }
+        let values = read_values(builder, function, &env.values)?;
+        let env_ptr = make_env(module_backend, builder, function, &values)?;
+        let handler = builder.ins().iconst(types::I64, handler.0 as i64);
+        let entry = builder.ins().iconst(types::I64, env.entry.0 as i64);
+        let _ = call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_capture_handler_env_i64",
+            &[handler, entry, env_ptr],
+        )?;
+    }
+    Ok(())
+}
+
 fn lower_effect_stmt<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
@@ -581,6 +743,51 @@ fn lower_effect_stmt<M: Module>(
         CpsStmt::Literal { dest, literal } => {
             let value = lower_literal(builder, function, literal)?;
             builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::FreshGuard { dest, .. } => {
+            let value =
+                call_i64_helper(module_backend, builder, "yulang_cps_fresh_guard_i64", &[])?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::PeekGuard { dest } => {
+            let value = call_i64_helper(module_backend, builder, "yulang_cps_peek_guard_i64", &[])?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::FindGuard { dest, guard } => {
+            let guard = read_value(builder, function, *guard)?;
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_find_guard_i64",
+                &[guard],
+            )?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::MakeThunk { dest, entry } => {
+            let value = make_thunk(module_backend, builder, function, *entry, functions)?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::ForceThunk { dest, thunk } => {
+            let helper = declare_import(
+                module_backend,
+                builder,
+                "yulang_cps_force_thunk_i64",
+                &[types::I64],
+                types::I64,
+            )?;
+            let thunk = read_value(builder, function, *thunk)?;
+            let call = builder.ins().call(helper, &[thunk]);
+            let results = builder.inst_results(call);
+            builder.def_var(variable(*dest), results[0]);
+        }
+        CpsStmt::Tuple { .. }
+        | CpsStmt::Record { .. }
+        | CpsStmt::Variant { .. }
+        | CpsStmt::Select { .. } => {
+            return Err(CpsReprCraneliftError::UnsupportedStmt {
+                function: function.name.clone(),
+                kind: "structural value",
+            });
         }
         CpsStmt::Primitive { dest, op, args } => {
             let args = read_values(builder, function, args)?;
@@ -627,8 +834,50 @@ fn lower_effect_stmt<M: Module>(
             let results = builder.inst_results(call);
             builder.def_var(variable(*dest), results[0]);
         }
+        CpsStmt::ResumeWithHandler {
+            dest,
+            resumption,
+            arg,
+            handler,
+            envs,
+        } => {
+            capture_handler_envs(module_backend, builder, function, *handler, envs)?;
+            let helper = declare_import(
+                module_backend,
+                builder,
+                "yulang_cps_resume_with_handler_i64",
+                &[types::I64, types::I64, types::I64],
+                types::I64,
+            )?;
+            let resumption = read_value(builder, function, *resumption)?;
+            let arg = read_value(builder, function, *arg)?;
+            let handler = builder.ins().iconst(types::I64, handler.0 as i64);
+            let call = builder.ins().call(helper, &[resumption, arg, handler]);
+            let results = builder.inst_results(call);
+            builder.def_var(variable(*dest), results[0]);
+        }
     }
     Ok(())
+}
+
+fn stmt_dest(stmt: &CpsStmt) -> Option<CpsValueId> {
+    match stmt {
+        CpsStmt::Literal { dest, .. }
+        | CpsStmt::Primitive { dest, .. }
+        | CpsStmt::Tuple { dest, .. }
+        | CpsStmt::Record { dest, .. }
+        | CpsStmt::Variant { dest, .. }
+        | CpsStmt::Select { dest, .. }
+        | CpsStmt::DirectCall { dest, .. }
+        | CpsStmt::CloneContinuation { dest, .. }
+        | CpsStmt::MakeThunk { dest, .. }
+        | CpsStmt::ForceThunk { dest, .. }
+        | CpsStmt::Resume { dest, .. }
+        | CpsStmt::ResumeWithHandler { dest, .. }
+        | CpsStmt::FreshGuard { dest, .. }
+        | CpsStmt::PeekGuard { dest }
+        | CpsStmt::FindGuard { dest, .. } => Some(*dest),
+    }
 }
 
 fn lower_effect_terminator<M: Module>(
@@ -668,38 +917,41 @@ fn lower_effect_terminator<M: Module>(
             payload,
             resume,
             handler,
+            blocked,
         } => {
-            let handler_entry = function
-                .handlers
-                .iter()
-                .find(|candidate| candidate.id == *handler)
-                .and_then(|handler| {
-                    handler
-                        .arms
-                        .iter()
-                        .find(|arm| effect_matches(&arm.effect, effect))
-                        .map(|arm| arm.entry)
-                })
-                .ok_or_else(|| CpsReprCraneliftError::UnsupportedTerminator {
-                    function: function.name.clone(),
-                    kind: "perform without handler entry",
-                })?;
-            let resumption =
-                make_resumption(module_backend, builder, function, *resume, functions)?;
+            let candidates = handler_candidates_for_effect(function, effect)?;
+            let allowed_mask = handler_mask(function, &candidates)?;
+            let resumption = make_resumption(
+                module_backend,
+                builder,
+                function,
+                *resume,
+                *handler,
+                functions,
+            )?;
             let payload = read_value(builder, function, *payload)?;
-            let callee =
-                continuation_func_ref(module_backend, builder, function, handler_entry, functions)?;
-            let null_env = builder.ins().iconst(types::I64, 0);
-            let call = builder.ins().call(callee, &[null_env, payload, resumption]);
-            let results = builder.inst_results(call);
-            if results.len() != 1 {
-                return Err(CpsReprCraneliftError::InvalidReturnArity {
-                    function: function.name.clone(),
-                    arity: results.len(),
-                });
-            }
-            let result = results[0];
-            builder.ins().return_(&[result]);
+            let fallback = builder.ins().iconst(types::I64, handler.0 as i64);
+            let allowed_mask = builder.ins().iconst(types::I64, allowed_mask);
+            let blocked = blocked
+                .map(|blocked| read_value(builder, function, blocked))
+                .transpose()?
+                .unwrap_or_else(|| builder.ins().iconst(types::I64, -1));
+            let selected = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_select_handler_i64",
+                &[fallback, allowed_mask, blocked],
+            )?;
+            lower_selected_handler_return(
+                module_backend,
+                builder,
+                function,
+                &candidates,
+                selected,
+                payload,
+                resumption,
+                functions,
+            )?;
         }
     }
     Ok(())
@@ -719,7 +971,9 @@ fn lower_effect_branch<M: Module>(
     let merge_block = builder.create_block();
     builder.append_block_param(merge_block, types::I64);
 
-    let cond = read_value(builder, function, cond)?;
+    let cond_id = cond;
+    let cond = read_value(builder, function, cond_id)?;
+    let cond = force_branch_condition_if_thunk(module_backend, builder, function, cond_id, cond)?;
     let cond = builder
         .ins()
         .icmp_imm(ir::condcodes::IntCC::NotEqual, cond, 0);
@@ -743,6 +997,91 @@ fn lower_effect_branch<M: Module>(
     let result = builder.block_params(merge_block)[0];
     builder.ins().return_(&[result]);
     Ok(())
+}
+
+fn lower_selected_handler_return<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    candidates: &[(CpsHandlerId, CpsContinuationId)],
+    selected: ir::Value,
+    payload: ir::Value,
+    resumption: ir::Value,
+    functions: &DeclaredFunctions,
+) -> CpsReprCraneliftResult<()> {
+    let missing_block = builder.create_block();
+
+    for (index, (handler_id, handler_entry)) in candidates.iter().enumerate() {
+        let call_block = builder.create_block();
+        let next_block = if index + 1 == candidates.len() {
+            missing_block
+        } else {
+            builder.create_block()
+        };
+        let compare =
+            builder
+                .ins()
+                .icmp_imm(ir::condcodes::IntCC::Equal, selected, handler_id.0 as i64);
+        builder
+            .ins()
+            .brif(compare, call_block, &[], next_block, &[]);
+
+        builder.switch_to_block(call_block);
+        let callee =
+            continuation_func_ref(module_backend, builder, function, *handler_entry, functions)?;
+        let fallback_env =
+            continuation_environment_argument(module_backend, builder, function, *handler_entry)?;
+        let entry = builder.ins().iconst(types::I64, handler_entry.0 as i64);
+        let handler_env = call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_selected_handler_env_or_i64",
+            &[entry, fallback_env],
+        )?;
+        let call = builder
+            .ins()
+            .call(callee, &[handler_env, payload, resumption]);
+        let results = builder.inst_results(call);
+        if results.len() != 1 {
+            return Err(CpsReprCraneliftError::InvalidReturnArity {
+                function: function.name.clone(),
+                arity: results.len(),
+            });
+        }
+        let result = results[0];
+        builder.ins().return_(&[result]);
+
+        builder.switch_to_block(next_block);
+    }
+
+    builder.switch_to_block(missing_block);
+    let value = builder.ins().iconst(types::I64, 0);
+    builder.ins().return_(&[value]);
+    builder.seal_block(missing_block);
+    Ok(())
+}
+
+fn force_branch_condition_if_thunk<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    cond_id: CpsValueId,
+    cond: ir::Value,
+) -> CpsReprCraneliftResult<ir::Value> {
+    if value_lane(function, cond_id) != Some(CpsReprAbiLane::ThunkPtr)
+        && !value_is_make_thunk(function, cond_id)
+    {
+        return Ok(cond);
+    }
+    let helper = declare_import(
+        module_backend,
+        builder,
+        "yulang_cps_force_thunk_i64",
+        &[types::I64],
+        types::I64,
+    )?;
+    let call = builder.ins().call(helper, &[cond]);
+    Ok(builder.inst_results(call)[0])
 }
 
 fn call_continuation<M: Module>(
@@ -797,6 +1136,7 @@ fn make_resumption<M: Module>(
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     resume: CpsContinuationId,
+    handler: CpsHandlerId,
     functions: &DeclaredFunctions,
 ) -> CpsReprCraneliftResult<ir::Value> {
     let resume_continuation = continuation(function, resume)?;
@@ -815,7 +1155,8 @@ fn make_resumption<M: Module>(
 
     let func_ref = continuation_func_ref(module_backend, builder, function, resume, functions)?;
     let code = builder.ins().func_addr(types::I64, func_ref);
-    let mut args = vec![code];
+    let handler = builder.ins().iconst(types::I64, handler.0 as i64);
+    let mut args = vec![code, handler];
     for slot in &resume_continuation.environment {
         validate_environment_lane(function, slot.value, slot.lane)?;
         args.push(read_value(builder, function, slot.value)?);
@@ -833,6 +1174,61 @@ fn make_resumption<M: Module>(
     let call = builder.ins().call(helper, &args);
     let results = builder.inst_results(call);
     Ok(results[0])
+}
+
+fn make_thunk<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    entry: CpsContinuationId,
+    functions: &DeclaredFunctions,
+) -> CpsReprCraneliftResult<ir::Value> {
+    let thunk_continuation = continuation(function, entry)?;
+    if !thunk_continuation.params.is_empty() {
+        return Err(CpsReprCraneliftError::UnsupportedStmt {
+            function: function.name.clone(),
+            kind: "thunk entry arity",
+        });
+    }
+    if thunk_continuation.environment.len() > 4 {
+        return Err(CpsReprCraneliftError::UnsupportedStmt {
+            function: function.name.clone(),
+            kind: "thunk environment larger than four slots",
+        });
+    }
+
+    let func_ref = continuation_func_ref(module_backend, builder, function, entry, functions)?;
+    let code = builder.ins().func_addr(types::I64, func_ref);
+    let mut args = vec![code];
+    for slot in &thunk_continuation.environment {
+        validate_environment_lane(function, slot.value, slot.lane)?;
+        args.push(read_value(builder, function, slot.value)?);
+    }
+    let helper_name = match thunk_continuation.environment.len() {
+        0 => "yulang_cps_make_thunk_i64_0",
+        1 => "yulang_cps_make_thunk_i64_1",
+        2 => "yulang_cps_make_thunk_i64_2",
+        3 => "yulang_cps_make_thunk_i64_3",
+        4 => "yulang_cps_make_thunk_i64_4",
+        _ => unreachable!("environment length checked above"),
+    };
+    let params = vec![types::I64; args.len()];
+    let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
+    let call = builder.ins().call(helper, &args);
+    let results = builder.inst_results(call);
+    Ok(results[0])
+}
+
+fn call_i64_helper<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    name: &str,
+    args: &[ir::Value],
+) -> CpsReprCraneliftResult<ir::Value> {
+    let params = vec![types::I64; args.len()];
+    let helper = declare_import(module_backend, builder, name, &params, types::I64)?;
+    let call = builder.ins().call(helper, args);
+    Ok(builder.inst_results(call)[0])
 }
 
 fn make_env<M: Module>(
@@ -1018,6 +1414,51 @@ fn lower_stmt<M: Module>(
             let value = lower_literal(builder, function, literal)?;
             builder.def_var(variable(*dest), value);
         }
+        CpsStmt::FreshGuard { dest, .. } => {
+            let value =
+                call_i64_helper(module_backend, builder, "yulang_cps_fresh_guard_i64", &[])?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::PeekGuard { dest } => {
+            let value = call_i64_helper(module_backend, builder, "yulang_cps_peek_guard_i64", &[])?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::FindGuard { dest, guard } => {
+            let guard = read_value(builder, function, *guard)?;
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_find_guard_i64",
+                &[guard],
+            )?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::MakeThunk { dest, entry } => {
+            let value = make_thunk(module_backend, builder, function, *entry, functions)?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::ForceThunk { dest, thunk } => {
+            let helper = declare_import(
+                module_backend,
+                builder,
+                "yulang_cps_force_thunk_i64",
+                &[types::I64],
+                types::I64,
+            )?;
+            let thunk = read_value(builder, function, *thunk)?;
+            let call = builder.ins().call(helper, &[thunk]);
+            let results = builder.inst_results(call);
+            builder.def_var(variable(*dest), results[0]);
+        }
+        CpsStmt::Tuple { .. }
+        | CpsStmt::Record { .. }
+        | CpsStmt::Variant { .. }
+        | CpsStmt::Select { .. } => {
+            return Err(CpsReprCraneliftError::UnsupportedStmt {
+                function: function.name.clone(),
+                kind: "structural value",
+            });
+        }
         CpsStmt::Primitive { dest, op, args } => {
             let args = read_values(builder, function, args)?;
             let value = lower_primitive(builder, function, *op, &args)?;
@@ -1045,7 +1486,7 @@ fn lower_stmt<M: Module>(
             let source = read_value(builder, function, *source)?;
             builder.def_var(variable(*dest), source);
         }
-        CpsStmt::Resume { .. } => {
+        CpsStmt::Resume { .. } | CpsStmt::ResumeWithHandler { .. } => {
             return Err(CpsReprCraneliftError::UnsupportedStmt {
                 function: function.name.clone(),
                 kind: "resume",
@@ -1100,6 +1541,47 @@ fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
             && actual.segments.len() == expected.segments.len() + 1
             && actual.segments.starts_with(&expected.segments))
         || (expected.segments.len() == 1 && actual.segments.last() == expected.segments.first())
+}
+
+fn handler_candidates_for_effect(
+    function: &CpsReprAbiFunction,
+    effect: &core_ir::Path,
+) -> CpsReprCraneliftResult<Vec<(CpsHandlerId, CpsContinuationId)>> {
+    let mut candidates = Vec::new();
+    for handler in &function.handlers {
+        if let Some(arm) = handler
+            .arms
+            .iter()
+            .find(|arm| effect_matches(&arm.effect, effect))
+        {
+            candidates.push((handler.id, arm.entry));
+        }
+    }
+    if candidates.is_empty() {
+        Err(CpsReprCraneliftError::UnsupportedTerminator {
+            function: function.name.clone(),
+            kind: "perform without handler entry",
+        })
+    } else {
+        Ok(candidates)
+    }
+}
+
+fn handler_mask(
+    function: &CpsReprAbiFunction,
+    candidates: &[(CpsHandlerId, CpsContinuationId)],
+) -> CpsReprCraneliftResult<i64> {
+    let mut mask = 0_i64;
+    for (handler, _) in candidates {
+        if handler.0 >= 62 {
+            return Err(CpsReprCraneliftError::UnsupportedFunction {
+                function: function.name.clone(),
+                reason: "handler id outside scalar handler mask",
+            });
+        }
+        mask |= 1_i64 << handler.0;
+    }
+    Ok(mask)
 }
 
 fn lower_literal(
@@ -1185,58 +1667,108 @@ fn int_cmp(
 }
 
 fn validate_scalar_subset(module: &CpsReprAbiModule) -> CpsReprCraneliftResult<()> {
-    for function in module.functions.iter().chain(&module.roots) {
-        let has_effect_flow = function_has_effect_flow(function);
-        for param in &function.params {
+    for function in &module.functions {
+        validate_scalar_function(function, false)?;
+    }
+    for function in &module.roots {
+        validate_scalar_function(function, true)?;
+    }
+    Ok(())
+}
+
+fn validate_scalar_function(
+    function: &CpsReprAbiFunction,
+    require_scalar_entry_return: bool,
+) -> CpsReprCraneliftResult<()> {
+    let has_effect_flow = function_has_effect_flow(function);
+    for param in &function.params {
+        validate_value_lane(function, param)?;
+    }
+    for continuation in &function.continuations {
+        if !has_effect_flow && !continuation.environment.is_empty() {
+            return Err(CpsReprCraneliftError::UnsupportedFunction {
+                function: function.name.clone(),
+                reason: "continuation environment",
+            });
+        }
+        if has_effect_flow && continuation.environment.len() > 4 {
+            return Err(CpsReprCraneliftError::UnsupportedFunction {
+                function: function.name.clone(),
+                reason: "continuation environment larger than four slots",
+            });
+        }
+        for slot in &continuation.environment {
+            validate_environment_lane(function, slot.value, slot.lane)?;
+        }
+        for param in &continuation.params {
             validate_value_lane(function, param)?;
         }
-        for continuation in &function.continuations {
-            if !has_effect_flow && !continuation.environment.is_empty() {
-                return Err(CpsReprCraneliftError::UnsupportedFunction {
-                    function: function.name.clone(),
-                    reason: "continuation environment",
-                });
-            }
-            if has_effect_flow && continuation.environment.len() > 4 {
-                return Err(CpsReprCraneliftError::UnsupportedFunction {
-                    function: function.name.clone(),
-                    reason: "continuation environment larger than four slots",
-                });
-            }
-            for slot in &continuation.environment {
-                validate_environment_lane(function, slot.value, slot.lane)?;
-            }
-            for param in &continuation.params {
-                validate_value_lane(function, param)?;
-            }
-            for stmt in &continuation.stmts {
-                match stmt {
-                    CpsStmt::Literal { literal, .. } => match literal {
-                        CpsLiteral::Int(_) | CpsLiteral::Bool(_) | CpsLiteral::Unit => {}
-                        CpsLiteral::Float(_) | CpsLiteral::String(_) => {
-                            return Err(CpsReprCraneliftError::UnsupportedLiteral {
-                                function: function.name.clone(),
-                                literal: literal.clone(),
-                            });
-                        }
-                    },
-                    CpsStmt::Primitive { op, .. } => validate_primitive(function, *op)?,
-                    CpsStmt::DirectCall { .. } | CpsStmt::CloneContinuation { .. } => {}
-                    CpsStmt::Resume { .. } if has_effect_flow => {}
-                    CpsStmt::Resume { .. } => {
-                        return Err(CpsReprCraneliftError::UnsupportedStmt {
+        for stmt in &continuation.stmts {
+            match stmt {
+                CpsStmt::Literal { literal, .. } => match literal {
+                    CpsLiteral::Int(_) | CpsLiteral::Bool(_) | CpsLiteral::Unit => {}
+                    CpsLiteral::Float(_) | CpsLiteral::String(_) => {
+                        return Err(CpsReprCraneliftError::UnsupportedLiteral {
                             function: function.name.clone(),
-                            kind: "resume",
+                            literal: literal.clone(),
                         });
                     }
+                },
+                CpsStmt::FreshGuard { .. }
+                | CpsStmt::PeekGuard { .. }
+                | CpsStmt::FindGuard { .. } => {}
+                CpsStmt::MakeThunk { .. } | CpsStmt::ForceThunk { .. } => {}
+                CpsStmt::Primitive { op, .. } => validate_primitive(function, *op)?,
+                CpsStmt::Tuple { .. }
+                | CpsStmt::Record { .. }
+                | CpsStmt::Variant { .. }
+                | CpsStmt::Select { .. } => {
+                    return Err(CpsReprCraneliftError::UnsupportedStmt {
+                        function: function.name.clone(),
+                        kind: "structural value",
+                    });
+                }
+                CpsStmt::DirectCall { .. } | CpsStmt::CloneContinuation { .. } => {}
+                CpsStmt::Resume { .. } if has_effect_flow => {}
+                CpsStmt::ResumeWithHandler { .. } if has_effect_flow => {}
+                CpsStmt::ResumeWithHandler { .. } => {
+                    return Err(CpsReprCraneliftError::UnsupportedStmt {
+                        function: function.name.clone(),
+                        kind: "resume with dynamic handler",
+                    });
+                }
+                CpsStmt::Resume { .. } => {
+                    return Err(CpsReprCraneliftError::UnsupportedStmt {
+                        function: function.name.clone(),
+                        kind: "resume",
+                    });
                 }
             }
-            if continuation.return_lane != CpsReprAbiLane::ScalarI64 {
-                return Err(CpsReprCraneliftError::UnsupportedReturnLane {
-                    function: function.name.clone(),
-                    continuation: continuation.id,
-                    lane: continuation.return_lane,
-                });
+        }
+        if require_scalar_entry_return
+            && continuation.id == function.entry
+            && continuation.return_lane != CpsReprAbiLane::ScalarI64
+            && continuation.return_lane != CpsReprAbiLane::ThunkPtr
+        {
+            return Err(CpsReprCraneliftError::UnsupportedReturnLane {
+                function: function.name.clone(),
+                continuation: continuation.id,
+                lane: continuation.return_lane,
+            });
+        }
+        if continuation.return_lane != CpsReprAbiLane::ScalarI64 {
+            match continuation.return_lane {
+                CpsReprAbiLane::RuntimeValuePtr
+                | CpsReprAbiLane::ThunkPtr
+                | CpsReprAbiLane::ResumptionPtr
+                | CpsReprAbiLane::Unknown => {}
+                lane => {
+                    return Err(CpsReprCraneliftError::UnsupportedReturnLane {
+                        function: function.name.clone(),
+                        continuation: continuation.id,
+                        lane,
+                    });
+                }
             }
         }
     }
@@ -1248,9 +1780,11 @@ fn validate_value_lane(
     value: &CpsReprAbiValue,
 ) -> CpsReprCraneliftResult<()> {
     match value.lane {
-        CpsReprAbiLane::ScalarI64 | CpsReprAbiLane::ResumptionPtr | CpsReprAbiLane::Unknown => {
-            Ok(())
-        }
+        CpsReprAbiLane::ScalarI64
+        | CpsReprAbiLane::RuntimeValuePtr
+        | CpsReprAbiLane::ThunkPtr
+        | CpsReprAbiLane::ResumptionPtr
+        | CpsReprAbiLane::Unknown => Ok(()),
         lane => Err(CpsReprCraneliftError::UnsupportedLane {
             function: function.name.clone(),
             value: value.value,
@@ -1265,9 +1799,11 @@ fn validate_environment_lane(
     lane: CpsReprAbiLane,
 ) -> CpsReprCraneliftResult<()> {
     match lane {
-        CpsReprAbiLane::ScalarI64 | CpsReprAbiLane::ResumptionPtr | CpsReprAbiLane::Unknown => {
-            Ok(())
-        }
+        CpsReprAbiLane::ScalarI64
+        | CpsReprAbiLane::RuntimeValuePtr
+        | CpsReprAbiLane::ThunkPtr
+        | CpsReprAbiLane::ResumptionPtr
+        | CpsReprAbiLane::Unknown => Ok(()),
         lane => Err(CpsReprCraneliftError::UnsupportedLane {
             function: function.name.clone(),
             value,
@@ -1361,16 +1897,56 @@ fn function_value_ids(function: &CpsReprAbiFunction) -> Vec<CpsValueId> {
         for stmt in &continuation.stmts {
             match stmt {
                 CpsStmt::Literal { dest, .. }
+                | CpsStmt::FreshGuard { dest, .. }
+                | CpsStmt::PeekGuard { dest }
+                | CpsStmt::FindGuard { dest, .. }
+                | CpsStmt::MakeThunk { dest, .. }
+                | CpsStmt::ForceThunk { dest, .. }
+                | CpsStmt::Tuple { dest, .. }
+                | CpsStmt::Record { dest, .. }
+                | CpsStmt::Variant { dest, .. }
+                | CpsStmt::Select { dest, .. }
                 | CpsStmt::Primitive { dest, .. }
                 | CpsStmt::DirectCall { dest, .. }
                 | CpsStmt::CloneContinuation { dest, .. }
-                | CpsStmt::Resume { dest, .. } => values.push(*dest),
+                | CpsStmt::Resume { dest, .. }
+                | CpsStmt::ResumeWithHandler { dest, .. } => values.push(*dest),
             }
         }
     }
     values.sort();
     values.dedup();
     values
+}
+
+fn value_is_make_thunk(function: &CpsReprAbiFunction, value: CpsValueId) -> bool {
+    function.continuations.iter().any(|continuation| {
+        continuation
+            .stmts
+            .iter()
+            .any(|stmt| matches!(stmt, CpsStmt::MakeThunk { dest, .. } if *dest == value))
+    })
+}
+
+fn value_lane(function: &CpsReprAbiFunction, value: CpsValueId) -> Option<CpsReprAbiLane> {
+    for param in &function.params {
+        if param.value == value {
+            return Some(param.lane);
+        }
+    }
+    for continuation in &function.continuations {
+        for param in &continuation.params {
+            if param.value == value {
+                return Some(param.lane);
+            }
+        }
+        for slot in &continuation.environment {
+            if slot.value == value {
+                return Some(slot.lane);
+            }
+        }
+    }
+    None
 }
 
 fn variable(value: CpsValueId) -> Variable {
@@ -1382,58 +1958,200 @@ fn cranelift_error(error: impl fmt::Display) -> CpsReprCraneliftError {
 }
 
 type NativeCpsI64Continuation = extern "C" fn(*const i64, i64) -> i64;
+type NativeCpsI64ThunkEntry = extern "C" fn(*const i64) -> i64;
 
 #[repr(C)]
 struct NativeCpsI64Resumption {
     code: NativeCpsI64Continuation,
     env: Box<[i64]>,
+    handlers: Box<[NativeCpsI64HandlerFrame]>,
+    guard_stack: Box<[i64]>,
 }
 
-fn make_native_i64_resumption(code: usize, env: Vec<i64>) -> *mut NativeCpsI64Resumption {
+#[repr(C)]
+struct NativeCpsI64Thunk {
+    code: NativeCpsI64ThunkEntry,
+    env: Box<[i64]>,
+    handlers: Box<[NativeCpsI64HandlerFrame]>,
+    guard_stack: Box<[i64]>,
+}
+
+#[derive(Clone)]
+struct NativeCpsI64HandlerFrame {
+    handler: i64,
+    guard_stack: Box<[i64]>,
+    envs: Vec<NativeCpsI64HandlerEnv>,
+}
+
+#[derive(Clone)]
+struct NativeCpsI64HandlerEnv {
+    entry: i64,
+    env: i64,
+}
+
+thread_local! {
+    static NATIVE_CPS_I64_THUNKS: RefCell<HashSet<usize>> = RefCell::new(HashSet::new());
+    static NATIVE_CPS_I64_HANDLER_STACK: RefCell<Vec<NativeCpsI64HandlerFrame>> = const { RefCell::new(Vec::new()) };
+    static NATIVE_CPS_I64_GUARD_STACK: RefCell<Vec<i64>> = const { RefCell::new(Vec::new()) };
+    static NATIVE_CPS_I64_NEXT_GUARD: RefCell<i64> = const { RefCell::new(0) };
+    static NATIVE_CPS_I64_PENDING_HANDLER_ENVS: RefCell<Vec<(i64, NativeCpsI64HandlerEnv)>> = const { RefCell::new(Vec::new()) };
+    static NATIVE_CPS_I64_SELECTED_HANDLER_ENVS: RefCell<Vec<NativeCpsI64HandlerEnv>> = const { RefCell::new(Vec::new()) };
+}
+
+fn reset_native_i64_cps_state() {
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow_mut().clear());
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow_mut().clear());
+    NATIVE_CPS_I64_NEXT_GUARD.with(|next| *next.borrow_mut() = 0);
+    NATIVE_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
+    NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
+}
+
+fn current_native_i64_guard_stack() -> Vec<i64> {
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().clone())
+}
+
+fn current_native_i64_handler_stack_with_fallback(fallback: i64) -> Vec<NativeCpsI64HandlerFrame> {
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+        let stack = stack.borrow();
+        if stack.is_empty() {
+            vec![NativeCpsI64HandlerFrame {
+                handler: fallback,
+                guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
+                envs: Vec::new(),
+            }]
+        } else {
+            stack.clone()
+        }
+    })
+}
+
+fn take_pending_native_i64_handler_frames() -> Vec<NativeCpsI64HandlerFrame> {
+    let pending =
+        NATIVE_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| std::mem::take(&mut *envs.borrow_mut()));
+    let mut frames: Vec<NativeCpsI64HandlerFrame> = Vec::new();
+    for (handler, env) in pending {
+        if let Some(frame) = frames.iter_mut().find(|frame| frame.handler == handler) {
+            frame.envs.push(env);
+        } else {
+            frames.push(NativeCpsI64HandlerFrame {
+                handler,
+                guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
+                envs: vec![env],
+            });
+        }
+    }
+    frames
+}
+
+fn take_pending_native_i64_handler_envs(handler: i64) -> Vec<NativeCpsI64HandlerEnv> {
+    NATIVE_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| {
+        let mut envs = envs.borrow_mut();
+        let mut selected = Vec::new();
+        let mut index = 0;
+        while index < envs.len() {
+            if envs[index].0 == handler {
+                selected.push(envs.remove(index).1);
+            } else {
+                index += 1;
+            }
+        }
+        selected
+    })
+}
+
+fn with_native_i64_cps_state<T>(
+    handlers: Vec<NativeCpsI64HandlerFrame>,
+    guard_stack: Vec<i64>,
+    run: impl FnOnce() -> T,
+) -> T {
+    let previous_handlers = NATIVE_CPS_I64_HANDLER_STACK
+        .with(|stack| std::mem::replace(&mut *stack.borrow_mut(), handlers));
+    let previous_guards = NATIVE_CPS_I64_GUARD_STACK
+        .with(|stack| std::mem::replace(&mut *stack.borrow_mut(), guard_stack));
+    let result = run();
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = previous_handlers);
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = previous_guards);
+    result
+}
+
+fn make_native_i64_resumption(
+    code: usize,
+    fallback_handler: i64,
+    env: Vec<i64>,
+) -> *mut NativeCpsI64Resumption {
     let code = unsafe { std::mem::transmute::<usize, NativeCpsI64Continuation>(code) };
     Box::into_raw(Box::new(NativeCpsI64Resumption {
         code,
         env: env.into_boxed_slice(),
+        handlers: current_native_i64_handler_stack_with_fallback(fallback_handler)
+            .into_boxed_slice(),
+        guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
     }))
+}
+
+fn make_native_i64_thunk(code: usize, env: Vec<i64>) -> usize {
+    let code = unsafe { std::mem::transmute::<usize, NativeCpsI64ThunkEntry>(code) };
+    let mut handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
+    handlers.extend(take_pending_native_i64_handler_frames());
+    let ptr = Box::into_raw(Box::new(NativeCpsI64Thunk {
+        code,
+        env: env.into_boxed_slice(),
+        handlers: handlers.into_boxed_slice(),
+        guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
+    })) as usize;
+    NATIVE_CPS_I64_THUNKS.with(|thunks| {
+        thunks.borrow_mut().insert(ptr);
+    });
+    ptr
 }
 
 fn make_native_i64_env(env: Vec<i64>) -> *const i64 {
     Box::leak(env.into_boxed_slice()).as_ptr()
 }
 
-extern "C" fn yulang_cps_make_resumption_i64_0(code: usize) -> *mut NativeCpsI64Resumption {
-    make_native_i64_resumption(code, Vec::new())
+extern "C" fn yulang_cps_make_resumption_i64_0(
+    code: usize,
+    handler: i64,
+) -> *mut NativeCpsI64Resumption {
+    make_native_i64_resumption(code, handler, Vec::new())
 }
 
-extern "C" fn yulang_cps_make_resumption_i64_1(code: usize, a: i64) -> *mut NativeCpsI64Resumption {
-    make_native_i64_resumption(code, vec![a])
+extern "C" fn yulang_cps_make_resumption_i64_1(
+    code: usize,
+    handler: i64,
+    a: i64,
+) -> *mut NativeCpsI64Resumption {
+    make_native_i64_resumption(code, handler, vec![a])
 }
 
 extern "C" fn yulang_cps_make_resumption_i64_2(
     code: usize,
+    handler: i64,
     a: i64,
     b: i64,
 ) -> *mut NativeCpsI64Resumption {
-    make_native_i64_resumption(code, vec![a, b])
+    make_native_i64_resumption(code, handler, vec![a, b])
 }
 
 extern "C" fn yulang_cps_make_resumption_i64_3(
     code: usize,
+    handler: i64,
     a: i64,
     b: i64,
     c: i64,
 ) -> *mut NativeCpsI64Resumption {
-    make_native_i64_resumption(code, vec![a, b, c])
+    make_native_i64_resumption(code, handler, vec![a, b, c])
 }
 
 extern "C" fn yulang_cps_make_resumption_i64_4(
     code: usize,
+    handler: i64,
     a: i64,
     b: i64,
     c: i64,
     d: i64,
 ) -> *mut NativeCpsI64Resumption {
-    make_native_i64_resumption(code, vec![a, b, c, d])
+    make_native_i64_resumption(code, handler, vec![a, b, c, d])
 }
 
 extern "C" fn yulang_cps_make_env_i64_0() -> *const i64 {
@@ -1458,7 +2176,128 @@ extern "C" fn yulang_cps_make_env_i64_4(a: i64, b: i64, c: i64, d: i64) -> *cons
 
 extern "C" fn yulang_cps_resume_i64(resumption: *const NativeCpsI64Resumption, arg: i64) -> i64 {
     let resumption = unsafe { &*resumption };
-    (resumption.code)(resumption.env.as_ptr(), arg)
+    with_native_i64_cps_state(
+        resumption.handlers.to_vec(),
+        resumption.guard_stack.to_vec(),
+        || (resumption.code)(resumption.env.as_ptr(), arg),
+    )
+}
+
+extern "C" fn yulang_cps_resume_with_handler_i64(
+    resumption: *const NativeCpsI64Resumption,
+    arg: i64,
+    handler: i64,
+) -> i64 {
+    let resumption = unsafe { &*resumption };
+    let mut handlers = resumption.handlers.to_vec();
+    handlers.push(NativeCpsI64HandlerFrame {
+        handler,
+        guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
+        envs: take_pending_native_i64_handler_envs(handler),
+    });
+    with_native_i64_cps_state(handlers, resumption.guard_stack.to_vec(), || {
+        (resumption.code)(resumption.env.as_ptr(), arg)
+    })
+}
+
+extern "C" fn yulang_cps_select_handler_i64(
+    fallback_handler: i64,
+    allowed_mask: i64,
+    blocked: i64,
+) -> i64 {
+    let stack = current_native_i64_handler_stack_with_fallback(fallback_handler);
+    for (index, frame) in stack.iter().enumerate().rev() {
+        let allowed = (allowed_mask & (1_i64 << frame.handler)) != 0;
+        if !allowed {
+            continue;
+        }
+        if blocked >= 0 && frame.guard_stack.contains(&blocked) {
+            continue;
+        }
+        NATIVE_CPS_I64_HANDLER_STACK.with(|active| {
+            *active.borrow_mut() = stack[..index].to_vec();
+        });
+        NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| {
+            *envs.borrow_mut() = frame.envs.to_vec();
+        });
+        return frame.handler;
+    }
+    NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
+    -1
+}
+
+extern "C" fn yulang_cps_capture_handler_env_i64(handler: i64, entry: i64, env: i64) -> i64 {
+    NATIVE_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| {
+        envs.borrow_mut()
+            .push((handler, NativeCpsI64HandlerEnv { entry, env }));
+    });
+    0
+}
+
+extern "C" fn yulang_cps_selected_handler_env_or_i64(entry: i64, fallback: i64) -> i64 {
+    NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| {
+        envs.borrow()
+            .iter()
+            .find(|env| env.entry == entry)
+            .map(|env| env.env)
+            .unwrap_or(fallback)
+    })
+}
+
+extern "C" fn yulang_cps_make_thunk_i64_0(code: usize) -> usize {
+    make_native_i64_thunk(code, Vec::new())
+}
+
+extern "C" fn yulang_cps_make_thunk_i64_1(code: usize, a: i64) -> usize {
+    make_native_i64_thunk(code, vec![a])
+}
+
+extern "C" fn yulang_cps_make_thunk_i64_2(code: usize, a: i64, b: i64) -> usize {
+    make_native_i64_thunk(code, vec![a, b])
+}
+
+extern "C" fn yulang_cps_make_thunk_i64_3(code: usize, a: i64, b: i64, c: i64) -> usize {
+    make_native_i64_thunk(code, vec![a, b, c])
+}
+
+extern "C" fn yulang_cps_make_thunk_i64_4(code: usize, a: i64, b: i64, c: i64, d: i64) -> usize {
+    make_native_i64_thunk(code, vec![a, b, c, d])
+}
+
+extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
+    let mut value = value;
+    loop {
+        let is_thunk = NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&value));
+        if !is_thunk {
+            return value as i64;
+        }
+        let thunk = unsafe { &*(value as *const NativeCpsI64Thunk) };
+        value =
+            with_native_i64_cps_state(thunk.handlers.to_vec(), thunk.guard_stack.to_vec(), || {
+                (thunk.code)(thunk.env.as_ptr())
+            }) as usize;
+    }
+}
+
+extern "C" fn yulang_cps_fresh_guard_i64() -> i64 {
+    let id = NATIVE_CPS_I64_NEXT_GUARD.with(|next| {
+        let mut next = next.borrow_mut();
+        let id = *next;
+        *next += 1;
+        id
+    });
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| {
+        stack.borrow_mut().push(id);
+    });
+    id
+}
+
+extern "C" fn yulang_cps_peek_guard_i64() -> i64 {
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().last().copied().unwrap_or(0))
+}
+
+extern "C" fn yulang_cps_find_guard_i64(id: i64) -> i64 {
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| i64::from(stack.borrow().contains(&id)))
 }
 
 #[cfg(test)]
@@ -1494,6 +2333,22 @@ mod tests {
     }
 
     #[test]
+    fn jit_runs_guard_stack_helpers_without_effect_flow() {
+        let abi = guard_stack_abi();
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![1]);
+    }
+
+    #[test]
+    fn jit_skips_handler_frame_blocked_by_guard_snapshot() {
+        let abi = blocked_handler_snapshot_abi();
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![100]);
+    }
+
+    #[test]
     fn object_compiles_multishot_resumption_calls() {
         let abi = multishot_resume_effect_abi();
         let object = compile_cps_repr_abi_module_to_object(&abi).expect("compiled");
@@ -1526,6 +2381,7 @@ mod tests {
                         payload: CpsValueId(0),
                         resume: CpsContinuationId(0),
                         handler: crate::cps_ir::CpsHandlerId(0),
+                        blocked: None,
                     },
                 }],
             }],
@@ -1607,6 +2463,159 @@ mod tests {
         }))
     }
 
+    fn guard_stack_abi() -> CpsReprAbiModule {
+        lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::FreshGuard {
+                            dest: CpsValueId(0),
+                            var: yulang_runtime::EffectIdVar(0),
+                        },
+                        CpsStmt::PeekGuard {
+                            dest: CpsValueId(1),
+                        },
+                        CpsStmt::FindGuard {
+                            dest: CpsValueId(2),
+                            guard: CpsValueId(1),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(2)),
+                }],
+            }],
+        }))
+    }
+
+    fn blocked_handler_snapshot_abi() -> CpsReprAbiModule {
+        let start = core_ir::Path::from_name(core_ir::Name("start".to_string()));
+        let choose = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: vec![
+                    crate::cps_ir::CpsHandler {
+                        id: crate::cps_ir::CpsHandlerId(0),
+                        arms: vec![
+                            crate::cps_ir::CpsHandlerArm {
+                                effect: start.clone(),
+                                entry: CpsContinuationId(2),
+                            },
+                            crate::cps_ir::CpsHandlerArm {
+                                effect: choose.clone(),
+                                entry: CpsContinuationId(5),
+                            },
+                        ],
+                    },
+                    crate::cps_ir::CpsHandler {
+                        id: crate::cps_ir::CpsHandlerId(1),
+                        arms: vec![crate::cps_ir::CpsHandlerArm {
+                            effect: choose.clone(),
+                            entry: CpsContinuationId(4),
+                        }],
+                    },
+                ],
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("1".to_string()),
+                        }],
+                        terminator: CpsTerminator::Perform {
+                            effect: start,
+                            payload: CpsValueId(0),
+                            resume: CpsContinuationId(1),
+                            handler: crate::cps_ir::CpsHandlerId(0),
+                            blocked: None,
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(1)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(2),
+                            literal: CpsLiteral::Int("0".to_string()),
+                        }],
+                        terminator: CpsTerminator::Perform {
+                            effect: choose.clone(),
+                            payload: CpsValueId(2),
+                            resume: CpsContinuationId(3),
+                            handler: crate::cps_ir::CpsHandlerId(0),
+                            blocked: Some(CpsValueId(1)),
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: vec![CpsValueId(3), CpsValueId(4)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![
+                            CpsStmt::FreshGuard {
+                                dest: CpsValueId(5),
+                                var: yulang_runtime::EffectIdVar(0),
+                            },
+                            CpsStmt::ResumeWithHandler {
+                                dest: CpsValueId(6),
+                                resumption: CpsValueId(4),
+                                arg: CpsValueId(5),
+                                handler: crate::cps_ir::CpsHandlerId(1),
+                                envs: Vec::new(),
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(6)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(3),
+                        params: vec![CpsValueId(7)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(7)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(4),
+                        params: vec![CpsValueId(8), CpsValueId(9)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(10),
+                            literal: CpsLiteral::Int("200".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(10)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(5),
+                        params: vec![CpsValueId(11), CpsValueId(12)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(13),
+                            literal: CpsLiteral::Int("100".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(13)),
+                    },
+                ],
+            }],
+        }))
+    }
+
     fn tail_resume_effect_abi() -> CpsReprAbiModule {
         let effect = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
         lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
@@ -1643,6 +2652,7 @@ mod tests {
                             payload: CpsValueId(0),
                             resume: CpsContinuationId(1),
                             handler: crate::cps_ir::CpsHandlerId(0),
+                            blocked: None,
                         },
                     },
                     CpsContinuation {
@@ -1716,6 +2726,7 @@ mod tests {
                             payload: CpsValueId(0),
                             resume: CpsContinuationId(1),
                             handler: crate::cps_ir::CpsHandlerId(0),
+                            blocked: None,
                         },
                     },
                     CpsContinuation {
