@@ -1,3 +1,4 @@
+pub mod artifact_cache;
 pub mod ast;
 pub mod diagnostic;
 pub mod display;
@@ -17,6 +18,9 @@ pub mod surface_diagnostic;
 pub mod symbols;
 pub mod types;
 
+pub use artifact_cache::{
+    CompiledUnitArtifactCache, CompiledUnitArtifactCacheError, CompiledUnitArtifactCacheKey,
+};
 pub use ast::{
     ExprKind, Lit, TypedBlock, TypedCatchArm, TypedExpr, TypedMatchArm, TypedPat, TypedStmt,
 };
