@@ -4,6 +4,7 @@ use yulang_infer as infer;
 use yulang_runtime as runtime;
 
 use crate::abi::lower_closure_module_to_abi;
+use crate::abi_eval::{NativeAbiEvalError, eval_abi_module};
 use crate::closure::closure_convert_module;
 use crate::cranelift::{NativeCraneliftError, compile_abi_module};
 use crate::eval::{NativeEvalError, eval_module};
@@ -16,6 +17,7 @@ use crate::source::{
 pub enum NativeCompareError {
     Lower(NativeLowerError),
     Eval(NativeEvalError),
+    Abi(NativeAbiEvalError),
     Vm(runtime::VmError),
     ResidualRequest {
         index: usize,
@@ -24,11 +26,17 @@ pub enum NativeCompareError {
     RootCountMismatch {
         vm: usize,
         native: usize,
+        abi: usize,
     },
     ValueMismatch {
         index: usize,
         vm: runtime::VmValue,
         native: runtime::VmValue,
+    },
+    AbiValueMismatch {
+        index: usize,
+        vm: runtime::VmValue,
+        abi: runtime::VmValue,
     },
 }
 
@@ -37,20 +45,25 @@ impl fmt::Display for NativeCompareError {
         match self {
             NativeCompareError::Lower(error) => write!(f, "{error}"),
             NativeCompareError::Eval(error) => write!(f, "{error}"),
+            NativeCompareError::Abi(error) => write!(f, "{error}"),
             NativeCompareError::Vm(error) => write!(f, "{error}"),
             NativeCompareError::ResidualRequest { index, request } => write!(
                 f,
                 "VM root {index} produced a host/effect request instead of a value: {request:?}"
             ),
-            NativeCompareError::RootCountMismatch { vm, native } => {
+            NativeCompareError::RootCountMismatch { vm, native, abi } => {
                 write!(
                     f,
-                    "VM produced {vm} roots but native control produced {native}"
+                    "root count mismatch: VM {vm}, native control {native}, native ABI {abi}"
                 )
             }
             NativeCompareError::ValueMismatch { index, vm, native } => write!(
                 f,
                 "native control root {index} mismatch: VM {vm:?}, native {native:?}"
+            ),
+            NativeCompareError::AbiValueMismatch { index, vm, abi } => write!(
+                f,
+                "native ABI root {index} mismatch: VM {vm:?}, native ABI {abi:?}"
             ),
         }
     }
@@ -70,6 +83,12 @@ impl From<NativeEvalError> for NativeCompareError {
     }
 }
 
+impl From<NativeAbiEvalError> for NativeCompareError {
+    fn from(value: NativeAbiEvalError) -> Self {
+        Self::Abi(value)
+    }
+}
+
 impl From<runtime::VmError> for NativeCompareError {
     fn from(value: runtime::VmError) -> Self {
         Self::Vm(value)
@@ -79,14 +98,23 @@ impl From<runtime::VmError> for NativeCompareError {
 pub fn compare_module(module: &runtime::Module) -> Result<(), NativeCompareError> {
     let native_module = lower_module(module)?;
     let native_values = eval_module(&native_module)?;
+    let closure_module = closure_convert_module(&native_module);
+    let abi_module = lower_closure_module_to_abi(&closure_module);
+    let abi_values = eval_abi_module(&abi_module)?;
     let vm_results = runtime::compile_vm_module(module.clone())?.eval_roots()?;
-    if vm_results.len() != native_values.len() {
+    if vm_results.len() != native_values.len() || vm_results.len() != abi_values.len() {
         return Err(NativeCompareError::RootCountMismatch {
             vm: vm_results.len(),
             native: native_values.len(),
+            abi: abi_values.len(),
         });
     }
-    for (index, (vm_result, native)) in vm_results.into_iter().zip(native_values).enumerate() {
+    for (index, ((vm_result, native), abi)) in vm_results
+        .into_iter()
+        .zip(native_values)
+        .zip(abi_values)
+        .enumerate()
+    {
         let vm = match vm_result {
             runtime::VmResult::Value(value) => value,
             runtime::VmResult::Request(request) => {
@@ -95,6 +123,9 @@ pub fn compare_module(module: &runtime::Module) -> Result<(), NativeCompareError
         };
         if vm != native {
             return Err(NativeCompareError::ValueMismatch { index, vm, native });
+        }
+        if vm != abi {
+            return Err(NativeCompareError::AbiValueMismatch { index, vm, abi });
         }
     }
     Ok(())
@@ -105,6 +136,7 @@ pub enum NativeSourceCompareError {
     Source(NativeSourceError),
     Lower(NativeLowerError),
     Eval(NativeEvalError),
+    Abi(NativeAbiEvalError),
     Vm(runtime::VmError),
     Cranelift(NativeCraneliftError),
     ResidualRequest {
@@ -114,6 +146,7 @@ pub enum NativeSourceCompareError {
     RootCountMismatch {
         vm: usize,
         native: usize,
+        abi: usize,
         cranelift: usize,
     },
     UnsupportedVmScalar {
@@ -124,10 +157,19 @@ pub enum NativeSourceCompareError {
         index: usize,
         value: runtime::VmValue,
     },
+    UnsupportedAbiScalar {
+        index: usize,
+        value: runtime::VmValue,
+    },
     NativeMismatch {
         index: usize,
         vm: i64,
         native: i64,
+    },
+    AbiMismatch {
+        index: usize,
+        vm: i64,
+        abi: i64,
     },
     CraneliftMismatch {
         index: usize,
@@ -142,6 +184,7 @@ impl fmt::Display for NativeSourceCompareError {
             NativeSourceCompareError::Source(error) => write!(f, "{error}"),
             NativeSourceCompareError::Lower(error) => write!(f, "{error}"),
             NativeSourceCompareError::Eval(error) => write!(f, "{error}"),
+            NativeSourceCompareError::Abi(error) => write!(f, "{error}"),
             NativeSourceCompareError::Vm(error) => write!(f, "{error}"),
             NativeSourceCompareError::Cranelift(error) => write!(f, "{error}"),
             NativeSourceCompareError::ResidualRequest { index, request } => write!(
@@ -151,10 +194,11 @@ impl fmt::Display for NativeSourceCompareError {
             NativeSourceCompareError::RootCountMismatch {
                 vm,
                 native,
+                abi,
                 cranelift,
             } => write!(
                 f,
-                "root count mismatch: VM {vm}, native control {native}, Cranelift {cranelift}"
+                "root count mismatch: VM {vm}, native control {native}, native ABI {abi}, Cranelift {cranelift}"
             ),
             NativeSourceCompareError::UnsupportedVmScalar { index, value } => write!(
                 f,
@@ -164,9 +208,17 @@ impl fmt::Display for NativeSourceCompareError {
                 f,
                 "native control root {index} produced non-scalar prototype value {value:?}"
             ),
+            NativeSourceCompareError::UnsupportedAbiScalar { index, value } => write!(
+                f,
+                "native ABI root {index} produced non-scalar prototype value {value:?}"
+            ),
             NativeSourceCompareError::NativeMismatch { index, vm, native } => write!(
                 f,
                 "native control root {index} mismatch: VM scalar {vm}, native scalar {native}"
+            ),
+            NativeSourceCompareError::AbiMismatch { index, vm, abi } => write!(
+                f,
+                "native ABI root {index} mismatch: VM scalar {vm}, native ABI scalar {abi}"
             ),
             NativeSourceCompareError::CraneliftMismatch {
                 index,
@@ -200,6 +252,12 @@ impl From<NativeEvalError> for NativeSourceCompareError {
     }
 }
 
+impl From<NativeAbiEvalError> for NativeSourceCompareError {
+    fn from(error: NativeAbiEvalError) -> Self {
+        NativeSourceCompareError::Abi(error)
+    }
+}
+
 impl From<runtime::VmError> for NativeSourceCompareError {
     fn from(error: runtime::VmError) -> Self {
         NativeSourceCompareError::Vm(error)
@@ -225,21 +283,27 @@ pub fn compare_source_i64_with_options(
     let native_values = eval_module(&native_module)?;
     let closure_module = closure_convert_module(&native_module);
     let abi_module = lower_closure_module_to_abi(&closure_module);
+    let abi_values = eval_abi_module(&abi_module)?;
     let mut jit = compile_abi_module(&abi_module)?;
     let cranelift_values = jit.run_roots_i64()?;
 
     let vm_results = runtime::compile_vm_module(runtime_module)?.eval_roots()?;
-    if vm_results.len() != native_values.len() || vm_results.len() != cranelift_values.len() {
+    if vm_results.len() != native_values.len()
+        || vm_results.len() != abi_values.len()
+        || vm_results.len() != cranelift_values.len()
+    {
         return Err(NativeSourceCompareError::RootCountMismatch {
             vm: vm_results.len(),
             native: native_values.len(),
+            abi: abi_values.len(),
             cranelift: cranelift_values.len(),
         });
     }
 
-    for (index, ((vm_result, native_value), cranelift_value)) in vm_results
+    for (index, (((vm_result, native_value), abi_value), cranelift_value)) in vm_results
         .into_iter()
         .zip(native_values)
+        .zip(abi_values)
         .zip(cranelift_values)
         .enumerate()
     {
@@ -260,11 +324,24 @@ pub fn compare_source_i64_with_options(
                 value: native_value,
             },
         )?;
+        let abi_scalar = scalar_i64(abi_value.clone()).ok_or(
+            NativeSourceCompareError::UnsupportedAbiScalar {
+                index,
+                value: abi_value,
+            },
+        )?;
         if vm_scalar != native_scalar {
             return Err(NativeSourceCompareError::NativeMismatch {
                 index,
                 vm: vm_scalar,
                 native: native_scalar,
+            });
+        }
+        if vm_scalar != abi_scalar {
+            return Err(NativeSourceCompareError::AbiMismatch {
+                index,
+                vm: vm_scalar,
+                abi: abi_scalar,
             });
         }
         if vm_scalar != cranelift_value {
