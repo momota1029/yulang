@@ -21,11 +21,15 @@ pub mod cps_env;
 pub mod cps_eval;
 pub mod cps_ir;
 pub mod cps_lower;
+pub mod cps_repr;
+pub mod cps_repr_abi;
+pub mod cps_repr_cranelift;
 pub mod cps_validate;
 pub mod cranelift;
 pub mod eval;
 pub mod lower;
 pub mod source;
+pub mod value_cranelift;
 
 pub use abi::{
     NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt, lower_closure_module_to_abi,
@@ -55,7 +59,7 @@ pub use cps_capture::infer_cps_captures;
 pub use cps_closure::{
     CpsClosureContinuation, CpsClosureFunction, CpsClosureModule, closure_convert_cps_module,
 };
-pub use cps_compare::{CpsCompareError, compare_cps_module};
+pub use cps_compare::{CpsCompareError, compare_cps_module, compare_cps_repr_cranelift_i64};
 pub use cps_env::{
     CpsContinuationEnvironmentLayout, CpsEnvironmentLayout, CpsEnvironmentSlot,
     CpsFunctionEnvironmentLayout, layout_cps_environments,
@@ -66,12 +70,33 @@ pub use cps_ir::{
     CpsLiteral, CpsModule, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
 };
 pub use cps_lower::{CpsLowerError, CpsLowerResult, lower_cps_module};
+pub use cps_repr::{
+    CpsReprAbiAnalysis, CpsReprAbiLane, CpsReprContinuation, CpsReprEnvironmentSlot,
+    CpsReprEvalError, CpsReprFunction, CpsReprFunctionAbiAnalysis, CpsReprFunctionValueAnalysis,
+    CpsReprModule, CpsReprValueAnalysis, CpsReprValueKind, analyze_cps_repr_abi_lanes,
+    analyze_cps_repr_values, eval_cps_repr_module, lower_cps_repr_module,
+};
+pub use cps_repr_abi::{
+    CpsReprAbiContinuation, CpsReprAbiEnvironmentSlot, CpsReprAbiFunction, CpsReprAbiHandler,
+    CpsReprAbiModule, CpsReprAbiValue, lower_cps_repr_abi_module,
+};
+pub use cps_repr_cranelift::{
+    CpsReprCraneliftError, CpsReprJitModule, compile_cps_repr_abi_module,
+    compile_runtime_module_to_cps_repr_jit,
+};
 pub use cps_validate::{CpsValidateError, validate_cps_module};
 pub use cranelift::{NativeCraneliftError, NativeJitModule, compile_abi_module};
 pub use eval::{NativeEvalError, eval_module};
 pub use lower::{NativeLowerError, NativeLowerResult, lower_module};
 pub use source::{
-    NativeSourceError, NativeSourceResult, compile_source, compile_source_with_options,
-    eval_source, eval_source_i64, eval_source_i64_with_options, eval_source_with_options,
-    native_default_source_options, runtime_module_from_source_with_options,
+    NativeSourceError, NativeSourceResult, analyze_source_abi_reprs,
+    analyze_source_abi_reprs_with_options, compare_source_cps_repr_i64,
+    compare_source_cps_repr_i64_with_options, compile_source, compile_source_with_options,
+    eval_source, eval_source_cps_repr_i64, eval_source_cps_repr_i64_with_options, eval_source_i64,
+    eval_source_i64_with_options, eval_source_value_lane, eval_source_value_lane_with_options,
+    eval_source_with_options, native_default_source_options,
+    runtime_module_from_source_with_options,
+};
+pub use value_cranelift::{
+    NativeValueCraneliftError, NativeValueJitModule, compile_value_abi_module,
 };

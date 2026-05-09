@@ -685,8 +685,28 @@ mod tests {
     }
 
     #[test]
+    fn compares_source_bool_not_with_vm_native_and_cranelift() {
+        compare_source_with_large_stack("not false");
+    }
+
+    #[test]
+    fn compares_source_if_bool_literal_with_vm_native_and_cranelift() {
+        compare_source_with_large_stack("if true: 10 else: 20");
+    }
+
+    #[test]
+    fn compares_source_if_bool_primitive_with_vm_native_and_cranelift() {
+        compare_source_with_large_stack("if not false: 10 else: 20");
+    }
+
+    #[test]
     fn compares_source_simple_function_call_with_vm_native_and_cranelift() {
         compare_source_with_large_stack("my id x = x\nid 41");
+    }
+
+    #[test]
+    fn compares_source_function_with_if_bool_literal_with_vm_native_and_cranelift() {
+        compare_source_with_large_stack("my choose x y = if true: x else: y\nchoose 10 20");
     }
 
     #[test]
@@ -702,6 +722,11 @@ mod tests {
     #[test]
     fn compares_source_int_comparison_with_vm_native_and_cranelift() {
         compare_source_with_large_stack("1 < 2");
+    }
+
+    #[test]
+    fn compares_source_if_int_comparison_with_vm_native_and_cranelift() {
+        compare_source_with_large_stack("if 1 < 2: 10 else: 20");
     }
 
     #[test]

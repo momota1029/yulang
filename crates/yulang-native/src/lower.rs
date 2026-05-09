@@ -404,29 +404,19 @@ impl<'a> FunctionLowerer<'a> {
             runtime::ExprKind::Select { .. } => {
                 Err(NativeLowerError::UnsupportedExpr { kind: "select" })
             }
-            runtime::ExprKind::Match { .. } => {
-                Err(NativeLowerError::UnsupportedExpr { kind: "match" })
-            }
+            runtime::ExprKind::Match {
+                scrutinee, arms, ..
+            } => self.lower_match(scrutinee, arms),
             runtime::ExprKind::Block { stmts, tail } => self.lower_block(stmts, tail.as_deref()),
-            runtime::ExprKind::Handle { .. } => {
-                Err(NativeLowerError::UnsupportedExpr { kind: "handler" })
-            }
-            runtime::ExprKind::BindHere { .. } => {
-                Err(NativeLowerError::UnsupportedExpr { kind: "bind_here" })
-            }
-            runtime::ExprKind::Thunk { .. } => {
-                Err(NativeLowerError::UnsupportedExpr { kind: "thunk" })
-            }
-            runtime::ExprKind::LocalPushId { .. } => Err(NativeLowerError::UnsupportedExpr {
-                kind: "local effect id scope",
-            }),
+            runtime::ExprKind::Handle { body, .. } => self.lower_expr(body),
+            runtime::ExprKind::BindHere { expr } => self.lower_expr(expr),
+            runtime::ExprKind::Thunk { expr, .. } => self.lower_expr(expr),
+            runtime::ExprKind::LocalPushId { body, .. } => self.lower_expr(body),
             runtime::ExprKind::PeekId => Err(NativeLowerError::UnsupportedExpr { kind: "peek_id" }),
             runtime::ExprKind::FindId { .. } => {
                 Err(NativeLowerError::UnsupportedExpr { kind: "find_id" })
             }
-            runtime::ExprKind::AddId { .. } => {
-                Err(NativeLowerError::UnsupportedExpr { kind: "add_id" })
-            }
+            runtime::ExprKind::AddId { thunk, .. } => self.lower_expr(thunk),
             runtime::ExprKind::Coerce { expr, .. } => self.lower_expr(expr),
             runtime::ExprKind::Pack { .. } => {
                 Err(NativeLowerError::UnsupportedExpr { kind: "pack" })
@@ -487,6 +477,17 @@ impl<'a> FunctionLowerer<'a> {
         self.current = BlockBuilder::new(merge_block, vec![result]);
         self.locals = saved_locals;
         Ok(result)
+    }
+
+    fn lower_match(
+        &mut self,
+        scrutinee: &runtime::Expr,
+        arms: &[runtime::MatchArm],
+    ) -> NativeLowerResult<ValueId> {
+        let Some((then_branch, else_branch)) = bool_literal_match_arms(arms) else {
+            return Err(NativeLowerError::UnsupportedExpr { kind: "match" });
+        };
+        self.lower_if(scrutinee, then_branch, else_branch)
     }
 
     fn lower_block(
@@ -621,6 +622,28 @@ impl<'a> FunctionLowerer<'a> {
             terminator,
         });
     }
+}
+
+fn bool_literal_match_arms(arms: &[runtime::MatchArm]) -> Option<(&runtime::Expr, &runtime::Expr)> {
+    let mut then_branch = None;
+    let mut else_branch = None;
+    for arm in arms {
+        if arm.guard.is_some() {
+            return None;
+        }
+        match &arm.pattern {
+            runtime::Pattern::Lit {
+                lit: core_ir::Lit::Bool(true),
+                ..
+            } if then_branch.is_none() => then_branch = Some(&arm.body),
+            runtime::Pattern::Lit {
+                lit: core_ir::Lit::Bool(false),
+                ..
+            } if else_branch.is_none() => else_branch = Some(&arm.body),
+            _ => return None,
+        }
+    }
+    Some((then_branch?, else_branch?))
 }
 
 fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, &runtime::Expr) {
@@ -1011,6 +1034,78 @@ mod tests {
         )
     }
 
+    fn bool_match(
+        scrutinee: runtime::Expr,
+        then_branch: runtime::Expr,
+        else_branch: runtime::Expr,
+    ) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Match {
+                scrutinee: Box::new(scrutinee),
+                arms: vec![
+                    runtime::MatchArm {
+                        pattern: runtime::Pattern::Lit {
+                            lit: core_ir::Lit::Bool(true),
+                            ty: runtime::Type::unknown(),
+                        },
+                        guard: None,
+                        body: then_branch,
+                    },
+                    runtime::MatchArm {
+                        pattern: runtime::Pattern::Lit {
+                            lit: core_ir::Lit::Bool(false),
+                            ty: runtime::Type::unknown(),
+                        },
+                        guard: None,
+                        body: else_branch,
+                    },
+                ],
+                evidence: runtime::JoinEvidence {
+                    result: core_ir::Type::Unknown,
+                },
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn thunk(expr: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Thunk {
+                effect: core_ir::Type::Never,
+                value: runtime::Type::unknown(),
+                expr: Box::new(expr),
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn bind_here(expr: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::BindHere {
+                expr: Box::new(expr),
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn handle(expr: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Handle {
+                body: Box::new(expr),
+                arms: Vec::new(),
+                evidence: runtime::JoinEvidence {
+                    result: core_ir::Type::Unknown,
+                },
+                handler: runtime::HandleEffect {
+                    consumes: Vec::new(),
+                    residual_before: None,
+                    residual_after: None,
+                },
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
     fn var(name: &str) -> runtime::Expr {
         runtime::Expr::typed(
             runtime::ExprKind::Var(core_ir::Path::from_name(core_ir::Name(name.to_string()))),
@@ -1159,6 +1254,24 @@ mod tests {
     }
 
     #[test]
+    fn rejects_effect_operation_under_handle_wrapper() {
+        let expr = handle(runtime::Expr::typed(
+            runtime::ExprKind::EffectOp(core_ir::Path::from_name(core_ir::Name(
+                "read".to_string(),
+            ))),
+            runtime::Type::unknown(),
+        ));
+        let module = module_with_root(expr);
+
+        assert_eq!(
+            lower_module(&module).expect_err("unsupported"),
+            NativeLowerError::UnsupportedExpr {
+                kind: "effect operation",
+            }
+        );
+    }
+
+    #[test]
     fn lowers_if_with_branch_and_merge_blocks() {
         let module = module_with_root(if_expr(
             unknown_lit(core_ir::Lit::Bool(true)),
@@ -1193,6 +1306,63 @@ mod tests {
         );
         assert_eq!(blocks[3].params, vec![ValueId(1)]);
         assert_eq!(blocks[3].terminator, NativeTerminator::Return(ValueId(1)));
+    }
+
+    #[test]
+    fn lowers_bool_match_with_branch_and_merge_blocks() {
+        let module = module_with_root(bool_match(
+            unknown_lit(core_ir::Lit::Bool(true)),
+            unknown_lit(core_ir::Lit::Int("1".to_string())),
+            unknown_lit(core_ir::Lit::Int("2".to_string())),
+        ));
+        let lowered = lower_module(&module).expect("lowered");
+        let blocks = &lowered.roots[0].blocks;
+
+        assert_eq!(blocks.len(), 4);
+        assert_eq!(
+            blocks[0].terminator,
+            NativeTerminator::Branch {
+                cond: ValueId(0),
+                then_block: BlockId(1),
+                else_block: BlockId(2),
+            }
+        );
+        assert_eq!(
+            blocks[1].terminator,
+            NativeTerminator::Jump {
+                target: BlockId(3),
+                args: vec![ValueId(2)],
+            }
+        );
+        assert_eq!(
+            blocks[2].terminator,
+            NativeTerminator::Jump {
+                target: BlockId(3),
+                args: vec![ValueId(3)],
+            }
+        );
+        assert_eq!(blocks[3].params, vec![ValueId(1)]);
+        assert_eq!(blocks[3].terminator, NativeTerminator::Return(ValueId(1)));
+    }
+
+    #[test]
+    fn lowers_effect_free_execution_wrappers() {
+        let module = module_with_root(handle(bind_here(thunk(unknown_lit(core_ir::Lit::Int(
+            "42".to_string(),
+        ))))));
+        let lowered = lower_module(&module).expect("lowered");
+
+        assert_eq!(
+            lowered.roots[0].blocks[0].stmts,
+            vec![NativeStmt::Literal {
+                dest: ValueId(0),
+                literal: NativeLiteral::Int("42".to_string()),
+            }]
+        );
+        assert_eq!(
+            lowered.roots[0].blocks[0].terminator,
+            NativeTerminator::Return(ValueId(0))
+        );
     }
 
     #[test]

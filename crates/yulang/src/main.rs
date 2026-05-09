@@ -83,6 +83,7 @@ struct CliOptions {
     hygiene_ir: bool,
     run_vm: bool,
     native_compare_i64: bool,
+    native_cps_repr_i64: bool,
     native_abi_lanes: bool,
     verbose_ir: bool,
     infer_phase_timings: bool,
@@ -112,6 +113,7 @@ fn parse_args() -> CliOptions {
     let mut hygiene_ir = false;
     let mut run_vm = false;
     let mut native_compare_i64 = false;
+    let mut native_cps_repr_i64 = false;
     let mut native_abi_lanes = false;
     let mut verbose_ir = false;
     let mut infer_phase_timings = false;
@@ -140,6 +142,7 @@ fn parse_args() -> CliOptions {
             "--hygiene-ir" => hygiene_ir = true,
             "--run" => run_vm = true,
             "--native-compare-i64" => native_compare_i64 = true,
+            "--native-cps-repr-i64" => native_cps_repr_i64 = true,
             "--native-abi-lanes" => native_abi_lanes = true,
             "--verbose-ir" => verbose_ir = true,
             "--infer-phase-timings" => infer_phase_timings = true,
@@ -197,6 +200,7 @@ fn parse_args() -> CliOptions {
         && !hygiene_ir
         && !run_vm
         && !native_compare_i64
+        && !native_cps_repr_i64
         && !native_abi_lanes
     {
         infer = true;
@@ -210,6 +214,7 @@ fn parse_args() -> CliOptions {
         hygiene_ir,
         run_vm,
         native_compare_i64,
+        native_cps_repr_i64,
         native_abi_lanes,
         verbose_ir,
         infer_phase_timings,
@@ -244,7 +249,7 @@ fn read_source(path: Option<&str>) -> String {
 
 fn print_usage() {
     eprintln!(
-        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--native-compare-i64] [--native-abi-lanes] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
+        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--native-compare-i64] [--native-cps-repr-i64] [--native-abi-lanes] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
     );
     eprintln!("       (no path = read from stdin)");
     eprintln!("       --cst         also print the CST before types");
@@ -261,6 +266,7 @@ fn print_usage() {
     eprintln!(
         "       --native-compare-i64  compare VM/native-control/native-ABI/Cranelift scalar i64 results"
     );
+    eprintln!("       --native-cps-repr-i64  compare VM and CPS-repr Cranelift scalar i64 results");
     eprintln!("       --native-abi-lanes  print native ABI value representation classification");
     eprintln!("       --verbose-ir  include detailed graph/evidence sections in IR dumps");
     eprintln!("       --infer-phase-timings  print coarse timing breakdown for the infer pipeline");
@@ -301,6 +307,7 @@ fn run(options: &CliOptions) {
             || options.hygiene_ir
             || options.run_vm
             || options.native_compare_i64
+            || options.native_cps_repr_i64
             || options.native_abi_lanes
         {
             run_infer_views(
@@ -560,6 +567,7 @@ fn run_infer_views(
             || options.hygiene_ir
             || options.run_vm
             || options.native_compare_i64
+            || options.native_cps_repr_i64
             || options.native_abi_lanes)
     {
         Some(export_core_program(&mut state))
@@ -580,6 +588,7 @@ fn run_infer_views(
                 || options.hygiene_ir
                 || options.run_vm
                 || options.native_compare_i64
+                || options.native_cps_repr_i64
                 || options.native_abi_lanes)
         {
             process::exit(1);
@@ -719,6 +728,7 @@ fn run_infer_views(
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_vm
+                || options.native_cps_repr_i64
                 || options.native_abi_lanes
             {
                 println!();
@@ -743,6 +753,37 @@ fn run_infer_views(
             }
             println!("native-compare-i64: ok");
         }
+        if options.native_cps_repr_i64 {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+                || options.native_compare_i64
+                || options.native_abi_lanes
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let compare_start = Instant::now();
+            if let Err(err) = yulang_native::compare_cps_repr_cranelift_i64(&lowered.module) {
+                eprintln!("native CPS repr compare failed: {err}");
+                process::exit(1);
+            }
+            let compare_duration = compare_start.elapsed();
+            if options.runtime_phase_timings {
+                print_runtime_phase_timings(&lowered.profile, None, None);
+                eprintln!(
+                    "    native_cps_repr_i64: {}",
+                    format_duration(compare_duration)
+                );
+            }
+            println!("native-cps-repr-i64: ok");
+        }
         if options.native_abi_lanes {
             if options.infer
                 || options.core_ir
@@ -750,6 +791,7 @@ fn run_infer_views(
                 || options.hygiene_ir
                 || options.run_vm
                 || options.native_compare_i64
+                || options.native_cps_repr_i64
             {
                 println!();
             }
@@ -2957,7 +2999,7 @@ fn format_core_variant_type(variant: &core_ir::VariantType) -> String {
     if let Some(tail) = &variant.tail {
         items.push(format!("..{}", format_core_type(tail)));
     }
-    format!(":[{}]", items.join(" | "))
+    format!(":{{{}}}", items.join(" | "))
 }
 
 fn format_core_row_type(items: &[core_ir::Type], tail: &core_ir::Type) -> String {
@@ -3044,7 +3086,7 @@ fn format_core_expr(expr: &core_ir::Expr) -> String {
             }
             format!("{{{}}}", items.join(", "))
         }
-        core_ir::Expr::Variant { tag, value } => match value {
+        core_ir::Expr::Variant { tag, value, .. } => match value {
             Some(value) => format!(":{} {}", tag.0, format_core_expr_atom(value)),
             None => format!(":{}", tag.0),
         },
@@ -4384,6 +4426,7 @@ mod tests {
             hygiene_ir: false,
             run_vm: false,
             native_compare_i64: false,
+            native_cps_repr_i64: false,
             native_abi_lanes: false,
             verbose_ir: false,
             infer_phase_timings: false,

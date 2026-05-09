@@ -87,24 +87,33 @@ impl fmt::Display for CpsLowerError {
 impl std::error::Error for CpsLowerError {}
 
 pub fn lower_cps_module(module: &runtime::Module) -> CpsLowerResult<CpsModule> {
+    let binding_table = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding))
+        .collect::<HashMap<_, _>>();
     let function_table = module
         .bindings
         .iter()
-        .map(|binding| {
+        .filter_map(|binding| {
             let (params, _) = collect_lambda_params(&binding.body);
-            (
-                binding.name.clone(),
-                FunctionInfo {
-                    name: path_name(&binding.name),
-                    arity: params.len(),
-                },
-            )
+            (!params.is_empty()).then(|| {
+                (
+                    binding.name.clone(),
+                    FunctionInfo {
+                        name: path_name(&binding.name),
+                        arity: params.len(),
+                    },
+                )
+            })
         })
         .collect::<HashMap<_, _>>();
+    let reachable = reachable_binding_paths(module, &function_table, &binding_table);
     let functions = module
         .bindings
         .iter()
-        .map(|binding| lower_binding(binding, &function_table))
+        .filter(|binding| reachable.contains(&binding.name))
+        .map(|binding| lower_binding(binding, &function_table, &binding_table))
         .collect::<CpsLowerResult<Vec<_>>>()?;
 
     let mut roots = Vec::new();
@@ -116,8 +125,13 @@ pub fn lower_cps_module(module: &runtime::Module) -> CpsLowerResult<CpsModule> {
                     .get(*index)
                     .ok_or(CpsLowerError::MissingRootExpr { index: *index })?;
                 roots.push(
-                    FunctionLowerer::new(format!("root_{index}"), &function_table, Vec::new())
-                        .lower_root(expr)?,
+                    FunctionLowerer::new(
+                        format!("root_{index}"),
+                        &function_table,
+                        &binding_table,
+                        Vec::new(),
+                    )
+                    .lower_root(expr)?,
                 );
             }
             runtime::Root::Binding(_) => {
@@ -130,9 +144,278 @@ pub fn lower_cps_module(module: &runtime::Module) -> CpsLowerResult<CpsModule> {
     Ok(module)
 }
 
+fn reachable_binding_paths(
+    module: &runtime::Module,
+    functions: &HashMap<core_ir::Path, FunctionInfo>,
+    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
+) -> HashSet<core_ir::Path> {
+    let binding_bodies = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), &binding.body))
+        .collect::<HashMap<_, _>>();
+    let mut reachable = HashSet::new();
+    let mut stack = Vec::new();
+    for root in &module.roots {
+        match root {
+            runtime::Root::Expr(index) => {
+                if let Some(expr) = module.root_exprs.get(*index) {
+                    collect_expr_direct_calls(expr, functions, bindings, &mut stack);
+                }
+            }
+            runtime::Root::Binding(path) => stack.push(path.clone()),
+        }
+    }
+
+    while let Some(path) = stack.pop() {
+        if !reachable.insert(path.clone()) {
+            continue;
+        }
+        let Some(body) = binding_bodies.get(&path) else {
+            continue;
+        };
+        collect_expr_direct_calls(body, functions, bindings, &mut stack);
+    }
+    reachable
+}
+
+fn collect_expr_direct_calls(
+    expr: &runtime::Expr,
+    functions: &HashMap<core_ir::Path, FunctionInfo>,
+    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
+    out: &mut Vec<core_ir::Path>,
+) {
+    if inline_thunk_handler_apply(expr, functions, bindings).is_some() {
+        return;
+    }
+    if let Some(target) = direct_apply_target(expr, functions) {
+        out.push(target);
+    }
+    match &expr.kind {
+        runtime::ExprKind::Lambda { body, .. } => {
+            collect_expr_direct_calls(body, functions, bindings, out);
+        }
+        runtime::ExprKind::Apply { callee, arg, .. } => {
+            collect_expr_direct_calls(callee, functions, bindings, out);
+            collect_expr_direct_calls(arg, functions, bindings, out);
+        }
+        runtime::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_expr_direct_calls(cond, functions, bindings, out);
+            collect_expr_direct_calls(then_branch, functions, bindings, out);
+            collect_expr_direct_calls(else_branch, functions, bindings, out);
+        }
+        runtime::ExprKind::Tuple(items) => {
+            for item in items {
+                collect_expr_direct_calls(item, functions, bindings, out);
+            }
+        }
+        runtime::ExprKind::Record { fields, spread } => {
+            for field in fields {
+                collect_expr_direct_calls(&field.value, functions, bindings, out);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    runtime::RecordSpreadExpr::Head(expr)
+                    | runtime::RecordSpreadExpr::Tail(expr) => {
+                        collect_expr_direct_calls(expr, functions, bindings, out);
+                    }
+                }
+            }
+        }
+        runtime::ExprKind::Variant {
+            value: Some(value), ..
+        } => collect_expr_direct_calls(value, functions, bindings, out),
+        runtime::ExprKind::Select { base, .. } => {
+            collect_expr_direct_calls(base, functions, bindings, out);
+        }
+        runtime::ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            collect_expr_direct_calls(scrutinee, functions, bindings, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_direct_calls(guard, functions, bindings, out);
+                }
+                collect_expr_direct_calls(&arm.body, functions, bindings, out);
+                collect_pattern_direct_calls(&arm.pattern, functions, bindings, out);
+            }
+        }
+        runtime::ExprKind::Block { stmts, tail } => {
+            for stmt in stmts {
+                match stmt {
+                    runtime::Stmt::Let { pattern, value } => {
+                        collect_pattern_direct_calls(pattern, functions, bindings, out);
+                        collect_expr_direct_calls(value, functions, bindings, out);
+                    }
+                    runtime::Stmt::Expr(expr) => {
+                        collect_expr_direct_calls(expr, functions, bindings, out);
+                    }
+                    runtime::Stmt::Module { body, .. } => {
+                        collect_expr_direct_calls(body, functions, bindings, out);
+                    }
+                }
+            }
+            if let Some(tail) = tail {
+                collect_expr_direct_calls(tail, functions, bindings, out);
+            }
+        }
+        runtime::ExprKind::Handle { body, arms, .. } => {
+            collect_expr_direct_calls(body, functions, bindings, out);
+            for arm in arms {
+                collect_pattern_direct_calls(&arm.payload, functions, bindings, out);
+                if let Some(guard) = &arm.guard {
+                    collect_expr_direct_calls(guard, functions, bindings, out);
+                }
+                collect_expr_direct_calls(&arm.body, functions, bindings, out);
+            }
+        }
+        runtime::ExprKind::BindHere { expr }
+        | runtime::ExprKind::Thunk { expr, .. }
+        | runtime::ExprKind::LocalPushId { body: expr, .. }
+        | runtime::ExprKind::AddId { thunk: expr, .. }
+        | runtime::ExprKind::Coerce { expr, .. }
+        | runtime::ExprKind::Pack { expr, .. } => {
+            collect_expr_direct_calls(expr, functions, bindings, out);
+        }
+        runtime::ExprKind::Var(_)
+        | runtime::ExprKind::EffectOp(_)
+        | runtime::ExprKind::PrimitiveOp(_)
+        | runtime::ExprKind::Lit(_)
+        | runtime::ExprKind::Variant { value: None, .. }
+        | runtime::ExprKind::PeekId
+        | runtime::ExprKind::FindId { .. } => {}
+    }
+}
+
+fn collect_pattern_direct_calls(
+    pattern: &runtime::Pattern,
+    functions: &HashMap<core_ir::Path, FunctionInfo>,
+    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
+    out: &mut Vec<core_ir::Path>,
+) {
+    match pattern {
+        runtime::Pattern::Tuple { items, .. } => {
+            for item in items {
+                collect_pattern_direct_calls(item, functions, bindings, out);
+            }
+        }
+        runtime::Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            for item in prefix {
+                collect_pattern_direct_calls(item, functions, bindings, out);
+            }
+            if let Some(spread) = spread {
+                collect_pattern_direct_calls(spread, functions, bindings, out);
+            }
+            for item in suffix {
+                collect_pattern_direct_calls(item, functions, bindings, out);
+            }
+        }
+        runtime::Pattern::Record { fields, spread, .. } => {
+            for field in fields {
+                collect_pattern_direct_calls(&field.pattern, functions, bindings, out);
+                if let Some(default) = &field.default {
+                    collect_expr_direct_calls(default, functions, bindings, out);
+                }
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    runtime::RecordSpreadPattern::Head(pattern)
+                    | runtime::RecordSpreadPattern::Tail(pattern) => {
+                        collect_pattern_direct_calls(pattern, functions, bindings, out);
+                    }
+                }
+            }
+        }
+        runtime::Pattern::Variant {
+            value: Some(value), ..
+        }
+        | runtime::Pattern::As { pattern: value, .. } => {
+            collect_pattern_direct_calls(value, functions, bindings, out);
+        }
+        runtime::Pattern::Or { left, right, .. } => {
+            collect_pattern_direct_calls(left, functions, bindings, out);
+            collect_pattern_direct_calls(right, functions, bindings, out);
+        }
+        runtime::Pattern::Wildcard { .. }
+        | runtime::Pattern::Bind { .. }
+        | runtime::Pattern::Lit { .. }
+        | runtime::Pattern::Variant { value: None, .. } => {}
+    }
+}
+
+fn direct_apply_target(
+    expr: &runtime::Expr,
+    functions: &HashMap<core_ir::Path, FunctionInfo>,
+) -> Option<core_ir::Path> {
+    let mut current = expr;
+    while let runtime::ExprKind::Apply { callee, .. } = &current.kind {
+        current = callee;
+    }
+    current = transparent_expr(current);
+    let runtime::ExprKind::Var(path) = &current.kind else {
+        return None;
+    };
+    functions.contains_key(path).then(|| path.clone())
+}
+
+fn inline_thunk_handler_apply(
+    expr: &runtime::Expr,
+    functions: &HashMap<core_ir::Path, FunctionInfo>,
+    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
+) -> Option<(runtime::Expr, Vec<runtime::HandleArm>)> {
+    let (target, _, args) = direct_apply_path(expr, functions).ok()??;
+    if args.len() != 1 {
+        return None;
+    }
+    let binding = bindings.get(target)?;
+    let (params, body) = collect_lambda_params(&binding.body);
+    if params.len() != 1 {
+        return None;
+    }
+    let runtime::ExprKind::Handle {
+        body: handled_body,
+        arms,
+        ..
+    } = &body.kind
+    else {
+        return None;
+    };
+    let handled_body = transparent_expr(handled_body);
+    let runtime::ExprKind::Var(body_var) = &handled_body.kind else {
+        return None;
+    };
+    if body_var != &core_ir::Path::from_name(params[0].clone()) {
+        return None;
+    }
+    Some((args[0].clone(), arms.clone()))
+}
+
+fn transparent_expr(expr: &runtime::Expr) -> &runtime::Expr {
+    let mut current = expr;
+    loop {
+        match &current.kind {
+            runtime::ExprKind::Coerce { expr, .. }
+            | runtime::ExprKind::Pack { expr, .. }
+            | runtime::ExprKind::AddId { thunk: expr, .. } => current = expr,
+            _ => return current,
+        }
+    }
+}
+
 fn lower_binding(
     binding: &runtime::Binding,
     functions: &HashMap<core_ir::Path, FunctionInfo>,
+    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
 ) -> CpsLowerResult<CpsFunction> {
     if !binding.type_params.is_empty() {
         return Err(CpsLowerError::UnsupportedBinding {
@@ -147,7 +430,7 @@ fn lower_binding(
             reason: "non-function body",
         });
     }
-    FunctionLowerer::new(path_name(&binding.name), functions, params).lower_root(body)
+    FunctionLowerer::new(path_name(&binding.name), functions, bindings, params).lower_root(body)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -159,6 +442,7 @@ struct FunctionInfo {
 struct FunctionLowerer<'a> {
     name: String,
     functions: &'a HashMap<core_ir::Path, FunctionInfo>,
+    bindings: &'a HashMap<core_ir::Path, &'a runtime::Binding>,
     next_value: usize,
     next_continuation: usize,
     next_handler: usize,
@@ -174,6 +458,7 @@ impl<'a> FunctionLowerer<'a> {
     fn new(
         name: String,
         functions: &'a HashMap<core_ir::Path, FunctionInfo>,
+        bindings: &'a HashMap<core_ir::Path, &'a runtime::Binding>,
         params: Vec<core_ir::Name>,
     ) -> Self {
         let mut next_value = 0;
@@ -188,6 +473,7 @@ impl<'a> FunctionLowerer<'a> {
         Self {
             name,
             functions,
+            bindings,
             next_value,
             next_continuation: 1,
             next_handler: 0,
@@ -214,6 +500,11 @@ impl<'a> FunctionLowerer<'a> {
     }
 
     fn lower_expr(&mut self, expr: &runtime::Expr) -> CpsLowerResult<CpsValueId> {
+        if let Some((body, arms)) = inline_thunk_handler_apply(expr, self.functions, self.bindings)
+        {
+            return self.lower_handle(&body, &arms);
+        }
+
         if let Some((op, args)) = primitive_apply(expr) {
             let expected = primitive_arity(op);
             if args.len() != expected {
@@ -304,26 +595,17 @@ impl<'a> FunctionLowerer<'a> {
                 Err(CpsLowerError::UnsupportedExpr { kind: "match" })
             }
             runtime::ExprKind::Handle { body, arms, .. } => self.lower_handle(body, arms),
-            runtime::ExprKind::BindHere { .. } => {
-                Err(CpsLowerError::UnsupportedExpr { kind: "bind_here" })
+            runtime::ExprKind::BindHere { expr } => self.lower_expr(expr),
+            runtime::ExprKind::Thunk { expr, .. } => self.lower_expr(expr),
+            runtime::ExprKind::LocalPushId { body, .. } => self.lower_expr(body),
+            runtime::ExprKind::AddId { thunk, .. } => self.lower_expr(thunk),
+            runtime::ExprKind::Coerce { expr, .. } | runtime::ExprKind::Pack { expr, .. } => {
+                self.lower_expr(expr)
             }
-            runtime::ExprKind::Thunk { .. } => {
-                Err(CpsLowerError::UnsupportedExpr { kind: "thunk" })
-            }
-            runtime::ExprKind::LocalPushId { .. } => Err(CpsLowerError::UnsupportedExpr {
-                kind: "local effect id scope",
-            }),
             runtime::ExprKind::PeekId => Err(CpsLowerError::UnsupportedExpr { kind: "peek_id" }),
             runtime::ExprKind::FindId { .. } => {
                 Err(CpsLowerError::UnsupportedExpr { kind: "find_id" })
             }
-            runtime::ExprKind::AddId { .. } => {
-                Err(CpsLowerError::UnsupportedExpr { kind: "add_id" })
-            }
-            runtime::ExprKind::Coerce { .. } => {
-                Err(CpsLowerError::UnsupportedExpr { kind: "coerce" })
-            }
-            runtime::ExprKind::Pack { .. } => Err(CpsLowerError::UnsupportedExpr { kind: "pack" }),
         }
     }
 
@@ -413,12 +695,21 @@ impl<'a> FunctionLowerer<'a> {
         body: &runtime::Expr,
         arms: &[runtime::HandleArm],
     ) -> CpsLowerResult<CpsValueId> {
-        if arms.len() != 1 {
+        let mut effect_arms = arms.iter().filter(|arm| arm.resume.is_some());
+        let Some(arm) = effect_arms.next() else {
             return Err(CpsLowerError::UnsupportedExpr {
-                kind: "multi-arm handler",
+                kind: "handler without resume",
+            });
+        };
+        if effect_arms.next().is_some()
+            || arms.iter().any(|candidate| {
+                candidate.resume.is_none() && !candidate.effect.segments.is_empty()
+            })
+        {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "multi-effect handler",
             });
         }
-        let arm = &arms[0];
         if arm.guard.is_some() {
             return Err(CpsLowerError::UnsupportedExpr {
                 kind: "handler guard",
@@ -681,7 +972,7 @@ impl<'a> FunctionLowerer<'a> {
         expected_effect: &core_ir::Path,
         handler: CpsHandlerId,
     ) -> CpsLowerResult<(core_ir::Path, CpsValueId)> {
-        if &effect != expected_effect {
+        if !effect_matches(expected_effect, &effect) {
             return Err(CpsLowerError::UnsupportedExpr {
                 kind: "handler effect mismatch",
             });
@@ -789,6 +1080,14 @@ impl<'a> FunctionLowerer<'a> {
     }
 }
 
+fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
+    actual == expected
+        || (!expected.segments.is_empty()
+            && actual.segments.len() == expected.segments.len() + 1
+            && actual.segments.starts_with(&expected.segments))
+        || (expected.segments.len() == 1 && actual.segments.last() == expected.segments.first())
+}
+
 struct ContinuationBuilder {
     id: CpsContinuationId,
     params: Vec<CpsValueId>,
@@ -863,19 +1162,40 @@ fn handle_body_execution_inner(expr: &runtime::Expr) -> Option<&runtime::Expr> {
     let runtime::ExprKind::Thunk { expr, .. } = &current.kind else {
         return None;
     };
-    Some(expr)
+    let mut inner = expr.as_ref();
+    while let runtime::ExprKind::BindHere { expr } = &inner.kind {
+        inner = expr;
+    }
+    Some(inner)
 }
 
 fn direct_apply<'expr>(
     expr: &'expr runtime::Expr,
     functions: &HashMap<core_ir::Path, FunctionInfo>,
 ) -> CpsLowerResult<Option<(String, Vec<&'expr runtime::Expr>)>> {
+    let Some((_, target, args)) = direct_apply_path(expr, functions)? else {
+        return Ok(None);
+    };
+    Ok(Some((target.name.clone(), args)))
+}
+
+fn direct_apply_path<'expr, 'functions>(
+    expr: &'expr runtime::Expr,
+    functions: &'functions HashMap<core_ir::Path, FunctionInfo>,
+) -> CpsLowerResult<
+    Option<(
+        &'expr core_ir::Path,
+        &'functions FunctionInfo,
+        Vec<&'expr runtime::Expr>,
+    )>,
+> {
     let mut args = Vec::new();
     let mut current = expr;
     while let runtime::ExprKind::Apply { callee, arg, .. } = &current.kind {
         args.push(arg.as_ref());
         current = callee;
     }
+    current = transparent_expr(current);
     let runtime::ExprKind::Var(path) = &current.kind else {
         return Ok(None);
     };
@@ -890,7 +1210,7 @@ fn direct_apply<'expr>(
         });
     }
     args.reverse();
-    Ok(Some((target.name.clone(), args)))
+    Ok(Some((path, target, args)))
 }
 
 fn primitive_arity(op: core_ir::PrimitiveOp) -> usize {
@@ -1005,6 +1325,10 @@ mod tests {
         )
     }
 
+    fn effect_op_path(path: core_ir::Path) -> runtime::Expr {
+        runtime::Expr::typed(runtime::ExprKind::EffectOp(path), runtime::Type::unknown())
+    }
+
     fn bind_pattern(name: &str) -> runtime::Pattern {
         runtime::Pattern::Bind {
             name: core_ir::Name(name.to_string()),
@@ -1020,6 +1344,39 @@ mod tests {
         arm_body: runtime::Expr,
     ) -> runtime::Expr {
         let effect = core_ir::Path::from_name(core_ir::Name(effect.to_string()));
+        runtime::Expr::typed(
+            runtime::ExprKind::Handle {
+                body: Box::new(body),
+                arms: vec![runtime::HandleArm {
+                    effect: effect.clone(),
+                    payload: bind_pattern(payload),
+                    resume: Some(runtime::ResumeBinding {
+                        name: core_ir::Name(resume.to_string()),
+                        ty: runtime::Type::unknown(),
+                    }),
+                    guard: None,
+                    body: arm_body,
+                }],
+                evidence: runtime::JoinEvidence {
+                    result: core_ir::Type::Unknown,
+                },
+                handler: runtime::HandleEffect {
+                    consumes: vec![effect],
+                    residual_before: None,
+                    residual_after: None,
+                },
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn handle_once_expr(
+        effect: core_ir::Path,
+        payload: &str,
+        resume: &str,
+        body: runtime::Expr,
+        arm_body: runtime::Expr,
+    ) -> runtime::Expr {
         runtime::Expr::typed(
             runtime::ExprKind::Handle {
                 body: Box::new(body),
@@ -1100,6 +1457,15 @@ mod tests {
         }
     }
 
+    fn effect_path(effect: &str, op: &str) -> core_ir::Path {
+        core_ir::Path {
+            segments: vec![
+                core_ir::Name(effect.to_string()),
+                core_ir::Name(op.to_string()),
+            ],
+        }
+    }
+
     fn module_with_root(expr: runtime::Expr) -> runtime::Module {
         module_with_bindings_and_root(Vec::new(), expr)
     }
@@ -1157,6 +1523,60 @@ mod tests {
         assert_eq!(
             lowered.roots[0].continuations[0].terminator,
             CpsTerminator::Return(CpsValueId(2))
+        );
+    }
+
+    #[test]
+    fn skips_unreachable_non_function_binding() {
+        let module = runtime::Module {
+            path: core_ir::Path::default(),
+            bindings: vec![runtime::Binding {
+                name: core_ir::Path::from_name(core_ir::Name("unused".to_string())),
+                type_params: Vec::new(),
+                scheme: core_ir::Scheme {
+                    requirements: Vec::new(),
+                    body: core_ir::Type::Unknown,
+                },
+                body: unknown_lit(core_ir::Lit::Int("0".to_string())),
+            }],
+            root_exprs: vec![unknown_lit(core_ir::Lit::Int("41".to_string()))],
+            roots: vec![runtime::Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        assert!(lowered.functions.is_empty());
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("41".to_string())]
+        );
+    }
+
+    #[test]
+    fn inlines_thunk_handler_wrapper_call() {
+        let effect = effect_path("sub", "return");
+        let handler = binding(
+            "run",
+            lambda(
+                "x",
+                handle_once_expr(effect.clone(), "a", "_k", var("x"), thunk(var("a"))),
+            ),
+        );
+        let root = apply(
+            var("run"),
+            thunk(apply(
+                effect_op_path(effect),
+                unknown_lit(core_ir::Lit::Int("41".to_string())),
+            )),
+        );
+        let module = module_with_bindings_and_root(vec![handler], root);
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert!(lowered.functions.is_empty());
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("41".to_string())]
         );
     }
 

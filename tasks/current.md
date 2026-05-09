@@ -61,6 +61,23 @@ runtime/core IR
   - CPS continuation に `captures` field を追加した。lowering 後に `infer_cps_captures` を走らせ、validator は continuation params と captures だけを visible value として扱う。
   - `layout_cps_environments` は continuation captures を stable slot layout に落とす。これは closure conversion / backend が読む environment layout の最初の形。
   - `closure_convert_cps_module` は CPS continuation を code id / params / environment slots の組へ変換する。
+  - `lower_cps_repr_module` は CPS continuation を executable representation IR の code object として残す最小入口。pure continuation flow と multi-shot resumption flow を `eval_cps_repr_module` で確認している。
+  - CPS repr evaluator は `Perform` を handler entry continuation へ入り、resume continuation + captured value snapshot を resumption value として渡す。これは Cranelift value/closure lane へ effectful control を渡す前段。
+  - `analyze_cps_repr_values` は CPS repr value を `Plain` / `Resumption` / `Unknown` に分類する。handler entry の payload/resumption param と `Resume` の result kind を構造から追い、resumption を heap pointer lane へ落とす前段にする。
+  - `analyze_cps_repr_abi_lanes` は CPS repr value / continuation return を `ScalarI64` / `NativeFloat` / `RuntimeValuePtr` / `ResumptionPtr` / `Unknown` に分類する。effect 名や std path は見ず、handler entry の第 2 引数と `Perform` / `Resume` の構造から resumption lane を出す。
+  - `lower_cps_repr_abi_module` は CPS repr に lane 情報を貼り、continuation params / environment slots / return lane を Cranelift lowering が読みやすい形へ束ねる。まだ machine layout は選ばず、effectful control を codegen 境界まで運ぶための ABI skeleton に留める。
+  - `compile_cps_repr_abi_module` は scalar CPS repr ABI を Cranelift で実行する最初の入口。pure 関数は continuation を Cranelift block、`Continue` は jump、`Branch` は brif に落とす。
+  - effectful 関数では CPS continuation を個別の JIT 関数に分ける。`Perform` は resume continuation の code pointer と captured scalar environment snapshot から heap resumption を作って handler entry へ渡し、`Resume` は helper 経由で resumption を呼ぶ。non-tail resume と同じ resumption の複数回呼び出しは確認済み。現時点では scalar i64 / environment 4 slot までの prototype。
+  - runtime `Handle` / `EffectOp` 由来の CPS repr Cranelift 比較を追加した。単純 resume、同じ resumption の複数回呼び出し、perform 後の rest-of-computation、effectful branch を VM と比較している。
+  - source から CPS repr Cranelift へ入る `eval_source_cps_repr_i64(_with_options)` / `compare_source_cps_repr_i64(_with_options)` を追加した。prelude なしの小さい `act` / `catch` source は VM と CPS repr Cranelift で比較済み。
+  - CLI に `--native-cps-repr-i64` を追加した。source から runtime lower / monomorphize した module を VM と CPS repr Cranelift scalar i64 で比較する debug entrypoint。
+  - CPS lowering は root から reachable な runtime binding だけを lower する。std/prelude を読む source でも、到達不能な std の非関数 binding / unsupported binding が CPS repr Cranelift の scalar prototype を止めないようにした。
+  - prelude ありの source literal と、prelude ありの小さい source-defined `act` / `catch` は CPS repr Cranelift で VM 比較済み。
+  - `std::flow::sub::sub { std::flow::sub::return 41 }` は CPS repr Cranelift で VM 比較済み。CPS lowering は、`fun x -> handle x ...` 形の thunk handler wrapper が thunk 引数へ直接適用される場合、thunk を汎用値 lane にせず handle body へインライン展開する。
+  - CPS repr value / ABI lane 解析では `Unknown` を初期未確定値として扱い、既知 lane / value kind で精密化するようにした。異なる既知 lane が衝突した場合だけ `Unknown` に戻る。
+  - 汎用 thunk value lane / thunk invocation はまだ未対応。wrapper を越えて thunk を保存・返却・複数箇所で渡す場合は次の段階で扱う。
+  - `compile_runtime_module_to_cps_repr_jit` は runtime module -> CPS -> CPS repr -> CPS repr ABI -> Cranelift まで通す helper。現時点では pure scalar root の実行確認用。
+  - `compare_cps_repr_cranelift_i64` は VM と CPS repr Cranelift の scalar root を比較する regression entrypoint。まず `20 + 22` の runtime module で固定した。
   - ordinary native-control closure conversion skeleton として `closure_convert_module` を追加した。
   - runtime `Lambda` は native-control の generated function + `MakeClosure` に lowering する。non-direct `Apply` は `ClosureCall` に lowering する。
   - immediate lambda call と captured local を持つ lambda call は VM compare まで追加済み。
@@ -83,9 +100,12 @@ runtime/core IR
   - Native lower は `fun x -> block(...; fun y -> body)` 形の curried wrapper に、元の partial-call 用関数を残したまま追加 direct arity target を生成する。Cranelift は root から reachable な関数だけ JIT するため、未使用の closure-returning wrapper は compile しない。
   - 関数内の `x + 1` は source-level compare へ戻した。`my inc x = x + 1; inc 41` は VM / native-control / ABI eval / Cranelift で比較している。
   - CLI は `--native-compare-i64` で VM / native-control / ABI eval / Cranelift scalar result を比較できる。`bench/native_compare.sh` は同じ入口を quick bench/debug 用に呼ぶ。
-  - 次は source-level compare examples を bool / if / small function へ広げる。
+  - source-level compare examples は bool primitive / source `if` / small function 内 `if` まで広げた。
+  - source `if` の条件に primitive/operator call が入る形も追加した。`1 < 2` などで prelude の junction/handler wrapper が見えるため、native lower は effect-free な `Handle` / `Thunk` / `BindHere` / effect-id scope wrapper を中身へ進める。実際の `EffectOp` はまだ unsupported のままにする。
   - `str` / `list` / `record` は `notes/design/native-value-abi-plan.md` の opaque runtime value pointer lane で進める。scalar-only `compile_abi_module` は残し、value lane は別 entrypoint として追加する。
   - `analyze_abi_reprs` は ABI function/value を `Int` / `Bool` / `Float` / `List(element)` / `RuntimeValuePtr` / `ClosurePtr` / `Unknown` に分類する。`List` は machine boundary では pointer lane のままだが、singleton/index/merge/range 系で分かる範囲の element repr は伝播する。tuple/record repr は後続の runtime type 連携で足す。
+  - `compile_value_abi_module` は scalar-only `compile_abi_module` と別の Cranelift value-lane prototype entrypoint として追加した。現時点では string literal と `StringConcat` primitive/direct call を Rust helper 経由で `VmValue::String` に戻す。
+  - `eval_source_value_lane_with_options` は source から value-lane Cranelift まで通す実験入口。`"hello"` / `"a" + "b"` の round-trip と、source からの string/list ABI repr analysis をテストで固定した。
   - CLI は `--native-abi-lanes` で source から native ABI repr classification を表示できる。未使用の closure-returning wrapper と reachable scalar direct wrapper の違いを見るための debug entrypoint。
 
 重要な制約:
