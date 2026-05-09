@@ -300,9 +300,36 @@ impl Infer {
             self.decrement_pending_selection(owner);
             self.instantiate_role_constraints_for_owner(info.def, owner, &subst);
         }
-        let resolved_def = self
-            .resolve_concrete_role_method_call_def(info, Some(recv_tv), &[])
-            .unwrap_or(info.def);
+        let method_resolution =
+            super::role_method::resolve_role_method_call(self, info, Some(recv_tv), &[]);
+        match &method_resolution {
+            super::role_method::RoleMethodResolution::Missing { args } => {
+                self.report_synthetic_type_error(
+                    crate::diagnostic::TypeErrorKind::MissingImpl {
+                        role: super::role_method::role_method_role_name(info),
+                        args: args.clone(),
+                    },
+                    format!("role method selection {}", info.name.0),
+                );
+            }
+            super::role_method::RoleMethodResolution::Ambiguous {
+                args,
+                candidates,
+                previews,
+            } => {
+                self.report_synthetic_type_error(
+                    crate::diagnostic::TypeErrorKind::AmbiguousImpl {
+                        role: super::role_method::role_method_role_name(info),
+                        args: args.clone(),
+                        candidates: *candidates,
+                        previews: previews.clone(),
+                    },
+                    format!("role method selection {}", info.name.0),
+                );
+            }
+            _ => {}
+        }
+        let resolved_def = method_resolution.concrete_def().unwrap_or(info.def);
         self.record_resolved_selection(selection, resolved_def);
         self.constrain_selected_method_call(
             method_tv,

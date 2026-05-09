@@ -304,6 +304,56 @@ fn stmt_for_in_indent_body() {
 }
 
 #[test]
+fn stmt_for_in_inline_if_body_does_not_consume_next_sibling() {
+    let got = parse_stmt_once("f:\n  for x in xs: if x: y\n  z");
+    let expected = vec![
+        "(Expr",
+        "  Ident \"f\"",
+        "  (ApplyColon",
+        "    Colon \":\"",
+        "    (IndentBlock",
+        "      (ForStmt",
+        "        (ForHeader",
+        "          For \"for\"",
+        "          (Pattern",
+        "            Ident \"x\"",
+        "          )",
+        "          In \"in\"",
+        "          (Expr",
+        "            Ident \"xs\"",
+        "          )",
+        "          Colon \":\"",
+        "        )",
+        "        (ForBody",
+        "          (Expr",
+        "            (IfExpr",
+        "              (IfArm",
+        "                If \"if\"",
+        "                (Cond",
+        "                  (Expr",
+        "                    Ident \"x\"",
+        "                  )",
+        "                )",
+        "                Colon \":\"",
+        "                (Expr",
+        "                  Ident \"y\"",
+        "                )",
+        "              )",
+        "            )",
+        "          )",
+        "        )",
+        "      )",
+        "      (Expr",
+        "        Ident \"z\"",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_for_in_label_indent_body() {
     let got = parse_stmt_once("for 'outer x in xs:\n  x");
     let expected = vec![

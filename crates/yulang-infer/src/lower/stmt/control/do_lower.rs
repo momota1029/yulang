@@ -7,12 +7,22 @@ use crate::types::{Neg, Pos};
 
 /// `do` より前の通常 Binding を先行走査して DefId を確保・登録する。
 pub(crate) fn preregister_items_until_do(state: &mut LowerState, items: &[SyntaxNode]) {
+    let mut needs_forward_decl_lookup = false;
     for child in items {
         match child.kind() {
             SyntaxKind::Binding if binding_is_do_binding(child) => break,
             SyntaxKind::Expr if node_has_do_here(child) => break,
             SyntaxKind::Binding | SyntaxKind::OpDef => {
                 super::super::preregister_binding(state, child);
+                needs_forward_decl_lookup = true;
+            }
+            SyntaxKind::ActDecl => {
+                if needs_forward_decl_lookup {
+                    super::super::preregister_act_decl(state, child);
+                }
+            }
+            SyntaxKind::Expr | SyntaxKind::ForStmt => {
+                needs_forward_decl_lookup = true;
             }
             _ => {}
         }

@@ -16,6 +16,7 @@ pub(crate) fn lower_act_body(
     act_scope: &HashMap<String, crate::ids::TypeVar>,
     act_arg_tvs: &[crate::ids::TypeVar],
     selected_names: Option<&Vec<Name>>,
+    body_items_preregistered: bool,
 ) {
     let start = Instant::now();
     let mut ops = Vec::new();
@@ -35,11 +36,13 @@ pub(crate) fn lower_act_body(
     );
     state.lower_detail.lower_act_body_collect_items += collect_start.elapsed();
 
-    let ops_start = Instant::now();
-    for child in &ops {
-        lower_act_operation_decl(state, child, effect_path.clone(), act_scope, act_arg_tvs);
+    if !body_items_preregistered {
+        let ops_start = Instant::now();
+        for child in &ops {
+            lower_act_operation_decl(state, child, effect_path.clone(), act_scope, act_arg_tvs);
+        }
+        state.lower_detail.lower_act_body_ops += ops_start.elapsed();
     }
-    state.lower_detail.lower_act_body_ops += ops_start.elapsed();
 
     for child in &acts {
         super::super::lower_act_decl(state, child);
@@ -54,11 +57,13 @@ pub(crate) fn lower_act_body(
     }
 
     state.with_act_effect_path(effect_path, |state| {
-        let prereg_start = Instant::now();
-        for child in &bindings {
-            super::super::preregister_binding_as_module_value(state, child);
+        if !body_items_preregistered {
+            let prereg_start = Instant::now();
+            for child in &bindings {
+                super::super::preregister_binding_as_module_value(state, child);
+            }
+            state.lower_detail.lower_act_body_preregister += prereg_start.elapsed();
         }
-        state.lower_detail.lower_act_body_preregister += prereg_start.elapsed();
 
         let bindings_start = Instant::now();
         for child in &bindings {
@@ -67,6 +72,39 @@ pub(crate) fn lower_act_body(
         state.lower_detail.lower_act_body_bindings += bindings_start.elapsed();
     });
     state.lower_detail.lower_act_body += start.elapsed();
+}
+
+pub(crate) fn preregister_act_body(
+    state: &mut LowerState,
+    node: &SyntaxNode,
+    effect_path: Path,
+    act_scope: &HashMap<String, crate::ids::TypeVar>,
+    act_arg_tvs: &[crate::ids::TypeVar],
+    selected_names: Option<&Vec<Name>>,
+) {
+    let mut ops = Vec::new();
+    let mut acts = Vec::new();
+    let mut structs = Vec::new();
+    let mut impls = Vec::new();
+    let mut bindings = Vec::new();
+    collect_lowerable_act_body_items(
+        node,
+        selected_names,
+        &mut ops,
+        &mut acts,
+        &mut structs,
+        &mut impls,
+        &mut bindings,
+    );
+
+    for child in &ops {
+        lower_act_operation_decl(state, child, effect_path.clone(), act_scope, act_arg_tvs);
+    }
+    state.with_act_effect_path(effect_path, |state| {
+        for child in &bindings {
+            super::super::preregister_binding_as_module_value(state, child);
+        }
+    });
 }
 
 fn collect_lowerable_act_body_items(

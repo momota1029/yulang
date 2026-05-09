@@ -13,7 +13,7 @@ use crate::sink::EventSink;
 use super::core::{parse_expr_bp, parse_expr_from_nud};
 use super::group::delimited;
 use super::parse_expr;
-use crate::stmt::parse_indent_stmt_block;
+use crate::stmt::{parse_indent_stmt_block, peek_stmt_lex};
 
 pub(super) fn parse_inline_or_indent<I: EventInput, S: EventSink>(
     i: In<I, S>,
@@ -109,6 +109,14 @@ pub(super) fn parse_if_expr<I: EventInput, S: EventSink>(
                 let can_continue = matches!(info, TriviaInfo::Space)
                     || matches!(info, TriviaInfo::Newline { indent,.. } if indent >= base_indent);
                 if !can_continue {
+                    i.env.state.sink.finish();
+                    return Some(Ok(Either::Left(info)));
+                }
+                if matches!(info, TriviaInfo::Newline { .. })
+                    && !peek_stmt_lex(info, i.rb()).is_some_and(|next| {
+                        matches!(next.kind, SyntaxKind::Elsif | SyntaxKind::Else)
+                    })
+                {
                     i.env.state.sink.finish();
                     return Some(Ok(Either::Left(info)));
                 }

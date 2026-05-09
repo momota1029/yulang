@@ -104,6 +104,7 @@ fn materialize_template_items(
         &source_scope,
         &act_arg_tvs,
         Some(&source.selected_template_items),
+        false,
     );
 }
 

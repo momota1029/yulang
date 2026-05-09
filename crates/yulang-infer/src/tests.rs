@@ -1097,6 +1097,7 @@ fn visit_core_expr(expr: &yulang_core_ir::Expr, visitor: &mut impl FnMut(&yulang
         yulang_core_ir::Expr::Coerce { expr, .. } => visit_core_expr(expr, visitor),
         yulang_core_ir::Expr::Lambda { body, .. }
         | yulang_core_ir::Expr::Pack { expr: body, .. } => visit_core_expr(body, visitor),
+        yulang_core_ir::Expr::BindHere { expr } => visit_core_expr(expr, visitor),
         yulang_core_ir::Expr::Apply { callee, arg, .. } => {
             visit_core_expr(callee, visitor);
             visit_core_expr(arg, visitor);
@@ -1196,6 +1197,7 @@ fn count_coerce_evidence_by(
         }
         yulang_core_ir::Expr::Lambda { body, .. }
         | yulang_core_ir::Expr::Pack { expr: body, .. } => count_coerce_evidence_by(body, accepts),
+        yulang_core_ir::Expr::BindHere { expr } => count_coerce_evidence_by(expr, accepts),
         yulang_core_ir::Expr::Apply { callee, arg, .. } => {
             count_coerce_evidence_by(callee, accepts) + count_coerce_evidence_by(arg, accepts)
         }

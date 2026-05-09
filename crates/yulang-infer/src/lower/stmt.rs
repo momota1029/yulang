@@ -55,10 +55,10 @@ mod synthetic_act;
 mod var;
 
 pub(crate) use act::ActCopy;
-use act::lower_act_decl;
 pub(crate) use act::{
     lower_act_body, lower_act_copy_body, register_act_operation_sig, transform_copied_frozen_scheme,
 };
+use act::{lower_act_decl, preregister_act_decl};
 pub(super) use binding::preregister_binding_as_module_value;
 pub(crate) use binding::{
     ArgPatInfo, HeaderArg, apply_binding_type_annotation_cast, binding_sig_var_names,

@@ -125,6 +125,7 @@ impl Infer {
 
     pub(crate) fn resolve_deferred_role_method_calls(&self) {
         let calls = self.deferred_role_method_calls.borrow().clone();
+        let mut unresolved = Vec::new();
         for call in calls {
             let Some(info) = call
                 .role_path
@@ -132,6 +133,7 @@ impl Infer {
                 .and_then(|path| role_method_info_for_path(&self.role_methods, path))
                 .or_else(|| self.role_methods.get(&call.name).cloned())
             else {
+                unresolved.push(call);
                 continue;
             };
             let resolution = if call.cast_coercion {
@@ -158,7 +160,36 @@ impl Infer {
                     .borrow_mut()
                     .insert(call.result_tv, def);
             }
+            match resolution {
+                RoleMethodResolution::Missing { args } => {
+                    self.report_synthetic_type_error(
+                        crate::diagnostic::TypeErrorKind::MissingImpl {
+                            role: path_string(&info.role),
+                            args,
+                        },
+                        format!("role method call {}", call.name.0),
+                    );
+                }
+                RoleMethodResolution::Ambiguous {
+                    args,
+                    candidates,
+                    previews,
+                } => {
+                    self.report_synthetic_type_error(
+                        crate::diagnostic::TypeErrorKind::AmbiguousImpl {
+                            role: path_string(&info.role),
+                            args,
+                            candidates,
+                            previews,
+                        },
+                        format!("role method call {}", call.name.0),
+                    );
+                }
+                RoleMethodResolution::Unresolved => unresolved.push(call),
+                RoleMethodResolution::Selected { .. } => {}
+            }
         }
+        *self.deferred_role_method_calls.borrow_mut() = unresolved;
     }
 
     fn constrain_role_method_call_output(&self, output: &CompactType, result_tv: TypeVar) {
@@ -167,7 +198,7 @@ impl Infer {
     }
 }
 
-fn resolve_role_method_call(
+pub(super) fn resolve_role_method_call(
     infer: &Infer,
     info: &RoleMethodInfo,
     recv_tv: Option<TypeVar>,
@@ -190,6 +221,9 @@ fn resolve_role_method_call(
     else {
         return RoleMethodResolution::Unresolved;
     };
+    let diagnostic_ready = concrete_inputs
+        .iter()
+        .all(compact_type_has_no_open_type_vars);
     let candidates = infer.role_impl_candidates_of(&info.role);
     let role_matches = candidates
         .iter()
@@ -226,15 +260,16 @@ fn resolve_role_method_call(
                 (None, None) => RoleMethodResolution::Unresolved,
             }
         }
-        [] if role_matches.is_empty() => RoleMethodResolution::Missing {
+        [] if role_matches.is_empty() && diagnostic_ready => RoleMethodResolution::Missing {
             args: render_concrete_role_args(&concrete_inputs),
         },
         [] => RoleMethodResolution::Unresolved,
-        _ => RoleMethodResolution::Ambiguous {
+        _ if diagnostic_ready => RoleMethodResolution::Ambiguous {
             args: render_concrete_role_args(&concrete_inputs),
             candidates: matches.len(),
             previews: role_candidate_previews(matches),
         },
+        _ => RoleMethodResolution::Unresolved,
     }
 }
 
@@ -292,7 +327,7 @@ impl CastMethodResolution {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum RoleMethodResolution {
+pub(super) enum RoleMethodResolution {
     Selected {
         def: Option<DefId>,
         output: Option<CompactType>,
@@ -316,9 +351,57 @@ impl RoleMethodResolution {
         }
     }
 
-    fn concrete_def(&self) -> Option<DefId> {
+    pub(super) fn concrete_def(&self) -> Option<DefId> {
         self.def()
     }
+}
+
+pub(super) fn role_method_role_name(info: &RoleMethodInfo) -> String {
+    path_string(&info.role)
+}
+
+fn compact_type_has_no_open_type_vars(ty: &CompactType) -> bool {
+    ty.vars.is_empty()
+        && ty.cons.iter().all(|con| {
+            con.args.iter().all(|arg| {
+                arg.self_var.is_none()
+                    && compact_type_has_no_open_type_vars(&arg.lower)
+                    && compact_type_has_no_open_type_vars(&arg.upper)
+            })
+        })
+        && ty.funs.iter().all(|fun| {
+            compact_type_has_no_open_type_vars(&fun.arg)
+                && compact_type_has_no_open_type_vars(&fun.arg_eff)
+                && compact_type_has_no_open_type_vars(&fun.ret_eff)
+                && compact_type_has_no_open_type_vars(&fun.ret)
+        })
+        && ty.records.iter().all(|record| {
+            record
+                .fields
+                .iter()
+                .all(|field| compact_type_has_no_open_type_vars(&field.value))
+        })
+        && ty.record_spreads.iter().all(|record| {
+            record
+                .fields
+                .iter()
+                .all(|field| compact_type_has_no_open_type_vars(&field.value))
+                && compact_type_has_no_open_type_vars(&record.tail)
+        })
+        && ty.variants.iter().all(|variant| {
+            variant
+                .items
+                .iter()
+                .all(|(_, items)| items.iter().all(compact_type_has_no_open_type_vars))
+        })
+        && ty
+            .tuples
+            .iter()
+            .all(|items| items.iter().all(compact_type_has_no_open_type_vars))
+        && ty.rows.iter().all(|row| {
+            row.items.iter().all(compact_type_has_no_open_type_vars)
+                && compact_type_has_no_open_type_vars(&row.tail)
+        })
 }
 
 fn role_method_output_compact_type(

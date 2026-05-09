@@ -10,7 +10,7 @@ use crate::scan::{
 };
 use crate::sink::EventSink;
 
-pub(super) fn scan_stmt_lex<I: EventInput, S: EventSink>(
+pub(crate) fn scan_stmt_lex<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     mut i: In<I, S>,
 ) -> Option<Lex> {
@@ -25,7 +25,7 @@ pub(super) fn scan_stmt_lex<I: EventInput, S: EventSink>(
     Some(Lex::new(leading_info, kind, text, trailing))
 }
 
-pub(super) fn peek_stmt_lex<I: EventInput, S: EventSink>(
+pub(crate) fn peek_stmt_lex<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     mut i: In<I, S>,
 ) -> Option<Lex> {

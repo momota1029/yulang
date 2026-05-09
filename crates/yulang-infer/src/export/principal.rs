@@ -2043,6 +2043,7 @@ mod tests {
             core_ir::Expr::Lambda { body, .. } | core_ir::Expr::Pack { expr: body, .. } => {
                 find_coerce_evidence(body, predicate)
             }
+            core_ir::Expr::BindHere { expr } => find_coerce_evidence(expr, predicate),
             core_ir::Expr::Apply { callee, arg, .. } => find_coerce_evidence(callee, predicate)
                 .or_else(|| find_coerce_evidence(arg, predicate)),
             core_ir::Expr::If {

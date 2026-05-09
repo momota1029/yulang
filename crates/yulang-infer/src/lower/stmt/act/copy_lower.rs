@@ -81,6 +81,7 @@ fn try_lower_act_copy_from_template(
         &source_scope,
         &act_arg_tvs,
         copy.selected_names.as_ref(),
+        false,
     );
     state.lower_detail.try_lower_act_copy_from_template += start.elapsed();
     true

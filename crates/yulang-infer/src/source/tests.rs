@@ -4197,6 +4197,38 @@ fn private_act_operations_work_inside_public_helpers() {
 }
 
 #[test]
+fn lowers_forward_act_helper_after_inline_for_body() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my first_over limit = route::route:\n\
+                for x in 0..: if x * x > limit: route::ret x\n\
+                route::ret 0\n\n\
+             first_over 1\n\n\
+             pub act route 'a:\n\
+                pub ret: 'a -> never\n\
+                pub route(x: [_] 'a): 'a = catch x:\n\
+                    ret a, _ -> a\n\
+                    a -> a\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        lowered.state.finalize_compact_results();
+        assert!(
+            lowered.state.infer.type_errors().is_empty(),
+            "forward act helper after inline for body should lower without type errors, got {:?}",
+            lowered.state.infer.type_errors(),
+        );
+    });
+}
+
+#[test]
 fn lowers_unannotated_local_fold_with_latent_effects() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
