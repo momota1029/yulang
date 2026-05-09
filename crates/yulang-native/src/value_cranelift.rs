@@ -13,12 +13,22 @@ use crate::abi::{NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
 use crate::abi_validate::{NativeAbiValidateError, validate_abi_module};
 use crate::control_ir::{BlockId, NativeLiteral, NativeTerminator, ValueId};
 use crate::native_runtime::{
+    NATIVE_PRIMITIVE_BOOL_EQ, NATIVE_PRIMITIVE_BOOL_NOT, NATIVE_PRIMITIVE_BOOL_TO_STRING,
+    NATIVE_PRIMITIVE_FLOAT_ADD, NATIVE_PRIMITIVE_FLOAT_DIV, NATIVE_PRIMITIVE_FLOAT_EQ,
+    NATIVE_PRIMITIVE_FLOAT_GE, NATIVE_PRIMITIVE_FLOAT_GT, NATIVE_PRIMITIVE_FLOAT_LE,
+    NATIVE_PRIMITIVE_FLOAT_LT, NATIVE_PRIMITIVE_FLOAT_MUL, NATIVE_PRIMITIVE_FLOAT_SUB,
+    NATIVE_PRIMITIVE_FLOAT_TO_STRING, NATIVE_PRIMITIVE_INT_ADD, NATIVE_PRIMITIVE_INT_DIV,
+    NATIVE_PRIMITIVE_INT_EQ, NATIVE_PRIMITIVE_INT_GE, NATIVE_PRIMITIVE_INT_GT,
+    NATIVE_PRIMITIVE_INT_LE, NATIVE_PRIMITIVE_INT_LT, NATIVE_PRIMITIVE_INT_MUL,
+    NATIVE_PRIMITIVE_INT_SUB, NATIVE_PRIMITIVE_INT_TO_HEX, NATIVE_PRIMITIVE_INT_TO_STRING,
+    NATIVE_PRIMITIVE_INT_TO_UPPER_HEX, NATIVE_PRIMITIVE_STRING_INDEX, NATIVE_PRIMITIVE_STRING_LEN,
     NativeRuntimeContext, yulang_native_concat_string, yulang_native_list_empty,
     yulang_native_list_index, yulang_native_list_len, yulang_native_list_merge,
     yulang_native_list_singleton, yulang_native_make_bool, yulang_native_make_float,
     yulang_native_make_int, yulang_native_make_string, yulang_native_make_unit,
-    yulang_native_record_empty, yulang_native_record_insert, yulang_native_record_select,
-    yulang_native_tuple_empty, yulang_native_tuple_push, yulang_native_variant,
+    yulang_native_primitive_binary, yulang_native_primitive_unary, yulang_native_record_empty,
+    yulang_native_record_insert, yulang_native_record_select, yulang_native_tuple_empty,
+    yulang_native_tuple_push, yulang_native_variant,
 };
 
 pub type NativeValueCraneliftResult<T> = Result<T, NativeValueCraneliftError>;
@@ -186,6 +196,14 @@ pub fn compile_value_abi_module(
         yulang_native_concat_string as *const u8,
     );
     builder.symbol(
+        "yulang_native_primitive_unary",
+        yulang_native_primitive_unary as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_primitive_binary",
+        yulang_native_primitive_binary as *const u8,
+    );
+    builder.symbol(
         "yulang_native_list_empty",
         yulang_native_list_empty as *const u8,
     );
@@ -320,6 +338,9 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                             | yulang_core_ir::PrimitiveOp::ListIndex,
                         ..
                     } => {}
+                    NativeAbiStmt::Primitive { op, .. }
+                        if primitive_unary_code(*op).is_some()
+                            || primitive_binary_code(*op).is_some() => {}
                     NativeAbiStmt::Primitive { .. } => {
                         return Err(NativeValueCraneliftError::UnsupportedStmt {
                             function: function.name.clone(),
@@ -420,6 +441,8 @@ struct ValueHelpers {
     make_unit: FuncId,
     make_string: FuncId,
     concat_string: FuncId,
+    primitive_unary: FuncId,
+    primitive_binary: FuncId,
     list_empty: FuncId,
     list_singleton: FuncId,
     list_merge: FuncId,
@@ -441,6 +464,8 @@ fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
         make_unit: declare_make_unit(module_backend)?,
         make_string: declare_make_string(module_backend)?,
         concat_string: declare_concat_string(module_backend)?,
+        primitive_unary: declare_primitive_unary(module_backend)?,
+        primitive_binary: declare_primitive_binary(module_backend)?,
         list_empty: declare_list_empty(module_backend)?,
         list_singleton: declare_list_singleton(module_backend)?,
         list_merge: declare_list_merge(module_backend)?,
@@ -632,6 +657,33 @@ fn declare_concat_string<M: Module>(module_backend: &mut M) -> NativeValueCranel
     sig.returns.push(AbiParam::new(types::I64));
     module_backend
         .declare_function("yulang_native_concat_string", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_primitive_unary<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_primitive_unary", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_primitive_binary<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_primitive_binary", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
@@ -926,6 +978,43 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             builder.def_var(variable(*dest), results[0]);
             Ok(*dest)
         }
+        NativeAbiStmt::Primitive { dest, op, args } if primitive_unary_code(*op).is_some() => {
+            let [arg] = args.as_slice() else {
+                return Err(NativeValueCraneliftError::UnsupportedStmt {
+                    function: function.name.clone(),
+                    kind: "primitive unary arity",
+                });
+            };
+            let arg = read_values(builder, function, defined, &[*arg])?;
+            let op_code = builder
+                .ins()
+                .iconst(types::I64, primitive_unary_code(*op).expect("checked"));
+            let callee = module_backend.declare_func_in_func(helpers.primitive_unary, builder.func);
+            let call = builder.ins().call(callee, &[context, op_code, arg[0]]);
+            let result = single_call_result(builder, call, "yulang_native_primitive_unary")?;
+            builder.def_var(variable(*dest), result);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Primitive { dest, op, args } if primitive_binary_code(*op).is_some() => {
+            let [left, right] = args.as_slice() else {
+                return Err(NativeValueCraneliftError::UnsupportedStmt {
+                    function: function.name.clone(),
+                    kind: "primitive binary arity",
+                });
+            };
+            let args = read_values(builder, function, defined, &[*left, *right])?;
+            let op_code = builder
+                .ins()
+                .iconst(types::I64, primitive_binary_code(*op).expect("checked"));
+            let callee =
+                module_backend.declare_func_in_func(helpers.primitive_binary, builder.func);
+            let call = builder
+                .ins()
+                .call(callee, &[context, op_code, args[0], args[1]]);
+            let result = single_call_result(builder, call, "yulang_native_primitive_binary")?;
+            builder.def_var(variable(*dest), result);
+            Ok(*dest)
+        }
         NativeAbiStmt::Primitive { .. } => Err(NativeValueCraneliftError::UnsupportedStmt {
             function: function.name.clone(),
             kind: "primitive",
@@ -1104,6 +1193,45 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
 
 fn variable(value: ValueId) -> Variable {
     Variable::from_u32(value.0 as u32)
+}
+
+fn primitive_unary_code(op: yulang_core_ir::PrimitiveOp) -> Option<i64> {
+    match op {
+        yulang_core_ir::PrimitiveOp::BoolNot => Some(NATIVE_PRIMITIVE_BOOL_NOT),
+        yulang_core_ir::PrimitiveOp::IntToString => Some(NATIVE_PRIMITIVE_INT_TO_STRING),
+        yulang_core_ir::PrimitiveOp::IntToHex => Some(NATIVE_PRIMITIVE_INT_TO_HEX),
+        yulang_core_ir::PrimitiveOp::IntToUpperHex => Some(NATIVE_PRIMITIVE_INT_TO_UPPER_HEX),
+        yulang_core_ir::PrimitiveOp::FloatToString => Some(NATIVE_PRIMITIVE_FLOAT_TO_STRING),
+        yulang_core_ir::PrimitiveOp::BoolToString => Some(NATIVE_PRIMITIVE_BOOL_TO_STRING),
+        yulang_core_ir::PrimitiveOp::StringLen => Some(NATIVE_PRIMITIVE_STRING_LEN),
+        _ => None,
+    }
+}
+
+fn primitive_binary_code(op: yulang_core_ir::PrimitiveOp) -> Option<i64> {
+    match op {
+        yulang_core_ir::PrimitiveOp::BoolEq => Some(NATIVE_PRIMITIVE_BOOL_EQ),
+        yulang_core_ir::PrimitiveOp::IntAdd => Some(NATIVE_PRIMITIVE_INT_ADD),
+        yulang_core_ir::PrimitiveOp::IntSub => Some(NATIVE_PRIMITIVE_INT_SUB),
+        yulang_core_ir::PrimitiveOp::IntMul => Some(NATIVE_PRIMITIVE_INT_MUL),
+        yulang_core_ir::PrimitiveOp::IntDiv => Some(NATIVE_PRIMITIVE_INT_DIV),
+        yulang_core_ir::PrimitiveOp::IntEq => Some(NATIVE_PRIMITIVE_INT_EQ),
+        yulang_core_ir::PrimitiveOp::IntLt => Some(NATIVE_PRIMITIVE_INT_LT),
+        yulang_core_ir::PrimitiveOp::IntLe => Some(NATIVE_PRIMITIVE_INT_LE),
+        yulang_core_ir::PrimitiveOp::IntGt => Some(NATIVE_PRIMITIVE_INT_GT),
+        yulang_core_ir::PrimitiveOp::IntGe => Some(NATIVE_PRIMITIVE_INT_GE),
+        yulang_core_ir::PrimitiveOp::FloatAdd => Some(NATIVE_PRIMITIVE_FLOAT_ADD),
+        yulang_core_ir::PrimitiveOp::FloatSub => Some(NATIVE_PRIMITIVE_FLOAT_SUB),
+        yulang_core_ir::PrimitiveOp::FloatMul => Some(NATIVE_PRIMITIVE_FLOAT_MUL),
+        yulang_core_ir::PrimitiveOp::FloatDiv => Some(NATIVE_PRIMITIVE_FLOAT_DIV),
+        yulang_core_ir::PrimitiveOp::FloatEq => Some(NATIVE_PRIMITIVE_FLOAT_EQ),
+        yulang_core_ir::PrimitiveOp::FloatLt => Some(NATIVE_PRIMITIVE_FLOAT_LT),
+        yulang_core_ir::PrimitiveOp::FloatLe => Some(NATIVE_PRIMITIVE_FLOAT_LE),
+        yulang_core_ir::PrimitiveOp::FloatGt => Some(NATIVE_PRIMITIVE_FLOAT_GT),
+        yulang_core_ir::PrimitiveOp::FloatGe => Some(NATIVE_PRIMITIVE_FLOAT_GE),
+        yulang_core_ir::PrimitiveOp::StringIndex => Some(NATIVE_PRIMITIVE_STRING_INDEX),
+        _ => None,
+    }
 }
 
 trait ValueLiteralStore {

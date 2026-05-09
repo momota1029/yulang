@@ -115,8 +115,14 @@ pub fn lower_module(module: &runtime::Module) -> NativeLowerResult<NativeModule>
                 roots.push(lowered.function);
                 functions.extend(lowered.generated);
             }
-            runtime::Root::Binding(_) => {
-                return Err(NativeLowerError::UnsupportedRoot { root: root.clone() });
+            runtime::Root::Binding(path) => {
+                let Some(info) = function_table.get(path) else {
+                    return Err(NativeLowerError::UnsupportedRoot { root: root.clone() });
+                };
+                let Some(target) = info.direct_targets.get(&0) else {
+                    return Err(NativeLowerError::UnsupportedRoot { root: root.clone() });
+                };
+                roots.push(root_binding_function(roots.len(), target.clone()));
             }
         }
     }
@@ -137,12 +143,6 @@ fn lower_binding(
         return lower_primitive_binding(&binding.name, op);
     }
     let (params, body) = collect_lambda_params(&binding.body);
-    if params.is_empty() {
-        return Err(NativeLowerError::UnsupportedBinding {
-            path: binding.name.clone(),
-            reason: "non-function body",
-        });
-    }
     let mut lowered = FunctionLowerer::new(path_name(&binding.name), functions, params.clone())
         .lower_root(body)?;
     let (callable_params, callable_body) = collect_callable_params(&binding.body);
@@ -161,6 +161,25 @@ fn lower_binding(
         lowered.generated.extend(direct.generated);
     }
     Ok(lowered)
+}
+
+fn root_binding_function(index: usize, target: String) -> NativeFunction {
+    let dest = ValueId(0);
+    NativeFunction {
+        name: format!("root_binding_{index}"),
+        captures: Vec::new(),
+        params: Vec::new(),
+        blocks: vec![NativeBlock {
+            id: BlockId(0),
+            params: Vec::new(),
+            stmts: vec![NativeStmt::DirectCall {
+                dest,
+                target,
+                args: Vec::new(),
+            }],
+            terminator: NativeTerminator::Return(dest),
+        }],
+    }
 }
 
 fn binding_function_info(binding: &runtime::Binding) -> FunctionInfo {
@@ -376,11 +395,25 @@ impl<'a> FunctionLowerer<'a> {
             runtime::ExprKind::PrimitiveOp(_) => Err(NativeLowerError::UnsupportedExpr {
                 kind: "bare primitive",
             }),
-            runtime::ExprKind::Var(path) => self
-                .locals
-                .get(path)
-                .copied()
-                .ok_or(NativeLowerError::UnsupportedExpr { kind: "free var" }),
+            runtime::ExprKind::Var(path) => {
+                if let Some(value) = self.locals.get(path).copied() {
+                    return Ok(value);
+                }
+                if let Some(target) = self
+                    .functions
+                    .get(path)
+                    .and_then(|info| info.direct_targets.get(&0))
+                {
+                    let dest = self.fresh_value();
+                    self.current.stmts.push(NativeStmt::DirectCall {
+                        dest,
+                        target: target.clone(),
+                        args: Vec::new(),
+                    });
+                    return Ok(dest);
+                }
+                Err(NativeLowerError::UnsupportedExpr { kind: "free var" })
+            }
             runtime::ExprKind::EffectOp(_) => Err(NativeLowerError::UnsupportedExpr {
                 kind: "effect operation",
             }),

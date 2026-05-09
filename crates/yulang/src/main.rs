@@ -88,6 +88,7 @@ struct CliOptions {
     native_object: Option<NativeOutput>,
     native_exe: Option<NativeOutput>,
     native_value_exe: Option<NativeOutput>,
+    native_run: Option<NativeOutput>,
     native_run_exe: Option<NativeOutput>,
     native_run_value_exe: Option<NativeOutput>,
     native_run_cps_repr_exe: Option<NativeOutput>,
@@ -129,6 +130,7 @@ fn parse_args() -> CliOptions {
     let mut native_object = None;
     let mut native_exe = None;
     let mut native_value_exe = None;
+    let mut native_run = None;
     let mut native_run_exe = None;
     let mut native_run_value_exe = None;
     let mut native_run_cps_repr_exe = None;
@@ -169,13 +171,16 @@ fn parse_args() -> CliOptions {
             "--native-value-exe" => {
                 native_value_exe = Some(parse_optional_native_output(&mut args));
             }
+            "--native-run" => {
+                native_run = Some(parse_optional_native_output(&mut args));
+            }
             "--native-run-exe" | "--native-run-executable" => {
                 native_run_exe = Some(parse_optional_native_output(&mut args));
             }
             "--native-run-value-exe" => {
                 native_run_value_exe = Some(parse_optional_native_output(&mut args));
             }
-            "--native-run" | "--native-run-cps-repr-exe" => {
+            "--native-run-cps-repr-exe" => {
                 native_run_cps_repr_exe = Some(parse_optional_native_output(&mut args));
             }
             "--verbose-ir" => verbose_ir = true,
@@ -238,6 +243,7 @@ fn parse_args() -> CliOptions {
         && native_object.is_none()
         && native_exe.is_none()
         && native_value_exe.is_none()
+        && native_run.is_none()
         && native_run_exe.is_none()
         && native_run_value_exe.is_none()
         && native_run_cps_repr_exe.is_none()
@@ -257,6 +263,7 @@ fn parse_args() -> CliOptions {
         native_object,
         native_exe,
         native_value_exe,
+        native_run,
         native_run_exe,
         native_run_value_exe,
         native_run_cps_repr_exe,
@@ -368,6 +375,7 @@ fn run(options: &CliOptions) {
             || options.native_object.is_some()
             || options.native_exe.is_some()
             || options.native_value_exe.is_some()
+            || options.native_run.is_some()
             || options.native_run_exe.is_some()
             || options.native_run_value_exe.is_some()
             || options.native_run_cps_repr_exe.is_some()
@@ -633,6 +641,7 @@ fn run_infer_views(
             || options.native_object.is_some()
             || options.native_exe.is_some()
             || options.native_value_exe.is_some()
+            || options.native_run.is_some()
             || options.native_run_exe.is_some()
             || options.native_run_value_exe.is_some()
             || options.native_run_cps_repr_exe.is_some())
@@ -659,6 +668,7 @@ fn run_infer_views(
                 || options.native_object.is_some()
                 || options.native_exe.is_some()
                 || options.native_value_exe.is_some()
+                || options.native_run.is_some()
                 || options.native_run_exe.is_some()
                 || options.native_run_value_exe.is_some()
                 || options.native_run_cps_repr_exe.is_some())
@@ -804,6 +814,7 @@ fn run_infer_views(
                 || options.native_object.is_some()
                 || options.native_exe.is_some()
                 || options.native_value_exe.is_some()
+                || options.native_run.is_some()
                 || options.native_run_exe.is_some()
                 || options.native_run_value_exe.is_some()
             {
@@ -839,6 +850,7 @@ fn run_infer_views(
                 || options.native_object.is_some()
                 || options.native_exe.is_some()
                 || options.native_value_exe.is_some()
+                || options.native_run.is_some()
             {
                 println!();
             }
@@ -859,6 +871,7 @@ fn run_infer_views(
                 || options.native_abi_lanes
                 || options.native_exe.is_some()
                 || options.native_value_exe.is_some()
+                || options.native_run.is_some()
                 || options.native_run_exe.is_some()
                 || options.native_run_value_exe.is_some()
             {
@@ -882,6 +895,7 @@ fn run_infer_views(
                 || options.native_abi_lanes
                 || options.native_object.is_some()
                 || options.native_value_exe.is_some()
+                || options.native_run.is_some()
                 || options.native_run_exe.is_some()
                 || options.native_run_value_exe.is_some()
             {
@@ -905,6 +919,7 @@ fn run_infer_views(
                 || options.native_abi_lanes
                 || options.native_object.is_some()
                 || options.native_exe.is_some()
+                || options.native_run.is_some()
                 || options.native_run_exe.is_some()
                 || options.native_run_value_exe.is_some()
             {
@@ -918,6 +933,31 @@ fn run_infer_views(
             let path = native_value_executable_output_path(path, options.path.as_deref());
             write_native_value_executable_or_exit(&lowered.module, &path);
         }
+        if let Some(path) = &options.native_run {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+                || options.native_compare_i64
+                || options.native_abi_lanes
+                || options.native_object.is_some()
+                || options.native_exe.is_some()
+                || options.native_value_exe.is_some()
+                || options.native_run_exe.is_some()
+                || options.native_run_value_exe.is_some()
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            let path = native_run_executable_output_path(path, options.path.as_deref());
+            write_native_run_executable_or_exit(&lowered.module, &path);
+            run_native_executable_or_exit(&path, "native-run");
+        }
         if let Some(path) = &options.native_run_exe {
             if options.infer
                 || options.core_ir
@@ -929,6 +969,7 @@ fn run_infer_views(
                 || options.native_object.is_some()
                 || options.native_exe.is_some()
                 || options.native_value_exe.is_some()
+                || options.native_run.is_some()
                 || options.native_run_value_exe.is_some()
             {
                 println!();
@@ -953,6 +994,7 @@ fn run_infer_views(
                 || options.native_object.is_some()
                 || options.native_exe.is_some()
                 || options.native_value_exe.is_some()
+                || options.native_run.is_some()
                 || options.native_run_exe.is_some()
             {
                 println!();
@@ -977,6 +1019,7 @@ fn run_infer_views(
                 || options.native_object.is_some()
                 || options.native_exe.is_some()
                 || options.native_value_exe.is_some()
+                || options.native_run.is_some()
                 || options.native_run_exe.is_some()
                 || options.native_run_value_exe.is_some()
             {
@@ -1171,17 +1214,48 @@ fn write_native_executable_or_exit(module: &runtime::Module, path: &Path) {
     println!("native-exe: wrote {}", path.display());
 }
 
+fn write_native_run_executable_or_exit(module: &runtime::Module, path: &Path) {
+    match write_native_value_executable(module, path, "native-run(value)") {
+        Ok(()) => {}
+        Err(value_error) => {
+            if !value_error.is_unsupported() {
+                eprintln!("{value_error}");
+                process::exit(1);
+            }
+            eprintln!("native-run: value backend unsupported, using CPS repr: {value_error}");
+            if let Err(cps_error) =
+                write_native_cps_repr_executable(module, path, "native-run(cps)")
+            {
+                eprintln!("failed to compile native-run executable");
+                eprintln!("  value backend: {value_error}");
+                eprintln!("  CPS repr backend: {cps_error}");
+                process::exit(1);
+            }
+        }
+    }
+}
+
 fn write_native_value_executable_or_exit(module: &runtime::Module, path: &Path) {
-    let object = compile_native_value_object_or_exit(module);
+    if let Err(err) = write_native_value_executable(module, path, "native-value-exe") {
+        eprintln!("{err}");
+        process::exit(1);
+    }
+}
+
+fn write_native_value_executable(
+    module: &runtime::Module,
+    path: &Path,
+    label: &str,
+) -> Result<(), NativeValueExecutableError> {
+    let object = compile_native_value_object(module)?;
     let support_library = build_native_runtime_staticlib_or_exit();
     ensure_parent_dir_or_exit(path, "native value executable");
     let temp_dir = native_link_temp_dir();
     if let Err(err) = fs::create_dir_all(&temp_dir) {
-        eprintln!(
+        return Err(NativeValueExecutableError::Fatal(format!(
             "failed to create native value link temp dir {}: {err}",
             temp_dir.display()
-        );
-        process::exit(1);
+        )));
     }
     let object_path = temp_dir.join("module.o");
     let harness_path = temp_dir.join("main.c");
@@ -1189,21 +1263,21 @@ fn write_native_value_executable_or_exit(module: &runtime::Module, path: &Path) 
         let _ = fs::remove_dir_all(&temp_dir);
     };
     if let Err(err) = fs::write(&object_path, object.bytes()) {
-        eprintln!(
+        let message = format!(
             "failed to write native value object {}: {err}",
             object_path.display()
         );
         cleanup();
-        process::exit(1);
+        return Err(NativeValueExecutableError::Fatal(message));
     }
     let harness = native_value_executable_harness(object.roots());
     if let Err(err) = fs::write(&harness_path, harness) {
-        eprintln!(
+        let message = format!(
             "failed to write native value executable harness {}: {err}",
             harness_path.display()
         );
         cleanup();
-        process::exit(1);
+        return Err(NativeValueExecutableError::Fatal(message));
     }
     let output = match Command::new("cc")
         .arg(&harness_path)
@@ -1218,37 +1292,44 @@ fn write_native_value_executable_or_exit(module: &runtime::Module, path: &Path) 
     {
         Ok(output) => output,
         Err(err) => {
-            eprintln!("failed to run cc for native value executable: {err}");
             cleanup();
-            process::exit(1);
+            return Err(NativeValueExecutableError::Fatal(format!(
+                "failed to run cc for native value executable: {err}"
+            )));
         }
     };
     if !output.status.success() {
-        eprintln!("failed to link native value executable with cc");
-        if !output.stdout.is_empty() {
-            eprintln!("{}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-        }
+        let message =
+            command_failure_message("failed to link native value executable with cc", &output);
         cleanup();
-        process::exit(1);
+        return Err(NativeValueExecutableError::Fatal(message));
     }
     cleanup();
-    println!("native-value-exe: wrote {}", path.display());
+    println!("{label}: wrote {}", path.display());
+    Ok(())
 }
 
 fn write_native_cps_repr_executable_or_exit(module: &runtime::Module, path: &Path) {
-    let object = compile_native_cps_repr_object_or_exit(module);
+    if let Err(err) = write_native_cps_repr_executable(module, path, "native-run") {
+        eprintln!("{err}");
+        process::exit(1);
+    }
+}
+
+fn write_native_cps_repr_executable(
+    module: &runtime::Module,
+    path: &Path,
+    label: &str,
+) -> Result<(), String> {
+    let object = compile_native_cps_repr_object(module)?;
     let support_library = build_native_runtime_staticlib_or_exit();
     ensure_parent_dir_or_exit(path, "native CPS repr executable");
     let temp_dir = native_link_temp_dir();
     if let Err(err) = fs::create_dir_all(&temp_dir) {
-        eprintln!(
+        return Err(format!(
             "failed to create native CPS repr link temp dir {}: {err}",
             temp_dir.display()
-        );
-        process::exit(1);
+        ));
     }
     let object_path = temp_dir.join("module.o");
     let harness_path = temp_dir.join("main.rs");
@@ -1256,21 +1337,21 @@ fn write_native_cps_repr_executable_or_exit(module: &runtime::Module, path: &Pat
         let _ = fs::remove_dir_all(&temp_dir);
     };
     if let Err(err) = fs::write(&object_path, object.bytes()) {
-        eprintln!(
+        let message = format!(
             "failed to write native CPS repr object {}: {err}",
             object_path.display()
         );
         cleanup();
-        process::exit(1);
+        return Err(message);
     }
     let harness = native_cps_repr_executable_harness(object.roots());
     if let Err(err) = fs::write(&harness_path, harness) {
-        eprintln!(
+        let message = format!(
             "failed to write native CPS repr executable harness {}: {err}",
             harness_path.display()
         );
         cleanup();
-        process::exit(1);
+        return Err(message);
     }
     let output = match Command::new("rustc")
         .arg("--edition=2024")
@@ -1289,24 +1370,57 @@ fn write_native_cps_repr_executable_or_exit(module: &runtime::Module, path: &Pat
     {
         Ok(output) => output,
         Err(err) => {
-            eprintln!("failed to run rustc for native CPS repr executable: {err}");
             cleanup();
-            process::exit(1);
+            return Err(format!(
+                "failed to run rustc for native CPS repr executable: {err}"
+            ));
         }
     };
     if !output.status.success() {
-        eprintln!("failed to link native CPS repr executable with rustc");
-        if !output.stdout.is_empty() {
-            eprintln!("{}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-        }
+        let message = command_failure_message(
+            "failed to link native CPS repr executable with rustc",
+            &output,
+        );
         cleanup();
-        process::exit(1);
+        return Err(message);
     }
     cleanup();
-    println!("native-run: wrote {}", path.display());
+    println!("{label}: wrote {}", path.display());
+    Ok(())
+}
+
+fn command_failure_message(message: &str, output: &std::process::Output) -> String {
+    let mut result = message.to_string();
+    if !output.stdout.is_empty() {
+        result.push('\n');
+        result.push_str(&String::from_utf8_lossy(&output.stdout));
+    }
+    if !output.stderr.is_empty() {
+        result.push('\n');
+        result.push_str(&String::from_utf8_lossy(&output.stderr));
+    }
+    result
+}
+
+#[derive(Debug)]
+enum NativeValueExecutableError {
+    Unsupported(String),
+    Fatal(String),
+}
+
+impl NativeValueExecutableError {
+    fn is_unsupported(&self) -> bool {
+        matches!(self, Self::Unsupported(_))
+    }
+}
+
+impl std::fmt::Display for NativeValueExecutableError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NativeValueExecutableError::Unsupported(message)
+            | NativeValueExecutableError::Fatal(message) => write!(f, "{message}"),
+        }
+    }
 }
 
 fn run_native_executable_or_exit(path: &Path, label: &str) {
@@ -1344,6 +1458,15 @@ fn native_executable_output_path(output: &NativeOutput, input_path: Option<&str>
         NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
             .project_bin
             .join(native_output_stem(input_path)),
+    }
+}
+
+fn native_run_executable_output_path(output: &NativeOutput, input_path: Option<&str>) -> PathBuf {
+    match output {
+        NativeOutput::Path(path) => PathBuf::from(path),
+        NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
+            .project_bin
+            .join(format!("{}-native", native_output_stem(input_path))),
     }
 }
 
@@ -1519,36 +1642,57 @@ fn compile_native_object_or_exit(
     (object, roots)
 }
 
-fn compile_native_value_object_or_exit(
+fn compile_native_value_object(
     module: &runtime::Module,
-) -> yulang_native::NativeValueObjectModule {
-    let native = match yulang_native::lower_module(module) {
-        Ok(module) => module,
-        Err(err) => {
-            eprintln!("failed to lower native control IR: {err}");
-            process::exit(1);
-        }
-    };
+) -> Result<yulang_native::NativeValueObjectModule, NativeValueExecutableError> {
+    let native = yulang_native::lower_module(module).map_err(classify_native_value_lower_error)?;
     let closure = yulang_native::closure_convert_module(&native);
     let abi = yulang_native::lower_closure_module_to_abi(&closure);
-    match yulang_native::compile_value_abi_module_to_object(&abi) {
-        Ok(object) => object,
-        Err(err) => {
-            eprintln!("failed to compile native value object: {err}");
-            process::exit(1);
+    yulang_native::compile_value_abi_module_to_object(&abi)
+        .map_err(classify_native_value_cranelift_error)
+}
+
+fn compile_native_cps_repr_object(
+    module: &runtime::Module,
+) -> Result<yulang_native::CpsReprObjectModule, String> {
+    yulang_native::compile_runtime_module_to_cps_repr_object(module)
+        .map_err(|err| format!("failed to compile native CPS repr object: {err}"))
+}
+
+fn classify_native_value_lower_error(
+    err: yulang_native::NativeLowerError,
+) -> NativeValueExecutableError {
+    use yulang_native::NativeLowerError;
+    let message = format!("failed to lower native control IR: {err}");
+    match err {
+        NativeLowerError::UnsupportedRoot { .. }
+        | NativeLowerError::UnsupportedExpr { .. }
+        | NativeLowerError::UnsupportedPattern { .. }
+        | NativeLowerError::UnsupportedBinding { .. } => {
+            NativeValueExecutableError::Unsupported(message)
         }
+        NativeLowerError::MissingRootExpr { .. }
+        | NativeLowerError::PrimitiveArityMismatch { .. }
+        | NativeLowerError::CallArityMismatch { .. } => NativeValueExecutableError::Fatal(message),
     }
 }
 
-fn compile_native_cps_repr_object_or_exit(
-    module: &runtime::Module,
-) -> yulang_native::CpsReprObjectModule {
-    match yulang_native::compile_runtime_module_to_cps_repr_object(module) {
-        Ok(object) => object,
-        Err(err) => {
-            eprintln!("failed to compile native CPS repr object: {err}");
-            process::exit(1);
+fn classify_native_value_cranelift_error(
+    err: yulang_native::NativeValueCraneliftError,
+) -> NativeValueExecutableError {
+    use yulang_native::NativeValueCraneliftError;
+    let message = format!("failed to compile native value object: {err}");
+    match err {
+        NativeValueCraneliftError::UnsupportedFunction { .. }
+        | NativeValueCraneliftError::UnsupportedStmt { .. }
+        | NativeValueCraneliftError::UnsupportedLiteral { .. } => {
+            NativeValueExecutableError::Unsupported(message)
         }
+        NativeValueCraneliftError::AbiInvalid(_)
+        | NativeValueCraneliftError::MissingBlock { .. }
+        | NativeValueCraneliftError::MissingValue { .. }
+        | NativeValueCraneliftError::InvalidReturnArity { .. }
+        | NativeValueCraneliftError::Cranelift(_) => NativeValueExecutableError::Fatal(message),
     }
 }
 
@@ -5219,6 +5363,7 @@ mod tests {
             native_object: None,
             native_exe: None,
             native_value_exe: None,
+            native_run: None,
             native_run_exe: None,
             native_run_value_exe: None,
             native_run_cps_repr_exe: None,
@@ -5238,6 +5383,8 @@ mod tests {
         let object = native_object_output_path(&NativeOutput::Default, Some("examples/hello.yu"));
         let executable =
             native_executable_output_path(&NativeOutput::Default, Some("examples/hello.yu"));
+        let run_executable =
+            native_run_executable_output_path(&NativeOutput::Default, Some("examples/hello.yu"));
         let value_executable =
             native_value_executable_output_path(&NativeOutput::Default, Some("examples/hello.yu"));
         let cps_repr_executable = native_cps_repr_executable_output_path(
@@ -5247,6 +5394,7 @@ mod tests {
 
         assert!(object.ends_with("target/yulang/obj/hello.o"));
         assert!(executable.ends_with("target/yulang/bin/hello"));
+        assert!(run_executable.ends_with("target/yulang/bin/hello-native"));
         assert!(value_executable.ends_with("target/yulang/bin/hello-value"));
         assert!(cps_repr_executable.ends_with("target/yulang/bin/hello-cps-repr"));
     }

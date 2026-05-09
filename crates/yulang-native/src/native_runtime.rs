@@ -12,6 +12,35 @@ use std::rc::Rc;
 use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
 
+pub const NATIVE_PRIMITIVE_BOOL_NOT: i64 = 1;
+pub const NATIVE_PRIMITIVE_INT_TO_STRING: i64 = 2;
+pub const NATIVE_PRIMITIVE_INT_TO_HEX: i64 = 3;
+pub const NATIVE_PRIMITIVE_INT_TO_UPPER_HEX: i64 = 4;
+pub const NATIVE_PRIMITIVE_FLOAT_TO_STRING: i64 = 5;
+pub const NATIVE_PRIMITIVE_BOOL_TO_STRING: i64 = 6;
+pub const NATIVE_PRIMITIVE_STRING_LEN: i64 = 7;
+
+pub const NATIVE_PRIMITIVE_BOOL_EQ: i64 = 101;
+pub const NATIVE_PRIMITIVE_INT_ADD: i64 = 102;
+pub const NATIVE_PRIMITIVE_INT_SUB: i64 = 103;
+pub const NATIVE_PRIMITIVE_INT_MUL: i64 = 104;
+pub const NATIVE_PRIMITIVE_INT_DIV: i64 = 105;
+pub const NATIVE_PRIMITIVE_INT_EQ: i64 = 106;
+pub const NATIVE_PRIMITIVE_INT_LT: i64 = 107;
+pub const NATIVE_PRIMITIVE_INT_LE: i64 = 108;
+pub const NATIVE_PRIMITIVE_INT_GT: i64 = 109;
+pub const NATIVE_PRIMITIVE_INT_GE: i64 = 110;
+pub const NATIVE_PRIMITIVE_FLOAT_ADD: i64 = 111;
+pub const NATIVE_PRIMITIVE_FLOAT_SUB: i64 = 112;
+pub const NATIVE_PRIMITIVE_FLOAT_MUL: i64 = 113;
+pub const NATIVE_PRIMITIVE_FLOAT_DIV: i64 = 114;
+pub const NATIVE_PRIMITIVE_FLOAT_EQ: i64 = 115;
+pub const NATIVE_PRIMITIVE_FLOAT_LT: i64 = 116;
+pub const NATIVE_PRIMITIVE_FLOAT_LE: i64 = 117;
+pub const NATIVE_PRIMITIVE_FLOAT_GT: i64 = 118;
+pub const NATIVE_PRIMITIVE_FLOAT_GE: i64 = 119;
+pub const NATIVE_PRIMITIVE_STRING_INDEX: i64 = 120;
+
 #[derive(Default)]
 pub struct NativeRuntimeContext {
     values: Vec<Box<runtime::VmValue>>,
@@ -82,6 +111,100 @@ pub fn concat_string(
     Some(context.alloc(runtime::VmValue::String(
         runtime::runtime::string_tree::StringTree::concat(left.clone(), right.clone()),
     )))
+}
+
+pub fn primitive_unary(
+    context: &mut NativeRuntimeContext,
+    op: i64,
+    value: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let value = unsafe { value.as_ref()? };
+    let result = match op {
+        NATIVE_PRIMITIVE_BOOL_NOT => runtime::VmValue::Bool(!bool_value(value)?),
+        NATIVE_PRIMITIVE_INT_TO_STRING => {
+            runtime::VmValue::String(string_tree_from(int_value(value)?.to_string()))
+        }
+        NATIVE_PRIMITIVE_INT_TO_HEX => {
+            runtime::VmValue::String(string_tree_from(format!("{:x}", int_value(value)?)))
+        }
+        NATIVE_PRIMITIVE_INT_TO_UPPER_HEX => {
+            runtime::VmValue::String(string_tree_from(format!("{:X}", int_value(value)?)))
+        }
+        NATIVE_PRIMITIVE_FLOAT_TO_STRING => {
+            runtime::VmValue::String(string_tree_from(format_float_value(float_value(value)?)))
+        }
+        NATIVE_PRIMITIVE_BOOL_TO_STRING => {
+            runtime::VmValue::String(string_tree_from(bool_value(value)?.to_string()))
+        }
+        NATIVE_PRIMITIVE_STRING_LEN => {
+            runtime::VmValue::Int(string_value(value)?.len().to_string())
+        }
+        _ => return None,
+    };
+    Some(context.alloc(result))
+}
+
+pub fn primitive_binary(
+    context: &mut NativeRuntimeContext,
+    op: i64,
+    left: *mut runtime::VmValue,
+    right: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let left = unsafe { left.as_ref()? };
+    let right = unsafe { right.as_ref()? };
+    let result = match op {
+        NATIVE_PRIMITIVE_BOOL_EQ => runtime::VmValue::Bool(bool_value(left)? == bool_value(right)?),
+        NATIVE_PRIMITIVE_INT_ADD => {
+            runtime::VmValue::Int((int_value(left)? + int_value(right)?).to_string())
+        }
+        NATIVE_PRIMITIVE_INT_SUB => {
+            runtime::VmValue::Int((int_value(left)? - int_value(right)?).to_string())
+        }
+        NATIVE_PRIMITIVE_INT_MUL => {
+            runtime::VmValue::Int((int_value(left)? * int_value(right)?).to_string())
+        }
+        NATIVE_PRIMITIVE_INT_DIV => {
+            runtime::VmValue::Int((int_value(left)? / int_value(right)?).to_string())
+        }
+        NATIVE_PRIMITIVE_INT_EQ => runtime::VmValue::Bool(int_value(left)? == int_value(right)?),
+        NATIVE_PRIMITIVE_INT_LT => runtime::VmValue::Bool(int_value(left)? < int_value(right)?),
+        NATIVE_PRIMITIVE_INT_LE => runtime::VmValue::Bool(int_value(left)? <= int_value(right)?),
+        NATIVE_PRIMITIVE_INT_GT => runtime::VmValue::Bool(int_value(left)? > int_value(right)?),
+        NATIVE_PRIMITIVE_INT_GE => runtime::VmValue::Bool(int_value(left)? >= int_value(right)?),
+        NATIVE_PRIMITIVE_FLOAT_ADD => {
+            runtime::VmValue::Float(format_float_value(float_value(left)? + float_value(right)?))
+        }
+        NATIVE_PRIMITIVE_FLOAT_SUB => {
+            runtime::VmValue::Float(format_float_value(float_value(left)? - float_value(right)?))
+        }
+        NATIVE_PRIMITIVE_FLOAT_MUL => {
+            runtime::VmValue::Float(format_float_value(float_value(left)? * float_value(right)?))
+        }
+        NATIVE_PRIMITIVE_FLOAT_DIV => {
+            runtime::VmValue::Float(format_float_value(float_value(left)? / float_value(right)?))
+        }
+        NATIVE_PRIMITIVE_FLOAT_EQ => {
+            runtime::VmValue::Bool(float_value(left)? == float_value(right)?)
+        }
+        NATIVE_PRIMITIVE_FLOAT_LT => {
+            runtime::VmValue::Bool(float_value(left)? < float_value(right)?)
+        }
+        NATIVE_PRIMITIVE_FLOAT_LE => {
+            runtime::VmValue::Bool(float_value(left)? <= float_value(right)?)
+        }
+        NATIVE_PRIMITIVE_FLOAT_GT => {
+            runtime::VmValue::Bool(float_value(left)? > float_value(right)?)
+        }
+        NATIVE_PRIMITIVE_FLOAT_GE => {
+            runtime::VmValue::Bool(float_value(left)? >= float_value(right)?)
+        }
+        NATIVE_PRIMITIVE_STRING_INDEX => {
+            let index = usize::try_from(int_value(right)?).ok()?;
+            runtime::VmValue::String(string_tree_from(string_value(left)?.index(index)?))
+        }
+        _ => return None,
+    };
+    Some(context.alloc(result))
 }
 
 pub fn list_empty(context: &mut NativeRuntimeContext) -> *mut runtime::VmValue {
@@ -321,6 +444,31 @@ pub extern "C" fn yulang_native_concat_string(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_primitive_unary(
+    context: *mut NativeRuntimeContext,
+    op: i64,
+    value: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    primitive_unary(context, op, value).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_primitive_binary(
+    context: *mut NativeRuntimeContext,
+    op: i64,
+    left: *mut runtime::VmValue,
+    right: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    primitive_binary(context, op, left, right).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn yulang_native_list_empty(
     context: *mut NativeRuntimeContext,
 ) -> *mut runtime::VmValue {
@@ -509,6 +657,46 @@ fn core_ir_name(name: &str) -> core_ir::Name {
     core_ir::Name(name.to_string())
 }
 
+fn int_value(value: &runtime::VmValue) -> Option<i64> {
+    let runtime::VmValue::Int(value) = value else {
+        return None;
+    };
+    value.parse().ok()
+}
+
+fn float_value(value: &runtime::VmValue) -> Option<f64> {
+    let runtime::VmValue::Float(value) = value else {
+        return None;
+    };
+    value.parse().ok()
+}
+
+fn bool_value(value: &runtime::VmValue) -> Option<bool> {
+    let runtime::VmValue::Bool(value) = value else {
+        return None;
+    };
+    Some(*value)
+}
+
+fn string_value(value: &runtime::VmValue) -> Option<&runtime::runtime::string_tree::StringTree> {
+    let runtime::VmValue::String(value) = value else {
+        return None;
+    };
+    Some(value)
+}
+
+fn string_tree_from(value: impl Into<String>) -> runtime::runtime::string_tree::StringTree {
+    runtime::runtime::string_tree::StringTree::from_str(&value.into())
+}
+
+fn format_float_value(value: f64) -> String {
+    let mut rendered = value.to_string();
+    if !rendered.contains('.') && !rendered.contains('e') && !rendered.contains('E') {
+        rendered.push_str(".0");
+    }
+    rendered
+}
+
 fn flush_stdout() {
     let _ = std::io::stdout().flush();
 }
@@ -580,6 +768,30 @@ mod tests {
         assert!(matches!(
             context.clone_value(item),
             Some(runtime::VmValue::Int(value)) if value == "2"
+        ));
+    }
+
+    #[test]
+    fn api_runs_basic_primitives() {
+        let mut context = NativeRuntimeContext::new();
+        let one = make_int(&mut context, b"1").expect("one");
+        let two = make_int(&mut context, b"2").expect("two");
+        let sum = primitive_binary(&mut context, NATIVE_PRIMITIVE_INT_ADD, one, two).expect("sum");
+        let lt = primitive_binary(&mut context, NATIVE_PRIMITIVE_INT_LT, one, two).expect("lt");
+        let text =
+            primitive_unary(&mut context, NATIVE_PRIMITIVE_INT_TO_STRING, sum).expect("text");
+
+        assert!(matches!(
+            context.clone_value(sum),
+            Some(runtime::VmValue::Int(value)) if value == "3"
+        ));
+        assert!(matches!(
+            context.clone_value(lt),
+            Some(runtime::VmValue::Bool(true))
+        ));
+        assert!(matches!(
+            context.clone_value(text),
+            Some(runtime::VmValue::String(value)) if value.to_flat_string() == "3"
         ));
     }
 }
