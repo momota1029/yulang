@@ -8,6 +8,7 @@
 pub mod abi;
 pub mod abi_eval;
 pub mod abi_format;
+pub mod abi_lane;
 pub mod abi_subset;
 pub mod abi_validate;
 pub mod closure;
@@ -31,6 +32,7 @@ pub use abi::{
 };
 pub use abi_eval::{NativeAbiEvalError, NativeAbiEvalResult, eval_abi_module};
 pub use abi_format::format_abi_module;
+pub use abi_lane::{NativeAbiLaneAnalysis, NativeAbiValueLane, analyze_abi_value_lanes};
 pub use abi_subset::{NativeAbiSubsetError, validate_cranelift_prototype_subset};
 pub use abi_validate::{NativeAbiValidateError, validate_abi_module};
 pub use closure::{

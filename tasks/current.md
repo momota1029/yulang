@@ -85,6 +85,8 @@ runtime/core IR
   - CLI は `--native-compare-i64` で VM / native-control / ABI eval / Cranelift scalar result を比較できる。`bench/native_compare.sh` は同じ入口を quick bench/debug 用に呼ぶ。
   - 次は source-level compare examples を bool / if / small function へ広げる。
   - `str` / `list` / `record` は `notes/design/native-value-abi-plan.md` の opaque runtime value pointer lane で進める。scalar-only `compile_abi_module` は残し、value lane は別 entrypoint として追加する。
+  - `analyze_abi_value_lanes` は ABI function を `ScalarI64` / `RuntimeValuePtr` に分類する。string/list/float/stringify primitives、closure/env、value-lane direct call は runtime value pointer lane へ伝播する。
+  - CLI は `--native-abi-lanes` で source から native ABI lane classification を表示できる。未使用の closure-returning wrapper と reachable scalar direct wrapper の違いを見るための debug entrypoint。
 
 重要な制約:
 

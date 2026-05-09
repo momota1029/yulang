@@ -83,6 +83,7 @@ struct CliOptions {
     hygiene_ir: bool,
     run_vm: bool,
     native_compare_i64: bool,
+    native_abi_lanes: bool,
     verbose_ir: bool,
     infer_phase_timings: bool,
     runtime_phase_timings: bool,
@@ -111,6 +112,7 @@ fn parse_args() -> CliOptions {
     let mut hygiene_ir = false;
     let mut run_vm = false;
     let mut native_compare_i64 = false;
+    let mut native_abi_lanes = false;
     let mut verbose_ir = false;
     let mut infer_phase_timings = false;
     let mut runtime_phase_timings = false;
@@ -138,6 +140,7 @@ fn parse_args() -> CliOptions {
             "--hygiene-ir" => hygiene_ir = true,
             "--run" => run_vm = true,
             "--native-compare-i64" => native_compare_i64 = true,
+            "--native-abi-lanes" => native_abi_lanes = true,
             "--verbose-ir" => verbose_ir = true,
             "--infer-phase-timings" => infer_phase_timings = true,
             "--runtime-phase-timings" => runtime_phase_timings = true,
@@ -194,6 +197,7 @@ fn parse_args() -> CliOptions {
         && !hygiene_ir
         && !run_vm
         && !native_compare_i64
+        && !native_abi_lanes
     {
         infer = true;
     }
@@ -206,6 +210,7 @@ fn parse_args() -> CliOptions {
         hygiene_ir,
         run_vm,
         native_compare_i64,
+        native_abi_lanes,
         verbose_ir,
         infer_phase_timings,
         runtime_phase_timings,
@@ -239,7 +244,7 @@ fn read_source(path: Option<&str>) -> String {
 
 fn print_usage() {
     eprintln!(
-        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--native-compare-i64] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
+        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--native-compare-i64] [--native-abi-lanes] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
     );
     eprintln!("       (no path = read from stdin)");
     eprintln!("       --cst         also print the CST before types");
@@ -256,6 +261,7 @@ fn print_usage() {
     eprintln!(
         "       --native-compare-i64  compare VM/native-control/native-ABI/Cranelift scalar i64 results"
     );
+    eprintln!("       --native-abi-lanes  print native ABI scalar/value lane classification");
     eprintln!("       --verbose-ir  include detailed graph/evidence sections in IR dumps");
     eprintln!("       --infer-phase-timings  print coarse timing breakdown for the infer pipeline");
     eprintln!(
@@ -295,6 +301,7 @@ fn run(options: &CliOptions) {
             || options.hygiene_ir
             || options.run_vm
             || options.native_compare_i64
+            || options.native_abi_lanes
         {
             run_infer_views(
                 options.path.as_deref(),
@@ -552,7 +559,8 @@ fn run_infer_views(
             || options.runtime_ir
             || options.hygiene_ir
             || options.run_vm
-            || options.native_compare_i64)
+            || options.native_compare_i64
+            || options.native_abi_lanes)
     {
         Some(export_core_program(&mut state))
     } else {
@@ -571,7 +579,8 @@ fn run_infer_views(
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_vm
-                || options.native_compare_i64)
+                || options.native_compare_i64
+                || options.native_abi_lanes)
         {
             process::exit(1);
         }
@@ -710,6 +719,7 @@ fn run_infer_views(
                 || options.runtime_ir
                 || options.hygiene_ir
                 || options.run_vm
+                || options.native_abi_lanes
             {
                 println!();
             }
@@ -732,6 +742,23 @@ fn run_infer_views(
                 );
             }
             println!("native-compare-i64: ok");
+        }
+        if options.native_abi_lanes {
+            if options.infer
+                || options.core_ir
+                || options.runtime_ir
+                || options.hygiene_ir
+                || options.run_vm
+                || options.native_compare_i64
+            {
+                println!();
+            }
+            let lowered = lower_runtime_module_or_exit(
+                infer_program.as_ref().expect("core program"),
+                options.runtime_phase_timings,
+                &diagnostic_source,
+            );
+            print_native_abi_lanes_or_exit(&lowered.module);
         }
         if options.infer_phase_timings && options.infer {
             print_infer_phase_timings(
@@ -816,6 +843,29 @@ fn lower_runtime_module_or_exit(
         monomorphize_profile,
     };
     RuntimeLowerOutput { module, profile }
+}
+
+fn print_native_abi_lanes_or_exit(module: &runtime::Module) {
+    let native = match yulang_native::lower_module(module) {
+        Ok(module) => module,
+        Err(err) => {
+            eprintln!("failed to lower native control IR: {err}");
+            process::exit(1);
+        }
+    };
+    let closure = yulang_native::closure_convert_module(&native);
+    let abi = yulang_native::lower_closure_module_to_abi(&closure);
+    let lanes = yulang_native::analyze_abi_value_lanes(&abi);
+    let mut entries = lanes.functions.into_iter().collect::<Vec<_>>();
+    entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+    println!("native-abi-lanes:");
+    for (name, lane) in entries {
+        let lane = match lane {
+            yulang_native::NativeAbiValueLane::ScalarI64 => "scalar-i64",
+            yulang_native::NativeAbiValueLane::RuntimeValuePtr => "runtime-value-ptr",
+        };
+        println!("  {name}: {lane}");
+    }
 }
 
 fn print_runtime_phase_timings(
@@ -4316,6 +4366,7 @@ mod tests {
             hygiene_ir: false,
             run_vm: false,
             native_compare_i64: false,
+            native_abi_lanes: false,
             verbose_ir: false,
             infer_phase_timings: false,
             runtime_phase_timings: false,
