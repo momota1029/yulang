@@ -70,7 +70,8 @@ runtime/core IR
   - closure-converted function は `NativeClosureAbi` を持ち、code ref / environment slot count / non-capture params を backend が読める形に分ける。
   - `lower_closure_module_to_abi` は closure-converted IR を backend-neutral ABI IR に落とす。`LoadEnv` / `AllocateClosure` / `IndirectClosureCall` / `DirectCall` が Cranelift 手前の境界になる。
   - `validate_abi_module` は function/block/value uniqueness、use-before-def、env slot range、terminator target を検査する。
-  - 次は primitive-only subset の Cranelift prototype に入る前の unsupported form 整理。
+  - `validate_cranelift_prototype_subset` は最初の Cranelift prototype 用に、int/float/bool/unit literal、数値/bool primitive、direct call だけを許可する。string/list/closure/env は runtime ABI が固まるまで明示 unsupported。
+  - 次は Cranelift dependency を入れる前に、ABI IR の primitive-only interpreter / formatted dump を用意するか、直接 Cranelift prototype に進むか決める。
 
 重要な制約:
 
