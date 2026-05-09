@@ -18,6 +18,7 @@ Cranelift backend を作る。
 
 - `notes/design/native-backend-plan.md`
 - `notes/design/cps-effect-lowering-plan.md`
+- `notes/design/native-value-abi-plan.md`
 
 近い形:
 
@@ -83,6 +84,7 @@ runtime/core IR
   - 関数内の `x + 1` は source-level compare へ戻した。`my inc x = x + 1; inc 41` は VM / native-control / ABI eval / Cranelift で比較している。
   - CLI は `--native-compare-i64` で VM / native-control / ABI eval / Cranelift scalar result を比較できる。`bench/native_compare.sh` は同じ入口を quick bench/debug 用に呼ぶ。
   - 次は source-level compare examples を bool / if / small function へ広げる。
+  - `str` / `list` / `record` は `notes/design/native-value-abi-plan.md` の opaque runtime value pointer lane で進める。scalar-only `compile_abi_module` は残し、value lane は別 entrypoint として追加する。
 
 重要な制約:
 
