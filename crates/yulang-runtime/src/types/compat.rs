@@ -76,17 +76,17 @@ pub(super) fn type_compatible_inner(
             })
         }
         (core_ir::Type::Variant(variant), core_ir::Type::Variant(actual_variant)) => {
-            variant.cases.iter().all(|case| {
-                actual_variant
+            actual_variant.cases.iter().all(|actual| {
+                variant
                     .cases
                     .iter()
-                    .find(|actual| actual.name == case.name)
-                    .is_some_and(|actual| {
-                        case.payloads.len() == actual.payloads.len()
-                            && case
+                    .find(|case| case.name == actual.name)
+                    .is_some_and(|case| {
+                        actual.payloads.len() == case.payloads.len()
+                            && actual
                                 .payloads
                                 .iter()
-                                .zip(&actual.payloads)
+                                .zip(&case.payloads)
                                 .all(|(left, right)| type_compatible_inner(left, right, depth - 1))
                     })
             })

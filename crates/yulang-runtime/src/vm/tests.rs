@@ -388,7 +388,7 @@ act fs_err:
     fn vm_runs_symbol_variant_roots_through_case_function() {
         let results = eval_source_with_std(
             r#"my button option = case option:
-    :label text -> "<button>" + text + "</button>"
+    :label text -> "<button>%{text}</button>"
     :disabled -> "<button disabled></button>"
 
 button: :label "send"

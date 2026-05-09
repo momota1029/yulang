@@ -73,28 +73,6 @@ pub(super) fn variant_payload_expected(
     }
 }
 
-pub(super) fn variant_expr_expected(
-    expected: Option<&core_ir::Type>,
-    tag: &core_ir::Name,
-) -> Option<core_ir::Type> {
-    match expected {
-        Some(core_ir::Type::Variant(variant)) => variant
-            .cases
-            .iter()
-            .find(|case| case.name == *tag)
-            .map(|case| {
-                core_ir::Type::Variant(core_ir::VariantType {
-                    cases: vec![case.clone()],
-                    tail: None,
-                })
-            }),
-        Some(core_ir::Type::Union(items) | core_ir::Type::Inter(items)) => items
-            .iter()
-            .find_map(|item| variant_expr_expected(Some(item), tag)),
-        _ => None,
-    }
-}
-
 fn variant_payload_expected_from_variant(
     variant: &core_ir::VariantType,
     tag: &core_ir::Name,

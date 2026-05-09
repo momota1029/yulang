@@ -294,7 +294,7 @@ box { width: 3, height: 4 }
     source: `// Symbol variants are lightweight choices with payloads.
 
 my button option = case option:
-    :label text -> "<button>" + text + "</button>"
+    :label text -> "<button>%{text}</button>"
     :disabled -> "<button disabled></button>"
 
 button: :label "send"

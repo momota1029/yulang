@@ -315,6 +315,10 @@ impl Lowerer<'_> {
                         && self.use_principal_elaboration
                         && expected_arg_evidence_runtime_usable(hint)
                         && matches!(hint, RuntimeType::Core(core_ir::Type::Variant(_)))
+                        && callee_stored_hint
+                            .as_ref()
+                            .and_then(|ty| function_parts(ty).ok())
+                            .is_none_or(|parts| should_use_polymorphic_arg_hint(&parts.param, hint))
                 });
                 let use_polymorphic_arg_hint = polymorphic_arg_hint.is_some();
                 let callee_hint = if polymorphic_arg_hint.is_some() {
@@ -882,7 +886,11 @@ impl Lowerer<'_> {
                     self.current_runtime_adapter_source.clone(),
                 )
             }
-            core_ir::Expr::Variant { tag, value, source } => {
+            core_ir::Expr::Variant {
+                tag,
+                value,
+                source: _,
+            } => {
                 let expected_core = expected.and_then(RuntimeType::as_core);
                 let expected_payload =
                     variant_payload_expected(expected_core, &tag).map(RuntimeType::core);
@@ -903,13 +911,7 @@ impl Lowerer<'_> {
                     .transpose()?;
                 let ty = expected
                     .and_then(RuntimeType::as_core)
-                    .and_then(|expected| {
-                        if source == core_ir::VariantExprSource::PolyVariantSyntax {
-                            variant_expr_expected(Some(expected), &tag)
-                        } else {
-                            Some(expected.clone())
-                        }
-                    })
+                    .cloned()
                     .unwrap_or_else(|| {
                         core_ir::Type::Variant(core_ir::VariantType {
                             cases: vec![core_ir::VariantCase {
@@ -2313,14 +2315,16 @@ fn choose_final_apply_param(
 }
 
 fn should_use_variant_arg_hint(param: &RuntimeType, hint: &RuntimeType) -> bool {
-    let RuntimeType::Core(core_ir::Type::Variant(_)) = hint else {
+    let RuntimeType::Core(core_ir::Type::Variant(hint_variant)) = hint else {
         return false;
     };
     if !expected_arg_evidence_runtime_usable(hint) {
         return false;
     }
     match param {
-        RuntimeType::Core(core_ir::Type::Variant(_)) => true,
+        RuntimeType::Core(core_ir::Type::Variant(param_variant)) => {
+            !variant_hint_drops_cases(param_variant, hint_variant)
+        }
         RuntimeType::Core(core_ir::Type::Inter(items)) => items.iter().any(|item| {
             matches!(item, core_ir::Type::Variant(_))
                 && (core_types_compatible(item, &diagnostic_core_type(hint))
@@ -2328,6 +2332,18 @@ fn should_use_variant_arg_hint(param: &RuntimeType, hint: &RuntimeType) -> bool 
         }),
         _ => false,
     }
+}
+
+fn should_use_polymorphic_arg_hint(param: &RuntimeType, hint: &RuntimeType) -> bool {
+    runtime_type_is_imprecise_runtime_slot(param) || should_use_variant_arg_hint(param, hint)
+}
+
+fn variant_hint_drops_cases(param: &core_ir::VariantType, hint: &core_ir::VariantType) -> bool {
+    hint.cases.len() < param.cases.len()
+        && hint
+            .cases
+            .iter()
+            .all(|hint_case| param.cases.iter().any(|case| case.name == hint_case.name))
 }
 
 fn is_constructor_variant_expr(expr: &core_ir::Expr) -> bool {

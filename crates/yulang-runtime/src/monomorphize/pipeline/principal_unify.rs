@@ -5239,6 +5239,7 @@ fn core_fun_spine_with_input_shapes(
         return Some(ty.clone());
     }
     let core_ir::Type::Fun {
+        param,
         param_effect,
         ret_effect,
         ret,
@@ -5252,12 +5253,35 @@ fn core_fun_spine_with_input_shapes(
     } else {
         core_fun_spine_with_input_shapes(ret, &input_shapes[1..])?
     };
+    let param = input_shape_context_param(param, &input_shapes[0]);
     Some(core_ir::Type::Fun {
-        param: Box::new(input_shapes[0].clone()),
+        param: Box::new(param),
         param_effect: param_effect.clone(),
         ret_effect: ret_effect.clone(),
         ret: Box::new(ret),
     })
+}
+
+fn input_shape_context_param(param: &core_ir::Type, input_shape: &core_ir::Type) -> core_ir::Type {
+    match (param, input_shape) {
+        (core_ir::Type::Variant(param_variant), core_ir::Type::Variant(input_variant))
+            if variant_input_shape_drops_cases(param_variant, input_variant) =>
+        {
+            param.clone()
+        }
+        _ => input_shape.clone(),
+    }
+}
+
+fn variant_input_shape_drops_cases(
+    param: &core_ir::VariantType,
+    input: &core_ir::VariantType,
+) -> bool {
+    input.cases.len() < param.cases.len()
+        && input
+            .cases
+            .iter()
+            .all(|input_case| param.cases.iter().any(|case| case.name == input_case.name))
 }
 
 fn wrap_runtime_fun_spine_return_effect(
