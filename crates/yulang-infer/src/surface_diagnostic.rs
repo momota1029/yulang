@@ -12,6 +12,8 @@ pub struct SurfaceDiagnostic {
 }
 
 pub fn collect_surface_diagnostics(state: &LowerState) -> Vec<SurfaceDiagnostic> {
+    state.infer.resolve_final_structural_record_selections();
+
     let mut diagnostics = Vec::new();
     let mut seen = BTreeSet::new();
 

@@ -2469,6 +2469,7 @@ fn deferred_selection_resolves_from_type_lower_bound() {
             result_eff,
             owner: Some(owner_def),
             cause: ConstraintCause::unknown(),
+            structural_record_allowed: false,
         });
     infer.increment_pending_selection(owner_def);
 
@@ -2541,6 +2542,7 @@ fn constrain_immediately_resolves_deferred_selection_when_type_is_known() {
             result_eff,
             owner: Some(owner_def),
             cause: ConstraintCause::unknown(),
+            structural_record_allowed: false,
         });
     infer.increment_pending_selection(owner_def);
 
@@ -2570,6 +2572,108 @@ fn constrain_immediately_resolves_deferred_selection_when_type_is_known() {
         infer.component_edges[infer.def_to_component[&owner_def]]
             .borrow()
             .contains(&infer.def_to_component[&x_method]),
+    );
+}
+
+#[test]
+fn deferred_selection_resolves_structural_record_field_from_lower_bound() {
+    let mut infer = solve::Infer::new();
+    let root = symbols::ModuleId(0);
+    let owner_def = fresh_def_id();
+    let recv_tv = fresh_type_var();
+    let recv_eff = fresh_type_var();
+    let field_tv = fresh_type_var();
+    let result_tv = fresh_type_var();
+    let result_eff = fresh_type_var();
+    let field_name = symbols::Name("x".to_string());
+
+    infer.register_def(owner_def);
+    infer.register_level(recv_tv, 0);
+    infer.register_level(recv_eff, 0);
+    infer.register_level(field_tv, 0);
+    infer.register_level(result_tv, 0);
+    infer.register_level(result_eff, 0);
+
+    infer
+        .deferred_selections
+        .borrow_mut()
+        .entry(recv_tv)
+        .or_default()
+        .push(solve::DeferredSelection {
+            name: field_name.clone(),
+            module: root,
+            recv_eff,
+            result_tv,
+            result_eff,
+            owner: Some(owner_def),
+            cause: ConstraintCause::unknown(),
+            structural_record_allowed: true,
+        });
+    infer.increment_pending_selection(owner_def);
+
+    infer.constrain(
+        Pos::Record(vec![types::RecordField::required(
+            field_name,
+            infer.alloc_pos(Pos::Var(field_tv)),
+        )]),
+        Neg::Var(recv_tv),
+    );
+
+    assert!(
+        infer.deferred_selections.borrow().get(&recv_tv).is_none(),
+        "record field selection should be removed from deferred queue",
+    );
+    assert!(
+        infer
+            .lower_refs_of(result_tv)
+            .iter()
+            .any(|&lower| matches!(infer.arena.get_pos(lower), Pos::Var(tv) if tv == field_tv)),
+        "record field lower bound should flow into the selection result",
+    );
+    assert_eq!(
+        *infer.component_pending_selections[infer.def_to_component[&owner_def]].borrow(),
+        0,
+        "resolved record field selection should decrement pending count",
+    );
+}
+
+#[test]
+fn source_record_field_selection_resolves_from_annotation() {
+    let lowered = lower_virtual_source_with_options(
+        "my get_y(p: {y: int}) = p.y\nget_y {x: 3, y: 4}\n",
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let diagnostics = collect_surface_diagnostics(&lowered.state);
+    assert!(
+        diagnostics.is_empty(),
+        "record field selection should lower through structural record inference, got {diagnostics:?}",
+    );
+    assert!(
+        lowered.state.infer.deferred_selections.borrow().is_empty(),
+        "record field selection should not remain deferred",
+    );
+}
+
+#[test]
+fn source_record_field_selection_final_fallback_introduces_record_requirement() {
+    let lowered = lower_virtual_source_with_options(
+        "my get_y p = p.y\nget_y {x: 3, y: 4}\n",
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let diagnostics = collect_surface_diagnostics(&lowered.state);
+    assert!(
+        diagnostics.is_empty(),
+        "final record field fallback should replace unresolved selection, got {diagnostics:?}",
+    );
+    assert!(
+        lowered.state.infer.deferred_selections.borrow().is_empty(),
+        "final record field fallback should not leave the selection deferred",
     );
 }
 
@@ -2614,6 +2718,7 @@ fn deferred_selection_resolves_from_global_extension_method_fallback() {
             result_eff,
             owner: Some(owner_def),
             cause: ConstraintCause::unknown(),
+            structural_record_allowed: false,
         });
     infer.increment_pending_selection(owner_def);
     infer.resolve_deferred_selections();

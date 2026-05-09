@@ -52,27 +52,32 @@ pub(super) fn apply_synthetic_field_selection(
 ) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
-    push_deferred_selection(state, acc, node, name, tv, eff)
+    push_deferred_selection(state, acc, node, name, tv, eff, false)
 }
 
 fn apply_field_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
-    let name = suffix
+    let field = suffix
         .children_with_tokens()
         .filter_map(|it| it.into_token())
         .find(|t| t.kind() == SyntaxKind::DotField)
         .map(|t| {
             let s = t.text().to_string();
-            Name(s.trim_start_matches('.').to_string())
+            let field_like_source =
+                s.starts_with('.') && suffix.to_string().trim_start().starts_with('.');
+            (
+                Name(s.trim_start_matches('.').to_string()),
+                field_like_source,
+            )
         });
-    if let Some(name) = name {
+    if let Some((name, structural_record_allowed)) = field {
         if let ExprKind::Var(def) = &acc.kind {
             if let Some(path) = state.ctx.resolve_field_alias(*def, &name) {
                 return resolve_path_expr(state, path.segments);
             }
         }
-        push_deferred_selection(state, acc, suffix, name, tv, eff)
+        push_deferred_selection(state, acc, suffix, name, tv, eff, structural_record_allowed)
     } else {
         acc
     }
@@ -293,7 +298,15 @@ fn apply_index_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNod
     let idx = lower_expr(state, &idx_node);
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
-    let select = push_deferred_selection(state, acc, suffix, Name("index".to_string()), tv, eff);
+    let select = push_deferred_selection(
+        state,
+        acc,
+        suffix,
+        Name("index".to_string()),
+        tv,
+        eff,
+        false,
+    );
     make_app_with_cause(state, select, idx, apply_arg_cause(suffix))
 }
 
@@ -311,6 +324,7 @@ fn push_deferred_selection(
     name: Name,
     tv: crate::ids::TypeVar,
     eff: crate::ids::TypeVar,
+    structural_record_allowed: bool,
 ) -> TypedExpr {
     let owner = state.current_owner;
     if let Some(owner) = owner {
@@ -333,6 +347,7 @@ fn push_deferred_selection(
                 span: Some(suffix.text_range()),
                 reason: ConstraintReason::FieldSelection,
             },
+            structural_record_allowed,
         });
     TypedExpr {
         tv,

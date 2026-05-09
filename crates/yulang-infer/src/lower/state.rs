@@ -509,6 +509,7 @@ impl LowerState {
                 result_eff,
                 owner,
                 cause,
+                structural_record_allowed: false,
             });
         self.infer
             .push_deferred_role_method_call(DeferredRoleMethodCall {

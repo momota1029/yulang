@@ -65,6 +65,7 @@ pub struct DeferredSelection {
     pub result_eff: TypeVar,
     pub owner: Option<DefId>,
     pub cause: ConstraintCause,
+    pub structural_record_allowed: bool,
 }
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::ids::{DefId, TypeVar, fresh_type_var};
+use crate::ids::{DefId, NegId, PosId, TypeVar, fresh_type_var};
 use crate::scheme::{OwnedSchemeInstance, SmallSubst, instantiate_frozen_scheme_with_subst};
 use crate::simplify::compact::CompactType;
 use crate::solve::{
@@ -32,6 +32,13 @@ impl Infer {
     ) -> Option<DefId> {
         let mut seen = HashSet::new();
         self.resolve_selection_def_inner(recv_tv, name, &mut seen)
+    }
+
+    pub fn resolve_final_structural_record_selections(&self) {
+        let keys: Vec<_> = self.deferred_selections.borrow().keys().copied().collect();
+        for recv_tv in keys {
+            self.resolve_final_structural_record_selections_for(recv_tv);
+        }
     }
 
     pub(crate) fn resolve_deferred_selections_for(&self, recv_tv: TypeVar) {
@@ -100,6 +107,11 @@ impl Infer {
                     continue;
                 }
             }
+
+            if self.resolve_structural_record_selection(recv_tv, &selection) {
+                continue;
+            }
+
             unresolved.push(selection);
         }
 
@@ -110,6 +122,52 @@ impl Infer {
                 .borrow_mut()
                 .insert(recv_tv, unresolved);
         }
+    }
+
+    fn resolve_final_structural_record_selections_for(&self, recv_tv: TypeVar) {
+        let Some(selections) = self.deferred_selections.borrow().get(&recv_tv).cloned() else {
+            return;
+        };
+
+        let mut unresolved = Vec::new();
+        for selection in selections {
+            if self.resolve_final_structural_record_selection(recv_tv, &selection) {
+                continue;
+            }
+            unresolved.push(selection);
+        }
+
+        if unresolved.is_empty() {
+            self.deferred_selections.borrow_mut().remove(&recv_tv);
+        } else {
+            self.deferred_selections
+                .borrow_mut()
+                .insert(recv_tv, unresolved);
+        }
+    }
+
+    fn resolve_final_structural_record_selection(
+        &self,
+        recv_tv: TypeVar,
+        selection: &DeferredSelection,
+    ) -> bool {
+        if !selection.structural_record_allowed {
+            return false;
+        }
+
+        self.constrain_with_cause(
+            self.alloc_pos(Pos::Var(recv_tv)),
+            self.alloc_neg(Neg::Record(vec![crate::types::RecordField::required(
+                selection.name.clone(),
+                self.alloc_neg(Neg::Var(selection.result_tv)),
+            )])),
+            selection.cause.clone(),
+        );
+        self.constrain(Pos::Var(selection.recv_eff), Neg::Var(selection.result_eff));
+        if let Some(owner) = selection.owner {
+            self.decrement_pending_selection(owner);
+        }
+        true
     }
 
     pub(super) fn resolve_selection_def_inner(
@@ -398,6 +456,170 @@ impl Infer {
             },
         );
         true
+    }
+
+    fn resolve_structural_record_selection(
+        &self,
+        recv_tv: TypeVar,
+        selection: &DeferredSelection,
+    ) -> bool {
+        if !selection.structural_record_allowed {
+            return false;
+        }
+
+        let mut seen = HashSet::new();
+        if !self.resolve_structural_record_selection_inner(recv_tv, selection, &mut seen) {
+            return false;
+        }
+
+        self.constrain(Pos::Var(selection.recv_eff), Neg::Var(selection.result_eff));
+        if let Some(owner) = selection.owner {
+            self.decrement_pending_selection(owner);
+        }
+        true
+    }
+
+    fn resolve_structural_record_selection_inner(
+        &self,
+        recv_tv: TypeVar,
+        selection: &DeferredSelection,
+        seen: &mut HashSet<TypeVar>,
+    ) -> bool {
+        if !seen.insert(recv_tv) {
+            return false;
+        }
+
+        for lower in self.lower_refs_of(recv_tv) {
+            if self.resolve_structural_record_selection_from_pos(lower, selection, recv_tv, seen) {
+                return true;
+            }
+        }
+
+        for instance in self.compact_lower_instances_of(recv_tv) {
+            let lower = self.materialize_compact_lower_instance(&instance);
+            if self.resolve_structural_record_selection_from_pos(lower, selection, recv_tv, seen) {
+                return true;
+            }
+        }
+
+        for upper in self.upper_refs_of(recv_tv) {
+            if self.resolve_structural_record_selection_from_neg(upper, selection, recv_tv, seen) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn resolve_structural_record_selection_from_pos(
+        &self,
+        pos: PosId,
+        selection: &DeferredSelection,
+        dependent: TypeVar,
+        seen: &mut HashSet<TypeVar>,
+    ) -> bool {
+        match self.arena.get_pos(pos) {
+            Pos::Record(fields) => {
+                if let Some(field) = fields
+                    .iter()
+                    .find(|field| field.name == selection.name && !field.optional)
+                {
+                    self.constrain_with_cause(
+                        field.value,
+                        self.alloc_neg(Neg::Var(selection.result_tv)),
+                        selection.cause.clone(),
+                    );
+                    return true;
+                }
+                false
+            }
+            Pos::RecordTailSpread { fields, tail } => {
+                if self
+                    .resolve_structural_record_selection_from_pos(tail, selection, dependent, seen)
+                {
+                    return true;
+                }
+                if let Some(field) = fields
+                    .iter()
+                    .find(|field| field.name == selection.name && !field.optional)
+                {
+                    self.constrain_with_cause(
+                        field.value,
+                        self.alloc_neg(Neg::Var(selection.result_tv)),
+                        selection.cause.clone(),
+                    );
+                    return true;
+                }
+                false
+            }
+            Pos::RecordHeadSpread { tail, fields } => {
+                if let Some(field) = fields
+                    .iter()
+                    .find(|field| field.name == selection.name && !field.optional)
+                {
+                    self.constrain_with_cause(
+                        field.value,
+                        self.alloc_neg(Neg::Var(selection.result_tv)),
+                        selection.cause.clone(),
+                    );
+                    return true;
+                }
+                self.resolve_structural_record_selection_from_pos(tail, selection, dependent, seen)
+            }
+            Pos::Var(inner) | Pos::Raw(inner) => {
+                self.add_selection_var_dependent(inner, dependent);
+                self.resolve_structural_record_selection_inner(inner, selection, seen)
+            }
+            Pos::Union(left, right) => {
+                self.resolve_structural_record_selection_from_pos(
+                    left,
+                    selection,
+                    dependent,
+                    &mut seen.clone(),
+                ) || self
+                    .resolve_structural_record_selection_from_pos(right, selection, dependent, seen)
+            }
+            _ => false,
+        }
+    }
+
+    fn resolve_structural_record_selection_from_neg(
+        &self,
+        neg: NegId,
+        selection: &DeferredSelection,
+        dependent: TypeVar,
+        seen: &mut HashSet<TypeVar>,
+    ) -> bool {
+        match self.arena.get_neg(neg) {
+            Neg::Record(fields) => {
+                if let Some(field) = fields
+                    .iter()
+                    .find(|field| field.name == selection.name && !field.optional)
+                {
+                    self.constrain_with_cause(
+                        self.alloc_pos(Pos::Var(selection.result_tv)),
+                        field.value,
+                        selection.cause.clone(),
+                    );
+                    return true;
+                }
+                false
+            }
+            Neg::Var(inner) => {
+                self.add_selection_var_dependent(inner, dependent);
+                self.resolve_structural_record_selection_inner(inner, selection, seen)
+            }
+            Neg::Intersection(left, right) => {
+                self.resolve_structural_record_selection_from_neg(
+                    left,
+                    selection,
+                    dependent,
+                    &mut seen.clone(),
+                ) || self
+                    .resolve_structural_record_selection_from_neg(right, selection, dependent, seen)
+            }
+            _ => false,
+        }
     }
 
     fn record_resolved_selection(&self, selection: &DeferredSelection, def: DefId) {
