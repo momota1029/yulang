@@ -19,6 +19,7 @@ Cranelift backend を作る。
 - `notes/design/native-backend-plan.md`
 - `notes/design/cps-effect-lowering-plan.md`
 - `notes/design/native-value-abi-plan.md`
+- `notes/design/source-realm-band-plan.md`
 
 近い形:
 
@@ -28,6 +29,22 @@ runtime/core IR
   -> closure/environment layout
   -> Cranelift IR
 ```
+
+現在の距離感:
+
+- これはまだ Yulang 全体を実行する処理系ではない。
+- Go module/package よりの source identity として realm / band を採用する。
+  realm は versioned distribution boundary、band は realm 内の import /
+  namespace / build unit。band identity は resolved realm + band path で決まる。
+- ただし、source から runtime IR / effect-aware CPS / CPS repr / ABI lane /
+  Cranelift JIT まで通る細い実行可能パスはできている。
+- source-defined algebraic effect と multi-shot resumption の小さい scalar
+  program は VM と CPS repr Cranelift で比較できる。
+- まだ prototype と呼ぶべき理由は、値表現が主に `i64` scalar に限られ、
+  thunk / closure / string / list / record / variant / std 全体を広く扱う
+  backend にはなっていないため。
+- 当面は VM を oracle にしたまま、native 対応 root だけを増やす。
+  将来的には native unsupported root を VM に戻す fallback policy を決める。
 
 直近 TODO:
 
@@ -92,6 +109,13 @@ runtime/core IR
   - `validate_cranelift_prototype_subset` は最初の Cranelift prototype 用に、int/float/bool/unit literal、数値/bool primitive、direct call、局所 closure allocation/call を許可する。string/list は runtime ABI が固まるまで明示 unsupported。
   - `format_abi_module` は ABI IR を stable text dump にする。Cranelift prototype 前の golden/debug 出力に使う。
   - `compile_abi_module` は Cranelift JIT prototype を追加した。現時点では `i64` scalar ABI として int/bool/unit literal、int/bool primitive、direct call、branch/jump/return を扱う。float/string/list は runtime ABI が固まるまで scalar JIT では unsupported。
+  - `compile_abi_module_to_object` は Cranelift object backend の最小入口。
+    JIT と同じ scalar ABI lowering を使い、`NativeAbiModule` から object bytes
+    を出す。source 起点の `compile_source_object(_with_options)` も追加済み。
+    CLI の `--native-object <path>` でも source から object file を保存できる。
+    CLI の `--native-exe <path>` は一時 C harness と system `cc` で scalar root
+    を呼ぶ実行ファイルを作る。現時点では prototype harness で、runtime helper
+    symbol を必要としない scalar subset に限定する。
   - `eval_source_i64_with_options` は `source -> runtime -> native control -> closure -> ABI -> Cranelift JIT` を一本で通す scalar prototype entrypoint。
   - `compare_source_i64_with_options` は source 起点で VM / native-control / Cranelift scalar result を比較する。std に依存しない int/bool/function-call examples を固定した。
   - `compare_source_i64` は native default source options を使い、std prelude operator から primitive binding へ繋がる `1 + 2` / `1 < 2` も VM / native-control / Cranelift で比較する。
@@ -107,7 +131,138 @@ runtime/core IR
   - `analyze_abi_reprs` は ABI function/value を `Int` / `Bool` / `Float` / `List(element)` / `RuntimeValuePtr` / `ClosurePtr` / `Unknown` に分類する。`List` は machine boundary では pointer lane のままだが、singleton/index/merge/range 系で分かる範囲の element repr は伝播する。tuple/record repr は後続の runtime type 連携で足す。
   - `compile_value_abi_module` は scalar-only `compile_abi_module` と別の Cranelift value-lane prototype entrypoint として追加した。現時点では string literal と `StringConcat` primitive/direct call を Rust helper 経由で `VmValue::String` に戻す。
   - `eval_source_value_lane_with_options` は source から value-lane Cranelift まで通す実験入口。`"hello"` / `"a" + "b"` の round-trip と、source からの string/list ABI repr analysis をテストで固定した。
+  - value-lane Cranelift は int literal を opaque `VmValue::Int` pointer として
+    作れるようにした。`ListEmpty` / `ListSingleton` / `ListMerge` も Rust helper
+    経由で `VmValue::List` を作る。`[1, 2, 3]` は source から value-lane
+    Cranelift まで round-trip 済み。
+  - `compile_value_abi_module_to_object` は value-lane Cranelift lowering を
+    object backend でも使う。JIT では host `Box<str>` を生存保持し、object
+    では literal bytes を data section に置くため、生成 executable でも
+    string / int literal pointer が有効なままになる。
+  - CLI の `--native-value-exe <path>` は一時 C entry harness、value-lane object、
+    `yulang-native` staticlib を system `cc` で link する。`int` / `str` / `list`
+    は Rust `native_runtime` の `VmValue` ベース helper を呼び、`"a" + "b"` と
+    `[1, 2, 3]` が executable として動く。
+  - `native_runtime` module を追加し、JIT value helper の本体を Rust API 境界へ
+    移した。内部表現はまだ `VmValue` だが、Cranelift から見る helper API は
+    `make_int` / `make_string` / `concat_string` / `list_*` に集約した。
+  - value-lane Cranelift は bool / unit / float literal も opaque `VmValue`
+    pointer として作れるようにした。`ListLen` / `ListIndex` も Rust helper 経由で
+    `VmValue` を返す。JIT と native runtime API の小さい regression で固定した。
+  - value-lane Cranelift は tuple / record / variant も opaque `VmValue`
+    pointer として作れるようにした。native IR / ABI IR には構造値 stmt を追加し、
+    codegen では `tuple_empty` / `tuple_push`、`record_empty` / `record_insert`、
+    `variant` helper へ落とす。record spread はまだ unsupported。
+    `--native-value-exe` で `(1, 2)` / `{x: 1, y: 2}` / `:label "send"` の
+    executable 出力を確認済み。
+  - `yulang-source` に realm / band の薄い identity 型を追加した。既存の
+    `SourceSet` は「今回コンパイルに集めた source aggregate」のまま残し、
+    realm / band を source identity layer として上に置く。
+  - cache layout は `target/yulang` / persistent user cache / project lock に
+    分ける。`YulangCachePaths` は `target/yulang`、`YULANG_CACHE_DIR` /
+    `XDG_CACHE_HOME/yulang` / `~/.cache/yulang`、`realm.toml`、`yulang.lock` を
+    一箇所で定義する。compiled-unit artifact と fetched realm は user cache
+    側、debug dump と native experiment output は `target/yulang` 側に置く。
+    `target/yulang` の中は `bin` / `obj` / `build` / `dump` に分ける。
+    CLI の native executable link scratch は `target/yulang/build` を使う。
+    `--native-object` / `--native-exe` / `--native-value-exe` は output path を
+    省略した場合、それぞれ `target/yulang/obj/<entry>.o`、
+    `target/yulang/bin/<entry>`、`target/yulang/bin/<entry>-value` に出す。
+    `--native-run-exe` / `--native-run-value-exe` は同じ場所に link してから
+    生成実行ファイルをそのまま実行する。
+  - `CompiledUnitArtifactCache` は full compiled-unit artifact の JSON
+    write/read を persistent user cache 側へ行う。現在は保存層のみで、
+    lowering pipeline の cache hit/miss へ繋ぐのは次段。
   - CLI は `--native-abi-lanes` で source から native ABI repr classification を表示できる。未使用の closure-returning wrapper と reachable scalar direct wrapper の違いを見るための debug entrypoint。
+  - CPS lowering は primitive binding を普通の CPS function として扱う。
+    `std::int::add` のような prelude operator wrapper 経由の primitive call を
+    effect handler arm から呼べる。
+  - CPS repr Cranelift は entry continuation params を function params として
+    bind する。これにより primitive binding や ordinary multi-arg CPS function
+    を JIT できる。
+  - source-defined `act` / `catch` で、同じ resumption を複数回呼び、その結果を
+    primitive call で合成する scalar program は VM と CPS repr Cranelift で比較済み。
+  - handler arm body の direct call / local block binding / value arm も
+    source から CPS repr Cranelift まで通している。
+  - source `if true: ... else: ...` のような bool match に落ちる handler arm
+    branch は CPS repr Cranelift まで通る。分岐先 continuation が捕捉する
+    scalar / resumption pointer environment も小さい helper で作って渡す。
+  - source `if x < 0: ... else: ...` のように prelude の比較演算子が
+    `std::junction::junction` handler へ展開される形も CPS repr Cranelift まで通る。
+    CPS handler boundary は複数 effect arm を持てるようにし、`Perform` は実際の
+    effect operation から arm entry を選ぶ。到達しない handler arm は materialize
+    せず、direct function の thunk 引数は必要な範囲だけインラインする。
+  - source `if x < 0 or x == 0: ... else: ...` / `and` も CPS repr Cranelift
+    まで通る。lazy operator wrapper への direct call は、thunk 引数を持つ場合に
+    reachable binding として JIT 対象へ入れず、呼び出し地点で限定インラインする。
+    これにより `std::ops::or` / `and` の closure parameter call を、汎用 closure
+    value lane がない段階でも regression として固定できる。
+  - source 条件式の追加回帰として `not (x < 0)`、nested `if` condition、
+    let-bound condition も CPS repr Cranelift で VM 比較済み。plain bool に落ちる
+    条件式の範囲では、現行の限定 thunk インラインと continuation capture 伝播で
+    かなり自然に動く。
+  - CPS capture 推論は、`Continue` / `Branch` / `Perform` が呼び出す先の
+    continuation environment を作るために必要な captures を分岐元・呼び出し元へ
+    伝播する。branch 先が resumption pointer を捕捉する場合も Cranelift 側で
+    null environment に落ちない。
+  - `BindHere` は handler body 全体の wrapper としては単独 unwrap しない。
+    ただし primitive / direct call の引数位置や block statement 内で effect
+    operation を見つけるときは実行位置 marker として透過する。
+
+処理系化へ近い次の順番:
+
+1. CPS repr Cranelift の source 回帰を広げる。
+   `let` / `if` / primitive / direct call / simple handler / value arm を
+   VM と比較しながら固定する。
+   - 次に必要なもの: lazy operator / thunk 引数インラインの境界を設計メモへ切り出す。
+     現在は CPS scalar prototype のために、thunk 引数を持つ direct call を
+     呼び出し地点で展開している。保存・返却される thunk value はまだ扱わない。
+   - 次に必要なもの: 条件式の scalar regression は一旦区切りにし、value ABI
+     か fallback policy へ進む。
+2. value ABI を広げる。
+   `int` / `bool` / `unit` だけでなく、`str` / `list` / tuple / record /
+   variant を pointer lane で通す。
+   - 現状: tuple / record / variant construction は source から value-lane
+     Cranelift まで通る。record field select helper はあるが、source 側の
+     method/field 解決で直接 `{x: 1}.x` へはまだ繋がっていない。
+   - 次に必要なもの: list value lane の primitive 範囲をさらに広げる。
+     `ListIndexRange` / `ListIndexRangeRaw` を helper 化するか、range 専用 native
+     表現を待つか決める。
+   - 次に必要なもの: boxed scalar value の範囲を整理する。
+     value lane 用の int/bool/unit/float は boxed `VmValue` として動くので、
+     次は native scalar lane と boxed value lane の境界をどこで選ぶか決める。
+3. Cranelift object backend を JIT と並べて育てる。
+   - `--native-object <path>` で scalar ABI subset の object bytes を保存できる。
+   - `--native-exe <path>` で system `cc` による最小 executable harness を作れる。
+   - `--native-value-exe <path>` で helper symbol 付き value-lane executable を作れる。
+   - `native_runtime` の Rust API は `yulang-native` staticlib として
+     object/executable から link できる。
+   - `--native-value-exe` の support library は `YULANG_NATIVE_RUNTIME_LIB` があれば
+     それを使う。なければ `CARGO_TARGET_DIR` または workspace `target` の
+     `debug/libyulang_native.a` を使い、native/runtime/core-ir source より古い時だけ
+     `cargo build -p yulang-native` で更新する。
+   - 次に必要なもの: value-lane object/executable 側で bool / unit / float と
+     list index / len を source から動かす回帰を足す。
+3. thunk / closure value を backend 境界で実体化する。
+   汎用 thunk invocation と closure environment を扱えるようにする。
+4. fallback policy を設計する。
+   native で扱える root は native、unsupported root は VM へ戻す混在実行を
+   CLI / playground で試せるようにする。
+
+次 milestone:
+
+- Cranelift object backend を「object bytes が出る」から「ファイルとして使える」
+  ところへ進める。
+- 候補:
+  - CLI の `--native-object <path>` で object bytes を保存するところは完了。
+  - CLI の `--native-exe <path>` で object を `cc` / linker へ繋ぐ実験 helper は追加済み。
+  - CLI の `--native-value-exe <path>` で helper symbol 付き value-lane executable
+    も追加済み。`"a" + "b"` / `[1, 2, 3]` を確認済み。
+- 焦点:
+  - JIT helper symbol は object ではそのまま使えないため、value lane / CPS helper
+    はまだ object backend に載せない。
+  - object backend は JIT と lowering を共有し、別 semantics を作らない。
+  - 実行可能ファイル化する時は `main` / runtime startup の形を別途決める。
 
 重要な制約:
 

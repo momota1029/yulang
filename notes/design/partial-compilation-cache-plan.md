@@ -6,6 +6,16 @@ cache toward persistent file-SCC compiled artifacts.
 The key correction is that the cache unit cannot be "std only" and cannot be
 only serialized `CoreProgram`.
 
+This plan uses the realm / band vocabulary from
+`notes/design/source-realm-band-plan.md`:
+
+- realm: versioned distribution boundary;
+- band: import / namespace / build unit inside a realm.
+
+Compiled-unit artifacts are still file-SCC artifacts. A realm or band is not
+itself the compiled artifact unit; it provides identity and dependency context
+for the SCC artifacts.
+
 Yulang files contribute all of these to later files:
 
 - operator syntax and parser tables;
@@ -18,6 +28,7 @@ Therefore the long-term cache unit is a source dependency SCC:
 
 ```text
 SourceSet
+  <- resolved SourceRealm / SourceBand identities
   -> source dependency graph
   -> SourceCompilationUnit SCC
   -> CompiledUnit artifact
@@ -92,6 +103,8 @@ Required fields:
 
 - artifact format version;
 - compiler snapshot version;
+- resolved realm identity and version / revision;
+- band path;
 - unit id;
 - unit origin;
 - source files:
