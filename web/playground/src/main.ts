@@ -290,6 +290,18 @@ box { width: 3, height: 4 }
 `,
   },
   {
+    label: { ja: "ボタン", en: "Button" },
+    source: `// Symbol variants are lightweight choices with payloads.
+
+my button option = case option:
+    :label text -> "<button>" + text + "</button>"
+    :disabled -> "<button disabled></button>"
+
+button: :label "send"
+button: :disabled
+`,
+  },
+  {
     label: { ja: "局所的な変更", en: "Local Change" },
     source: `// A mutable binding stays local to the surrounding block.
 
