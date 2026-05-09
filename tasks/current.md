@@ -208,10 +208,71 @@ runtime/core IR
   - `BindHere` は handler body 全体の wrapper としては単独 unwrap しない。
     ただし primitive / direct call の引数位置や block statement 内で effect
     operation を見つけるときは実行位置 marker として透過する。
+  - effectful control を native に載せるには、CPS repr に VM と同等の
+    dynamic handler stack と effect-id hygiene が必要。CPS evaluator /
+    CPS repr evaluator は resumption に handler stack を持たせ、
+    `ResumeWithHandler` で再開先を新しい handler の内側へ rebase できる。
+    `LocalPushId` / `PeekId` / `FindId` は CPS guard stmt へ lowering する。
+    `AddId` は allowed effect から blocked guard を判断し、CPS `Perform` へ
+    blocked id を伝播するところまで追加済み。
+  - CPS repr evaluator は guard id を偽値に潰さず、handler frame ごとの
+    guard stack snapshot を resumption / thunk に保持する。`Perform` は
+    blocked id が handler frame の snapshot に含まれる場合、その frame を
+    skip して外側の handler を探す。これを `skips_handler_frame_blocked_by_guard_snapshot`
+    で固定した。
+  - CPS repr ABI lane 解析は direct call argument lane を callee params へ
+    固定点で伝播する。recursive thunk callback のように thunk value が callee
+    param を経由して返る場合も、`ThunkPtr` lane として見える。
+  - CPS repr Cranelift は continuation environment を持つ関数を、effect の有無に
+    関係なく continuation function path へ回す。lazy branch condition が
+    thunk-valued continuation param を経由する場合は、branch の直前に thunk を
+    force して bool として判定する。
+  - CPS repr Cranelift helper は JIT / object runtime の両方で thunk pointer を
+    registry に登録し、force helper は値が登録済み thunk pointer である限り
+    trampoline として実行を続ける。これは scalar CPS repr subset 用であり、
+    generic runtime value pointer を force しないために `ThunkPtr` lane と
+    `RuntimeValuePtr` lane を分ける。
+  - CPS repr Cranelift に scalar guard stack helper を追加した。
+    `FreshGuard` は fresh id を stack に push し、`PeekGuard` は top を読み、
+    `FindGuard` は stack membership を返す。
+  - CPS repr Cranelift の scalar runtime は resumption / thunk に handler stack
+    snapshot と guard stack snapshot を保存する。`Resume` は snapshot を復元して
+    continuation を呼び、`ResumeWithHandler` は現在の guard stack を持つ handler
+    frame を resumption の handler stack へ追加してから再開する。
+  - CPS repr Cranelift の `Perform` は静的 handler entry へ直行せず、
+    runtime helper で現在の handler stack を走査する。effect に合う handler id
+    mask と blocked guard id を渡し、blocked frame を飛ばして選ばれた handler
+    entry へ分岐する。`jit_skips_handler_frame_blocked_by_guard_snapshot` で
+    scalar JIT の回帰を固定した。
+  - CPS repr Cranelift の thunk 作成時に、利用可能な handler arm environment を
+    handler frame へ snapshot するようにした。これで handler entry が捕捉する
+    scalar 値を perform 側 continuation から無理に読む問題は一段進んだ。
+  - mutable reference regression は CPS lowering / validation / Cranelift 実行まで
+    VM と一致する。`run state (thunk (k unit))` のような handler re-entry は
+    `ResumeWithHandler` に落とし、再設置する handler arm environment を
+    scalar runtime へ渡す。
+  - native CPS の次の核は次の 2 つ:
+    - `HandlerFrame`: handler id、arm entries、captured environment、handler entry
+      guard stack を持つ。`Perform` は静的 handler へ直行せず、現在の
+      handler stack から effect と blocked id に合う frame を探す。
+    - `GuardStack`: `LocalPushId` で fresh guard id を積み、`AddId` で thunk /
+      continuation に blocked guard + allowed effect を記録する。handler は
+      request の blocked id が自分の entry guard stack に含まれる場合、その
+      request を捕まえず外側へ送る。
+  - same-function handler re-entry は最小形を通した。Cranelift は
+    `ResumeWithHandler` の rebase 時に handler arm env を pending frame として
+    capture し、handler 選択時に entry ごとの env を復元する。
 
 処理系化へ近い次の順番:
 
-1. CPS repr Cranelift の source 回帰を広げる。
+1. CPS repr Cranelift の guarded thunk effect-flow を設計する。
+   Dynamic handler frame / guard stack の scalar runtime layout は入った。
+   次は thunk callback が guard scope をまたぐ時に、どの stack を capture /
+   restore / rebase するかを CPS repr evaluator と一致させる。
+   - 完了: `run state (thunk (k value))` は handler wrapper 構造を見て
+     `ResumeWithHandler` へ落とす。
+   - 完了: mutable ref regression は VM/JIT compare のまま通り、`ignore` を外した。
+2. CPS repr Cranelift の source 回帰を広げる。
    `let` / `if` / primitive / direct call / simple handler / value arm を
    VM と比較しながら固定する。
    - 次に必要なもの: lazy operator / thunk 引数インラインの境界を設計メモへ切り出す。
@@ -219,7 +280,7 @@ runtime/core IR
      呼び出し地点で展開している。保存・返却される thunk value はまだ扱わない。
    - 次に必要なもの: 条件式の scalar regression は一旦区切りにし、value ABI
      か fallback policy へ進む。
-2. value ABI を広げる。
+3. value ABI を広げる。
    `int` / `bool` / `unit` だけでなく、`str` / `list` / tuple / record /
    variant を pointer lane で通す。
    - 現状: tuple / record / variant construction は source から value-lane
@@ -231,7 +292,7 @@ runtime/core IR
    - 次に必要なもの: boxed scalar value の範囲を整理する。
      value lane 用の int/bool/unit/float は boxed `VmValue` として動くので、
      次は native scalar lane と boxed value lane の境界をどこで選ぶか決める。
-3. Cranelift object backend を JIT と並べて育てる。
+4. Cranelift object backend を JIT と並べて育てる。
    - `--native-object <path>` で scalar ABI subset の object bytes を保存できる。
    - `--native-exe <path>` で system `cc` による最小 executable harness を作れる。
    - `--native-value-exe <path>` で helper symbol 付き value-lane executable を作れる。
@@ -243,26 +304,36 @@ runtime/core IR
      `cargo build -p yulang-native` で更新する。
    - 次に必要なもの: value-lane object/executable 側で bool / unit / float と
      list index / len を source から動かす回帰を足す。
-3. thunk / closure value を backend 境界で実体化する。
+5. thunk / closure value を backend 境界で実体化する。
    汎用 thunk invocation と closure environment を扱えるようにする。
-4. fallback policy を設計する。
+6. fallback policy を設計する。
    native で扱える root は native、unsupported root は VM へ戻す混在実行を
    CLI / playground で試せるようにする。
 
+直近 milestone:
+
+- CPS repr Cranelift に dynamic handler frame / guard stack を入れ、mutable
+  reference regression を native 実行対象へ戻す。これは達成済み。
+- 完了:
+  - CPS repr evaluator 側では handler frame guard snapshot と blocked skip を固定済み。
+  - Cranelift 側には scalar guard helper があり、scalar effect-flow の
+    `ResumeWithHandler` は mutable ref regression で確認済み。
+  - resumption object は continuation env だけでなく handler stack snapshot と
+    guard stack snapshot を持つ。
+  - handler frame は handler entry、captured environment、entry guard snapshot を
+    runtime に渡せる layout にする。
+  - `Perform` lowering は compile-time の handler entry 直行をやめ、blocked guard を
+    見て外側 handler へ送れるようにする。
+
 次 milestone:
 
-- Cranelift object backend を「object bytes が出る」から「ファイルとして使える」
-  ところへ進める。
-- 候補:
-  - CLI の `--native-object <path>` で object bytes を保存するところは完了。
-  - CLI の `--native-exe <path>` で object を `cc` / linker へ繋ぐ実験 helper は追加済み。
-  - CLI の `--native-value-exe <path>` で helper symbol 付き value-lane executable
-    も追加済み。`"a" + "b"` / `[1, 2, 3]` を確認済み。
+- CPS repr Cranelift の source 回帰を広げる。
 - 焦点:
-  - JIT helper symbol は object ではそのまま使えないため、value lane / CPS helper
-    はまだ object backend に載せない。
-  - object backend は JIT と lowering を共有し、別 semantics を作らない。
-  - 実行可能ファイル化する時は `main` / runtime startup の形を別途決める。
+  - mutable ref 以外の user-defined state/effect wrapper を VM 比較へ足す。
+  - 保存・返却される thunk value はまだ扱わず、direct thunk callback subset の
+    境界を明文化する。
+  - value backend と CPS repr backend の fallback policy を、握りつぶしではなく
+    structured unsupported reason で選べる形へ寄せる。
 
 重要な制約:
 
