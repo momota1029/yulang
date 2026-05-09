@@ -10,7 +10,10 @@ use std::path::PathBuf;
 use yulang_infer as infer;
 use yulang_runtime as runtime;
 
+use crate::abi::lower_closure_module_to_abi;
+use crate::closure::closure_convert_module;
 use crate::control_ir::NativeModule;
+use crate::cranelift::{NativeCraneliftError, compile_abi_module};
 use crate::eval::{NativeEvalError, eval_module};
 use crate::lower::{NativeLowerError, lower_module};
 
@@ -23,6 +26,7 @@ pub enum NativeSourceError {
     RuntimeLower(runtime::RuntimeError),
     NativeLower(NativeLowerError),
     NativeEval(NativeEvalError),
+    Cranelift(NativeCraneliftError),
 }
 
 impl fmt::Display for NativeSourceError {
@@ -35,6 +39,7 @@ impl fmt::Display for NativeSourceError {
             NativeSourceError::RuntimeLower(error) => write!(f, "{error}"),
             NativeSourceError::NativeLower(error) => write!(f, "{error}"),
             NativeSourceError::NativeEval(error) => write!(f, "{error}"),
+            NativeSourceError::Cranelift(error) => write!(f, "{error}"),
         }
     }
 }
@@ -65,6 +70,12 @@ impl From<NativeEvalError> for NativeSourceError {
     }
 }
 
+impl From<NativeCraneliftError> for NativeSourceError {
+    fn from(error: NativeCraneliftError) -> Self {
+        NativeSourceError::Cranelift(error)
+    }
+}
+
 pub fn compile_source(source: &str) -> NativeSourceResult<NativeModule> {
     compile_source_with_options(source, default_source_options())
 }
@@ -87,6 +98,21 @@ pub fn eval_source_with_options(
 ) -> NativeSourceResult<Vec<runtime::VmValue>> {
     let module = compile_source_with_options(source, options)?;
     eval_module(&module).map_err(NativeSourceError::from)
+}
+
+pub fn eval_source_i64(source: &str) -> NativeSourceResult<Vec<i64>> {
+    eval_source_i64_with_options(source, default_source_options())
+}
+
+pub fn eval_source_i64_with_options(
+    source: &str,
+    options: infer::SourceOptions,
+) -> NativeSourceResult<Vec<i64>> {
+    let native_module = compile_source_with_options(source, options)?;
+    let closure_module = closure_convert_module(&native_module);
+    let abi_module = lower_closure_module_to_abi(&closure_module);
+    let mut jit = compile_abi_module(&abi_module)?;
+    jit.run_roots_i64().map_err(NativeSourceError::from)
 }
 
 pub fn runtime_module_from_source_with_options(
@@ -132,6 +158,13 @@ mod tests {
         let values = eval_source_with_options("41", infer::SourceOptions::default())
             .expect("native source eval");
         assert_eq!(values, vec![runtime::VmValue::Int("41".to_string())]);
+    }
+
+    #[test]
+    fn evals_literal_source_string_through_cranelift_scalar_path() {
+        let values = eval_source_i64_with_options("41", infer::SourceOptions::default())
+            .expect("native source jit eval");
+        assert_eq!(values, vec![41]);
     }
 
     #[test]

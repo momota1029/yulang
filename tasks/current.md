@@ -72,7 +72,9 @@ runtime/core IR
   - `validate_abi_module` は function/block/value uniqueness、use-before-def、env slot range、terminator target を検査する。
   - `validate_cranelift_prototype_subset` は最初の Cranelift prototype 用に、int/float/bool/unit literal、数値/bool primitive、direct call だけを許可する。string/list/closure/env は runtime ABI が固まるまで明示 unsupported。
   - `format_abi_module` は ABI IR を stable text dump にする。Cranelift prototype 前の golden/debug 出力に使う。
-  - 次は ABI IR の primitive-only interpreter を挟むか、直接 Cranelift prototype に進むか決める。
+  - `compile_abi_module` は Cranelift JIT prototype を追加した。現時点では `i64` scalar ABI として int/bool/unit literal、int/bool primitive、direct call、branch/jump/return を扱う。float/string/list/closure/env は runtime ABI が固まるまで scalar JIT では unsupported。
+  - `eval_source_i64_with_options` は `source -> runtime -> native control -> closure -> ABI -> Cranelift JIT` を一本で通す scalar prototype entrypoint。
+  - 次は VM/native-control/Cranelift の source-level compare helper を追加し、primitive-only source examples を固定する。
 
 重要な制約:
 

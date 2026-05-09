@@ -5,6 +5,10 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+cranelift-codegen = "0.121"
+cranelift-frontend = "0.121"
+cranelift-jit = "0.121"
+cranelift-module = "0.121"
 yulang-core-ir = { path = "../yulang-core-ir" }
 yulang-infer = { path = "../yulang-infer" }
 yulang-runtime = { path = "../yulang-runtime" }
