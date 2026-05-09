@@ -28,7 +28,20 @@ pub struct NativeClosureBlock {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativeClosureStmt {
-    LoadEnv { dest: ValueId, slot: usize },
+    LoadEnv {
+        dest: ValueId,
+        slot: usize,
+    },
+    MakeClosure {
+        dest: ValueId,
+        target: String,
+        environment: Vec<NativeClosureCapture>,
+    },
+    ClosureCall {
+        dest: ValueId,
+        callee: ValueId,
+        args: Vec<ValueId>,
+    },
     Native(NativeStmt),
 }
 
@@ -40,6 +53,12 @@ pub struct NativeClosureEnvironment {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NativeClosureSlot {
     pub index: usize,
+    pub value: ValueId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NativeClosureCapture {
+    pub slot: usize,
     pub value: ValueId,
 }
 
@@ -105,7 +124,7 @@ fn closure_convert_blocks(
                         }),
                 );
             }
-            stmts.extend(block.stmts.iter().cloned().map(NativeClosureStmt::Native));
+            stmts.extend(block.stmts.iter().cloned().map(closure_convert_stmt));
             NativeClosureBlock {
                 id: block.id,
                 params: block
@@ -119,6 +138,28 @@ fn closure_convert_blocks(
             }
         })
         .collect()
+}
+
+fn closure_convert_stmt(stmt: NativeStmt) -> NativeClosureStmt {
+    match stmt {
+        NativeStmt::MakeClosure {
+            dest,
+            target,
+            captures,
+        } => NativeClosureStmt::MakeClosure {
+            dest,
+            target,
+            environment: captures
+                .into_iter()
+                .enumerate()
+                .map(|(slot, value)| NativeClosureCapture { slot, value })
+                .collect(),
+        },
+        NativeStmt::ClosureCall { dest, callee, args } => {
+            NativeClosureStmt::ClosureCall { dest, callee, args }
+        }
+        stmt => NativeClosureStmt::Native(stmt),
+    }
 }
 
 #[cfg(test)]
@@ -165,11 +206,7 @@ mod tests {
                     .map(|block| NativeClosureBlock {
                         id: block.id,
                         params: block.params,
-                        stmts: block
-                            .stmts
-                            .into_iter()
-                            .map(NativeClosureStmt::Native)
-                            .collect(),
+                        stmts: block.stmts.into_iter().map(closure_convert_stmt).collect(),
                         terminator: block.terminator,
                     })
                     .collect(),
@@ -218,6 +255,49 @@ mod tests {
         assert_eq!(
             converted.functions[0].blocks[0].terminator,
             NativeTerminator::Return(ValueId(1))
+        );
+    }
+
+    #[test]
+    fn converts_make_closure_to_environment_allocation() {
+        let function = NativeFunction {
+            name: "root".to_string(),
+            captures: Vec::new(),
+            params: Vec::new(),
+            blocks: vec![NativeBlock {
+                id: BlockId(0),
+                params: Vec::new(),
+                stmts: vec![NativeStmt::MakeClosure {
+                    dest: ValueId(2),
+                    target: "root#lambda0".to_string(),
+                    captures: vec![ValueId(0), ValueId(1)],
+                }],
+                terminator: NativeTerminator::Return(ValueId(2)),
+            }],
+        };
+        let module = NativeModule {
+            functions: Vec::new(),
+            roots: vec![function],
+        };
+
+        let converted = closure_convert_module(&module);
+
+        assert_eq!(
+            converted.roots[0].blocks[0].stmts,
+            vec![NativeClosureStmt::MakeClosure {
+                dest: ValueId(2),
+                target: "root#lambda0".to_string(),
+                environment: vec![
+                    NativeClosureCapture {
+                        slot: 0,
+                        value: ValueId(0),
+                    },
+                    NativeClosureCapture {
+                        slot: 1,
+                        value: ValueId(1),
+                    },
+                ],
+            }]
         );
     }
 }

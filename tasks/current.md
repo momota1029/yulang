@@ -66,7 +66,8 @@ runtime/core IR
   - `NativeFunction.captures` で closure-generated function の capture params を明示する。`closure_convert_module` は captures を environment slots に分離し、通常 params と分ける。
   - `yulang-native::source` に実験用の文字列 source entrypoint を追加した。現時点では `source -> infer/export -> runtime lower/monomorphize -> native-control eval` の薄い adapter で、backend 本体は引き続き `runtime::Module` を入口にする。
   - closure-converted body 側に `LoadEnv` を追加し、capture param を entry block param から外して environment slot load として明示するところまで追加済み。
-  - 次は closure value 自体の backend 表現と call ABI を決める。
+  - `MakeClosure` は closure-converted IR 上で code target + environment slot values の allocation として表す。
+  - 次は closure call ABI と direct/indirect call の backend lowering 境界を決める。
 
 重要な制約:
 

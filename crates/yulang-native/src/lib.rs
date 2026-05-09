@@ -21,8 +21,8 @@ pub mod lower;
 pub mod source;
 
 pub use closure::{
-    NativeClosureBlock, NativeClosureEnvironment, NativeClosureFunction, NativeClosureModule,
-    NativeClosureSlot, NativeClosureStmt, closure_convert_module,
+    NativeClosureBlock, NativeClosureCapture, NativeClosureEnvironment, NativeClosureFunction,
+    NativeClosureModule, NativeClosureSlot, NativeClosureStmt, closure_convert_module,
 };
 pub use compare::{NativeCompareError, compare_module};
 pub use control_ir::{
