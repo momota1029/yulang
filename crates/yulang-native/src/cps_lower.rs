@@ -695,11 +695,25 @@ impl<'a> FunctionLowerer<'a> {
         body: &runtime::Expr,
         arms: &[runtime::HandleArm],
     ) -> CpsLowerResult<CpsValueId> {
+        let mut value_arms = arms
+            .iter()
+            .filter(|arm| arm.resume.is_none() && arm.effect.segments.is_empty());
+        let value_arm = value_arms.next();
+        if value_arms.next().is_some() {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "multi-value handler",
+            });
+        }
+        if value_arm.is_some_and(|arm| arm.guard.is_some()) {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "handler guard",
+            });
+        }
+
         let mut effect_arms = arms.iter().filter(|arm| arm.resume.is_some());
         let Some(arm) = effect_arms.next() else {
-            return Err(CpsLowerError::UnsupportedExpr {
-                kind: "handler without resume",
-            });
+            let value = self.lower_expr(body)?;
+            return self.lower_handle_value(value, value_arm);
         };
         if effect_arms.next().is_some()
             || arms.iter().any(|candidate| {
@@ -723,17 +737,29 @@ impl<'a> FunctionLowerer<'a> {
         let saved_locals = self.locals.clone();
         let saved_resumptions = self.resumptions.clone();
 
+        let value_cont = self.fresh_continuation();
         let handler_cont = self.fresh_continuation();
         let merge_cont = self.fresh_continuation();
         let handler = self.fresh_handler();
         let result = self.fresh_value();
 
-        let effect = self.lower_handled_body(body, &arm.effect, handler)?;
+        let effect = self.lower_handled_body(body, &arm.effect, handler, value_cont)?;
         self.handlers.push(CpsHandler {
             id: handler,
             effect: effect.clone(),
             entry: handler_cont,
         });
+
+        let handled_value = self.fresh_value();
+        self.current = ContinuationBuilder::new(value_cont, vec![handled_value]);
+        self.locals = saved_locals.clone();
+        self.resumptions = saved_resumptions.clone();
+        let handled = self.lower_handle_value(handled_value, value_arm)?;
+        self.terminate(CpsTerminator::Continue {
+            target: merge_cont,
+            args: vec![handled],
+        });
+        self.finish_current();
 
         let handler_payload = self.fresh_value();
         let handler_resume = self.fresh_value();
@@ -758,14 +784,27 @@ impl<'a> FunctionLowerer<'a> {
         Ok(result)
     }
 
+    fn lower_handle_value(
+        &mut self,
+        value: CpsValueId,
+        value_arm: Option<&runtime::HandleArm>,
+    ) -> CpsLowerResult<CpsValueId> {
+        let Some(arm) = value_arm else {
+            return Ok(value);
+        };
+        self.bind_pattern(&arm.payload, value)?;
+        self.lower_expr(&arm.body)
+    }
+
     fn lower_handled_body(
         &mut self,
         body: &runtime::Expr,
         expected_effect: &core_ir::Path,
         handler: CpsHandlerId,
+        value_cont: CpsContinuationId,
     ) -> CpsLowerResult<core_ir::Path> {
         if let Some(expr) = handle_body_execution_inner(body) {
-            return self.lower_handled_body(expr, expected_effect, handler);
+            return self.lower_handled_body(expr, expected_effect, handler, value_cont);
         }
 
         if let Some((effect, payload)) = effect_apply(body) {
@@ -853,16 +892,41 @@ impl<'a> FunctionLowerer<'a> {
             ..
         } = &body.kind
         {
-            return self.lower_handled_if(cond, then_branch, else_branch, expected_effect, handler);
+            return self.lower_handled_if(
+                cond,
+                then_branch,
+                else_branch,
+                expected_effect,
+                handler,
+                value_cont,
+            );
         }
 
         if let runtime::ExprKind::Block { stmts, tail } = &body.kind {
-            return self.lower_handled_block(stmts, tail.as_deref(), expected_effect, handler);
+            return self.lower_handled_block(
+                stmts,
+                tail.as_deref(),
+                expected_effect,
+                handler,
+                value_cont,
+            );
         }
 
-        Err(CpsLowerError::UnsupportedExpr {
-            kind: "handler body continuation",
-        })
+        let value = match self.lower_expr(body) {
+            Ok(value) => value,
+            Err(CpsLowerError::UnsupportedExpr { .. }) => {
+                return Err(CpsLowerError::UnsupportedExpr {
+                    kind: "handler body continuation",
+                });
+            }
+            Err(error) => return Err(error),
+        };
+        self.terminate(CpsTerminator::Continue {
+            target: value_cont,
+            args: vec![value],
+        });
+        self.finish_current();
+        Ok(expected_effect.clone())
     }
 
     fn lower_handled_if(
@@ -872,6 +936,7 @@ impl<'a> FunctionLowerer<'a> {
         else_branch: &runtime::Expr,
         expected_effect: &core_ir::Path,
         handler: CpsHandlerId,
+        value_cont: CpsContinuationId,
     ) -> CpsLowerResult<core_ir::Path> {
         let cond = self.lower_expr(cond)?;
         let saved_locals = self.locals.clone();
@@ -889,12 +954,14 @@ impl<'a> FunctionLowerer<'a> {
         self.current = ContinuationBuilder::new(then_cont, Vec::new());
         self.locals = saved_locals.clone();
         self.resumptions = saved_resumptions.clone();
-        let then_effect = self.lower_handled_body(then_branch, expected_effect, handler)?;
+        let then_effect =
+            self.lower_handled_body(then_branch, expected_effect, handler, value_cont)?;
 
         self.current = ContinuationBuilder::new(else_cont, Vec::new());
         self.locals = saved_locals.clone();
         self.resumptions = saved_resumptions.clone();
-        let else_effect = self.lower_handled_body(else_branch, expected_effect, handler)?;
+        let else_effect =
+            self.lower_handled_body(else_branch, expected_effect, handler, value_cont)?;
         if then_effect != else_effect {
             return Err(CpsLowerError::UnsupportedExpr {
                 kind: "handler effect mismatch",
@@ -912,6 +979,7 @@ impl<'a> FunctionLowerer<'a> {
         tail: Option<&runtime::Expr>,
         expected_effect: &core_ir::Path,
         handler: CpsHandlerId,
+        value_cont: CpsContinuationId,
     ) -> CpsLowerResult<core_ir::Path> {
         for (index, stmt) in stmts.iter().enumerate() {
             match stmt {
@@ -958,7 +1026,7 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         match tail {
-            Some(tail) => self.lower_handled_body(tail, expected_effect, handler),
+            Some(tail) => self.lower_handled_body(tail, expected_effect, handler, value_cont),
             None => Err(CpsLowerError::UnsupportedExpr {
                 kind: "handler body continuation",
             }),
@@ -1370,6 +1438,79 @@ mod tests {
         )
     }
 
+    fn handle_once_with_value(
+        effect: &str,
+        payload: &str,
+        resume: &str,
+        body: runtime::Expr,
+        arm_body: runtime::Expr,
+        value_payload: &str,
+        value_body: runtime::Expr,
+    ) -> runtime::Expr {
+        let effect = core_ir::Path::from_name(core_ir::Name(effect.to_string()));
+        runtime::Expr::typed(
+            runtime::ExprKind::Handle {
+                body: Box::new(body),
+                arms: vec![
+                    runtime::HandleArm {
+                        effect: effect.clone(),
+                        payload: bind_pattern(payload),
+                        resume: Some(runtime::ResumeBinding {
+                            name: core_ir::Name(resume.to_string()),
+                            ty: runtime::Type::unknown(),
+                        }),
+                        guard: None,
+                        body: arm_body,
+                    },
+                    runtime::HandleArm {
+                        effect: core_ir::Path::default(),
+                        payload: bind_pattern(value_payload),
+                        resume: None,
+                        guard: None,
+                        body: value_body,
+                    },
+                ],
+                evidence: runtime::JoinEvidence {
+                    result: core_ir::Type::Unknown,
+                },
+                handler: runtime::HandleEffect {
+                    consumes: vec![effect],
+                    residual_before: None,
+                    residual_after: None,
+                },
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn handle_value(
+        body: runtime::Expr,
+        value_payload: &str,
+        value_body: runtime::Expr,
+    ) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Handle {
+                body: Box::new(body),
+                arms: vec![runtime::HandleArm {
+                    effect: core_ir::Path::default(),
+                    payload: bind_pattern(value_payload),
+                    resume: None,
+                    guard: None,
+                    body: value_body,
+                }],
+                evidence: runtime::JoinEvidence {
+                    result: core_ir::Type::Unknown,
+                },
+                handler: runtime::HandleEffect {
+                    consumes: Vec::new(),
+                    residual_before: None,
+                    residual_after: None,
+                },
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
     fn handle_once_expr(
         effect: core_ir::Path,
         payload: &str,
@@ -1678,6 +1819,74 @@ mod tests {
                 .flat_map(|continuation| &continuation.stmts)
                 .any(|stmt| matches!(stmt, CpsStmt::Resume { .. }))
         );
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("3".to_string())]
+        );
+    }
+
+    #[test]
+    fn lowers_value_handler_arm() {
+        let body = unknown_lit(core_ir::Lit::Int("1".to_string()));
+        let value_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), var("value")),
+            unknown_lit(core_ir::Lit::Int("10".to_string())),
+        );
+        let module = module_with_root(handle_value(body, "value", value_body));
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("11".to_string())]
+        );
+    }
+
+    #[test]
+    fn leaves_resume_result_outside_value_arm() {
+        let body = apply(
+            effect_op("choose"),
+            unknown_lit(core_ir::Lit::Int("1".to_string())),
+        );
+        let arm_body = apply(var("k"), var("x"));
+        let value_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), var("value")),
+            unknown_lit(core_ir::Lit::Int("10".to_string())),
+        );
+        let module = module_with_root(handle_once_with_value(
+            "choose", "x", "k", body, arm_body, "value", value_body,
+        ));
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("1".to_string())]
+        );
+    }
+
+    #[test]
+    fn leaves_multishot_resume_results_outside_value_arm() {
+        let body = apply(
+            effect_op("choose"),
+            unknown_lit(core_ir::Lit::Int("1".to_string())),
+        );
+        let resume_x = apply(var("k"), var("x"));
+        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let arm_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            resume_two,
+        );
+        let value_body = apply(
+            apply(primitive(core_ir::PrimitiveOp::IntAdd), var("value")),
+            unknown_lit(core_ir::Lit::Int("10".to_string())),
+        );
+        let module = module_with_root(handle_once_with_value(
+            "choose", "x", "k", body, arm_body, "value", value_body,
+        ));
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
         assert_eq!(
             eval_cps_module(&lowered).expect("evaluated"),
             vec![runtime::VmValue::Int("3".to_string())]

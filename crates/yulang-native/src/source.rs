@@ -284,6 +284,32 @@ catch choose::pick 41:
     }
 
     #[test]
+    fn compares_source_value_handler_arm_through_cps_repr_cranelift() {
+        compare_source_cps_repr_i64_with_options(
+            r#"catch 31:
+    value -> 41
+"#,
+            infer::SourceOptions::default(),
+        )
+        .expect("source CPS repr jit compare");
+    }
+
+    #[test]
+    fn compares_source_resume_result_outside_value_arm_through_cps_repr_cranelift() {
+        compare_source_cps_repr_i64_with_options(
+            r#"pub act choose:
+  pub pick: int -> int
+
+catch choose::pick 31:
+    choose::pick x, k -> k x
+    value -> 41
+"#,
+            infer::SourceOptions::default(),
+        )
+        .expect("source CPS repr jit compare");
+    }
+
+    #[test]
     fn compares_prelude_source_effect_handler_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(

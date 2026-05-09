@@ -73,6 +73,7 @@ runtime/core IR
   - CLI に `--native-cps-repr-i64` を追加した。source から runtime lower / monomorphize した module を VM と CPS repr Cranelift scalar i64 で比較する debug entrypoint。
   - CPS lowering は root から reachable な runtime binding だけを lower する。std/prelude を読む source でも、到達不能な std の非関数 binding / unsupported binding が CPS repr Cranelift の scalar prototype を止めないようにした。
   - prelude ありの source literal と、prelude ありの小さい source-defined `act` / `catch` は CPS repr Cranelift で VM 比較済み。
+  - handler の value arm は CPS lowering で扱う。pure body は value arm continuation に入り、resume で戻った値は VM と同じく value arm を再適用しない。
   - `std::flow::sub::sub { std::flow::sub::return 41 }` は CPS repr Cranelift で VM 比較済み。CPS lowering は、`fun x -> handle x ...` 形の thunk handler wrapper が thunk 引数へ直接適用される場合、thunk を汎用値 lane にせず handle body へインライン展開する。
   - CPS repr value / ABI lane 解析では `Unknown` を初期未確定値として扱い、既知 lane / value kind で精密化するようにした。異なる既知 lane が衝突した場合だけ `Unknown` に戻る。
   - 汎用 thunk value lane / thunk invocation はまだ未対応。wrapper を越えて thunk を保存・返却・複数箇所で渡す場合は次の段階で扱う。
