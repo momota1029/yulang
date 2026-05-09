@@ -118,6 +118,9 @@ fn collect_expr_type_vars(expr: &core_ir::Expr, vars: &mut BTreeSet<core_ir::Typ
                 collect_type_bounds_vars(&evidence.expected, vars);
             }
         }
+        core_ir::Expr::BindHere { expr } => {
+            collect_expr_type_vars(expr, vars);
+        }
         core_ir::Expr::Pack { expr, .. } => {
             collect_expr_type_vars(expr, vars);
         }

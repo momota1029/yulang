@@ -11,6 +11,7 @@ pub enum NativeAbiRepr {
     Bool,
     Int,
     Float,
+    List(Box<NativeAbiRepr>),
     RuntimeValuePtr(NativeRuntimePtrKind),
     ClosurePtr,
     Unknown,
@@ -19,7 +20,6 @@ pub enum NativeAbiRepr {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NativeRuntimePtrKind {
     String,
-    List,
     RuntimeValue,
 }
 
@@ -39,7 +39,9 @@ impl NativeAbiRepr {
                 NativeAbiValueLane::ScalarI64
             }
             NativeAbiRepr::Float => NativeAbiValueLane::NativeFloat,
-            NativeAbiRepr::RuntimeValuePtr(_) => NativeAbiValueLane::RuntimeValuePtr,
+            NativeAbiRepr::List(_) | NativeAbiRepr::RuntimeValuePtr(_) => {
+                NativeAbiValueLane::RuntimeValuePtr
+            }
             NativeAbiRepr::ClosurePtr => NativeAbiValueLane::ClosurePtr,
             NativeAbiRepr::Unknown => NativeAbiValueLane::Unknown,
         }
@@ -132,8 +134,8 @@ fn classify_stmt(
         NativeAbiStmt::Literal { dest, literal } => {
             values.insert(*dest, literal_repr(literal));
         }
-        NativeAbiStmt::Primitive { dest, op, .. } => {
-            values.insert(*dest, primitive_result_repr(*op));
+        NativeAbiStmt::Primitive { dest, op, args } => {
+            values.insert(*dest, primitive_result_repr(*op, args, values));
         }
         NativeAbiStmt::DirectCall { dest, target, .. } => {
             values.insert(
@@ -191,7 +193,11 @@ fn literal_repr(literal: &NativeLiteral) -> NativeAbiRepr {
     }
 }
 
-fn primitive_result_repr(op: core_ir::PrimitiveOp) -> NativeAbiRepr {
+fn primitive_result_repr(
+    op: core_ir::PrimitiveOp,
+    args: &[ValueId],
+    values: &HashMap<ValueId, NativeAbiRepr>,
+) -> NativeAbiRepr {
     use core_ir::PrimitiveOp;
     match op {
         PrimitiveOp::BoolNot
@@ -215,15 +221,15 @@ fn primitive_result_repr(op: core_ir::PrimitiveOp) -> NativeAbiRepr {
         | PrimitiveOp::FloatDiv => NativeAbiRepr::Float,
         PrimitiveOp::ListLen => NativeAbiRepr::Int,
         PrimitiveOp::StringLen => NativeAbiRepr::Int,
-        PrimitiveOp::ListEmpty
-        | PrimitiveOp::ListSingleton
-        | PrimitiveOp::ListMerge
-        | PrimitiveOp::ListIndex
-        | PrimitiveOp::ListIndexRange
+        PrimitiveOp::ListEmpty => NativeAbiRepr::List(Box::new(NativeAbiRepr::Unknown)),
+        PrimitiveOp::ListSingleton => NativeAbiRepr::List(Box::new(arg_repr(args, values, 0))),
+        PrimitiveOp::ListMerge => list_with_merged_element_repr(args, values),
+        PrimitiveOp::ListIndex => list_element_repr(arg_repr(args, values, 0)),
+        PrimitiveOp::ListIndexRange
         | PrimitiveOp::ListSplice
         | PrimitiveOp::ListIndexRangeRaw
         | PrimitiveOp::ListSpliceRaw
-        | PrimitiveOp::ListViewRaw => NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::List),
+        | PrimitiveOp::ListViewRaw => list_with_element_repr(arg_repr(args, values, 0)),
         PrimitiveOp::StringIndex
         | PrimitiveOp::StringIndexRange
         | PrimitiveOp::StringSplice
@@ -236,6 +242,40 @@ fn primitive_result_repr(op: core_ir::PrimitiveOp) -> NativeAbiRepr {
         | PrimitiveOp::FloatToString
         | PrimitiveOp::BoolToString => NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::String),
     }
+}
+
+fn arg_repr(
+    args: &[ValueId],
+    values: &HashMap<ValueId, NativeAbiRepr>,
+    index: usize,
+) -> NativeAbiRepr {
+    args.get(index)
+        .and_then(|value| values.get(value))
+        .cloned()
+        .unwrap_or(NativeAbiRepr::Unknown)
+}
+
+fn list_element_repr(repr: NativeAbiRepr) -> NativeAbiRepr {
+    match repr {
+        NativeAbiRepr::List(element) => *element,
+        _ => NativeAbiRepr::Unknown,
+    }
+}
+
+fn list_with_element_repr(repr: NativeAbiRepr) -> NativeAbiRepr {
+    match repr {
+        NativeAbiRepr::List(element) => NativeAbiRepr::List(element),
+        _ => NativeAbiRepr::List(Box::new(NativeAbiRepr::Unknown)),
+    }
+}
+
+fn list_with_merged_element_repr(
+    args: &[ValueId],
+    values: &HashMap<ValueId, NativeAbiRepr>,
+) -> NativeAbiRepr {
+    let left = list_element_repr(arg_repr(args, values, 0));
+    let right = list_element_repr(arg_repr(args, values, 1));
+    NativeAbiRepr::List(Box::new(merge_reprs(left, right)))
 }
 
 #[cfg(test)]
@@ -383,8 +423,57 @@ mod tests {
 
         assert_eq!(
             analysis.function_repr("root"),
-            Some(&NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::List))
+            Some(&NativeAbiRepr::List(Box::new(NativeAbiRepr::Unknown)))
         );
+        assert_eq!(
+            analysis.function_lane("root"),
+            Some(NativeAbiValueLane::RuntimeValuePtr)
+        );
+    }
+
+    #[test]
+    fn propagates_list_element_repr_from_singleton_and_index() {
+        let module = NativeAbiModule {
+            functions: Vec::new(),
+            roots: vec![NativeAbiFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                environment_slots: 0,
+                blocks: vec![NativeAbiBlock {
+                    id: BlockId(0),
+                    params: Vec::new(),
+                    stmts: vec![
+                        NativeAbiStmt::Literal {
+                            dest: ValueId(0),
+                            literal: NativeLiteral::Int("42".to_string()),
+                        },
+                        NativeAbiStmt::Primitive {
+                            dest: ValueId(1),
+                            op: core_ir::PrimitiveOp::ListSingleton,
+                            args: vec![ValueId(0)],
+                        },
+                        NativeAbiStmt::Literal {
+                            dest: ValueId(2),
+                            literal: NativeLiteral::Int("0".to_string()),
+                        },
+                        NativeAbiStmt::Primitive {
+                            dest: ValueId(3),
+                            op: core_ir::PrimitiveOp::ListIndex,
+                            args: vec![ValueId(1), ValueId(2)],
+                        },
+                    ],
+                    terminator: NativeTerminator::Return(ValueId(3)),
+                }],
+            }],
+        };
+
+        let analysis = analyze_abi_reprs(&module);
+
+        assert_eq!(
+            analysis.value_repr("root", ValueId(1)),
+            Some(&NativeAbiRepr::List(Box::new(NativeAbiRepr::Int)))
+        );
+        assert_eq!(analysis.function_repr("root"), Some(&NativeAbiRepr::Int));
     }
 
     #[test]

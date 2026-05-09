@@ -304,6 +304,9 @@ fn transform_copied_expr_kind(
                 .collect(),
         ),
         ExprKind::Block(block) => ExprKind::Block(transform_copied_block(block, types, def_subst)),
+        ExprKind::BindHere(expr) => ExprKind::BindHere(Box::new(
+            transform_copied_principal_body_inner(types, expr, def_subst),
+        )),
         ExprKind::Coerce {
             edge_id: _,
             actual_tv,

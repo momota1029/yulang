@@ -3,13 +3,19 @@ use std::rc::Rc;
 pub const MAX_LEAF_CHARS: usize = 64;
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum StringTree {
+pub enum StringTree<S = Rc<str>>
+where
+    S: StringLeaf,
+{
     Empty,
-    Leaf(Rc<str>),
-    Node(Rc<StringNode>),
+    Leaf(S),
+    Node(Rc<StringNode<S>>),
 }
 
-impl Clone for StringTree {
+impl<S> Clone for StringTree<S>
+where
+    S: StringLeaf,
+{
     fn clone(&self) -> Self {
         match self {
             Self::Empty => Self::Empty,
@@ -19,7 +25,45 @@ impl Clone for StringTree {
     }
 }
 
-impl StringTree {
+pub trait StringLeaf: Clone + std::fmt::Debug + PartialEq + Eq {
+    fn from_string(value: String) -> Self;
+    fn as_str(&self) -> &str;
+}
+
+impl StringLeaf for Rc<str> {
+    fn from_string(value: String) -> Self {
+        Rc::from(value.into_boxed_str())
+    }
+
+    fn as_str(&self) -> &str {
+        self
+    }
+}
+
+impl StringLeaf for String {
+    fn from_string(value: String) -> Self {
+        value
+    }
+
+    fn as_str(&self) -> &str {
+        self
+    }
+}
+
+impl StringLeaf for Box<str> {
+    fn from_string(value: String) -> Self {
+        value.into_boxed_str()
+    }
+
+    fn as_str(&self) -> &str {
+        self
+    }
+}
+
+impl<S> StringTree<S>
+where
+    S: StringLeaf,
+{
     pub fn empty() -> Self {
         Self::Empty
     }
@@ -35,7 +79,7 @@ impl StringTree {
     pub fn len(&self) -> usize {
         match self {
             Self::Empty => 0,
-            Self::Leaf(value) => value.chars().count(),
+            Self::Leaf(value) => value.as_str().chars().count(),
             Self::Node(node) => node.len_chars,
         }
     }
@@ -43,7 +87,7 @@ impl StringTree {
     pub fn len_bytes(&self) -> usize {
         match self {
             Self::Empty => 0,
-            Self::Leaf(value) => value.len(),
+            Self::Leaf(value) => value.as_str().len(),
             Self::Node(node) => node.len_bytes,
         }
     }
@@ -57,11 +101,12 @@ impl StringTree {
             (Self::Empty, right) => right,
             (left, Self::Empty) => left,
             (Self::Leaf(left), Self::Leaf(right))
-                if left.chars().count() + right.chars().count() <= MAX_LEAF_CHARS =>
+                if left.as_str().chars().count() + right.as_str().chars().count()
+                    <= MAX_LEAF_CHARS =>
             {
-                let mut merged = String::with_capacity(left.len() + right.len());
-                merged.push_str(&left);
-                merged.push_str(&right);
+                let mut merged = String::with_capacity(left.as_str().len() + right.as_str().len());
+                merged.push_str(left.as_str());
+                merged.push_str(right.as_str());
                 Self::leaf(merged)
             }
             (left, right) if left.black_height() == right.black_height() => {
@@ -79,7 +124,7 @@ impl StringTree {
     pub fn index(&self, index: usize) -> Option<char> {
         match self {
             Self::Empty => None,
-            Self::Leaf(value) => value.chars().nth(index),
+            Self::Leaf(value) => value.as_str().chars().nth(index),
             Self::Node(node) => {
                 let left_len = node.left.len();
                 if index < left_len {
@@ -100,7 +145,11 @@ impl StringTree {
         }
         match self {
             Self::Empty => Some(Self::Empty),
-            Self::Leaf(value) => Some(Self::from_str(slice_str_by_chars(value, start, end)?)),
+            Self::Leaf(value) => Some(Self::from_str(slice_str_by_chars(
+                value.as_str(),
+                start,
+                end,
+            )?)),
             Self::Node(node) => {
                 let left_len = node.left.len();
                 if end <= left_len {
@@ -131,7 +180,7 @@ impl StringTree {
         out
     }
 
-    pub fn view(&self) -> StringView {
+    pub fn view(&self) -> StringView<S> {
         match self {
             Self::Empty => StringView::Empty,
             Self::Leaf(value) => StringView::Leaf(value.clone()),
@@ -164,7 +213,7 @@ impl StringTree {
         if value.is_empty() {
             Self::Empty
         } else {
-            Self::Leaf(Rc::from(value.into_boxed_str()))
+            Self::Leaf(S::from_string(value))
         }
     }
 
@@ -189,7 +238,7 @@ impl StringTree {
     fn push_str(&self, out: &mut String) {
         match self {
             Self::Empty => {}
-            Self::Leaf(value) => out.push_str(value),
+            Self::Leaf(value) => out.push_str(value.as_str()),
             Self::Node(node) => {
                 node.left.push_str(out);
                 node.right.push_str(out);
@@ -200,7 +249,7 @@ impl StringTree {
     fn push_leaves(&self, out: &mut Vec<String>) {
         match self {
             Self::Empty => {}
-            Self::Leaf(value) => out.push(value.to_string()),
+            Self::Leaf(value) => out.push(value.as_str().to_string()),
             Self::Node(node) => {
                 node.left.push_leaves(out);
                 node.right.push_leaves(out);
@@ -236,28 +285,37 @@ impl StringTree {
     }
 }
 
-impl From<&str> for StringTree {
+impl<S> From<&str> for StringTree<S>
+where
+    S: StringLeaf,
+{
     fn from(value: &str) -> Self {
         Self::from_str(value)
     }
 }
 
-impl From<String> for StringTree {
+impl<S> From<String> for StringTree<S>
+where
+    S: StringLeaf,
+{
     fn from(value: String) -> Self {
         Self::from_str(&value)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StringView {
+pub enum StringView<S = Rc<str>>
+where
+    S: StringLeaf,
+{
     Empty,
-    Leaf(Rc<str>),
+    Leaf(S),
     Node {
         color: Color,
         len_chars: usize,
         len_bytes: usize,
-        left: StringTree,
-        right: StringTree,
+        left: StringTree<S>,
+        right: StringTree<S>,
     },
 }
 
@@ -268,12 +326,15 @@ pub enum Color {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StringNode {
+pub struct StringNode<S = Rc<str>>
+where
+    S: StringLeaf,
+{
     pub color: Color,
     pub len_chars: usize,
     pub len_bytes: usize,
-    pub left: StringTree,
-    pub right: StringTree,
+    pub left: StringTree<S>,
+    pub right: StringTree<S>,
 }
 
 fn chunk_str(value: &str) -> Vec<String> {
@@ -294,7 +355,10 @@ fn chunk_str(value: &str) -> Vec<String> {
     chunks
 }
 
-fn compact_leaves(leaves: Vec<String>) -> Vec<StringTree> {
+fn compact_leaves<S>(leaves: Vec<String>) -> Vec<StringTree<S>>
+where
+    S: StringLeaf,
+{
     let mut compacted = Vec::new();
     let mut current = String::new();
     let mut current_chars = 0usize;
@@ -314,7 +378,10 @@ fn compact_leaves(leaves: Vec<String>) -> Vec<StringTree> {
     compacted
 }
 
-fn build_balanced(mut items: Vec<StringTree>) -> StringTree {
+fn build_balanced<S>(mut items: Vec<StringTree<S>>) -> StringTree<S>
+where
+    S: StringLeaf,
+{
     items.retain(|item| !item.is_empty());
     if items.is_empty() {
         return StringTree::Empty;
@@ -372,9 +439,11 @@ fn byte_index_for_char(value: &str, index: usize) -> Option<usize> {
 mod tests {
     use super::{Color, MAX_LEAF_CHARS, StringTree, StringView};
 
+    type RuntimeStringTree = StringTree<std::rc::Rc<str>>;
+
     #[test]
     fn string_tree_tracks_char_and_byte_len() {
-        let text = StringTree::from_str("aあ🙂");
+        let text = RuntimeStringTree::from_str("aあ🙂");
 
         assert_eq!(text.len(), 3);
         assert_eq!(text.len_bytes(), "aあ🙂".len());
@@ -384,7 +453,7 @@ mod tests {
     #[test]
     fn string_tree_chunks_large_leaves() {
         let source = "x".repeat(MAX_LEAF_CHARS + 1);
-        let text = StringTree::from_str(&source);
+        let text = RuntimeStringTree::from_str(&source);
 
         assert!(matches!(text.view(), StringView::Node { .. }));
         assert_eq!(text.to_flat_string(), source);
@@ -393,7 +462,10 @@ mod tests {
 
     #[test]
     fn string_tree_concat_range_and_splice_use_tree_operations() {
-        let text = StringTree::concat(StringTree::from_str("aあ"), StringTree::from_str("🙂z"));
+        let text = RuntimeStringTree::concat(
+            RuntimeStringTree::from_str("aあ"),
+            RuntimeStringTree::from_str("🙂z"),
+        );
         let (StringView::Leaf(_) | StringView::Node { .. }) = text.view() else {
             panic!("expected non-empty text");
         };
@@ -401,7 +473,7 @@ mod tests {
         assert_eq!(text.index(1), Some('あ'));
         assert_eq!(text.index_range(1, 3).unwrap().to_flat_string(), "あ🙂");
         assert_eq!(
-            text.splice(1, 3, StringTree::from_str("bc"))
+            text.splice(1, 3, RuntimeStringTree::from_str("bc"))
                 .unwrap()
                 .to_flat_string(),
             "abcz"
@@ -410,9 +482,9 @@ mod tests {
 
     #[test]
     fn string_tree_view_reports_node_metadata() {
-        let text = StringTree::concat(
-            StringTree::from_str(&"a".repeat(MAX_LEAF_CHARS)),
-            StringTree::from_str(&"b".repeat(MAX_LEAF_CHARS)),
+        let text = RuntimeStringTree::concat(
+            RuntimeStringTree::from_str(&"a".repeat(MAX_LEAF_CHARS)),
+            RuntimeStringTree::from_str(&"b".repeat(MAX_LEAF_CHARS)),
         );
         let StringView::Node {
             color,

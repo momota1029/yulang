@@ -168,7 +168,7 @@ fn format_vm_value_into(out: &mut String, value: &runtime::VmValue) {
 
 fn format_vm_list_into(
     out: &mut String,
-    items: &runtime::runtime::list_tree::ListTree<runtime::VmValue>,
+    items: &runtime::runtime::list_tree::ListTree<std::rc::Rc<runtime::VmValue>>,
 ) {
     out.push('[');
     let mut first = true;
@@ -178,7 +178,7 @@ fn format_vm_list_into(
 
 fn format_vm_list_items(
     out: &mut String,
-    items: &runtime::runtime::list_tree::ListTree<runtime::VmValue>,
+    items: &runtime::runtime::list_tree::ListTree<std::rc::Rc<runtime::VmValue>>,
     first: &mut bool,
 ) {
     match items {

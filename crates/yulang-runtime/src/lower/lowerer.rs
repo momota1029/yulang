@@ -1023,6 +1023,26 @@ impl Lowerer<'_> {
                     self.current_runtime_adapter_source.clone(),
                 )
             }
+            core_ir::Expr::BindHere { expr } => {
+                let expr = self.lower_expr(*expr, None, locals, TypeSource::Expected)?;
+                let value_ty = match &expr.ty {
+                    RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
+                    _ => expected.cloned().unwrap_or_else(|| expr.ty.clone()),
+                };
+                let expr = Expr::typed(
+                    ExprKind::BindHere {
+                        expr: Box::new(expr),
+                    },
+                    value_ty,
+                );
+                finalize_effectful_expr_profiled(
+                    expr,
+                    expected,
+                    expected_source,
+                    &mut self.runtime_adapter_profile,
+                    self.current_runtime_adapter_source.clone(),
+                )
+            }
             core_ir::Expr::Handle {
                 body,
                 arms,
@@ -1037,11 +1057,11 @@ impl Lowerer<'_> {
                         result_hint
                     };
                 let body = self.lower_expr(*body, None, locals, TypeSource::Expected)?;
-                let handled = self
-                    .handler_consumes_from_core_arms(&arms, &result_ty)
-                    .unwrap_or_else(|| handler_consumes_from_body_type(&body.ty));
                 let body_effect_before =
                     expr_forced_effect(&body).or_else(|| thunk_effect(&body.ty));
+                let handled = self
+                    .handler_consumes_from_core_arms(&arms, &result_ty, body_effect_before.as_ref())
+                    .unwrap_or_else(|| handler_consumes_from_body_type(&body.ty));
                 let handled = canonicalize_handled_effects(handled, body_effect_before.as_ref());
                 let resume_effect = body_effect_before
                     .as_ref()
@@ -1370,10 +1390,11 @@ impl Lowerer<'_> {
         &self,
         arms: &[core_ir::HandleArm],
         result_ty: &core_ir::Type,
+        body_effect: Option<&core_ir::Type>,
     ) -> Option<core_ir::Type> {
         let items = arms
             .iter()
-            .filter_map(|arm| self.consumed_effect_from_core_arm(arm, result_ty))
+            .filter_map(|arm| self.consumed_effect_from_core_arm(arm, result_ty, body_effect))
             .collect::<Vec<_>>();
         (!items.is_empty()).then(|| effect_row_from_items(items))
     }
@@ -1382,8 +1403,10 @@ impl Lowerer<'_> {
         &self,
         arm: &core_ir::HandleArm,
         result_ty: &core_ir::Type,
+        body_effect: Option<&core_ir::Type>,
     ) -> Option<core_ir::Type> {
-        let effect = self.resolve_handle_effect_operation_path(&arm.effect);
+        let effect =
+            self.resolve_core_handle_arm_effect_operation_path(&arm.effect, body_effect)?;
         if effect.segments.is_empty() {
             return None;
         }
@@ -1413,6 +1436,64 @@ impl Lowerer<'_> {
             path: effect_path,
             args,
         })
+    }
+
+    fn resolve_core_handle_arm_effect_operation_path(
+        &self,
+        path: &core_ir::Path,
+        body_effect: Option<&core_ir::Type>,
+    ) -> Option<core_ir::Path> {
+        if path.segments.len() != 1 {
+            return Some(self.resolve_handle_effect_operation_path(path));
+        }
+        let op = path.segments.first()?;
+        if let Some(owner) = self.current_binding.as_ref() {
+            let mut namespace = owner.clone();
+            namespace.segments.pop();
+            if !namespace.segments.is_empty() {
+                let mut candidate = namespace.clone();
+                candidate.segments.push(op.clone());
+                if self.runtime_symbol_kind(&candidate)
+                    == Some(core_ir::RuntimeSymbolKind::EffectOperation)
+                {
+                    return Some(candidate);
+                }
+                namespace
+                    .segments
+                    .push(core_ir::Name(format!("{}#effect", op.0)));
+                if self.runtime_symbol_kind(&namespace)
+                    == Some(core_ir::RuntimeSymbolKind::EffectOperation)
+                {
+                    return Some(namespace);
+                }
+            }
+        }
+        let body_effect = body_effect?;
+        let mut candidates = Vec::new();
+        for namespace in effect_paths(body_effect) {
+            let mut candidate = namespace.clone();
+            candidate.segments.push(op.clone());
+            if self.runtime_symbol_kind(&candidate)
+                == Some(core_ir::RuntimeSymbolKind::EffectOperation)
+                && !candidates.contains(&candidate)
+            {
+                candidates.push(candidate);
+            }
+            let mut effect_suffix_candidate = namespace;
+            effect_suffix_candidate
+                .segments
+                .push(core_ir::Name(format!("{}#effect", op.0)));
+            if self.runtime_symbol_kind(&effect_suffix_candidate)
+                == Some(core_ir::RuntimeSymbolKind::EffectOperation)
+                && !candidates.contains(&effect_suffix_candidate)
+            {
+                candidates.push(effect_suffix_candidate);
+            }
+        }
+        match candidates.as_slice() {
+            [candidate] => Some(candidate.clone()),
+            _ => None,
+        }
     }
 
     pub(super) fn lower_record_spread_expr(
@@ -1833,6 +1914,7 @@ impl Lowerer<'_> {
             core_ir::Expr::Block { tail, .. } => tail
                 .as_deref()
                 .and_then(|tail| self.visible_expr_type(tail)),
+            core_ir::Expr::BindHere { expr } => self.visible_expr_type(expr),
             core_ir::Expr::Handle { arms, evidence, .. } => evidence
                 .as_ref()
                 .and_then(|evidence| self.visible_principal_bounds_type(&evidence.result))

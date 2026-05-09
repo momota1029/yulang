@@ -13,7 +13,7 @@ pub enum VmValue {
     String(StringTree),
     Bool(bool),
     Unit,
-    List(ListTree<VmValue>),
+    List(ListTree<Rc<VmValue>>),
     Tuple(Vec<VmValue>),
     Record(BTreeMap<core_ir::Name, VmValue>),
     Variant {

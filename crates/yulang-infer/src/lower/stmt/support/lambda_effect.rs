@@ -8,6 +8,7 @@ use crate::types::{Neg, Pos};
 pub(crate) fn direct_param_source_eff_tv(body: &TypedExpr, param_def: DefId) -> Option<TypeVar> {
     match &body.kind {
         ExprKind::Lit(_) | ExprKind::PrimitiveOp(_) | ExprKind::Ref(_) => None,
+        ExprKind::BindHere(expr) => direct_param_source_eff_tv(expr, param_def),
         ExprKind::Coerce { expr, .. } => direct_param_source_eff_tv(expr, param_def),
         ExprKind::Tuple(items) => items
             .iter()
@@ -193,6 +194,9 @@ fn collect_lambda_capture_effs(
             if let Some(tail) = &block.tail {
                 collect_lambda_capture_effs(state, tail, local_defs, out);
             }
+        }
+        ExprKind::BindHere(expr) => {
+            collect_lambda_capture_effs(state, expr, local_defs, out);
         }
         ExprKind::Coerce { expr, .. } => {
             collect_lambda_capture_effs(state, expr, local_defs, out);

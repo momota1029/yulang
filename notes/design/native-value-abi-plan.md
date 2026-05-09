@@ -26,6 +26,7 @@ NativeAbiRepr
   Bool
   Int
   Float
+  List(element)
   Tuple([...])
   Record([...])
   RuntimeValuePtr(...)
@@ -33,7 +34,10 @@ NativeAbiRepr
 ```
 
 The Cranelift boundary should be explicit about which lane a function uses.
-Do not silently reinterpret a runtime pointer as an integer result.
+`List(element)` is still a pointer lane at the machine boundary, but the
+element representation is tracked so `list<int>` / `list<float>` can become
+native later without treating every list as the same opaque value. Do not
+silently reinterpret a runtime pointer as an integer result.
 
 ## Value Representation
 

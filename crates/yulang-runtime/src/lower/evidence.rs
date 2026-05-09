@@ -114,6 +114,7 @@ pub(super) fn infer_resume_param_type_from_expr(
         }
         core_ir::Expr::Lambda { body, .. }
         | core_ir::Expr::Coerce { expr: body, .. }
+        | core_ir::Expr::BindHere { expr: body }
         | core_ir::Expr::Pack { expr: body, .. } => {
             infer_resume_param_type_from_expr(primitive_paths, resume, body, locals)
         }

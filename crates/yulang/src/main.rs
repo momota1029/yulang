@@ -864,19 +864,21 @@ fn print_native_abi_lanes_or_exit(module: &runtime::Module) {
     }
 }
 
-fn format_native_abi_repr(repr: &yulang_native::NativeAbiRepr) -> &'static str {
+fn format_native_abi_repr(repr: &yulang_native::NativeAbiRepr) -> String {
     match repr {
-        yulang_native::NativeAbiRepr::Unit => "unit",
-        yulang_native::NativeAbiRepr::Bool => "bool",
-        yulang_native::NativeAbiRepr::Int => "int",
-        yulang_native::NativeAbiRepr::Float => "float",
+        yulang_native::NativeAbiRepr::Unit => "unit".to_string(),
+        yulang_native::NativeAbiRepr::Bool => "bool".to_string(),
+        yulang_native::NativeAbiRepr::Int => "int".to_string(),
+        yulang_native::NativeAbiRepr::Float => "float".to_string(),
+        yulang_native::NativeAbiRepr::List(element) => {
+            format!("list<{}>", format_native_abi_repr(element))
+        }
         yulang_native::NativeAbiRepr::RuntimeValuePtr(kind) => match kind {
-            yulang_native::NativeRuntimePtrKind::String => "ptr:str",
-            yulang_native::NativeRuntimePtrKind::List => "ptr:list",
-            yulang_native::NativeRuntimePtrKind::RuntimeValue => "ptr:value",
+            yulang_native::NativeRuntimePtrKind::String => "ptr:str".to_string(),
+            yulang_native::NativeRuntimePtrKind::RuntimeValue => "ptr:value".to_string(),
         },
-        yulang_native::NativeAbiRepr::ClosurePtr => "ptr:closure",
-        yulang_native::NativeAbiRepr::Unknown => "unknown",
+        yulang_native::NativeAbiRepr::ClosurePtr => "ptr:closure".to_string(),
+        yulang_native::NativeAbiRepr::Unknown => "unknown".to_string(),
     }
 }
 
@@ -2676,7 +2678,7 @@ fn format_runtime_vm_value(value: &runtime::VmValue) -> String {
             items
                 .to_vec()
                 .iter()
-                .map(format_runtime_vm_value)
+                .map(|value| format_runtime_vm_value(value))
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
@@ -3072,6 +3074,9 @@ fn format_core_expr(expr: &core_ir::Expr) -> String {
             }
             format!("do {{ {} }}", parts.join("; "))
         }
+        core_ir::Expr::BindHere { expr } => {
+            format!("bind_here {}", format_core_expr_atom(expr))
+        }
         core_ir::Expr::Handle {
             body,
             arms,
@@ -3107,7 +3112,8 @@ fn format_core_expr_atom(expr: &core_ir::Expr) -> String {
         | core_ir::Expr::Lit(_)
         | core_ir::Expr::Select { .. }
         | core_ir::Expr::Record { .. }
-        | core_ir::Expr::Variant { .. } => format_core_expr(expr),
+        | core_ir::Expr::Variant { .. }
+        | core_ir::Expr::BindHere { .. } => format_core_expr(expr),
         _ => format!("({})", format_core_expr(expr)),
     }
 }

@@ -3,11 +3,11 @@ use std::rc::Rc;
 #[derive(Debug, PartialEq, Eq)]
 pub enum ListTree<T> {
     Empty,
-    Leaf(Rc<T>),
+    Leaf(T),
     Node(Rc<ListNode<T>>),
 }
 
-impl<T> Clone for ListTree<T> {
+impl<T: Clone> Clone for ListTree<T> {
     fn clone(&self) -> Self {
         match self {
             Self::Empty => Self::Empty,
@@ -17,13 +17,13 @@ impl<T> Clone for ListTree<T> {
     }
 }
 
-impl<T> ListTree<T> {
+impl<T: Clone> ListTree<T> {
     pub fn empty() -> Self {
         Self::Empty
     }
 
     pub fn singleton(value: T) -> Self {
-        Self::Leaf(Rc::new(value))
+        Self::Leaf(value)
     }
 
     pub fn len(&self) -> usize {
@@ -51,7 +51,7 @@ impl<T> ListTree<T> {
         }
     }
 
-    pub fn index(&self, index: usize) -> Option<Rc<T>> {
+    pub fn index(&self, index: usize) -> Option<T> {
         match self {
             Self::Empty => None,
             Self::Leaf(value) => (index == 0).then_some(value.clone()),
@@ -195,9 +195,6 @@ impl<T> ListTree<T> {
             }
         }
     }
-}
-
-impl<T: Clone> ListTree<T> {
     pub fn from_items(items: impl IntoIterator<Item = T>) -> Self {
         let leaves = items.into_iter().map(Self::singleton).collect::<Vec<_>>();
         build_balanced(leaves)
@@ -212,7 +209,7 @@ impl<T: Clone> ListTree<T> {
     fn push_items(&self, out: &mut Vec<T>) {
         match self {
             Self::Empty => {}
-            Self::Leaf(value) => out.push((**value).clone()),
+            Self::Leaf(value) => out.push(value.clone()),
             Self::Node(node) => {
                 node.left.push_items(out);
                 node.right.push_items(out);
@@ -224,7 +221,7 @@ impl<T: Clone> ListTree<T> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ListView<T> {
     Empty,
-    Leaf(Rc<T>),
+    Leaf(T),
     Node {
         color: Color,
         len: usize,
@@ -247,7 +244,7 @@ pub struct ListNode<T> {
     pub right: ListTree<T>,
 }
 
-fn build_balanced<T>(mut items: Vec<ListTree<T>>) -> ListTree<T> {
+fn build_balanced<T: Clone>(mut items: Vec<ListTree<T>>) -> ListTree<T> {
     if items.is_empty() {
         return ListTree::Empty;
     }
@@ -284,7 +281,7 @@ fn build_balanced<T>(mut items: Vec<ListTree<T>>) -> ListTree<T> {
     items.pop().unwrap_or(ListTree::Empty)
 }
 
-fn join_right<T>(left: ListTree<T>, right: ListTree<T>, right_height: usize) -> ListTree<T> {
+fn join_right<T: Clone>(left: ListTree<T>, right: ListTree<T>, right_height: usize) -> ListTree<T> {
     match left {
         ListTree::Node(node) if node.right.black_height() > right_height => {
             let joined = join_right(node.right.clone(), right, right_height);
@@ -298,7 +295,7 @@ fn join_right<T>(left: ListTree<T>, right: ListTree<T>, right_height: usize) -> 
     }
 }
 
-fn join_left<T>(left: ListTree<T>, right: ListTree<T>, left_height: usize) -> ListTree<T> {
+fn join_left<T: Clone>(left: ListTree<T>, right: ListTree<T>, left_height: usize) -> ListTree<T> {
     match right {
         ListTree::Node(node) if node.left.black_height() > left_height => {
             let joined = join_left(left, node.left.clone(), left_height);
@@ -312,7 +309,7 @@ fn join_left<T>(left: ListTree<T>, right: ListTree<T>, left_height: usize) -> Li
     }
 }
 
-fn balance<T>(color: Color, left: ListTree<T>, right: ListTree<T>) -> ListTree<T> {
+fn balance<T: Clone>(color: Color, left: ListTree<T>, right: ListTree<T>) -> ListTree<T> {
     if color != Color::Black {
         return ListTree::node(color, left, right);
     }
@@ -429,8 +426,8 @@ mod tests {
 
         assert!(range.is_red_black_well_formed());
         assert_eq!(range.len(), 4078);
-        assert_eq!(range.index(0).as_deref(), Some(&17));
-        assert_eq!(range.index(4077).as_deref(), Some(&4094));
+        assert_eq!(range.index(0), Some(17));
+        assert_eq!(range.index(4077), Some(4094));
     }
 
     #[test]

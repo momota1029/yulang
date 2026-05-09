@@ -111,7 +111,7 @@ pub(super) fn apply_primitive(
         )),
         core_ir::PrimitiveOp::ListEmpty => Ok(VmValue::List(ListTree::empty())),
         core_ir::PrimitiveOp::ListSingleton => {
-            Ok(VmValue::List(ListTree::singleton(args[0].clone())))
+            Ok(VmValue::List(ListTree::singleton(Rc::new(args[0].clone()))))
         }
         core_ir::PrimitiveOp::ListLen => Ok(VmValue::Int(list_value(&args[0])?.len().to_string())),
         core_ir::PrimitiveOp::ListMerge => {

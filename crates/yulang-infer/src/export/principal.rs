@@ -1130,6 +1130,7 @@ fn extend_target_defs_from_expr(
         }
         ExprKind::Lam(_, body)
         | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::BindHere(body)
         | ExprKind::PackForall(_, body) => {
             extend_target_defs_from_expr(state, body, exportable_defs, target_defs, pending);
         }

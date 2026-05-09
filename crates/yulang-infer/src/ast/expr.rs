@@ -53,6 +53,7 @@ pub enum ExprKind {
     Match(Box<TypedExpr>, Vec<TypedMatchArm>),
     Catch(Box<TypedExpr>, Vec<TypedCatchArm>),
     Block(TypedBlock),
+    BindHere(Box<TypedExpr>),
     Coerce {
         edge_id: Option<crate::diagnostic::ExpectedEdgeId>,
         actual_tv: TypeVar,

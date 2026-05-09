@@ -2785,6 +2785,9 @@ fn remap_core_expr_runtime_ids(expr: &mut core_ir::Expr, expected_edge_offset: u
                 remap_optional_expected_edge(&mut evidence.source_edge, expected_edge_offset);
             }
         }
+        core_ir::Expr::BindHere { expr } => {
+            remap_core_expr_runtime_ids(expr, expected_edge_offset);
+        }
         core_ir::Expr::Pack { expr, .. } => {
             remap_core_expr_runtime_ids(expr, expected_edge_offset);
         }

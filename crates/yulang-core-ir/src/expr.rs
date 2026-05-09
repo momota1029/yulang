@@ -416,6 +416,9 @@ pub enum Expr {
         stmts: Vec<Stmt>,
         tail: Option<Box<Expr>>,
     },
+    BindHere {
+        expr: Box<Expr>,
+    },
     Handle {
         body: Box<Expr>,
         arms: Vec<HandleArm>,

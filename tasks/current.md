@@ -85,7 +85,7 @@ runtime/core IR
   - CLI は `--native-compare-i64` で VM / native-control / ABI eval / Cranelift scalar result を比較できる。`bench/native_compare.sh` は同じ入口を quick bench/debug 用に呼ぶ。
   - 次は source-level compare examples を bool / if / small function へ広げる。
   - `str` / `list` / `record` は `notes/design/native-value-abi-plan.md` の opaque runtime value pointer lane で進める。scalar-only `compile_abi_module` は残し、value lane は別 entrypoint として追加する。
-  - `analyze_abi_reprs` は ABI function/value を `Int` / `Bool` / `Float` / `RuntimeValuePtr` / `ClosurePtr` / `Unknown` に分類する。今は ABI に残る型情報だけを使い、tuple/record repr は後続の runtime type 連携で足す。
+  - `analyze_abi_reprs` は ABI function/value を `Int` / `Bool` / `Float` / `List(element)` / `RuntimeValuePtr` / `ClosurePtr` / `Unknown` に分類する。`List` は machine boundary では pointer lane のままだが、singleton/index/merge/range 系で分かる範囲の element repr は伝播する。tuple/record repr は後続の runtime type 連携で足す。
   - CLI は `--native-abi-lanes` で source から native ABI repr classification を表示できる。未使用の closure-returning wrapper と reachable scalar direct wrapper の違いを見るための debug entrypoint。
 
 重要な制約:

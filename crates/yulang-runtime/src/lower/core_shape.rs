@@ -84,6 +84,7 @@ pub enum ExprPathSegment {
     HandleGuard(usize),
     HandleArmBody(usize),
     CoerceInner,
+    BindHereInner,
     PackInner,
 }
 
@@ -110,6 +111,7 @@ pub enum ExprShapeKind {
     Block,
     Handle,
     Coerce,
+    BindHere,
     Pack,
 }
 
@@ -304,6 +306,9 @@ impl ShapeCollector {
             }
             core_ir::Expr::Coerce { expr, .. } => {
                 self.walk_expr(expr, path.child(ExprPathSegment::CoerceInner));
+            }
+            core_ir::Expr::BindHere { expr } => {
+                self.walk_expr(expr, path.child(ExprPathSegment::BindHereInner));
             }
             core_ir::Expr::Pack { expr, .. } => {
                 self.walk_expr(expr, path.child(ExprPathSegment::PackInner));
@@ -540,6 +545,7 @@ fn expr_shape_kind(expr: &core_ir::Expr) -> ExprShapeKind {
         core_ir::Expr::Block { .. } => ExprShapeKind::Block,
         core_ir::Expr::Handle { .. } => ExprShapeKind::Handle,
         core_ir::Expr::Coerce { .. } => ExprShapeKind::Coerce,
+        core_ir::Expr::BindHere { .. } => ExprShapeKind::BindHere,
         core_ir::Expr::Pack { .. } => ExprShapeKind::Pack,
     }
 }

@@ -526,7 +526,7 @@ act fs_err:
     }
 
     #[test]
-    fn vm_default_monomorphize_path_is_principal_elaborate_only() {
+    fn vm_default_monomorphize_path_uses_principal_elaborate_pipeline() {
         assert!(
             std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_none(),
             "this regression test must run without the legacy monomorphize override"
@@ -538,7 +538,15 @@ act fs_err:
             .iter()
             .map(|pass| pass.name)
             .collect::<Vec<_>>();
-        assert_eq!(pass_names, vec!["principal-elaborate", "prune-unreachable"]);
+        assert_eq!(
+            pass_names,
+            vec![
+                "inline-polymorphic-wrappers",
+                "principal-elaborate",
+                "refresh-closed-schemes",
+                "prune-unreachable",
+            ]
+        );
         assert_eq!(profile.demand_queue_profile().attempted, 0);
     }
 
@@ -1502,23 +1510,28 @@ std::flow::sub::sub:
             ),
             Ok(VmValue::Float("3.0".to_string()))
         );
+        let range = apply_primitive(
+            core_ir::PrimitiveOp::ListIndexRange,
+            &[
+                VmValue::List(ListTree::from_items(vec![
+                    Rc::new(VmValue::Int("1".to_string())),
+                    Rc::new(VmValue::Int("2".to_string())),
+                    Rc::new(VmValue::Int("3".to_string())),
+                    Rc::new(VmValue::Int("4".to_string())),
+                ])),
+                range_value(1, 3),
+            ],
+        );
+        let Ok(VmValue::List(range)) = range else {
+            panic!("expected list range, got {range:?}");
+        };
         assert_eq!(
-            apply_primitive(
-                core_ir::PrimitiveOp::ListIndexRange,
-                &[
-                    VmValue::List(ListTree::from_items(vec![
-                        VmValue::Int("1".to_string()),
-                        VmValue::Int("2".to_string()),
-                        VmValue::Int("3".to_string()),
-                        VmValue::Int("4".to_string()),
-                    ])),
-                    range_value(1, 3),
-                ],
-            ),
-            Ok(VmValue::List(ListTree::from_items(vec![
-                VmValue::Int("2".to_string()),
-                VmValue::Int("3".to_string()),
-            ])))
+            range
+                .to_vec()
+                .into_iter()
+                .map(|value| (*value).clone())
+                .collect::<Vec<_>>(),
+            vec![VmValue::Int("2".to_string()), VmValue::Int("3".to_string())]
         );
         assert_eq!(
             apply_primitive(
@@ -1840,9 +1853,13 @@ std::flow::sub::sub:
             VmValue::String(value) => TestValue::String(value.to_flat_string()),
             VmValue::Bool(value) => TestValue::Bool(value),
             VmValue::Unit => TestValue::Unit,
-            VmValue::List(items) => {
-                TestValue::List(items.to_vec().into_iter().map(test_value).collect())
-            }
+            VmValue::List(items) => TestValue::List(
+                items
+                    .to_vec()
+                    .into_iter()
+                    .map(|value| test_value((*value).clone()))
+                    .collect(),
+            ),
             VmValue::Tuple(items) => TestValue::Tuple(items.into_iter().map(test_value).collect()),
             VmValue::Record(fields) => TestValue::Record(
                 fields

@@ -283,7 +283,36 @@ fn lower_var_run_expr(
     );
     let init = crate::lower::expr::resolve_path_expr(state, vec![binding.init.clone()]);
     let run_with_init = crate::lower::expr::make_app(state, run, init);
+    let body = bind_here_tail_expr(state, body);
     crate::lower::expr::make_app(state, run_with_init, body)
+}
+
+fn bind_here_tail_expr(state: &mut LowerState, expr: TypedExpr) -> TypedExpr {
+    match expr.kind {
+        ExprKind::Block(mut block) => {
+            if let Some(tail) = block.tail.take() {
+                block.tail = Some(Box::new(bind_here_tail_expr(state, *tail)));
+            }
+            TypedExpr {
+                tv: expr.tv,
+                eff: expr.eff,
+                kind: ExprKind::Block(block),
+            }
+        }
+        _ => bind_here_expr(state, expr),
+    }
+}
+
+fn bind_here_expr(state: &mut LowerState, expr: TypedExpr) -> TypedExpr {
+    let tv = state.fresh_tv();
+    let eff = state.fresh_tv();
+    state.infer.constrain(Pos::Var(expr.tv), Neg::Var(tv));
+    state.infer.constrain(Pos::Var(expr.eff), Neg::Var(eff));
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::BindHere(Box::new(expr)),
+    }
 }
 
 fn ensure_var_init_binding(state: &mut LowerState, name: &Name) -> DefId {

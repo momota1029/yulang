@@ -133,6 +133,7 @@ pub(super) fn collect_expr_export_type_vars(expr: &TypedExpr, vars: &mut HashSet
             }
         }
         ExprKind::Block(block) => collect_block_export_type_vars(block, vars),
+        ExprKind::BindHere(expr) => collect_expr_export_type_vars(expr, vars),
         ExprKind::Coerce {
             actual_tv,
             expected_tv,
@@ -487,6 +488,9 @@ impl<'a> ExprExporter<'a> {
                 }),
             },
             ExprKind::Block(block) => self.export_block(block),
+            ExprKind::BindHere(expr) => core_ir::Expr::BindHere {
+                expr: Box::new(self.export_expr(expr)),
+            },
             ExprKind::Coerce {
                 edge_id,
                 actual_tv,

@@ -1462,11 +1462,21 @@ impl PrincipalUnifier {
             plan.complete = true;
             plan.incomplete_reasons.clear();
         }
+        let mut completed_with_internal_missing_substitutions = false;
         if !plan.complete
             && plan_only_lacks_effect_only_missing_substitutions(&plan, &original)
             && missing_required_vars(&original, &plan_substitution_map(&plan)).is_empty()
         {
             self.bump("principal-unify-effect-only-missing-plan-completed");
+            plan.complete = true;
+            plan.incomplete_reasons.clear();
+        }
+        if !plan.complete
+            && plan_only_lacks_internal_missing_substitutions(&plan, &original)
+            && missing_binding_type_params(&original, &plan_substitution_map(&plan)).is_empty()
+        {
+            self.bump("principal-unify-internal-missing-plan-completed");
+            completed_with_internal_missing_substitutions = true;
             plan.complete = true;
             plan.incomplete_reasons.clear();
         }
@@ -1502,9 +1512,13 @@ impl PrincipalUnifier {
             return None;
         }
         let mut substitutions = plan_substitution_map(&plan);
-        let Some(mut binding_substitutions) =
-            complete_required_substitutions(&original, &substitutions)
-        else {
+        let binding_substitutions = complete_required_substitutions(&original, &substitutions)
+            .or_else(|| {
+                completed_with_internal_missing_substitutions
+                    .then(|| complete_binding_type_param_substitutions(&original, &substitutions))
+                    .flatten()
+            });
+        let Some(mut binding_substitutions) = binding_substitutions else {
             self.bump_skip(spine.target, "incomplete-binding-substitution");
             self.bump_missing_vars(spine.target, &original, &substitutions);
             return None;
@@ -4733,6 +4747,26 @@ fn missing_required_vars(
     vars
 }
 
+fn missing_binding_type_params(
+    binding: &Binding,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> Vec<core_ir::TypeVar> {
+    let effect_only_vars = binding_effect_only_vars(binding);
+    let mut vars = binding
+        .type_params
+        .iter()
+        .filter(|var| {
+            !effect_only_vars.contains(*var)
+                && substitutions
+                    .get(*var)
+                    .is_none_or(|ty| !substitution_is_complete_for_var(var, ty, &effect_only_vars))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    vars.sort_by(|left, right| left.0.cmp(&right.0));
+    vars
+}
+
 fn complete_required_substitutions(
     binding: &Binding,
     substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
@@ -4740,6 +4774,26 @@ fn complete_required_substitutions(
     let effect_only_vars = binding_effect_only_vars(binding);
     binding_required_vars(binding)
         .into_iter()
+        .map(|var| {
+            let Some(ty) = substitutions.get(&var) else {
+                return effect_only_vars
+                    .contains(&var)
+                    .then_some((var, core_ir::Type::Never));
+            };
+            substitution_is_complete_for_var(&var, ty, &effect_only_vars).then(|| (var, ty.clone()))
+        })
+        .collect()
+}
+
+fn complete_binding_type_param_substitutions(
+    binding: &Binding,
+    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+) -> Option<BTreeMap<core_ir::TypeVar, core_ir::Type>> {
+    let effect_only_vars = binding_effect_only_vars(binding);
+    binding
+        .type_params
+        .iter()
+        .cloned()
         .map(|var| {
             let Some(ty) = substitutions.get(&var) else {
                 return effect_only_vars
@@ -4900,6 +4954,22 @@ fn plan_only_lacks_effect_only_missing_substitutions(
                 reason,
                 core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var)
                     if effect_only_vars.contains(var)
+            )
+        })
+}
+
+fn plan_only_lacks_internal_missing_substitutions(
+    plan: &core_ir::PrincipalElaborationPlan,
+    binding: &Binding,
+) -> bool {
+    let binding_params = binding.type_params.iter().collect::<BTreeSet<_>>();
+    !plan.incomplete_reasons.is_empty()
+        && plan.incomplete_reasons.iter().all(|reason| {
+            matches!(
+                reason,
+                core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var)
+                    | core_ir::PrincipalElaborationIncompleteReason::OpenCandidate(var)
+                    if !binding_params.contains(var)
             )
         })
 }

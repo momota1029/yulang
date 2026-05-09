@@ -214,7 +214,7 @@ pub(super) fn bool_value(value: &VmValue) -> Result<bool, VmError> {
     }
 }
 
-pub(super) fn list_value(value: &VmValue) -> Result<&ListTree<VmValue>, VmError> {
+pub(super) fn list_value(value: &VmValue) -> Result<&ListTree<Rc<VmValue>>, VmError> {
     match value {
         VmValue::List(value) => Ok(value),
         other => Err(VmError::ExpectedList(other.clone())),
