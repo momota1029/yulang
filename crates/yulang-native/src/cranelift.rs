@@ -30,6 +30,15 @@ pub enum NativeCraneliftError {
         function: String,
         slots: usize,
     },
+    UnsupportedClosureValue {
+        function: String,
+        value: ValueId,
+    },
+    UnsupportedDirectEnvironmentCall {
+        function: String,
+        target: String,
+        slots: usize,
+    },
     MissingFunction {
         name: String,
     },
@@ -64,6 +73,18 @@ impl fmt::Display for NativeCraneliftError {
             NativeCraneliftError::UnsupportedEnvironment { function, slots } => write!(
                 f,
                 "native Cranelift scalar prototype does not support environment for `{function}` ({slots} slots)"
+            ),
+            NativeCraneliftError::UnsupportedClosureValue { function, value } => write!(
+                f,
+                "native Cranelift scalar prototype cannot use closure value {value:?} as a scalar in `{function}`"
+            ),
+            NativeCraneliftError::UnsupportedDirectEnvironmentCall {
+                function,
+                target,
+                slots,
+            } => write!(
+                f,
+                "native Cranelift scalar prototype cannot directly call `{target}` with {slots} environment slots from `{function}`"
             ),
             NativeCraneliftError::MissingFunction { name } => {
                 write!(f, "native Cranelift function `{name}` is missing")
@@ -135,13 +156,13 @@ pub fn compile_abi_module(module: &NativeAbiModule) -> NativeCraneliftResult<Nat
         JITBuilder::new(cranelift_module::default_libcall_names()).map_err(cranelift_error)?;
     let mut jit = JITModule::new(builder);
 
-    let signatures = declare_functions(&mut jit, module)?;
+    let signatures = FunctionSignatures::new(declare_functions(&mut jit, module)?, module);
     define_functions(&mut jit, module, &signatures)?;
     let roots = module
         .roots
         .iter()
         .map(|root| {
-            signatures.get(&root.name).copied().ok_or_else(|| {
+            signatures.ids.get(&root.name).copied().ok_or_else(|| {
                 NativeCraneliftError::MissingFunction {
                     name: root.name.clone(),
                 }
@@ -169,10 +190,10 @@ fn declare_functions(
 fn define_functions(
     jit: &mut JITModule,
     module: &NativeAbiModule,
-    signatures: &HashMap<String, FuncId>,
+    signatures: &FunctionSignatures<'_>,
 ) -> NativeCraneliftResult<()> {
     for function in module.functions.iter().chain(&module.roots) {
-        let func_id = signatures.get(&function.name).copied().ok_or_else(|| {
+        let func_id = signatures.ids.get(&function.name).copied().ok_or_else(|| {
             NativeCraneliftError::MissingFunction {
                 name: function.name.clone(),
             }
@@ -190,6 +211,8 @@ fn define_functions(
 fn function_signature(jit: &JITModule, function: &NativeAbiFunction) -> ir::Signature {
     let mut sig = jit.make_signature();
     sig.params
+        .extend((0..function.environment_slots).map(|_| AbiParam::new(types::I64)));
+    sig.params
         .extend(function.params.iter().map(|_| AbiParam::new(types::I64)));
     sig.returns.push(AbiParam::new(types::I64));
     sig
@@ -199,22 +222,23 @@ fn lower_function(
     jit: &mut JITModule,
     ctx: &mut cranelift_codegen::Context,
     function: &NativeAbiFunction,
-    signatures: &HashMap<String, FuncId>,
+    signatures: &FunctionSignatures<'_>,
 ) -> NativeCraneliftResult<()> {
     let mut builder_context = FunctionBuilderContext::new();
     let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
     let blocks = create_blocks(&mut builder, function);
     declare_variables(&mut builder, function);
-    bind_function_params(&mut builder, function, &blocks)?;
+    let env_params = bind_function_params(&mut builder, function, &blocks)?;
+    let mut state = FunctionLowering::new(function, signatures, env_params);
 
     for block in &function.blocks {
         let clif_block = block_ref(function, &blocks, block.id)?;
         builder.switch_to_block(clif_block);
         bind_block_params(&mut builder, function, block, clif_block)?;
         for stmt in &block.stmts {
-            lower_stmt(jit, &mut builder, function, stmt, signatures)?;
+            lower_stmt(jit, &mut builder, stmt, &mut state)?;
         }
-        lower_terminator(&mut builder, function, &blocks, &block.terminator)?;
+        lower_terminator(&mut builder, &state, &blocks, &block.terminator)?;
     }
     builder.seal_all_blocks();
     builder.finalize();
@@ -257,7 +281,7 @@ fn bind_function_params(
     builder: &mut FunctionBuilder<'_>,
     function: &NativeAbiFunction,
     blocks: &HashMap<BlockId, ir::Block>,
-) -> NativeCraneliftResult<()> {
+) -> NativeCraneliftResult<Vec<ir::Value>> {
     let entry = function
         .blocks
         .first()
@@ -268,17 +292,23 @@ fn bind_function_params(
     let entry_block = block_ref(function, blocks, entry.id)?;
     builder.append_block_params_for_function_params(entry_block);
     builder.switch_to_block(entry_block);
+    let block_params = builder.block_params(entry_block).to_vec();
+    let env_params = block_params
+        .iter()
+        .take(function.environment_slots)
+        .copied()
+        .collect::<Vec<_>>();
     for (param, value) in function.params.iter().zip(
-        builder
-            .block_params(entry_block)
+        block_params
             .iter()
+            .skip(function.environment_slots)
             .take(function.params.len())
             .copied()
             .collect::<Vec<_>>(),
     ) {
         builder.def_var(variable(*param), value);
     }
-    Ok(())
+    Ok(env_params)
 }
 
 fn bind_block_params(
@@ -293,7 +323,7 @@ fn bind_block_params(
         .first()
         .is_some_and(|entry| entry.id == block.id)
     {
-        function.params.len()
+        function.environment_slots + function.params.len()
     } else {
         0
     };
@@ -310,28 +340,35 @@ fn bind_block_params(
 fn lower_stmt(
     jit: &mut JITModule,
     builder: &mut FunctionBuilder<'_>,
-    function: &NativeAbiFunction,
     stmt: &NativeAbiStmt,
-    signatures: &HashMap<String, FuncId>,
+    state: &mut FunctionLowering<'_>,
 ) -> NativeCraneliftResult<()> {
     match stmt {
         NativeAbiStmt::Literal { dest, literal } => {
-            let value = lower_literal(builder, function, literal)?;
+            let value = lower_literal(builder, state.function, literal)?;
             builder.def_var(variable(*dest), value);
         }
         NativeAbiStmt::Primitive { dest, op, args } => {
-            let args = read_values(builder, args);
-            let value = lower_primitive(builder, function, *op, &args)?;
+            let args = read_values(builder, state, args)?;
+            let value = lower_primitive(builder, state.function, *op, &args)?;
             builder.def_var(variable(*dest), value);
         }
         NativeAbiStmt::DirectCall { dest, target, args } => {
-            let func_id = signatures.get(target).copied().ok_or_else(|| {
+            let target_function = state.signatures.function(target)?;
+            if target_function.environment_slots != 0 {
+                return Err(NativeCraneliftError::UnsupportedDirectEnvironmentCall {
+                    function: state.function.name.clone(),
+                    target: target.clone(),
+                    slots: target_function.environment_slots,
+                });
+            }
+            let func_id = state.signatures.ids.get(target).copied().ok_or_else(|| {
                 NativeCraneliftError::MissingFunction {
                     name: target.clone(),
                 }
             })?;
             let callee = jit.declare_func_in_func(func_id, builder.func);
-            let args = read_values(builder, args);
+            let args = read_values(builder, state, args)?;
             let call = builder.ins().call(callee, &args);
             let results = builder.inst_results(call);
             if results.len() != 1 {
@@ -342,10 +379,56 @@ fn lower_stmt(
             }
             builder.def_var(variable(*dest), results[0]);
         }
-        NativeAbiStmt::LoadEnv { .. }
-        | NativeAbiStmt::AllocateClosure { .. }
-        | NativeAbiStmt::IndirectClosureCall { .. } => {
-            unreachable!("validated Cranelift scalar subset excludes closure statements")
+        NativeAbiStmt::LoadEnv { dest, slot } => {
+            let value = state.env_params.get(*slot).copied().ok_or_else(|| {
+                NativeCraneliftError::UnsupportedEnvironment {
+                    function: state.function.name.clone(),
+                    slots: state.function.environment_slots,
+                }
+            })?;
+            builder.def_var(variable(*dest), value);
+        }
+        NativeAbiStmt::AllocateClosure {
+            dest,
+            target,
+            environment,
+        } => {
+            state.closures.insert(
+                *dest,
+                ClosureAllocation {
+                    target: target.clone(),
+                    environment: environment.clone(),
+                },
+            );
+        }
+        NativeAbiStmt::IndirectClosureCall { dest, callee, args } => {
+            let closure = state.closures.get(callee).cloned().ok_or_else(|| {
+                NativeCraneliftError::UnsupportedClosureValue {
+                    function: state.function.name.clone(),
+                    value: *callee,
+                }
+            })?;
+            let func_id = state
+                .signatures
+                .ids
+                .get(&closure.target)
+                .copied()
+                .ok_or_else(|| NativeCraneliftError::MissingFunction {
+                    name: closure.target.clone(),
+                })?;
+            let callee = jit.declare_func_in_func(func_id, builder.func);
+            let env_args = read_values(builder, state, &closure.environment)?;
+            let value_args = read_values(builder, state, args)?;
+            let call_args = env_args.into_iter().chain(value_args).collect::<Vec<_>>();
+            let call = builder.ins().call(callee, &call_args);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeCraneliftError::InvalidReturnArity {
+                    function: closure.target,
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
         }
     }
     Ok(())
@@ -353,18 +436,18 @@ fn lower_stmt(
 
 fn lower_terminator(
     builder: &mut FunctionBuilder<'_>,
-    function: &NativeAbiFunction,
+    state: &FunctionLowering<'_>,
     blocks: &HashMap<BlockId, ir::Block>,
     terminator: &NativeTerminator,
 ) -> NativeCraneliftResult<()> {
     match terminator {
         NativeTerminator::Return(value) => {
-            let value = builder.use_var(variable(*value));
+            let value = read_value(builder, state, *value)?;
             builder.ins().return_(&[value]);
         }
         NativeTerminator::Jump { target, args } => {
-            let target = block_ref(function, blocks, *target)?;
-            let args = read_block_args(builder, args);
+            let target = block_ref(state.function, blocks, *target)?;
+            let args = read_block_args(builder, state, args)?;
             builder.ins().jump(target, &args);
         }
         NativeTerminator::Branch {
@@ -372,12 +455,12 @@ fn lower_terminator(
             then_block,
             else_block,
         } => {
-            let cond = builder.use_var(variable(*cond));
+            let cond = read_value(builder, state, *cond)?;
             let cond = builder
                 .ins()
                 .icmp_imm(ir::condcodes::IntCC::NotEqual, cond, 0);
-            let then_block = block_ref(function, blocks, *then_block)?;
-            let else_block = block_ref(function, blocks, *else_block)?;
+            let then_block = block_ref(state.function, blocks, *then_block)?;
+            let else_block = block_ref(state.function, blocks, *else_block)?;
             builder.ins().brif(cond, then_block, &[], else_block, &[]);
         }
     }
@@ -465,28 +548,44 @@ fn int_cmp(
     builder.ins().uextend(types::I64, cmp)
 }
 
-fn read_values(builder: &mut FunctionBuilder<'_>, values: &[ValueId]) -> Vec<ir::Value> {
+fn read_values(
+    builder: &mut FunctionBuilder<'_>,
+    state: &FunctionLowering<'_>,
+    values: &[ValueId],
+) -> NativeCraneliftResult<Vec<ir::Value>> {
     values
         .iter()
-        .map(|value| builder.use_var(variable(*value)))
+        .map(|value| read_value(builder, state, *value))
         .collect()
 }
 
-fn read_block_args(builder: &mut FunctionBuilder<'_>, values: &[ValueId]) -> Vec<ir::BlockArg> {
-    read_values(builder, values)
+fn read_value(
+    builder: &mut FunctionBuilder<'_>,
+    state: &FunctionLowering<'_>,
+    value: ValueId,
+) -> NativeCraneliftResult<ir::Value> {
+    if state.closures.contains_key(&value) {
+        return Err(NativeCraneliftError::UnsupportedClosureValue {
+            function: state.function.name.clone(),
+            value,
+        });
+    }
+    Ok(builder.use_var(variable(value)))
+}
+
+fn read_block_args(
+    builder: &mut FunctionBuilder<'_>,
+    state: &FunctionLowering<'_>,
+    values: &[ValueId],
+) -> NativeCraneliftResult<Vec<ir::BlockArg>> {
+    Ok(read_values(builder, state, values)?
         .into_iter()
         .map(ir::BlockArg::Value)
-        .collect()
+        .collect())
 }
 
 fn validate_scalar_subset(module: &NativeAbiModule) -> NativeCraneliftResult<()> {
     for function in module.functions.iter().chain(&module.roots) {
-        if function.environment_slots != 0 {
-            return Err(NativeCraneliftError::UnsupportedEnvironment {
-                function: function.name.clone(),
-                slots: function.environment_slots,
-            });
-        }
         for block in &function.blocks {
             for stmt in &block.stmts {
                 validate_scalar_stmt(function, stmt)?;
@@ -530,10 +629,62 @@ fn validate_scalar_stmt(
         NativeAbiStmt::DirectCall { .. } => Ok(()),
         NativeAbiStmt::LoadEnv { .. }
         | NativeAbiStmt::AllocateClosure { .. }
-        | NativeAbiStmt::IndirectClosureCall { .. } => {
-            unreachable!("prototype subset validation rejects closure forms first")
+        | NativeAbiStmt::IndirectClosureCall { .. } => Ok(()),
+    }
+}
+
+struct FunctionSignatures<'a> {
+    ids: HashMap<String, FuncId>,
+    functions: HashMap<String, &'a NativeAbiFunction>,
+}
+
+impl<'a> FunctionSignatures<'a> {
+    fn new(ids: HashMap<String, FuncId>, module: &'a NativeAbiModule) -> Self {
+        let functions = module
+            .functions
+            .iter()
+            .chain(&module.roots)
+            .map(|function| (function.name.clone(), function))
+            .collect();
+        Self { ids, functions }
+    }
+
+    fn function(&self, name: &str) -> NativeCraneliftResult<&'a NativeAbiFunction> {
+        self.functions
+            .get(name)
+            .copied()
+            .ok_or_else(|| NativeCraneliftError::MissingFunction {
+                name: name.to_string(),
+            })
+    }
+}
+
+struct FunctionLowering<'a> {
+    function: &'a NativeAbiFunction,
+    signatures: &'a FunctionSignatures<'a>,
+    env_params: Vec<ir::Value>,
+    closures: HashMap<ValueId, ClosureAllocation>,
+}
+
+impl<'a> FunctionLowering<'a> {
+    fn new(
+        function: &'a NativeAbiFunction,
+        signatures: &'a FunctionSignatures<'a>,
+        env_params: Vec<ir::Value>,
+    ) -> Self {
+        Self {
+            function,
+            signatures,
+            env_params,
+            closures: HashMap::new(),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+struct ClosureAllocation {
+    target: String,
+    environment: Vec<ValueId>,
 }
 
 fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
@@ -698,6 +849,68 @@ mod tests {
         .expect("compiled");
 
         assert_eq!(module.run_roots_i64().expect("ran"), vec![7]);
+    }
+
+    #[test]
+    fn jit_runs_hosted_closure_call() {
+        let add_capture = NativeAbiFunction {
+            name: "add_capture".to_string(),
+            params: vec![ValueId(1)],
+            environment_slots: 1,
+            blocks: vec![NativeAbiBlock {
+                id: BlockId(0),
+                params: vec![ValueId(1)],
+                stmts: vec![
+                    NativeAbiStmt::LoadEnv {
+                        dest: ValueId(0),
+                        slot: 0,
+                    },
+                    NativeAbiStmt::Primitive {
+                        dest: ValueId(2),
+                        op: core_ir::PrimitiveOp::IntAdd,
+                        args: vec![ValueId(0), ValueId(1)],
+                    },
+                ],
+                terminator: NativeTerminator::Return(ValueId(2)),
+            }],
+        };
+        let root = NativeAbiFunction {
+            name: "root".to_string(),
+            params: Vec::new(),
+            environment_slots: 0,
+            blocks: vec![NativeAbiBlock {
+                id: BlockId(0),
+                params: Vec::new(),
+                stmts: vec![
+                    NativeAbiStmt::Literal {
+                        dest: ValueId(0),
+                        literal: NativeLiteral::Int("10".to_string()),
+                    },
+                    NativeAbiStmt::Literal {
+                        dest: ValueId(1),
+                        literal: NativeLiteral::Int("32".to_string()),
+                    },
+                    NativeAbiStmt::AllocateClosure {
+                        dest: ValueId(2),
+                        target: "add_capture".to_string(),
+                        environment: vec![ValueId(0)],
+                    },
+                    NativeAbiStmt::IndirectClosureCall {
+                        dest: ValueId(3),
+                        callee: ValueId(2),
+                        args: vec![ValueId(1)],
+                    },
+                ],
+                terminator: NativeTerminator::Return(ValueId(3)),
+            }],
+        };
+        let mut module = compile_abi_module(&NativeAbiModule {
+            functions: vec![add_capture],
+            roots: vec![root],
+        })
+        .expect("compiled");
+
+        assert_eq!(module.run_roots_i64().expect("ran"), vec![42]);
     }
 
     fn root_with_stmt(stmt: NativeAbiStmt, ret: ValueId) -> NativeAbiFunction {

@@ -70,14 +70,15 @@ runtime/core IR
   - closure-converted function は `NativeClosureAbi` を持ち、code ref / environment slot count / non-capture params を backend が読める形に分ける。
   - `lower_closure_module_to_abi` は closure-converted IR を backend-neutral ABI IR に落とす。`LoadEnv` / `AllocateClosure` / `IndirectClosureCall` / `DirectCall` が Cranelift 手前の境界になる。
   - `validate_abi_module` は function/block/value uniqueness、use-before-def、env slot range、terminator target を検査する。
-  - `validate_cranelift_prototype_subset` は最初の Cranelift prototype 用に、int/float/bool/unit literal、数値/bool primitive、direct call だけを許可する。string/list/closure/env は runtime ABI が固まるまで明示 unsupported。
+  - `validate_cranelift_prototype_subset` は最初の Cranelift prototype 用に、int/float/bool/unit literal、数値/bool primitive、direct call、局所 closure allocation/call を許可する。string/list は runtime ABI が固まるまで明示 unsupported。
   - `format_abi_module` は ABI IR を stable text dump にする。Cranelift prototype 前の golden/debug 出力に使う。
-  - `compile_abi_module` は Cranelift JIT prototype を追加した。現時点では `i64` scalar ABI として int/bool/unit literal、int/bool primitive、direct call、branch/jump/return を扱う。float/string/list/closure/env は runtime ABI が固まるまで scalar JIT では unsupported。
+  - `compile_abi_module` は Cranelift JIT prototype を追加した。現時点では `i64` scalar ABI として int/bool/unit literal、int/bool primitive、direct call、branch/jump/return を扱う。float/string/list は runtime ABI が固まるまで scalar JIT では unsupported。
   - `eval_source_i64_with_options` は `source -> runtime -> native control -> closure -> ABI -> Cranelift JIT` を一本で通す scalar prototype entrypoint。
   - `compare_source_i64_with_options` は source 起点で VM / native-control / Cranelift scalar result を比較する。std に依存しない int/bool/function-call examples を固定した。
   - `compare_source_i64` は native default source options を使い、std prelude operator から primitive binding へ繋がる `1 + 2` / `1 < 2` も VM / native-control / Cranelift で比較する。
   - `eval_abi_module` は backend-neutral ABI IR を評価する。closure environment slots と ordinary params を分け、`AllocateClosure` / `LoadEnv` / `IndirectClosureCall` の意味を Cranelift 実装前に固定する。
   - `compare_module` / `compare_source_i64` は ABI eval も oracle に含める。Cranelift が closure/env を持つ前でも、closure-converted ABI IR の意味は VM / native-control と比較できる。
+  - Cranelift scalar prototype は、局所 `AllocateClosure` を lowering 中の target/capture table として保持し、`IndirectClosureCall` を hidden env args 付き direct call へ戻す限定形を扱う。closure value を return / block arg / scalar primitive へ流す形はまだ unsupported。
   - 関数内の `x + 1` は role impl wrapper が closure を返す形になるため、closure call ABI 対応後に source-level compare へ戻す。
   - 次は source-level compare を CLI flag か bench harness に繋げる。
 

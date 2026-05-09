@@ -9,10 +9,6 @@ pub type NativeAbiSubsetResult<T> = Result<T, NativeAbiSubsetError>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativeAbiSubsetError {
-    ClosureEnvironment {
-        function: String,
-        slots: usize,
-    },
     UnsupportedLiteral {
         function: String,
         literal: NativeLiteral,
@@ -21,25 +17,11 @@ pub enum NativeAbiSubsetError {
         function: String,
         op: core_ir::PrimitiveOp,
     },
-    UnsupportedClosureEnvironmentLoad {
-        function: String,
-    },
-    UnsupportedClosureAllocation {
-        function: String,
-        target: String,
-    },
-    UnsupportedIndirectClosureCall {
-        function: String,
-    },
 }
 
 impl fmt::Display for NativeAbiSubsetError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NativeAbiSubsetError::ClosureEnvironment { function, slots } => write!(
-                f,
-                "native Cranelift prototype does not support closure environment for `{function}` ({slots} slots)"
-            ),
             NativeAbiSubsetError::UnsupportedLiteral { function, literal } => write!(
                 f,
                 "native Cranelift prototype does not support literal {literal:?} in `{function}`"
@@ -47,18 +29,6 @@ impl fmt::Display for NativeAbiSubsetError {
             NativeAbiSubsetError::UnsupportedPrimitive { function, op } => write!(
                 f,
                 "native Cranelift prototype does not support primitive {op:?} in `{function}`"
-            ),
-            NativeAbiSubsetError::UnsupportedClosureEnvironmentLoad { function } => write!(
-                f,
-                "native Cranelift prototype does not support closure environment loads in `{function}`"
-            ),
-            NativeAbiSubsetError::UnsupportedClosureAllocation { function, target } => write!(
-                f,
-                "native Cranelift prototype does not support closure allocation of `{target}` in `{function}`"
-            ),
-            NativeAbiSubsetError::UnsupportedIndirectClosureCall { function } => write!(
-                f,
-                "native Cranelift prototype does not support indirect closure calls in `{function}`"
             ),
         }
     }
@@ -74,12 +44,6 @@ pub fn validate_cranelift_prototype_subset(module: &NativeAbiModule) -> NativeAb
 }
 
 fn validate_function(function: &NativeAbiFunction) -> NativeAbiSubsetResult<()> {
-    if function.environment_slots != 0 {
-        return Err(NativeAbiSubsetError::ClosureEnvironment {
-            function: function.name.clone(),
-            slots: function.environment_slots,
-        });
-    }
     for block in &function.blocks {
         validate_block(function, block)?;
     }
@@ -109,22 +73,9 @@ fn validate_stmt(function: &NativeAbiFunction, stmt: &NativeAbiStmt) -> NativeAb
             op: *op,
         }),
         NativeAbiStmt::DirectCall { .. } => Ok(()),
-        NativeAbiStmt::LoadEnv { .. } => {
-            Err(NativeAbiSubsetError::UnsupportedClosureEnvironmentLoad {
-                function: function.name.clone(),
-            })
-        }
-        NativeAbiStmt::AllocateClosure { target, .. } => {
-            Err(NativeAbiSubsetError::UnsupportedClosureAllocation {
-                function: function.name.clone(),
-                target: target.clone(),
-            })
-        }
-        NativeAbiStmt::IndirectClosureCall { .. } => {
-            Err(NativeAbiSubsetError::UnsupportedIndirectClosureCall {
-                function: function.name.clone(),
-            })
-        }
+        NativeAbiStmt::LoadEnv { .. }
+        | NativeAbiStmt::AllocateClosure { .. }
+        | NativeAbiStmt::IndirectClosureCall { .. } => Ok(()),
     }
 }
 
@@ -236,20 +187,51 @@ mod tests {
     }
 
     #[test]
-    fn rejects_closure_allocation_before_closure_runtime_abi_exists() {
-        let module = single_stmt_module(NativeAbiStmt::AllocateClosure {
-            dest: ValueId(0),
-            target: "root#lambda0".to_string(),
-            environment: Vec::new(),
-        });
+    fn accepts_closure_statements_for_hosted_closure_prototype() {
+        let module = NativeAbiModule {
+            functions: vec![NativeAbiFunction {
+                name: "add_capture".to_string(),
+                params: vec![ValueId(1)],
+                environment_slots: 1,
+                blocks: vec![NativeAbiBlock {
+                    id: BlockId(0),
+                    params: Vec::new(),
+                    stmts: vec![NativeAbiStmt::LoadEnv {
+                        dest: ValueId(0),
+                        slot: 0,
+                    }],
+                    terminator: NativeTerminator::Return(ValueId(0)),
+                }],
+            }],
+            roots: vec![NativeAbiFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                environment_slots: 0,
+                blocks: vec![NativeAbiBlock {
+                    id: BlockId(0),
+                    params: Vec::new(),
+                    stmts: vec![
+                        NativeAbiStmt::Literal {
+                            dest: ValueId(0),
+                            literal: NativeLiteral::Int("1".to_string()),
+                        },
+                        NativeAbiStmt::AllocateClosure {
+                            dest: ValueId(1),
+                            target: "add_capture".to_string(),
+                            environment: vec![ValueId(0)],
+                        },
+                        NativeAbiStmt::IndirectClosureCall {
+                            dest: ValueId(2),
+                            callee: ValueId(1),
+                            args: vec![ValueId(0)],
+                        },
+                    ],
+                    terminator: NativeTerminator::Return(ValueId(2)),
+                }],
+            }],
+        };
 
-        assert_eq!(
-            validate_cranelift_prototype_subset(&module),
-            Err(NativeAbiSubsetError::UnsupportedClosureAllocation {
-                function: "root".to_string(),
-                target: "root#lambda0".to_string(),
-            })
-        );
+        validate_cranelift_prototype_subset(&module).expect("subset");
     }
 
     #[test]
