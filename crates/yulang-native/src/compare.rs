@@ -668,6 +668,11 @@ mod tests {
     }
 
     #[test]
+    fn compares_source_operator_inside_function_with_vm_native_and_cranelift() {
+        compare_source_with_large_stack("my inc x = x + 1\ninc 41");
+    }
+
+    #[test]
     fn compares_source_int_comparison_with_vm_native_and_cranelift() {
         compare_source_with_large_stack("1 < 2");
     }

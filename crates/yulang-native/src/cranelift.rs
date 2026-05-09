@@ -150,14 +150,16 @@ impl NativeJitModule {
 pub fn compile_abi_module(module: &NativeAbiModule) -> NativeCraneliftResult<NativeJitModule> {
     validate_abi_module(module)?;
     validate_cranelift_prototype_subset(module)?;
-    validate_scalar_subset(module)?;
+    let reachable = reachable_function_names(module);
+    validate_scalar_subset(module, &reachable)?;
 
     let builder =
         JITBuilder::new(cranelift_module::default_libcall_names()).map_err(cranelift_error)?;
     let mut jit = JITModule::new(builder);
 
-    let signatures = FunctionSignatures::new(declare_functions(&mut jit, module)?, module);
-    define_functions(&mut jit, module, &signatures)?;
+    let signatures =
+        FunctionSignatures::new(declare_functions(&mut jit, module, &reachable)?, module);
+    define_functions(&mut jit, module, &reachable, &signatures)?;
     let roots = module
         .roots
         .iter()
@@ -175,9 +177,10 @@ pub fn compile_abi_module(module: &NativeAbiModule) -> NativeCraneliftResult<Nat
 fn declare_functions(
     jit: &mut JITModule,
     module: &NativeAbiModule,
+    reachable: &HashSet<String>,
 ) -> NativeCraneliftResult<HashMap<String, FuncId>> {
     let mut declared = HashMap::new();
-    for function in module.functions.iter().chain(&module.roots) {
+    for function in reachable_functions(module, reachable) {
         let sig = function_signature(jit, function);
         let id = jit
             .declare_function(&function.name, Linkage::Export, &sig)
@@ -190,9 +193,10 @@ fn declare_functions(
 fn define_functions(
     jit: &mut JITModule,
     module: &NativeAbiModule,
+    reachable: &HashSet<String>,
     signatures: &FunctionSignatures<'_>,
 ) -> NativeCraneliftResult<()> {
-    for function in module.functions.iter().chain(&module.roots) {
+    for function in reachable_functions(module, reachable) {
         let func_id = signatures.ids.get(&function.name).copied().ok_or_else(|| {
             NativeCraneliftError::MissingFunction {
                 name: function.name.clone(),
@@ -584,8 +588,11 @@ fn read_block_args(
         .collect())
 }
 
-fn validate_scalar_subset(module: &NativeAbiModule) -> NativeCraneliftResult<()> {
-    for function in module.functions.iter().chain(&module.roots) {
+fn validate_scalar_subset(
+    module: &NativeAbiModule,
+    reachable: &HashSet<String>,
+) -> NativeCraneliftResult<()> {
+    for function in reachable_functions(module, reachable) {
         for block in &function.blocks {
             for stmt in &block.stmts {
                 validate_scalar_stmt(function, stmt)?;
@@ -593,6 +600,61 @@ fn validate_scalar_subset(module: &NativeAbiModule) -> NativeCraneliftResult<()>
         }
     }
     Ok(())
+}
+
+fn reachable_functions<'a>(
+    module: &'a NativeAbiModule,
+    reachable: &HashSet<String>,
+) -> Vec<&'a NativeAbiFunction> {
+    module
+        .functions
+        .iter()
+        .chain(&module.roots)
+        .filter(|function| reachable.contains(&function.name))
+        .collect()
+}
+
+fn reachable_function_names(module: &NativeAbiModule) -> HashSet<String> {
+    let functions = module
+        .functions
+        .iter()
+        .chain(&module.roots)
+        .map(|function| (function.name.clone(), function))
+        .collect::<HashMap<_, _>>();
+    let mut reachable = module
+        .roots
+        .iter()
+        .map(|function| function.name.clone())
+        .collect::<HashSet<_>>();
+    let mut stack = reachable.iter().cloned().collect::<Vec<_>>();
+    while let Some(name) = stack.pop() {
+        let Some(function) = functions.get(&name) else {
+            continue;
+        };
+        for target in function_call_targets(function) {
+            if reachable.insert(target.clone()) {
+                stack.push(target);
+            }
+        }
+    }
+    reachable
+}
+
+fn function_call_targets(function: &NativeAbiFunction) -> Vec<String> {
+    let mut targets = Vec::new();
+    for block in &function.blocks {
+        for stmt in &block.stmts {
+            match stmt {
+                NativeAbiStmt::DirectCall { target, .. }
+                | NativeAbiStmt::AllocateClosure { target, .. } => targets.push(target.clone()),
+                NativeAbiStmt::Literal { .. }
+                | NativeAbiStmt::Primitive { .. }
+                | NativeAbiStmt::LoadEnv { .. }
+                | NativeAbiStmt::IndirectClosureCall { .. } => {}
+            }
+        }
+    }
+    targets
 }
 
 fn validate_scalar_stmt(

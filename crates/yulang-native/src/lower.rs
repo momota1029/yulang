@@ -90,14 +90,8 @@ pub fn lower_module(module: &runtime::Module) -> NativeLowerResult<NativeModule>
         .bindings
         .iter()
         .map(|binding| {
-            let arity = binding_arity(binding);
-            (
-                binding.name.clone(),
-                FunctionInfo {
-                    name: path_name(&binding.name),
-                    arity,
-                },
-            )
+            let info = binding_function_info(binding);
+            (binding.name.clone(), info)
         })
         .collect::<HashMap<_, _>>();
     let mut functions = Vec::new();
@@ -149,14 +143,46 @@ fn lower_binding(
             reason: "non-function body",
         });
     }
-    FunctionLowerer::new(path_name(&binding.name), functions, params).lower_root(body)
+    let mut lowered = FunctionLowerer::new(path_name(&binding.name), functions, params.clone())
+        .lower_root(body)?;
+    let (callable_params, callable_body) = collect_callable_params(&binding.body);
+    if callable_params.len() > params.len() {
+        let info = functions
+            .get(&binding.name)
+            .expect("binding function info was created before lowering");
+        let target = info
+            .direct_targets
+            .get(&callable_params.len())
+            .expect("callable arity target was created before lowering")
+            .clone();
+        let direct =
+            FunctionLowerer::new(target, functions, callable_params).lower_root(&callable_body)?;
+        lowered.generated.push(direct.function);
+        lowered.generated.extend(direct.generated);
+    }
+    Ok(lowered)
 }
 
-fn binding_arity(binding: &runtime::Binding) -> usize {
+fn binding_function_info(binding: &runtime::Binding) -> FunctionInfo {
+    let name = path_name(&binding.name);
     if let runtime::ExprKind::PrimitiveOp(op) = binding.body.kind {
-        primitive_arity(op)
-    } else {
-        collect_lambda_params(&binding.body).0.len()
+        let arity = primitive_arity(op);
+        return FunctionInfo {
+            direct_targets: HashMap::from([(arity, name.clone())]),
+            name,
+            arity,
+        };
+    }
+    let arity = collect_lambda_params(&binding.body).0.len();
+    let callable_arity = collect_callable_params(&binding.body).0.len();
+    let mut direct_targets = HashMap::from([(arity, name.clone())]);
+    if callable_arity > arity {
+        direct_targets.insert(callable_arity, format!("{name}#direct{callable_arity}"));
+    }
+    FunctionInfo {
+        direct_targets,
+        name,
+        arity,
     }
 }
 
@@ -194,6 +220,7 @@ struct LoweredFunction {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FunctionInfo {
+    direct_targets: HashMap<usize, String>,
     name: String,
     arity: usize,
 }
@@ -606,6 +633,30 @@ fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, &runtime:
     (params, current)
 }
 
+fn collect_callable_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, runtime::Expr) {
+    let (mut params, body) = collect_lambda_params(expr);
+    let mut body = body.clone();
+    while let runtime::ExprKind::Block {
+        stmts,
+        tail: Some(tail),
+    } = &body.kind
+    {
+        let (tail_params, tail_body) = collect_lambda_params(tail);
+        if tail_params.is_empty() {
+            break;
+        }
+        params.extend(tail_params);
+        body = runtime::Expr::typed(
+            runtime::ExprKind::Block {
+                stmts: stmts.clone(),
+                tail: Some(Box::new(tail_body.clone())),
+            },
+            body.ty.clone(),
+        );
+    }
+    (params, body)
+}
+
 fn free_vars(expr: &runtime::Expr, bound: &mut HashSet<core_ir::Path>) -> HashSet<core_ir::Path> {
     match &expr.kind {
         runtime::ExprKind::Var(path) => {
@@ -854,15 +905,15 @@ fn direct_apply<'expr>(
     let Some(target) = functions.get(path) else {
         return Ok(None);
     };
-    if args.len() != target.arity {
+    let Some(target_name) = target.direct_targets.get(&args.len()) else {
         return Err(NativeLowerError::CallArityMismatch {
             target: target.name.clone(),
             expected: target.arity,
             actual: args.len(),
         });
-    }
+    };
     args.reverse();
-    Ok(Some((target.name.clone(), args)))
+    Ok(Some((target_name.clone(), args)))
 }
 
 fn path_name(path: &core_ir::Path) -> String {
@@ -1223,6 +1274,69 @@ mod tests {
                 expected: 1,
                 actual: 2,
             }
+        );
+    }
+
+    #[test]
+    fn lowers_block_tail_lambda_as_extra_direct_arity() {
+        let add_after_let = binding(
+            "add_after_let",
+            lambda(
+                "x",
+                block(
+                    vec![runtime::Stmt::Let {
+                        pattern: bind_pattern("z"),
+                        value: var("x"),
+                    }],
+                    lambda(
+                        "y",
+                        apply(
+                            apply(primitive(core_ir::PrimitiveOp::IntAdd), var("z")),
+                            var("y"),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        let root = apply(
+            apply(
+                var("add_after_let"),
+                unknown_lit(core_ir::Lit::Int("20".to_string())),
+            ),
+            unknown_lit(core_ir::Lit::Int("22".to_string())),
+        );
+        let module = module_with_binding_and_root(add_after_let, root);
+        let lowered = lower_module(&module).expect("lowered");
+
+        assert_eq!(
+            lowered
+                .functions
+                .iter()
+                .map(|function| function.name.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "add_after_let",
+                "add_after_let#lambda0",
+                "add_after_let#direct2"
+            ]
+        );
+        assert_eq!(
+            lowered.roots[0].blocks[0].stmts,
+            vec![
+                NativeStmt::Literal {
+                    dest: ValueId(0),
+                    literal: NativeLiteral::Int("20".to_string()),
+                },
+                NativeStmt::Literal {
+                    dest: ValueId(1),
+                    literal: NativeLiteral::Int("22".to_string()),
+                },
+                NativeStmt::DirectCall {
+                    dest: ValueId(2),
+                    target: "add_after_let#direct2".to_string(),
+                    args: vec![ValueId(0), ValueId(1)],
+                },
+            ]
         );
     }
 

@@ -79,7 +79,8 @@ runtime/core IR
   - `eval_abi_module` は backend-neutral ABI IR を評価する。closure environment slots と ordinary params を分け、`AllocateClosure` / `LoadEnv` / `IndirectClosureCall` の意味を Cranelift 実装前に固定する。
   - `compare_module` / `compare_source_i64` は ABI eval も oracle に含める。Cranelift が closure/env を持つ前でも、closure-converted ABI IR の意味は VM / native-control と比較できる。
   - Cranelift scalar prototype は、局所 `AllocateClosure` を lowering 中の target/capture table として保持し、`IndirectClosureCall` を hidden env args 付き direct call へ戻す限定形を扱う。closure value を return / block arg / scalar primitive へ流す形はまだ unsupported。
-  - 関数内の `x + 1` は role impl wrapper が closure を返す形になるため、closure call ABI 対応後に source-level compare へ戻す。
+  - Native lower は `fun x -> block(...; fun y -> body)` 形の curried wrapper に、元の partial-call 用関数を残したまま追加 direct arity target を生成する。Cranelift は root から reachable な関数だけ JIT するため、未使用の closure-returning wrapper は compile しない。
+  - 関数内の `x + 1` は source-level compare へ戻した。`my inc x = x + 1; inc 41` は VM / native-control / ABI eval / Cranelift で比較している。
   - 次は source-level compare を CLI flag か bench harness に繋げる。
 
 重要な制約:
