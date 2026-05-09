@@ -6,6 +6,7 @@
 //! a structured reason.
 
 pub mod abi;
+pub mod abi_eval;
 pub mod abi_format;
 pub mod abi_subset;
 pub mod abi_validate;
@@ -28,6 +29,7 @@ pub mod source;
 pub use abi::{
     NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt, lower_closure_module_to_abi,
 };
+pub use abi_eval::{NativeAbiEvalError, NativeAbiEvalResult, eval_abi_module};
 pub use abi_format::format_abi_module;
 pub use abi_subset::{NativeAbiSubsetError, validate_cranelift_prototype_subset};
 pub use abi_validate::{NativeAbiValidateError, validate_abi_module};

@@ -363,6 +363,13 @@ fn eval_literal(lit: &NativeLiteral) -> runtime::VmValue {
     }
 }
 
+pub(crate) fn eval_primitive_for_abi(
+    op: core_ir::PrimitiveOp,
+    args: &[runtime::VmValue],
+) -> NativeEvalResult<runtime::VmValue> {
+    eval_primitive(op, args)
+}
+
 fn eval_primitive(
     op: core_ir::PrimitiveOp,
     args: &[runtime::VmValue],
