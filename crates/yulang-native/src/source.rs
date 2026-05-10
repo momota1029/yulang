@@ -754,6 +754,60 @@ apply_pair (\x -> x + 1, 41)
     }
 
     #[test]
+    #[ignore = "Phase F debug: inspect std::undet.once lowering around loop(k true, queue)"]
+    fn debugs_std_undet_once_cps_shape() {
+        let source = r#"use std::undet::*
+
+case (each [1, 2, 3]).once:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just x -> x
+"#;
+
+        run_with_large_stack(|| {
+            let module = runtime_module_from_source_with_options(
+                source,
+                native_default_source_options(),
+            )
+            .expect("runtime module");
+
+            let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
+            crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
+
+            for f in cps.functions.iter().chain(cps.roots.iter()) {
+                if !f.name.contains("once")
+                    && !f.name.contains("loop")
+                    && !f.name.contains("each")
+                    && !f.name.contains("root")
+                {
+                    continue;
+                }
+                eprintln!("function: {} params={:?}", f.name, f.params);
+                for cont in &f.continuations {
+                    eprintln!(
+                        "  cont {:?} params={:?} captures={:?}",
+                        cont.id, cont.params, cont.captures
+                    );
+                    for stmt in &cont.stmts {
+                        eprintln!("    stmt: {:?}", stmt);
+                    }
+                    eprintln!("    term: {:?}", cont.terminator);
+                }
+                for handler in &f.handlers {
+                    eprintln!(
+                        "  handler {:?} arms={:?}",
+                        handler.id,
+                        handler
+                            .arms
+                            .iter()
+                            .map(|a| (&a.effect, a.entry))
+                            .collect::<Vec<_>>()
+                    );
+                }
+            }
+        });
+    }
+
+    #[test]
     #[ignore = "Phase F debug: std::undet.once layer-by-layer"]
     fn debugs_std_undet_once_scalar_unwrapped_eval_layers() {
         let source = r#"use std::undet::*
