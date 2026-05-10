@@ -165,7 +165,6 @@ pub fn eval_cps_module(module: &CpsModule) -> CpsEvalResult<Vec<runtime::VmValue
         .map(|root| {
             let value = eval_function(module, root, Vec::new())?;
             let value = unwrap_aborted(value);
-            eprintln!("[debug] root {} returned {value:?}", root.name);
             into_plain_value(root, CpsValueId(usize::MAX), value)
         })
         .collect()
@@ -1082,6 +1081,56 @@ fn eval_cps_primitive(
             merged.extend(control_list_items(op, right)?);
             Ok(CpsRuntimeValue::List(Rc::new(merged)))
         }
+        PrimitiveOp::ListLen => {
+            if args.len() != 1 {
+                return Err(CpsEvalError::InvalidPrimitiveArity {
+                    op,
+                    expected: 1,
+                    actual: args.len(),
+                });
+            }
+            let items = control_list_items(op, args.into_iter().next().unwrap())?;
+            Ok(CpsRuntimeValue::Plain(runtime::VmValue::Int(
+                items.len().to_string(),
+            )))
+        }
+        PrimitiveOp::ListIndex => {
+            if args.len() != 2 {
+                return Err(CpsEvalError::InvalidPrimitiveArity {
+                    op,
+                    expected: 2,
+                    actual: args.len(),
+                });
+            }
+            let mut iter = args.into_iter();
+            let list = iter.next().unwrap();
+            let idx_val = iter.next().unwrap();
+            let items = control_list_items(op, list)?;
+            let idx = cps_value_to_usize(op, idx_val)?;
+            items
+                .into_iter()
+                .nth(idx)
+                .ok_or(CpsEvalError::UnsupportedPrimitive { op })
+        }
+        PrimitiveOp::ListIndexRangeRaw => {
+            if args.len() != 3 {
+                return Err(CpsEvalError::InvalidPrimitiveArity {
+                    op,
+                    expected: 3,
+                    actual: args.len(),
+                });
+            }
+            let mut iter = args.into_iter();
+            let list = iter.next().unwrap();
+            let start_val = iter.next().unwrap();
+            let end_val = iter.next().unwrap();
+            let items = control_list_items(op, list)?;
+            let start = cps_value_to_usize(op, start_val)?;
+            let end = cps_value_to_usize(op, end_val)?;
+            Ok(CpsRuntimeValue::List(Rc::new(
+                items.into_iter().skip(start).take(end - start).collect(),
+            )))
+        }
         _ => {
             let plain_args = args
                 .into_iter()
@@ -1090,6 +1139,18 @@ fn eval_cps_primitive(
                 .ok_or(CpsEvalError::UnsupportedPrimitive { op })?;
             eval_primitive(op, &plain_args).map(cps_value_from_vm)
         }
+    }
+}
+
+fn cps_value_to_usize(
+    op: core_ir::PrimitiveOp,
+    value: CpsRuntimeValue,
+) -> CpsEvalResult<usize> {
+    match value {
+        CpsRuntimeValue::Plain(runtime::VmValue::Int(s)) => s
+            .parse::<usize>()
+            .map_err(|_| CpsEvalError::UnsupportedPrimitive { op }),
+        _ => Err(CpsEvalError::UnsupportedPrimitive { op }),
     }
 }
 

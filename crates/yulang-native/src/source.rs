@@ -865,6 +865,138 @@ case (each [1, 2, 3]).once:
     }
 
     #[test]
+    #[ignore = "Phase F: sum_down requires monomorphic int instantiation; ResidualPolymorphicBinding"]
+    fn compares_recursive_closure_self_reference_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"my sum_down(n: int): int = if n == 0:
+    0
+else:
+    n + sum_down (n - 1)
+
+sum_down 5
+"#,
+            )
+            .expect("recursive closure self-reference MakeRecursiveClosure patch");
+        });
+    }
+
+    #[test]
+    #[ignore = "Phase F debug: std::undet.once with reject layer-by-layer"]
+    fn debugs_std_undet_once_skip_eval_layers() {
+        let source = r#"use std::undet::*
+
+my work(): int = {
+    my n = each [1, 2, 3]
+    guard: n > 1
+    n
+}
+
+case work().once:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just v -> v
+"#;
+
+        run_with_large_stack(|| {
+            let module = runtime_module_from_source_with_options(
+                source,
+                native_default_source_options(),
+            )
+            .expect("runtime module");
+
+            let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
+            crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
+
+            crate::cps_compare::compare_cps_module(&module).expect("CPS eval == VM");
+            eprintln!("Layer 1 (CPS eval): OK");
+
+            let repr = crate::cps_repr::lower_cps_repr_module(&cps);
+            let repr_values =
+                crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
+            let vm_results = runtime::compile_vm_module(module.clone())
+                .expect("VM compile")
+                .eval_roots()
+                .expect("VM eval");
+            let vm_value = match &vm_results[0] {
+                runtime::VmResult::Value(v) => v.clone(),
+                runtime::VmResult::Request(_) => panic!("VM gave request"),
+            };
+            assert_eq!(repr_values[0], vm_value, "CPS repr eval == VM");
+            eprintln!("Layer 2 (CPS repr eval): OK");
+
+            compare_source_cps_repr_i64(source).expect("CPS repr Cranelift compare");
+            eprintln!("Layer 3 (CPS repr Cranelift): OK");
+        });
+    }
+
+    #[test]
+    #[ignore = "Phase F: root thunk leak via helper fn with reject path; CPS eval returns Thunk"]
+    fn compares_std_undet_once_skips_rejected_first_choice_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"use std::undet::*
+
+my mk(): int = {
+    my n = each [1, 2, 3]
+    guard: n > 1
+    n
+}
+
+case mk().once:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just v -> v
+"#,
+            )
+            .expect("std undet once skips rejected first choice");
+        });
+    }
+
+    #[test]
+    #[ignore = "Phase F: root thunk leak via helper fn with reject path; CPS eval returns Thunk"]
+    fn compares_std_undet_once_returns_nil_when_all_rejected_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"use std::undet::*
+
+my mk(): int = {
+    my n = each [1, 2, 3]
+    guard: n > 10
+    n
+}
+
+case mk().once:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just v -> v
+"#,
+            )
+            .expect("std undet once nil when all rejected");
+        });
+    }
+
+    #[test]
+    #[ignore = "Phase F: root thunk leak via helper fn with reject path; CPS eval returns Thunk"]
+    fn compares_std_undet_once_two_nested_choices_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"use std::undet::*
+
+my mk(): int = {
+    my a = each [1, 2]
+    my b = each [10, 20]
+    guard: a + b > 12
+    a + b
+}
+
+case mk().once:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just z -> z
+"#,
+            )
+            .expect("std undet once with two nested choices");
+        });
+    }
+
+    #[test]
     fn compares_std_each_with_local_once_dfs_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(
