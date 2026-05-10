@@ -164,23 +164,38 @@ pub fn eval_cps_module(module: &CpsModule) -> CpsEvalResult<Vec<runtime::VmValue
         .iter()
         .map(|root| {
             let value = eval_function(module, root, Vec::new())?;
+            let value = unwrap_aborted(value);
             into_plain_value(root, CpsValueId(usize::MAX), value)
         })
         .collect()
 }
+
+fn unwrap_aborted(value: CpsRuntimeValue) -> CpsRuntimeValue {
+    match value {
+        CpsRuntimeValue::Aborted(inner) => unwrap_aborted(*inner),
+        other => other,
+    }
+}
+
 
 fn eval_function(
     module: &CpsModule,
     function: &CpsFunction,
     args: Vec<runtime::VmValue>,
 ) -> CpsEvalResult<CpsRuntimeValue> {
-    eval_function_with_context(module, function, args, Vec::new(), Vec::new())
+    eval_function_with_context(
+        module,
+        function,
+        args.into_iter().map(CpsRuntimeValue::Plain).collect(),
+        Vec::new(),
+        Vec::new(),
+    )
 }
 
 fn eval_function_with_context(
     module: &CpsModule,
     function: &CpsFunction,
-    args: Vec<runtime::VmValue>,
+    args: Vec<CpsRuntimeValue>,
     active_handlers: Vec<CpsHandlerFrame>,
     guard_stack: Vec<CpsGuardEntry>,
 ) -> CpsEvalResult<CpsRuntimeValue> {
@@ -195,7 +210,7 @@ fn eval_function_with_context(
         module,
         function,
         function.entry,
-        args.into_iter().map(CpsRuntimeValue::Plain).collect(),
+        args,
         Vec::new(),
         active_handlers,
         guard_stack,
@@ -334,6 +349,9 @@ fn eval_continuations(
                         }
                         value => value,
                     };
+                    if matches!(result, CpsRuntimeValue::Aborted(_)) {
+                        return Ok(result);
+                    }
                     write_value(&mut values, *dest, result);
                 }
                 CpsStmt::Tuple { dest, items } => {
@@ -441,16 +459,10 @@ fn eval_continuations(
                     );
                 }
                 CpsStmt::DirectCall { dest, target, args } => {
-                    let target_function = module
-                        .functions
-                        .iter()
-                        .find(|function| &function.name == target)
-                        .ok_or_else(|| CpsEvalError::MissingFunction {
-                            name: target.clone(),
-                        })?;
+                    let target_function = function_by_name(module, target)?;
                     let args = args
                         .iter()
-                        .map(|id| read_plain_value(function, &values, *id))
+                        .map(|id| read_value(function, &values, *id))
                         .collect::<CpsEvalResult<Vec<_>>>()?;
                     let result = eval_function_with_context(
                         module,
@@ -459,6 +471,9 @@ fn eval_continuations(
                         active_handlers.clone(),
                         guard_stack.clone(),
                     )?;
+                    if matches!(result, CpsRuntimeValue::Aborted(_)) {
+                        return Ok(result);
+                    }
                     write_value(&mut values, *dest, result);
                 }
                 CpsStmt::ApplyClosure { dest, closure, arg } => {
@@ -474,6 +489,9 @@ fn eval_continuations(
                         active_handlers.clone(),
                         guard_stack.clone(),
                     )?;
+                    if matches!(result, CpsRuntimeValue::Aborted(_)) {
+                        return Ok(result);
+                    }
                     write_value(&mut values, *dest, result);
                 }
                 CpsStmt::CloneContinuation { dest, source } => {
@@ -497,6 +515,9 @@ fn eval_continuations(
                         resumption.handlers.as_ref().clone(),
                         resumption.guard_stack.as_ref().clone(),
                     )?;
+                    if matches!(result, CpsRuntimeValue::Aborted(_)) {
+                        return Ok(result);
+                    }
                     write_value(&mut values, *dest, result);
                 }
                 CpsStmt::InstallHandler { handler, envs } => {
@@ -540,6 +561,9 @@ fn eval_continuations(
                         ),
                         resumption.guard_stack.as_ref().clone(),
                     )?;
+                    if matches!(result, CpsRuntimeValue::Aborted(_)) {
+                        return Ok(result);
+                    }
                     write_value(&mut values, *dest, result);
                 }
             }
@@ -590,7 +614,7 @@ fn eval_continuations(
                     handlers: Rc::new(handler_stack.clone()),
                     guard_stack: Rc::new(guard_stack.clone()),
                 }));
-                return eval_continuations(
+                let result = eval_continuations(
                     module,
                     handler_owner,
                     handler_arm.entry,
@@ -598,7 +622,12 @@ fn eval_continuations(
                     handler_values,
                     handler_body_stack,
                     guard_stack,
-                );
+                )?;
+                let aborted = match result {
+                    CpsRuntimeValue::Aborted(_) => result,
+                    other => CpsRuntimeValue::Aborted(Box::new(other)),
+                };
+                return Ok(aborted);
             }
         }
     }
@@ -814,9 +843,7 @@ fn into_plain_value(
 ) -> CpsEvalResult<runtime::VmValue> {
     match value {
         CpsRuntimeValue::Plain(value) => Ok(value),
-        CpsRuntimeValue::Resumption(_)
-        | CpsRuntimeValue::Thunk(_)
-        | CpsRuntimeValue::Closure(_) => Err(CpsEvalError::ExpectedPlainValue {
+        _ => Err(CpsEvalError::ExpectedPlainValue {
             function: function.name.clone(),
             id,
         }),
@@ -830,12 +857,10 @@ fn read_resumption(
 ) -> CpsEvalResult<Rc<CpsResumption>> {
     match read_value(function, values, id)? {
         CpsRuntimeValue::Resumption(resumption) => Ok(resumption),
-        CpsRuntimeValue::Plain(_) | CpsRuntimeValue::Thunk(_) | CpsRuntimeValue::Closure(_) => {
-            Err(CpsEvalError::ExpectedResumption {
-                function: function.name.clone(),
-                id,
-            })
-        }
+        _ => Err(CpsEvalError::ExpectedResumption {
+            function: function.name.clone(),
+            id,
+        }),
     }
 }
 
@@ -846,12 +871,10 @@ fn read_closure(
 ) -> CpsEvalResult<Rc<CpsClosure>> {
     match read_value(function, values, id)? {
         CpsRuntimeValue::Closure(closure) => Ok(closure),
-        CpsRuntimeValue::Plain(_) | CpsRuntimeValue::Resumption(_) | CpsRuntimeValue::Thunk(_) => {
-            Err(CpsEvalError::ExpectedPlainValue {
-                function: function.name.clone(),
-                id,
-            })
-        }
+        _ => Err(CpsEvalError::ExpectedPlainValue {
+            function: function.name.clone(),
+            id,
+        }),
     }
 }
 
@@ -861,6 +884,11 @@ enum CpsRuntimeValue {
     Resumption(Rc<CpsResumption>),
     Thunk(Rc<CpsThunk>),
     Closure(Rc<CpsClosure>),
+    /// Carries a value that was produced by a handler arm body's non-local
+    /// return. Internal callers (DirectCall, ApplyClosure, ForceThunk, Resume,
+    /// ResumeWithHandler) propagate it up until `eval_function` unwraps it,
+    /// so the caller's continuation after the call site is skipped.
+    Aborted(Box<CpsRuntimeValue>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

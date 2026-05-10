@@ -322,9 +322,17 @@ pub fn eval_cps_repr_module(module: &CpsReprModule) -> CpsReprEvalResult<Vec<run
         .iter()
         .map(|root| {
             let value = eval_function(module, root, Vec::new())?;
+            let value = unwrap_aborted_repr(value);
             into_plain_value(root, CpsValueId(usize::MAX), value)
         })
         .collect()
+}
+
+fn unwrap_aborted_repr(value: CpsReprRuntimeValue) -> CpsReprRuntimeValue {
+    match value {
+        CpsReprRuntimeValue::Aborted(inner) => unwrap_aborted_repr(*inner),
+        other => other,
+    }
 }
 
 fn function_by_name_repr<'a>(
@@ -1092,13 +1100,19 @@ fn eval_function(
     function: &CpsReprFunction,
     args: Vec<runtime::VmValue>,
 ) -> CpsReprEvalResult<CpsReprRuntimeValue> {
-    eval_function_with_context(module, function, args, Vec::new(), Vec::new())
+    eval_function_with_context(
+        module,
+        function,
+        args.into_iter().map(CpsReprRuntimeValue::Plain).collect(),
+        Vec::new(),
+        Vec::new(),
+    )
 }
 
 fn eval_function_with_context(
     module: &CpsReprModule,
     function: &CpsReprFunction,
-    args: Vec<runtime::VmValue>,
+    args: Vec<CpsReprRuntimeValue>,
     active_handlers: Vec<CpsReprHandlerFrame>,
     guard_stack: Vec<CpsReprGuardEntry>,
 ) -> CpsReprEvalResult<CpsReprRuntimeValue> {
@@ -1113,7 +1127,7 @@ fn eval_function_with_context(
         module,
         function,
         function.entry,
-        args.into_iter().map(CpsReprRuntimeValue::Plain).collect(),
+        args,
         HashMap::new(),
         active_handlers,
         guard_stack,
@@ -1246,6 +1260,9 @@ fn eval_continuations(
                         }
                         value => value,
                     };
+                    if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
+                        return Ok(result);
+                    }
                     values.insert(*dest, result);
                 }
                 CpsStmt::InstallHandler { handler, envs } => {
@@ -1367,7 +1384,7 @@ fn eval_continuations(
                     let target_function = function_by_name_repr(module, target)?;
                     let args = args
                         .iter()
-                        .map(|id| read_plain_value(function, &values, *id))
+                        .map(|id| read_value(function, &values, *id))
                         .collect::<CpsReprEvalResult<Vec<_>>>()?;
                     let result = eval_function_with_context(
                         module,
@@ -1376,6 +1393,9 @@ fn eval_continuations(
                         active_handlers.clone(),
                         guard_stack.clone(),
                     )?;
+                    if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
+                        return Ok(result);
+                    }
                     values.insert(*dest, result);
                 }
                 CpsStmt::ApplyClosure { dest, closure, arg } => {
@@ -1391,6 +1411,9 @@ fn eval_continuations(
                         active_handlers.clone(),
                         guard_stack.clone(),
                     )?;
+                    if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
+                        return Ok(result);
+                    }
                     values.insert(*dest, result);
                 }
                 CpsStmt::CloneContinuation { dest, source } => {
@@ -1414,6 +1437,9 @@ fn eval_continuations(
                         resumption.handlers.clone(),
                         resumption.guard_stack.clone(),
                     )?;
+                    if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
+                        return Ok(result);
+                    }
                     values.insert(*dest, result);
                 }
                 CpsStmt::ResumeWithHandler {
@@ -1441,6 +1467,9 @@ fn eval_continuations(
                         ),
                         resumption.guard_stack.clone(),
                     )?;
+                    if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
+                        return Ok(result);
+                    }
                     values.insert(*dest, result);
                 }
             }
@@ -1491,7 +1520,7 @@ fn eval_continuations(
                     handlers: handler_stack.clone(),
                     guard_stack: guard_stack.clone(),
                 });
-                return eval_continuations(
+                let result = eval_continuations(
                     module,
                     handler_owner,
                     handler_arm.entry,
@@ -1499,7 +1528,12 @@ fn eval_continuations(
                     handler_values,
                     handler_body_stack,
                     guard_stack,
-                );
+                )?;
+                let aborted = match result {
+                    CpsReprRuntimeValue::Aborted(_) => result,
+                    other => CpsReprRuntimeValue::Aborted(Box::new(other)),
+                };
+                return Ok(aborted);
             }
         }
     }
@@ -1572,13 +1606,11 @@ fn read_resumption(
     id: CpsValueId,
 ) -> CpsReprEvalResult<CpsReprResumption> {
     match read_value(function, values, id)? {
-        CpsReprRuntimeValue::Plain(_)
-        | CpsReprRuntimeValue::Thunk(_)
-        | CpsReprRuntimeValue::Closure(_) => Err(CpsReprEvalError::ExpectedResumption {
+        CpsReprRuntimeValue::Resumption(resumption) => Ok(resumption),
+        _ => Err(CpsReprEvalError::ExpectedResumption {
             function: function.name.clone(),
             id,
         }),
-        CpsReprRuntimeValue::Resumption(resumption) => Ok(resumption),
     }
 }
 
@@ -1589,9 +1621,7 @@ fn into_plain_value(
 ) -> CpsReprEvalResult<runtime::VmValue> {
     match value {
         CpsReprRuntimeValue::Plain(value) => Ok(value),
-        CpsReprRuntimeValue::Resumption(_)
-        | CpsReprRuntimeValue::Thunk(_)
-        | CpsReprRuntimeValue::Closure(_) => Err(CpsReprEvalError::ExpectedPlainValue {
+        _ => Err(CpsReprEvalError::ExpectedPlainValue {
             function: function.name.clone(),
             id,
         }),
@@ -1605,9 +1635,7 @@ fn read_closure(
 ) -> CpsReprEvalResult<CpsReprClosure> {
     match read_value(function, values, id)? {
         CpsReprRuntimeValue::Closure(closure) => Ok(closure),
-        CpsReprRuntimeValue::Plain(_)
-        | CpsReprRuntimeValue::Resumption(_)
-        | CpsReprRuntimeValue::Thunk(_) => Err(CpsReprEvalError::ExpectedPlainValue {
+        _ => Err(CpsReprEvalError::ExpectedPlainValue {
             function: function.name.clone(),
             id,
         }),
@@ -1620,6 +1648,10 @@ enum CpsReprRuntimeValue {
     Resumption(CpsReprResumption),
     Thunk(CpsReprThunk),
     Closure(CpsReprClosure),
+    /// Carries a value produced by a handler arm body's non-local return.
+    /// Propagated by every internal call site so the eval_function boundary
+    /// can unwrap it.
+    Aborted(Box<CpsReprRuntimeValue>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

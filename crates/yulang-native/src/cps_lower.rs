@@ -168,8 +168,13 @@ fn make_handler_ids_global(module: &mut CpsModule) {
         }
         for continuation in &mut function.continuations {
             for stmt in &mut continuation.stmts {
-                if let CpsStmt::ResumeWithHandler { handler, .. } = stmt {
-                    remap_handler_id(handler, offset);
+                match stmt {
+                    CpsStmt::ResumeWithHandler { handler, .. }
+                    | CpsStmt::InstallHandler { handler, .. }
+                    | CpsStmt::UninstallHandler { handler } => {
+                        remap_handler_id(handler, offset);
+                    }
+                    _ => {}
                 }
             }
             if let CpsTerminator::Perform { handler, .. } = &mut continuation.terminator {
@@ -2518,7 +2523,20 @@ impl<'a> FunctionLowerer<'a> {
                         return Ok(effect);
                     }
 
-                    self.lower_expr(expr)?;
+                    let is_direct_call = direct_apply(expr, self.functions)?.is_some();
+                    let value = self.lower_expr(expr)?;
+                    // A non-tail block expression that calls another function
+                    // (or has a Thunk static type) may be returning a Thunk
+                    // that wraps effectful work. The runtime FunctionInfo
+                    // sometimes hides the Thunk return type behind monomorphized
+                    // role-impl wrappers, so force unconditionally for direct
+                    // calls; ForceThunk is a no-op on plain values.
+                    if is_direct_call || matches!(expr.ty, runtime::Type::Thunk { .. }) {
+                        let dest = self.fresh_value();
+                        self.current
+                            .stmts
+                            .push(CpsStmt::ForceThunk { dest, thunk: value });
+                    }
                 }
                 runtime::Stmt::Module { .. } => {
                     return Err(CpsLowerError::UnsupportedExpr {

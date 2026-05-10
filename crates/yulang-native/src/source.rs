@@ -614,6 +614,100 @@ once_dfs_int { each_list [1, 2, 3] }
     }
 
     #[test]
+    #[ignore = "Milestone 7 debug: std::undet.each through CPS eval / repr eval / Cranelift"]
+    fn debugs_std_each_with_local_once_dfs_eval_layers() {
+        let source = r#"use std::undet::*
+
+my once_dfs_int(x: [std::undet::undet] int): int = catch x:
+    branch (), k -> catch k true:
+        reject (), _ -> k false
+        v -> v
+    reject (), _ -> 0
+    v -> v
+
+once_dfs_int { each [1, 2, 3] }
+"#;
+
+        run_with_large_stack(|| {
+            let module = runtime_module_from_source_with_options(
+                source,
+                native_default_source_options(),
+            )
+            .expect("runtime module");
+
+            let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
+            crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
+
+            eprintln!("=== CPS module ===");
+            for f in cps.functions.iter().chain(cps.roots.iter()) {
+                eprintln!("function: {} params={:?}", f.name, f.params);
+                for cont in &f.continuations {
+                    eprintln!(
+                        "  cont {:?} params={:?} captures={:?}",
+                        cont.id, cont.params, cont.captures
+                    );
+                    for stmt in &cont.stmts {
+                        eprintln!("    stmt: {:?}", stmt);
+                    }
+                    eprintln!("    term: {:?}", cont.terminator);
+                }
+                for handler in &f.handlers {
+                    eprintln!(
+                        "  handler {:?} arms={:?}",
+                        handler.id,
+                        handler
+                            .arms
+                            .iter()
+                            .map(|a| (&a.effect, a.entry))
+                            .collect::<Vec<_>>()
+                    );
+                }
+            }
+
+            crate::cps_compare::compare_cps_module(&module).expect("CPS eval == VM");
+            eprintln!("Layer 1 (CPS eval): OK");
+
+            let repr = crate::cps_repr::lower_cps_repr_module(&cps);
+            let repr_values =
+                crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
+            let vm_results = runtime::compile_vm_module(module.clone())
+                .expect("VM compile")
+                .eval_roots()
+                .expect("VM eval");
+            let vm_value = match &vm_results[0] {
+                runtime::VmResult::Value(v) => v.clone(),
+                runtime::VmResult::Request(_) => panic!("VM gave request"),
+            };
+            assert_eq!(repr_values[0], vm_value, "CPS repr eval == VM");
+            eprintln!("Layer 2 (CPS repr eval): OK");
+
+            compare_source_cps_repr_i64(source).expect("CPS repr Cranelift compare");
+            eprintln!("Layer 3 (CPS repr Cranelift): OK");
+        });
+    }
+
+    #[test]
+    #[ignore = "Milestone 7: std::undet.each through local once_dfs"]
+    fn compares_std_each_with_local_once_dfs_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"use std::undet::*
+
+my once_dfs_int(x: [std::undet::undet] int): int = catch x:
+    branch (), k -> catch k true:
+        reject (), _ -> k false
+        v -> v
+    reject (), _ -> 0
+    v -> v
+
+once_dfs_int { each [1, 2, 3] }
+"#,
+            )
+            .expect("std each with local once_dfs CPS repr jit compare");
+        });
+    }
+
+    #[test]
     fn compares_prelude_source_once_finite_each_list_recursive_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(
