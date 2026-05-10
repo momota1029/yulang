@@ -348,6 +348,7 @@ fn eval_function(
         Vec::new(),
         Vec::new(),
         Vec::new(),
+        0,
     )
 }
 
@@ -358,6 +359,7 @@ fn eval_function_with_context(
     active_handlers: Vec<CpsHandlerFrame>,
     guard_stack: Vec<CpsGuardEntry>,
     return_frames: Vec<CpsReturnFrame>,
+    initial_frame_count: usize,
 ) -> CpsEvalResult<CpsRuntimeValue> {
     if function.params.len() != args.len() {
         return Err(CpsEvalError::FunctionArgumentMismatch {
@@ -377,6 +379,7 @@ fn eval_function_with_context(
         active_handlers,
         guard_stack,
         return_frames,
+        initial_frame_count,
     )
 }
 
@@ -391,6 +394,7 @@ fn eval_continuations(
     active_handlers: Vec<CpsHandlerFrame>,
     guard_stack: Vec<CpsGuardEntry>,
     return_frames: Vec<CpsReturnFrame>,
+    initial_frame_count: usize,
 ) -> CpsEvalResult<CpsRuntimeValue> {
     resume_continuation(
         module,
@@ -401,6 +405,7 @@ fn eval_continuations(
         into_inherited(active_handlers),
         guard_stack,
         return_frames,
+        initial_frame_count,
     )
 }
 
@@ -417,6 +422,7 @@ fn resume_continuation(
     active_handlers: Vec<CpsHandlerFrame>,
     guard_stack: Vec<CpsGuardEntry>,
     return_frames: Vec<CpsReturnFrame>,
+    initial_frame_count: usize,
 ) -> CpsEvalResult<CpsRuntimeValue> {
     let mut values = initial_values;
     let mut current = entry;
@@ -424,6 +430,7 @@ fn resume_continuation(
     let mut guard_stack = guard_stack;
     let mut active_handlers = active_handlers;
     let mut return_frames = return_frames;
+    let initial_frame_count = initial_frame_count;
     let mut next_guard_id = guard_stack
         .iter()
         .map(|entry| entry.id)
@@ -559,9 +566,12 @@ fn resume_continuation(
                                 };
                                 let owner =
                                     function_by_name(module, &thunk.owner_function)?;
-                                // Synchronous: ForceThunk stmt's parent eval
-                                // continues with the thunk's value, so no
-                                // return_frames are propagated.
+                                // Synchronous force: inherit parent's frames
+                                // so any Perform inside the thunk body
+                                // captures them, but don't consume them on
+                                // the thunk's plain Return (parent's eval is
+                                // still alive).
+                                let inherited = return_frames.len();
                                 result = eval_continuations(
                                     module,
                                     owner,
@@ -570,7 +580,8 @@ fn resume_continuation(
                                     thunk.values.as_ref().clone(),
                                     handlers,
                                     guards,
-                                    Vec::new(),
+                                    return_frames.clone(),
+                                    inherited,
                                 )?;
                                 if matches!(result, CpsRuntimeValue::ScopeReturn { .. }) {
                                     break;
@@ -703,17 +714,20 @@ fn resume_continuation(
                         .iter()
                         .map(|id| read_value(function, &values, *id))
                         .collect::<CpsEvalResult<Vec<_>>>()?;
-                    // Synchronous call: parent's eval continues after this
-                    // stmt, so the callee must NOT inherit return_frames
-                    // (otherwise its Return would consume them, hijacking the
-                    // parent's continuation).
+                    // Synchronous call: pass parent's return_frames so a
+                    // Perform inside the callee captures them in the
+                    // resumption. The callee's initial_frame_count = current
+                    // return_frames.len() so its Return doesn't consume any
+                    // (the parent eval is still alive).
+                    let inherited = return_frames.len();
                     let result = eval_function_with_context(
                         module,
                         target_function,
                         call_args,
                         active_handlers.clone(),
                         guard_stack.clone(),
-                        Vec::new(),
+                        return_frames.clone(),
+                        inherited,
                     )?;
                     dispatch_scope_return!('cont, result, dest);
                 }
@@ -736,6 +750,11 @@ fn resume_continuation(
                                     CpsRuntimeValue::Closure(closure.clone()),
                                 );
                             }
+                            // Sync apply: inherit parent's frames so a Perform
+                            // inside the closure body captures them, but
+                            // initial_frame_count = current len so the
+                            // closure's Return doesn't consume them.
+                            let inherited = return_frames.len();
                             eval_continuations(
                                 module,
                                 owner,
@@ -744,7 +763,8 @@ fn resume_continuation(
                                 closure_values,
                                 active_handlers.clone(),
                                 guard_stack.clone(),
-                                Vec::new(),
+                                return_frames.clone(),
+                                inherited,
                             )?
                         }
                         CpsRuntimeValue::Resumption(resumption) => {
@@ -764,6 +784,8 @@ fn resume_continuation(
                             resumed_handlers.extend(extra.clone());
                             let adjusted_frames =
                                 inject_extra_handlers(resumption.return_frames.as_ref(), &extra);
+                            // Resume replays a captured continuation, so the
+                            // captured frames are ours to consume — initial=0.
                             eval_continuations(
                                 module,
                                 owner,
@@ -773,6 +795,7 @@ fn resume_continuation(
                                 resumed_handlers,
                                 resumption.guard_stack.as_ref().clone(),
                                 adjusted_frames,
+                                0,
                             )?
                         }
                         _ => {
@@ -807,6 +830,8 @@ fn resume_continuation(
                     resumed_handlers.extend(extra.clone());
                     let adjusted_frames =
                         inject_extra_handlers(resumption.return_frames.as_ref(), &extra);
+                    // Resume replays captured continuation; captured frames
+                    // are ours to consume.
                     let result = eval_continuations(
                         module,
                         owner,
@@ -816,6 +841,7 @@ fn resume_continuation(
                         resumed_handlers,
                         resumption.guard_stack.as_ref().clone(),
                         adjusted_frames,
+                        0,
                     )?;
                     dispatch_scope_return!('cont, result, dest);
                 }
@@ -899,6 +925,7 @@ fn resume_continuation(
                         inner_handlers,
                         resumption.guard_stack.as_ref().clone(),
                         adjusted_frames,
+                        0,
                     )?;
                     dispatch_scope_return!('cont, result, dest);
                     // Pop the RWH frame in the value-flow path. JumpOrExit /
@@ -917,13 +944,16 @@ fn resume_continuation(
 
         match &continuation.terminator {
             CpsTerminator::Return(value) => {
-                // After a plain return, continue through any captured return frames.
+                // Only consume frames pushed during THIS eval. The prefix up to
+                // `initial_frame_count` was inherited from a sync caller and
+                // belongs to that caller's eval loop, which is still alive.
                 let v = read_value(function, &values, *value)?;
-                if return_frames.is_empty() {
+                if return_frames.len() <= initial_frame_count {
                     return Ok(v);
                 }
-                let frames = std::mem::take(&mut return_frames);
-                return continue_return_frames(module, v, &frames, &[]);
+                let own_frames = return_frames
+                    .split_off(initial_frame_count);
+                return continue_return_frames(module, v, &own_frames, &[]);
             }
             CpsTerminator::Continue { target, args: next } => {
                 args = next
@@ -989,6 +1019,7 @@ fn resume_continuation(
                     handler_body_stack,
                     guard_stack.clone(),
                     Vec::new(),
+                    0,
                 )?;
                 if !frame_in_active {
                     // Synthetic fallback frame: the perform's effect had no
@@ -1039,20 +1070,24 @@ fn resume_continuation(
                 // Effectful direct call: this eval frame terminates here.
                 // Push a return frame so the callee's Perform (or any further
                 // effectful call) captures this function's post-call cont in
-                // its resumption. The callee inherits return_frames + this
-                // new frame, and its Return consumes them via the Return
-                // terminator's continue_return_frames path.
+                // its resumption. The callee's `initial_frame_count` is the
+                // pre-push length so it can consume the frame we just pushed
+                // (and any further frames it pushes itself), but NOT the
+                // frames we inherited from above (those remain ours-to-keep
+                // until we ourselves are restored via continue_return_frames).
                 let target_function = function_by_name(module, target)?;
                 let call_args = arg_ids
                     .iter()
                     .map(|id| read_value(function, &values, *id))
                     .collect::<CpsEvalResult<Vec<_>>>()?;
+                let pre_push_count = return_frames.len();
                 let frame = CpsReturnFrame {
                     owner_function: function.name.clone(),
                     continuation: *resume,
                     values: Rc::new(values.clone()),
                     active_handlers: active_handlers.clone(),
                     guard_stack: guard_stack.clone(),
+                    owner_initial_frame_count: initial_frame_count,
                 };
                 let mut new_frames = return_frames.clone();
                 new_frames.push(frame);
@@ -1063,6 +1098,7 @@ fn resume_continuation(
                     active_handlers.clone(),
                     guard_stack.clone(),
                     new_frames,
+                    pre_push_count,
                 );
             }
             CpsTerminator::EffectfulForce { thunk, resume } => {
@@ -1072,21 +1108,19 @@ fn resume_continuation(
                 let value = read_value(function, &values, *thunk)?;
                 match value {
                     CpsRuntimeValue::Thunk(thunk_rc) => {
+                        let pre_push_count = return_frames.len();
                         let frame = CpsReturnFrame {
                             owner_function: function.name.clone(),
                             continuation: *resume,
                             values: Rc::new(values.clone()),
                             active_handlers: active_handlers.clone(),
                             guard_stack: guard_stack.clone(),
+                            owner_initial_frame_count: initial_frame_count,
                         };
                         let mut new_frames = return_frames.clone();
                         new_frames.push(frame);
                         let owner =
                             function_by_name(module, &thunk_rc.owner_function)?;
-                        // Thunks captured at MakeThunk time may have stale
-                        // handler snapshots; prefer the current active set
-                        // when present (mirrors the stmt-level ForceThunk
-                        // policy).
                         let handlers = if !active_handlers.is_empty() {
                             active_handlers.clone()
                         } else {
@@ -1106,6 +1140,7 @@ fn resume_continuation(
                             handlers,
                             guards,
                             new_frames,
+                            pre_push_count,
                         );
                     }
                     other => {
@@ -1126,12 +1161,14 @@ fn resume_continuation(
                 // Effectful closure application: same shape as EffectfulCall
                 // but dispatches on Closure or Resumption value.
                 let callable = read_value(function, &values, *closure)?;
+                let pre_push_count = return_frames.len();
                 let frame = CpsReturnFrame {
                     owner_function: function.name.clone(),
                     continuation: *resume,
                     values: Rc::new(values.clone()),
                     active_handlers: active_handlers.clone(),
                     guard_stack: guard_stack.clone(),
+                    owner_initial_frame_count: initial_frame_count,
                 };
                 let mut new_frames = return_frames.clone();
                 new_frames.push(frame);
@@ -1156,14 +1193,12 @@ fn resume_continuation(
                             active_handlers.clone(),
                             guard_stack.clone(),
                             new_frames,
+                            pre_push_count,
                         );
                     }
                     CpsRuntimeValue::Resumption(resumption) => {
                         // EffectfulApply to a Resumption — same shape as a
                         // Resume stmt but with the post-apply cont captured.
-                        // The post-apply cont was pushed onto new_frames
-                        // above; here we additionally need to continue
-                        // through the resumption's saved frames.
                         let arg = read_plain_value(function, &values, *arg)?;
                         let owner = function_by_name(module, &resumption.owner_function)?;
                         let extra: Vec<CpsHandlerFrame> = active_handlers
@@ -1175,12 +1210,10 @@ fn resume_continuation(
                             .collect();
                         let mut resumed_handlers = resumption.handlers.as_ref().clone();
                         resumed_handlers.extend(extra.clone());
-                        // Combined frames: resumption's saved frames first
-                        // (innermost-first), then this call site's pushed
-                        // frame. The resumption's Return will trigger
-                        // continue_return_frames over the full stack.
                         let mut combined_frames = resumption.return_frames.as_ref().clone();
                         combined_frames.extend(new_frames);
+                        // Resume-style replay: captured frames are ours to
+                        // consume — initial=0.
                         return eval_continuations(
                             module,
                             owner,
@@ -1190,6 +1223,7 @@ fn resume_continuation(
                             resumed_handlers,
                             resumption.guard_stack.as_ref().clone(),
                             combined_frames,
+                            0,
                         );
                     }
                     _ => {
@@ -1267,6 +1301,7 @@ fn continue_return_frames(
     // non-inherited state is preserved — that's how a ScopeReturn destined
     // for the handler scope in (e.g.) once_dfs_int can still resolve when
     // we're running work's post-call cont here.
+    debug_assert!(frame.owner_initial_frame_count <= rest.len());
     resume_continuation(
         module,
         function,
@@ -1276,6 +1311,7 @@ fn continue_return_frames(
         combined,
         frame.guard_stack.clone(),
         rest.to_vec(),
+        frame.owner_initial_frame_count,
     )
 }
 
@@ -1605,9 +1641,10 @@ struct CpsResumption {
 }
 
 /// A suspended caller continuation. Pushed by effectful terminators
-/// (EffectfulCall / EffectfulApply) when a potentially-effectful call is made
-/// inside a handler scope. Stored in `CpsResumption.return_frames` so that
-/// resuming k also resumes the caller's computation after the call.
+/// (EffectfulCall / EffectfulApply / EffectfulForce) when a potentially-
+/// effectful call is made inside a handler scope. Stored in
+/// `CpsResumption.return_frames` so that resuming k also resumes the
+/// caller's computation after the call.
 #[derive(Debug, Clone, PartialEq)]
 struct CpsReturnFrame {
     owner_function: String,
@@ -1618,6 +1655,12 @@ struct CpsReturnFrame {
     /// non-inherited) when the frame is re-entered via `continue_return_frames`.
     active_handlers: Vec<CpsHandlerFrame>,
     guard_stack: Vec<CpsGuardEntry>,
+    /// Threshold for the owner eval's `initial_frame_count` — i.e. how
+    /// many of *its* return_frames were inherited from above when this
+    /// frame was pushed. Restored when the owner is re-entered via
+    /// `continue_return_frames` so the owner's Return only consumes its
+    /// own pushed frames, not the ones it inherited.
+    owner_initial_frame_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
