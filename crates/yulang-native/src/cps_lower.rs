@@ -1015,26 +1015,66 @@ fn lower_binding(
 
 fn binding_function_info(binding: &runtime::Binding) -> Option<(core_ir::Path, FunctionInfo)> {
     if let runtime::ExprKind::PrimitiveOp(op) = binding.body.kind {
+        let arity = primitive_arity(op);
         return Some((
             binding.name.clone(),
             FunctionInfo {
                 name: path_name(&binding.name),
-                arity: primitive_arity(op),
+                arity,
+                params: vec![runtime::Type::unknown(); arity],
                 ret: runtime::Type::unknown(),
             },
         ));
     }
     let (params, body) = collect_callable_params(&binding.body);
-    (!params.is_empty()).then(|| {
-        (
-            binding.name.clone(),
-            FunctionInfo {
-                name: path_name(&binding.name),
-                arity: params.len(),
-                ret: body.ty.clone(),
-            },
-        )
-    })
+    if params.is_empty() {
+        return None;
+    }
+    let param_types = collect_fun_param_types(&binding.body, params.len());
+    Some((
+        binding.name.clone(),
+        FunctionInfo {
+            name: path_name(&binding.name),
+            arity: params.len(),
+            params: param_types,
+            ret: body.ty.clone(),
+        },
+    ))
+}
+
+/// Walk the binding body's nested `Lambda { param, body }` chain, collecting
+/// each lambda's argument type from `expr.ty = Fun { param, ret }`.
+/// `expected` matches the count produced by `collect_callable_params`.
+fn collect_fun_param_types(expr: &runtime::Expr, expected: usize) -> Vec<runtime::Type> {
+    let mut params = Vec::with_capacity(expected);
+    let mut current = expr;
+    while params.len() < expected {
+        match &current.kind {
+            runtime::ExprKind::Lambda { body, .. } => {
+                let arg_ty = match &current.ty {
+                    runtime::Type::Fun { param, .. } => (**param).clone(),
+                    _ => runtime::Type::unknown(),
+                };
+                params.push(arg_ty);
+                current = body;
+            }
+            runtime::ExprKind::Block {
+                tail: Some(tail), ..
+            } => {
+                current = tail;
+            }
+            runtime::ExprKind::Coerce { expr, .. }
+            | runtime::ExprKind::Pack { expr, .. }
+            | runtime::ExprKind::BindHere { expr } => {
+                current = expr;
+            }
+            _ => break,
+        }
+    }
+    while params.len() < expected {
+        params.push(runtime::Type::unknown());
+    }
+    params
 }
 
 fn lower_primitive_binding(path: &core_ir::Path, op: core_ir::PrimitiveOp) -> CpsFunction {
@@ -1065,6 +1105,12 @@ fn lower_primitive_binding(path: &core_ir::Path, op: core_ir::PrimitiveOp) -> Cp
 struct FunctionInfo {
     name: String,
     arity: usize,
+    /// Static types of the formal parameters in declaration order. Used at
+    /// each call site to decide whether an argument expression has to be
+    /// suspended as a Thunk before being passed (`loop(x: [_] _, queue)`
+    /// expects `k true` to arrive as a thunk, not as the eager Resume
+    /// result).
+    params: Vec<runtime::Type>,
     ret: runtime::Type,
 }
 
@@ -1213,9 +1259,20 @@ impl<'a> FunctionLowerer<'a> {
                 }
             }
             let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
+            let info_params = info.params.clone();
             let args = args
                 .into_iter()
-                .map(|arg| self.lower_expr(arg))
+                .enumerate()
+                .map(|(idx, arg)| {
+                    if matches!(
+                        info_params.get(idx),
+                        Some(runtime::Type::Thunk { .. })
+                    ) {
+                        self.lower_expr_as_thunk_value(arg)
+                    } else {
+                        self.lower_expr(arg)
+                    }
+                })
                 .collect::<CpsLowerResult<Vec<_>>>()?;
             let dest = self.fresh_value();
             let should_force_direct = direct_call_result_needs_force(expr, info);
@@ -1469,12 +1526,51 @@ impl<'a> FunctionLowerer<'a> {
         arg: &runtime::Expr,
     ) -> CpsLowerResult<CpsValueId> {
         let closure = self.lower_expr(callee)?;
-        let arg = self.lower_expr(arg)?;
+        let arg = self.lower_expr_as_call_arg(&callee.ty, arg)?;
         let dest = self.fresh_value();
         self.current
             .stmts
             .push(CpsStmt::ApplyClosure { dest, closure, arg });
         Ok(dest)
+    }
+
+    /// Lower a positional call argument. If the callee's first formal
+    /// parameter has Thunk type, wrap the argument in MakeThunk so that
+    /// `loop(k true, queue)` style sites pass `k true` as a deferred
+    /// computation rather than the Resume's eager scalar.
+    fn lower_expr_as_call_arg(
+        &mut self,
+        callee_ty: &runtime::Type,
+        arg: &runtime::Expr,
+    ) -> CpsLowerResult<CpsValueId> {
+        let param_ty = match callee_ty {
+            runtime::Type::Fun { param, .. } => Some(param.as_ref()),
+            _ => None,
+        };
+        let param_is_thunk = matches!(param_ty, Some(runtime::Type::Thunk { .. }));
+        if param_is_thunk {
+            self.lower_expr_as_thunk_value(arg)
+        } else {
+            self.lower_expr(arg)
+        }
+    }
+
+    /// Suspend an arbitrary expression as a Thunk so that it is evaluated
+    /// only when the callee forces it (e.g. `loop`'s `catch x:` forcing
+    /// `x = each [1,2,3]`). A syntactic Thunk (`{ ... }`) already produces
+    /// a thunk handle via `lower_expr`, so we forward it directly. Every
+    /// other expression — including `Apply` chains whose static type is
+    /// `[eff] T` — must be wrapped via `lower_thunk` so the underlying
+    /// `DirectCall` does not run before the caller has installed its
+    /// handler scope.
+    fn lower_expr_as_thunk_value(
+        &mut self,
+        expr: &runtime::Expr,
+    ) -> CpsLowerResult<CpsValueId> {
+        if matches!(expr.kind, runtime::ExprKind::Thunk { .. }) {
+            return self.lower_expr(expr);
+        }
+        self.lower_thunk(expr)
     }
 
     fn lower_tuple(&mut self, items: &[runtime::Expr]) -> CpsLowerResult<CpsValueId> {
@@ -2825,7 +2921,7 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         expr: &runtime::Expr,
     ) -> CpsLowerResult<Option<CpsValueId>> {
-        let Some((target, _, args)) = direct_apply_path(expr, self.functions)? else {
+        let Some((target, info, args)) = direct_apply_path(expr, self.functions)? else {
             return Ok(None);
         };
         if path_name(target) == self.name || !self.inline_stack.insert(target.clone()) {
@@ -2844,14 +2940,22 @@ impl<'a> FunctionLowerer<'a> {
             self.inline_stack.remove(target);
             return Ok(None);
         }
+        let info_params = info.params.clone();
 
         let saved_locals = self.locals.clone();
         let saved_local_exprs = self.local_exprs.clone();
         let saved_resumptions = self.resumptions.clone();
-        for (param, arg) in params.into_iter().zip(args) {
+        for (idx, (param, arg)) in params.into_iter().zip(args).enumerate() {
             let path = core_ir::Path::from_name(param);
+            let param_is_thunk = matches!(
+                info_params.get(idx),
+                Some(runtime::Type::Thunk { .. })
+            );
             if is_inline_argument(arg) || matches!(arg.ty, runtime::Type::Thunk { .. }) {
                 self.local_exprs.insert(path, arg.clone());
+            } else if param_is_thunk {
+                let value = self.lower_expr_as_thunk_value(arg)?;
+                self.locals.insert(path, value);
             } else {
                 let value = self.lower_expr(arg)?;
                 self.locals.insert(path, value);

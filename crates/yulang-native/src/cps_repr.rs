@@ -415,10 +415,10 @@ fn eval_cps_repr_primitive(
     use core_ir::PrimitiveOp;
     match op {
         PrimitiveOp::ListEmpty => {
-            if !args.is_empty() {
+            if args.len() > 1 {
                 return Err(CpsReprEvalError::InvalidPrimitiveArity {
                     op,
-                    expected: 0,
+                    expected: 1,
                     actual: args.len(),
                 });
             }
@@ -1561,13 +1561,13 @@ fn eval_continuations(
                 }
                 CpsStmt::ApplyClosure { dest, closure, arg } => {
                     let closure = read_closure(function, &values, *closure)?;
-                    let arg = read_plain_value(function, &values, *arg)?;
+                    let arg = read_value(function, &values, *arg)?;
                     let owner = function_by_name_repr(module, &closure.owner_function)?;
                     let result = eval_continuations(
                         module,
                         owner,
                         closure.entry,
-                        vec![CpsReprRuntimeValue::Plain(arg)],
+                        vec![arg],
                         closure.values,
                         active_handlers.clone(),
                         guard_stack.clone(),

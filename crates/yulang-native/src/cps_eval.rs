@@ -549,13 +549,13 @@ fn eval_continuations(
                 }
                 CpsStmt::ApplyClosure { dest, closure, arg } => {
                     let closure = read_closure(function, &values, *closure)?;
-                    let arg = read_plain_value(function, &values, *arg)?;
+                    let arg = read_value(function, &values, *arg)?;
                     let owner = function_by_name(module, &closure.owner_function)?;
                     let result = eval_continuations(
                         module,
                         owner,
                         closure.entry,
-                        vec![CpsRuntimeValue::Plain(arg)],
+                        vec![arg],
                         closure.values.as_ref().clone(),
                         active_handlers.clone(),
                         guard_stack.clone(),
@@ -1037,10 +1037,13 @@ fn eval_cps_primitive(
     use core_ir::PrimitiveOp;
     match op {
         PrimitiveOp::ListEmpty => {
-            if !args.is_empty() {
+            // ListEmpty's runtime arity is 1 (a unit witness). Accept and
+            // ignore the argument so list<resumption> empties land in the
+            // CPS value domain.
+            if args.len() > 1 {
                 return Err(CpsEvalError::InvalidPrimitiveArity {
                     op,
-                    expected: 0,
+                    expected: 1,
                     actual: args.len(),
                 });
             }
