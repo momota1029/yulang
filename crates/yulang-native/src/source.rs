@@ -614,7 +614,6 @@ once_dfs_int { each_list [1, 2, 3] }
     }
 
     #[test]
-    #[ignore = "Milestone 6: recursive each_list requires non-inlined function to route effects to caller handler"]
     fn compares_prelude_source_once_finite_each_list_recursive_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(

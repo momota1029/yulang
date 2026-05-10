@@ -62,16 +62,24 @@ Completed:
   `each_head(xs): [choice] int` is inlined inside the caller's handler scope,
   and the resulting thunk is forced before reaching the handler value
   continuation. CPS eval, CPS repr eval, and Cranelift JIT all agree with VM.
+- Phase 4 (recursive case, Milestone 6): a recursive helper such as
+  `each_list(xs): [choice] int` reaches its caller's handler frame through
+  the runtime handler stack. CPS lowering emits `InstallHandler` /
+  `UninstallHandler` around handler scopes; the CPS evaluators thread
+  `active_handlers` through `DirectCall` / `ApplyClosure` / `ForceThunk`;
+  Cranelift backs the new stmts with thread-local
+  `yulang_cps_install_handler_i64` / `yulang_cps_uninstall_handler_i64`
+  helpers that share the existing handler-stack runtime.
 
 Open:
 
-- recursive helpers like `each_list(xs): [choice] int` are not inlined and
-  still emit `Perform` without a known handler entry — the caller's active
-  handler frame must be threaded through the recursive function boundary.
+- `std::undet.each` still uses `fold` / `sub::return`; even with the
+  handler-stack threading the recursive `each` body needs to coexist with
+  closure callbacks that also forward dynamic context.
 - `std::undet.once` still needs a real resumption queue strategy.
 - generated CPS executables still do not print non-scalar Yulang values.
 
-The next implementation step is the recursive variant of Phase 4: make
-non-inlined effectful helpers route their `Perform` to the caller's active
-handler frame, either by capturing the handler envs at thunk creation or by
-threading handler context through the function call.
+The next implementation step is Milestone 7: re-introduce
+`std::undet::each` together with a local DFS-once helper, which exercises
+`fold`, `sub::return`, and closure callbacks against the new dynamic
+handler routing.

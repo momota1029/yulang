@@ -294,10 +294,14 @@ runtime/core IR
     inlinable な source-defined helper は、caller の active handler scope で
     inline され、`lower_inline_direct_apply` が返した thunk を direct call site で
     force するようにした。CPS eval / CPS repr eval / Cranelift JIT のすべてが VM と一致する。
-  - 未完了: `each_list` のような recursive helper は inline されず、
-    callee 側で `Perform` の handler entry が決まらない。caller の handler frame を
-    function 境界越しに渡す手段（thunk 作成時の env capture もしくは call 引数による
-    handler context routing）が必要。
+  - 完了: `each_list` のような recursive helper も runtime handler stack 経由で
+    caller の handler に effect を届けるようになった。CPS lowering は handler scope の
+    入口と出口に `InstallHandler` / `UninstallHandler` stmt を生成。CPS evaluators は
+    `DirectCall` / `ApplyClosure` / `ForceThunk` で `active_handlers` / `guard_stack` を
+    callee に伝える。Cranelift は thread-local handler stack を扱う既存 runtime に
+    `yulang_cps_install_handler_i64` / `yulang_cps_uninstall_handler_i64` を追加して同じ
+    semantics を実現している。`each_list [1, 2, 3]` の Milestone 6 regression は VM と
+    一致する。
   - 完了: pure higher-order call の第一歩として、lambda を CPS closure に lower し、
     Cranelift CPS repr で indirect apply できるようにした。
 2. CPS repr Cranelift の source 回帰を広げる。

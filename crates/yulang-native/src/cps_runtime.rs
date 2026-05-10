@@ -429,6 +429,31 @@ pub extern "C" fn yulang_cps_capture_handler_env_i64(handler: i64, entry: i64, e
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn yulang_cps_install_handler_i64(handler: i64) -> i64 {
+    let envs = take_pending_handler_envs(handler);
+    let frame = YulangCpsI64HandlerFrame {
+        handler,
+        guard_stack: current_guard_stack().into_boxed_slice(),
+        envs,
+    };
+    YULANG_CPS_I64_HANDLER_STACK.with(|stack| {
+        stack.borrow_mut().push(frame);
+    });
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_cps_uninstall_handler_i64(handler: i64) -> i64 {
+    YULANG_CPS_I64_HANDLER_STACK.with(|stack| {
+        let mut stack = stack.borrow_mut();
+        if let Some(pos) = stack.iter().rposition(|frame| frame.handler == handler) {
+            stack.remove(pos);
+        }
+    });
+    0
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn yulang_cps_selected_handler_env_or_i64(entry: i64, fallback: i64) -> i64 {
     YULANG_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| {
         envs.borrow()

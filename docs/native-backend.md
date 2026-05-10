@@ -174,9 +174,13 @@ or out of here into the user-facing table once they stabilize.
       boundary now carry the caller's active handler frame: a non-recursive
       helper such as `each_head(xs): [choice] int` is inlined and the implicit
       thunk is forced inside the caller's handler scope.
-- [ ] Recursive helpers such as `each_list` are still not inlined and emit
-      `Perform` without a known handler entry; their caller's handler frame
-      must instead be threaded through the function call.
+- [x] Recursive helpers such as `each_list(xs): [choice] int` route effects
+      to the caller's handler through the runtime handler stack. CPS lowering
+      emits `InstallHandler` / `UninstallHandler` around handler scopes; the
+      CPS evaluators thread `active_handlers` through `DirectCall` /
+      `ApplyClosure` / `ForceThunk`; Cranelift backs the new stmts with
+      thread-local install/uninstall helpers that share the existing
+      handler-stack runtime.
 - [ ] General closures and heap value lanes are not complete.
 - [ ] Non-scalar CPS return values can flow through the prototype as opaque
       `i64` heap pointers, but generated CPS executables do not yet print them

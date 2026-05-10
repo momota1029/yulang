@@ -263,6 +263,14 @@ pub fn compile_cps_repr_abi_module(
         yulang_cps_capture_handler_env_i64 as *const u8,
     );
     builder.symbol(
+        "yulang_cps_install_handler_i64",
+        yulang_cps_install_handler_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_uninstall_handler_i64",
+        yulang_cps_uninstall_handler_i64 as *const u8,
+    );
+    builder.symbol(
         "yulang_cps_selected_handler_env_or_i64",
         yulang_cps_selected_handler_env_or_i64 as *const u8,
     );
@@ -735,6 +743,8 @@ fn function_has_effect_flow(function: &CpsReprAbiFunction) -> bool {
                             | CpsStmt::MakeRecursiveClosure { .. }
                             | CpsStmt::Resume { .. }
                             | CpsStmt::ResumeWithHandler { .. }
+                            | CpsStmt::InstallHandler { .. }
+                            | CpsStmt::UninstallHandler { .. }
                     )
                 })
         })
@@ -1160,8 +1170,24 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let results = builder.inst_results(call);
             builder.def_var(variable(*dest), results[0]);
         }
-        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {
-            // TODO Milestone 6 step 6: thread caller handler context through Cranelift
+        CpsStmt::InstallHandler { handler, envs } => {
+            capture_handler_envs(module_backend, builder, function, *handler, envs)?;
+            let handler = builder.ins().iconst(types::I64, handler.0 as i64);
+            let _ = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_install_handler_i64",
+                &[handler],
+            )?;
+        }
+        CpsStmt::UninstallHandler { handler } => {
+            let handler = builder.ins().iconst(types::I64, handler.0 as i64);
+            let _ = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_uninstall_handler_i64",
+                &[handler],
+            )?;
         }
     }
     Ok(())
@@ -2116,8 +2142,24 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                 kind: "resume",
             });
         }
-        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {
-            // TODO Milestone 6 step 6: thread caller handler context through Cranelift
+        CpsStmt::InstallHandler { handler, envs } => {
+            capture_handler_envs(module_backend, builder, function, *handler, envs)?;
+            let handler = builder.ins().iconst(types::I64, handler.0 as i64);
+            let _ = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_install_handler_i64",
+                &[handler],
+            )?;
+        }
+        CpsStmt::UninstallHandler { handler } => {
+            let handler = builder.ins().iconst(types::I64, handler.0 as i64);
+            let _ = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_uninstall_handler_i64",
+                &[handler],
+            )?;
         }
     }
     Ok(())
@@ -3257,6 +3299,29 @@ extern "C" fn yulang_cps_capture_handler_env_i64(handler: i64, entry: i64, env: 
     NATIVE_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| {
         envs.borrow_mut()
             .push((handler, NativeCpsI64HandlerEnv { entry, env }));
+    });
+    0
+}
+
+extern "C" fn yulang_cps_install_handler_i64(handler: i64) -> i64 {
+    let envs = take_pending_native_i64_handler_envs(handler);
+    let frame = NativeCpsI64HandlerFrame {
+        handler,
+        guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
+        envs,
+    };
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+        stack.borrow_mut().push(frame);
+    });
+    0
+}
+
+extern "C" fn yulang_cps_uninstall_handler_i64(handler: i64) -> i64 {
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+        let mut stack = stack.borrow_mut();
+        if let Some(pos) = stack.iter().rposition(|frame| frame.handler == handler) {
+            stack.remove(pos);
+        }
     });
     0
 }
