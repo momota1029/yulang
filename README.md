@@ -215,14 +215,25 @@ CPS representation backend status:
       frames whose captures are available at thunk creation time.
 - [x] CPS repr Cranelift can rebase a resumption with `ResumeWithHandler` and
       skip a blocked handler frame for scalar handler tests.
+- [x] CPS repr Cranelift can select handler arms across function boundaries
+      through globally numbered handler ids and the dynamic handler stack.
 - [x] CPS lowering carries `AddId` blocked guards into `Perform` in the
       CPS/CPS-repr interpreter paths.
 - [x] Mutable reference edit/update runs through effect-aware CPS and the
       Cranelift CPS repr scalar path with VM comparison.
+- [x] A minimal `once`-style branch handler can resume the first branch from
+      tail and boolean-match condition effect operations in the Cranelift CPS
+      repr scalar path.
+- [x] `std::undet` `.once` over a finite list compiles through the CPS repr
+      object/executable path.
+- [x] First-class lambda values can be created and applied through the
+      Cranelift CPS repr scalar path for pure higher-order calls.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
 - [ ] General closures and heap value lanes are not complete.
-- [ ] Non-scalar CPS return values are not broadly supported.
+- [ ] Non-scalar CPS return values can flow through the prototype as opaque
+      `i64` heap pointers, but generated CPS executables do not yet print them
+      as Yulang values.
 - [ ] This path is still a prototype, not the default full-language runtime.
 
 Cache and package/build status:

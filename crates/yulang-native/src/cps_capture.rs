@@ -9,6 +9,11 @@ pub fn infer_cps_captures(module: &mut CpsModule) {
 }
 
 fn infer_function_captures(function: &mut CpsFunction) {
+    let handler_entries = function
+        .handlers
+        .iter()
+        .flat_map(|handler| handler.arms.iter().map(|arm| arm.entry))
+        .collect::<Vec<_>>();
     loop {
         let current_captures = function
             .continuations
@@ -23,7 +28,7 @@ fn infer_function_captures(function: &mut CpsFunction) {
                 .copied()
                 .chain(continuation_defs(continuation))
                 .collect::<BTreeSet<_>>();
-            let captures = continuation_uses(continuation, &current_captures)
+            let captures = continuation_uses(continuation, &current_captures, &handler_entries)
                 .into_iter()
                 .filter(|value| !local_defs.contains(value))
                 .collect::<Vec<_>>();
@@ -48,13 +53,19 @@ fn continuation_defs(continuation: &crate::cps_ir::CpsContinuation) -> Vec<CpsVa
             | CpsStmt::PeekGuard { dest }
             | CpsStmt::FindGuard { dest, .. }
             | CpsStmt::MakeThunk { dest, .. }
+            | CpsStmt::MakeClosure { dest, .. }
+            | CpsStmt::MakeRecursiveClosure { dest, .. }
             | CpsStmt::ForceThunk { dest, .. }
             | CpsStmt::Tuple { dest, .. }
             | CpsStmt::Record { dest, .. }
             | CpsStmt::Variant { dest, .. }
             | CpsStmt::Select { dest, .. }
+            | CpsStmt::TupleGet { dest, .. }
+            | CpsStmt::VariantTagEq { dest, .. }
+            | CpsStmt::VariantPayload { dest, .. }
             | CpsStmt::Primitive { dest, .. }
             | CpsStmt::DirectCall { dest, .. }
+            | CpsStmt::ApplyClosure { dest, .. }
             | CpsStmt::CloneContinuation { dest, .. }
             | CpsStmt::Resume { dest, .. }
             | CpsStmt::ResumeWithHandler { dest, .. } => *dest,
@@ -65,6 +76,7 @@ fn continuation_defs(continuation: &crate::cps_ir::CpsContinuation) -> Vec<CpsVa
 fn continuation_uses(
     continuation: &crate::cps_ir::CpsContinuation,
     continuation_captures: &HashMap<crate::cps_ir::CpsContinuationId, Vec<CpsValueId>>,
+    handler_entries: &[crate::cps_ir::CpsContinuationId],
 ) -> Vec<CpsValueId> {
     let mut uses = BTreeSet::new();
     for stmt in &continuation.stmts {
@@ -82,8 +94,36 @@ fn continuation_uses(
                         .copied(),
                 );
             }
+            CpsStmt::MakeClosure { entry, .. } => {
+                uses.extend(
+                    continuation_captures
+                        .get(entry)
+                        .into_iter()
+                        .flatten()
+                        .copied(),
+                );
+            }
+            CpsStmt::MakeRecursiveClosure { dest, entry } => {
+                uses.extend(
+                    continuation_captures
+                        .get(entry)
+                        .into_iter()
+                        .flatten()
+                        .copied()
+                        .filter(|value| value != dest),
+                );
+            }
             CpsStmt::ForceThunk { thunk, .. } => {
                 uses.insert(*thunk);
+                for entry in handler_entries {
+                    uses.extend(
+                        continuation_captures
+                            .get(entry)
+                            .into_iter()
+                            .flatten()
+                            .copied(),
+                    );
+                }
             }
             CpsStmt::Tuple { items, .. } => {
                 uses.extend(items.iter().copied());
@@ -97,8 +137,18 @@ fn continuation_uses(
             CpsStmt::Select { base, .. } => {
                 uses.insert(*base);
             }
+            CpsStmt::TupleGet { tuple, .. } => {
+                uses.insert(*tuple);
+            }
+            CpsStmt::VariantTagEq { variant, .. } | CpsStmt::VariantPayload { variant, .. } => {
+                uses.insert(*variant);
+            }
             CpsStmt::Primitive { args, .. } | CpsStmt::DirectCall { args, .. } => {
                 uses.extend(args.iter().copied());
+            }
+            CpsStmt::ApplyClosure { closure, arg, .. } => {
+                uses.insert(*closure);
+                uses.insert(*arg);
             }
             CpsStmt::CloneContinuation { source, .. } => {
                 uses.insert(*source);

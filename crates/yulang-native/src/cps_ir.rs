@@ -52,6 +52,14 @@ pub enum CpsStmt {
         dest: CpsValueId,
         entry: CpsContinuationId,
     },
+    MakeClosure {
+        dest: CpsValueId,
+        entry: CpsContinuationId,
+    },
+    MakeRecursiveClosure {
+        dest: CpsValueId,
+        entry: CpsContinuationId,
+    },
     ForceThunk {
         dest: CpsValueId,
         thunk: CpsValueId,
@@ -74,6 +82,20 @@ pub enum CpsStmt {
         base: CpsValueId,
         field: core_ir::Name,
     },
+    TupleGet {
+        dest: CpsValueId,
+        tuple: CpsValueId,
+        index: usize,
+    },
+    VariantTagEq {
+        dest: CpsValueId,
+        variant: CpsValueId,
+        tag: core_ir::Name,
+    },
+    VariantPayload {
+        dest: CpsValueId,
+        variant: CpsValueId,
+    },
     Primitive {
         dest: CpsValueId,
         op: core_ir::PrimitiveOp,
@@ -83,6 +105,11 @@ pub enum CpsStmt {
         dest: CpsValueId,
         target: String,
         args: Vec<CpsValueId>,
+    },
+    ApplyClosure {
+        dest: CpsValueId,
+        closure: CpsValueId,
+        arg: CpsValueId,
     },
     CloneContinuation {
         dest: CpsValueId,

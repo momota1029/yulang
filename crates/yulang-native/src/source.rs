@@ -411,6 +411,74 @@ catch choose::pick 41:
     }
 
     #[test]
+    fn compares_prelude_source_once_branch_tail_effect_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choice:
+  pub branch: () -> bool
+
+my once(x: [_] bool): bool = catch x:
+    choice::branch (), k -> k true
+    v -> v
+
+once { choice::branch () }
+"#,
+            )
+            .expect("source once branch CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_once_branch_match_effect_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choice:
+  pub branch: () -> bool
+
+my once(x: [_] int): int = catch x:
+    choice::branch (), k -> k true
+    v -> v
+
+once { case choice::branch ():
+    true -> 1
+    false -> 2
+}
+"#,
+            )
+            .expect("source once branch match CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compiles_std_undet_once_through_cps_repr_object() {
+        run_with_large_stack(|| {
+            let module = runtime_module_from_source_with_options(
+                "each [1, 2, 3] .once",
+                native_default_source_options(),
+            )
+            .expect("std undet once runtime module");
+            let object =
+                crate::cps_repr_cranelift::compile_runtime_module_to_cps_repr_object(&module)
+                    .expect("std undet once CPS repr object");
+            assert!(!object.bytes().is_empty());
+            assert_eq!(object.roots(), &["root_0".to_string()]);
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_higher_order_lambda_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"my apply(f: int -> int, x: int): int = f x
+
+apply(\x -> x + 1, 41)
+"#,
+            )
+            .expect("source higher-order lambda CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
     fn compares_prelude_source_handler_arm_direct_call_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(

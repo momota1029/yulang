@@ -173,6 +173,7 @@ pub fn compare_cps_repr_cranelift_i64_report(
                         value: runtime::VmValue::Int(value),
                     })?
             }
+            runtime::VmValue::Bool(value) => i64::from(value),
             value => return Err(CpsCompareError::NonI64Value { index, value }),
         };
         if vm != cps_cranelift {

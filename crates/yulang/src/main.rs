@@ -1782,6 +1782,7 @@ void yulang_native_print_value(void *value);
 
 fn native_cps_repr_executable_harness(roots: &[String]) -> String {
     let mut source = String::from("unsafe extern \"C\" {\n");
+    source.push_str("    fn yulang_cps_print_i64(value: i64);\n");
     for root in roots {
         if !is_c_identifier(root) {
             eprintln!(
@@ -1795,9 +1796,9 @@ fn native_cps_repr_executable_harness(roots: &[String]) -> String {
     }
     source.push_str("}\n\nfn main() {\n");
     for root in roots {
-        source.push_str("    println!(\"{}\", unsafe { ");
+        source.push_str("    unsafe { yulang_cps_print_i64(");
         source.push_str(root);
-        source.push_str("() });\n");
+        source.push_str("()); }\n    println!();\n");
     }
     source.push_str("}\n");
     source

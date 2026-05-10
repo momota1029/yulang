@@ -64,6 +64,8 @@ pub enum CpsReprAbiLane {
     RuntimeValuePtr,
     ThunkPtr,
     ResumptionPtr,
+    OpaqueI64,
+    Conflict,
     Unknown,
 }
 
@@ -72,7 +74,10 @@ impl CpsReprAbiLane {
         match (self, other) {
             (left, right) if left == right => left,
             (Self::Unknown, known) | (known, Self::Unknown) => known,
-            _ => Self::Unknown,
+            (Self::Conflict, _) | (_, Self::Conflict) => Self::Conflict,
+            (Self::NativeFloat, _) | (_, Self::NativeFloat) => Self::Conflict,
+            (Self::OpaqueI64, _) | (_, Self::OpaqueI64) => Self::OpaqueI64,
+            _ => Self::OpaqueI64,
         }
     }
 }
@@ -501,19 +506,27 @@ fn analyze_function_abi_lanes(
                     | CpsStmt::PeekGuard { .. }
                     | CpsStmt::FindGuard { .. } => CpsReprAbiLane::ScalarI64,
                     CpsStmt::MakeThunk { .. } => CpsReprAbiLane::ThunkPtr,
+                    CpsStmt::MakeClosure { .. } | CpsStmt::MakeRecursiveClosure { .. } => {
+                        CpsReprAbiLane::ThunkPtr
+                    }
                     CpsStmt::Tuple { .. }
                     | CpsStmt::Record { .. }
                     | CpsStmt::Variant { .. }
                     | CpsStmt::Select { .. } => CpsReprAbiLane::RuntimeValuePtr,
+                    CpsStmt::TupleGet { .. } | CpsStmt::VariantPayload { .. } => {
+                        CpsReprAbiLane::Unknown
+                    }
+                    CpsStmt::VariantTagEq { .. } => CpsReprAbiLane::ScalarI64,
                     CpsStmt::Primitive { op, .. } => primitive_result_lane(*op),
                     CpsStmt::DirectCall { target, .. } => module_analysis
                         .function_return_lane(target)
                         .unwrap_or(CpsReprAbiLane::Unknown),
+                    CpsStmt::ApplyClosure { .. } => CpsReprAbiLane::Unknown,
                     CpsStmt::CloneContinuation { source, .. } => abi_lane(&values, *source),
                     CpsStmt::ForceThunk { thunk, .. } => thunk_entries
                         .get(thunk)
                         .and_then(|entry| continuation_returns.get(entry).copied())
-                        .unwrap_or(CpsReprAbiLane::Unknown),
+                        .unwrap_or(CpsReprAbiLane::OpaqueI64),
                     CpsStmt::Resume { resumption, .. }
                     | CpsStmt::ResumeWithHandler { resumption, .. } => {
                         resumption_target_return_lane(
@@ -644,16 +657,22 @@ fn analyze_function_values(function: &CpsReprFunction) -> CpsReprFunctionValueAn
                     | CpsStmt::PeekGuard { .. }
                     | CpsStmt::FindGuard { .. }
                     | CpsStmt::MakeThunk { .. }
+                    | CpsStmt::MakeClosure { .. }
+                    | CpsStmt::MakeRecursiveClosure { .. }
                     | CpsStmt::Tuple { .. }
                     | CpsStmt::Record { .. }
                     | CpsStmt::Variant { .. }
                     | CpsStmt::Select { .. }
+                    | CpsStmt::TupleGet { .. }
+                    | CpsStmt::VariantTagEq { .. }
+                    | CpsStmt::VariantPayload { .. }
                     | CpsStmt::Primitive { .. }
-                    | CpsStmt::DirectCall { .. } => CpsReprValueKind::Plain,
+                    | CpsStmt::DirectCall { .. }
+                    | CpsStmt::ApplyClosure { .. } => CpsReprValueKind::Plain,
                     CpsStmt::ForceThunk { thunk, .. } => thunk_entries
                         .get(thunk)
                         .and_then(|entry| continuation_returns.get(entry).copied())
-                        .unwrap_or(CpsReprValueKind::Unknown),
+                        .unwrap_or(CpsReprValueKind::Plain),
                     CpsStmt::CloneContinuation { source, .. } => value_kind(&values, *source),
                     CpsStmt::Resume { .. } | CpsStmt::ResumeWithHandler { .. } => {
                         CpsReprValueKind::Plain
@@ -940,13 +959,19 @@ fn stmt_dest(stmt: &CpsStmt) -> CpsValueId {
         | CpsStmt::PeekGuard { dest }
         | CpsStmt::FindGuard { dest, .. }
         | CpsStmt::MakeThunk { dest, .. }
+        | CpsStmt::MakeClosure { dest, .. }
+        | CpsStmt::MakeRecursiveClosure { dest, .. }
         | CpsStmt::ForceThunk { dest, .. }
         | CpsStmt::Tuple { dest, .. }
         | CpsStmt::Record { dest, .. }
         | CpsStmt::Variant { dest, .. }
         | CpsStmt::Select { dest, .. }
+        | CpsStmt::TupleGet { dest, .. }
+        | CpsStmt::VariantTagEq { dest, .. }
+        | CpsStmt::VariantPayload { dest, .. }
         | CpsStmt::Primitive { dest, .. }
         | CpsStmt::DirectCall { dest, .. }
+        | CpsStmt::ApplyClosure { dest, .. }
         | CpsStmt::CloneContinuation { dest, .. }
         | CpsStmt::Resume { dest, .. }
         | CpsStmt::ResumeWithHandler { dest, .. } => *dest,
@@ -1081,6 +1106,26 @@ fn eval_continuations(
                         }),
                     );
                 }
+                CpsStmt::MakeClosure { dest, entry } => {
+                    values.insert(
+                        *dest,
+                        CpsReprRuntimeValue::Closure(CpsReprClosure {
+                            entry: *entry,
+                            values: values.clone(),
+                        }),
+                    );
+                }
+                CpsStmt::MakeRecursiveClosure { dest, entry } => {
+                    let mut closure_values = values.clone();
+                    closure_values
+                        .insert(*dest, CpsReprRuntimeValue::Plain(runtime::VmValue::Unit));
+                    let closure = CpsReprRuntimeValue::Closure(CpsReprClosure {
+                        entry: *entry,
+                        values: closure_values.clone(),
+                    });
+                    closure_values.insert(*dest, closure.clone());
+                    values.insert(*dest, closure);
+                }
                 CpsStmt::ForceThunk { dest, thunk } => {
                     let result = match read_value(function, &values, *thunk)? {
                         CpsReprRuntimeValue::Thunk(thunk) => eval_continuations(
@@ -1151,6 +1196,40 @@ fn eval_continuations(
                     };
                     values.insert(*dest, CpsReprRuntimeValue::Plain(value));
                 }
+                CpsStmt::TupleGet { dest, tuple, index } => {
+                    let value = match read_plain_value(function, &values, *tuple)? {
+                        runtime::VmValue::Tuple(items) => {
+                            items.get(*index).cloned().ok_or_else(|| {
+                                CpsReprEvalError::MissingRecordField {
+                                    function: function.name.clone(),
+                                    field: core_ir::Name(index.to_string()),
+                                }
+                            })?
+                        }
+                        value => value,
+                    };
+                    values.insert(*dest, CpsReprRuntimeValue::Plain(value));
+                }
+                CpsStmt::VariantTagEq { dest, variant, tag } => {
+                    let matches = matches!(
+                        read_plain_value(function, &values, *variant)?,
+                        runtime::VmValue::Variant { tag: actual, .. } if actual == *tag
+                    );
+                    values.insert(
+                        *dest,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Bool(matches)),
+                    );
+                }
+                CpsStmt::VariantPayload { dest, variant } => {
+                    let value = match read_plain_value(function, &values, *variant)? {
+                        runtime::VmValue::Variant {
+                            value: Some(value), ..
+                        } => *value,
+                        runtime::VmValue::Variant { value: None, .. } => runtime::VmValue::Unit,
+                        value => value,
+                    };
+                    values.insert(*dest, CpsReprRuntimeValue::Plain(value));
+                }
                 CpsStmt::Primitive { dest, op, args } => {
                     let args = args
                         .iter()
@@ -1177,6 +1256,20 @@ fn eval_continuations(
                         *dest,
                         CpsReprRuntimeValue::Plain(eval_function(module, target_function, args)?),
                     );
+                }
+                CpsStmt::ApplyClosure { dest, closure, arg } => {
+                    let closure = read_closure(function, &values, *closure)?;
+                    let arg = read_plain_value(function, &values, *arg)?;
+                    let result = eval_continuations(
+                        module,
+                        function,
+                        closure.entry,
+                        vec![CpsReprRuntimeValue::Plain(arg)],
+                        closure.values,
+                        active_handlers.clone(),
+                        guard_stack.clone(),
+                    )?;
+                    values.insert(*dest, result);
                 }
                 CpsStmt::CloneContinuation { dest, source } => {
                     let value = read_value(function, &values, *source)?;
@@ -1346,12 +1439,12 @@ fn read_resumption(
     id: CpsValueId,
 ) -> CpsReprEvalResult<CpsReprResumption> {
     match read_value(function, values, id)? {
-        CpsReprRuntimeValue::Plain(_) | CpsReprRuntimeValue::Thunk(_) => {
-            Err(CpsReprEvalError::ExpectedResumption {
-                function: function.name.clone(),
-                id,
-            })
-        }
+        CpsReprRuntimeValue::Plain(_)
+        | CpsReprRuntimeValue::Thunk(_)
+        | CpsReprRuntimeValue::Closure(_) => Err(CpsReprEvalError::ExpectedResumption {
+            function: function.name.clone(),
+            id,
+        }),
         CpsReprRuntimeValue::Resumption(resumption) => Ok(resumption),
     }
 }
@@ -1363,12 +1456,28 @@ fn into_plain_value(
 ) -> CpsReprEvalResult<runtime::VmValue> {
     match value {
         CpsReprRuntimeValue::Plain(value) => Ok(value),
-        CpsReprRuntimeValue::Resumption(_) | CpsReprRuntimeValue::Thunk(_) => {
-            Err(CpsReprEvalError::ExpectedPlainValue {
-                function: function.name.clone(),
-                id,
-            })
-        }
+        CpsReprRuntimeValue::Resumption(_)
+        | CpsReprRuntimeValue::Thunk(_)
+        | CpsReprRuntimeValue::Closure(_) => Err(CpsReprEvalError::ExpectedPlainValue {
+            function: function.name.clone(),
+            id,
+        }),
+    }
+}
+
+fn read_closure(
+    function: &CpsReprFunction,
+    values: &HashMap<CpsValueId, CpsReprRuntimeValue>,
+    id: CpsValueId,
+) -> CpsReprEvalResult<CpsReprClosure> {
+    match read_value(function, values, id)? {
+        CpsReprRuntimeValue::Closure(closure) => Ok(closure),
+        CpsReprRuntimeValue::Plain(_)
+        | CpsReprRuntimeValue::Resumption(_)
+        | CpsReprRuntimeValue::Thunk(_) => Err(CpsReprEvalError::ExpectedPlainValue {
+            function: function.name.clone(),
+            id,
+        }),
     }
 }
 
@@ -1377,6 +1486,7 @@ enum CpsReprRuntimeValue {
     Plain(runtime::VmValue),
     Resumption(CpsReprResumption),
     Thunk(CpsReprThunk),
+    Closure(CpsReprClosure),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1393,6 +1503,12 @@ struct CpsReprThunk {
     values: HashMap<CpsValueId, CpsReprRuntimeValue>,
     handlers: Vec<CpsReprHandlerFrame>,
     guard_stack: Vec<CpsReprGuardEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsReprClosure {
+    entry: CpsContinuationId,
+    values: HashMap<CpsValueId, CpsReprRuntimeValue>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

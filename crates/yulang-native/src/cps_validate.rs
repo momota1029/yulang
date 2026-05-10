@@ -149,13 +149,19 @@ fn function_defined_values(function: &CpsFunction) -> HashSet<CpsValueId> {
                 | CpsStmt::PeekGuard { dest }
                 | CpsStmt::FindGuard { dest, .. }
                 | CpsStmt::MakeThunk { dest, .. }
+                | CpsStmt::MakeClosure { dest, .. }
+                | CpsStmt::MakeRecursiveClosure { dest, .. }
                 | CpsStmt::ForceThunk { dest, .. }
                 | CpsStmt::Tuple { dest, .. }
                 | CpsStmt::Record { dest, .. }
                 | CpsStmt::Variant { dest, .. }
                 | CpsStmt::Select { dest, .. }
+                | CpsStmt::TupleGet { dest, .. }
+                | CpsStmt::VariantTagEq { dest, .. }
+                | CpsStmt::VariantPayload { dest, .. }
                 | CpsStmt::Primitive { dest, .. }
                 | CpsStmt::DirectCall { dest, .. }
+                | CpsStmt::ApplyClosure { dest, .. }
                 | CpsStmt::CloneContinuation { dest, .. }
                 | CpsStmt::Resume { dest, .. }
                 | CpsStmt::ResumeWithHandler { dest, .. } => {
@@ -196,6 +202,14 @@ fn validate_continuation(
                 require_continuation(function, continuation_ids, *entry)?;
                 values.insert(*dest);
             }
+            CpsStmt::MakeClosure { dest, entry } => {
+                require_continuation(function, continuation_ids, *entry)?;
+                values.insert(*dest);
+            }
+            CpsStmt::MakeRecursiveClosure { dest, entry } => {
+                require_continuation(function, continuation_ids, *entry)?;
+                values.insert(*dest);
+            }
             CpsStmt::ForceThunk { dest, thunk } => {
                 require_value(function, &values, *thunk)?;
                 values.insert(*dest);
@@ -222,10 +236,24 @@ fn validate_continuation(
                 require_value(function, &values, *base)?;
                 values.insert(*dest);
             }
+            CpsStmt::TupleGet { dest, tuple, .. } => {
+                require_value(function, &values, *tuple)?;
+                values.insert(*dest);
+            }
+            CpsStmt::VariantTagEq { dest, variant, .. }
+            | CpsStmt::VariantPayload { dest, variant, .. } => {
+                require_value(function, &values, *variant)?;
+                values.insert(*dest);
+            }
             CpsStmt::Primitive { dest, args, .. } | CpsStmt::DirectCall { dest, args, .. } => {
                 for arg in args {
                     require_value(function, &values, *arg)?;
                 }
+                values.insert(*dest);
+            }
+            CpsStmt::ApplyClosure { dest, closure, arg } => {
+                require_value(function, &values, *closure)?;
+                require_value(function, &values, *arg)?;
                 values.insert(*dest);
             }
             CpsStmt::CloneContinuation { dest, source } => {
@@ -305,7 +333,11 @@ fn validate_continuation(
                 require_value(function, &values, *blocked)?;
             }
             require_continuation(function, continuation_ids, *resume)?;
-            require_handler(function, handler_ids, *handler)
+            if handler.0 == usize::MAX {
+                Ok(())
+            } else {
+                require_handler(function, handler_ids, *handler)
+            }
         }
     }
 }

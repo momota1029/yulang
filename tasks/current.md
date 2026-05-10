@@ -81,7 +81,7 @@ runtime/core IR
   - `lower_cps_repr_module` は CPS continuation を executable representation IR の code object として残す最小入口。pure continuation flow と multi-shot resumption flow を `eval_cps_repr_module` で確認している。
   - CPS repr evaluator は `Perform` を handler entry continuation へ入り、resume continuation + captured value snapshot を resumption value として渡す。これは Cranelift value/closure lane へ effectful control を渡す前段。
   - `analyze_cps_repr_values` は CPS repr value を `Plain` / `Resumption` / `Unknown` に分類する。handler entry の payload/resumption param と `Resume` の result kind を構造から追い、resumption を heap pointer lane へ落とす前段にする。
-  - `analyze_cps_repr_abi_lanes` は CPS repr value / continuation return を `ScalarI64` / `NativeFloat` / `RuntimeValuePtr` / `ResumptionPtr` / `Unknown` に分類する。effect 名や std path は見ず、handler entry の第 2 引数と `Perform` / `Resume` の構造から resumption lane を出す。
+  - `analyze_cps_repr_abi_lanes` は CPS repr value / continuation return を `ScalarI64` / `NativeFloat` / `RuntimeValuePtr` / `ThunkPtr` / `ResumptionPtr` / `OpaqueI64` / `Unknown` に分類する。effect 名や std path は見ず、handler entry の第 2 引数と `Perform` / `Resume` の構造から resumption lane を出す。
   - `lower_cps_repr_abi_module` は CPS repr に lane 情報を貼り、continuation params / environment slots / return lane を Cranelift lowering が読みやすい形へ束ねる。まだ machine layout は選ばず、effectful control を codegen 境界まで運ぶための ABI skeleton に留める。
   - `compile_cps_repr_abi_module` は scalar CPS repr ABI を Cranelift で実行する最初の入口。pure 関数は continuation を Cranelift block、`Continue` は jump、`Branch` は brif に落とす。
   - effectful 関数では CPS continuation を個別の JIT 関数に分ける。`Perform` は resume continuation の code pointer と captured scalar environment snapshot から heap resumption を作って handler entry へ渡し、`Resume` は helper 経由で resumption を呼ぶ。non-tail resume と同じ resumption の複数回呼び出しは確認済み。現時点では scalar i64 / environment 4 slot までの prototype。
@@ -92,7 +92,7 @@ runtime/core IR
   - prelude ありの source literal と、prelude ありの小さい source-defined `act` / `catch` は CPS repr Cranelift で VM 比較済み。
   - handler の value arm は CPS lowering で扱う。pure body は value arm continuation に入り、resume で戻った値は VM と同じく value arm を再適用しない。
   - `std::flow::sub::sub { std::flow::sub::return 41 }` は CPS repr Cranelift で VM 比較済み。CPS lowering は、`fun x -> handle x ...` 形の thunk handler wrapper が thunk 引数へ直接適用される場合、thunk を汎用値 lane にせず handle body へインライン展開する。
-  - CPS repr value / ABI lane 解析では `Unknown` を初期未確定値として扱い、既知 lane / value kind で精密化するようにした。異なる既知 lane が衝突した場合だけ `Unknown` に戻る。
+  - CPS repr value / ABI lane 解析では `Unknown` を初期未確定値として扱い、既知 lane / value kind で精密化するようにした。異なる i64 系 lane が合流した場合は `OpaqueI64` に上げ、未確定値へ戻して固定点を揺らさない。
   - 汎用 thunk value lane / thunk invocation はまだ未対応。wrapper を越えて thunk を保存・返却・複数箇所で渡す場合は次の段階で扱う。
   - `compile_runtime_module_to_cps_repr_jit` は runtime module -> CPS -> CPS repr -> CPS repr ABI -> Cranelift まで通す helper。現時点では pure scalar root の実行確認用。
   - `compare_cps_repr_cranelift_i64` は VM と CPS repr Cranelift の scalar root を比較する regression entrypoint。まず `20 + 22` の runtime module で固定した。
@@ -262,6 +262,12 @@ runtime/core IR
   - same-function handler re-entry は最小形を通した。Cranelift は
     `ResumeWithHandler` の rebase 時に handler arm env を pending frame として
     capture し、handler 選択時に entry ごとの env を復元する。
+  - `std::undet` の `.once` は finite list の例で CPS repr object/executable まで
+    compile できる。ただし `each [1, 2, 3] .once` の native-run result はまだ
+    VM と一致せず、現状は `:just 0` になる。handler id は module 内で global に
+    renumber され、`Perform` codegen は effect に合う handler arm を module 全体
+    から候補化するところまで入ったが、`each` / `fold_impl` / `sub::sub` をまたぐ
+    thunk force と dynamic handler stack の意味論は未完了。
 
 処理系化へ近い次の順番:
 
@@ -272,6 +278,11 @@ runtime/core IR
    - 完了: `run state (thunk (k value))` は handler wrapper 構造を見て
      `ResumeWithHandler` へ落とす。
    - 完了: mutable ref regression は VM/JIT compare のまま通り、`ignore` を外した。
+   - 完了: 最小 `once` kernel として、tail effect operation と boolean match
+     condition の `branch` を handler が `k true` で再開する source regression を
+     追加した。
+   - 完了: pure higher-order call の第一歩として、lambda を CPS closure に lower し、
+     Cranelift CPS repr で indirect apply できるようにした。
 2. CPS repr Cranelift の source 回帰を広げる。
    `let` / `if` / primitive / direct call / simple handler / value arm を
    VM と比較しながら固定する。
@@ -330,6 +341,11 @@ runtime/core IR
 - CPS repr Cranelift の source 回帰を広げる。
 - 焦点:
   - mutable ref 以外の user-defined state/effect wrapper を VM 比較へ足す。
+  - std `undet.once` は finite list の object/executable compile path まで通った。
+    ただし実行値はまだ VM と一致しない。次は `each` / `fold_impl` / `sub::sub` を
+    またぐ thunk force と dynamic handler stack の意味論を VM と揃える。
+  - effectful callback の handler frame は関数境界をまたいで選択できるように
+    なった。次は handler candidate と captured env をより ABI 明示的な構造へ寄せる。
   - 保存・返却される thunk value はまだ扱わず、direct thunk callback subset の
     境界を明文化する。
   - value backend と CPS repr backend の fallback policy を、握りつぶしではなく
