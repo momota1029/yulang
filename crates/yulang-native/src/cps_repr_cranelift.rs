@@ -271,6 +271,22 @@ pub fn compile_cps_repr_abi_module(
         yulang_cps_uninstall_handler_i64 as *const u8,
     );
     builder.symbol(
+        "yulang_cps_abort_i64",
+        yulang_cps_abort_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_abort_active_i64",
+        yulang_cps_abort_active_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_abort_value_i64",
+        yulang_cps_abort_value_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_clear_abort_i64",
+        yulang_cps_clear_abort_i64 as *const u8,
+    );
+    builder.symbol(
         "yulang_cps_selected_handler_env_or_i64",
         yulang_cps_selected_handler_env_or_i64 as *const u8,
     );
@@ -1030,7 +1046,9 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let thunk = read_value(builder, function, *thunk)?;
             let call = builder.ins().call(helper, &[thunk]);
             let results = builder.inst_results(call);
-            builder.def_var(variable(*dest), results[0]);
+            let result = results[0];
+            return_if_abort_active(module_backend, builder)?;
+            builder.def_var(variable(*dest), result);
         }
         CpsStmt::Tuple { dest, items } => {
             let items = read_values(builder, function, items)?;
@@ -1113,7 +1131,9 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                     arity: results.len(),
                 });
             }
-            builder.def_var(variable(*dest), results[0]);
+            let result = results[0];
+            return_if_abort_active(module_backend, builder)?;
+            builder.def_var(variable(*dest), result);
         }
         CpsStmt::ApplyClosure { dest, closure, arg } => {
             let closure = read_value(builder, function, *closure)?;
@@ -1124,6 +1144,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                 "yulang_cps_apply_closure_i64",
                 &[closure, arg],
             )?;
+            return_if_abort_active(module_backend, builder)?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::CloneContinuation { dest, source } => {
@@ -1146,7 +1167,9 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let arg = read_value(builder, function, *arg)?;
             let call = builder.ins().call(helper, &[resumption, arg]);
             let results = builder.inst_results(call);
-            builder.def_var(variable(*dest), results[0]);
+            let result = results[0];
+            return_if_abort_active(module_backend, builder)?;
+            builder.def_var(variable(*dest), result);
         }
         CpsStmt::ResumeWithHandler {
             dest,
@@ -1168,7 +1191,9 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let handler = builder.ins().iconst(types::I64, handler.0 as i64);
             let call = builder.ins().call(helper, &[resumption, arg, handler]);
             let results = builder.inst_results(call);
-            builder.def_var(variable(*dest), results[0]);
+            let result = results[0];
+            return_if_abort_active(module_backend, builder)?;
+            builder.def_var(variable(*dest), result);
         }
         CpsStmt::InstallHandler { handler, envs } => {
             capture_handler_envs(module_backend, builder, function, *handler, envs)?;
@@ -1404,6 +1429,34 @@ fn lower_selected_handler_return<M: Module>(
             });
         }
         let result = results[0];
+        // The handler arm body just returned. Mark this value as the abort
+        // value if no nested abort is already active, so callback / fold
+        // frames between this Perform and the eval boundary skip the
+        // remainder of their work and bubble it up.
+        let already_active = call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_abort_active_i64",
+            &[],
+        )?;
+        let mark_block = builder.create_block();
+        let already_block = builder.create_block();
+        builder
+            .ins()
+            .brif(already_active, already_block, &[], mark_block, &[]);
+
+        builder.switch_to_block(mark_block);
+        builder.seal_block(mark_block);
+        let _ = call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_abort_i64",
+            &[result],
+        )?;
+        builder.ins().return_(&[result]);
+
+        builder.switch_to_block(already_block);
+        builder.seal_block(already_block);
         builder.ins().return_(&[result]);
 
         builder.switch_to_block(next_block);
@@ -1459,7 +1512,9 @@ fn call_continuation<M: Module>(
             arity: results.len(),
         });
     }
-    Ok(results[0])
+    let result = results[0];
+    return_if_abort_active(module_backend, builder)?;
+    Ok(result)
 }
 
 fn continuation_environment_argument<M: Module>(
@@ -1682,6 +1737,42 @@ fn call_i64_helper<M: Module>(
     let helper = declare_import(module_backend, builder, name, &params, types::I64)?;
     let call = builder.ins().call(helper, args);
     Ok(builder.inst_results(call)[0])
+}
+
+/// Emit an abort-active check after an internal call. If the runtime abort
+/// slot is set, the current Cranelift function returns the abort value
+/// immediately, mirroring CpsRuntimeValue::Aborted propagation in the CPS
+/// evaluator. The caller continues lowering after this point as if no abort
+/// happened.
+fn return_if_abort_active<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+) -> CpsReprCraneliftResult<()> {
+    let active = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_abort_active_i64",
+        &[],
+    )?;
+    let abort_block = builder.create_block();
+    let cont_block = builder.create_block();
+    builder
+        .ins()
+        .brif(active, abort_block, &[], cont_block, &[]);
+
+    builder.switch_to_block(abort_block);
+    builder.seal_block(abort_block);
+    let value = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_abort_value_i64",
+        &[],
+    )?;
+    builder.ins().return_(&[value]);
+
+    builder.switch_to_block(cont_block);
+    builder.seal_block(cont_block);
+    Ok(())
 }
 
 fn make_env<M: Module>(
@@ -2036,7 +2127,9 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let thunk = read_value(builder, function, *thunk)?;
             let call = builder.ins().call(helper, &[thunk]);
             let results = builder.inst_results(call);
-            builder.def_var(variable(*dest), results[0]);
+            let result = results[0];
+            return_if_abort_active(module_backend, builder)?;
+            builder.def_var(variable(*dest), result);
         }
         CpsStmt::Tuple { dest, items } => {
             let items = read_values(builder, function, items)?;
@@ -2119,7 +2212,9 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                     arity: results.len(),
                 });
             }
-            builder.def_var(variable(*dest), results[0]);
+            let result = results[0];
+            return_if_abort_active(module_backend, builder)?;
+            builder.def_var(variable(*dest), result);
         }
         CpsStmt::ApplyClosure { dest, closure, arg } => {
             let closure = read_value(builder, function, *closure)?;
@@ -2130,6 +2225,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                 "yulang_cps_apply_closure_i64",
                 &[closure, arg],
             )?;
+            return_if_abort_active(module_backend, builder)?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::CloneContinuation { dest, source } => {
@@ -2747,6 +2843,7 @@ thread_local! {
     static NATIVE_CPS_I64_NEXT_GUARD: RefCell<i64> = const { RefCell::new(0) };
     static NATIVE_CPS_I64_PENDING_HANDLER_ENVS: RefCell<Vec<(i64, NativeCpsI64HandlerEnv)>> = const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_SELECTED_HANDLER_ENVS: RefCell<Vec<NativeCpsI64HandlerEnv>> = const { RefCell::new(Vec::new()) };
+    static NATIVE_CPS_I64_ABORT: RefCell<Option<i64>> = const { RefCell::new(None) };
 }
 
 fn reset_native_i64_cps_state() {
@@ -2757,6 +2854,7 @@ fn reset_native_i64_cps_state() {
     NATIVE_CPS_I64_NEXT_GUARD.with(|next| *next.borrow_mut() = 0);
     NATIVE_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
     NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
+    NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = None);
 }
 
 fn current_native_i64_guard_stack() -> Vec<i64> {
@@ -3322,6 +3420,28 @@ extern "C" fn yulang_cps_uninstall_handler_i64(handler: i64) -> i64 {
         if let Some(pos) = stack.iter().rposition(|frame| frame.handler == handler) {
             stack.remove(pos);
         }
+    });
+    0
+}
+
+extern "C" fn yulang_cps_abort_i64(value: i64) -> i64 {
+    NATIVE_CPS_I64_ABORT.with(|slot| {
+        *slot.borrow_mut() = Some(value);
+    });
+    value
+}
+
+extern "C" fn yulang_cps_abort_active_i64() -> i64 {
+    NATIVE_CPS_I64_ABORT.with(|slot| i64::from(slot.borrow().is_some()))
+}
+
+extern "C" fn yulang_cps_abort_value_i64() -> i64 {
+    NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().unwrap_or(0))
+}
+
+extern "C" fn yulang_cps_clear_abort_i64() -> i64 {
+    NATIVE_CPS_I64_ABORT.with(|slot| {
+        *slot.borrow_mut() = None;
     });
     0
 }

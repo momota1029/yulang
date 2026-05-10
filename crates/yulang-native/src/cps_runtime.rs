@@ -65,6 +65,11 @@ thread_local! {
     static YULANG_CPS_I64_NEXT_GUARD: RefCell<i64> = const { RefCell::new(0) };
     static YULANG_CPS_I64_PENDING_HANDLER_ENVS: RefCell<Vec<(i64, YulangCpsI64HandlerEnv)>> = const { RefCell::new(Vec::new()) };
     static YULANG_CPS_I64_SELECTED_HANDLER_ENVS: RefCell<Vec<YulangCpsI64HandlerEnv>> = const { RefCell::new(Vec::new()) };
+    /// Abort propagation slot for handler-arm-body non-local returns.
+    /// While Some(value), every internal call site short-circuits and bubbles
+    /// the value up to the eval boundary, mirroring CpsRuntimeValue::Aborted
+    /// in the CPS evaluator.
+    static YULANG_CPS_I64_ABORT: RefCell<Option<i64>> = const { RefCell::new(None) };
 }
 
 fn make_env(values: &[i64]) -> *const i64 {
@@ -424,6 +429,32 @@ pub extern "C" fn yulang_cps_capture_handler_env_i64(handler: i64, entry: i64, e
     YULANG_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| {
         envs.borrow_mut()
             .push((handler, YulangCpsI64HandlerEnv { entry, env }));
+    });
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_cps_abort_i64(value: i64) -> i64 {
+    YULANG_CPS_I64_ABORT.with(|slot| {
+        *slot.borrow_mut() = Some(value);
+    });
+    value
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_cps_abort_active_i64() -> i64 {
+    YULANG_CPS_I64_ABORT.with(|slot| i64::from(slot.borrow().is_some()))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_cps_abort_value_i64() -> i64 {
+    YULANG_CPS_I64_ABORT.with(|slot| slot.borrow().unwrap_or(0))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_cps_clear_abort_i64() -> i64 {
+    YULANG_CPS_I64_ABORT.with(|slot| {
+        *slot.borrow_mut() = None;
     });
     0
 }

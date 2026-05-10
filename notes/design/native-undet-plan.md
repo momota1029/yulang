@@ -70,16 +70,28 @@ Completed:
   Cranelift backs the new stmts with thread-local
   `yulang_cps_install_handler_i64` / `yulang_cps_uninstall_handler_i64`
   helpers that share the existing handler-stack runtime.
+- Milestone 7: `std::undet.each` runs end-to-end with a local DFS once
+  helper. CPS lowering forces the result of effectful direct-call
+  statements (e.g. the `xs.fold(...)` between `sub::sub { ... }` and
+  `reject()`). The CPS evaluators wrap a handler-arm body's non-local
+  return as `Aborted(value)` and bubble it up through `DirectCall` /
+  `ApplyClosure` / `ForceThunk` / `Resume` / `ResumeWithHandler`.
+  Cranelift mirrors this with a thread-local abort slot and helpers
+  (`yulang_cps_abort_i64`, `yulang_cps_abort_active_i64`,
+  `yulang_cps_abort_value_i64`, `yulang_cps_clear_abort_i64`) plus a
+  `return_if_abort_active` check after every internal call site, and a
+  Perform terminator that wraps the handler-arm result if no nested
+  abort is already active.
 
 Open:
 
-- `std::undet.each` still uses `fold` / `sub::return`; even with the
-  handler-stack threading the recursive `each` body needs to coexist with
-  closure callbacks that also forward dynamic context.
-- `std::undet.once` still needs a real resumption queue strategy.
+- `std::undet.once` still needs a real resumption queue strategy. The
+  recommended next step is to widen the CPS runtime value domain so
+  resumptions / closures / thunks can flow through `List` / `Tuple` /
+  `Variant` / function arguments.
 - generated CPS executables still do not print non-scalar Yulang values.
 
-The next implementation step is Milestone 7: re-introduce
-`std::undet::each` together with a local DFS-once helper, which exercises
-`fold`, `sub::return`, and closure callbacks against the new dynamic
-handler routing.
+The next implementation step is Phase B in
+`notes/todo/native-undet-write5.md`: unify the CPS evaluator and the
+Cranelift backend's value domain so first-class resumptions / closures
+flow through containers and pattern matches.

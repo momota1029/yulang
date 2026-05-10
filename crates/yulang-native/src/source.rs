@@ -687,7 +687,6 @@ once_dfs_int { each [1, 2, 3] }
     }
 
     #[test]
-    #[ignore = "Milestone 7: std::undet.each through local once_dfs"]
     fn compares_std_each_with_local_once_dfs_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(

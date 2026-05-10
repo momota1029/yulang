@@ -181,6 +181,13 @@ or out of here into the user-facing table once they stabilize.
       `ApplyClosure` / `ForceThunk`; Cranelift backs the new stmts with
       thread-local install/uninstall helpers that share the existing
       handler-stack runtime.
+- [x] `std::undet.each` runs through CPS eval, CPS repr eval, and the
+      Cranelift JIT against a local DFS once helper. Handler-arm
+      non-local returns propagate through every internal call site as
+      `CpsRuntimeValue::Aborted` in the evaluators and as a thread-local
+      abort slot in the Cranelift runtime, so a `sub::return` inside a
+      `fold` callback skips the surrounding `reject()` and reaches the
+      handler scope.
 - [ ] General closures and heap value lanes are not complete.
 - [ ] Non-scalar CPS return values can flow through the prototype as opaque
       `i64` heap pointers, but generated CPS executables do not yet print them
