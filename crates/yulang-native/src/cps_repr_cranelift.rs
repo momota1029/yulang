@@ -761,6 +761,11 @@ fn function_has_effect_flow(function: &CpsReprAbiFunction) -> bool {
                             | CpsStmt::ResumeWithHandler { .. }
                             | CpsStmt::InstallHandler { .. }
                             | CpsStmt::UninstallHandler { .. }
+                            // Thunks introduce additional continuations
+                            // (the thunk body) that the scalar path cannot
+                            // discover from a single Cranelift block.
+                            | CpsStmt::MakeThunk { .. }
+                            | CpsStmt::ForceThunk { .. }
                     )
                 })
         })
