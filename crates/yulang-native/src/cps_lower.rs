@@ -1192,6 +1192,12 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_root(mut self, expr: &runtime::Expr) -> CpsLowerResult<CpsFunction> {
         let value = self.lower_expr(expr)?;
+        // Force the return value when the static return type demands a
+        // plain value. Without this, a body that ends in `MakeThunk` (e.g.
+        // a helper fn whose body branches over an effect like `guard`)
+        // would leak a Thunk all the way to the root and make CPS eval
+        // explode with ExpectedPlainValue.
+        let value = self.force_if_non_thunk_demand(value, &expr.ty);
         self.terminate(CpsTerminator::Return(value));
         self.finish_current();
         Ok(CpsFunction {
@@ -1449,6 +1455,7 @@ impl<'a> FunctionLowerer<'a> {
         } else {
             self.lower_expr(body)?
         };
+        let value = self.force_if_non_thunk_demand(value, &body.ty);
         self.terminate(CpsTerminator::Return(value));
         self.finish_current();
         self.locals = saved_locals;
@@ -1499,6 +1506,7 @@ impl<'a> FunctionLowerer<'a> {
         } else {
             self.lower_expr(body)?
         };
+        let value = self.force_if_non_thunk_demand(value, &body.ty);
         self.terminate(CpsTerminator::Return(value));
         self.finish_current();
         self.locals = saved_locals;
@@ -4062,11 +4070,18 @@ mod tests {
                     op: core_ir::PrimitiveOp::IntAdd,
                     args: vec![CpsValueId(0), CpsValueId(1)],
                 },
+                // lower_root forces the return value when the static
+                // return type is non-Thunk; ForceThunk is a no-op on
+                // plain values.
+                CpsStmt::ForceThunk {
+                    dest: CpsValueId(3),
+                    thunk: CpsValueId(2),
+                },
             ]
         );
         assert_eq!(
             lowered.roots[0].continuations[0].terminator,
-            CpsTerminator::Return(CpsValueId(2))
+            CpsTerminator::Return(CpsValueId(3))
         );
     }
 
@@ -4195,9 +4210,20 @@ mod tests {
             }
         );
         assert_eq!(root.continuations[3].params, vec![CpsValueId(1)]);
+        // lower_root force-emits a ForceThunk on the join-block's incoming
+        // value before the Return, so the returned slot is the forced one
+        // rather than the join parameter directly.
+        assert_eq!(root.continuations[3].stmts.len(), 1);
+        assert!(matches!(
+            root.continuations[3].stmts[0],
+            CpsStmt::ForceThunk {
+                dest: CpsValueId(4),
+                thunk: CpsValueId(1),
+            }
+        ));
         assert_eq!(
             root.continuations[3].terminator,
-            CpsTerminator::Return(CpsValueId(1))
+            CpsTerminator::Return(CpsValueId(4))
         );
     }
 
@@ -4240,6 +4266,13 @@ mod tests {
                 CpsStmt::ForceThunk {
                     dest: CpsValueId(2),
                     thunk: CpsValueId(1),
+                },
+                // lower_root also forces the final return value when the
+                // root expression's type is non-Thunk, so the body's already-
+                // forced direct-call result gets one more (no-op) force.
+                CpsStmt::ForceThunk {
+                    dest: CpsValueId(3),
+                    thunk: CpsValueId(2),
                 },
             ]
         );

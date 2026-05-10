@@ -544,26 +544,57 @@ fn eval_continuations(
                     write_value(&mut values, *dest, result);
                 }
                 CpsStmt::ApplyClosure { dest, closure, arg } => {
-                    let closure = read_closure(function, &values, *closure)?;
-                    let arg = read_value(function, &values, *arg)?;
-                    let owner = function_by_name(module, &closure.owner_function)?;
-                    let mut closure_values = closure.values.as_ref().clone();
-                    if let Some(self_id) = closure.recursive_self {
-                        write_value(
-                            &mut closure_values,
-                            self_id,
-                            CpsRuntimeValue::Closure(closure.clone()),
-                        );
-                    }
-                    let result = eval_continuations(
-                        module,
-                        owner,
-                        closure.entry,
-                        vec![arg],
-                        closure_values,
-                        active_handlers.clone(),
-                        guard_stack.clone(),
-                    )?;
+                    // ApplyClosure can target either a Closure or a Resumption.
+                    // The latter happens when a resumption was stored inside a
+                    // first-class value (e.g. queue<resumption> from std::undet.once)
+                    // and later extracted via TupleGet/ListIndex; the surface
+                    // type system cannot distinguish them so we dispatch here.
+                    let callable = read_value(function, &values, *closure)?;
+                    let result = match callable {
+                        CpsRuntimeValue::Closure(closure) => {
+                            let arg = read_value(function, &values, *arg)?;
+                            let owner = function_by_name(module, &closure.owner_function)?;
+                            let mut closure_values = closure.values.as_ref().clone();
+                            if let Some(self_id) = closure.recursive_self {
+                                write_value(
+                                    &mut closure_values,
+                                    self_id,
+                                    CpsRuntimeValue::Closure(closure.clone()),
+                                );
+                            }
+                            eval_continuations(
+                                module,
+                                owner,
+                                closure.entry,
+                                vec![arg],
+                                closure_values,
+                                active_handlers.clone(),
+                                guard_stack.clone(),
+                            )?
+                        }
+                        CpsRuntimeValue::Resumption(resumption) => {
+                            // Treat as Resume: the surface saw an opaque
+                            // callable, but the runtime value is a captured
+                            // continuation. Resume needs a plain payload.
+                            let arg = read_plain_value(function, &values, *arg)?;
+                            let owner = function_by_name(module, &resumption.owner_function)?;
+                            eval_continuations(
+                                module,
+                                owner,
+                                resumption.target,
+                                vec![CpsRuntimeValue::Plain(arg)],
+                                resumption.values.as_ref().clone(),
+                                resumption.handlers.as_ref().clone(),
+                                resumption.guard_stack.as_ref().clone(),
+                            )?
+                        }
+                        _ => {
+                            return Err(CpsEvalError::ExpectedPlainValue {
+                                function: function.name.clone(),
+                                id: *closure,
+                            });
+                        }
+                    };
                     if matches!(result, CpsRuntimeValue::Aborted(_)) {
                         return Ok(result);
                     }
