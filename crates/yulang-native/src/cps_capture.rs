@@ -10,6 +10,16 @@ pub fn infer_cps_captures(module: &mut CpsModule) {
 }
 
 fn infer_function_captures(function: &mut CpsFunction) {
+    let handler_arm_entries = function
+        .handlers
+        .iter()
+        .map(|handler| {
+            (
+                handler.id,
+                handler.arms.iter().map(|arm| arm.entry).collect::<Vec<_>>(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
     loop {
         let current_captures = function
             .continuations
@@ -24,7 +34,7 @@ fn infer_function_captures(function: &mut CpsFunction) {
                 .copied()
                 .chain(continuation_defs(continuation))
                 .collect::<BTreeSet<_>>();
-            let captures = continuation_uses(continuation, &current_captures)
+            let captures = continuation_uses(continuation, &current_captures, &handler_arm_entries)
                 .into_iter()
                 .filter(|value| !local_defs.contains(value))
                 .collect::<Vec<_>>();
@@ -64,23 +74,28 @@ fn fill_resume_handler_envs(function: &mut CpsFunction) {
             .chain(continuation.captures.iter().copied())
             .collect::<BTreeSet<_>>();
         for stmt in &mut continuation.stmts {
-            if let CpsStmt::ResumeWithHandler { handler, envs, .. } = stmt
-                && envs.is_empty()
-                && let Some(entries) = handler_entries.get(handler)
-            {
-                *envs = entries
-                    .iter()
-                    .filter_map(|entry| {
-                        let captures = continuation_captures.get(entry)?;
-                        captures
+            match stmt {
+                CpsStmt::ResumeWithHandler { handler, envs, .. }
+                | CpsStmt::InstallHandler { handler, envs, .. }
+                    if envs.is_empty() =>
+                {
+                    if let Some(entries) = handler_entries.get(handler) {
+                        *envs = entries
                             .iter()
-                            .all(|value| available.contains(value))
-                            .then(|| CpsHandlerEnv {
-                                entry: *entry,
-                                values: captures.clone(),
+                            .filter_map(|entry| {
+                                let captures = continuation_captures.get(entry)?;
+                                captures
+                                    .iter()
+                                    .all(|value| available.contains(value))
+                                    .then(|| CpsHandlerEnv {
+                                        entry: *entry,
+                                        values: captures.clone(),
+                                    })
                             })
-                    })
-                    .collect();
+                            .collect();
+                    }
+                }
+                _ => {}
             }
             available.extend(stmt_defs(stmt));
         }
@@ -125,6 +140,7 @@ fn stmt_def(stmt: &CpsStmt) -> Option<CpsValueId> {
 fn continuation_uses(
     continuation: &crate::cps_ir::CpsContinuation,
     continuation_captures: &HashMap<crate::cps_ir::CpsContinuationId, Vec<CpsValueId>>,
+    handler_arm_entries: &HashMap<crate::cps_ir::CpsHandlerId, Vec<crate::cps_ir::CpsContinuationId>>,
 ) -> Vec<CpsValueId> {
     let mut uses = BTreeSet::new();
     for stmt in &continuation.stmts {
@@ -210,9 +226,24 @@ fn continuation_uses(
                     uses.extend(env.values.iter().copied());
                 }
             }
-            CpsStmt::InstallHandler { envs, .. } => {
+            CpsStmt::InstallHandler { handler, envs } => {
                 for env in envs {
                     uses.extend(env.values.iter().copied());
+                }
+                // The handler arm bodies may capture values that are live
+                // *here* but referenced in arm continuations belonging to
+                // this function. Propagate those captures so the env-fill
+                // pass can package them into InstallHandler.envs.
+                if let Some(entries) = handler_arm_entries.get(handler) {
+                    for entry in entries {
+                        uses.extend(
+                            continuation_captures
+                                .get(entry)
+                                .into_iter()
+                                .flatten()
+                                .copied(),
+                        );
+                    }
                 }
             }
             CpsStmt::UninstallHandler { .. } => {}

@@ -850,7 +850,6 @@ case (each [1, 2, 3]).once:
     }
 
     #[test]
-    #[ignore = "Phase F: std::undet.once with scalar unwrap"]
     fn compares_std_undet_once_scalar_unwrapped_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(

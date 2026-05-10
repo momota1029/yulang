@@ -1247,15 +1247,7 @@ impl<'a> FunctionLowerer<'a> {
                     && matches!(info.ret, runtime::Type::Thunk { .. }));
             if should_inline_direct {
                 if let Some(value) = self.lower_inline_direct_apply(expr)? {
-                    if direct_call_result_needs_force(expr, info) {
-                        let forced = self.fresh_value();
-                        self.current.stmts.push(CpsStmt::ForceThunk {
-                            dest: forced,
-                            thunk: value,
-                        });
-                        return Ok(forced);
-                    }
-                    return Ok(value);
+                    return Ok(self.force_if_non_thunk_demand(value, &expr.ty));
                 }
             }
             let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
@@ -1275,22 +1267,21 @@ impl<'a> FunctionLowerer<'a> {
                 })
                 .collect::<CpsLowerResult<Vec<_>>>()?;
             let dest = self.fresh_value();
-            let should_force_direct = direct_call_result_needs_force(expr, info);
             self.current
                 .stmts
                 .push(CpsStmt::DirectCall { dest, target, args });
             if info_returns_thunk {
                 self.mark_active_handlers_external_call();
             }
-            if should_force_direct {
-                let forced = self.fresh_value();
-                self.current.stmts.push(CpsStmt::ForceThunk {
-                    dest: forced,
-                    thunk: dest,
-                });
-                return Ok(forced);
-            }
-            return Ok(dest);
+            // Result demand forcing. Many effectful helpers (`each`, `once`,
+            // ...) lower as `MakeThunk` + `Return` so that direct callers
+            // that need them as a thunk (`once_mono1` expects each as a
+            // thunk arg) receive a thunk handle. But callers that bind the
+            // result to a non-thunk static type (`(each ...).once` returns
+            // `opt int`) must force it. ForceThunk is a no-op on non-thunk
+            // values, so it's safe to insert whenever the consumer's
+            // expected type is non-Thunk.
+            return Ok(self.force_if_non_thunk_demand(dest, &expr.ty));
         }
 
         if let Some((resumption, arg)) = self.resume_apply(expr) {
@@ -1336,7 +1327,7 @@ impl<'a> FunctionLowerer<'a> {
                 Err(CpsLowerError::UnsupportedBareEffectOp { path: path.clone() })
             }
             runtime::ExprKind::Lambda { param, body, .. } => self.lower_lambda(param, body),
-            runtime::ExprKind::Apply { callee, arg, .. } => self.lower_apply(callee, arg),
+            runtime::ExprKind::Apply { callee, arg, .. } => self.lower_apply(expr, callee, arg),
             runtime::ExprKind::Tuple(items) => self.lower_tuple(items),
             runtime::ExprKind::Record { fields, spread } => self.lower_record(fields, spread),
             runtime::ExprKind::Variant { tag, value } => self.lower_variant(tag, value.as_deref()),
@@ -1522,6 +1513,7 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_apply(
         &mut self,
+        expr: &runtime::Expr,
         callee: &runtime::Expr,
         arg: &runtime::Expr,
     ) -> CpsLowerResult<CpsValueId> {
@@ -1531,7 +1523,11 @@ impl<'a> FunctionLowerer<'a> {
         self.current
             .stmts
             .push(CpsStmt::ApplyClosure { dest, closure, arg });
-        Ok(dest)
+        // Apply expression that demands a non-thunk static type forces the
+        // closure's result so a Thunk that escaped through curried
+        // ApplyClosure (e.g. once_mono1's MakeThunk + Return) does not leak
+        // into a consumer that needs a plain value (`(each ...).once`).
+        Ok(self.force_if_non_thunk_demand(dest, &expr.ty))
     }
 
     /// Lower a positional call argument. If the callee's first formal
@@ -1567,10 +1563,39 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         expr: &runtime::Expr,
     ) -> CpsLowerResult<CpsValueId> {
-        if matches!(expr.kind, runtime::ExprKind::Thunk { .. }) {
-            return self.lower_expr(expr);
+        // A syntactic Thunk literal `{ ... }` already produces a thunk
+        // handle; a `Var` binding to a thunk-typed local just reads the
+        // existing handle. Lowering either eagerly is fine — they don't
+        // run anything. Anything else (especially `Apply`) would *evaluate*
+        // when lowered eagerly, so we wrap it in `MakeThunk` to defer.
+        match &expr.kind {
+            runtime::ExprKind::Thunk { .. } | runtime::ExprKind::Var(_) => self.lower_expr(expr),
+            _ => self.lower_thunk(expr),
         }
-        self.lower_thunk(expr)
+    }
+
+    /// Demand-side dual of `lower_expr_as_thunk_value`. When the surrounding
+    /// expression expects a non-thunk value but the underlying call/apply may
+    /// have produced a Thunk (e.g. an effectful helper that lowers as
+    /// `MakeThunk` + `Return`), insert an explicit `ForceThunk` so the value
+    /// reaches its consumer un-suspended. `ForceThunk` is a no-op on plain /
+    /// resumption / closure values, so over-forcing is safe; we still avoid
+    /// it when the consumer's static type is itself a Thunk so first-class
+    /// thunk values keep flowing.
+    fn force_if_non_thunk_demand(
+        &mut self,
+        value: CpsValueId,
+        expected_ty: &runtime::Type,
+    ) -> CpsValueId {
+        if matches!(expected_ty, runtime::Type::Thunk { .. }) {
+            return value;
+        }
+        let forced = self.fresh_value();
+        self.current.stmts.push(CpsStmt::ForceThunk {
+            dest: forced,
+            thunk: value,
+        });
+        forced
     }
 
     fn lower_tuple(&mut self, items: &[runtime::Expr]) -> CpsLowerResult<CpsValueId> {
@@ -4207,6 +4232,14 @@ mod tests {
                     dest: CpsValueId(1),
                     target: "inc".to_string(),
                     args: vec![CpsValueId(0)],
+                },
+                // force_if_non_thunk_demand always emits a ForceThunk after
+                // a direct call whose static result type is non-Thunk; it's
+                // a runtime no-op on plain values but covers callees that
+                // wrap their result in MakeThunk (e.g. effectful helpers).
+                CpsStmt::ForceThunk {
+                    dest: CpsValueId(2),
+                    thunk: CpsValueId(1),
                 },
             ]
         );

@@ -1364,19 +1364,17 @@ fn eval_continuations(
                             owner_function: function.name.clone(),
                             entry: *entry,
                             values: values.clone(),
+                            recursive_self: None,
                         }),
                     );
                 }
                 CpsStmt::MakeRecursiveClosure { dest, entry } => {
-                    let mut closure_values = values.clone();
-                    closure_values
-                        .insert(*dest, CpsReprRuntimeValue::Plain(runtime::VmValue::Unit));
                     let closure = CpsReprRuntimeValue::Closure(CpsReprClosure {
                         owner_function: function.name.clone(),
                         entry: *entry,
-                        values: closure_values.clone(),
+                        values: values.clone(),
+                        recursive_self: Some(*dest),
                     });
-                    closure_values.insert(*dest, closure.clone());
                     values.insert(*dest, closure);
                 }
                 CpsStmt::ForceThunk { dest, thunk } => {
@@ -1563,12 +1561,17 @@ fn eval_continuations(
                     let closure = read_closure(function, &values, *closure)?;
                     let arg = read_value(function, &values, *arg)?;
                     let owner = function_by_name_repr(module, &closure.owner_function)?;
+                    let mut closure_values = closure.values.clone();
+                    if let Some(self_id) = closure.recursive_self {
+                        closure_values
+                            .insert(self_id, CpsReprRuntimeValue::Closure(closure.clone()));
+                    }
                     let result = eval_continuations(
                         module,
                         owner,
                         closure.entry,
                         vec![arg],
-                        closure.values,
+                        closure_values,
                         active_handlers.clone(),
                         guard_stack.clone(),
                     )?;
@@ -1845,6 +1848,7 @@ struct CpsReprClosure {
     owner_function: String,
     entry: CpsContinuationId,
     values: HashMap<CpsValueId, CpsReprRuntimeValue>,
+    recursive_self: Option<CpsValueId>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

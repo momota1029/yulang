@@ -165,6 +165,7 @@ pub fn eval_cps_module(module: &CpsModule) -> CpsEvalResult<Vec<runtime::VmValue
         .map(|root| {
             let value = eval_function(module, root, Vec::new())?;
             let value = unwrap_aborted(value);
+            eprintln!("[debug] root {} returned {value:?}", root.name);
             into_plain_value(root, CpsValueId(usize::MAX), value)
         })
         .collect()
@@ -363,22 +364,18 @@ fn eval_continuations(
                             owner_function: function.name.clone(),
                             entry: *entry,
                             values: Rc::new(closure_values),
+                            recursive_self: None,
                         })),
                     );
                 }
                 CpsStmt::MakeRecursiveClosure { dest, entry } => {
-                    let mut closure_values = values.clone();
-                    write_value(
-                        &mut closure_values,
-                        *dest,
-                        CpsRuntimeValue::Plain(runtime::VmValue::Unit),
-                    );
+                    let closure_values = values.clone();
                     let closure = CpsRuntimeValue::Closure(Rc::new(CpsClosure {
                         owner_function: function.name.clone(),
                         entry: *entry,
-                        values: Rc::new(closure_values.clone()),
+                        values: Rc::new(closure_values),
+                        recursive_self: Some(*dest),
                     }));
-                    write_value(&mut closure_values, *dest, closure.clone());
                     write_value(&mut values, *dest, closure);
                 }
                 CpsStmt::ForceThunk { dest, thunk } => {
@@ -551,12 +548,20 @@ fn eval_continuations(
                     let closure = read_closure(function, &values, *closure)?;
                     let arg = read_value(function, &values, *arg)?;
                     let owner = function_by_name(module, &closure.owner_function)?;
+                    let mut closure_values = closure.values.as_ref().clone();
+                    if let Some(self_id) = closure.recursive_self {
+                        write_value(
+                            &mut closure_values,
+                            self_id,
+                            CpsRuntimeValue::Closure(closure.clone()),
+                        );
+                    }
                     let result = eval_continuations(
                         module,
                         owner,
                         closure.entry,
                         vec![arg],
-                        closure.values.as_ref().clone(),
+                        closure_values,
                         active_handlers.clone(),
                         guard_stack.clone(),
                     )?;
@@ -992,6 +997,7 @@ struct CpsClosure {
     owner_function: String,
     entry: CpsContinuationId,
     values: Rc<Vec<Option<CpsRuntimeValue>>>,
+    recursive_self: Option<CpsValueId>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
