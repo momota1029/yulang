@@ -74,6 +74,15 @@ pub enum CpsEvalError {
         id: CpsValueId,
         value: runtime::VmValue,
     },
+    /// A `ScopeReturn` reached the root without ever finding its prompt
+    /// in `active_handlers`. This is a lowering bug — every `Perform`
+    /// must lead to an arm whose enclosing handler scope is still on
+    /// the stack.
+    EscapedScopeReturn {
+        function: String,
+        prompt: u64,
+        target: CpsContinuationId,
+    },
 }
 
 impl fmt::Display for CpsEvalError {
@@ -152,6 +161,15 @@ impl fmt::Display for CpsEvalError {
                 f,
                 "CPS function {function} expected guard value {id:?}, got {value:?}"
             ),
+            CpsEvalError::EscapedScopeReturn {
+                function,
+                prompt,
+                target,
+            } => write!(
+                f,
+                "ScopeReturn (prompt {prompt}, target {target:?}) escaped \
+                 from CPS function {function} without a matching handler"
+            ),
         }
     }
 }
@@ -164,17 +182,94 @@ pub fn eval_cps_module(module: &CpsModule) -> CpsEvalResult<Vec<runtime::VmValue
         .iter()
         .map(|root| {
             let value = eval_function(module, root, Vec::new())?;
-            let value = unwrap_aborted(value);
+            // ScopeReturn must be matched against an InstallHandler frame
+            // somewhere on the way up. If one reaches the root, that's a
+            // lowering bug — there was no handler to catch it.
+            if let CpsRuntimeValue::ScopeReturn { prompt, target, .. } = &value {
+                return Err(CpsEvalError::EscapedScopeReturn {
+                    function: root.name.clone(),
+                    prompt: prompt.0,
+                    target: *target,
+                });
+            }
             into_plain_value(root, CpsValueId(usize::MAX), value)
         })
         .collect()
 }
 
-fn unwrap_aborted(value: CpsRuntimeValue) -> CpsRuntimeValue {
-    match value {
-        CpsRuntimeValue::Aborted(inner) => unwrap_aborted(*inner),
-        other => other,
+/// Outcome of inspecting a value returned by an internal call (DirectCall,
+/// ApplyClosure, ForceThunk, Resume, ResumeWithHandler) for a `ScopeReturn`
+/// that should be routed by the current eval frame.
+enum ScopeReturnAction {
+    /// Plain value — write to the call site's `dest` and continue.
+    Value(CpsRuntimeValue),
+    /// `ScopeReturn`'s prompt matched a frame in `active_handlers`. The
+    /// matched frame and any inner ones have already been popped. The
+    /// caller should jump to `target` (with `value` as the single arg) if
+    /// `target != EXIT_RWH_TARGET`, or return `value` from the current
+    /// eval frame if `target == EXIT_RWH_TARGET`.
+    JumpOrExit {
+        target: CpsContinuationId,
+        value: CpsRuntimeValue,
+    },
+    /// `ScopeReturn` did not match — propagate the original value up.
+    Propagate(CpsRuntimeValue),
+}
+
+fn handle_scope_return(
+    result: CpsRuntimeValue,
+    active_handlers: &mut Vec<CpsHandlerFrame>,
+    current_function: &str,
+) -> ScopeReturnAction {
+    match result {
+        CpsRuntimeValue::ScopeReturn {
+            prompt,
+            target,
+            value,
+        } => {
+            if let Some(index) = active_handlers
+                .iter()
+                .rposition(|frame| frame.prompt == prompt && !frame.inherited)
+            {
+                let frame = &active_handlers[index];
+                // The escape continuation lives in the function that did the
+                // InstallHandler. Only resolve here if we're currently in
+                // that function (or the frame is sentinel-targeted, in which
+                // case the value just propagates back to the caller).
+                let frame_owner_match = target == EXIT_RWH_TARGET
+                    || frame.escape_owner_function == current_function;
+                if !frame_owner_match {
+                    return ScopeReturnAction::Propagate(CpsRuntimeValue::ScopeReturn {
+                        prompt,
+                        target,
+                        value,
+                    });
+                }
+                active_handlers.truncate(index);
+                ScopeReturnAction::JumpOrExit {
+                    target,
+                    value: *value,
+                }
+            } else {
+                ScopeReturnAction::Propagate(CpsRuntimeValue::ScopeReturn {
+                    prompt,
+                    target,
+                    value,
+                })
+            }
+        }
+        other => ScopeReturnAction::Value(other),
     }
+}
+
+/// Mark every handler frame as inherited so a fresh `eval_continuations`
+/// frame doesn't try to resolve a `ScopeReturn` against handlers whose
+/// real install site lives in a parent eval.
+fn into_inherited(mut handlers: Vec<CpsHandlerFrame>) -> Vec<CpsHandlerFrame> {
+    for frame in &mut handlers {
+        frame.inherited = true;
+    }
+    handlers
 }
 
 fn cps_value_from_vm(value: runtime::VmValue) -> CpsRuntimeValue {
@@ -201,7 +296,11 @@ fn cps_value_from_vm(value: runtime::VmValue) -> CpsRuntimeValue {
 fn cps_value_to_vm(value: CpsRuntimeValue) -> Option<runtime::VmValue> {
     match value {
         CpsRuntimeValue::Plain(value) => Some(value),
-        CpsRuntimeValue::Aborted(inner) => cps_value_to_vm(*inner),
+        // ScopeReturn must never appear here — callers either resolve it via
+        // `handle_scope_return` at every internal call boundary, or fail at
+        // root with EscapedScopeReturn. Returning None lets `into_plain_value`
+        // surface ExpectedPlainValue if it does sneak through.
+        CpsRuntimeValue::ScopeReturn { .. } => None,
         CpsRuntimeValue::Tuple(items) => Some(runtime::VmValue::Tuple(
             items
                 .into_iter()
@@ -289,13 +388,40 @@ fn eval_continuations(
     let mut current = entry;
     let mut args = initial_args;
     let mut guard_stack = guard_stack;
-    let mut active_handlers = active_handlers;
+    // Every frame inherited from a caller, resumption, or thunk snapshot
+    // must be flagged so this eval does not try to resolve a `ScopeReturn`
+    // against it (the matching `InstallHandler` lives in a parent eval
+    // frame). New `InstallHandler` stmts in this eval will push frames
+    // with `inherited: false`.
+    let mut active_handlers = into_inherited(active_handlers);
     let mut next_guard_id = guard_stack
         .iter()
         .map(|entry| entry.id)
         .max()
         .map_or(0, |id| id + 1);
-    loop {
+    // Loop labels are hygienic across macros; pass the label explicitly.
+    macro_rules! dispatch_scope_return {
+        ($cont:lifetime, $result:expr, $dest:expr) => {{
+            match handle_scope_return($result, &mut active_handlers, &function.name) {
+                // Plain value or EXIT-target match: the value belongs to
+                // the call site's `dest` slot, and execution of the rest
+                // of the current continuation continues normally.
+                ScopeReturnAction::Value(v) => write_value(&mut values, *$dest, v),
+                ScopeReturnAction::JumpOrExit { target, value }
+                    if target == EXIT_RWH_TARGET =>
+                {
+                    write_value(&mut values, *$dest, value);
+                }
+                ScopeReturnAction::JumpOrExit { target, value } => {
+                    current = target;
+                    args = vec![value];
+                    continue $cont;
+                }
+                ScopeReturnAction::Propagate(v) => return Ok(v),
+            }
+        }};
+    }
+    'cont: loop {
         let continuation = continuation_by_id(function, current)?;
         assign_continuation_args(&mut values, function, continuation, args)?;
         args = Vec::new();
@@ -378,36 +504,48 @@ fn eval_continuations(
                     write_value(&mut values, *dest, closure);
                 }
                 CpsStmt::ForceThunk { dest, thunk } => {
-                    let value = read_value(function, &values, *thunk)?;
-                    let result = match value {
-                        CpsRuntimeValue::Thunk(thunk) => {
-                            let handlers = if !active_handlers.is_empty() {
-                                active_handlers.clone()
-                            } else {
-                                thunk.handlers.as_ref().clone()
-                            };
-                            let guards = if !guard_stack.is_empty() {
-                                guard_stack.clone()
-                            } else {
-                                thunk.guard_stack.as_ref().clone()
-                            };
-                            let owner = function_by_name(module, &thunk.owner_function)?;
-                            eval_continuations(
-                                module,
-                                owner,
-                                thunk.entry,
-                                Vec::new(),
-                                thunk.values.as_ref().clone(),
-                                handlers,
-                                guards,
-                            )?
+                    // Force iteratively: a function whose body builds a
+                    // `MakeThunk` (e.g. `my work(): int = { ... }` with an
+                    // effect-typed return) returns a Thunk wrapping its
+                    // body, and the surrounding lowering may have wrapped
+                    // the call again to defer evaluation past the catch
+                    // boundary. The user-level demand here is "produce the
+                    // catch scope's value", which means peeling Thunks
+                    // until we land on a non-Thunk (or a ScopeReturn that
+                    // dispatches us elsewhere).
+                    let mut result = read_value(function, &values, *thunk)?;
+                    loop {
+                        match result {
+                            CpsRuntimeValue::Thunk(thunk) => {
+                                let handlers = if !active_handlers.is_empty() {
+                                    active_handlers.clone()
+                                } else {
+                                    thunk.handlers.as_ref().clone()
+                                };
+                                let guards = if !guard_stack.is_empty() {
+                                    guard_stack.clone()
+                                } else {
+                                    thunk.guard_stack.as_ref().clone()
+                                };
+                                let owner =
+                                    function_by_name(module, &thunk.owner_function)?;
+                                result = eval_continuations(
+                                    module,
+                                    owner,
+                                    thunk.entry,
+                                    Vec::new(),
+                                    thunk.values.as_ref().clone(),
+                                    handlers,
+                                    guards,
+                                )?;
+                                if matches!(result, CpsRuntimeValue::ScopeReturn { .. }) {
+                                    break;
+                                }
+                            }
+                            _ => break,
                         }
-                        value => value,
-                    };
-                    if matches!(result, CpsRuntimeValue::Aborted(_)) {
-                        return Ok(result);
                     }
-                    write_value(&mut values, *dest, result);
+                    dispatch_scope_return!('cont, result, dest);
                 }
                 CpsStmt::Tuple { dest, items } => {
                     let items = items
@@ -525,23 +663,20 @@ fn eval_continuations(
                     let result = eval_cps_primitive(*op, args)?;
                     write_value(&mut values, *dest, result);
                 }
-                CpsStmt::DirectCall { dest, target, args } => {
+                CpsStmt::DirectCall { dest, target, args: arg_ids } => {
                     let target_function = function_by_name(module, target)?;
-                    let args = args
+                    let call_args = arg_ids
                         .iter()
                         .map(|id| read_value(function, &values, *id))
                         .collect::<CpsEvalResult<Vec<_>>>()?;
                     let result = eval_function_with_context(
                         module,
                         target_function,
-                        args,
+                        call_args,
                         active_handlers.clone(),
                         guard_stack.clone(),
                     )?;
-                    if matches!(result, CpsRuntimeValue::Aborted(_)) {
-                        return Ok(result);
-                    }
-                    write_value(&mut values, *dest, result);
+                    dispatch_scope_return!('cont, result, dest);
                 }
                 CpsStmt::ApplyClosure { dest, closure, arg } => {
                     // ApplyClosure can target either a Closure or a Resumption.
@@ -595,10 +730,7 @@ fn eval_continuations(
                             });
                         }
                     };
-                    if matches!(result, CpsRuntimeValue::Aborted(_)) {
-                        return Ok(result);
-                    }
-                    write_value(&mut values, *dest, result);
+                    dispatch_scope_return!('cont, result, dest);
                 }
                 CpsStmt::CloneContinuation { dest, source } => {
                     let value = read_value(function, &values, *source)?;
@@ -612,26 +744,47 @@ fn eval_continuations(
                     let resumption = read_resumption(function, &values, *resumption)?;
                     let arg = read_plain_value(function, &values, *arg)?;
                     let owner = function_by_name(module, &resumption.owner_function)?;
+                    // Compose the resumed eval's handler stack: the
+                    // resumption's snapshot of handlers at perform time +
+                    // any handlers the caller installed *after* the perform
+                    // (e.g. once's recursive `loop` installing a fresh
+                    // catch around `k true`). Without those, a `reject()`
+                    // inside the resumed body would wrongly travel back to
+                    // the outer once instead of the inner one.
+                    let extra: Vec<CpsHandlerFrame> = active_handlers
+                        .iter()
+                        .filter(|frame| {
+                            !resumption.handlers.iter().any(|f| f.prompt == frame.prompt)
+                        })
+                        .cloned()
+                        .collect();
+                    let mut resumed_handlers = resumption.handlers.as_ref().clone();
+                    resumed_handlers.extend(extra);
                     let result = eval_continuations(
                         module,
                         owner,
                         resumption.target,
                         vec![CpsRuntimeValue::Plain(arg)],
                         resumption.values.as_ref().clone(),
-                        resumption.handlers.as_ref().clone(),
+                        resumed_handlers,
                         resumption.guard_stack.as_ref().clone(),
                     )?;
-                    if matches!(result, CpsRuntimeValue::Aborted(_)) {
-                        return Ok(result);
-                    }
-                    write_value(&mut values, *dest, result);
+                    dispatch_scope_return!('cont, result, dest);
                 }
-                CpsStmt::InstallHandler { handler, envs } => {
+                CpsStmt::InstallHandler {
+                    handler,
+                    envs,
+                    escape,
+                } => {
                     let envs = capture_handler_envs(function, &values, envs)?;
                     active_handlers.push(CpsHandlerFrame {
+                        prompt: fresh_prompt(),
                         handler: *handler,
                         guard_stack: guard_stack.clone(),
                         envs,
+                        escape: *escape,
+                        escape_owner_function: function.name.clone(),
+                        inherited: false,
                     });
                 }
                 CpsStmt::UninstallHandler { handler } => {
@@ -653,24 +806,53 @@ fn eval_continuations(
                     let arg = read_plain_value(function, &values, *arg)?;
                     let envs = capture_handler_envs(function, &values, envs)?;
                     let owner = function_by_name(module, &resumption.owner_function)?;
+                    // Push the RWH-installed frame onto our own active_handlers
+                    // (non-inherited, sentinel-target) so a ScopeReturn that
+                    // matches the freshly-installed handler resolves at this
+                    // very call site rather than escaping the eval frame.
+                    let pushed_prompt = fresh_prompt();
+                    active_handlers.push(CpsHandlerFrame {
+                        prompt: pushed_prompt,
+                        handler: *handler,
+                        guard_stack: guard_stack.clone(),
+                        envs,
+                        escape: EXIT_RWH_TARGET,
+                        escape_owner_function: function.name.clone(),
+                        inherited: false,
+                    });
+                    let inner_handlers = {
+                        // Build the resumed eval's handler stack: resumption's
+                        // saved snapshot + our just-pushed frame, all to be
+                        // marked inherited inside the new eval.
+                        let mut stack = resumption.handlers.as_ref().clone();
+                        let mut owned = active_handlers
+                            .last()
+                            .cloned()
+                            .expect("just pushed RWH frame");
+                        owned.inherited = true;
+                        stack.push(owned);
+                        stack
+                    };
                     let result = eval_continuations(
                         module,
                         owner,
                         resumption.target,
                         vec![CpsRuntimeValue::Plain(arg)],
                         resumption.values.as_ref().clone(),
-                        handler_stack_with_pushed(
-                            resumption.handlers.as_ref(),
-                            *handler,
-                            &guard_stack,
-                            envs,
-                        ),
+                        inner_handlers,
                         resumption.guard_stack.as_ref().clone(),
                     )?;
-                    if matches!(result, CpsRuntimeValue::Aborted(_)) {
-                        return Ok(result);
+                    dispatch_scope_return!('cont, result, dest);
+                    // Pop the RWH frame in the value-flow path. JumpOrExit /
+                    // Propagate paths do not return to here, so they don't
+                    // need it; an `EXIT_RWH_TARGET` match will already have
+                    // truncated past this frame in `handle_scope_return`.
+                    if let Some(pos) = active_handlers
+                        .iter()
+                        .rposition(|f| f.prompt == pushed_prompt)
+                    {
+                        active_handlers.truncate(pos);
                     }
-                    write_value(&mut values, *dest, result);
                 }
             }
         }
@@ -720,6 +902,17 @@ fn eval_continuations(
                     handlers: Rc::new(handler_stack.clone()),
                     guard_stack: Rc::new(guard_stack.clone()),
                 }));
+                // Detect whether the chosen handler frame is in our local
+                // `active_handlers` (so its prompt will match on dispatch)
+                // or whether it was synthesized by `handler_stack_with_static`
+                // because we had no installed handlers at all. In the
+                // synthetic case the arm's result must just become the
+                // perform-frame's return value, with no ScopeReturn wrapping.
+                let frame_prompt = frame.prompt;
+                let frame_escape = frame.escape;
+                let frame_in_active = active_handlers
+                    .iter()
+                    .any(|f| f.prompt == frame_prompt);
                 let result = eval_continuations(
                     module,
                     handler_owner,
@@ -727,13 +920,48 @@ fn eval_continuations(
                     vec![CpsRuntimeValue::Plain(payload), resumption],
                     handler_values,
                     handler_body_stack,
-                    guard_stack,
+                    guard_stack.clone(),
                 )?;
-                let aborted = match result {
-                    CpsRuntimeValue::Aborted(_) => result,
-                    other => CpsRuntimeValue::Aborted(Box::new(other)),
+                if !frame_in_active {
+                    // Synthetic fallback frame: the perform's effect had no
+                    // installed handler in this eval, so the arm's result is
+                    // the value of *this* eval frame.
+                    return Ok(result);
+                }
+                // The arm body's natural Return becomes a non-local jump to
+                // the matching handler scope. Don't re-wrap if the arm itself
+                // emitted a ScopeReturn (it might be targeting an outer scope).
+                let scope_return = match result {
+                    CpsRuntimeValue::ScopeReturn { .. } => result,
+                    other => CpsRuntimeValue::ScopeReturn {
+                        prompt: frame_prompt,
+                        target: frame_escape,
+                        value: Box::new(other),
+                    },
                 };
-                return Ok(aborted);
+                // The InstallHandler that matches this perform might be in
+                // the *current* function (e.g. `catch x: branch -> ...` and
+                // the perform of `branch()` is in the same function). In
+                // that case the prompt is in our `active_handlers` and we
+                // must resolve here rather than bubble out — otherwise the
+                // ScopeReturn escapes to the root.
+                match handle_scope_return(scope_return, &mut active_handlers, &function.name) {
+                    ScopeReturnAction::Value(v) => {
+                        // Shouldn't happen — we just constructed a ScopeReturn.
+                        return Ok(v);
+                    }
+                    ScopeReturnAction::JumpOrExit { target, value } => {
+                        if target == EXIT_RWH_TARGET {
+                            return Ok(value);
+                        }
+                        current = target;
+                        args = vec![value];
+                        continue 'cont;
+                    }
+                    ScopeReturnAction::Propagate(v) => {
+                        return Ok(v);
+                    }
+                }
             }
         }
     }
@@ -812,10 +1040,17 @@ fn handler_stack_with_static(
     guard_stack: &[CpsGuardEntry],
 ) -> Vec<CpsHandlerFrame> {
     if active_handlers.is_empty() {
+        // Synthetic frame for the static-fallback path. Real escape target
+        // is unknown at this point, so we use EXIT_RWH_TARGET so an abort
+        // at this synthetic frame surfaces back through the call boundary.
         vec![CpsHandlerFrame {
+            prompt: fresh_prompt(),
             handler: fallback,
             guard_stack: guard_stack.to_vec(),
             envs: Vec::new(),
+            escape: EXIT_RWH_TARGET,
+            escape_owner_function: String::new(),
+            inherited: false,
         }]
     } else {
         active_handlers.to_vec()
@@ -830,9 +1065,15 @@ fn handler_stack_with_pushed(
 ) -> Vec<CpsHandlerFrame> {
     let mut stack = active_handlers.to_vec();
     stack.push(CpsHandlerFrame {
+        prompt: fresh_prompt(),
         handler,
         guard_stack: guard_stack.to_vec(),
         envs,
+        // ResumeWithHandler-installed frame: arm result returns to the
+        // outer eval frame (the call site that ran this stmt).
+        escape: EXIT_RWH_TARGET,
+        escape_owner_function: String::new(),
+        inherited: false,
     });
     stack
 }
@@ -997,11 +1238,44 @@ enum CpsRuntimeValue {
         tag: core_ir::Name,
         value: Option<Box<CpsRuntimeValue>>,
     },
-    /// Carries a value that was produced by a handler arm body's non-local
-    /// return. Internal callers (DirectCall, ApplyClosure, ForceThunk, Resume,
-    /// ResumeWithHandler) propagate it up until `eval_function` unwraps it,
-    /// so the caller's continuation after the call site is skipped.
-    Aborted(Box<CpsRuntimeValue>),
+    /// Non-local return carrying a value to a specific handler-installed scope.
+    /// Generated when a `Perform`'s arm body completes; propagates through call
+    /// sites until the matching prompt is found in `active_handlers`. A frame
+    /// matches by `prompt` (a dynamic id, fresh per `InstallHandler` /
+    /// `ResumeWithHandler` execution), so recursive handler scopes don't get
+    /// confused with each other. When matched, the prompt's owning frame and
+    /// any inner frames are popped, and:
+    ///   - if `target != EXIT_RWH_TARGET`, control jumps to that continuation
+    ///     with `value` as its single argument;
+    ///   - if `target == EXIT_RWH_TARGET`, the eval frame returns `value` as
+    ///     its result so the matching `ResumeWithHandler` call site sees a
+    ///     plain return.
+    ScopeReturn {
+        prompt: CpsPromptId,
+        target: CpsContinuationId,
+        value: Box<CpsRuntimeValue>,
+    },
+}
+
+/// Sentinel `target` value used by `ResumeWithHandler`-installed handler
+/// frames to mean "no continuation target — just return the value to the
+/// outer eval frame." Picked as `usize::MAX` since real continuation ids
+/// are dense small integers.
+const EXIT_RWH_TARGET: CpsContinuationId = CpsContinuationId(usize::MAX);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct CpsPromptId(u64);
+
+thread_local! {
+    static PROMPT_COUNTER: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+fn fresh_prompt() -> CpsPromptId {
+    PROMPT_COUNTER.with(|cell| {
+        let id = cell.get();
+        cell.set(id + 1);
+        CpsPromptId(id)
+    })
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1032,9 +1306,28 @@ struct CpsClosure {
 
 #[derive(Debug, Clone, PartialEq)]
 struct CpsHandlerFrame {
+    /// Dynamic prompt id, fresh per scope install. Matched by `ScopeReturn`
+    /// so recursive handler installs (e.g. `std::undet.once`'s `loop`) don't
+    /// alias each other on the way up.
+    prompt: CpsPromptId,
     handler: CpsHandlerId,
     guard_stack: Vec<CpsGuardEntry>,
     envs: Vec<CpsEvaluatedHandlerEnv>,
+    /// Continuation in `escape_owner_function` reached when the handler scope
+    /// completes. Set to `EXIT_RWH_TARGET` for frames pushed by
+    /// `ResumeWithHandler` — they bottom out at the call site.
+    escape: CpsContinuationId,
+    /// Name of the function whose CPS body holds the `escape` continuation.
+    /// `ScopeReturn` only resolves into a jump in that function's eval frame;
+    /// elsewhere it must propagate up.
+    escape_owner_function: String,
+    /// True iff this frame is part of a resumption snapshot (i.e. the
+    /// `resumption.handlers` of a `Resume` / `ResumeWithHandler`). Inherited
+    /// frames can still match `Perform`-time handler search, but must NOT
+    /// resolve a `ScopeReturn` in the resumed eval — the original install
+    /// site lives in a parent eval frame, so the abort has to keep
+    /// propagating up to that parent.
+    inherited: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

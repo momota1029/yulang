@@ -130,6 +130,12 @@ pub enum CpsStmt {
     InstallHandler {
         handler: CpsHandlerId,
         envs: Vec<CpsHandlerEnv>,
+        /// The continuation reached when the handler scope completes —
+        /// either because the body returned normally or a non-resuming
+        /// arm fell through. ScopeReturn-style abort uses this as the
+        /// jump target after popping the handler frame, so handler
+        /// scopes can return values without bubbling past the catch.
+        escape: CpsContinuationId,
     },
     UninstallHandler {
         handler: CpsHandlerId,

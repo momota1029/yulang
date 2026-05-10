@@ -1200,7 +1200,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             return_if_abort_active(module_backend, builder)?;
             builder.def_var(variable(*dest), result);
         }
-        CpsStmt::InstallHandler { handler, envs } => {
+        CpsStmt::InstallHandler { handler, envs, .. } => {
             capture_handler_envs(module_backend, builder, function, *handler, envs)?;
             let handler = builder.ins().iconst(types::I64, handler.0 as i64);
             let _ = call_i64_helper(
@@ -2243,7 +2243,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                 kind: "resume",
             });
         }
-        CpsStmt::InstallHandler { handler, envs } => {
+        CpsStmt::InstallHandler { handler, envs, .. } => {
             capture_handler_envs(module_backend, builder, function, *handler, envs)?;
             let handler = builder.ins().iconst(types::I64, handler.0 as i64);
             let _ = call_i64_helper(

@@ -1408,7 +1408,7 @@ fn eval_continuations(
                     }
                     values.insert(*dest, result);
                 }
-                CpsStmt::InstallHandler { handler, envs } => {
+                CpsStmt::InstallHandler { handler, envs, .. } => {
                     let envs = capture_handler_envs(function, &values, envs)?;
                     active_handlers.push(CpsReprHandlerFrame {
                         handler: *handler,

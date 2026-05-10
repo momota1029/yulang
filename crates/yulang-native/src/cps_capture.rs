@@ -226,7 +226,7 @@ fn continuation_uses(
                     uses.extend(env.values.iter().copied());
                 }
             }
-            CpsStmt::InstallHandler { handler, envs } => {
+            CpsStmt::InstallHandler { handler, envs, .. } => {
                 for env in envs {
                     uses.extend(env.values.iter().copied());
                 }
