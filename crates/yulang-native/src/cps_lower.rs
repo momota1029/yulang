@@ -2627,6 +2627,28 @@ impl<'a> FunctionLowerer<'a> {
                         return Ok(effect);
                     }
 
+                    // Effectful direct call inside a handler scope: split the
+                    // post-call computation off into its own continuation so
+                    // the callee's Perform (or nested EffectfulCall) can
+                    // capture this function's "rest of the block" as a
+                    // return frame in the resumption.
+                    if self.active_handler.is_some()
+                        && let Some((target, info, args)) = direct_apply(value, self.functions)?
+                    {
+                        return self.lower_handled_effectful_call_let(
+                            pattern,
+                            target,
+                            info,
+                            args,
+                            &value.ty,
+                            &stmts[index + 1..],
+                            tail,
+                            expected_effects,
+                            handler,
+                            value_cont,
+                        );
+                    }
+
                     let value = self.lower_expr(value)?;
                     self.bind_pattern(pattern, value)?;
                 }
@@ -2687,6 +2709,82 @@ impl<'a> FunctionLowerer<'a> {
                 kind: "handler body continuation",
             }),
         }
+    }
+
+    /// Lower a `let pattern = direct_call(...)` inside a handler scope as
+    /// an `EffectfulCall` terminator. The current continuation terminates
+    /// with the call; the post-call binding/rest is moved to a fresh
+    /// continuation that receives the call's return value.
+    #[allow(clippy::too_many_arguments)]
+    fn lower_handled_effectful_call_let(
+        &mut self,
+        pattern: &runtime::Pattern,
+        target: String,
+        info: &FunctionInfo,
+        args: Vec<&runtime::Expr>,
+        call_ty: &runtime::Type,
+        rest: &[runtime::Stmt],
+        tail: Option<&runtime::Expr>,
+        expected_effects: &[core_ir::Path],
+        handler: CpsHandlerId,
+        value_cont: Option<CpsContinuationId>,
+    ) -> CpsLowerResult<core_ir::Path> {
+        let info_params = info.params.clone();
+        let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
+        let lowered_args = args
+            .into_iter()
+            .enumerate()
+            .map(|(idx, arg)| {
+                if matches!(info_params.get(idx), Some(runtime::Type::Thunk { .. })) {
+                    self.lower_expr_as_thunk_value(arg)
+                } else {
+                    self.lower_expr(arg)
+                }
+            })
+            .collect::<CpsLowerResult<Vec<_>>>()?;
+
+        let post_cont = self.fresh_continuation();
+        let result_id = self.fresh_value();
+
+        self.terminate(CpsTerminator::EffectfulCall {
+            target,
+            args: lowered_args,
+            resume: post_cont,
+        });
+        self.finish_current();
+        if info_returns_thunk {
+            self.mark_active_handlers_external_call();
+        }
+
+        self.current = ContinuationBuilder::new(post_cont, vec![result_id]);
+        // Inside the handler scope, the call result may be a Thunk wrapping
+        // effectful work (helpers lower as MakeThunk + Return). Force it via
+        // an EffectfulForce terminator so the Perform inside the thunk's
+        // body sees the post-force cont as a return frame, not via a
+        // synchronous stmt ForceThunk that would lose the caller context.
+        let bound = if matches!(call_ty, runtime::Type::Thunk { .. }) {
+            result_id
+        } else {
+            let force_cont = self.fresh_continuation();
+            let forced = self.fresh_value();
+            self.terminate(CpsTerminator::EffectfulForce {
+                thunk: result_id,
+                resume: force_cont,
+            });
+            self.finish_current();
+            self.current = ContinuationBuilder::new(force_cont, vec![forced]);
+            forced
+        };
+        self.bind_pattern(pattern, bound)?;
+
+        let rest_effect = self.lower_handled_block(
+            rest,
+            tail,
+            expected_effects,
+            handler,
+            value_cont,
+        )?;
+        Ok(rest_effect)
     }
 
     fn begin_resume_after_perform(

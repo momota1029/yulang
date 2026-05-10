@@ -348,6 +348,25 @@ fn validate_continuation(
                 require_handler(function, handler_ids, *handler)
             }
         }
+        CpsTerminator::EffectfulCall { args, resume, .. } => {
+            for arg in args {
+                require_value(function, &values, *arg)?;
+            }
+            require_continuation(function, continuation_ids, *resume)
+        }
+        CpsTerminator::EffectfulApply {
+            closure,
+            arg,
+            resume,
+        } => {
+            require_value(function, &values, *closure)?;
+            require_value(function, &values, *arg)?;
+            require_continuation(function, continuation_ids, *resume)
+        }
+        CpsTerminator::EffectfulForce { thunk, resume } => {
+            require_value(function, &values, *thunk)?;
+            require_continuation(function, continuation_ids, *resume)
+        }
     }
 }
 

@@ -751,7 +751,13 @@ fn function_has_effect_flow(function: &CpsReprAbiFunction) -> bool {
     !function.handlers.is_empty()
         || function.continuations.iter().any(|continuation| {
             !continuation.environment.is_empty()
-                || matches!(continuation.terminator, CpsTerminator::Perform { .. })
+                || matches!(
+                    continuation.terminator,
+                    CpsTerminator::Perform { .. }
+                        | CpsTerminator::EffectfulCall { .. }
+                        | CpsTerminator::EffectfulApply { .. }
+                        | CpsTerminator::EffectfulForce { .. }
+                )
                 || continuation.stmts.iter().any(|stmt| {
                     matches!(
                         stmt,
@@ -1328,6 +1334,14 @@ fn lower_effect_terminator<M: Module>(
                 resumption,
                 functions,
             )?;
+        }
+        CpsTerminator::EffectfulCall { .. }
+        | CpsTerminator::EffectfulApply { .. }
+        | CpsTerminator::EffectfulForce { .. } => {
+            // TODO(write12 step 8): port return-frame semantics to Cranelift.
+            // Currently unreachable until cps_lower emits these terminators
+            // and the CPS repr eval implementation is in place.
+            todo!("Effectful{{Call,Apply,Force}} in cps_repr Cranelift backend");
         }
     }
     Ok(())
@@ -2299,6 +2313,24 @@ fn lower_terminator(
             return Err(CpsReprCraneliftError::UnsupportedTerminator {
                 function: function.name.clone(),
                 kind: "perform",
+            });
+        }
+        CpsTerminator::EffectfulCall { .. } => {
+            return Err(CpsReprCraneliftError::UnsupportedTerminator {
+                function: function.name.clone(),
+                kind: "effectful-call",
+            });
+        }
+        CpsTerminator::EffectfulApply { .. } => {
+            return Err(CpsReprCraneliftError::UnsupportedTerminator {
+                function: function.name.clone(),
+                kind: "effectful-apply",
+            });
+        }
+        CpsTerminator::EffectfulForce { .. } => {
+            return Err(CpsReprCraneliftError::UnsupportedTerminator {
+                function: function.name.clone(),
+                kind: "effectful-force",
             });
         }
     }

@@ -772,6 +772,22 @@ fn propagate_terminator_argument_lanes(
             }
             changed
         }
+        CpsTerminator::EffectfulCall { args, resume, .. } => {
+            // Propagate result lane to the resume continuation's parameter.
+            if let Some(resume) = continuation_by_id_opt(function, *resume)
+                && let Some(_param) = resume.params.first()
+            {
+                // Arg lanes flow through the call; result lane is unknown
+                // statically, so just touch them to keep the fixpoint going.
+                let _ = args;
+            }
+            false
+        }
+        CpsTerminator::EffectfulApply { resume, .. }
+        | CpsTerminator::EffectfulForce { resume, .. } => {
+            let _ = continuation_by_id_opt(function, *resume);
+            false
+        }
         CpsTerminator::Return(_) | CpsTerminator::Branch { .. } => false,
     }
 }
@@ -884,6 +900,12 @@ fn analyze_function_values(function: &CpsReprFunction) -> CpsReprFunctionValueAn
                     .and_then(|arm| continuation_returns.get(&arm.entry))
                     .copied()
                     .unwrap_or(CpsReprValueKind::Unknown),
+                CpsTerminator::EffectfulCall { resume, .. }
+                | CpsTerminator::EffectfulApply { resume, .. }
+                | CpsTerminator::EffectfulForce { resume, .. } => continuation_returns
+                    .get(resume)
+                    .copied()
+                    .unwrap_or(CpsReprValueKind::Unknown),
             };
             if continuation_returns.get(&continuation.id) != Some(&return_kind) {
                 continuation_returns.insert(continuation.id, return_kind);
@@ -985,6 +1007,12 @@ fn terminator_return_lane(
             effect, handler, ..
         } => handler_arm_for_effect(function, *handler, effect)
             .and_then(|arm| continuation_returns.get(&arm.entry))
+            .copied()
+            .unwrap_or(CpsReprAbiLane::Unknown),
+        CpsTerminator::EffectfulCall { resume, .. }
+        | CpsTerminator::EffectfulApply { resume, .. }
+        | CpsTerminator::EffectfulForce { resume, .. } => continuation_returns
+            .get(resume)
             .copied()
             .unwrap_or(CpsReprAbiLane::Unknown),
     }
@@ -1698,6 +1726,14 @@ fn eval_continuations(
                     other => CpsReprRuntimeValue::Aborted(Box::new(other)),
                 };
                 return Ok(aborted);
+            }
+            CpsTerminator::EffectfulCall { .. }
+            | CpsTerminator::EffectfulApply { .. }
+            | CpsTerminator::EffectfulForce { .. } => {
+                // TODO(write12 step 7): port return-frame semantics here.
+                // Currently unreachable until cps_lower starts emitting these
+                // terminators; tests that exercise it will hit this panic.
+                todo!("Effectful{{Call,Apply,Force}} in cps_repr eval");
             }
         }
     }

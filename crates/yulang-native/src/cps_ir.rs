@@ -173,6 +173,30 @@ pub enum CpsTerminator {
         handler: CpsHandlerId,
         blocked: Option<CpsValueId>,
     },
+    /// Effectful direct function call. Used inside handler scopes when the
+    /// callee may perform effects. The resume continuation receives the return
+    /// value; the call site's post-call computation is captured as a return
+    /// frame so Perform inside the callee can include it in the resumption.
+    EffectfulCall {
+        target: String,
+        args: Vec<CpsValueId>,
+        resume: CpsContinuationId,
+    },
+    /// Effectful closure application. Same semantics as EffectfulCall but for
+    /// first-class closures / resumptions.
+    EffectfulApply {
+        closure: CpsValueId,
+        arg: CpsValueId,
+        resume: CpsContinuationId,
+    },
+    /// Effectful thunk force. Used when an EffectfulCall's result is a Thunk
+    /// that needs to be forced inside the handler scope — the force needs to
+    /// be a terminator so its Perform captures the post-force continuation
+    /// in the resumption.
+    EffectfulForce {
+        thunk: CpsValueId,
+        resume: CpsContinuationId,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

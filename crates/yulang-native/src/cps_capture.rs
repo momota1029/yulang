@@ -300,6 +300,41 @@ fn continuation_uses(
                     .copied(),
             );
         }
+        CpsTerminator::EffectfulCall { args, resume, .. } => {
+            uses.extend(args.iter().copied());
+            uses.extend(
+                continuation_captures
+                    .get(resume)
+                    .into_iter()
+                    .flatten()
+                    .copied(),
+            );
+        }
+        CpsTerminator::EffectfulApply {
+            closure,
+            arg,
+            resume,
+        } => {
+            uses.insert(*closure);
+            uses.insert(*arg);
+            uses.extend(
+                continuation_captures
+                    .get(resume)
+                    .into_iter()
+                    .flatten()
+                    .copied(),
+            );
+        }
+        CpsTerminator::EffectfulForce { thunk, resume } => {
+            uses.insert(*thunk);
+            uses.extend(
+                continuation_captures
+                    .get(resume)
+                    .into_iter()
+                    .flatten()
+                    .copied(),
+            );
+        }
     }
     uses.into_iter().collect()
 }
