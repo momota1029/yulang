@@ -2633,13 +2633,34 @@ impl<'a> FunctionLowerer<'a> {
                     // capture this function's "rest of the block" as a
                     // return frame in the resumption.
                     if self.active_handler.is_some()
-                        && let Some((target, info, args)) = direct_apply(value, self.functions)?
+                        && let Some((target, info, args)) =
+                            direct_apply(value, self.functions)?
                     {
                         return self.lower_handled_effectful_call_let(
                             pattern,
                             target,
                             info,
                             args,
+                            &value.ty,
+                            &stmts[index + 1..],
+                            tail,
+                            expected_effects,
+                            handler,
+                            value_cont,
+                        );
+                    }
+                    // Closure application: split into EffectfulApply when the
+                    // callee's type indicates a potential effect (write13).
+                    // No active_handler gate: helpers like `call_callback` are
+                    // separate functions without a local handler scope, yet
+                    // their `f 0` callback must still capture the caller rest.
+                    if let runtime::ExprKind::Apply { callee, arg, .. } = &value.kind
+                        && callee_type_may_perform(&callee.ty)
+                    {
+                        return self.lower_handled_effectful_apply_let(
+                            pattern,
+                            callee,
+                            arg,
                             &value.ty,
                             &stmts[index + 1..],
                             tail,
@@ -2785,6 +2806,159 @@ impl<'a> FunctionLowerer<'a> {
             value_cont,
         )?;
         Ok(rest_effect)
+    }
+
+    /// Lower a `let pattern = closure_apply(...)` inside a handler scope as
+    /// an `EffectfulApply` terminator. Conservatively treats all closure
+    /// applications in handler scope as potentially effectful (write13).
+    #[allow(clippy::too_many_arguments)]
+    fn lower_handled_effectful_apply_let(
+        &mut self,
+        pattern: &runtime::Pattern,
+        callee: &runtime::Expr,
+        arg: &runtime::Expr,
+        apply_ty: &runtime::Type,
+        rest: &[runtime::Stmt],
+        tail: Option<&runtime::Expr>,
+        expected_effects: &[core_ir::Path],
+        handler: CpsHandlerId,
+        value_cont: Option<CpsContinuationId>,
+    ) -> CpsLowerResult<core_ir::Path> {
+        let closure = self.lower_expr(callee)?;
+        let arg_value = self.lower_expr_as_call_arg(&callee.ty, arg)?;
+
+        let post_cont = self.fresh_continuation();
+        let result_id = self.fresh_value();
+
+        self.terminate(CpsTerminator::EffectfulApply {
+            closure,
+            arg: arg_value,
+            resume: post_cont,
+        });
+        self.finish_current();
+
+        self.current = ContinuationBuilder::new(post_cont, vec![result_id]);
+        let bound = if matches!(apply_ty, runtime::Type::Thunk { .. }) {
+            result_id
+        } else {
+            let force_cont = self.fresh_continuation();
+            let forced = self.fresh_value();
+            self.terminate(CpsTerminator::EffectfulForce {
+                thunk: result_id,
+                resume: force_cont,
+            });
+            self.finish_current();
+            self.current = ContinuationBuilder::new(force_cont, vec![forced]);
+            forced
+        };
+        self.bind_pattern(pattern, bound)?;
+
+        self.lower_handled_block(rest, tail, expected_effects, handler, value_cont)
+    }
+
+    /// Expr-statement variant of `lower_handled_effectful_call_let`. The
+    /// post-call continuation discards the result but still routes a Perform
+    /// inside the callee through the saved return frame chain.
+    ///
+    /// Currently unused — the Stmt::Expr path triggers test regressions in
+    /// the Cranelift backend (todo!() for EffectfulCall). Kept for write14's
+    /// follow-up when cps_repr / Cranelift gain support for these terminators.
+    #[allow(dead_code, clippy::too_many_arguments)]
+    fn lower_handled_effectful_call_expr(
+        &mut self,
+        target: String,
+        info: &FunctionInfo,
+        args: Vec<&runtime::Expr>,
+        call_ty: &runtime::Type,
+        rest: &[runtime::Stmt],
+        tail: Option<&runtime::Expr>,
+        expected_effects: &[core_ir::Path],
+        handler: CpsHandlerId,
+        value_cont: Option<CpsContinuationId>,
+    ) -> CpsLowerResult<core_ir::Path> {
+        let info_params = info.params.clone();
+        let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
+        let lowered_args = args
+            .into_iter()
+            .enumerate()
+            .map(|(idx, arg)| {
+                if matches!(info_params.get(idx), Some(runtime::Type::Thunk { .. })) {
+                    self.lower_expr_as_thunk_value(arg)
+                } else {
+                    self.lower_expr(arg)
+                }
+            })
+            .collect::<CpsLowerResult<Vec<_>>>()?;
+
+        let post_cont = self.fresh_continuation();
+        let ignored = self.fresh_value();
+
+        self.terminate(CpsTerminator::EffectfulCall {
+            target,
+            args: lowered_args,
+            resume: post_cont,
+        });
+        self.finish_current();
+        if info_returns_thunk {
+            self.mark_active_handlers_external_call();
+        }
+
+        self.current = ContinuationBuilder::new(post_cont, vec![ignored]);
+        // Even though we discard the value, a Thunk return from an effectful
+        // helper still needs to be unwrapped here so its body's Perform sees
+        // a return frame (not lost via a sync ForceThunk).
+        if !matches!(call_ty, runtime::Type::Thunk { .. }) {
+            let force_cont = self.fresh_continuation();
+            let forced = self.fresh_value();
+            self.terminate(CpsTerminator::EffectfulForce {
+                thunk: ignored,
+                resume: force_cont,
+            });
+            self.finish_current();
+            self.current = ContinuationBuilder::new(force_cont, vec![forced]);
+        }
+
+        self.lower_handled_block(rest, tail, expected_effects, handler, value_cont)
+    }
+
+    #[allow(dead_code, clippy::too_many_arguments)]
+    fn lower_handled_effectful_apply_expr(
+        &mut self,
+        callee: &runtime::Expr,
+        arg: &runtime::Expr,
+        apply_ty: &runtime::Type,
+        rest: &[runtime::Stmt],
+        tail: Option<&runtime::Expr>,
+        expected_effects: &[core_ir::Path],
+        handler: CpsHandlerId,
+        value_cont: Option<CpsContinuationId>,
+    ) -> CpsLowerResult<core_ir::Path> {
+        let closure = self.lower_expr(callee)?;
+        let arg_value = self.lower_expr_as_call_arg(&callee.ty, arg)?;
+
+        let post_cont = self.fresh_continuation();
+        let ignored = self.fresh_value();
+
+        self.terminate(CpsTerminator::EffectfulApply {
+            closure,
+            arg: arg_value,
+            resume: post_cont,
+        });
+        self.finish_current();
+
+        self.current = ContinuationBuilder::new(post_cont, vec![ignored]);
+        if !matches!(apply_ty, runtime::Type::Thunk { .. }) {
+            let force_cont = self.fresh_continuation();
+            let forced = self.fresh_value();
+            self.terminate(CpsTerminator::EffectfulForce {
+                thunk: ignored,
+                resume: force_cont,
+            });
+            self.finish_current();
+            self.current = ContinuationBuilder::new(force_cont, vec![forced]);
+        }
+
+        self.lower_handled_block(rest, tail, expected_effects, handler, value_cont)
     }
 
     fn begin_resume_after_perform(
@@ -3726,6 +3900,24 @@ fn bool_match(expr: &runtime::Expr) -> Option<(&runtime::Expr, &runtime::Expr, &
         }
     }
     Some((scrutinee, then_branch?, else_branch?))
+}
+
+/// Conservatively report whether a function-typed value may perform an
+/// effect when applied. Used by lower_handled_block to decide between
+/// EffectfulApply (terminator, captures caller rest) and ApplyClosure
+/// (stmt, synchronous). Unknown / polymorphic types are treated as
+/// effectful so we don't lose caller rest at a callback boundary
+/// (e.g. std::fold's `f z x`).
+fn callee_type_may_perform(ty: &runtime::Type) -> bool {
+    match ty {
+        runtime::Type::Fun { ret, .. } => {
+            matches!(ret.as_ref(), runtime::Type::Thunk { .. })
+                || callee_type_may_perform(ret)
+        }
+        runtime::Type::Thunk { .. } => true,
+        runtime::Type::Unknown => true,
+        runtime::Type::Core(_) => false,
+    }
 }
 
 fn direct_apply_path<'expr, 'functions>(

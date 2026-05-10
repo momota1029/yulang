@@ -882,6 +882,61 @@ sum_down 5
     }
 
     #[test]
+    #[ignore = "write13: local callback effect, caller continuation through closure apply"]
+    fn debugs_local_choice_callback_rest_eval() {
+        // Test A from write13: closure callback that performs an effect,
+        // with caller's post-call cont needing to run inside inner once's H2.
+        // Differs from caller_rest_eval by routing the perform through a
+        // closure argument (ApplyClosure path) rather than a direct call.
+        let source = r#"pub act choice:
+  pub branch: () -> bool
+  pub reject: () -> never
+
+my call_callback(f: int -> [choice] int): [choice] int = f 0
+
+my once_dfs_int(x: [choice] int): int = catch x:
+  choice::branch (), k -> catch k true:
+    choice::reject (), _ -> k false
+    v -> v
+  choice::reject (), _ -> 0
+  v -> v
+
+my work(): [choice] int = {
+  my n = call_callback: \_ -> case choice::branch ():
+    true -> 1
+    false -> 2
+  if n == 1:
+    choice::reject ()
+  else:
+    n
+}
+
+once_dfs_int { work() }
+"#;
+        run_with_large_stack(|| {
+            let module = runtime_module_from_source_with_options(
+                source,
+                native_default_source_options(),
+            )
+            .expect("runtime module");
+
+            let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
+            crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
+
+            let cps_values = crate::cps_eval::eval_cps_module(&cps).expect("CPS eval");
+            let vm_results = runtime::compile_vm_module(module.clone())
+                .expect("VM compile")
+                .eval_roots()
+                .expect("VM eval");
+            let vm_value = match &vm_results[0] {
+                runtime::VmResult::Value(v) => v.clone(),
+                runtime::VmResult::Request(_) => panic!("VM gave request"),
+            };
+            assert_eq!(cps_values[0], vm_value, "cps:{:?} vm:{:?}", cps_values[0], vm_value);
+        });
+    }
+
+    #[test]
     #[ignore = "write12 step1: local choice effect, caller continuation in resumption"]
     fn debugs_local_choice_caller_rest_eval() {
         // Minimal test for return-frame semantics: choose() performs branch,
