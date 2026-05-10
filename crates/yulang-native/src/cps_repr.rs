@@ -5,8 +5,8 @@ use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
 
 use crate::cps_ir::{
-    CpsContinuation, CpsContinuationId, CpsFunction, CpsHandlerId, CpsLiteral, CpsModule,
-    CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
+    CpsContinuation, CpsContinuationId, CpsFunction, CpsHandlerEnv, CpsHandlerId, CpsLiteral,
+    CpsModule, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
 };
 
 pub type CpsReprEvalResult<T> = Result<T, CpsReprEvalError>;
@@ -872,17 +872,21 @@ fn handler_arm_for_effect<'a>(
 
 fn handler_arm_for_stack<'a>(
     function: &'a CpsReprFunction,
-    stack: &[CpsReprHandlerFrame],
+    stack: &'a [CpsReprHandlerFrame],
     effect: &core_ir::Path,
     blocked: Option<u64>,
-) -> CpsReprEvalResult<(&'a CpsReprHandlerArm, Vec<CpsReprHandlerFrame>)> {
+) -> CpsReprEvalResult<(
+    &'a CpsReprHandlerArm,
+    &'a CpsReprHandlerFrame,
+    Vec<CpsReprHandlerFrame>,
+)> {
     for (index, frame) in stack.iter().enumerate().rev() {
         if blocked.is_some_and(|blocked| frame.guard_stack.iter().any(|entry| entry.id == blocked))
         {
             continue;
         }
         if let Some(arm) = handler_arm_for_effect(function, frame.handler, effect) {
-            return Ok((arm, stack[..index].to_vec()));
+            return Ok((arm, frame, stack[..index].to_vec()));
         }
     }
     Err(CpsReprEvalError::MissingHandler {
@@ -900,6 +904,7 @@ fn handler_stack_with_static(
         vec![CpsReprHandlerFrame {
             handler: fallback,
             guard_stack: guard_stack.to_vec(),
+            envs: Vec::new(),
         }]
     } else {
         active_handlers.to_vec()
@@ -910,13 +915,48 @@ fn handler_stack_with_pushed(
     active_handlers: &[CpsReprHandlerFrame],
     handler: CpsHandlerId,
     guard_stack: &[CpsReprGuardEntry],
+    envs: Vec<CpsReprEvaluatedHandlerEnv>,
 ) -> Vec<CpsReprHandlerFrame> {
     let mut stack = active_handlers.to_vec();
     stack.push(CpsReprHandlerFrame {
         handler,
         guard_stack: guard_stack.to_vec(),
+        envs,
     });
     stack
+}
+
+fn capture_handler_envs(
+    function: &CpsReprFunction,
+    values: &HashMap<CpsValueId, CpsReprRuntimeValue>,
+    envs: &[CpsHandlerEnv],
+) -> CpsReprEvalResult<Vec<CpsReprEvaluatedHandlerEnv>> {
+    envs.iter()
+        .map(|env| {
+            let mut values_by_id = Vec::new();
+            for value in &env.values {
+                values_by_id.push((*value, read_value(function, values, *value)?));
+            }
+            Ok(CpsReprEvaluatedHandlerEnv {
+                entry: env.entry,
+                values: values_by_id,
+            })
+        })
+        .collect()
+}
+
+fn values_with_handler_env(
+    mut values: HashMap<CpsValueId, CpsReprRuntimeValue>,
+    frame: &CpsReprHandlerFrame,
+    entry: CpsContinuationId,
+) -> HashMap<CpsValueId, CpsReprRuntimeValue> {
+    let Some(env) = frame.envs.iter().find(|env| env.entry == entry) else {
+        return values;
+    };
+    for (id, value) in &env.values {
+        values.insert(*id, value.clone());
+    }
+    values
 }
 
 fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
@@ -1298,17 +1338,23 @@ fn eval_continuations(
                     resumption,
                     arg,
                     handler,
-                    envs: _,
+                    envs,
                 } => {
                     let resumption = read_resumption(function, &values, *resumption)?;
                     let arg = read_plain_value(function, &values, *arg)?;
+                    let envs = capture_handler_envs(function, &values, envs)?;
                     let result = eval_continuations(
                         module,
                         function,
                         resumption.target,
                         vec![CpsReprRuntimeValue::Plain(arg)],
                         resumption.values.clone(),
-                        handler_stack_with_pushed(&resumption.handlers, *handler, &guard_stack),
+                        handler_stack_with_pushed(
+                            &resumption.handlers,
+                            *handler,
+                            &guard_stack,
+                            envs,
+                        ),
                         resumption.guard_stack.clone(),
                     )?;
                     values.insert(*dest, result);
@@ -1350,12 +1396,13 @@ fn eval_continuations(
                     .transpose()?;
                 let handler_stack =
                     handler_stack_with_static(&active_handlers, *handler, &guard_stack);
-                let (handler, handler_body_stack) =
+                let (handler, frame, handler_body_stack) =
                     handler_arm_for_stack(function, &handler_stack, effect, blocked)?;
+                let handler_values = values_with_handler_env(values.clone(), frame, handler.entry);
                 let resumption = CpsReprRuntimeValue::Resumption(CpsReprResumption {
                     target: *resume,
                     values: values.clone(),
-                    handlers: handler_stack,
+                    handlers: handler_stack.clone(),
                     guard_stack: guard_stack.clone(),
                 });
                 return eval_continuations(
@@ -1363,7 +1410,7 @@ fn eval_continuations(
                     function,
                     handler.entry,
                     vec![CpsReprRuntimeValue::Plain(payload), resumption],
-                    values,
+                    handler_values,
                     handler_body_stack,
                     guard_stack,
                 );
@@ -1515,6 +1562,13 @@ struct CpsReprClosure {
 struct CpsReprHandlerFrame {
     handler: CpsHandlerId,
     guard_stack: Vec<CpsReprGuardEntry>,
+    envs: Vec<CpsReprEvaluatedHandlerEnv>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsReprEvaluatedHandlerEnv {
+    entry: CpsContinuationId,
+    values: Vec<(CpsValueId, CpsReprRuntimeValue)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

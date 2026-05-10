@@ -224,12 +224,20 @@ CPS representation backend status:
 - [x] A minimal `once`-style branch handler can resume the first branch from
       tail and boolean-match condition effect operations in the Cranelift CPS
       repr scalar path.
+- [x] A DFS `once` kernel with local `choice::branch` / `choice::reject` can
+      try `k true`, handle rejection, resume `k false`, and match the VM in the
+      Cranelift CPS repr scalar path.
+- [x] A finite-list nondeterministic choice can use `std::list::uncons` without
+      `fold` / `sub` and return a scalar through the Cranelift CPS repr path.
 - [x] `std::undet` `.once` over a finite list compiles through the CPS repr
       object/executable path.
 - [x] First-class lambda values can be created and applied through the
       Cranelift CPS repr scalar path for pure higher-order calls.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
+- [ ] Effectful thunks returned across source-defined function boundaries do
+      not yet reliably carry the caller's active handler frame; `each_head`
+      style helpers are tracked as ignored regressions.
 - [ ] General closures and heap value lanes are not complete.
 - [ ] Non-scalar CPS return values can flow through the prototype as opaque
       `i64` heap pointers, but generated CPS executables do not yet print them

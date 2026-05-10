@@ -553,12 +553,7 @@ fn define_functions<M: Module, L: CpsLiteralStore>(
         let mut ctx = module_backend.make_context();
         ctx.func.signature = function_signature(module_backend, function);
         if function_has_effect_flow(function) {
-            lower_effectful_function_wrapper(
-                module_backend,
-                &mut ctx,
-                function,
-                functions,
-            )?;
+            lower_effectful_function_wrapper(module_backend, &mut ctx, function, functions)?;
         } else {
             lower_function(module_backend, &mut ctx, function, functions, literals)?;
         }

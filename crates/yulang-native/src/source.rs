@@ -450,6 +450,87 @@ once { case choice::branch ():
     }
 
     #[test]
+    fn compares_prelude_source_once_dfs_reject_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choice:
+  pub branch: () -> bool
+  pub reject: () -> never
+
+my once_dfs_int(x: [choice] int): int = catch x:
+    choice::branch (), k -> catch k true:
+        choice::reject (), _ -> k false
+        v -> v
+    choice::reject (), _ -> 0
+    v -> v
+
+once_dfs_int { case choice::branch ():
+    true -> choice::reject ()
+    false -> 2
+}
+"#,
+            )
+            .expect("source once DFS reject CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_once_finite_list_without_fold_sub_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choice:
+  pub branch: () -> bool
+  pub reject: () -> never
+
+my once_dfs_int(x: [choice] int): int = catch x:
+    choice::branch (), k -> catch k true:
+        choice::reject (), _ -> k false
+        v -> v
+    choice::reject (), _ -> 0
+    v -> v
+
+once_dfs_int { case std::list::uncons [1, 2, 3]:
+    std::opt::opt::nil -> choice::reject ()
+    std::opt::opt::just (x, _) -> case choice::branch ():
+        true -> x
+        false -> choice::reject ()
+}
+"#,
+            )
+            .expect("source once finite-list CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    #[ignore = "function-returned effectful thunks do not yet carry caller handler frames"]
+    fn compares_prelude_source_once_finite_each_function_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choice:
+  pub branch: () -> bool
+  pub reject: () -> never
+
+my once_dfs_int(x: [choice] int): int = catch x:
+    choice::branch (), k -> catch k true:
+        choice::reject (), _ -> k false
+        v -> v
+    choice::reject (), _ -> 0
+    v -> v
+
+my each_head(xs: std::list::list int): [choice] int = case std::list::uncons xs:
+    std::opt::opt::nil -> choice::reject ()
+    std::opt::opt::just (x, _) -> case choice::branch ():
+        true -> x
+        false -> choice::reject ()
+
+once_dfs_int { each_head [1, 2, 3] }
+"#,
+            )
+            .expect("source once finite each function CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
     fn compiles_std_undet_once_through_cps_repr_object() {
         run_with_large_stack(|| {
             let module = runtime_module_from_source_with_options(

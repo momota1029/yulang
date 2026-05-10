@@ -1,19 +1,15 @@
 use std::collections::{BTreeSet, HashMap};
 
-use crate::cps_ir::{CpsFunction, CpsModule, CpsStmt, CpsTerminator, CpsValueId};
+use crate::cps_ir::{CpsFunction, CpsHandlerEnv, CpsModule, CpsStmt, CpsTerminator, CpsValueId};
 
 pub fn infer_cps_captures(module: &mut CpsModule) {
     for function in module.functions.iter_mut().chain(&mut module.roots) {
         infer_function_captures(function);
+        fill_resume_handler_envs(function);
     }
 }
 
 fn infer_function_captures(function: &mut CpsFunction) {
-    let handler_entries = function
-        .handlers
-        .iter()
-        .flat_map(|handler| handler.arms.iter().map(|arm| arm.entry))
-        .collect::<Vec<_>>();
     loop {
         let current_captures = function
             .continuations
@@ -28,7 +24,7 @@ fn infer_function_captures(function: &mut CpsFunction) {
                 .copied()
                 .chain(continuation_defs(continuation))
                 .collect::<BTreeSet<_>>();
-            let captures = continuation_uses(continuation, &current_captures, &handler_entries)
+            let captures = continuation_uses(continuation, &current_captures)
                 .into_iter()
                 .filter(|value| !local_defs.contains(value))
                 .collect::<Vec<_>>();
@@ -43,40 +39,91 @@ fn infer_function_captures(function: &mut CpsFunction) {
     }
 }
 
-fn continuation_defs(continuation: &crate::cps_ir::CpsContinuation) -> Vec<CpsValueId> {
-    continuation
-        .stmts
+fn fill_resume_handler_envs(function: &mut CpsFunction) {
+    let continuation_captures = function
+        .continuations
         .iter()
-        .map(|stmt| match stmt {
-            CpsStmt::Literal { dest, .. }
-            | CpsStmt::FreshGuard { dest, .. }
-            | CpsStmt::PeekGuard { dest }
-            | CpsStmt::FindGuard { dest, .. }
-            | CpsStmt::MakeThunk { dest, .. }
-            | CpsStmt::MakeClosure { dest, .. }
-            | CpsStmt::MakeRecursiveClosure { dest, .. }
-            | CpsStmt::ForceThunk { dest, .. }
-            | CpsStmt::Tuple { dest, .. }
-            | CpsStmt::Record { dest, .. }
-            | CpsStmt::Variant { dest, .. }
-            | CpsStmt::Select { dest, .. }
-            | CpsStmt::TupleGet { dest, .. }
-            | CpsStmt::VariantTagEq { dest, .. }
-            | CpsStmt::VariantPayload { dest, .. }
-            | CpsStmt::Primitive { dest, .. }
-            | CpsStmt::DirectCall { dest, .. }
-            | CpsStmt::ApplyClosure { dest, .. }
-            | CpsStmt::CloneContinuation { dest, .. }
-            | CpsStmt::Resume { dest, .. }
-            | CpsStmt::ResumeWithHandler { dest, .. } => *dest,
+        .map(|continuation| (continuation.id, continuation.captures.clone()))
+        .collect::<HashMap<_, _>>();
+    let handler_entries = function
+        .handlers
+        .iter()
+        .map(|handler| {
+            (
+                handler.id,
+                handler.arms.iter().map(|arm| arm.entry).collect::<Vec<_>>(),
+            )
         })
-        .collect()
+        .collect::<HashMap<_, _>>();
+
+    for continuation in &mut function.continuations {
+        let mut available = continuation
+            .params
+            .iter()
+            .copied()
+            .chain(continuation.captures.iter().copied())
+            .collect::<BTreeSet<_>>();
+        for stmt in &mut continuation.stmts {
+            if let CpsStmt::ResumeWithHandler { handler, envs, .. } = stmt
+                && envs.is_empty()
+                && let Some(entries) = handler_entries.get(handler)
+            {
+                *envs = entries
+                    .iter()
+                    .filter_map(|entry| {
+                        let captures = continuation_captures.get(entry)?;
+                        captures
+                            .iter()
+                            .all(|value| available.contains(value))
+                            .then(|| CpsHandlerEnv {
+                                entry: *entry,
+                                values: captures.clone(),
+                            })
+                    })
+                    .collect();
+            }
+            available.extend(stmt_defs(stmt));
+        }
+    }
+}
+
+fn continuation_defs(continuation: &crate::cps_ir::CpsContinuation) -> Vec<CpsValueId> {
+    continuation.stmts.iter().map(stmt_def).collect()
+}
+
+fn stmt_defs(stmt: &CpsStmt) -> Option<CpsValueId> {
+    Some(stmt_def(stmt))
+}
+
+fn stmt_def(stmt: &CpsStmt) -> CpsValueId {
+    match stmt {
+        CpsStmt::Literal { dest, .. }
+        | CpsStmt::FreshGuard { dest, .. }
+        | CpsStmt::PeekGuard { dest }
+        | CpsStmt::FindGuard { dest, .. }
+        | CpsStmt::MakeThunk { dest, .. }
+        | CpsStmt::MakeClosure { dest, .. }
+        | CpsStmt::MakeRecursiveClosure { dest, .. }
+        | CpsStmt::ForceThunk { dest, .. }
+        | CpsStmt::Tuple { dest, .. }
+        | CpsStmt::Record { dest, .. }
+        | CpsStmt::Variant { dest, .. }
+        | CpsStmt::Select { dest, .. }
+        | CpsStmt::TupleGet { dest, .. }
+        | CpsStmt::VariantTagEq { dest, .. }
+        | CpsStmt::VariantPayload { dest, .. }
+        | CpsStmt::Primitive { dest, .. }
+        | CpsStmt::DirectCall { dest, .. }
+        | CpsStmt::ApplyClosure { dest, .. }
+        | CpsStmt::CloneContinuation { dest, .. }
+        | CpsStmt::Resume { dest, .. }
+        | CpsStmt::ResumeWithHandler { dest, .. } => *dest,
+    }
 }
 
 fn continuation_uses(
     continuation: &crate::cps_ir::CpsContinuation,
     continuation_captures: &HashMap<crate::cps_ir::CpsContinuationId, Vec<CpsValueId>>,
-    handler_entries: &[crate::cps_ir::CpsContinuationId],
 ) -> Vec<CpsValueId> {
     let mut uses = BTreeSet::new();
     for stmt in &continuation.stmts {
@@ -115,15 +162,6 @@ fn continuation_uses(
             }
             CpsStmt::ForceThunk { thunk, .. } => {
                 uses.insert(*thunk);
-                for entry in handler_entries {
-                    uses.extend(
-                        continuation_captures
-                            .get(entry)
-                            .into_iter()
-                            .flatten()
-                            .copied(),
-                    );
-                }
             }
             CpsStmt::Tuple { items, .. } => {
                 uses.extend(items.iter().copied());

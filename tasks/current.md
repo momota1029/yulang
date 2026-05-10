@@ -262,6 +262,13 @@ runtime/core IR
   - same-function handler re-entry は最小形を通した。Cranelift は
     `ResumeWithHandler` の rebase 時に handler arm env を pending frame として
     capture し、handler 選択時に entry ごとの env を復元する。
+  - `std::undet.once` は統合 target として重すぎるため、
+    `notes/design/native-undet-plan.md` に分解計画を置いた。
+    現在の native regression は local `choice` act で
+    `branch` / `reject` / DFS once を scalar root に畳む段階まで通している。
+  - finite list nondet は `fold` / `sub` を使わず、`std::list::uncons` と
+    local `choice::branch` / `choice::reject` だけで scalar root へ畳む regression が
+    Cranelift CPS repr と VM で一致する。
   - `std::undet` の `.once` は finite list の例で CPS repr object/executable まで
     compile できる。ただし `each [1, 2, 3] .once` の native-run result はまだ
     VM と一致せず、現状は `:just 0` になる。handler id は module 内で global に
@@ -278,11 +285,16 @@ runtime/core IR
    - 完了: `run state (thunk (k value))` は handler wrapper 構造を見て
      `ResumeWithHandler` へ落とす。
    - 完了: mutable ref regression は VM/JIT compare のまま通り、`ignore` を外した。
-   - 完了: 最小 `once` kernel として、tail effect operation と boolean match
-     condition の `branch` を handler が `k true` で再開する source regression を
-     追加した。
-   - 完了: pure higher-order call の第一歩として、lambda を CPS closure に lower し、
-     Cranelift CPS repr で indirect apply できるようにした。
+  - 完了: 最小 `once` kernel として、tail effect operation と boolean match
+    condition の `branch` を handler が `k true` で再開する source regression を
+    追加した。
+  - 完了: queue を使わない DFS once kernel と、`fold` / `sub` を使わない finite
+    list choice を scalar root の VM/JIT compare に足した。
+  - 未完了: `each_head(xs): [choice] int` のように effectful thunk を返す
+    source-defined helper は、caller の handler frame を thunk 作成時に渡す規則が
+    まだ不足しているため ignored regression として残した。
+  - 完了: pure higher-order call の第一歩として、lambda を CPS closure に lower し、
+    Cranelift CPS repr で indirect apply できるようにした。
 2. CPS repr Cranelift の source 回帰を広げる。
    `let` / `if` / primitive / direct call / simple handler / value arm を
    VM と比較しながら固定する。
@@ -342,8 +354,9 @@ runtime/core IR
 - 焦点:
   - mutable ref 以外の user-defined state/effect wrapper を VM 比較へ足す。
   - std `undet.once` は finite list の object/executable compile path まで通った。
-    ただし実行値はまだ VM と一致しない。次は `each` / `fold_impl` / `sub::sub` を
-    またぐ thunk force と dynamic handler stack の意味論を VM と揃える。
+    ただし実行値はまだ VM と一致しない。次は function-returned effectful thunk
+    が caller handler frame を持てるようにしてから、`each` / `fold_impl` /
+    `sub::sub` をまたぐ thunk force と dynamic handler stack の意味論を VM と揃える。
   - effectful callback の handler frame は関数境界をまたいで選択できるように
     なった。次は handler candidate と captured env をより ABI 明示的な構造へ寄せる。
   - 保存・返却される thunk value はまだ扱わず、direct thunk callback subset の

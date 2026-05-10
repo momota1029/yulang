@@ -233,9 +233,7 @@ fn handler_stack_with_captured(
     handlers
 }
 
-fn handler_stack_for_force(
-    captured: &[YulangCpsI64HandlerFrame],
-) -> Vec<YulangCpsI64HandlerFrame> {
+fn handler_stack_for_force(captured: &[YulangCpsI64HandlerFrame]) -> Vec<YulangCpsI64HandlerFrame> {
     let mut handlers = handler_stack_with_captured(captured);
     handlers.extend(take_pending_handler_frames());
     handlers
