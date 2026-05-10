@@ -57,17 +57,21 @@ Completed:
   scalar root;
 - handler arm environment capture for `ResumeWithHandler`;
 - handler-aware lowering for `match` in handled bodies;
-- `LocalPushId -> AddId -> Thunk` execution in handled bodies.
+- `LocalPushId -> AddId -> Thunk` execution in handled bodies;
+- Phase 4 (inlinable case): a non-recursive helper such as
+  `each_head(xs): [choice] int` is inlined inside the caller's handler scope,
+  and the resulting thunk is forced before reaching the handler value
+  continuation. CPS eval, CPS repr eval, and Cranelift JIT all agree with VM.
 
 Open:
 
-- function-returned effectful thunks do not yet carry the caller's handler frame
-  reliably.  A direct helper such as `each_head(xs): [choice] int` can compile,
-  but it is still kept as an ignored regression until the handler-frame capture
-  rule is made explicit.
+- recursive helpers like `each_list(xs): [choice] int` are not inlined and
+  still emit `Perform` without a known handler entry — the caller's active
+  handler frame must be threaded through the recursive function boundary.
 - `std::undet.once` still needs a real resumption queue strategy.
 - generated CPS executables still do not print non-scalar Yulang values.
 
-The next implementation step is Phase 4: make effectful thunks returned across a
-source-defined direct call capture or receive the active handler frame without
-turning all opaque `i64` results into eager thunk forces.
+The next implementation step is the recursive variant of Phase 4: make
+non-inlined effectful helpers route their `Perform` to the caller's active
+handler frame, either by capturing the handler envs at thunk creation or by
+threading handler context through the function call.

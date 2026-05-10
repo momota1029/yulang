@@ -901,7 +901,9 @@ fn eval_primitive(
                 "false"
             }))
         }
-        _ => Err(CpsEvalError::UnsupportedPrimitive { op }),
+        _ => runtime::vm::primitive::apply_primitive(op, args).map_err(|_| {
+            CpsEvalError::UnsupportedPrimitive { op }
+        }),
     }
 }
 

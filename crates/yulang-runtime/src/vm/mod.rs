@@ -111,7 +111,7 @@ mod erase;
 mod guard;
 mod interpreter;
 mod model;
-mod primitive;
+pub mod primitive;
 mod value;
 
 use erase::*;

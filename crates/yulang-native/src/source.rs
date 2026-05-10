@@ -502,7 +502,6 @@ once_dfs_int { case std::list::uncons [1, 2, 3]:
     }
 
     #[test]
-    #[ignore = "function-returned effectful thunks do not yet carry caller handler frames"]
     fn compares_prelude_source_once_finite_each_function_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(
@@ -527,6 +526,35 @@ once_dfs_int { each_head [1, 2, 3] }
 "#,
             )
             .expect("source once finite each function CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    #[ignore = "Milestone 6: recursive each_list requires non-inlined function to route effects to caller handler"]
+    fn compares_prelude_source_once_finite_each_list_recursive_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choice:
+  pub branch: () -> bool
+  pub reject: () -> never
+
+my once_dfs_int(x: [choice] int): int = catch x:
+    choice::branch (), k -> catch k true:
+        choice::reject (), _ -> k false
+        v -> v
+    choice::reject (), _ -> 0
+    v -> v
+
+my each_list(xs: std::list::list int): [choice] int = case std::list::uncons xs:
+    std::opt::opt::nil -> choice::reject ()
+    std::opt::opt::just (x, rest) -> case choice::branch ():
+        true -> x
+        false -> each_list rest
+
+once_dfs_int { each_list [1, 2, 3] }
+"#,
+            )
+            .expect("source once finite each_list recursive CPS repr jit compare with prelude");
         });
     }
 

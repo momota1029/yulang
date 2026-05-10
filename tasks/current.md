@@ -290,9 +290,14 @@ runtime/core IR
     追加した。
   - 完了: queue を使わない DFS once kernel と、`fold` / `sub` を使わない finite
     list choice を scalar root の VM/JIT compare に足した。
-  - 未完了: `each_head(xs): [choice] int` のように effectful thunk を返す
-    source-defined helper は、caller の handler frame を thunk 作成時に渡す規則が
-    まだ不足しているため ignored regression として残した。
+  - 完了: `each_head(xs): [choice] int` のように effectful thunk を返す
+    inlinable な source-defined helper は、caller の active handler scope で
+    inline され、`lower_inline_direct_apply` が返した thunk を direct call site で
+    force するようにした。CPS eval / CPS repr eval / Cranelift JIT のすべてが VM と一致する。
+  - 未完了: `each_list` のような recursive helper は inline されず、
+    callee 側で `Perform` の handler entry が決まらない。caller の handler frame を
+    function 境界越しに渡す手段（thunk 作成時の env capture もしくは call 引数による
+    handler context routing）が必要。
   - 完了: pure higher-order call の第一歩として、lambda を CPS closure に lower し、
     Cranelift CPS repr で indirect apply できるようにした。
 2. CPS repr Cranelift の source 回帰を広げる。

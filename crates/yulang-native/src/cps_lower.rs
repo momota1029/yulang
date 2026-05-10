@@ -1184,6 +1184,14 @@ impl<'a> FunctionLowerer<'a> {
                     && matches!(info.ret, runtime::Type::Thunk { .. }));
             if should_inline_direct {
                 if let Some(value) = self.lower_inline_direct_apply(expr)? {
+                    if direct_call_result_needs_force(expr, info) {
+                        let forced = self.fresh_value();
+                        self.current.stmts.push(CpsStmt::ForceThunk {
+                            dest: forced,
+                            thunk: value,
+                        });
+                        return Ok(forced);
+                    }
                     return Ok(value);
                 }
             }

@@ -170,9 +170,13 @@ or out of here into the user-facing table once they stabilize.
       Cranelift CPS repr scalar path for pure higher-order calls.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
-- [ ] Effectful thunks returned across source-defined function boundaries do
-      not yet reliably carry the caller's active handler frame; `each_head`
-      style helpers are tracked as ignored regressions.
+- [x] Effectful thunks returned across an inlinable source-defined function
+      boundary now carry the caller's active handler frame: a non-recursive
+      helper such as `each_head(xs): [choice] int` is inlined and the implicit
+      thunk is forced inside the caller's handler scope.
+- [ ] Recursive helpers such as `each_list` are still not inlined and emit
+      `Perform` without a known handler entry; their caller's handler frame
+      must instead be threaded through the function call.
 - [ ] General closures and heap value lanes are not complete.
 - [ ] Non-scalar CPS return values can flow through the prototype as opaque
       `i64` heap pointers, but generated CPS executables do not yet print them

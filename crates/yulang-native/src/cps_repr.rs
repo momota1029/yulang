@@ -1614,7 +1614,8 @@ fn eval_primitive(
         PrimitiveOp::IntLe => Ok(runtime::VmValue::Bool(
             int_value(op, &args[0])? <= int_value(op, &args[1])?,
         )),
-        _ => Err(CpsReprEvalError::UnsupportedPrimitive { op }),
+        _ => runtime::vm::primitive::apply_primitive(op, args)
+            .map_err(|_| CpsReprEvalError::UnsupportedPrimitive { op }),
     }
 }
 

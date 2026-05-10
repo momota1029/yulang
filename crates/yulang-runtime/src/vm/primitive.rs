@@ -46,7 +46,7 @@ pub(super) fn primitive_arity(op: core_ir::PrimitiveOp) -> usize {
     }
 }
 
-pub(super) fn apply_primitive(
+pub fn apply_primitive(
     op: core_ir::PrimitiveOp,
     args: &[VmValue],
 ) -> Result<VmValue, VmError> {
