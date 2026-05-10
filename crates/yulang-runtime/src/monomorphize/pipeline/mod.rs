@@ -55,6 +55,35 @@ use reachability::*;
 use shape::*;
 use substitute::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MonomorphizeMode {
+    PrincipalElaborate,
+    LegacyDemandFixpoint,
+}
+
+impl MonomorphizeMode {
+    fn detect() -> Self {
+        if std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_some() {
+            Self::LegacyDemandFixpoint
+        } else {
+            Self::PrincipalElaborate
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::PrincipalElaborate => "principal-elaborate",
+            Self::LegacyDemandFixpoint => "legacy-demand-fixpoint",
+        }
+    }
+}
+
+impl Default for MonomorphizeMode {
+    fn default() -> Self {
+        Self::PrincipalElaborate
+    }
+}
+
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     let lowered = run_mono_pipeline_unprofiled(module)?;
     ensure_monomorphic_bindings(&lowered)?;
@@ -73,10 +102,21 @@ pub fn monomorphize_module_profiled(
     Ok((lowered, profile))
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MonomorphizeProfile {
+    pub mode: MonomorphizeMode,
     pub passes: Vec<MonomorphizePassProfile>,
     pub demand_evidence: DemandEvidenceProfile,
+}
+
+impl Default for MonomorphizeProfile {
+    fn default() -> Self {
+        Self {
+            mode: MonomorphizeMode::default(),
+            passes: Vec::new(),
+            demand_evidence: DemandEvidenceProfile::default(),
+        }
+    }
 }
 
 impl MonomorphizeProfile {
@@ -279,39 +319,56 @@ const MONO_PIPELINE: &[MonoStage] = &[
 ];
 
 fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfile)> {
+    let mode = MonomorphizeMode::detect();
+    reset_demand_evidence_profile();
+    let (module, mut profile) = match mode {
+        MonomorphizeMode::PrincipalElaborate => run_principal_elaborate_pipeline(module)?,
+        MonomorphizeMode::LegacyDemandFixpoint => run_legacy_demand_fixpoint_pipeline(module)?,
+    };
+    profile.mode = mode;
+    profile.demand_evidence = snapshot_demand_evidence_profile();
+    annotate_substitution_skip_reachability(&mut profile, &module);
+    Ok((module, profile))
+}
+
+fn run_principal_elaborate_pipeline(
+    module: Module,
+) -> RuntimeResult<(Module, MonomorphizeProfile)> {
     let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
     let mut module = module;
     let mut profile = MonomorphizeProfile::default();
-    reset_demand_evidence_profile();
-    if std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_none() {
-        let step = run_profiled_mono_pass(
-            module,
-            MonoPass::InlinePolymorphicWrappers,
-            &mut profile,
-            debug,
-        )?;
-        module = step.module;
-        let step =
-            run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, &mut profile, debug)?;
-        module = step.module;
-        let step =
-            run_profiled_mono_pass(module, MonoPass::RefreshClosedSchemes, &mut profile, debug)?;
-        module = step.module;
-        let step = run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
-        module = step.module;
-        if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
-            && let Some(context) = principal_elaborate_strict_failure(&module)
-        {
-            return Err(RuntimeError::InvariantViolation {
-                stage: "principal-elaborate",
-                context,
-                message: "principal elaboration plan incomplete",
-            });
-        }
-        profile.demand_evidence = snapshot_demand_evidence_profile();
-        annotate_substitution_skip_reachability(&mut profile, &module);
-        return Ok((module, profile));
+    let step = run_profiled_mono_pass(
+        module,
+        MonoPass::InlinePolymorphicWrappers,
+        &mut profile,
+        debug,
+    )?;
+    module = step.module;
+    let step = run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, &mut profile, debug)?;
+    module = step.module;
+    let step =
+        run_profiled_mono_pass(module, MonoPass::RefreshClosedSchemes, &mut profile, debug)?;
+    module = step.module;
+    let step = run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
+    module = step.module;
+    if std::env::var_os("YULANG_PRINCIPAL_ELABORATE_STRICT").is_some()
+        && let Some(context) = principal_elaborate_strict_failure(&module)
+    {
+        return Err(RuntimeError::InvariantViolation {
+            stage: "principal-elaborate",
+            context,
+            message: "principal elaboration plan incomplete",
+        });
     }
+    Ok((module, profile))
+}
+
+fn run_legacy_demand_fixpoint_pipeline(
+    module: Module,
+) -> RuntimeResult<(Module, MonomorphizeProfile)> {
+    let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
+    let mut module = module;
+    let mut profile = MonomorphizeProfile::default();
     for stage in MONO_PIPELINE {
         match *stage {
             MonoStage::Pass(pass) => {
@@ -334,15 +391,21 @@ fn run_mono_pipeline(module: Module) -> RuntimeResult<(Module, MonomorphizeProfi
             }
         }
     }
-    profile.demand_evidence = snapshot_demand_evidence_profile();
-    annotate_substitution_skip_reachability(&mut profile, &module);
     Ok((module, profile))
 }
 
 fn run_mono_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
-    if std::env::var_os("YULANG_LEGACY_MONO_FIXPOINT").is_some() {
-        return run_mono_pipeline(module).map(|(module, _profile)| module);
+    match MonomorphizeMode::detect() {
+        MonomorphizeMode::PrincipalElaborate => {
+            run_principal_elaborate_pipeline_unprofiled(module)
+        }
+        MonomorphizeMode::LegacyDemandFixpoint => {
+            run_mono_pipeline(module).map(|(module, _profile)| module)
+        }
     }
+}
+
+fn run_principal_elaborate_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
     let mut module = inline_polymorphic_wrappers(module);
     module = principal_elaborate_module(module);
     module = refresh_closed_specialized_schemes(module);

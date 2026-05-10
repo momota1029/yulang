@@ -1,21 +1,26 @@
-//! Demand-driven monomorphization.
+//! Monomorphization and specialization.
 //!
-//! Concrete use sites create demands, demands are deduplicated by runtime
-//! signature, and `_` / `Any` becomes a monomorphization hole instead of a VM
-//! type witness.  The public pipeline in `pipeline` adds validation, cleanup,
-//! profiling, and final invariant checks around this demand core.
+//! The default path is principal-elaboration based: it inlines polymorphic
+//! wrappers, elaborates principal types, refreshes closed schemes, and prunes
+//! unreachable bindings.
+//!
+//! The legacy demand-driven fixpoint path is retained for comparison and debug,
+//! enabled by setting `YULANG_LEGACY_MONO_FIXPOINT`.  In that path, concrete
+//! use sites create demands, demands are deduplicated by runtime signature, and
+//! `_` / `Any` becomes a monomorphization hole instead of a VM type witness.
 
-use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::collections::{BTreeMap, HashMap};
 
 use yulang_core_ir as core_ir;
 
-use crate::ir::Type as RuntimeType;
+use crate::ir::{Expr, ExprKind, RecordSpreadExpr, Stmt, Type as RuntimeType};
 use crate::types::substitute_type;
 
 mod associated;
 mod check;
 mod collect;
+mod demand_profile;
+mod demand_queue;
 mod emit;
 mod engine;
 mod pipeline;
@@ -26,10 +31,14 @@ mod specialize;
 use associated::*;
 pub use check::*;
 pub use collect::*;
+use demand_profile::DEMAND_EVIDENCE_PROFILE;
+pub use demand_profile::DemandEvidenceProfile;
+pub(crate) use demand_profile::{reset_demand_evidence_profile, snapshot_demand_evidence_profile};
+pub use demand_queue::{DemandQueue, DemandQueueProfile};
 pub use emit::*;
 pub use engine::*;
 pub use pipeline::{
-    MonomorphizePassProfile, MonomorphizeProfile, MonomorphizeProgress,
+    MonomorphizeMode, MonomorphizePassProfile, MonomorphizeProfile, MonomorphizeProgress,
     SubstitutionSpecializeInferenceCount, SubstitutionSpecializeMissingVarCount,
     SubstitutionSpecializeProfile, SubstitutionSpecializeRewriteContextCount,
     SubstitutionSpecializeRewriteExprKindTiming, SubstitutionSpecializeRewritePhaseTiming,
@@ -41,425 +50,6 @@ use semantics::*;
 pub use solve::*;
 pub use specialize::*;
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct DemandQueue {
-    semantics: DemandSemantics,
-    queue: VecDeque<Demand>,
-    seen: HashSet<DemandKey>,
-    profile: DemandQueueProfile,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct DemandQueueProfile {
-    pub attempted: usize,
-    pub pushed: usize,
-    pub pushed_open: usize,
-    pub pushed_closed: usize,
-    pub skipped_duplicate: usize,
-    pub skipped_covered_by_closed: usize,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct DemandEvidenceProfile {
-    pub apply_arg_signature_calls: usize,
-    pub expected_arg_hint_disabled: usize,
-    pub expected_arg_hint_present: usize,
-    pub expected_arg_hint_converted: usize,
-    pub expected_arg_hint_used: usize,
-    pub expected_arg_hint_changed_signature: usize,
-    pub expected_arg_hint_same_signature: usize,
-    pub expected_arg_hint_rejected_open: usize,
-    pub apply_callee_signature_calls: usize,
-    pub expected_callee_hint_disabled: usize,
-    pub expected_callee_hint_present: usize,
-    pub expected_callee_hint_converted: usize,
-    pub expected_callee_hint_used: usize,
-    pub expected_callee_hint_changed_param_signature: usize,
-    pub expected_callee_hint_same_param_signature: usize,
-    pub expected_callee_hint_rejected_open: usize,
-    pub expected_callee_hint_rejected_non_function: usize,
-}
-
-pub(crate) fn reset_demand_evidence_profile() {
-    DEMAND_EVIDENCE_PROFILE.reset();
-}
-
-pub(crate) fn snapshot_demand_evidence_profile() -> DemandEvidenceProfile {
-    DEMAND_EVIDENCE_PROFILE.snapshot()
-}
-
-struct DemandEvidenceProfileCounters {
-    apply_arg_signature_calls: AtomicUsize,
-    expected_arg_hint_disabled: AtomicUsize,
-    expected_arg_hint_present: AtomicUsize,
-    expected_arg_hint_converted: AtomicUsize,
-    expected_arg_hint_used: AtomicUsize,
-    expected_arg_hint_changed_signature: AtomicUsize,
-    expected_arg_hint_same_signature: AtomicUsize,
-    expected_arg_hint_rejected_open: AtomicUsize,
-    apply_callee_signature_calls: AtomicUsize,
-    expected_callee_hint_disabled: AtomicUsize,
-    expected_callee_hint_present: AtomicUsize,
-    expected_callee_hint_converted: AtomicUsize,
-    expected_callee_hint_used: AtomicUsize,
-    expected_callee_hint_changed_param_signature: AtomicUsize,
-    expected_callee_hint_same_param_signature: AtomicUsize,
-    expected_callee_hint_rejected_open: AtomicUsize,
-    expected_callee_hint_rejected_non_function: AtomicUsize,
-}
-
-impl DemandEvidenceProfileCounters {
-    const fn new() -> Self {
-        Self {
-            apply_arg_signature_calls: AtomicUsize::new(0),
-            expected_arg_hint_disabled: AtomicUsize::new(0),
-            expected_arg_hint_present: AtomicUsize::new(0),
-            expected_arg_hint_converted: AtomicUsize::new(0),
-            expected_arg_hint_used: AtomicUsize::new(0),
-            expected_arg_hint_changed_signature: AtomicUsize::new(0),
-            expected_arg_hint_same_signature: AtomicUsize::new(0),
-            expected_arg_hint_rejected_open: AtomicUsize::new(0),
-            apply_callee_signature_calls: AtomicUsize::new(0),
-            expected_callee_hint_disabled: AtomicUsize::new(0),
-            expected_callee_hint_present: AtomicUsize::new(0),
-            expected_callee_hint_converted: AtomicUsize::new(0),
-            expected_callee_hint_used: AtomicUsize::new(0),
-            expected_callee_hint_changed_param_signature: AtomicUsize::new(0),
-            expected_callee_hint_same_param_signature: AtomicUsize::new(0),
-            expected_callee_hint_rejected_open: AtomicUsize::new(0),
-            expected_callee_hint_rejected_non_function: AtomicUsize::new(0),
-        }
-    }
-
-    fn reset(&self) {
-        self.apply_arg_signature_calls.store(0, Ordering::Relaxed);
-        self.expected_arg_hint_disabled.store(0, Ordering::Relaxed);
-        self.expected_arg_hint_present.store(0, Ordering::Relaxed);
-        self.expected_arg_hint_converted.store(0, Ordering::Relaxed);
-        self.expected_arg_hint_used.store(0, Ordering::Relaxed);
-        self.expected_arg_hint_changed_signature
-            .store(0, Ordering::Relaxed);
-        self.expected_arg_hint_same_signature
-            .store(0, Ordering::Relaxed);
-        self.expected_arg_hint_rejected_open
-            .store(0, Ordering::Relaxed);
-        self.apply_callee_signature_calls
-            .store(0, Ordering::Relaxed);
-        self.expected_callee_hint_disabled
-            .store(0, Ordering::Relaxed);
-        self.expected_callee_hint_present
-            .store(0, Ordering::Relaxed);
-        self.expected_callee_hint_converted
-            .store(0, Ordering::Relaxed);
-        self.expected_callee_hint_used.store(0, Ordering::Relaxed);
-        self.expected_callee_hint_changed_param_signature
-            .store(0, Ordering::Relaxed);
-        self.expected_callee_hint_same_param_signature
-            .store(0, Ordering::Relaxed);
-        self.expected_callee_hint_rejected_open
-            .store(0, Ordering::Relaxed);
-        self.expected_callee_hint_rejected_non_function
-            .store(0, Ordering::Relaxed);
-    }
-
-    fn snapshot(&self) -> DemandEvidenceProfile {
-        DemandEvidenceProfile {
-            apply_arg_signature_calls: self.apply_arg_signature_calls.load(Ordering::Relaxed),
-            expected_arg_hint_disabled: self.expected_arg_hint_disabled.load(Ordering::Relaxed),
-            expected_arg_hint_present: self.expected_arg_hint_present.load(Ordering::Relaxed),
-            expected_arg_hint_converted: self.expected_arg_hint_converted.load(Ordering::Relaxed),
-            expected_arg_hint_used: self.expected_arg_hint_used.load(Ordering::Relaxed),
-            expected_arg_hint_changed_signature: self
-                .expected_arg_hint_changed_signature
-                .load(Ordering::Relaxed),
-            expected_arg_hint_same_signature: self
-                .expected_arg_hint_same_signature
-                .load(Ordering::Relaxed),
-            expected_arg_hint_rejected_open: self
-                .expected_arg_hint_rejected_open
-                .load(Ordering::Relaxed),
-            apply_callee_signature_calls: self.apply_callee_signature_calls.load(Ordering::Relaxed),
-            expected_callee_hint_disabled: self
-                .expected_callee_hint_disabled
-                .load(Ordering::Relaxed),
-            expected_callee_hint_present: self.expected_callee_hint_present.load(Ordering::Relaxed),
-            expected_callee_hint_converted: self
-                .expected_callee_hint_converted
-                .load(Ordering::Relaxed),
-            expected_callee_hint_used: self.expected_callee_hint_used.load(Ordering::Relaxed),
-            expected_callee_hint_changed_param_signature: self
-                .expected_callee_hint_changed_param_signature
-                .load(Ordering::Relaxed),
-            expected_callee_hint_same_param_signature: self
-                .expected_callee_hint_same_param_signature
-                .load(Ordering::Relaxed),
-            expected_callee_hint_rejected_open: self
-                .expected_callee_hint_rejected_open
-                .load(Ordering::Relaxed),
-            expected_callee_hint_rejected_non_function: self
-                .expected_callee_hint_rejected_non_function
-                .load(Ordering::Relaxed),
-        }
-    }
-}
-
-static DEMAND_EVIDENCE_PROFILE: DemandEvidenceProfileCounters =
-    DemandEvidenceProfileCounters::new();
-
-impl DemandQueue {
-    pub(super) fn with_semantics(semantics: DemandSemantics) -> Self {
-        Self {
-            semantics,
-            ..Self::default()
-        }
-    }
-
-    pub fn push(&mut self, target: core_ir::Path, expected: RuntimeType) -> bool {
-        let demand = Demand::new_with_semantics(&self.semantics, target, expected);
-        self.push_demand(demand)
-    }
-
-    pub fn push_signature(
-        &mut self,
-        target: core_ir::Path,
-        expected: RuntimeType,
-        signature: DemandSignature,
-    ) -> bool {
-        let demand =
-            Demand::with_signature_and_semantics(&self.semantics, target, expected, signature);
-        self.push_demand(demand)
-    }
-
-    fn push_demand(&mut self, demand: Demand) -> bool {
-        self.profile.attempted += 1;
-        if !demand.key.signature.is_closed()
-            && self.seen.iter().any(|key| {
-                key.target == demand.target
-                    && key.signature.is_closed()
-                    && closed_signature_covers_open(&key.signature, &demand.key.signature)
-            })
-        {
-            self.profile.skipped_covered_by_closed += 1;
-            return false;
-        }
-        if !self.seen.insert(demand.key.clone()) {
-            self.profile.skipped_duplicate += 1;
-            return false;
-        }
-        if demand.key.signature.is_closed() {
-            self.profile.pushed_closed += 1;
-        } else {
-            self.profile.pushed_open += 1;
-        }
-        self.profile.pushed += 1;
-        self.queue.push_back(demand);
-        true
-    }
-
-    pub fn pop_front(&mut self) -> Option<Demand> {
-        self.queue.pop_front()
-    }
-
-    pub fn len(&self) -> usize {
-        self.queue.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.queue.is_empty()
-    }
-
-    pub fn profile(&self) -> DemandQueueProfile {
-        self.profile
-    }
-}
-
-impl DemandQueueProfile {
-    pub fn merge(&mut self, other: Self) {
-        self.attempted += other.attempted;
-        self.pushed += other.pushed;
-        self.pushed_open += other.pushed_open;
-        self.pushed_closed += other.pushed_closed;
-        self.skipped_duplicate += other.skipped_duplicate;
-        self.skipped_covered_by_closed += other.skipped_covered_by_closed;
-    }
-}
-
-fn closed_signature_covers_open(closed: &DemandSignature, open: &DemandSignature) -> bool {
-    match (closed, open) {
-        (_, DemandSignature::Ignored | DemandSignature::Hole(_)) => true,
-        (DemandSignature::Core(closed), DemandSignature::Core(open)) => {
-            closed_core_type_covers_open(closed, open)
-        }
-        (
-            DemandSignature::Fun {
-                param: closed_param,
-                ret: closed_ret,
-            },
-            DemandSignature::Fun {
-                param: open_param,
-                ret: open_ret,
-            },
-        ) => {
-            closed_signature_covers_open(closed_param, open_param)
-                && closed_signature_covers_open(closed_ret, open_ret)
-        }
-        (
-            DemandSignature::Thunk {
-                effect: closed_effect,
-                value: closed_value,
-            },
-            DemandSignature::Thunk {
-                effect: open_effect,
-                value: open_value,
-            },
-        ) => {
-            closed_effect_covers_open(closed_effect, open_effect)
-                && closed_signature_covers_open(closed_value, open_value)
-        }
-        _ => false,
-    }
-}
-
-fn closed_effect_covers_open(closed: &DemandEffect, open: &DemandEffect) -> bool {
-    match (closed, open) {
-        (_, DemandEffect::Hole(_)) => true,
-        (DemandEffect::Empty, DemandEffect::Empty) => true,
-        (DemandEffect::Atom(closed), DemandEffect::Atom(open)) => {
-            closed_core_type_covers_open(closed, open)
-        }
-        (DemandEffect::Row(closed), DemandEffect::Row(open)) => {
-            closed.len() == open.len()
-                && closed
-                    .iter()
-                    .zip(open)
-                    .all(|(closed, open)| closed_effect_covers_open(closed, open))
-        }
-        _ => false,
-    }
-}
-
-fn closed_core_type_covers_open(closed: &DemandCoreType, open: &DemandCoreType) -> bool {
-    match (closed, open) {
-        (_, DemandCoreType::Any | DemandCoreType::Hole(_)) => true,
-        (DemandCoreType::Never, DemandCoreType::Never) => true,
-        (
-            DemandCoreType::Named {
-                path: closed_path,
-                args: closed_args,
-            },
-            DemandCoreType::Named {
-                path: open_path,
-                args: open_args,
-            },
-        ) => {
-            closed_path == open_path
-                && closed_args.len() == open_args.len()
-                && closed_args
-                    .iter()
-                    .zip(open_args)
-                    .all(|(closed, open)| closed_type_arg_covers_open(closed, open))
-        }
-        (
-            DemandCoreType::Fun {
-                param: closed_param,
-                param_effect: closed_param_effect,
-                ret_effect: closed_ret_effect,
-                ret: closed_ret,
-            },
-            DemandCoreType::Fun {
-                param: open_param,
-                param_effect: open_param_effect,
-                ret_effect: open_ret_effect,
-                ret: open_ret,
-            },
-        ) => {
-            closed_core_type_covers_open(closed_param, open_param)
-                && closed_effect_covers_open(closed_param_effect, open_param_effect)
-                && closed_effect_covers_open(closed_ret_effect, open_ret_effect)
-                && closed_core_type_covers_open(closed_ret, open_ret)
-        }
-        (DemandCoreType::Tuple(closed), DemandCoreType::Tuple(open))
-        | (DemandCoreType::Union(closed), DemandCoreType::Union(open))
-        | (DemandCoreType::Inter(closed), DemandCoreType::Inter(open)) => {
-            closed.len() == open.len()
-                && closed
-                    .iter()
-                    .zip(open)
-                    .all(|(closed, open)| closed_core_type_covers_open(closed, open))
-        }
-        (DemandCoreType::Record(closed), DemandCoreType::Record(open)) => {
-            closed.len() == open.len()
-                && closed.iter().zip(open).all(|(closed, open)| {
-                    closed.name == open.name
-                        && closed.optional == open.optional
-                        && closed_core_type_covers_open(&closed.value, &open.value)
-                })
-        }
-        (DemandCoreType::Variant(closed), DemandCoreType::Variant(open)) => {
-            closed.len() == open.len()
-                && closed.iter().zip(open).all(|(closed, open)| {
-                    closed.name == open.name
-                        && closed.payloads.len() == open.payloads.len()
-                        && closed
-                            .payloads
-                            .iter()
-                            .zip(&open.payloads)
-                            .all(|(closed, open)| closed_core_type_covers_open(closed, open))
-                })
-        }
-        (DemandCoreType::RowAsValue(closed), DemandCoreType::RowAsValue(open)) => {
-            closed.len() == open.len()
-                && closed
-                    .iter()
-                    .zip(open)
-                    .all(|(closed, open)| closed_effect_covers_open(closed, open))
-        }
-        (
-            DemandCoreType::Recursive {
-                var: closed_var,
-                body: closed_body,
-            },
-            DemandCoreType::Recursive {
-                var: open_var,
-                body: open_body,
-            },
-        ) => closed_var == open_var && closed_core_type_covers_open(closed_body, open_body),
-        _ => false,
-    }
-}
-
-fn closed_type_arg_covers_open(closed: &DemandTypeArg, open: &DemandTypeArg) -> bool {
-    match (closed, open) {
-        (DemandTypeArg::Type(closed), DemandTypeArg::Type(open)) => {
-            closed_core_type_covers_open(closed, open)
-        }
-        (
-            DemandTypeArg::Bounds {
-                lower: closed_lower,
-                upper: closed_upper,
-            },
-            DemandTypeArg::Bounds {
-                lower: open_lower,
-                upper: open_upper,
-            },
-        ) => {
-            optional_closed_core_type_covers_open(closed_lower.as_ref(), open_lower.as_ref())
-                && optional_closed_core_type_covers_open(closed_upper.as_ref(), open_upper.as_ref())
-        }
-        _ => false,
-    }
-}
-
-fn optional_closed_core_type_covers_open(
-    closed: Option<&DemandCoreType>,
-    open: Option<&DemandCoreType>,
-) -> bool {
-    match (closed, open) {
-        (_, None) => true,
-        (Some(closed), Some(open)) => closed_core_type_covers_open(closed, open),
-        (None, Some(_)) => false,
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Demand {
@@ -1245,6 +835,130 @@ impl SignatureBuilder {
     }
 }
 
+/// DFS reachability walk from module roots.
+///
+/// Returns every binding path reachable from the module's root expressions and
+/// `Root::Binding` entries.  Suitable for both pruning and filtering passes.
+pub(super) fn reachable_binding_paths(
+    module: &crate::ir::Module,
+) -> std::collections::HashSet<core_ir::Path> {
+    let bodies: std::collections::HashMap<core_ir::Path, &Expr> = module
+        .bindings
+        .iter()
+        .map(|b| (b.name.clone(), &b.body))
+        .collect();
+    let mut reachable = std::collections::HashSet::new();
+    let mut stack = Vec::new();
+    for root in &module.roots {
+        if let crate::ir::Root::Binding(path) = root {
+            stack.push(path.clone());
+        }
+    }
+    for expr in &module.root_exprs {
+        collect_expr_refs(expr, &mut stack);
+    }
+    while let Some(path) = stack.pop() {
+        if !reachable.insert(path.clone()) {
+            continue;
+        }
+        if let Some(body) = bodies.get(&path) {
+            collect_expr_refs(body, &mut stack);
+        }
+    }
+    reachable
+}
+
+pub(super) fn collect_expr_refs(expr: &Expr, out: &mut Vec<core_ir::Path>) {
+    match &expr.kind {
+        ExprKind::Var(path) => out.push(path.clone()),
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::Thunk { expr: body, .. }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => collect_expr_refs(body, out),
+        ExprKind::Apply { callee, arg, .. } => {
+            collect_expr_refs(callee, out);
+            collect_expr_refs(arg, out);
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_expr_refs(cond, out);
+            collect_expr_refs(then_branch, out);
+            collect_expr_refs(else_branch, out);
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                collect_expr_refs(item, out);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for field in fields {
+                collect_expr_refs(&field.value, out);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
+                        collect_expr_refs(expr, out);
+                    }
+                }
+            }
+        }
+        ExprKind::Variant { value, .. } => {
+            if let Some(value) = value {
+                collect_expr_refs(value, out);
+            }
+        }
+        ExprKind::Select { base, .. } => collect_expr_refs(base, out),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            collect_expr_refs(scrutinee, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_refs(guard, out);
+                }
+                collect_expr_refs(&arm.body, out);
+            }
+        }
+        ExprKind::Block { stmts, tail } => {
+            for stmt in stmts {
+                collect_stmt_refs(stmt, out);
+            }
+            if let Some(tail) = tail {
+                collect_expr_refs(tail, out);
+            }
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            collect_expr_refs(body, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_expr_refs(guard, out);
+                }
+                collect_expr_refs(&arm.body, out);
+            }
+        }
+        ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => {}
+    }
+}
+
+pub(super) fn collect_stmt_refs(stmt: &Stmt, out: &mut Vec<core_ir::Path>) {
+    match stmt {
+        Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
+            collect_expr_refs(value, out);
+        }
+    }
+}
+
 pub(super) fn curried_signatures(
     args: &[DemandSignature],
     ret: DemandSignature,
@@ -1384,42 +1098,26 @@ pub(super) fn apply_evidence_arg_signature_with_expected_arg(
     evidence: &core_ir::ApplyEvidence,
     use_expected_arg: bool,
 ) -> Option<DemandSignature> {
-    DEMAND_EVIDENCE_PROFILE
-        .apply_arg_signature_calls
-        .fetch_add(1, Ordering::Relaxed);
+    DEMAND_EVIDENCE_PROFILE.fetch_add_apply_arg_signature_calls();
     if !use_expected_arg {
-        DEMAND_EVIDENCE_PROFILE
-            .expected_arg_hint_disabled
-            .fetch_add(1, Ordering::Relaxed);
+        DEMAND_EVIDENCE_PROFILE.fetch_add_expected_arg_hint_disabled();
     } else if let Some(bounds) = evidence.expected_arg.as_ref() {
-        DEMAND_EVIDENCE_PROFILE
-            .expected_arg_hint_present
-            .fetch_add(1, Ordering::Relaxed);
+        DEMAND_EVIDENCE_PROFILE.fetch_add_expected_arg_hint_present();
         if let Some(ty) = evidence_bounds_type(bounds) {
-            DEMAND_EVIDENCE_PROFILE
-                .expected_arg_hint_converted
-                .fetch_add(1, Ordering::Relaxed);
+            DEMAND_EVIDENCE_PROFILE.fetch_add_expected_arg_hint_converted();
             let signature = DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone()));
             if signature.is_closed() {
-                DEMAND_EVIDENCE_PROFILE
-                    .expected_arg_hint_used
-                    .fetch_add(1, Ordering::Relaxed);
+                DEMAND_EVIDENCE_PROFILE.fetch_add_expected_arg_hint_used();
                 let fallback = evidence_bounds_type(&evidence.arg)
                     .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())));
                 if fallback.as_ref() == Some(&signature) {
-                    DEMAND_EVIDENCE_PROFILE
-                        .expected_arg_hint_same_signature
-                        .fetch_add(1, Ordering::Relaxed);
+                    DEMAND_EVIDENCE_PROFILE.fetch_add_expected_arg_hint_same_signature();
                 } else {
-                    DEMAND_EVIDENCE_PROFILE
-                        .expected_arg_hint_changed_signature
-                        .fetch_add(1, Ordering::Relaxed);
+                    DEMAND_EVIDENCE_PROFILE.fetch_add_expected_arg_hint_changed_signature();
                 }
                 return Some(signature);
             }
-            DEMAND_EVIDENCE_PROFILE
-                .expected_arg_hint_rejected_open
-                .fetch_add(1, Ordering::Relaxed);
+            DEMAND_EVIDENCE_PROFILE.fetch_add_expected_arg_hint_rejected_open();
         }
     }
     evidence_bounds_type(&evidence.arg)
@@ -1446,53 +1144,35 @@ pub(super) fn apply_evidence_expected_callee_param_signature(
     evidence: &core_ir::ApplyEvidence,
     use_expected_callee: bool,
 ) -> Option<DemandSignature> {
-    DEMAND_EVIDENCE_PROFILE
-        .apply_callee_signature_calls
-        .fetch_add(1, Ordering::Relaxed);
+    DEMAND_EVIDENCE_PROFILE.fetch_add_apply_callee_signature_calls();
     if !use_expected_callee {
-        DEMAND_EVIDENCE_PROFILE
-            .expected_callee_hint_disabled
-            .fetch_add(1, Ordering::Relaxed);
+        DEMAND_EVIDENCE_PROFILE.fetch_add_expected_callee_hint_disabled();
         return None;
     }
     let Some(bounds) = evidence.expected_callee.as_ref() else {
         return None;
     };
-    DEMAND_EVIDENCE_PROFILE
-        .expected_callee_hint_present
-        .fetch_add(1, Ordering::Relaxed);
+    DEMAND_EVIDENCE_PROFILE.fetch_add_expected_callee_hint_present();
     let Some(ty) = evidence_bounds_type(bounds) else {
         return None;
     };
-    DEMAND_EVIDENCE_PROFILE
-        .expected_callee_hint_converted
-        .fetch_add(1, Ordering::Relaxed);
+    DEMAND_EVIDENCE_PROFILE.fetch_add_expected_callee_hint_converted();
     let core_ir::Type::Fun { param, .. } = ty else {
-        DEMAND_EVIDENCE_PROFILE
-            .expected_callee_hint_rejected_non_function
-            .fetch_add(1, Ordering::Relaxed);
+        DEMAND_EVIDENCE_PROFILE.fetch_add_expected_callee_hint_rejected_non_function();
         return None;
     };
     let signature = DemandSignature::from_runtime_type(&RuntimeType::core(param.as_ref().clone()));
     if !signature.is_closed() {
-        DEMAND_EVIDENCE_PROFILE
-            .expected_callee_hint_rejected_open
-            .fetch_add(1, Ordering::Relaxed);
+        DEMAND_EVIDENCE_PROFILE.fetch_add_expected_callee_hint_rejected_open();
         return None;
     }
-    DEMAND_EVIDENCE_PROFILE
-        .expected_callee_hint_used
-        .fetch_add(1, Ordering::Relaxed);
+    DEMAND_EVIDENCE_PROFILE.fetch_add_expected_callee_hint_used();
     let fallback = evidence_bounds_type(&evidence.arg)
         .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())));
     if fallback.as_ref() == Some(&signature) {
-        DEMAND_EVIDENCE_PROFILE
-            .expected_callee_hint_same_param_signature
-            .fetch_add(1, Ordering::Relaxed);
+        DEMAND_EVIDENCE_PROFILE.fetch_add_expected_callee_hint_same_param_signature();
     } else {
-        DEMAND_EVIDENCE_PROFILE
-            .expected_callee_hint_changed_param_signature
-            .fetch_add(1, Ordering::Relaxed);
+        DEMAND_EVIDENCE_PROFILE.fetch_add_expected_callee_hint_changed_param_signature();
     }
     Some(signature)
 }

@@ -24,7 +24,7 @@ impl SpecializationTable {
         table
     }
 
-    pub fn intern(&mut self, checked: &CheckedDemand) -> core_ir::Path {
+    pub fn allocate_fresh(&mut self, checked: &CheckedDemand) -> core_ir::Path {
         let key = checked_key(checked);
         if !should_materialize_demand(&self.semantics, &key) {
             return checked.target.clone();
@@ -58,43 +58,54 @@ impl SpecializationTable {
     }
 
     fn seed_existing(&mut self, module: &Module) {
+        self.seed_existing_demand_specializations(module);
+        self.seed_existing_legacy_specializations(module);
+    }
+
+    fn seed_existing_demand_specializations(&mut self, module: &Module) {
         for binding in &module.bindings {
-            let Some(target) = unspecialized_demand_path(&binding.name)
-                .or_else(|| unspecialized_legacy_mono_path(&binding.name))
-            else {
+            let Some(target) = unspecialized_demand_path(&binding.name) else {
                 continue;
             };
-            if !binding.type_params.is_empty() || hir_type_has_vars(&binding.body.ty) {
-                debug_seed_existing_specialization(
-                    "skip-open-binding",
-                    &target,
-                    &binding.name,
-                    None,
-                );
+            self.seed_one_existing(target, binding);
+        }
+    }
+
+    fn seed_existing_legacy_specializations(&mut self, module: &Module) {
+        for binding in &module.bindings {
+            let Some(target) = unspecialized_legacy_mono_path(&binding.name) else {
                 continue;
-            }
-            let signature = DemandSignature::from_runtime_type(&binding.body.ty);
-            if !signature.is_closed() {
-                debug_seed_existing_specialization(
-                    "skip-open-signature",
-                    &target,
-                    &binding.name,
-                    Some(&signature),
-                );
-                continue;
-            }
-            let specialization = existing_specialization(target, binding, signature);
-            if !self.cache.contains_key(&specialization.key) {
-                debug_seed_existing_specialization(
-                    "seed",
-                    &specialization.target,
-                    &specialization.path,
-                    Some(&specialization.key.signature),
-                );
-                self.cache
-                    .insert(specialization.key.clone(), specialization.path.clone());
-                self.known.push(specialization);
-            }
+            };
+            self.seed_one_existing(target, binding);
+        }
+    }
+
+    fn seed_one_existing(&mut self, target: core_ir::Path, binding: &Binding) {
+        if !binding.type_params.is_empty() || hir_type_has_vars(&binding.body.ty) {
+            debug_seed_existing_specialization("skip-open-binding", &target, &binding.name, None);
+            return;
+        }
+        let signature = DemandSignature::from_runtime_type(&binding.body.ty);
+        if !signature.is_closed() {
+            debug_seed_existing_specialization(
+                "skip-open-signature",
+                &target,
+                &binding.name,
+                Some(&signature),
+            );
+            return;
+        }
+        let specialization = existing_specialization(target, binding, signature);
+        if !self.cache.contains_key(&specialization.key) {
+            debug_seed_existing_specialization(
+                "seed",
+                &specialization.target,
+                &specialization.path,
+                Some(&specialization.key.signature),
+            );
+            self.cache
+                .insert(specialization.key.clone(), specialization.path.clone());
+            self.known.push(specialization);
         }
     }
 }
@@ -211,8 +222,8 @@ mod tests {
         let checked = checked("id", DemandSignature::Core(named("int")));
         let mut table = SpecializationTable::default();
 
-        let first = table.intern(&checked);
-        let second = table.intern(&checked);
+        let first = table.allocate_fresh(&checked);
+        let second = table.allocate_fresh(&checked);
         let specializations = table.into_specializations();
 
         assert_eq!(first, second);
@@ -222,8 +233,8 @@ mod tests {
     #[test]
     fn specialization_table_allocates_paths_in_order() {
         let mut table = SpecializationTable::default();
-        let first = table.intern(&checked("id", DemandSignature::Core(named("int"))));
-        let second = table.intern(&checked("id", DemandSignature::Core(named("str"))));
+        let first = table.allocate_fresh(&checked("id", DemandSignature::Core(named("int"))));
+        let second = table.allocate_fresh(&checked("id", DemandSignature::Core(named("str"))));
 
         assert_eq!(first, path("id__ddmono0"));
         assert_eq!(second, path("id__ddmono1"));

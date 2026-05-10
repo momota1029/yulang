@@ -1,138 +1,215 @@
 use std::collections::{HashMap, HashSet};
 
 use super::*;
-use crate::ir::{Binding, Expr, ExprKind, Module, RecordSpreadExpr, Stmt};
+use crate::ir::{Binding, Module};
 use crate::validate::validate_module;
 
 pub fn demand_monomorphize_module(
     module: Module,
 ) -> Result<DemandMonomorphizeOutput, DemandMonomorphizeError> {
     let mut pending_demands = Vec::new();
-    for round in 0..MISSING_DEMAND_ROUND_LIMIT {
-        let mut engine = DemandEngine::from_module(&module);
-        engine.push_demands(pending_demands.drain(..));
-        let engine_output = engine.run()?;
-        if engine_output.specializations.is_empty() {
+    let mut rounds = Vec::new();
+
+    for round_index in 0..MISSING_DEMAND_ROUND_LIMIT {
+        // Phase 1: check — run the demand engine with any pending demands
+        let engine_out = run_demand_engine(&module, pending_demands.drain(..).collect())?;
+
+        // Phase 2: select — keep only closed (fully concrete) specializations
+        let (closed_specs, closed_fresh) = select_closed_specializations(&engine_out);
+
+        if closed_specs.is_empty() {
+            rounds.push(DemandRoundProfile::empty(round_index, engine_out.queue_profile));
             return Ok(DemandMonomorphizeOutput {
                 module,
                 profile: DemandMonomorphizeProfile {
-                    queue: engine_output.queue_profile,
+                    rounds,
+                    queue: engine_out.queue_profile,
                     ..DemandMonomorphizeProfile::default()
                 },
             });
         }
-        let specializations = engine_output
-            .specializations
-            .iter()
-            .filter(|specialization| specialization.solved.is_closed())
-            .cloned()
-            .collect::<Vec<_>>();
-        if specializations.is_empty() {
-            return Ok(DemandMonomorphizeOutput {
-                module,
-                profile: DemandMonomorphizeProfile {
-                    queue: engine_output.queue_profile,
-                    ..DemandMonomorphizeProfile::default()
-                },
-            });
-        }
-        if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
-            for specialization in &engine_output.specializations {
-                let status = if specialization.solved.is_closed() {
-                    "closed"
-                } else {
-                    "open"
-                };
-                eprintln!(
-                    "demand specialization {status} {:?} -> {:?}: {:?}",
-                    specialization.target, specialization.path, specialization.solved
-                );
-            }
-        }
-        let checked = engine_output.checked;
-        let fresh_specializations = engine_output
-            .fresh_specializations
-            .iter()
-            .filter(|specialization| specialization.solved.is_closed())
-            .cloned()
-            .collect::<Vec<_>>();
-        let emitted = DemandEmitter::from_module_with_checked(
+
+        debug_closed_specializations(&engine_out.specializations);
+
+        // Phase 3: emit — generate specialized bindings for fresh specializations
+        let (emitted_bindings, missing_from_emit) =
+            emit_fresh_bindings(&module, &closed_fresh, &closed_specs, &engine_out.checked)?;
+        let missing_from_emit_count = missing_from_emit.len();
+
+        // Phase 4: validate — filter out bindings that fail per-binding validation
+        let valid = filter_valid_fresh_specializations(
             &module,
-            &fresh_specializations,
-            &specializations,
-            &checked,
-        )
-        .emit_all_report()?;
-        let mut missing_demands = emitted.missing_demands.clone();
-        let valid_output = filter_valid_fresh_specializations(
-            &module,
-            &specializations,
-            &fresh_specializations,
-            emitted.bindings,
+            &closed_specs,
+            &closed_fresh,
+            emitted_bindings,
         );
-        let rewrite = DemandEmitter::rewrite_module_uses_with_checked_report(
+
+        // Phase 5: rewrite — update call sites in the module to use specializations
+        let rewrite = rewrite_module_uses(
             module.clone(),
-            &valid_output.specializations,
-            &checked,
+            &valid.specializations,
+            &engine_out.checked,
         )?;
-        missing_demands.extend(rewrite.missing_demands.clone());
+
+        // Phase 6: missing — collect demands that neither emit nor rewrite resolved
+        let mut all_missing = missing_from_emit;
+        all_missing.extend(rewrite.missing_demands.iter().cloned());
+        let missing_from_rewrite_count = rewrite.missing_demands.len();
         pending_demands =
-            unresolved_missing_demands(&module, &valid_output.specializations, &missing_demands);
-        if !pending_demands.is_empty() && round + 1 < MISSING_DEMAND_ROUND_LIMIT {
-            debug_missing_demand_round(round, &pending_demands);
+            compute_pending_missing_demands(&module, &valid.specializations, &all_missing);
+
+        rounds.push(DemandRoundProfile {
+            round: round_index,
+            queue: engine_out.queue_profile,
+            all_specializations: engine_out.specializations.len(),
+            closed_specializations: closed_specs.len(),
+            fresh_closed: closed_fresh.len(),
+            emitted_valid: valid.emitted.len(),
+            emitted_rejected: valid.rejected.len(),
+            missing_from_emit: missing_from_emit_count,
+            missing_from_rewrite: missing_from_rewrite_count,
+            pending_next: pending_demands.len(),
+            rewrite_changed_bindings: rewrite.changed_bindings,
+            rewrite_changed_roots: rewrite.changed_roots,
+        });
+
+        if !pending_demands.is_empty() && round_index + 1 < MISSING_DEMAND_ROUND_LIMIT {
+            debug_missing_demand_round(round_index, &pending_demands);
             continue;
         }
+
         if rewrite.changed_roots == 0 && rewrite.changed_bindings == 0 {
             return Ok(DemandMonomorphizeOutput {
                 module: rewrite.module,
                 profile: DemandMonomorphizeProfile {
-                    queue: engine_output.queue_profile,
+                    rounds,
+                    queue: engine_out.queue_profile,
                     ..DemandMonomorphizeProfile::default()
                 },
             });
         }
-        let mut module = rewrite.module;
-        let emitted_names = valid_output
-            .emitted
-            .iter()
-            .map(|binding| binding.name.clone())
-            .collect::<HashSet<_>>();
-        module.bindings.extend(valid_output.emitted);
-        retain_reachable_emitted_bindings(&mut module, &emitted_names);
-        let retained_names = module
-            .bindings
-            .iter()
-            .map(|binding| binding.name.clone())
-            .collect::<HashSet<_>>();
-        let emitted_specializations: Vec<_> = valid_output
+
+        // Phase 7: commit — add emitted bindings and prune unreachable ones
+        let module = commit_demand_round(rewrite.module, valid.emitted, &valid.emitted_names);
+        let retained_names: HashSet<_> = module.bindings.iter().map(|b| b.name.clone()).collect();
+        let emitted_specializations: Vec<_> = valid
             .specializations
             .iter()
-            .filter(|specialization| {
-                emitted_names.contains(&specialization.path)
-                    && retained_names.contains(&specialization.path)
+            .filter(|s| {
+                valid.emitted_names.contains(&s.path) && retained_names.contains(&s.path)
             })
             .cloned()
             .collect();
+
         return Ok(DemandMonomorphizeOutput {
             module,
             profile: DemandMonomorphizeProfile {
                 specializations: emitted_specializations.len(),
-                queue: engine_output.queue_profile,
+                queue: engine_out.queue_profile,
                 emitted_specializations,
+                rejected_specializations: valid.rejected,
+                rounds,
             },
         });
     }
+
     Ok(DemandMonomorphizeOutput {
         module,
-        profile: DemandMonomorphizeProfile::default(),
+        profile: DemandMonomorphizeProfile {
+            rounds,
+            ..DemandMonomorphizeProfile::default()
+        },
     })
 }
 
 const MISSING_DEMAND_ROUND_LIMIT: usize = 6;
 
+fn run_demand_engine(
+    module: &Module,
+    pending: Vec<Demand>,
+) -> Result<DemandEngineOutput, DemandCheckError> {
+    let mut engine = DemandEngine::from_module(module);
+    engine.push_demands(pending);
+    engine.run()
+}
+
+fn select_closed_specializations(
+    engine_out: &DemandEngineOutput,
+) -> (Vec<DemandSpecialization>, Vec<DemandSpecialization>) {
+    let closed = engine_out
+        .specializations
+        .iter()
+        .filter(|s| s.solved.is_closed())
+        .cloned()
+        .collect();
+    let closed_fresh = engine_out
+        .fresh_specializations
+        .iter()
+        .filter(|s| s.solved.is_closed())
+        .cloned()
+        .collect();
+    (closed, closed_fresh)
+}
+
+fn emit_fresh_bindings(
+    module: &Module,
+    fresh: &[DemandSpecialization],
+    all_closed: &[DemandSpecialization],
+    checked: &[CheckedDemand],
+) -> Result<(Vec<Binding>, Vec<MissingDemand>), DemandEmitError> {
+    let out = DemandEmitter::from_module_with_checked(module, fresh, all_closed, checked)
+        .emit_all_report()?;
+    Ok((out.bindings, out.missing_demands))
+}
+
+fn rewrite_module_uses(
+    module: Module,
+    specializations: &[DemandSpecialization],
+    checked: &[CheckedDemand],
+) -> Result<DemandRewriteOutput, DemandEmitError> {
+    DemandEmitter::rewrite_module_uses_with_checked_report(module, specializations, checked)
+}
+
+fn compute_pending_missing_demands(
+    module: &Module,
+    specializations: &[DemandSpecialization],
+    missing: &[MissingDemand],
+) -> Vec<Demand> {
+    unresolved_missing_demands(module, specializations, missing)
+}
+
+fn commit_demand_round(
+    mut module: Module,
+    emitted: Vec<Binding>,
+    emitted_names: &HashSet<core_ir::Path>,
+) -> Module {
+    module.bindings.extend(emitted);
+    retain_reachable_emitted_bindings(&mut module, emitted_names);
+    module
+}
+
+fn debug_closed_specializations(specializations: &[DemandSpecialization]) {
+    if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_none() {
+        return;
+    }
+    for specialization in specializations {
+        let status = if specialization.solved.is_closed() {
+            "closed"
+        } else {
+            "open"
+        };
+        eprintln!(
+            "demand specialization {status} {:?} -> {:?}: {:?}",
+            specialization.target, specialization.path, specialization.solved
+        );
+    }
+}
+
 struct ValidDemandOutput {
     specializations: Vec<DemandSpecialization>,
     emitted: Vec<Binding>,
+    emitted_names: HashSet<core_ir::Path>,
+    rejected: Vec<RejectedDemandSpecialization>,
 }
 
 fn filter_valid_fresh_specializations(
@@ -150,16 +227,27 @@ fn filter_valid_fresh_specializations(
         .iter()
         .map(|specialization| specialization.path.clone())
         .collect::<HashSet<_>>();
+    let fresh_by_path = fresh_specializations
+        .iter()
+        .map(|s| (s.path.clone(), s.clone()))
+        .collect::<HashMap<_, _>>();
     let mut valid_fresh_paths = HashSet::new();
+    let mut rejected = Vec::new();
     let mut emitted_by_path = Vec::new();
     for (specialization, binding) in fresh_specializations.iter().zip(emitted) {
         if emitted_binding_validates(module, &binding) {
             valid_fresh_paths.insert(specialization.path.clone());
-        } else if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
-            eprintln!(
-                "demand specialization {:?} skipped after per-binding validation",
-                specialization.path
-            );
+        } else {
+            if std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some() {
+                eprintln!(
+                    "demand specialization {:?} skipped after per-binding validation",
+                    specialization.path
+                );
+            }
+            rejected.push(RejectedDemandSpecialization {
+                specialization: specialization.clone(),
+                reason: RejectionReason::ValidationFailed,
+            });
         }
         emitted_by_path.push((specialization.path.clone(), binding));
     }
@@ -171,23 +259,30 @@ fn filter_valid_fresh_specializations(
             }
             let mut refs = Vec::new();
             collect_expr_refs(&binding.body, &mut refs);
-            if refs.iter().any(|referenced| {
-                fresh_paths.contains(referenced) && !valid_fresh_paths.contains(referenced)
+            if let Some(rejected_dep) = refs.iter().find(|referenced| {
+                fresh_paths.contains(*referenced) && !valid_fresh_paths.contains(*referenced)
             }) {
-                removed.push(path.clone());
+                removed.push((path.clone(), rejected_dep.clone()));
             }
         }
         if removed.is_empty() {
             break;
         }
         let debug = std::env::var_os("YULANG_DEBUG_MONO_PIPELINE").is_some();
-        for path in removed {
-            valid_fresh_paths.remove(&path);
-            if debug {
-                eprintln!(
-                    "demand specialization {:?} skipped because a fresh dependency was rejected",
-                    path
-                );
+        for (path, dep) in removed {
+            if valid_fresh_paths.remove(&path) {
+                if debug {
+                    eprintln!(
+                        "demand specialization {:?} skipped because a fresh dependency was rejected",
+                        path
+                    );
+                }
+                if let Some(specialization) = fresh_by_path.get(&path) {
+                    rejected.push(RejectedDemandSpecialization {
+                        specialization: specialization.clone(),
+                        reason: RejectionReason::DependsOnRejectedFresh(dep),
+                    });
+                }
             }
         }
     }
@@ -199,13 +294,19 @@ fn filter_valid_fresh_specializations(
         })
         .cloned()
         .collect();
-    let valid_emitted = emitted_by_path
-        .into_iter()
-        .filter_map(|(path, binding)| valid_fresh_paths.contains(&path).then_some(binding))
-        .collect();
+    let mut valid_emitted = Vec::new();
+    let mut emitted_names = HashSet::new();
+    for (path, binding) in emitted_by_path {
+        if valid_fresh_paths.contains(&path) {
+            emitted_names.insert(path);
+            valid_emitted.push(binding);
+        }
+    }
     ValidDemandOutput {
         specializations: valid_specializations,
         emitted: valid_emitted,
+        emitted_names,
+        rejected,
     }
 }
 
@@ -238,29 +339,7 @@ fn retain_reachable_emitted_bindings(module: &mut Module, emitted_names: &HashSe
     if emitted_names.is_empty() {
         return;
     }
-    let bodies = module
-        .bindings
-        .iter()
-        .map(|binding| (binding.name.clone(), binding.body.clone()))
-        .collect::<HashMap<_, _>>();
-    let mut reachable = HashSet::new();
-    let mut stack = Vec::new();
-    for root in &module.roots {
-        if let crate::ir::Root::Binding(path) = root {
-            stack.push(path.clone());
-        }
-    }
-    for expr in &module.root_exprs {
-        collect_expr_refs(expr, &mut stack);
-    }
-    while let Some(path) = stack.pop() {
-        if !reachable.insert(path.clone()) {
-            continue;
-        }
-        if let Some(body) = bodies.get(&path) {
-            collect_expr_refs(body, &mut stack);
-        }
-    }
+    let reachable = reachable_binding_paths(module);
     module.bindings.retain(|binding| {
         !emitted_names.contains(&binding.name) || reachable.contains(&binding.name)
     });
@@ -303,96 +382,6 @@ fn debug_missing_demand_round(round: usize, demands: &[Demand]) {
     }
 }
 
-fn collect_expr_refs(expr: &Expr, out: &mut Vec<core_ir::Path>) {
-    match &expr.kind {
-        ExprKind::Var(path) => out.push(path.clone()),
-        ExprKind::Lambda { body, .. }
-        | ExprKind::BindHere { expr: body }
-        | ExprKind::Thunk { expr: body, .. }
-        | ExprKind::LocalPushId { body, .. }
-        | ExprKind::AddId { thunk: body, .. }
-        | ExprKind::Coerce { expr: body, .. }
-        | ExprKind::Pack { expr: body, .. } => collect_expr_refs(body, out),
-        ExprKind::Apply { callee, arg, .. } => {
-            collect_expr_refs(callee, out);
-            collect_expr_refs(arg, out);
-        }
-        ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-            ..
-        } => {
-            collect_expr_refs(cond, out);
-            collect_expr_refs(then_branch, out);
-            collect_expr_refs(else_branch, out);
-        }
-        ExprKind::Tuple(items) => {
-            for item in items {
-                collect_expr_refs(item, out);
-            }
-        }
-        ExprKind::Record { fields, spread } => {
-            for field in fields {
-                collect_expr_refs(&field.value, out);
-            }
-            if let Some(spread) = spread {
-                match spread {
-                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
-                        collect_expr_refs(expr, out);
-                    }
-                }
-            }
-        }
-        ExprKind::Variant { value, .. } => {
-            if let Some(value) = value {
-                collect_expr_refs(value, out);
-            }
-        }
-        ExprKind::Select { base, .. } => collect_expr_refs(base, out),
-        ExprKind::Match {
-            scrutinee, arms, ..
-        } => {
-            collect_expr_refs(scrutinee, out);
-            for arm in arms {
-                if let Some(guard) = &arm.guard {
-                    collect_expr_refs(guard, out);
-                }
-                collect_expr_refs(&arm.body, out);
-            }
-        }
-        ExprKind::Block { stmts, tail } => {
-            for stmt in stmts {
-                collect_stmt_refs(stmt, out);
-            }
-            if let Some(tail) = tail {
-                collect_expr_refs(tail, out);
-            }
-        }
-        ExprKind::Handle { body, arms, .. } => {
-            collect_expr_refs(body, out);
-            for arm in arms {
-                if let Some(guard) = &arm.guard {
-                    collect_expr_refs(guard, out);
-                }
-                collect_expr_refs(&arm.body, out);
-            }
-        }
-        ExprKind::EffectOp(_)
-        | ExprKind::PrimitiveOp(_)
-        | ExprKind::Lit(_)
-        | ExprKind::PeekId
-        | ExprKind::FindId { .. } => {}
-    }
-}
-
-fn collect_stmt_refs(stmt: &Stmt, out: &mut Vec<core_ir::Path>) {
-    match stmt {
-        Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
-            collect_expr_refs(value, out);
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DemandMonomorphizeOutput {
@@ -405,6 +394,47 @@ pub struct DemandMonomorphizeProfile {
     pub specializations: usize,
     pub queue: DemandQueueProfile,
     pub emitted_specializations: Vec<DemandSpecialization>,
+    pub rejected_specializations: Vec<RejectedDemandSpecialization>,
+    pub rounds: Vec<DemandRoundProfile>,
+}
+
+/// Per-round observability: shows what each iteration of the demand loop did.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct DemandRoundProfile {
+    pub round: usize,
+    pub queue: DemandQueueProfile,
+    pub all_specializations: usize,
+    pub closed_specializations: usize,
+    pub fresh_closed: usize,
+    pub emitted_valid: usize,
+    pub emitted_rejected: usize,
+    pub missing_from_emit: usize,
+    pub missing_from_rewrite: usize,
+    pub pending_next: usize,
+    pub rewrite_changed_bindings: usize,
+    pub rewrite_changed_roots: usize,
+}
+
+impl DemandRoundProfile {
+    fn empty(round: usize, queue: DemandQueueProfile) -> Self {
+        Self {
+            round,
+            queue,
+            ..Self::default()
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RejectedDemandSpecialization {
+    pub specialization: DemandSpecialization,
+    pub reason: RejectionReason,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RejectionReason {
+    ValidationFailed,
+    DependsOnRejectedFresh(core_ir::Path),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -467,7 +497,7 @@ impl<'a> DemandEngine<'a> {
                     continue;
                 }
             };
-            self.specializations.intern(&checked);
+            self.specializations.allocate_fresh(&checked);
             let mut child_demands = checked.child_demands.clone();
             let child_source = format!("checked child from {:?}", checked.target);
             debug_demand_queue_source(&child_source, &child_demands);
@@ -492,7 +522,7 @@ fn debug_demand_queue_source(source: &str, queue: &DemandQueue) {
     if std::env::var_os("YULANG_DEBUG_DEMAND_SOURCE").is_none() {
         return;
     }
-    for demand in &queue.queue {
+    for demand in queue.iter() {
         debug_demand_source(source, &demand.target, &demand.key.signature);
     }
 }

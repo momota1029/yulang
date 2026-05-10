@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::*;
-use crate::ir::{Binding, Expr, ExprKind, Module, RecordSpreadExpr, Root, Stmt};
+use crate::ir::{Binding, Module, Root};
 use crate::types::{core_type_has_vars, hir_type_has_vars};
 
 #[derive(Debug, Clone)]
@@ -906,100 +906,6 @@ fn effect_operation_signature(path: &core_ir::Path, payload: DemandCoreType) -> 
     })
 }
 
-fn collect_expr_refs(expr: &Expr, out: &mut Vec<core_ir::Path>) {
-    match &expr.kind {
-        ExprKind::Var(path) => out.push(path.clone()),
-        ExprKind::Lambda { body, .. }
-        | ExprKind::BindHere { expr: body }
-        | ExprKind::Thunk { expr: body, .. }
-        | ExprKind::LocalPushId { body, .. }
-        | ExprKind::AddId { thunk: body, .. }
-        | ExprKind::Coerce { expr: body, .. }
-        | ExprKind::Pack { expr: body, .. } => collect_expr_refs(body, out),
-        ExprKind::Apply { callee, arg, .. } => {
-            collect_expr_refs(callee, out);
-            collect_expr_refs(arg, out);
-        }
-        ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-            ..
-        } => {
-            collect_expr_refs(cond, out);
-            collect_expr_refs(then_branch, out);
-            collect_expr_refs(else_branch, out);
-        }
-        ExprKind::Tuple(items) => {
-            for item in items {
-                collect_expr_refs(item, out);
-            }
-        }
-        ExprKind::Record { fields, spread } => {
-            for field in fields {
-                collect_expr_refs(&field.value, out);
-            }
-            collect_record_spread_refs(spread, out);
-        }
-        ExprKind::Variant { value, .. } => {
-            if let Some(value) = value {
-                collect_expr_refs(value, out);
-            }
-        }
-        ExprKind::Select { base, .. } => collect_expr_refs(base, out),
-        ExprKind::Match {
-            scrutinee, arms, ..
-        } => {
-            collect_expr_refs(scrutinee, out);
-            for arm in arms {
-                if let Some(guard) = &arm.guard {
-                    collect_expr_refs(guard, out);
-                }
-                collect_expr_refs(&arm.body, out);
-            }
-        }
-        ExprKind::Block { stmts, tail } => {
-            for stmt in stmts {
-                collect_stmt_refs(stmt, out);
-            }
-            if let Some(tail) = tail {
-                collect_expr_refs(tail, out);
-            }
-        }
-        ExprKind::Handle { body, arms, .. } => {
-            collect_expr_refs(body, out);
-            for arm in arms {
-                if let Some(guard) = &arm.guard {
-                    collect_expr_refs(guard, out);
-                }
-                collect_expr_refs(&arm.body, out);
-            }
-        }
-        ExprKind::EffectOp(_)
-        | ExprKind::PrimitiveOp(_)
-        | ExprKind::Lit(_)
-        | ExprKind::PeekId
-        | ExprKind::FindId { .. } => {}
-    }
-}
-
-fn collect_record_spread_refs(spread: &Option<RecordSpreadExpr>, out: &mut Vec<core_ir::Path>) {
-    if let Some(spread) = spread {
-        match spread {
-            RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
-                collect_expr_refs(expr, out);
-            }
-        }
-    }
-}
-
-fn collect_stmt_refs(stmt: &Stmt, out: &mut Vec<core_ir::Path>) {
-    match stmt {
-        Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
-            collect_expr_refs(value, out);
-        }
-    }
-}
 
 fn is_unit_or_hole(ty: &DemandCoreType) -> bool {
     match ty {
