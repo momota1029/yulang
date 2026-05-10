@@ -1,0 +1,202 @@
+# Yulang Native Backend
+
+Yulang has a native backend under active development. The interpreter
+(`--run`) is the semantic oracle: native paths are enabled only for the
+subset listed here and are validated by comparing their output to the VM.
+
+This page is split into two parts:
+
+- A **user-facing support table** describing what currently runs natively
+  from Yulang source, organized by what you can try.
+- A **detailed progress log** describing the current state of the value
+  backend, the CPS representation backend, and the surrounding cache /
+  package layout.
+
+For overall language status across all stages, see
+[docs/status.md](status.md). For deeper design notes see
+`notes/design/native-backend-plan.md` and
+`notes/design/cps-effect-lowering-plan.md`.
+
+## Public CLI
+
+| Command                          | Purpose                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------- |
+| `--native-run <path>`            | Compile and run the file natively. Prefers the value backend, falls back to the CPS representation backend for explicitly unsupported cases. |
+| `--native-run-value-exe <path>`  | Force the value backend; useful when debugging value-backend coverage.  |
+| `--native-run-cps-repr-exe <path>` | Force the CPS representation backend; useful when debugging CPS lowering. |
+| `--native-compare-i64 <path>`    | Run the program through VM, native control IR, native ABI, and Cranelift scalar paths; report whether the scalar `i64` results agree. |
+| `--native-abi-lanes <path>`      | Print the native ABI value representation classification.               |
+| `--native-object <path>`         | Emit a native object file rather than running.                          |
+| `--native-exe <path>` / `--native-executable <path>` | Emit a native executable rather than running.       |
+
+Default native artifacts are written under `target/yulang`.
+
+## User-facing support
+
+### What you can try natively today
+
+The value backend covers ordinary first-order data; the CPS representation
+backend covers a small but growing slice of effect-shaped programs. The
+table below is at the granularity a Yulang user cares about — for the full
+checklist, see *Detailed progress* below.
+
+#### Expressions
+
+| Surface form                                        | Stage                  | Status |
+| --------------------------------------------------- | ---------------------- | :----: |
+| Scalar literals (`int` / `float` / `bool` / `unit` / `str`) | value backend          |   ✅   |
+| String concatenation                                | value backend          |   ✅   |
+| List literals, list merge, length, index            | value backend          |   ✅   |
+| Tuple, record, variant, record field selection      | value backend          |   ✅   |
+| Record spread                                       | —                      |   ❌   |
+| General pattern matching                            | —                      |   ❌   |
+| Lambdas / first-class function values (pure)        | CPS repr (prototype)   |   △   |
+| Closures with captured state                        | CPS repr (prototype)   |   △   |
+
+#### Effects
+
+| Surface form                                        | Stage                  | Status |
+| --------------------------------------------------- | ---------------------- | :----: |
+| Small source-defined algebraic effects              | CPS repr               |   ✅   |
+| Multi-shot resumption (scalar)                      | CPS repr               |   ✅   |
+| `std::undet` `.once` over a finite list             | CPS repr               |   ✅   |
+| Mutable reference edit / update through effects     | CPS repr (scalar)      |   ✅   |
+| Effectful thunks across function boundaries         | —                      |   ❌   |
+| `std::junction` effectful boolean conditions        | —                      |   ❌   |
+| `for` / `last` / `next` loops                       | —                      |   ❌   |
+
+#### Output
+
+| Surface form                                        | Status |
+| --------------------------------------------------- | :----: |
+| Scalar (`i64`-shaped) executable result             |   ✅   |
+| Value executable result (printed as a Yulang value) |   ✅   |
+| Non-scalar CPS executable result                    |   ❌   |
+
+When a program falls outside this subset, `--native-run` prints
+`native-run: value backend unsupported, using CPS repr: ...` and either
+succeeds through the CPS representation backend or fails with a
+diagnostic. The interpreter (`--run`) keeps the full language behavior.
+
+## Detailed progress
+
+The remainder of this page is the implementation-side checklist that
+previously lived in the README. It is intentionally fine-grained; new
+items move from the user-facing table above into here as they ship,
+or out of here into the user-facing table once they stabilize.
+
+### Public CLI status
+
+- [x] `--native-run` links and runs a native executable.
+- [x] `--native-run` prefers the value backend for ordinary values.
+- [x] `--native-run` falls back to the CPS representation backend only for
+      explicit "unsupported by value backend" cases.
+- [x] `--native-run-value-exe` exposes the value backend directly for debugging.
+- [x] `--native-run-cps-repr-exe` exposes the CPS representation backend
+      directly for debugging.
+- [x] Default native artifacts are written under `target/yulang`.
+
+### Value backend status
+
+- [x] Source-to-runtime lowering can feed the value backend.
+- [x] Native value object generation works.
+- [x] Generated executables can print native value results.
+- [x] `int`, `float`, `bool`, `unit`, and `str` literals are represented as
+      opaque runtime values.
+- [x] Basic numeric and boolean primitives run through runtime helper symbols:
+      `+`, `-`, `*`, `/`, comparisons, equality, and `not`.
+- [x] Basic conversion/string primitives are wired through helpers:
+      integer/float/bool to string, string length, and string index.
+- [x] Local `my` bindings and top-level non-function bindings can be evaluated
+      by the value backend.
+- [x] String concatenation works.
+- [x] List literals, list merge, list length, and list index work.
+- [x] Tuple, record, record field selection, and variant construction work.
+- [ ] Record spread is not supported.
+- [ ] General pattern matching is not supported in the value backend.
+- [ ] General multi-block control flow is not supported in the value backend.
+- [ ] Closure allocation, closure environments, and indirect closure calls are
+      not supported in the value backend.
+- [ ] Generic runtime value layout is still backed by `VmValue`; compact native
+      representations are not finalized.
+
+### CPS representation backend status
+
+- [x] Pure scalar CPS programs can be compiled with Cranelift.
+- [x] Small source-defined algebraic effects can be lowered through CPS.
+- [x] Multi-shot resumption prototypes work for scalar programs.
+- [x] Simple handler arms, value arms, primitive calls, direct calls, and
+      conditional control are covered by regression tests.
+- [x] `sub`/`return`-style control has a small CPS repr regression path.
+- [x] Tuple, record, variant, and record selection can be lowered and evaluated
+      in the CPS/CPS-repr interpreters.
+- [x] Handler entry continuations receive captured environments in the
+      Cranelift CPS repr path.
+- [x] Lazy branch conditions that flow through thunk-valued continuation params
+      are forced before the Cranelift branch condition is tested.
+- [x] CPS repr Cranelift has a small thunk trampoline helper for `ThunkPtr`
+      values used by lazy conditions and root wrappers.
+- [x] CPS/CPS-repr interpreters can rebase a captured continuation under a
+      freshly installed handler.
+- [x] CPS repr evaluator carries handler-frame guard snapshots and skips a
+      blocked handler frame when resolving `Perform`.
+- [x] `LocalPushId`, `PeekId`, and `FindId` have native CPS guard statements in
+      the CPS/CPS-repr interpreter paths.
+- [x] CPS repr Cranelift has scalar guard-stack helper symbols for
+      `FreshGuard`, `PeekGuard`, and `FindGuard`.
+- [x] CPS repr Cranelift resumptions and thunks carry handler-stack and
+      guard-stack snapshots in the scalar prototype.
+- [x] CPS repr Cranelift thunks snapshot handler arm environments for handler
+      frames whose captures are available at thunk creation time.
+- [x] CPS repr Cranelift can rebase a resumption with `ResumeWithHandler` and
+      skip a blocked handler frame for scalar handler tests.
+- [x] CPS repr Cranelift can select handler arms across function boundaries
+      through globally numbered handler ids and the dynamic handler stack.
+- [x] CPS lowering carries `AddId` blocked guards into `Perform` in the
+      CPS/CPS-repr interpreter paths.
+- [x] Mutable reference edit/update runs through effect-aware CPS and the
+      Cranelift CPS repr scalar path with VM comparison.
+- [x] A minimal `once`-style branch handler can resume the first branch from
+      tail and boolean-match condition effect operations in the Cranelift CPS
+      repr scalar path.
+- [x] A DFS `once` kernel with local `choice::branch` / `choice::reject` can
+      try `k true`, handle rejection, resume `k false`, and match the VM in the
+      Cranelift CPS repr scalar path.
+- [x] A finite-list nondeterministic choice can use `std::list::uncons` without
+      `fold` / `sub` and return a scalar through the Cranelift CPS repr path.
+- [x] `std::undet` `.once` over a finite list compiles through the CPS repr
+      object/executable path.
+- [x] First-class lambda values can be created and applied through the
+      Cranelift CPS repr scalar path for pure higher-order calls.
+- [ ] General thunk values are only partially represented; thunk roots can be
+      forced only while they stay in the scalar CPS repr subset.
+- [ ] Effectful thunks returned across source-defined function boundaries do
+      not yet reliably carry the caller's active handler frame; `each_head`
+      style helpers are tracked as ignored regressions.
+- [ ] General closures and heap value lanes are not complete.
+- [ ] Non-scalar CPS return values can flow through the prototype as opaque
+      `i64` heap pointers, but generated CPS executables do not yet print them
+      as Yulang values.
+- [ ] This path is still a prototype, not the default full-language runtime.
+
+### Cache and package/build status
+
+- [x] `target/yulang` is used for local native experiment outputs.
+- [x] Persistent cache paths exist for compiled unit artifacts.
+- [x] Realm/band source identity is documented as the direction for package-like
+      source boundaries.
+- [ ] Compiled unit artifact cache is not yet wired into the main lowering
+      pipeline.
+- [ ] `realm.toml` / `yulang.lock` are planned but not complete as a full
+      package/build workflow.
+- [ ] Native executable layout and install/build commands are still prototypes.
+
+## Day-to-day progress
+
+This page intentionally describes shipped behavior. In-flight work,
+ignored regressions, and design questions live in:
+
+- `tasks/current.md` — the current focused track.
+- `notes/progress/` — daily progress notes.
+- `notes/design/native-backend-plan.md` — the longer plan.
+- `notes/design/cps-effect-lowering-plan.md` — CPS/effect lowering plan.
