@@ -88,14 +88,14 @@ fn fill_resume_handler_envs(function: &mut CpsFunction) {
 }
 
 fn continuation_defs(continuation: &crate::cps_ir::CpsContinuation) -> Vec<CpsValueId> {
-    continuation.stmts.iter().map(stmt_def).collect()
+    continuation.stmts.iter().filter_map(stmt_def).collect()
 }
 
 fn stmt_defs(stmt: &CpsStmt) -> Option<CpsValueId> {
-    Some(stmt_def(stmt))
+    stmt_def(stmt)
 }
 
-fn stmt_def(stmt: &CpsStmt) -> CpsValueId {
+fn stmt_def(stmt: &CpsStmt) -> Option<CpsValueId> {
     match stmt {
         CpsStmt::Literal { dest, .. }
         | CpsStmt::FreshGuard { dest, .. }
@@ -117,7 +117,8 @@ fn stmt_def(stmt: &CpsStmt) -> CpsValueId {
         | CpsStmt::ApplyClosure { dest, .. }
         | CpsStmt::CloneContinuation { dest, .. }
         | CpsStmt::Resume { dest, .. }
-        | CpsStmt::ResumeWithHandler { dest, .. } => *dest,
+        | CpsStmt::ResumeWithHandler { dest, .. } => Some(*dest),
+        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => None,
     }
 }
 
@@ -209,6 +210,12 @@ fn continuation_uses(
                     uses.extend(env.values.iter().copied());
                 }
             }
+            CpsStmt::InstallHandler { envs, .. } => {
+                for env in envs {
+                    uses.extend(env.values.iter().copied());
+                }
+            }
+            CpsStmt::UninstallHandler { .. } => {}
         }
     }
     match &continuation.terminator {

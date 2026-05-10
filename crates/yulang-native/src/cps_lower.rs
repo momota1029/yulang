@@ -375,6 +375,114 @@ fn is_value_handler_arm(arm: &runtime::HandleArm) -> bool {
     arm.resume.is_none() && arm.effect.segments.is_empty()
 }
 
+fn body_contains_direct_call(
+    expr: &runtime::Expr,
+    functions: &HashMap<core_ir::Path, FunctionInfo>,
+) -> bool {
+    body_contains_effectful_direct_call_at_depth(expr, functions, 0)
+}
+
+const BODY_DIRECT_CALL_SCAN_DEPTH: usize = 64;
+
+fn body_contains_effectful_direct_call_at_depth(
+    expr: &runtime::Expr,
+    functions: &HashMap<core_ir::Path, FunctionInfo>,
+    depth: usize,
+) -> bool {
+    if depth >= BODY_DIRECT_CALL_SCAN_DEPTH {
+        return false;
+    }
+    if let Some((target_path, _)) = direct_apply_target(expr, functions) {
+        if let Some(info) = functions.get(&target_path) {
+            if matches!(info.ret, runtime::Type::Thunk { .. }) {
+                return true;
+            }
+        }
+    }
+    let next = depth + 1;
+    match &expr.kind {
+        runtime::ExprKind::Lambda { body, .. }
+        | runtime::ExprKind::Thunk { expr: body, .. }
+        | runtime::ExprKind::BindHere { expr: body }
+        | runtime::ExprKind::LocalPushId { body, .. }
+        | runtime::ExprKind::AddId { thunk: body, .. }
+        | runtime::ExprKind::Coerce { expr: body, .. }
+        | runtime::ExprKind::Pack { expr: body, .. } => {
+            body_contains_effectful_direct_call_at_depth(body, functions, next)
+        }
+        runtime::ExprKind::Apply { callee, arg, .. } => {
+            body_contains_effectful_direct_call_at_depth(callee, functions, next)
+                || body_contains_effectful_direct_call_at_depth(arg, functions, next)
+        }
+        runtime::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            body_contains_effectful_direct_call_at_depth(cond, functions, next)
+                || body_contains_effectful_direct_call_at_depth(then_branch, functions, next)
+                || body_contains_effectful_direct_call_at_depth(else_branch, functions, next)
+        }
+        runtime::ExprKind::Tuple(items) => items
+            .iter()
+            .any(|item| body_contains_effectful_direct_call_at_depth(item, functions, next)),
+        runtime::ExprKind::Record { fields, spread } => {
+            fields.iter().any(|field| {
+                body_contains_effectful_direct_call_at_depth(&field.value, functions, next)
+            }) || spread.as_ref().is_some_and(|spread| match spread {
+                runtime::RecordSpreadExpr::Head(expr)
+                | runtime::RecordSpreadExpr::Tail(expr) => {
+                    body_contains_effectful_direct_call_at_depth(expr, functions, next)
+                }
+            })
+        }
+        runtime::ExprKind::Variant {
+            value: Some(value), ..
+        }
+        | runtime::ExprKind::Select { base: value, .. } => {
+            body_contains_effectful_direct_call_at_depth(value, functions, next)
+        }
+        runtime::ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            body_contains_effectful_direct_call_at_depth(scrutinee, functions, next)
+                || arms.iter().any(|arm| {
+                    arm.guard.as_ref().is_some_and(|guard| {
+                        body_contains_effectful_direct_call_at_depth(guard, functions, next)
+                    }) || body_contains_effectful_direct_call_at_depth(&arm.body, functions, next)
+                })
+        }
+        runtime::ExprKind::Handle { body, arms, .. } => {
+            body_contains_effectful_direct_call_at_depth(body, functions, next)
+                || arms.iter().any(|arm| {
+                    arm.guard.as_ref().is_some_and(|guard| {
+                        body_contains_effectful_direct_call_at_depth(guard, functions, next)
+                    }) || body_contains_effectful_direct_call_at_depth(&arm.body, functions, next)
+                })
+        }
+        runtime::ExprKind::Block { stmts, tail } => {
+            stmts.iter().any(|stmt| match stmt {
+                runtime::Stmt::Let { value, .. } | runtime::Stmt::Expr(value) => {
+                    body_contains_effectful_direct_call_at_depth(value, functions, next)
+                }
+                runtime::Stmt::Module { body, .. } => {
+                    body_contains_effectful_direct_call_at_depth(body, functions, next)
+                }
+            }) || tail.as_ref().is_some_and(|tail| {
+                body_contains_effectful_direct_call_at_depth(tail, functions, next)
+            })
+        }
+        runtime::ExprKind::Var(_)
+        | runtime::ExprKind::EffectOp(_)
+        | runtime::ExprKind::PrimitiveOp(_)
+        | runtime::ExprKind::Lit(_)
+        | runtime::ExprKind::Variant { value: None, .. }
+        | runtime::ExprKind::PeekId
+        | runtime::ExprKind::FindId { .. } => false,
+    }
+}
+
 fn binding_has_self_direct_call(
     target: &core_ir::Path,
     expr: &runtime::Expr,
@@ -1073,6 +1181,7 @@ struct FunctionLowerer<'a> {
     continuations: Vec<CpsContinuation>,
     handlers: Vec<CpsHandler>,
     forced_handler_effects: Vec<(CpsHandlerId, core_ir::Path)>,
+    handlers_with_external_calls: HashSet<CpsHandlerId>,
     current: ContinuationBuilder,
     locals: HashMap<core_ir::Path, CpsValueId>,
     local_exprs: HashMap<core_ir::Path, runtime::Expr>,
@@ -1088,6 +1197,16 @@ struct ActiveHandlerContext {
     handler: CpsHandlerId,
     expected_effects: Vec<core_ir::Path>,
     parent: Option<Box<ActiveHandlerContext>>,
+}
+
+impl<'a> FunctionLowerer<'a> {
+    fn mark_active_handlers_external_call(&mut self) {
+        let mut current = self.active_handler.clone();
+        while let Some(context) = current {
+            self.handlers_with_external_calls.insert(context.handler);
+            current = context.parent.as_deref().cloned();
+        }
+    }
 }
 
 impl<'a> FunctionLowerer<'a> {
@@ -1116,6 +1235,7 @@ impl<'a> FunctionLowerer<'a> {
             continuations: Vec::new(),
             handlers: Vec::new(),
             forced_handler_effects: Vec::new(),
+            handlers_with_external_calls: HashSet::new(),
             current: ContinuationBuilder::new(CpsContinuationId(0), param_values.clone()),
             locals,
             local_exprs: HashMap::new(),
@@ -1195,6 +1315,7 @@ impl<'a> FunctionLowerer<'a> {
                     return Ok(value);
                 }
             }
+            let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
             let args = args
                 .into_iter()
                 .map(|arg| self.lower_expr(arg))
@@ -1204,6 +1325,9 @@ impl<'a> FunctionLowerer<'a> {
             self.current
                 .stmts
                 .push(CpsStmt::DirectCall { dest, target, args });
+            if info_returns_thunk {
+                self.mark_active_handlers_external_call();
+            }
             if should_force_direct {
                 let forced = self.fresh_value();
                 self.current.stmts.push(CpsStmt::ForceThunk {
@@ -1821,17 +1945,26 @@ impl<'a> FunctionLowerer<'a> {
             parent: saved_active_handler.clone().map(Box::new),
         });
         self.handler_value_conts.push(value_cont);
+        self.current.stmts.push(CpsStmt::InstallHandler {
+            handler,
+            envs: Vec::new(),
+        });
         self.lower_handled_body(body, &effects, handler, Some(value_cont))?;
         self.handler_value_conts
             .truncate(saved_handler_value_conts_len);
         self.active_handler = saved_active_handler.clone();
         let used_effects = self.performed_effects_for_handler(handler);
+        let body_made_external_call = self.handlers_with_external_calls.contains(&handler);
         let mut handler_entries = Vec::with_capacity(effect_arms.len());
         for arm in &effect_arms {
-            if used_effects
+            let directly_used = used_effects
                 .iter()
-                .any(|effect| effect_matches(&arm.effect, effect))
-            {
+                .any(|effect| effect_matches(&arm.effect, effect));
+            // Materialize all handler arms when the body forwards effects through
+            // an effectful direct call (e.g. recursive helper returning [eff] T):
+            // the callee performs effects with handler = dynamic_handler_id() so
+            // performed_effects_for_handler cannot see them statically.
+            if directly_used || body_made_external_call {
                 handler_entries.push((arm.effect.clone(), self.fresh_continuation()));
             }
         }
@@ -1850,6 +1983,9 @@ impl<'a> FunctionLowerer<'a> {
 
         let handled_value = self.fresh_value();
         self.current = ContinuationBuilder::new(value_cont, vec![handled_value]);
+        self.current
+            .stmts
+            .push(CpsStmt::UninstallHandler { handler });
         self.locals = saved_locals.clone();
         self.local_exprs = saved_local_exprs.clone();
         self.resumptions = saved_resumptions.clone();
@@ -1878,6 +2014,9 @@ impl<'a> FunctionLowerer<'a> {
             let handler_resume = self.fresh_value();
             self.current =
                 ContinuationBuilder::new(handler_cont, vec![handler_payload, handler_resume]);
+            self.current
+                .stmts
+                .push(CpsStmt::UninstallHandler { handler });
             self.locals = saved_locals.clone();
             self.local_exprs = saved_local_exprs.clone();
             self.resumptions = saved_resumptions.clone();

@@ -530,6 +530,90 @@ once_dfs_int { each_head [1, 2, 3] }
     }
 
     #[test]
+    #[ignore = "Milestone 6 debug: each_list through CPS eval / repr eval / Cranelift"]
+    fn debugs_each_list_recursive_through_cps_stages() {
+        let source = r#"pub act choice:
+  pub branch: () -> bool
+  pub reject: () -> never
+
+my once_dfs_int(x: [choice] int): int = catch x:
+    choice::branch (), k -> catch k true:
+        choice::reject (), _ -> k false
+        v -> v
+    choice::reject (), _ -> 0
+    v -> v
+
+my each_list(xs: std::list::list int): [choice] int = case std::list::uncons xs:
+    std::opt::opt::nil -> choice::reject ()
+    std::opt::opt::just (x, rest) -> case choice::branch ():
+        true -> x
+        false -> each_list rest
+
+once_dfs_int { each_list [1, 2, 3] }
+"#;
+
+        run_with_large_stack(|| {
+            let module = runtime_module_from_source_with_options(
+                source,
+                native_default_source_options(),
+            )
+            .expect("runtime module");
+
+            let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
+            crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
+
+            eprintln!("=== CPS module ===");
+            for f in cps.functions.iter().chain(cps.roots.iter()) {
+                eprintln!("function: {} params={:?}", f.name, f.params);
+                for cont in &f.continuations {
+                    eprintln!(
+                        "  cont {:?} params={:?} captures={:?}",
+                        cont.id, cont.params, cont.captures
+                    );
+                    for stmt in &cont.stmts {
+                        eprintln!("    stmt: {:?}", stmt);
+                    }
+                    eprintln!("    term: {:?}", cont.terminator);
+                }
+                for handler in &f.handlers {
+                    eprintln!(
+                        "  handler {:?} arms={:?}",
+                        handler.id,
+                        handler
+                            .arms
+                            .iter()
+                            .map(|a| (&a.effect, a.entry))
+                            .collect::<Vec<_>>()
+                    );
+                }
+            }
+
+            // Layer 1: CPS eval vs VM
+            crate::cps_compare::compare_cps_module(&module).expect("CPS eval == VM");
+            eprintln!("Layer 1 (CPS eval): OK");
+
+            // Layer 2: CPS repr eval vs VM
+            let repr = crate::cps_repr::lower_cps_repr_module(&cps);
+            let repr_values =
+                crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
+            let vm_results = runtime::compile_vm_module(module.clone())
+                .expect("VM compile")
+                .eval_roots()
+                .expect("VM eval");
+            let vm_value = match &vm_results[0] {
+                runtime::VmResult::Value(v) => v.clone(),
+                runtime::VmResult::Request(_) => panic!("VM gave request"),
+            };
+            assert_eq!(repr_values[0], vm_value, "CPS repr eval == VM");
+            eprintln!("Layer 2 (CPS repr eval): OK");
+
+            // Layer 3: CPS repr Cranelift vs VM
+            compare_source_cps_repr_i64(source).expect("CPS repr Cranelift compare");
+            eprintln!("Layer 3 (CPS repr Cranelift): OK");
+        });
+    }
+
+    #[test]
     #[ignore = "Milestone 6: recursive each_list requires non-inlined function to route effects to caller handler"]
     fn compares_prelude_source_once_finite_each_list_recursive_through_cps_repr_cranelift() {
         run_with_large_stack(|| {

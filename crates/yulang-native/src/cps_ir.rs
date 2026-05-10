@@ -127,6 +127,13 @@ pub enum CpsStmt {
         handler: CpsHandlerId,
         envs: Vec<CpsHandlerEnv>,
     },
+    InstallHandler {
+        handler: CpsHandlerId,
+        envs: Vec<CpsHandlerEnv>,
+    },
+    UninstallHandler {
+        handler: CpsHandlerId,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

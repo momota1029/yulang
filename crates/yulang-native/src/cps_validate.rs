@@ -167,6 +167,7 @@ fn function_defined_values(function: &CpsFunction) -> HashSet<CpsValueId> {
                 | CpsStmt::ResumeWithHandler { dest, .. } => {
                     values.insert(*dest);
                 }
+                CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {}
             }
         }
     }
@@ -285,6 +286,14 @@ fn validate_continuation(
                 }
                 values.insert(*dest);
             }
+            CpsStmt::InstallHandler { envs, .. } => {
+                for env in envs {
+                    for value in &env.values {
+                        require_value(function, &values, *value)?;
+                    }
+                }
+            }
+            CpsStmt::UninstallHandler { .. } => {}
         }
     }
 

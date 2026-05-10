@@ -1160,6 +1160,9 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let results = builder.inst_results(call);
             builder.def_var(variable(*dest), results[0]);
         }
+        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {
+            // TODO Milestone 6 step 6: thread caller handler context through Cranelift
+        }
     }
     Ok(())
 }
@@ -1187,6 +1190,7 @@ fn stmt_dest(stmt: &CpsStmt) -> Option<CpsValueId> {
         | CpsStmt::FreshGuard { dest, .. }
         | CpsStmt::PeekGuard { dest }
         | CpsStmt::FindGuard { dest, .. } => Some(*dest),
+        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => None,
     }
 }
 
@@ -2112,6 +2116,9 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                 kind: "resume",
             });
         }
+        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {
+            // TODO Milestone 6 step 6: thread caller handler context through Cranelift
+        }
     }
     Ok(())
 }
@@ -2394,6 +2401,7 @@ fn validate_scalar_function(
                 CpsStmt::DirectCall { .. }
                 | CpsStmt::ApplyClosure { .. }
                 | CpsStmt::CloneContinuation { .. } => {}
+                CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {}
                 CpsStmt::Resume { .. } if has_effect_flow => {}
                 CpsStmt::ResumeWithHandler { .. } if has_effect_flow => {}
                 CpsStmt::ResumeWithHandler { .. } => {
@@ -2594,6 +2602,7 @@ fn function_value_ids(function: &CpsReprAbiFunction) -> Vec<CpsValueId> {
                 | CpsStmt::CloneContinuation { dest, .. }
                 | CpsStmt::Resume { dest, .. }
                 | CpsStmt::ResumeWithHandler { dest, .. } => values.push(*dest),
+                CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {}
             }
         }
     }

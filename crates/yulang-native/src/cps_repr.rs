@@ -320,8 +320,25 @@ pub fn eval_cps_repr_module(module: &CpsReprModule) -> CpsReprEvalResult<Vec<run
     module
         .roots
         .iter()
-        .map(|root| eval_function(module, root, Vec::new()))
+        .map(|root| {
+            let value = eval_function(module, root, Vec::new())?;
+            into_plain_value(root, CpsValueId(usize::MAX), value)
+        })
         .collect()
+}
+
+fn function_by_name_repr<'a>(
+    module: &'a CpsReprModule,
+    name: &str,
+) -> CpsReprEvalResult<&'a CpsReprFunction> {
+    module
+        .functions
+        .iter()
+        .chain(module.roots.iter())
+        .find(|function| function.name == name)
+        .ok_or_else(|| CpsReprEvalError::MissingFunction {
+            name: name.to_string(),
+        })
 }
 
 pub fn analyze_cps_repr_values(module: &CpsReprModule) -> CpsReprValueAnalysis {
@@ -536,9 +553,12 @@ fn analyze_function_abi_lanes(
                             *resumption,
                         )
                     }
+                    CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => continue,
                 };
-                if merge_abi_lane(&mut values, stmt_dest(stmt), lane) {
-                    changed = true;
+                if let Some(dest) = stmt_dest(stmt) {
+                    if merge_abi_lane(&mut values, dest, lane) {
+                        changed = true;
+                    }
                 }
             }
             if propagate_terminator_argument_lanes(function, &mut values, &continuation.terminator)
@@ -677,9 +697,12 @@ fn analyze_function_values(function: &CpsReprFunction) -> CpsReprFunctionValueAn
                     CpsStmt::Resume { .. } | CpsStmt::ResumeWithHandler { .. } => {
                         CpsReprValueKind::Plain
                     }
+                    CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => continue,
                 };
-                if merge_value_kind(&mut values, stmt_dest(stmt), kind) {
-                    changed = true;
+                if let Some(dest) = stmt_dest(stmt) {
+                    if merge_value_kind(&mut values, dest, kind) {
+                        changed = true;
+                    }
                 }
             }
             let return_kind = match &continuation.terminator {
@@ -870,8 +893,22 @@ fn handler_arm_for_effect<'a>(
         .find(|arm| effect_matches(&arm.effect, effect))
 }
 
+fn handler_arm_for_effect_in_module<'a>(
+    module: &'a CpsReprModule,
+    id: CpsHandlerId,
+    effect: &core_ir::Path,
+) -> Option<(&'a CpsReprHandlerArm, &'a CpsReprFunction)> {
+    for owner in module.functions.iter().chain(module.roots.iter()) {
+        if let Some(arm) = handler_arm_for_effect(owner, id, effect) {
+            return Some((arm, owner));
+        }
+    }
+    None
+}
+
 fn handler_arm_for_stack<'a>(
-    function: &'a CpsReprFunction,
+    module: &'a CpsReprModule,
+    current_function: &'a CpsReprFunction,
     stack: &'a [CpsReprHandlerFrame],
     effect: &core_ir::Path,
     blocked: Option<u64>,
@@ -879,18 +916,21 @@ fn handler_arm_for_stack<'a>(
     &'a CpsReprHandlerArm,
     &'a CpsReprHandlerFrame,
     Vec<CpsReprHandlerFrame>,
+    &'a CpsReprFunction,
 )> {
     for (index, frame) in stack.iter().enumerate().rev() {
         if blocked.is_some_and(|blocked| frame.guard_stack.iter().any(|entry| entry.id == blocked))
         {
             continue;
         }
-        if let Some(arm) = handler_arm_for_effect(function, frame.handler, effect) {
-            return Ok((arm, frame, stack[..index].to_vec()));
+        if let Some((arm, owner)) =
+            handler_arm_for_effect_in_module(module, frame.handler, effect)
+        {
+            return Ok((arm, frame, stack[..index].to_vec(), owner));
         }
     }
     Err(CpsReprEvalError::MissingHandler {
-        function: function.name.clone(),
+        function: current_function.name.clone(),
         id: stack.last().expect("handler stack is non-empty").handler,
     })
 }
@@ -992,7 +1032,7 @@ fn merge_abi_lane(
     }
 }
 
-fn stmt_dest(stmt: &CpsStmt) -> CpsValueId {
+fn stmt_dest(stmt: &CpsStmt) -> Option<CpsValueId> {
     match stmt {
         CpsStmt::Literal { dest, .. }
         | CpsStmt::FreshGuard { dest, .. }
@@ -1014,7 +1054,8 @@ fn stmt_dest(stmt: &CpsStmt) -> CpsValueId {
         | CpsStmt::ApplyClosure { dest, .. }
         | CpsStmt::CloneContinuation { dest, .. }
         | CpsStmt::Resume { dest, .. }
-        | CpsStmt::ResumeWithHandler { dest, .. } => *dest,
+        | CpsStmt::ResumeWithHandler { dest, .. } => Some(*dest),
+        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => None,
     }
 }
 
@@ -1050,7 +1091,17 @@ fn eval_function(
     module: &CpsReprModule,
     function: &CpsReprFunction,
     args: Vec<runtime::VmValue>,
-) -> CpsReprEvalResult<runtime::VmValue> {
+) -> CpsReprEvalResult<CpsReprRuntimeValue> {
+    eval_function_with_context(module, function, args, Vec::new(), Vec::new())
+}
+
+fn eval_function_with_context(
+    module: &CpsReprModule,
+    function: &CpsReprFunction,
+    args: Vec<runtime::VmValue>,
+    active_handlers: Vec<CpsReprHandlerFrame>,
+    guard_stack: Vec<CpsReprGuardEntry>,
+) -> CpsReprEvalResult<CpsReprRuntimeValue> {
     if function.params.len() != args.len() {
         return Err(CpsReprEvalError::FunctionArgumentMismatch {
             function: function.name.clone(),
@@ -1064,10 +1115,9 @@ fn eval_function(
         function.entry,
         args.into_iter().map(CpsReprRuntimeValue::Plain).collect(),
         HashMap::new(),
-        Vec::new(),
-        Vec::new(),
+        active_handlers,
+        guard_stack,
     )
-    .and_then(|value| into_plain_value(function, CpsValueId(usize::MAX), value))
 }
 
 fn eval_continuations(
@@ -1081,6 +1131,7 @@ fn eval_continuations(
 ) -> CpsReprEvalResult<CpsReprRuntimeValue> {
     let mut current = entry;
     let mut guard_stack = guard_stack;
+    let mut active_handlers = active_handlers;
     let mut next_guard_id = guard_stack
         .iter()
         .map(|entry| entry.id)
@@ -1139,6 +1190,7 @@ fn eval_continuations(
                     values.insert(
                         *dest,
                         CpsReprRuntimeValue::Thunk(CpsReprThunk {
+                            owner_function: function.name.clone(),
                             entry: *entry,
                             values: values.clone(),
                             handlers: active_handlers.clone(),
@@ -1150,6 +1202,7 @@ fn eval_continuations(
                     values.insert(
                         *dest,
                         CpsReprRuntimeValue::Closure(CpsReprClosure {
+                            owner_function: function.name.clone(),
                             entry: *entry,
                             values: values.clone(),
                         }),
@@ -1160,6 +1213,7 @@ fn eval_continuations(
                     closure_values
                         .insert(*dest, CpsReprRuntimeValue::Plain(runtime::VmValue::Unit));
                     let closure = CpsReprRuntimeValue::Closure(CpsReprClosure {
+                        owner_function: function.name.clone(),
                         entry: *entry,
                         values: closure_values.clone(),
                     });
@@ -1168,18 +1222,47 @@ fn eval_continuations(
                 }
                 CpsStmt::ForceThunk { dest, thunk } => {
                     let result = match read_value(function, &values, *thunk)? {
-                        CpsReprRuntimeValue::Thunk(thunk) => eval_continuations(
-                            module,
-                            function,
-                            thunk.entry,
-                            Vec::new(),
-                            thunk.values,
-                            thunk.handlers,
-                            thunk.guard_stack,
-                        )?,
+                        CpsReprRuntimeValue::Thunk(thunk) => {
+                            let handlers = if !active_handlers.is_empty() {
+                                active_handlers.clone()
+                            } else {
+                                thunk.handlers
+                            };
+                            let guards = if !guard_stack.is_empty() {
+                                guard_stack.clone()
+                            } else {
+                                thunk.guard_stack
+                            };
+                            let owner = function_by_name_repr(module, &thunk.owner_function)?;
+                            eval_continuations(
+                                module,
+                                owner,
+                                thunk.entry,
+                                Vec::new(),
+                                thunk.values,
+                                handlers,
+                                guards,
+                            )?
+                        }
                         value => value,
                     };
                     values.insert(*dest, result);
+                }
+                CpsStmt::InstallHandler { handler, envs } => {
+                    let envs = capture_handler_envs(function, &values, envs)?;
+                    active_handlers.push(CpsReprHandlerFrame {
+                        handler: *handler,
+                        guard_stack: guard_stack.clone(),
+                        envs,
+                    });
+                }
+                CpsStmt::UninstallHandler { handler } => {
+                    if let Some(pos) = active_handlers
+                        .iter()
+                        .rposition(|frame| frame.handler == *handler)
+                    {
+                        active_handlers.remove(pos);
+                    }
                 }
                 CpsStmt::Tuple { dest, items } => {
                     let items = items
@@ -1281,28 +1364,27 @@ fn eval_continuations(
                     );
                 }
                 CpsStmt::DirectCall { dest, target, args } => {
-                    let target_function = module
-                        .functions
-                        .iter()
-                        .find(|function| &function.name == target)
-                        .ok_or_else(|| CpsReprEvalError::MissingFunction {
-                            name: target.clone(),
-                        })?;
+                    let target_function = function_by_name_repr(module, target)?;
                     let args = args
                         .iter()
                         .map(|id| read_plain_value(function, &values, *id))
                         .collect::<CpsReprEvalResult<Vec<_>>>()?;
-                    values.insert(
-                        *dest,
-                        CpsReprRuntimeValue::Plain(eval_function(module, target_function, args)?),
-                    );
+                    let result = eval_function_with_context(
+                        module,
+                        target_function,
+                        args,
+                        active_handlers.clone(),
+                        guard_stack.clone(),
+                    )?;
+                    values.insert(*dest, result);
                 }
                 CpsStmt::ApplyClosure { dest, closure, arg } => {
                     let closure = read_closure(function, &values, *closure)?;
                     let arg = read_plain_value(function, &values, *arg)?;
+                    let owner = function_by_name_repr(module, &closure.owner_function)?;
                     let result = eval_continuations(
                         module,
-                        function,
+                        owner,
                         closure.entry,
                         vec![CpsReprRuntimeValue::Plain(arg)],
                         closure.values,
@@ -1322,9 +1404,10 @@ fn eval_continuations(
                 } => {
                     let resumption = read_resumption(function, &values, *resumption)?;
                     let arg = read_plain_value(function, &values, *arg)?;
+                    let owner = function_by_name_repr(module, &resumption.owner_function)?;
                     let result = eval_continuations(
                         module,
-                        function,
+                        owner,
                         resumption.target,
                         vec![CpsReprRuntimeValue::Plain(arg)],
                         resumption.values.clone(),
@@ -1343,9 +1426,10 @@ fn eval_continuations(
                     let resumption = read_resumption(function, &values, *resumption)?;
                     let arg = read_plain_value(function, &values, *arg)?;
                     let envs = capture_handler_envs(function, &values, envs)?;
+                    let owner = function_by_name_repr(module, &resumption.owner_function)?;
                     let result = eval_continuations(
                         module,
-                        function,
+                        owner,
                         resumption.target,
                         vec![CpsReprRuntimeValue::Plain(arg)],
                         resumption.values.clone(),
@@ -1396,10 +1480,12 @@ fn eval_continuations(
                     .transpose()?;
                 let handler_stack =
                     handler_stack_with_static(&active_handlers, *handler, &guard_stack);
-                let (handler, frame, handler_body_stack) =
-                    handler_arm_for_stack(function, &handler_stack, effect, blocked)?;
-                let handler_values = values_with_handler_env(values.clone(), frame, handler.entry);
+                let (handler_arm, frame, handler_body_stack, handler_owner) =
+                    handler_arm_for_stack(module, function, &handler_stack, effect, blocked)?;
+                let handler_values =
+                    values_with_handler_env(HashMap::new(), frame, handler_arm.entry);
                 let resumption = CpsReprRuntimeValue::Resumption(CpsReprResumption {
+                    owner_function: function.name.clone(),
                     target: *resume,
                     values: values.clone(),
                     handlers: handler_stack.clone(),
@@ -1407,8 +1493,8 @@ fn eval_continuations(
                 });
                 return eval_continuations(
                     module,
-                    function,
-                    handler.entry,
+                    handler_owner,
+                    handler_arm.entry,
                     vec![CpsReprRuntimeValue::Plain(payload), resumption],
                     handler_values,
                     handler_body_stack,
@@ -1538,6 +1624,7 @@ enum CpsReprRuntimeValue {
 
 #[derive(Debug, Clone, PartialEq)]
 struct CpsReprResumption {
+    owner_function: String,
     target: CpsContinuationId,
     values: HashMap<CpsValueId, CpsReprRuntimeValue>,
     handlers: Vec<CpsReprHandlerFrame>,
@@ -1546,6 +1633,7 @@ struct CpsReprResumption {
 
 #[derive(Debug, Clone, PartialEq)]
 struct CpsReprThunk {
+    owner_function: String,
     entry: CpsContinuationId,
     values: HashMap<CpsValueId, CpsReprRuntimeValue>,
     handlers: Vec<CpsReprHandlerFrame>,
@@ -1554,6 +1642,7 @@ struct CpsReprThunk {
 
 #[derive(Debug, Clone, PartialEq)]
 struct CpsReprClosure {
+    owner_function: String,
     entry: CpsContinuationId,
     values: HashMap<CpsValueId, CpsReprRuntimeValue>,
 }
