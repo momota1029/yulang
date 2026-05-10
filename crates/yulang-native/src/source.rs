@@ -687,6 +687,131 @@ once_dfs_int { each [1, 2, 3] }
     }
 
     #[test]
+    #[ignore = "Phase D: first-class resumption stored in tuple"]
+    fn compares_resumption_stored_in_tuple_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choice:
+  pub branch: () -> bool
+
+catch choice::branch ():
+    choice::branch (), k ->
+        my pair = (k, 0)
+        case pair:
+            (r, _) -> if r true: 1 else: 2
+    v -> if v: 10 else: 20
+"#,
+            )
+            .expect("resumption tuple CPS repr jit compare");
+        });
+    }
+
+    #[test]
+    fn compares_resumption_stored_in_list_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choice:
+  pub branch: () -> bool
+
+catch choice::branch ():
+    choice::branch (), k -> case std::list::uncons [k]:
+        std::opt::opt::nil -> 0
+        std::opt::opt::just (r, _) -> if r true: 1 else: 2
+    v -> if v: 10 else: 20
+"#,
+            )
+            .expect("resumption list CPS repr jit compare");
+        });
+    }
+
+    #[test]
+    #[ignore = "Phase D: first-class closure stored in tuple"]
+    fn compares_closure_stored_in_tuple_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"my apply_pair p = case p:
+    (f, x) -> f x
+
+apply_pair (\x -> x + 1, 41)
+"#,
+            )
+            .expect("closure tuple CPS repr jit compare");
+        });
+    }
+
+    #[test]
+    #[ignore = "Phase D: first-class closure stored in list"]
+    fn compares_closure_stored_in_list_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"case std::list::uncons [\x -> x + 1]:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just (f, _) -> f 41
+"#,
+            )
+            .expect("closure list CPS repr jit compare");
+        });
+    }
+
+    #[test]
+    #[ignore = "Phase F debug: std::undet.once layer-by-layer"]
+    fn debugs_std_undet_once_scalar_unwrapped_eval_layers() {
+        let source = r#"use std::undet::*
+
+case (each [1, 2, 3]).once:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just x -> x
+"#;
+
+        run_with_large_stack(|| {
+            let module = runtime_module_from_source_with_options(
+                source,
+                native_default_source_options(),
+            )
+            .expect("runtime module");
+
+            let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
+            crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
+
+            crate::cps_compare::compare_cps_module(&module).expect("CPS eval == VM");
+            eprintln!("Layer 1 (CPS eval): OK");
+
+            let repr = crate::cps_repr::lower_cps_repr_module(&cps);
+            let repr_values =
+                crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
+            let vm_results = runtime::compile_vm_module(module.clone())
+                .expect("VM compile")
+                .eval_roots()
+                .expect("VM eval");
+            let vm_value = match &vm_results[0] {
+                runtime::VmResult::Value(v) => v.clone(),
+                runtime::VmResult::Request(_) => panic!("VM gave request"),
+            };
+            assert_eq!(repr_values[0], vm_value, "CPS repr eval == VM");
+            eprintln!("Layer 2 (CPS repr eval): OK");
+
+            compare_source_cps_repr_i64(source).expect("CPS repr Cranelift compare");
+            eprintln!("Layer 3 (CPS repr Cranelift): OK");
+        });
+    }
+
+    #[test]
+    #[ignore = "Phase F: std::undet.once with scalar unwrap"]
+    fn compares_std_undet_once_scalar_unwrapped_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"use std::undet::*
+
+case (each [1, 2, 3]).once:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just x -> x
+"#,
+            )
+            .expect("std undet once scalar unwrapped CPS repr jit compare");
+        });
+    }
+
+    #[test]
     fn compares_std_each_with_local_once_dfs_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(

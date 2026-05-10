@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
+use std::rc::Rc;
 
 use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
@@ -215,6 +216,11 @@ pub enum CpsReprEvalError {
         op: core_ir::PrimitiveOp,
         value: runtime::VmValue,
     },
+    InvalidPrimitiveArity {
+        op: core_ir::PrimitiveOp,
+        expected: usize,
+        actual: usize,
+    },
     ExpectedRecord {
         function: String,
         value: runtime::VmValue,
@@ -295,6 +301,14 @@ impl fmt::Display for CpsReprEvalError {
             CpsReprEvalError::PrimitiveTypeMismatch { op, value } => {
                 write!(f, "CPS repr primitive {op:?} cannot accept value {value:?}")
             }
+            CpsReprEvalError::InvalidPrimitiveArity {
+                op,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "CPS repr primitive {op:?} expected {expected} args, got {actual}"
+            ),
             CpsReprEvalError::ExpectedRecord { function, value } => write!(
                 f,
                 "CPS repr function {function} expected record value, got {value:?}"
@@ -332,6 +346,137 @@ fn unwrap_aborted_repr(value: CpsReprRuntimeValue) -> CpsReprRuntimeValue {
     match value {
         CpsReprRuntimeValue::Aborted(inner) => unwrap_aborted_repr(*inner),
         other => other,
+    }
+}
+
+fn cps_repr_value_from_vm(value: runtime::VmValue) -> CpsReprRuntimeValue {
+    match value {
+        runtime::VmValue::Tuple(items) => {
+            CpsReprRuntimeValue::Tuple(items.into_iter().map(cps_repr_value_from_vm).collect())
+        }
+        runtime::VmValue::Variant { tag, value } => CpsReprRuntimeValue::Variant {
+            tag,
+            value: value.map(|v| Box::new(cps_repr_value_from_vm(*v))),
+        },
+        runtime::VmValue::List(list) => {
+            let items = list
+                .to_vec()
+                .into_iter()
+                .map(|item| cps_repr_value_from_vm((*item).clone()))
+                .collect::<Vec<_>>();
+            CpsReprRuntimeValue::List(Rc::new(items))
+        }
+        other => CpsReprRuntimeValue::Plain(other),
+    }
+}
+
+fn cps_repr_value_to_vm(value: CpsReprRuntimeValue) -> Option<runtime::VmValue> {
+    match value {
+        CpsReprRuntimeValue::Plain(value) => Some(value),
+        CpsReprRuntimeValue::Aborted(inner) => cps_repr_value_to_vm(*inner),
+        CpsReprRuntimeValue::Tuple(items) => Some(runtime::VmValue::Tuple(
+            items
+                .into_iter()
+                .map(cps_repr_value_to_vm)
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        CpsReprRuntimeValue::Variant { tag, value } => Some(runtime::VmValue::Variant {
+            tag,
+            value: match value {
+                Some(value) => Some(Box::new(cps_repr_value_to_vm(*value)?)),
+                None => None,
+            },
+        }),
+        CpsReprRuntimeValue::List(items) => {
+            let vm_items = items
+                .iter()
+                .cloned()
+                .map(cps_repr_value_to_vm)
+                .collect::<Option<Vec<_>>>()?;
+            let mut tree = runtime::runtime::list_tree::ListTree::empty();
+            for item in vm_items {
+                tree = runtime::runtime::list_tree::ListTree::concat(
+                    tree,
+                    runtime::runtime::list_tree::ListTree::singleton(Rc::new(item)),
+                );
+            }
+            Some(runtime::VmValue::List(tree))
+        }
+        CpsReprRuntimeValue::Resumption(_)
+        | CpsReprRuntimeValue::Thunk(_)
+        | CpsReprRuntimeValue::Closure(_) => None,
+    }
+}
+
+fn eval_cps_repr_primitive(
+    op: core_ir::PrimitiveOp,
+    args: Vec<CpsReprRuntimeValue>,
+) -> CpsReprEvalResult<CpsReprRuntimeValue> {
+    use core_ir::PrimitiveOp;
+    match op {
+        PrimitiveOp::ListEmpty => {
+            if !args.is_empty() {
+                return Err(CpsReprEvalError::InvalidPrimitiveArity {
+                    op,
+                    expected: 0,
+                    actual: args.len(),
+                });
+            }
+            Ok(CpsReprRuntimeValue::List(Rc::new(Vec::new())))
+        }
+        PrimitiveOp::ListSingleton => {
+            if args.len() != 1 {
+                return Err(CpsReprEvalError::InvalidPrimitiveArity {
+                    op,
+                    expected: 1,
+                    actual: args.len(),
+                });
+            }
+            Ok(CpsReprRuntimeValue::List(Rc::new(vec![
+                args.into_iter().next().unwrap(),
+            ])))
+        }
+        PrimitiveOp::ListMerge => {
+            if args.len() != 2 {
+                return Err(CpsReprEvalError::InvalidPrimitiveArity {
+                    op,
+                    expected: 2,
+                    actual: args.len(),
+                });
+            }
+            let mut iter = args.into_iter();
+            let left = iter.next().unwrap();
+            let right = iter.next().unwrap();
+            let mut merged = control_repr_list_items(op, left)?;
+            merged.extend(control_repr_list_items(op, right)?);
+            Ok(CpsReprRuntimeValue::List(Rc::new(merged)))
+        }
+        _ => {
+            let plain_args = args
+                .into_iter()
+                .map(cps_repr_value_to_vm)
+                .collect::<Option<Vec<_>>>()
+                .ok_or(CpsReprEvalError::UnsupportedPrimitive { op })?;
+            eval_primitive(op, &plain_args).map(cps_repr_value_from_vm)
+        }
+    }
+}
+
+fn control_repr_list_items(
+    op: core_ir::PrimitiveOp,
+    value: CpsReprRuntimeValue,
+) -> CpsReprEvalResult<Vec<CpsReprRuntimeValue>> {
+    match value {
+        CpsReprRuntimeValue::List(items) => Ok(items.as_ref().clone()),
+        CpsReprRuntimeValue::Plain(plain) => match plain {
+            runtime::VmValue::List(list) => Ok(list
+                .to_vec()
+                .into_iter()
+                .map(|item| cps_repr_value_from_vm((*item).clone()))
+                .collect()),
+            other => Err(CpsReprEvalError::PrimitiveTypeMismatch { op, value: other }),
+        },
+        _ => Err(CpsReprEvalError::UnsupportedPrimitive { op }),
     }
 }
 
@@ -1284,12 +1429,9 @@ fn eval_continuations(
                 CpsStmt::Tuple { dest, items } => {
                     let items = items
                         .iter()
-                        .map(|id| read_plain_value(function, &values, *id))
+                        .map(|id| read_value(function, &values, *id))
                         .collect::<CpsReprEvalResult<Vec<_>>>()?;
-                    values.insert(
-                        *dest,
-                        CpsReprRuntimeValue::Plain(runtime::VmValue::Tuple(items)),
-                    );
+                    values.insert(*dest, CpsReprRuntimeValue::Tuple(items));
                 }
                 CpsStmt::Record { dest, fields } => {
                     let mut record = BTreeMap::new();
@@ -1306,15 +1448,15 @@ fn eval_continuations(
                 }
                 CpsStmt::Variant { dest, tag, value } => {
                     let value = value
-                        .map(|id| read_plain_value(function, &values, id))
+                        .map(|id| read_value(function, &values, id))
                         .transpose()?
                         .map(Box::new);
                     values.insert(
                         *dest,
-                        CpsReprRuntimeValue::Plain(runtime::VmValue::Variant {
+                        CpsReprRuntimeValue::Variant {
                             tag: tag.clone(),
                             value,
-                        }),
+                        },
                     );
                 }
                 CpsStmt::Select { dest, base, field } => {
@@ -1337,48 +1479,67 @@ fn eval_continuations(
                     values.insert(*dest, CpsReprRuntimeValue::Plain(value));
                 }
                 CpsStmt::TupleGet { dest, tuple, index } => {
-                    let value = match read_plain_value(function, &values, *tuple)? {
-                        runtime::VmValue::Tuple(items) => {
-                            items.get(*index).cloned().ok_or_else(|| {
-                                CpsReprEvalError::MissingRecordField {
+                    let value = match read_value(function, &values, *tuple)? {
+                        CpsReprRuntimeValue::Tuple(items) => items
+                            .get(*index)
+                            .cloned()
+                            .ok_or_else(|| CpsReprEvalError::MissingRecordField {
+                                function: function.name.clone(),
+                                field: core_ir::Name(index.to_string()),
+                            })?,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Tuple(items)) => {
+                            cps_repr_value_from_vm(items.get(*index).cloned().ok_or_else(
+                                || CpsReprEvalError::MissingRecordField {
                                     function: function.name.clone(),
                                     field: core_ir::Name(index.to_string()),
-                                }
-                            })?
+                                },
+                            )?)
                         }
-                        value => value,
+                        other => other,
                     };
-                    values.insert(*dest, CpsReprRuntimeValue::Plain(value));
+                    values.insert(*dest, value);
                 }
                 CpsStmt::VariantTagEq { dest, variant, tag } => {
-                    let matches = matches!(
-                        read_plain_value(function, &values, *variant)?,
-                        runtime::VmValue::Variant { tag: actual, .. } if actual == *tag
-                    );
+                    let matches = match read_value(function, &values, *variant)? {
+                        CpsReprRuntimeValue::Variant { tag: actual, .. } => actual == *tag,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Variant {
+                            tag: actual,
+                            ..
+                        }) => actual == *tag,
+                        _ => false,
+                    };
                     values.insert(
                         *dest,
                         CpsReprRuntimeValue::Plain(runtime::VmValue::Bool(matches)),
                     );
                 }
                 CpsStmt::VariantPayload { dest, variant } => {
-                    let value = match read_plain_value(function, &values, *variant)? {
-                        runtime::VmValue::Variant {
+                    let value = match read_value(function, &values, *variant)? {
+                        CpsReprRuntimeValue::Variant {
                             value: Some(value), ..
                         } => *value,
-                        runtime::VmValue::Variant { value: None, .. } => runtime::VmValue::Unit,
-                        value => value,
+                        CpsReprRuntimeValue::Variant { value: None, .. } => {
+                            CpsReprRuntimeValue::Plain(runtime::VmValue::Unit)
+                        }
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Variant {
+                            value: Some(value),
+                            ..
+                        }) => cps_repr_value_from_vm(*value),
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Variant {
+                            value: None,
+                            ..
+                        }) => CpsReprRuntimeValue::Plain(runtime::VmValue::Unit),
+                        other => other,
                     };
-                    values.insert(*dest, CpsReprRuntimeValue::Plain(value));
+                    values.insert(*dest, value);
                 }
                 CpsStmt::Primitive { dest, op, args } => {
                     let args = args
                         .iter()
-                        .map(|id| read_plain_value(function, &values, *id))
+                        .map(|id| read_value(function, &values, *id))
                         .collect::<CpsReprEvalResult<Vec<_>>>()?;
-                    values.insert(
-                        *dest,
-                        CpsReprRuntimeValue::Plain(eval_primitive(*op, &args)?),
-                    );
+                    let result = eval_cps_repr_primitive(*op, args)?;
+                    values.insert(*dest, result);
                 }
                 CpsStmt::DirectCall { dest, target, args } => {
                     let target_function = function_by_name_repr(module, target)?;
@@ -1619,13 +1780,10 @@ fn into_plain_value(
     id: CpsValueId,
     value: CpsReprRuntimeValue,
 ) -> CpsReprEvalResult<runtime::VmValue> {
-    match value {
-        CpsReprRuntimeValue::Plain(value) => Ok(value),
-        _ => Err(CpsReprEvalError::ExpectedPlainValue {
-            function: function.name.clone(),
-            id,
-        }),
-    }
+    cps_repr_value_to_vm(value).ok_or_else(|| CpsReprEvalError::ExpectedPlainValue {
+        function: function.name.clone(),
+        id,
+    })
 }
 
 fn read_closure(
@@ -1648,6 +1806,16 @@ enum CpsReprRuntimeValue {
     Resumption(CpsReprResumption),
     Thunk(CpsReprThunk),
     Closure(CpsReprClosure),
+    /// First-class CPS containers whose elements may themselves be
+    /// resumptions, thunks, or closures. Mirrors `CpsRuntimeValue`
+    /// in cps_eval and supports `std::undet.once`'s `list<resumption>`
+    /// queue and `(k, queue)` tuple pattern.
+    List(Rc<Vec<CpsReprRuntimeValue>>),
+    Tuple(Vec<CpsReprRuntimeValue>),
+    Variant {
+        tag: core_ir::Name,
+        value: Option<Box<CpsReprRuntimeValue>>,
+    },
     /// Carries a value produced by a handler arm body's non-local return.
     /// Propagated by every internal call site so the eval_function boundary
     /// can unwrap it.
