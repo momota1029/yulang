@@ -13,6 +13,9 @@
 !.env.example
 /web/playground/.env*.local
 
+# tree-sitter grammar (managed as its own git repo / GitHub remote)
+/tree-sitter-yulang/
+
 # Local scratch files
 *.log
 *.tmp
