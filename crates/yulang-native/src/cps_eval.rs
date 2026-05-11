@@ -976,10 +976,29 @@ fn resume_continuation(
                 trace_cps(
                     "Return",
                     format!(
-                        "fn={} cont={:?} value={:?} return_frames.len={} initial={}",
-                        function.name, current, v, return_frames.len(), initial_frame_count,
+                        "fn={} cont={:?} value_is_thunk={} return_frames.len={} initial={}",
+                        function.name, current,
+                        matches!(v, CpsRuntimeValue::Thunk(_)),
+                        return_frames.len(), initial_frame_count,
                     ),
                 );
+                // write17 attempt: pre-force the Thunk before consuming the
+                // top frame so the body's Perform captures the post-call
+                // frame in its resumption. Disabled — running the body
+                // outside the would-be ForceThunk's eval means H_sub from
+                // F_each_post.active_handlers never resolves in any eval
+                // (escape_owner_function = each but the body's eval is
+                // fold_impl). ScopeReturn escapes to root.
+                //
+                // Kept commented for follow-up: the right fix may be to
+                // synthesize a wrapper eval at top_frame.continuation with
+                // the frame's handlers non-inherited, run the body sync
+                // inside it, and let the wrapper's dispatch_scope_return
+                // resolve sub::return at H_sub.escape.
+                //
+                // for now: fall through to the original consume-frame path.
+                let _ = return_frame_immediately_forces_param;
+                let _ = force_returned_thunk_before_frame_consumption;
                 if return_frames.len() <= initial_frame_count {
                     return Ok(v);
                 }
@@ -1303,6 +1322,81 @@ fn resume_continuation(
                     }
                 }
             }
+        }
+    }
+}
+
+/// write17: returns true when the frame's continuation immediately
+/// ForceThunks its received parameter — i.e. its first stmt is
+/// `ForceThunk { thunk: <params[0]>, .. }`. Used by `Return(Thunk)` to
+/// detect the case where popping the frame would lose the post-call cont
+/// from a thunk body's resumption.
+fn return_frame_immediately_forces_param(
+    module: &CpsModule,
+    frame: &CpsReturnFrame,
+) -> CpsEvalResult<bool> {
+    let function = function_by_name(module, &frame.owner_function)?;
+    let Some(continuation) = function
+        .continuations
+        .iter()
+        .find(|c| c.id == frame.continuation)
+    else {
+        return Ok(false);
+    };
+    let Some(&first_param) = continuation.params.first() else {
+        return Ok(false);
+    };
+    Ok(matches!(
+        continuation.stmts.first(),
+        Some(CpsStmt::ForceThunk { thunk, .. }) if *thunk == first_param
+    ))
+}
+
+/// write17: Evaluate a Thunk body BEFORE popping the top return frame,
+/// so the body's effects can capture the frame in their resumptions.
+///
+/// Critical invariants:
+/// - `return_frames` is passed AS-IS (no pop). The top frame stays available
+///   so the thunk body's Perform sees it as captureable.
+/// - `initial_frame_count` is the CURRENT eval's initial — NOT
+///   `return_frames.len()`. Setting it to `len()` would make the top frame
+///   inherited from the thunk body's POV and prevent it from ever being
+///   consumed.
+/// - handlers / guards come from `top_frame` (the would-be ForceThunk
+///   context), since we're pre-empting that context.
+/// - If the thunk body itself returns a Thunk, peel via loop (mirrors the
+///   sync stmt-level ForceThunk's behavior).
+fn force_returned_thunk_before_frame_consumption(
+    module: &CpsModule,
+    mut thunk: Rc<CpsThunk>,
+    top_frame: &CpsReturnFrame,
+    return_frames: Vec<CpsReturnFrame>,
+    initial_frame_count: usize,
+) -> CpsEvalResult<CpsRuntimeValue> {
+    loop {
+        let owner = function_by_name(module, &thunk.owner_function)?;
+        // Use top_frame's saved handlers (preserving non-inherited state) and
+        // resume_continuation (no into_inherited). This way an effect handler
+        // installed at the EffectfulCall site (e.g. H_sub in each) remains
+        // non-inherited in the body's eval, so its ScopeReturn can resolve
+        // when propagating back here instead of escaping to root.
+        let result = resume_continuation(
+            module,
+            owner,
+            thunk.entry,
+            Vec::new(),
+            thunk.values.as_ref().clone(),
+            top_frame.active_handlers.clone(),
+            top_frame.guard_stack.clone(),
+            return_frames.clone(),
+            initial_frame_count,
+        )?;
+        match result {
+            CpsRuntimeValue::Thunk(next) => {
+                thunk = next;
+                continue;
+            }
+            other => return Ok(other),
         }
     }
 }
