@@ -289,10 +289,27 @@ fn handle_scope_return(
             target,
             value,
         } => {
-            if let Some(index) = active_handlers
-                .iter()
-                .rposition(|frame| frame.prompt == prompt && !frame.inherited)
-            {
+            // write21: a frame that is `inherited` was carried over from a
+            // caller eval (DirectCall / ApplyClosure / ForceThunk all run
+            // through `eval_continuations`, which marks every prior handler
+            // as inherited). The doc on `CpsHandlerFrame::inherited` says
+            // inherited frames must NOT resolve a `ScopeReturn` because the
+            // original install site lives in a parent eval frame — but that
+            // rule is too coarse: if the *function* hosting the install (the
+            // handler's `escape_owner_function`) is the very function whose
+            // continuation is dispatching now, then we are still inside that
+            // function's CPS body and can resolve here directly. Without
+            // this exception, `H_sub` installed in `each__mono1 cont 0` is
+            // unreachable from a Perform in `each__mono1 cont 8` (after it
+            // was reached through fold_impl → each closure apply → resume),
+            // so `sub::return` propagates up the entire frame stack and
+            // destroys intermediate handler scopes (e.g. a recursive
+            // `once`'s prompt) along the way.
+            if let Some(index) = active_handlers.iter().rposition(|frame| {
+                frame.prompt == prompt
+                    && (!frame.inherited
+                        || frame.escape_owner_function == current_function)
+            }) {
                 let frame = &active_handlers[index];
                 let frame_owner_match = target == EXIT_RWH_TARGET
                     || frame.escape_owner_function == current_function;
