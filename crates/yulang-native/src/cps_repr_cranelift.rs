@@ -1390,13 +1390,32 @@ fn lower_effect_terminator<M: Module>(
                 functions,
             )?;
         }
-        CpsTerminator::EffectfulCall { .. }
-        | CpsTerminator::EffectfulApply { .. }
-        | CpsTerminator::EffectfulForce { .. } => {
-            // TODO(write12 step 8): port return-frame semantics to Cranelift.
-            // Currently unreachable until cps_lower emits these terminators
-            // and the CPS repr eval implementation is in place.
-            todo!("Effectful{{Call,Apply,Force}} in cps_repr Cranelift backend");
+        // write27-b: graceful failure mode instead of `todo!` panic.
+        // The actual codegen (push return frame, set eval context,
+        // call target/thunk/closure, route scope_return after sync
+        // calls, consume return frames on Return) is left for
+        // write27-c. Probe-tested with `YULANG_W27_PROBE=1` shows zero
+        // existing tests reach these arms — only
+        // `debugs_std_undet_once_skip_eval_layers`'s Layer 3 (which
+        // emits EffectfulCall via write25's Step 4 narrow for
+        // `std::undet::undet::each`) triggers them.
+        CpsTerminator::EffectfulCall { .. } => {
+            return Err(CpsReprCraneliftError::UnsupportedTerminator {
+                function: function.name.clone(),
+                kind: "effectful-call",
+            });
+        }
+        CpsTerminator::EffectfulApply { .. } => {
+            return Err(CpsReprCraneliftError::UnsupportedTerminator {
+                function: function.name.clone(),
+                kind: "effectful-apply",
+            });
+        }
+        CpsTerminator::EffectfulForce { .. } => {
+            return Err(CpsReprCraneliftError::UnsupportedTerminator {
+                function: function.name.clone(),
+                kind: "effectful-force",
+            });
         }
     }
     Ok(())
