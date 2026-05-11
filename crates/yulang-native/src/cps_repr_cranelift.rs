@@ -333,13 +333,45 @@ pub fn compile_cps_repr_abi_module(
         "yulang_cps_return_frame_len_i64",
         yulang_cps_return_frame_len_i64 as *const u8,
     );
+    // write27-b: push_return_frame family (N env slots, 0..4).
     builder.symbol(
-        "yulang_cps_push_return_frame_i64",
-        yulang_cps_push_return_frame_i64 as *const u8,
+        "yulang_cps_push_return_frame_i64_0",
+        yulang_cps_push_return_frame_i64_0 as *const u8,
     );
     builder.symbol(
-        "yulang_cps_pop_return_frame_i64",
-        yulang_cps_pop_return_frame_i64 as *const u8,
+        "yulang_cps_push_return_frame_i64_1",
+        yulang_cps_push_return_frame_i64_1 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_push_return_frame_i64_2",
+        yulang_cps_push_return_frame_i64_2 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_push_return_frame_i64_3",
+        yulang_cps_push_return_frame_i64_3 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_push_return_frame_i64_4",
+        yulang_cps_push_return_frame_i64_4 as *const u8,
+    );
+    // write27-b: replace pop_return_frame with a full
+    // continue_return_frame helper that also restores snapshots and
+    // invokes the saved JIT continuation.
+    builder.symbol(
+        "yulang_cps_continue_return_frame_i64",
+        yulang_cps_continue_return_frame_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_top_return_frame_pre_force_i64",
+        yulang_cps_top_return_frame_pre_force_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_pre_force_top_frame_i64",
+        yulang_cps_pre_force_top_frame_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_return_i64",
+        yulang_cps_return_i64 as *const u8,
     );
     builder.symbol(
         "yulang_cps_selected_handler_env_or_i64",
@@ -1321,8 +1353,23 @@ fn lower_effect_terminator<M: Module>(
 ) -> CpsReprCraneliftResult<()> {
     match &continuation.terminator {
         CpsTerminator::Return(value) => {
+            // write27-b: route the return value through the JIT-side
+            // `yulang_cps_return_i64` helper so the eval-level Return
+            // semantics (pre-force v2, continue_return_frame on
+            // remaining own-frames) match cps_eval/cps_repr.
+            //
+            // The helper is a no-op when there are no own return frames
+            // (frame_len <= initial_frame_count), so this is safe even
+            // for tests that don't use effectful terminators — the path
+            // simply returns `value` unchanged.
             let value = read_value(builder, function, *value)?;
-            builder.ins().return_(&[value]);
+            let routed = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_return_i64",
+                &[value],
+            )?;
+            builder.ins().return_(&[routed]);
         }
         CpsTerminator::Continue { target, args } => {
             let value =
@@ -1390,34 +1437,228 @@ fn lower_effect_terminator<M: Module>(
                 functions,
             )?;
         }
-        // write27-b: graceful failure mode instead of `todo!` panic.
-        // The actual codegen (push return frame, set eval context,
-        // call target/thunk/closure, route scope_return after sync
-        // calls, consume return frames on Return) is left for
-        // write27-c. Probe-tested with `YULANG_W27_PROBE=1` shows zero
-        // existing tests reach these arms — only
-        // `debugs_std_undet_once_skip_eval_layers`'s Layer 3 (which
-        // emits EffectfulCall via write25's Step 4 narrow for
-        // `std::undet::undet::each`) triggers them.
-        CpsTerminator::EffectfulCall { .. } => {
-            return Err(CpsReprCraneliftError::UnsupportedTerminator {
-                function: function.name.clone(),
-                kind: "effectful-call",
-            });
+        // write27-b: EffectfulCall / EffectfulForce / EffectfulApply
+        // codegen. Push a return frame for the resume continuation,
+        // set a fresh eval context, and tail-call the target. The
+        // target's Return helper (write27-b/yulang_cps_return_i64)
+        // consumes the frame and invokes the resume continuation when
+        // it finally bottoms out.
+        //
+        // EffectfulApply Resumption is left unsupported in this commit
+        // (needs anchor-merge + combined_frames Rust helper); only
+        // Closure callables are handled here.
+        CpsTerminator::EffectfulCall {
+            target,
+            args,
+            resume,
+        } => {
+            let resume_cont = lookup_continuation(function, *resume)?;
+            check_resume_continuation_shape(function, resume_cont)?;
+            let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
+            // Push F_post(resume_cont, env, current_initial, current_eval, immediate_force).
+            push_return_frame_for_resume(
+                module_backend,
+                builder,
+                function,
+                resume_cont,
+                immediate_force,
+                functions,
+            )?;
+            // Read target args BEFORE switching eval context (so we
+            // see the caller's value table state).
+            let arg_values = read_values(builder, function, args)?;
+            // Set callee eval context: fresh eval id + initial =
+            // return_frame_len after our push.
+            switch_eval_context_for_callee(module_backend, builder)?;
+            // Direct call to target function.
+            let id = functions.functions.get(target).copied().ok_or_else(|| {
+                CpsReprCraneliftError::MissingFunction {
+                    name: target.clone(),
+                }
+            })?;
+            let callee = module_backend.declare_func_in_func(id, builder.func);
+            let call = builder.ins().call(callee, &arg_values);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(CpsReprCraneliftError::InvalidReturnArity {
+                    function: target.clone(),
+                    arity: results.len(),
+                });
+            }
+            let result = results[0];
+            builder.ins().return_(&[result]);
         }
-        CpsTerminator::EffectfulApply { .. } => {
-            return Err(CpsReprCraneliftError::UnsupportedTerminator {
-                function: function.name.clone(),
-                kind: "effectful-apply",
-            });
+        CpsTerminator::EffectfulForce { thunk, resume } => {
+            let resume_cont = lookup_continuation(function, *resume)?;
+            check_resume_continuation_shape(function, resume_cont)?;
+            let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
+            push_return_frame_for_resume(
+                module_backend,
+                builder,
+                function,
+                resume_cont,
+                immediate_force,
+                functions,
+            )?;
+            let thunk_value = read_value(builder, function, *thunk)?;
+            switch_eval_context_for_callee(module_backend, builder)?;
+            let result = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_force_thunk_i64",
+                &[thunk_value],
+            )?;
+            builder.ins().return_(&[result]);
         }
-        CpsTerminator::EffectfulForce { .. } => {
-            return Err(CpsReprCraneliftError::UnsupportedTerminator {
-                function: function.name.clone(),
-                kind: "effectful-force",
-            });
+        CpsTerminator::EffectfulApply {
+            closure,
+            arg,
+            resume,
+        } => {
+            let resume_cont = lookup_continuation(function, *resume)?;
+            check_resume_continuation_shape(function, resume_cont)?;
+            let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
+            push_return_frame_for_resume(
+                module_backend,
+                builder,
+                function,
+                resume_cont,
+                immediate_force,
+                functions,
+            )?;
+            let closure_value = read_value(builder, function, *closure)?;
+            let arg_value = read_value(builder, function, *arg)?;
+            switch_eval_context_for_callee(module_backend, builder)?;
+            // NOTE: write27-b defers the Resumption variant. Existing
+            // `yulang_cps_apply_closure_i64` handles Closure dispatch;
+            // for Resumption-valued callables, we'd need a Rust helper
+            // that performs anchor-merge + combined_frames. Tracked
+            // as write27-c.
+            let result = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_apply_closure_i64",
+                &[closure_value, arg_value],
+            )?;
+            builder.ins().return_(&[result]);
         }
     }
+    Ok(())
+}
+
+/// write27-b: validate that a resume continuation has the shape the
+/// return-frame stack supports: exactly 1 param (the call's result) and
+/// at most 4 env slots.
+fn check_resume_continuation_shape(
+    function: &CpsReprAbiFunction,
+    resume_cont: &CpsReprAbiContinuation,
+) -> CpsReprCraneliftResult<()> {
+    if resume_cont.params.len() != 1 {
+        return Err(CpsReprCraneliftError::UnsupportedTerminator {
+            function: function.name.clone(),
+            kind: "resume continuation arity",
+        });
+    }
+    if resume_cont.environment.len() > 4 {
+        return Err(CpsReprCraneliftError::UnsupportedTerminator {
+            function: function.name.clone(),
+            kind: "resume continuation environment larger than four slots",
+        });
+    }
+    Ok(())
+}
+
+/// write27-b: mirror of `return_frame_immediately_forces_param` in
+/// cps_eval/cps_repr. Returns true when the continuation's first stmt
+/// is `ForceThunk` on its first param. Used to fire pre-force v2 in
+/// the JIT Return path.
+fn resume_continuation_immediately_forces_param(
+    resume_cont: &CpsReprAbiContinuation,
+) -> bool {
+    let Some(first_param) = resume_cont.params.first() else {
+        return false;
+    };
+    matches!(
+        resume_cont.stmts.first(),
+        Some(CpsStmt::ForceThunk { thunk, .. }) if *thunk == first_param.value
+    )
+}
+
+/// write27-b: emit the codegen for "push a return frame for this
+/// resume continuation". Reads the resume continuation's env slots from
+/// the current function's value table, gets a function pointer to the
+/// continuation, and calls `yulang_cps_push_return_frame_i64_N` (one
+/// of the 5 variants) with current_initial, current_eval, the
+/// immediate_force flag, and the env slots.
+fn push_return_frame_for_resume<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    resume_cont: &CpsReprAbiContinuation,
+    immediate_force: bool,
+    functions: &DeclaredFunctions,
+) -> CpsReprCraneliftResult<()> {
+    let func_ref =
+        continuation_func_ref(module_backend, builder, function, resume_cont.id, functions)?;
+    let cont_ptr = builder.ins().func_addr(types::I64, func_ref);
+    let current_eval = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_current_eval_id_i64",
+        &[],
+    )?;
+    let current_initial = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_current_initial_frame_count_i64",
+        &[],
+    )?;
+    let immediate_force_value = builder
+        .ins()
+        .iconst(types::I64, i64::from(immediate_force));
+    let mut args = vec![cont_ptr, current_initial, current_eval, immediate_force_value];
+    for slot in &resume_cont.environment {
+        validate_environment_lane(function, slot.value, slot.lane)?;
+        args.push(read_value(builder, function, slot.value)?);
+    }
+    let helper_name = match resume_cont.environment.len() {
+        0 => "yulang_cps_push_return_frame_i64_0",
+        1 => "yulang_cps_push_return_frame_i64_1",
+        2 => "yulang_cps_push_return_frame_i64_2",
+        3 => "yulang_cps_push_return_frame_i64_3",
+        4 => "yulang_cps_push_return_frame_i64_4",
+        _ => unreachable!("checked by check_resume_continuation_shape"),
+    };
+    let _ = call_i64_helper(module_backend, builder, helper_name, &args)?;
+    Ok(())
+}
+
+/// write27-b: after pushing F_post, switch to the callee's eval
+/// context: fresh eval id + initial = return_frame_len (which now
+/// includes our push, so the callee can consume F_post but not any
+/// frames that belong to an outer eval).
+fn switch_eval_context_for_callee<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+) -> CpsReprCraneliftResult<()> {
+    let fresh_eval = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_fresh_eval_id_i64",
+        &[],
+    )?;
+    let frame_len = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_return_frame_len_i64",
+        &[],
+    )?;
+    let _ = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_set_eval_context_i64",
+        &[fresh_eval, frame_len],
+    )?;
     Ok(())
 }
 
@@ -2003,6 +2244,15 @@ impl CpsLiteralStore for ObjectLiteralStore {
             builder.ins().iconst(types::I64, bytes.len() as i64),
         ))
     }
+}
+
+/// write27-b: alias for the `continuation()` lookup, used in scopes
+/// where a parameter named `continuation` shadows the function name.
+fn lookup_continuation<'a>(
+    function: &'a CpsReprAbiFunction,
+    id: CpsContinuationId,
+) -> CpsReprCraneliftResult<&'a CpsReprAbiContinuation> {
+    continuation(function, id)
 }
 
 fn continuation(
@@ -2956,16 +3206,21 @@ struct NativeCpsI64ScopeReturn {
     value: i64,
 }
 
-/// write27-a: suspended caller continuation captured at
+/// write27-a/b: suspended caller continuation captured at
 /// `EffectfulCall / EffectfulApply / EffectfulForce`. Mirrors
 /// `CpsReturnFrame` from cps_eval/cps_repr but with raw function-
 /// pointer continuation instead of a `CpsContinuationId`.
 #[derive(Clone)]
 struct NativeCpsI64ReturnFrame {
-    /// JIT continuation function pointer (e.g. `extern "C" fn(env, arg) -> i64`).
+    /// JIT continuation function pointer
+    /// (`extern "C" fn(env: *const i64, arg: i64) -> i64`, matching
+    /// `NativeCpsI64Continuation`).
     continuation: usize,
-    /// Captured environment pointer for the continuation.
-    env: i64,
+    /// Captured environment for the continuation. Each `i64` mirrors
+    /// one entry in the resume continuation's `environment`. Stored as
+    /// `Box<[i64]>` (matches `NativeCpsI64Resumption::env`) so the
+    /// pointer passed to the JIT continuation is stable.
+    env: Box<[i64]>,
     /// Handler stack snapshot at push time.
     handlers: Vec<NativeCpsI64HandlerFrame>,
     /// Guard stack snapshot at push time.
@@ -2973,8 +3228,14 @@ struct NativeCpsI64ReturnFrame {
     /// Owner eval's `initial_frame_count` at push time.
     owner_initial_frame_count: usize,
     /// Owner eval's identity. Restored as `current_eval_id` when this
-    /// frame is consumed via `continue_return_frames`.
+    /// frame is consumed via `continue_return_frame_i64`.
     owner_eval_id: u64,
+    /// write27-b: whether the resume continuation's body begins by
+    /// `ForceThunk`-ing its first parameter (mirrors
+    /// `return_frame_immediately_forces_param` in cps_eval/cps_repr).
+    /// Computed at codegen time and stored here so the JIT Return path
+    /// can fire pre-force v2 without crossing back into Cranelift IR.
+    immediately_forces_param: bool,
 }
 
 /// write27-a: per-eval-frame context. Mirrors the `current_eval_id` +
@@ -3730,48 +3991,239 @@ extern "C" fn yulang_cps_return_frame_len_i64() -> i64 {
     NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len() as i64)
 }
 
-extern "C" fn yulang_cps_push_return_frame_i64(
+fn push_native_i64_return_frame_with_env(
     continuation: i64,
-    env: i64,
+    env: Vec<i64>,
     owner_initial_frame_count: i64,
     owner_eval_id: i64,
-) -> i64 {
+    immediately_forces_param: i64,
+) {
     let handlers =
         NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
     let guards = NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().clone());
     NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
         frames.borrow_mut().push(NativeCpsI64ReturnFrame {
             continuation: continuation as usize,
-            env,
+            env: env.into_boxed_slice(),
             handlers,
             guards,
             owner_initial_frame_count: owner_initial_frame_count.max(0) as usize,
             owner_eval_id: owner_eval_id as u64,
+            immediately_forces_param: immediately_forces_param != 0,
         });
     });
+}
+
+// Up to 4 env slots, matching the JIT's existing
+// `yulang_cps_make_resumption_i64_N` family (the codegen path errors
+// out for resume continuations with more than 4 environment slots).
+
+extern "C" fn yulang_cps_push_return_frame_i64_0(
+    continuation: i64,
+    owner_initial: i64,
+    owner_eval: i64,
+    immediately_forces: i64,
+) -> i64 {
+    push_native_i64_return_frame_with_env(
+        continuation,
+        Vec::new(),
+        owner_initial,
+        owner_eval,
+        immediately_forces,
+    );
     0
 }
 
-extern "C" fn yulang_cps_pop_return_frame_i64() -> i64 {
+extern "C" fn yulang_cps_push_return_frame_i64_1(
+    continuation: i64,
+    owner_initial: i64,
+    owner_eval: i64,
+    immediately_forces: i64,
+    a: i64,
+) -> i64 {
+    push_native_i64_return_frame_with_env(
+        continuation,
+        vec![a],
+        owner_initial,
+        owner_eval,
+        immediately_forces,
+    );
+    0
+}
+
+extern "C" fn yulang_cps_push_return_frame_i64_2(
+    continuation: i64,
+    owner_initial: i64,
+    owner_eval: i64,
+    immediately_forces: i64,
+    a: i64,
+    b: i64,
+) -> i64 {
+    push_native_i64_return_frame_with_env(
+        continuation,
+        vec![a, b],
+        owner_initial,
+        owner_eval,
+        immediately_forces,
+    );
+    0
+}
+
+extern "C" fn yulang_cps_push_return_frame_i64_3(
+    continuation: i64,
+    owner_initial: i64,
+    owner_eval: i64,
+    immediately_forces: i64,
+    a: i64,
+    b: i64,
+    c: i64,
+) -> i64 {
+    push_native_i64_return_frame_with_env(
+        continuation,
+        vec![a, b, c],
+        owner_initial,
+        owner_eval,
+        immediately_forces,
+    );
+    0
+}
+
+extern "C" fn yulang_cps_push_return_frame_i64_4(
+    continuation: i64,
+    owner_initial: i64,
+    owner_eval: i64,
+    immediately_forces: i64,
+    a: i64,
+    b: i64,
+    c: i64,
+    d: i64,
+) -> i64 {
+    push_native_i64_return_frame_with_env(
+        continuation,
+        vec![a, b, c, d],
+        owner_initial,
+        owner_eval,
+        immediately_forces,
+    );
+    0
+}
+
+/// write27-b: pop the innermost return frame, restore its handler /
+/// guard / eval context snapshots, and invoke the saved JIT
+/// continuation with `value`. Returns the continuation's result.
+///
+/// Returning a Rust-side helper instead of just `pop` plus a Cranelift
+/// trampoline keeps the env / state restore / continuation call atomic
+/// — write27-b notes call this out as the main safety win.
+///
+/// Mirrors cps_eval / cps_repr's `continue_return_frames` single step.
+extern "C" fn yulang_cps_continue_return_frame_i64(value: i64) -> i64 {
+    // Pop the frame first, dropping the borrow before we invoke the
+    // continuation (which may push new frames).
+    let frame = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow_mut().pop());
+    let Some(frame) = frame else {
+        // No frame to consume — caller should have checked
+        // `return_frame_len_i64()`; treat this as a no-op for safety.
+        return value;
+    };
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = frame.handlers);
+    NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = frame.guards);
+    NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
+        *ctx.borrow_mut() = NativeCpsI64EvalContext {
+            current_eval_id: frame.owner_eval_id,
+            initial_frame_count: frame.owner_initial_frame_count,
+        };
+    });
+    // Safety: `frame.continuation` was obtained at `push_return_frame`
+    // time via `func_addr` on a JIT-compiled continuation function and
+    // therefore stays valid for the lifetime of the JIT module. The
+    // env slice's pointer stays valid for the duration of the call
+    // because the frame is owned by this stack-popped `Box<[i64]>`.
+    let cont: NativeCpsI64Continuation = unsafe { std::mem::transmute(frame.continuation) };
+    let env_ptr = frame.env.as_ptr();
+    cont(env_ptr, value)
+}
+
+/// write27-b: peek at the innermost return frame's
+/// `immediately_forces_param` flag without popping it. Used by the
+/// JIT `Return` path to decide whether to fire pre-force v2.
+extern "C" fn yulang_cps_top_return_frame_pre_force_i64() -> i64 {
     NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
-        let mut frames = frames.borrow_mut();
-        if let Some(frame) = frames.pop() {
-            // Restore snapshots so the resumed continuation sees the
-            // owner-eval's handler / guard state.
-            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = frame.handlers);
-            NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = frame.guards);
-            NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
-                *ctx.borrow_mut() = NativeCpsI64EvalContext {
-                    current_eval_id: frame.owner_eval_id,
-                    initial_frame_count: frame.owner_initial_frame_count,
-                };
-            });
-            // Return value chosen so callers can detect failure (-1).
-            frame.continuation as i64
-        } else {
-            -1
-        }
+        frames
+            .borrow()
+            .last()
+            .map(|frame| i64::from(frame.immediately_forces_param))
+            .unwrap_or(0)
     })
+}
+
+/// write27-b: pre-force v2 for the JIT. Mirrors cps_eval/cps_repr's
+/// Return-terminator pre-force: when the Returned value is a Thunk and
+/// the innermost own-frame's continuation immediately ForceThunks its
+/// param, run that continuation in the top frame's owner context with
+/// the frame retained in `return_frames` and the eval-context's
+/// `initial_frame_count` set to the full frame length (so any deeper
+/// Return that doesn't push new frames just bubbles back).
+///
+/// Caller has already verified:
+///   - `value` is a thunk pointer (via `yulang_cps_is_thunk_i64`),
+///   - `return_frame_len_i64() > current_initial_frame_count_i64()`,
+///   - `yulang_cps_top_return_frame_pre_force_i64() != 0`.
+extern "C" fn yulang_cps_pre_force_top_frame_i64(value: i64) -> i64 {
+    // Clone the env into a temporary box so we can borrow_mut other
+    // thread-locals safely. The env pointer must outlive the
+    // continuation call.
+    let (cont, env) = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+        let frames = frames.borrow();
+        let top = frames.last().expect("pre-force called with no frame");
+        // Restore the top frame's owner context. The frame is RETAINED
+        // (we don't pop it) so the body's effects can capture it.
+        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = top.handlers.clone());
+        NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = top.guards.clone());
+        let retained_len = frames.len();
+        NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
+            *ctx.borrow_mut() = NativeCpsI64EvalContext {
+                current_eval_id: top.owner_eval_id,
+                // Set initial = retained_len so the body's plain Return
+                // (with no new frames pushed) skips frame consumption.
+                initial_frame_count: retained_len,
+            };
+        });
+        (top.continuation, top.env.clone())
+    });
+    let cont: NativeCpsI64Continuation = unsafe { std::mem::transmute(cont) };
+    cont(env.as_ptr(), value)
+}
+
+/// write27-b: JIT-side analogue of cps_eval's Return terminator. Use
+/// this in place of `ireturn value` so that:
+/// - if the eval has no own return frames, return value directly,
+/// - if pre-force v2 fires, run the top frame's continuation in owner
+///   context with the frame retained,
+/// - otherwise, consume the innermost own frame and run its
+///   continuation with `value`.
+///
+/// Callers don't have to know about Thunk classification: this helper
+/// asks `yulang_cps_is_thunk_i64` (existing) when deciding pre-force.
+extern "C" fn yulang_cps_return_i64(value: i64) -> i64 {
+    let frame_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
+    let initial = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
+    if frame_len <= initial {
+        return value;
+    }
+    // Pre-force v2 check.
+    let is_thunk = NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&(value as usize)));
+    let top_forces = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+        frames
+            .borrow()
+            .last()
+            .map(|frame| frame.immediately_forces_param)
+            .unwrap_or(false)
+    });
+    if is_thunk && top_forces {
+        return yulang_cps_pre_force_top_frame_i64(value);
+    }
+    yulang_cps_continue_return_frame_i64(value)
 }
 
 extern "C" fn yulang_cps_selected_handler_env_or_i64(entry: i64, fallback: i64) -> i64 {
