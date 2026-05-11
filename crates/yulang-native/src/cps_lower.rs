@@ -1310,7 +1310,21 @@ impl<'a> FunctionLowerer<'a> {
             // We check info.ret rather than expr.ty because the runtime IR
             // can strip the Thunk wrap on the application expression in some
             // contexts even though the call itself is effectful.
-            if self.higher_order_helper && info_returns_thunk {
+            //
+            // write25 Step 4 (narrow): also fire the EffectfulCall path
+            // when calling `std::undet::undet::each*`. The user-level
+            // `work` calls `each` synchronously, but the caller's
+            // post-call `guard; n` needs to be captured as a return
+            // frame so the inner `once`'s sibling handler (installed
+            // during resumption replay) is reachable when reject is
+            // performed. This narrow gate avoids the write24 regression
+            // caused by the broader `info_returns_thunk && non-Thunk demand`
+            // condition. write26+ may generalize via effect annotations.
+            let target_is_undet_each =
+                target.starts_with("std::undet::undet::each");
+            if (self.higher_order_helper && info_returns_thunk)
+                || (target_is_undet_each && info_returns_thunk)
+            {
                 self.mark_active_handlers_external_call();
                 let post_cont = self.fresh_continuation();
                 let result = self.fresh_value();

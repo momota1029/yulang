@@ -572,7 +572,25 @@ fn resume_continuation(
                     args = vec![value];
                     continue $cont;
                 }
-                ScopeReturnAction::Propagate(v) => return Ok(v),
+                ScopeReturnAction::Propagate(v) => {
+                    // write25 Step 5: before bubbling the SR via the
+                    // call stack, see if the current eval's own
+                    // return_frames hold the install scope for this
+                    // handler (e.g. a Resume eval's adjusted captured
+                    // chain). If so, route there directly with the
+                    // modified active_handlers snapshot in scope.
+                    if let Some(routed) =
+                        try_route_scope_return_through_return_frames(
+                            module,
+                            &v,
+                            &return_frames,
+                            initial_frame_count,
+                        )?
+                    {
+                        return Ok(routed);
+                    }
+                    return Ok(v);
+                }
             }
         }};
     }
@@ -1173,17 +1191,66 @@ fn resume_continuation(
                 if return_frames.len() <= initial_frame_count {
                     return Ok(v);
                 }
-                // write23 Step 3 / write17 v2: if Returning a Thunk and the
-                // top own-frame's continuation immediately ForceThunks its
-                // param, run that continuation in the top frame's owner
-                // context (function = frame.owner_function, eval_id =
-                // frame.owner_eval_id) with ALL return_frames retained as
-                // inherited. This keeps the post-call frame (e.g.
-                // F_each_post) in scope while the deferred body runs, so
-                // a `Perform` inside the body captures it. With write22's
-                // strict install_eval_id check, a `ScopeReturn` raised in
-                // the body can resolve handlers installed at the frame's
-                // owner eval.
+                // write25 Step 5+: re-enable write17-style pre-force.
+                // If the Returned value is a Thunk and the top own-frame's
+                // continuation immediately ForceThunks its param, run that
+                // continuation in the top frame's owner context with the
+                // top frame STILL in `return_frames`. This keeps frames
+                // like `F_each_post` in scope while the deferred body
+                // runs, so a deep `Perform` captures them in the
+                // resumption. Combined with write22's `install_eval_id`
+                // and write25's walk-based routing, the captured
+                // `F_each_post` lets `try_route_scope_return_through_return_frames`
+                // resolve `H_sub` at its install eval directly from the
+                // captured chain, instead of dropping it via call-stack
+                // propagation.
+                //
+                // Owner check (write17's reason for being disabled):
+                // running the top frame's continuation under the frame's
+                // owner function avoids the previous mismatch where the
+                // resumed body used `current_function=fold_impl` while
+                // looking for `H_sub.escape_owner=each`. Now we run in
+                // `frame.owner_function=each`, so the strict eval-id
+                // check (write22) succeeds.
+                if let CpsRuntimeValue::Thunk(_) = &v {
+                    let top_index = return_frames.len() - 1;
+                    let top_frame = &return_frames[top_index];
+                    if return_frame_immediately_forces_param(module, top_frame)?
+                        && top_index >= initial_frame_count
+                    {
+                        let top_frame = top_frame.clone();
+                        let top_owner =
+                            function_by_name(module, &top_frame.owner_function)?;
+                        trace_cps(
+                            "PreForceResumeTopFrame",
+                            format!(
+                                "top_owner={} top_owner_eval={} top_cont={:?} retained_frames_len={}",
+                                top_frame.owner_function,
+                                top_frame.owner_eval_id.0,
+                                top_frame.continuation,
+                                return_frames.len(),
+                            ),
+                        );
+                        // Resume the top frame's continuation in its owner
+                        // context. Pass `return_frames.clone()` (the FULL
+                        // chain, top frame retained) and use the full
+                        // length as `initial_frame_count` so any Return
+                        // inside this resumed eval that doesn't push new
+                        // frames just bubbles the value back up.
+                        return resume_continuation(
+                            module,
+                            top_owner,
+                            top_frame.continuation,
+                            vec![v],
+                            top_frame.values.as_ref().clone(),
+                            top_frame.active_handlers.clone(),
+                            top_frame.guard_stack.clone(),
+                            return_frames.clone(),
+                            return_frames.len(),
+                            top_frame.owner_eval_id,
+                        );
+                    }
+                }
                 // write23: pass the FULL return_frames (not just own_frames)
                 // so continue_return_frames can preserve the inherited prefix
                 // for the resumed eval. Previously, splitting off own_frames
@@ -1338,6 +1405,21 @@ fn resume_continuation(
                         // Shouldn't happen — we just constructed a ScopeReturn.
                         return Ok(v);
                     }
+                    ScopeReturnAction::Propagate(v) => {
+                        // write25 Step 5: walk own return_frames for an
+                        // install-scope match before bubbling up.
+                        if let Some(routed) =
+                            try_route_scope_return_through_return_frames(
+                                module,
+                                &v,
+                                &return_frames,
+                                initial_frame_count,
+                            )?
+                        {
+                            return Ok(routed);
+                        }
+                        return Ok(v);
+                    }
                     ScopeReturnAction::JumpOrExit { target, value, return_frame_threshold } => {
                         if return_frames.len() > return_frame_threshold {
                             return_frames.truncate(return_frame_threshold);
@@ -1348,9 +1430,6 @@ fn resume_continuation(
                         current = target;
                         args = vec![value];
                         continue 'cont;
-                    }
-                    ScopeReturnAction::Propagate(v) => {
-                        return Ok(v);
                     }
                 }
             }
@@ -1889,6 +1968,157 @@ fn continue_return_frames(
         owner_initial,
         frame.owner_eval_id,
     )
+}
+
+/// write25 Step 5: walk-based ScopeReturn routing.
+///
+/// When `handle_scope_return` returns Propagate, the dispatching eval's
+/// LOCAL `return_frames` may still hold the install scope for the SR's
+/// handler. Specifically, the resumption's adjusted captured chain
+/// (after `merge_extras_into_frames`) lives in the Resume eval's local
+/// `return_frames` — and the modified copies there can hold handler
+/// frames whose `install_eval_id == frame.owner_eval_id`, i.e. the
+/// install scope of the handler is exactly that captured frame's owner
+/// eval.
+///
+/// Walk innermost-first across `return_frames[initial_frame_count..]`
+/// (inherited prefix is not ours to consume). For each frame, check
+/// whether its saved `active_handlers` has a handler matching
+/// `(prompt, install_eval_id == frame.owner_eval_id)` AND
+/// `escape_owner_function == frame.owner_function`. If found, restore
+/// that frame's eval at `handler.escape` with the in-scope handlers
+/// truncated below the matched handler (so siblings above it survive),
+/// and return the routed result.
+///
+/// Returns `None` when:
+/// - the value is not a ScopeReturn,
+/// - the target is `EXIT_RWH_TARGET` (RWH-escape — keep using
+///   call-stack propagation for now),
+/// - no own frame holds the install scope.
+fn try_route_scope_return_through_return_frames(
+    module: &CpsModule,
+    scope_return: &CpsRuntimeValue,
+    return_frames: &[CpsReturnFrame],
+    initial_frame_count: usize,
+) -> CpsEvalResult<Option<CpsRuntimeValue>> {
+    let CpsRuntimeValue::ScopeReturn {
+        prompt,
+        target,
+        value,
+    } = scope_return
+    else {
+        return Ok(None);
+    };
+    let prompt = *prompt;
+    let target = *target;
+    if target == EXIT_RWH_TARGET {
+        // write25 explicitly defers EXIT_RWH_TARGET routing through the
+        // own-frame walk; existing RWH paths (which use the same sentinel
+        // target) rely on call-stack propagation.
+        return Ok(None);
+    }
+    if return_frames.len() <= initial_frame_count {
+        return Ok(None);
+    }
+    trace_cps(
+        "ScopeReturnFrameWalk",
+        format!(
+            "prompt={} target={:?} frames.len={} initial={}",
+            prompt.0, target, return_frames.len(), initial_frame_count,
+        ),
+    );
+    for frame_index in (initial_frame_count..return_frames.len()).rev() {
+        let frame = &return_frames[frame_index];
+        let frame_eval_id = frame.owner_eval_id;
+        let frame_owner = &frame.owner_function;
+        if trace_enabled() {
+            trace_cps(
+                "ScopeReturnFrameWalk",
+                format!(
+                    "  check frame_index={} owner={} owner_eval={} handlers={}",
+                    frame_index, frame.owner_function, frame.owner_eval_id.0,
+                    summarize_handler_stack(&frame.active_handlers),
+                ),
+            );
+        }
+        // Search this frame's snapshot for a handler that was installed
+        // in this very frame's owner eval.
+        let Some(handler_index) =
+            frame.active_handlers.iter().rposition(|handler| {
+                handler.prompt == prompt
+                    && handler.install_eval_id == frame_eval_id
+            })
+        else {
+            continue;
+        };
+        let matched_handler = frame.active_handlers[handler_index].clone();
+        // owner check: the matched handler's escape must live in the
+        // frame's owner function (so we can jump to it within that
+        // eval). For non-EXIT targets this is required.
+        if matched_handler.escape_owner_function != *frame_owner {
+            continue;
+        }
+        debug_assert_eq!(
+            matched_handler.install_eval_id, frame.owner_eval_id,
+            "matched handler's install eval must equal frame.owner_eval_id"
+        );
+        // Build the post-jump handler stack: everything below the matched
+        // handler stays in scope. Handlers above it (resume-site siblings
+        // injected via `merge_extras_into_frames` between the anchor and
+        // the captured inner tail) — write25 says truncate at the matched
+        // index so they survive.
+        // NOTE: For our anchor-based merge, the merged stack reads
+        // `[outer, inner, H_sub]` with the matched H_sub at the end, so
+        // truncating at `handler_index` keeps `[outer, inner]`. That's
+        // exactly what we want.
+        let mut post_handlers = frame.active_handlers.clone();
+        post_handlers.truncate(handler_index);
+        // Compute the rest of the frame chain. The matched frame is
+        // consumed (we're jumping to its handler's escape). Frames after
+        // it were already popped during the walk. Frames before it stay
+        // as the resumed eval's inherited chain, but truncated to the
+        // handler's install threshold (anything pushed in the handler's
+        // scope is discarded).
+        let mut rest_frames: Vec<CpsReturnFrame> =
+            return_frames[..frame_index].to_vec();
+        let threshold = matched_handler.return_frame_threshold;
+        let rest_before = rest_frames.len();
+        if rest_frames.len() > threshold {
+            rest_frames.truncate(threshold);
+        }
+        let rest_after = rest_frames.len();
+        trace_cps(
+            "FrameWalkMatch",
+            format!(
+                "frame_owner={} frame_owner_eval={} handler_prompt={} handler_install_eval={} handlers_before={} handlers_after={} rest_before={} threshold={} rest_after={}",
+                frame.owner_function,
+                frame.owner_eval_id.0,
+                matched_handler.prompt.0,
+                matched_handler.install_eval_id.0,
+                summarize_handler_stack(&frame.active_handlers),
+                summarize_handler_stack(&post_handlers),
+                rest_before,
+                threshold,
+                rest_after,
+            ),
+        );
+        let owner = function_by_name(module, &frame.owner_function)?;
+        let owner_initial = frame.owner_initial_frame_count.min(rest_frames.len());
+        let result = resume_continuation(
+            module,
+            owner,
+            matched_handler.escape,
+            vec![*value.clone()],
+            frame.values.as_ref().clone(),
+            post_handlers,
+            frame.guard_stack.clone(),
+            rest_frames,
+            owner_initial,
+            frame.owner_eval_id,
+        )?;
+        return Ok(Some(result));
+    }
+    Ok(None)
 }
 
 fn function_by_name<'a>(
