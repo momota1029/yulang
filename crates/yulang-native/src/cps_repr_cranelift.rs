@@ -286,6 +286,61 @@ pub fn compile_cps_repr_abi_module(
         "yulang_cps_clear_abort_i64",
         yulang_cps_clear_abort_i64 as *const u8,
     );
+    // write27-a: ScopeReturn slot helpers.
+    builder.symbol(
+        "yulang_cps_scope_return_i64",
+        yulang_cps_scope_return_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_scope_return_active_i64",
+        yulang_cps_scope_return_active_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_scope_return_prompt_i64",
+        yulang_cps_scope_return_prompt_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_scope_return_target_i64",
+        yulang_cps_scope_return_target_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_scope_return_value_i64",
+        yulang_cps_scope_return_value_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_clear_scope_return_i64",
+        yulang_cps_clear_scope_return_i64 as *const u8,
+    );
+    // write27-a: eval context helpers.
+    builder.symbol(
+        "yulang_cps_fresh_eval_id_i64",
+        yulang_cps_fresh_eval_id_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_current_eval_id_i64",
+        yulang_cps_current_eval_id_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_current_initial_frame_count_i64",
+        yulang_cps_current_initial_frame_count_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_set_eval_context_i64",
+        yulang_cps_set_eval_context_i64 as *const u8,
+    );
+    // write27-a: return-frame stack helpers.
+    builder.symbol(
+        "yulang_cps_return_frame_len_i64",
+        yulang_cps_return_frame_len_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_push_return_frame_i64",
+        yulang_cps_push_return_frame_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_pop_return_frame_i64",
+        yulang_cps_pop_return_frame_i64 as *const u8,
+    );
     builder.symbol(
         "yulang_cps_selected_handler_env_or_i64",
         yulang_cps_selected_handler_env_or_i64 as *const u8,
@@ -2871,6 +2926,55 @@ struct NativeCpsI64HandlerEnv {
     env: i64,
 }
 
+/// write27-a: prompt-targeted non-local return for Cranelift JIT.
+/// Mirrors `cps_eval::CpsRuntimeValue::ScopeReturn` and
+/// `cps_repr::CpsReprRuntimeValue::ScopeReturn`.
+#[derive(Debug, Clone, Default)]
+struct NativeCpsI64ScopeReturn {
+    active: bool,
+    prompt: u64,
+    target: i64,
+    value: i64,
+}
+
+/// write27-a: suspended caller continuation captured at
+/// `EffectfulCall / EffectfulApply / EffectfulForce`. Mirrors
+/// `CpsReturnFrame` from cps_eval/cps_repr but with raw function-
+/// pointer continuation instead of a `CpsContinuationId`.
+#[derive(Clone)]
+struct NativeCpsI64ReturnFrame {
+    /// JIT continuation function pointer (e.g. `extern "C" fn(env, arg) -> i64`).
+    continuation: usize,
+    /// Captured environment pointer for the continuation.
+    env: i64,
+    /// Handler stack snapshot at push time.
+    handlers: Vec<NativeCpsI64HandlerFrame>,
+    /// Guard stack snapshot at push time.
+    guards: Vec<i64>,
+    /// Owner eval's `initial_frame_count` at push time.
+    owner_initial_frame_count: usize,
+    /// Owner eval's identity. Restored as `current_eval_id` when this
+    /// frame is consumed via `continue_return_frames`.
+    owner_eval_id: u64,
+}
+
+/// write27-a: per-eval-frame context. Mirrors the `current_eval_id` +
+/// `initial_frame_count` parameters threaded through cps_eval.
+#[derive(Debug, Clone, Copy, Default)]
+struct NativeCpsI64EvalContext {
+    current_eval_id: u64,
+    initial_frame_count: usize,
+}
+
+/// write27-a: synthetic eval-id sentinel (matches
+/// `cps_eval::SYNTHETIC_EVAL_ID`). Used for fallback handler frames
+/// that should never resolve a `ScopeReturn`.
+const NATIVE_CPS_I64_SYNTHETIC_EVAL_ID: u64 = u64::MAX;
+
+/// write27-a: sentinel target for `ResumeWithHandler`-installed frames
+/// (matches `cps_eval::EXIT_RWH_TARGET`). Stored as `i64`.
+const NATIVE_CPS_I64_EXIT_RWH_TARGET: i64 = -1;
+
 thread_local! {
     static NATIVE_CPS_I64_HEAP_VALUES: RefCell<HashSet<i64>> = RefCell::new(HashSet::new());
     static NATIVE_CPS_I64_TAG_NAMES: RefCell<HashMap<i64, Box<str>>> = RefCell::new(HashMap::new());
@@ -2881,6 +2985,34 @@ thread_local! {
     static NATIVE_CPS_I64_PENDING_HANDLER_ENVS: RefCell<Vec<(i64, NativeCpsI64HandlerEnv)>> = const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_SELECTED_HANDLER_ENVS: RefCell<Vec<NativeCpsI64HandlerEnv>> = const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_ABORT: RefCell<Option<i64>> = const { RefCell::new(None) };
+    // write27-a: ScopeReturn slot. Mirrors `cps_eval`/`cps_repr`'s
+    // ScopeReturn variant. Set by the new `yulang_cps_scope_return_i64`
+    // helper (called by Perform codegen once it migrates) and read by
+    // the route_scope_return helper after every internal call.
+    static NATIVE_CPS_I64_SCOPE_RETURN: RefCell<NativeCpsI64ScopeReturn> =
+        const { RefCell::new(NativeCpsI64ScopeReturn {
+            active: false,
+            prompt: 0,
+            target: 0,
+            value: 0,
+        }) };
+    // write27-a: return-frame stack. Each EffectfulCall/Force/Apply
+    // pushes a frame here; Return consumes them via the
+    // continue_return_frames helper.
+    static NATIVE_CPS_I64_RETURN_FRAMES: RefCell<Vec<NativeCpsI64ReturnFrame>> =
+        const { RefCell::new(Vec::new()) };
+    // write27-a: per-eval context (current eval id + initial frame
+    // count). Threaded explicitly in cps_eval/cps_repr; here we use
+    // a thread-local because adding hidden params to every JIT
+    // continuation would balloon the codegen.
+    static NATIVE_CPS_I64_EVAL_CONTEXT: RefCell<NativeCpsI64EvalContext> =
+        const { RefCell::new(NativeCpsI64EvalContext {
+            current_eval_id: 0,
+            initial_frame_count: 0,
+        }) };
+    // write27-a: monotonic counter for fresh eval ids. Mirrors
+    // `cps_eval::EVAL_ID_COUNTER`.
+    static NATIVE_CPS_I64_NEXT_EVAL_ID: RefCell<u64> = const { RefCell::new(0) };
 }
 
 fn reset_native_i64_cps_state() {
@@ -2892,6 +3024,14 @@ fn reset_native_i64_cps_state() {
     NATIVE_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
     NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
     NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = None);
+    NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
+        *slot.borrow_mut() = NativeCpsI64ScopeReturn::default();
+    });
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow_mut().clear());
+    NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
+        *ctx.borrow_mut() = NativeCpsI64EvalContext::default();
+    });
+    NATIVE_CPS_I64_NEXT_EVAL_ID.with(|next| *next.borrow_mut() = 0);
 }
 
 fn current_native_i64_guard_stack() -> Vec<i64> {
@@ -3481,6 +3621,138 @@ extern "C" fn yulang_cps_clear_abort_i64() -> i64 {
         *slot.borrow_mut() = None;
     });
     0
+}
+
+// =====================================================================
+// write27-a: ScopeReturn slot helpers.
+// Mirrors `cps_eval`/`cps_repr` ScopeReturn { prompt, target, value }.
+// Old `abort` helpers stay in place for backward-compat paths; new
+// codegen (Perform/EffectfulCall etc.) should use these instead.
+// =====================================================================
+
+extern "C" fn yulang_cps_scope_return_i64(prompt: i64, target: i64, value: i64) -> i64 {
+    NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
+        *slot.borrow_mut() = NativeCpsI64ScopeReturn {
+            active: true,
+            prompt: prompt as u64,
+            target,
+            value,
+        };
+    });
+    value
+}
+
+extern "C" fn yulang_cps_scope_return_active_i64() -> i64 {
+    NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| i64::from(slot.borrow().active))
+}
+
+extern "C" fn yulang_cps_scope_return_prompt_i64() -> i64 {
+    NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().prompt as i64)
+}
+
+extern "C" fn yulang_cps_scope_return_target_i64() -> i64 {
+    NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().target)
+}
+
+extern "C" fn yulang_cps_scope_return_value_i64() -> i64 {
+    NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().value)
+}
+
+extern "C" fn yulang_cps_clear_scope_return_i64() -> i64 {
+    NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
+        *slot.borrow_mut() = NativeCpsI64ScopeReturn::default();
+    });
+    0
+}
+
+// =====================================================================
+// write27-a: eval context helpers.
+// Track current_eval_id and initial_frame_count for the JIT analogue
+// of cps_eval's eval signatures. continue_return_frames-style logic
+// restores eval_context from a popped return frame.
+// =====================================================================
+
+extern "C" fn yulang_cps_fresh_eval_id_i64() -> i64 {
+    NATIVE_CPS_I64_NEXT_EVAL_ID.with(|next| {
+        let id = *next.borrow();
+        *next.borrow_mut() = id + 1;
+        id as i64
+    })
+}
+
+extern "C" fn yulang_cps_current_eval_id_i64() -> i64 {
+    NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().current_eval_id as i64)
+}
+
+extern "C" fn yulang_cps_current_initial_frame_count_i64() -> i64 {
+    NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count as i64)
+}
+
+extern "C" fn yulang_cps_set_eval_context_i64(eval_id: i64, initial_frame_count: i64) -> i64 {
+    NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
+        *ctx.borrow_mut() = NativeCpsI64EvalContext {
+            current_eval_id: eval_id as u64,
+            initial_frame_count: initial_frame_count.max(0) as usize,
+        };
+    });
+    0
+}
+
+// =====================================================================
+// write27-a: return-frame stack helpers.
+// Each EffectfulCall/Apply/Force pushes a frame; a continue_return_frames
+// step pops the innermost frame and invokes its continuation. The actual
+// "continue and resume" wiring is implemented by future write27 steps
+// in concert with codegen; this commit only exposes the storage and
+// raw push/pop primitives.
+// =====================================================================
+
+extern "C" fn yulang_cps_return_frame_len_i64() -> i64 {
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len() as i64)
+}
+
+extern "C" fn yulang_cps_push_return_frame_i64(
+    continuation: i64,
+    env: i64,
+    owner_initial_frame_count: i64,
+    owner_eval_id: i64,
+) -> i64 {
+    let handlers =
+        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
+    let guards = NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().clone());
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+        frames.borrow_mut().push(NativeCpsI64ReturnFrame {
+            continuation: continuation as usize,
+            env,
+            handlers,
+            guards,
+            owner_initial_frame_count: owner_initial_frame_count.max(0) as usize,
+            owner_eval_id: owner_eval_id as u64,
+        });
+    });
+    0
+}
+
+extern "C" fn yulang_cps_pop_return_frame_i64() -> i64 {
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+        let mut frames = frames.borrow_mut();
+        if let Some(frame) = frames.pop() {
+            // Restore snapshots so the resumed continuation sees the
+            // owner-eval's handler / guard state.
+            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = frame.handlers);
+            NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = frame.guards);
+            NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
+                *ctx.borrow_mut() = NativeCpsI64EvalContext {
+                    current_eval_id: frame.owner_eval_id,
+                    initial_frame_count: frame.owner_initial_frame_count,
+                };
+            });
+            // Return value chosen so callers can detect failure (-1).
+            frame.continuation as i64
+        } else {
+            -1
+        }
+    })
 }
 
 extern "C" fn yulang_cps_selected_handler_env_or_i64(entry: i64, fallback: i64) -> i64 {
