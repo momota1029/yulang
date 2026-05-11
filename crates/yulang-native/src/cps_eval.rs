@@ -931,20 +931,24 @@ fn resume_continuation(
                             // continuation. Resume needs a plain payload.
                             let arg = read_plain_value(function, &values, *arg)?;
                             let owner = function_by_name(module, &resumption.owner_function)?;
+                            let anchor = resumption.handled_anchor;
                             let resumed_handlers = merge_resumption_handlers(
                                 resumption.handlers.as_ref(),
                                 &active_handlers,
+                                anchor,
                             );
                             let adjusted_frames = merge_extras_into_frames(
                                 resumption.return_frames.as_ref(),
                                 &active_handlers,
+                                anchor,
                             );
                             trace_cps(
                                 "ResumeHandlerMerge",
                                 format!(
-                                    "site=ApplyClosure(Resumption) fn={} eval={} captured={} current={} merged={}",
+                                    "site=ApplyClosure(Resumption) fn={} eval={} anchor={:?} captured={} current={} merged={}",
                                     function.name,
                                     current_eval_id.0,
+                                    anchor.map(|a| (a.prompt.0, a.install_eval_id.0)),
                                     summarize_handler_stack(resumption.handlers.as_ref()),
                                     summarize_handler_stack(&active_handlers),
                                     summarize_handler_stack(&resumed_handlers),
@@ -985,20 +989,24 @@ fn resume_continuation(
                     let resumption = read_resumption(function, &values, *resumption)?;
                     let arg = read_plain_value(function, &values, *arg)?;
                     let owner = function_by_name(module, &resumption.owner_function)?;
+                    let anchor = resumption.handled_anchor;
                     let resumed_handlers = merge_resumption_handlers(
                         resumption.handlers.as_ref(),
                         &active_handlers,
+                        anchor,
                     );
                     let adjusted_frames = merge_extras_into_frames(
                         resumption.return_frames.as_ref(),
                         &active_handlers,
+                        anchor,
                     );
                     trace_cps(
                         "ResumeHandlerMerge",
                         format!(
-                            "site=Resume fn={} eval={} captured={} current={} merged={}",
+                            "site=Resume fn={} eval={} anchor={:?} captured={} current={} merged={}",
                             function.name,
                             current_eval_id.0,
+                            anchor.map(|a| (a.prompt.0, a.install_eval_id.0)),
                             summarize_handler_stack(resumption.handlers.as_ref()),
                             summarize_handler_stack(&active_handlers),
                             summarize_handler_stack(&resumed_handlers),
@@ -1230,6 +1238,47 @@ fn resume_continuation(
                     handler_arm_for_stack(module, function, &handler_stack, effect, blocked)?;
                 let handler_values =
                     values_with_handler_env(Vec::new(), frame, handler_arm.entry);
+                let frame_prompt = frame.prompt;
+                let frame_escape = frame.escape;
+                let frame_in_active = active_handlers
+                    .iter()
+                    .any(|f| f.prompt == frame_prompt);
+                // write24: record which handler frame's arm produced this
+                // resumption. When the resumption is later resumed, merge
+                // uses this as the anchor to place resume-site siblings
+                // immediately after the captured handler.
+                let handled_anchor = if frame_in_active {
+                    Some(CpsHandlerAnchor {
+                        prompt: frame.prompt,
+                        install_eval_id: frame.install_eval_id,
+                    })
+                } else {
+                    None
+                };
+                if trace_enabled() {
+                    let matched_index = handler_stack
+                        .iter()
+                        .position(|f| f.prompt == frame_prompt);
+                    trace_cps(
+                        "PerformHandlerSearch",
+                        format!(
+                            "fn={} eval={} effect={:?} stack={} matched_index={:?} matched_prompt={} matched_install_eval={} matched_owner={} in_active={}",
+                            function.name,
+                            current_eval_id.0,
+                            effect,
+                            summarize_handler_stack(&handler_stack),
+                            matched_index,
+                            frame.prompt.0,
+                            frame.install_eval_id.0,
+                            if frame.escape_owner_function.is_empty() {
+                                "<synth>"
+                            } else {
+                                frame.escape_owner_function.as_str()
+                            },
+                            frame_in_active,
+                        ),
+                    );
+                }
                 let resumption = CpsRuntimeValue::Resumption(Rc::new(CpsResumption {
                     owner_function: function.name.clone(),
                     target: *resume,
@@ -1237,6 +1286,7 @@ fn resume_continuation(
                     handlers: Rc::new(handler_stack.clone()),
                     guard_stack: Rc::new(guard_stack.clone()),
                     return_frames: Rc::new(return_frames.clone()),
+                    handled_anchor,
                 }));
                 // Detect whether the chosen handler frame is in our local
                 // `active_handlers` (so its prompt will match on dispatch)
@@ -1244,11 +1294,6 @@ fn resume_continuation(
                 // because we had no installed handlers at all. In the
                 // synthetic case the arm's result must just become the
                 // perform-frame's return value, with no ScopeReturn wrapping.
-                let frame_prompt = frame.prompt;
-                let frame_escape = frame.escape;
-                let frame_in_active = active_handlers
-                    .iter()
-                    .any(|f| f.prompt == frame_prompt);
                 let result = eval_continuations(
                     module,
                     handler_owner,
@@ -1473,20 +1518,24 @@ fn resume_continuation(
                         //   F_post → innermost parent → outermost parent.
                         let arg = read_plain_value(function, &values, *arg)?;
                         let owner = function_by_name(module, &resumption.owner_function)?;
+                        let anchor = resumption.handled_anchor;
                         let resumed_handlers = merge_resumption_handlers(
                             resumption.handlers.as_ref(),
                             &active_handlers,
+                            anchor,
                         );
                         let adjusted_res = merge_extras_into_frames(
                             resumption.return_frames.as_ref(),
                             &active_handlers,
+                            anchor,
                         );
                         trace_cps(
                             "ResumeHandlerMerge",
                             format!(
-                                "site=EffectfulApply(Resumption) fn={} eval={} captured={} current={} merged={}",
+                                "site=EffectfulApply(Resumption) fn={} eval={} anchor={:?} captured={} current={} merged={}",
                                 function.name,
                                 current_eval_id.0,
+                                anchor.map(|a| (a.prompt.0, a.install_eval_id.0)),
                                 summarize_handler_stack(resumption.handlers.as_ref()),
                                 summarize_handler_stack(&active_handlers),
                                 summarize_handler_stack(&resumed_handlers),
@@ -1623,34 +1672,80 @@ fn summarize_handler_stack(stack: &[CpsHandlerFrame]) -> String {
     format!("[{}]", parts.join(","))
 }
 
+/// Are two handler frames the "same" handler — i.e. same install instance?
+fn same_handler_frame(a: &CpsHandlerFrame, b: &CpsHandlerFrame) -> bool {
+    a.prompt == b.prompt && a.install_eval_id == b.install_eval_id
+}
+
 /// Merge a captured continuation's handler stack with the resume site's
 /// current handler stack.
 ///
-/// Semantics (write23): handlers installed at the resume site (after the
-/// original capture) are siblings to the captured continuation's outer
-/// scope — they belong OUTSIDE the captured continuation's inner handlers,
-/// not innermost-of-all. Concretely:
+/// Semantics (write24): handlers installed at the resume site (in the
+/// arm body) are siblings to the captured continuation's outer scope —
+/// they belong AFTER the handler whose arm produced the resumption (the
+/// "anchor") but BEFORE the captured continuation's inner handler tail.
+/// Concretely:
 ///
 /// ```text
 /// captured = [outer, H_sub]              (e.g. branch perform capture)
-/// current  = [outer, H_inner]            (recursive once installed H_inner)
+/// current  = [H_inner]                   (recursive once installed H_inner)
+/// anchor   = outer                       (= the captured handler that matched)
 /// merged   = [outer, H_inner, H_sub]
 /// ```
 ///
-/// The shared outer prefix is identified by (prompt, install_eval_id)
-/// equality. Resume-site handlers after that prefix (and not duplicated in
-/// `captured`) are placed BEFORE the captured continuation's inner tail,
-/// so when ScopeReturn truncates at the captured inner handler, the
-/// resume-site siblings survive.
+/// `handle_scope_return` uses `rposition` for handler search, so the
+/// merged stack reads outer→inner (innermost = last). Putting `H_inner`
+/// AFTER `outer` and BEFORE `H_sub` gives the expected semantics: a
+/// new `reject` performed in the resumed continuation finds `H_inner`
+/// before `outer`, and `sub::return` still aborts to `H_sub` first.
+///
+/// Without anchor, falls back to a shared-prefix merge: handlers in
+/// `current` that aren't already in `captured` are placed before the
+/// captured tail.
 fn merge_resumption_handlers(
     captured: &[CpsHandlerFrame],
     current: &[CpsHandlerFrame],
+    anchor: Option<CpsHandlerAnchor>,
 ) -> Vec<CpsHandlerFrame> {
+    let is_anchor = |frame: &CpsHandlerFrame, anchor: CpsHandlerAnchor| {
+        frame.prompt == anchor.prompt && frame.install_eval_id == anchor.install_eval_id
+    };
+
+    if let Some(anchor) = anchor {
+        if let Some(anchor_index) = captured.iter().position(|f| is_anchor(f, anchor)) {
+            let mut merged = Vec::with_capacity(captured.len() + current.len());
+
+            // Captured prefix up to and including the anchor (the handler
+            // whose arm body produced this resumption).
+            merged.extend(captured[..=anchor_index].iter().cloned());
+
+            // Resume-site siblings: handlers in `current` that aren't
+            // already in the merged prefix or the captured tail. These
+            // were installed in the arm body and belong between the
+            // anchor and the captured tail.
+            for frame in current {
+                let in_prefix = merged.iter().any(|m| same_handler_frame(m, frame));
+                let in_tail = captured[anchor_index + 1..]
+                    .iter()
+                    .any(|c| same_handler_frame(c, frame));
+                if !in_prefix && !in_tail {
+                    merged.push(frame.clone());
+                }
+            }
+
+            // Captured continuation's inner handler tail.
+            merged.extend(captured[anchor_index + 1..].iter().cloned());
+            return merged;
+        }
+    }
+
+    // Fallback: shared-prefix merge. Used when anchor is None
+    // (synthetic-handler perform) or when the anchor handler can't be
+    // located in `captured` (defensive — shouldn't happen).
     let mut shared = 0;
     while shared < captured.len()
         && shared < current.len()
-        && captured[shared].prompt == current[shared].prompt
-        && captured[shared].install_eval_id == current[shared].install_eval_id
+        && same_handler_frame(&captured[shared], &current[shared])
     {
         shared += 1;
     }
@@ -1659,9 +1754,7 @@ fn merge_resumption_handlers(
     merged.extend(captured[..shared].iter().cloned());
 
     for frame in &current[shared..] {
-        if !captured.iter().any(|c| {
-            c.prompt == frame.prompt && c.install_eval_id == frame.install_eval_id
-        }) {
+        if !captured.iter().any(|c| same_handler_frame(c, frame)) {
             merged.push(frame.clone());
         }
     }
@@ -1701,26 +1794,29 @@ fn inject_extra_handlers_legacy(
 
 /// Apply `merge_resumption_handlers` per frame: each captured return
 /// frame's saved `active_handlers` is the "captured" side; `current` is
-/// the resume site's live handler stack. The result is a fresh return
-/// frame list with each frame's handler stack reconciled so the
-/// resume-site siblings sit outside the captured inner handlers.
+/// the resume site's live handler stack. The `anchor` (the matched
+/// handler whose arm produced the resumption) is used to position the
+/// resume-site siblings consistently across every captured frame.
 fn merge_extras_into_frames(
     frames: &[CpsReturnFrame],
     current: &[CpsHandlerFrame],
+    anchor: Option<CpsHandlerAnchor>,
 ) -> Vec<CpsReturnFrame> {
     frames
         .iter()
         .map(|frame| {
-            let merged = merge_resumption_handlers(&frame.active_handlers, current);
+            let merged =
+                merge_resumption_handlers(&frame.active_handlers, current, anchor);
             if trace_enabled() && merged != frame.active_handlers {
                 trace_cps(
                     "InjectExtraHandlers",
                     format!(
-                        "frame_owner={} frame_owner_eval={} before={} current={} after={}",
+                        "frame_owner={} frame_owner_eval={} before={} current={} anchor={:?} after={}",
                         frame.owner_function,
                         frame.owner_eval_id.0,
                         summarize_handler_stack(&frame.active_handlers),
                         summarize_handler_stack(current),
+                        anchor.map(|a| (a.prompt.0, a.install_eval_id.0)),
                         summarize_handler_stack(&merged),
                     ),
                 );
@@ -2140,6 +2236,18 @@ fn fresh_eval_id() -> CpsEvalId {
 /// too, but using a sentinel makes traces clearer.
 const SYNTHETIC_EVAL_ID: CpsEvalId = CpsEvalId(u64::MAX);
 
+/// Identifier of the handler frame whose arm produced a resumption. Used
+/// to anchor handler-stack merging at Resume time: the resume-site's
+/// sibling handlers (installed in the arm body, e.g. `loop`'s inner
+/// recursive handler in `std::undet::once`) belong immediately AFTER
+/// this anchor in the merged stack so they sit between the captured
+/// outer handlers and the captured inner tail (write24 Step 1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CpsHandlerAnchor {
+    prompt: CpsPromptId,
+    install_eval_id: CpsEvalId,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 struct CpsResumption {
     owner_function: String,
@@ -2152,6 +2260,12 @@ struct CpsResumption {
     /// its local continuation runs first; if it returns normally the frames
     /// are continued in order (innermost first).
     return_frames: Rc<Vec<CpsReturnFrame>>,
+    /// The handler frame whose arm body created this resumption. `None`
+    /// when the perform fell through to a synthetic static-fallback frame
+    /// (no installed handler in active_handlers at perform time). Used by
+    /// `merge_resumption_handlers` to place resume-site siblings at the
+    /// correct stack depth.
+    handled_anchor: Option<CpsHandlerAnchor>,
 }
 
 /// A suspended caller continuation. Pushed by effectful terminators
