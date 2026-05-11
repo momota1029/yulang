@@ -282,6 +282,7 @@ fn handle_scope_return(
     result: CpsRuntimeValue,
     active_handlers: &mut Vec<CpsHandlerFrame>,
     current_function: &str,
+    current_eval_id: CpsEvalId,
 ) -> ScopeReturnAction {
     match result {
         CpsRuntimeValue::ScopeReturn {
@@ -289,38 +290,34 @@ fn handle_scope_return(
             target,
             value,
         } => {
-            // write21: a frame that is `inherited` was carried over from a
-            // caller eval (DirectCall / ApplyClosure / ForceThunk all run
-            // through `eval_continuations`, which marks every prior handler
-            // as inherited). The doc on `CpsHandlerFrame::inherited` says
-            // inherited frames must NOT resolve a `ScopeReturn` because the
-            // original install site lives in a parent eval frame — but that
-            // rule is too coarse: if the *function* hosting the install (the
-            // handler's `escape_owner_function`) is the very function whose
-            // continuation is dispatching now, then we are still inside that
-            // function's CPS body and can resolve here directly. Without
-            // this exception, `H_sub` installed in `each__mono1 cont 0` is
-            // unreachable from a Perform in `each__mono1 cont 8` (after it
-            // was reached through fold_impl → each closure apply → resume),
-            // so `sub::return` propagates up the entire frame stack and
-            // destroys intermediate handler scopes (e.g. a recursive
-            // `once`'s prompt) along the way.
+            // A ScopeReturn is resolved only by the eval frame that installed
+            // the matching handler prompt. Function identity is not enough:
+            // a multi-shot resumption can run the same CPS function in a
+            // fresh eval frame (e.g. `each__mono1` replayed inside an outer
+            // `once`'s recursive arm), and that fresh frame must not catch
+            // a handler installed by the original eval. Return frames
+            // preserve `owner_eval_id` so the original eval identity is
+            // restored when the captured continuation is resumed via
+            // `continue_return_frames` (write22).
             if let Some(index) = active_handlers.iter().rposition(|frame| {
-                frame.prompt == prompt
-                    && (!frame.inherited
-                        || frame.escape_owner_function == current_function)
+                frame.prompt == prompt && frame.install_eval_id == current_eval_id
             }) {
                 let frame = &active_handlers[index];
+                // owner check: a function-local jump target only makes
+                // sense in the same function. EXIT_RWH_TARGET is the
+                // sentinel for ResumeWithHandler so it crosses functions.
                 let frame_owner_match = target == EXIT_RWH_TARGET
                     || frame.escape_owner_function == current_function;
                 let frame_owner = frame.escape_owner_function.clone();
+                let frame_install_eval = frame.install_eval_id;
                 let threshold = frame.return_frame_threshold;
                 if !frame_owner_match {
                     trace_cps(
                         "ScopeReturnDispatch",
                         format!(
-                            "fn={} prompt={} target={:?} matched=yes owner={} owner_match=no action=Propagate",
-                            current_function, prompt.0, target, frame_owner,
+                            "fn={} eval={} prompt={} target={:?} matched=yes install_eval={} owner={} owner_match=no action=Propagate",
+                            current_function, current_eval_id.0, prompt.0, target,
+                            frame_install_eval.0, frame_owner,
                         ),
                     );
                     return ScopeReturnAction::Propagate(CpsRuntimeValue::ScopeReturn {
@@ -332,8 +329,9 @@ fn handle_scope_return(
                 trace_cps(
                     "ScopeReturnDispatch",
                     format!(
-                        "fn={} prompt={} target={:?} matched=yes owner={} owner_match=yes threshold={} action=JumpOrExit",
-                        current_function, prompt.0, target, frame_owner, threshold,
+                        "fn={} eval={} prompt={} target={:?} matched=yes install_eval={} owner={} owner_match=yes threshold={} action=JumpOrExit",
+                        current_function, current_eval_id.0, prompt.0, target,
+                        frame_install_eval.0, frame_owner, threshold,
                     ),
                 );
                 active_handlers.truncate(index);
@@ -346,8 +344,8 @@ fn handle_scope_return(
                 trace_cps(
                     "ScopeReturnDispatch",
                     format!(
-                        "fn={} prompt={} target={:?} matched=no action=Propagate",
-                        current_function, prompt.0, target,
+                        "fn={} eval={} prompt={} target={:?} matched=no action=Propagate",
+                        current_function, current_eval_id.0, prompt.0, target,
                     ),
                 );
                 ScopeReturnAction::Propagate(CpsRuntimeValue::ScopeReturn {
@@ -484,6 +482,9 @@ fn eval_function_with_context(
 
 /// Entry point that inherits caller handlers before entering the loop.
 /// Use this for cross-function calls (direct calls, closure applies, thunk forces).
+/// Issues a fresh `CpsEvalId` — this eval is a new dynamic frame, so any
+/// handler installed inside it gets a fresh `install_eval_id` and any
+/// ScopeReturn raised inside it can only resolve handlers installed here.
 fn eval_continuations(
     module: &CpsModule,
     function: &CpsFunction,
@@ -495,6 +496,7 @@ fn eval_continuations(
     return_frames: Vec<CpsReturnFrame>,
     initial_frame_count: usize,
 ) -> CpsEvalResult<CpsRuntimeValue> {
+    let current_eval_id = fresh_eval_id();
     resume_continuation(
         module,
         function,
@@ -505,13 +507,16 @@ fn eval_continuations(
         guard_stack,
         return_frames,
         initial_frame_count,
+        current_eval_id,
     )
 }
 
 /// Core evaluation loop. Unlike `eval_continuations`, does NOT call
-/// `into_inherited` — the caller is responsible for handler state.
-/// Used by `continue_return_frames` so restored frames see their handlers
-/// with the original inherited/non-inherited state preserved.
+/// `into_inherited` and does NOT issue a fresh eval id — the caller is
+/// responsible for handler state and for choosing the eval identity. Used
+/// by `continue_return_frames` so restored frames see their handlers with
+/// the original inherited/non-inherited state preserved AND with the
+/// original owner eval id restored as `current_eval_id` (write22).
 fn resume_continuation(
     module: &CpsModule,
     function: &CpsFunction,
@@ -522,6 +527,7 @@ fn resume_continuation(
     guard_stack: Vec<CpsGuardEntry>,
     return_frames: Vec<CpsReturnFrame>,
     initial_frame_count: usize,
+    current_eval_id: CpsEvalId,
 ) -> CpsEvalResult<CpsRuntimeValue> {
     let mut values = initial_values;
     let mut current = entry;
@@ -530,6 +536,7 @@ fn resume_continuation(
     let mut active_handlers = active_handlers;
     let mut return_frames = return_frames;
     let initial_frame_count = initial_frame_count;
+    let current_eval_id = current_eval_id;
     let mut next_guard_id = guard_stack
         .iter()
         .map(|entry| entry.id)
@@ -538,7 +545,12 @@ fn resume_continuation(
     // Loop labels are hygienic across macros; pass the label explicitly.
     macro_rules! dispatch_scope_return {
         ($cont:lifetime, $result:expr, $dest:expr) => {{
-            match handle_scope_return($result, &mut active_handlers, &function.name) {
+            match handle_scope_return(
+                $result,
+                &mut active_handlers,
+                &function.name,
+                current_eval_id,
+            ) {
                 // Plain value or EXIT-target match: the value belongs to
                 // the call site's `dest` slot, and execution of the rest
                 // of the current continuation continues normally.
@@ -1008,13 +1020,14 @@ fn resume_continuation(
                         escape_owner_function: function.name.clone(),
                         inherited: false,
                         return_frame_threshold: threshold,
+                        install_eval_id: current_eval_id,
                     });
                     trace_cps(
                         "InstallHandler",
                         format!(
-                            "fn={} cont={:?} handler={:?} prompt={} escape={:?} threshold={} handlers.now={}",
-                            function.name, current, handler, pushed_prompt.0,
-                            escape, threshold, active_handlers.len(),
+                            "fn={} eval={} cont={:?} handler={:?} prompt={} escape={:?} threshold={} handlers.now={}",
+                            function.name, current_eval_id.0, current, handler,
+                            pushed_prompt.0, escape, threshold, active_handlers.len(),
                         ),
                     );
                 }
@@ -1051,6 +1064,7 @@ fn resume_continuation(
                         escape_owner_function: function.name.clone(),
                         inherited: false,
                         return_frame_threshold: return_frames.len(),
+                        install_eval_id: current_eval_id,
                     });
                     let inner_handlers = {
                         // Build the resumed eval's handler stack: resumption's
@@ -1235,7 +1249,12 @@ fn resume_continuation(
                 // that case the prompt is in our `active_handlers` and we
                 // must resolve here rather than bubble out — otherwise the
                 // ScopeReturn escapes to the root.
-                match handle_scope_return(scope_return, &mut active_handlers, &function.name) {
+                match handle_scope_return(
+                    scope_return,
+                    &mut active_handlers,
+                    &function.name,
+                    current_eval_id,
+                ) {
                     ScopeReturnAction::Value(v) => {
                         // Shouldn't happen — we just constructed a ScopeReturn.
                         return Ok(v);
@@ -1282,6 +1301,7 @@ fn resume_continuation(
                     active_handlers: active_handlers.clone(),
                     guard_stack: guard_stack.clone(),
                     owner_initial_frame_count: initial_frame_count,
+                    owner_eval_id: current_eval_id,
                 };
                 let mut new_frames = return_frames.clone();
                 new_frames.push(frame);
@@ -1310,6 +1330,7 @@ fn resume_continuation(
                             active_handlers: active_handlers.clone(),
                             guard_stack: guard_stack.clone(),
                             owner_initial_frame_count: initial_frame_count,
+                            owner_eval_id: current_eval_id,
                         };
                         let mut new_frames = return_frames.clone();
                         new_frames.push(frame);
@@ -1378,6 +1399,7 @@ fn resume_continuation(
                     active_handlers: active_handlers.clone(),
                     guard_stack: guard_stack.clone(),
                     owner_initial_frame_count: initial_frame_count,
+                    owner_eval_id: current_eval_id,
                 };
                 let mut new_frames = return_frames.clone();
                 new_frames.push(frame);
@@ -1524,6 +1546,9 @@ fn force_returned_thunk_before_frame_consumption(
             top_frame.guard_stack.clone(),
             return_frames.clone(),
             initial_frame_count,
+            // Restore the eval id of the would-be ForceThunk context so the
+            // body's ScopeReturn resolves at the installer's eval.
+            top_frame.owner_eval_id,
         )?;
         match result {
             CpsRuntimeValue::Thunk(next) => {
@@ -1590,8 +1615,9 @@ fn continue_return_frames(
     trace_cps(
         "ContinueReturnFrames",
         format!(
-            "pop owner={} cont={:?} rest.len={} owner_initial={}",
-            frame.owner_function, frame.continuation, rest.len(), frame.owner_initial_frame_count,
+            "pop owner={} cont={:?} owner_eval={} rest.len={} owner_initial={}",
+            frame.owner_function, frame.continuation, frame.owner_eval_id.0,
+            rest.len(), frame.owner_initial_frame_count,
         ),
     );
     let function = function_by_name(module, &frame.owner_function)?;
@@ -1604,7 +1630,10 @@ fn continue_return_frames(
     // Use resume_continuation (no into_inherited) so the saved handlers'
     // non-inherited state is preserved — that's how a ScopeReturn destined
     // for the handler scope in (e.g.) once_dfs_int can still resolve when
-    // we're running work's post-call cont here.
+    // we're running work's post-call cont here. Also restore owner_eval_id
+    // as current_eval_id so the install scope identity is preserved
+    // (write22): the saved handlers' install_eval_id matches the eval that
+    // installed them, and that's exactly the eval we're resuming.
     // owner_initial_frame_count may exceed rest.len() if a ScopeReturn
     // truncated frames after this one was pushed. Clamp so the resumed
     // owner eval can still proceed.
@@ -1619,6 +1648,7 @@ fn continue_return_frames(
         frame.guard_stack.clone(),
         rest.to_vec(),
         owner_initial,
+        frame.owner_eval_id,
     )
 }
 
@@ -1698,6 +1728,9 @@ fn handler_stack_with_static(
         // Synthetic frame for the static-fallback path. Real escape target
         // is unknown at this point, so we use EXIT_RWH_TARGET so an abort
         // at this synthetic frame surfaces back through the call boundary.
+        // install_eval_id = SYNTHETIC_EVAL_ID: this frame must never act
+        // as a ScopeReturn resolver — the perform's arm body, not a
+        // matching install scope, decides the value here.
         vec![CpsHandlerFrame {
             prompt: fresh_prompt(),
             handler: fallback,
@@ -1707,6 +1740,7 @@ fn handler_stack_with_static(
             escape_owner_function: String::new(),
             inherited: false,
             return_frame_threshold: 0,
+            install_eval_id: SYNTHETIC_EVAL_ID,
         }]
     } else {
         active_handlers.to_vec()
@@ -1731,6 +1765,9 @@ fn handler_stack_with_pushed(
         escape_owner_function: String::new(),
         inherited: false,
         return_frame_threshold: 0,
+        // Dead code currently — but if revived, the caller must pass a
+        // real eval id. SYNTHETIC keeps it safe.
+        install_eval_id: SYNTHETIC_EVAL_ID,
     });
     stack
 }
@@ -1935,6 +1972,31 @@ fn fresh_prompt() -> CpsPromptId {
     })
 }
 
+/// Identity of an eval frame instance. Distinct from function name and
+/// continuation id: a recursive resumption can run the same function in a
+/// fresh eval frame, and we must not let a ScopeReturn from the fresh
+/// frame resolve a handler installed by the original frame. See write22.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct CpsEvalId(u64);
+
+thread_local! {
+    static EVAL_ID_COUNTER: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+fn fresh_eval_id() -> CpsEvalId {
+    EVAL_ID_COUNTER.with(|cell| {
+        let id = cell.get();
+        cell.set(id + 1);
+        CpsEvalId(id)
+    })
+}
+
+/// Sentinel eval id used for synthetic handler frames (Perform fallback
+/// without an installed handler) that should never participate in
+/// ScopeReturn resolution. Picking a fresh id at synth time would work
+/// too, but using a sentinel makes traces clearer.
+const SYNTHETIC_EVAL_ID: CpsEvalId = CpsEvalId(u64::MAX);
+
 #[derive(Debug, Clone, PartialEq)]
 struct CpsResumption {
     owner_function: String,
@@ -1970,6 +2032,12 @@ struct CpsReturnFrame {
     /// `continue_return_frames` so the owner's Return only consumes its
     /// own pushed frames, not the ones it inherited.
     owner_initial_frame_count: usize,
+    /// Identity of the eval frame that pushed this return frame. When
+    /// `continue_return_frames` resumes the owner continuation, this id is
+    /// restored as `current_eval_id` so `ScopeReturn` resolution targets
+    /// the same eval frame that originally installed the matching handler
+    /// (write22).
+    owner_eval_id: CpsEvalId,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2014,12 +2082,18 @@ struct CpsHandlerFrame {
     /// still trigger trailing reject() in the saved frames.
     return_frame_threshold: usize,
     /// True iff this frame is part of a resumption snapshot (i.e. the
-    /// `resumption.handlers` of a `Resume` / `ResumeWithHandler`). Inherited
-    /// frames can still match `Perform`-time handler search, but must NOT
-    /// resolve a `ScopeReturn` in the resumed eval — the original install
-    /// site lives in a parent eval frame, so the abort has to keep
-    /// propagating up to that parent.
+    /// `resumption.handlers` of a `Resume` / `ResumeWithHandler`). Kept as
+    /// auxiliary info — `Perform`-time handler search still uses it. The
+    /// primary check for `ScopeReturn` resolution is `install_eval_id`
+    /// below, which is more precise.
     inherited: bool,
+    /// Identity of the eval frame that ran `InstallHandler` to create this
+    /// frame. A `ScopeReturn` only resolves at a handler whose
+    /// `install_eval_id == current_eval_id`. Function identity is not
+    /// enough: a multi-shot resumption can run the same CPS function in a
+    /// fresh eval frame, and that fresh frame must not catch a handler
+    /// installed by the original eval (write22).
+    install_eval_id: CpsEvalId,
 }
 
 #[derive(Debug, Clone, PartialEq)]
