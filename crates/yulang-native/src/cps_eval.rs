@@ -931,17 +931,25 @@ fn resume_continuation(
                             // continuation. Resume needs a plain payload.
                             let arg = read_plain_value(function, &values, *arg)?;
                             let owner = function_by_name(module, &resumption.owner_function)?;
-                            let extra: Vec<CpsHandlerFrame> = active_handlers
-                                .iter()
-                                .filter(|frame| {
-                                    !resumption.handlers.iter().any(|f| f.prompt == frame.prompt)
-                                })
-                                .cloned()
-                                .collect();
-                            let mut resumed_handlers = resumption.handlers.as_ref().clone();
-                            resumed_handlers.extend(extra.clone());
-                            let adjusted_frames =
-                                inject_extra_handlers(resumption.return_frames.as_ref(), &extra);
+                            let resumed_handlers = merge_resumption_handlers(
+                                resumption.handlers.as_ref(),
+                                &active_handlers,
+                            );
+                            let adjusted_frames = merge_extras_into_frames(
+                                resumption.return_frames.as_ref(),
+                                &active_handlers,
+                            );
+                            trace_cps(
+                                "ResumeHandlerMerge",
+                                format!(
+                                    "site=ApplyClosure(Resumption) fn={} eval={} captured={} current={} merged={}",
+                                    function.name,
+                                    current_eval_id.0,
+                                    summarize_handler_stack(resumption.handlers.as_ref()),
+                                    summarize_handler_stack(&active_handlers),
+                                    summarize_handler_stack(&resumed_handlers),
+                                ),
+                            );
                             // Resume replays a captured continuation, so the
                             // captured frames are ours to consume — initial=0.
                             eval_continuations(
@@ -977,17 +985,25 @@ fn resume_continuation(
                     let resumption = read_resumption(function, &values, *resumption)?;
                     let arg = read_plain_value(function, &values, *arg)?;
                     let owner = function_by_name(module, &resumption.owner_function)?;
-                    let extra: Vec<CpsHandlerFrame> = active_handlers
-                        .iter()
-                        .filter(|frame| {
-                            !resumption.handlers.iter().any(|f| f.prompt == frame.prompt)
-                        })
-                        .cloned()
-                        .collect();
-                    let mut resumed_handlers = resumption.handlers.as_ref().clone();
-                    resumed_handlers.extend(extra.clone());
-                    let adjusted_frames =
-                        inject_extra_handlers(resumption.return_frames.as_ref(), &extra);
+                    let resumed_handlers = merge_resumption_handlers(
+                        resumption.handlers.as_ref(),
+                        &active_handlers,
+                    );
+                    let adjusted_frames = merge_extras_into_frames(
+                        resumption.return_frames.as_ref(),
+                        &active_handlers,
+                    );
+                    trace_cps(
+                        "ResumeHandlerMerge",
+                        format!(
+                            "site=Resume fn={} eval={} captured={} current={} merged={}",
+                            function.name,
+                            current_eval_id.0,
+                            summarize_handler_stack(resumption.handlers.as_ref()),
+                            summarize_handler_stack(&active_handlers),
+                            summarize_handler_stack(&resumed_handlers),
+                        ),
+                    );
                     // Resume replays captured continuation; captured frames
                     // are ours to consume.
                     let result = eval_continuations(
@@ -1066,10 +1082,13 @@ fn resume_continuation(
                         return_frame_threshold: return_frames.len(),
                         install_eval_id: current_eval_id,
                     });
+                    // RWH uses REBASED semantics: the just-installed handler
+                    // SHADOWS the captured innermost handler. So inner_handlers
+                    // = captured ++ [RWH-pushed], with RWH innermost. This is
+                    // different from regular Resume merge (which preserves
+                    // captured innermost). Tested by
+                    // `evaluates_resumption_under_fresh_handler_stack`.
                     let inner_handlers = {
-                        // Build the resumed eval's handler stack: resumption's
-                        // saved snapshot + our just-pushed frame, all to be
-                        // marked inherited inside the new eval.
                         let mut stack = resumption.handlers.as_ref().clone();
                         let mut owned = active_handlers
                             .last()
@@ -1084,9 +1103,24 @@ fn resume_continuation(
                         .filter(|f| f.prompt == pushed_prompt)
                         .cloned()
                         .collect::<Vec<_>>();
-                    let adjusted_frames = inject_extra_handlers(
+                    // For frame injection, we still use the OLD inject helper
+                    // (append RWH frame to each captured frame's handlers,
+                    // since RWH frame is innermost in the merged stack).
+                    let adjusted_frames = inject_extra_handlers_legacy(
                         resumption.return_frames.as_ref(),
                         &pushed_extra,
+                    );
+                    trace_cps(
+                        "ResumeHandlerMerge",
+                        format!(
+                            "site=ResumeWithHandler(rebased) fn={} eval={} pushed_prompt={} captured={} pushed_extra={} inner={}",
+                            function.name,
+                            current_eval_id.0,
+                            pushed_prompt.0,
+                            summarize_handler_stack(resumption.handlers.as_ref()),
+                            summarize_handler_stack(&pushed_extra),
+                            summarize_handler_stack(&inner_handlers),
+                        ),
                     );
                     let result = eval_continuations(
                         module,
@@ -1128,29 +1162,28 @@ fn resume_continuation(
                         return_frames.len(), initial_frame_count,
                     ),
                 );
-                // write17 attempt: pre-force the Thunk before consuming the
-                // top frame so the body's Perform captures the post-call
-                // frame in its resumption. Disabled — running the body
-                // outside the would-be ForceThunk's eval means H_sub from
-                // F_each_post.active_handlers never resolves in any eval
-                // (escape_owner_function = each but the body's eval is
-                // fold_impl). ScopeReturn escapes to root.
-                //
-                // Kept commented for follow-up: the right fix may be to
-                // synthesize a wrapper eval at top_frame.continuation with
-                // the frame's handlers non-inherited, run the body sync
-                // inside it, and let the wrapper's dispatch_scope_return
-                // resolve sub::return at H_sub.escape.
-                //
-                // for now: fall through to the original consume-frame path.
-                let _ = return_frame_immediately_forces_param;
-                let _ = force_returned_thunk_before_frame_consumption;
                 if return_frames.len() <= initial_frame_count {
                     return Ok(v);
                 }
-                let own_frames = return_frames
-                    .split_off(initial_frame_count);
-                return continue_return_frames(module, v, &own_frames, &[]);
+                // write23 Step 3 / write17 v2: if Returning a Thunk and the
+                // top own-frame's continuation immediately ForceThunks its
+                // param, run that continuation in the top frame's owner
+                // context (function = frame.owner_function, eval_id =
+                // frame.owner_eval_id) with ALL return_frames retained as
+                // inherited. This keeps the post-call frame (e.g.
+                // F_each_post) in scope while the deferred body runs, so
+                // a `Perform` inside the body captures it. With write22's
+                // strict install_eval_id check, a `ScopeReturn` raised in
+                // the body can resolve handlers installed at the frame's
+                // owner eval.
+                // write23: pass the FULL return_frames (not just own_frames)
+                // so continue_return_frames can preserve the inherited prefix
+                // for the resumed eval. Previously, splitting off own_frames
+                // dropped the inherited part, which silently lost the
+                // parent's `F_each_post`-style frames in tail-call chains
+                // (where the parent has already terminated via EffectfulCall
+                // and its frames live only in the callee's return_frames).
+                return continue_return_frames(module, v, &return_frames, &[]);
             }
             CpsTerminator::Continue { target, args: next } => {
                 args = next
@@ -1181,9 +1214,10 @@ fn resume_continuation(
                 trace_cps(
                     "Perform",
                     format!(
-                        "fn={} cont={:?} effect={:?} return_frames.len={} initial={} active_handlers={:?}",
-                        function.name, current, effect, return_frames.len(), initial_frame_count,
-                        active_handlers.iter().map(|h|(h.prompt.0, h.inherited, h.handler.0)).collect::<Vec<_>>(),
+                        "fn={} eval={} cont={:?} effect={:?} return_frames.len={} initial={} active_handlers={}",
+                        function.name, current_eval_id.0, current, effect,
+                        return_frames.len(), initial_frame_count,
+                        summarize_handler_stack(&active_handlers),
                     ),
                 );
                 let payload = read_plain_value(function, &values, *payload)?;
@@ -1439,18 +1473,24 @@ fn resume_continuation(
                         //   F_post → innermost parent → outermost parent.
                         let arg = read_plain_value(function, &values, *arg)?;
                         let owner = function_by_name(module, &resumption.owner_function)?;
-                        let extra: Vec<CpsHandlerFrame> = active_handlers
-                            .iter()
-                            .filter(|f| {
-                                !resumption.handlers.iter().any(|rf| rf.prompt == f.prompt)
-                            })
-                            .cloned()
-                            .collect();
-                        let mut resumed_handlers = resumption.handlers.as_ref().clone();
-                        resumed_handlers.extend(extra.clone());
-                        let adjusted_res = inject_extra_handlers(
+                        let resumed_handlers = merge_resumption_handlers(
+                            resumption.handlers.as_ref(),
+                            &active_handlers,
+                        );
+                        let adjusted_res = merge_extras_into_frames(
                             resumption.return_frames.as_ref(),
-                            &extra,
+                            &active_handlers,
+                        );
+                        trace_cps(
+                            "ResumeHandlerMerge",
+                            format!(
+                                "site=EffectfulApply(Resumption) fn={} eval={} captured={} current={} merged={}",
+                                function.name,
+                                current_eval_id.0,
+                                summarize_handler_stack(resumption.handlers.as_ref()),
+                                summarize_handler_stack(&active_handlers),
+                                summarize_handler_stack(&resumed_handlers),
+                            ),
                         );
                         // new_frames = parent_frames + [F_post]. Append
                         // adjusted_res AFTER so it pops first.
@@ -1560,11 +1600,81 @@ fn force_returned_thunk_before_frame_consumption(
     }
 }
 
-/// Copy frames with the given extra handlers merged into each frame's saved
-/// `active_handlers` (only those whose prompt isn't already present). Called
-/// at Resume sites so the auto-trigger in `Return` runs each frame with the
-/// resume-site's extra handlers still in scope.
-fn inject_extra_handlers(
+/// Compact trace summary of a handler stack. Shows the key fields used by
+/// ScopeReturn resolution so the trace audit can confirm merge order.
+fn summarize_handler_stack(stack: &[CpsHandlerFrame]) -> String {
+    let parts: Vec<String> = stack
+        .iter()
+        .map(|h| {
+            format!(
+                "(p={},inh={},eval={},owner={},thr={})",
+                h.prompt.0,
+                if h.inherited { "T" } else { "F" },
+                h.install_eval_id.0,
+                if h.escape_owner_function.is_empty() {
+                    "<synth>"
+                } else {
+                    h.escape_owner_function.as_str()
+                },
+                h.return_frame_threshold,
+            )
+        })
+        .collect();
+    format!("[{}]", parts.join(","))
+}
+
+/// Merge a captured continuation's handler stack with the resume site's
+/// current handler stack.
+///
+/// Semantics (write23): handlers installed at the resume site (after the
+/// original capture) are siblings to the captured continuation's outer
+/// scope — they belong OUTSIDE the captured continuation's inner handlers,
+/// not innermost-of-all. Concretely:
+///
+/// ```text
+/// captured = [outer, H_sub]              (e.g. branch perform capture)
+/// current  = [outer, H_inner]            (recursive once installed H_inner)
+/// merged   = [outer, H_inner, H_sub]
+/// ```
+///
+/// The shared outer prefix is identified by (prompt, install_eval_id)
+/// equality. Resume-site handlers after that prefix (and not duplicated in
+/// `captured`) are placed BEFORE the captured continuation's inner tail,
+/// so when ScopeReturn truncates at the captured inner handler, the
+/// resume-site siblings survive.
+fn merge_resumption_handlers(
+    captured: &[CpsHandlerFrame],
+    current: &[CpsHandlerFrame],
+) -> Vec<CpsHandlerFrame> {
+    let mut shared = 0;
+    while shared < captured.len()
+        && shared < current.len()
+        && captured[shared].prompt == current[shared].prompt
+        && captured[shared].install_eval_id == current[shared].install_eval_id
+    {
+        shared += 1;
+    }
+
+    let mut merged = Vec::with_capacity(captured.len() + current.len());
+    merged.extend(captured[..shared].iter().cloned());
+
+    for frame in &current[shared..] {
+        if !captured.iter().any(|c| {
+            c.prompt == frame.prompt && c.install_eval_id == frame.install_eval_id
+        }) {
+            merged.push(frame.clone());
+        }
+    }
+
+    merged.extend(captured[shared..].iter().cloned());
+    merged
+}
+
+/// Legacy inject helper kept for `ResumeWithHandler` (rebased semantics):
+/// the just-installed RWH frame is appended to each captured frame's
+/// handler stack as the innermost handler. Different from
+/// `merge_extras_into_frames` which preserves captured innermost.
+fn inject_extra_handlers_legacy(
     frames: &[CpsReturnFrame],
     extra: &[CpsHandlerFrame],
 ) -> Vec<CpsReturnFrame> {
@@ -1584,6 +1694,39 @@ fn inject_extra_handlers(
                     adjusted.active_handlers.push(handler.clone());
                 }
             }
+            adjusted
+        })
+        .collect()
+}
+
+/// Apply `merge_resumption_handlers` per frame: each captured return
+/// frame's saved `active_handlers` is the "captured" side; `current` is
+/// the resume site's live handler stack. The result is a fresh return
+/// frame list with each frame's handler stack reconciled so the
+/// resume-site siblings sit outside the captured inner handlers.
+fn merge_extras_into_frames(
+    frames: &[CpsReturnFrame],
+    current: &[CpsHandlerFrame],
+) -> Vec<CpsReturnFrame> {
+    frames
+        .iter()
+        .map(|frame| {
+            let merged = merge_resumption_handlers(&frame.active_handlers, current);
+            if trace_enabled() && merged != frame.active_handlers {
+                trace_cps(
+                    "InjectExtraHandlers",
+                    format!(
+                        "frame_owner={} frame_owner_eval={} before={} current={} after={}",
+                        frame.owner_function,
+                        frame.owner_eval_id.0,
+                        summarize_handler_stack(&frame.active_handlers),
+                        summarize_handler_stack(current),
+                        summarize_handler_stack(&merged),
+                    ),
+                );
+            }
+            let mut adjusted = frame.clone();
+            adjusted.active_handlers = merged;
             adjusted
         })
         .collect()
