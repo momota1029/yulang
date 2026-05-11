@@ -22,6 +22,54 @@ fn trace_cps(event: &str, msg: impl std::fmt::Display) {
     }
 }
 
+/// Compact summary of a CpsRuntimeValue for trace output. Avoids the
+/// recursive Debug bomb that thunks/closures/resumptions produce.
+fn summarize_cps_value(value: &CpsRuntimeValue) -> String {
+    match value {
+        CpsRuntimeValue::Plain(v) => format!("Plain({v:?})"),
+        CpsRuntimeValue::Thunk(thunk) => {
+            format!("Thunk(owner={}, entry={:?})", thunk.owner_function, thunk.entry)
+        }
+        CpsRuntimeValue::Closure(closure) => format!(
+            "Closure(owner={}, entry={:?}, recursive_self={:?})",
+            closure.owner_function, closure.entry, closure.recursive_self,
+        ),
+        CpsRuntimeValue::Resumption(resumption) => format!(
+            "Resumption(owner={}, target={:?}, frames={}, handlers={}, guards={})",
+            resumption.owner_function,
+            resumption.target,
+            resumption.return_frames.len(),
+            resumption.handlers.len(),
+            resumption.guard_stack.len(),
+        ),
+        CpsRuntimeValue::List(items) => {
+            let preview = items
+                .iter()
+                .take(3)
+                .map(summarize_cps_value)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("List(len={}, [{}])", items.len(), preview)
+        }
+        CpsRuntimeValue::Tuple(items) => {
+            let preview = items
+                .iter()
+                .map(summarize_cps_value)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("Tuple([{preview}])")
+        }
+        CpsRuntimeValue::Variant { tag, value } => match value {
+            Some(value) => format!("Variant({}, {})", tag.0, summarize_cps_value(value)),
+            None => format!("Variant({})", tag.0),
+        },
+        CpsRuntimeValue::ScopeReturn { prompt, target, value } => format!(
+            "ScopeReturn(prompt={}, target={:?}, value={})",
+            prompt.0, target, summarize_cps_value(value),
+        ),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum CpsEvalError {
     MissingFunction {
@@ -742,11 +790,36 @@ fn resume_continuation(
                     write_value(&mut values, *dest, value);
                 }
                 CpsStmt::Primitive { dest, op, args } => {
-                    let args = args
+                    let arg_values = args
                         .iter()
                         .map(|id| read_value(function, &values, *id))
                         .collect::<CpsEvalResult<Vec<_>>>()?;
-                    let result = eval_cps_primitive(*op, args)?;
+                    let result = eval_cps_primitive(*op, arg_values.clone())?;
+                    // Trace list-family primitives: queue manipulation is
+                    // the central concern for std::undet.once's branch arm.
+                    if matches!(
+                        op,
+                        core_ir::PrimitiveOp::ListEmpty
+                            | core_ir::PrimitiveOp::ListSingleton
+                            | core_ir::PrimitiveOp::ListMerge
+                            | core_ir::PrimitiveOp::ListLen
+                            | core_ir::PrimitiveOp::ListIndex
+                            | core_ir::PrimitiveOp::ListIndexRangeRaw
+                    ) {
+                        trace_cps(
+                            "PrimitiveList",
+                            format!(
+                                "fn={} cont={:?} op={:?} args=[{}] result={}",
+                                function.name, current, op,
+                                arg_values
+                                    .iter()
+                                    .map(summarize_cps_value)
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                                summarize_cps_value(&result),
+                            ),
+                        );
+                    }
                     write_value(&mut values, *dest, result);
                 }
                 CpsStmt::DirectCall { dest, target, args: arg_ids } => {
@@ -779,6 +852,21 @@ fn resume_continuation(
                     // and later extracted via TupleGet/ListIndex; the surface
                     // type system cannot distinguish them so we dispatch here.
                     let callable = read_value(function, &values, *closure)?;
+                    let arg_preview = read_value(function, &values, *arg)
+                        .ok()
+                        .as_ref()
+                        .map(summarize_cps_value)
+                        .unwrap_or_else(|| "?".to_string());
+                    trace_cps(
+                        "ApplyClosure",
+                        format!(
+                            "fn={} cont={:?} callable={} arg={} return_frames.len={} initial={}",
+                            function.name, current,
+                            summarize_cps_value(&callable),
+                            arg_preview,
+                            return_frames.len(), initial_frame_count,
+                        ),
+                    );
                     let result = match callable {
                         CpsRuntimeValue::Closure(closure) => {
                             let arg = read_value(function, &values, *arg)?;
@@ -892,16 +980,26 @@ fn resume_continuation(
                     escape,
                 } => {
                     let envs = capture_handler_envs(function, &values, envs)?;
+                    let pushed_prompt = fresh_prompt();
+                    let threshold = return_frames.len();
                     active_handlers.push(CpsHandlerFrame {
-                        prompt: fresh_prompt(),
+                        prompt: pushed_prompt,
                         handler: *handler,
                         guard_stack: guard_stack.clone(),
                         envs,
                         escape: *escape,
                         escape_owner_function: function.name.clone(),
                         inherited: false,
-                        return_frame_threshold: return_frames.len(),
+                        return_frame_threshold: threshold,
                     });
+                    trace_cps(
+                        "InstallHandler",
+                        format!(
+                            "fn={} cont={:?} handler={:?} prompt={} escape={:?} threshold={} handlers.now={}",
+                            function.name, current, handler, pushed_prompt.0,
+                            escape, threshold, active_handlers.len(),
+                        ),
+                    );
                 }
                 CpsStmt::UninstallHandler { handler } => {
                     if let Some(pos) = active_handlers
@@ -995,14 +1093,7 @@ fn resume_continuation(
                     "Return",
                     format!(
                         "fn={} cont={:?} value={} return_frames.len={} initial={}",
-                        function.name, current,
-                        match &v {
-                            CpsRuntimeValue::Thunk(_) => "Thunk".to_string(),
-                            CpsRuntimeValue::Plain(p) => format!("Plain({:?})", p),
-                            CpsRuntimeValue::Closure(_) => "Closure".to_string(),
-                            CpsRuntimeValue::Resumption(_) => "Resumption".to_string(),
-                            other => format!("{:?}", std::mem::discriminant(other)),
-                        },
+                        function.name, current, summarize_cps_value(&v),
                         return_frames.len(), initial_frame_count,
                     ),
                 );
@@ -1247,16 +1338,18 @@ fn resume_continuation(
                 // Effectful closure application: same shape as EffectfulCall
                 // but dispatches on Closure or Resumption value.
                 let callable = read_value(function, &values, *closure)?;
+                let arg_preview = read_value(function, &values, *arg)
+                    .ok()
+                    .as_ref()
+                    .map(summarize_cps_value)
+                    .unwrap_or_else(|| "?".to_string());
                 trace_cps(
                     "EffectfulApply",
                     format!(
-                        "fn={} cont={:?} callable={} resume={:?} return_frames.len={} initial={}",
+                        "fn={} cont={:?} callable={} arg={} resume={:?} return_frames.len={} initial={}",
                         function.name, current,
-                        match &callable {
-                            CpsRuntimeValue::Closure(_) => "Closure",
-                            CpsRuntimeValue::Resumption(_) => "Resumption",
-                            _ => "OTHER",
-                        },
+                        summarize_cps_value(&callable),
+                        arg_preview,
                         resume, return_frames.len(), initial_frame_count,
                     ),
                 );
