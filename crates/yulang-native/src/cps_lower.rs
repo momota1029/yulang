@@ -1133,6 +1133,11 @@ struct FunctionLowerer<'a> {
     active_handler: Option<ActiveHandlerContext>,
     params: Vec<CpsValueId>,
     handler_value_conts: Vec<CpsContinuationId>,
+    /// True for known higher-order helpers whose callback applies / recursive
+    /// calls must capture local rest as a return frame (write15). Targeted by
+    /// function-name match for now; will be replaced by effect-row based
+    /// detection later.
+    higher_order_helper: bool,
 }
 
 #[derive(Clone)]
@@ -1168,6 +1173,18 @@ impl<'a> FunctionLowerer<'a> {
             locals.insert(core_ir::Path::from_name(param), value);
             param_values.push(value);
         }
+        // write15 targeted lowering: higher-order helpers whose callback
+        // applies need to capture the local rest of the body as a return
+        // frame. Detected by function-name match for now.
+        // - std::list::fold_impl: callback `f z x` and non-tail recursive
+        //   calls must be EffectfulApply / EffectfulCall.
+        // - std::undet::undet::each: the sync `xs.fold ...; reject()`
+        //   sequence loses its tail without an effectful call site.
+        // - std::undet::undet::once: recursive `loop(k true, queue+[k])`
+        //   in the branch arm must capture local rest of the arm.
+        let higher_order_helper = name.starts_with("std::list::fold_impl")
+            || name.starts_with("std::undet::undet::each")
+            || name.starts_with("std::undet::undet::once");
         Self {
             name,
             functions,
@@ -1187,6 +1204,7 @@ impl<'a> FunctionLowerer<'a> {
             active_handler: None,
             params: param_values,
             handler_value_conts: Vec::new(),
+            higher_order_helper,
         }
     }
 
@@ -1272,6 +1290,28 @@ impl<'a> FunctionLowerer<'a> {
                     }
                 })
                 .collect::<CpsLowerResult<Vec<_>>>()?;
+            // write15: inside a higher-order helper, a recursive (non-tail)
+            // call to itself or another effectful function must capture the
+            // local rest as a return frame. Use EffectfulCall terminator
+            // when the callee's return type is Thunk-wrapped (effectful).
+            // We check info.ret rather than expr.ty because the runtime IR
+            // can strip the Thunk wrap on the application expression in some
+            // contexts even though the call itself is effectful.
+            if self.higher_order_helper && info_returns_thunk {
+                if info_returns_thunk {
+                    self.mark_active_handlers_external_call();
+                }
+                let post_cont = self.fresh_continuation();
+                let result = self.fresh_value();
+                self.terminate(CpsTerminator::EffectfulCall {
+                    target,
+                    args,
+                    resume: post_cont,
+                });
+                self.finish_current();
+                self.current = ContinuationBuilder::new(post_cont, vec![result]);
+                return Ok(result);
+            }
             let dest = self.fresh_value();
             self.current
                 .stmts
@@ -1527,6 +1567,22 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CpsLowerResult<CpsValueId> {
         let closure = self.lower_expr(callee)?;
         let arg = self.lower_expr_as_call_arg(&callee.ty, arg)?;
+        // write15 targeted: inside known higher-order helpers, apply
+        // closure as an EffectfulApply terminator so its post-call cont
+        // is captured as a return frame. Trigger when the result type is
+        // Thunk-wrapped (= the apply may perform effects).
+        if self.higher_order_helper && matches!(expr.ty, runtime::Type::Thunk { .. }) {
+            let post_cont = self.fresh_continuation();
+            let result = self.fresh_value();
+            self.terminate(CpsTerminator::EffectfulApply {
+                closure,
+                arg,
+                resume: post_cont,
+            });
+            self.finish_current();
+            self.current = ContinuationBuilder::new(post_cont, vec![result]);
+            return Ok(result);
+        }
         let dest = self.fresh_value();
         self.current
             .stmts
@@ -2755,12 +2811,22 @@ impl<'a> FunctionLowerer<'a> {
         let lowered_args = args
             .into_iter()
             .enumerate()
-            .map(|(idx, arg)| {
-                if matches!(info_params.get(idx), Some(runtime::Type::Thunk { .. })) {
-                    self.lower_expr_as_thunk_value(arg)
+            .map(|(idx, arg)| -> CpsLowerResult<CpsValueId> {
+                let expected = info_params
+                    .get(idx)
+                    .cloned()
+                    .unwrap_or_else(runtime::Type::unknown);
+                let lowered = if matches!(expected, runtime::Type::Thunk { .. }) {
+                    self.lower_expr_as_thunk_value(arg)?
                 } else {
-                    self.lower_expr(arg)
-                }
+                    self.lower_expr(arg)?
+                };
+                // The runtime IR may surface an argument as a Thunk-wrapped
+                // value even when the callee's formal param type is plain
+                // (e.g. `f: int -> int -> [e] int` produces a Thunk-wrapped
+                // closure at the call site). Force here so the callee
+                // receives the plain value its params expect.
+                Ok(self.force_if_non_thunk_demand(lowered, &expected))
             })
             .collect::<CpsLowerResult<Vec<_>>>()?;
 

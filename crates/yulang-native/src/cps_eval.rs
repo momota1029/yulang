@@ -207,10 +207,14 @@ enum ScopeReturnAction {
     /// matched frame and any inner ones have already been popped. The
     /// caller should jump to `target` (with `value` as the single arg) if
     /// `target != EXIT_RWH_TARGET`, or return `value` from the current
-    /// eval frame if `target == EXIT_RWH_TARGET`.
+    /// eval frame if `target == EXIT_RWH_TARGET`. `return_frame_threshold`
+    /// is how many return_frames existed when the matched handler was
+    /// installed; frames pushed after that count are inside the handler
+    /// scope and should be discarded (delimited-continuation extent).
     JumpOrExit {
         target: CpsContinuationId,
         value: CpsRuntimeValue,
+        return_frame_threshold: usize,
     },
     /// `ScopeReturn` did not match — propagate the original value up.
     Propagate(CpsRuntimeValue),
@@ -245,10 +249,12 @@ fn handle_scope_return(
                         value,
                     });
                 }
+                let threshold = frame.return_frame_threshold;
                 active_handlers.truncate(index);
                 ScopeReturnAction::JumpOrExit {
                     target,
                     value: *value,
+                    return_frame_threshold: threshold,
                 }
             } else {
                 ScopeReturnAction::Propagate(CpsRuntimeValue::ScopeReturn {
@@ -444,12 +450,19 @@ fn resume_continuation(
                 // the call site's `dest` slot, and execution of the rest
                 // of the current continuation continues normally.
                 ScopeReturnAction::Value(v) => write_value(&mut values, *$dest, v),
-                ScopeReturnAction::JumpOrExit { target, value }
+                ScopeReturnAction::JumpOrExit { target, value, return_frame_threshold }
                     if target == EXIT_RWH_TARGET =>
                 {
+                    // Cut frames installed inside the matched handler's scope.
+                    if return_frames.len() > return_frame_threshold {
+                        return_frames.truncate(return_frame_threshold);
+                    }
                     write_value(&mut values, *$dest, value);
                 }
-                ScopeReturnAction::JumpOrExit { target, value } => {
+                ScopeReturnAction::JumpOrExit { target, value, return_frame_threshold } => {
+                    if return_frames.len() > return_frame_threshold {
+                        return_frames.truncate(return_frame_threshold);
+                    }
                     current = target;
                     args = vec![value];
                     continue $cont;
@@ -859,6 +872,7 @@ fn resume_continuation(
                         escape: *escape,
                         escape_owner_function: function.name.clone(),
                         inherited: false,
+                        return_frame_threshold: return_frames.len(),
                     });
                 }
                 CpsStmt::UninstallHandler { handler } => {
@@ -893,6 +907,7 @@ fn resume_continuation(
                         escape: EXIT_RWH_TARGET,
                         escape_owner_function: function.name.clone(),
                         inherited: false,
+                        return_frame_threshold: return_frames.len(),
                     });
                     let inner_handlers = {
                         // Build the resumed eval's handler stack: resumption's
@@ -1049,7 +1064,10 @@ fn resume_continuation(
                         // Shouldn't happen — we just constructed a ScopeReturn.
                         return Ok(v);
                     }
-                    ScopeReturnAction::JumpOrExit { target, value } => {
+                    ScopeReturnAction::JumpOrExit { target, value, return_frame_threshold } => {
+                        if return_frames.len() > return_frame_threshold {
+                            return_frames.truncate(return_frame_threshold);
+                        }
                         if target == EXIT_RWH_TARGET {
                             return Ok(value);
                         }
@@ -1301,7 +1319,10 @@ fn continue_return_frames(
     // non-inherited state is preserved — that's how a ScopeReturn destined
     // for the handler scope in (e.g.) once_dfs_int can still resolve when
     // we're running work's post-call cont here.
-    debug_assert!(frame.owner_initial_frame_count <= rest.len());
+    // owner_initial_frame_count may exceed rest.len() if a ScopeReturn
+    // truncated frames after this one was pushed. Clamp so the resumed
+    // owner eval can still proceed.
+    let owner_initial = frame.owner_initial_frame_count.min(rest.len());
     resume_continuation(
         module,
         function,
@@ -1311,7 +1332,7 @@ fn continue_return_frames(
         combined,
         frame.guard_stack.clone(),
         rest.to_vec(),
-        frame.owner_initial_frame_count,
+        owner_initial,
     )
 }
 
@@ -1399,6 +1420,7 @@ fn handler_stack_with_static(
             escape: EXIT_RWH_TARGET,
             escape_owner_function: String::new(),
             inherited: false,
+            return_frame_threshold: 0,
         }]
     } else {
         active_handlers.to_vec()
@@ -1422,6 +1444,7 @@ fn handler_stack_with_pushed(
         escape: EXIT_RWH_TARGET,
         escape_owner_function: String::new(),
         inherited: false,
+        return_frame_threshold: 0,
     });
     stack
 }
@@ -1697,6 +1720,13 @@ struct CpsHandlerFrame {
     /// `ScopeReturn` only resolves into a jump in that function's eval frame;
     /// elsewhere it must propagate up.
     escape_owner_function: String,
+    /// `return_frames.len()` at the time this handler was installed. When a
+    /// `ScopeReturn` jumps via this handler's escape, return_frames pushed
+    /// after install are inside the handler's scope and must be discarded
+    /// (delimited continuation semantics: non-local exit cuts the slice
+    /// inside the handler). Without this, an early `sub::return` would
+    /// still trigger trailing reject() in the saved frames.
+    return_frame_threshold: usize,
     /// True iff this frame is part of a resumption snapshot (i.e. the
     /// `resumption.handlers` of a `Resume` / `ResumeWithHandler`). Inherited
     /// frames can still match `Perform`-time handler search, but must NOT
