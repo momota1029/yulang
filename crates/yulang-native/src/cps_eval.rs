@@ -12,6 +12,16 @@ use crate::cps_ir::{
 
 pub type CpsEvalResult<T> = Result<T, CpsEvalError>;
 
+fn trace_enabled() -> bool {
+    std::env::var_os("YULANG_CPS_TRACE_FRAMES").is_some()
+}
+
+fn trace_cps(event: &str, msg: impl std::fmt::Display) {
+    if trace_enabled() {
+        eprintln!("[cps-trace] {event}: {msg}");
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum CpsEvalError {
     MissingFunction {
@@ -963,6 +973,13 @@ fn resume_continuation(
                 // `initial_frame_count` was inherited from a sync caller and
                 // belongs to that caller's eval loop, which is still alive.
                 let v = read_value(function, &values, *value)?;
+                trace_cps(
+                    "Return",
+                    format!(
+                        "fn={} cont={:?} value={:?} return_frames.len={} initial={}",
+                        function.name, current, v, return_frames.len(), initial_frame_count,
+                    ),
+                );
                 if return_frames.len() <= initial_frame_count {
                     return Ok(v);
                 }
@@ -996,6 +1013,14 @@ fn resume_continuation(
                 handler,
                 blocked,
             } => {
+                trace_cps(
+                    "Perform",
+                    format!(
+                        "fn={} cont={:?} effect={:?} return_frames.len={} initial={} active_handlers={:?}",
+                        function.name, current, effect, return_frames.len(), initial_frame_count,
+                        active_handlers.iter().map(|h|(h.prompt.0, h.inherited, h.handler.0)).collect::<Vec<_>>(),
+                    ),
+                );
                 let payload = read_plain_value(function, &values, *payload)?;
                 let blocked = blocked
                     .map(|blocked| read_effect_id(function, &values, blocked))
@@ -1179,6 +1204,19 @@ fn resume_continuation(
                 // Effectful closure application: same shape as EffectfulCall
                 // but dispatches on Closure or Resumption value.
                 let callable = read_value(function, &values, *closure)?;
+                trace_cps(
+                    "EffectfulApply",
+                    format!(
+                        "fn={} cont={:?} callable={} resume={:?} return_frames.len={} initial={}",
+                        function.name, current,
+                        match &callable {
+                            CpsRuntimeValue::Closure(_) => "Closure",
+                            CpsRuntimeValue::Resumption(_) => "Resumption",
+                            _ => "OTHER",
+                        },
+                        resume, return_frames.len(), initial_frame_count,
+                    ),
+                );
                 let pre_push_count = return_frames.len();
                 let frame = CpsReturnFrame {
                     owner_function: function.name.clone(),
@@ -1215,8 +1253,15 @@ fn resume_continuation(
                         );
                     }
                     CpsRuntimeValue::Resumption(resumption) => {
-                        // EffectfulApply to a Resumption — same shape as a
-                        // Resume stmt but with the post-apply cont captured.
+                        // EffectfulApply to a Resumption — replay the
+                        // captured continuation, then run the post-apply
+                        // cont after it returns. write16 §5: frame order
+                        // matters. continue_return_frames pops from end
+                        // (innermost first), so:
+                        //   [parent_frames..., F_post, res_frames...]
+                        // ensures consumption is:
+                        //   innermost res frame → outermost res frame →
+                        //   F_post → innermost parent → outermost parent.
                         let arg = read_plain_value(function, &values, *arg)?;
                         let owner = function_by_name(module, &resumption.owner_function)?;
                         let extra: Vec<CpsHandlerFrame> = active_handlers
@@ -1228,8 +1273,14 @@ fn resume_continuation(
                             .collect();
                         let mut resumed_handlers = resumption.handlers.as_ref().clone();
                         resumed_handlers.extend(extra.clone());
-                        let mut combined_frames = resumption.return_frames.as_ref().clone();
-                        combined_frames.extend(new_frames);
+                        let adjusted_res = inject_extra_handlers(
+                            resumption.return_frames.as_ref(),
+                            &extra,
+                        );
+                        // new_frames = parent_frames + [F_post]. Append
+                        // adjusted_res AFTER so it pops first.
+                        let mut combined_frames = new_frames;
+                        combined_frames.extend(adjusted_res);
                         // Resume-style replay: captured frames are ours to
                         // consume — initial=0.
                         return eval_continuations(

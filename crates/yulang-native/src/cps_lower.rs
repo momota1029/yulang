@@ -1138,6 +1138,11 @@ struct FunctionLowerer<'a> {
     /// function-name match for now; will be replaced by effect-row based
     /// detection later.
     higher_order_helper: bool,
+    /// write16 §4: when set, every closure apply inside this function is
+    /// emitted as EffectfulApply regardless of the result type. Needed for
+    /// `std::undet::undet::once`'s curried `k true`, `loop k`, and
+    /// `loop k queue+[k]` whose intermediate types are plain Fun/Core.
+    force_effectful_apply: bool,
 }
 
 #[derive(Clone)]
@@ -1185,6 +1190,13 @@ impl<'a> FunctionLowerer<'a> {
         let higher_order_helper = name.starts_with("std::list::fold_impl")
             || name.starts_with("std::undet::undet::each")
             || name.starts_with("std::undet::undet::once");
+        // write16 §4: inside std::undet::undet::once, force every
+        // ApplyClosure to be an EffectfulApply terminator regardless of
+        // expr.ty. The branch arm's curried `k true`, `loop k_thunk`,
+        // and `(loop k_thunk) queue+[k]` produce partial-apply
+        // intermediates whose result type is plain Fun / Core, missing
+        // the higher_order_helper Thunk check.
+        let force_effectful_apply = name.starts_with("std::undet::undet::once");
         Self {
             name,
             functions,
@@ -1205,6 +1217,7 @@ impl<'a> FunctionLowerer<'a> {
             params: param_values,
             handler_value_conts: Vec::new(),
             higher_order_helper,
+            force_effectful_apply,
         }
     }
 
@@ -1298,9 +1311,7 @@ impl<'a> FunctionLowerer<'a> {
             // can strip the Thunk wrap on the application expression in some
             // contexts even though the call itself is effectful.
             if self.higher_order_helper && info_returns_thunk {
-                if info_returns_thunk {
-                    self.mark_active_handlers_external_call();
-                }
+                self.mark_active_handlers_external_call();
                 let post_cont = self.fresh_continuation();
                 let result = self.fresh_value();
                 self.terminate(CpsTerminator::EffectfulCall {
@@ -1567,11 +1578,15 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CpsLowerResult<CpsValueId> {
         let closure = self.lower_expr(callee)?;
         let arg = self.lower_expr_as_call_arg(&callee.ty, arg)?;
-        // write15 targeted: inside known higher-order helpers, apply
+        // write15/16 targeted: inside known higher-order helpers, apply
         // closure as an EffectfulApply terminator so its post-call cont
         // is captured as a return frame. Trigger when the result type is
-        // Thunk-wrapped (= the apply may perform effects).
-        if self.higher_order_helper && matches!(expr.ty, runtime::Type::Thunk { .. }) {
+        // Thunk-wrapped, OR when `force_effectful_apply` is set (write16
+        // §4 — std::undet::undet::once needs every curried apply effectful
+        // since partial-apply intermediates have plain Fun/Core types).
+        if self.force_effectful_apply
+            || (self.higher_order_helper && matches!(expr.ty, runtime::Type::Thunk { .. }))
+        {
             let post_cont = self.fresh_continuation();
             let result = self.fresh_value();
             self.terminate(CpsTerminator::EffectfulApply {
