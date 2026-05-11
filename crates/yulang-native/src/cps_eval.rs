@@ -246,20 +246,31 @@ fn handle_scope_return(
                 .rposition(|frame| frame.prompt == prompt && !frame.inherited)
             {
                 let frame = &active_handlers[index];
-                // The escape continuation lives in the function that did the
-                // InstallHandler. Only resolve here if we're currently in
-                // that function (or the frame is sentinel-targeted, in which
-                // case the value just propagates back to the caller).
                 let frame_owner_match = target == EXIT_RWH_TARGET
                     || frame.escape_owner_function == current_function;
+                let frame_owner = frame.escape_owner_function.clone();
+                let threshold = frame.return_frame_threshold;
                 if !frame_owner_match {
+                    trace_cps(
+                        "ScopeReturnDispatch",
+                        format!(
+                            "fn={} prompt={} target={:?} matched=yes owner={} owner_match=no action=Propagate",
+                            current_function, prompt.0, target, frame_owner,
+                        ),
+                    );
                     return ScopeReturnAction::Propagate(CpsRuntimeValue::ScopeReturn {
                         prompt,
                         target,
                         value,
                     });
                 }
-                let threshold = frame.return_frame_threshold;
+                trace_cps(
+                    "ScopeReturnDispatch",
+                    format!(
+                        "fn={} prompt={} target={:?} matched=yes owner={} owner_match=yes threshold={} action=JumpOrExit",
+                        current_function, prompt.0, target, frame_owner, threshold,
+                    ),
+                );
                 active_handlers.truncate(index);
                 ScopeReturnAction::JumpOrExit {
                     target,
@@ -267,6 +278,13 @@ fn handle_scope_return(
                     return_frame_threshold: threshold,
                 }
             } else {
+                trace_cps(
+                    "ScopeReturnDispatch",
+                    format!(
+                        "fn={} prompt={} target={:?} matched=no action=Propagate",
+                        current_function, prompt.0, target,
+                    ),
+                );
                 ScopeReturnAction::Propagate(CpsRuntimeValue::ScopeReturn {
                     prompt,
                     target,
@@ -976,9 +994,15 @@ fn resume_continuation(
                 trace_cps(
                     "Return",
                     format!(
-                        "fn={} cont={:?} value_is_thunk={} return_frames.len={} initial={}",
+                        "fn={} cont={:?} value={} return_frames.len={} initial={}",
                         function.name, current,
-                        matches!(v, CpsRuntimeValue::Thunk(_)),
+                        match &v {
+                            CpsRuntimeValue::Thunk(_) => "Thunk".to_string(),
+                            CpsRuntimeValue::Plain(p) => format!("Plain({:?})", p),
+                            CpsRuntimeValue::Closure(_) => "Closure".to_string(),
+                            CpsRuntimeValue::Resumption(_) => "Resumption".to_string(),
+                            other => format!("{:?}", std::mem::discriminant(other)),
+                        },
                         return_frames.len(), initial_frame_count,
                     ),
                 );
@@ -1453,6 +1477,13 @@ fn continue_return_frames(
         return Ok(value);
     }
     let (frame, rest) = frames.split_last().expect("non-empty");
+    trace_cps(
+        "ContinueReturnFrames",
+        format!(
+            "pop owner={} cont={:?} rest.len={} owner_initial={}",
+            frame.owner_function, frame.continuation, rest.len(), frame.owner_initial_frame_count,
+        ),
+    );
     let function = function_by_name(module, &frame.owner_function)?;
     let mut combined = frame.active_handlers.clone();
     for extra in extra_handlers {

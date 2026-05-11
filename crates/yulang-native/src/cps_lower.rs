@@ -1321,7 +1321,16 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 self.finish_current();
                 self.current = ContinuationBuilder::new(post_cont, vec![result]);
-                return Ok(result);
+                // write18: mirror the sync DirectCall path's demand-side
+                // forcing. fold_impl/each/once return Thunks via MakeThunk +
+                // Return, so the post-call cont receives a Thunk. If the
+                // call site's static type is non-Thunk, force the result
+                // here so downstream uses see the unwrapped value. Without
+                // this, fold_impl's left recursive call returns a Thunk that
+                // is silently used as z for the right call without ever
+                // running the left iteration — skipping leaves and giving
+                // the rightmost element instead of the proper fold.
+                return Ok(self.force_if_non_thunk_demand(result, &expr.ty));
             }
             let dest = self.fresh_value();
             self.current
