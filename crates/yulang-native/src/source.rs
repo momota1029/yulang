@@ -1560,6 +1560,28 @@ my total = top + 3
     }
 
     #[test]
+    fn evals_list_index_range_source_through_cranelift_value_lane() {
+        let items = run_with_large_stack(|| {
+            let values = eval_source_value_lane(
+                "std::list::index_range [1, 2, 3, 4] (std::range::range 1 3)",
+            )
+            .expect("native value jit eval");
+            let [runtime::VmValue::List(list)] = values.as_slice() else {
+                panic!("expected one list value");
+            };
+            list.to_vec()
+                .into_iter()
+                .map(|value| match value.as_ref() {
+                    runtime::VmValue::Int(value) => value.clone(),
+                    value => panic!("expected int list item, got {value:?}"),
+                })
+                .collect::<Vec<_>>()
+        });
+
+        assert_eq!(items, vec!["2", "3"]);
+    }
+
+    #[test]
     fn evals_structural_sources_through_cranelift_value_lane() {
         let values = eval_source_value_lane_with_options(
             "(1, 2)\n{x: 1, y: 2}\n{x: 1, y: 2}.x\nmy get_y p = p.y\nget_y {x: 3, y: 4}\n:label \"send\"",
@@ -1645,6 +1667,19 @@ my total = top + 3
         let object = run_with_large_stack(|| {
             compile_source_value_object("std::list::index_range_raw [1, 2, 3, 4] 1 3")
                 .expect("native value object")
+        });
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(object.roots(), &["root_0".to_string()]);
+    }
+
+    #[test]
+    fn emits_list_index_range_source_value_object() {
+        let object = run_with_large_stack(|| {
+            compile_source_value_object(
+                "std::list::index_range [1, 2, 3, 4] (std::range::range 1 3)",
+            )
+            .expect("native value object")
         });
 
         assert!(!object.bytes().is_empty());

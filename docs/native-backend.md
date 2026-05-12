@@ -101,7 +101,7 @@ or out of here into the user-facing table once they stabilize.
 - [x] Source-to-runtime lowering can feed the value backend.
 - [x] Native value object generation works.
 - [x] Generated executables can print native value results, including boxed
-      scalar values and basic list `len` / `index` / raw range-index results.
+      scalar values and basic list `len` / `index` / range-index results.
 - [x] `int`, `float`, `bool`, `unit`, and `str` literals are represented as
       opaque runtime values.
 - [x] Basic numeric and boolean primitives run through runtime helper symbols:
@@ -111,7 +111,7 @@ or out of here into the user-facing table once they stabilize.
 - [x] Local `my` bindings and top-level non-function bindings can be evaluated
       by the value backend.
 - [x] String concatenation works.
-- [x] List literals, list merge, list length, list index, and raw range index
+- [x] List literals, list merge, list length, list index, and range index
       work.
 - [x] Tuple, record, record field selection, and variant construction work.
 - [ ] Record spread is not supported.

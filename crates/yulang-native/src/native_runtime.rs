@@ -267,6 +267,21 @@ pub fn list_index(
     Some(context.alloc(value.as_ref().clone()))
 }
 
+pub fn list_index_range(
+    context: &mut NativeRuntimeContext,
+    list: *mut runtime::VmValue,
+    range: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let list = unsafe { list.as_ref()? };
+    let range = unsafe { range.as_ref()? };
+    let runtime::VmValue::List(list) = list else {
+        return None;
+    };
+    let (start, end) = normalized_int_range_value(range, list.len())?;
+    let value = list.index_range(start, end)?;
+    Some(context.alloc(runtime::VmValue::List(value)))
+}
+
 pub fn list_index_range_raw(
     context: &mut NativeRuntimeContext,
     list: *mut runtime::VmValue,
@@ -549,6 +564,18 @@ pub extern "C" fn yulang_native_list_index(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_list_index_range(
+    context: *mut NativeRuntimeContext,
+    list: *mut runtime::VmValue,
+    range: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    list_index_range(context, list, range).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn yulang_native_list_index_range_raw(
     context: *mut NativeRuntimeContext,
     list: *mut runtime::VmValue,
@@ -694,6 +721,53 @@ fn typed_ir_name(name: &str) -> typed_ir::Name {
     typed_ir::Name(name.to_string())
 }
 
+fn normalized_int_range_value(value: &runtime::VmValue, len: usize) -> Option<(usize, usize)> {
+    let runtime::VmValue::Variant { tag, value } = value else {
+        return None;
+    };
+    if tag.0 != "within" {
+        return None;
+    }
+    let value = value.as_ref()?;
+    let runtime::VmValue::Tuple(items) = value.as_ref() else {
+        return None;
+    };
+    let [start, end] = items.as_slice() else {
+        return None;
+    };
+    let start = normalized_start_bound_value(start)?;
+    let end = normalized_end_bound_value(end, len)?;
+    (start <= end && end <= len).then_some((start, end))
+}
+
+fn normalized_start_bound_value(value: &runtime::VmValue) -> Option<usize> {
+    let runtime::VmValue::Variant { tag, value } = value else {
+        return None;
+    };
+    match tag.0.as_str() {
+        "unbounded" => Some(0),
+        "included" => int_variant_payload(value).and_then(|value| usize::try_from(value).ok()),
+        "excluded" => int_variant_payload(value).and_then(|value| usize::try_from(value + 1).ok()),
+        _ => None,
+    }
+}
+
+fn normalized_end_bound_value(value: &runtime::VmValue, len: usize) -> Option<usize> {
+    let runtime::VmValue::Variant { tag, value } = value else {
+        return None;
+    };
+    match tag.0.as_str() {
+        "unbounded" => Some(len),
+        "included" => int_variant_payload(value).and_then(|value| usize::try_from(value + 1).ok()),
+        "excluded" => int_variant_payload(value).and_then(|value| usize::try_from(value).ok()),
+        _ => None,
+    }
+}
+
+fn int_variant_payload(value: &Option<Box<runtime::VmValue>>) -> Option<i64> {
+    int_value(value.as_ref()?)
+}
+
 fn int_value(value: &runtime::VmValue) -> Option<i64> {
     let runtime::VmValue::Int(value) = value else {
         return None;
@@ -809,6 +883,36 @@ mod tests {
     }
 
     #[test]
+    fn api_indexes_list_range() {
+        let mut context = NativeRuntimeContext::new();
+        let one = make_int(&mut context, b"1").expect("one");
+        let two = make_int(&mut context, b"2").expect("two");
+        let three = make_int(&mut context, b"3").expect("three");
+        let one_list = list_singleton(&mut context, one).expect("one list");
+        let two_list = list_singleton(&mut context, two).expect("two list");
+        let three_list = list_singleton(&mut context, three).expect("three list");
+        let first = list_merge(&mut context, one_list, two_list).expect("first merge");
+        let list = list_merge(&mut context, first, three_list).expect("second merge");
+        let range = range_value(1, 3);
+        let range = context.alloc(range);
+
+        let value = list_index_range(&mut context, list, range).expect("range");
+
+        let Some(runtime::VmValue::List(value)) = context.clone_value(value) else {
+            panic!("expected list");
+        };
+        let items = value
+            .to_vec()
+            .into_iter()
+            .map(|value| match value.as_ref() {
+                runtime::VmValue::Int(value) => value.clone(),
+                other => panic!("expected int item, got {other:?}"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(items, ["2", "3"]);
+    }
+
+    #[test]
     fn api_runs_basic_primitives() {
         let mut context = NativeRuntimeContext::new();
         let one = make_int(&mut context, b"1").expect("one");
@@ -830,5 +934,21 @@ mod tests {
             context.clone_value(text),
             Some(runtime::VmValue::String(value)) if value.to_flat_string() == "3"
         ));
+    }
+
+    fn range_value(start: i64, end: i64) -> runtime::VmValue {
+        runtime::VmValue::Variant {
+            tag: typed_ir_name("within"),
+            value: Some(Box::new(runtime::VmValue::Tuple(vec![
+                runtime::VmValue::Variant {
+                    tag: typed_ir_name("included"),
+                    value: Some(Box::new(runtime::VmValue::Int(start.to_string()))),
+                },
+                runtime::VmValue::Variant {
+                    tag: typed_ir_name("excluded"),
+                    value: Some(Box::new(runtime::VmValue::Int(end.to_string()))),
+                },
+            ]))),
+        }
     }
 }

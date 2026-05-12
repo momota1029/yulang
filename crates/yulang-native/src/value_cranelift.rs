@@ -23,12 +23,13 @@ use crate::native_runtime::{
     NATIVE_PRIMITIVE_INT_SUB, NATIVE_PRIMITIVE_INT_TO_HEX, NATIVE_PRIMITIVE_INT_TO_STRING,
     NATIVE_PRIMITIVE_INT_TO_UPPER_HEX, NATIVE_PRIMITIVE_STRING_INDEX, NATIVE_PRIMITIVE_STRING_LEN,
     NativeRuntimeContext, yulang_native_concat_string, yulang_native_list_empty,
-    yulang_native_list_index, yulang_native_list_index_range_raw, yulang_native_list_len,
-    yulang_native_list_merge, yulang_native_list_singleton, yulang_native_make_bool,
-    yulang_native_make_float, yulang_native_make_int, yulang_native_make_string,
-    yulang_native_make_unit, yulang_native_primitive_binary, yulang_native_primitive_unary,
-    yulang_native_record_empty, yulang_native_record_insert, yulang_native_record_select,
-    yulang_native_tuple_empty, yulang_native_tuple_push, yulang_native_variant,
+    yulang_native_list_index, yulang_native_list_index_range, yulang_native_list_index_range_raw,
+    yulang_native_list_len, yulang_native_list_merge, yulang_native_list_singleton,
+    yulang_native_make_bool, yulang_native_make_float, yulang_native_make_int,
+    yulang_native_make_string, yulang_native_make_unit, yulang_native_primitive_binary,
+    yulang_native_primitive_unary, yulang_native_record_empty, yulang_native_record_insert,
+    yulang_native_record_select, yulang_native_tuple_empty, yulang_native_tuple_push,
+    yulang_native_variant,
 };
 
 pub type NativeValueCraneliftResult<T> = Result<T, NativeValueCraneliftError>;
@@ -224,6 +225,10 @@ pub fn compile_value_abi_module(
         yulang_native_list_index as *const u8,
     );
     builder.symbol(
+        "yulang_native_list_index_range",
+        yulang_native_list_index_range as *const u8,
+    );
+    builder.symbol(
         "yulang_native_list_index_range_raw",
         yulang_native_list_index_range_raw as *const u8,
     );
@@ -340,6 +345,7 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                             | yulang_typed_ir::PrimitiveOp::ListMerge
                             | yulang_typed_ir::PrimitiveOp::ListLen
                             | yulang_typed_ir::PrimitiveOp::ListIndex
+                            | yulang_typed_ir::PrimitiveOp::ListIndexRange
                             | yulang_typed_ir::PrimitiveOp::ListIndexRangeRaw,
                         ..
                     } => {}
@@ -453,6 +459,7 @@ struct ValueHelpers {
     list_merge: FuncId,
     list_len: FuncId,
     list_index: FuncId,
+    list_index_range: FuncId,
     list_index_range_raw: FuncId,
     tuple_empty: FuncId,
     tuple_push: FuncId,
@@ -477,6 +484,7 @@ fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
         list_merge: declare_list_merge(module_backend)?,
         list_len: declare_list_len(module_backend)?,
         list_index: declare_list_index(module_backend)?,
+        list_index_range: declare_list_index_range(module_backend)?,
         list_index_range_raw: declare_list_index_range_raw(module_backend)?,
         tuple_empty: declare_tuple_empty(module_backend)?,
         tuple_push: declare_tuple_push(module_backend)?,
@@ -587,6 +595,19 @@ fn declare_list_index<M: Module>(module_backend: &mut M) -> NativeValueCranelift
     sig.returns.push(AbiParam::new(types::I64));
     module_backend
         .declare_function("yulang_native_list_index", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_list_index_range<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_list_index_range", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
@@ -993,6 +1014,25 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             if results.len() != 1 {
                 return Err(NativeValueCraneliftError::InvalidReturnArity {
                     function: "yulang_native_list_index".to_string(),
+                    arity: results.len(),
+                });
+            }
+            builder.def_var(variable(*dest), results[0]);
+            Ok(*dest)
+        }
+        NativeAbiStmt::Primitive {
+            dest,
+            op: yulang_typed_ir::PrimitiveOp::ListIndexRange,
+            args,
+        } => {
+            let args = read_values(builder, function, defined, args)?;
+            let callee =
+                module_backend.declare_func_in_func(helpers.list_index_range, builder.func);
+            let call = builder.ins().call(callee, &[context, args[0], args[1]]);
+            let results = builder.inst_results(call);
+            if results.len() != 1 {
+                return Err(NativeValueCraneliftError::InvalidReturnArity {
+                    function: "yulang_native_list_index_range".to_string(),
                     arity: results.len(),
                 });
             }
