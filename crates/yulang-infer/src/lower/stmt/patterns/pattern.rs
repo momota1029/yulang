@@ -16,7 +16,7 @@ pub(crate) fn pattern_binding_name(node: &SyntaxNode) -> Option<Name> {
     node.children_with_tokens()
         .filter_map(|it| it.into_token())
         .find_map(|tok| match tok.kind() {
-            SyntaxKind::Ident => Some(Name(tok.text().to_string())),
+            SyntaxKind::Ident if tok.text() != "_" => Some(Name(tok.text().to_string())),
             SyntaxKind::SigilIdent => super::super::sigil_pattern_binding_name(tok.text()),
             _ => None,
         })

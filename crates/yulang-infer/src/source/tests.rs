@@ -826,6 +826,31 @@ fn lowers_list_literal_from_source_loader() {
 }
 
 #[test]
+fn lowers_nested_list_pattern_wildcards_from_source_loader() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my pick(xs: list (list int)) = case xs:\n  [[0, _], _] -> 9\n  [[1, a], [3, _]] -> a\n  _ -> 0\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+        let pick = rendered
+            .iter()
+            .find(|(name, _)| name == "pick")
+            .expect("pick should be rendered");
+
+        assert_eq!(pick.1, "std::list::list<std::list::list<int>> -> int");
+    });
+}
+
+#[test]
 fn lowers_list_index_from_implicit_prelude() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

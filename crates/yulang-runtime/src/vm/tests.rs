@@ -768,6 +768,15 @@ button: :disabled
     }
 
     #[test]
+    fn vm_runs_source_nested_list_pattern_wildcards() {
+        let results = eval_source_with_std(
+            "case [[1, 2], [3, 4]]:\n  [[0, _], _] -> 9\n  [[1, a], [3, b]] -> a + b\n  _ -> 0\n",
+        );
+
+        assert_eq!(results, vec![TestValue::Int("6".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_list_expr_spread() {
         let results = eval_source_with_std("[1, ..[2, 3], 4]\n");
 
