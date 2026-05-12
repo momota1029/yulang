@@ -1315,6 +1315,28 @@ catch out::say "hi":
     }
 
     #[test]
+    fn vm_runs_source_for_loop_updates_annotated_ref_in_body() {
+        let results = eval_source_with_std(
+            r#"{
+    my $items : list int = []
+    for x in [1, 2, 3]:
+        &items = $items + [x]
+    $items
+}
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::List(vec![
+                TestValue::Int("1".to_string()),
+                TestValue::Int("2".to_string()),
+                TestValue::Int("3".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_for_loop_last_range_example() {
         let results = eval_source_with_std(FOR_LOOP_LAST_RANGE_SOURCE);
 

@@ -1189,7 +1189,7 @@ fn normalize_projected_effect_shape(ty: typed_ir::Type) -> typed_ir::Type {
     match ty {
         typed_ir::Type::Unknown => typed_ir::Type::Never,
         typed_ir::Type::Row { items, tail } => normalize_projected_effect_row_shape(items, *tail),
-        typed_ir::Type::Named { .. } => ty,
+        typed_ir::Type::Named { path, args } => normalize_projected_effect_atom_shape(path, args),
         typed_ir::Type::Never | typed_ir::Type::Any | typed_ir::Type::Var(_) => ty,
         _ => typed_ir::Type::Never,
     }
@@ -1214,9 +1214,26 @@ fn normalize_projected_effect_row_shape(
     typed_ir::Type::Row {
         items: items
             .into_iter()
-            .map(normalize_projected_runtime_shape)
+            .map(normalize_projected_effect_shape)
+            .filter(|item| !effect_is_empty(item))
             .collect(),
         tail: Box::new(tail),
+    }
+}
+
+fn normalize_projected_effect_atom_shape(
+    path: typed_ir::Path,
+    args: Vec<typed_ir::TypeArg>,
+) -> typed_ir::Type {
+    typed_ir::Type::Named {
+        args: if is_synthetic_var_effect_path(&path) {
+            Vec::new()
+        } else {
+            args.into_iter()
+                .map(normalize_projected_runtime_shape_arg)
+                .collect()
+        },
+        path,
     }
 }
 
@@ -1297,7 +1314,7 @@ fn merge_projected_effect_rows(
 }
 
 fn projected_effect_row_parts(effect: typed_ir::Type) -> (Vec<typed_ir::Type>, typed_ir::Type) {
-    match effect {
+    match normalize_projected_effect_shape(effect) {
         typed_ir::Type::Never => (Vec::new(), typed_ir::Type::Never),
         typed_ir::Type::Row { items, tail } => (items, *tail),
         other => (vec![other], typed_ir::Type::Never),
@@ -1980,7 +1997,10 @@ fn project_closed_effect_row_substitutions(
         .enumerate()
         .filter_map(|(index, item)| (!matched_actual[index]).then_some(item.clone()))
         .collect::<Vec<_>>();
-    let residual = effect_row_from_items_and_tail(residual_items, actual_tail.clone());
+    let residual = normalize_projected_effect_shape(effect_row_from_items_and_tail(
+        residual_items,
+        actual_tail.clone(),
+    ));
 
     for var in row_vars {
         if principal_plan_substitution_type_usable(&residual, true) {

@@ -259,6 +259,39 @@ mod tests {
     }
 
     #[test]
+    fn closed_projection_erases_synthetic_ref_effect_args_in_rows() {
+        let loop_effect = named("std::flow::loop");
+        let ref_effect = effect_with_type_arg("&count#1", typed_ir::Type::Unknown);
+        let expected_ref_effect = named("&count#1");
+        let tail = typed_ir::TypeVar("tail".to_string());
+        let template = typed_ir::Type::Row {
+            items: vec![loop_effect.clone()],
+            tail: Box::new(typed_ir::Type::Var(tail.clone())),
+        };
+        let actual = typed_ir::Type::Row {
+            items: vec![loop_effect, ref_effect],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let mut params = BTreeSet::new();
+        params.insert(tail.clone());
+        let mut substitutions = BTreeMap::new();
+        let mut conflicts = BTreeSet::new();
+
+        project_closed_substitutions_from_type(
+            &template,
+            &actual,
+            &params,
+            &mut substitutions,
+            &mut conflicts,
+            true,
+            64,
+        );
+
+        assert!(conflicts.is_empty(), "{conflicts:?}");
+        assert_eq!(substitutions.get(&tail), Some(&expected_ref_effect));
+    }
+
+    #[test]
     fn int_is_compatible_with_float_by_runtime_widening() {
         assert!(type_compatible(&named("float"), &named("int")));
         assert!(needs_runtime_coercion(&named("float"), &named("int")));
@@ -273,6 +306,17 @@ mod tests {
                     .collect(),
             ),
             args: Vec::new(),
+        }
+    }
+
+    fn effect_with_type_arg(path: &str, arg: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::new(
+                path.split("::")
+                    .map(|segment| typed_ir::Name(segment.to_string()))
+                    .collect(),
+            ),
+            args: vec![typed_ir::TypeArg::Type(arg)],
         }
     }
 }

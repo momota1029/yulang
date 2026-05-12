@@ -1416,6 +1416,7 @@ impl PrincipalUnifier {
                 &plan,
                 &original,
                 &spine.args,
+                &spine.evidences,
                 &projection_result_ty,
                 &binding_required_vars,
                 &original.scheme.requirements,
@@ -2430,6 +2431,7 @@ impl PrincipalUnifier {
         plan: &typed_ir::PrincipalElaborationPlan,
         original: &Binding,
         args: &[&Expr],
+        evidences: &[Option<&typed_ir::ApplyEvidence>],
         result_ty: &RuntimeType,
         extra_required_vars: &BTreeSet<typed_ir::TypeVar>,
         requirements: &[typed_ir::RoleRequirement],
@@ -2491,6 +2493,28 @@ impl PrincipalUnifier {
                 param_effect,
                 &actual_effect,
             );
+            if let Some(plan_arg) = plan.args.iter().find(|plan_arg| plan_arg.index == index) {
+                project_principal_arg_slot_substitutions(
+                    param,
+                    plan_arg,
+                    &required_vars,
+                    &mut substitutions,
+                    &mut conflicts,
+                );
+            }
+            if let Some(evidence) = evidences.get(index).copied().flatten()
+                && let Some(expected_arg) = evidence.expected_arg.as_ref()
+            {
+                project_closed_substitutions_from_type_bounds(
+                    param,
+                    expected_arg,
+                    &required_vars,
+                    &mut substitutions,
+                    &mut conflicts,
+                    false,
+                    64,
+                );
+            }
             project_closed_substitutions_from_type(
                 param,
                 &actual,
