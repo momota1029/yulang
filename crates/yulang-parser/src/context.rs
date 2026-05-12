@@ -68,6 +68,13 @@ impl<'a, S: EventSink> Env<'a, S> {
             stop,
         }
     }
+
+    /// Stops such as `:` and `{` delimit outer control forms, but inside an
+    /// already-open group they are ordinary expression syntax again.
+    pub fn suspend_outer_block_stops_in_group(&mut self) {
+        self.stop.remove(&SyntaxKind::Colon);
+        self.stop.remove(&SyntaxKind::BraceL);
+    }
 }
 
 pub type In<'a, 'b, I, S> = chasa::prelude::In<'a, I, Env<'b, S>>;

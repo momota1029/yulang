@@ -29,6 +29,7 @@ impl<I: EventInput, S: EventSink> StopListMachine<I, S> for BraceStmtBlockMachin
         }
 
         let old_stop = i.env.stop.clone();
+        i.env.suspend_outer_block_stops_in_group();
         i.env.stop.insert(SyntaxKind::Comma);
         let parsed = super::parse_statement(*leading_info, i.rb());
         i.env.stop = old_stop;

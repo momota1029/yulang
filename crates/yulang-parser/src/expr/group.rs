@@ -78,6 +78,7 @@ impl<I: EventInput, S: EventSink> DelimitedListMachine<I, S> for ExprListMachine
         let old_indent = i.env.indent;
         let old_stop = i.env.stop.clone();
         i.env.indent = base_indent;
+        i.env.suspend_outer_block_stops_in_group();
         i.env.stop.insert(self.end_kind);
         i.env.stop.insert(SyntaxKind::Comma);
         i.env.stop.insert(SyntaxKind::Semicolon);
@@ -119,6 +120,7 @@ impl<I: EventInput, S: EventSink> DelimitedListMachine<I, S> for ListExprMachine
             let old_indent = i.env.indent;
             let old_stop = i.env.stop.clone();
             i.env.indent = base_indent;
+            i.env.suspend_outer_block_stops_in_group();
             i.env.stop.insert(self.end_kind);
             i.env.stop.insert(SyntaxKind::Comma);
             let parsed = parse_expr(dotdot.trailing_trivia_info(), i.rb());
@@ -131,6 +133,7 @@ impl<I: EventInput, S: EventSink> DelimitedListMachine<I, S> for ListExprMachine
         let old_indent = i.env.indent;
         let old_stop = i.env.stop.clone();
         i.env.indent = base_indent;
+        i.env.suspend_outer_block_stops_in_group();
         i.env.stop.insert(self.end_kind);
         i.env.stop.insert(SyntaxKind::Comma);
         let parsed = parse_expr(leading_info, i.rb());
