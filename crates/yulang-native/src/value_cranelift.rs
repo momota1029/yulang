@@ -22,18 +22,18 @@ use crate::native_runtime::{
     NATIVE_PRIMITIVE_INT_LE, NATIVE_PRIMITIVE_INT_LT, NATIVE_PRIMITIVE_INT_MUL,
     NATIVE_PRIMITIVE_INT_SUB, NATIVE_PRIMITIVE_INT_TO_HEX, NATIVE_PRIMITIVE_INT_TO_STRING,
     NATIVE_PRIMITIVE_INT_TO_UPPER_HEX, NATIVE_PRIMITIVE_STRING_INDEX, NATIVE_PRIMITIVE_STRING_LEN,
-    NativeRuntimeContext, yulang_native_bool_is_true, yulang_native_concat_string,
-    yulang_native_list_empty, yulang_native_list_index, yulang_native_list_index_range,
-    yulang_native_list_index_range_raw, yulang_native_list_len, yulang_native_list_merge,
-    yulang_native_list_singleton, yulang_native_list_splice, yulang_native_list_splice_raw,
-    yulang_native_list_view_raw, yulang_native_make_bool, yulang_native_make_float,
-    yulang_native_make_int, yulang_native_make_string, yulang_native_make_unit,
-    yulang_native_primitive_binary, yulang_native_primitive_unary, yulang_native_record_empty,
-    yulang_native_record_insert, yulang_native_record_select, yulang_native_string_index_range,
-    yulang_native_string_index_range_raw, yulang_native_string_splice,
-    yulang_native_string_splice_raw, yulang_native_tuple_empty, yulang_native_tuple_get,
-    yulang_native_tuple_push, yulang_native_value_eq, yulang_native_variant,
-    yulang_native_variant_payload, yulang_native_variant_tag_eq,
+    NativeRuntimeContext, yulang_native_bool_and, yulang_native_bool_is_true,
+    yulang_native_concat_string, yulang_native_list_empty, yulang_native_list_index,
+    yulang_native_list_index_range, yulang_native_list_index_range_raw, yulang_native_list_len,
+    yulang_native_list_merge, yulang_native_list_singleton, yulang_native_list_splice,
+    yulang_native_list_splice_raw, yulang_native_list_view_raw, yulang_native_make_bool,
+    yulang_native_make_float, yulang_native_make_int, yulang_native_make_string,
+    yulang_native_make_unit, yulang_native_primitive_binary, yulang_native_primitive_unary,
+    yulang_native_record_empty, yulang_native_record_insert, yulang_native_record_select,
+    yulang_native_string_index_range, yulang_native_string_index_range_raw,
+    yulang_native_string_splice, yulang_native_string_splice_raw, yulang_native_tuple_empty,
+    yulang_native_tuple_get, yulang_native_tuple_push, yulang_native_value_eq,
+    yulang_native_variant, yulang_native_variant_payload, yulang_native_variant_tag_eq,
 };
 
 pub type NativeValueCraneliftResult<T> = Result<T, NativeValueCraneliftError>;
@@ -199,6 +199,10 @@ pub fn compile_value_abi_module(
     builder.symbol(
         "yulang_native_value_eq",
         yulang_native_value_eq as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_bool_and",
+        yulang_native_bool_and as *const u8,
     );
     builder.symbol(
         "yulang_native_make_unit",
@@ -425,7 +429,8 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                     | NativeAbiStmt::TupleGet { .. }
                     | NativeAbiStmt::VariantTagEq { .. }
                     | NativeAbiStmt::VariantPayload { .. }
-                    | NativeAbiStmt::ValueEq { .. } => {}
+                    | NativeAbiStmt::ValueEq { .. }
+                    | NativeAbiStmt::BoolAnd { .. } => {}
                     NativeAbiStmt::LoadEnv { .. } => {
                         return Err(NativeValueCraneliftError::UnsupportedStmt {
                             function: function.name.clone(),
@@ -505,6 +510,7 @@ struct ValueHelpers {
     make_bool: FuncId,
     bool_is_true: FuncId,
     value_eq: FuncId,
+    bool_and: FuncId,
     make_unit: FuncId,
     make_string: FuncId,
     concat_string: FuncId,
@@ -542,6 +548,7 @@ fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
         make_bool: declare_make_bool(module_backend)?,
         bool_is_true: declare_bool_is_true(module_backend)?,
         value_eq: declare_value_eq(module_backend)?,
+        bool_and: declare_bool_and(module_backend)?,
         make_unit: declare_make_unit(module_backend)?,
         make_string: declare_make_string(module_backend)?,
         concat_string: declare_concat_string(module_backend)?,
@@ -622,6 +629,17 @@ fn declare_value_eq<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRe
     sig.returns.push(AbiParam::new(types::I64));
     module_backend
         .declare_function("yulang_native_value_eq", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_bool_and<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_bool_and", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
@@ -1657,6 +1675,27 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             builder.def_var(variable(*dest), result);
             Ok(*dest)
         }
+        NativeAbiStmt::BoolAnd { dest, left, right } => {
+            if !defined.contains_key(left) {
+                return Err(NativeValueCraneliftError::MissingValue {
+                    function: function.name.clone(),
+                    value: *left,
+                });
+            }
+            if !defined.contains_key(right) {
+                return Err(NativeValueCraneliftError::MissingValue {
+                    function: function.name.clone(),
+                    value: *right,
+                });
+            }
+            let left = builder.use_var(variable(*left));
+            let right = builder.use_var(variable(*right));
+            let callee = module_backend.declare_func_in_func(helpers.bool_and, builder.func);
+            let call = builder.ins().call(callee, &[context, left, right]);
+            let result = single_call_result(builder, call, "yulang_native_bool_and")?;
+            builder.def_var(variable(*dest), result);
+            Ok(*dest)
+        }
         NativeAbiStmt::LoadEnv { .. } => Err(NativeValueCraneliftError::UnsupportedStmt {
             function: function.name.clone(),
             kind: "environment load",
@@ -1754,6 +1793,7 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
                 | NativeAbiStmt::VariantTagEq { dest, .. }
                 | NativeAbiStmt::VariantPayload { dest, .. }
                 | NativeAbiStmt::ValueEq { dest, .. }
+                | NativeAbiStmt::BoolAnd { dest, .. }
                 | NativeAbiStmt::LoadEnv { dest, .. }
                 | NativeAbiStmt::AllocateClosure { dest, .. }
                 | NativeAbiStmt::IndirectClosureCall { dest, .. } => values.push(*dest),

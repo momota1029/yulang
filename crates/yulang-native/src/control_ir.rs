@@ -76,6 +76,11 @@ pub enum NativeStmt {
         left: ValueId,
         right: ValueId,
     },
+    BoolAnd {
+        dest: ValueId,
+        left: ValueId,
+        right: ValueId,
+    },
     MakeClosure {
         dest: ValueId,
         target: String,

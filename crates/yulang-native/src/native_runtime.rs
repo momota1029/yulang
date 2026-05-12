@@ -113,6 +113,19 @@ pub fn value_eq(
     Some(context.alloc(runtime::VmValue::Bool(vm_value_eq(left, right))))
 }
 
+pub fn bool_and(
+    context: &mut NativeRuntimeContext,
+    left: *mut runtime::VmValue,
+    right: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let left = unsafe { left.as_ref()? };
+    let right = unsafe { right.as_ref()? };
+    Some(context.alloc(runtime::VmValue::Bool(
+        matches!(left, runtime::VmValue::Bool(true))
+            && matches!(right, runtime::VmValue::Bool(true)),
+    )))
+}
+
 pub fn make_unit(context: &mut NativeRuntimeContext) -> *mut runtime::VmValue {
     context.alloc(runtime::VmValue::Unit)
 }
@@ -690,6 +703,18 @@ pub extern "C" fn yulang_native_value_eq(
         return std::ptr::null_mut();
     };
     value_eq(context, left, right).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_bool_and(
+    context: *mut NativeRuntimeContext,
+    left: *mut runtime::VmValue,
+    right: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    bool_and(context, left, right).unwrap_or(std::ptr::null_mut())
 }
 
 #[unsafe(no_mangle)]

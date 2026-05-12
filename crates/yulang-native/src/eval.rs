@@ -313,6 +313,18 @@ fn eval_blocks(
                         NativeRuntimeValue::Plain(runtime::VmValue::Bool(left == right)),
                     );
                 }
+                NativeStmt::BoolAnd { dest, left, right } => {
+                    let left = read_plain_value(&values, *left)?;
+                    let right = read_plain_value(&values, *right)?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        NativeRuntimeValue::Plain(runtime::VmValue::Bool(
+                            matches!(left, runtime::VmValue::Bool(true))
+                                && matches!(right, runtime::VmValue::Bool(true)),
+                        )),
+                    );
+                }
                 NativeStmt::MakeClosure {
                     dest,
                     target,

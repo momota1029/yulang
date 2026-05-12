@@ -89,6 +89,11 @@ pub enum NativeAbiStmt {
         left: ValueId,
         right: ValueId,
     },
+    BoolAnd {
+        dest: ValueId,
+        left: ValueId,
+        right: ValueId,
+    },
     LoadEnv {
         dest: ValueId,
         slot: usize,
@@ -206,6 +211,11 @@ fn lower_native_stmt(stmt: &NativeStmt) -> NativeAbiStmt {
             variant: *variant,
         },
         NativeStmt::ValueEq { dest, left, right } => NativeAbiStmt::ValueEq {
+            dest: *dest,
+            left: *left,
+            right: *right,
+        },
+        NativeStmt::BoolAnd { dest, left, right } => NativeAbiStmt::BoolAnd {
             dest: *dest,
             left: *left,
             right: *right,

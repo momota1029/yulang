@@ -212,6 +212,10 @@ fn validate_stmt_uses(
             require_value(function, block, values, *left)?;
             require_value(function, block, values, *right)
         }
+        NativeAbiStmt::BoolAnd { left, right, .. } => {
+            require_value(function, block, values, *left)?;
+            require_value(function, block, values, *right)
+        }
         NativeAbiStmt::LoadEnv { slot, .. } => {
             if *slot >= function.environment_slots {
                 return Err(NativeAbiValidateError::EnvSlotOutOfRange {
@@ -272,6 +276,7 @@ fn stmt_dest(stmt: &NativeAbiStmt) -> ValueId {
         | NativeAbiStmt::VariantTagEq { dest, .. }
         | NativeAbiStmt::VariantPayload { dest, .. }
         | NativeAbiStmt::ValueEq { dest, .. }
+        | NativeAbiStmt::BoolAnd { dest, .. }
         | NativeAbiStmt::LoadEnv { dest, .. }
         | NativeAbiStmt::AllocateClosure { dest, .. }
         | NativeAbiStmt::IndirectClosureCall { dest, .. } => *dest,

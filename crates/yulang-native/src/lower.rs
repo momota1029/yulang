@@ -652,90 +652,22 @@ impl<'a> FunctionLowerer<'a> {
         then_block: BlockId,
         else_block: BlockId,
     ) -> NativeLowerResult<()> {
-        match pattern {
-            runtime::Pattern::Wildcard { .. } | runtime::Pattern::Bind { .. } => {
+        match self.emit_pattern_condition(value, pattern)? {
+            Some(cond) => {
+                self.terminate(NativeTerminator::Branch {
+                    cond,
+                    then_block,
+                    else_block,
+                });
+                Ok(())
+            }
+            None => {
                 self.terminate(NativeTerminator::Jump {
                     target: then_block,
                     args: Vec::new(),
                 });
                 Ok(())
             }
-            runtime::Pattern::Tuple { .. } | runtime::Pattern::Record { .. }
-                if !pattern_has_refutable_child(pattern) =>
-            {
-                self.terminate(NativeTerminator::Jump {
-                    target: then_block,
-                    args: Vec::new(),
-                });
-                Ok(())
-            }
-            runtime::Pattern::Tuple { .. } => {
-                Err(NativeLowerError::UnsupportedPattern { kind: "tuple test" })
-            }
-            runtime::Pattern::Record { .. } => Err(NativeLowerError::UnsupportedPattern {
-                kind: "record test",
-            }),
-            runtime::Pattern::As { pattern, .. } => {
-                self.lower_pattern_test(value, pattern, then_block, else_block)
-            }
-            runtime::Pattern::Variant { tag, .. } => {
-                let cond = self.fresh_value();
-                self.current.stmts.push(NativeStmt::VariantTagEq {
-                    dest: cond,
-                    variant: value,
-                    tag: tag.clone(),
-                });
-                self.terminate(NativeTerminator::Branch {
-                    cond,
-                    then_block,
-                    else_block,
-                });
-                Ok(())
-            }
-            runtime::Pattern::Lit { lit, .. } => {
-                let literal = self.fresh_value();
-                self.current.stmts.push(NativeStmt::Literal {
-                    dest: literal,
-                    literal: lower_literal(lit),
-                });
-                let cond = self.fresh_value();
-                self.current.stmts.push(NativeStmt::ValueEq {
-                    dest: cond,
-                    left: value,
-                    right: literal,
-                });
-                self.terminate(NativeTerminator::Branch {
-                    cond,
-                    then_block,
-                    else_block,
-                });
-                Ok(())
-            }
-            runtime::Pattern::List {
-                prefix,
-                spread,
-                suffix,
-                ..
-            } if list_pattern_children_are_irrefutable(prefix, spread.as_deref(), suffix) => {
-                let len = self.emit_primitive(typed_ir::PrimitiveOp::ListLen, vec![value]);
-                let required = self.emit_int_literal((prefix.len() + suffix.len()) as i64);
-                let op = if spread.is_some() {
-                    typed_ir::PrimitiveOp::IntGe
-                } else {
-                    typed_ir::PrimitiveOp::IntEq
-                };
-                let cond = self.emit_primitive(op, vec![len, required]);
-                self.terminate(NativeTerminator::Branch {
-                    cond,
-                    then_block,
-                    else_block,
-                });
-                Ok(())
-            }
-            runtime::Pattern::List { .. } => Err(NativeLowerError::UnsupportedPattern {
-                kind: "list nested refutable",
-            }),
-            runtime::Pattern::Or { .. } => Err(NativeLowerError::UnsupportedPattern { kind: "or" }),
         }
     }
 
@@ -820,6 +752,136 @@ impl<'a> FunctionLowerer<'a> {
             captures,
         });
         Ok(dest)
+    }
+
+    fn emit_pattern_condition(
+        &mut self,
+        value: ValueId,
+        pattern: &runtime::Pattern,
+    ) -> NativeLowerResult<Option<ValueId>> {
+        match pattern {
+            runtime::Pattern::Wildcard { .. } | runtime::Pattern::Bind { .. } => Ok(None),
+            runtime::Pattern::Lit { lit, .. } => {
+                let literal = self.fresh_value();
+                self.current.stmts.push(NativeStmt::Literal {
+                    dest: literal,
+                    literal: lower_literal(lit),
+                });
+                Ok(Some(self.emit_value_eq(value, literal)))
+            }
+            runtime::Pattern::Tuple { items, .. } => {
+                let mut cond = None;
+                for (index, item) in items.iter().enumerate() {
+                    let item_value = self.fresh_value();
+                    self.current.stmts.push(NativeStmt::TupleGet {
+                        dest: item_value,
+                        tuple: value,
+                        index,
+                    });
+                    let item_cond = self.emit_pattern_condition(item_value, item)?;
+                    cond = self.combine_optional_conditions(cond, item_cond);
+                }
+                Ok(cond)
+            }
+            runtime::Pattern::List {
+                prefix,
+                spread,
+                suffix,
+                ..
+            } => self.emit_list_pattern_condition(prefix, spread.as_deref(), suffix, value),
+            runtime::Pattern::Record { fields, spread, .. } => {
+                if spread.is_some() {
+                    return Err(NativeLowerError::UnsupportedPattern {
+                        kind: "record spread",
+                    });
+                }
+                let mut cond = None;
+                for field in fields {
+                    let field_value = self.fresh_value();
+                    self.current.stmts.push(NativeStmt::Select {
+                        dest: field_value,
+                        base: value,
+                        field: field.name.clone(),
+                    });
+                    let field_cond = self.emit_pattern_condition(field_value, &field.pattern)?;
+                    cond = self.combine_optional_conditions(cond, field_cond);
+                }
+                Ok(cond)
+            }
+            runtime::Pattern::Variant {
+                tag,
+                value: payload,
+                ..
+            } => {
+                let tag_cond = self.fresh_value();
+                self.current.stmts.push(NativeStmt::VariantTagEq {
+                    dest: tag_cond,
+                    variant: value,
+                    tag: tag.clone(),
+                });
+                let mut cond = Some(tag_cond);
+                if let Some(payload) = payload {
+                    let payload_value = self.fresh_value();
+                    self.current.stmts.push(NativeStmt::VariantPayload {
+                        dest: payload_value,
+                        variant: value,
+                    });
+                    let payload_cond = self.emit_pattern_condition(payload_value, payload)?;
+                    cond = self.combine_optional_conditions(cond, payload_cond);
+                }
+                Ok(cond)
+            }
+            runtime::Pattern::Or { .. } => Err(NativeLowerError::UnsupportedPattern { kind: "or" }),
+            runtime::Pattern::As { pattern, .. } => self.emit_pattern_condition(value, pattern),
+        }
+    }
+
+    fn emit_list_pattern_condition(
+        &mut self,
+        prefix: &[runtime::Pattern],
+        spread: Option<&runtime::Pattern>,
+        suffix: &[runtime::Pattern],
+        value: ValueId,
+    ) -> NativeLowerResult<Option<ValueId>> {
+        let len = self.emit_primitive(typed_ir::PrimitiveOp::ListLen, vec![value]);
+        let required = self.emit_int_literal((prefix.len() + suffix.len()) as i64);
+        let op = if spread.is_some() {
+            typed_ir::PrimitiveOp::IntGe
+        } else {
+            typed_ir::PrimitiveOp::IntEq
+        };
+        let mut cond = Some(self.emit_primitive(op, vec![len, required]));
+        for (index, item) in prefix.iter().enumerate() {
+            let index = self.emit_int_literal(index as i64);
+            let item_value =
+                self.emit_primitive(typed_ir::PrimitiveOp::ListIndex, vec![value, index]);
+            let item_cond = self.emit_pattern_condition(item_value, item)?;
+            cond = self.combine_optional_conditions(cond, item_cond);
+        }
+        if let Some(spread) = spread {
+            let start = self.emit_int_literal(prefix.len() as i64);
+            let suffix_len = self.emit_int_literal(suffix.len() as i64);
+            let end = self.emit_primitive(typed_ir::PrimitiveOp::IntSub, vec![len, suffix_len]);
+            let slice = self.emit_primitive(
+                typed_ir::PrimitiveOp::ListIndexRangeRaw,
+                vec![value, start, end],
+            );
+            let spread_cond = self.emit_pattern_condition(slice, spread)?;
+            cond = self.combine_optional_conditions(cond, spread_cond);
+        }
+        for (offset, item) in suffix.iter().enumerate() {
+            let suffix_len = self.emit_int_literal(suffix.len() as i64);
+            let suffix_start =
+                self.emit_primitive(typed_ir::PrimitiveOp::IntSub, vec![len, suffix_len]);
+            let offset = self.emit_int_literal(offset as i64);
+            let index =
+                self.emit_primitive(typed_ir::PrimitiveOp::IntAdd, vec![suffix_start, offset]);
+            let item_value =
+                self.emit_primitive(typed_ir::PrimitiveOp::ListIndex, vec![value, index]);
+            let item_cond = self.emit_pattern_condition(item_value, item)?;
+            cond = self.combine_optional_conditions(cond, item_cond);
+        }
+        Ok(cond)
     }
 
     fn bind_pattern(
@@ -914,7 +976,7 @@ impl<'a> FunctionLowerer<'a> {
                         tuple: value,
                         index,
                     });
-                    self.bind_pattern(item, item_value)?;
+                    self.bind_matched_pattern(item, item_value)?;
                 }
                 Ok(())
             }
@@ -931,7 +993,7 @@ impl<'a> FunctionLowerer<'a> {
                         base: value,
                         field: field.name.clone(),
                     });
-                    self.bind_pattern(&field.pattern, field_value)?;
+                    self.bind_matched_pattern(&field.pattern, field_value)?;
                 }
                 Ok(())
             }
@@ -944,18 +1006,16 @@ impl<'a> FunctionLowerer<'a> {
                     dest: payload_value,
                     variant: value,
                 });
-                self.bind_pattern(payload, payload_value)
+                self.bind_matched_pattern(payload, payload_value)
             }
             runtime::Pattern::List {
                 prefix,
                 spread,
                 suffix,
                 ..
-            } if list_pattern_children_are_irrefutable(prefix, spread.as_deref(), suffix) => {
-                self.bind_list_pattern(prefix, spread.as_deref(), suffix, value)
-            }
+            } => self.bind_matched_list_pattern(prefix, spread.as_deref(), suffix, value),
             runtime::Pattern::As { pattern, name, .. } => {
-                self.bind_pattern(pattern, value)?;
+                self.bind_matched_pattern(pattern, value)?;
                 self.locals
                     .insert(typed_ir::Path::from_name(name.clone()), value);
                 Ok(())
@@ -1011,6 +1071,53 @@ impl<'a> FunctionLowerer<'a> {
         Ok(())
     }
 
+    fn bind_matched_list_pattern(
+        &mut self,
+        prefix: &[runtime::Pattern],
+        spread: Option<&runtime::Pattern>,
+        suffix: &[runtime::Pattern],
+        value: ValueId,
+    ) -> NativeLowerResult<()> {
+        let len = if spread.is_some() || !suffix.is_empty() {
+            Some(self.emit_primitive(typed_ir::PrimitiveOp::ListLen, vec![value]))
+        } else {
+            None
+        };
+        for (index, item) in prefix.iter().enumerate() {
+            let index = self.emit_int_literal(index as i64);
+            let item_value =
+                self.emit_primitive(typed_ir::PrimitiveOp::ListIndex, vec![value, index]);
+            self.bind_matched_pattern(item, item_value)?;
+        }
+        if let Some(spread) = spread {
+            let start = self.emit_int_literal(prefix.len() as i64);
+            let suffix_len = self.emit_int_literal(suffix.len() as i64);
+            let end = self.emit_primitive(
+                typed_ir::PrimitiveOp::IntSub,
+                vec![len.expect("list spread requires len"), suffix_len],
+            );
+            let slice = self.emit_primitive(
+                typed_ir::PrimitiveOp::ListIndexRangeRaw,
+                vec![value, start, end],
+            );
+            self.bind_matched_pattern(spread, slice)?;
+        }
+        for (offset, item) in suffix.iter().enumerate() {
+            let suffix_len = self.emit_int_literal(suffix.len() as i64);
+            let suffix_start = self.emit_primitive(
+                typed_ir::PrimitiveOp::IntSub,
+                vec![len.expect("list suffix requires len"), suffix_len],
+            );
+            let offset = self.emit_int_literal(offset as i64);
+            let index =
+                self.emit_primitive(typed_ir::PrimitiveOp::IntAdd, vec![suffix_start, offset]);
+            let item_value =
+                self.emit_primitive(typed_ir::PrimitiveOp::ListIndex, vec![value, index]);
+            self.bind_matched_pattern(item, item_value)?;
+        }
+        Ok(())
+    }
+
     fn emit_int_literal(&mut self, value: i64) -> ValueId {
         let dest = self.fresh_value();
         self.current.stmts.push(NativeStmt::Literal {
@@ -1026,6 +1133,34 @@ impl<'a> FunctionLowerer<'a> {
             .stmts
             .push(NativeStmt::Primitive { dest, op, args });
         dest
+    }
+
+    fn emit_value_eq(&mut self, left: ValueId, right: ValueId) -> ValueId {
+        let dest = self.fresh_value();
+        self.current
+            .stmts
+            .push(NativeStmt::ValueEq { dest, left, right });
+        dest
+    }
+
+    fn emit_bool_and(&mut self, left: ValueId, right: ValueId) -> ValueId {
+        let dest = self.fresh_value();
+        self.current
+            .stmts
+            .push(NativeStmt::BoolAnd { dest, left, right });
+        dest
+    }
+
+    fn combine_optional_conditions(
+        &mut self,
+        left: Option<ValueId>,
+        right: Option<ValueId>,
+    ) -> Option<ValueId> {
+        match (left, right) {
+            (Some(left), Some(right)) => Some(self.emit_bool_and(left, right)),
+            (Some(cond), None) | (None, Some(cond)) => Some(cond),
+            (None, None) => None,
+        }
     }
 
     fn terminate(&mut self, terminator: NativeTerminator) {

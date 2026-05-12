@@ -182,8 +182,12 @@ runtime/core IR
     object 生成で確認済み。list / guarded pattern はまだ unsupported。
   - value-lane Cranelift は list pattern の長さテストと irrefutable な
     prefix/spread/suffix bind も扱う。`[head, ..middle, tail]` と
-    `[..init, z]` は JIT / object 生成 / executable で確認済み。nested
-    refutable list pattern と guarded pattern はまだ unsupported。
+    `[..init, z]` は JIT / object 生成 / executable で確認済み。guarded
+    pattern はまだ unsupported。
+  - value-lane Cranelift は pattern 全体の Bool 条件を `BoolAnd` で合成し、
+    refutable list item test も扱う。`[0, x]` fallback 後の `[1, x]` は
+    JIT / object 生成で確認済み。record-spread pattern と guarded pattern は
+    まだ unsupported。
   - `yulang-sources` に realm / band の薄い identity 型を追加した。既存の
     `SourceSet` は「今回コンパイルに集めた source aggregate」のまま残し、
     realm / band を source identity layer として上に置く。

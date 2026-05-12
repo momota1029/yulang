@@ -123,10 +123,10 @@ or out of here into the user-facing table once they stabilize.
       work in value-backend pattern matching.
 - [x] Literal pattern tests work in value-backend pattern matching through
       boxed runtime value equality.
-- [x] List pattern length tests and irrefutable prefix/spread/suffix bindings
-      work in the value backend.
-- [ ] Nested refutable list patterns, record-spread patterns, and guarded
-      pattern matching are not supported in the value backend.
+- [x] List pattern length tests, prefix/spread/suffix bindings, and refutable
+      list item tests work in the value backend.
+- [ ] Record-spread patterns and guarded pattern matching are not supported in
+      the value backend.
 - [ ] General multi-block control flow outside the current branch/jump subset
       is not supported in the value backend.
 - [ ] Closure allocation, closure environments, and indirect closure calls are

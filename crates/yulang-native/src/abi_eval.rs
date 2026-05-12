@@ -310,6 +310,18 @@ fn eval_blocks(
                         plain(runtime::VmValue::Bool(left == right)),
                     );
                 }
+                NativeAbiStmt::BoolAnd { dest, left, right } => {
+                    let left = read_plain_value(&values, *left)?;
+                    let right = read_plain_value(&values, *right)?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        plain(runtime::VmValue::Bool(
+                            matches!(left, runtime::VmValue::Bool(true))
+                                && matches!(right, runtime::VmValue::Bool(true)),
+                        )),
+                    );
+                }
                 NativeAbiStmt::LoadEnv { dest, slot } => {
                     let value = env.get(*slot).cloned().ok_or_else(|| {
                         NativeAbiEvalError::MissingEnvSlot {

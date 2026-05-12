@@ -240,6 +240,9 @@ fn classify_stmt(
         NativeAbiStmt::ValueEq { dest, .. } => {
             values.insert(*dest, NativeAbiRepr::Bool);
         }
+        NativeAbiStmt::BoolAnd { dest, .. } => {
+            values.insert(*dest, NativeAbiRepr::Bool);
+        }
         NativeAbiStmt::LoadEnv { dest, .. } => {
             values.insert(*dest, NativeAbiRepr::Unknown);
         }

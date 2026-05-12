@@ -107,6 +107,12 @@ fn format_stmt(stmt: &NativeAbiStmt) -> String {
             format_value(*left),
             format_value(*right)
         ),
+        NativeAbiStmt::BoolAnd { dest, left, right } => format!(
+            "{} = bool_and {} {}",
+            format_value(*dest),
+            format_value(*left),
+            format_value(*right)
+        ),
         NativeAbiStmt::LoadEnv { dest, slot } => {
             format!("{} = load_env[{slot}]", format_value(*dest))
         }

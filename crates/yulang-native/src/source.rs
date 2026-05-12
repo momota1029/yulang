@@ -1683,6 +1683,11 @@ case [4, 5, 6]:
 
 case [7]:
     [a, b] -> a
+    _ -> 0
+
+case [1, 2]:
+    [0, x] -> 9
+    [1, x] -> x
     _ -> 0"#,
             )
             .expect("native value jit eval")
@@ -1694,7 +1699,7 @@ case [7]:
             .collect::<Vec<_>>()
         });
 
-        assert_eq!(values, vec!["7", "8", "0"]);
+        assert_eq!(values, vec!["7", "8", "0", "2"]);
     }
 
     #[test]
@@ -1957,6 +1962,11 @@ case [4, 5, 6]:
 
 case [7]:
     [a, b] -> a
+    _ -> 0
+
+case [1, 2]:
+    [0, x] -> 9
+    [1, x] -> x
     _ -> 0"#,
             )
             .expect("native value object")
@@ -1968,7 +1978,8 @@ case [7]:
             &[
                 "root_0".to_string(),
                 "root_1".to_string(),
-                "root_2".to_string()
+                "root_2".to_string(),
+                "root_3".to_string()
             ]
         );
     }
