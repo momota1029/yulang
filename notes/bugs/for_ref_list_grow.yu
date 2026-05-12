@@ -4,15 +4,7 @@
 -- 実際: error: expected type type mismatch:
 --             expected [std::flow::loop; ..never], got [&evens#762; ..never]
 --
--- 同じ `for` の中で int を更新する分には問題ない:
---
---   {
---       my $sum = 0
---       for x in [1, 2, 3]:
---           &sum = $sum + x   -- OK
---       $sum
---   }
---   → 6
+-- 同じ `for` の中で int を更新する分には問題ない (`&sum = $sum + x` 形)。
 --
 -- list を伸ばすパターンは `+ [x]` でも `.append [x]` でも落ちる。
 -- 同じ block 内なので `&evens` ref handler は外側にいるはずだが、

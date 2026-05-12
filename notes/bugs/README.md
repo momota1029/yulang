@@ -18,6 +18,9 @@ cargo run -q -p yulang -- --infer notes/bugs/<file>.yu
 
 カテゴリ別 index は [`index.md`](index.md) を参照する。
 
+2026-05-13 時点では、`index.md` の項目は未解決 bug 一覧ではなく、
+修正済み挙動や期待 diagnostic の回帰確認メモとして残している。
+
 ## 解決方針
 
 - snippet が動くようになったら、まず `examples/` か `notes/diagnostics/` か
