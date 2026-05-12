@@ -494,6 +494,27 @@ fn stmt_doc_comment_line_with_newline() {
 }
 
 #[test]
+fn stmt_doc_comment_line_bare_close_brace_then_expr() {
+    let got = parse_stmt_all("-- example: }\n1");
+    let expected = vec![
+        "(DocCommentDecl",
+        "  DocComment \"--\"",
+        "  (YmDoc",
+        "    (YmParagraph",
+        "      YmText \" example:\"",
+        "      Space \" \"",
+        "      YmText \"}\"",
+        "    )",
+        "  )",
+        ")",
+        "(Expr",
+        "  Number \"1\"",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_doc_comment_block_then_binding() {
     let got = parse_stmt_all("---\n# Title\n---\nmy x = 1");
     let expected = vec![
@@ -2183,4 +2204,23 @@ fn stmt_binding_rhs_keeps_indented_pipeline_continuation() {
         .count();
     assert_eq!(pipe_nodes, 1);
     assert_eq!(invalid_tokens, 0);
+}
+
+#[test]
+fn stmt_indented_compact_negative_number_keeps_prefix() {
+    let got = parse_stmt_all("1\n    -2\n");
+    let expected = vec![
+        "(Expr",
+        "  Number \"1\"",
+        ")",
+        "(Expr",
+        "  (PrefixNode",
+        "    Prefix \"-\"",
+        "    (Expr",
+        "      Number \"2\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
 }

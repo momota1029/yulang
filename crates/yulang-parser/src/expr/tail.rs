@@ -1,4 +1,5 @@
-use chasa::prelude::from_fn;
+use chasa::parser::SkipParserOnce as _;
+use chasa::prelude::{from_fn, one_of};
 use either::Either;
 use reborrow_generic::Reborrow as _;
 
@@ -50,12 +51,29 @@ fn next_is_tail_continuation<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     mut i: In<I, S>,
 ) -> bool {
+    if compact_prefix_number_start(i.rb()) {
+        return false;
+    }
     i.lookahead(from_fn(|i| {
         let led = scan_expr_led(leading_info, i)?;
         match led.tag {
+            ExprLedTag::Infix(_, _)
+                if matches!(led.lex.trailing_trivia_info(), TriviaInfo::None) =>
+            {
+                None
+            }
             ExprLedTag::Stop | ExprLedTag::MlNud(_) => None,
             _ => Some(()),
         }
+    }))
+    .is_some()
+}
+
+fn compact_prefix_number_start<I: EventInput, S: EventSink>(mut i: In<I, S>) -> bool {
+    i.lookahead(from_fn(|mut i: In<I, S>| {
+        i.skip(one_of("+-"))?;
+        i.skip(one_of(|c: char| c.is_ascii_digit()))?;
+        Some(())
     }))
     .is_some()
 }

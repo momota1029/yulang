@@ -41,6 +41,12 @@ fn emit_nud_lex<I: EventInput, S: EventSink>(i: &mut In<I, S>, mark: &Mark) {
     }
 }
 
+fn emit_nud_lex_as_text<I: EventInput, S: EventSink>(i: &mut In<I, S>, mark: &Mark) {
+    if let Some(lex) = &mark.nud.lex {
+        i.env.state.sink.push(SyntaxKind::YmText, &lex.text);
+    }
+}
+
 fn emit_mark<I: EventInput, S: EventSink>(i: &mut In<I, S>, mark: &Mark) {
     emit_text_trivia(i, mark);
     emit_nud_lex(i, mark);
@@ -168,7 +174,9 @@ fn parse_inline_impl<I: EventInput, S: EventSink>(
                     emit_text_trivia(&mut i, &mark);
                     i.env.state.sink.start(SyntaxKind::YmInlineExpr);
                     emit_nud_lex(&mut i, &mark); // BracketL "["
+                    i.env.stop.insert(SyntaxKind::BracketR);
                     let inner = parse_inline(i.rb())?;
+                    i.env.stop.remove(&SyntaxKind::BracketR);
                     if matches!(
                         inner.nud.tag,
                         MarkNudTag::Inline(InlineNudTag::CloseBracket)
@@ -184,9 +192,18 @@ fn parse_inline_impl<I: EventInput, S: EventSink>(
                     }
                 }
                 InlineNudTag::CloseBracket | InlineNudTag::CloseBrace => {
-                    // 対応する open の呼び出し元に返す
+                    let close_kind = match inline_tag {
+                        InlineNudTag::CloseBracket => SyntaxKind::BracketR,
+                        InlineNudTag::CloseBrace => SyntaxKind::BraceR,
+                        _ => unreachable!(),
+                    };
+                    if i.env.stop.contains(&close_kind) {
+                        // 対応する open の呼び出し元に返す
+                        emit_text_trivia(&mut i, &mark);
+                        return Some(mark);
+                    }
                     emit_text_trivia(&mut i, &mark);
-                    return Some(mark);
+                    emit_nud_lex_as_text(&mut i, &mark);
                 }
                 InlineNudTag::SectionClose => {
                     emit_text_trivia(&mut i, &mark);
@@ -202,7 +219,9 @@ fn parse_inline_impl<I: EventInput, S: EventSink>(
                         i.env.state.sink.start(SyntaxKind::YmInlineExpr);
                         emit_nud_lex(&mut i, &mark); // YmBang "!"
                         i.env.state.sink.push(SyntaxKind::YmLBracket, "[");
+                        i.env.stop.insert(SyntaxKind::BracketR);
                         let inner = parse_inline(i.rb())?;
+                        i.env.stop.remove(&SyntaxKind::BracketR);
                         if matches!(
                             inner.nud.tag,
                             MarkNudTag::Inline(InlineNudTag::CloseBracket)
