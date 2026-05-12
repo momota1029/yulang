@@ -158,6 +158,11 @@ runtime/core IR
     正規化して `VmValue::List` を返す。
     `std::list::index_range [1, 2, 3, 4] (std::range::range 1 3)` は
     JIT / object 生成 / `--native-run-value-exe` で確認済み。
+  - value-lane Cranelift は `ListSplice` / `ListSpliceRaw` /
+    `StringIndexRange` / `StringIndexRangeRaw` / `StringSplice` /
+    `StringSpliceRaw` も Rust helper 経由で `VmValue` を返す。
+    list splice と string range/splice は JIT / object 生成 /
+    `--native-run-value-exe` で確認済み。
   - value-lane Cranelift は tuple / record / variant も opaque `VmValue`
     pointer として作れるようにした。native IR / ABI IR には構造値 stmt を追加し、
     codegen では `tuple_empty` / `tuple_push`、`record_empty` / `record_insert`、
@@ -350,7 +355,10 @@ runtime/core IR
      source から動かす回帰を足した。
    - value-lane object/executable 側で list range index と raw list range index を
      source から動かす回帰を足した。
-   - 次に必要なもの: string range index / splice 系を helper 化するか、thunk /
+   - value-lane object/executable 側で list splice / raw list splice と
+     string range index / raw string range index / string splice /
+     raw string splice を source から動かす回帰を足した。
+   - 次に必要なもの: string/list view 系を value-lane helper 化するか、thunk /
      closure value 境界へ戻るか決める。
 5. thunk / closure value を backend 境界で実体化する。
    汎用 thunk invocation と closure environment を扱えるようにする。

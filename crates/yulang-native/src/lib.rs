@@ -110,11 +110,13 @@ pub use native_runtime::{
     yulang_native_concat_string, yulang_native_context_free, yulang_native_context_new,
     yulang_native_list_empty, yulang_native_list_index, yulang_native_list_index_range,
     yulang_native_list_index_range_raw, yulang_native_list_len, yulang_native_list_merge,
-    yulang_native_list_singleton, yulang_native_make_bool, yulang_native_make_float,
-    yulang_native_make_int, yulang_native_make_string, yulang_native_make_unit,
-    yulang_native_print_value, yulang_native_record_empty, yulang_native_record_insert,
-    yulang_native_record_select, yulang_native_tuple_empty, yulang_native_tuple_push,
-    yulang_native_variant,
+    yulang_native_list_singleton, yulang_native_list_splice, yulang_native_list_splice_raw,
+    yulang_native_make_bool, yulang_native_make_float, yulang_native_make_int,
+    yulang_native_make_string, yulang_native_make_unit, yulang_native_print_value,
+    yulang_native_record_empty, yulang_native_record_insert, yulang_native_record_select,
+    yulang_native_string_index_range, yulang_native_string_index_range_raw,
+    yulang_native_string_splice, yulang_native_string_splice_raw, yulang_native_tuple_empty,
+    yulang_native_tuple_push, yulang_native_variant,
 };
 pub use source::{
     NativeSourceError, NativeSourceResult, analyze_source_abi_reprs,

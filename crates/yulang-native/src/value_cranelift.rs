@@ -25,11 +25,13 @@ use crate::native_runtime::{
     NativeRuntimeContext, yulang_native_concat_string, yulang_native_list_empty,
     yulang_native_list_index, yulang_native_list_index_range, yulang_native_list_index_range_raw,
     yulang_native_list_len, yulang_native_list_merge, yulang_native_list_singleton,
-    yulang_native_make_bool, yulang_native_make_float, yulang_native_make_int,
-    yulang_native_make_string, yulang_native_make_unit, yulang_native_primitive_binary,
-    yulang_native_primitive_unary, yulang_native_record_empty, yulang_native_record_insert,
-    yulang_native_record_select, yulang_native_tuple_empty, yulang_native_tuple_push,
-    yulang_native_variant,
+    yulang_native_list_splice, yulang_native_list_splice_raw, yulang_native_make_bool,
+    yulang_native_make_float, yulang_native_make_int, yulang_native_make_string,
+    yulang_native_make_unit, yulang_native_primitive_binary, yulang_native_primitive_unary,
+    yulang_native_record_empty, yulang_native_record_insert, yulang_native_record_select,
+    yulang_native_string_index_range, yulang_native_string_index_range_raw,
+    yulang_native_string_splice, yulang_native_string_splice_raw, yulang_native_tuple_empty,
+    yulang_native_tuple_push, yulang_native_variant,
 };
 
 pub type NativeValueCraneliftResult<T> = Result<T, NativeValueCraneliftError>;
@@ -229,8 +231,32 @@ pub fn compile_value_abi_module(
         yulang_native_list_index_range as *const u8,
     );
     builder.symbol(
+        "yulang_native_list_splice",
+        yulang_native_list_splice as *const u8,
+    );
+    builder.symbol(
         "yulang_native_list_index_range_raw",
         yulang_native_list_index_range_raw as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_list_splice_raw",
+        yulang_native_list_splice_raw as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_string_index_range",
+        yulang_native_string_index_range as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_string_splice",
+        yulang_native_string_splice as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_string_index_range_raw",
+        yulang_native_string_index_range_raw as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_string_splice_raw",
+        yulang_native_string_splice_raw as *const u8,
     );
     builder.symbol(
         "yulang_native_tuple_empty",
@@ -346,7 +372,13 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                             | yulang_typed_ir::PrimitiveOp::ListLen
                             | yulang_typed_ir::PrimitiveOp::ListIndex
                             | yulang_typed_ir::PrimitiveOp::ListIndexRange
-                            | yulang_typed_ir::PrimitiveOp::ListIndexRangeRaw,
+                            | yulang_typed_ir::PrimitiveOp::ListSplice
+                            | yulang_typed_ir::PrimitiveOp::ListIndexRangeRaw
+                            | yulang_typed_ir::PrimitiveOp::ListSpliceRaw
+                            | yulang_typed_ir::PrimitiveOp::StringIndexRange
+                            | yulang_typed_ir::PrimitiveOp::StringSplice
+                            | yulang_typed_ir::PrimitiveOp::StringIndexRangeRaw
+                            | yulang_typed_ir::PrimitiveOp::StringSpliceRaw,
                         ..
                     } => {}
                     NativeAbiStmt::Primitive { op, .. }
@@ -460,7 +492,13 @@ struct ValueHelpers {
     list_len: FuncId,
     list_index: FuncId,
     list_index_range: FuncId,
+    list_splice: FuncId,
     list_index_range_raw: FuncId,
+    list_splice_raw: FuncId,
+    string_index_range: FuncId,
+    string_splice: FuncId,
+    string_index_range_raw: FuncId,
+    string_splice_raw: FuncId,
     tuple_empty: FuncId,
     tuple_push: FuncId,
     record_empty: FuncId,
@@ -485,7 +523,13 @@ fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
         list_len: declare_list_len(module_backend)?,
         list_index: declare_list_index(module_backend)?,
         list_index_range: declare_list_index_range(module_backend)?,
+        list_splice: declare_list_splice(module_backend)?,
         list_index_range_raw: declare_list_index_range_raw(module_backend)?,
+        list_splice_raw: declare_list_splice_raw(module_backend)?,
+        string_index_range: declare_string_index_range(module_backend)?,
+        string_splice: declare_string_splice(module_backend)?,
+        string_index_range_raw: declare_string_index_range_raw(module_backend)?,
+        string_splice_raw: declare_string_splice_raw(module_backend)?,
         tuple_empty: declare_tuple_empty(module_backend)?,
         tuple_push: declare_tuple_push(module_backend)?,
         record_empty: declare_record_empty(module_backend)?,
@@ -611,6 +655,18 @@ fn declare_list_index_range<M: Module>(
         .map_err(cranelift_error)
 }
 
+fn declare_list_splice<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_list_splice", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
 fn declare_list_index_range_raw<M: Module>(
     module_backend: &mut M,
 ) -> NativeValueCraneliftResult<FuncId> {
@@ -622,6 +678,79 @@ fn declare_list_index_range_raw<M: Module>(
     sig.returns.push(AbiParam::new(types::I64));
     module_backend
         .declare_function("yulang_native_list_index_range_raw", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_list_splice_raw<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_list_splice_raw", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_string_index_range<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_string_index_range", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_string_splice<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_string_splice", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_string_index_range_raw<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function(
+            "yulang_native_string_index_range_raw",
+            Linkage::Import,
+            &sig,
+        )
+        .map_err(cranelift_error)
+}
+
+fn declare_string_splice_raw<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_string_splice_raw", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
@@ -1060,6 +1189,20 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             builder.def_var(variable(*dest), results[0]);
             Ok(*dest)
         }
+        NativeAbiStmt::Primitive { dest, op, args }
+            if value_runtime_helper(*op, helpers).is_some() =>
+        {
+            let (helper, helper_name) = value_runtime_helper(*op, helpers).expect("checked");
+            let args = read_values(builder, function, defined, args)?;
+            let mut call_args = Vec::with_capacity(args.len() + 1);
+            call_args.push(context);
+            call_args.extend(args);
+            let callee = module_backend.declare_func_in_func(helper, builder.func);
+            let call = builder.ins().call(callee, &call_args);
+            let result = single_call_result(builder, call, helper_name)?;
+            builder.def_var(variable(*dest), result);
+            Ok(*dest)
+        }
         NativeAbiStmt::Primitive { dest, op, args } if primitive_unary_code(*op).is_some() => {
             let [arg] = args.as_slice() else {
                 return Err(NativeValueCraneliftError::UnsupportedStmt {
@@ -1275,6 +1418,35 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
 
 fn variable(value: ValueId) -> Variable {
     Variable::from_u32(value.0 as u32)
+}
+
+fn value_runtime_helper(
+    op: yulang_typed_ir::PrimitiveOp,
+    helpers: &ValueHelpers,
+) -> Option<(FuncId, &'static str)> {
+    match op {
+        yulang_typed_ir::PrimitiveOp::ListSplice => {
+            Some((helpers.list_splice, "yulang_native_list_splice"))
+        }
+        yulang_typed_ir::PrimitiveOp::ListSpliceRaw => {
+            Some((helpers.list_splice_raw, "yulang_native_list_splice_raw"))
+        }
+        yulang_typed_ir::PrimitiveOp::StringIndexRange => Some((
+            helpers.string_index_range,
+            "yulang_native_string_index_range",
+        )),
+        yulang_typed_ir::PrimitiveOp::StringSplice => {
+            Some((helpers.string_splice, "yulang_native_string_splice"))
+        }
+        yulang_typed_ir::PrimitiveOp::StringIndexRangeRaw => Some((
+            helpers.string_index_range_raw,
+            "yulang_native_string_index_range_raw",
+        )),
+        yulang_typed_ir::PrimitiveOp::StringSpliceRaw => {
+            Some((helpers.string_splice_raw, "yulang_native_string_splice_raw"))
+        }
+        _ => None,
+    }
 }
 
 fn primitive_unary_code(op: yulang_typed_ir::PrimitiveOp) -> Option<i64> {

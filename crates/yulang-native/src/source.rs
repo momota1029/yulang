@@ -1582,6 +1582,49 @@ my total = top + 3
     }
 
     #[test]
+    fn evals_list_splice_source_through_cranelift_value_lane() {
+        let values = run_with_large_stack(|| {
+            int_lists(
+                eval_source_value_lane(
+                    r#"std::list::splice [1, 2, 3, 4] (std::range::range 1 3) [9, 8]
+std::list::splice_raw [1, 2, 3, 4] 1 3 [9, 8]"#,
+                )
+                .expect("native value jit eval"),
+            )
+        });
+
+        assert_eq!(
+            values,
+            vec![
+                ["1", "9", "8", "4"].map(str::to_string).to_vec(),
+                ["1", "9", "8", "4"].map(str::to_string).to_vec()
+            ]
+        );
+    }
+
+    #[test]
+    fn evals_string_range_and_splice_source_through_cranelift_value_lane() {
+        let values = run_with_large_stack(|| {
+            strings(
+                eval_source_value_lane(
+                    r#"std::str::index_range "aあ🙂z" (std::range::range 1 3)
+std::str::index_range_raw "aあ🙂z" 1 3
+std::str::splice "aあ🙂z" (std::range::range 1 3) "bc"
+std::str::splice_raw "aあ🙂z" 1 3 "bc""#,
+                )
+                .expect("native value jit eval"),
+            )
+        });
+
+        assert_eq!(
+            values,
+            ["あ🙂", "あ🙂", "abcz", "abcz"]
+                .map(str::to_string)
+                .to_vec()
+        );
+    }
+
+    #[test]
     fn evals_structural_sources_through_cranelift_value_lane() {
         let values = eval_source_value_lane_with_options(
             "(1, 2)\n{x: 1, y: 2}\n{x: 1, y: 2}.x\nmy get_y p = p.y\nget_y {x: 3, y: 4}\n:label \"send\"",
@@ -1684,6 +1727,64 @@ my total = top + 3
 
         assert!(!object.bytes().is_empty());
         assert_eq!(object.roots(), &["root_0".to_string()]);
+    }
+
+    #[test]
+    fn emits_range_and_splice_source_value_object() {
+        let object = run_with_large_stack(|| {
+            compile_source_value_object(
+                r#"std::list::splice [1, 2, 3, 4] (std::range::range 1 3) [9, 8]
+std::list::splice_raw [1, 2, 3, 4] 1 3 [9, 8]
+std::str::index_range "aあ🙂z" (std::range::range 1 3)
+std::str::index_range_raw "aあ🙂z" 1 3
+std::str::splice "aあ🙂z" (std::range::range 1 3) "bc"
+std::str::splice_raw "aあ🙂z" 1 3 "bc""#,
+            )
+            .expect("native value object")
+        });
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(
+            object.roots(),
+            &[
+                "root_0".to_string(),
+                "root_1".to_string(),
+                "root_2".to_string(),
+                "root_3".to_string(),
+                "root_4".to_string(),
+                "root_5".to_string()
+            ]
+        );
+    }
+
+    fn int_lists(values: Vec<runtime::VmValue>) -> Vec<Vec<String>> {
+        values
+            .into_iter()
+            .map(|value| {
+                let runtime::VmValue::List(list) = value else {
+                    panic!("expected list value, got {value:?}");
+                };
+                list.to_vec()
+                    .into_iter()
+                    .map(|value| match value.as_ref() {
+                        runtime::VmValue::Int(value) => value.clone(),
+                        value => panic!("expected int list item, got {value:?}"),
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
+    fn strings(values: Vec<runtime::VmValue>) -> Vec<String> {
+        values
+            .into_iter()
+            .map(|value| {
+                let runtime::VmValue::String(value) = value else {
+                    panic!("expected string value, got {value:?}");
+                };
+                value.to_flat_string()
+            })
+            .collect()
     }
 
     #[test]

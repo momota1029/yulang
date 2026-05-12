@@ -282,6 +282,26 @@ pub fn list_index_range(
     Some(context.alloc(runtime::VmValue::List(value)))
 }
 
+pub fn list_splice(
+    context: &mut NativeRuntimeContext,
+    list: *mut runtime::VmValue,
+    range: *mut runtime::VmValue,
+    insert: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let list = unsafe { list.as_ref()? };
+    let range = unsafe { range.as_ref()? };
+    let insert = unsafe { insert.as_ref()? };
+    let runtime::VmValue::List(list) = list else {
+        return None;
+    };
+    let runtime::VmValue::List(insert) = insert else {
+        return None;
+    };
+    let (start, end) = normalized_int_range_value(range, list.len())?;
+    let value = list.splice(start, end, insert.clone())?;
+    Some(context.alloc(runtime::VmValue::List(value)))
+}
+
 pub fn list_index_range_raw(
     context: &mut NativeRuntimeContext,
     list: *mut runtime::VmValue,
@@ -304,6 +324,111 @@ pub fn list_index_range_raw(
     let end = end.parse::<usize>().ok()?;
     let value = list.index_range(start, end)?;
     Some(context.alloc(runtime::VmValue::List(value)))
+}
+
+pub fn list_splice_raw(
+    context: &mut NativeRuntimeContext,
+    list: *mut runtime::VmValue,
+    start: *mut runtime::VmValue,
+    end: *mut runtime::VmValue,
+    insert: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let list = unsafe { list.as_ref()? };
+    let start = unsafe { start.as_ref()? };
+    let end = unsafe { end.as_ref()? };
+    let insert = unsafe { insert.as_ref()? };
+    let runtime::VmValue::List(list) = list else {
+        return None;
+    };
+    let runtime::VmValue::Int(start) = start else {
+        return None;
+    };
+    let runtime::VmValue::Int(end) = end else {
+        return None;
+    };
+    let runtime::VmValue::List(insert) = insert else {
+        return None;
+    };
+    let start = start.parse::<usize>().ok()?;
+    let end = end.parse::<usize>().ok()?;
+    let value = list.splice(start, end, insert.clone())?;
+    Some(context.alloc(runtime::VmValue::List(value)))
+}
+
+pub fn string_index_range(
+    context: &mut NativeRuntimeContext,
+    text: *mut runtime::VmValue,
+    range: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let text = unsafe { text.as_ref()? };
+    let range = unsafe { range.as_ref()? };
+    let text = string_value(text)?;
+    let (start, end) = normalized_int_range_value(range, text.len())?;
+    let value = text.index_range(start, end)?;
+    Some(context.alloc(runtime::VmValue::String(value)))
+}
+
+pub fn string_splice(
+    context: &mut NativeRuntimeContext,
+    text: *mut runtime::VmValue,
+    range: *mut runtime::VmValue,
+    insert: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let text = unsafe { text.as_ref()? };
+    let range = unsafe { range.as_ref()? };
+    let insert = unsafe { insert.as_ref()? };
+    let text = string_value(text)?;
+    let insert = string_value(insert)?;
+    let (start, end) = normalized_int_range_value(range, text.len())?;
+    let value = text.splice(start, end, insert.clone())?;
+    Some(context.alloc(runtime::VmValue::String(value)))
+}
+
+pub fn string_index_range_raw(
+    context: &mut NativeRuntimeContext,
+    text: *mut runtime::VmValue,
+    start: *mut runtime::VmValue,
+    end: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let text = unsafe { text.as_ref()? };
+    let start = unsafe { start.as_ref()? };
+    let end = unsafe { end.as_ref()? };
+    let text = string_value(text)?;
+    let runtime::VmValue::Int(start) = start else {
+        return None;
+    };
+    let runtime::VmValue::Int(end) = end else {
+        return None;
+    };
+    let start = start.parse::<usize>().ok()?;
+    let end = end.parse::<usize>().ok()?;
+    let value = text.index_range(start, end)?;
+    Some(context.alloc(runtime::VmValue::String(value)))
+}
+
+pub fn string_splice_raw(
+    context: &mut NativeRuntimeContext,
+    text: *mut runtime::VmValue,
+    start: *mut runtime::VmValue,
+    end: *mut runtime::VmValue,
+    insert: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let text = unsafe { text.as_ref()? };
+    let start = unsafe { start.as_ref()? };
+    let end = unsafe { end.as_ref()? };
+    let insert = unsafe { insert.as_ref()? };
+    let text = string_value(text)?;
+    let runtime::VmValue::Int(start) = start else {
+        return None;
+    };
+    let runtime::VmValue::Int(end) = end else {
+        return None;
+    };
+    let insert = string_value(insert)?;
+    let start = start.parse::<usize>().ok()?;
+    let end = end.parse::<usize>().ok()?;
+    let value = text.splice(start, end, insert.clone())?;
+    Some(context.alloc(runtime::VmValue::String(value)))
 }
 
 pub fn tuple_empty(context: &mut NativeRuntimeContext) -> *mut runtime::VmValue {
@@ -576,6 +701,19 @@ pub extern "C" fn yulang_native_list_index_range(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_list_splice(
+    context: *mut NativeRuntimeContext,
+    list: *mut runtime::VmValue,
+    range: *mut runtime::VmValue,
+    insert: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    list_splice(context, list, range, insert).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn yulang_native_list_index_range_raw(
     context: *mut NativeRuntimeContext,
     list: *mut runtime::VmValue,
@@ -586,6 +724,72 @@ pub extern "C" fn yulang_native_list_index_range_raw(
         return std::ptr::null_mut();
     };
     list_index_range_raw(context, list, start, end).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_list_splice_raw(
+    context: *mut NativeRuntimeContext,
+    list: *mut runtime::VmValue,
+    start: *mut runtime::VmValue,
+    end: *mut runtime::VmValue,
+    insert: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    list_splice_raw(context, list, start, end, insert).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_string_index_range(
+    context: *mut NativeRuntimeContext,
+    text: *mut runtime::VmValue,
+    range: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    string_index_range(context, text, range).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_string_splice(
+    context: *mut NativeRuntimeContext,
+    text: *mut runtime::VmValue,
+    range: *mut runtime::VmValue,
+    insert: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    string_splice(context, text, range, insert).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_string_index_range_raw(
+    context: *mut NativeRuntimeContext,
+    text: *mut runtime::VmValue,
+    start: *mut runtime::VmValue,
+    end: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    string_index_range_raw(context, text, start, end).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_string_splice_raw(
+    context: *mut NativeRuntimeContext,
+    text: *mut runtime::VmValue,
+    start: *mut runtime::VmValue,
+    end: *mut runtime::VmValue,
+    insert: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    string_splice_raw(context, text, start, end, insert).unwrap_or(std::ptr::null_mut())
 }
 
 #[unsafe(no_mangle)]
@@ -913,6 +1117,49 @@ mod tests {
     }
 
     #[test]
+    fn api_splices_list_range() {
+        let mut context = NativeRuntimeContext::new();
+        let list = int_list(&mut context, ["1", "2", "3", "4"]);
+        let insert = int_list(&mut context, ["9", "8"]);
+        let range = context.alloc(range_value(1, 3));
+
+        let value = list_splice(&mut context, list, range, insert).expect("splice");
+
+        let Some(runtime::VmValue::List(value)) = context.clone_value(value) else {
+            panic!("expected list");
+        };
+        let items = value
+            .to_vec()
+            .into_iter()
+            .map(|value| match value.as_ref() {
+                runtime::VmValue::Int(value) => value.clone(),
+                other => panic!("expected int item, got {other:?}"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(items, ["1", "9", "8", "4"]);
+    }
+
+    #[test]
+    fn api_indexes_and_splices_string_range() {
+        let mut context = NativeRuntimeContext::new();
+        let text = make_string(&mut context, "aあ🙂z".as_bytes()).expect("text");
+        let insert = make_string(&mut context, b"bc").expect("insert");
+        let range = context.alloc(range_value(1, 3));
+
+        let indexed = string_index_range(&mut context, text, range).expect("index range");
+        let spliced = string_splice(&mut context, text, range, insert).expect("splice");
+
+        assert!(matches!(
+            context.clone_value(indexed),
+            Some(runtime::VmValue::String(value)) if value.to_flat_string() == "あ🙂"
+        ));
+        assert!(matches!(
+            context.clone_value(spliced),
+            Some(runtime::VmValue::String(value)) if value.to_flat_string() == "abcz"
+        ));
+    }
+
+    #[test]
     fn api_runs_basic_primitives() {
         let mut context = NativeRuntimeContext::new();
         let one = make_int(&mut context, b"1").expect("one");
@@ -950,5 +1197,18 @@ mod tests {
                 },
             ]))),
         }
+    }
+
+    fn int_list<const N: usize>(
+        context: &mut NativeRuntimeContext,
+        values: [&'static str; N],
+    ) -> *mut runtime::VmValue {
+        let mut result = list_empty(context);
+        for value in values {
+            let value = make_int(context, value.as_bytes()).expect("int");
+            let item = list_singleton(context, value).expect("singleton");
+            result = list_merge(context, result, item).expect("merge");
+        }
+        result
     }
 }
