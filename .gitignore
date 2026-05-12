@@ -1,6 +1,13 @@
 # Rust / Cargo
 /target/
+/yulang-zed/target/
 **/*.rs.bk
+
+# Zed extension build output
+/yulang-zed/extension.wasm
+
+# Credentials
+.gcp-saved-tokens.json
 
 # Playground build output
 /web/playground/dist/
