@@ -2228,6 +2228,7 @@ dependencies = [
  "tower-lsp",
  "yulang-editor",
  "yulang-infer",
+ "yulang-parser",
  "yulang-sources",
 ]
 
