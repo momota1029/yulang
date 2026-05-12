@@ -174,22 +174,25 @@ fn classify_stmt(
                 ),
             );
         }
-        NativeAbiStmt::Record { dest, fields } => {
-            values.insert(
-                *dest,
-                NativeAbiRepr::Record(
-                    fields
-                        .iter()
-                        .map(|field| NativeAbiRecordFieldRepr {
-                            name: field.name.clone(),
-                            value: values
-                                .get(&field.value)
-                                .cloned()
-                                .unwrap_or(NativeAbiRepr::Unknown),
-                        })
-                        .collect(),
-                ),
-            );
+        NativeAbiStmt::Record { dest, base, fields } => {
+            let mut repr_fields = base
+                .and_then(|base| values.get(&base).cloned())
+                .and_then(|repr| match repr {
+                    NativeAbiRepr::Record(fields) => Some(fields),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            for field in fields {
+                repr_fields.retain(|existing| existing.name != field.name);
+                repr_fields.push(NativeAbiRecordFieldRepr {
+                    name: field.name.clone(),
+                    value: values
+                        .get(&field.value)
+                        .cloned()
+                        .unwrap_or(NativeAbiRepr::Unknown),
+                });
+            }
+            values.insert(*dest, NativeAbiRepr::Record(repr_fields));
         }
         NativeAbiStmt::Variant { dest, tag, value } => {
             values.insert(
@@ -304,8 +307,24 @@ fn primitive_result_repr(
         PrimitiveOp::ListIndexRange
         | PrimitiveOp::ListSplice
         | PrimitiveOp::ListIndexRangeRaw
-        | PrimitiveOp::ListSpliceRaw
-        | PrimitiveOp::ListViewRaw => list_with_element_repr(arg_repr(args, values, 0)),
+        | PrimitiveOp::ListSpliceRaw => list_with_element_repr(arg_repr(args, values, 0)),
+        PrimitiveOp::ListViewRaw => NativeAbiRepr::Variant(vec![
+            NativeAbiVariantCaseRepr {
+                tag: typed_ir::Name("empty".to_string()),
+                value: None,
+            },
+            NativeAbiVariantCaseRepr {
+                tag: typed_ir::Name("leaf".to_string()),
+                value: Some(list_element_repr(arg_repr(args, values, 0))),
+            },
+            NativeAbiVariantCaseRepr {
+                tag: typed_ir::Name("node".to_string()),
+                value: Some(NativeAbiRepr::Tuple(vec![
+                    list_with_element_repr(arg_repr(args, values, 0)),
+                    list_with_element_repr(arg_repr(args, values, 0)),
+                ])),
+            },
+        ]),
         PrimitiveOp::StringIndex
         | PrimitiveOp::StringIndexRange
         | PrimitiveOp::StringSplice

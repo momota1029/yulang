@@ -25,13 +25,14 @@ use crate::native_runtime::{
     NativeRuntimeContext, yulang_native_concat_string, yulang_native_list_empty,
     yulang_native_list_index, yulang_native_list_index_range, yulang_native_list_index_range_raw,
     yulang_native_list_len, yulang_native_list_merge, yulang_native_list_singleton,
-    yulang_native_list_splice, yulang_native_list_splice_raw, yulang_native_make_bool,
-    yulang_native_make_float, yulang_native_make_int, yulang_native_make_string,
-    yulang_native_make_unit, yulang_native_primitive_binary, yulang_native_primitive_unary,
-    yulang_native_record_empty, yulang_native_record_insert, yulang_native_record_select,
-    yulang_native_string_index_range, yulang_native_string_index_range_raw,
-    yulang_native_string_splice, yulang_native_string_splice_raw, yulang_native_tuple_empty,
-    yulang_native_tuple_push, yulang_native_variant,
+    yulang_native_list_splice, yulang_native_list_splice_raw, yulang_native_list_view_raw,
+    yulang_native_make_bool, yulang_native_make_float, yulang_native_make_int,
+    yulang_native_make_string, yulang_native_make_unit, yulang_native_primitive_binary,
+    yulang_native_primitive_unary, yulang_native_record_empty, yulang_native_record_insert,
+    yulang_native_record_select, yulang_native_string_index_range,
+    yulang_native_string_index_range_raw, yulang_native_string_splice,
+    yulang_native_string_splice_raw, yulang_native_tuple_empty, yulang_native_tuple_push,
+    yulang_native_variant,
 };
 
 pub type NativeValueCraneliftResult<T> = Result<T, NativeValueCraneliftError>;
@@ -243,6 +244,10 @@ pub fn compile_value_abi_module(
         yulang_native_list_splice_raw as *const u8,
     );
     builder.symbol(
+        "yulang_native_list_view_raw",
+        yulang_native_list_view_raw as *const u8,
+    );
+    builder.symbol(
         "yulang_native_string_index_range",
         yulang_native_string_index_range as *const u8,
     );
@@ -375,6 +380,7 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                             | yulang_typed_ir::PrimitiveOp::ListSplice
                             | yulang_typed_ir::PrimitiveOp::ListIndexRangeRaw
                             | yulang_typed_ir::PrimitiveOp::ListSpliceRaw
+                            | yulang_typed_ir::PrimitiveOp::ListViewRaw
                             | yulang_typed_ir::PrimitiveOp::StringIndexRange
                             | yulang_typed_ir::PrimitiveOp::StringSplice
                             | yulang_typed_ir::PrimitiveOp::StringIndexRangeRaw
@@ -495,6 +501,7 @@ struct ValueHelpers {
     list_splice: FuncId,
     list_index_range_raw: FuncId,
     list_splice_raw: FuncId,
+    list_view_raw: FuncId,
     string_index_range: FuncId,
     string_splice: FuncId,
     string_index_range_raw: FuncId,
@@ -526,6 +533,7 @@ fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
         list_splice: declare_list_splice(module_backend)?,
         list_index_range_raw: declare_list_index_range_raw(module_backend)?,
         list_splice_raw: declare_list_splice_raw(module_backend)?,
+        list_view_raw: declare_list_view_raw(module_backend)?,
         string_index_range: declare_string_index_range(module_backend)?,
         string_splice: declare_string_splice(module_backend)?,
         string_index_range_raw: declare_string_index_range_raw(module_backend)?,
@@ -693,6 +701,16 @@ fn declare_list_splice_raw<M: Module>(
     sig.returns.push(AbiParam::new(types::I64));
     module_backend
         .declare_function("yulang_native_list_splice_raw", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_list_view_raw<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_list_view_raw", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
@@ -1059,12 +1077,13 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             op: yulang_typed_ir::PrimitiveOp::ListEmpty,
             args,
         } => {
-            if !args.is_empty() {
+            if args.len() > 1 {
                 return Err(NativeValueCraneliftError::UnsupportedStmt {
                     function: function.name.clone(),
                     kind: "list empty arity",
                 });
             }
+            read_values(builder, function, defined, args)?;
             let callee = module_backend.declare_func_in_func(helpers.list_empty, builder.func);
             let call = builder.ins().call(callee, &[context]);
             let results = builder.inst_results(call);
@@ -1277,10 +1296,21 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             builder.def_var(variable(*dest), tuple);
             Ok(*dest)
         }
-        NativeAbiStmt::Record { dest, fields } => {
-            let callee = module_backend.declare_func_in_func(helpers.record_empty, builder.func);
-            let call = builder.ins().call(callee, &[context]);
-            let mut record = single_call_result(builder, call, "yulang_native_record_empty")?;
+        NativeAbiStmt::Record { dest, base, fields } => {
+            let mut record = if let Some(base) = base {
+                if !defined.contains_key(base) {
+                    return Err(NativeValueCraneliftError::MissingValue {
+                        function: function.name.clone(),
+                        value: *base,
+                    });
+                }
+                builder.use_var(variable(*base))
+            } else {
+                let callee =
+                    module_backend.declare_func_in_func(helpers.record_empty, builder.func);
+                let call = builder.ins().call(callee, &[context]);
+                single_call_result(builder, call, "yulang_native_record_empty")?
+            };
             for field in fields {
                 if !defined.contains_key(&field.value) {
                     return Err(NativeValueCraneliftError::MissingValue {
@@ -1430,6 +1460,9 @@ fn value_runtime_helper(
         }
         yulang_typed_ir::PrimitiveOp::ListSpliceRaw => {
             Some((helpers.list_splice_raw, "yulang_native_list_splice_raw"))
+        }
+        yulang_typed_ir::PrimitiveOp::ListViewRaw => {
+            Some((helpers.list_view_raw, "yulang_native_list_view_raw"))
         }
         yulang_typed_ir::PrimitiveOp::StringIndexRange => Some((
             helpers.string_index_range,

@@ -47,6 +47,9 @@ pub enum NativeAbiEvalError {
     ExpectedClosure {
         id: ValueId,
     },
+    ExpectedRecord {
+        value: runtime::VmValue,
+    },
     NativeEval(NativeEvalError),
 }
 
@@ -97,6 +100,9 @@ impl fmt::Display for NativeAbiEvalError {
             }
             NativeAbiEvalError::ExpectedClosure { id } => {
                 write!(f, "native ABI expected closure value {id:?}")
+            }
+            NativeAbiEvalError::ExpectedRecord { value } => {
+                write!(f, "native ABI expected record, got {value:?}")
             }
             NativeAbiEvalError::NativeEval(error) => write!(f, "{error}"),
         }
@@ -212,8 +218,14 @@ fn eval_blocks(
                         .collect::<NativeAbiEvalResult<Vec<_>>>()?;
                     write_value(&mut values, *dest, plain(runtime::VmValue::Tuple(items)));
                 }
-                NativeAbiStmt::Record { dest, fields } => {
-                    let mut record = BTreeMap::new();
+                NativeAbiStmt::Record { dest, base, fields } => {
+                    let mut record = match base {
+                        Some(base) => match read_plain_value(&values, *base)? {
+                            runtime::VmValue::Record(fields) => fields,
+                            value => return Err(NativeAbiEvalError::ExpectedRecord { value }),
+                        },
+                        None => BTreeMap::new(),
+                    };
                     for field in fields {
                         record.insert(field.name.clone(), read_plain_value(&values, field.value)?);
                     }

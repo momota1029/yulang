@@ -10,6 +10,7 @@ use std::io::Write;
 use std::rc::Rc;
 
 use yulang_runtime as runtime;
+use yulang_runtime::runtime::list_tree::ListView;
 use yulang_typed_ir as typed_ir;
 
 pub const NATIVE_PRIMITIVE_BOOL_NOT: i64 = 1;
@@ -353,6 +354,34 @@ pub fn list_splice_raw(
     let end = end.parse::<usize>().ok()?;
     let value = list.splice(start, end, insert.clone())?;
     Some(context.alloc(runtime::VmValue::List(value)))
+}
+
+pub fn list_view_raw(
+    context: &mut NativeRuntimeContext,
+    list: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let list = unsafe { list.as_ref()? };
+    let runtime::VmValue::List(list) = list else {
+        return None;
+    };
+    let value = match list.view() {
+        ListView::Empty => runtime::VmValue::Variant {
+            tag: typed_ir_name("empty"),
+            value: None,
+        },
+        ListView::Leaf(single) => runtime::VmValue::Variant {
+            tag: typed_ir_name("leaf"),
+            value: Some(Box::new((*single).clone())),
+        },
+        ListView::Node { left, right, .. } => runtime::VmValue::Variant {
+            tag: typed_ir_name("node"),
+            value: Some(Box::new(runtime::VmValue::Tuple(vec![
+                runtime::VmValue::List(left),
+                runtime::VmValue::List(right),
+            ]))),
+        },
+    };
+    Some(context.alloc(value))
 }
 
 pub fn string_index_range(
@@ -738,6 +767,17 @@ pub extern "C" fn yulang_native_list_splice_raw(
         return std::ptr::null_mut();
     };
     list_splice_raw(context, list, start, end, insert).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_list_view_raw(
+    context: *mut NativeRuntimeContext,
+    list: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    list_view_raw(context, list).unwrap_or(std::ptr::null_mut())
 }
 
 #[unsafe(no_mangle)]
@@ -1137,6 +1177,33 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(items, ["1", "9", "8", "4"]);
+    }
+
+    #[test]
+    fn api_views_raw_list() {
+        let mut context = NativeRuntimeContext::new();
+        let empty = list_empty(&mut context);
+        let leaf = int_list(&mut context, ["1"]);
+        let node = int_list(&mut context, ["1", "2"]);
+
+        let empty = list_view_raw(&mut context, empty).expect("empty view");
+        let leaf = list_view_raw(&mut context, leaf).expect("leaf view");
+        let node = list_view_raw(&mut context, node).expect("node view");
+
+        assert!(matches!(
+            context.clone_value(empty),
+            Some(runtime::VmValue::Variant { tag, value: None }) if tag.0 == "empty"
+        ));
+        assert!(matches!(
+            context.clone_value(leaf),
+            Some(runtime::VmValue::Variant { tag, value: Some(value) })
+                if tag.0 == "leaf" && matches!(value.as_ref(), runtime::VmValue::Int(value) if value == "1")
+        ));
+        assert!(matches!(
+            context.clone_value(node),
+            Some(runtime::VmValue::Variant { tag, value: Some(value) })
+                if tag.0 == "node" && matches!(value.as_ref(), runtime::VmValue::Tuple(items) if items.len() == 2)
+        ));
     }
 
     #[test]

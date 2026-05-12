@@ -1603,6 +1603,22 @@ std::list::splice_raw [1, 2, 3, 4] 1 3 [9, 8]"#,
     }
 
     #[test]
+    fn evals_list_view_raw_source_through_cranelift_value_lane() {
+        let values = run_with_large_stack(|| {
+            list_view_descriptions(
+                eval_source_value_lane(
+                    r#"std::list::view_raw []
+std::list::view_raw [1]
+std::list::view_raw [1, 2]"#,
+                )
+                .expect("native value jit eval"),
+            )
+        });
+
+        assert_eq!(values, vec!["empty", "leaf:1", "node:1:1"]);
+    }
+
+    #[test]
     fn evals_string_range_and_splice_source_through_cranelift_value_lane() {
         let values = run_with_large_stack(|| {
             strings(
@@ -1627,7 +1643,7 @@ std::str::splice_raw "aあ🙂z" 1 3 "bc""#,
     #[test]
     fn evals_structural_sources_through_cranelift_value_lane() {
         let values = eval_source_value_lane_with_options(
-            "(1, 2)\n{x: 1, y: 2}\n{x: 1, y: 2}.x\nmy get_y p = p.y\nget_y {x: 3, y: 4}\n:label \"send\"",
+            "(1, 2)\n{x: 1, y: 2}\n{x: 1, y: 2}.x\nmy get_y p = p.y\nget_y {x: 3, y: 4}\n{ ..{x: 5}, y: 6 }.x\n{ x: 7, ..{y: 8} }.y\n:label \"send\"",
             infer::SourceOptions::default(),
         )
         .expect("native value jit eval");
@@ -1651,6 +1667,8 @@ std::str::splice_raw "aあ🙂z" 1 3 "bc""#,
                 ])),
                 runtime::VmValue::Int("1".to_string()),
                 runtime::VmValue::Int("4".to_string()),
+                runtime::VmValue::Int("5".to_string()),
+                runtime::VmValue::Int("8".to_string()),
                 runtime::VmValue::Variant {
                     tag: yulang_typed_ir::Name("label".to_string()),
                     value: Some(Box::new(runtime::VmValue::String(
@@ -1757,6 +1775,32 @@ std::str::splice_raw "aあ🙂z" 1 3 "bc""#,
         );
     }
 
+    #[test]
+    fn emits_list_view_raw_and_record_spread_source_value_object() {
+        let object = run_with_large_stack(|| {
+            compile_source_value_object(
+                r#"std::list::view_raw []
+std::list::view_raw [1]
+std::list::view_raw [1, 2]
+{ ..{x: 5}, y: 6 }.x
+{ x: 7, ..{y: 8} }.y"#,
+            )
+            .expect("native value object")
+        });
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(
+            object.roots(),
+            &[
+                "root_0".to_string(),
+                "root_1".to_string(),
+                "root_2".to_string(),
+                "root_3".to_string(),
+                "root_4".to_string()
+            ]
+        );
+    }
+
     fn int_lists(values: Vec<runtime::VmValue>) -> Vec<Vec<String>> {
         values
             .into_iter()
@@ -1771,6 +1815,40 @@ std::str::splice_raw "aあ🙂z" 1 3 "bc""#,
                         value => panic!("expected int list item, got {value:?}"),
                     })
                     .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
+    fn list_view_descriptions(values: Vec<runtime::VmValue>) -> Vec<String> {
+        values
+            .into_iter()
+            .map(|value| match value {
+                runtime::VmValue::Variant { tag, value } if tag.0 == "empty" => {
+                    assert!(value.is_none());
+                    "empty".to_string()
+                }
+                runtime::VmValue::Variant {
+                    tag,
+                    value: Some(value),
+                } if tag.0 == "leaf" => match value.as_ref() {
+                    runtime::VmValue::Int(value) => format!("leaf:{value}"),
+                    value => panic!("expected int leaf, got {value:?}"),
+                },
+                runtime::VmValue::Variant {
+                    tag,
+                    value: Some(value),
+                } if tag.0 == "node" => match value.as_ref() {
+                    runtime::VmValue::Tuple(items) => {
+                        let [runtime::VmValue::List(left), runtime::VmValue::List(right)] =
+                            items.as_slice()
+                        else {
+                            panic!("expected node tuple, got {items:?}");
+                        };
+                        format!("node:{}:{}", left.len(), right.len())
+                    }
+                    value => panic!("expected node tuple, got {value:?}"),
+                },
+                value => panic!("expected list view variant, got {value:?}"),
             })
             .collect()
     }

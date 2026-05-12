@@ -187,7 +187,10 @@ fn validate_stmt_uses(
             }
             Ok(())
         }
-        NativeAbiStmt::Record { fields, .. } => {
+        NativeAbiStmt::Record { base, fields, .. } => {
+            if let Some(base) = base {
+                require_value(function, block, values, *base)?;
+            }
             for field in fields {
                 require_value(function, block, values, field.value)?;
             }

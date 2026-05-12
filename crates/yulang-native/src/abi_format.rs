@@ -60,9 +60,11 @@ fn format_stmt(stmt: &NativeAbiStmt) -> String {
         NativeAbiStmt::Tuple { dest, items } => {
             format!("{} = tuple({})", format_value(*dest), format_values(items))
         }
-        NativeAbiStmt::Record { dest, fields } => format!(
-            "{} = record({})",
+        NativeAbiStmt::Record { dest, base, fields } => format!(
+            "{} = record{}({})",
             format_value(*dest),
+            base.map(|base| format!(" ..{}", format_value(base)))
+                .unwrap_or_default(),
             fields
                 .iter()
                 .map(|field| format!("{}: {}", field.name.0, format_value(field.value)))

@@ -166,9 +166,13 @@ runtime/core IR
   - value-lane Cranelift は tuple / record / variant も opaque `VmValue`
     pointer として作れるようにした。native IR / ABI IR には構造値 stmt を追加し、
     codegen では `tuple_empty` / `tuple_push`、`record_empty` / `record_insert`、
-    `variant` helper へ落とす。record spread はまだ unsupported。
+    `variant` helper へ落とす。
     `--native-value-exe` で `(1, 2)` / `{x: 1, y: 2}` / `:label "send"` の
     executable 出力を確認済み。
+  - value-lane Cranelift は `ListViewRaw` と record spread expression も
+    Rust helper / record base lowering 経由で扱う。`std::list::view_raw []` /
+    `[1]` / `[1, 2]` と `{ ..{x: 5}, y: 6 }.x` /
+    `{ x: 7, ..{y: 8} }.y` は JIT / object 生成で確認済み。
   - `yulang-sources` に realm / band の薄い identity 型を追加した。既存の
     `SourceSet` は「今回コンパイルに集めた source aggregate」のまま残し、
     realm / band を source identity layer として上に置く。

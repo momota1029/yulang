@@ -478,11 +478,14 @@ impl<'a> FunctionLowerer<'a> {
         fields: &[runtime::RecordExprField],
         spread: &Option<runtime::RecordSpreadExpr>,
     ) -> NativeLowerResult<ValueId> {
-        if spread.is_some() {
-            return Err(NativeLowerError::UnsupportedExpr {
-                kind: "record spread",
-            });
-        }
+        let base = spread
+            .as_ref()
+            .map(|spread| match spread {
+                runtime::RecordSpreadExpr::Head(expr) | runtime::RecordSpreadExpr::Tail(expr) => {
+                    self.lower_expr(expr)
+                }
+            })
+            .transpose()?;
         let fields = fields
             .iter()
             .map(|field| {
@@ -493,7 +496,9 @@ impl<'a> FunctionLowerer<'a> {
             })
             .collect::<NativeLowerResult<Vec<_>>>()?;
         let dest = self.fresh_value();
-        self.current.stmts.push(NativeStmt::Record { dest, fields });
+        self.current
+            .stmts
+            .push(NativeStmt::Record { dest, base, fields });
         Ok(dest)
     }
 

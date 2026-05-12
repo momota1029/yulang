@@ -36,6 +36,9 @@ pub enum NativeEvalError {
     ExpectedClosure {
         id: ValueId,
     },
+    ExpectedRecord {
+        value: runtime::VmValue,
+    },
     UnsupportedPrimitive {
         op: typed_ir::PrimitiveOp,
     },
@@ -80,6 +83,9 @@ impl fmt::Display for NativeEvalError {
             }
             NativeEvalError::ExpectedClosure { id } => {
                 write!(f, "native control expected closure value {id:?}")
+            }
+            NativeEvalError::ExpectedRecord { value } => {
+                write!(f, "native control expected record, got {value:?}")
             }
             NativeEvalError::UnsupportedPrimitive { op } => {
                 write!(
@@ -211,8 +217,14 @@ fn eval_blocks(
                         NativeRuntimeValue::Plain(runtime::VmValue::Tuple(items)),
                     );
                 }
-                NativeStmt::Record { dest, fields } => {
-                    let mut record = BTreeMap::new();
+                NativeStmt::Record { dest, base, fields } => {
+                    let mut record = match base {
+                        Some(base) => match read_plain_value(&values, *base)? {
+                            runtime::VmValue::Record(fields) => fields,
+                            value => return Err(NativeEvalError::ExpectedRecord { value }),
+                        },
+                        None => BTreeMap::new(),
+                    };
                     for field in fields {
                         record.insert(field.name.clone(), read_plain_value(&values, field.value)?);
                     }

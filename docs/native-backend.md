@@ -46,9 +46,9 @@ checklist, see *Detailed progress* below.
 | --------------------------------------------------- | ---------------------- | :----: |
 | Scalar literals (`int` / `float` / `bool` / `unit` / `str`) | value backend          |   ✅   |
 | String concatenation                                | value backend          |   ✅   |
-| List literals, list merge, length, index            | value backend          |   ✅   |
+| List literals, list merge, length, index, raw view  | value backend          |   ✅   |
 | Tuple, record, variant, record field selection      | value backend          |   ✅   |
-| Record spread                                       | —                      |   ❌   |
+| Record spread expressions                           | value backend          |   ✅   |
 | General pattern matching                            | —                      |   ❌   |
 | Lambdas / first-class function values (pure)        | CPS repr (prototype)   |   △   |
 | Closures with captured state                        | CPS repr (prototype)   |   △   |
@@ -101,7 +101,8 @@ or out of here into the user-facing table once they stabilize.
 - [x] Source-to-runtime lowering can feed the value backend.
 - [x] Native value object generation works.
 - [x] Generated executables can print native value results, including boxed
-      scalar values and basic list/string range and splice results.
+      scalar values, raw list views, record spread expressions, and basic
+      list/string range and splice results.
 - [x] `int`, `float`, `bool`, `unit`, and `str` literals are represented as
       opaque runtime values.
 - [x] Basic numeric and boolean primitives run through runtime helper symbols:
@@ -111,11 +112,11 @@ or out of here into the user-facing table once they stabilize.
 - [x] Local `my` bindings and top-level non-function bindings can be evaluated
       by the value backend.
 - [x] String concatenation works.
-- [x] List literals, list merge, list length, list index, range index, and
-      splice work.
+- [x] List literals, list merge, list length, list index, raw view, range
+      index, and splice work.
 - [x] String range index and splice work.
-- [x] Tuple, record, record field selection, and variant construction work.
-- [ ] Record spread is not supported.
+- [x] Tuple, record, record field selection, record spread expressions, and
+      variant construction work.
 - [ ] General pattern matching is not supported in the value backend.
 - [ ] General multi-block control flow is not supported in the value backend.
 - [ ] Closure allocation, closure environments, and indirect closure calls are

@@ -57,6 +57,7 @@ pub enum NativeAbiStmt {
     },
     Record {
         dest: ValueId,
+        base: Option<ValueId>,
         fields: Vec<NativeRecordField>,
     },
     Variant {
@@ -156,8 +157,9 @@ fn lower_native_stmt(stmt: &NativeStmt) -> NativeAbiStmt {
             dest: *dest,
             items: items.clone(),
         },
-        NativeStmt::Record { dest, fields } => NativeAbiStmt::Record {
+        NativeStmt::Record { dest, base, fields } => NativeAbiStmt::Record {
             dest: *dest,
+            base: *base,
             fields: fields.clone(),
         },
         NativeStmt::Variant { dest, tag, value } => NativeAbiStmt::Variant {

@@ -44,6 +44,7 @@ pub enum NativeStmt {
     },
     Record {
         dest: ValueId,
+        base: Option<ValueId>,
         fields: Vec<NativeRecordField>,
     },
     Variant {
