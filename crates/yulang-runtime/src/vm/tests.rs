@@ -1300,6 +1300,21 @@ catch out::say "hi":
     }
 
     #[test]
+    fn vm_runs_source_for_loop_with_unused_item_binding() {
+        let results = eval_source_with_std(
+            r#"{
+    my $count = 0
+    for i in [1, 2, 3]:
+        &count = $count + 1
+    $count
+}
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("3".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_for_loop_last_range_example() {
         let results = eval_source_with_std(FOR_LOOP_LAST_RANGE_SOURCE);
 

@@ -1531,6 +1531,7 @@ impl<'a> ExprChecker<'a> {
                 _ => self.local_or_runtime_signature(arg),
             })
             .collect::<Vec<_>>();
+        let provisional_args = strengthen_container_callback_param_signatures(provisional_args);
         let ret =
             self.lift_higher_order_call_return_to_enclosing_effect(target, &provisional_args, ret);
         let closed = close_known_associated_type_signature_with_semantics(
@@ -2118,6 +2119,38 @@ fn list_item_signature(signature: &DemandSignature) -> Option<DemandCoreType> {
         return None;
     };
     Some(item.clone())
+}
+
+fn strengthen_container_callback_param_signatures(
+    mut args: Vec<DemandSignature>,
+) -> Vec<DemandSignature> {
+    if args.len() < 2 {
+        return args;
+    }
+    let Some(item) = list_item_signature(&args[0]).filter(|item| {
+        !core_signature_is_uninformative(item)
+    }) else {
+        return args;
+    };
+    strengthen_callback_first_param(&mut args[1], item);
+    args
+}
+
+fn strengthen_callback_first_param(callback: &mut DemandSignature, item: DemandCoreType) {
+    match callback {
+        DemandSignature::Fun { param, .. } if signature_is_uninformative(param) => {
+            **param = DemandSignature::Core(item);
+        }
+        DemandSignature::Core(DemandCoreType::Fun { param, .. })
+            if core_signature_is_uninformative(param) =>
+        {
+            **param = item;
+        }
+        DemandSignature::Thunk { value, .. } => {
+            strengthen_callback_first_param(value, item);
+        }
+        _ => {}
+    }
 }
 
 fn lambda_actual_signature(

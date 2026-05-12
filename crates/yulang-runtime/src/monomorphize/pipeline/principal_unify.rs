@@ -2460,6 +2460,12 @@ impl PrincipalUnifier {
         }
         let before = substitutions.len();
         let mut conflicts = BTreeSet::new();
+        project_container_callback_item_from_args(
+            &original.scheme.body,
+            args,
+            &required_vars,
+            &mut substitutions,
+        );
         let projection_substitutions = substitutions
             .iter()
             .filter(|(_, ty)| !matches!(ty, typed_ir::Type::Unknown | typed_ir::Type::Any))
@@ -3113,6 +3119,79 @@ impl PrincipalUnifier {
             ExprKind::AddId { thunk, .. } => self.expr_is_nullary_generic_var(thunk),
             _ => false,
         }
+    }
+}
+
+fn project_container_callback_item_from_args(
+    principal: &typed_ir::Type,
+    args: &[&Expr],
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) {
+    if args.len() < 2 {
+        return;
+    }
+    let Some(item) = unary_container_item_type(&args[0].ty) else {
+        return;
+    };
+    let Some((params, _ret, _ret_effect)) = core_fun_spine_parts_exact(principal, args.len())
+    else {
+        return;
+    };
+    let Some((callback, _callback_effect)) = params.get(1) else {
+        return;
+    };
+    let Some(var) = callback_first_param_var(callback) else {
+        return;
+    };
+    if !required_vars.contains(&var) {
+        return;
+    }
+    match substitutions.get(&var) {
+        Some(existing) if existing == &item => {}
+        Some(existing) if type_is_open_or_default_unit(existing) => {
+            substitutions.insert(var, item);
+        }
+        Some(_) => {}
+        None => {
+            substitutions.insert(var, item);
+        }
+    }
+}
+
+fn unary_container_item_type(ty: &RuntimeType) -> Option<typed_ir::Type> {
+    let typed_ir::Type::Named { args, .. } = runtime_core_type(ty) else {
+        return None;
+    };
+    let [arg] = args.as_slice() else {
+        return None;
+    };
+    type_arg_closed_type(arg)
+}
+
+fn type_arg_closed_type(arg: &typed_ir::TypeArg) -> Option<typed_ir::Type> {
+    match arg {
+        typed_ir::TypeArg::Type(ty) if closed_slot_type_usable(ty, false) => Some(ty.clone()),
+        typed_ir::TypeArg::Bounds(bounds) => closed_type_from_bounds(Some(bounds)),
+        _ => None,
+    }
+}
+
+fn callback_first_param_var(callback: &typed_ir::Type) -> Option<typed_ir::TypeVar> {
+    let typed_ir::Type::Fun { param, .. } = callback else {
+        return None;
+    };
+    let typed_ir::Type::Var(var) = param.as_ref() else {
+        return None;
+    };
+    Some(var.clone())
+}
+
+fn type_is_open_or_default_unit(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Unknown | typed_ir::Type::Any => true,
+        typed_ir::Type::Tuple(items) => items.is_empty(),
+        _ => false,
     }
 }
 
