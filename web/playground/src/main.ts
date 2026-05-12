@@ -150,11 +150,19 @@ type TypeResult = {
 
 type HighlightKind =
   | "comment"
+  | "colon"
+  | "delimiter"
+  | "function"
   | "keyword"
-  | "string"
+  | "namespace"
   | "number"
-  | "ident"
-  | "symbol";
+  | "operator"
+  | "parameter"
+  | "pattern"
+  | "property"
+  | "string"
+  | "type"
+  | "type-parameter";
 
 type HighlightSpan = {
   start: number;

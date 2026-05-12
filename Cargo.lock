@@ -2199,6 +2199,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "yulang-editor"
+version = "0.1.0"
+dependencies = [
+ "rowan",
+ "yulang-parser",
+]
+
+[[package]]
 name = "yulang-infer"
 version = "0.1.0"
 dependencies = [
@@ -2220,8 +2228,8 @@ dependencies = [
  "rowan",
  "tokio",
  "tower-lsp",
+ "yulang-editor",
  "yulang-infer",
- "yulang-parser",
  "yulang-source",
 ]
 
@@ -2284,6 +2292,7 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
  "yulang-core-ir",
+ "yulang-editor",
  "yulang-infer",
  "yulang-runtime",
  "yulang-source",

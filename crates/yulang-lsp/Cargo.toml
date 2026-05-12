@@ -11,7 +11,7 @@ path = "src/main.rs"
 [dependencies]
 tower-lsp = "0.20"
 tokio = { version = "1", features = ["full"] }
+yulang-editor = { path = "../yulang-editor" }
 yulang-infer = { path = "../yulang-infer" }
-yulang-parser = { path = "../yulang-parser" }
 yulang-source = { path = "../yulang-source" }
 rowan = "0.15"

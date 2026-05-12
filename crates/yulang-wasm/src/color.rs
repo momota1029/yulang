@@ -1,4 +1,6 @@
 use serde::Serialize;
+use yulang_editor::{OpTable, semantic_tokens};
+use yulang_infer::{DefId, LowerState, Path as InferPath};
 
 use crate::output::Diagnostic;
 
@@ -17,294 +19,155 @@ pub struct HighlightSpan {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "kebab-case")]
 pub enum HighlightKind {
-    Comment,
+    Function,
+    Type,
+    TypeParameter,
+    Namespace,
+    Parameter,
     Keyword,
     String,
     Number,
-    Ident,
-    Symbol,
+    Comment,
+    Operator,
+    Delimiter,
+    Colon,
+    Property,
+    Pattern,
 }
 
-pub fn colorize_source(source: &str) -> ColorizeOutput {
-    let utf16_offsets = utf16_offsets_by_byte(source);
-    let spans = SourceScanner::new(source, &utf16_offsets).scan();
+pub fn colorize_source_with_context(
+    source: &str,
+    op_table: Option<OpTable>,
+    highlights: Option<&semantic_tokens::ResolvedHighlightInfo>,
+) -> ColorizeOutput {
+    let encoded =
+        semantic_tokens::compute_with_op_table_and_highlights(source, op_table, highlights);
     ColorizeOutput {
         ok: true,
-        spans,
+        spans: semantic_spans(source, &encoded),
         diagnostics: Vec::new(),
     }
 }
 
-fn utf16_offsets_by_byte(source: &str) -> Vec<usize> {
-    let mut offsets = vec![0; source.len() + 1];
-    let mut utf16_offset = 0;
-    for (byte_offset, ch) in source.char_indices() {
-        offsets[byte_offset] = utf16_offset;
-        utf16_offset += ch.len_utf16();
-        let next_byte_offset = byte_offset + ch.len_utf8();
-        for offset in &mut offsets[(byte_offset + 1)..=next_byte_offset] {
-            *offset = utf16_offset;
-        }
+pub fn resolved_highlights_from_lower_state(
+    state: &LowerState,
+) -> semantic_tokens::ResolvedHighlightInfo {
+    let mut info = semantic_tokens::ResolvedHighlightInfo::new();
+    let canonical_paths = state.ctx.canonical_value_paths();
+
+    for &def in state.enum_variant_tags.keys() {
+        insert_constructor_def_highlight(state, &canonical_paths, def, &mut info);
     }
-    offsets
+    for &def in state.enum_variant_patterns.keys() {
+        insert_constructor_def_highlight(state, &canonical_paths, def, &mut info);
+    }
+    for &def in state.effect_op_args.keys() {
+        insert_constructor_def_highlight(state, &canonical_paths, def, &mut info);
+    }
+    for (path, &def) in &state.same_path_effect_ops {
+        insert_constructor_path_highlight(path, &mut info);
+        insert_constructor_def_highlight(state, &canonical_paths, def, &mut info);
+    }
+
+    info
 }
 
-struct SourceScanner<'a> {
-    source: &'a str,
-    utf16_offsets: &'a [usize],
-    cursor: usize,
-    spans: Vec<HighlightSpan>,
+fn insert_constructor_def_highlight(
+    state: &LowerState,
+    canonical_paths: &std::collections::HashMap<DefId, InferPath>,
+    def: DefId,
+    info: &mut semantic_tokens::ResolvedHighlightInfo,
+) {
+    if let Some(name) = state.def_name(def) {
+        info.insert_constructor_name(name.0.clone());
+    }
+    if let Some(path) = canonical_paths.get(&def) {
+        insert_constructor_path_highlight(path, info);
+    }
 }
 
-impl<'a> SourceScanner<'a> {
-    fn new(source: &'a str, utf16_offsets: &'a [usize]) -> Self {
-        Self {
-            source,
-            utf16_offsets,
-            cursor: 0,
-            spans: Vec::new(),
+fn insert_constructor_path_highlight(
+    path: &InferPath,
+    info: &mut semantic_tokens::ResolvedHighlightInfo,
+) {
+    let mut segments = path
+        .segments
+        .iter()
+        .map(|name| name.0.clone())
+        .collect::<Vec<_>>();
+    if let Some(last) = segments.last_mut() {
+        if let Some(surface) = last.strip_suffix("#effect") {
+            *last = surface.to_string();
         }
     }
+    info.insert_constructor_path(segments);
+}
 
-    fn scan(mut self) -> Vec<HighlightSpan> {
-        while self.cursor < self.source.len() {
-            if self.scan_line_comment()
-                || self.scan_block_comment()
-                || self.scan_string()
-                || self.scan_number()
-                || self.scan_ident()
-                || self.scan_symbol()
-            {
-                continue;
-            }
-            self.bump_char();
-        }
-        self.spans
-    }
+fn semantic_spans(source: &str, encoded: &[u32]) -> Vec<HighlightSpan> {
+    let line_starts = line_utf16_starts(source);
+    let mut line = 0usize;
+    let mut col = 0usize;
+    let mut spans = Vec::new();
 
-    fn scan_line_comment(&mut self) -> bool {
-        if !self.rest().starts_with("//") {
-            return false;
-        }
-        let start = self.cursor;
-        self.cursor += 2;
-        while let Some(ch) = self.current_char() {
-            if ch == '\n' || ch == '\r' {
-                break;
-            }
-            self.bump_char();
-        }
-        self.push(start, self.cursor, HighlightKind::Comment);
-        true
-    }
-
-    fn scan_block_comment(&mut self) -> bool {
-        if !self.rest().starts_with("/*") {
-            return false;
-        }
-        let start = self.cursor;
-        self.cursor += 2;
-        let mut depth = 1;
-        while self.cursor < self.source.len() {
-            if self.rest().starts_with("/*") {
-                self.cursor += 2;
-                depth += 1;
-            } else if self.rest().starts_with("*/") {
-                self.cursor += 2;
-                depth -= 1;
-                if depth == 0 {
-                    break;
-                }
-            } else {
-                self.bump_char();
-            }
-        }
-        self.push(start, self.cursor, HighlightKind::Comment);
-        true
-    }
-
-    fn scan_string(&mut self) -> bool {
-        let start = self.cursor;
-        if self.rest().starts_with("r\"") || self.rest().starts_with("~\"") {
-            self.cursor += 1;
-        } else if !self.rest().starts_with('"') {
-            return false;
-        }
-        self.cursor += 1;
-        while let Some(ch) = self.current_char() {
-            self.bump_char();
-            if ch == '\\' {
-                self.bump_char();
-            } else if ch == '"' {
-                break;
-            }
-        }
-        self.push(start, self.cursor, HighlightKind::String);
-        true
-    }
-
-    fn scan_number(&mut self) -> bool {
-        let start = self.cursor;
-        if self.current_char().is_some_and(|ch| ch.is_ascii_digit()) {
-            self.consume_ascii_digits();
-            if self.rest().starts_with('.')
-                && !self.rest().starts_with("..")
-                && self
-                    .next_char_after(1)
-                    .is_some_and(|ch| ch.is_ascii_digit())
-            {
-                self.cursor += 1;
-                self.consume_ascii_digits();
-            }
-        } else if self.rest().starts_with('.')
-            && self
-                .next_char_after(1)
-                .is_some_and(|ch| ch.is_ascii_digit())
-        {
-            self.cursor += 1;
-            self.consume_ascii_digits();
+    for chunk in encoded.chunks_exact(5) {
+        let delta_line = chunk[0] as usize;
+        let delta_col = chunk[1] as usize;
+        line += delta_line;
+        if delta_line == 0 {
+            col += delta_col;
         } else {
-            return false;
+            col = delta_col;
         }
 
-        if matches!(self.current_char(), Some('e' | 'E')) {
-            let exp_start = self.cursor;
-            self.bump_char();
-            if matches!(self.current_char(), Some('+' | '-')) {
-                self.bump_char();
-            }
-            if self.current_char().is_some_and(|ch| ch.is_ascii_digit()) {
-                self.consume_ascii_digits();
-            } else {
-                self.cursor = exp_start;
-            }
-        }
-
-        self.push(start, self.cursor, HighlightKind::Number);
-        true
-    }
-
-    fn scan_ident(&mut self) -> bool {
-        let start = self.cursor;
-        if matches!(self.current_char(), Some('$' | '&' | '_' | '\'')) {
-            self.bump_char();
-            if !self.current_char().is_some_and(is_ident_start) {
-                self.cursor = start;
-                return false;
-            }
-        } else if !self.current_char().is_some_and(is_ident_start) {
-            return false;
-        }
-        self.bump_char();
-        while self.current_char().is_some_and(is_ident_continue) {
-            self.bump_char();
-        }
-        let text = &self.source[start..self.cursor];
-        let kind = if is_keyword(text) {
-            HighlightKind::Keyword
-        } else {
-            HighlightKind::Ident
+        let Some(line_start) = line_starts.get(line).copied() else {
+            continue;
         };
-        self.push(start, self.cursor, kind);
-        true
-    }
-
-    fn scan_symbol(&mut self) -> bool {
-        let start = self.cursor;
-        for symbol in [
-            "->", "::", "..", "<=", ">=", "==", "!=", "=>", "+", "-", "*", "/", "%", "<", ">", "=",
-            ":", ";", ",", ".", "|", "\\", "'", "(", ")", "[", "]", "{", "}", "$", "&",
-        ] {
-            if self.rest().starts_with(symbol) {
-                self.cursor += symbol.len();
-                self.push(start, self.cursor, HighlightKind::Symbol);
-                return true;
-            }
-        }
-        false
-    }
-
-    fn consume_ascii_digits(&mut self) {
-        while self.current_char().is_some_and(|ch| ch.is_ascii_digit()) {
-            self.bump_char();
-        }
-    }
-
-    fn push(&mut self, start: usize, end: usize, kind: HighlightKind) {
-        if start == end {
-            return;
-        }
-        self.spans.push(HighlightSpan {
-            start: self.utf16_offsets[start],
-            end: self.utf16_offsets[end],
+        let len = chunk[2] as usize;
+        let Some(kind) = highlight_kind(chunk[3]) else {
+            continue;
+        };
+        spans.push(HighlightSpan {
+            start: line_start + col,
+            end: line_start + col + len,
             kind,
         });
     }
 
-    fn bump_char(&mut self) {
-        if let Some(ch) = self.current_char() {
-            self.cursor += ch.len_utf8();
+    spans
+}
+
+fn line_utf16_starts(source: &str) -> Vec<usize> {
+    let mut starts = vec![0];
+    let mut offset = 0;
+    for ch in source.chars() {
+        offset += ch.len_utf16();
+        if ch == '\n' {
+            starts.push(offset);
         }
     }
-
-    fn current_char(&self) -> Option<char> {
-        self.rest().chars().next()
-    }
-
-    fn next_char_after(&self, bytes: usize) -> Option<char> {
-        self.source.get((self.cursor + bytes)..)?.chars().next()
-    }
-
-    fn rest(&self) -> &'a str {
-        &self.source[self.cursor..]
-    }
+    starts
 }
 
-fn is_ident_start(ch: char) -> bool {
-    ch == '_' || ch.is_alphabetic()
-}
-
-fn is_ident_continue(ch: char) -> bool {
-    ch == '_' || ch.is_alphanumeric()
-}
-
-fn is_keyword(text: &str) -> bool {
-    matches!(
-        text,
-        "act"
-            | "as"
-            | "case"
-            | "catch"
-            | "do"
-            | "else"
-            | "elsif"
-            | "enum"
-            | "false"
-            | "for"
-            | "if"
-            | "impl"
-            | "in"
-            | "infix"
-            | "mark"
-            | "mod"
-            | "my"
-            | "nullfix"
-            | "our"
-            | "prefix"
-            | "pub"
-            | "role"
-            | "rule"
-            | "struct"
-            | "suffix"
-            | "true"
-            | "type"
-            | "use"
-            | "via"
-            | "where"
-            | "with"
-    )
+fn highlight_kind(token_type: u32) -> Option<HighlightKind> {
+    match token_type {
+        0 => Some(HighlightKind::Function),
+        1 => Some(HighlightKind::Type),
+        2 => Some(HighlightKind::TypeParameter),
+        3 => Some(HighlightKind::Namespace),
+        4 => Some(HighlightKind::Parameter),
+        5 => Some(HighlightKind::Keyword),
+        6 => Some(HighlightKind::String),
+        7 => Some(HighlightKind::Number),
+        8 => Some(HighlightKind::Comment),
+        9 => Some(HighlightKind::Operator),
+        10 => Some(HighlightKind::Delimiter),
+        11 => Some(HighlightKind::Colon),
+        12 => Some(HighlightKind::Property),
+        13 => Some(HighlightKind::Pattern),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -312,20 +175,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn colorize_reports_source_positions_after_comments() {
-        let source = "// ascii\nmy x = 1\n";
-        let comment_end = source.find('\n').expect("line end");
-        let my_byte_offset = source.find("my").expect("my keyword");
-
-        let output = colorize_source(source);
+    fn colorize_reports_lsp_token_kinds() {
+        let output = colorize_source_with_context("// note\nmy answer = 1", None, None);
 
         assert!(output.spans.iter().any(|span| {
-            span.kind == HighlightKind::Comment && span.start == 0 && span.end == comment_end
+            span.kind == HighlightKind::Comment && span.start == 0 && span.end == 7
         }));
         assert!(output.spans.iter().any(|span| {
-            span.kind == HighlightKind::Keyword
-                && span.start == my_byte_offset
-                && span.end == my_byte_offset + "my".len()
+            span.kind == HighlightKind::Keyword && span.start == 8 && span.end == 10
+        }));
+        assert!(output.spans.iter().any(|span| {
+            span.kind == HighlightKind::Delimiter && span.start == 18 && span.end == 19
         }));
     }
 
@@ -335,7 +195,7 @@ mod tests {
         let my_byte_offset = source.rfind("my").expect("my keyword");
         let my_utf16_offset = source[..my_byte_offset].encode_utf16().count();
 
-        let output = colorize_source(source);
+        let output = colorize_source_with_context(source, None, None);
 
         assert!(output.spans.iter().any(|span| {
             span.kind == HighlightKind::Keyword

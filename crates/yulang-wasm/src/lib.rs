@@ -26,7 +26,19 @@ pub fn run(source: &str) -> JsValue {
 #[wasm_bindgen]
 pub fn colorize(source: &str) -> JsValue {
     console_error_panic_hook::set_once();
-    to_js_value(&color::colorize_source(source))
+    let playground_source = playground_source(source);
+    let source_set = std_sources::source_set(&playground_source);
+    let op_table = source_set
+        .entry_files()
+        .next()
+        .map(|file| file.op_table.clone());
+    let lowered = lower_with_cache(&source_set);
+    let highlights = color::resolved_highlights_from_lower_state(&lowered.lowered.state);
+    to_js_value(&color::colorize_source_with_context(
+        source,
+        op_table,
+        Some(&highlights),
+    ))
 }
 
 #[wasm_bindgen]

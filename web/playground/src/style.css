@@ -25,11 +25,19 @@
   --code-text: #28323a;
   --code-bg: #f1ece4;
   --tok-comment: #6f766f;
-  --tok-keyword: #9a4d21;
+  --tok-function: #2f7d46;
+  --tok-type: #1e7896;
+  --tok-type-parameter: #6f61b4;
+  --tok-namespace: #665f57;
+  --tok-parameter: #5d4b8f;
+  --tok-keyword: #9a2854;
   --tok-string: #7a5489;
-  --tok-number: #1e6f9f;
-  --tok-ident: #233d8f;
-  --tok-symbol: #68635c;
+  --tok-number: #4f61b6;
+  --tok-operator: #a0385a;
+  --tok-delimiter: #7c766d;
+  --tok-colon: #b34771;
+  --tok-property: #1f7a76;
+  --tok-pattern: #5d4b8f;
 
   color: var(--text);
   color-scheme: light;
@@ -65,12 +73,20 @@
     --loading-text: #b7afa3;
     --code-text: #f0e8dc;
     --code-bg: #2c2821;
-    --tok-comment: #9aa396;
-    --tok-keyword: #e6a06b;
-    --tok-string: #c79bdb;
-    --tok-number: #7dc7ee;
-    --tok-ident: #9db2ff;
-    --tok-symbol: #c7bfb3;
+    --tok-comment: #75715e;
+    --tok-function: #a6e22e;
+    --tok-type: #66d9ef;
+    --tok-type-parameter: #ae81ff;
+    --tok-namespace: #f8f8f2;
+    --tok-parameter: #fd971f;
+    --tok-keyword: #f92672;
+    --tok-string: #e6db74;
+    --tok-number: #ae81ff;
+    --tok-operator: #f92672;
+    --tok-delimiter: #75715e;
+    --tok-colon: #f92672;
+    --tok-property: #66d9ef;
+    --tok-pattern: #fd971f;
 
     color-scheme: dark;
   }
@@ -517,6 +533,26 @@ html[data-lang="en"] .lang-ja {
   color: var(--tok-comment);
 }
 
+.tok-function {
+  color: var(--tok-function);
+}
+
+.tok-type {
+  color: var(--tok-type);
+}
+
+.tok-type-parameter {
+  color: var(--tok-type-parameter);
+}
+
+.tok-namespace {
+  color: var(--tok-namespace);
+}
+
+.tok-parameter {
+  color: var(--tok-parameter);
+}
+
 .tok-keyword {
   color: var(--tok-keyword);
 }
@@ -529,12 +565,24 @@ html[data-lang="en"] .lang-ja {
   color: var(--tok-number);
 }
 
-.tok-ident {
-  color: var(--tok-ident);
+.tok-operator {
+  color: var(--tok-operator);
 }
 
-.tok-symbol {
-  color: var(--tok-symbol);
+.tok-delimiter {
+  color: var(--tok-delimiter);
+}
+
+.tok-colon {
+  color: var(--tok-colon);
+}
+
+.tok-property {
+  color: var(--tok-property);
+}
+
+.tok-pattern {
+  color: var(--tok-pattern);
 }
 
 code {

@@ -1,5 +1,3 @@
-mod semantic_tokens;
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -7,6 +5,7 @@ use std::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
+use yulang_editor::semantic_tokens;
 use yulang_infer::{
     DefId, LowerState, Path as InferPath, collect_surface_diagnostics,
     lower_virtual_source_with_options, surface_diagnostic::SurfaceDiagnostic,

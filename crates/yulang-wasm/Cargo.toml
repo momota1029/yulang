@@ -18,6 +18,7 @@ yulang-runtime = { path = "../yulang-runtime" }
 yulang-source = { path = "../yulang-source" }
 yulang-infer = { path = "../yulang-infer" }
 yulang-core-ir = { path = "../yulang-core-ir" }
+yulang-editor = { path = "../yulang-editor" }
 
 [build-dependencies]
 serde_json = "1"
