@@ -225,7 +225,7 @@ fn exportable_param_effect_annotation(
 fn exportable_function_sig_allowed_effects(
     pat: &SyntaxNode,
 ) -> Option<yulang_typed_ir::FunctionSigAllowedEffects> {
-    let type_expr = super::super::child_node(pat, SyntaxKind::TypeAnn)
+    let type_expr = crate::lower::ann::pat_type_ann_node(pat)
         .and_then(|ann| super::super::child_node(&ann, SyntaxKind::TypeExpr))?;
     let sig = crate::lower::signature::parse_sig_type_expr(&type_expr)?;
     let crate::lower::signature::SigType::Fun { ret_eff, .. } = sig else {
@@ -260,7 +260,7 @@ fn exportable_function_sig_allowed_effects(
 }
 
 fn first_effect_annotation_region(pat: &SyntaxNode) -> Option<Name> {
-    let ann = super::super::child_node(pat, SyntaxKind::TypeAnn)?;
+    let ann = crate::lower::ann::pat_type_ann_node(pat)?;
     let type_expr = super::super::child_node(&ann, SyntaxKind::TypeExpr)?;
     let row = super::super::child_node(&type_expr, SyntaxKind::TypeRow)?;
     row.children()

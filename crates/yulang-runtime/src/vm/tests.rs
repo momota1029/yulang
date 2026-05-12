@@ -2,7 +2,9 @@
 mod tests {
     use super::super::*;
     use crate::ir::{Binding, Module, Type as RuntimeType};
-    use crate::{lower_core_program, monomorphize_module, monomorphize_module_profiled};
+    use crate::{
+        RuntimeResult, lower_core_program, monomorphize_module, monomorphize_module_profiled,
+    };
     use std::path::PathBuf;
     use std::thread;
     use yulang_infer::{SourceOptions, export_core_program, lower_virtual_source_with_options};
@@ -1239,6 +1241,16 @@ button: :disabled
     }
 
     #[test]
+    fn vm_runs_source_polymorphic_compose_binding() {
+        let results = eval_source_with_std(
+            "my f = compose (\\x -> std::int::add x 1) (\\x -> std::int::mul x 2)\n\
+             f 3\n",
+        );
+
+        assert_eq!(results, vec![TestValue::Int("7".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_junction_example() {
         let results = eval_source_with_std(JUNCTION_SOURCE);
 
@@ -1250,6 +1262,19 @@ button: :disabled
         let results = eval_source_with_std(STRUCT_METHOD_SOURCE);
 
         assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_source_parenthesized_annotated_method_param() {
+        let results = eval_source_with_std(
+            "struct point { x: int, y: int } with:\n\
+             \t our p.norm2 = p.x * p.x + p.y * p.y\n\
+             \n\
+             my get_norm (p: point) : int = p.norm2\n\
+             get_norm (point { x: 3, y: 4 })\n",
+        );
+
+        assert_eq!(results, vec![TestValue::Int("25".to_string())]);
     }
 
     #[test]
@@ -1306,6 +1331,29 @@ catch out::say "hi":
             results,
             vec![TestValue::String("handled:hi".to_string()), TestValue::Unit,]
         );
+    }
+
+    #[test]
+    fn vm_rejects_function_value_as_effectful_handler_input() {
+        let err = runtime_module_with_std_result(
+            r#"pub act out:
+  pub say: str -> ()
+
+our prog() =
+    out::say "first"
+    out::say "second"
+    42
+
+our listen(x: [_] _, log: str): (_, str) = catch x:
+    out::say o, k -> listen(k (), log + o + "|")
+    v -> (v, log)
+
+listen prog ""
+"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(err, RuntimeError::ExpectedThunk { .. }));
     }
 
     #[test]
@@ -1958,6 +2006,11 @@ std::flow::sub::sub:
         run_with_large_stack(move || runtime_module_with_std_inner(&src))
     }
 
+    fn runtime_module_with_std_result(src: &str) -> RuntimeResult<Module> {
+        let src = src.to_string();
+        run_with_large_stack(move || runtime_module_with_std_result_inner(&src))
+    }
+
     fn runtime_module_with_std_profile(
         src: &str,
     ) -> (Module, crate::monomorphize::MonomorphizeProfile) {
@@ -1967,6 +2020,23 @@ std::flow::sub::sub:
 
     fn runtime_module_with_std_inner(src: &str) -> Module {
         runtime_module_with_std_profile_inner(src).0
+    }
+
+    fn runtime_module_with_std_result_inner(src: &str) -> RuntimeResult<Module> {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            src,
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let program = export_core_program(&mut lowered.state);
+        lower_core_program(program).and_then(monomorphize_module)
     }
 
     fn runtime_module_with_std_profile_inner(

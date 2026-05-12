@@ -1341,7 +1341,7 @@ impl PrincipalUnifier {
             return None;
         };
         let original_arity = core_fun_arity(&original.scheme.body);
-        if spine.args.len() != original_arity {
+        if spine.args.len() > original_arity {
             return None;
         }
         if let Some(active) = self.active_specialization_for(spine.target).cloned()

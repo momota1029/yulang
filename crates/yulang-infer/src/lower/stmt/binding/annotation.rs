@@ -52,7 +52,7 @@ pub(crate) fn connect_pattern_sig_annotation(
     target_tv: TypeVar,
     _latent_eff_tv: Option<TypeVar>,
 ) -> Option<crate::lower::FunctionSigEffectHint> {
-    let type_expr = super::super::child_node(pat_node, SyntaxKind::TypeAnn)
+    let type_expr = crate::lower::ann::pat_type_ann_node(pat_node)
         .and_then(|ann| super::super::child_node(&ann, SyntaxKind::TypeExpr))?;
     let sig = crate::lower::signature::parse_sig_type_expr(&type_expr)?;
     let mut vars = state.current_type_scope().cloned().unwrap_or_default();

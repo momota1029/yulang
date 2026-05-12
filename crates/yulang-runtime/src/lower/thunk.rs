@@ -105,6 +105,11 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
                 Ok(expr)
             }
             _ => {
+                if matches!(expr.ty, RuntimeType::Fun { .. }) && !effect_is_empty(effect) {
+                    return Err(RuntimeError::ExpectedThunk {
+                        ty: runtime_core_type(&expr.ty),
+                    });
+                }
                 require_same_hir_type(value, &expr.ty, source)?;
                 let value = more_informative_hir_type(value, &expr.ty);
                 let ty = RuntimeType::thunk(effect.clone(), value.clone());

@@ -18,10 +18,28 @@ pub enum LoweredEffAnn {
     Row { lower: Pos, upper: Neg },
 }
 
-pub fn lower_pat_ann(state: &mut LowerState, pat: &SyntaxNode) -> Option<LoweredPatAnn> {
-    let ann = pat
+pub(crate) fn pat_type_ann_node(pat: &SyntaxNode) -> Option<SyntaxNode> {
+    if let Some(ann) = pat
         .children()
-        .find(|child| child.kind() == SyntaxKind::TypeAnn)?;
+        .find(|child| child.kind() == SyntaxKind::TypeAnn)
+    {
+        return Some(ann);
+    }
+    if !matches!(pat.kind(), SyntaxKind::Pattern | SyntaxKind::PatParenGroup) {
+        return None;
+    }
+    pat.children()
+        .find(|child| {
+            matches!(
+                child.kind(),
+                SyntaxKind::Pattern | SyntaxKind::PatParenGroup
+            )
+        })
+        .and_then(|child| pat_type_ann_node(&child))
+}
+
+pub fn lower_pat_ann(state: &mut LowerState, pat: &SyntaxNode) -> Option<LoweredPatAnn> {
+    let ann = pat_type_ann_node(pat)?;
     let type_expr = ann
         .children()
         .find(|child| child.kind() == SyntaxKind::TypeExpr)?;
