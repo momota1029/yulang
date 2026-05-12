@@ -4,7 +4,7 @@ Yulang の構文と意味を、機能ごとにまとめる。
 
 ## プログラムの形
 
-Yulang の program は、top-level statement の列です。statement には宣言と式があります。
+Yulang の program は、top-level statement の列である。statement には宣言と式がある。
 
 宣言の例:
 
@@ -47,8 +47,8 @@ markdown と ```yulang fence を含められる。
 ---
 ```
 
-`//` は通常の line comment、`/* ... */` は通常の block comment です。
-`--` と `---` は doc comment なので、構文木や tooling に現れる可能性があります。
+`//` は通常の line comment、`/* ... */` は通常の block comment である。
+`--` と `---` は doc comment なので、構文木や tooling に現れる可能性がある。
 
 ## 関連ページ
 

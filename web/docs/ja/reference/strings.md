@@ -1,9 +1,6 @@
 # 文字列
 
-Yulang の文字列型は `str` です。文字列は UTF-8 text として扱います。
-標準ライブラリの index / slice は raw byte offset ではなく Unicode scalar value
-の位置で扱います。古い名前として `string` も一部で受け付けますが、新しいコード
-では `str` を使います。
+Yulang の文字列型は `str` である。文字列は UTF-8 text として扱う。標準ライブラリの index / slice は raw byte offset ではなく Unicode scalar value の位置で扱う。古い名前として `string` も一部で受け付けるが、新しいコードでは `str` を使う。
 
 ## リテラル
 
@@ -16,8 +13,7 @@ line2
 """
 ```
 
-文字列リテラルでは `\n` のような escape と、`\u{1F600}` のような Unicode
-escape を使えます。triple quote の文字列は複数行にできます。
+文字列リテラルでは `\n` のような escape と、`\u{1F600}` のような Unicode escape を使える。triple quote の文字列は複数行にできる。
 
 ## 埋め込み
 
@@ -28,10 +24,9 @@ my name = "yu"
 "ok = %{true}"
 ```
 
-`%{...}` は値を `Display` role で文字列化します。標準 prelude は `int`、
-`float`、`bool`、`str` の `Display` 実装を提供します。
+`%{...}` は値を `Display` role で文字列化する。標準 prelude は `int`、`float`、`bool`、`str` の `Display` 実装を提供する。
 
-整数の hex 表示には lower / upper hex role を使います。
+整数の hex 表示には lower / upper hex role を使う。
 
 ```yulang
 "hex = %x{255}"
@@ -46,8 +41,7 @@ my name = "yu"
 "aあ🙂z"[range 1 3]
 ```
 
-`str` は `Index str int` と `Index str range` を実装します。index は byte offset
-ではなく文字位置です。
+`str` は `Index str int` と `Index str range` を実装する。index は byte offset ではなく文字位置である。
 
 ## Splice
 
@@ -55,7 +49,7 @@ my name = "yu"
 "aあ🙂z".splice (range 1 3) "bc"  // "abcz"
 ```
 
-`std::str::splice` と `.splice` method は、文字範囲を別の文字列で置き換えます。
+`std::str::splice` と `.splice` method は、文字範囲を別の文字列で置き換える。
 
 ## Display と `.show`
 
@@ -63,22 +57,18 @@ my name = "yu"
 1.show              // "1"
 true.show           // "true"
 "text".show         // "text"
-[1, 2, 3].show      // 要素の Display impl があれば "[1, 2, 3]"
 ```
 
-`.show` は `str` への正準的な変換。`Display` role 経由で解決される — プリミ
-ティブ、list、`error E:` 経由で宣言された型（`Display` 自動生成あり）は
-すべて impl を持っている。
+`.show` は `str` への正準的な変換である。`Display` role 経由で解決され、プリミティブ型は impl を持っている。
 
-ユーザ型に `Display` を定義するのは通常の role 構文：
+ユーザ型に `Display` を定義するのは通常の role 構文を使う。
 
 ```yulang
 impl Display point:
-    our p.show = "(" + p.x.show + ", " + p.y.show + ")"
+    our p.show = "(%{p.x}, %{p.y})"
 ```
 
-戻り値は `point::show p` / `p.show` の結果であり、文字列テンプレートの
-`%{p}` でフォーマットされる値でもある。
+戻り値は `point::show p` / `p.show` の結果であり、文字列テンプレートの `%{p}` でフォーマットされる値でもある。
 
 ## コメント
 
@@ -95,5 +85,4 @@ doc block
 ---
 ```
 
-`//` と `/* ... */` は通常コメントです。`--` と `--- ... ---` は documentation
-comment で、tooling が参照する可能性があります。
+`//` と `/* ... */` は通常コメントである。`--` と `--- ... ---` は documentation comment で、tooling が参照する可能性がある。

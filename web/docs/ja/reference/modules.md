@@ -10,14 +10,11 @@ use my_module::old_name as new_name
 use noisy::* without debug
 ```
 
-`use` は module 内の名前を scope へ入れます。`*` は見えているものをまとめて
-import します。`{...}` による group、`as` による rename、`without` による除外も
-使えます。operator 名は `(+)` のように括弧付きで import できます。
+`use` は module 内の名前を scope へ入れる。`*` は見えているものをまとめて import する。`{...}` による group、`as` による rename、`without` による除外も使える。operator 名は `(+)` のように括弧付きで import できる。
 
 ## Companion module
 
-`struct`、`type ... with:`、`enum`、`act`、`error`、`role` は同名の
-companion module を作ります。body 内の `our` / `pub` はそこへ入ります。
+`struct`、`type ... with:`、`enum`、`act`、`error`、`role` は同名の companion module を作る。body 内の `our` / `pub` はそこへ入る。
 
 ```yulang
 struct point { x: int, y: int } with:
@@ -34,8 +31,7 @@ opt::just 1
 fs_err::not_found "path"
 ```
 
-prelude が `just`、`nil`、`ok`、`err` のような標準 variant を reexport するため、
-通常は修飾名なしで書けます。
+prelude が `just`、`nil`、`ok`、`err` のような標準 variant を reexport するため、通常は修飾名なしで書ける。
 
 `act` の operation も同じ。
 
@@ -45,16 +41,14 @@ console::println "hi"
 
 ## Dot selection
 
-`expr.method` は、まず receiver の型に結び付いた field や method を探し、
-その後 role method や effect-row method も解決対象にします。
+`expr.method` は、まず receiver の型に結び付いた field や method を探し、その後 role method や effect-row method も解決対象にする。
 
 - struct field と `with:` method
 - `type ... with:` で定義された method
 - `.add`、`.index`、`.show` のような role method
 - `.list`、`.logic`、`.once` のような effect-row method
 
-anonymous record の場合、`.field` は record field を取り出します。
-act operation 自体は、通常 `console::println "hi"` のように path で呼びます。
+anonymous record の場合、`.field` は record field を取り出す。act operation 自体は、通常 `console::println "hi"` のように path で呼ぶ。
 
 ## Standard library modules
 

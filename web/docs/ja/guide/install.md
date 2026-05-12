@@ -5,8 +5,8 @@ Yulang はまだ実験段階の言語です。まず触るだけなら Playgroun
 
 ## Playground
 
-<a href="/" target="_self">Playground</a> を開くと、ブラウザ上で Yulang を実行できる。
-標準ライブラリとドキュメントの例も同じ経路で動く。
+<a href="/" target="_self">Playground</a> を開くと、ブラウザ上で Yulang を実行できます。
+標準ライブラリとドキュメントの例も同じ経路で動きます。
 
 ## ソースから動かす
 
@@ -20,7 +20,7 @@ cargo run -p yulang -- path/to/file.yu
 ローカルで試す場合に重要なのは `cargo run -p yulang -- path/to/file.yu` です。
 下の web deploy は、hosted playground / docs を更新する場合だけ必要です。
 
-主な crate は次の通り。
+主な crate は次の通りです。
 
 | Crate | 役割 |
 |-------|------|
@@ -36,17 +36,17 @@ npm --prefix web install
 npm --prefix web run build
 ```
 
-任意のディレクトリへ配置する場合:
+任意のディレクトリへ配置する場合は次のようにします。
 
 ```sh
 YULANG_DEPLOY_DIR=/path/to/site npm --prefix web run deploy:dir
 ```
 
 生成されたサイトでは `/` が playground、`/guide/` と `/reference/` が英語 docs、
-`/ja/guide/` と `/ja/reference/` が日本語 docs になる。
+`/ja/guide/` と `/ja/reference/` が日本語 docs になります。
 
 ## 現在の制限
 
-- 言語仕様と標準ライブラリはまだ変わる。
-- filesystem API は native host 向けで、playground では unresolved request のまま残る。
-- wasm bundle は標準ライブラリ artifact を埋め込むが、保守的に source compile fallback も持つ。
+- 言語仕様と標準ライブラリはまだ変わります。
+- filesystem API は native host 向けで、playground では unresolved request のまま残ります。
+- wasm bundle は標準ライブラリ artifact を埋め込みますが、保守的に source compile fallback も持っています。

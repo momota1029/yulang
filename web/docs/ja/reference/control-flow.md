@@ -1,6 +1,6 @@
 # 制御構文
 
-制御構文は、特に断らない限り式として使えます。
+制御構文は、特に断らない限り式として使える。
 
 ## `if`
 
@@ -15,7 +15,7 @@ else:
 if cond { a } else { b }
 ```
 
-`if` の条件は `bool` です。`else` がない場合、false branch は `()` になります。
+`if` の条件は `bool` である。`else` がない場合、false branch は `()` になる。
 
 ## `case`
 
@@ -26,7 +26,7 @@ case value:
     _ -> "other"
 ```
 
-`case` arm は上から順に試されます。guard は pattern の後ろに `if` を書きます。
+`case` arm は上から順に試される。guard は pattern の後ろに `if` を書く。
 
 ## `catch`
 
@@ -36,8 +36,7 @@ catch action:
     value -> value
 ```
 
-operation arm は operation の payload と continuation `k` を受け取ります。
-`k value` を呼ぶと計算を再開します。value arm は通常終了を処理します。
+operation arm は operation の payload と continuation `k` を受け取る。`k value` を呼ぶと計算を再開する。value arm は通常終了を処理する。
 
 ## `for`
 
@@ -46,10 +45,9 @@ for x in 0..10:
     println x.show
 ```
 
-`for x in xs:` は `Fold` を実装する値を走査します。body は関数へ lower され、
-plain な `for` expression は `()` を返します。
+`for x in xs:` は `Fold` を実装する値を走査する。body は関数へ lower され、plain な `for` expression は `()` を返す。
 
-loop control は prelude から入ります。
+loop control は prelude から入る。
 
 ```yulang
 for x in 0..:
@@ -57,8 +55,7 @@ for x in 0..:
     else: ()
 ```
 
-`last`、`next`、`redo` は、現在の loop から抜ける、次の反復へ進む、反復をやり直す
-ための操作です。
+`last`、`next`、`redo` は、現在の loop から抜ける、次の反復へ進む、反復をやり直すための操作である。
 
 ## ラベル
 
@@ -69,8 +66,7 @@ for 'outer x in 0..:
         else: ()
 ```
 
-labelled loop は label 値を body に渡します。`last 'outer`、`next 'outer`、
-`redo 'outer` は、その label の loop を対象にします。
+labelled loop は label 値を body に渡す。`last 'outer`、`next 'outer`、`redo 'outer` は、その label の loop を対象にする。
 
 ## `sub` と `return`
 
@@ -82,10 +78,9 @@ sub:
     0
 ```
 
-`sub:` は早期 return scope を作ります。`return value` は直近の `sub:` から
-抜けます。nullfix の `return` は `()` を返します。
+`sub:` は早期 return scope を作る。`return value` は直近の `sub:` から抜ける。nullfix の `return` は `()` を返す。
 
-labelled `sub` もあります。
+labelled `sub` もある。
 
 ```yulang
 sub 'done:
@@ -93,8 +88,7 @@ sub 'done:
     0
 ```
 
-`sub`、`return`、`last`、`next`、`redo` は標準ライブラリ / prelude の surface
-であり、parser 専用 keyword ではありません。
+`sub`、`return`、`last`、`next`、`redo` は標準ライブラリ / prelude の surface であり、parser 専用 keyword ではない。
 
 ## Block と Lambda
 
@@ -108,5 +102,4 @@ sub 'done:
 \x y -> x + y
 ```
 
-block は statement を順に評価し、最後の式を返します。lambda は `\` で始まり、
-複数引数は curried function として扱われます。
+block は statement を順に評価し、最後の式を返す。lambda は `\` で始まり、複数引数は curried function として扱われる。

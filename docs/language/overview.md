@@ -207,6 +207,48 @@ type ref 'e 'a with:
         update_effect: () -> [ref_update 'a; 'e] ()
 ```
 
+### Symbols
+
+`:name` is a symbol literal. Each symbol has its own singleton type (`:{ name }`) whose only value is the symbol itself.
+
+```yulang
+:hello
+```
+
+The inferred type of this expression is `:{ hello }`. No other value can sit in that type.
+
+Symbols can also appear in patterns, so listing several of them across arms is a lightweight way to express a small set of choices.
+
+```yulang
+my describe s =
+    case s:
+        :hello -> "greeting"
+        :bye -> "farewell"
+
+describe :hello
+```
+
+Inference settles the parameter type of `describe` to accept either `:hello` or `:bye` (effectively `:{ hello, bye }`).
+
+A symbol can also carry a value. Writing `:hello("John")` produces a tagged value that bundles the symbol name with a payload, and the payload type can differ across symbols. The pattern form `:hello name` pulls the payload back out.
+
+```yulang
+my describe x =
+    case x:
+        :hello name -> "Hello, " + name
+        :bye n -> "Bye %{n}"
+
+(describe :hello("John"), describe :bye(3))
+```
+
+The inferred type of `describe` is roughly:
+
+```text
+describe : :{ hello str, bye int } -> str
+```
+
+Each arm tracks its own payload type — `str` for `hello`, `int` for `bye`. The main use of symbols is to get polymorphic-variant-like behavior, with per-variant payloads, without declaring an `enum`.
+
 ## Patterns
 
 Patterns appear in function arguments, `case`, `catch`, and local bindings.
@@ -318,8 +360,8 @@ sharing one name.
 
 ```yulang
 pub error fs_err:
-    not_found path
-    denied path
+    not_found str
+    denied str
     invalid_path str
 ```
 
@@ -327,13 +369,13 @@ This roughly desugars to:
 
 ```yulang
 pub enum fs_err =
-    not_found path
-  | denied path
+    not_found str
+  | denied str
   | invalid_path str
 
 pub act fs_err:
-    not_found: path -> never
-    denied: path -> never
+    not_found: str -> never
+    denied: str -> never
     invalid_path: str -> never
 ```
 
@@ -342,21 +384,21 @@ context picks the one that fits.
 
 ```yulang
 // constructed as a value
-my err: fs_err = fs_err::not_found path
+my err: fs_err = fs_err::not_found "/missing"
 
-// raised as an effect
-fs_err::not_found path
+// raised as an effect (this line performs [fs_err])
+fs_err::not_found "/missing"
 ```
 
 The companion module also receives:
 
 - `impl Throw fs_err` — backs `e.throw`, which re-raises a value through the
   effect.
-- `impl Display fs_err` — a default text rendering, overridable with a
-  hand-written impl.
 - `fs_err::wrap` — closes the error effect into a `result` value.
 - `fs_err::up` — a handler that lifts narrower errors into `fs_err`, used when
   other error types declare `from fs_err`.
+
+If you want a text rendering of a particular error type, write `impl Display fs_err` yourself.
 
 ### Raising with `fail`
 
@@ -364,7 +406,7 @@ The companion module also receives:
 `e.throw`:
 
 ```yulang
-pub prefix(fail) = \e -> e.throw
+pub prefix(fail) 1.0.0 = \e -> e.throw
 ```
 
 Use it to surface a constructed error value into the effect row.
@@ -372,12 +414,12 @@ Use it to surface a constructed error value into the effect row.
 ```yulang
 my read_text_or_throw path =
     case fs::read_text path:
-        opt::just text -> text
-        opt::nil -> fail fs_err::not_found path
+        just text -> text
+        nil -> fail fs_err::not_found path
 ```
 
-The inferred type of this function is roughly `path -> [fs; fs_err] str`. The
-error is visible in the effect row.
+The inferred type is roughly `str -> [fs; fs_err] str`. The error is visible in
+the effect row.
 
 ### Catching by name
 
@@ -385,8 +427,8 @@ error is visible in the effect row.
 
 ```yulang
 catch read_text_or_throw path:
-    fs_err::not_found p, _ -> "(missing) " + p
-    fs_err::denied p, _ -> "(denied) " + p
+    fs_err::not_found p, _ -> "(missing) %{p}"
+    fs_err::denied p, _ -> "(denied) %{p}"
     value -> value
 ```
 
@@ -403,15 +445,15 @@ When the caller wants the failure as a value instead of a propagated effect,
 
 ```yulang
 my read_text_safe path =
-    case fs_err::wrap: fs::read_text_or_throw path
-    of
+    my res = fs_err::wrap: read_text_or_throw path
+    case res:
         result::ok text -> text
-        result::err err -> err.show + " (falling back)"
+        result::err _ -> "(falling back)"
 ```
 
 `fs_err::wrap` catches the `fs_err` effect produced by the thunk and returns
-`result str fs_err`. The `err` value is `Display`-able through the
-auto-generated impl.
+`result str fs_err`. To branch on the kind of error, peel the pattern further:
+`result::err (fs_err::not_found p) -> ...`.
 
 ### Aggregating errors: `from`
 
@@ -433,8 +475,8 @@ This generates:
 ```yulang
 my read_and_parse path =
     io_err::up:
-        let text = fs::read_text_or_throw path     // [fs_err]
-        parse_json text                              // [parse_err]
+        my text = read_text_or_throw path    // [fs_err]
+        parse_json text                       // [parse_err]
     // the whole block has effect [io_err]
 ```
 

@@ -1,7 +1,6 @@
 # チートシート
 
-Yulang の構文を 1 ページで眺める。各節は思い出し用 — 詳細は言語リファレンス
-へ。
+Yulang の構文を 1 ページで眺めるためのページです。各節は思い出し用なので、詳細はリファレンスを参照してください。
 
 ## binding
 
@@ -26,9 +25,7 @@ f.method                       // ドット選択（続けて引数を書けば 
 xs[0]                          // インデックス
 ```
 
-空白は意味を持つ：`f(x)` は呼び出し、`f (x)` は `f` を `(x)` に裸 application
-する、`f: x` は colon、`f :x` は `f` をシンボル `:x` に裸 application、と
-それぞれ別物。
+空白は意味を持ちます。`f(x)` は呼び出し、`f (x)` は `f` を `(x)` に裸 application、`f: x` は colon、`f :x` は `f` をシンボル `:x` に裸 application、とそれぞれ別物です。
 
 ## ブロックと layout
 
@@ -39,7 +36,7 @@ my big =
     x + 1
 ```
 
-`:` は statement 的な形の末尾で layout block を開く。
+`:` は statement 的な形の末尾で layout block を開きます。
 
 ## 条件分岐
 
@@ -108,14 +105,14 @@ catch action:
     v -> v
 ```
 
-関数型は effect row を持つ：`path -> [fs; e] str`。
+関数型は effect row を持ちます: `str -> [fs; e] str`。
 
 ## エラー
 
 ```yulang
 error fs_err:
-    not_found path
-    denied path
+    not_found str
+    denied str
 
 fail fs_err::not_found "x"
 

@@ -6,7 +6,7 @@
 struct point { x: int, y: int }
 ```
 
-`struct` は nominal な record type。値は次のように作る。
+`struct` は nominal な record type である。値は次のように作る。
 
 ```yulang
 point { x: 3, y: 4 }
@@ -29,16 +29,13 @@ struct point { x: int, y: int } with:
     our p.scale n = point { x: p.x * n, y: p.y * n }
 ```
 
-`with:` block は struct の companion module へ定義を追加します。
-receiver 名を付けた binding は method として登録されます。例では、companion の
-外から見える method にするために `our p.norm2` と書いています。
+`with:` block は struct の companion module へ定義を追加する。receiver 名を付けた binding は method として登録される。例では、companion の外から見える method にするために `our p.norm2` と書いている。
 
-同じ `with:` の仕組みは `type` 宣言にもあります。標準ライブラリの `list`、
-`str`、`ref` も companion module に method を定義しています。
+同じ `with:` の仕組みは `type` 宣言にもある。標準ライブラリの `list`、`str`、`ref` も companion module に method を定義している。
 
 ## Role
 
-role は interface。型が提供すべき method と associated type を宣言する。
+role は interface である。型が提供すべき method と associated type を宣言する。
 
 ```yulang
 role Add 'a:
@@ -71,7 +68,7 @@ impl Index str int:
 
 role 名の後ろの型引数が role の type parameter を埋める。
 
-struct の `with:` block 内でも `impl` を書けます。
+struct の `with:` block 内でも `impl` を書ける。
 
 ```yulang
 struct box 'a { value: 'a } with:
@@ -80,8 +77,7 @@ struct box 'a { value: 'a } with:
         our b.index i = b.value
 ```
 
-この場合、enclosing struct が role の最初の type parameter として前に足され、
-role 名の後ろに書いた型引数は残りの parameter を埋めます。
+この場合、enclosing struct が role の最初の type parameter として前に足され、role 名の後ろに書いた型引数は残りの parameter を埋める。
 
 ## `where`
 
@@ -91,6 +87,4 @@ my twice(x: 'a) =
     x.add x
 ```
 
-`where` は type variable に role constraint を付けます。binding body、
-role body、impl body の中で使えます。role body の `where` は role method へ
-継承され、impl body の `where` はその impl candidate の前提条件になります。
+`where` は type variable に role constraint を付ける。binding body、role body、impl body の中で使える。role body の `where` は role method へ継承され、impl body の `where` はその impl candidate の前提条件になる。

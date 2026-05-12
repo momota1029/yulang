@@ -8,14 +8,14 @@ Yulang の主要機能を短く巡るページです。すべての例は <a hre
 1 + 2
 ```
 
-トップレベルに式を書くと、その値が実行結果に表示される。binding は `my` で定義する。
+トップレベルに式を書くと、その値が実行結果に表示されます。binding は `my` で定義します。
 
 ```yulang
 my double x = x + x
 double 21
 ```
 
-`my` は private、`our` は companion module に公開、`pub` は外部へ export する。
+`my` は private、`our` は companion module に公開、`pub` は外部へ export します。
 
 ## 構造体
 
@@ -26,12 +26,12 @@ struct point { x: int, y: int } with:
 point { x: 3, y: 4 } .norm2
 ```
 
-`struct` は nominal な record type。`with:` block には companion module へ入る method を書ける。
-`our p.norm2` の `p` は receiver 名で、`point` の値に対する `.norm2` として呼べる。
+`struct` は nominal な record type です。`with:` block には companion module へ入る method を書けます。
+`our p.norm2` の `p` は receiver 名で、`point` の値に対する `.norm2` として呼べます。
 
 ## 省略可能引数
 
-record pattern の default は、named optional argument として使える。
+record pattern の default は、named optional argument として使えます。
 
 ```yulang
 my area {width = 1, height = 2} = width * height
@@ -41,7 +41,7 @@ area {}
 area { width: 3, height: 4 }
 ```
 
-default は左から右へ評価され、前の field を参照できる。
+default は左から右へ評価され、前の field を参照できます。
 
 ```yulang
 my f {a = 1, b = a + 1, c = b + 1} = (a, b, c)
@@ -51,7 +51,7 @@ f { a: 10 }      // (10, 11, 12)
 
 ## 可変 binding と参照
 
-`my $x = ...` は可変 binding を作る。`$x` は読み取り、`&x = v` は書き込み。
+`my $x = ...` は可変 binding を作ります。`$x` は読み取り、`&x = v` は書き込みです。
 
 ```yulang
 my $x = 10
@@ -59,7 +59,7 @@ my $x = 10
 $x
 ```
 
-同じ `&` 形式は field や index にも使える。
+同じ `&` 形式は field や index にも使えます。
 
 ```yulang
 my $xs = [2, 3, 4]
@@ -69,13 +69,13 @@ $xs
 
 ## 非決定性
 
-`std::undet` の `each` は選択を作る。`.list` はすべての結果を集める。
+`std::undet` の `each` は選択を作ります。`.list` はすべての結果を集めます。
 
 ```yulang
 (each [1, 2, 3] + each [4, 5, 6]).list
 ```
 
-`.once` は最初に見つかった結果を `opt` で返す。無限の選択では、前の選択を使って後の範囲を絞ると、探索が早く結果に到達する。
+`.once` は最初に見つかった結果を `opt` で返します。無限の選択では、前の選択を使って後の範囲を絞ると、探索が早く結果に到達します。
 
 ```yulang
 {
@@ -91,7 +91,7 @@ $xs
 
 ## Junction
 
-`all` と `any` は collection 全体に比較を持ち上げる。
+`all` と `any` は collection 全体に比較を持ち上げます。
 
 ```yulang
 if all [1, 2, 3] < any [2, 3, 4]:
@@ -102,7 +102,7 @@ else:
 
 ## エフェクト
 
-`act` は effect interface を宣言する。operation は普通の関数のように呼び、`catch` で処理する。
+`act` は effect interface を宣言します。operation は普通の関数のように呼び、`catch` で処理します。
 
 ```yulang
 act console:
@@ -117,12 +117,12 @@ run_console:
     ask()
 ```
 
-handler arm の `k` は continuation。`k value` を呼ぶと、operation の呼び出し位置へ値を返して計算を再開する。
+handler arm の `k` は continuation です。`k value` を呼ぶと、operation の呼び出し位置へ値を返して計算を再開します。
 
 ## ループと早期 return
 
-`for x in xs:` は `Fold` を実装する値を走査する。list や range は標準で対応している。
-`sub:` は早期 return scope を作り、`return value` が直近の `sub:` から抜ける。
+`for x in xs:` は `Fold` を実装する値を走査します。list や range は標準で対応しています。
+`sub:` は早期 return scope を作り、`return value` が直近の `sub:` から抜けます。
 
 ```yulang
 sub:
@@ -132,7 +132,7 @@ sub:
     0
 ```
 
-`last` / `next` / `redo` は loop control。prelude から operator として入る。
+`last` / `next` / `redo` は loop control です。prelude から operator として入ります。
 
 ## エラー
 
@@ -145,8 +145,8 @@ error fs_err:
     invalid_path str
 ```
 
-`fs_err::not_found "path"` は、文脈によって data constructor としても、throwing operation としても読める。
-別の error へまとめる場合は `from` を使う。
+`fs_err::not_found "path"` は、文脈によって data constructor としても、throwing operation としても読めます。
+別の error へまとめる場合は `from` を使います。
 
 ```yulang
 error io_err:
@@ -165,4 +165,4 @@ error io_err:
 ---
 ```
 
-`--` は普通のコメントではなく doc comment なので、通常のメモには `//` を使う。
+`--` は普通のコメントではなく doc comment なので、通常のメモには `//` を使います。

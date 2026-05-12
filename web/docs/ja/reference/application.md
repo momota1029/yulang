@@ -18,8 +18,7 @@ x.method y      // ((x.method) y)
 x.method(y, z)  // (((x.method) y) z)
 ```
 
-`x.method` 単体は call ではなく selection です。後ろに引数が続いた場合、
-選択された値が関数として適用されます。
+`x.method` 単体は call ではなく selection である。後ろに引数が続いた場合、選択された値が関数として適用される。
 
 `f()` は unit `()` を渡す call として読む。
 
@@ -89,13 +88,9 @@ pub infix(++) 5.0.0 5.0.1 = append
 pub suffix(..) 8.0.0 = range_from
 ```
 
-binding power は `.` 区切りの small integer vector です。比較は辞書順で、足りない
-桁は `0` として扱われるため、`5`、`5.0`、`5.0.0` は同じ強さです。
-`5.0.1` は `5.0.0` より少し強くなります。
+binding power は `.` 区切りの small integer vector である。比較は辞書順で、足りない桁は `0` として扱われるため、`5`、`5.0`、`5.0.0` は同じ強さになる。`5.0.1` は `5.0.0` より少し強い。
 
-prefix / suffix operator は binding power を 1 つ持ちます。infix operator は
-left binding power と right binding power の 2 つを持ちます。左右で別の値を
-持てるため、結合性や細かい grouping を operator 定義側で表せます。
+prefix / suffix operator は binding power を 1 つ持つ。infix operator は left binding power と right binding power の 2 つを持つ。左右で別の値を持てるため、結合性や細かい grouping を operator 定義側で表せる。
 
 ## Colon style
 
@@ -110,7 +105,7 @@ sub: return value
 
 括弧を増やすより、block や長い式には `:` を使う方が読みやすい。
 
-ただし `:` が ML application の右側に現れた場合、ML 引数の中へ入りません。
+ただし `:` が ML application の右側に現れた場合、ML 引数の中へ入らない。
 
 ```yulang
 my y = f sub: 1   // (f sub): 1
