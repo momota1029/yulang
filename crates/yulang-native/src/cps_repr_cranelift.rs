@@ -3659,6 +3659,7 @@ const NATIVE_CPS_I64_SYNTHETIC_EVAL_ID: u64 = u64::MAX;
 
 /// write27-a: sentinel target for `ResumeWithHandler`-installed frames
 /// (matches `cps_eval::EXIT_RWH_TARGET`). Stored as `i64`.
+#[allow(dead_code)]
 const NATIVE_CPS_I64_EXIT_RWH_TARGET: i64 = -1;
 
 /// write27-c c1: env-guarded JIT runtime trace. Set
@@ -3772,6 +3773,7 @@ thread_local! {
 /// selected frame, so the Perform post-arm path can synthesize a
 /// `ScopeReturn` targeting its escape without re-walking the stack.
 #[derive(Clone)]
+#[allow(dead_code)]
 struct NativeCpsI64SelectedHandlerMeta {
     prompt: u64,
     escape_continuation: usize,
@@ -3888,6 +3890,7 @@ fn with_native_i64_cps_state<T>(
     result
 }
 
+#[allow(dead_code)]
 fn native_i64_handler_stack_with_captured(
     captured: &[NativeCpsI64HandlerFrame],
 ) -> Vec<NativeCpsI64HandlerFrame> {
@@ -3896,6 +3899,7 @@ fn native_i64_handler_stack_with_captured(
     handlers
 }
 
+#[allow(dead_code)]
 fn native_i64_handler_stack_for_force(
     captured: &[NativeCpsI64HandlerFrame],
 ) -> Vec<NativeCpsI64HandlerFrame> {

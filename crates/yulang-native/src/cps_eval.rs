@@ -1726,6 +1726,7 @@ fn return_frame_immediately_forces_param(
 ///   context), since we're pre-empting that context.
 /// - If the thunk body itself returns a Thunk, peel via loop (mirrors the
 ///   sync stmt-level ForceThunk's behavior).
+#[allow(dead_code)]
 fn force_returned_thunk_before_frame_consumption(
     module: &CpsModule,
     mut thunk: Rc<CpsThunk>,
@@ -2253,6 +2254,7 @@ fn handler_stack_with_static(
     }
 }
 
+#[allow(dead_code)]
 fn handler_stack_with_pushed(
     active_handlers: &[CpsHandlerFrame],
     handler: CpsHandlerId,
@@ -2408,6 +2410,7 @@ fn read_resumption(
     }
 }
 
+#[allow(dead_code)]
 fn read_closure(
     function: &CpsFunction,
     values: &[Option<CpsRuntimeValue>],
