@@ -138,6 +138,22 @@ fn read_expr_nud_punct(kind: SyntaxKind, stop: im::HashSet<SyntaxKind>) -> ExprN
 
 pub fn scan_expr_led<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
+    i: In<I, S>,
+) -> Option<Token<ExprLedTag>> {
+    scan_expr_led_with_mode(leading_info, true, i)
+}
+
+pub fn scan_expr_tail_led<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    i: In<I, S>,
+) -> Option<Token<ExprLedTag>> {
+    let allow_prefix_nud = !matches!(leading_info, TriviaInfo::Newline { .. });
+    scan_expr_led_with_mode(leading_info, allow_prefix_nud, i)
+}
+
+fn scan_expr_led_with_mode<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    allow_prefix_nud: bool,
     mut i: In<I, S>,
 ) -> Option<Token<ExprLedTag>> {
     let fence_stop = from_fn(|mut i: In<I, S>| {
@@ -164,33 +180,49 @@ pub fn scan_expr_led<I: EventInput, S: EventSink>(
             (value(ExprLedTag::Field), scan_dot_field),
             from_fn(|i| scan_symbol(leading_info, false, i))
                 .map(|(kind, text)| (ExprLedTag::MlNud(ExprNudTag::Atom), (kind, text))),
-            (value(ExprLedTag::MlNud(ExprNudTag::Atom)), scan_sigil_ident),
-            (value(ExprLedTag::MlNud(ExprNudTag::Atom)), scan_number),
-            scan_ident_or_keyword.map(|(kind, text)| match kind {
-                SyntaxKind::Ident | SyntaxKind::Do => {
-                    (ExprLedTag::MlNud(ExprNudTag::Atom), (kind, text))
-                }
-                SyntaxKind::As => (ExprLedTag::As, (kind, text)),
-                SyntaxKind::With => (ExprLedTag::With, (kind, text)),
-                _ => (ExprLedTag::Stop, (kind, text)),
+            from_fn(|mut i| {
+                let item = scan_sigil_ident(i.rb())?;
+                Some((ExprLedTag::MlNud(ExprNudTag::Atom), item))
             }),
-            scan_punct_expr.map_once(move |(kind, text)| match kind {
-                kind if stop.contains(&kind) => (ExprLedTag::Stop, (kind, text)),
-                SyntaxKind::ColonColon => (ExprLedTag::PathSep, (kind, text)),
-                SyntaxKind::Colon => (ExprLedTag::Colon, (kind, text)),
-                SyntaxKind::Equal => (ExprLedTag::Assign, (kind, text)),
-                SyntaxKind::ParenL if matches!(leading_info, TriviaInfo::None) => {
-                    (ExprLedTag::CallStart, (kind, text))
-                }
-                SyntaxKind::BracketL if matches!(leading_info, TriviaInfo::None) => {
-                    (ExprLedTag::IndexStart, (kind, text))
-                }
-                kind => match read_expr_nud_punct(kind, stop) {
-                    ExprNudTag::Stop => (ExprLedTag::Stop, (kind, text)),
-                    tag => (ExprLedTag::MlNud(tag), (kind, text)),
-                },
+            from_fn(|mut i| {
+                let item = scan_number(i.rb())?;
+                Some((ExprLedTag::MlNud(ExprNudTag::Atom), item))
             }),
-            (value(ExprLedTag::Stop), scan_unknown),
+            from_fn(|mut i| {
+                let (kind, text) = scan_ident_or_keyword(i.rb())?;
+                let tag = match kind {
+                    SyntaxKind::Ident | SyntaxKind::Do => ExprLedTag::MlNud(ExprNudTag::Atom),
+                    SyntaxKind::As => ExprLedTag::As,
+                    SyntaxKind::With => ExprLedTag::With,
+                    _ => ExprLedTag::Stop,
+                };
+                Some((tag, (kind, text)))
+            }),
+            from_fn(|mut i| {
+                let (kind, text) = scan_punct_expr(i.rb())?;
+                let tag = match kind {
+                    kind if stop.contains(&kind) => ExprLedTag::Stop,
+                    SyntaxKind::ColonColon => ExprLedTag::PathSep,
+                    SyntaxKind::Colon => ExprLedTag::Colon,
+                    SyntaxKind::Equal => ExprLedTag::Assign,
+                    SyntaxKind::ParenL if matches!(leading_info, TriviaInfo::None) => {
+                        ExprLedTag::CallStart
+                    }
+                    SyntaxKind::BracketL if matches!(leading_info, TriviaInfo::None) => {
+                        ExprLedTag::IndexStart
+                    }
+                    kind => match read_expr_nud_punct(kind, stop.clone()) {
+                        ExprNudTag::Stop => ExprLedTag::Stop,
+                        tag => ExprLedTag::MlNud(tag),
+                    },
+                };
+                Some((tag, (kind, text)))
+            }),
+            from_fn(|mut i| {
+                allow_prefix_nud.then_some(())?;
+                let item = scan_unknown(i.rb())?;
+                Some((ExprLedTag::Stop, item))
+            }),
         ))?;
         let trailing_trivia = i.run(scan_trivia)?;
         Some(Lex::new(leading_info, kind, text, trailing_trivia).tag(tag))
@@ -198,8 +230,9 @@ pub fn scan_expr_led<I: EventInput, S: EventSink>(
     let op_parser = from_fn(|mut i: In<I, S>| {
         let (use_, def, lex) = op::scan::scan_op_led(i.rb(), leading_info)?;
         let tag = match use_ {
-            OpUse::Prefix => ExprLedTag::MlNud(ExprNudTag::Prefix(def.prefix?)),
-            OpUse::Nullfix => ExprLedTag::MlNud(ExprNudTag::Nullfix),
+            OpUse::Prefix if allow_prefix_nud => ExprLedTag::MlNud(ExprNudTag::Prefix(def.prefix?)),
+            OpUse::Nullfix if allow_prefix_nud => ExprLedTag::MlNud(ExprNudTag::Nullfix),
+            OpUse::Prefix | OpUse::Nullfix => return None,
             OpUse::Infix => {
                 let (lbp, rbp) = def.infix?;
                 ExprLedTag::Infix(lbp, rbp)
@@ -217,6 +250,7 @@ pub fn scan_expr_led<I: EventInput, S: EventSink>(
         Some(lex.tag(ExprLedTag::MlNud(ExprNudTag::RuleLitStart)))
     });
     let doc_comment_led = from_fn(|mut i: In<I, S>| {
+        allow_prefix_nud.then_some(())?;
         let (kind, text) = scan_doc_comment_token(i.rb())?;
         // trailing trivia は空にして本文を parse_ym_doc(DocLine) に委ねる
         Some(Lex::new(leading_info, kind, text, Trivia::empty()).tag(ExprLedTag::Stop))

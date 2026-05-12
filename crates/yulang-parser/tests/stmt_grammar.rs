@@ -2243,3 +2243,19 @@ fn stmt_indented_compact_positive_number_keeps_prefix() {
     ];
     assert_eq!(got, expected);
 }
+
+#[test]
+fn stmt_indented_identifier_continues_ml_apply() {
+    let got = parse_stmt_all("f\n    x\n");
+    let expected = vec![
+        "(Expr",
+        "  Ident \"f\"",
+        "  (ApplyML",
+        "    (Expr",
+        "      Ident \"x\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}

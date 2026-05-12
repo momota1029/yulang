@@ -1,10 +1,9 @@
-use chasa::prelude::from_fn;
 use either::Either;
 use reborrow_generic::Reborrow as _;
 
 use crate::EventInput;
 use crate::context::In;
-use crate::expr::scan::{ExprLedTag, ExprNudTag, scan_expr_led, scan_expr_nud};
+use crate::expr::scan::{ExprLedTag, ExprNudTag, scan_expr_led, scan_expr_nud, scan_expr_tail_led};
 use crate::lex::{Lex, SyntaxKind, Token, TriviaInfo};
 use crate::op::BpVec;
 use crate::parse::emit_invalid;
@@ -29,7 +28,7 @@ pub(super) fn parse_tail_bp<I: EventInput, S: EventSink>(
     {
         return Some(Ok(Either::Left(leading_info)));
     }
-    let Some(led) = i.maybe_fn(|i| scan_expr_led(leading_info, i))? else {
+    let Some(led) = i.maybe_fn(|i| scan_expr_tail_led(leading_info, i))? else {
         return Some(Ok(Either::Left(leading_info)));
     };
     pratt_tail_bp(min_bp, led, i)
@@ -39,30 +38,10 @@ fn should_stop_at_newline_before_tail<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     i: In<I, S>,
 ) -> bool {
-    match leading_info {
-        TriviaInfo::Newline { indent, .. } if indent <= i.env.indent => true,
-        TriviaInfo::Newline { .. } => !next_is_tail_continuation(leading_info, i),
-        _ => false,
-    }
-}
-
-fn next_is_tail_continuation<I: EventInput, S: EventSink>(
-    leading_info: TriviaInfo,
-    mut i: In<I, S>,
-) -> bool {
-    i.lookahead(from_fn(|i| {
-        let led = scan_expr_led(leading_info, i)?;
-        match led.tag {
-            ExprLedTag::Infix(_, _)
-                if matches!(led.lex.trailing_trivia_info(), TriviaInfo::None) =>
-            {
-                None
-            }
-            ExprLedTag::Stop | ExprLedTag::MlNud(_) => None,
-            _ => Some(()),
-        }
-    }))
-    .is_some()
+    matches!(
+        leading_info,
+        TriviaInfo::Newline { indent, .. } if indent <= i.env.indent
+    )
 }
 
 pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
