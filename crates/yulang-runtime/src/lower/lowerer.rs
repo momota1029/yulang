@@ -628,6 +628,15 @@ impl Lowerer<'_> {
                 {
                     final_param = actual_arg_ty.clone();
                 }
+                if evidence
+                    .as_ref()
+                    .is_some_and(|evidence| evidence.role_method)
+                    && !runtime_type_is_imprecise_runtime_slot(&actual_arg_ty)
+                    && !hir_type_contains_unknown(&actual_arg_ty)
+                    && !hir_type_compatible(&final_param, &actual_arg_ty)
+                {
+                    final_param = actual_arg_ty.clone();
+                }
                 if self.use_principal_elaboration
                     && callee_local_hint.is_some()
                     && matches!(final_param, RuntimeType::Thunk { .. })

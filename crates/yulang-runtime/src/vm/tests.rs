@@ -307,6 +307,22 @@ my xs = [
     }
 
     #[test]
+    fn vm_runs_lambda_param_string_interpolation() {
+        let (results, stdout) = eval_source_with_std_host(
+            r#"my f = \x -> {
+    println "x is %{x}"
+    x + 1
+}
+
+f 5
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("6".to_string())]);
+        assert_eq!(stdout, "x is 5\n");
+    }
+
+    #[test]
     fn vm_host_handles_console_output_requests() {
         let (results, stdout) = eval_source_with_std_host("println \"hello\"\n1 + 2\n");
 
