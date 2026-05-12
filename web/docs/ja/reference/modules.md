@@ -1,5 +1,7 @@
 # モジュール
 
+`use` による import、`my` / `our` / `pub` の visibility、companion module、ドット選択の解決、標準ライブラリの一覧を扱う。
+
 ## `use`
 
 ```yulang

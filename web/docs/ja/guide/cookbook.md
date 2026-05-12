@@ -213,6 +213,90 @@ my raw: int = id
 
 [キャスト](../reference/casts)
 
+## もう少し大きいサンプル
+
+ここまでのレシピを組み合わせると、こういう小さなプログラムが書けます。すべて Playground で動きます。
+
+### 小さな式評価器
+
+`enum` と再帰関数だけで電卓を書けます。
+
+```yulang
+enum expr =
+    num int
+    | add (expr, expr)
+    | mul (expr, expr)
+
+my eval e =
+    case e:
+        expr::num n -> n
+        expr::add (a, b) -> eval a + eval b
+        expr::mul (a, b) -> eval a * eval b
+
+eval (expr::add (expr::num 2, expr::mul (expr::num 3, expr::num 4)))
+// → 14
+```
+
+`(expr, expr)` のように tuple を payload にすると、複数引数バリアントを安全に書けます。
+
+### 再帰でリストを絞る
+
+list spread pattern と再帰で、`filter` 的な処理を素直に書けます。
+
+```yulang
+my is_even n =
+    std::int::eq (std::int::sub n (std::int::mul (std::int::div n 2) 2)) 0
+
+my keep_evens xs =
+    case xs:
+        [] -> []
+        [x, ..rest] ->
+            my r = keep_evens rest
+            if is_even x:
+                [x] + r
+            else:
+                r
+
+keep_evens [1, 2, 3, 4, 5, 6, 7, 8]
+// → [2, 4, 6, 8]
+```
+
+### ループで集計する
+
+`my $x = ...` の局所参照は、ループでの集計と相性がいいです。
+
+```yulang
+{
+    my $best = 0
+    for y in [3, 1, 4, 1, 5, 9, 2, 6, 5, 3]:
+        if y > $best: &best = y
+        else: ()
+    $best
+}
+// → 9
+```
+
+`$best` は block の外には漏れません。「ループの間だけ値を持ち回す」ような使い方が型に乗ります。
+
+### 非決定的に探す
+
+`each` と `guard` で、「条件を満たす組」を探索できます。
+
+```yulang
+use std::undet::*
+
+{
+    my a = each 1..20
+    my b = each a..20
+    my c = each b..20
+    guard: a * a + b * b == c * c
+    (a, b, c)
+}.list
+// → [(3, 4, 5), (5, 12, 13), (6, 8, 10), (8, 15, 17), ...]
+```
+
+`.list` を `.once` に変えると、最初に見つかった 1 組だけが返ります。前の選択を後の `each` の範囲に渡すことで、探索を早く絞れます。
+
 ## 関連ページ
 
 - [ツアー](./tour) — 同じ機能群を物語仕立てで一通り紹介します。

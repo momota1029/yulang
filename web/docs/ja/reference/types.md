@@ -1,5 +1,7 @@
 # 値と型
 
+Yulang が扱う基本の値の形（primitive、tuple、record、list、optional、result、range）と、その上に乗る関数型・effect row・type variable・role constraint・推論で表示される union/intersection を概観する。
+
 ## Primitive types
 
 | Type | 例 |

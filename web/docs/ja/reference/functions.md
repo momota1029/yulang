@@ -1,5 +1,7 @@
 # 関数
 
+関数の宣言形式（`my f x y = ...`）、明示的な lambda、型注釈、partial application、引数 pattern による分解の扱いをまとめる。
+
 ## 宣言
 
 ```yulang

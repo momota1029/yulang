@@ -1,5 +1,7 @@
 # 構造体とロール
 
+nominal な record 型を作る `struct`、companion module へ method を足す `with:`、type 越しに振る舞いをまとめる `role` と `impl`、そして type variable に制約を付ける `where` を扱う。
+
 ## Struct
 
 ```yulang
