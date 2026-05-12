@@ -149,6 +149,8 @@ runtime/core IR
   - value-lane Cranelift は bool / unit / float literal も opaque `VmValue`
     pointer として作れるようにした。`ListLen` / `ListIndex` も Rust helper 経由で
     `VmValue` を返す。JIT と native runtime API の小さい regression で固定した。
+    `--native-run-value-exe` でも `true` / `()` / `1.5` と
+    `[1, 2].len` / `[1, 2].index 1` の executable 出力を確認済み。
   - value-lane Cranelift は tuple / record / variant も opaque `VmValue`
     pointer として作れるようにした。native IR / ABI IR には構造値 stmt を追加し、
     codegen では `tuple_empty` / `tuple_push`、`record_empty` / `record_insert`、
@@ -337,8 +339,10 @@ runtime/core IR
      それを使う。なければ `CARGO_TARGET_DIR` または workspace `target` の
      `debug/libyulang_native.a` を使い、native/runtime/core-ir source より古い時だけ
      `cargo build -p yulang-native` で更新する。
-   - 次に必要なもの: value-lane object/executable 側で bool / unit / float と
-     list index / len を source から動かす回帰を足す。
+   - value-lane object/executable 側で bool / unit / float と list index / len を
+     source から動かす回帰を足した。
+   - 次に必要なもの: value-lane object/executable 側で list range index を
+     source から動かすか、range 専用 native 表現を決める。
 5. thunk / closure value を backend 境界で実体化する。
    汎用 thunk invocation と closure environment を扱えるようにする。
 6. fallback policy を設計する。

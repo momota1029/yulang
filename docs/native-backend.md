@@ -100,7 +100,8 @@ or out of here into the user-facing table once they stabilize.
 
 - [x] Source-to-runtime lowering can feed the value backend.
 - [x] Native value object generation works.
-- [x] Generated executables can print native value results.
+- [x] Generated executables can print native value results, including boxed
+      scalar values and basic list `len` / `index` results.
 - [x] `int`, `float`, `bool`, `unit`, and `str` literals are represented as
       opaque runtime values.
 - [x] Basic numeric and boolean primitives run through runtime helper symbols:

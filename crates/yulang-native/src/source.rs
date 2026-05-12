@@ -1587,6 +1587,40 @@ my total = top + 3
     }
 
     #[test]
+    fn emits_scalar_source_value_object() {
+        let object = run_with_large_stack(|| {
+            compile_source_value_object_with_options(
+                "true\n()\n1.5",
+                infer::SourceOptions::default(),
+            )
+            .expect("native value object")
+        });
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(
+            object.roots(),
+            &[
+                "root_0".to_string(),
+                "root_1".to_string(),
+                "root_2".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn emits_list_len_and_index_source_value_object() {
+        let object = run_with_large_stack(|| {
+            compile_source_value_object("[1, 2].len\n[1, 2].index 1").expect("native value object")
+        });
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(
+            object.roots(),
+            &["root_0".to_string(), "root_1".to_string()]
+        );
+    }
+
+    #[test]
     fn analyzes_list_source_element_repr() {
         let analysis = run_with_large_stack(|| {
             analyze_source_abi_reprs("[1, 2, 3]").expect("native ABI reprs")
