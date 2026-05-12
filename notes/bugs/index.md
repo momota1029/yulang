@@ -11,11 +11,6 @@
   `%{x}` 文字列 interpolation に渡すと型推論が壊れる
   (top-level block で同じ body を書くと通る)
 
-## parser / 構文
-
-- [`multiline_pipe.yu`](multiline_pipe.yu) — 行頭に置いた `|` パイプが
-  invalid token になる
-
 ## for ループとエフェクト
 
 - [`for_ref_list_grow.yu`](for_ref_list_grow.yu) — `for` ループ内で list ref を

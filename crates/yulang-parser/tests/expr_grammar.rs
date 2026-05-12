@@ -875,6 +875,35 @@ fn expr_pipeline_is_left_associative() {
 }
 
 #[test]
+fn expr_pipeline_continues_on_indented_line() {
+    let got = parse_expression("[1, 2]\n    | f");
+    let expected = vec![
+        "(Expr",
+        "  (Bracket",
+        "    BracketL \"[\"",
+        "    (Expr",
+        "      Number \"1\"",
+        "    )",
+        "    (Separator",
+        "      Comma \",\"",
+        "    )",
+        "    (Expr",
+        "      Number \"2\"",
+        "    )",
+        "    BracketR \"]\"",
+        "  )",
+        "  (PipeNode",
+        "    Pipe \"|\"",
+        "    (Expr",
+        "      Ident \"f\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_pipeline_binds_weaker_than_infix() {
     let got = parse_expression("a + b | f");
     let expected = vec![
@@ -890,6 +919,23 @@ fn expr_pipeline_binds_weaker_than_infix() {
         "    Pipe \"|\"",
         "    (Expr",
         "      Ident \"f\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_infix_continues_on_indented_line() {
+    let got = parse_expression("1\n    + 2");
+    let expected = vec![
+        "(Expr",
+        "  Number \"1\"",
+        "  (InfixNode",
+        "    Infix \"+\"",
+        "    (Expr",
+        "      Number \"2\"",
         "    )",
         "  )",
         ")",

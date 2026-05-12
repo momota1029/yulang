@@ -2168,3 +2168,19 @@ fn stmt_binding_case_body_with_or_pattern_builds_green_tree() {
     assert_eq!(arms, 2);
     assert_eq!(or_patterns, 2);
 }
+
+#[test]
+fn stmt_binding_rhs_keeps_indented_pipeline_continuation() {
+    let source = "my xs = [1, 2]\n    | f\n";
+    let module = parse_module_green(source);
+    let pipe_nodes = module
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::PipeNode)
+        .count();
+    let invalid_tokens = module
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::InvalidToken)
+        .count();
+    assert_eq!(pipe_nodes, 1);
+    assert_eq!(invalid_tokens, 0);
+}

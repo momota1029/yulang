@@ -24,7 +24,7 @@ pub(super) fn parse_tail_bp<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
 ) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
     if i.env.ml_arg && leading_info != TriviaInfo::None
-        || matches!(leading_info, TriviaInfo::Newline { .. })
+        || matches!(leading_info, TriviaInfo::Newline { indent, .. } if indent <= i.env.indent)
     {
         return Some(Ok(Either::Left(leading_info)));
     }
