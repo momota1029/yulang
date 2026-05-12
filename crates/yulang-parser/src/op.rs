@@ -266,6 +266,7 @@ pub fn standard_op_table() -> OpTable {
     add!(">=", infix: (30, 30));
     add!("and", infix: (20, 20));
     add!("or", infix: (10, 10));
+    add!("|", infix: (5, 5));
 
     table
 }

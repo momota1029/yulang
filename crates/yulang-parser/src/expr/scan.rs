@@ -36,7 +36,6 @@ pub enum ExprNudTag {
 pub enum ExprLedTag {
     Infix(BpVec, BpVec),
     Suffix(BpVec),
-    Pipe,
     Field,
     As,
     With,
@@ -180,7 +179,6 @@ pub fn scan_expr_led<I: EventInput, S: EventSink>(
                 SyntaxKind::ColonColon => (ExprLedTag::PathSep, (kind, text)),
                 SyntaxKind::Colon => (ExprLedTag::Colon, (kind, text)),
                 SyntaxKind::Equal => (ExprLedTag::Assign, (kind, text)),
-                SyntaxKind::Pipe => (ExprLedTag::Pipe, (kind, text)),
                 SyntaxKind::ParenL if matches!(leading_info, TriviaInfo::None) => {
                     (ExprLedTag::CallStart, (kind, text))
                 }

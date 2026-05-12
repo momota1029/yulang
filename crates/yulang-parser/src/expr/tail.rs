@@ -1,4 +1,4 @@
-use chasa::prelude::{from_fn, one_of};
+use chasa::prelude::from_fn;
 use either::Either;
 use reborrow_generic::Reborrow as _;
 
@@ -50,9 +50,6 @@ fn next_is_tail_continuation<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     mut i: In<I, S>,
 ) -> bool {
-    if compact_prefix_number_start(i.rb()) {
-        return false;
-    }
     i.lookahead(from_fn(|i| {
         let led = scan_expr_led(leading_info, i)?;
         match led.tag {
@@ -64,15 +61,6 @@ fn next_is_tail_continuation<I: EventInput, S: EventSink>(
             ExprLedTag::Stop | ExprLedTag::MlNud(_) => None,
             _ => Some(()),
         }
-    }))
-    .is_some()
-}
-
-fn compact_prefix_number_start<I: EventInput, S: EventSink>(mut i: In<I, S>) -> bool {
-    i.lookahead(from_fn(|mut i: In<I, S>| {
-        i.skip(one_of("+-"))?;
-        i.skip(one_of(|c: char| c.is_ascii_digit()))?;
-        Some(())
     }))
     .is_some()
 }
@@ -220,33 +208,15 @@ pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
                     return Some(Err(led));
                 }
             }
-            i.env.state.sink.start(SyntaxKind::InfixNode);
-            i.env.state.sink.lex(&led.lex);
-            match parse_expr_bp(Some(&rbp), led.lex.trailing_trivia_info(), i.rb())? {
-                Ok(Either::Left(next_info)) => {
-                    i.env.state.sink.finish();
-                    parse_tail_bp(min_bp, next_info, i)
-                }
-                Ok(Either::Right(stop)) => {
-                    i.env.state.sink.finish();
-                    Some(Ok(Either::Right(stop)))
-                }
-                Err(next_led) => {
-                    i.env.state.sink.finish();
-                    pratt_tail_bp(min_bp, next_led, i)
-                }
+            let node_kind = infix_node_kind(&led.lex);
+            i.env.state.sink.start(node_kind);
+            if node_kind == SyntaxKind::PipeNode {
+                let mut pipe = led.lex.clone();
+                pipe.kind = SyntaxKind::Pipe;
+                i.env.state.sink.lex(&pipe);
+            } else {
+                i.env.state.sink.lex(&led.lex);
             }
-        }
-        ExprLedTag::Pipe => {
-            let lbp = pipeline_lbp();
-            if let Some(min) = min_bp {
-                if &lbp < min {
-                    return Some(Err(led));
-                }
-            }
-            let rbp = pipeline_rbp();
-            i.env.state.sink.start(SyntaxKind::PipeNode);
-            i.env.state.sink.lex(&led.lex);
             match parse_expr_bp(Some(&rbp), led.lex.trailing_trivia_info(), i.rb())? {
                 Ok(Either::Left(next_info)) => {
                     i.env.state.sink.finish();
@@ -376,10 +346,10 @@ fn scan_path_segment_nud<I: EventInput, S: EventSink>(
     Some(Lex::new(leading_info, kind, text, trailing_trivia).tag(ExprNudTag::Atom))
 }
 
-fn pipeline_lbp() -> BpVec {
-    BpVec::new(vec![5])
-}
-
-fn pipeline_rbp() -> BpVec {
-    BpVec::new(vec![5, 1])
+fn infix_node_kind(lex: &Lex) -> SyntaxKind {
+    if lex.text.as_ref() == "|" {
+        SyntaxKind::PipeNode
+    } else {
+        SyntaxKind::InfixNode
+    }
 }

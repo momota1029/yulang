@@ -1,7 +1,7 @@
 use chasa::Back as _;
 use chasa::parser::SkipParserOnce as _;
 use chasa::parser::trie::TrieState as ChasaTrieState;
-use chasa::prelude::{cut_on_ok, eoi, from_fn, one_of};
+use chasa::prelude::{eoi, from_fn, one_of};
 use reborrow_generic::Reborrow as _;
 use unicode_ident::is_xid_start;
 
@@ -78,7 +78,7 @@ where
         Some((use_, def, end_cp, trailing_trivia))
     });
 
-    let (use_, def, end_cp, trailing_trivia) = i.run(cut_on_ok(parser))?;
+    let (use_, def, end_cp, trailing_trivia) = i.run(parser)?;
 
     let text: Box<str> = I::seq(start_cp, end_cp).as_ref().into();
     let kind = match use_ {
@@ -164,5 +164,5 @@ fn op_value_start_inner<I: EventInput, S: EventSink>(mut i: context::In<I, S>) -
         }
     });
 
-    i.run(cut_on_ok(parser))
+    i.run(parser)
 }

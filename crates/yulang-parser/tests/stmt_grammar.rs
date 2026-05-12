@@ -2224,3 +2224,22 @@ fn stmt_indented_compact_negative_number_keeps_prefix() {
     ];
     assert_eq!(got, expected);
 }
+
+#[test]
+fn stmt_indented_compact_positive_number_keeps_prefix() {
+    let got = parse_stmt_all("1\n    +2\n");
+    let expected = vec![
+        "(Expr",
+        "  Number \"1\"",
+        ")",
+        "(Expr",
+        "  (PrefixNode",
+        "    Prefix \"+\"",
+        "    (Expr",
+        "      Number \"2\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
