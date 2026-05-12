@@ -48,9 +48,15 @@ xs.map double .filter (\x -> x > 0) .len
 ```
 
 `.method` は selection と application を兼ねる。method は第一級なので、
-`xs.map` は closure を待つ関数になる。ドットの周りの空白は意味を持つ：
-`xs .map` は ML 風適用で「`xs` を `.map` というシンボルに当てる」と読まれて
-しまう。ドットは詰めて書くこと。
+`xs.map` は closure を待つ関数になる。`.filter` や `.len` の前に空白を
+置いているのは、裸の application 列の中では空白が引数を一区切りにして、
+次のドットを外側の式に付けるから — ここでは `(xs.map double) .filter ...`
+と読ませる狙い。
+
+トップレベルでは `xs.map` も `xs .map` も同じ field 選択になる。空白の
+有無で意味が変わるのは、ドットつき式が ML 風 application の引数の中に
+あるときだけ。詳しくは
+[Application](./application#whitespace-is-significant) を参照。
 
 ## companion method のための `with:`
 

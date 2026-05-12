@@ -18,15 +18,26 @@ f: x    // colon application
 シンボルが `:` の後ろに続くとき、**`f:foo` と `f :foo` は別物**。意図的に
 空白を入れて区別する。
 
-## ドットメソッドは詰める
+## ML 引数の中ではドットの空白が効く
+
+トップレベルではどちらも同じ field 選択：
 
 ```yulang
-xs.map double      // メソッド呼び出し
-xs .map double     // xs をシンボル .map に裸 application（ほぼ意図しない）
+xs.map double      // (xs.map) double
+xs .map double     // 同じ — `.map` は xs に付く
 ```
 
-`.method` はレシーバに詰める。シンボルリテラルを本気で application したい
-ときだけ空白を入れる。
+空白で意味が変わるのは、ドットつき式が裸の application の引数として
+書かれているときだけ。ML 引数の文脈では、空白が引数を一区切りにして、
+次のドットを *外側* の式に付ける：
+
+```yulang
+f xs.map           // f (xs.map)
+f xs .map          // (f xs).map
+```
+
+`xs.map` を引数として渡したいときは詰めて書く。それ以外は `xs.map` でも
+`xs .map` でも好きに書ける。
 
 ## 改行で裸 application は閉じる
 

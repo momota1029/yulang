@@ -77,11 +77,9 @@ handler of every error are visible from types alone.
 ## `wrap`: closing into a value
 
 ```yulang
-my read_text_safe path =
-    case fs_err::wrap: fs::read_text_or_throw path
-    of
-        result::ok text -> text
-        result::err err -> err.show
+my read_text_safe path = case fs_err::wrap: fs::read_text_or_throw path:
+    result::ok text -> text
+    result::err err -> err.show
 ```
 
 `E::wrap` catches the matching error effect produced by its thunk argument
@@ -106,8 +104,8 @@ This generates:
 ```yulang
 my read_and_parse path =
     io_err::up:
-        let text = fs::read_text_or_throw path   // [fs_err]
-        parse_json text                            // [parse_err]
+        my text = fs::read_text_or_throw path   // [fs_err]
+        parse_json text                          // [parse_err]
     // the block as a whole has effect [io_err]
 ```
 

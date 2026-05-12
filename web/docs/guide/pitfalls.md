@@ -18,15 +18,26 @@ bare application.
 A symbol after `:` is colon application; **`f:foo` and `f :foo` mean different
 things**. Reach for explicit whitespace to make intent visible.
 
-## Method dots are tight
+## Method dots inside bare application
+
+At the top level both spellings select a field:
 
 ```yulang
-xs.map double      // method call
-xs .map double     // bare application of xs to the symbol .map (rarely wanted)
+xs.map double      // (xs.map) double
+xs .map double     // same — `.map` still binds to xs
 ```
 
-Keep `.method` glued to the receiver. Add a space only when you really want
-ML-style application of a symbol literal.
+The space matters only when the dotted expression sits inside a bare
+application. In that "ML argument" context a space ends the current argument,
+so the dot binds to the *outer* head instead of the receiver:
+
+```yulang
+f xs.map           // f (xs.map)
+f xs .map          // (f xs).map
+```
+
+If you want the dot to stay with `xs`, keep it tight when you are passing
+`xs.map` as an argument. Otherwise both `xs.map` and `xs .map` are fine.
 
 ## Newlines end bare application
 

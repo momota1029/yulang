@@ -50,9 +50,15 @@ xs.map double .filter (\x -> x > 0) .len
 ```
 
 `.method` is selection plus application. Methods are first-class — `xs.map`
-returns a function expecting the closure. Whitespace around the dot is
-significant: `xs .map` would be ML-style application of `xs` to the symbol
-`.map`, which is rarely what you want. Keep the dot tight.
+returns a function expecting the closure. Notice the explicit spaces before
+`.filter` and `.len`: inside a bare-application chain, a space closes the
+current argument so the next dot lands on the outer expression. Here that
+means `(xs.map double) .filter ...` rather than `xs.map (double.filter ...)`.
+
+At the top level both spellings work — `xs.map` and `xs .map` resolve to the
+same field selection. The difference only matters when the dotted expression
+sits inside an ML-style argument list. See
+[Application](./application#whitespace-is-significant) for the precise rule.
 
 ## `with:` blocks for companion methods
 

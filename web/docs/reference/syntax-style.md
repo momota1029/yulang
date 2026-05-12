@@ -277,14 +277,15 @@ case of the evaluator.
 
 ```yulang
 pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b ->
-    if a:
+    if a():
         b()
     else:
         false
 ```
 
-The right-hand side is provided as a thunk. This makes `and`/`or` ordinary
-library-defined syntax with lazy evaluation behavior.
+Both operands are provided as thunks, so the body decides whether to force
+each side. This makes `and`/`or` ordinary library-defined syntax with lazy
+evaluation behavior.
 
 ## Add Type Annotations at Boundaries
 
@@ -300,7 +301,7 @@ make an intended cast boundary explicit.
 ```yulang
 pub my id(x: 'a): 'a = x
 
-my result: result str fs_err = fs_err:wrap:
+my result: result str fs_err = fs_err::wrap:
     read_text path
 ```
 

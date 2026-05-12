@@ -53,19 +53,24 @@ levels rather than overlapping them.
 
 ## Lazy operators
 
+A `lazy infix` body receives **both** operands as thunks (`() -> value`).
+Force whichever side you need; the call site `a and b` looks like the eager
+form and never has to introduce its own thunk. The prelude's `and` / `or` use
+this to short-circuit:
+
 ```yulang
 pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b ->
-    if a: b() else: false
+    if a():
+        b()
+    else:
+        false
 
 pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b ->
-    if a: true else: b()
+    if a():
+        true
+    else:
+        b()
 ```
-
-`lazy` operators receive each right-hand operand as a thunk (`() -> value`).
-Callers do not see the thunk wrapping — `a and b()` and `a or b()` look
-exactly like the eager forms. The body decides whether to force them.
-
-`and` and `or` in the prelude are lazy so they short-circuit.
 
 ## Calling an operator like a function
 

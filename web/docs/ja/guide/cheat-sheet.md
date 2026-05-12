@@ -22,7 +22,7 @@ my (a, b) = (1, 2)             // 分割代入
 f x y                          // 裸の application
 f(x, y)                        // C 風呼び出し（内部は curry）
 f: x                           // colon application
-f.method                       // メソッドのドット
+f.method                       // ドット選択（続けて引数を書けば application）
 xs[0]                          // インデックス
 ```
 
@@ -152,7 +152,7 @@ my twice x = x.add x           // 推論: Add<α> => α -> α
 pub prefix(not) 8.0.0 = std::bool::not
 pub infix (+) 5.0.0 5.0.0 = \x -> \y -> x.add y
 pub suffix (..) 8.0.0 = std::range::from_included
-pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b -> if a: true else: b()
+pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b -> if a(): true else: b()
 ```
 
 ## モジュールと import

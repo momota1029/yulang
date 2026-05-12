@@ -52,19 +52,21 @@ prelude の選択値：
 
 ## Lazy 演算子
 
+`lazy infix` の body は **両方** のオペランドを thunk（`() -> value`）として受け取る。必要な側だけ force すればよく、`a and b` のような呼び出し側で thunk 化を意識する必要はない。prelude の `and` / `or` はこの仕組みで短絡評価を実現している：
+
 ```yulang
 pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b ->
-    if a: b() else: false
+    if a():
+        b()
+    else:
+        false
 
 pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b ->
-    if a: true else: b()
+    if a():
+        true
+    else:
+        b()
 ```
-
-`lazy` 演算子は各右オペランドを thunk（`() -> value`）として受け取る。
-呼び出し側にはこの包みは見えない — `a and b()` も `a or b()` も普通の式と
-同じ見た目。body 側で評価するかどうかを決められる。
-
-prelude の `and` / `or` は短絡評価のために lazy にしている。
 
 ## 演算子を関数として呼ぶ
 

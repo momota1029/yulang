@@ -74,11 +74,9 @@ effect row の中で常に具体的な名前で見え、発火地点と捕捉地
 ## `wrap`：値に閉じる
 
 ```yulang
-my read_text_safe path =
-    case fs_err::wrap: fs::read_text_or_throw path
-    of
-        result::ok text -> text
-        result::err err -> err.show
+my read_text_safe path = case fs_err::wrap: fs::read_text_or_throw path:
+    result::ok text -> text
+    result::err err -> err.show
 ```
 
 `E::wrap` は、引数 thunk が起こす対応 error effect を捕まえて `result _ E`
@@ -103,8 +101,8 @@ pub error io_err:
 ```yulang
 my read_and_parse path =
     io_err::up:
-        let text = fs::read_text_or_throw path   // [fs_err]
-        parse_json text                            // [parse_err]
+        my text = fs::read_text_or_throw path   // [fs_err]
+        parse_json text                         // [parse_err]
     // block 全体の effect は [io_err]
 ```
 

@@ -22,7 +22,7 @@ my (a, b) = (1, 2)             // destructure
 f x y                          // bare application
 f(x, y)                        // C-style call (curried under the hood)
 f: x                           // colon application
-f.method                       // method dot (selection + apply)
+f.method                       // dot selection (apply by following with args)
 xs[0]                          // index
 ```
 
@@ -152,7 +152,7 @@ my twice x = x.add x           // inferred: Add<α> => α -> α
 pub prefix(not) 8.0.0 = std::bool::not
 pub infix (+) 5.0.0 5.0.0 = \x -> \y -> x.add y
 pub suffix (..) 8.0.0 = std::range::from_included
-pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b -> if a: true else: b()
+pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b -> if a(): true else: b()
 ```
 
 ## Modules and imports

@@ -140,8 +140,7 @@ errors are always caught by their concrete name.
 ## Close an error effect into a `result`
 
 ```yulang
-case fs_err::wrap: read_text_or_throw "/tmp/data"
-of
+case fs_err::wrap: read_text_or_throw "/tmp/data":
     result::ok text -> text
     result::err err -> err.show
 ```
@@ -161,7 +160,7 @@ pub error io_err:
 
 my read_and_parse path =
     io_err::up:
-        let text = read_text_or_throw path
+        my text = read_text_or_throw path
         parse_json text
 ```
 
