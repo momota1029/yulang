@@ -164,8 +164,8 @@ or out of here into the user-facing table once they stabilize.
       Cranelift CPS repr scalar path.
 - [x] A finite-list nondeterministic choice can use `std::list::uncons` without
       `fold` / `sub` and return a scalar through the Cranelift CPS repr path.
-- [x] `std::undet` `.once` over a finite list compiles through the CPS repr
-      object/executable path.
+- [x] `std::undet` `.once` over a finite list compiles and runs through the
+      CPS repr object/executable path for scalar roots.
 - [x] `std::undet` `.once` can return `opt::just v` through the Cranelift CPS
       repr scalar path and an outer `case` can unwrap the scalar payload.
 - [x] `std::undet` `.once` can skip an initially rejected finite-list choice

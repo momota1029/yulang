@@ -3961,6 +3961,7 @@ fn make_native_i64_resumption(
 /// real handler, write that `(prompt, install_eval_id)` as the
 /// resumption's `handled_anchor`. Called from the Perform codegen
 /// immediately after `select_handler_i64` and before the arm call.
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_set_resumption_anchor_from_selected_i64(
     resumption: *mut NativeCpsI64Resumption,
 ) -> i64 {
@@ -4106,6 +4107,7 @@ fn describe_native_i64_value(value: i64) -> String {
     }
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_resumption_i64_0(
     code: usize,
     handler: i64,
@@ -4113,6 +4115,7 @@ extern "C" fn yulang_cps_make_resumption_i64_0(
     make_native_i64_resumption(code, handler, Vec::new())
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_resumption_i64_1(
     code: usize,
     handler: i64,
@@ -4121,6 +4124,7 @@ extern "C" fn yulang_cps_make_resumption_i64_1(
     make_native_i64_resumption(code, handler, vec![a])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_resumption_i64_2(
     code: usize,
     handler: i64,
@@ -4130,6 +4134,7 @@ extern "C" fn yulang_cps_make_resumption_i64_2(
     make_native_i64_resumption(code, handler, vec![a, b])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_resumption_i64_3(
     code: usize,
     handler: i64,
@@ -4140,6 +4145,7 @@ extern "C" fn yulang_cps_make_resumption_i64_3(
     make_native_i64_resumption(code, handler, vec![a, b, c])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_resumption_i64_4(
     code: usize,
     handler: i64,
@@ -4151,50 +4157,62 @@ extern "C" fn yulang_cps_make_resumption_i64_4(
     make_native_i64_resumption(code, handler, vec![a, b, c, d])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_env_i64_0() -> *const i64 {
     make_native_i64_env(Vec::new())
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_env_i64_1(a: i64) -> *const i64 {
     make_native_i64_env(vec![a])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_env_i64_2(a: i64, b: i64) -> *const i64 {
     make_native_i64_env(vec![a, b])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_env_i64_3(a: i64, b: i64, c: i64) -> *const i64 {
     make_native_i64_env(vec![a, b, c])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_env_i64_4(a: i64, b: i64, c: i64, d: i64) -> *const i64 {
     make_native_i64_env(vec![a, b, c, d])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_closure_i64_0(code: usize) -> usize {
     make_native_i64_closure(code, Vec::new())
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_closure_i64_1(code: usize, a: i64) -> usize {
     make_native_i64_closure(code, vec![a])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_closure_i64_2(code: usize, a: i64, b: i64) -> usize {
     make_native_i64_closure(code, vec![a, b])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_closure_i64_3(code: usize, a: i64, b: i64, c: i64) -> usize {
     make_native_i64_closure(code, vec![a, b, c])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_closure_i64_4(code: usize, a: i64, b: i64, c: i64, d: i64) -> usize {
     make_native_i64_closure(code, vec![a, b, c, d])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_recursive_closure_i64_0(code: usize, self_slot: i64) -> usize {
     make_native_i64_recursive_closure(code, self_slot as usize, Vec::new())
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_recursive_closure_i64_1(
     code: usize,
     self_slot: i64,
@@ -4203,6 +4221,7 @@ extern "C" fn yulang_cps_make_recursive_closure_i64_1(
     make_native_i64_recursive_closure(code, self_slot as usize, vec![a])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_recursive_closure_i64_2(
     code: usize,
     self_slot: i64,
@@ -4212,6 +4231,7 @@ extern "C" fn yulang_cps_make_recursive_closure_i64_2(
     make_native_i64_recursive_closure(code, self_slot as usize, vec![a, b])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_recursive_closure_i64_3(
     code: usize,
     self_slot: i64,
@@ -4222,6 +4242,7 @@ extern "C" fn yulang_cps_make_recursive_closure_i64_3(
     make_native_i64_recursive_closure(code, self_slot as usize, vec![a, b, c])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_recursive_closure_i64_4(
     code: usize,
     self_slot: i64,
@@ -4233,6 +4254,7 @@ extern "C" fn yulang_cps_make_recursive_closure_i64_4(
     make_native_i64_recursive_closure(code, self_slot as usize, vec![a, b, c, d])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_apply_closure_i64(value: usize, arg: i64) -> i64 {
     // write27-e: Layer 2 calls a closure with the **caller**'s active
     // handlers and guards (eval_continuations(..., active_handlers,
@@ -4272,30 +4294,36 @@ extern "C" fn yulang_cps_apply_closure_i64(value: usize, arg: i64) -> i64 {
     result
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_tuple_i64_0() -> i64 {
     native_cps_i64_heap(NativeCpsI64HeapValue::Tuple(Vec::new().into_boxed_slice()))
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_tuple_i64_1(a: i64) -> i64 {
     native_cps_i64_heap(NativeCpsI64HeapValue::Tuple(vec![a].into_boxed_slice()))
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_tuple_i64_2(a: i64, b: i64) -> i64 {
     native_cps_i64_heap(NativeCpsI64HeapValue::Tuple(vec![a, b].into_boxed_slice()))
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_tuple_i64_3(a: i64, b: i64, c: i64) -> i64 {
     native_cps_i64_heap(NativeCpsI64HeapValue::Tuple(
         vec![a, b, c].into_boxed_slice(),
     ))
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_tuple_i64_4(a: i64, b: i64, c: i64, d: i64) -> i64 {
     native_cps_i64_heap(NativeCpsI64HeapValue::Tuple(
         vec![a, b, c, d].into_boxed_slice(),
     ))
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_tuple_get_i64(value: i64, index: i64) -> i64 {
     let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     let NativeCpsI64HeapValue::Tuple(items) = value else {
@@ -4304,6 +4332,7 @@ extern "C" fn yulang_cps_tuple_get_i64(value: i64, index: i64) -> i64 {
     items.get(index as usize).copied().unwrap_or(0)
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_variant_i64_0(tag: i64) -> i64 {
     let result = native_cps_i64_heap(NativeCpsI64HeapValue::Variant { tag, value: None });
     if jit_trace_enabled() {
@@ -4316,6 +4345,7 @@ extern "C" fn yulang_cps_variant_i64_0(tag: i64) -> i64 {
     result
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_variant_i64_1(tag: i64, value: i64) -> i64 {
     let result = native_cps_i64_heap(NativeCpsI64HeapValue::Variant {
         tag,
@@ -4332,6 +4362,7 @@ extern "C" fn yulang_cps_variant_i64_1(tag: i64, value: i64) -> i64 {
     result
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_variant_tag_eq_i64(value: i64, tag: i64) -> i64 {
     let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     let result = match value {
@@ -4353,6 +4384,7 @@ extern "C" fn yulang_cps_variant_tag_eq_i64(value: i64, tag: i64) -> i64 {
     result
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_variant_payload_i64(value: i64) -> i64 {
     let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     let result = match value {
@@ -4370,6 +4402,7 @@ extern "C" fn yulang_cps_variant_payload_i64(value: i64) -> i64 {
     result
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_register_tag_i64(tag: i64, ptr: *const u8, len: i64) -> i64 {
     if ptr.is_null() || len < 0 {
         return 0;
@@ -4385,6 +4418,14 @@ extern "C" fn yulang_cps_register_tag_i64(tag: i64, ptr: *const u8, len: i64) ->
     0
 }
 
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_print_i64(value: i64) {
+    print!("{}", describe_native_i64_value(value));
+    let mut stdout = std::io::stdout();
+    let _ = std::io::Write::flush(&mut stdout);
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_empty_i64() -> i64 {
     let result = native_cps_i64_heap(NativeCpsI64HeapValue::List(Vec::new()));
     if jit_trace_enabled() {
@@ -4396,6 +4437,7 @@ extern "C" fn yulang_cps_list_empty_i64() -> i64 {
     result
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_singleton_i64(value: i64) -> i64 {
     let result = native_cps_i64_heap(NativeCpsI64HeapValue::List(vec![value]));
     if jit_trace_enabled() {
@@ -4408,6 +4450,7 @@ extern "C" fn yulang_cps_list_singleton_i64(value: i64) -> i64 {
     result
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_merge_i64(left: i64, right: i64) -> i64 {
     let left = unsafe { &*(left as *const NativeCpsI64HeapValue) };
     let right = unsafe { &*(right as *const NativeCpsI64HeapValue) };
@@ -4429,6 +4472,7 @@ extern "C" fn yulang_cps_list_merge_i64(left: i64, right: i64) -> i64 {
     result
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_len_i64(value: i64) -> i64 {
     let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     match value {
@@ -4437,6 +4481,7 @@ extern "C" fn yulang_cps_list_len_i64(value: i64) -> i64 {
     }
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_index_i64(value: i64, index: i64) -> i64 {
     let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     let NativeCpsI64HeapValue::List(items) = value else {
@@ -4445,6 +4490,7 @@ extern "C" fn yulang_cps_list_index_i64(value: i64, index: i64) -> i64 {
     items.get(index as usize).copied().unwrap_or(0)
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_index_range_raw_i64(value: i64, start: i64, end: i64) -> i64 {
     let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     let NativeCpsI64HeapValue::List(items) = value else {
@@ -4462,6 +4508,7 @@ extern "C" fn yulang_cps_list_index_range_raw_i64(value: i64, start: i64, end: i
     native_cps_i64_heap(NativeCpsI64HeapValue::List(items[start..end].to_vec()))
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_splice_raw_i64(value: i64, start: i64, end: i64, insert: i64) -> i64 {
     let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     let insert = unsafe { &*(insert as *const NativeCpsI64HeapValue) };
@@ -4485,6 +4532,7 @@ extern "C" fn yulang_cps_list_splice_raw_i64(value: i64, start: i64, end: i64, i
     native_cps_i64_heap(NativeCpsI64HeapValue::List(result))
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_view_raw_i64(value: i64) -> i64 {
     let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     let NativeCpsI64HeapValue::List(items) = value else {
@@ -4536,6 +4584,7 @@ extern "C" fn yulang_cps_list_view_raw_i64(value: i64) -> i64 {
     }
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_resume_i64(resumption: *const NativeCpsI64Resumption, arg: i64) -> i64 {
     let resumption = unsafe { &*resumption };
     // write27-e: mirror Layer 2's `CpsStmt::Resume` (cps_repr.rs:1879).
@@ -4590,6 +4639,7 @@ extern "C" fn yulang_cps_resume_i64(resumption: *const NativeCpsI64Resumption, a
     result
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_resume_with_handler_i64(
     resumption: *const NativeCpsI64Resumption,
     arg: i64,
@@ -4946,6 +4996,7 @@ fn effectful_apply_resumption_native(
 /// helper. The codegen passes the resume continuation's env slots
 /// inline so this helper doesn't need to read them from anywhere
 /// else.
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_effectful_apply_resumption_i64_0(
     resumption: i64,
     arg: i64,
@@ -4965,6 +5016,7 @@ extern "C" fn yulang_cps_effectful_apply_resumption_i64_0(
     )
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_effectful_apply_resumption_i64_1(
     resumption: i64,
     arg: i64,
@@ -4985,6 +5037,7 @@ extern "C" fn yulang_cps_effectful_apply_resumption_i64_1(
     )
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_effectful_apply_resumption_i64_2(
     resumption: i64,
     arg: i64,
@@ -5006,6 +5059,7 @@ extern "C" fn yulang_cps_effectful_apply_resumption_i64_2(
     )
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_effectful_apply_resumption_i64_3(
     resumption: i64,
     arg: i64,
@@ -5028,6 +5082,7 @@ extern "C" fn yulang_cps_effectful_apply_resumption_i64_3(
     )
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_effectful_apply_resumption_i64_4(
     resumption: i64,
     arg: i64,
@@ -5053,11 +5108,13 @@ extern "C" fn yulang_cps_effectful_apply_resumption_i64_4(
 
 /// write27-d d4: runtime predicate used by EffectfulApply codegen to
 /// branch into the closure or resumption path.
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_is_resumption_i64(value: i64) -> i64 {
     let is = NATIVE_CPS_I64_RESUMPTIONS.with(|s| s.borrow().contains(&(value as usize)));
     i64::from(is)
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_select_handler_i64(
     fallback_handler: i64,
     allowed_mask: i64,
@@ -5148,6 +5205,7 @@ extern "C" fn yulang_cps_select_handler_i64(
 /// the full pre-truncation stack (mirrors Layer 1/2 where
 /// `active_handlers` is a local variable and arm body mutations
 /// don't propagate).
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_restore_outer_handler_stack_i64() -> i64 {
     NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
         if let Some(snap) = snaps.borrow_mut().pop() {
@@ -5171,6 +5229,7 @@ extern "C" fn yulang_cps_restore_outer_handler_stack_i64() -> i64 {
 ///      the legacy abort slot is not set, set it to `routed` so old
 ///      callback / fold propagation paths can bubble up.
 /// Returns the value the JIT function should hand back to its caller.
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
     // 1. restore outer.
     NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
@@ -5231,6 +5290,7 @@ extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
 /// If the selected handler is synthetic (no real escape), this is a
 /// no-op and `value` flows through as the eval frame's natural result.
 /// Always returns `value` so the codegen can `return` it directly.
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_scope_return_from_selected_handler_i64(value: i64) -> i64 {
     let already_active = NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().active);
     if already_active {
@@ -5274,6 +5334,7 @@ extern "C" fn yulang_cps_scope_return_from_selected_handler_i64(value: i64) -> i
 ///    handler with (prompt, install_eval_id == frame.owner_eval_id).
 ///    On hit, restore that frame's snapshot, truncate stack/frames,
 ///    set eval context, clear slot, call escape.
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
     let sr = NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().clone());
     if !sr.active {
@@ -5433,6 +5494,7 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
     fallback_value
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_capture_handler_env_i64(handler: i64, entry: i64, env: i64) -> i64 {
     NATIVE_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| {
         envs.borrow_mut()
@@ -5441,6 +5503,7 @@ extern "C" fn yulang_cps_capture_handler_env_i64(handler: i64, entry: i64, env: 
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_i64(handler: i64) -> i64 {
     let envs = take_pending_native_i64_handler_envs(handler);
     let frame = NativeCpsI64HandlerFrame {
@@ -5464,6 +5527,7 @@ extern "C" fn yulang_cps_install_handler_i64(handler: i64) -> i64 {
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_uninstall_handler_i64(handler: i64) -> i64 {
     NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
         let mut stack = stack.borrow_mut();
@@ -5484,6 +5548,7 @@ extern "C" fn yulang_cps_uninstall_handler_i64(handler: i64) -> i64 {
 // not depend on ScopeReturn routing.
 // =====================================================================
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_fresh_prompt_i64() -> i64 {
     NATIVE_CPS_I64_NEXT_PROMPT.with(|next| {
         let id = *next.borrow();
@@ -5531,6 +5596,7 @@ fn install_native_i64_handler_full(
     }
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_full_i64_0(
     handler: i64,
     escape_continuation: i64,
@@ -5551,6 +5617,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_0(
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_full_i64_1(
     handler: i64,
     escape_continuation: i64,
@@ -5572,6 +5639,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_1(
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_full_i64_2(
     handler: i64,
     escape_continuation: i64,
@@ -5594,6 +5662,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_2(
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_full_i64_3(
     handler: i64,
     escape_continuation: i64,
@@ -5617,6 +5686,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_3(
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_full_i64_4(
     handler: i64,
     escape_continuation: i64,
@@ -5641,6 +5711,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_4(
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_abort_i64(value: i64) -> i64 {
     NATIVE_CPS_I64_ABORT.with(|slot| {
         *slot.borrow_mut() = Some(value);
@@ -5648,6 +5719,7 @@ extern "C" fn yulang_cps_abort_i64(value: i64) -> i64 {
     value
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_abort_active_i64() -> i64 {
     NATIVE_CPS_I64_ABORT.with(|slot| {
         let value = *slot.borrow();
@@ -5663,10 +5735,12 @@ extern "C" fn yulang_cps_abort_active_i64() -> i64 {
     })
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_abort_value_i64() -> i64 {
     NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().unwrap_or(0))
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_clear_abort_i64() -> i64 {
     NATIVE_CPS_I64_ABORT.with(|slot| {
         *slot.borrow_mut() = None;
@@ -5681,6 +5755,7 @@ extern "C" fn yulang_cps_clear_abort_i64() -> i64 {
 // codegen (Perform/EffectfulCall etc.) should use these instead.
 // =====================================================================
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_scope_return_i64(prompt: i64, target: i64, value: i64) -> i64 {
     NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
         *slot.borrow_mut() = NativeCpsI64ScopeReturn {
@@ -5699,22 +5774,27 @@ extern "C" fn yulang_cps_scope_return_i64(prompt: i64, target: i64, value: i64) 
     value
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_scope_return_active_i64() -> i64 {
     NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| i64::from(slot.borrow().active))
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_scope_return_prompt_i64() -> i64 {
     NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().prompt as i64)
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_scope_return_target_i64() -> i64 {
     NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().target)
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_scope_return_value_i64() -> i64 {
     NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().value)
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_clear_scope_return_i64() -> i64 {
     NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
         *slot.borrow_mut() = NativeCpsI64ScopeReturn::default();
@@ -5729,6 +5809,7 @@ extern "C" fn yulang_cps_clear_scope_return_i64() -> i64 {
 // restores eval_context from a popped return frame.
 // =====================================================================
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_fresh_eval_id_i64() -> i64 {
     NATIVE_CPS_I64_NEXT_EVAL_ID.with(|next| {
         let id = *next.borrow();
@@ -5737,14 +5818,17 @@ extern "C" fn yulang_cps_fresh_eval_id_i64() -> i64 {
     })
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_current_eval_id_i64() -> i64 {
     NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().current_eval_id as i64)
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_current_initial_frame_count_i64() -> i64 {
     NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count as i64)
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_set_eval_context_i64(eval_id: i64, initial_frame_count: i64) -> i64 {
     NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
         *ctx.borrow_mut() = NativeCpsI64EvalContext {
@@ -5770,6 +5854,7 @@ extern "C" fn yulang_cps_set_eval_context_i64(eval_id: i64, initial_frame_count:
 // raw push/pop primitives.
 // =====================================================================
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_return_frame_len_i64() -> i64 {
     NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len() as i64)
 }
@@ -5817,6 +5902,7 @@ fn push_native_i64_return_frame_with_env(
 // `yulang_cps_make_resumption_i64_N` family (the codegen path errors
 // out for resume continuations with more than 4 environment slots).
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_push_return_frame_i64_0(
     continuation: i64,
     owner_initial: i64,
@@ -5833,6 +5919,7 @@ extern "C" fn yulang_cps_push_return_frame_i64_0(
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_push_return_frame_i64_1(
     continuation: i64,
     owner_initial: i64,
@@ -5850,6 +5937,7 @@ extern "C" fn yulang_cps_push_return_frame_i64_1(
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_push_return_frame_i64_2(
     continuation: i64,
     owner_initial: i64,
@@ -5868,6 +5956,7 @@ extern "C" fn yulang_cps_push_return_frame_i64_2(
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_push_return_frame_i64_3(
     continuation: i64,
     owner_initial: i64,
@@ -5887,6 +5976,7 @@ extern "C" fn yulang_cps_push_return_frame_i64_3(
     0
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_push_return_frame_i64_4(
     continuation: i64,
     owner_initial: i64,
@@ -5916,6 +6006,7 @@ extern "C" fn yulang_cps_push_return_frame_i64_4(
 /// — write27-b notes call this out as the main safety win.
 ///
 /// Mirrors cps_eval / cps_repr's `continue_return_frames` single step.
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_continue_return_frame_i64(value: i64) -> i64 {
     // Pop the frame first, dropping the borrow before we invoke the
     // continuation (which may push new frames).
@@ -5957,6 +6048,7 @@ extern "C" fn yulang_cps_continue_return_frame_i64(value: i64) -> i64 {
 /// write27-b: peek at the innermost return frame's
 /// `immediately_forces_param` flag without popping it. Used by the
 /// JIT `Return` path to decide whether to fire pre-force v2.
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_top_return_frame_pre_force_i64() -> i64 {
     NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
         frames
@@ -5979,6 +6071,7 @@ extern "C" fn yulang_cps_top_return_frame_pre_force_i64() -> i64 {
 ///   - `value` is a thunk pointer (via `yulang_cps_is_thunk_i64`),
 ///   - `return_frame_len_i64() > current_initial_frame_count_i64()`,
 ///   - `yulang_cps_top_return_frame_pre_force_i64() != 0`.
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_pre_force_top_frame_i64(value: i64) -> i64 {
     // Clone the env into a temporary box so we can borrow_mut other
     // thread-locals safely. The env pointer must outlive the
@@ -6015,6 +6108,7 @@ extern "C" fn yulang_cps_pre_force_top_frame_i64(value: i64) -> i64 {
 ///
 /// Callers don't have to know about Thunk classification: this helper
 /// asks `yulang_cps_is_thunk_i64` (existing) when deciding pre-force.
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_return_i64(value: i64) -> i64 {
     let frame_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
     let initial = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
@@ -6060,6 +6154,7 @@ extern "C" fn yulang_cps_return_i64(value: i64) -> i64 {
     yulang_cps_continue_return_frame_i64(value)
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_selected_handler_env_or_i64(entry: i64, fallback: i64) -> i64 {
     NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| {
         envs.borrow()
@@ -6070,26 +6165,32 @@ extern "C" fn yulang_cps_selected_handler_env_or_i64(entry: i64, fallback: i64) 
     })
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_thunk_i64_0(code: usize) -> usize {
     make_native_i64_thunk(code, Vec::new())
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_thunk_i64_1(code: usize, a: i64) -> usize {
     make_native_i64_thunk(code, vec![a])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_thunk_i64_2(code: usize, a: i64, b: i64) -> usize {
     make_native_i64_thunk(code, vec![a, b])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_thunk_i64_3(code: usize, a: i64, b: i64, c: i64) -> usize {
     make_native_i64_thunk(code, vec![a, b, c])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_thunk_i64_4(code: usize, a: i64, b: i64, c: i64, d: i64) -> usize {
     make_native_i64_thunk(code, vec![a, b, c, d])
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
     let mut value = value;
     loop {
@@ -6143,6 +6244,7 @@ extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
     }
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_fresh_guard_i64() -> i64 {
     let id = NATIVE_CPS_I64_NEXT_GUARD.with(|next| {
         let mut next = next.borrow_mut();
@@ -6156,10 +6258,12 @@ extern "C" fn yulang_cps_fresh_guard_i64() -> i64 {
     id
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_peek_guard_i64() -> i64 {
     NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().last().copied().unwrap_or(0))
 }
 
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_find_guard_i64(id: i64) -> i64 {
     NATIVE_CPS_I64_GUARD_STACK.with(|stack| i64::from(stack.borrow().contains(&id)))
 }

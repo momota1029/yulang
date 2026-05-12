@@ -24,7 +24,6 @@ pub mod cps_lower;
 pub mod cps_repr;
 pub mod cps_repr_abi;
 pub mod cps_repr_cranelift;
-pub mod cps_runtime;
 pub mod cps_validate;
 pub mod cranelift;
 pub mod eval;

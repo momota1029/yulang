@@ -330,6 +330,9 @@ runtime/core IR
    - `--native-value-exe <path>` で helper symbol 付き value-lane executable を作れる。
    - `native_runtime` の Rust API は `yulang-native` staticlib として
      object/executable から link できる。
+   - CPS repr Cranelift helper は JIT と object/executable 用 staticlib で同じ
+     実装を export する。finite `std::undet.once` の scalar root は
+     `--native-run-cps-repr-exe` で executable link/run まで通る。
    - `--native-value-exe` の support library は `YULANG_NATIVE_RUNTIME_LIB` があれば
      それを使う。なければ `CARGO_TARGET_DIR` または workspace `target` の
      `debug/libyulang_native.a` を使い、native/runtime/core-ir source より古い時だけ
