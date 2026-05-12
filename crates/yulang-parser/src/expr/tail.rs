@@ -1,3 +1,4 @@
+use chasa::prelude::from_fn;
 use either::Either;
 use reborrow_generic::Reborrow as _;
 
@@ -24,7 +25,7 @@ pub(super) fn parse_tail_bp<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
 ) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
     if i.env.ml_arg && leading_info != TriviaInfo::None
-        || matches!(leading_info, TriviaInfo::Newline { indent, .. } if indent <= i.env.indent)
+        || should_stop_at_newline_before_tail(leading_info, i.rb())
     {
         return Some(Ok(Either::Left(leading_info)));
     }
@@ -33,6 +34,32 @@ pub(super) fn parse_tail_bp<I: EventInput, S: EventSink>(
     };
     pratt_tail_bp(min_bp, led, i)
 }
+
+fn should_stop_at_newline_before_tail<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    i: In<I, S>,
+) -> bool {
+    match leading_info {
+        TriviaInfo::Newline { indent, .. } if indent <= i.env.indent => true,
+        TriviaInfo::Newline { .. } => !next_is_tail_continuation(leading_info, i),
+        _ => false,
+    }
+}
+
+fn next_is_tail_continuation<I: EventInput, S: EventSink>(
+    leading_info: TriviaInfo,
+    mut i: In<I, S>,
+) -> bool {
+    i.lookahead(from_fn(|i| {
+        let led = scan_expr_led(leading_info, i)?;
+        match led.tag {
+            ExprLedTag::Stop | ExprLedTag::MlNud(_) => None,
+            _ => Some(()),
+        }
+    }))
+    .is_some()
+}
+
 pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
     min_bp: Option<&BpVec>,
     led: Token<ExprLedTag>,
