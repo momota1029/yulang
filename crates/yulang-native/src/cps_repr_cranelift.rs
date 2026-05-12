@@ -270,6 +270,49 @@ pub fn compile_cps_repr_abi_module(
         "yulang_cps_uninstall_handler_i64",
         yulang_cps_uninstall_handler_i64 as *const u8,
     );
+    // write27-c c2: full-fields install handler family + fresh prompt.
+    builder.symbol(
+        "yulang_cps_fresh_prompt_i64",
+        yulang_cps_fresh_prompt_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_install_handler_full_i64_0",
+        yulang_cps_install_handler_full_i64_0 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_install_handler_full_i64_1",
+        yulang_cps_install_handler_full_i64_1 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_install_handler_full_i64_2",
+        yulang_cps_install_handler_full_i64_2 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_install_handler_full_i64_3",
+        yulang_cps_install_handler_full_i64_3 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_install_handler_full_i64_4",
+        yulang_cps_install_handler_full_i64_4 as *const u8,
+    );
+    // write27-c c3/c4: outer-stack restore, scope-return-from-selected,
+    // route-scope-return.
+    builder.symbol(
+        "yulang_cps_restore_outer_handler_stack_i64",
+        yulang_cps_restore_outer_handler_stack_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_scope_return_from_selected_handler_i64",
+        yulang_cps_scope_return_from_selected_handler_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_route_scope_return_i64",
+        yulang_cps_route_scope_return_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_perform_finish_i64",
+        yulang_cps_perform_finish_i64 as *const u8,
+    );
     builder.symbol(
         "yulang_cps_abort_i64",
         yulang_cps_abort_i64 as *const u8,
@@ -1146,6 +1189,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let results = builder.inst_results(call);
             let result = results[0];
             return_if_abort_active(module_backend, builder)?;
+            return_if_scope_return_active(module_backend, builder, result)?;
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::Tuple { dest, items } => {
@@ -1231,6 +1275,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             }
             let result = results[0];
             return_if_abort_active(module_backend, builder)?;
+            return_if_scope_return_active(module_backend, builder, result)?;
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::ApplyClosure { dest, closure, arg } => {
@@ -1243,6 +1288,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                 &[closure, arg],
             )?;
             return_if_abort_active(module_backend, builder)?;
+            return_if_scope_return_active(module_backend, builder, value)?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::CloneContinuation { dest, source } => {
@@ -1267,6 +1313,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let results = builder.inst_results(call);
             let result = results[0];
             return_if_abort_active(module_backend, builder)?;
+            return_if_scope_return_active(module_backend, builder, result)?;
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::ResumeWithHandler {
@@ -1291,17 +1338,75 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let results = builder.inst_results(call);
             let result = results[0];
             return_if_abort_active(module_backend, builder)?;
+            return_if_scope_return_active(module_backend, builder, result)?;
             builder.def_var(variable(*dest), result);
         }
-        CpsStmt::InstallHandler { handler, envs, .. } => {
+        CpsStmt::InstallHandler {
+            handler,
+            envs,
+            escape,
+        } => {
             capture_handler_envs(module_backend, builder, function, *handler, envs)?;
-            let handler = builder.ins().iconst(types::I64, handler.0 as i64);
-            let _ = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_install_handler_i64",
-                &[handler],
-            )?;
+            // write27-c c3: prefer the full install helper when the
+            // escape continuation has an environment shape we support
+            // (<= 4 slots). Otherwise fall back to the legacy install
+            // — those handlers still work through the abort_i64
+            // path in `perform_finish_i64`.
+            let escape_cont = lookup_continuation(function, *escape)?;
+            if escape_cont.environment.len() <= 4 {
+                let func_ref =
+                    continuation_func_ref(module_backend, builder, function, *escape, functions)?;
+                let escape_ptr = builder.ins().func_addr(types::I64, func_ref);
+                let threshold = call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_cps_return_frame_len_i64",
+                    &[],
+                )?;
+                let prompt = call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_cps_fresh_prompt_i64",
+                    &[],
+                )?;
+                let install_eval = call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_cps_current_eval_id_i64",
+                    &[],
+                )?;
+                let inherited = builder.ins().iconst(types::I64, 0);
+                let handler_id = builder.ins().iconst(types::I64, handler.0 as i64);
+                let mut args = vec![
+                    handler_id,
+                    escape_ptr,
+                    threshold,
+                    prompt,
+                    install_eval,
+                    inherited,
+                ];
+                for slot in &escape_cont.environment {
+                    validate_environment_lane(function, slot.value, slot.lane)?;
+                    args.push(read_value(builder, function, slot.value)?);
+                }
+                let helper_name = match escape_cont.environment.len() {
+                    0 => "yulang_cps_install_handler_full_i64_0",
+                    1 => "yulang_cps_install_handler_full_i64_1",
+                    2 => "yulang_cps_install_handler_full_i64_2",
+                    3 => "yulang_cps_install_handler_full_i64_3",
+                    4 => "yulang_cps_install_handler_full_i64_4",
+                    _ => unreachable!("guarded by environment.len() <= 4"),
+                };
+                let _ = call_i64_helper(module_backend, builder, helper_name, &args)?;
+            } else {
+                let handler_id = builder.ins().iconst(types::I64, handler.0 as i64);
+                let _ = call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_cps_install_handler_i64",
+                    &[handler_id],
+                )?;
+            }
         }
         CpsStmt::UninstallHandler { handler } => {
             let handler = builder.ins().iconst(types::I64, handler.0 as i64);
@@ -1455,6 +1560,15 @@ fn lower_effect_terminator<M: Module>(
             let resume_cont = lookup_continuation(function, *resume)?;
             check_resume_continuation_shape(function, resume_cont)?;
             let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
+            // c0: read pre_push_count BEFORE pushing F_post so the
+            // callee's initial_frame_count points at F_post itself
+            // (matches Layer 1/2 semantics).
+            let pre_push_count = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_return_frame_len_i64",
+                &[],
+            )?;
             // Push F_post(resume_cont, env, current_initial, current_eval, immediate_force).
             push_return_frame_for_resume(
                 module_backend,
@@ -1468,8 +1582,8 @@ fn lower_effect_terminator<M: Module>(
             // see the caller's value table state).
             let arg_values = read_values(builder, function, args)?;
             // Set callee eval context: fresh eval id + initial =
-            // return_frame_len after our push.
-            switch_eval_context_for_callee(module_backend, builder)?;
+            // pre_push_count (F_post is consumable, frames below are not).
+            switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
             // Direct call to target function.
             let id = functions.functions.get(target).copied().ok_or_else(|| {
                 CpsReprCraneliftError::MissingFunction {
@@ -1492,6 +1606,13 @@ fn lower_effect_terminator<M: Module>(
             let resume_cont = lookup_continuation(function, *resume)?;
             check_resume_continuation_shape(function, resume_cont)?;
             let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
+            // c0: pre_push_count before F_post push.
+            let pre_push_count = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_return_frame_len_i64",
+                &[],
+            )?;
             push_return_frame_for_resume(
                 module_backend,
                 builder,
@@ -1501,7 +1622,7 @@ fn lower_effect_terminator<M: Module>(
                 functions,
             )?;
             let thunk_value = read_value(builder, function, *thunk)?;
-            switch_eval_context_for_callee(module_backend, builder)?;
+            switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
             let result = call_i64_helper(
                 module_backend,
                 builder,
@@ -1518,6 +1639,13 @@ fn lower_effect_terminator<M: Module>(
             let resume_cont = lookup_continuation(function, *resume)?;
             check_resume_continuation_shape(function, resume_cont)?;
             let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
+            // c0: pre_push_count before F_post push.
+            let pre_push_count = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_return_frame_len_i64",
+                &[],
+            )?;
             push_return_frame_for_resume(
                 module_backend,
                 builder,
@@ -1528,7 +1656,7 @@ fn lower_effect_terminator<M: Module>(
             )?;
             let closure_value = read_value(builder, function, *closure)?;
             let arg_value = read_value(builder, function, *arg)?;
-            switch_eval_context_for_callee(module_backend, builder)?;
+            switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
             // NOTE: write27-b defers the Resumption variant. Existing
             // `yulang_cps_apply_closure_i64` handles Closure dispatch;
             // for Resumption-valued callables, we'd need a Rust helper
@@ -1633,13 +1761,19 @@ fn push_return_frame_for_resume<M: Module>(
     Ok(())
 }
 
-/// write27-b: after pushing F_post, switch to the callee's eval
-/// context: fresh eval id + initial = return_frame_len (which now
-/// includes our push, so the callee can consume F_post but not any
-/// frames that belong to an outer eval).
+/// write27-c c0 HOTFIX: switch to the callee's eval context using
+/// `pre_push_count` (return_frame_len observed BEFORE F_post push), not
+/// the post-push length. Layer 1/2 semantics:
+///   pre_push_count = return_frames.len();
+///   push(F_post);
+///   callee.initial_frame_count = pre_push_count;
+/// If we used the post-push length, the callee's `frame_len <= initial`
+/// invariant would hold immediately and F_post would never be consumed,
+/// killing the EffectfulCall return-frame chain.
 fn switch_eval_context_for_callee<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
+    pre_push_count: ir::Value,
 ) -> CpsReprCraneliftResult<()> {
     let fresh_eval = call_i64_helper(
         module_backend,
@@ -1647,17 +1781,11 @@ fn switch_eval_context_for_callee<M: Module>(
         "yulang_cps_fresh_eval_id_i64",
         &[],
     )?;
-    let frame_len = call_i64_helper(
-        module_backend,
-        builder,
-        "yulang_cps_return_frame_len_i64",
-        &[],
-    )?;
     let _ = call_i64_helper(
         module_backend,
         builder,
         "yulang_cps_set_eval_context_i64",
-        &[fresh_eval, frame_len],
+        &[fresh_eval, pre_push_count],
     )?;
     Ok(())
 }
@@ -1763,35 +1891,19 @@ fn lower_selected_handler_return<M: Module>(
             });
         }
         let result = results[0];
-        // The handler arm body just returned. Mark this value as the abort
-        // value if no nested abort is already active, so callback / fold
-        // frames between this Perform and the eval boundary skip the
-        // remainder of their work and bubble it up.
-        let already_active = call_i64_helper(
+        // write27-c c3/c4: Perform-arm post-call routing via the
+        // combined `perform_finish_i64` helper. It restores the outer
+        // handler stack, wraps the arm result as a ScopeReturn when
+        // the selected handler is real, routes the SR (current stack
+        // walk, frame walk, or propagate), and falls back to the
+        // legacy `abort_i64` slot for synthetic handlers.
+        let routed = call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_abort_active_i64",
-            &[],
-        )?;
-        let mark_block = builder.create_block();
-        let already_block = builder.create_block();
-        builder
-            .ins()
-            .brif(already_active, already_block, &[], mark_block, &[]);
-
-        builder.switch_to_block(mark_block);
-        builder.seal_block(mark_block);
-        let _ = call_i64_helper(
-            module_backend,
-            builder,
-            "yulang_cps_abort_i64",
+            "yulang_cps_perform_finish_i64",
             &[result],
         )?;
-        builder.ins().return_(&[result]);
-
-        builder.switch_to_block(already_block);
-        builder.seal_block(already_block);
-        builder.ins().return_(&[result]);
+        builder.ins().return_(&[routed]);
 
         builder.switch_to_block(next_block);
     }
@@ -1848,6 +1960,7 @@ fn call_continuation<M: Module>(
     }
     let result = results[0];
     return_if_abort_active(module_backend, builder)?;
+    return_if_scope_return_active(module_backend, builder, result)?;
     Ok(result)
 }
 
@@ -2103,6 +2216,44 @@ fn return_if_abort_active<M: Module>(
         &[],
     )?;
     builder.ins().return_(&[value]);
+
+    builder.switch_to_block(cont_block);
+    builder.seal_block(cont_block);
+    Ok(())
+}
+
+/// write27-c c5: after each synchronous internal call, check the
+/// ScopeReturn slot. If active, route it; the route either jumps to
+/// a matched handler's escape (return its result) or propagates with
+/// the slot still active (return the fallback). Either way, the
+/// current function short-circuits — sync callers up the chain run
+/// their own post-call route to keep propagating.
+fn return_if_scope_return_active<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    fallback: ir::Value,
+) -> CpsReprCraneliftResult<()> {
+    let active = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_scope_return_active_i64",
+        &[],
+    )?;
+    let route_block = builder.create_block();
+    let cont_block = builder.create_block();
+    builder
+        .ins()
+        .brif(active, route_block, &[], cont_block, &[]);
+
+    builder.switch_to_block(route_block);
+    builder.seal_block(route_block);
+    let routed = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_route_scope_return_i64",
+        &[fallback],
+    )?;
+    builder.ins().return_(&[routed]);
 
     builder.switch_to_block(cont_block);
     builder.seal_block(cont_block);
@@ -2472,6 +2623,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let results = builder.inst_results(call);
             let result = results[0];
             return_if_abort_active(module_backend, builder)?;
+            return_if_scope_return_active(module_backend, builder, result)?;
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::Tuple { dest, items } => {
@@ -2557,6 +2709,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             }
             let result = results[0];
             return_if_abort_active(module_backend, builder)?;
+            return_if_scope_return_active(module_backend, builder, result)?;
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::ApplyClosure { dest, closure, arg } => {
@@ -2569,6 +2722,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                 &[closure, arg],
             )?;
             return_if_abort_active(module_backend, builder)?;
+            return_if_scope_return_active(module_backend, builder, value)?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::CloneContinuation { dest, source } => {
@@ -3187,6 +3341,29 @@ struct NativeCpsI64HandlerFrame {
     handler: i64,
     guard_stack: Box<[i64]>,
     envs: Vec<NativeCpsI64HandlerEnv>,
+    /// write27-c c2: dynamic prompt identity. Distinguishes frame
+    /// instances installed under the same `CpsHandlerId` so that
+    /// `ScopeReturn` targets a specific scope.
+    prompt: u64,
+    /// write27-c c2: which eval frame this handler was installed in.
+    /// `ScopeReturn` routing only resolves a handler when current eval
+    /// matches the install eval (mirrors cps_eval's CpsEvalId check).
+    install_eval_id: u64,
+    /// write27-c c2: whether this frame was inherited from a captured
+    /// resumption's handler stack (i.e., not freshly installed by an
+    /// `InstallHandler` stmt in the current eval).
+    inherited: bool,
+    /// write27-c c2: JIT function pointer for the escape continuation
+    /// (reached when the handler scope completes / aborts). 0 means
+    /// "synthetic / no escape" (legacy passthrough).
+    escape_continuation: usize,
+    /// write27-c c2: env slots for the escape continuation. Stored as
+    /// `Box<[i64]>` so the pointer stays stable while the frame lives.
+    escape_env: Box<[i64]>,
+    /// write27-c c2: `return_frame_len` observed at install time. When
+    /// a `ScopeReturn` resolves to this frame, the return-frame stack
+    /// is truncated back to this length.
+    return_frame_threshold: usize,
 }
 
 #[derive(Clone)]
@@ -3255,6 +3432,26 @@ const NATIVE_CPS_I64_SYNTHETIC_EVAL_ID: u64 = u64::MAX;
 /// (matches `cps_eval::EXIT_RWH_TARGET`). Stored as `i64`.
 const NATIVE_CPS_I64_EXIT_RWH_TARGET: i64 = -1;
 
+/// write27-c c1: env-guarded JIT runtime trace. Set
+/// `YULANG_CPS_JIT_TRACE=1` to see push/return/route events as the
+/// JIT-compiled code runs. The check itself is cached in a static, so
+/// hot paths only pay one atomic load per call when disabled.
+fn jit_trace_enabled() -> bool {
+    use std::sync::atomic::{AtomicU8, Ordering};
+    static STATE: AtomicU8 = AtomicU8::new(0); // 0 = uninit, 1 = off, 2 = on
+    match STATE.load(Ordering::Relaxed) {
+        2 => true,
+        1 => false,
+        _ => {
+            let on = std::env::var("YULANG_CPS_JIT_TRACE")
+                .map(|v| v == "1")
+                .unwrap_or(false);
+            STATE.store(if on { 2 } else { 1 }, Ordering::Relaxed);
+            on
+        }
+    }
+}
+
 thread_local! {
     static NATIVE_CPS_I64_HEAP_VALUES: RefCell<HashSet<i64>> = RefCell::new(HashSet::new());
     static NATIVE_CPS_I64_TAG_NAMES: RefCell<HashMap<i64, Box<str>>> = RefCell::new(HashMap::new());
@@ -3293,6 +3490,39 @@ thread_local! {
     // write27-a: monotonic counter for fresh eval ids. Mirrors
     // `cps_eval::EVAL_ID_COUNTER`.
     static NATIVE_CPS_I64_NEXT_EVAL_ID: RefCell<u64> = const { RefCell::new(0) };
+    // write27-c c2: monotonic counter for fresh prompt ids. Each
+    // `InstallHandler` stmt that uses the full helper gets a unique
+    // prompt; `ScopeReturn` carries this prompt to disambiguate which
+    // scope to dispatch to.
+    static NATIVE_CPS_I64_NEXT_PROMPT: RefCell<u64> = const { RefCell::new(1) };
+    // write27-c c3: snapshot of the handler stack saved when
+    // `select_handler` truncates. The Perform arm body runs with the
+    // truncated stack (matching Layer 1/2's `handler_body_stack`
+    // semantics); `restore_outer_handler_stack` reinstates the
+    // pre-truncation stack so the post-arm `route_scope_return` can
+    // walk it. Stored as a stack to support nested Performs.
+    static NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS: RefCell<Vec<Vec<NativeCpsI64HandlerFrame>>> =
+        const { RefCell::new(Vec::new()) };
+    // write27-c c3: metadata for the handler frame just selected by
+    // `select_handler` (prompt, escape continuation, escape env,
+    // return-frame threshold, install eval id, synthetic flag). The
+    // Perform path uses this to wrap the arm's natural return as a
+    // ScopeReturn pointing at the selected handler's escape.
+    static NATIVE_CPS_I64_SELECTED_HANDLER_META: RefCell<Option<NativeCpsI64SelectedHandlerMeta>> =
+        const { RefCell::new(None) };
+}
+
+/// write27-c c3: meta captured at `select_handler` time about the
+/// selected frame, so the Perform post-arm path can synthesize a
+/// `ScopeReturn` targeting its escape without re-walking the stack.
+#[derive(Clone)]
+struct NativeCpsI64SelectedHandlerMeta {
+    prompt: u64,
+    escape_continuation: usize,
+    escape_env: Box<[i64]>,
+    return_frame_threshold: usize,
+    install_eval_id: u64,
+    synthetic: bool,
 }
 
 fn reset_native_i64_cps_state() {
@@ -3312,6 +3542,9 @@ fn reset_native_i64_cps_state() {
         *ctx.borrow_mut() = NativeCpsI64EvalContext::default();
     });
     NATIVE_CPS_I64_NEXT_EVAL_ID.with(|next| *next.borrow_mut() = 0);
+    NATIVE_CPS_I64_NEXT_PROMPT.with(|next| *next.borrow_mut() = 1);
+    NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| snaps.borrow_mut().clear());
+    NATIVE_CPS_I64_SELECTED_HANDLER_META.with(|meta| *meta.borrow_mut() = None);
 }
 
 fn current_native_i64_guard_stack() -> Vec<i64> {
@@ -3326,6 +3559,12 @@ fn current_native_i64_handler_stack_with_fallback(fallback: i64) -> Vec<NativeCp
                 handler: fallback,
                 guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
                 envs: Vec::new(),
+                prompt: 0,
+                install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
+                inherited: false,
+                escape_continuation: 0,
+                escape_env: Box::new([]),
+                return_frame_threshold: 0,
             }]
         } else {
             stack.clone()
@@ -3345,6 +3584,12 @@ fn take_pending_native_i64_handler_frames() -> Vec<NativeCpsI64HandlerFrame> {
                 handler,
                 guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
                 envs: vec![env],
+                prompt: 0,
+                install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
+                inherited: false,
+                escape_continuation: 0,
+                escape_env: Box::new([]),
+                return_frame_threshold: 0,
             });
         }
     }
@@ -3818,6 +4063,12 @@ extern "C" fn yulang_cps_resume_with_handler_i64(
         handler,
         guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
         envs: take_pending_native_i64_handler_envs(handler),
+        prompt: 0,
+        install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
+        inherited: true,
+        escape_continuation: 0,
+        escape_env: Box::new([]),
+        return_frame_threshold: 0,
     });
     with_native_i64_cps_state(handlers, resumption.guard_stack.to_vec(), || {
         (resumption.code)(resumption.env.as_ptr(), arg)
@@ -3838,16 +4089,285 @@ extern "C" fn yulang_cps_select_handler_i64(
         if blocked >= 0 && frame.guard_stack.contains(&blocked) {
             continue;
         }
+        // write27-c c3: stash the pre-truncation stack so the post-arm
+        // `restore_outer_handler_stack` can reinstate the matched
+        // handler. The arm body itself still sees the truncated stack
+        // (matches Layer 1/2's `handler_body_stack`).
+        NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
+            snaps.borrow_mut().push(stack.clone());
+        });
+        // write27-c c3: record the selected frame's metadata so the
+        // post-arm path can wrap the natural return as a ScopeReturn
+        // targeting this frame's escape.
+        NATIVE_CPS_I64_SELECTED_HANDLER_META.with(|meta| {
+            *meta.borrow_mut() = Some(NativeCpsI64SelectedHandlerMeta {
+                prompt: frame.prompt,
+                escape_continuation: frame.escape_continuation,
+                escape_env: frame.escape_env.clone(),
+                return_frame_threshold: frame.return_frame_threshold,
+                install_eval_id: frame.install_eval_id,
+                synthetic: frame.install_eval_id == NATIVE_CPS_I64_SYNTHETIC_EVAL_ID
+                    || frame.escape_continuation == 0,
+            });
+        });
         NATIVE_CPS_I64_HANDLER_STACK.with(|active| {
             *active.borrow_mut() = stack[..index].to_vec();
         });
         NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| {
             *envs.borrow_mut() = frame.envs.to_vec();
         });
+        if jit_trace_enabled() {
+            eprintln!(
+                "[JIT-CPS] perform_select: handler={} prompt={} install_eval={} synthetic={} threshold={} idx={}",
+                frame.handler,
+                frame.prompt,
+                frame.install_eval_id,
+                frame.install_eval_id == NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
+                frame.return_frame_threshold,
+                index,
+            );
+        }
         return frame.handler;
     }
     NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
+    NATIVE_CPS_I64_SELECTED_HANDLER_META.with(|meta| *meta.borrow_mut() = None);
     -1
+}
+
+/// write27-c c3: reinstate the outer handler stack saved at the most
+/// recent `select_handler` call. The Perform path calls this after
+/// the arm body returns so the post-arm `route_scope_return` can walk
+/// the full pre-truncation stack (mirrors Layer 1/2 where
+/// `active_handlers` is a local variable and arm body mutations
+/// don't propagate).
+extern "C" fn yulang_cps_restore_outer_handler_stack_i64() -> i64 {
+    NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
+        if let Some(snap) = snaps.borrow_mut().pop() {
+            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = snap);
+        }
+    });
+    0
+}
+
+/// write27-c c3: combined Perform-arm finish path.
+///   1. Restore the pre-truncation handler stack saved at
+///      `select_handler` time.
+///   2. If the selected handler is real (non-synthetic) AND no
+///      ScopeReturn is already active, wrap `value` as a ScopeReturn
+///      targeting that handler's escape.
+///   3. Try to route any active ScopeReturn to its destination
+///      (current handler stack walk, then return-frame walk). Returns
+///      the escape's result on hit; the original `value` on miss
+///      (with the slot left active to propagate further).
+///   4. If the selected handler was synthetic (or no meta exists) AND
+///      the legacy abort slot is not set, set it to `routed` so old
+///      callback / fold propagation paths can bubble up.
+/// Returns the value the JIT function should hand back to its caller.
+extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
+    // 1. restore outer.
+    NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
+        if let Some(snap) = snaps.borrow_mut().pop() {
+            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = snap);
+        }
+    });
+    // 2. wrap as ScopeReturn if applicable.
+    let meta = NATIVE_CPS_I64_SELECTED_HANDLER_META.with(|m| m.borrow().clone());
+    let is_real = meta
+        .as_ref()
+        .map(|m| !m.synthetic && m.escape_continuation != 0)
+        .unwrap_or(false);
+    let already_active =
+        NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().active);
+    if is_real && !already_active {
+        let meta = meta.as_ref().expect("is_real implies meta");
+        NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
+            *slot.borrow_mut() = NativeCpsI64ScopeReturn {
+                active: true,
+                prompt: meta.prompt,
+                target: meta.escape_continuation as i64,
+                value,
+            };
+        });
+        if jit_trace_enabled() {
+            eprintln!(
+                "[JIT-CPS] scope_return_set (perform_finish): prompt={} target={:#x} value={}",
+                meta.prompt, meta.escape_continuation, value
+            );
+        }
+    }
+    // 3. route.
+    let routed = yulang_cps_route_scope_return_i64(value);
+    // 4. legacy abort fallback (synthetic handler / no SR path).
+    if !is_real {
+        let abort_already =
+            NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().is_some());
+        if !abort_already {
+            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(routed));
+        }
+    }
+    routed
+}
+
+/// write27-c c3: if no ScopeReturn is active, wrap `value` as a
+/// ScopeReturn targeting the most-recently-selected handler's escape.
+/// If the selected handler is synthetic (no real escape), this is a
+/// no-op and `value` flows through as the eval frame's natural result.
+/// Always returns `value` so the codegen can `return` it directly.
+extern "C" fn yulang_cps_scope_return_from_selected_handler_i64(value: i64) -> i64 {
+    let already_active =
+        NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().active);
+    if already_active {
+        return value;
+    }
+    let meta = NATIVE_CPS_I64_SELECTED_HANDLER_META.with(|m| m.borrow().clone());
+    let Some(meta) = meta else {
+        return value;
+    };
+    if meta.synthetic || meta.escape_continuation == 0 {
+        return value;
+    }
+    NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
+        *slot.borrow_mut() = NativeCpsI64ScopeReturn {
+            active: true,
+            prompt: meta.prompt,
+            target: meta.escape_continuation as i64,
+            value,
+        };
+    });
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] scope_return_set (from selected): prompt={} target={:#x} value={}",
+            meta.prompt, meta.escape_continuation, value
+        );
+    }
+    value
+}
+
+/// write27-c c4: dispatch the active `ScopeReturn` slot. Returns the
+/// resumed escape's result when a match is found, otherwise leaves
+/// the slot active and returns `fallback_value` so the caller can
+/// keep propagating up.
+///
+/// Search order mirrors `cps_eval`/`cps_repr`:
+/// 1. Current handler stack: rposition by (prompt, install_eval_id ==
+///    current_eval_id). On hit, truncate to that index, truncate
+///    return_frames to the matched frame's threshold, clear slot,
+///    call escape with the slot's value.
+/// 2. Return frames `[current_initial..]`: rposition by frame snapshot
+///    handler with (prompt, install_eval_id == frame.owner_eval_id).
+///    On hit, restore that frame's snapshot, truncate stack/frames,
+///    set eval context, clear slot, call escape.
+extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
+    let sr = NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().clone());
+    if !sr.active {
+        return fallback_value;
+    }
+    let prompt = sr.prompt;
+    let value = sr.value;
+    let current_eval =
+        NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().current_eval_id);
+    let current_initial =
+        NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
+
+    // 1. Walk the current handler stack reverse.
+    let cur_match: Option<(usize, NativeCpsI64HandlerFrame)> =
+        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+            let stack = stack.borrow();
+            stack
+                .iter()
+                .rposition(|f| f.prompt == prompt && f.install_eval_id == current_eval)
+                .map(|idx| (idx, stack[idx].clone()))
+        });
+    if let Some((idx, frame)) = cur_match {
+        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow_mut().truncate(idx));
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+            let mut frames = frames.borrow_mut();
+            if frames.len() > frame.return_frame_threshold {
+                frames.truncate(frame.return_frame_threshold);
+            }
+        });
+        NATIVE_CPS_I64_SCOPE_RETURN
+            .with(|slot| *slot.borrow_mut() = NativeCpsI64ScopeReturn::default());
+        if jit_trace_enabled() {
+            eprintln!(
+                "[JIT-CPS] route_scope_return: prompt={} current_eval={} initial={} action=current_handler value={}",
+                prompt, current_eval, current_initial, value
+            );
+        }
+        if frame.escape_continuation == 0 {
+            return value;
+        }
+        let cont: NativeCpsI64Continuation =
+            unsafe { std::mem::transmute(frame.escape_continuation) };
+        return cont(frame.escape_env.as_ptr(), value);
+    }
+
+    // 2. Walk the return-frame stack from current_initial up to find a
+    //    captured handler that matches.
+    let frame_match = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+        let frames = frames.borrow();
+        let len = frames.len();
+        if len <= current_initial {
+            return None;
+        }
+        for fi in (current_initial..len).rev() {
+            let f = &frames[fi];
+            for (hi, h) in f.handlers.iter().enumerate().rev() {
+                if h.prompt == prompt && h.install_eval_id == f.owner_eval_id {
+                    return Some((fi, hi, f.clone(), h.clone()));
+                }
+            }
+        }
+        None
+    });
+    if let Some((fi, hi, frame, handler)) = frame_match {
+        // Restore handler stack to frame.handlers[..hi].
+        let mut post_handlers = frame.handlers.clone();
+        post_handlers.truncate(hi);
+        NATIVE_CPS_I64_HANDLER_STACK
+            .with(|stack| *stack.borrow_mut() = post_handlers);
+        NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = frame.guards.clone());
+        // Truncate return frames to the matched-handler's threshold,
+        // but at most fi (don't keep the matched frame or any above).
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+            let mut frames = frames.borrow_mut();
+            frames.truncate(fi);
+            if frames.len() > handler.return_frame_threshold {
+                frames.truncate(handler.return_frame_threshold);
+            }
+        });
+        // Set eval context to frame's owner (capped to current frames).
+        let rest_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
+        let owner_initial = frame.owner_initial_frame_count.min(rest_len);
+        NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
+            *ctx.borrow_mut() = NativeCpsI64EvalContext {
+                current_eval_id: frame.owner_eval_id,
+                initial_frame_count: owner_initial,
+            };
+        });
+        NATIVE_CPS_I64_SCOPE_RETURN
+            .with(|slot| *slot.borrow_mut() = NativeCpsI64ScopeReturn::default());
+        if jit_trace_enabled() {
+            eprintln!(
+                "[JIT-CPS] route_scope_return: prompt={} current_eval={} initial={} action=frame_walk fi={} hi={} value={}",
+                prompt, current_eval, current_initial, fi, hi, value
+            );
+        }
+        if handler.escape_continuation == 0 {
+            return value;
+        }
+        let cont: NativeCpsI64Continuation =
+            unsafe { std::mem::transmute(handler.escape_continuation) };
+        return cont(handler.escape_env.as_ptr(), value);
+    }
+
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] route_scope_return: prompt={} current_eval={} initial={} action=propagate value={}",
+            prompt, current_eval, current_initial, value
+        );
+    }
+    fallback_value
 }
 
 extern "C" fn yulang_cps_capture_handler_env_i64(handler: i64, entry: i64, env: i64) -> i64 {
@@ -3864,10 +4384,22 @@ extern "C" fn yulang_cps_install_handler_i64(handler: i64) -> i64 {
         handler,
         guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
         envs,
+        prompt: 0,
+        install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
+        inherited: false,
+        escape_continuation: 0,
+        escape_env: Box::new([]),
+        return_frame_threshold: 0,
     };
     NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
         stack.borrow_mut().push(frame);
     });
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] install_handler (legacy): handler={}",
+            handler
+        );
+    }
     0
 }
 
@@ -3878,6 +4410,167 @@ extern "C" fn yulang_cps_uninstall_handler_i64(handler: i64) -> i64 {
             stack.remove(pos);
         }
     });
+    0
+}
+
+// =====================================================================
+// write27-c c2: full handler install. New helpers carry prompt /
+// install_eval_id / escape_continuation / escape_env /
+// return_frame_threshold so that ScopeReturn-based Perform (c3) and
+// route_scope_return (c4) can dispatch correctly. The legacy
+// `yulang_cps_install_handler_i64` stays in place — it constructs a
+// synthetic frame with no escape and is only safe for paths that do
+// not depend on ScopeReturn routing.
+// =====================================================================
+
+extern "C" fn yulang_cps_fresh_prompt_i64() -> i64 {
+    NATIVE_CPS_I64_NEXT_PROMPT.with(|next| {
+        let id = *next.borrow();
+        *next.borrow_mut() = id.wrapping_add(1);
+        id as i64
+    })
+}
+
+fn install_native_i64_handler_full(
+    handler: i64,
+    escape_continuation: i64,
+    return_frame_threshold: i64,
+    prompt: i64,
+    install_eval_id: i64,
+    inherited: i64,
+    escape_env: Vec<i64>,
+) {
+    let envs = take_pending_native_i64_handler_envs(handler);
+    let env_len = escape_env.len();
+    let frame = NativeCpsI64HandlerFrame {
+        handler,
+        guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
+        envs,
+        prompt: prompt as u64,
+        install_eval_id: install_eval_id as u64,
+        inherited: inherited != 0,
+        escape_continuation: escape_continuation as usize,
+        escape_env: escape_env.into_boxed_slice(),
+        return_frame_threshold: return_frame_threshold.max(0) as usize,
+    };
+    NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
+        stack.borrow_mut().push(frame);
+    });
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] install_handler_full: handler={} prompt={} install_eval={} threshold={} escape={:#x} env_len={}",
+            handler, prompt, install_eval_id, return_frame_threshold, escape_continuation as usize, env_len
+        );
+    }
+}
+
+extern "C" fn yulang_cps_install_handler_full_i64_0(
+    handler: i64,
+    escape_continuation: i64,
+    return_frame_threshold: i64,
+    prompt: i64,
+    install_eval_id: i64,
+    inherited: i64,
+) -> i64 {
+    install_native_i64_handler_full(
+        handler,
+        escape_continuation,
+        return_frame_threshold,
+        prompt,
+        install_eval_id,
+        inherited,
+        Vec::new(),
+    );
+    0
+}
+
+extern "C" fn yulang_cps_install_handler_full_i64_1(
+    handler: i64,
+    escape_continuation: i64,
+    return_frame_threshold: i64,
+    prompt: i64,
+    install_eval_id: i64,
+    inherited: i64,
+    a: i64,
+) -> i64 {
+    install_native_i64_handler_full(
+        handler,
+        escape_continuation,
+        return_frame_threshold,
+        prompt,
+        install_eval_id,
+        inherited,
+        vec![a],
+    );
+    0
+}
+
+extern "C" fn yulang_cps_install_handler_full_i64_2(
+    handler: i64,
+    escape_continuation: i64,
+    return_frame_threshold: i64,
+    prompt: i64,
+    install_eval_id: i64,
+    inherited: i64,
+    a: i64,
+    b: i64,
+) -> i64 {
+    install_native_i64_handler_full(
+        handler,
+        escape_continuation,
+        return_frame_threshold,
+        prompt,
+        install_eval_id,
+        inherited,
+        vec![a, b],
+    );
+    0
+}
+
+extern "C" fn yulang_cps_install_handler_full_i64_3(
+    handler: i64,
+    escape_continuation: i64,
+    return_frame_threshold: i64,
+    prompt: i64,
+    install_eval_id: i64,
+    inherited: i64,
+    a: i64,
+    b: i64,
+    c: i64,
+) -> i64 {
+    install_native_i64_handler_full(
+        handler,
+        escape_continuation,
+        return_frame_threshold,
+        prompt,
+        install_eval_id,
+        inherited,
+        vec![a, b, c],
+    );
+    0
+}
+
+extern "C" fn yulang_cps_install_handler_full_i64_4(
+    handler: i64,
+    escape_continuation: i64,
+    return_frame_threshold: i64,
+    prompt: i64,
+    install_eval_id: i64,
+    inherited: i64,
+    a: i64,
+    b: i64,
+    c: i64,
+    d: i64,
+) -> i64 {
+    install_native_i64_handler_full(
+        handler,
+        escape_continuation,
+        return_frame_threshold,
+        prompt,
+        install_eval_id,
+        inherited,
+        vec![a, b, c, d],
+    );
     0
 }
 
@@ -3919,6 +4612,12 @@ extern "C" fn yulang_cps_scope_return_i64(prompt: i64, target: i64, value: i64) 
             value,
         };
     });
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] scope_return_set: prompt={} target={} value={}",
+            prompt, target, value
+        );
+    }
     value
 }
 
@@ -3975,6 +4674,12 @@ extern "C" fn yulang_cps_set_eval_context_i64(eval_id: i64, initial_frame_count:
             initial_frame_count: initial_frame_count.max(0) as usize,
         };
     });
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] set_eval_context: eval={} initial={}",
+            eval_id, initial_frame_count
+        );
+    }
     0
 }
 
@@ -4001,6 +4706,9 @@ fn push_native_i64_return_frame_with_env(
     let handlers =
         NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
     let guards = NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().clone());
+    let env_len = env.len();
+    let len_before =
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
     NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
         frames.borrow_mut().push(NativeCpsI64ReturnFrame {
             continuation: continuation as usize,
@@ -4012,6 +4720,18 @@ fn push_native_i64_return_frame_with_env(
             immediately_forces_param: immediately_forces_param != 0,
         });
     });
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] push_return_frame: len_before={} len_after={} cont={:#x} env_len={} owner_initial={} owner_eval={} immediate_force={}",
+            len_before,
+            len_before + 1,
+            continuation as usize,
+            env_len,
+            owner_initial_frame_count,
+            owner_eval_id,
+            immediately_forces_param != 0,
+        );
+    }
 }
 
 // Up to 4 env slots, matching the JIT's existing
@@ -4126,6 +4846,16 @@ extern "C" fn yulang_cps_continue_return_frame_i64(value: i64) -> i64 {
         // `return_frame_len_i64()`; treat this as a no-op for safety.
         return value;
     };
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] continue_return_frame: owner_eval={} owner_initial={} restored_handlers_len={} restored_guards_len={} value={}",
+            frame.owner_eval_id,
+            frame.owner_initial_frame_count,
+            frame.handlers.len(),
+            frame.guards.len(),
+            value,
+        );
+    }
     NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = frame.handlers);
     NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = frame.guards);
     NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
@@ -4209,6 +4939,12 @@ extern "C" fn yulang_cps_return_i64(value: i64) -> i64 {
     let frame_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
     let initial = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
     if frame_len <= initial {
+        if jit_trace_enabled() {
+            eprintln!(
+                "[JIT-CPS] return_i64: value={} frame_len={} initial={} action=noop",
+                value, frame_len, initial
+            );
+        }
         return value;
     }
     // Pre-force v2 check.
@@ -4221,7 +4957,19 @@ extern "C" fn yulang_cps_return_i64(value: i64) -> i64 {
             .unwrap_or(false)
     });
     if is_thunk && top_forces {
+        if jit_trace_enabled() {
+            eprintln!(
+                "[JIT-CPS] return_i64: value={} frame_len={} initial={} action=pre_force",
+                value, frame_len, initial
+            );
+        }
         return yulang_cps_pre_force_top_frame_i64(value);
+    }
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] return_i64: value={} frame_len={} initial={} action=continue",
+            value, frame_len, initial
+        );
     }
     yulang_cps_continue_return_frame_i64(value)
 }
