@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use rowan::{NodeOrToken, SyntaxNode};
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::op::{OpTable, standard_op_table};
@@ -40,6 +42,14 @@ pub fn compute(source: &str) -> Vec<u32> {
 }
 
 pub fn compute_with_op_table(source: &str, op_table: Option<OpTable>) -> Vec<u32> {
+    compute_with_op_table_and_highlights(source, op_table, None)
+}
+
+pub fn compute_with_op_table_and_highlights(
+    source: &str,
+    op_table: Option<OpTable>,
+    highlights: Option<&ResolvedHighlightInfo>,
+) -> Vec<u32> {
     let green = yulang_parser::parse_module_to_green_with_ops(
         source,
         op_table.unwrap_or_else(standard_op_table),
@@ -104,6 +114,7 @@ pub fn compute_with_op_table(source: &str, op_table: Option<OpTable>) -> Vec<u32
             | SyntaxKind::RuleQuantPlusLazy
             | SyntaxKind::RuleQuantOpt => Some((start, text.len(), OPERATOR)),
             SyntaxKind::Colon => Some((start, text.len(), COLON)),
+            SyntaxKind::ColonColon => Some((start, text.len(), DELIMITER)),
             SyntaxKind::Equal => Some((start, text.len(), DELIMITER)),
             SyntaxKind::DotField => {
                 // ".field" — highlight just the name after the dot (start already includes lead).
@@ -115,7 +126,7 @@ pub fn compute_with_op_table(source: &str, op_table: Option<OpTable>) -> Vec<u32
                     Some((name_start, name_len, FUNCTION))
                 }
             }
-            SyntaxKind::Ident => classify_ident(&token, start, text.len()),
+            SyntaxKind::Ident => classify_ident(&token, start, text.len(), highlights),
             SyntaxKind::SigilIdent => {
                 // $foo / &foo — color only the sigil, not the variable name.
                 Some((start, 1, OPERATOR))
@@ -136,6 +147,46 @@ pub fn compute_with_op_table(source: &str, op_table: Option<OpTable>) -> Vec<u32
     raw.sort_unstable();
     raw.dedup();
     encode(&raw)
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ResolvedHighlightInfo {
+    constructor_names: HashSet<String>,
+    constructor_paths: HashSet<Vec<String>>,
+}
+
+impl ResolvedHighlightInfo {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert_constructor_name(&mut self, name: impl Into<String>) {
+        self.constructor_names.insert(name.into());
+    }
+
+    pub fn insert_constructor_path<I, S>(&mut self, path: I)
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let segments = path.into_iter().map(Into::into).collect::<Vec<_>>();
+        if let Some(last) = segments.last() {
+            self.constructor_names.insert(last.clone());
+        }
+        self.constructor_paths.insert(segments);
+    }
+
+    fn is_constructor_name(&self, name: &str) -> bool {
+        self.constructor_names.contains(name)
+    }
+
+    fn is_constructor_path(&self, path: &[String]) -> bool {
+        self.constructor_paths.contains(path)
+            || (path.len() == 1
+                && path
+                    .last()
+                    .is_some_and(|name| self.constructor_names.contains(name)))
+    }
 }
 
 fn lexical_tokens(source: &str, line_starts: &[usize]) -> Vec<(u32, u32, u32, u32)> {
@@ -204,6 +255,7 @@ fn classify_ident(
     token: &rowan::SyntaxToken<YulangLanguage>,
     start: usize,
     len: usize,
+    highlights: Option<&ResolvedHighlightInfo>,
 ) -> Option<(usize, usize, u32)> {
     let parent = token.parent()?;
     let parent_kind = parent.kind();
@@ -221,15 +273,17 @@ fn classify_ident(
     // Module path segments before ::  (PathSep node)
     if parent_kind == SyntaxKind::PathSep {
         if parent.parent().is_some_and(|gp| is_pattern_expr(gp.kind())) {
-            return Some((start, len, PATTERN));
+            if path_sep_continues(&parent) {
+                return None;
+            }
+            return Some((start, len, TYPE));
         }
 
-        if path_sep_continues(&parent)
-            || token
-                .next_sibling_or_token()
-                .is_some_and(|s| s.kind() == SyntaxKind::ColonColon)
-        {
+        if is_first_path_segment_before_sep(token) {
             return Some((start, len, NAMESPACE));
+        }
+        if path_sep_continues(&parent) {
+            return None;
         }
 
         // Last segment in path — classify by grandparent context
@@ -237,15 +291,16 @@ fn classify_ident(
             if is_type_expr(gp.kind()) {
                 return Some((start, len, TYPE));
             }
-            if gp.kind() == SyntaxKind::Expr {
+            if highlights.is_some_and(|info| {
+                path_sep_path(&parent).is_some_and(|path| info.is_constructor_path(&path))
+            }) {
+                return Some((start, len, TYPE));
+            }
+            if gp.kind() == SyntaxKind::Expr && path_tail_is_called(&parent) {
                 return Some((start, len, FUNCTION));
             }
         }
         return None;
-    }
-
-    if is_pattern_expr(parent_kind) {
-        return Some((start, len, PATTERN));
     }
 
     // Binding header: first Ident child = the name being defined
@@ -285,7 +340,8 @@ fn classify_ident(
         if let Some(gp) = parent.parent() {
             if gp.kind() == SyntaxKind::BindingHeader {
                 // First child Pattern = the binding name itself (not a param)
-                let is_name = gp.children().next().as_ref() == Some(&parent);
+                let is_name =
+                    first_child_node_of_kind(&gp, SyntaxKind::Pattern).as_ref() == Some(&parent);
                 if is_name {
                     // Classify as function or variable (fall through to BindingHeader logic)
                     return classify_binding_name(token, &gp, start, len);
@@ -294,6 +350,25 @@ fn classify_ident(
                 }
             }
         }
+    }
+
+    if is_pattern_expr(parent_kind) {
+        if pattern_name_is_called(token)
+            && highlights
+                .map(|info| info.is_constructor_name(token.text()))
+                .unwrap_or(true)
+        {
+            return Some((start, len, TYPE));
+        }
+        if token
+            .siblings_with_tokens(rowan::Direction::Next)
+            .skip(1)
+            .find(|s| !is_trivia_kind(s.kind()))
+            .is_some_and(|s| s.kind() == SyntaxKind::PathSep)
+        {
+            return None;
+        }
+        return Some((start, len, PATTERN));
     }
 
     // Function call: Ident in call position (parent is Expr, next non-trivia sibling is an apply node)
@@ -322,12 +397,42 @@ fn classify_ident(
     None
 }
 
+fn pattern_name_is_called(token: &rowan::SyntaxToken<YulangLanguage>) -> bool {
+    token
+        .siblings_with_tokens(rowan::Direction::Next)
+        .skip(1)
+        .find(|s| !is_trivia_kind(s.kind()))
+        .is_some_and(|s| matches!(s.kind(), SyntaxKind::ApplyC | SyntaxKind::ApplyML))
+}
+
 fn path_sep_continues(path_sep: &SyntaxNode<YulangLanguage>) -> bool {
     path_sep
         .siblings_with_tokens(rowan::Direction::Next)
         .skip(1)
         .find(|s| !is_trivia_kind(s.kind()))
         .is_some_and(|s| s.kind() == SyntaxKind::PathSep)
+}
+
+fn path_tail_is_called(path_sep: &SyntaxNode<YulangLanguage>) -> bool {
+    path_sep
+        .siblings_with_tokens(rowan::Direction::Next)
+        .skip(1)
+        .find(|s| !is_trivia_kind(s.kind()))
+        .is_some_and(|s| {
+            matches!(
+                s.kind(),
+                SyntaxKind::ApplyC | SyntaxKind::ApplyML | SyntaxKind::ApplyColon
+            )
+        })
+}
+
+fn is_first_path_segment_before_sep(token: &rowan::SyntaxToken<YulangLanguage>) -> bool {
+    token
+        .next_sibling_or_token()
+        .is_some_and(|s| s.kind() == SyntaxKind::ColonColon)
+        && token
+            .parent()
+            .is_none_or(|parent| parent.kind() != SyntaxKind::PathSep)
 }
 
 fn classify_binding_name(
@@ -347,9 +452,9 @@ fn classify_binding_name(
         return None;
     }
 
-    // `my inflate({...}) = body` / `my f x = body`: Pattern contains ApplyML or ApplyC → function def
+    // `my f(...) = body` / `my f x = body`: the name pattern contains an apply node.
     if name_pattern
-        .children()
+        .descendants()
         .any(|c| matches!(c.kind(), SyntaxKind::ApplyML | SyntaxKind::ApplyC))
     {
         return Some((start, len, FUNCTION));
@@ -450,6 +555,37 @@ fn first_expr_ident_token(
                     | SyntaxKind::Nullfix
             )
         })
+}
+
+fn path_sep_path(path_sep: &SyntaxNode<YulangLanguage>) -> Option<Vec<String>> {
+    let parent = path_sep.parent()?;
+    let mut segments = Vec::new();
+    for item in parent.children_with_tokens() {
+        match item {
+            NodeOrToken::Token(token) if token.kind() == SyntaxKind::Ident => {
+                segments.push(token.text().to_string());
+            }
+            NodeOrToken::Node(node) if node.kind() == SyntaxKind::PathSep => {
+                if let Some(name) = node.children_with_tokens().find_map(|item| match item {
+                    NodeOrToken::Token(token) if token.kind() == SyntaxKind::Ident => {
+                        Some(token.text().to_string())
+                    }
+                    _ => None,
+                }) {
+                    segments.push(name);
+                }
+            }
+            _ => {}
+        }
+    }
+    (segments.len() >= 2).then_some(segments)
+}
+
+fn first_child_node_of_kind(
+    node: &SyntaxNode<YulangLanguage>,
+    kind: SyntaxKind,
+) -> Option<SyntaxNode<YulangLanguage>> {
+    node.children().find(|child| child.kind() == kind)
 }
 
 fn is_trivia_kind(kind: SyntaxKind) -> bool {
@@ -688,10 +824,41 @@ mod tests {
         let tokens = compute("std::list::merge xs ys\nstd::opt::opt::nil");
         let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
 
-        assert!(chunks.iter().any(|c| c[2] == 4 && c[3] == NAMESPACE));
         assert!(!chunks.iter().any(|c| c[2] == 4 && c[3] == FUNCTION));
-        assert!(chunks.iter().any(|c| c[2] == 5 && c[3] == FUNCTION));
-        assert!(chunks.iter().any(|c| c[2] == 3 && c[3] == FUNCTION));
+        assert!(!chunks.iter().any(|c| c[2] == 4 && c[3] == NAMESPACE));
+        assert!(!chunks.iter().any(|c| c[2] == 3 && c[3] == NAMESPACE));
+        assert!(
+            chunks.iter().any(|c| c[2] == 5 && c[3] == FUNCTION),
+            "expected empty/singleton definition names to be colored FUNCTION; got: {:?}",
+            tokens
+        );
+        assert!(!chunks.iter().any(|c| c[2] == 3 && c[3] == FUNCTION));
+    }
+
+    #[test]
+    fn path_tail_reference_is_not_colored_as_function() {
+        let tokens = compute("std::opt::opt::nil\nstd::opt::opt::just");
+        let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
+
+        assert!(!chunks.iter().any(|c| c[2] == 3 && c[3] == FUNCTION));
+        assert!(!chunks.iter().any(|c| c[2] == 4 && c[3] == FUNCTION));
+    }
+
+    #[test]
+    fn paren_function_definition_name_is_colored_as_function() {
+        let tokens = compute("pub empty(): list 'a = []\npub singleton(x: 'a): list 'a = [x]");
+        let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
+
+        assert!(
+            chunks.iter().any(|c| c[2] == 5 && c[3] == FUNCTION),
+            "expected empty/singleton definition names to be colored FUNCTION; got: {:?}",
+            tokens
+        );
+        assert!(
+            chunks.iter().any(|c| c[2] == 9 && c[3] == FUNCTION),
+            "expected empty/singleton definition names to be colored FUNCTION; got: {:?}",
+            tokens
+        );
     }
 
     #[test]
@@ -703,12 +870,90 @@ mod tests {
     }
 
     #[test]
-    fn pattern_path_segments_are_colored_as_pattern() {
-        let tokens = compute("case v:\n  std::opt::opt::just x -> x");
+    fn pattern_path_is_colored_as_constructor() {
+        let tokens = compute("case v:\n  std::opt::opt::just x -> x\n  std::opt::opt::nil -> y");
+        let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
+
+        assert!(
+            chunks.iter().any(|c| c[2] == 3 && c[3] == TYPE),
+            "expected path constructor segments like 'std'/'nil' to be colored TYPE; got: {:?}",
+            tokens
+        );
+        assert!(
+            chunks.iter().any(|c| c[2] == 4 && c[3] == TYPE),
+            "expected path constructor segments like 'just' to be colored TYPE; got: {:?}",
+            tokens
+        );
+        assert!(!chunks.iter().any(|c| c[2] == 4 && c[3] == FUNCTION));
+        assert!(!chunks.iter().any(|c| c[2] == 3 && c[3] == FUNCTION));
+    }
+
+    #[test]
+    fn bare_pattern_name_stays_pattern() {
+        let tokens = compute("case v:\n  nil -> x");
         let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
 
         assert!(chunks.iter().any(|c| c[2] == 3 && c[3] == PATTERN));
-        assert!(!chunks.iter().any(|c| c[2] == 3 && c[3] == NAMESPACE));
+        assert!(!chunks.iter().any(|c| c[2] == 3 && c[3] == FUNCTION));
+    }
+
+    #[test]
+    fn bare_pattern_call_is_colored_as_constructor() {
+        let tokens = compute("case v:\n  last() -> x");
+        let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
+
+        assert!(
+            chunks.iter().any(|c| c[2] == 4 && c[3] == TYPE),
+            "expected bare pattern call 'last()' to color 'last' as TYPE; got: {:?}",
+            tokens
+        );
+    }
+
+    #[test]
+    fn resolved_highlights_limit_bare_pattern_constructor_calls() {
+        let mut highlights = ResolvedHighlightInfo::new();
+        highlights.insert_constructor_name("last");
+        let tokens = compute_with_op_table_and_highlights(
+            "case v:\n  last() -> x\n  not_ctor() -> y",
+            None,
+            Some(&highlights),
+        );
+        let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
+
+        assert!(
+            chunks.iter().any(|c| c[2] == 4 && c[3] == TYPE),
+            "expected resolved constructor call 'last()' to color 'last' as TYPE; got: {:?}",
+            tokens
+        );
+        assert!(
+            !chunks.iter().any(|c| c[2] == 8 && c[3] == TYPE),
+            "expected unresolved bare pattern call 'not_ctor()' to stay non-constructor; got: {:?}",
+            tokens
+        );
+    }
+
+    #[test]
+    fn resolved_highlights_require_exact_constructor_path() {
+        let mut highlights = ResolvedHighlightInfo::new();
+        highlights.insert_constructor_path(["std", "opt", "opt", "nil"]);
+        let tokens = compute_with_op_table_and_highlights(
+            "std::opt::opt::nil\nother::opt::opt::nil",
+            None,
+            Some(&highlights),
+        );
+        let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
+
+        assert!(
+            chunks.iter().any(|c| c[2] == 3 && c[3] == TYPE),
+            "expected exact constructor path tail 'nil' to be colored TYPE; got: {:?}",
+            tokens
+        );
+        assert_eq!(
+            chunks.iter().filter(|c| c[2] == 3 && c[3] == TYPE).count(),
+            1,
+            "expected only exact constructor path tail to be colored TYPE; got: {:?}",
+            tokens
+        );
     }
 
     #[test]
@@ -723,13 +968,13 @@ mod tests {
     }
 
     #[test]
-    fn colon_is_delimiter_but_path_separator_is_plain() {
+    fn colon_and_path_separator_are_delimiters() {
         let tokens = compute("my result = std::int::add: 1");
         let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
 
         assert!(chunks.iter().any(|c| c[2] == 1 && c[3] == COLON));
+        assert!(chunks.iter().any(|c| c[2] == 2 && c[3] == DELIMITER));
         assert!(!chunks.iter().any(|c| c[2] == 2 && c[3] == OPERATOR));
-        assert!(!chunks.iter().any(|c| c[2] == 2 && c[3] == DELIMITER));
     }
 
     #[test]

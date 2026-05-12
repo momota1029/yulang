@@ -8,8 +8,8 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_infer::{
-    collect_surface_diagnostics, lower_virtual_source_with_options,
-    surface_diagnostic::SurfaceDiagnostic,
+    DefId, LowerState, Path as InferPath, collect_surface_diagnostics,
+    lower_virtual_source_with_options, surface_diagnostic::SurfaceDiagnostic,
 };
 use yulang_source::{SourceOptions, collect_virtual_source_files_with_options};
 
@@ -157,6 +157,60 @@ fn byte_range_to_lsp(line_starts: &[usize], span: rowan::TextRange) -> Range {
     }
 }
 
+fn resolved_highlights_from_lower_state(
+    state: &LowerState,
+) -> semantic_tokens::ResolvedHighlightInfo {
+    let mut info = semantic_tokens::ResolvedHighlightInfo::new();
+    let canonical_paths = state.ctx.canonical_value_paths();
+
+    for &def in state.enum_variant_tags.keys() {
+        insert_constructor_def_highlight(state, &canonical_paths, def, &mut info);
+    }
+    for &def in state.enum_variant_patterns.keys() {
+        insert_constructor_def_highlight(state, &canonical_paths, def, &mut info);
+    }
+    for &def in state.effect_op_args.keys() {
+        insert_constructor_def_highlight(state, &canonical_paths, def, &mut info);
+    }
+    for (path, &def) in &state.same_path_effect_ops {
+        insert_constructor_path_highlight(path, &mut info);
+        insert_constructor_def_highlight(state, &canonical_paths, def, &mut info);
+    }
+
+    info
+}
+
+fn insert_constructor_def_highlight(
+    state: &LowerState,
+    canonical_paths: &std::collections::HashMap<DefId, InferPath>,
+    def: DefId,
+    info: &mut semantic_tokens::ResolvedHighlightInfo,
+) {
+    if let Some(name) = state.def_name(def) {
+        info.insert_constructor_name(name.0.clone());
+    }
+    if let Some(path) = canonical_paths.get(&def) {
+        insert_constructor_path_highlight(path, info);
+    }
+}
+
+fn insert_constructor_path_highlight(
+    path: &InferPath,
+    info: &mut semantic_tokens::ResolvedHighlightInfo,
+) {
+    let mut segments = path
+        .segments
+        .iter()
+        .map(|name| name.0.clone())
+        .collect::<Vec<_>>();
+    if let Some(last) = segments.last_mut() {
+        if let Some(surface) = last.strip_suffix("#effect") {
+            *last = surface.to_string();
+        }
+    }
+    info.insert_constructor_path(segments);
+}
+
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _params: InitializeParams) -> Result<InitializeResult> {
@@ -258,8 +312,11 @@ impl LanguageServer for Backend {
 
         let data = tokio::task::spawn_blocking(move || match source {
             Some(source) => {
+                let op_options = options.clone();
+                let lower_options = options;
+                let lower_base_dir = base_dir.clone();
                 let op_table =
-                    collect_virtual_source_files_with_options(&source, base_dir, options)
+                    collect_virtual_source_files_with_options(&source, base_dir, op_options)
                         .ok()
                         .and_then(|source_set| {
                             source_set
@@ -267,7 +324,15 @@ impl LanguageServer for Backend {
                                 .next()
                                 .map(|file| file.op_table.clone())
                         });
-                semantic_tokens::compute_with_op_table(&source, op_table)
+                let highlights =
+                    lower_virtual_source_with_options(&source, lower_base_dir, lower_options)
+                        .ok()
+                        .map(|lowered| resolved_highlights_from_lower_state(&lowered.state));
+                semantic_tokens::compute_with_op_table_and_highlights(
+                    &source,
+                    op_table,
+                    highlights.as_ref(),
+                )
             }
             None => uri
                 .to_file_path()

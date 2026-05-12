@@ -2,25 +2,8 @@
 (line_comment) @comment
 (block_comment) @comment
 
-; ── keywords: control flow ─────────────────────────
-((keyword) @keyword.control
- (#match? @keyword.control "^(if|else|elsif|case|catch|do)$"))
-
-; ── keywords: declarations ─────────────────────────
-((keyword) @keyword.storage
- (#match? @keyword.storage "^(my|our|pub|type|struct|enum|error|role|impl|mod)$"))
-
-; ── keywords: import / module ──────────────────────
-((keyword) @keyword.import
- (#match? @keyword.import "^(use|as)$"))
-
-; ── keywords: effect / cast ────────────────────────
-((keyword) @keyword.special
- (#match? @keyword.special "^(act|cast)$"))
-
-; ── keywords: remaining ────────────────────────────
-((keyword) @keyword
- (#match? @keyword "^(for|in|with|where|via|rule|prefix|infix|suffix|nullfix|lazy)$"))
+; ── keywords ───────────────────────────────────────
+(keyword) @keyword
 
 ; ── strings ────────────────────────────────────────
 (string) @string
@@ -33,17 +16,45 @@
 (rule_lit_lazy
   (rule_lazy_name) @variable.parameter)
 
+; ── shallow semantic-ish syntax ────────────────────
+(binding_decl
+  name: (identifier) @function)
+
+(function_header
+  name: (identifier) @function)
+
+(field_binding_decl
+  field: (dot_field) @property)
+
+(value_binding_decl
+  name: (identifier) @variable)
+
+(function_call
+  function: (identifier) @function)
+
+(path_expr
+  head: (identifier) @namespace)
+
+(case_arm
+  pattern: (pattern_expr
+    (identifier) @variable))
+
+(case_arm
+  pattern: (pattern_expr
+    (sigil_ident) @variable.builtin))
+
+(record_field
+  name: (identifier) @property)
+
 ; ── atoms ──────────────────────────────────────────
 (number) @number
 (type_var) @type
 (apostrophe) @punctuation.special
 (sigil_ident) @variable.builtin
 
-; ── identifiers ────────────────────────────────────
-(identifier) @variable
-
 ; ── punctuation / operators ────────────────────────
 (dot_field) @property
+(path_sep) @punctuation.delimiter
 (arrow) @operator
 (fat_arrow) @operator
 (dot_dot) @operator
