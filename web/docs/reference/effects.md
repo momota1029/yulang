@@ -91,7 +91,9 @@ our run_console(action: [console] 'a): 'a = catch action:
 
 ## `error` declarations
 
-`error` is a shorthand that produces an enum, an `act` of throwing operations, and an `impl Throw` in one declaration:
+`error` is a shorthand that bundles an `enum`, an `act` of throwing
+operations, an `impl Throw`, an `impl Display`, and the `wrap` / `up`
+companion helpers into a single declaration:
 
 ```yulang
 error fs_err:
@@ -100,17 +102,10 @@ error fs_err:
     invalid_path str
 ```
 
-Each variant is both a constructor (`fs_err::not_found "p"` builds an `fs_err`) and an effect operation that throws (`fs_err::not_found "p"` performs the `fs_err` effect with `never` as its result type). Which one is used depends on the surrounding type context. Variants can also be marked `from`:
+Each variant is both a constructor and a throwing effect operation. The
+surrounding context selects which.
 
-```yulang
-error io_err:
-    fs from fs_err
-```
-
-This generates a `Cast` impl from the source error type, so an `fs_err` value implicitly lifts to an `io_err` at an annotation boundary.
-
-`error` also generates a `wrap` helper for converting a throwing computation to
-a `result` value for that single error type. General multi-error stringification
-is not part of the current surface.
+See [Errors](./errors) for the full story, including `fail`, named catch,
+`wrap`, `from` aggregation, and `up`.
 
 Ordinary `enum` variants may also use `from`; see [Casts](./casts).

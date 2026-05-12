@@ -1,8 +1,8 @@
 # Operator Declarations
 
-Operators are ordinary exported definitions that also contribute syntax to the
-parser table. A downstream file can only parse an operator after importing the
-syntax that defines it.
+Operators in Yulang are ordinary exported definitions that also contribute
+syntax to the parser table. A downstream file can only parse an operator
+after importing the syntax that defines it.
 
 ## Fixities
 
@@ -16,29 +16,71 @@ pub infix (+) 5.0.0 5.0.0 = \x -> \y -> x.add y
 pub suffix (..) 8.0.0 = std::range::from_included
 ```
 
-Supported fixities are:
+| Fixity | Use site | Notes |
+|---|---|---|
+| `nullfix` | `return` | A keyword-like operator that takes no operands |
+| `prefix` | `not x`, `return x`, `fail e` | One right-hand operand |
+| `infix` | `x + y`, `xs ++ ys` | Two operands; takes left and right binding powers |
+| `suffix` | `0..`, `x?` | One left-hand operand |
 
-| Fixity | Example use |
-|--------|-------------|
-| `nullfix` | `return` |
-| `prefix` | `not x`, `return x` |
-| `infix` | `x + y` |
-| `suffix` | `0..` |
+The operator name in `prefix(...)`, `infix (...)`, etc. uses parentheses when
+the name is symbolic; ordinary identifier names like `not` and `return` go
+in plain parentheses.
 
-Binding powers are written as dot-separated numbers such as `5.0.0`. Infix
-operators take left and right binding powers.
+## Binding power
 
-## Lazy Operators
+Binding powers are written as dot-separated decimal numbers such as `5.0.0`.
+Larger numbers bind more tightly. Infix operators take a pair of binding
+powers `<left>.<right>`, splitting in the middle to control associativity:
+
+- `5.0.0 5.0.0` — left-associative at level 5 (the standard for `+` and `-`)
+- `4.0.0 4.0.1` — slight bias to the right (right-associative)
+
+A small reference of the prelude's choices:
+
+| Operator | Binding |
+|---|---|
+| `or` | `1.0.0` (lazy) |
+| `and` | `2.0.0` (lazy) |
+| `==`, `!=`, `<`, `<=`, `>`, `>=` | `3.0.0` |
+| `..`, `..<`, `<..`, `<..<` | `4.0.0` |
+| `+`, `-` | `5.0.0` |
+| `*`, `/` | `6.0.0` |
+| `not` (prefix) | `8.0.0` |
+
+When you introduce new operators in user code, try to fit between the prelude
+levels rather than overlapping them.
+
+## Lazy operators
 
 ```yulang
 pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b ->
     if a: b() else: false
+
+pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b ->
+    if a: true else: b()
 ```
 
-`lazy` operators receive the right-hand side as delayed computation. The
-standard `and` and `or` operators use this to short-circuit.
+`lazy` operators receive each right-hand operand as a thunk (`() -> value`).
+Callers do not see the thunk wrapping — `a and b()` and `a or b()` look
+exactly like the eager forms. The body decides whether to force them.
 
-## Importing Operators
+`and` and `or` in the prelude are lazy so they short-circuit.
+
+## Calling an operator like a function
+
+The right-hand side of an operator declaration is just a binding, so you can
+call the underlying function by path:
+
+```yulang
+1 + 2
+std::ops::add 1 2     // explicit form (less idiomatic)
+```
+
+This is mostly useful when you want a first-class reference to the operator
+implementation.
+
+## Importing operators
 
 ```yulang
 use std::ops::*
@@ -46,12 +88,35 @@ use my_ops::(+)
 use my_ops::* without (+), debug
 ```
 
-Operator syntax can be imported directly, through glob imports, or excluded
-with `without`. This matters because the parser needs operator syntax before it
-can parse later expressions.
+Operator syntax can be imported wholesale, by name (with parentheses for
+symbolic operators), or with `without` to exclude specific names from a glob
+import. This matters because the parser needs the operator definition in
+scope before it can parse later expressions.
 
-## Prelude Operators
+## Defining a new operator
 
-The standard prelude exports arithmetic, comparison, boolean, range, loop, and
-return operators. They are still normal exported syntax; user code can define
-similar operators in modules and import them explicitly.
+```yulang
+pub infix (++) 4.0.0 4.0.0 = \xs -> \ys -> xs.append ys
+
+[1, 2] ++ [3, 4]   // [1, 2, 3, 4]
+```
+
+The body is an ordinary curried function. Pick a binding power that fits
+where the operator belongs in the precedence hierarchy.
+
+## Pitfalls
+
+- A symbolic operator must be imported before its first use, or the parser
+  rejects the expression with a parse error (not a name-resolution error).
+- Both `pub prefix(name) ...` and the imported alias such as `use foo::(+)`
+  pull the syntax into scope. They are not redundant; the path import does
+  not bring the syntax with it.
+- When two glob imports both expose the same operator name, use `without` on
+  one of them to disambiguate.
+
+## See also
+
+- [Application & Operators](./application) — how parsed operators interact
+  with bare application
+- [Syntax Style](./syntax-style) — whitespace rules around symbol use
+- [`std::ops`](./std/core) — prelude operator definitions

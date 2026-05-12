@@ -55,4 +55,5 @@ run_console:
 ## Next steps
 
 - [Tour](./tour) — a guided walkthrough of the language features
+- [Cookbook](./cookbook) — task-oriented recipes for everyday tasks
 - [Reference](/reference/) — syntax and feature details

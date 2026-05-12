@@ -87,9 +87,10 @@ our run_console(action: [console] 'a): 'a = catch action:
     console::read(), k -> run_console(k "42")
 ```
 
-## `error`
+## `error` 宣言
 
-`error` は enum、throwing effect operations、`Throw` impl をまとめて作る糖衣です。
+`error` は、`enum`、throwing operation を持つ `act`、`impl Throw`、
+`impl Display`、`wrap` / `up` companion helper をまとめて生成する短縮構文です。
 
 ```yulang
 error fs_err:
@@ -99,28 +100,10 @@ error fs_err:
 ```
 
 各 variant は data constructor と effect operation の両方として使われます。
-
-```yulang
-fs_err::not_found "path"
-```
-
 値として必要な文脈では `fs_err` の値になり、effect として必要な文脈では
-`fs_err` effect を投げる operation になります。
+`fs_err` effect を発火する operation になります。
 
-## `from`
+`fail`、名指し catch、`wrap`、`from` 集約、`up` の使い方を含む全体像は
+[エラー](./errors) を参照。
 
-別の error へまとめる場合は `from` を使います。
-
-```yulang
-error io_err:
-    fs from fs_err
-```
-
-これは source error から target error への `Cast` を生成します。
-
-`error` は、その error type ひとつを対象に throwing computation を `result` value
-へ変換する `wrap` helper も生成します。複数 error をまとめて文字列化するような
-一般機能は、現在の surface にはまだありません。
-
-通常の `enum` variant にも `from` を付けられます。詳しくは [キャスト](./casts) を
-参照してください。
+通常の `enum` variant でも `from` は使えます — [キャスト](./casts) を参照。

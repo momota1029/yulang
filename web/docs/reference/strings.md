@@ -58,6 +58,29 @@ character position, not byte offset.
 `std::str::splice` and the `.splice` method replace a character range with new
 text.
 
+## Display and `.show`
+
+```yulang
+1.show              // "1"
+true.show           // "true"
+"text".show         // "text"
+[1, 2, 3].show      // "[1, 2, 3]" (when an impl for the element exists)
+```
+
+`.show` is the canonical conversion to `str`. It resolves through the
+`Display` role: primitives, list, and types declared via `error E:` (which
+gets an auto-generated `Display`) all have impls available.
+
+Define `Display` for a user type with the usual role machinery:
+
+```yulang
+impl Display point:
+    our p.show = "(" + p.x.show + ", " + p.y.show + ")"
+```
+
+The result is what `point::show p` or `p.show` returns, and what `%{p}` in a
+string template formats.
+
 ## Comments
 
 ```yulang

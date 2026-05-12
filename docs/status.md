@@ -87,7 +87,10 @@ The columns trace a value through the pipeline:
 | `lib/std` prelude (numeric, list, str) | ✅  |  ✅   |   ✅   |     ✅     |   △    |  △   |
 | `console::*` host effects            |  ✅   |  ✅   |   ✅   |     △      |   ❌   |  △   |
 | `std::fs` filesystem                 |  ✅   |  ✅   |   △    |     ❌     |   ❌   |  ⚠️  |
-| `result` / `error` / `fail`          |  ✅   |  △    |   △    |     △      |   ❌   |  ⚠️  |
+| `error E:` sugar + `Throw` / `fail`  |  ✅   |  ✅   |   ✅   |     ✅     |   ❌   |  ✅  |
+| `E::wrap` / `from` aggregation / `E::up` | ✅ | △ |   △    |     △      |   ❌   |  ✅  |
+| `result 'ok 'err` value form         |  ✅   |  ✅   |   ✅   |     ✅     |   ❌   |  ✅  |
+| Auto-generated `Display E`           |  ✅   |  △    |   △    |     △      |   ❌   |  △   |
 
 ### Research / preview surface
 
@@ -103,10 +106,14 @@ The columns trace a value through the pipeline:
   VM as the semantic oracle. See
   [docs/native-backend.md](native-backend.md) for the user-facing support
   table and detailed progress.
-- The `result` / `error` / `fail` contract is not finalized. Library code that
-  surfaces failures (notably `std::fs`) currently uses provisional shapes
-  such as `opt str` or `bool`. The plan is to fix the error vocabulary
-  before broadening host APIs and the parser combinator surface.
+- The error vocabulary (`error E:`, `Throw` role with associated `throws`
+  effect, `fail`, `wrap`, `up`, named catch) is settled at the design level
+  and lands across the pipeline. The `from`-based aggregation path and the
+  auto-generated `Display E` impl are still finishing up — both parse, but
+  end-to-end behavior across all stages is not yet uniform.
+- Library code that surfaces failures (notably `std::fs::read_text`) still
+  uses provisional shapes such as `opt str` while host requests learn to
+  return typed filesystem errors. These should not be treated as stable.
 - `rule { … }` and `~"..."` parse, but they do not yet have a defined
   meaning as ordinary expressions and are not exposed through the runtime.
 - The compiled-unit cache and the `realm.toml` / `yulang.lock` package

@@ -57,6 +57,29 @@ my name = "yu"
 
 `std::str::splice` と `.splice` method は、文字範囲を別の文字列で置き換えます。
 
+## Display と `.show`
+
+```yulang
+1.show              // "1"
+true.show           // "true"
+"text".show         // "text"
+[1, 2, 3].show      // 要素の Display impl があれば "[1, 2, 3]"
+```
+
+`.show` は `str` への正準的な変換。`Display` role 経由で解決される — プリミ
+ティブ、list、`error E:` 経由で宣言された型（`Display` 自動生成あり）は
+すべて impl を持っている。
+
+ユーザ型に `Display` を定義するのは通常の role 構文：
+
+```yulang
+impl Display point:
+    our p.show = "(" + p.x.show + ", " + p.y.show + ")"
+```
+
+戻り値は `point::show p` / `p.show` の結果であり、文字列テンプレートの
+`%{p}` でフォーマットされる値でもある。
+
 ## コメント
 
 ```yulang

@@ -20,6 +20,7 @@ Current highlights:
 - role-based ad-hoc polymorphism
 - user-defined operators
 - algebraic effects and `catch` handlers
+- typed errors and aggregation through `error E:`, `fail`, and `from`
 - `sub:` / `return` for early-exit control flow
 - `for` loops with `last`, `next`, and `redo`
 - explicit reference syntax with `$x` and `&x = value`
@@ -307,6 +308,134 @@ sub:
         if x == 5: return x
         else: ()
     0
+```
+
+## Errors and Exceptions
+
+Errors in Yulang are expressed as algebraic effects. An `error` declaration
+generates an algebraic data type for the error and an effect for raising it,
+sharing one name.
+
+```yulang
+pub error fs_err:
+    not_found path
+    denied path
+    invalid_path str
+```
+
+This roughly desugars to:
+
+```yulang
+pub enum fs_err =
+    not_found path
+  | denied path
+  | invalid_path str
+
+pub act fs_err:
+    not_found: path -> never
+    denied: path -> never
+    invalid_path: str -> never
+```
+
+Each variant name is **both a data constructor and an effect operation**; the
+context picks the one that fits.
+
+```yulang
+// constructed as a value
+my err: fs_err = fs_err::not_found path
+
+// raised as an effect
+fs_err::not_found path
+```
+
+The companion module also receives:
+
+- `impl Throw fs_err` — backs `e.throw`, which re-raises a value through the
+  effect.
+- `impl Display fs_err` — a default text rendering, overridable with a
+  hand-written impl.
+- `fs_err::wrap` — closes the error effect into a `result` value.
+- `fs_err::up` — a handler that lifts narrower errors into `fs_err`, used when
+  other error types declare `from fs_err`.
+
+### Raising with `fail`
+
+`fail` is a prelude prefix operator defined as a transparent wrapper around
+`e.throw`:
+
+```yulang
+pub prefix(fail) = \e -> e.throw
+```
+
+Use it to surface a constructed error value into the effect row.
+
+```yulang
+my read_text_or_throw path =
+    case fs::read_text path:
+        opt::just text -> text
+        opt::nil -> fail fs_err::not_found path
+```
+
+The inferred type of this function is roughly `path -> [fs; fs_err] str`. The
+error is visible in the effect row.
+
+### Catching by name
+
+`catch` arms handle errors by naming each operation directly.
+
+```yulang
+catch read_text_or_throw path:
+    fs_err::not_found p, _ -> "(missing) " + p
+    fs_err::denied p, _ -> "(denied) " + p
+    value -> value
+```
+
+Yulang's error story is built on **catching by name**. There is no type-erased
+catch-all and no runtime dispatch over arbitrary `Display` instances; Yulang
+intentionally does not provide an `anyhow`-style boundary. Each error keeps its
+concrete type in the effect row, so the origin and the handler of every error
+are visible from types alone.
+
+### Closing into a value: `wrap`
+
+When the caller wants the failure as a value instead of a propagated effect,
+`wrap` returns a `result`.
+
+```yulang
+my read_text_safe path =
+    case fs_err::wrap: fs::read_text_or_throw path
+    of
+        result::ok text -> text
+        result::err err -> err.show + " (falling back)"
+```
+
+`fs_err::wrap` catches the `fs_err` effect produced by the thunk and returns
+`result str fs_err`. The `err` value is `Display`-able through the
+auto-generated impl.
+
+### Aggregating errors: `from`
+
+Multiple error families can be combined under a wider error with `from`:
+
+```yulang
+pub error io_err:
+    fs from fs_err
+    parse from parse_err
+```
+
+This generates:
+
+- variants `io_err::fs` and `io_err::parse`
+- `Cast fs_err -> io_err` and `Cast parse_err -> io_err` impls
+- an extended `io_err::wrap` that also catches `fs_err` and `parse_err`
+- `io_err::up`, a handler that turns the narrower errors into `io_err`
+
+```yulang
+my read_and_parse path =
+    io_err::up:
+        let text = fs::read_text_or_throw path     // [fs_err]
+        parse_json text                              // [parse_err]
+    // the whole block has effect [io_err]
 ```
 
 ## `for`, `last`, `next`, and `redo`

@@ -45,5 +45,6 @@ run_console:
 ## 次に読むもの
 
 - [ツアー](./tour) — Yulang の主要機能を一通り見る
+- [クックブック](./cookbook) — タスク指向の短いレシピ集
 - [リファレンス](/ja/reference/) — 構文と意味の詳細
 - <a href="/" target="_self">Playground</a> — 実際に動かす
