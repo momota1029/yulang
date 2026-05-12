@@ -8,11 +8,11 @@ repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
 
 [dependencies]
-chasa = { version = "0.5.0", path = "../chasa" }
+chasa = "0.5.0"
 im = "15.1.0"
 smallvec = "1.13.2"
 unicode-ident = "1.0.12"
-reborrow-generic = { version = "0.1.2", path = "../reborrow-generic" }
+reborrow-generic = "0.1.2"
 qp-trie = "0.8.1"
 rowan = "0.15"
 either = "1.13.0"

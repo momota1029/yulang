@@ -1,0 +1,24 @@
+pub prefix(not) 8.0.0 = std::bool::not
+
+pub infix (+) 5.0.0 5.0.0 = \x -> \y -> x.add y
+pub infix (-) 5.0.0 5.0.0 = \x -> \y -> x.sub y
+pub infix (*) 6.0.0 6.0.0 = \x -> \y -> x.mul y
+pub infix (/) 6.0.0 6.0.0 = \x -> \y -> x.div y
+pub infix (==) 3.0.0 3.0.0 = \x -> \y -> x.eq y
+pub infix (!=) 3.0.0 3.0.0 = \x -> \y -> std::bool::not (x.eq y)
+pub infix (<) 3.0.0 3.0.0 = \x -> \y -> x.lt y
+pub infix (<=) 3.0.0 3.0.0 = \x -> \y -> x.le y
+pub infix (>) 3.0.0 3.0.0 = \x -> \y -> x.gt y
+pub infix (>=) 3.0.0 3.0.0 = \x -> \y -> x.ge y
+
+pub lazy infix(and) 2.0.0 2.0.0 = \a -> \b ->
+    if a():
+        b()
+    else:
+        false
+
+pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b ->
+    if a():
+        true
+    else:
+        b()

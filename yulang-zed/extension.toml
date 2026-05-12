@@ -9,3 +9,7 @@ repository = "https://github.com/momota1029/yulang-zed"
 [grammars.yulang]
 repository = "https://github.com/momota1029/tree-sitter-yulang"
 commit = "bd05e120a9cbe268fff6549e7708639c9a3ff2d2"
+
+[language_servers.yulang-ls]
+name = "Yulang LS"
+languages = ["Yulang"]

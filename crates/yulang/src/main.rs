@@ -48,6 +48,9 @@ use yulang_parser::sink::{Event, EventSink, VecSink, YulangLanguage};
 use yulang_parser::stmt::parse_statement;
 use yulang_parser::typ::parse::parse_type;
 use yulang_runtime as runtime;
+use yulang_sources::{
+    default_versioned_std_root, install_embedded_std, resolve_or_install_std_root,
+};
 use yulang_typed_ir as typed_ir;
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
@@ -100,6 +103,7 @@ struct CliOptions {
     std_root: Option<String>,
     profile_flamegraph: Option<String>,
     profile_repeat: usize,
+    install_std: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -142,6 +146,7 @@ fn parse_args() -> CliOptions {
     let mut std_root = None;
     let mut profile_flamegraph = None;
     let mut profile_repeat = 1usize;
+    let mut install_std = false;
     let mut args = env::args().skip(1).peekable();
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -187,6 +192,7 @@ fn parse_args() -> CliOptions {
             "--infer-phase-timings" => infer_phase_timings = true,
             "--runtime-phase-timings" => runtime_phase_timings = true,
             "--no-prelude" => no_prelude = true,
+            "--install-std" => install_std = true,
             "--std-root" => {
                 let Some(value) = args.next() else {
                     eprintln!("missing value for --std-root");
@@ -247,6 +253,7 @@ fn parse_args() -> CliOptions {
         && native_run_exe.is_none()
         && native_run_value_exe.is_none()
         && native_run_cps_repr_exe.is_none()
+        && !install_std
     {
         infer = true;
     }
@@ -275,6 +282,7 @@ fn parse_args() -> CliOptions {
         std_root,
         profile_flamegraph,
         profile_repeat,
+        install_std,
     }
 }
 
@@ -312,7 +320,7 @@ fn read_source(path: Option<&str>) -> String {
 
 fn print_usage() {
     eprintln!(
-        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--native-run [path]] [--native-compare-i64] [--native-abi-lanes] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--profile-flamegraph <svg>] [<path>]"
+        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--native-run [path]] [--native-compare-i64] [--native-abi-lanes] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--install-std] [--profile-flamegraph <svg>] [<path>]"
     );
     eprintln!("       (no path = read from stdin)");
     eprintln!("       --cst         also print the CST before types");
@@ -339,6 +347,7 @@ fn print_usage() {
     );
     eprintln!("       --no-prelude  do not implicitly import std::prelude");
     eprintln!("       --std-root <path>  use an alternate std source root");
+    eprintln!("       --install-std  install the embedded std sources and exit");
     eprintln!("       --profile-flamegraph <svg>  write a CPU flamegraph SVG with pprof");
     eprintln!(
         "       --profile-repeat <n>  run the pipeline n times and print only the last result"
@@ -346,6 +355,16 @@ fn print_usage() {
 }
 
 fn run(options: &CliOptions) {
+    if options.install_std {
+        let root = default_versioned_std_root();
+        if let Err(err) = install_embedded_std(&root) {
+            eprintln!("failed to install std to {}: {err}", root.display());
+            process::exit(1);
+        }
+        eprintln!("{}", root.display());
+        return;
+    }
+
     for iteration in 0..options.profile_repeat {
         let source = read_source(options.path.as_deref());
         let emit_output = iteration + 1 == options.profile_repeat;
@@ -2795,7 +2814,7 @@ fn lower_infer_sources(
             match lower_infer_virtual_source_with_options_profiled(
                 source,
                 env::current_dir().ok(),
-                source_options(options),
+                source_options(options, env::current_dir().ok().as_deref()),
             ) {
                 Ok(lowered) => (lowered.lowered, lowered.profile),
                 Err(err) => {
@@ -2807,7 +2826,7 @@ fn lower_infer_sources(
             match lower_infer_virtual_source_with_options(
                 source,
                 env::current_dir().ok(),
-                source_options(options),
+                source_options(options, env::current_dir().ok().as_deref()),
             ) {
                 Ok(lowered) => (lowered, InferSourceLowerProfile::default()),
                 Err(err) => {
@@ -2828,7 +2847,10 @@ fn lower_infer_sources(
     };
 
     let (lowered, profile) = if options.infer_phase_timings {
-        match lower_infer_entry_with_options_profiled(path, source_options(options)) {
+        match lower_infer_entry_with_options_profiled(
+            path,
+            source_options(options, path_base_dir(path)),
+        ) {
             Ok(lowered) => (lowered.lowered, lowered.profile),
             Err(err) => {
                 eprintln!("{err}");
@@ -2836,7 +2858,7 @@ fn lower_infer_sources(
             }
         }
     } else {
-        match lower_infer_entry_with_options(path, source_options(options)) {
+        match lower_infer_entry_with_options(path, source_options(options, path_base_dir(path))) {
             Ok(lowered) => (lowered, InferSourceLowerProfile::default()),
             Err(err) => {
                 eprintln!("{err}");
@@ -5331,12 +5353,22 @@ fn source_frame(source: &str, range: typed_ir::SourceRange) -> Option<String> {
     ))
 }
 
-fn source_options(options: &CliOptions) -> SourceOptions {
+fn source_options(options: &CliOptions, base_dir: Option<&Path>) -> SourceOptions {
     let std_root = options
         .std_root
         .as_ref()
         .map(PathBuf::from)
-        .or_else(default_std_root);
+        .filter(|_| !options.no_prelude)
+        .and_then(|explicit| {
+            resolve_or_install_std_root(Some(explicit), base_dir)
+                .ok()
+                .flatten()
+        })
+        .or_else(|| {
+            (!options.no_prelude)
+                .then(|| resolve_or_install_std_root(None, base_dir).ok().flatten())
+                .flatten()
+        });
     SourceOptions {
         implicit_prelude: !options.no_prelude && std_root.is_some(),
         std_root,
@@ -5344,9 +5376,8 @@ fn source_options(options: &CliOptions) -> SourceOptions {
     }
 }
 
-fn default_std_root() -> Option<PathBuf> {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib/std");
-    root.is_dir().then_some(root)
+fn path_base_dir(path: &str) -> Option<&Path> {
+    Path::new(path).parent()
 }
 
 #[cfg(test)]
@@ -5380,6 +5411,7 @@ mod tests {
             std_root: None,
             profile_flamegraph: None,
             profile_repeat: 1,
+            install_std: false,
         }
     }
 

@@ -13,10 +13,16 @@ use yulang_parser::sink::YulangLanguage;
 use yulang_typed_ir::{Name, Path as ModulePath};
 
 mod cache;
+mod stdlib;
 
 pub use cache::{
     YULANG_LOCK_FILE, YULANG_MANIFEST_FILE, YULANG_TARGET_DIR, YulangCachePaths,
     default_user_cache_root, project_target_root,
+};
+pub use stdlib::{
+    YULANG_LIB_DIR_ENV, YULANG_STD_ENV, YULANG_STDLIB_VERSION, default_user_lib_root,
+    default_versioned_std_root, find_std_root_near, install_embedded_std, is_std_root,
+    resolve_or_install_std_root,
 };
 
 pub fn parse_source_meta(source: &str) -> SourceMeta {

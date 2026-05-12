@@ -167,6 +167,8 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 [[package]]
 name = "chasa"
 version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1f0ef475724c649b3b7167a9948dc84a1e11f5f1c675e32dd01936ececcd454"
 dependencies = [
  "copy-range",
  "reborrow-generic",
@@ -1245,6 +1247,8 @@ dependencies = [
 [[package]]
 name = "reborrow-generic"
 version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7646e43508f68c666d937914c642cd9acbdacd0d632204748b56314308c0d208"
 dependencies = [
  "reborrow-generic-derive",
  "seq-macro",
@@ -1253,6 +1257,8 @@ dependencies = [
 [[package]]
 name = "reborrow-generic-derive"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "954a567771a8f35b8edab95a757ae811572b36a16e6f68c9d91f7ba51b6125ba"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2200,7 +2206,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-infer"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dashmap 6.1.0",
  "rowan",
@@ -2215,7 +2221,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-ls"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "rowan",
  "tokio",
@@ -2264,7 +2270,7 @@ dependencies = [
 
 [[package]]
 name = "yulang-sources"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "rowan",
  "serde",

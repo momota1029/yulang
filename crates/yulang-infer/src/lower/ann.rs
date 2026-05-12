@@ -25,10 +25,11 @@ pub fn lower_pat_ann(state: &mut LowerState, pat: &SyntaxNode) -> Option<Lowered
     let type_expr = ann
         .children()
         .find(|child| child.kind() == SyntaxKind::TypeExpr)?;
-    let eff = if super::signature::parse_sig_type_expr(&type_expr).is_some() {
-        None
-    } else {
-        lower_effect_ann(state, &type_expr)
+    let eff = match super::signature::parse_sig_type_expr(&type_expr) {
+        Some(super::signature::SigType::EffectPrefixed { .. }) | None => {
+            lower_effect_ann(state, &type_expr)
+        }
+        Some(_) => None,
     };
     Some(LoweredPatAnn {
         eff,

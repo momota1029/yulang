@@ -5,8 +5,8 @@ use yulang_typed_ir as typed_ir;
 
 use super::signature::{
     SigRecordField, SigRow, SigType, SigVar, act_type_param_names, collect_all_sig_vars,
-    fresh_type_scope, lower_pure_sig_neg_id, lower_pure_sig_pos_id, parse_sig_type_expr,
-    render_concrete_sig_type, sig_type_head,
+    fresh_type_scope, lower_pure_sig_neg_id, lower_pure_sig_pos_id,
+    parse_sig_row_literal_type_expr, parse_sig_type_expr, render_concrete_sig_type, sig_type_head,
 };
 use super::stmt::{
     ArgPatInfo, HeaderArg, binding_sig_var_names, child_node, child_nodes, collect_block_items,
@@ -88,7 +88,9 @@ fn collect_impl_assoc_type_equations_inner(node: &SyntaxNode, out: &mut HashMap<
                 }) else {
                     continue;
                 };
-                let Some(sig) = parse_sig_type_expr(&type_expr) else {
+                let Some(sig) = parse_sig_row_literal_type_expr(&type_expr)
+                    .or_else(|| parse_sig_type_expr(&type_expr))
+                else {
                     continue;
                 };
                 out.insert(name, sig);

@@ -172,7 +172,11 @@ fn lower_role_method_binding(
     if let Some(sig) = sig.as_ref() {
         let mut pos_vars = role_scope.clone();
         let mut neg_vars = role_scope.clone();
-        let mut input_names = collect_fun_input_sig_vars(sig);
+        let (annotation_eff, annotation_ret) = match sig {
+            SigType::EffectPrefixed { eff, ret, .. } => (Some(eff.clone()), ret.as_ref().clone()),
+            other => (None, other.clone()),
+        };
+        let mut input_names = collect_fun_input_sig_vars(&annotation_ret);
         if has_receiver {
             if let Some(receiver_name) = role_arg_names.first().cloned() {
                 input_names.insert(receiver_name);
@@ -180,22 +184,30 @@ fn lower_role_method_binding(
         }
         state.infer.mark_role_input_args(role_path, &input_names);
 
-        let mut pos_sig = lower_pure_sig_pos_id(state, sig, &mut pos_vars);
-        let mut neg_sig = lower_pure_sig_neg_id(state, sig, &mut neg_vars);
+        let mut pos_sig = lower_pure_sig_pos_id(state, &annotation_ret, &mut pos_vars);
+        let mut neg_sig = lower_pure_sig_neg_id(state, &annotation_ret, &mut neg_vars);
         if has_receiver {
             let Some(&recv_tv) = role_arg_tvs.first() else {
                 return None;
             };
+            let outer_ret_eff_pos = annotation_eff
+                .as_ref()
+                .map(|row| crate::lower::signature::lower_sig_row_pos_id(state, row, &mut pos_vars))
+                .unwrap_or(state.infer.arena.empty_pos_row);
+            let outer_ret_eff_neg = annotation_eff
+                .as_ref()
+                .map(|row| crate::lower::signature::lower_sig_row_neg_id(state, row, &mut neg_vars))
+                .unwrap_or(state.infer.arena.empty_neg_row);
             pos_sig = state.infer.alloc_pos(crate::types::Pos::Fun {
                 arg: state.infer.alloc_neg(crate::types::Neg::Var(recv_tv)),
                 arg_eff: state.infer.arena.empty_neg_row,
-                ret_eff: state.infer.arena.empty_pos_row,
+                ret_eff: outer_ret_eff_pos,
                 ret: pos_sig,
             });
             neg_sig = state.infer.alloc_neg(crate::types::Neg::Fun {
                 arg: state.infer.alloc_pos(crate::types::Pos::Var(recv_tv)),
                 arg_eff: state.infer.arena.empty_pos_row,
-                ret_eff: state.infer.arena.empty_neg_row,
+                ret_eff: outer_ret_eff_neg,
                 ret: neg_sig,
             });
         }

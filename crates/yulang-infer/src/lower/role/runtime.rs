@@ -130,6 +130,8 @@ pub(crate) fn export_runtime_sig_type(state: &LowerState, sig: &SigType) -> type
             ret_effect: Box::new(export_runtime_sig_row(state, ret_eff.as_ref())),
             ret: Box::new(export_runtime_sig_type(state, ret)),
         },
+        SigType::Row { row, .. } => export_runtime_sig_row(state, Some(row)),
+        SigType::EffectPrefixed { ret, .. } => export_runtime_sig_type(state, ret),
     }
 }
 

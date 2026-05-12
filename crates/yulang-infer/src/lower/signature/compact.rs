@@ -107,8 +107,26 @@ pub fn compact_concrete_sig_type(sig: &SigType) -> Option<CompactType> {
             ],
             ..CompactType::default()
         }),
-        SigType::Var(_) | SigType::Fun { .. } => None,
+        SigType::Row { row, .. } => compact_concrete_sig_row(row),
+        SigType::Var(_) | SigType::Fun { .. } | SigType::EffectPrefixed { .. } => None,
     }
+}
+
+fn compact_concrete_sig_row(row: &SigRow) -> Option<CompactType> {
+    if row.tail.is_some() {
+        return None;
+    }
+    Some(CompactType {
+        rows: vec![CompactRow {
+            items: row
+                .items
+                .iter()
+                .map(compact_concrete_sig_type)
+                .collect::<Option<Vec<_>>>()?,
+            tail: Box::new(CompactType::default()),
+        }],
+        ..CompactType::default()
+    })
 }
 
 pub fn render_concrete_sig_type(sig: &SigType) -> Option<String> {
@@ -240,6 +258,8 @@ pub fn compact_sig_pattern_type(
             }],
             ..CompactType::default()
         },
+        SigType::Row { row, .. } => compact_sig_pattern_row(state, row, vars),
+        SigType::EffectPrefixed { .. } => CompactType::default(),
     }
 }
 
@@ -311,6 +331,23 @@ pub fn collect_all_sig_vars(sig: &SigType, out: &mut HashSet<String>) {
                 }
             }
             collect_all_sig_vars(ret, out);
+        }
+        SigType::EffectPrefixed { eff, ret, .. } => {
+            for item in &eff.items {
+                collect_all_sig_vars(item, out);
+            }
+            if let Some(tail) = &eff.tail {
+                out.insert(tail.name.clone());
+            }
+            collect_all_sig_vars(ret, out);
+        }
+        SigType::Row { row, .. } => {
+            for item in &row.items {
+                collect_all_sig_vars(item, out);
+            }
+            if let Some(tail) = &row.tail {
+                out.insert(tail.name.clone());
+            }
         }
         SigType::Prim { .. } | SigType::Unit { .. } => {}
     }

@@ -108,6 +108,8 @@ pub fn lower_pure_sig_pos_id(
         }
         SigType::Var(var) => state.infer.alloc_pos(Pos::Var(sig_var(state, vars, var))),
         SigType::Unit { .. } => state.infer.alloc_pos(prim_type("unit")),
+        SigType::Row { row, .. } => lower_sig_row_pos_id(state, row, vars),
+        SigType::EffectPrefixed { ret, .. } => lower_pure_sig_pos_id(state, ret, vars),
     }
 }
 
@@ -182,6 +184,8 @@ pub fn lower_pure_sig_neg_id(
         }
         SigType::Var(var) => state.infer.alloc_neg(Neg::Var(sig_var(state, vars, var))),
         SigType::Unit { .. } => state.infer.alloc_neg(neg_prim_type("unit")),
+        SigType::Row { row, .. } => lower_sig_row_neg_id(state, row, vars),
+        SigType::EffectPrefixed { ret, .. } => lower_pure_sig_neg_id(state, ret, vars),
     }
 }
 
@@ -367,6 +371,10 @@ fn lower_sig_type(
         }
         SigType::Var(var) => Pos::Var(sig_var(state, vars, var)),
         SigType::Unit { .. } => prim_type("unit"),
+        SigType::Row { row, .. } => lower_sig_row_pos(state, row, vars),
+        SigType::EffectPrefixed { ret, .. } => {
+            lower_sig_type(state, ret, vars, effect_path, act_arg_tvs)
+        }
     }
 }
 
@@ -441,6 +449,8 @@ fn lower_sig_neg_type(
         }
         SigType::Var(var) => Neg::Var(sig_var(state, vars, var)),
         SigType::Unit { .. } => neg_prim_type("unit"),
+        SigType::Row { row, .. } => lower_sig_row_neg(state, row, vars),
+        SigType::EffectPrefixed { ret, .. } => lower_sig_neg_type(state, ret, vars, act_arg_tvs),
     }
 }
 
@@ -449,6 +459,10 @@ fn lower_sig_row_pos(
     row: &SigRow,
     vars: &mut HashMap<String, TypeVar>,
 ) -> Pos {
+    if let Some(assoc_tail) = single_in_scope_ident_item(row, vars) {
+        state.infer.mark_through(assoc_tail);
+        return state.pos_row(Vec::new(), Pos::Var(assoc_tail));
+    }
     let items = row
         .items
         .iter()
@@ -466,7 +480,7 @@ fn lower_sig_row_pos(
     state.pos_row(items, tail)
 }
 
-fn lower_sig_row_pos_id(
+pub fn lower_sig_row_pos_id(
     state: &mut LowerState,
     row: &SigRow,
     vars: &mut HashMap<String, TypeVar>,
@@ -480,6 +494,10 @@ fn lower_sig_row_neg(
     row: &SigRow,
     vars: &mut HashMap<String, TypeVar>,
 ) -> Neg {
+    if let Some(assoc_tail) = single_in_scope_ident_item(row, vars) {
+        state.infer.mark_through(assoc_tail);
+        return state.neg_row(Vec::new(), Neg::Var(assoc_tail));
+    }
     let items = row
         .items
         .iter()
@@ -503,7 +521,20 @@ fn lower_sig_row_neg(
     state.neg_row(items, tail)
 }
 
-fn lower_sig_row_neg_id(
+fn single_in_scope_ident_item(row: &SigRow, vars: &HashMap<String, TypeVar>) -> Option<TypeVar> {
+    if row.tail.is_some() || row.items.len() != 1 {
+        return None;
+    }
+    let SigType::Prim { path, .. } = &row.items[0] else {
+        return None;
+    };
+    if path.segments.len() != 1 {
+        return None;
+    }
+    vars.get(&path.segments[0].0).copied()
+}
+
+pub fn lower_sig_row_neg_id(
     state: &mut LowerState,
     row: &SigRow,
     vars: &mut HashMap<String, TypeVar>,

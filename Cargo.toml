@@ -1,9 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-  "crates/chasa",
-  "crates/reborrow-generic",
-  "crates/reborrow-generic-derive",
   "crates/yulang-parser",
   "crates/yulang",
   "crates/yulang-sources",

@@ -82,11 +82,22 @@ Print inferred public types:
 cargo run -q -p yulang -- --infer examples/08_types.yu
 ```
 
-Install the language server from a checkout:
+Install the language server:
 
 ```bash
-cargo install --path crates/yulang-lsp
-yulang-ls
+cargo install yulang-ls
+yulang-ls --install-std
+```
+
+The standard library is installed to
+`~/.yulang/lib/yulang-0.1.0/std`. `yulang-ls` also installs this embedded
+standard library automatically on first use if neither `YULANG_STD` nor a
+nearby `lib/std` is available.
+
+To use a different standard library checkout:
+
+```bash
+export YULANG_STD=/path/to/yulang/lib/std
 ```
 
 Run an inline program:

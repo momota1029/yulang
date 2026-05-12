@@ -22,6 +22,16 @@ impl<'a> SigParser<'a> {
     pub fn parse_type(&mut self) -> Option<SigType> {
         self.skip_ws();
         let start = self.i;
+        if self.peek() == Some(b'[') {
+            let row = self.parse_row_if_present()?;
+            let ret = self.parse_type()?;
+            let span = self.range(start, self.offset_of(ret.span().end()));
+            return Some(SigType::EffectPrefixed {
+                eff: row,
+                ret: Box::new(ret),
+                span,
+            });
+        }
         let lhs = self.parse_apply()?;
         let ret_eff_before_arrow = self.parse_row_if_present();
         self.skip_ws();
@@ -378,12 +388,34 @@ impl<'a> SigParser<'a> {
     fn offset_of(&self, pos: TextSize) -> usize {
         u32::from(pos - self.base) as usize
     }
+
+    fn parse_row_literal_type(&mut self) -> Option<SigType> {
+        self.skip_ws();
+        let start = self.i;
+        if self.peek()? != b'\'' {
+            return None;
+        }
+        self.i += 1;
+        self.skip_ws();
+        let row = self.parse_row_if_present()?;
+        Some(SigType::Row {
+            row,
+            span: self.range(start, self.i),
+        })
+    }
 }
 
 pub fn parse_sig_type_expr(type_expr: &SyntaxNode) -> Option<SigType> {
     let type_text = type_expr.to_string();
     let mut parser = SigParser::new(&type_text, type_expr.text_range().start());
     let sig = parser.parse_type()?;
+    parser.is_eof().then_some(sig)
+}
+
+pub(crate) fn parse_sig_row_literal_type_expr(type_expr: &SyntaxNode) -> Option<SigType> {
+    let type_text = type_expr.to_string();
+    let mut parser = SigParser::new(&type_text, type_expr.text_range().start());
+    let sig = parser.parse_row_literal_type()?;
     parser.is_eof().then_some(sig)
 }
 

@@ -80,6 +80,15 @@ pub(crate) fn substitute_role_sig_type(
             ret: Box::new(substitute_role_sig_type(ret, bindings)),
             span: *span,
         },
+        SigType::EffectPrefixed { eff, ret, span } => SigType::EffectPrefixed {
+            eff: substitute_role_sig_row(eff, bindings),
+            ret: Box::new(substitute_role_sig_type(ret, bindings)),
+            span: *span,
+        },
+        SigType::Row { row, span } => SigType::Row {
+            row: substitute_role_sig_row(row, bindings),
+            span: *span,
+        },
     }
 }
 

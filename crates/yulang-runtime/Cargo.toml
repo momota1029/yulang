@@ -3,9 +3,12 @@ name = "yulang-runtime"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+description = "Runtime IR, validation, monomorphization, and VM support for Yulang"
+repository = "https://github.com/momota1029/yulang"
+readme = "../../README.md"
 
 [dependencies]
-yulang-typed-ir = { path = "../yulang-typed-ir" }
+yulang-typed-ir = { version = "0.1.0", path = "../yulang-typed-ir" }
 
 [dev-dependencies]
-yulang-infer = { path = "../yulang-infer" }
+yulang-infer = { version = "0.1.1", path = "../yulang-infer" }

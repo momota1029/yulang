@@ -245,11 +245,19 @@ pub(crate) fn lower_synthetic_error_throw(
     });
 
     let prerequisites = compact_role_constraints(&state.infer, impl_def);
+    let throws_sig = SigType::Row {
+        row: SigRow {
+            items: vec![error_sig.clone()],
+            tail: None,
+        },
+        span: error_sig.span(),
+    };
+    let assoc_eqs = HashMap::from([("throws".to_string(), throws_sig)]);
     let (args, compact_args) = render_cast_impl_args(
         state,
         &role_infos,
         std::slice::from_ref(error_sig),
-        &HashMap::new(),
+        &assoc_eqs,
         &impl_scope,
     );
     state.infer.register_role_impl_candidate(RoleImplCandidate {
@@ -1518,9 +1526,13 @@ fn connect_impl_member_expected_type(
         return;
     };
     let expected_sig = substitute_role_sig_type(required_sig, role_sig_bindings);
+    let (expected_eff, expected_ret) = match &expected_sig {
+        SigType::EffectPrefixed { eff, ret, .. } => (Some(eff.clone()), ret.as_ref().clone()),
+        other => (None, other.clone()),
+    };
     let mut pos_vars = type_scope.clone();
     let mut neg_vars = type_scope.clone();
-    let mut neg_sig = lower_pure_sig_neg_id(state, &expected_sig, &mut neg_vars);
+    let mut neg_sig = lower_pure_sig_neg_id(state, &expected_ret, &mut neg_vars);
     if required.has_receiver {
         let Some(receiver_name) = role_infos
             .iter()
@@ -1533,10 +1545,14 @@ fn connect_impl_member_expected_type(
             return;
         };
         let recv_pos = lower_pure_sig_pos_id(state, receiver_sig, &mut pos_vars);
+        let outer_ret_eff_neg = expected_eff
+            .as_ref()
+            .map(|row| crate::lower::signature::lower_sig_row_neg_id(state, row, &mut neg_vars))
+            .unwrap_or(state.infer.arena.empty_neg_row);
         neg_sig = state.infer.alloc_neg(Neg::Fun {
             arg: recv_pos,
             arg_eff: state.infer.arena.empty_pos_row,
-            ret_eff: state.infer.arena.empty_neg_row,
+            ret_eff: outer_ret_eff_neg,
             ret: neg_sig,
         });
     }

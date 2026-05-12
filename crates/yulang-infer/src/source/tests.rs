@@ -4391,6 +4391,30 @@ fn unannotated_second_header_arg_stays_value_arg_after_effectful_first_arg() {
     });
 }
 
+#[test]
+fn fail_with_concrete_error_carries_throw_effect() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my raise_concrete(e: fs_err) = fail e\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+        let ty = rendered_type(&rendered, "raise_concrete");
+        assert!(
+            ty.contains("std::fs::fs_err"),
+            "raise_concrete should carry fs_err in its effect row, got: {ty}"
+        );
+    });
+}
+
 fn temp_root(name: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)

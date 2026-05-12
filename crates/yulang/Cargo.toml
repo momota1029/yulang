@@ -4,17 +4,19 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Experimental language with Simple-Sub-style inference, algebraic effects, effect rows, roles, and Ruby/Perl/Raku-inspired syntax."
+repository = "https://github.com/momota1029/yulang"
+readme = "../../README.md"
 
 [dependencies]
-yulang-typed-ir = { path = "../yulang-typed-ir" }
-yulang-runtime = { path = "../yulang-runtime" }
-yulang-parser = { path = "../yulang-parser" }
-yulang-infer = { path = "../yulang-infer" }
-yulang-native = { path = "../yulang-native" }
-yulang-sources = { path = "../yulang-sources" }
-chasa = { path = "../chasa" }
+yulang-typed-ir = { version = "0.1.0", path = "../yulang-typed-ir" }
+yulang-runtime = { version = "0.1.0", path = "../yulang-runtime" }
+yulang-parser = { version = "0.1.0", path = "../yulang-parser" }
+yulang-infer = { version = "0.1.1", path = "../yulang-infer" }
+yulang-native = { version = "0.1.0", path = "../yulang-native" }
+yulang-sources = { version = "0.1.1", path = "../yulang-sources" }
+chasa = "0.5.0"
 either = "1.13.0"
 im = "15.1.0"
-reborrow-generic = { path = "../reborrow-generic" }
+reborrow-generic = "0.1.2"
 rowan = "0.15"
 pprof = { version = "0.14", features = ["flamegraph"] }

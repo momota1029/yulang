@@ -1,0 +1,5 @@
+pub act console:
+    pub print: str -> ()
+    pub println: str -> ()
+
+pub use std::console::console::*

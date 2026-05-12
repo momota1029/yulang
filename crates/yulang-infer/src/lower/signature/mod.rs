@@ -14,8 +14,9 @@ pub use compact::{
 pub use lower::{
     lower_function_sig_shape, lower_pure_sig_neg_id, lower_pure_sig_neg_type,
     lower_pure_sig_pos_id, lower_pure_sig_type, lower_sig_effect_arg, lower_sig_neg_id,
-    lower_sig_pos_id,
+    lower_sig_pos_id, lower_sig_row_neg_id, lower_sig_row_pos_id,
 };
+pub(crate) use parse::parse_sig_row_literal_type_expr;
 pub use parse::parse_sig_type_expr;
 pub use scope::{act_type_param_names, fresh_type_scope, ordered_act_type_vars, ordered_type_vars};
 
@@ -58,6 +59,20 @@ pub enum SigType {
         ret: Box<SigType>,
         span: TextRange,
     },
+    /// `'[row]` の形。associated type が effect row 自体を値として束縛する
+    /// `type throws = '[E]` のような注釈で使う。
+    Row {
+        row: SigRow,
+        span: TextRange,
+    },
+    /// `[row] T` の形。引数を持たず、戻り型 `T` に effect row `row` を被せる
+    /// 注釈シェイプ。role の `our e.method: [row] T` のような、受け手を暗黙化した
+    /// メソッド注釈で使う。
+    EffectPrefixed {
+        eff: SigRow,
+        ret: Box<SigType>,
+        span: TextRange,
+    },
 }
 
 impl SigType {
@@ -70,7 +85,9 @@ impl SigType {
             | SigType::Record { span, .. }
             | SigType::RecordTailSpread { span, .. }
             | SigType::RecordHeadSpread { span, .. }
-            | SigType::Fun { span, .. } => *span,
+            | SigType::Fun { span, .. }
+            | SigType::Row { span, .. }
+            | SigType::EffectPrefixed { span, .. } => *span,
             SigType::Var(var) => var.span,
         }
     }

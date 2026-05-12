@@ -10,7 +10,10 @@ use yulang_infer::{
     DefId, LowerState, Path as InferPath, collect_surface_diagnostics,
     lower_virtual_source_with_options, surface_diagnostic::SurfaceDiagnostic,
 };
-use yulang_sources::{SourceOptions, collect_virtual_source_files_with_options};
+use yulang_sources::{
+    SourceOptions, collect_virtual_source_files_with_options, default_versioned_std_root,
+    install_embedded_std, is_std_root, resolve_or_install_std_root,
+};
 
 struct Backend {
     client: Client,
@@ -20,8 +23,11 @@ struct Backend {
 
 impl Backend {
     fn source_options(&self, base_dir: Option<&std::path::Path>) -> SourceOptions {
+        let std_root = resolve_or_install_std_root(self.std_root.clone(), base_dir)
+            .ok()
+            .flatten();
         SourceOptions {
-            std_root: self.resolved_std_root(base_dir),
+            std_root,
             implicit_prelude: true,
             search_paths: vec![],
         }
@@ -67,14 +73,6 @@ impl Backend {
             .publish_diagnostics(uri.clone(), diagnostics, None)
             .await;
     }
-
-    fn resolved_std_root(&self, base_dir: Option<&std::path::Path>) -> Option<PathBuf> {
-        self.std_root
-            .as_deref()
-            .filter(|path| path.join("prelude.yu").is_file())
-            .map(PathBuf::from)
-            .or_else(|| base_dir.and_then(find_std_root_near))
-    }
 }
 
 fn surface_to_lsp(
@@ -116,16 +114,6 @@ fn shift_span_to_document(span: rowan::TextRange, prefix_len: usize) -> Option<r
         (start as u32).into(),
         (end as u32).into(),
     ))
-}
-
-fn find_std_root_near(base_dir: &std::path::Path) -> Option<PathBuf> {
-    for ancestor in base_dir.ancestors() {
-        let candidate = ancestor.join("lib/std");
-        if candidate.join("prelude.yu").is_file() {
-            return Some(candidate);
-        }
-    }
-    None
 }
 
 fn line_starts(text: &str) -> Vec<usize> {
@@ -361,14 +349,17 @@ impl LanguageServer for Backend {
 
 #[tokio::main]
 async fn main() {
-    let std_root = std::env::var("YULANG_STD")
-        .ok()
+    let mut args = std::env::args().skip(1);
+    if matches!(args.next().as_deref(), Some("--install-std")) {
+        let root = default_versioned_std_root();
+        install_embedded_std(&root).expect("install embedded Yulang std");
+        eprintln!("{}", root.display());
+        return;
+    }
+
+    let std_root = std::env::var_os(yulang_sources::YULANG_STD_ENV)
         .map(PathBuf::from)
-        .or_else(|| {
-            std::env::current_exe()
-                .ok()
-                .and_then(|p| p.parent()?.parent()?.parent().map(|p| p.join("lib/std")))
-        });
+        .filter(|root| is_std_root(root));
 
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();

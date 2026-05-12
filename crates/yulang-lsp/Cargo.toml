@@ -1,6 +1,6 @@
 [package]
 name = "yulang-ls"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Language server for Yulang"
@@ -15,6 +15,6 @@ path = "src/main.rs"
 tower-lsp = "0.20"
 tokio = { version = "1", features = ["full"] }
 yulang-editor = { version = "0.1.0", path = "../yulang-editor" }
-yulang-infer = { version = "0.1.0", path = "../yulang-infer" }
-yulang-sources = { version = "0.1.0", path = "../yulang-sources" }
+yulang-infer = { version = "0.1.1", path = "../yulang-infer" }
+yulang-sources = { version = "0.1.1", path = "../yulang-sources" }
 rowan = "0.15"
