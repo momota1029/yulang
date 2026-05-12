@@ -2916,6 +2916,37 @@ fn lowers_record_pattern_defaults_in_catch_effect_guards() {
             .1;
 
         assert_eq!(ty, "α -> α | int");
+        assert!(
+            lowered.state.ctx.refs.unresolved().is_empty(),
+            "catch guard should see defaulted pattern local, got unresolved refs: {:?}",
+            lowered.state.ctx.refs.unresolved()
+        );
+    });
+}
+
+#[test]
+fn lowers_record_pattern_shorthand_in_catch_effect_guards() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "act cfg:\n  our read: { flag: bool } -> int\n\nmy f x = catch x:\n  cfg::read { flag }, k if flag -> 1\n  _ -> 0\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+
+        assert_eq!(rendered_type(&rendered, "f"), "⊤ -> int");
+        assert!(
+            lowered.state.ctx.refs.unresolved().is_empty(),
+            "catch guard should see shorthand pattern local, got unresolved refs: {:?}",
+            lowered.state.ctx.refs.unresolved()
+        );
     });
 }
 

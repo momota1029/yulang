@@ -764,7 +764,7 @@ fn lower_catch_arm(
         .collect();
 
     state.ctx.push_local();
-    let mut guard = lower_arm_guard(state, node);
+    let mut guard;
     let kind = if pats.len() >= 2 {
         let op_pat = pats[0].clone();
         let k_pat = pats[1].clone();
@@ -789,6 +789,7 @@ fn lower_catch_arm(
             state.ctx.bind_local(k_name, k);
         }
 
+        guard = lower_arm_guard(state, node);
         let body = node
             .children()
             .find(|c| {
@@ -839,6 +840,7 @@ fn lower_catch_arm(
                 kind: PatKind::Wild,
             });
 
+        guard = lower_arm_guard(state, node);
         let body = node
             .children()
             .find(|c| {
