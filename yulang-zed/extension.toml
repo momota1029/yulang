@@ -1,10 +1,14 @@
 id = "yulang"
 name = "Yulang"
 description = "Yulang language support"
-version = "0.0.1"
+version = "0.0.2"
 schema_version = 1
 authors = ["momota"]
 
 [grammars.yulang]
 repository = "https://github.com/momota1029/tree-sitter-yulang"
 commit = "6c98d74e66a7d34ccdb4ed695b4230398ce6164a"
+
+[language_servers.yulang-lsp]
+name = "Yulang LSP"
+language = "Yulang"

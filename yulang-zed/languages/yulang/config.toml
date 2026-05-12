@@ -1,6 +1,7 @@
 name = "Yulang"
 grammar = "yulang"
 path_suffixes = ["yu"]
+language_servers = ["yulang-lsp"]
 line_comments = ["// "]
 block_comment = ["/*", "*/"]
 autoclose_before = ";:.,=}])>"

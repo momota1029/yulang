@@ -2,8 +2,25 @@
 (line_comment) @comment
 (block_comment) @comment
 
-; ── keywords ───────────────────────────────────────
-(keyword) @keyword
+; ── keywords: control flow ─────────────────────────
+((keyword) @keyword.control
+ (#match? @keyword.control "^(if|else|elsif|case|catch|do)$"))
+
+; ── keywords: declarations ─────────────────────────
+((keyword) @keyword.storage
+ (#match? @keyword.storage "^(my|our|pub|type|struct|enum|error|role|impl|mod)$"))
+
+; ── keywords: import / module ──────────────────────
+((keyword) @keyword.import
+ (#match? @keyword.import "^(use|as)$"))
+
+; ── keywords: effect / cast ────────────────────────
+((keyword) @keyword.special
+ (#match? @keyword.special "^(act|cast)$"))
+
+; ── keywords: remaining ────────────────────────────
+((keyword) @keyword
+ (#match? @keyword "^(for|in|with|where|via|rule|prefix|infix|suffix|nullfix|lazy)$"))
 
 ; ── strings ────────────────────────────────────────
 (string) @string
@@ -26,14 +43,13 @@
 (identifier) @variable
 
 ; ── punctuation / operators ────────────────────────
-(path_sep) @punctuation.delimiter
 (dot_field) @property
 (arrow) @operator
 (fat_arrow) @operator
 (dot_dot) @operator
 (dot_dot_eq_excl) @operator
-(colon) @punctuation.delimiter
-(equals) @operator
+(colon) @operator
+(equals) @punctuation.delimiter
 (pipe) @operator
 (comma) @punctuation.delimiter
 (semicolon) @punctuation.delimiter
