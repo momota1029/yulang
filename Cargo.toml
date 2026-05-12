@@ -12,4 +12,5 @@ members = [
   "crates/yulang-native",
   "crates/yulang-wasm",
   "crates/yulang-infer",
+  "crates/yulang-lsp",
 ]
