@@ -3,7 +3,10 @@ name = "yulang-editor"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+description = "Editor support utilities for Yulang"
+repository = "https://github.com/momota1029/yulang"
+readme = "../../README.md"
 
 [dependencies]
 rowan = "0.15"
-yulang-parser = { path = "../yulang-parser" }
+yulang-parser = { version = "0.1.0", path = "../yulang-parser" }

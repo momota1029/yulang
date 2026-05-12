@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 description = "Generalized reborrowing traits and an optional derive macro."
+repository = "https://github.com/momota1029/yulang"
 
 [features]
 derive = ["dep:reborrow-generic-derive"]

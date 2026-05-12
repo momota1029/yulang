@@ -1,8 +1,10 @@
 [package]
 name = "chasa"
-version = "0.1.0"
+version = "0.5.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+description = "A parser combinator focused on rollback/commit, streaming inputs, and composable method chains."
+repository = "https://github.com/momota1029/yulang"
 
 [dependencies]
 reborrow-generic = { version = "0.1.2", features = ["derive"], path = "../reborrow-generic" }

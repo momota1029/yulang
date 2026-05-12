@@ -82,6 +82,13 @@ Print inferred public types:
 cargo run -q -p yulang -- --infer examples/08_types.yu
 ```
 
+Install the language server from a checkout:
+
+```bash
+cargo install --path crates/yulang-lsp
+yulang-ls
+```
+
 Run an inline program:
 
 ```bash

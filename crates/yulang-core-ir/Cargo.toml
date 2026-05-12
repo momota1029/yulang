@@ -3,6 +3,9 @@ name = "yulang-core-ir"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+description = "Core intermediate representation for Yulang"
+repository = "https://github.com/momota1029/yulang"
+readme = "../../README.md"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

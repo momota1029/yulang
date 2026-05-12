@@ -239,7 +239,7 @@ impl LanguageServer for Backend {
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
-                name: "yulang-lsp".to_string(),
+                name: "yulang-ls".to_string(),
                 version: Some(env!("CARGO_PKG_VERSION").to_string()),
             }),
         })
@@ -247,7 +247,7 @@ impl LanguageServer for Backend {
 
     async fn initialized(&self, _: InitializedParams) {
         self.client
-            .log_message(MessageType::INFO, "yulang-lsp initialized")
+            .log_message(MessageType::INFO, "yulang-ls initialized")
             .await;
     }
 

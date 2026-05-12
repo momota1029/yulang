@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 description = "Derive macros for reborrow-generic."
+repository = "https://github.com/momota1029/yulang"
 
 [lib]
 proc-macro = true
