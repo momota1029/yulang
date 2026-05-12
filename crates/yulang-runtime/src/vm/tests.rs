@@ -257,6 +257,21 @@ my xs = [
     }
 
     #[test]
+    fn vm_runs_if_branch_with_outer_ref_write_in_block() {
+        let results = eval_source_with_std(
+            r#"my $i = 0
+{
+    if true:
+        &i = 1
+    $i
+}
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_for_loop_with_console_body() {
         let (results, stdout) = eval_source_with_std_host(
             r#"for i in [1, 2, 3]:

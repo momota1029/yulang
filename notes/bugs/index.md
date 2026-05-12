@@ -21,12 +21,6 @@
       structural record access ({norm2: int}) として解決されてしまい
       nominal companion ルートに行かないため、call site で型不一致になる
 
-## for ループとエフェクト
-
-- [`if_branch_ref_write.yu`](if_branch_ref_write.yu) — block 内の `if` 分岐で
-  外側 ref に書き込もうとすると runtime crash する
-  (`if` の desugar が外側 effect を引き連れていない — for ループと同根の疑い)
-
 ## パターンマッチ
 
 - [`case_str_literal_always_first.yu`](case_str_literal_always_first.yu) — 文字列

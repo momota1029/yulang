@@ -64,10 +64,6 @@ fn lower_record_literal_fields(
     }) {
         return None;
     }
-    let has_colon = node
-        .descendants_with_tokens()
-        .filter_map(|item| item.into_token())
-        .any(|tok| tok.kind() == SyntaxKind::Colon);
     let exprs = node
         .children()
         .filter(|child| child.kind() == SyntaxKind::Expr)
@@ -78,7 +74,10 @@ fn lower_record_literal_fields(
             spread: None,
         });
     }
-    if !has_colon && !exprs.iter().any(|expr| is_record_spread_expr(expr)) {
+    if !exprs
+        .iter()
+        .any(|expr| is_inline_record_field_expr(expr) || is_record_spread_expr(expr))
+    {
         return None;
     }
 
@@ -155,6 +154,11 @@ fn lower_inline_record_field_expr(
         .children()
         .find(|child| child.kind() == SyntaxKind::Expr)?;
     Some((name, lower_expr(state, &value)))
+}
+
+fn is_inline_record_field_expr(node: &SyntaxNode) -> bool {
+    node.children()
+        .any(|child| child.kind() == SyntaxKind::ApplyColon)
 }
 
 fn first_expr_ident(node: &SyntaxNode) -> Option<Name> {
