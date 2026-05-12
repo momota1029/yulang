@@ -291,13 +291,25 @@ fn lower_record_pat(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
                     })
                     .map(|c| lower_pat(state, &c))
                     .unwrap_or_else(|| {
-                        let def = state.fresh_def();
-                        let def_tv = state.fresh_tv();
-                        state.register_def_tv(def, def_tv);
-                        if let Some(owner) = state.current_owner {
-                            state.register_def_owner(def, owner);
-                        }
-                        state.ctx.bind_local(fname.clone(), def);
+                        let def = match state.ctx.resolve_bound_value(&fname) {
+                            Some(def) => def,
+                            None => {
+                                let def = state.fresh_def();
+                                let def_tv = state.fresh_tv();
+                                state.register_def_tv(def, def_tv);
+                                state.register_def_name(def, fname.clone());
+                                if let Some(owner) = state.current_owner {
+                                    state.register_def_owner(def, owner);
+                                }
+                                state.ctx.bind_local(fname.clone(), def);
+                                def
+                            }
+                        };
+                        let def_tv = state.def_tvs.get(&def).copied().unwrap_or_else(|| {
+                            let tv = state.fresh_tv();
+                            state.register_def_tv(def, tv);
+                            tv
+                        });
                         TypedPat {
                             tv: def_tv,
                             kind: PatKind::UnresolvedName(fname.clone()),

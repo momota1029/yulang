@@ -1712,9 +1712,10 @@ case [1, 2]:
     [1, x] if true -> x
     _ -> 0
 
-case (true, 4):
-    (ok, n) if false -> 9
-    (ok, n) if ok -> n
+my r: {ok: bool, n: int} = {ok: true, n: 4}
+case r:
+    {ok, n} if false -> 9
+    {ok, n} if ok -> n
     _ -> 0"#,
             )
             .expect("native value jit eval")

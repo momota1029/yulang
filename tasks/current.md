@@ -191,6 +191,10 @@ runtime/core IR
     fallthrough する。bool literal guard と pattern-bound bool guard は
     JIT / object 生成で確認済み。guard 内で closure wrapper を引く std 演算子は
     既存の closure 未対応によりまだ unsupported。
+  - record pattern shorthand は infer lowering で pattern node と guard/body が
+    同じ local definition を共有する。`{flag, width}` は関数引数 pattern と
+    guarded case arm の両方で確認済みで、value-lane Cranelift の guarded
+    match でも `{ok, n}` を JIT / object 生成で確認済み。
   - record-spread pattern はまだ unsupported。
   - `yulang-sources` に realm / band の薄い identity 型を追加した。既存の
     `SourceSet` は「今回コンパイルに集めた source aggregate」のまま残し、

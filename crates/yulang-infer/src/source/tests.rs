@@ -362,6 +362,12 @@ my named_default_header { width: local_width = 1 } =
 my named_mix { width: local_width = 1, height } =
     (local_width, height)
 
+my shorthand_header { flag, width } =
+    if flag:
+        width
+    else:
+        0
+
 my nested_header { size: { width = 1, height } } =
     (width, height)
 
@@ -376,6 +382,10 @@ my case_nested x = case x:
 
 my case_guard x = case x:
     { flag = true, width = 1 } if flag -> width
+    _ -> 0
+
+my case_shorthand_guard x = case x:
+    { flag, width } if flag -> width
     _ -> 0
 
 my catch_value x = catch x:
@@ -2944,6 +2954,10 @@ fn lowers_record_pattern_default_source() {
             "{width?: α, height: β} -> (α | int, β)",
         );
         assert_eq!(
+            rendered_type(&rendered, "shorthand_header"),
+            "{flag: bool, width: α} -> α | int",
+        );
+        assert_eq!(
             rendered_type(&rendered, "nested_header"),
             "{size: {width?: α, height: β}} -> (α | int, β)",
         );
@@ -2962,6 +2976,10 @@ fn lowers_record_pattern_default_source() {
         assert_eq!(
             rendered_type(&rendered, "case_guard"),
             "{flag?: bool, width?: α} -> α | int",
+        );
+        assert_eq!(
+            rendered_type(&rendered, "case_shorthand_guard"),
+            "{flag: bool, width: α} -> α | int",
         );
         assert_eq!(
             rendered_type(&rendered, "catch_value"),

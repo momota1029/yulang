@@ -49,7 +49,7 @@ checklist, see *Detailed progress* below.
 | List literals, list merge, length, index, raw view  | value backend          |   ✅   |
 | Tuple, record, variant, record field selection      | value backend          |   ✅   |
 | Record spread expressions                           | value backend          |   ✅   |
-| Literal / list / variant / tuple pattern matching   | value backend          |   △    |
+| Literal / list / record / variant / tuple pattern matching | value backend    |   △    |
 | Lambdas / first-class function values (pure)        | CPS repr (prototype)   |   △   |
 | Closures with captured state                        | CPS repr (prototype)   |   △   |
 
@@ -125,6 +125,8 @@ or out of here into the user-facing table once they stabilize.
       boxed runtime value equality.
 - [x] List pattern length tests, prefix/spread/suffix bindings, and refutable
       list item tests work in the value backend.
+- [x] Record pattern field tests and bindings work in the value backend,
+      including shorthand fields such as `{ok, n}`.
 - [x] Guarded pattern matching works when the guard expression stays inside
       the existing value-backend expression subset.
 - [ ] Record-spread patterns are not supported in the value backend.
