@@ -173,4 +173,29 @@ mod tests {
 
         let _ = fs::remove_dir_all(root);
     }
+
+    #[test]
+    fn embedded_ops_uses_left_associative_arithmetic_bindings() {
+        let ops = embedded_std_source("ops.yu");
+
+        assert!(ops.contains("pub prefix (-) 8.0.0 = \\x -> std::int::sub 0 x"));
+        assert!(ops.contains("pub infix (-) 5.0.0 5.0.1"));
+        assert!(ops.contains("pub infix (/) 6.0.0 6.0.1"));
+    }
+
+    #[test]
+    fn embedded_str_len_is_a_dot_member_not_recursive_wrapper() {
+        let str_source = embedded_std_source("str.yu");
+
+        assert!(str_source.contains("our s.len = std::str::len s"));
+        assert!(!str_source.contains("pub len(s: str): int = std::str::len s"));
+    }
+
+    fn embedded_std_source(name: &str) -> &'static str {
+        EMBEDDED_STD_FILES
+            .iter()
+            .find(|file| file.name == name)
+            .map(|file| file.source)
+            .unwrap()
+    }
 }

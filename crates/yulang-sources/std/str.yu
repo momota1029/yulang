@@ -3,6 +3,7 @@ use std::range::*
 
 type str with:
     our s.splice r insert = std::str::splice s r insert
+    our s.len = std::str::len s
 
 impl Index str int:
     type value = str
@@ -11,5 +12,3 @@ impl Index str int:
 impl Index str range:
     type value = str
     our s.index r = std::str::index_range s r
-
-pub len(s: str): int = std::str::len s

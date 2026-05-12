@@ -32,14 +32,6 @@
   「効果計算」じゃなく「関数値」を handler に渡すケースを、型エラーとして
   早めに止め切れていない
 
-## 配布 / std install
-
-- [`str_len_overflow_via_stale_std.yu`](str_len_overflow_via_stale_std.yu) —
-  `yulang-ls --install-std` が古い std snapshot を戻すと `"hi".len` が再び
-  stack overflow する
-- [`sub_div_right_assoc.yu`](sub_div_right_assoc.yu) — 古い std snapshot が当たると
-  `-` と `/` の binding power が古く、右結合に戻る
-
 ## メモ
 
 - いずれも `cargo run -q -p yulang -- --run notes/bugs/<file>.yu` で再現できる
