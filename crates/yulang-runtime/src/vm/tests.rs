@@ -208,6 +208,29 @@ my get_a (pair { a: x, b: _ }) = x
     }
 
     #[test]
+    fn vm_matches_string_literal_case_patterns() {
+        let results = eval_source_with_std(
+            r#"my f s =
+    case s:
+        "a" -> 1
+        "b" -> 2
+        _ -> 99
+
+(f "a", f "b", f "x")
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Int("1".to_string()),
+                TestValue::Int("2".to_string()),
+                TestValue::Int("99".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_keeps_items_after_doc_comments_inside_literals_and_struct_fields() {
         let results = eval_source_with_std(
             r#"struct point {

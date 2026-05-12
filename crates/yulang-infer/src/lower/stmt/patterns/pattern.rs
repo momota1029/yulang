@@ -104,6 +104,9 @@ fn lower_ctor_or_name_pat(state: &mut LowerState, node: &SyntaxNode) -> PatKind 
 }
 
 fn literal_pat(node: &SyntaxNode) -> Option<Lit> {
+    if let Some(lit) = node.children().find_map(string_lit_pat) {
+        return Some(lit);
+    }
     node.children_with_tokens()
         .filter_map(|item| item.into_token())
         .find_map(|token| match token.kind() {
@@ -112,6 +115,123 @@ fn literal_pat(node: &SyntaxNode) -> Option<Lit> {
             SyntaxKind::Number => number_lit(token.text()),
             _ => None,
         })
+}
+
+fn string_lit_pat(node: SyntaxNode) -> Option<Lit> {
+    match node.kind() {
+        SyntaxKind::StringLit => plain_string_lit_text(&node).map(Lit::Str),
+        SyntaxKind::RuleLit => plain_rule_lit_text(&node).map(Lit::Str),
+        _ => None,
+    }
+}
+
+fn plain_string_lit_text(node: &SyntaxNode) -> Option<String> {
+    if node
+        .children()
+        .any(|child| child.kind() == SyntaxKind::StringInterp)
+    {
+        return None;
+    }
+
+    let mut text = String::new();
+    let mut tokens = node.children_with_tokens().peekable();
+    while let Some(item) = tokens.next() {
+        let Some(token) = item.into_token() else {
+            continue;
+        };
+        match token.kind() {
+            SyntaxKind::StringText => text.push_str(token.text()),
+            SyntaxKind::StringEscapeLead => text.push_str(&collect_string_escape_text(&mut tokens)),
+            SyntaxKind::StringStart | SyntaxKind::StringEnd => {}
+            _ => {}
+        }
+    }
+    Some(text)
+}
+
+fn plain_rule_lit_text(node: &SyntaxNode) -> Option<String> {
+    let mut text = String::new();
+    for token in node.descendants_with_tokens().filter_map(|item| item.into_token()) {
+        match token.kind() {
+            SyntaxKind::RuleLitText => text.push_str(token.text()),
+            SyntaxKind::RuleLitStart
+            | SyntaxKind::RuleLitEnd
+            | SyntaxKind::StringStart
+            | SyntaxKind::StringEnd => {}
+            kind if is_trivia_kind(kind) => {}
+            _ => return None,
+        }
+    }
+    Some(text)
+}
+
+fn is_trivia_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Space
+            | SyntaxKind::LineComment
+            | SyntaxKind::BlockCommentStart
+            | SyntaxKind::BlockCommentText
+            | SyntaxKind::BlockCommentEnd
+            | SyntaxKind::QuotePrefix
+            | SyntaxKind::DocComment
+            | SyntaxKind::BlockComment
+            | SyntaxKind::Trivia
+    )
+}
+
+fn collect_string_escape_text(
+    tokens: &mut std::iter::Peekable<
+        rowan::SyntaxElementChildren<yulang_parser::sink::YulangLanguage>,
+    >,
+) -> String {
+    let Some(next) = tokens.next().and_then(|item| item.into_token()) else {
+        return String::new();
+    };
+    match next.kind() {
+        SyntaxKind::StringEscapeSimple => simple_escape_text(next.text()),
+        SyntaxKind::StringEscapeUnicodeStart => collect_unicode_escape_text(tokens),
+        _ => next.text().to_string(),
+    }
+}
+
+fn simple_escape_text(text: &str) -> String {
+    match text {
+        "n" => "\n".to_string(),
+        "r" => "\r".to_string(),
+        "t" => "\t".to_string(),
+        "\\" => "\\".to_string(),
+        "\"" => "\"".to_string(),
+        "0" => "\0".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn collect_unicode_escape_text(
+    tokens: &mut std::iter::Peekable<
+        rowan::SyntaxElementChildren<yulang_parser::sink::YulangLanguage>,
+    >,
+) -> String {
+    let Some(hex) = tokens.next().and_then(|item| item.into_token()) else {
+        return String::new();
+    };
+    if hex.kind() != SyntaxKind::StringEscapeUnicodeHex {
+        return hex.text().to_string();
+    }
+    let value = u32::from_str_radix(hex.text(), 16)
+        .ok()
+        .and_then(char::from_u32)
+        .unwrap_or(char::REPLACEMENT_CHARACTER);
+    if matches!(
+        tokens
+            .peek()
+            .and_then(|item| item.as_token())
+            .map(|token| token.kind()),
+        Some(SyntaxKind::StringEscapeUnicodeEnd)
+    ) {
+        tokens.next();
+    }
+    value.to_string()
 }
 
 fn number_lit(text: &str) -> Option<Lit> {

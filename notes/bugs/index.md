@@ -21,12 +21,6 @@
       structural record access ({norm2: int}) として解決されてしまい
       nominal companion ルートに行かないため、call site で型不一致になる
 
-## パターンマッチ
-
-- [`case_str_literal_always_first.yu`](case_str_literal_always_first.yu) — 文字列
-  リテラルの case パターンが scrutinee を見ずに最初の arm に倒れる
-  (integer リテラルだと正しく動く。silent に違う結果になる)
-
 ## ハンドラ / ランタイム
 
 - [`handler_thunk_panic.yu`](handler_thunk_panic.yu) — `listen prog ""` のように
