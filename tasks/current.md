@@ -176,18 +176,22 @@ runtime/core IR
   - value-lane Cranelift は branch / jump と Bool helper を追加し、effect-free
     `if` と variant / tuple pattern match の小さい核を扱う。`:just (1, 2)`
     の tuple payload bind と `std::list::view_raw [1]` の `:leaf x` match は
-    JIT / object 生成で確認済み。list / guarded pattern はまだ unsupported。
+    JIT / object 生成で確認済み。
   - value-lane Cranelift は boxed `VmValue` equality helper を追加し、literal
     pattern match も扱う。`case 2` と `case ()` の literal arm は JIT /
-    object 生成で確認済み。list / guarded pattern はまだ unsupported。
+    object 生成で確認済み。
   - value-lane Cranelift は list pattern の長さテストと irrefutable な
     prefix/spread/suffix bind も扱う。`[head, ..middle, tail]` と
-    `[..init, z]` は JIT / object 生成 / executable で確認済み。guarded
-    pattern はまだ unsupported。
+    `[..init, z]` は JIT / object 生成 / executable で確認済み。
   - value-lane Cranelift は pattern 全体の Bool 条件を `BoolAnd` で合成し、
     refutable list item test も扱う。`[0, x]` fallback 後の `[1, x]` は
-    JIT / object 生成で確認済み。record-spread pattern と guarded pattern は
-    まだ unsupported。
+    JIT / object 生成で確認済み。
+  - value-lane Cranelift は guarded pattern match も扱う。pattern match 後に
+    pattern locals を bind した guard block を挟み、false guard は次 arm へ
+    fallthrough する。bool literal guard と pattern-bound bool guard は
+    JIT / object 生成で確認済み。guard 内で closure wrapper を引く std 演算子は
+    既存の closure 未対応によりまだ unsupported。
+  - record-spread pattern はまだ unsupported。
   - `yulang-sources` に realm / band の薄い identity 型を追加した。既存の
     `SourceSet` は「今回コンパイルに集めた source aggregate」のまま残し、
     realm / band を source identity layer として上に置く。

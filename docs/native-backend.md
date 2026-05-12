@@ -125,8 +125,9 @@ or out of here into the user-facing table once they stabilize.
       boxed runtime value equality.
 - [x] List pattern length tests, prefix/spread/suffix bindings, and refutable
       list item tests work in the value backend.
-- [ ] Record-spread patterns and guarded pattern matching are not supported in
-      the value backend.
+- [x] Guarded pattern matching works when the guard expression stays inside
+      the existing value-backend expression subset.
+- [ ] Record-spread patterns are not supported in the value backend.
 - [ ] General multi-block control flow outside the current branch/jump subset
       is not supported in the value backend.
 - [ ] Closure allocation, closure environments, and indirect closure calls are

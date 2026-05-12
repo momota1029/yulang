@@ -583,11 +583,6 @@ impl<'a> FunctionLowerer<'a> {
         if let Some((then_branch, else_branch)) = bool_literal_match_arms(arms) {
             return self.lower_if(scrutinee, then_branch, else_branch);
         }
-        if arms.iter().any(|arm| arm.guard.is_some()) {
-            return Err(NativeLowerError::UnsupportedExpr {
-                kind: "match guard",
-            });
-        }
 
         let saved_locals = self.locals.clone();
         let merge_block = self.fresh_block();
@@ -611,8 +606,27 @@ impl<'a> FunctionLowerer<'a> {
                 current_test_block = Some(next);
                 next
             };
-            self.lower_pattern_test(scrutinee_value, &arm.pattern, arm_blocks[index], next_block)?;
+            let matched_block = if arm.guard.is_some() {
+                self.fresh_block()
+            } else {
+                arm_blocks[index]
+            };
+            self.lower_pattern_test(scrutinee_value, &arm.pattern, matched_block, next_block)?;
             self.finish_current();
+
+            if let Some(guard) = &arm.guard {
+                self.current = BlockBuilder::new(matched_block, Vec::new());
+                self.locals = saved_locals.clone();
+                let scrutinee_value = self.lower_expr(scrutinee)?;
+                self.bind_matched_pattern(&arm.pattern, scrutinee_value)?;
+                let guard_value = self.lower_expr(guard)?;
+                self.terminate(NativeTerminator::Branch {
+                    cond: guard_value,
+                    then_block: arm_blocks[index],
+                    else_block: next_block,
+                });
+                self.finish_current();
+            }
         }
 
         self.current = BlockBuilder::new(fallback_block, Vec::new());
