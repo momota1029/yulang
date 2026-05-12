@@ -155,7 +155,7 @@ runtime/core IR
     `variant` helper へ落とす。record spread はまだ unsupported。
     `--native-value-exe` で `(1, 2)` / `{x: 1, y: 2}` / `:label "send"` の
     executable 出力を確認済み。
-  - `yulang-source` に realm / band の薄い identity 型を追加した。既存の
+  - `yulang-sources` に realm / band の薄い identity 型を追加した。既存の
     `SourceSet` は「今回コンパイルに集めた source aggregate」のまま残し、
     realm / band を source identity layer として上に置く。
   - cache layout は `target/yulang` / persistent user cache / project lock に

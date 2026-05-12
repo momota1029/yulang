@@ -1,4 +1,4 @@
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::ast::expr::TypedExpr;
 use crate::lower::LowerState;
@@ -11,7 +11,7 @@ pub(super) fn install_list_len_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -55,7 +55,7 @@ pub(super) fn install_list_len_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: list_len_scheme_body(),
         },
@@ -66,7 +66,7 @@ pub(super) fn install_list_index_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -124,7 +124,7 @@ pub(super) fn install_list_index_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: list_index_scheme_body(),
         },
@@ -135,7 +135,7 @@ pub(super) fn install_list_index_range_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -193,7 +193,7 @@ pub(super) fn install_list_index_range_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: list_index_range_scheme_body(),
         },
@@ -204,7 +204,7 @@ pub(super) fn install_list_empty_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -248,7 +248,7 @@ pub(super) fn install_list_empty_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: list_empty_scheme_body(),
         },
@@ -259,7 +259,7 @@ pub(super) fn install_list_splice_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -334,7 +334,7 @@ pub(super) fn install_list_splice_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: list_splice_scheme_body(),
         },
@@ -345,7 +345,7 @@ pub(super) fn install_list_singleton_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -388,7 +388,7 @@ pub(super) fn install_list_singleton_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: list_singleton_scheme_body(),
         },
@@ -399,7 +399,7 @@ pub(super) fn install_list_merge_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -459,7 +459,7 @@ pub(super) fn install_list_merge_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: list_merge_scheme_body(),
         },
@@ -470,7 +470,7 @@ pub(super) fn install_list_index_range_raw_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -542,7 +542,7 @@ pub(super) fn install_list_index_range_raw_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: list_index_range_raw_scheme_body(),
         },
@@ -553,7 +553,7 @@ pub(super) fn install_list_splice_raw_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -639,7 +639,7 @@ pub(super) fn install_list_splice_raw_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: list_splice_raw_scheme_body(),
         },
@@ -650,7 +650,7 @@ pub(super) fn install_list_view_raw_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -693,210 +693,210 @@ pub(super) fn install_list_view_raw_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: list_view_scheme_body(),
         },
     );
 }
 
-fn list_len_scheme_body() -> core_ir::Type {
-    let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
-    let list = core_ir::Type::Named {
+fn list_len_scheme_body() -> typed_ir::Type {
+    let item = typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()));
+    let list = typed_ir::Type::Named {
         path: named_runtime_path("list"),
-        args: vec![core_ir::TypeArg::Type(item)],
+        args: vec![typed_ir::TypeArg::Type(item)],
     };
-    let int_ty = core_ir::Type::Named {
+    let int_ty = typed_ir::Type::Named {
         path: named_runtime_path("int"),
         args: vec![],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(list),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
         ret: Box::new(int_ty),
     }
 }
 
-fn list_empty_scheme_body() -> core_ir::Type {
-    let unit = core_ir::Type::Named {
+fn list_empty_scheme_body() -> typed_ir::Type {
+    let unit = typed_ir::Type::Named {
         path: named_runtime_path("unit"),
         args: vec![],
     };
-    let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
-    let list = core_ir::Type::Named {
+    let item = typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()));
+    let list = typed_ir::Type::Named {
         path: named_runtime_path("list"),
-        args: vec![core_ir::TypeArg::Type(item)],
+        args: vec![typed_ir::TypeArg::Type(item)],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(unit),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
         ret: Box::new(list),
     }
 }
 
-fn list_singleton_scheme_body() -> core_ir::Type {
-    let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
-    let list = core_ir::Type::Named {
+fn list_singleton_scheme_body() -> typed_ir::Type {
+    let item = typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()));
+    let list = typed_ir::Type::Named {
         path: named_runtime_path("list"),
-        args: vec![core_ir::TypeArg::Type(item.clone())],
+        args: vec![typed_ir::TypeArg::Type(item.clone())],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(item),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
         ret: Box::new(list),
     }
 }
 
-fn list_index_scheme_body() -> core_ir::Type {
-    let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
-    let list = core_ir::Type::Named {
+fn list_index_scheme_body() -> typed_ir::Type {
+    let item = typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()));
+    let list = typed_ir::Type::Named {
         path: named_runtime_path("list"),
-        args: vec![core_ir::TypeArg::Type(item.clone())],
+        args: vec![typed_ir::TypeArg::Type(item.clone())],
     };
-    let int_ty = core_ir::Type::Named {
+    let int_ty = typed_ir::Type::Named {
         path: named_runtime_path("int"),
         args: vec![],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(list),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
-        ret: Box::new(core_ir::Type::Fun {
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
+        ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(int_ty),
-            param_effect: Box::new(core_ir::Type::Any),
-            ret_effect: Box::new(core_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(typed_ir::Type::Any),
             ret: Box::new(item),
         }),
     }
 }
 
-fn list_merge_scheme_body() -> core_ir::Type {
-    let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
-    let list = core_ir::Type::Named {
+fn list_merge_scheme_body() -> typed_ir::Type {
+    let item = typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()));
+    let list = typed_ir::Type::Named {
         path: named_runtime_path("list"),
-        args: vec![core_ir::TypeArg::Type(item.clone())],
+        args: vec![typed_ir::TypeArg::Type(item.clone())],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
-        ret: Box::new(core_ir::Type::Fun {
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
+        ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(list.clone()),
-            param_effect: Box::new(core_ir::Type::Any),
-            ret_effect: Box::new(core_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(typed_ir::Type::Any),
             ret: Box::new(list),
         }),
     }
 }
 
-fn list_index_range_raw_scheme_body() -> core_ir::Type {
-    let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
-    let list = core_ir::Type::Named {
+fn list_index_range_raw_scheme_body() -> typed_ir::Type {
+    let item = typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()));
+    let list = typed_ir::Type::Named {
         path: named_runtime_path("list"),
-        args: vec![core_ir::TypeArg::Type(item.clone())],
+        args: vec![typed_ir::TypeArg::Type(item.clone())],
     };
-    let int_ty = core_ir::Type::Named {
+    let int_ty = typed_ir::Type::Named {
         path: named_runtime_path("int"),
         args: vec![],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
-        ret: Box::new(core_ir::Type::Fun {
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
+        ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(int_ty.clone()),
-            param_effect: Box::new(core_ir::Type::Any),
-            ret_effect: Box::new(core_ir::Type::Any),
-            ret: Box::new(core_ir::Type::Fun {
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(typed_ir::Type::Any),
+            ret: Box::new(typed_ir::Type::Fun {
                 param: Box::new(int_ty),
-                param_effect: Box::new(core_ir::Type::Any),
-                ret_effect: Box::new(core_ir::Type::Any),
+                param_effect: Box::new(typed_ir::Type::Any),
+                ret_effect: Box::new(typed_ir::Type::Any),
                 ret: Box::new(list),
             }),
         }),
     }
 }
 
-fn list_index_range_scheme_body() -> core_ir::Type {
-    let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
-    let list = core_ir::Type::Named {
+fn list_index_range_scheme_body() -> typed_ir::Type {
+    let item = typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()));
+    let list = typed_ir::Type::Named {
         path: named_runtime_path("list"),
-        args: vec![core_ir::TypeArg::Type(item.clone())],
+        args: vec![typed_ir::TypeArg::Type(item.clone())],
     };
-    let range = core_ir::Type::Named {
+    let range = typed_ir::Type::Named {
         path: named_runtime_path("range"),
         args: vec![],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
-        ret: Box::new(core_ir::Type::Fun {
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
+        ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(range),
-            param_effect: Box::new(core_ir::Type::Any),
-            ret_effect: Box::new(core_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(typed_ir::Type::Any),
             ret: Box::new(list),
         }),
     }
 }
 
-fn list_splice_scheme_body() -> core_ir::Type {
-    let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
-    let list = core_ir::Type::Named {
+fn list_splice_scheme_body() -> typed_ir::Type {
+    let item = typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()));
+    let list = typed_ir::Type::Named {
         path: named_runtime_path("list"),
-        args: vec![core_ir::TypeArg::Type(item.clone())],
+        args: vec![typed_ir::TypeArg::Type(item.clone())],
     };
-    let range = core_ir::Type::Named {
+    let range = typed_ir::Type::Named {
         path: named_runtime_path("range"),
         args: vec![],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
-        ret: Box::new(core_ir::Type::Fun {
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
+        ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(range),
-            param_effect: Box::new(core_ir::Type::Any),
-            ret_effect: Box::new(core_ir::Type::Any),
-            ret: Box::new(core_ir::Type::Fun {
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(typed_ir::Type::Any),
+            ret: Box::new(typed_ir::Type::Fun {
                 param: Box::new(list.clone()),
-                param_effect: Box::new(core_ir::Type::Any),
-                ret_effect: Box::new(core_ir::Type::Any),
+                param_effect: Box::new(typed_ir::Type::Any),
+                ret_effect: Box::new(typed_ir::Type::Any),
                 ret: Box::new(list),
             }),
         }),
     }
 }
 
-fn list_splice_raw_scheme_body() -> core_ir::Type {
-    let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
-    let list = core_ir::Type::Named {
+fn list_splice_raw_scheme_body() -> typed_ir::Type {
+    let item = typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()));
+    let list = typed_ir::Type::Named {
         path: named_runtime_path("list"),
-        args: vec![core_ir::TypeArg::Type(item.clone())],
+        args: vec![typed_ir::TypeArg::Type(item.clone())],
     };
-    let int_ty = core_ir::Type::Named {
+    let int_ty = typed_ir::Type::Named {
         path: named_runtime_path("int"),
         args: vec![],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
-        ret: Box::new(core_ir::Type::Fun {
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
+        ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(int_ty.clone()),
-            param_effect: Box::new(core_ir::Type::Any),
-            ret_effect: Box::new(core_ir::Type::Any),
-            ret: Box::new(core_ir::Type::Fun {
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(typed_ir::Type::Any),
+            ret: Box::new(typed_ir::Type::Fun {
                 param: Box::new(int_ty),
-                param_effect: Box::new(core_ir::Type::Any),
-                ret_effect: Box::new(core_ir::Type::Any),
-                ret: Box::new(core_ir::Type::Fun {
+                param_effect: Box::new(typed_ir::Type::Any),
+                ret_effect: Box::new(typed_ir::Type::Any),
+                ret: Box::new(typed_ir::Type::Fun {
                     param: Box::new(list.clone()),
-                    param_effect: Box::new(core_ir::Type::Any),
-                    ret_effect: Box::new(core_ir::Type::Any),
+                    param_effect: Box::new(typed_ir::Type::Any),
+                    ret_effect: Box::new(typed_ir::Type::Any),
                     ret: Box::new(list),
                 }),
             }),
@@ -904,20 +904,20 @@ fn list_splice_raw_scheme_body() -> core_ir::Type {
     }
 }
 
-fn list_view_scheme_body() -> core_ir::Type {
-    let item = core_ir::Type::Var(core_ir::TypeVar("a".to_string()));
-    let list = core_ir::Type::Named {
+fn list_view_scheme_body() -> typed_ir::Type {
+    let item = typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()));
+    let list = typed_ir::Type::Named {
         path: named_runtime_path("list"),
-        args: vec![core_ir::TypeArg::Type(item.clone())],
+        args: vec![typed_ir::TypeArg::Type(item.clone())],
     };
-    let list_view = core_ir::Type::Named {
+    let list_view = typed_ir::Type::Named {
         path: named_runtime_path("list_view"),
-        args: vec![core_ir::TypeArg::Type(item)],
+        args: vec![typed_ir::TypeArg::Type(item)],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(list.clone()),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
         ret: Box::new(list_view),
     }
 }

@@ -2,8 +2,8 @@ use super::*;
 
 pub(super) fn handle_effect_for_arms(
     arms: &[HandleArm],
-    residual_before: Option<core_ir::Type>,
-    handled: core_ir::Type,
+    residual_before: Option<typed_ir::Type>,
+    handled: typed_ir::Type,
 ) -> HandleEffect {
     let arm_effects = arms
         .iter()
@@ -27,29 +27,29 @@ pub(super) fn handle_effect_for_arms(
     }
 }
 
-pub(super) fn handler_consumes_from_body_type(ty: &RuntimeType) -> core_ir::Type {
+pub(super) fn handler_consumes_from_body_type(ty: &RuntimeType) -> typed_ir::Type {
     match ty {
         RuntimeType::Thunk { effect, .. } => project_runtime_effect(effect),
-        _ => core_ir::Type::Never,
+        _ => typed_ir::Type::Never,
     }
 }
 
 pub(super) fn handler_body_residual(
-    effect: &core_ir::Type,
-    handled: &core_ir::Type,
-) -> core_ir::Type {
+    effect: &typed_ir::Type,
+    handled: &typed_ir::Type,
+) -> typed_ir::Type {
     let total = project_runtime_effect(effect);
     if effect_is_unknown(&total) {
-        return core_ir::Type::Never;
+        return typed_ir::Type::Never;
     }
     subtract_handled_effects(&total, &effect_paths(handled))
 }
 
-pub(super) fn effect_is_unknown(effect: &core_ir::Type) -> bool {
-    matches!(effect, core_ir::Type::Any | core_ir::Type::Var(_))
+pub(super) fn effect_is_unknown(effect: &typed_ir::Type) -> bool {
+    matches!(effect, typed_ir::Type::Any | typed_ir::Type::Var(_))
 }
 
-pub(super) fn expr_forced_effect(expr: &Expr) -> Option<core_ir::Type> {
+pub(super) fn expr_forced_effect(expr: &Expr) -> Option<typed_ir::Type> {
     match &expr.kind {
         ExprKind::BindHere { expr } => thunk_effect(&expr.ty),
         ExprKind::Lambda { .. }
@@ -133,7 +133,7 @@ pub(super) fn expr_forced_effect(expr: &Expr) -> Option<core_ir::Type> {
     }
 }
 
-pub(super) fn stmt_forced_effect(stmt: &Stmt) -> Option<core_ir::Type> {
+pub(super) fn stmt_forced_effect(stmt: &Stmt) -> Option<typed_ir::Type> {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
             expr_forced_effect(value)
@@ -143,11 +143,11 @@ pub(super) fn stmt_forced_effect(stmt: &Stmt) -> Option<core_ir::Type> {
 
 pub(super) fn effect_operation_effect(
     primitive_paths: &RuntimePrimitivePathTable,
-    path: &core_ir::Path,
-    arg_ty: &core_ir::Type,
-) -> Option<core_ir::Type> {
+    path: &typed_ir::Path,
+    arg_ty: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
     path.segments.last()?;
-    let effect_path = core_ir::Path {
+    let effect_path = typed_ir::Path {
         segments: path
             .segments
             .iter()
@@ -160,23 +160,23 @@ pub(super) fn effect_operation_effect(
     }
     let args = (!matches!(
         arg_ty,
-        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_)
+        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_)
     ) && arg_ty != &primitive_paths.unit_type())
-        .then(|| vec![core_ir::TypeArg::Type(arg_ty.clone())])
+        .then(|| vec![typed_ir::TypeArg::Type(arg_ty.clone())])
         .unwrap_or_default();
-    Some(core_ir::Type::Row {
-        items: vec![core_ir::Type::Named {
+    Some(typed_ir::Type::Row {
+        items: vec![typed_ir::Type::Named {
             path: effect_path,
             args,
         }],
-        tail: Box::new(core_ir::Type::Never),
+        tail: Box::new(typed_ir::Type::Never),
     })
 }
 
 pub(super) fn merge_effects(
-    left: Option<core_ir::Type>,
-    right: Option<core_ir::Type>,
-) -> Option<core_ir::Type> {
+    left: Option<typed_ir::Type>,
+    right: Option<typed_ir::Type>,
+) -> Option<typed_ir::Type> {
     match (left, right) {
         (Some(left), Some(right)) => Some(merge_effect_rows(left, right)),
         (Some(effect), None) | (None, Some(effect)) => Some(effect),
@@ -184,11 +184,11 @@ pub(super) fn merge_effects(
     }
 }
 
-pub(super) fn merge_effect_rows(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
+pub(super) fn merge_effect_rows(left: typed_ir::Type, right: typed_ir::Type) -> typed_ir::Type {
     merge_effect_values(left, right)
 }
 
-pub(super) fn merge_effect_values(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
+pub(super) fn merge_effect_values(left: typed_ir::Type, right: typed_ir::Type) -> typed_ir::Type {
     if effect_is_empty(&left) {
         return right;
     }
@@ -197,17 +197,17 @@ pub(super) fn merge_effect_values(left: core_ir::Type, right: core_ir::Type) -> 
     }
     match (left, right) {
         (
-            core_ir::Type::Row {
+            typed_ir::Type::Row {
                 mut items,
                 tail: left_tail,
             },
-            core_ir::Type::Row {
+            typed_ir::Type::Row {
                 items: right_items,
                 tail: right_tail,
             },
         ) if matches!(
             (left_tail.as_ref(), right_tail.as_ref()),
-            (core_ir::Type::Never, core_ir::Type::Never)
+            (typed_ir::Type::Never, typed_ir::Type::Never)
         ) =>
         {
             for item in right_items {
@@ -215,22 +215,22 @@ pub(super) fn merge_effect_values(left: core_ir::Type, right: core_ir::Type) -> 
                     items.push(item);
                 }
             }
-            core_ir::Type::Row {
+            typed_ir::Type::Row {
                 items,
-                tail: Box::new(core_ir::Type::Never),
+                tail: Box::new(typed_ir::Type::Never),
             }
         }
         (left, right) if left == right => left,
-        (left, right) => core_ir::Type::Union(vec![left, right]),
+        (left, right) => typed_ir::Type::Union(vec![left, right]),
     }
 }
 
 pub(super) fn subtract_handled_effects(
-    residual: &core_ir::Type,
-    consumes: &[core_ir::Path],
-) -> core_ir::Type {
+    residual: &typed_ir::Type,
+    consumes: &[typed_ir::Path],
+) -> typed_ir::Type {
     match residual {
-        core_ir::Type::Row { items, tail } => core_ir::Type::Row {
+        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
             items: items
                 .iter()
                 .filter(|item| {
@@ -245,21 +245,21 @@ pub(super) fn subtract_handled_effects(
                 .collect(),
             tail: tail.clone(),
         },
-        core_ir::Type::Named { path, .. }
+        typed_ir::Type::Named { path, .. }
             if consumes
                 .iter()
                 .any(|consume| effect_paths_match(consume, path)) =>
         {
-            core_ir::Type::Never
+            typed_ir::Type::Never
         }
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => effect_row_from_items(
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => effect_row_from_items(
             items
                 .iter()
                 .map(|item| subtract_handled_effects(item, consumes))
                 .filter(|item| !effect_is_empty(item))
                 .collect(),
         ),
-        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var: var.clone(),
             body: Box::new(subtract_handled_effects(body, consumes)),
         },

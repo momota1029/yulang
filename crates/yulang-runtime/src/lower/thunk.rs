@@ -17,8 +17,8 @@ use super::*;
 
 pub(super) fn apply_param_allowed_effect(
     param_ty: RuntimeType,
-    annotation: Option<&core_ir::ParamEffectAnnotation>,
-    function_allowed_effects: Option<&core_ir::FunctionSigAllowedEffects>,
+    annotation: Option<&typed_ir::ParamEffectAnnotation>,
+    function_allowed_effects: Option<&typed_ir::FunctionSigAllowedEffects>,
 ) -> RuntimeType {
     if function_allowed_effects.is_none()
         && let Some(allowed) = allowed_effect_for_param(annotation, None, &param_ty)
@@ -33,29 +33,29 @@ pub(super) fn apply_param_allowed_effect(
 }
 
 pub(super) fn allowed_effect_for_param(
-    annotation: Option<&core_ir::ParamEffectAnnotation>,
-    function_allowed_effects: Option<&core_ir::FunctionSigAllowedEffects>,
+    annotation: Option<&typed_ir::ParamEffectAnnotation>,
+    function_allowed_effects: Option<&typed_ir::FunctionSigAllowedEffects>,
     param_ty: &RuntimeType,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     if let Some(allowed) = function_allowed_effects {
         return Some(match allowed {
-            core_ir::FunctionSigAllowedEffects::Wildcard => wildcard_effect_type(),
-            core_ir::FunctionSigAllowedEffects::Effects(paths) => core_ir::Type::Row {
+            typed_ir::FunctionSigAllowedEffects::Wildcard => wildcard_effect_type(),
+            typed_ir::FunctionSigAllowedEffects::Effects(paths) => typed_ir::Type::Row {
                 items: paths
                     .iter()
                     .cloned()
-                    .map(|path| core_ir::Type::Named {
+                    .map(|path| typed_ir::Type::Named {
                         path,
                         args: Vec::new(),
                     })
                     .collect(),
-                tail: Box::new(core_ir::Type::Never),
+                tail: Box::new(typed_ir::Type::Never),
             },
         });
     }
     match annotation {
-        Some(core_ir::ParamEffectAnnotation::Wildcard) => Some(wildcard_effect_type()),
-        Some(core_ir::ParamEffectAnnotation::Region(_)) => thunk_effect(param_ty),
+        Some(typed_ir::ParamEffectAnnotation::Wildcard) => Some(wildcard_effect_type()),
+        Some(typed_ir::ParamEffectAnnotation::Region(_)) => thunk_effect(param_ty),
         None if returns_thunk(param_ty) => Some(empty_row()),
         None => None,
     }
@@ -69,10 +69,10 @@ pub(super) fn returns_thunk(ty: &RuntimeType) -> bool {
     }
 }
 
-pub(super) fn empty_row() -> core_ir::Type {
-    core_ir::Type::Row {
+pub(super) fn empty_row() -> typed_ir::Type {
+    typed_ir::Type::Row {
         items: Vec::new(),
-        tail: Box::new(core_ir::Type::Never),
+        tail: Box::new(typed_ir::Type::Never),
     }
 }
 
@@ -97,7 +97,7 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
         return Ok(expr);
     }
     match expected {
-        RuntimeType::Unknown | RuntimeType::Core(core_ir::Type::Unknown) => Ok(expr),
+        RuntimeType::Unknown | RuntimeType::Core(typed_ir::Type::Unknown) => Ok(expr),
         RuntimeType::Thunk { effect, value } => match &expr.ty {
             RuntimeType::Thunk { .. } => {
                 require_apply_arg_compatible(expected, &expr.ty, source)?;
@@ -137,7 +137,7 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
                 ))
             }
         },
-        RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_))
+        RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Var(_))
             if matches!(expr.ty, RuntimeType::Thunk { .. }) =>
         {
             Ok(expr)
@@ -201,12 +201,12 @@ fn hir_type_contains_unknown(ty: &RuntimeType) -> bool {
     }
 }
 
-fn core_type_contains_unknown(ty: &core_ir::Type) -> bool {
+fn core_type_contains_unknown(ty: &typed_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Unknown => true,
-        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
-        core_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_unknown),
-        core_ir::Type::Fun {
+        typed_ir::Type::Unknown => true,
+        typed_ir::Type::Never | typed_ir::Type::Any | typed_ir::Type::Var(_) => false,
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_unknown),
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -217,21 +217,21 @@ fn core_type_contains_unknown(ty: &core_ir::Type) -> bool {
                 || core_type_contains_unknown(ret_effect)
                 || core_type_contains_unknown(ret)
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
-            items.iter().any(core_type_contains_unknown)
-        }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(core_type_contains_unknown),
+        typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
                 .any(|field| core_type_contains_unknown(&field.value))
                 || record.spread.as_ref().is_some_and(|spread| match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         core_type_contains_unknown(ty)
                     }
                 })
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant
                 .cases
                 .iter()
@@ -241,17 +241,17 @@ fn core_type_contains_unknown(ty: &core_ir::Type) -> bool {
                     .as_deref()
                     .is_some_and(core_type_contains_unknown)
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             items.iter().any(core_type_contains_unknown) || core_type_contains_unknown(tail)
         }
-        core_ir::Type::Recursive { body, .. } => core_type_contains_unknown(body),
+        typed_ir::Type::Recursive { body, .. } => core_type_contains_unknown(body),
     }
 }
 
-fn type_arg_contains_unknown(arg: &core_ir::TypeArg) -> bool {
+fn type_arg_contains_unknown(arg: &typed_ir::TypeArg) -> bool {
     match arg {
-        core_ir::TypeArg::Type(ty) => core_type_contains_unknown(ty),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(ty) => core_type_contains_unknown(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
             bounds
                 .lower
                 .as_deref()
@@ -379,8 +379,8 @@ pub(super) struct RuntimeAdapterSource {
     pub has_apply_arg_source_edge: bool,
     pub callee_source_edge: Option<u32>,
     pub arg_source_edge: Option<u32>,
-    pub owner: Option<core_ir::Path>,
-    pub apply_target: Option<core_ir::Path>,
+    pub owner: Option<typed_ir::Path>,
+    pub apply_target: Option<typed_ir::Path>,
 }
 
 impl RuntimeAdapterSource {
@@ -464,7 +464,7 @@ pub(super) fn attach_forced_effect_profiled(
     }
 }
 
-pub(super) fn attach_expr_effect(expr: Expr, effect: core_ir::Type) -> Expr {
+pub(super) fn attach_expr_effect(expr: Expr, effect: typed_ir::Type) -> Expr {
     match expr.ty.clone() {
         RuntimeType::Thunk {
             effect: existing,
@@ -659,7 +659,7 @@ pub(super) fn add_id_to_created_thunks(expr: Expr) -> Expr {
     Expr { ty, kind }
 }
 
-pub(super) fn add_id_with_peek_if_needed(thunk: Expr, allowed: core_ir::Type) -> Expr {
+pub(super) fn add_id_with_peek_if_needed(thunk: Expr, allowed: typed_ir::Type) -> Expr {
     let allowed = project_runtime_effect(&allowed);
     if !should_thunk_effect(&allowed) {
         return thunk;

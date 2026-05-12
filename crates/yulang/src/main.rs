@@ -17,7 +17,6 @@ use im::HashSet;
 use pprof::ProfilerGuardBuilder;
 use reborrow_generic::Reborrow as _;
 use rowan::SyntaxNode;
-use yulang_core_ir as core_ir;
 use yulang_infer::ids::{NegId as InferNegId, PosId as InferPosId};
 use yulang_infer::{
     ExpectedEdge as InferExpectedEdge, ExpectedEdgeKind as InferExpectedEdgeKind,
@@ -49,6 +48,7 @@ use yulang_parser::sink::{Event, EventSink, VecSink, YulangLanguage};
 use yulang_parser::stmt::parse_statement;
 use yulang_parser::typ::parse::parse_type;
 use yulang_runtime as runtime;
+use yulang_typed_ir as typed_ir;
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
@@ -1062,7 +1062,7 @@ struct RuntimePhaseProfile {
 }
 
 fn lower_runtime_module_or_exit(
-    program: &core_ir::CoreProgram,
+    program: &typed_ir::CoreProgram,
     print_timings: bool,
     source: &str,
 ) -> RuntimeLowerOutput {
@@ -1446,7 +1446,7 @@ fn run_native_executable_or_exit(path: &Path, label: &str) {
 fn native_object_output_path(output: &NativeOutput, input_path: Option<&str>) -> PathBuf {
     match output {
         NativeOutput::Path(path) => PathBuf::from(path),
-        NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
+        NativeOutput::Default => yulang_sources::YulangCachePaths::for_project(workspace_root())
             .project_obj
             .join(format!("{}.o", native_output_stem(input_path))),
     }
@@ -1455,7 +1455,7 @@ fn native_object_output_path(output: &NativeOutput, input_path: Option<&str>) ->
 fn native_executable_output_path(output: &NativeOutput, input_path: Option<&str>) -> PathBuf {
     match output {
         NativeOutput::Path(path) => PathBuf::from(path),
-        NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
+        NativeOutput::Default => yulang_sources::YulangCachePaths::for_project(workspace_root())
             .project_bin
             .join(native_output_stem(input_path)),
     }
@@ -1464,7 +1464,7 @@ fn native_executable_output_path(output: &NativeOutput, input_path: Option<&str>
 fn native_run_executable_output_path(output: &NativeOutput, input_path: Option<&str>) -> PathBuf {
     match output {
         NativeOutput::Path(path) => PathBuf::from(path),
-        NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
+        NativeOutput::Default => yulang_sources::YulangCachePaths::for_project(workspace_root())
             .project_bin
             .join(format!("{}-native", native_output_stem(input_path))),
     }
@@ -1473,7 +1473,7 @@ fn native_run_executable_output_path(output: &NativeOutput, input_path: Option<&
 fn native_value_executable_output_path(output: &NativeOutput, input_path: Option<&str>) -> PathBuf {
     match output {
         NativeOutput::Path(path) => PathBuf::from(path),
-        NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
+        NativeOutput::Default => yulang_sources::YulangCachePaths::for_project(workspace_root())
             .project_bin
             .join(format!("{}-value", native_output_stem(input_path))),
     }
@@ -1485,7 +1485,7 @@ fn native_cps_repr_executable_output_path(
 ) -> PathBuf {
     match output {
         NativeOutput::Path(path) => PathBuf::from(path),
-        NativeOutput::Default => yulang_source::YulangCachePaths::for_project(workspace_root())
+        NativeOutput::Default => yulang_sources::YulangCachePaths::for_project(workspace_root())
             .project_bin
             .join(format!("{}-cps-repr", native_output_stem(input_path))),
     }
@@ -1585,8 +1585,8 @@ fn native_runtime_support_is_fresh(workspace: &Path, library: &Path) -> bool {
         workspace.join("crates/yulang-native/src"),
         workspace.join("crates/yulang-runtime/Cargo.toml"),
         workspace.join("crates/yulang-runtime/src"),
-        workspace.join("crates/yulang-core-ir/Cargo.toml"),
-        workspace.join("crates/yulang-core-ir/src"),
+        workspace.join("crates/yulang-typed-ir/Cargo.toml"),
+        workspace.join("crates/yulang-typed-ir/src"),
     ];
     let newest_source = source_roots
         .iter()
@@ -1717,7 +1717,7 @@ fn native_link_temp_dir() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis();
-    yulang_source::YulangCachePaths::for_project(workspace_root())
+    yulang_sources::YulangCachePaths::for_project(workspace_root())
         .project_build
         .join(format!("native-link-{}-{millis}", process::id()))
 }
@@ -3292,13 +3292,13 @@ fn print_infer_surface_diagnostic(diagnostic: &InferSurfaceDiagnostic, source: &
     }
 }
 
-fn print_infer_program(program: &core_ir::CoreProgram, verbose: bool) {
+fn print_infer_program(program: &typed_ir::CoreProgram, verbose: bool) {
     print_core_ir_module(&program.program);
     print_infer_graph(&program.graph, verbose);
     print_core_principal_evidence(&program.evidence, verbose);
 }
 
-fn print_core_ir_module(module: &core_ir::PrincipalModule) {
+fn print_core_ir_module(module: &typed_ir::PrincipalModule) {
     let (visible_bindings, hidden_std_bindings): (Vec<_>, Vec<_>) = module
         .bindings
         .iter()
@@ -3323,7 +3323,7 @@ fn print_core_ir_module(module: &core_ir::PrincipalModule) {
     }
 }
 
-fn print_infer_graph(graph: &core_ir::CoreGraphView, verbose: bool) {
+fn print_infer_graph(graph: &typed_ir::CoreGraphView, verbose: bool) {
     if graph.bindings.is_empty() && graph.root_exprs.is_empty() && graph.runtime_symbols.is_empty()
     {
         return;
@@ -3382,7 +3382,7 @@ fn print_infer_graph(graph: &core_ir::CoreGraphView, verbose: bool) {
     }
 }
 
-fn print_core_principal_evidence(evidence: &core_ir::PrincipalEvidence, verbose: bool) {
+fn print_core_principal_evidence(evidence: &typed_ir::PrincipalEvidence, verbose: bool) {
     if evidence.expected_edges.is_empty()
         && evidence.expected_adapter_edges.is_empty()
         && evidence.derived_expected_edges.is_empty()
@@ -3419,7 +3419,7 @@ fn print_core_principal_evidence(evidence: &core_ir::PrincipalEvidence, verbose:
     }
 }
 
-fn format_core_expected_edge_evidence(evidence: &core_ir::ExpectedEdgeEvidence) -> String {
+fn format_core_expected_edge_evidence(evidence: &typed_ir::ExpectedEdgeEvidence) -> String {
     let mut parts = vec![
         format!(
             "#{} {}",
@@ -3453,12 +3453,12 @@ fn format_core_expected_edge_evidence(evidence: &core_ir::ExpectedEdgeEvidence) 
     parts.join(" ")
 }
 
-fn format_source_range(range: core_ir::SourceRange) -> String {
+fn format_source_range(range: typed_ir::SourceRange) -> String {
     format!("{}..{}", range.start, range.end)
 }
 
 fn format_core_expected_adapter_edge_evidence(
-    evidence: &core_ir::ExpectedAdapterEdgeEvidence,
+    evidence: &typed_ir::ExpectedAdapterEdgeEvidence,
 ) -> String {
     let mut parts = vec![format!(
         "#{} {}",
@@ -3502,7 +3502,7 @@ fn format_core_expected_adapter_edge_evidence(
 }
 
 fn format_core_derived_expected_edge_evidence(
-    evidence: &core_ir::DerivedExpectedEdgeEvidence,
+    evidence: &typed_ir::DerivedExpectedEdgeEvidence,
 ) -> String {
     let mut parts = vec![
         format!(
@@ -3519,77 +3519,77 @@ fn format_core_derived_expected_edge_evidence(
     parts.join(" ")
 }
 
-fn format_core_expected_edge_kind(kind: core_ir::ExpectedEdgeKind) -> &'static str {
+fn format_core_expected_edge_kind(kind: typed_ir::ExpectedEdgeKind) -> &'static str {
     match kind {
-        core_ir::ExpectedEdgeKind::IfCondition => "if-condition",
-        core_ir::ExpectedEdgeKind::IfBranch => "if-branch",
-        core_ir::ExpectedEdgeKind::MatchGuard => "match-guard",
-        core_ir::ExpectedEdgeKind::MatchBranch => "match-branch",
-        core_ir::ExpectedEdgeKind::CatchGuard => "catch-guard",
-        core_ir::ExpectedEdgeKind::CatchBranch => "catch-branch",
-        core_ir::ExpectedEdgeKind::ApplicationCallee => "application-callee",
-        core_ir::ExpectedEdgeKind::ApplicationArgument => "application-argument",
-        core_ir::ExpectedEdgeKind::Annotation => "annotation",
-        core_ir::ExpectedEdgeKind::RecordField => "record-field",
-        core_ir::ExpectedEdgeKind::VariantPayload => "variant-payload",
-        core_ir::ExpectedEdgeKind::AssignmentValue => "assignment-value",
-        core_ir::ExpectedEdgeKind::RepresentationCoerce => "representation-coerce",
+        typed_ir::ExpectedEdgeKind::IfCondition => "if-condition",
+        typed_ir::ExpectedEdgeKind::IfBranch => "if-branch",
+        typed_ir::ExpectedEdgeKind::MatchGuard => "match-guard",
+        typed_ir::ExpectedEdgeKind::MatchBranch => "match-branch",
+        typed_ir::ExpectedEdgeKind::CatchGuard => "catch-guard",
+        typed_ir::ExpectedEdgeKind::CatchBranch => "catch-branch",
+        typed_ir::ExpectedEdgeKind::ApplicationCallee => "application-callee",
+        typed_ir::ExpectedEdgeKind::ApplicationArgument => "application-argument",
+        typed_ir::ExpectedEdgeKind::Annotation => "annotation",
+        typed_ir::ExpectedEdgeKind::RecordField => "record-field",
+        typed_ir::ExpectedEdgeKind::VariantPayload => "variant-payload",
+        typed_ir::ExpectedEdgeKind::AssignmentValue => "assignment-value",
+        typed_ir::ExpectedEdgeKind::RepresentationCoerce => "representation-coerce",
     }
 }
 
-fn format_core_edge_polarity(polarity: core_ir::EdgePolarity) -> &'static str {
+fn format_core_edge_polarity(polarity: typed_ir::EdgePolarity) -> &'static str {
     match polarity {
-        core_ir::EdgePolarity::Covariant => "covariant",
-        core_ir::EdgePolarity::Contravariant => "contravariant",
-        core_ir::EdgePolarity::Invariant => "invariant",
+        typed_ir::EdgePolarity::Covariant => "covariant",
+        typed_ir::EdgePolarity::Contravariant => "contravariant",
+        typed_ir::EdgePolarity::Invariant => "invariant",
     }
 }
 
-fn format_core_derived_expected_edge_kind(kind: core_ir::DerivedExpectedEdgeKind) -> &'static str {
+fn format_core_derived_expected_edge_kind(kind: typed_ir::DerivedExpectedEdgeKind) -> &'static str {
     match kind {
-        core_ir::DerivedExpectedEdgeKind::RecordField => "record-field",
-        core_ir::DerivedExpectedEdgeKind::TupleItem => "tuple-item",
-        core_ir::DerivedExpectedEdgeKind::VariantPayload => "variant-payload",
-        core_ir::DerivedExpectedEdgeKind::FunctionParam => "function-param",
-        core_ir::DerivedExpectedEdgeKind::FunctionReturn => "function-return",
+        typed_ir::DerivedExpectedEdgeKind::RecordField => "record-field",
+        typed_ir::DerivedExpectedEdgeKind::TupleItem => "tuple-item",
+        typed_ir::DerivedExpectedEdgeKind::VariantPayload => "variant-payload",
+        typed_ir::DerivedExpectedEdgeKind::FunctionParam => "function-param",
+        typed_ir::DerivedExpectedEdgeKind::FunctionReturn => "function-return",
     }
 }
 
-fn format_core_edge_path(path: &[core_ir::EdgePathSegment]) -> String {
+fn format_core_edge_path(path: &[typed_ir::EdgePathSegment]) -> String {
     path.iter()
         .map(|segment| match segment {
-            core_ir::EdgePathSegment::Field(name) => format!(".{}", name.0),
-            core_ir::EdgePathSegment::TupleIndex(index) => format!("[{index}]"),
-            core_ir::EdgePathSegment::VariantCase(name) => format!(":{}", name.0),
-            core_ir::EdgePathSegment::PayloadIndex(index) => format!("({index})"),
-            core_ir::EdgePathSegment::FunctionParam => ".param".to_string(),
-            core_ir::EdgePathSegment::FunctionReturn => ".return".to_string(),
+            typed_ir::EdgePathSegment::Field(name) => format!(".{}", name.0),
+            typed_ir::EdgePathSegment::TupleIndex(index) => format!("[{index}]"),
+            typed_ir::EdgePathSegment::VariantCase(name) => format!(":{}", name.0),
+            typed_ir::EdgePathSegment::PayloadIndex(index) => format!("({index})"),
+            typed_ir::EdgePathSegment::FunctionParam => ".param".to_string(),
+            typed_ir::EdgePathSegment::FunctionReturn => ".return".to_string(),
         })
         .collect::<Vec<_>>()
         .join("")
 }
 
-fn format_core_expected_adapter_edge_kind(kind: core_ir::ExpectedAdapterEdgeKind) -> &'static str {
+fn format_core_expected_adapter_edge_kind(kind: typed_ir::ExpectedAdapterEdgeKind) -> &'static str {
     match kind {
-        core_ir::ExpectedAdapterEdgeKind::EffectOperationArgument => "effect-operation-argument",
-        core_ir::ExpectedAdapterEdgeKind::ValueToThunk => "value-to-thunk",
-        core_ir::ExpectedAdapterEdgeKind::ThunkToValue => "thunk-to-value",
-        core_ir::ExpectedAdapterEdgeKind::BindHere => "bind-here",
-        core_ir::ExpectedAdapterEdgeKind::HandlerResidual => "handler-residual",
-        core_ir::ExpectedAdapterEdgeKind::HandlerReturn => "handler-return",
-        core_ir::ExpectedAdapterEdgeKind::ResumeArgument => "resume-argument",
+        typed_ir::ExpectedAdapterEdgeKind::EffectOperationArgument => "effect-operation-argument",
+        typed_ir::ExpectedAdapterEdgeKind::ValueToThunk => "value-to-thunk",
+        typed_ir::ExpectedAdapterEdgeKind::ThunkToValue => "thunk-to-value",
+        typed_ir::ExpectedAdapterEdgeKind::BindHere => "bind-here",
+        typed_ir::ExpectedAdapterEdgeKind::HandlerResidual => "handler-residual",
+        typed_ir::ExpectedAdapterEdgeKind::HandlerReturn => "handler-return",
+        typed_ir::ExpectedAdapterEdgeKind::ResumeArgument => "resume-argument",
     }
 }
 
-fn format_runtime_symbol_kind(kind: core_ir::RuntimeSymbolKind) -> &'static str {
+fn format_runtime_symbol_kind(kind: typed_ir::RuntimeSymbolKind) -> &'static str {
     match kind {
-        core_ir::RuntimeSymbolKind::Value => "value",
-        core_ir::RuntimeSymbolKind::RoleMethod => "role-method",
-        core_ir::RuntimeSymbolKind::EffectOperation => "effect-op",
+        typed_ir::RuntimeSymbolKind::Value => "value",
+        typed_ir::RuntimeSymbolKind::RoleMethod => "role-method",
+        typed_ir::RuntimeSymbolKind::EffectOperation => "effect-op",
     }
 }
 
-fn print_core_ir_binding(binding: &core_ir::PrincipalBinding) {
+fn print_core_ir_binding(binding: &typed_ir::PrincipalBinding) {
     println!("  {}", format_core_path(&binding.name));
     println!("    : {}", format_core_scheme(&binding.scheme));
     println!("    = {}", format_core_expr(&binding.body));
@@ -3687,54 +3687,54 @@ fn format_runtime_vm_value(value: &runtime::VmValue) -> String {
     }
 }
 
-fn format_primitive_op(op: core_ir::PrimitiveOp) -> &'static str {
+fn format_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
     match op {
-        core_ir::PrimitiveOp::BoolNot => "std::bool::not",
-        core_ir::PrimitiveOp::BoolEq => "std::bool::eq",
-        core_ir::PrimitiveOp::ListEmpty => "std::list::empty",
-        core_ir::PrimitiveOp::ListSingleton => "std::list::singleton",
-        core_ir::PrimitiveOp::ListLen => "std::list::len",
-        core_ir::PrimitiveOp::ListMerge => "std::list::merge",
-        core_ir::PrimitiveOp::ListIndex => "std::list::index_raw",
-        core_ir::PrimitiveOp::ListIndexRange => "std::list::index_range",
-        core_ir::PrimitiveOp::ListSplice => "std::list::splice",
-        core_ir::PrimitiveOp::ListIndexRangeRaw => "std::list::index_range_raw",
-        core_ir::PrimitiveOp::ListSpliceRaw => "std::list::splice_raw",
-        core_ir::PrimitiveOp::ListViewRaw => "std::list::view_raw",
-        core_ir::PrimitiveOp::StringLen => "std::str::len",
-        core_ir::PrimitiveOp::StringIndex => "std::str::index_raw",
-        core_ir::PrimitiveOp::StringIndexRange => "std::str::index_range",
-        core_ir::PrimitiveOp::StringSplice => "std::str::splice",
-        core_ir::PrimitiveOp::StringIndexRangeRaw => "std::str::index_range_raw",
-        core_ir::PrimitiveOp::StringSpliceRaw => "std::str::splice_raw",
-        core_ir::PrimitiveOp::IntAdd => "std::int::add",
-        core_ir::PrimitiveOp::IntSub => "std::int::sub",
-        core_ir::PrimitiveOp::IntMul => "std::int::mul",
-        core_ir::PrimitiveOp::IntDiv => "std::int::div",
-        core_ir::PrimitiveOp::IntEq => "std::int::eq",
-        core_ir::PrimitiveOp::IntLt => "std::int::lt",
-        core_ir::PrimitiveOp::IntLe => "std::int::le",
-        core_ir::PrimitiveOp::IntGt => "std::int::gt",
-        core_ir::PrimitiveOp::IntGe => "std::int::ge",
-        core_ir::PrimitiveOp::FloatAdd => "std::float::add",
-        core_ir::PrimitiveOp::FloatSub => "std::float::sub",
-        core_ir::PrimitiveOp::FloatMul => "std::float::mul",
-        core_ir::PrimitiveOp::FloatDiv => "std::float::div",
-        core_ir::PrimitiveOp::FloatEq => "std::float::eq",
-        core_ir::PrimitiveOp::FloatLt => "std::float::lt",
-        core_ir::PrimitiveOp::FloatLe => "std::float::le",
-        core_ir::PrimitiveOp::FloatGt => "std::float::gt",
-        core_ir::PrimitiveOp::FloatGe => "std::float::ge",
-        core_ir::PrimitiveOp::StringConcat => "std::str::concat",
-        core_ir::PrimitiveOp::IntToString => "std::int::to_string",
-        core_ir::PrimitiveOp::IntToHex => "std::int::to_hex",
-        core_ir::PrimitiveOp::IntToUpperHex => "std::int::to_upper_hex",
-        core_ir::PrimitiveOp::FloatToString => "std::float::to_string",
-        core_ir::PrimitiveOp::BoolToString => "std::bool::to_string",
+        typed_ir::PrimitiveOp::BoolNot => "std::bool::not",
+        typed_ir::PrimitiveOp::BoolEq => "std::bool::eq",
+        typed_ir::PrimitiveOp::ListEmpty => "std::list::empty",
+        typed_ir::PrimitiveOp::ListSingleton => "std::list::singleton",
+        typed_ir::PrimitiveOp::ListLen => "std::list::len",
+        typed_ir::PrimitiveOp::ListMerge => "std::list::merge",
+        typed_ir::PrimitiveOp::ListIndex => "std::list::index_raw",
+        typed_ir::PrimitiveOp::ListIndexRange => "std::list::index_range",
+        typed_ir::PrimitiveOp::ListSplice => "std::list::splice",
+        typed_ir::PrimitiveOp::ListIndexRangeRaw => "std::list::index_range_raw",
+        typed_ir::PrimitiveOp::ListSpliceRaw => "std::list::splice_raw",
+        typed_ir::PrimitiveOp::ListViewRaw => "std::list::view_raw",
+        typed_ir::PrimitiveOp::StringLen => "std::str::len",
+        typed_ir::PrimitiveOp::StringIndex => "std::str::index_raw",
+        typed_ir::PrimitiveOp::StringIndexRange => "std::str::index_range",
+        typed_ir::PrimitiveOp::StringSplice => "std::str::splice",
+        typed_ir::PrimitiveOp::StringIndexRangeRaw => "std::str::index_range_raw",
+        typed_ir::PrimitiveOp::StringSpliceRaw => "std::str::splice_raw",
+        typed_ir::PrimitiveOp::IntAdd => "std::int::add",
+        typed_ir::PrimitiveOp::IntSub => "std::int::sub",
+        typed_ir::PrimitiveOp::IntMul => "std::int::mul",
+        typed_ir::PrimitiveOp::IntDiv => "std::int::div",
+        typed_ir::PrimitiveOp::IntEq => "std::int::eq",
+        typed_ir::PrimitiveOp::IntLt => "std::int::lt",
+        typed_ir::PrimitiveOp::IntLe => "std::int::le",
+        typed_ir::PrimitiveOp::IntGt => "std::int::gt",
+        typed_ir::PrimitiveOp::IntGe => "std::int::ge",
+        typed_ir::PrimitiveOp::FloatAdd => "std::float::add",
+        typed_ir::PrimitiveOp::FloatSub => "std::float::sub",
+        typed_ir::PrimitiveOp::FloatMul => "std::float::mul",
+        typed_ir::PrimitiveOp::FloatDiv => "std::float::div",
+        typed_ir::PrimitiveOp::FloatEq => "std::float::eq",
+        typed_ir::PrimitiveOp::FloatLt => "std::float::lt",
+        typed_ir::PrimitiveOp::FloatLe => "std::float::le",
+        typed_ir::PrimitiveOp::FloatGt => "std::float::gt",
+        typed_ir::PrimitiveOp::FloatGe => "std::float::ge",
+        typed_ir::PrimitiveOp::StringConcat => "std::str::concat",
+        typed_ir::PrimitiveOp::IntToString => "std::int::to_string",
+        typed_ir::PrimitiveOp::IntToHex => "std::int::to_hex",
+        typed_ir::PrimitiveOp::IntToUpperHex => "std::int::to_upper_hex",
+        typed_ir::PrimitiveOp::FloatToString => "std::float::to_string",
+        typed_ir::PrimitiveOp::BoolToString => "std::bool::to_string",
     }
 }
 
-fn format_core_scheme(scheme: &core_ir::Scheme) -> String {
+fn format_core_scheme(scheme: &typed_ir::Scheme) -> String {
     if scheme.requirements.is_empty() {
         format_core_type(&scheme.body)
     } else {
@@ -3748,7 +3748,7 @@ fn format_core_scheme(scheme: &core_ir::Scheme) -> String {
     }
 }
 
-fn format_core_requirement(requirement: &core_ir::RoleRequirement) -> String {
+fn format_core_requirement(requirement: &typed_ir::RoleRequirement) -> String {
     let args = requirement
         .args
         .iter()
@@ -3758,16 +3758,16 @@ fn format_core_requirement(requirement: &core_ir::RoleRequirement) -> String {
     format!("{}<{args}>", format_core_path(&requirement.role))
 }
 
-fn format_core_requirement_arg(arg: &core_ir::RoleRequirementArg) -> String {
+fn format_core_requirement_arg(arg: &typed_ir::RoleRequirementArg) -> String {
     match arg {
-        core_ir::RoleRequirementArg::Input(bounds) => format_core_bounds(bounds),
-        core_ir::RoleRequirementArg::Associated { name, bounds } => {
+        typed_ir::RoleRequirementArg::Input(bounds) => format_core_bounds(bounds),
+        typed_ir::RoleRequirementArg::Associated { name, bounds } => {
             format!("{} = {}", name.0, format_core_bounds(bounds))
         }
     }
 }
 
-fn format_core_bounds(bounds: &core_ir::TypeBounds) -> String {
+fn format_core_bounds(bounds: &typed_ir::TypeBounds) -> String {
     match (&bounds.lower, &bounds.upper) {
         (Some(lower), Some(upper)) if lower == upper => format_core_type(lower),
         (Some(lower), Some(upper)) => {
@@ -3783,26 +3783,26 @@ fn format_core_bounds(bounds: &core_ir::TypeBounds) -> String {
     }
 }
 
-fn bounds_exact_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
+fn bounds_exact_type(bounds: &typed_ir::TypeBounds) -> Option<&typed_ir::Type> {
     match (&bounds.lower, &bounds.upper) {
         (Some(lower), Some(upper)) if lower == upper => Some(lower),
         _ => None,
     }
 }
 
-fn format_graph_owner(owner: &core_ir::GraphOwner) -> String {
+fn format_graph_owner(owner: &typed_ir::GraphOwner) -> String {
     match owner {
-        core_ir::GraphOwner::RootExpr(index) => format!("root[{index}]"),
+        typed_ir::GraphOwner::RootExpr(index) => format!("root[{index}]"),
     }
 }
 
-fn format_core_type(ty: &core_ir::Type) -> String {
+fn format_core_type(ty: &typed_ir::Type) -> String {
     match ty {
-        core_ir::Type::Unknown => "?".to_string(),
-        core_ir::Type::Never => "⊥".to_string(),
-        core_ir::Type::Any => "⊤".to_string(),
-        core_ir::Type::Var(var) => var.0.clone(),
-        core_ir::Type::Named { path, args } => {
+        typed_ir::Type::Unknown => "?".to_string(),
+        typed_ir::Type::Never => "⊥".to_string(),
+        typed_ir::Type::Any => "⊤".to_string(),
+        typed_ir::Type::Var(var) => var.0.clone(),
+        typed_ir::Type::Named { path, args } => {
             let head = format_core_path(path);
             if args.is_empty() {
                 head
@@ -3815,7 +3815,7 @@ fn format_core_type(ty: &core_ir::Type) -> String {
                 format!("{head}<{args}>")
             }
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -3837,7 +3837,7 @@ fn format_core_type(ty: &core_ir::Type) -> String {
                 )
             }
         }
-        core_ir::Type::Tuple(items) => {
+        typed_ir::Type::Tuple(items) => {
             let items = items
                 .iter()
                 .map(format_core_type)
@@ -3845,10 +3845,10 @@ fn format_core_type(ty: &core_ir::Type) -> String {
                 .join(", ");
             format!("({items})")
         }
-        core_ir::Type::Record(record) => format_core_record_type(record),
-        core_ir::Type::Variant(variant) => format_core_variant_type(variant),
-        core_ir::Type::Row { items, tail } => format_core_row_type(items, tail),
-        core_ir::Type::Union(items) => items
+        typed_ir::Type::Record(record) => format_core_record_type(record),
+        typed_ir::Type::Variant(variant) => format_core_variant_type(variant),
+        typed_ir::Type::Row { items, tail } => format_core_row_type(items, tail),
+        typed_ir::Type::Union(items) => items
             .iter()
             .map(format_core_type)
             .collect::<Vec<_>>()
@@ -3860,7 +3860,7 @@ fn format_core_type(ty: &core_ir::Type) -> String {
                 acc
             })
             .join(" | "),
-        core_ir::Type::Inter(items) => items
+        typed_ir::Type::Inter(items) => items
             .iter()
             .map(format_core_type)
             .collect::<Vec<_>>()
@@ -3872,20 +3872,20 @@ fn format_core_type(ty: &core_ir::Type) -> String {
                 acc
             })
             .join(" & "),
-        core_ir::Type::Recursive { var, body } => {
+        typed_ir::Type::Recursive { var, body } => {
             format!("rec {}. {}", var.0, format_core_type(body))
         }
     }
 }
 
-fn format_core_type_arg(arg: &core_ir::TypeArg) -> String {
+fn format_core_type_arg(arg: &typed_ir::TypeArg) -> String {
     match arg {
-        core_ir::TypeArg::Type(ty) => format_core_type(ty),
-        core_ir::TypeArg::Bounds(bounds) => format_core_bounds(bounds),
+        typed_ir::TypeArg::Type(ty) => format_core_type(ty),
+        typed_ir::TypeArg::Bounds(bounds) => format_core_bounds(bounds),
     }
 }
 
-fn format_core_record_type(record: &core_ir::RecordType) -> String {
+fn format_core_record_type(record: &typed_ir::RecordType) -> String {
     let mut items = record
         .fields
         .iter()
@@ -3905,14 +3905,14 @@ fn format_core_record_type(record: &core_ir::RecordType) -> String {
     format!("{{{}}}", items.join(", "))
 }
 
-fn format_core_record_spread_type(spread: &core_ir::RecordSpread) -> String {
+fn format_core_record_spread_type(spread: &typed_ir::RecordSpread) -> String {
     match spread {
-        core_ir::RecordSpread::Head(ty) => format!("..{}", format_core_type(ty)),
-        core_ir::RecordSpread::Tail(ty) => format!("{}..", format_core_type(ty)),
+        typed_ir::RecordSpread::Head(ty) => format!("..{}", format_core_type(ty)),
+        typed_ir::RecordSpread::Tail(ty) => format!("{}..", format_core_type(ty)),
     }
 }
 
-fn format_core_variant_type(variant: &core_ir::VariantType) -> String {
+fn format_core_variant_type(variant: &typed_ir::VariantType) -> String {
     let mut items = variant
         .cases
         .iter()
@@ -3936,7 +3936,7 @@ fn format_core_variant_type(variant: &core_ir::VariantType) -> String {
     format!(":{{{}}}", items.join(" | "))
 }
 
-fn format_core_row_type(items: &[core_ir::Type], tail: &core_ir::Type) -> String {
+fn format_core_row_type(items: &[typed_ir::Type], tail: &typed_ir::Type) -> String {
     let mut parts = Vec::new();
     flatten_core_row_parts(items, tail, &mut parts);
     match parts.as_slice() {
@@ -3946,31 +3946,35 @@ fn format_core_row_type(items: &[core_ir::Type], tail: &core_ir::Type) -> String
     }
 }
 
-fn flatten_core_row_parts(items: &[core_ir::Type], tail: &core_ir::Type, parts: &mut Vec<String>) {
+fn flatten_core_row_parts(
+    items: &[typed_ir::Type],
+    tail: &typed_ir::Type,
+    parts: &mut Vec<String>,
+) {
     parts.extend(items.iter().map(format_core_type));
     match tail {
-        core_ir::Type::Never => {}
-        core_ir::Type::Row { items, tail } => flatten_core_row_parts(items, tail, parts),
+        typed_ir::Type::Never => {}
+        typed_ir::Type::Row { items, tail } => flatten_core_row_parts(items, tail, parts),
         other => parts.push(format_core_type(other)),
     }
 }
 
-fn format_core_fun_side(ty: &core_ir::Type) -> String {
+fn format_core_fun_side(ty: &typed_ir::Type) -> String {
     match ty {
-        core_ir::Type::Fun { .. } => format!("({})", format_core_type(ty)),
+        typed_ir::Type::Fun { .. } => format!("({})", format_core_type(ty)),
         _ => format_core_type(ty),
     }
 }
 
-fn format_core_expr(expr: &core_ir::Expr) -> String {
+fn format_core_expr(expr: &typed_ir::Expr) -> String {
     match expr {
-        core_ir::Expr::Var(path) => format_core_path(path),
-        core_ir::Expr::PrimitiveOp(op) => format!("<primitive {}>", format_primitive_op(*op)),
-        core_ir::Expr::Lit(lit) => format_core_lit(lit),
-        core_ir::Expr::Lambda { param, body, .. } => {
+        typed_ir::Expr::Var(path) => format_core_path(path),
+        typed_ir::Expr::PrimitiveOp(op) => format!("<primitive {}>", format_primitive_op(*op)),
+        typed_ir::Expr::Lit(lit) => format_core_lit(lit),
+        typed_ir::Expr::Lambda { param, body, .. } => {
             format!("fun {} -> {}", param.0, format_core_expr(body))
         }
-        core_ir::Expr::Apply {
+        typed_ir::Expr::Apply {
             callee,
             arg,
             evidence,
@@ -3985,7 +3989,7 @@ fn format_core_expr(expr: &core_ir::Expr) -> String {
             }
             text
         }
-        core_ir::Expr::If {
+        typed_ir::Expr::If {
             cond,
             then_branch,
             else_branch,
@@ -4002,7 +4006,7 @@ fn format_core_expr(expr: &core_ir::Expr) -> String {
             }
             text
         }
-        core_ir::Expr::Tuple(items) => {
+        typed_ir::Expr::Tuple(items) => {
             let items = items
                 .iter()
                 .map(format_core_expr)
@@ -4010,7 +4014,7 @@ fn format_core_expr(expr: &core_ir::Expr) -> String {
                 .join(", ");
             format!("({items})")
         }
-        core_ir::Expr::Record { fields, spread } => {
+        typed_ir::Expr::Record { fields, spread } => {
             let mut items = fields
                 .iter()
                 .map(|field| format!("{}: {}", field.name.0, format_core_expr(&field.value)))
@@ -4020,14 +4024,14 @@ fn format_core_expr(expr: &core_ir::Expr) -> String {
             }
             format!("{{{}}}", items.join(", "))
         }
-        core_ir::Expr::Variant { tag, value, .. } => match value {
+        typed_ir::Expr::Variant { tag, value, .. } => match value {
             Some(value) => format!(":{} {}", tag.0, format_core_expr_atom(value)),
             None => format!(":{}", tag.0),
         },
-        core_ir::Expr::Select { base, field } => {
+        typed_ir::Expr::Select { base, field } => {
             format!("{}.{}", format_core_expr_atom(base), field.0)
         }
-        core_ir::Expr::Match {
+        typed_ir::Expr::Match {
             scrutinee,
             arms,
             evidence,
@@ -4043,17 +4047,17 @@ fn format_core_expr(expr: &core_ir::Expr) -> String {
             }
             text
         }
-        core_ir::Expr::Block { stmts, tail } => {
+        typed_ir::Expr::Block { stmts, tail } => {
             let mut parts = stmts.iter().map(format_core_stmt).collect::<Vec<_>>();
             if let Some(tail) = tail {
                 parts.push(format_core_expr(tail));
             }
             format!("do {{ {} }}", parts.join("; "))
         }
-        core_ir::Expr::BindHere { expr } => {
+        typed_ir::Expr::BindHere { expr } => {
             format!("bind_here {}", format_core_expr_atom(expr))
         }
-        core_ir::Expr::Handle {
+        typed_ir::Expr::Handle {
             body,
             arms,
             evidence,
@@ -4069,39 +4073,39 @@ fn format_core_expr(expr: &core_ir::Expr) -> String {
             }
             text
         }
-        core_ir::Expr::Coerce { expr, evidence } => {
+        typed_ir::Expr::Coerce { expr, evidence } => {
             let mut text = format!("coerce {}", format_core_expr_atom(expr));
             if let Some(evidence) = evidence {
                 text.push_str(&format!(" :: {}", format_coerce_evidence(evidence)));
             }
             text
         }
-        core_ir::Expr::Pack { var, expr } => {
+        typed_ir::Expr::Pack { var, expr } => {
             format!("pack {} in {}", var.0, format_core_expr(expr))
         }
     }
 }
 
-fn format_core_expr_atom(expr: &core_ir::Expr) -> String {
+fn format_core_expr_atom(expr: &typed_ir::Expr) -> String {
     match expr {
-        core_ir::Expr::Var(_)
-        | core_ir::Expr::Lit(_)
-        | core_ir::Expr::Select { .. }
-        | core_ir::Expr::Record { .. }
-        | core_ir::Expr::Variant { .. }
-        | core_ir::Expr::BindHere { .. } => format_core_expr(expr),
+        typed_ir::Expr::Var(_)
+        | typed_ir::Expr::Lit(_)
+        | typed_ir::Expr::Select { .. }
+        | typed_ir::Expr::Record { .. }
+        | typed_ir::Expr::Variant { .. }
+        | typed_ir::Expr::BindHere { .. } => format_core_expr(expr),
         _ => format!("({})", format_core_expr(expr)),
     }
 }
 
-fn format_core_record_spread_expr(spread: &core_ir::RecordSpreadExpr) -> String {
+fn format_core_record_spread_expr(spread: &typed_ir::RecordSpreadExpr) -> String {
     match spread {
-        core_ir::RecordSpreadExpr::Head(expr) => format!("..{}", format_core_expr(expr)),
-        core_ir::RecordSpreadExpr::Tail(expr) => format!("{}..", format_core_expr(expr)),
+        typed_ir::RecordSpreadExpr::Head(expr) => format!("..{}", format_core_expr(expr)),
+        typed_ir::RecordSpreadExpr::Tail(expr) => format!("{}..", format_core_expr(expr)),
     }
 }
 
-fn format_core_match_arm(arm: &core_ir::MatchArm) -> String {
+fn format_core_match_arm(arm: &typed_ir::MatchArm) -> String {
     let guard = arm
         .guard
         .as_ref()
@@ -4115,7 +4119,7 @@ fn format_core_match_arm(arm: &core_ir::MatchArm) -> String {
     )
 }
 
-fn format_core_handle_arm(arm: &core_ir::HandleArm) -> String {
+fn format_core_handle_arm(arm: &typed_ir::HandleArm) -> String {
     let resume = arm
         .resume
         .as_ref()
@@ -4136,17 +4140,17 @@ fn format_core_handle_arm(arm: &core_ir::HandleArm) -> String {
     )
 }
 
-fn format_core_stmt(stmt: &core_ir::Stmt) -> String {
+fn format_core_stmt(stmt: &typed_ir::Stmt) -> String {
     match stmt {
-        core_ir::Stmt::Let { pattern, value } => {
+        typed_ir::Stmt::Let { pattern, value } => {
             format!(
                 "let {} = {}",
                 format_core_pattern(pattern),
                 format_core_expr(value)
             )
         }
-        core_ir::Stmt::Expr(expr) => format_core_expr(expr),
-        core_ir::Stmt::Module { def, body } => {
+        typed_ir::Stmt::Expr(expr) => format_core_expr(expr),
+        typed_ir::Stmt::Module { def, body } => {
             format!(
                 "module {} = {}",
                 format_core_path(def),
@@ -4156,12 +4160,12 @@ fn format_core_stmt(stmt: &core_ir::Stmt) -> String {
     }
 }
 
-fn format_core_pattern(pattern: &core_ir::Pattern) -> String {
+fn format_core_pattern(pattern: &typed_ir::Pattern) -> String {
     match pattern {
-        core_ir::Pattern::Wildcard => "_".to_string(),
-        core_ir::Pattern::Bind(name) => name.0.clone(),
-        core_ir::Pattern::Lit(lit) => format_core_lit(lit),
-        core_ir::Pattern::Tuple(items) => {
+        typed_ir::Pattern::Wildcard => "_".to_string(),
+        typed_ir::Pattern::Bind(name) => name.0.clone(),
+        typed_ir::Pattern::Lit(lit) => format_core_lit(lit),
+        typed_ir::Pattern::Tuple(items) => {
             let items = items
                 .iter()
                 .map(format_core_pattern)
@@ -4169,7 +4173,7 @@ fn format_core_pattern(pattern: &core_ir::Pattern) -> String {
                 .join(", ");
             format!("({items})")
         }
-        core_ir::Pattern::List {
+        typed_ir::Pattern::List {
             prefix,
             spread,
             suffix,
@@ -4181,11 +4185,11 @@ fn format_core_pattern(pattern: &core_ir::Pattern) -> String {
             items.extend(suffix.iter().map(format_core_pattern));
             format!("[{}]", items.join(", "))
         }
-        core_ir::Pattern::Record { fields, spread } => {
+        typed_ir::Pattern::Record { fields, spread } => {
             let mut items = fields
                 .iter()
                 .map(|field| match &field.default {
-                    Some(default) if matches!(&field.pattern, core_ir::Pattern::Bind(name) if name == &field.name) => {
+                    Some(default) if matches!(&field.pattern, typed_ir::Pattern::Bind(name) if name == &field.name) => {
                         format!("{} = {}", field.name.0, format_core_expr(default))
                     }
                     Some(default) => format!(
@@ -4202,45 +4206,45 @@ fn format_core_pattern(pattern: &core_ir::Pattern) -> String {
             }
             format!("{{{}}}", items.join(", "))
         }
-        core_ir::Pattern::Variant { tag, value } => match value {
+        typed_ir::Pattern::Variant { tag, value } => match value {
             Some(value) => format!(":{} {}", tag.0, format_core_pattern(value)),
             None => format!(":{}", tag.0),
         },
-        core_ir::Pattern::Or { left, right } => {
+        typed_ir::Pattern::Or { left, right } => {
             format!(
                 "{} | {}",
                 format_core_pattern(left),
                 format_core_pattern(right)
             )
         }
-        core_ir::Pattern::As { pattern, name } => {
+        typed_ir::Pattern::As { pattern, name } => {
             format!("{} as {}", format_core_pattern(pattern), name.0)
         }
     }
 }
 
-fn format_core_record_spread_pattern(spread: &core_ir::RecordSpreadPattern) -> String {
+fn format_core_record_spread_pattern(spread: &typed_ir::RecordSpreadPattern) -> String {
     match spread {
-        core_ir::RecordSpreadPattern::Head(pattern) => {
+        typed_ir::RecordSpreadPattern::Head(pattern) => {
             format!("..{}", format_core_pattern(pattern))
         }
-        core_ir::RecordSpreadPattern::Tail(pattern) => {
+        typed_ir::RecordSpreadPattern::Tail(pattern) => {
             format!("{}..", format_core_pattern(pattern))
         }
     }
 }
 
-fn format_core_lit(lit: &core_ir::Lit) -> String {
+fn format_core_lit(lit: &typed_ir::Lit) -> String {
     match lit {
-        core_ir::Lit::Int(value) => value.clone(),
-        core_ir::Lit::Float(value) => value.clone(),
-        core_ir::Lit::String(value) => format!("{value:?}"),
-        core_ir::Lit::Bool(value) => value.to_string(),
-        core_ir::Lit::Unit => "()".to_string(),
+        typed_ir::Lit::Int(value) => value.clone(),
+        typed_ir::Lit::Float(value) => value.clone(),
+        typed_ir::Lit::String(value) => format!("{value:?}"),
+        typed_ir::Lit::Bool(value) => value.to_string(),
+        typed_ir::Lit::Unit => "()".to_string(),
     }
 }
 
-fn format_apply_evidence(evidence: &core_ir::ApplyEvidence) -> String {
+fn format_apply_evidence(evidence: &typed_ir::ApplyEvidence) -> String {
     let mut out = format!(
         "apply[callee={}, arg={}, result={}]",
         format_core_bounds(&evidence.callee),
@@ -4296,12 +4300,12 @@ fn format_apply_evidence(evidence: &core_ir::ApplyEvidence) -> String {
 }
 
 fn format_principal_substitution_candidate(
-    candidate: &core_ir::PrincipalSubstitutionCandidate,
+    candidate: &typed_ir::PrincipalSubstitutionCandidate,
 ) -> String {
     let relation = match candidate.relation {
-        core_ir::PrincipalCandidateRelation::Lower => "<=",
-        core_ir::PrincipalCandidateRelation::Upper => ">=",
-        core_ir::PrincipalCandidateRelation::Exact => "=",
+        typed_ir::PrincipalCandidateRelation::Lower => "<=",
+        typed_ir::PrincipalCandidateRelation::Upper => ">=",
+        typed_ir::PrincipalCandidateRelation::Exact => "=",
     };
     let path = candidate
         .path
@@ -4323,25 +4327,25 @@ fn format_principal_substitution_candidate(
     )
 }
 
-fn format_principal_slot_path_segment(segment: &core_ir::PrincipalSlotPathSegment) -> String {
+fn format_principal_slot_path_segment(segment: &typed_ir::PrincipalSlotPathSegment) -> String {
     match segment {
-        core_ir::PrincipalSlotPathSegment::Callee => "callee".to_string(),
-        core_ir::PrincipalSlotPathSegment::Arg => "arg".to_string(),
-        core_ir::PrincipalSlotPathSegment::Result => "result".to_string(),
-        core_ir::PrincipalSlotPathSegment::Field(name) => format!("field({})", name.0),
-        core_ir::PrincipalSlotPathSegment::TupleIndex(index) => format!("tuple({index})"),
-        core_ir::PrincipalSlotPathSegment::VariantCase(name) => format!("case({})", name.0),
-        core_ir::PrincipalSlotPathSegment::PayloadIndex(index) => format!("payload({index})"),
-        core_ir::PrincipalSlotPathSegment::FunctionParam => "param".to_string(),
-        core_ir::PrincipalSlotPathSegment::FunctionReturn => "return".to_string(),
+        typed_ir::PrincipalSlotPathSegment::Callee => "callee".to_string(),
+        typed_ir::PrincipalSlotPathSegment::Arg => "arg".to_string(),
+        typed_ir::PrincipalSlotPathSegment::Result => "result".to_string(),
+        typed_ir::PrincipalSlotPathSegment::Field(name) => format!("field({})", name.0),
+        typed_ir::PrincipalSlotPathSegment::TupleIndex(index) => format!("tuple({index})"),
+        typed_ir::PrincipalSlotPathSegment::VariantCase(name) => format!("case({})", name.0),
+        typed_ir::PrincipalSlotPathSegment::PayloadIndex(index) => format!("payload({index})"),
+        typed_ir::PrincipalSlotPathSegment::FunctionParam => "param".to_string(),
+        typed_ir::PrincipalSlotPathSegment::FunctionReturn => "return".to_string(),
     }
 }
 
-fn format_join_evidence(evidence: &core_ir::JoinEvidence) -> String {
+fn format_join_evidence(evidence: &typed_ir::JoinEvidence) -> String {
     format!("join[{}]", format_core_bounds(&evidence.result))
 }
 
-fn format_coerce_evidence(evidence: &core_ir::CoerceEvidence) -> String {
+fn format_coerce_evidence(evidence: &typed_ir::CoerceEvidence) -> String {
     let mut text = format!(
         "coerce[actual={}, expected={}]",
         format_core_bounds(&evidence.actual),
@@ -4382,13 +4386,13 @@ fn format_runtime_type(ty: &runtime::Type) -> String {
     }
 }
 
-fn format_runtime_core_type(ty: &core_ir::Type) -> String {
+fn format_runtime_core_type(ty: &typed_ir::Type) -> String {
     format_runtime_core_type_inner(ty, false)
 }
 
-fn format_runtime_core_type_inner(ty: &core_ir::Type, nested_fun_as_thunk: bool) -> String {
+fn format_runtime_core_type_inner(ty: &typed_ir::Type, nested_fun_as_thunk: bool) -> String {
     match ty {
-        core_ir::Type::Named { path, args } => {
+        typed_ir::Type::Named { path, args } => {
             let head = format_core_path(path);
             if args.is_empty() {
                 head
@@ -4401,7 +4405,7 @@ fn format_runtime_core_type_inner(ty: &core_ir::Type, nested_fun_as_thunk: bool)
                 format!("{head}<{args}>")
             }
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -4411,7 +4415,7 @@ fn format_runtime_core_type_inner(ty: &core_ir::Type, nested_fun_as_thunk: bool)
             let ret = format_runtime_effected_core_value(ret, ret_effect, true);
             format!("{param} -> {ret}")
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -4433,7 +4437,7 @@ fn format_runtime_core_type_inner(ty: &core_ir::Type, nested_fun_as_thunk: bool)
                 )
             }
         }
-        core_ir::Type::Tuple(items) => {
+        typed_ir::Type::Tuple(items) => {
             let items = items
                 .iter()
                 .map(|item| format_runtime_core_type_inner(item, true))
@@ -4441,14 +4445,14 @@ fn format_runtime_core_type_inner(ty: &core_ir::Type, nested_fun_as_thunk: bool)
                 .join(", ");
             format!("({items})")
         }
-        core_ir::Type::Record(record) => format_core_record_type(record),
-        core_ir::Type::Variant(variant) => format_core_variant_type(variant),
-        core_ir::Type::Union(items) => items
+        typed_ir::Type::Record(record) => format_core_record_type(record),
+        typed_ir::Type::Variant(variant) => format_core_variant_type(variant),
+        typed_ir::Type::Union(items) => items
             .iter()
             .map(format_runtime_core_type)
             .collect::<Vec<_>>()
             .join(" | "),
-        core_ir::Type::Inter(items) => items
+        typed_ir::Type::Inter(items) => items
             .iter()
             .map(format_runtime_core_type)
             .collect::<Vec<_>>()
@@ -4457,16 +4461,16 @@ fn format_runtime_core_type_inner(ty: &core_ir::Type, nested_fun_as_thunk: bool)
     }
 }
 
-fn format_runtime_core_type_arg(arg: &core_ir::TypeArg) -> String {
+fn format_runtime_core_type_arg(arg: &typed_ir::TypeArg) -> String {
     match arg {
-        core_ir::TypeArg::Type(ty) => format_runtime_core_type_inner(ty, true),
-        core_ir::TypeArg::Bounds(bounds) => format_core_bounds(bounds),
+        typed_ir::TypeArg::Type(ty) => format_runtime_core_type_inner(ty, true),
+        typed_ir::TypeArg::Bounds(bounds) => format_core_bounds(bounds),
     }
 }
 
 fn format_runtime_effected_core_value(
-    value: &core_ir::Type,
-    effect: &core_ir::Type,
+    value: &typed_ir::Type,
+    effect: &typed_ir::Type,
     force_thunk: bool,
 ) -> String {
     let value = format_runtime_core_type_inner(value, true);
@@ -4477,16 +4481,16 @@ fn format_runtime_effected_core_value(
     }
 }
 
-fn format_runtime_core_fun_side(ty: &core_ir::Type) -> String {
+fn format_runtime_core_fun_side(ty: &typed_ir::Type) -> String {
     match ty {
-        core_ir::Type::Fun { .. } => format!("({})", format_runtime_core_type(ty)),
+        typed_ir::Type::Fun { .. } => format!("({})", format_runtime_core_type(ty)),
         _ => format_runtime_core_type(ty),
     }
 }
 
 fn format_runtime_type_atom(ty: &runtime::Type) -> String {
     match ty {
-        runtime::Type::Core(core_ir::Type::Fun { .. })
+        runtime::Type::Core(typed_ir::Type::Fun { .. })
         | runtime::Type::Fun { .. }
         | runtime::Type::Thunk { .. } => format!("({})", format_runtime_type(ty)),
         _ => format_runtime_type(ty),
@@ -4877,7 +4881,7 @@ fn format_runtime_record_spread_pattern(spread: &runtime::RecordSpreadPattern) -
     }
 }
 
-fn format_core_path(path: &core_ir::Path) -> String {
+fn format_core_path(path: &typed_ir::Path) -> String {
     if path.segments.is_empty() {
         "<root>".to_string()
     } else {
@@ -4889,30 +4893,30 @@ fn format_core_path(path: &core_ir::Path) -> String {
     }
 }
 
-fn is_top_type(ty: &core_ir::Type) -> bool {
-    matches!(ty, core_ir::Type::Any)
+fn is_top_type(ty: &typed_ir::Type) -> bool {
+    matches!(ty, typed_ir::Type::Any)
 }
 
-fn is_implicit_fun_effect(param_effect: &core_ir::Type, ret_effect: &core_ir::Type) -> bool {
+fn is_implicit_fun_effect(param_effect: &typed_ir::Type, ret_effect: &typed_ir::Type) -> bool {
     is_top_type(param_effect) && (is_top_type(ret_effect) || is_pure_row(ret_effect))
 }
 
-fn is_empty_effect(ty: &core_ir::Type) -> bool {
-    matches!(ty, core_ir::Type::Never) || is_pure_row(ty)
+fn is_empty_effect(ty: &typed_ir::Type) -> bool {
+    matches!(ty, typed_ir::Type::Never) || is_pure_row(ty)
 }
 
-fn is_pure_row(ty: &core_ir::Type) -> bool {
+fn is_pure_row(ty: &typed_ir::Type) -> bool {
     matches!(
         ty,
-        core_ir::Type::Row { items, tail }
-            if items.is_empty() && matches!(tail.as_ref(), core_ir::Type::Never)
+        typed_ir::Type::Row { items, tail }
+            if items.is_empty() && matches!(tail.as_ref(), typed_ir::Type::Never)
     )
 }
 
-fn is_std_prelude_path(path: &core_ir::Path) -> bool {
+fn is_std_prelude_path(path: &typed_ir::Path) -> bool {
     matches!(
         path.segments.as_slice(),
-        [core_ir::Name(std), core_ir::Name(prelude), ..] if std == "std" && prelude == "prelude"
+        [typed_ir::Name(std), typed_ir::Name(prelude), ..] if std == "std" && prelude == "prelude"
     )
 }
 
@@ -5273,7 +5277,7 @@ fn line_col(source: &str, offset: usize) -> (usize, usize) {
 
 fn runtime_error_source_frame(
     error: &runtime::RuntimeError,
-    program: &core_ir::CoreProgram,
+    program: &typed_ir::CoreProgram,
     source: &str,
 ) -> Option<String> {
     let range = runtime_error_source_range(error, &program.evidence)?;
@@ -5282,8 +5286,8 @@ fn runtime_error_source_frame(
 
 fn runtime_error_source_range(
     error: &runtime::RuntimeError,
-    evidence: &core_ir::PrincipalEvidence,
-) -> Option<core_ir::SourceRange> {
+    evidence: &typed_ir::PrincipalEvidence,
+) -> Option<typed_ir::SourceRange> {
     let runtime::RuntimeError::TypeMismatch {
         context: Some(context),
         ..
@@ -5305,7 +5309,7 @@ fn runtime_error_source_range(
     edge.source_range
 }
 
-fn source_frame(source: &str, range: core_ir::SourceRange) -> Option<String> {
+fn source_frame(source: &str, range: typed_ir::SourceRange) -> Option<String> {
     let start = usize::try_from(range.start).ok()?.min(source.len());
     let end = usize::try_from(range.end)
         .ok()?
@@ -5411,21 +5415,21 @@ mod tests {
 
     #[test]
     fn runtime_error_source_frame_uses_apply_source_edge() {
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
                 root_exprs: Vec::new(),
                 roots: Vec::new(),
             },
-            graph: core_ir::CoreGraphView::default(),
-            evidence: core_ir::PrincipalEvidence {
-                expected_edges: vec![core_ir::ExpectedEdgeEvidence {
+            graph: typed_ir::CoreGraphView::default(),
+            evidence: typed_ir::PrincipalEvidence {
+                expected_edges: vec![typed_ir::ExpectedEdgeEvidence {
                     id: 7,
-                    kind: core_ir::ExpectedEdgeKind::ApplicationArgument,
-                    source_range: Some(core_ir::SourceRange { start: 4, end: 8 }),
-                    actual: core_ir::TypeBounds::exact(core_type("bool")),
-                    expected: core_ir::TypeBounds::exact(core_type("int")),
+                    kind: typed_ir::ExpectedEdgeKind::ApplicationArgument,
+                    source_range: Some(typed_ir::SourceRange { start: 4, end: 8 }),
+                    actual: typed_ir::TypeBounds::exact(core_type("bool")),
+                    expected: typed_ir::TypeBounds::exact(core_type("int")),
                     actual_effect: None,
                     expected_effect: None,
                     closed: true,
@@ -5456,10 +5460,10 @@ mod tests {
         assert!(frame.contains("^^^^"));
     }
 
-    fn core_type(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path {
-                segments: vec![core_ir::Name(name.to_string())],
+    fn core_type(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path {
+                segments: vec![typed_ir::Name(name.to_string())],
             },
             args: Vec::new(),
         }
@@ -5731,54 +5735,54 @@ mod tests {
 
     #[test]
     fn format_apply_evidence_shows_full_projected_bounds() {
-        let evidence = core_ir::ApplyEvidence {
+        let evidence = typed_ir::ApplyEvidence {
             callee_source_edge: None,
             expected_callee: None,
             arg_source_edge: None,
-            callee: core_ir::TypeBounds {
+            callee: typed_ir::TypeBounds {
                 lower: None,
-                upper: Some(Box::new(core_ir::Type::Fun {
-                    param: Box::new(core_ir::Type::Named {
-                        path: core_ir::Path {
-                            segments: vec![core_ir::Name("int".to_string())],
+                upper: Some(Box::new(typed_ir::Type::Fun {
+                    param: Box::new(typed_ir::Type::Named {
+                        path: typed_ir::Path {
+                            segments: vec![typed_ir::Name("int".to_string())],
                         },
                         args: vec![],
                     }),
-                    param_effect: Box::new(core_ir::Type::Any),
-                    ret_effect: Box::new(core_ir::Type::Row {
+                    param_effect: Box::new(typed_ir::Type::Any),
+                    ret_effect: Box::new(typed_ir::Type::Row {
                         items: vec![],
-                        tail: Box::new(core_ir::Type::Never),
+                        tail: Box::new(typed_ir::Type::Never),
                     }),
-                    ret: Box::new(core_ir::Type::Named {
-                        path: core_ir::Path {
-                            segments: vec![core_ir::Name("int".to_string())],
+                    ret: Box::new(typed_ir::Type::Named {
+                        path: typed_ir::Path {
+                            segments: vec![typed_ir::Name("int".to_string())],
                         },
                         args: vec![],
                     }),
                 })),
             },
-            arg: core_ir::TypeBounds {
-                lower: Some(Box::new(core_ir::Type::Named {
-                    path: core_ir::Path {
-                        segments: vec![core_ir::Name("int".to_string())],
+            arg: typed_ir::TypeBounds {
+                lower: Some(Box::new(typed_ir::Type::Named {
+                    path: typed_ir::Path {
+                        segments: vec![typed_ir::Name("int".to_string())],
                     },
                     args: vec![],
                 })),
-                upper: Some(Box::new(core_ir::Type::Named {
-                    path: core_ir::Path {
-                        segments: vec![core_ir::Name("int".to_string())],
+                upper: Some(Box::new(typed_ir::Type::Named {
+                    path: typed_ir::Path {
+                        segments: vec![typed_ir::Name("int".to_string())],
                     },
                     args: vec![],
                 })),
             },
             expected_arg: None,
-            result: core_ir::TypeBounds {
-                lower: Some(Box::new(core_ir::Type::Var(core_ir::TypeVar(
+            result: typed_ir::TypeBounds {
+                lower: Some(Box::new(typed_ir::Type::Var(typed_ir::TypeVar(
                     "a".to_string(),
                 )))),
-                upper: Some(Box::new(core_ir::Type::Named {
-                    path: core_ir::Path {
-                        segments: vec![core_ir::Name("int".to_string())],
+                upper: Some(Box::new(typed_ir::Type::Named {
+                    path: typed_ir::Path {
+                        segments: vec![typed_ir::Name("int".to_string())],
                     },
                     args: vec![],
                 })),

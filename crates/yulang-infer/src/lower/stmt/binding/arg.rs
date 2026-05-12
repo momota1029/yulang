@@ -212,11 +212,11 @@ fn collect_nested_header_args(node: &SyntaxNode, out: &mut Vec<HeaderArg>) {
 fn exportable_param_effect_annotation(
     pat: &SyntaxNode,
     ann: Option<&LoweredPatAnn>,
-) -> Option<yulang_core_ir::ParamEffectAnnotation> {
+) -> Option<yulang_typed_ir::ParamEffectAnnotation> {
     match ann.and_then(|ann| ann.eff.as_ref()) {
-        Some(LoweredEffAnn::Opaque) => Some(yulang_core_ir::ParamEffectAnnotation::Wildcard),
+        Some(LoweredEffAnn::Opaque) => Some(yulang_typed_ir::ParamEffectAnnotation::Wildcard),
         Some(LoweredEffAnn::Row { .. }) => first_effect_annotation_region(pat).map(|name| {
-            yulang_core_ir::ParamEffectAnnotation::Region(yulang_core_ir::Name(name.0))
+            yulang_typed_ir::ParamEffectAnnotation::Region(yulang_typed_ir::Name(name.0))
         }),
         None => None,
     }
@@ -224,7 +224,7 @@ fn exportable_param_effect_annotation(
 
 fn exportable_function_sig_allowed_effects(
     pat: &SyntaxNode,
-) -> Option<yulang_core_ir::FunctionSigAllowedEffects> {
+) -> Option<yulang_typed_ir::FunctionSigAllowedEffects> {
     let type_expr = super::super::child_node(pat, SyntaxKind::TypeAnn)
         .and_then(|ann| super::super::child_node(&ann, SyntaxKind::TypeExpr))?;
     let sig = crate::lower::signature::parse_sig_type_expr(&type_expr)?;
@@ -236,8 +236,8 @@ fn exportable_function_sig_allowed_effects(
         return row
             .tail
             .is_some()
-            .then_some(yulang_core_ir::FunctionSigAllowedEffects::Wildcard)
-            .or(Some(yulang_core_ir::FunctionSigAllowedEffects::Effects(
+            .then_some(yulang_typed_ir::FunctionSigAllowedEffects::Wildcard)
+            .or(Some(yulang_typed_ir::FunctionSigAllowedEffects::Effects(
                 Vec::new(),
             )));
     }
@@ -248,15 +248,15 @@ fn exportable_function_sig_allowed_effects(
             | crate::lower::signature::SigType::Apply { path, .. } => path,
             _ => return None,
         };
-        effects.push(yulang_core_ir::Path {
+        effects.push(yulang_typed_ir::Path {
             segments: path
                 .segments
                 .into_iter()
-                .map(|segment| yulang_core_ir::Name(segment.0))
+                .map(|segment| yulang_typed_ir::Name(segment.0))
                 .collect(),
         });
     }
-    Some(yulang_core_ir::FunctionSigAllowedEffects::Effects(effects))
+    Some(yulang_typed_ir::FunctionSigAllowedEffects::Effects(effects))
 }
 
 fn first_effect_annotation_region(pat: &SyntaxNode) -> Option<Name> {

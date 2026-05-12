@@ -39,7 +39,7 @@ pub(super) fn principal_elaborate_strict_failure(module: &Module) -> Option<Stri
         return None;
     }
 
-    let mut failures = HashMap::<core_ir::Path, PrincipalElaborationStrictTarget>::new();
+    let mut failures = HashMap::<typed_ir::Path, PrincipalElaborationStrictTarget>::new();
     for expr in &module.root_exprs {
         collect_principal_elaboration_failures(expr, None, &generic_bindings, &mut failures);
     }
@@ -65,9 +65,9 @@ pub(super) fn principal_elaborate_strict_failure(module: &Module) -> Option<Stri
 
 fn collect_principal_elaboration_failures(
     expr: &Expr,
-    result_contextual: Option<&core_ir::TypeBounds>,
-    generic_bindings: &HashMap<core_ir::Path, &Binding>,
-    failures: &mut HashMap<core_ir::Path, PrincipalElaborationStrictTarget>,
+    result_contextual: Option<&typed_ir::TypeBounds>,
+    generic_bindings: &HashMap<typed_ir::Path, &Binding>,
+    failures: &mut HashMap<typed_ir::Path, PrincipalElaborationStrictTarget>,
 ) {
     if let Some(spine) = principal_apply_spine(expr)
         && let Some(binding) = generic_bindings.get(spine.target)
@@ -83,7 +83,7 @@ fn collect_principal_elaboration_failures(
             if handler_binding_info(binding).is_some() {
                 target.bump(format!(
                     "{:?}",
-                    core_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan
+                    typed_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan
                 ));
             } else if let Some(plan) = plan {
                 for reason in &plan.incomplete_reasons {
@@ -221,20 +221,20 @@ fn collect_principal_elaboration_failures(
     }
 }
 
-fn handler_boundary_plan_is_strict_complete(plan: &core_ir::PrincipalElaborationPlan) -> bool {
+fn handler_boundary_plan_is_strict_complete(plan: &typed_ir::PrincipalElaborationPlan) -> bool {
     !plan.incomplete_reasons.is_empty()
         && plan.incomplete_reasons.iter().all(|reason| {
             matches!(
                 reason,
-                core_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan
+                typed_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan
             )
         })
 }
 
 fn collect_principal_elaboration_failures_in_stmt(
     stmt: &Stmt,
-    generic_bindings: &HashMap<core_ir::Path, &Binding>,
-    failures: &mut HashMap<core_ir::Path, PrincipalElaborationStrictTarget>,
+    generic_bindings: &HashMap<typed_ir::Path, &Binding>,
+    failures: &mut HashMap<typed_ir::Path, PrincipalElaborationStrictTarget>,
 ) {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
@@ -244,7 +244,7 @@ fn collect_principal_elaboration_failures_in_stmt(
 }
 
 fn format_principal_elaboration_strict_failure(
-    failures: HashMap<core_ir::Path, PrincipalElaborationStrictTarget>,
+    failures: HashMap<typed_ir::Path, PrincipalElaborationStrictTarget>,
 ) -> String {
     let mut lines = Vec::new();
     let mut failures = failures.into_iter().collect::<Vec<_>>();
@@ -282,9 +282,9 @@ impl PrincipalElaborationStrictTarget {
 }
 
 struct PrincipalApplySpine<'a> {
-    target: &'a core_ir::Path,
+    target: &'a typed_ir::Path,
     args: Vec<&'a Expr>,
-    evidences_by_arg: Vec<Option<&'a core_ir::ApplyEvidence>>,
+    evidences_by_arg: Vec<Option<&'a typed_ir::ApplyEvidence>>,
 }
 
 fn principal_apply_spine(expr: &Expr) -> Option<PrincipalApplySpine<'_>> {
@@ -320,8 +320,8 @@ fn principal_apply_spine(expr: &Expr) -> Option<PrincipalApplySpine<'_>> {
 pub(super) fn principal_elaboration_plan_for_expr(
     expr: &Expr,
     binding: &Binding,
-    result_contextual: Option<&core_ir::TypeBounds>,
-) -> Option<core_ir::PrincipalElaborationPlan> {
+    result_contextual: Option<&typed_ir::TypeBounds>,
+) -> Option<typed_ir::PrincipalElaborationPlan> {
     let spine = principal_apply_spine(expr)?;
     if spine.target != &binding.name {
         return None;
@@ -359,8 +359,8 @@ pub(super) fn principal_elaboration_plan_for_expr(
 fn complete_principal_elaboration_plan_from_spine(
     spine: &PrincipalApplySpine<'_>,
     binding: &Binding,
-    result_contextual: Option<&core_ir::TypeBounds>,
-) -> Option<core_ir::PrincipalElaborationPlan> {
+    result_contextual: Option<&typed_ir::TypeBounds>,
+) -> Option<typed_ir::PrincipalElaborationPlan> {
     let (params, ret) = core_fun_spine(&binding.scheme.body, spine.args.len())?;
     let mut substitutions = Vec::new();
     let mut candidates = Vec::new();
@@ -368,7 +368,7 @@ fn complete_principal_elaboration_plan_from_spine(
     for (index, (arg, evidence)) in spine.args.iter().zip(&spine.evidences_by_arg).enumerate() {
         let runtime_arg = principal_plan_runtime_arg_bounds(arg);
         let Some(evidence) = evidence else {
-            args.push(core_ir::PrincipalElaborationArg {
+            args.push(typed_ir::PrincipalElaborationArg {
                 index,
                 intrinsic: runtime_arg.unwrap_or_default(),
                 contextual: None,
@@ -379,13 +379,13 @@ fn complete_principal_elaboration_plan_from_spine(
         };
         substitutions.extend(evidence.substitutions.clone());
         candidates.extend(evidence.substitution_candidates.clone());
-        args.push(core_ir::PrincipalElaborationArg {
+        args.push(typed_ir::PrincipalElaborationArg {
             index,
             intrinsic: principal_plan_best_arg_bounds(&evidence.arg, runtime_arg),
             contextual: params
                 .get(index)
                 .cloned()
-                .map(core_ir::TypeBounds::exact)
+                .map(typed_ir::TypeBounds::exact)
                 .or_else(|| evidence.expected_arg.clone()),
             expected_runtime: None,
             source_edge: evidence.arg_source_edge,
@@ -396,16 +396,16 @@ fn complete_principal_elaboration_plan_from_spine(
         .last()
         .and_then(|evidence| evidence.map(|evidence| evidence.result.clone()))
         .unwrap_or_default();
-    let plan = core_ir::PrincipalElaborationPlan {
+    let plan = typed_ir::PrincipalElaborationPlan {
         target: Some(binding.name.clone()),
         principal_callee: binding.scheme.body.clone(),
         substitutions,
         args,
-        result: core_ir::PrincipalElaborationResult {
+        result: typed_ir::PrincipalElaborationResult {
             intrinsic: result,
             contextual: result_contextual
                 .cloned()
-                .or_else(|| Some(core_ir::TypeBounds::exact(ret))),
+                .or_else(|| Some(typed_ir::TypeBounds::exact(ret))),
             expected_runtime: None,
         },
         adapters: Vec::new(),
@@ -422,9 +422,9 @@ fn complete_principal_elaboration_plan_from_spine(
 }
 
 fn principal_plan_best_arg_bounds(
-    evidence: &core_ir::TypeBounds,
-    runtime: Option<core_ir::TypeBounds>,
-) -> core_ir::TypeBounds {
+    evidence: &typed_ir::TypeBounds,
+    runtime: Option<typed_ir::TypeBounds>,
+) -> typed_ir::TypeBounds {
     match (
         principal_plan_bounds_are_precise(evidence),
         runtime
@@ -437,25 +437,25 @@ fn principal_plan_best_arg_bounds(
     }
 }
 
-fn principal_plan_runtime_arg_bounds(arg: &Expr) -> Option<core_ir::TypeBounds> {
+fn principal_plan_runtime_arg_bounds(arg: &Expr) -> Option<typed_ir::TypeBounds> {
     let ty = runtime_core_type(&arg.ty);
-    principal_plan_type_is_precise(&ty).then(|| core_ir::TypeBounds::exact(ty))
+    principal_plan_type_is_precise(&ty).then(|| typed_ir::TypeBounds::exact(ty))
 }
 
-fn principal_plan_bounds_are_precise(bounds: &core_ir::TypeBounds) -> bool {
+fn principal_plan_bounds_are_precise(bounds: &typed_ir::TypeBounds) -> bool {
     exact_type_from_bounds(bounds).is_some_and(principal_plan_type_is_precise)
 }
 
-fn principal_plan_type_is_precise(ty: &core_ir::Type) -> bool {
-    !matches!(ty, core_ir::Type::Unknown | core_ir::Type::Any)
+fn principal_plan_type_is_precise(ty: &typed_ir::Type) -> bool {
+    !matches!(ty, typed_ir::Type::Unknown | typed_ir::Type::Any)
         && !core_type_has_vars(ty)
         && !core_type_contains_unknown(ty)
 }
 
 fn debug_principal_elaboration_plan_from_spine(
-    target: &core_ir::Path,
-    plan: &core_ir::PrincipalElaborationPlan,
-    candidates: &[core_ir::PrincipalSubstitutionCandidate],
+    target: &typed_ir::Path,
+    plan: &typed_ir::PrincipalElaborationPlan,
+    candidates: &[typed_ir::PrincipalSubstitutionCandidate],
 ) {
     if !debug_principal_elaborate_enabled() {
         return;
@@ -502,7 +502,7 @@ fn debug_principal_elaborate_enabled() -> bool {
     *ENABLED.get_or_init(|| std::env::var_os("YULANG_DEBUG_PRINCIPAL_ELABORATE").is_some())
 }
 
-fn exact_type_from_bounds(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
+fn exact_type_from_bounds(bounds: &typed_ir::TypeBounds) -> Option<&typed_ir::Type> {
     match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
         (Some(lower), None) => Some(lower),
         (Some(lower), Some(upper)) if type_matches_exact_bounds(lower, upper) => Some(lower),
@@ -510,17 +510,17 @@ fn exact_type_from_bounds(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type
     }
 }
 
-fn type_matches_exact_bounds(actual: &core_ir::Type, expected: &core_ir::Type) -> bool {
-    if actual == expected || matches!(actual, core_ir::Type::Any) {
+fn type_matches_exact_bounds(actual: &typed_ir::Type, expected: &typed_ir::Type) -> bool {
+    if actual == expected || matches!(actual, typed_ir::Type::Any) {
         return true;
     }
     match (actual, expected) {
         (
-            core_ir::Type::Named {
+            typed_ir::Type::Named {
                 path: actual_path,
                 args: actual_args,
             },
-            core_ir::Type::Named {
+            typed_ir::Type::Named {
                 path: expected_path,
                 args: expected_args,
             },
@@ -533,13 +533,13 @@ fn type_matches_exact_bounds(actual: &core_ir::Type, expected: &core_ir::Type) -
                     .all(|(actual, expected)| type_arg_matches_exact_bounds(actual, expected))
         }
         (
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: actual_param,
                 param_effect: actual_param_effect,
                 ret_effect: actual_ret_effect,
                 ret: actual_ret,
             },
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: expected_param,
                 param_effect: expected_param_effect,
                 ret_effect: expected_ret_effect,
@@ -551,14 +551,14 @@ fn type_matches_exact_bounds(actual: &core_ir::Type, expected: &core_ir::Type) -
                 && type_matches_exact_bounds(actual_ret_effect, expected_ret_effect)
                 && type_matches_exact_bounds(actual_ret, expected_ret)
         }
-        (core_ir::Type::Tuple(actual), core_ir::Type::Tuple(expected))
-        | (core_ir::Type::Union(actual), core_ir::Type::Union(expected))
-        | (core_ir::Type::Inter(actual), core_ir::Type::Inter(expected)) => {
+        (typed_ir::Type::Tuple(actual), typed_ir::Type::Tuple(expected))
+        | (typed_ir::Type::Union(actual), typed_ir::Type::Union(expected))
+        | (typed_ir::Type::Inter(actual), typed_ir::Type::Inter(expected)) => {
             type_list_matches_exact_bounds(actual, expected)
         }
         (
-            core_ir::Type::Row { items, tail },
-            core_ir::Type::Row {
+            typed_ir::Type::Row { items, tail },
+            typed_ir::Type::Row {
                 items: expected_items,
                 tail: expected_tail,
             },
@@ -570,7 +570,7 @@ fn type_matches_exact_bounds(actual: &core_ir::Type, expected: &core_ir::Type) -
     }
 }
 
-fn type_list_matches_exact_bounds(actual: &[core_ir::Type], expected: &[core_ir::Type]) -> bool {
+fn type_list_matches_exact_bounds(actual: &[typed_ir::Type], expected: &[typed_ir::Type]) -> bool {
     actual.len() == expected.len()
         && actual
             .iter()
@@ -578,18 +578,18 @@ fn type_list_matches_exact_bounds(actual: &[core_ir::Type], expected: &[core_ir:
             .all(|(actual, expected)| type_matches_exact_bounds(actual, expected))
 }
 
-fn type_arg_matches_exact_bounds(actual: &core_ir::TypeArg, expected: &core_ir::TypeArg) -> bool {
+fn type_arg_matches_exact_bounds(actual: &typed_ir::TypeArg, expected: &typed_ir::TypeArg) -> bool {
     if actual == expected {
         return true;
     }
     match (actual, expected) {
-        (core_ir::TypeArg::Type(actual), core_ir::TypeArg::Bounds(expected)) => {
+        (typed_ir::TypeArg::Type(actual), typed_ir::TypeArg::Bounds(expected)) => {
             bounds_are_exact_type(expected, actual)
         }
-        (core_ir::TypeArg::Bounds(actual), core_ir::TypeArg::Type(expected)) => {
+        (typed_ir::TypeArg::Bounds(actual), typed_ir::TypeArg::Type(expected)) => {
             bounds_are_exact_type(actual, expected)
         }
-        (core_ir::TypeArg::Bounds(actual), core_ir::TypeArg::Bounds(expected)) => {
+        (typed_ir::TypeArg::Bounds(actual), typed_ir::TypeArg::Bounds(expected)) => {
             match (
                 exact_type_from_bounds(actual),
                 exact_type_from_bounds(expected),
@@ -602,18 +602,21 @@ fn type_arg_matches_exact_bounds(actual: &core_ir::TypeArg, expected: &core_ir::
     }
 }
 
-fn bounds_are_exact_type(bounds: &core_ir::TypeBounds, ty: &core_ir::Type) -> bool {
+fn bounds_are_exact_type(bounds: &typed_ir::TypeBounds, ty: &typed_ir::Type) -> bool {
     exact_type_from_bounds(bounds).is_some_and(|exact| type_matches_exact_bounds(exact, ty))
 }
 
-fn core_fun_parts(ty: &core_ir::Type) -> Option<(core_ir::Type, core_ir::Type)> {
-    let core_ir::Type::Fun { param, ret, .. } = ty else {
+fn core_fun_parts(ty: &typed_ir::Type) -> Option<(typed_ir::Type, typed_ir::Type)> {
+    let typed_ir::Type::Fun { param, ret, .. } = ty else {
         return None;
     };
     Some((param.as_ref().clone(), ret.as_ref().clone()))
 }
 
-fn core_fun_spine(ty: &core_ir::Type, arity: usize) -> Option<(Vec<core_ir::Type>, core_ir::Type)> {
+fn core_fun_spine(
+    ty: &typed_ir::Type,
+    arity: usize,
+) -> Option<(Vec<typed_ir::Type>, typed_ir::Type)> {
     let mut params = Vec::with_capacity(arity);
     let mut current = ty.clone();
     for _ in 0..arity {
@@ -624,7 +627,7 @@ fn core_fun_spine(ty: &core_ir::Type, arity: usize) -> Option<(Vec<core_ir::Type
     Some((params, current))
 }
 
-fn principal_binding_substitution_vars(binding: &Binding) -> BTreeSet<core_ir::TypeVar> {
+fn principal_binding_substitution_vars(binding: &Binding) -> BTreeSet<typed_ir::TypeVar> {
     let mut vars = BTreeSet::new();
     collect_binding_type_params(binding, &mut vars);
     vars

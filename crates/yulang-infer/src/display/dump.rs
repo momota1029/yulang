@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{ExpectedEdge, ExpectedEdgeKind};
 use crate::display::format as display_format;
@@ -126,7 +126,7 @@ fn collect_non_std_exported_binding_paths(state: &LowerState) -> Vec<(Path, crat
         .collect()
 }
 
-pub(crate) fn format_runtime_export_scheme(scheme: &core_ir::Scheme) -> String {
+pub(crate) fn format_runtime_export_scheme(scheme: &typed_ir::Scheme) -> String {
     let body = format_core_type(&scheme.body);
     if scheme.requirements.is_empty() {
         return body;
@@ -140,13 +140,13 @@ pub(crate) fn format_runtime_export_scheme(scheme: &core_ir::Scheme) -> String {
     format!("{requirements} => {body}")
 }
 
-fn format_core_role_requirement(requirement: &core_ir::RoleRequirement) -> String {
+fn format_core_role_requirement(requirement: &typed_ir::RoleRequirement) -> String {
     let args = requirement
         .args
         .iter()
         .map(|arg| match arg {
-            core_ir::RoleRequirementArg::Input(bounds) => format_core_bounds(bounds),
-            core_ir::RoleRequirementArg::Associated { name, bounds } => {
+            typed_ir::RoleRequirementArg::Input(bounds) => format_core_bounds(bounds),
+            typed_ir::RoleRequirementArg::Associated { name, bounds } => {
                 format!("{} = {}", name.0, format_core_bounds(bounds))
             }
         })
@@ -161,7 +161,7 @@ fn format_core_role_requirement(requirement: &core_ir::RoleRequirement) -> Strin
     )
 }
 
-fn format_core_bounds(bounds: &core_ir::TypeBounds) -> String {
+fn format_core_bounds(bounds: &typed_ir::TypeBounds) -> String {
     match (&bounds.lower, &bounds.upper) {
         (Some(lower), Some(upper)) if lower == upper => format_core_type(lower),
         (Some(lower), Some(upper)) => {
@@ -173,13 +173,13 @@ fn format_core_bounds(bounds: &core_ir::TypeBounds) -> String {
     }
 }
 
-fn format_core_type(ty: &core_ir::Type) -> String {
+fn format_core_type(ty: &typed_ir::Type) -> String {
     match ty {
-        core_ir::Type::Unknown => "?".to_string(),
-        core_ir::Type::Never => "⊥".to_string(),
-        core_ir::Type::Any => "⊤".to_string(),
-        core_ir::Type::Var(tv) => tv.0.clone(),
-        core_ir::Type::Named { path, args } => {
+        typed_ir::Type::Unknown => "?".to_string(),
+        typed_ir::Type::Never => "⊥".to_string(),
+        typed_ir::Type::Any => "⊤".to_string(),
+        typed_ir::Type::Var(tv) => tv.0.clone(),
+        typed_ir::Type::Named { path, args } => {
             let name = format_core_path(path);
             if args.is_empty() {
                 return name;
@@ -187,14 +187,14 @@ fn format_core_type(ty: &core_ir::Type) -> String {
             let args = args
                 .iter()
                 .map(|arg| match arg {
-                    core_ir::TypeArg::Type(ty) => format_core_type(ty),
-                    core_ir::TypeArg::Bounds(bounds) => format_core_bounds(bounds),
+                    typed_ir::TypeArg::Type(ty) => format_core_type(ty),
+                    typed_ir::TypeArg::Bounds(bounds) => format_core_bounds(bounds),
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("{name}<{args}>")
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -204,15 +204,15 @@ fn format_core_type(ty: &core_ir::Type) -> String {
             let param_effect_text = format_core_type(param_effect);
             let ret_effect_text = format_core_type(ret_effect);
             let ret_text = format_core_type(ret);
-            if matches!(&**param_effect, core_ir::Type::Never | core_ir::Type::Any)
-                && matches!(&**ret_effect, core_ir::Type::Never | core_ir::Type::Any)
+            if matches!(&**param_effect, typed_ir::Type::Never | typed_ir::Type::Any)
+                && matches!(&**ret_effect, typed_ir::Type::Never | typed_ir::Type::Any)
             {
                 format!("{param_text} -> {ret_text}")
             } else {
                 format!("{param_text} [{param_effect_text}] -> [{ret_effect_text}] {ret_text}")
             }
         }
-        core_ir::Type::Tuple(items) => {
+        typed_ir::Type::Tuple(items) => {
             let items = items
                 .iter()
                 .map(format_core_type)
@@ -220,7 +220,7 @@ fn format_core_type(ty: &core_ir::Type) -> String {
                 .join(", ");
             format!("({items})")
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             let fields = record
                 .fields
                 .iter()
@@ -237,14 +237,14 @@ fn format_core_type(ty: &core_ir::Type) -> String {
                 .join(", ");
             match &record.spread {
                 None => format!("{{{fields}}}"),
-                Some(core_ir::RecordSpread::Head(tail)) => {
+                Some(typed_ir::RecordSpread::Head(tail)) => {
                     let mut parts = vec![format!("..{}", format_core_type(tail))];
                     if !fields.is_empty() {
                         parts.push(fields);
                     }
                     format!("{{{}}}", parts.join(", "))
                 }
-                Some(core_ir::RecordSpread::Tail(tail)) => {
+                Some(typed_ir::RecordSpread::Tail(tail)) => {
                     let mut parts = Vec::new();
                     if !fields.is_empty() {
                         parts.push(fields);
@@ -254,7 +254,7 @@ fn format_core_type(ty: &core_ir::Type) -> String {
                 }
             }
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             let cases = variant
                 .cases
                 .iter()
@@ -280,7 +280,7 @@ fn format_core_type(ty: &core_ir::Type) -> String {
             }
             format!(":{{{}}}", items.join(", "))
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             let items = items
                 .iter()
                 .map(format_core_type)
@@ -288,23 +288,23 @@ fn format_core_type(ty: &core_ir::Type) -> String {
                 .join(", ");
             format!("[{}; {}]", items, format_core_type(tail))
         }
-        core_ir::Type::Union(items) => items
+        typed_ir::Type::Union(items) => items
             .iter()
             .map(format_core_type)
             .collect::<Vec<_>>()
             .join(" | "),
-        core_ir::Type::Inter(items) => items
+        typed_ir::Type::Inter(items) => items
             .iter()
             .map(format_core_type)
             .collect::<Vec<_>>()
             .join(" & "),
-        core_ir::Type::Recursive { var, body } => {
+        typed_ir::Type::Recursive { var, body } => {
             format!("rec {}. {}", var.0, format_core_type(body))
         }
     }
 }
 
-fn format_core_path(path: &core_ir::Path) -> String {
+fn format_core_path(path: &typed_ir::Path) -> String {
     path.segments
         .iter()
         .map(|segment| segment.0.clone())

@@ -4,24 +4,24 @@ mod tests {
 
     #[test]
     pub(super) fn lower_literal_root_uses_graph_type() {
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                root_exprs: vec![typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(named_type("int")),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -31,36 +31,36 @@ mod tests {
 
     #[test]
     pub(super) fn lower_literal_uses_graph_primitive_type_metadata() {
-        let custom_int = core_ir::Path::new(vec![
-            core_ir::Name("runtime".to_string()),
-            core_ir::Name("int".to_string()),
+        let custom_int = typed_ir::Path::new(vec![
+            typed_ir::Name("runtime".to_string()),
+            typed_ir::Name("int".to_string()),
         ]);
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                root_exprs: vec![typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            graph: typed_ir::CoreGraphView {
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
                 }],
-                primitive_types: vec![core_ir::PrimitiveTypeGraphNode {
-                    family: core_ir::PrimitiveTypeFamily::Int,
+                primitive_types: vec![typed_ir::PrimitiveTypeGraphNode {
+                    family: typed_ir::PrimitiveTypeFamily::Int,
                     path: custom_int.clone(),
                 }],
-                ..core_ir::CoreGraphView::default()
+                ..typed_ir::CoreGraphView::default()
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
 
         assert_eq!(
             core_type(&module.root_exprs[0].ty),
-            &core_ir::Type::Named {
+            &typed_ir::Type::Named {
                 path: custom_int,
                 args: Vec::new(),
             }
@@ -69,38 +69,38 @@ mod tests {
 
     #[test]
     pub(super) fn lower_root_erases_principal_vars_from_graph_bounds() {
-        let principal_var = core_ir::TypeVar("a".to_string());
-        let id_path = core_ir::Path::from_name(core_ir::Name("id".to_string()));
-        let list_with_principal_var = core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
-            args: vec![core_ir::TypeArg::Type(core_ir::Type::Union(vec![
-                core_ir::Type::Var(principal_var.clone()),
+        let principal_var = typed_ir::TypeVar("a".to_string());
+        let id_path = typed_ir::Path::from_name(typed_ir::Name("id".to_string()));
+        let list_with_principal_var = typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("list".to_string())),
+            args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Union(vec![
+                typed_ir::Type::Var(principal_var.clone()),
                 named_type("int"),
             ]))],
         };
-        let list_of_int = core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
-            args: vec![core_ir::TypeArg::Type(named_type("int"))],
+        let list_of_int = typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("list".to_string())),
+            args: vec![typed_ir::TypeArg::Type(named_type("int"))],
         };
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
-                bindings: vec![core_ir::PrincipalBinding {
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
+                bindings: vec![typed_ir::PrincipalBinding {
                     name: id_path,
-                    scheme: core_ir::Scheme {
+                    scheme: typed_ir::Scheme {
                         requirements: Vec::new(),
-                        body: core_ir::Type::Var(principal_var),
+                        body: typed_ir::Type::Var(principal_var),
                     },
-                    body: core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string())),
+                    body: typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string())),
                 }],
-                root_exprs: vec![core_ir::Expr::Lit(core_ir::Lit::Unit)],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                root_exprs: vec![typed_ir::Expr::Lit(typed_ir::Lit::Unit)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds {
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds {
                         lower: Some(Box::new(list_with_principal_var)),
                         upper: None,
                     },
@@ -109,7 +109,7 @@ mod tests {
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
         let lowerer = Lowerer {
             env: HashMap::new(),
@@ -135,13 +135,13 @@ mod tests {
 
     #[test]
     pub(super) fn prepare_thunk_expected_type_keeps_more_concrete_actual_value() {
-        let value_var = core_ir::TypeVar("value".to_string());
+        let value_var = typed_ir::TypeVar("value".to_string());
         let expected = RuntimeType::thunk(
             named_type("undet"),
-            RuntimeType::core(core_ir::Type::Var(value_var)),
+            RuntimeType::core(typed_ir::Type::Var(value_var)),
         );
         let expr = Expr::typed(
-            ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
             RuntimeType::core(named_type("int")),
         );
 
@@ -160,7 +160,7 @@ mod tests {
     pub(super) fn runtime_adapter_profile_counts_value_to_thunk_wrap() {
         let expected = RuntimeType::thunk(empty_row(), RuntimeType::core(named_type("int")));
         let expr = Expr::typed(
-            ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
             RuntimeType::core(named_type("int")),
         );
         let mut profile = RuntimeAdapterProfile::default();
@@ -184,7 +184,7 @@ mod tests {
                 effect: empty_row(),
                 value: RuntimeType::core(named_type("int")),
                 expr: Box::new(Expr::typed(
-                    ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                    ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                     RuntimeType::core(named_type("int")),
                 )),
             },
@@ -211,7 +211,7 @@ mod tests {
                 effect: empty_row(),
                 value: RuntimeType::core(named_type("int")),
                 expr: Box::new(Expr::typed(
-                    ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                    ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                     RuntimeType::core(named_type("int")),
                 )),
             },
@@ -234,8 +234,10 @@ mod tests {
                 has_apply_arg_source_edge: true,
                 callee_source_edge: None,
                 arg_source_edge: Some(7),
-                owner: Some(core_ir::Path::from_name(core_ir::Name("owner".to_string()))),
-                apply_target: Some(core_ir::Path::from_name(core_ir::Name("f".to_string()))),
+                owner: Some(typed_ir::Path::from_name(typed_ir::Name(
+                    "owner".to_string(),
+                ))),
+                apply_target: Some(typed_ir::Path::from_name(typed_ir::Name("f".to_string()))),
             }),
         )
         .expect("prepared");
@@ -252,30 +254,30 @@ mod tests {
         assert_eq!(profile.events.len(), 2);
         assert_eq!(
             profile.events[0].apply_target.as_ref(),
-            Some(&core_ir::Path::from_name(core_ir::Name("f".to_string())))
+            Some(&typed_ir::Path::from_name(typed_ir::Name("f".to_string())))
         );
         assert_eq!(profile.events[0].arg_source_edge, Some(7));
     }
 
     #[test]
     pub(super) fn lower_role_method_var_resolves_concrete_impl_from_expected_receiver() {
-        let role_path = core_ir::Path::new(vec![
-            core_ir::Name("std".to_string()),
-            core_ir::Name("prelude".to_string()),
-            core_ir::Name("Add".to_string()),
-            core_ir::Name("add".to_string()),
+        let role_path = typed_ir::Path::new(vec![
+            typed_ir::Name("std".to_string()),
+            typed_ir::Name("prelude".to_string()),
+            typed_ir::Name("Add".to_string()),
+            typed_ir::Name("add".to_string()),
         ]);
-        let int_impl = core_ir::Path::new(vec![
-            core_ir::Name("std".to_string()),
-            core_ir::Name("prelude".to_string()),
-            core_ir::Name("&impl#int".to_string()),
-            core_ir::Name("add".to_string()),
+        let int_impl = typed_ir::Path::new(vec![
+            typed_ir::Name("std".to_string()),
+            typed_ir::Name("prelude".to_string()),
+            typed_ir::Name("&impl#int".to_string()),
+            typed_ir::Name("add".to_string()),
         ]);
-        let float_impl = core_ir::Path::new(vec![
-            core_ir::Name("std".to_string()),
-            core_ir::Name("prelude".to_string()),
-            core_ir::Name("&impl#float".to_string()),
-            core_ir::Name("add".to_string()),
+        let float_impl = typed_ir::Path::new(vec![
+            typed_ir::Name("std".to_string()),
+            typed_ir::Name("prelude".to_string()),
+            typed_ir::Name("&impl#float".to_string()),
+            typed_ir::Name("add".to_string()),
         ]);
         let int_ty = RuntimeType::fun(
             RuntimeType::core(named_type("int")),
@@ -312,10 +314,10 @@ mod tests {
                 ),
             ]),
             aliases: HashMap::new(),
-            graph: &core_ir::CoreGraphView::default(),
+            graph: &typed_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::from([(
                 role_path.clone(),
-                core_ir::RuntimeSymbolKind::RoleMethod,
+                typed_ir::RuntimeSymbolKind::RoleMethod,
             )]),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
@@ -335,15 +337,15 @@ mod tests {
             RuntimeType::fun(
                 RuntimeType::core(named_type("int")),
                 RuntimeType::thunk(
-                    core_ir::Type::Var(core_ir::TypeVar("effect".to_string())),
-                    RuntimeType::core(core_ir::Type::Var(core_ir::TypeVar("value".to_string()))),
+                    typed_ir::Type::Var(typed_ir::TypeVar("effect".to_string())),
+                    RuntimeType::core(typed_ir::Type::Var(typed_ir::TypeVar("value".to_string()))),
                 ),
             ),
         );
 
         let expr = lowerer
             .lower_expr(
-                core_ir::Expr::Var(role_path.clone()),
+                typed_ir::Expr::Var(role_path.clone()),
                 Some(&expected_ty),
                 &mut HashMap::new(),
                 TypeSource::Expected,
@@ -356,35 +358,37 @@ mod tests {
 
     #[test]
     pub(super) fn lower_let_accepts_function_value_pattern() {
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::Expr::Block {
-                    stmts: vec![core_ir::Stmt::Let {
-                        pattern: core_ir::Pattern::Bind(core_ir::Name("f".to_string())),
-                        value: core_ir::Expr::Lambda {
-                            param: core_ir::Name("x".to_string()),
+                root_exprs: vec![typed_ir::Expr::Block {
+                    stmts: vec![typed_ir::Stmt::Let {
+                        pattern: typed_ir::Pattern::Bind(typed_ir::Name("f".to_string())),
+                        value: typed_ir::Expr::Lambda {
+                            param: typed_ir::Name("x".to_string()),
                             param_effect_annotation: None,
                             param_function_allowed_effects: None,
-                            body: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))),
+                            body: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Int(
+                                "1".to_string(),
+                            ))),
                         },
                     }],
-                    tail: Some(Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit))),
+                    tail: Some(Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Unit))),
                 }],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(unit_type()),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(unit_type()),
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -406,15 +410,15 @@ mod tests {
 
     #[test]
     pub(super) fn lower_root_without_graph_type_is_rejected() {
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                root_exprs: vec![typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView::default(),
-            evidence: core_ir::PrincipalEvidence::default(),
+            graph: typed_ir::CoreGraphView::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         assert!(matches!(
@@ -426,37 +430,37 @@ mod tests {
     #[test]
     pub(super) fn lower_binding_prefers_principal_scheme_over_wide_graph_bounds() {
         let point = named_type("point");
-        let record = core_ir::Type::Record(core_ir::RecordType {
-            fields: vec![core_ir::RecordField {
-                name: core_ir::Name("x".to_string()),
+        let record = typed_ir::Type::Record(typed_ir::RecordType {
+            fields: vec![typed_ir::RecordField {
+                name: typed_ir::Name("x".to_string()),
                 value: named_type("int"),
                 optional: false,
             }],
             spread: None,
         });
-        let point_ctor_ty = core_ir::Type::Fun {
+        let point_ctor_ty = typed_ir::Type::Fun {
             param: Box::new(record.clone()),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(point.clone()),
         };
-        let point_path = core_ir::Path::from_name(core_ir::Name("point".to_string()));
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
-                bindings: vec![core_ir::PrincipalBinding {
+        let point_path = typed_ir::Path::from_name(typed_ir::Name("point".to_string()));
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
+                bindings: vec![typed_ir::PrincipalBinding {
                     name: point_path.clone(),
-                    scheme: core_ir::Scheme {
+                    scheme: typed_ir::Scheme {
                         requirements: Vec::new(),
                         body: point_ctor_ty.clone(),
                     },
-                    body: core_ir::Expr::Lambda {
-                        param: core_ir::Name("value".to_string()),
+                    body: typed_ir::Expr::Lambda {
+                        param: typed_ir::Name("value".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
-                        body: Box::new(core_ir::Expr::Coerce {
-                            expr: Box::new(core_ir::Expr::Var(core_ir::Path::from_name(
-                                core_ir::Name("value".to_string()),
+                        body: Box::new(typed_ir::Expr::Coerce {
+                            expr: Box::new(typed_ir::Expr::Var(typed_ir::Path::from_name(
+                                typed_ir::Name("value".to_string()),
                             ))),
                             evidence: None,
                         }),
@@ -465,18 +469,18 @@ mod tests {
                 root_exprs: Vec::new(),
                 roots: Vec::new(),
             },
-            graph: core_ir::CoreGraphView {
-                bindings: vec![core_ir::BindingGraphNode {
+            graph: typed_ir::CoreGraphView {
+                bindings: vec![typed_ir::BindingGraphNode {
                     binding: point_path,
                     scheme_body: point_ctor_ty.clone(),
-                    body_bounds: core_ir::TypeBounds::upper(core_ir::Type::Any),
+                    body_bounds: typed_ir::TypeBounds::upper(typed_ir::Type::Any),
                 }],
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -489,62 +493,62 @@ mod tests {
 
     #[test]
     pub(super) fn lower_direct_alias_prefers_more_concrete_target_type() {
-        let effect_var = core_ir::TypeVar("e".to_string());
-        let target_path = core_ir::Path::new(vec![
-            core_ir::Name("std".to_string()),
-            core_ir::Name("range".to_string()),
-            core_ir::Name("from_included".to_string()),
+        let effect_var = typed_ir::TypeVar("e".to_string());
+        let target_path = typed_ir::Path::new(vec![
+            typed_ir::Name("std".to_string()),
+            typed_ir::Name("range".to_string()),
+            typed_ir::Name("from_included".to_string()),
         ]);
-        let alias_path = core_ir::Path::new(vec![
-            core_ir::Name("std".to_string()),
-            core_ir::Name("prelude".to_string()),
-            core_ir::Name("#op:suffix:..".to_string()),
+        let alias_path = typed_ir::Path::new(vec![
+            typed_ir::Name("std".to_string()),
+            typed_ir::Name("prelude".to_string()),
+            typed_ir::Name("#op:suffix:..".to_string()),
         ]);
-        let pure_ty = core_ir::Type::Fun {
+        let pure_ty = typed_ir::Type::Fun {
             param: Box::new(named_type("int")),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(named_type("range")),
         };
-        let polluted_alias_ty = core_ir::Type::Fun {
+        let polluted_alias_ty = typed_ir::Type::Fun {
             param: Box::new(named_type("int")),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Named {
-                path: core_ir::Path::new(vec![
-                    core_ir::Name("std".to_string()),
-                    core_ir::Name("flow".to_string()),
-                    core_ir::Name("sub".to_string()),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Named {
+                path: typed_ir::Path::new(vec![
+                    typed_ir::Name("std".to_string()),
+                    typed_ir::Name("flow".to_string()),
+                    typed_ir::Name("sub".to_string()),
                 ]),
-                args: vec![core_ir::TypeArg::Type(core_ir::Type::Var(effect_var))],
+                args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(effect_var))],
             }),
             ret: Box::new(named_type("range")),
         };
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: vec![
-                    core_ir::PrincipalBinding {
+                    typed_ir::PrincipalBinding {
                         name: alias_path.clone(),
-                        scheme: core_ir::Scheme {
+                        scheme: typed_ir::Scheme {
                             requirements: Vec::new(),
                             body: polluted_alias_ty,
                         },
-                        body: core_ir::Expr::Var(target_path.clone()),
+                        body: typed_ir::Expr::Var(target_path.clone()),
                     },
-                    core_ir::PrincipalBinding {
+                    typed_ir::PrincipalBinding {
                         name: target_path,
-                        scheme: core_ir::Scheme {
+                        scheme: typed_ir::Scheme {
                             requirements: Vec::new(),
                             body: pure_ty.clone(),
                         },
-                        body: core_ir::Expr::PrimitiveOp(core_ir::PrimitiveOp::IntToString),
+                        body: typed_ir::Expr::PrimitiveOp(typed_ir::PrimitiveOp::IntToString),
                     },
                 ],
                 root_exprs: Vec::new(),
                 roots: Vec::new(),
             },
-            graph: core_ir::CoreGraphView::default(),
-            evidence: core_ir::PrincipalEvidence::default(),
+            graph: typed_ir::CoreGraphView::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -566,50 +570,50 @@ mod tests {
 
     #[test]
     pub(super) fn lower_apply_records_polymorphic_instantiation() {
-        let a = core_ir::TypeVar("a".to_string());
-        let id_path = core_ir::Path::from_name(core_ir::Name("id".to_string()));
-        let id_ty = core_ir::Type::Fun {
-            param: Box::new(core_ir::Type::Var(a.clone())),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Never),
-            ret: Box::new(core_ir::Type::Var(a.clone())),
+        let a = typed_ir::TypeVar("a".to_string());
+        let id_path = typed_ir::Path::from_name(typed_ir::Name("id".to_string()));
+        let id_ty = typed_ir::Type::Fun {
+            param: Box::new(typed_ir::Type::Var(a.clone())),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(typed_ir::Type::Var(a.clone())),
         };
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
-                bindings: vec![core_ir::PrincipalBinding {
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
+                bindings: vec![typed_ir::PrincipalBinding {
                     name: id_path.clone(),
-                    scheme: core_ir::Scheme {
+                    scheme: typed_ir::Scheme {
                         requirements: Vec::new(),
                         body: id_ty,
                     },
-                    body: core_ir::Expr::Lambda {
-                        param: core_ir::Name("x".to_string()),
+                    body: typed_ir::Expr::Lambda {
+                        param: typed_ir::Name("x".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
-                        body: Box::new(core_ir::Expr::Var(core_ir::Path::from_name(
-                            core_ir::Name("x".to_string()),
+                        body: Box::new(typed_ir::Expr::Var(typed_ir::Path::from_name(
+                            typed_ir::Name("x".to_string()),
                         ))),
                     },
                 }],
-                root_exprs: vec![core_ir::Expr::Apply {
-                    callee: Box::new(core_ir::Expr::Var(id_path.clone())),
-                    arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))),
+                root_exprs: vec![typed_ir::Expr::Apply {
+                    callee: Box::new(typed_ir::Expr::Var(id_path.clone())),
+                    arg: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))),
                     evidence: None,
                 }],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(named_type("int")),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -630,51 +634,51 @@ mod tests {
 
     #[test]
     pub(super) fn lower_handle_resume_uses_apply_evidence() {
-        let k_path = core_ir::Path::from_name(core_ir::Name("k".to_string()));
-        let action_path = core_ir::Path {
+        let k_path = typed_ir::Path::from_name(typed_ir::Name("k".to_string()));
+        let action_path = typed_ir::Path {
             segments: vec![
-                core_ir::Name("std".to_string()),
-                core_ir::Name("junction".to_string()),
-                core_ir::Name("or".to_string()),
-                core_ir::Name("choose".to_string()),
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("junction".to_string()),
+                typed_ir::Name("or".to_string()),
+                typed_ir::Name("choose".to_string()),
             ],
         };
-        let effect_path = core_ir::Path {
+        let effect_path = typed_ir::Path {
             segments: vec![
-                core_ir::Name("std".to_string()),
-                core_ir::Name("junction".to_string()),
-                core_ir::Name("or".to_string()),
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("junction".to_string()),
+                typed_ir::Name("or".to_string()),
             ],
         };
-        let handled_effect = core_ir::Type::Row {
-            items: vec![core_ir::Type::Named {
+        let handled_effect = typed_ir::Type::Row {
+            items: vec![typed_ir::Type::Named {
                 path: effect_path.clone(),
                 args: Vec::new(),
             }],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
-        let effect_op_ty = core_ir::Type::Fun {
+        let effect_op_ty = typed_ir::Type::Fun {
             param: Box::new(unit_type()),
-            param_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(handled_effect.clone()),
             ret: Box::new(bool_type()),
         };
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::Expr::Handle {
-                    body: Box::new(core_ir::Expr::Apply {
-                        callee: Box::new(core_ir::Expr::Var(action_path.clone())),
-                        arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
-                        evidence: Some(core_ir::ApplyEvidence {
+                root_exprs: vec![typed_ir::Expr::Handle {
+                    body: Box::new(typed_ir::Expr::Apply {
+                        callee: Box::new(typed_ir::Expr::Var(action_path.clone())),
+                        arg: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Unit)),
+                        evidence: Some(typed_ir::ApplyEvidence {
                             callee_source_edge: None,
                             expected_callee: None,
                             arg_source_edge: None,
-                            callee: core_ir::TypeBounds::exact(effect_op_ty),
-                            arg: core_ir::TypeBounds::exact(unit_type()),
+                            callee: typed_ir::TypeBounds::exact(effect_op_ty),
+                            arg: typed_ir::TypeBounds::exact(unit_type()),
                             expected_arg: None,
-                            result: core_ir::TypeBounds::exact(bool_type()),
+                            result: typed_ir::TypeBounds::exact(bool_type()),
                             principal_callee: None,
                             substitutions: Vec::new(),
                             substitution_candidates: Vec::new(),
@@ -682,22 +686,22 @@ mod tests {
                             principal_elaboration: None,
                         }),
                     }),
-                    arms: vec![core_ir::HandleArm {
+                    arms: vec![typed_ir::HandleArm {
                         effect: action_path.clone(),
-                        payload: core_ir::Pattern::Wildcard,
-                        resume: Some(core_ir::Name("k".to_string())),
+                        payload: typed_ir::Pattern::Wildcard,
+                        resume: Some(typed_ir::Name("k".to_string())),
                         guard: None,
-                        body: core_ir::Expr::Apply {
-                            callee: Box::new(core_ir::Expr::Var(k_path)),
-                            arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Bool(true))),
-                            evidence: Some(core_ir::ApplyEvidence {
+                        body: typed_ir::Expr::Apply {
+                            callee: Box::new(typed_ir::Expr::Var(k_path)),
+                            arg: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Bool(true))),
+                            evidence: Some(typed_ir::ApplyEvidence {
                                 callee_source_edge: None,
                                 expected_callee: None,
                                 arg_source_edge: None,
-                                callee: core_ir::TypeBounds::exact(core_ir::Type::Any),
-                                arg: core_ir::TypeBounds::exact(bool_type()),
+                                callee: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+                                arg: typed_ir::TypeBounds::exact(bool_type()),
                                 expected_arg: None,
-                                result: core_ir::TypeBounds::exact(bool_type()),
+                                result: typed_ir::TypeBounds::exact(bool_type()),
                                 principal_callee: None,
                                 substitutions: Vec::new(),
                                 substitution_candidates: Vec::new(),
@@ -706,26 +710,26 @@ mod tests {
                             }),
                         },
                     }],
-                    evidence: Some(core_ir::JoinEvidence {
-                        result: core_ir::TypeBounds::exact(bool_type()),
+                    evidence: Some(typed_ir::JoinEvidence {
+                        result: typed_ir::TypeBounds::exact(bool_type()),
                     }),
                 }],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(bool_type()),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(bool_type()),
                 }],
-                runtime_symbols: vec![core_ir::RuntimeSymbol {
+                runtime_symbols: vec![typed_ir::RuntimeSymbol {
                     path: action_path,
-                    kind: core_ir::RuntimeSymbolKind::EffectOperation,
+                    kind: typed_ir::RuntimeSymbolKind::EffectOperation,
                 }],
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -736,7 +740,7 @@ mod tests {
         };
         assert_eq!(handler.consumes, vec![effect_path]);
         let resume = arms[0].resume.as_ref().expect("resume binding");
-        assert_eq!(resume.name, core_ir::Name("k".to_string()));
+        assert_eq!(resume.name, typed_ir::Name("k".to_string()));
         let RuntimeType::Fun { param, ret } = &resume.ty else {
             panic!("resume should be a function");
         };
@@ -746,38 +750,38 @@ mod tests {
 
     #[test]
     pub(super) fn lower_handle_payload_uses_arm_body_context() {
-        let payload_name = core_ir::Name("payload".to_string());
-        let effect_path = core_ir::Path::from_name(core_ir::Name("ret".to_string()));
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let payload_name = typed_ir::Name("payload".to_string());
+        let effect_path = typed_ir::Path::from_name(typed_ir::Name("ret".to_string()));
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::Expr::Handle {
-                    body: Box::new(core_ir::Expr::Lit(core_ir::Lit::Bool(true))),
-                    arms: vec![core_ir::HandleArm {
+                root_exprs: vec![typed_ir::Expr::Handle {
+                    body: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Bool(true))),
+                    arms: vec![typed_ir::HandleArm {
                         effect: effect_path,
-                        payload: core_ir::Pattern::Bind(payload_name.clone()),
+                        payload: typed_ir::Pattern::Bind(payload_name.clone()),
                         resume: None,
                         guard: None,
-                        body: core_ir::Expr::Var(core_ir::Path::from_name(payload_name.clone())),
+                        body: typed_ir::Expr::Var(typed_ir::Path::from_name(payload_name.clone())),
                     }],
-                    evidence: Some(core_ir::JoinEvidence {
-                        result: core_ir::TypeBounds::exact(bool_type()),
+                    evidence: Some(typed_ir::JoinEvidence {
+                        result: typed_ir::TypeBounds::exact(bool_type()),
                     }),
                 }],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(bool_type()),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(bool_type()),
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -792,33 +796,33 @@ mod tests {
 
     #[test]
     pub(super) fn lower_join_inserts_runtime_coercion_for_int_to_float() {
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::Expr::If {
-                    cond: Box::new(core_ir::Expr::Lit(core_ir::Lit::Bool(true))),
-                    then_branch: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))),
-                    else_branch: Box::new(core_ir::Expr::Lit(core_ir::Lit::Float(
+                root_exprs: vec![typed_ir::Expr::If {
+                    cond: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Bool(true))),
+                    then_branch: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))),
+                    else_branch: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Float(
                         "2.0".to_string(),
                     ))),
-                    evidence: Some(core_ir::JoinEvidence {
-                        result: core_ir::TypeBounds::exact(named_type("float")),
+                    evidence: Some(typed_ir::JoinEvidence {
+                        result: typed_ir::TypeBounds::exact(named_type("float")),
                     }),
                 }],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(named_type("float")),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(named_type("float")),
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -838,31 +842,31 @@ mod tests {
 
     #[test]
     pub(super) fn lower_coerce_uses_core_ir_evidence() {
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::Expr::Coerce {
-                    expr: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))),
-                    evidence: Some(core_ir::CoerceEvidence {
+                root_exprs: vec![typed_ir::Expr::Coerce {
+                    expr: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))),
+                    evidence: Some(typed_ir::CoerceEvidence {
                         source_edge: None,
-                        actual: core_ir::TypeBounds::exact(named_type("int")),
-                        expected: core_ir::TypeBounds::exact(named_type("float")),
+                        actual: typed_ir::TypeBounds::exact(named_type("int")),
+                        expected: typed_ir::TypeBounds::exact(named_type("float")),
                     }),
                 }],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(named_type("float")),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(named_type("float")),
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -878,37 +882,37 @@ mod tests {
 
     #[test]
     pub(super) fn lower_coerce_accepts_representation_source_edge_table() {
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::Expr::Coerce {
-                    expr: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))),
-                    evidence: Some(core_ir::CoerceEvidence {
+                root_exprs: vec![typed_ir::Expr::Coerce {
+                    expr: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))),
+                    evidence: Some(typed_ir::CoerceEvidence {
                         source_edge: Some(9),
-                        actual: core_ir::TypeBounds::exact(named_type("int")),
-                        expected: core_ir::TypeBounds::exact(named_type("float")),
+                        actual: typed_ir::TypeBounds::exact(named_type("int")),
+                        expected: typed_ir::TypeBounds::exact(named_type("float")),
                     }),
                 }],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(named_type("float")),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(named_type("float")),
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence {
-                expected_edges: vec![core_ir::ExpectedEdgeEvidence {
+            evidence: typed_ir::PrincipalEvidence {
+                expected_edges: vec![typed_ir::ExpectedEdgeEvidence {
                     id: 9,
-                    kind: core_ir::ExpectedEdgeKind::RepresentationCoerce,
+                    kind: typed_ir::ExpectedEdgeKind::RepresentationCoerce,
                     source_range: None,
-                    actual: core_ir::TypeBounds::exact(named_type("int")),
-                    expected: core_ir::TypeBounds::exact(named_type("float")),
+                    actual: typed_ir::TypeBounds::exact(named_type("int")),
+                    expected: typed_ir::TypeBounds::exact(named_type("float")),
                     actual_effect: None,
                     expected_effect: None,
                     closed: true,
@@ -931,34 +935,34 @@ mod tests {
 
     #[test]
     pub(super) fn lower_unbound_qualified_path_as_effect_op() {
-        let effect_path = core_ir::Path {
+        let effect_path = typed_ir::Path {
             segments: vec![
-                core_ir::Name("std".to_string()),
-                core_ir::Name("junction".to_string()),
-                core_ir::Name("or".to_string()),
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("junction".to_string()),
+                typed_ir::Name("or".to_string()),
             ],
         };
-        let effect_ty = core_ir::Type::Fun {
+        let effect_ty = typed_ir::Type::Fun {
             param: Box::new(unit_type()),
-            param_effect: Box::new(core_ir::Type::Any),
-            ret_effect: Box::new(core_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(typed_ir::Type::Any),
             ret: Box::new(bool_type()),
         };
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::Expr::Apply {
-                    callee: Box::new(core_ir::Expr::Var(effect_path.clone())),
-                    arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
-                    evidence: Some(core_ir::ApplyEvidence {
+                root_exprs: vec![typed_ir::Expr::Apply {
+                    callee: Box::new(typed_ir::Expr::Var(effect_path.clone())),
+                    arg: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Unit)),
+                    evidence: Some(typed_ir::ApplyEvidence {
                         callee_source_edge: None,
                         expected_callee: None,
                         arg_source_edge: None,
-                        callee: core_ir::TypeBounds::exact(effect_ty),
-                        arg: core_ir::TypeBounds::exact(unit_type()),
+                        callee: typed_ir::TypeBounds::exact(effect_ty),
+                        arg: typed_ir::TypeBounds::exact(unit_type()),
                         expected_arg: None,
-                        result: core_ir::TypeBounds::exact(bool_type()),
+                        result: typed_ir::TypeBounds::exact(bool_type()),
                         principal_callee: None,
                         substitutions: Vec::new(),
                         substitution_candidates: Vec::new(),
@@ -966,22 +970,22 @@ mod tests {
                         principal_elaboration: None,
                     }),
                 }],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(bool_type()),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(bool_type()),
                 }],
-                runtime_symbols: vec![core_ir::RuntimeSymbol {
+                runtime_symbols: vec![typed_ir::RuntimeSymbol {
                     path: effect_path.clone(),
-                    kind: core_ir::RuntimeSymbolKind::EffectOperation,
+                    kind: typed_ir::RuntimeSymbolKind::EffectOperation,
                 }],
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1001,44 +1005,44 @@ mod tests {
 
     #[test]
     pub(super) fn lower_effectful_apply_in_value_context_inserts_bind_here() {
-        let effect = core_ir::Type::Row {
+        let effect = typed_ir::Type::Row {
             items: vec![named_type("io")],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
-        let fn_ty = core_ir::Type::Fun {
+        let fn_ty = typed_ir::Type::Fun {
             param: Box::new(unit_type()),
-            param_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(effect.clone()),
             ret: Box::new(named_type("int")),
         };
-        let action_path = core_ir::Path::from_name(core_ir::Name("action".to_string()));
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
-                bindings: vec![core_ir::PrincipalBinding {
+        let action_path = typed_ir::Path::from_name(typed_ir::Name("action".to_string()));
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
+                bindings: vec![typed_ir::PrincipalBinding {
                     name: action_path.clone(),
-                    scheme: core_ir::Scheme {
+                    scheme: typed_ir::Scheme {
                         requirements: Vec::new(),
                         body: fn_ty.clone(),
                     },
-                    body: core_ir::Expr::Lambda {
-                        param: core_ir::Name("unit".to_string()),
+                    body: typed_ir::Expr::Lambda {
+                        param: typed_ir::Name("unit".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
-                        body: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))),
+                        body: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))),
                     },
                 }],
-                root_exprs: vec![core_ir::Expr::Apply {
-                    callee: Box::new(core_ir::Expr::Var(action_path)),
-                    arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
-                    evidence: Some(core_ir::ApplyEvidence {
+                root_exprs: vec![typed_ir::Expr::Apply {
+                    callee: Box::new(typed_ir::Expr::Var(action_path)),
+                    arg: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Unit)),
+                    evidence: Some(typed_ir::ApplyEvidence {
                         callee_source_edge: None,
                         expected_callee: None,
                         arg_source_edge: None,
-                        callee: core_ir::TypeBounds::exact(fn_ty),
-                        arg: core_ir::TypeBounds::exact(unit_type()),
+                        callee: typed_ir::TypeBounds::exact(fn_ty),
+                        arg: typed_ir::TypeBounds::exact(unit_type()),
                         expected_arg: None,
-                        result: core_ir::TypeBounds::exact(named_type("int")),
+                        result: typed_ir::TypeBounds::exact(named_type("int")),
                         principal_callee: None,
                         substitutions: Vec::new(),
                         substitution_candidates: Vec::new(),
@@ -1046,19 +1050,19 @@ mod tests {
                         principal_elaboration: None,
                     }),
                 }],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(named_type("int")),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1078,39 +1082,39 @@ mod tests {
 
     #[test]
     pub(super) fn lower_tuple_lifts_item_effect_to_tuple_thunk() {
-        let effect = core_ir::Type::Row {
+        let effect = typed_ir::Type::Row {
             items: vec![named_type("io")],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
-        let fn_ty = core_ir::Type::Fun {
+        let fn_ty = typed_ir::Type::Fun {
             param: Box::new(unit_type()),
-            param_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(effect.clone()),
             ret: Box::new(named_type("int")),
         };
-        let action_path = core_ir::Path::from_name(core_ir::Name("action".to_string()));
-        let tuple_ty = core_ir::Type::Tuple(vec![named_type("int"), named_type("int")]);
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let action_path = typed_ir::Path::from_name(typed_ir::Name("action".to_string()));
+        let tuple_ty = typed_ir::Type::Tuple(vec![named_type("int"), named_type("int")]);
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: vec![effectful_action_binding(action_path.clone(), fn_ty.clone())],
-                root_exprs: vec![core_ir::Expr::Tuple(vec![
+                root_exprs: vec![typed_ir::Expr::Tuple(vec![
                     effectful_action_apply(action_path, fn_ty),
-                    core_ir::Expr::Lit(core_ir::Lit::Int("2".to_string())),
+                    typed_ir::Expr::Lit(typed_ir::Lit::Int("2".to_string())),
                 ])],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(tuple_ty.clone()),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(tuple_ty.clone()),
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1130,42 +1134,42 @@ mod tests {
 
     #[test]
     pub(super) fn lower_if_lifts_branch_effect_to_if_thunk() {
-        let effect = core_ir::Type::Row {
+        let effect = typed_ir::Type::Row {
             items: vec![named_type("io")],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
-        let fn_ty = core_ir::Type::Fun {
+        let fn_ty = typed_ir::Type::Fun {
             param: Box::new(unit_type()),
-            param_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(effect.clone()),
             ret: Box::new(named_type("int")),
         };
-        let action_path = core_ir::Path::from_name(core_ir::Name("action".to_string()));
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
+        let action_path = typed_ir::Path::from_name(typed_ir::Name("action".to_string()));
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
                 bindings: vec![effectful_action_binding(action_path.clone(), fn_ty.clone())],
-                root_exprs: vec![core_ir::Expr::If {
-                    cond: Box::new(core_ir::Expr::Lit(core_ir::Lit::Bool(true))),
+                root_exprs: vec![typed_ir::Expr::If {
+                    cond: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Bool(true))),
                     then_branch: Box::new(effectful_action_apply(action_path, fn_ty)),
-                    else_branch: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("2".to_string()))),
-                    evidence: Some(core_ir::JoinEvidence {
-                        result: core_ir::TypeBounds::exact(named_type("int")),
+                    else_branch: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Int("2".to_string()))),
+                    evidence: Some(typed_ir::JoinEvidence {
+                        result: typed_ir::TypeBounds::exact(named_type("int")),
                     }),
                 }],
-                roots: vec![core_ir::PrincipalRoot::Expr(0)],
+                roots: vec![typed_ir::PrincipalRoot::Expr(0)],
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
-                root_exprs: vec![core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(0),
-                    bounds: core_ir::TypeBounds::exact(named_type("int")),
+                root_exprs: vec![typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(0),
+                    bounds: typed_ir::TypeBounds::exact(named_type("int")),
                 }],
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1185,38 +1189,38 @@ mod tests {
 
     #[test]
     pub(super) fn lower_lambda_adds_runtime_id_admin_to_created_thunk() {
-        let effect = core_ir::Type::Row {
+        let effect = typed_ir::Type::Row {
             items: vec![named_type("io")],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
-        let fn_ty = core_ir::Type::Fun {
+        let fn_ty = typed_ir::Type::Fun {
             param: Box::new(unit_type()),
-            param_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(effect.clone()),
             ret: Box::new(named_type("int")),
         };
-        let binding_path = core_ir::Path::from_name(core_ir::Name("f".to_string()));
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
-                bindings: vec![core_ir::PrincipalBinding {
+        let binding_path = typed_ir::Path::from_name(typed_ir::Name("f".to_string()));
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
+                bindings: vec![typed_ir::PrincipalBinding {
                     name: binding_path,
-                    scheme: core_ir::Scheme {
+                    scheme: typed_ir::Scheme {
                         requirements: Vec::new(),
                         body: fn_ty,
                     },
-                    body: core_ir::Expr::Lambda {
-                        param: core_ir::Name("unit".to_string()),
+                    body: typed_ir::Expr::Lambda {
+                        param: typed_ir::Name("unit".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
-                        body: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))),
+                        body: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))),
                     },
                 }],
                 root_exprs: Vec::new(),
                 roots: Vec::new(),
             },
-            graph: core_ir::CoreGraphView::default(),
-            evidence: core_ir::PrincipalEvidence::default(),
+            graph: typed_ir::CoreGraphView::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1236,13 +1240,13 @@ mod tests {
 
     #[test]
     pub(super) fn add_id_uses_thunk_effect() {
-        let undet = core_ir::Type::Row {
+        let undet = typed_ir::Type::Row {
             items: vec![named_type("undet")],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
         let value = RuntimeType::core(named_type("int"));
         let inner = Expr::typed(
-            ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
             value.clone(),
         );
         let thunk = Expr::typed(
@@ -1269,10 +1273,10 @@ mod tests {
 
     #[test]
     pub(super) fn param_allowed_effect_does_not_change_thunk_type() {
-        let io_path = core_ir::Path::from_name(core_ir::Name("io".to_string()));
-        let undet = core_ir::Type::Row {
+        let io_path = typed_ir::Path::from_name(typed_ir::Name("io".to_string()));
+        let undet = typed_ir::Type::Row {
             items: vec![named_type("undet")],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
         let value = RuntimeType::core(named_type("int"));
         let param_ty = RuntimeType::thunk(undet.clone(), value.clone());
@@ -1280,7 +1284,7 @@ mod tests {
         let protected = apply_param_allowed_effect(
             param_ty,
             None,
-            Some(&core_ir::FunctionSigAllowedEffects::Effects(vec![io_path])),
+            Some(&typed_ir::FunctionSigAllowedEffects::Effects(vec![io_path])),
         );
 
         let RuntimeType::Thunk {
@@ -1296,53 +1300,53 @@ mod tests {
 
     #[test]
     pub(super) fn lower_binding_refines_anonymous_effect_from_body() {
-        let effect_path = core_ir::Path {
+        let effect_path = typed_ir::Path {
             segments: vec![
-                core_ir::Name("io".to_string()),
-                core_ir::Name("abort".to_string()),
+                typed_ir::Name("io".to_string()),
+                typed_ir::Name("abort".to_string()),
             ],
         };
-        let effect = core_ir::Type::Row {
+        let effect = typed_ir::Type::Row {
             items: vec![named_type("io")],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
-        let effect_op_ty = core_ir::Type::Fun {
+        let effect_op_ty = typed_ir::Type::Fun {
             param: Box::new(unit_type()),
-            param_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(effect.clone()),
-            ret: Box::new(core_ir::Type::Never),
+            ret: Box::new(typed_ir::Type::Never),
         };
-        let wrapper_path = core_ir::Path::from_name(core_ir::Name("wrapper".to_string()));
-        let anonymous_effect_ty = core_ir::Type::Fun {
+        let wrapper_path = typed_ir::Path::from_name(typed_ir::Name("wrapper".to_string()));
+        let anonymous_effect_ty = typed_ir::Type::Fun {
             param: Box::new(unit_type()),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Var(core_ir::TypeVar("_".to_string()))),
-            ret: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Var(typed_ir::TypeVar("_".to_string()))),
+            ret: Box::new(typed_ir::Type::Never),
         };
-        let program = core_ir::CoreProgram {
-            program: core_ir::PrincipalModule {
-                path: core_ir::Path::default(),
-                bindings: vec![core_ir::PrincipalBinding {
+        let program = typed_ir::CoreProgram {
+            program: typed_ir::PrincipalModule {
+                path: typed_ir::Path::default(),
+                bindings: vec![typed_ir::PrincipalBinding {
                     name: wrapper_path,
-                    scheme: core_ir::Scheme {
+                    scheme: typed_ir::Scheme {
                         requirements: Vec::new(),
                         body: anonymous_effect_ty,
                     },
-                    body: core_ir::Expr::Lambda {
-                        param: core_ir::Name("unit".to_string()),
+                    body: typed_ir::Expr::Lambda {
+                        param: typed_ir::Name("unit".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
-                        body: Box::new(core_ir::Expr::Apply {
-                            callee: Box::new(core_ir::Expr::Var(effect_path.clone())),
-                            arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
-                            evidence: Some(core_ir::ApplyEvidence {
+                        body: Box::new(typed_ir::Expr::Apply {
+                            callee: Box::new(typed_ir::Expr::Var(effect_path.clone())),
+                            arg: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Unit)),
+                            evidence: Some(typed_ir::ApplyEvidence {
                                 callee_source_edge: None,
                                 expected_callee: None,
                                 arg_source_edge: None,
-                                callee: core_ir::TypeBounds::exact(effect_op_ty),
-                                arg: core_ir::TypeBounds::exact(unit_type()),
+                                callee: typed_ir::TypeBounds::exact(effect_op_ty),
+                                arg: typed_ir::TypeBounds::exact(unit_type()),
                                 expected_arg: None,
-                                result: core_ir::TypeBounds::exact(core_ir::Type::Never),
+                                result: typed_ir::TypeBounds::exact(typed_ir::Type::Never),
                                 principal_callee: None,
                                 substitutions: Vec::new(),
                                 substitution_candidates: Vec::new(),
@@ -1355,17 +1359,17 @@ mod tests {
                 root_exprs: Vec::new(),
                 roots: Vec::new(),
             },
-            graph: core_ir::CoreGraphView {
+            graph: typed_ir::CoreGraphView {
                 bindings: Vec::new(),
                 root_exprs: Vec::new(),
-                runtime_symbols: vec![core_ir::RuntimeSymbol {
+                runtime_symbols: vec![typed_ir::RuntimeSymbol {
                     path: effect_path,
-                    kind: core_ir::RuntimeSymbolKind::EffectOperation,
+                    kind: typed_ir::RuntimeSymbolKind::EffectOperation,
                 }],
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: core_ir::PrincipalEvidence::default(),
+            evidence: typed_ir::PrincipalEvidence::default(),
         };
 
         let module = lower_core_program(program).expect("lowered");
@@ -1383,7 +1387,7 @@ mod tests {
             panic!("anonymous effect should be refined to a thunk");
         };
         assert_eq!(actual, &effect);
-        assert_eq!(core_type(value), &core_ir::Type::Never);
+        assert_eq!(core_type(value), &typed_ir::Type::Never);
     }
 
     #[test]
@@ -1392,7 +1396,7 @@ mod tests {
             env: HashMap::new(),
             binding_infos: HashMap::new(),
             aliases: HashMap::new(),
-            graph: &core_ir::CoreGraphView::default(),
+            graph: &typed_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
@@ -1406,22 +1410,22 @@ mod tests {
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
-        let local = core_ir::Path::from_name(core_ir::Name("k".to_string()));
-        let mut locals = HashMap::from([(local.clone(), RuntimeType::core(core_ir::Type::Any))]);
-        let expr = core_ir::Expr::Apply {
-            callee: Box::new(core_ir::Expr::Var(local)),
-            arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
-            evidence: Some(core_ir::ApplyEvidence {
+        let local = typed_ir::Path::from_name(typed_ir::Name("k".to_string()));
+        let mut locals = HashMap::from([(local.clone(), RuntimeType::core(typed_ir::Type::Any))]);
+        let expr = typed_ir::Expr::Apply {
+            callee: Box::new(typed_ir::Expr::Var(local)),
+            arg: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Unit)),
+            evidence: Some(typed_ir::ApplyEvidence {
                 callee_source_edge: None,
                 expected_callee: None,
                 arg_source_edge: None,
-                callee: core_ir::TypeBounds {
+                callee: typed_ir::TypeBounds {
                     lower: None,
-                    upper: Some(Box::new(core_ir::Type::Any)),
+                    upper: Some(Box::new(typed_ir::Type::Any)),
                 },
-                arg: core_ir::TypeBounds::exact(unit_type()),
+                arg: typed_ir::TypeBounds::exact(unit_type()),
                 expected_arg: None,
-                result: core_ir::TypeBounds::exact(named_type("int")),
+                result: typed_ir::TypeBounds::exact(named_type("int")),
                 principal_callee: None,
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
@@ -1452,7 +1456,7 @@ mod tests {
             env: HashMap::new(),
             binding_infos: HashMap::new(),
             aliases: HashMap::new(),
-            graph: &core_ir::CoreGraphView::default(),
+            graph: &typed_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
@@ -1466,26 +1470,26 @@ mod tests {
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
-        let callee_path = core_ir::Path::from_name(core_ir::Name("k".to_string()));
-        let arg_path = core_ir::Path::from_name(core_ir::Name("x".to_string()));
+        let callee_path = typed_ir::Path::from_name(typed_ir::Name("k".to_string()));
+        let arg_path = typed_ir::Path::from_name(typed_ir::Name("x".to_string()));
         let mut locals = HashMap::from([
-            (callee_path.clone(), RuntimeType::core(core_ir::Type::Any)),
-            (arg_path.clone(), RuntimeType::core(core_ir::Type::Any)),
+            (callee_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
+            (arg_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
         ]);
-        let expr = core_ir::Expr::Apply {
-            callee: Box::new(core_ir::Expr::Var(callee_path.clone())),
-            arg: Box::new(core_ir::Expr::Var(arg_path.clone())),
-            evidence: Some(core_ir::ApplyEvidence {
+        let expr = typed_ir::Expr::Apply {
+            callee: Box::new(typed_ir::Expr::Var(callee_path.clone())),
+            arg: Box::new(typed_ir::Expr::Var(arg_path.clone())),
+            evidence: Some(typed_ir::ApplyEvidence {
                 callee_source_edge: None,
                 expected_callee: None,
                 arg_source_edge: Some(3),
-                callee: core_ir::TypeBounds {
+                callee: typed_ir::TypeBounds {
                     lower: None,
-                    upper: Some(Box::new(core_ir::Type::Any)),
+                    upper: Some(Box::new(typed_ir::Type::Any)),
                 },
-                arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
-                expected_arg: Some(core_ir::TypeBounds::exact(named_type("int"))),
-                result: core_ir::TypeBounds::exact(named_type("int")),
+                arg: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+                expected_arg: Some(typed_ir::TypeBounds::exact(named_type("int"))),
+                result: typed_ir::TypeBounds::exact(named_type("int")),
                 principal_callee: None,
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
@@ -1522,13 +1526,13 @@ mod tests {
 
     #[test]
     pub(super) fn lower_apply_can_use_closed_expected_slot_when_edge_actual_is_open() {
-        let principal_evidence = core_ir::PrincipalEvidence {
-            expected_edges: vec![core_ir::ExpectedEdgeEvidence {
+        let principal_evidence = typed_ir::PrincipalEvidence {
+            expected_edges: vec![typed_ir::ExpectedEdgeEvidence {
                 id: 3,
-                kind: core_ir::ExpectedEdgeKind::ApplicationArgument,
+                kind: typed_ir::ExpectedEdgeKind::ApplicationArgument,
                 source_range: None,
-                actual: core_ir::TypeBounds::exact(core_ir::Type::Any),
-                expected: core_ir::TypeBounds::exact(named_type("int")),
+                actual: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+                expected: typed_ir::TypeBounds::exact(named_type("int")),
                 actual_effect: None,
                 expected_effect: None,
                 closed: true,
@@ -1542,7 +1546,7 @@ mod tests {
             env: HashMap::new(),
             binding_infos: HashMap::new(),
             aliases: HashMap::new(),
-            graph: &core_ir::CoreGraphView::default(),
+            graph: &typed_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
@@ -1560,26 +1564,26 @@ mod tests {
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
-        let callee_path = core_ir::Path::from_name(core_ir::Name("k".to_string()));
-        let arg_path = core_ir::Path::from_name(core_ir::Name("x".to_string()));
+        let callee_path = typed_ir::Path::from_name(typed_ir::Name("k".to_string()));
+        let arg_path = typed_ir::Path::from_name(typed_ir::Name("x".to_string()));
         let mut locals = HashMap::from([
-            (callee_path.clone(), RuntimeType::core(core_ir::Type::Any)),
-            (arg_path.clone(), RuntimeType::core(core_ir::Type::Any)),
+            (callee_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
+            (arg_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
         ]);
-        let expr = core_ir::Expr::Apply {
-            callee: Box::new(core_ir::Expr::Var(callee_path)),
-            arg: Box::new(core_ir::Expr::Var(arg_path.clone())),
-            evidence: Some(core_ir::ApplyEvidence {
+        let expr = typed_ir::Expr::Apply {
+            callee: Box::new(typed_ir::Expr::Var(callee_path)),
+            arg: Box::new(typed_ir::Expr::Var(arg_path.clone())),
+            evidence: Some(typed_ir::ApplyEvidence {
                 callee_source_edge: None,
                 expected_callee: None,
                 arg_source_edge: Some(3),
-                callee: core_ir::TypeBounds {
+                callee: typed_ir::TypeBounds {
                     lower: None,
-                    upper: Some(Box::new(core_ir::Type::Any)),
+                    upper: Some(Box::new(typed_ir::Type::Any)),
                 },
-                arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
-                expected_arg: Some(core_ir::TypeBounds::exact(named_type("int"))),
-                result: core_ir::TypeBounds::exact(named_type("int")),
+                arg: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+                expected_arg: Some(typed_ir::TypeBounds::exact(named_type("int"))),
+                result: typed_ir::TypeBounds::exact(named_type("int")),
                 principal_callee: None,
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
@@ -1622,13 +1626,13 @@ mod tests {
 
     #[test]
     pub(super) fn lower_apply_ignores_expected_arg_when_expected_slot_is_erased() {
-        let principal_evidence = core_ir::PrincipalEvidence {
-            expected_edges: vec![core_ir::ExpectedEdgeEvidence {
+        let principal_evidence = typed_ir::PrincipalEvidence {
+            expected_edges: vec![typed_ir::ExpectedEdgeEvidence {
                 id: 3,
-                kind: core_ir::ExpectedEdgeKind::ApplicationArgument,
+                kind: typed_ir::ExpectedEdgeKind::ApplicationArgument,
                 source_range: None,
-                actual: core_ir::TypeBounds::exact(core_ir::Type::Any),
-                expected: core_ir::TypeBounds::exact(core_ir::Type::Any),
+                actual: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+                expected: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
                 actual_effect: None,
                 expected_effect: None,
                 closed: true,
@@ -1642,7 +1646,7 @@ mod tests {
             env: HashMap::new(),
             binding_infos: HashMap::new(),
             aliases: HashMap::new(),
-            graph: &core_ir::CoreGraphView::default(),
+            graph: &typed_ir::CoreGraphView::default(),
             runtime_symbols: HashMap::new(),
             primitive_paths: RuntimePrimitivePathTable::standard(),
             principal_vars: BTreeSet::new(),
@@ -1660,26 +1664,26 @@ mod tests {
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
-        let callee_path = core_ir::Path::from_name(core_ir::Name("k".to_string()));
-        let arg_path = core_ir::Path::from_name(core_ir::Name("x".to_string()));
+        let callee_path = typed_ir::Path::from_name(typed_ir::Name("k".to_string()));
+        let arg_path = typed_ir::Path::from_name(typed_ir::Name("x".to_string()));
         let mut locals = HashMap::from([
-            (callee_path.clone(), RuntimeType::core(core_ir::Type::Any)),
-            (arg_path.clone(), RuntimeType::core(core_ir::Type::Any)),
+            (callee_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
+            (arg_path.clone(), RuntimeType::core(typed_ir::Type::Any)),
         ]);
-        let expr = core_ir::Expr::Apply {
-            callee: Box::new(core_ir::Expr::Var(callee_path)),
-            arg: Box::new(core_ir::Expr::Var(arg_path.clone())),
-            evidence: Some(core_ir::ApplyEvidence {
+        let expr = typed_ir::Expr::Apply {
+            callee: Box::new(typed_ir::Expr::Var(callee_path)),
+            arg: Box::new(typed_ir::Expr::Var(arg_path.clone())),
+            evidence: Some(typed_ir::ApplyEvidence {
                 callee_source_edge: None,
                 expected_callee: None,
                 arg_source_edge: Some(3),
-                callee: core_ir::TypeBounds {
+                callee: typed_ir::TypeBounds {
                     lower: None,
-                    upper: Some(Box::new(core_ir::Type::Any)),
+                    upper: Some(Box::new(typed_ir::Type::Any)),
                 },
-                arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
-                expected_arg: Some(core_ir::TypeBounds::exact(core_ir::Type::Any)),
-                result: core_ir::TypeBounds::exact(named_type("int")),
+                arg: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+                expected_arg: Some(typed_ir::TypeBounds::exact(typed_ir::Type::Any)),
+                result: typed_ir::TypeBounds::exact(named_type("int")),
                 principal_callee: None,
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
@@ -1700,10 +1704,10 @@ mod tests {
         let ExprKind::Apply { arg, .. } = &expr.kind else {
             panic!("missing apply");
         };
-        assert!(matches!(arg.ty, RuntimeType::Core(core_ir::Type::Any)));
+        assert!(matches!(arg.ty, RuntimeType::Core(typed_ir::Type::Any)));
         assert_eq!(
             locals.get(&arg_path),
-            Some(&RuntimeType::Core(core_ir::Type::Any))
+            Some(&RuntimeType::Core(typed_ir::Type::Any))
         );
         assert_eq!(lowerer.expected_arg_evidence_profile.present, 1);
         assert_eq!(lowerer.expected_arg_evidence_profile.converted, 1);
@@ -1722,34 +1726,34 @@ mod tests {
 
     #[test]
     pub(super) fn lower_apply_uses_fold_requirement_to_refine_associated_result() {
-        let container = core_ir::TypeVar("container".to_string());
-        let item = core_ir::TypeVar("item".to_string());
-        let each_path = core_ir::Path::from_name(core_ir::Name("each".to_string()));
+        let container = typed_ir::TypeVar("container".to_string());
+        let item = typed_ir::TypeVar("item".to_string());
+        let each_path = typed_ir::Path::from_name(typed_ir::Name("each".to_string()));
         let list_int = list_type(named_type("int"));
         let each_ty = RuntimeType::fun(
-            RuntimeType::core(core_ir::Type::Var(container.clone())),
+            RuntimeType::core(typed_ir::Type::Var(container.clone())),
             RuntimeType::thunk(
                 named_type("undet"),
-                RuntimeType::core(core_ir::Type::Var(item.clone())),
+                RuntimeType::core(typed_ir::Type::Var(item.clone())),
             ),
         );
-        let fold_role = core_ir::Path::new(vec![
-            core_ir::Name("std".to_string()),
-            core_ir::Name("fold".to_string()),
-            core_ir::Name("Fold".to_string()),
+        let fold_role = typed_ir::Path::new(vec![
+            typed_ir::Name("std".to_string()),
+            typed_ir::Name("fold".to_string()),
+            typed_ir::Name("Fold".to_string()),
         ]);
-        let graph = core_ir::CoreGraphView {
-            role_impls: vec![core_ir::RoleImplGraphNode {
+        let graph = typed_ir::CoreGraphView {
+            role_impls: vec![typed_ir::RoleImplGraphNode {
                 role: fold_role.clone(),
-                inputs: vec![core_ir::TypeBounds::exact(list_int.clone())],
-                associated_types: vec![core_ir::RecordField {
-                    name: core_ir::Name("item".to_string()),
-                    value: core_ir::TypeBounds::exact(named_type("int")),
+                inputs: vec![typed_ir::TypeBounds::exact(list_int.clone())],
+                associated_types: vec![typed_ir::RecordField {
+                    name: typed_ir::Name("item".to_string()),
+                    value: typed_ir::TypeBounds::exact(named_type("int")),
                     optional: false,
                 }],
                 members: Vec::new(),
             }],
-            ..core_ir::CoreGraphView::default()
+            ..typed_ir::CoreGraphView::default()
         };
         let mut lowerer = Lowerer {
             env: HashMap::from([(each_path.clone(), each_ty.clone())]),
@@ -1758,15 +1762,15 @@ mod tests {
                 BindingInfo {
                     ty: each_ty,
                     type_params: vec![container.clone(), item.clone()],
-                    requirements: vec![core_ir::RoleRequirement {
+                    requirements: vec![typed_ir::RoleRequirement {
                         role: fold_role,
                         args: vec![
-                            core_ir::RoleRequirementArg::Input(core_ir::TypeBounds::exact(
-                                core_ir::Type::Var(container),
+                            typed_ir::RoleRequirementArg::Input(typed_ir::TypeBounds::exact(
+                                typed_ir::Type::Var(container),
                             )),
-                            core_ir::RoleRequirementArg::Associated {
-                                name: core_ir::Name("item".to_string()),
-                                bounds: core_ir::TypeBounds::exact(core_ir::Type::Var(item)),
+                            typed_ir::RoleRequirementArg::Associated {
+                                name: typed_ir::Name("item".to_string()),
+                                bounds: typed_ir::TypeBounds::exact(typed_ir::Type::Var(item)),
                             },
                         ],
                     }],
@@ -1787,11 +1791,11 @@ mod tests {
             next_synthetic_type_var: 0,
             next_effect_id_var: 0,
         };
-        let xs = core_ir::Path::from_name(core_ir::Name("xs".to_string()));
+        let xs = typed_ir::Path::from_name(typed_ir::Name("xs".to_string()));
         let mut locals = HashMap::from([(xs.clone(), RuntimeType::core(list_int))]);
-        let expr = core_ir::Expr::Apply {
-            callee: Box::new(core_ir::Expr::Var(each_path)),
-            arg: Box::new(core_ir::Expr::Var(xs)),
+        let expr = typed_ir::Expr::Apply {
+            callee: Box::new(typed_ir::Expr::Var(each_path)),
+            arg: Box::new(typed_ir::Expr::Var(xs)),
             evidence: None,
         };
 
@@ -1806,39 +1810,39 @@ mod tests {
     }
 
     pub(super) fn effectful_action_binding(
-        name: core_ir::Path,
-        fn_ty: core_ir::Type,
-    ) -> core_ir::PrincipalBinding {
-        core_ir::PrincipalBinding {
+        name: typed_ir::Path,
+        fn_ty: typed_ir::Type,
+    ) -> typed_ir::PrincipalBinding {
+        typed_ir::PrincipalBinding {
             name,
-            scheme: core_ir::Scheme {
+            scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
                 body: fn_ty,
             },
-            body: core_ir::Expr::Lambda {
-                param: core_ir::Name("unit".to_string()),
+            body: typed_ir::Expr::Lambda {
+                param: typed_ir::Name("unit".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
-                body: Box::new(core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))),
+                body: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))),
             },
         }
     }
 
     pub(super) fn effectful_action_apply(
-        path: core_ir::Path,
-        fn_ty: core_ir::Type,
-    ) -> core_ir::Expr {
-        core_ir::Expr::Apply {
-            callee: Box::new(core_ir::Expr::Var(path)),
-            arg: Box::new(core_ir::Expr::Lit(core_ir::Lit::Unit)),
-            evidence: Some(core_ir::ApplyEvidence {
+        path: typed_ir::Path,
+        fn_ty: typed_ir::Type,
+    ) -> typed_ir::Expr {
+        typed_ir::Expr::Apply {
+            callee: Box::new(typed_ir::Expr::Var(path)),
+            arg: Box::new(typed_ir::Expr::Lit(typed_ir::Lit::Unit)),
+            evidence: Some(typed_ir::ApplyEvidence {
                 callee_source_edge: None,
                 expected_callee: None,
                 arg_source_edge: None,
-                callee: core_ir::TypeBounds::exact(fn_ty),
-                arg: core_ir::TypeBounds::exact(unit_type()),
+                callee: typed_ir::TypeBounds::exact(fn_ty),
+                arg: typed_ir::TypeBounds::exact(unit_type()),
                 expected_arg: None,
-                result: core_ir::TypeBounds::exact(named_type("int")),
+                result: typed_ir::TypeBounds::exact(named_type("int")),
                 principal_callee: None,
                 substitutions: Vec::new(),
                 substitution_candidates: Vec::new(),
@@ -1848,14 +1852,14 @@ mod tests {
         }
     }
 
-    pub(super) fn list_type(item: core_ir::Type) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::new(vec![
-                core_ir::Name("std".to_string()),
-                core_ir::Name("list".to_string()),
-                core_ir::Name("list".to_string()),
+    pub(super) fn list_type(item: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::new(vec![
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("list".to_string()),
+                typed_ir::Name("list".to_string()),
             ]),
-            args: vec![core_ir::TypeArg::Type(item)],
+            args: vec![typed_ir::TypeArg::Type(item)],
         }
     }
 }

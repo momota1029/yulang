@@ -7,7 +7,7 @@ use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule};
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::abi::{NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
 use crate::abi_subset::{NativeAbiSubsetError, validate_cranelift_prototype_subset};
@@ -26,7 +26,7 @@ pub enum NativeCraneliftError {
     },
     UnsupportedScalarPrimitive {
         function: String,
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
     },
     UnsupportedStmt {
         function: String,
@@ -565,35 +565,37 @@ fn lower_literal(
 fn lower_primitive(
     builder: &mut FunctionBuilder<'_>,
     function: &NativeAbiFunction,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[ir::Value],
 ) -> NativeCraneliftResult<ir::Value> {
     let value = match op {
-        core_ir::PrimitiveOp::BoolNot => {
+        typed_ir::PrimitiveOp::BoolNot => {
             let zero = builder.ins().iconst(types::I64, 0);
             let is_zero = builder
                 .ins()
                 .icmp(ir::condcodes::IntCC::Equal, args[0], zero);
             builder.ins().uextend(types::I64, is_zero)
         }
-        core_ir::PrimitiveOp::BoolEq | core_ir::PrimitiveOp::IntEq => {
+        typed_ir::PrimitiveOp::BoolEq | typed_ir::PrimitiveOp::IntEq => {
             let eq = builder
                 .ins()
                 .icmp(ir::condcodes::IntCC::Equal, args[0], args[1]);
             builder.ins().uextend(types::I64, eq)
         }
-        core_ir::PrimitiveOp::IntAdd => builder.ins().iadd(args[0], args[1]),
-        core_ir::PrimitiveOp::IntSub => builder.ins().isub(args[0], args[1]),
-        core_ir::PrimitiveOp::IntMul => builder.ins().imul(args[0], args[1]),
-        core_ir::PrimitiveOp::IntDiv => builder.ins().sdiv(args[0], args[1]),
-        core_ir::PrimitiveOp::IntLt => int_cmp(builder, ir::condcodes::IntCC::SignedLessThan, args),
-        core_ir::PrimitiveOp::IntLe => {
+        typed_ir::PrimitiveOp::IntAdd => builder.ins().iadd(args[0], args[1]),
+        typed_ir::PrimitiveOp::IntSub => builder.ins().isub(args[0], args[1]),
+        typed_ir::PrimitiveOp::IntMul => builder.ins().imul(args[0], args[1]),
+        typed_ir::PrimitiveOp::IntDiv => builder.ins().sdiv(args[0], args[1]),
+        typed_ir::PrimitiveOp::IntLt => {
+            int_cmp(builder, ir::condcodes::IntCC::SignedLessThan, args)
+        }
+        typed_ir::PrimitiveOp::IntLe => {
             int_cmp(builder, ir::condcodes::IntCC::SignedLessThanOrEqual, args)
         }
-        core_ir::PrimitiveOp::IntGt => {
+        typed_ir::PrimitiveOp::IntGt => {
             int_cmp(builder, ir::condcodes::IntCC::SignedGreaterThan, args)
         }
-        core_ir::PrimitiveOp::IntGe => int_cmp(
+        typed_ir::PrimitiveOp::IntGe => int_cmp(
             builder,
             ir::condcodes::IntCC::SignedGreaterThanOrEqual,
             args,
@@ -741,17 +743,17 @@ fn validate_scalar_stmt(
             }
         },
         NativeAbiStmt::Primitive { op, .. } => match op {
-            core_ir::PrimitiveOp::BoolNot
-            | core_ir::PrimitiveOp::BoolEq
-            | core_ir::PrimitiveOp::IntAdd
-            | core_ir::PrimitiveOp::IntSub
-            | core_ir::PrimitiveOp::IntMul
-            | core_ir::PrimitiveOp::IntDiv
-            | core_ir::PrimitiveOp::IntEq
-            | core_ir::PrimitiveOp::IntLt
-            | core_ir::PrimitiveOp::IntLe
-            | core_ir::PrimitiveOp::IntGt
-            | core_ir::PrimitiveOp::IntGe => Ok(()),
+            typed_ir::PrimitiveOp::BoolNot
+            | typed_ir::PrimitiveOp::BoolEq
+            | typed_ir::PrimitiveOp::IntAdd
+            | typed_ir::PrimitiveOp::IntSub
+            | typed_ir::PrimitiveOp::IntMul
+            | typed_ir::PrimitiveOp::IntDiv
+            | typed_ir::PrimitiveOp::IntEq
+            | typed_ir::PrimitiveOp::IntLt
+            | typed_ir::PrimitiveOp::IntLe
+            | typed_ir::PrimitiveOp::IntGt
+            | typed_ir::PrimitiveOp::IntGe => Ok(()),
             _ => Err(NativeCraneliftError::UnsupportedScalarPrimitive {
                 function: function.name.clone(),
                 op: *op,
@@ -921,7 +923,7 @@ mod tests {
                 params: Vec::new(),
                 stmts: vec![NativeAbiStmt::Primitive {
                     dest: ValueId(2),
-                    op: core_ir::PrimitiveOp::IntAdd,
+                    op: typed_ir::PrimitiveOp::IntAdd,
                     args: vec![ValueId(0), ValueId(1)],
                 }],
                 terminator: NativeTerminator::Return(ValueId(2)),
@@ -1026,7 +1028,7 @@ mod tests {
                     },
                     NativeAbiStmt::Primitive {
                         dest: ValueId(2),
-                        op: core_ir::PrimitiveOp::IntAdd,
+                        op: typed_ir::PrimitiveOp::IntAdd,
                         args: vec![ValueId(0), ValueId(1)],
                     },
                 ],

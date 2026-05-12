@@ -26,14 +26,14 @@ impl DemandQueue {
         }
     }
 
-    pub fn push(&mut self, target: core_ir::Path, expected: RuntimeType) -> bool {
+    pub fn push(&mut self, target: typed_ir::Path, expected: RuntimeType) -> bool {
         let demand = Demand::new_with_semantics(&self.semantics, target, expected);
         self.push_demand(demand)
     }
 
     pub fn push_signature(
         &mut self,
-        target: core_ir::Path,
+        target: typed_ir::Path,
         expected: RuntimeType,
         signature: DemandSignature,
     ) -> bool {
@@ -260,10 +260,7 @@ fn closed_type_arg_covers_open(closed: &DemandTypeArg, open: &DemandTypeArg) -> 
             },
         ) => {
             optional_closed_core_type_covers_open(closed_lower.as_ref(), open_lower.as_ref())
-                && optional_closed_core_type_covers_open(
-                    closed_upper.as_ref(),
-                    open_upper.as_ref(),
-                )
+                && optional_closed_core_type_covers_open(closed_upper.as_ref(), open_upper.as_ref())
         }
         _ => false,
     }

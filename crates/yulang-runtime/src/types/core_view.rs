@@ -1,44 +1,44 @@
 use super::*;
 
-pub(crate) fn strict_core_type(ty: &RuntimeType) -> &core_ir::Type {
+pub(crate) fn strict_core_type(ty: &RuntimeType) -> &typed_ir::Type {
     ty.as_core()
         .expect("runtime IR expected a first-order core type")
 }
 
-pub(crate) fn diagnostic_core_type(ty: &RuntimeType) -> core_ir::Type {
+pub(crate) fn diagnostic_core_type(ty: &RuntimeType) -> typed_ir::Type {
     match ty {
-        RuntimeType::Unknown => core_ir::Type::Unknown,
+        RuntimeType::Unknown => typed_ir::Type::Unknown,
         RuntimeType::Core(ty) => ty.clone(),
-        RuntimeType::Fun { param, ret } => core_ir::Type::Fun {
+        RuntimeType::Fun { param, ret } => typed_ir::Type::Fun {
             param: Box::new(diagnostic_core_type(param)),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(diagnostic_core_type(ret)),
         },
         RuntimeType::Thunk { value, .. } => diagnostic_core_type(value),
     }
 }
 
-pub(crate) fn runtime_core_type(ty: &RuntimeType) -> core_ir::Type {
+pub(crate) fn runtime_core_type(ty: &RuntimeType) -> typed_ir::Type {
     match ty {
-        RuntimeType::Unknown => core_ir::Type::Unknown,
+        RuntimeType::Unknown => typed_ir::Type::Unknown,
         RuntimeType::Core(ty) => ty.clone(),
         RuntimeType::Fun { param, ret } => runtime_core_function_type(param, ret),
         RuntimeType::Thunk { value, .. } => runtime_core_type(value),
     }
 }
 
-fn runtime_effected_core_type(ty: &RuntimeType) -> (core_ir::Type, core_ir::Type) {
+fn runtime_effected_core_type(ty: &RuntimeType) -> (typed_ir::Type, typed_ir::Type) {
     match ty {
         RuntimeType::Thunk { effect, value } => (runtime_core_type(value), effect.clone()),
-        other => (runtime_core_type(other), core_ir::Type::Never),
+        other => (runtime_core_type(other), typed_ir::Type::Never),
     }
 }
 
-fn runtime_core_function_type(param: &RuntimeType, ret: &RuntimeType) -> core_ir::Type {
+fn runtime_core_function_type(param: &RuntimeType, ret: &RuntimeType) -> typed_ir::Type {
     let (param, param_effect) = runtime_effected_core_type(param);
     let (ret, ret_effect) = runtime_effected_core_type(ret);
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(param),
         param_effect: Box::new(param_effect),
         ret_effect: Box::new(ret_effect),
@@ -57,7 +57,7 @@ mod tests {
             RuntimeType::thunk(named("undet"), RuntimeType::core(named("bool"))),
         );
 
-        let core_ir::Type::Fun {
+        let typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -68,8 +68,8 @@ mod tests {
         };
 
         assert_eq!(*param, named("int"));
-        assert_eq!(*param_effect, core_ir::Type::Never);
-        assert_eq!(*ret_effect, core_ir::Type::Never);
+        assert_eq!(*param_effect, typed_ir::Type::Never);
+        assert_eq!(*ret_effect, typed_ir::Type::Never);
         assert_eq!(*ret, named("bool"));
     }
 
@@ -80,7 +80,7 @@ mod tests {
             RuntimeType::thunk(named("undet"), RuntimeType::core(named("bool"))),
         );
 
-        let core_ir::Type::Fun {
+        let typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -96,9 +96,9 @@ mod tests {
         assert_eq!(*ret, named("bool"));
     }
 
-    fn named(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args: Vec::new(),
         }
     }

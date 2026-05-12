@@ -5,9 +5,9 @@ use crate::types::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct HandlerBindingInfo {
-    pub(super) consumes: Vec<core_ir::Path>,
-    pub(super) principal_input_effect: Option<core_ir::Type>,
-    pub(super) principal_output_effect: Option<core_ir::Type>,
+    pub(super) consumes: Vec<typed_ir::Path>,
+    pub(super) principal_input_effect: Option<typed_ir::Type>,
+    pub(super) principal_output_effect: Option<typed_ir::Type>,
     pub(super) residual_before_known: bool,
     pub(super) residual_after_known: bool,
     pub(super) pure: bool,
@@ -15,9 +15,9 @@ pub(super) struct HandlerBindingInfo {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct HandlerCallBoundary {
-    pub(super) consumes: Vec<core_ir::Path>,
-    pub(super) input_effect: Option<core_ir::Type>,
-    pub(super) output_effect: Option<core_ir::Type>,
+    pub(super) consumes: Vec<typed_ir::Path>,
+    pub(super) input_effect: Option<typed_ir::Type>,
+    pub(super) output_effect: Option<typed_ir::Type>,
     pub(super) consumes_input_effect: bool,
     pub(super) preserves_output_effect: bool,
     pub(super) pure: bool,
@@ -25,11 +25,11 @@ pub(super) struct HandlerCallBoundary {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct HandlerAdapterPlan {
-    pub(super) consumes: Vec<core_ir::Path>,
-    pub(super) residual_before: Option<core_ir::Type>,
-    pub(super) residual_after: Option<core_ir::Type>,
-    pub(super) return_wrapper_effect: Option<core_ir::Type>,
-    pub(super) return_value: Option<core_ir::Type>,
+    pub(super) consumes: Vec<typed_ir::Path>,
+    pub(super) residual_before: Option<typed_ir::Type>,
+    pub(super) residual_after: Option<typed_ir::Type>,
+    pub(super) return_wrapper_effect: Option<typed_ir::Type>,
+    pub(super) return_value: Option<typed_ir::Type>,
 }
 
 pub(super) fn handler_binding_info(binding: &Binding) -> Option<HandlerBindingInfo> {
@@ -54,11 +54,11 @@ pub(super) fn handler_binding_info(binding: &Binding) -> Option<HandlerBindingIn
     Some(info)
 }
 
-fn binding_parent_effect_path(target: &core_ir::Path) -> Option<core_ir::Path> {
+fn binding_parent_effect_path(target: &typed_ir::Path) -> Option<typed_ir::Path> {
     if target.segments.len() < 2 {
         return None;
     }
-    Some(core_ir::Path {
+    Some(typed_ir::Path {
         segments: target
             .segments
             .iter()
@@ -101,13 +101,13 @@ pub(super) fn handler_call_boundary(
     }
 }
 
-fn handler_argument_effect(arg: &Expr) -> Option<core_ir::Type> {
+fn handler_argument_effect(arg: &Expr) -> Option<typed_ir::Type> {
     let mut effect = runtime_thunk_effect(&arg.ty).filter(|effect| !effect_is_empty(effect));
     collect_expr_thunk_effects(arg, &mut effect);
     effect
 }
 
-fn collect_expr_thunk_effects(expr: &Expr, out: &mut Option<core_ir::Type>) {
+fn collect_expr_thunk_effects(expr: &Expr, out: &mut Option<typed_ir::Type>) {
     if let RuntimeType::Thunk { effect, .. } = &expr.ty
         && let Some(effect) = precise_handler_effect(effect)
     {
@@ -198,7 +198,7 @@ fn collect_expr_thunk_effects(expr: &Expr, out: &mut Option<core_ir::Type>) {
     }
 }
 
-fn collect_stmt_thunk_effects(stmt: &Stmt, out: &mut Option<core_ir::Type>) {
+fn collect_stmt_thunk_effects(stmt: &Stmt, out: &mut Option<typed_ir::Type>) {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
             collect_expr_thunk_effects(value, out);
@@ -206,14 +206,14 @@ fn collect_stmt_thunk_effects(stmt: &Stmt, out: &mut Option<core_ir::Type>) {
     }
 }
 
-fn merge_optional_handler_effect(out: &mut Option<core_ir::Type>, effect: core_ir::Type) {
+fn merge_optional_handler_effect(out: &mut Option<typed_ir::Type>, effect: typed_ir::Type) {
     *out = match out.take() {
         Some(existing) => Some(merge_handler_residual_effects(existing, effect)),
         None => Some(effect),
     };
 }
 
-fn precise_handler_effect(effect: &core_ir::Type) -> Option<core_ir::Type> {
+fn precise_handler_effect(effect: &typed_ir::Type) -> Option<typed_ir::Type> {
     let paths = effect_paths(effect);
     (!paths.is_empty()).then(|| normalize_effect(effect.clone()))
 }
@@ -243,7 +243,7 @@ pub(super) fn handler_adapter_plan(
                 .filter(|effect| !effect_is_empty(effect))
                 .unwrap_or_else(|| effect_row_from_paths(info.consumes.clone())),
         );
-        residual_after = Some(core_ir::Type::Never);
+        residual_after = Some(typed_ir::Type::Never);
         return_wrapper_effect = Some(output_effect.clone());
     }
     HandlerAdapterPlan {
@@ -257,7 +257,7 @@ pub(super) fn handler_adapter_plan(
 
 pub(super) fn substitute_handler_adapter_plan(
     plan: &HandlerAdapterPlan,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> HandlerAdapterPlan {
     HandlerAdapterPlan {
         consumes: plan.consumes.clone(),
@@ -282,9 +282,9 @@ pub(super) fn substitute_handler_adapter_plan(
 
 pub(super) fn refine_handler_adapter_plan_from_signature(
     mut plan: HandlerAdapterPlan,
-    params: &[(core_ir::Type, core_ir::Type)],
-    ret: &core_ir::Type,
-    consumes: &[core_ir::Path],
+    params: &[(typed_ir::Type, typed_ir::Type)],
+    ret: &typed_ir::Type,
+    consumes: &[typed_ir::Path],
 ) -> HandlerAdapterPlan {
     if !effect_contains_unknown_or_var(ret) {
         plan.return_value = Some(ret.clone());
@@ -302,23 +302,23 @@ pub(super) fn refine_handler_adapter_plan_from_signature(
         return plan;
     };
     plan.residual_before = Some(
-        merge_effects(Some(consumed), plan.residual_after.clone()).unwrap_or(core_ir::Type::Never),
+        merge_effects(Some(consumed), plan.residual_after.clone()).unwrap_or(typed_ir::Type::Never),
     );
     plan
 }
 
 pub(super) fn handler_preserved_residual_effect(
-    effect: &core_ir::Type,
-    consumed: &[core_ir::Path],
-) -> Option<core_ir::Type> {
+    effect: &typed_ir::Type,
+    consumed: &[typed_ir::Path],
+) -> Option<typed_ir::Type> {
     let residual = normalize_effect(remove_consumed_effects(effect, consumed));
     (!effect_is_empty(&residual)).then_some(residual)
 }
 
 pub(super) fn merge_handler_residual_effects(
-    left: core_ir::Type,
-    right: core_ir::Type,
-) -> core_ir::Type {
+    left: typed_ir::Type,
+    right: typed_ir::Type,
+) -> typed_ir::Type {
     normalize_effect(merge_effect_rows(left, right))
 }
 
@@ -333,7 +333,7 @@ pub(super) fn apply_handler_adapter_plan_to_binding(
     binding
 }
 
-fn runtime_thunk_effect(ty: &RuntimeType) -> Option<core_ir::Type> {
+fn runtime_thunk_effect(ty: &RuntimeType) -> Option<typed_ir::Type> {
     match ty {
         RuntimeType::Thunk { effect, .. } => precise_handler_effect(effect),
         RuntimeType::Unknown | RuntimeType::Core(_) | RuntimeType::Fun { .. } => None,
@@ -343,7 +343,7 @@ fn runtime_thunk_effect(ty: &RuntimeType) -> Option<core_ir::Type> {
 fn handler_residual_before(
     info: &HandlerBindingInfo,
     boundary: &HandlerCallBoundary,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     let has_call_site_consumed_effect = boundary
         .input_effect
         .as_ref()
@@ -364,8 +364,8 @@ fn handler_residual_before(
 fn handler_return_wrapper_effect(
     info: &HandlerBindingInfo,
     boundary: &HandlerCallBoundary,
-    residual_after: Option<&core_ir::Type>,
-) -> Option<core_ir::Type> {
+    residual_after: Option<&typed_ir::Type>,
+) -> Option<typed_ir::Type> {
     if boundary.consumes_input_effect && boundary.output_effect.is_none() {
         let residual = residual_after
             .cloned()
@@ -383,16 +383,16 @@ fn handler_return_wrapper_effect(
     info.consumes
         .first()
         .cloned()
-        .map(|path| core_ir::Type::Named {
+        .map(|path| typed_ir::Type::Named {
             path,
             args: Vec::new(),
         })
 }
 
 fn merge_effects(
-    left: Option<core_ir::Type>,
-    right: Option<core_ir::Type>,
-) -> Option<core_ir::Type> {
+    left: Option<typed_ir::Type>,
+    right: Option<typed_ir::Type>,
+) -> Option<typed_ir::Type> {
     match (left, right) {
         (Some(left), Some(right)) => Some(merge_effect_rows(left, right)),
         (Some(effect), None) | (None, Some(effect)) => Some(effect),
@@ -400,7 +400,7 @@ fn merge_effects(
     }
 }
 
-fn merge_effect_rows(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
+fn merge_effect_rows(left: typed_ir::Type, right: typed_ir::Type) -> typed_ir::Type {
     if effect_is_empty(&left) {
         return right;
     }
@@ -416,31 +416,31 @@ fn merge_effect_rows(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type
     effect_row(items, tail)
 }
 
-fn effect_row_parts(effect: core_ir::Type) -> (Vec<core_ir::Type>, core_ir::Type) {
+fn effect_row_parts(effect: typed_ir::Type) -> (Vec<typed_ir::Type>, typed_ir::Type) {
     match effect {
-        core_ir::Type::Row { items, tail } => (items, *tail),
-        other => (vec![other], core_ir::Type::Never),
+        typed_ir::Type::Row { items, tail } => (items, *tail),
+        other => (vec![other], typed_ir::Type::Never),
     }
 }
 
-fn merge_effect_tails(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
+fn merge_effect_tails(left: typed_ir::Type, right: typed_ir::Type) -> typed_ir::Type {
     if effect_is_empty(&left) {
         return right;
     }
     if effect_is_empty(&right) || left == right {
         return left;
     }
-    core_ir::Type::Union(vec![left, right])
+    typed_ir::Type::Union(vec![left, right])
 }
 
-fn push_unique_effect_item(items: &mut Vec<core_ir::Type>, item: core_ir::Type) {
+fn push_unique_effect_item(items: &mut Vec<typed_ir::Type>, item: typed_ir::Type) {
     if effect_is_empty(&item) || items.iter().any(|existing| existing == &item) {
         return;
     }
     items.push(item);
 }
 
-fn effect_row(items: Vec<core_ir::Type>, tail: core_ir::Type) -> core_ir::Type {
+fn effect_row(items: Vec<typed_ir::Type>, tail: typed_ir::Type) -> typed_ir::Type {
     let items = items
         .into_iter()
         .filter(|item| !effect_is_empty(item) && item != &tail)
@@ -448,35 +448,35 @@ fn effect_row(items: Vec<core_ir::Type>, tail: core_ir::Type) -> core_ir::Type {
     if items.is_empty() {
         return tail;
     }
-    core_ir::Type::Row {
+    typed_ir::Type::Row {
         items,
         tail: Box::new(tail),
     }
 }
 
-fn effect_row_from_paths(paths: Vec<core_ir::Path>) -> core_ir::Type {
+fn effect_row_from_paths(paths: Vec<typed_ir::Path>) -> typed_ir::Type {
     effect_row(
         paths
             .into_iter()
-            .map(|path| core_ir::Type::Named {
+            .map(|path| typed_ir::Type::Named {
                 path,
                 args: Vec::new(),
             })
             .collect(),
-        core_ir::Type::Never,
+        typed_ir::Type::Never,
     )
 }
 
-fn remove_consumed_effects(effect: &core_ir::Type, consumed: &[core_ir::Path]) -> core_ir::Type {
+fn remove_consumed_effects(effect: &typed_ir::Type, consumed: &[typed_ir::Path]) -> typed_ir::Type {
     match effect {
-        core_ir::Type::Named { path, .. }
+        typed_ir::Type::Named { path, .. }
             if consumed
                 .iter()
                 .any(|consumed| effect_paths_match(consumed, path)) =>
         {
-            core_ir::Type::Never
+            typed_ir::Type::Never
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             let items = items
                 .iter()
                 .map(|item| remove_consumed_effects(item, consumed))
@@ -485,15 +485,15 @@ fn remove_consumed_effects(effect: &core_ir::Type, consumed: &[core_ir::Path]) -
             let tail = remove_consumed_effects(tail, consumed);
             effect_row(items, tail)
         }
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => effect_row(
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => effect_row(
             items
                 .iter()
                 .map(|item| remove_consumed_effects(item, consumed))
                 .filter(|item| !effect_is_empty(item))
                 .collect(),
-            core_ir::Type::Never,
+            typed_ir::Type::Never,
         ),
-        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var: var.clone(),
             body: Box::new(remove_consumed_effects(body, consumed)),
         },
@@ -501,16 +501,16 @@ fn remove_consumed_effects(effect: &core_ir::Type, consumed: &[core_ir::Path]) -
     }
 }
 
-fn select_consumed_effects(effect: &core_ir::Type, consumed: &[core_ir::Path]) -> core_ir::Type {
+fn select_consumed_effects(effect: &typed_ir::Type, consumed: &[typed_ir::Path]) -> typed_ir::Type {
     match effect {
-        core_ir::Type::Named { path, .. }
+        typed_ir::Type::Named { path, .. }
             if consumed
                 .iter()
                 .any(|consumed| effect_paths_match(consumed, path)) =>
         {
             effect.clone()
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             let items = items
                 .iter()
                 .map(|item| select_consumed_effects(item, consumed))
@@ -519,36 +519,36 @@ fn select_consumed_effects(effect: &core_ir::Type, consumed: &[core_ir::Path]) -
             let tail = select_consumed_effects(tail, consumed);
             effect_row(items, tail)
         }
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => effect_row(
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => effect_row(
             items
                 .iter()
                 .map(|item| select_consumed_effects(item, consumed))
                 .filter(|item| !effect_is_empty(item))
                 .collect(),
-            core_ir::Type::Never,
+            typed_ir::Type::Never,
         ),
-        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var: var.clone(),
             body: Box::new(select_consumed_effects(body, consumed)),
         },
-        _ => core_ir::Type::Never,
+        _ => typed_ir::Type::Never,
     }
 }
 
-fn effect_contains_unknown_or_var(effect: &core_ir::Type) -> bool {
+fn effect_contains_unknown_or_var(effect: &typed_ir::Type) -> bool {
     match effect {
-        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_) => true,
-        core_ir::Type::Never => false,
-        core_ir::Type::Tuple(items) => items.iter().any(effect_contains_unknown_or_var),
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_) => true,
+        typed_ir::Type::Never => false,
+        typed_ir::Type::Tuple(items) => items.iter().any(effect_contains_unknown_or_var),
+        typed_ir::Type::Row { items, tail } => {
             items.iter().any(effect_contains_unknown_or_var) || effect_contains_unknown_or_var(tail)
         }
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
             items.iter().any(effect_contains_unknown_or_var)
         }
-        core_ir::Type::Recursive { body, .. } => effect_contains_unknown_or_var(body),
-        core_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_unknown_or_var),
-        core_ir::Type::Fun {
+        typed_ir::Type::Recursive { body, .. } => effect_contains_unknown_or_var(body),
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_contains_unknown_or_var),
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -559,18 +559,18 @@ fn effect_contains_unknown_or_var(effect: &core_ir::Type) -> bool {
                 || effect_contains_unknown_or_var(ret_effect)
                 || effect_contains_unknown_or_var(ret)
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
                 .any(|field| effect_contains_unknown_or_var(&field.value))
                 || record.spread.as_ref().is_some_and(|spread| match spread {
-                    core_ir::RecordSpread::Head(spread) | core_ir::RecordSpread::Tail(spread) => {
+                    typed_ir::RecordSpread::Head(spread) | typed_ir::RecordSpread::Tail(spread) => {
                         effect_contains_unknown_or_var(spread.as_ref())
                     }
                 })
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant
                 .cases
                 .iter()
@@ -583,10 +583,10 @@ fn effect_contains_unknown_or_var(effect: &core_ir::Type) -> bool {
     }
 }
 
-fn type_arg_contains_unknown_or_var(arg: &core_ir::TypeArg) -> bool {
+fn type_arg_contains_unknown_or_var(arg: &typed_ir::TypeArg) -> bool {
     match arg {
-        core_ir::TypeArg::Type(ty) => effect_contains_unknown_or_var(ty),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(ty) => effect_contains_unknown_or_var(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
             bounds
                 .lower
                 .as_ref()
@@ -599,9 +599,9 @@ fn type_arg_contains_unknown_or_var(arg: &core_ir::TypeArg) -> bool {
     }
 }
 
-fn normalize_effect(effect: core_ir::Type) -> core_ir::Type {
+fn normalize_effect(effect: typed_ir::Type) -> typed_ir::Type {
     match effect {
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             let items = items
                 .into_iter()
                 .map(normalize_effect)
@@ -609,15 +609,15 @@ fn normalize_effect(effect: core_ir::Type) -> core_ir::Type {
                 .collect();
             effect_row(items, normalize_effect(*tail))
         }
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => effect_row(
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => effect_row(
             items
                 .into_iter()
                 .map(normalize_effect)
                 .filter(|item| !effect_is_empty(item))
                 .collect(),
-            core_ir::Type::Never,
+            typed_ir::Type::Never,
         ),
-        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var,
             body: Box::new(normalize_effect(*body)),
         },
@@ -871,8 +871,8 @@ fn wrap_first_handler_returns(
 
 fn wrap_first_handle_returns_with_effect(
     expr: Expr,
-    effect: core_ir::Type,
-    expected_value: Option<&core_ir::Type>,
+    effect: typed_ir::Type,
+    expected_value: Option<&typed_ir::Type>,
     next_effect_id: &mut usize,
 ) -> Expr {
     let Expr { ty, kind } = expr;
@@ -985,8 +985,8 @@ fn wrap_first_handle_returns_with_effect(
 
 fn wrap_value_in_thunk(
     body: Expr,
-    effect: &core_ir::Type,
-    expected_value: Option<&core_ir::Type>,
+    effect: &typed_ir::Type,
+    expected_value: Option<&typed_ir::Type>,
 ) -> Expr {
     if let RuntimeType::Thunk {
         effect: existing,
@@ -1012,7 +1012,7 @@ fn wrap_value_in_thunk(
     )
 }
 
-fn wrap_handler_return(body: Expr, effect: &core_ir::Type, next_effect_id: &mut usize) -> Expr {
+fn wrap_handler_return(body: Expr, effect: &typed_ir::Type, next_effect_id: &mut usize) -> Expr {
     if matches!(body.kind, ExprKind::LocalPushId { .. }) || !matches!(body.ty, RuntimeType::Core(_))
     {
         return body;
@@ -1212,8 +1212,8 @@ fn update_max(max: &mut Option<usize>, candidate: Option<usize>) {
     }
 }
 
-fn effect_contains_any(effect: &core_ir::Type, targets: &[core_ir::Path]) -> bool {
-    if matches!(effect, core_ir::Type::Any) && !targets.is_empty() {
+fn effect_contains_any(effect: &typed_ir::Type, targets: &[typed_ir::Path]) -> bool {
+    if matches!(effect, typed_ir::Type::Any) && !targets.is_empty() {
         return true;
     }
     let paths = effect_paths(effect);
@@ -1297,8 +1297,8 @@ fn expr_handler_info(expr: &Expr) -> Option<HandlerBindingInfo> {
     }
 }
 
-fn handle_arm_parent_effects(arms: &[HandleArm]) -> Vec<core_ir::Path> {
-    let mut out = Vec::<core_ir::Path>::new();
+fn handle_arm_parent_effects(arms: &[HandleArm]) -> Vec<typed_ir::Path> {
+    let mut out = Vec::<typed_ir::Path>::new();
     for arm in arms {
         for path in [Some(arm.effect.clone()), parent_effect_path(&arm.effect)]
             .into_iter()
@@ -1315,11 +1315,11 @@ fn handle_arm_parent_effects(arms: &[HandleArm]) -> Vec<core_ir::Path> {
     out
 }
 
-fn parent_effect_path(operation: &core_ir::Path) -> Option<core_ir::Path> {
+fn parent_effect_path(operation: &typed_ir::Path) -> Option<typed_ir::Path> {
     if operation.segments.len() < 2 {
         return None;
     }
-    Some(core_ir::Path {
+    Some(typed_ir::Path {
         segments: operation
             .segments
             .iter()
@@ -1329,15 +1329,15 @@ fn parent_effect_path(operation: &core_ir::Path) -> Option<core_ir::Path> {
     })
 }
 
-fn principal_handler_effects(ty: &core_ir::Type) -> Option<(core_ir::Type, core_ir::Type)> {
+fn principal_handler_effects(ty: &typed_ir::Type) -> Option<(typed_ir::Type, typed_ir::Type)> {
     match ty {
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param_effect,
             ret_effect,
             ..
         } => Some((param_effect.as_ref().clone(), ret_effect.as_ref().clone())),
-        core_ir::Type::Recursive { body, .. } => principal_handler_effects(body),
-        core_ir::Type::Inter(items) | core_ir::Type::Union(items) => {
+        typed_ir::Type::Recursive { body, .. } => principal_handler_effects(body),
+        typed_ir::Type::Inter(items) | typed_ir::Type::Union(items) => {
             items.iter().find_map(principal_handler_effects)
         }
         _ => None,
@@ -1378,7 +1378,7 @@ mod tests {
 
         binding.body = Expr::typed(
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
@@ -1395,7 +1395,7 @@ mod tests {
                             resume: None,
                             guard: None,
                             body: Expr::typed(
-                                ExprKind::Lit(core_ir::Lit::Unit),
+                                ExprKind::Lit(typed_ir::Lit::Unit),
                                 RuntimeType::core(named("unit")),
                             ),
                         }],
@@ -1419,8 +1419,8 @@ mod tests {
 
         let info = handler_binding_info(&binding).expect("handler info");
         assert!(info.consumes.contains(&path_segments(&["std", "effect"])));
-        assert_eq!(info.principal_input_effect, Some(core_ir::Type::Never));
-        assert_eq!(info.principal_output_effect, Some(core_ir::Type::Never));
+        assert_eq!(info.principal_input_effect, Some(typed_ir::Type::Never));
+        assert_eq!(info.principal_output_effect, Some(typed_ir::Type::Never));
         assert!(!info.residual_before_known);
         assert!(!info.residual_after_known);
         assert!(!info.pure);
@@ -1461,7 +1461,7 @@ mod tests {
         let info = HandlerBindingInfo {
             consumes: vec![consumes.clone()],
             principal_input_effect: Some(effect(consumes.clone())),
-            principal_output_effect: Some(core_ir::Type::Never),
+            principal_output_effect: Some(typed_ir::Type::Never),
             residual_before_known: true,
             residual_after_known: true,
             pure: true,
@@ -1503,7 +1503,7 @@ mod tests {
         let boundary = HandlerCallBoundary {
             consumes: vec![consumes.clone()],
             input_effect: Some(effect_row(vec![
-                effect_with_arg(consumes.clone(), core_ir::Type::Unknown),
+                effect_with_arg(consumes.clone(), typed_ir::Type::Unknown),
                 effect(outer.clone()),
             ])),
             output_effect: Some(effect(outer.clone())),
@@ -1527,16 +1527,16 @@ mod tests {
             plan.residual_before,
             Some(effect_with_arg(consumes, named("int")))
         );
-        assert_eq!(plan.residual_after, Some(core_ir::Type::Never));
+        assert_eq!(plan.residual_after, Some(typed_ir::Type::Never));
         assert_eq!(plan.return_wrapper_effect, Some(effect(outer)));
         assert_eq!(plan.return_value, Some(named("int")));
     }
 
-    fn test_binding(scheme_body: core_ir::Type) -> Binding {
+    fn test_binding(scheme_body: typed_ir::Type) -> Binding {
         Binding {
             name: path_segments(&["std", "prelude", "&impl#0", "method"]),
             type_params: Vec::new(),
-            scheme: core_ir::Scheme {
+            scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
                 body: scheme_body.clone(),
             },
@@ -1544,52 +1544,52 @@ mod tests {
         }
     }
 
-    fn fun(param: core_ir::Type, ret: core_ir::Type) -> core_ir::Type {
-        core_ir::Type::Fun {
+    fn fun(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Fun {
             param: Box::new(param),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(ret),
         }
     }
 
-    fn named(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
             path: path(name),
             args: Vec::new(),
         }
     }
 
-    fn effect(path: core_ir::Path) -> core_ir::Type {
-        core_ir::Type::Named {
+    fn effect(path: typed_ir::Path) -> typed_ir::Type {
+        typed_ir::Type::Named {
             path,
             args: Vec::new(),
         }
     }
 
-    fn effect_with_arg(path: core_ir::Path, arg: core_ir::Type) -> core_ir::Type {
-        core_ir::Type::Named {
+    fn effect_with_arg(path: typed_ir::Path, arg: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
             path,
-            args: vec![core_ir::TypeArg::Type(arg)],
+            args: vec![typed_ir::TypeArg::Type(arg)],
         }
     }
 
-    fn effect_row(items: Vec<core_ir::Type>) -> core_ir::Type {
-        core_ir::Type::Row {
+    fn effect_row(items: Vec<typed_ir::Type>) -> typed_ir::Type {
+        typed_ir::Type::Row {
             items,
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         }
     }
 
-    fn path(name: &str) -> core_ir::Path {
-        core_ir::Path::from_name(core_ir::Name(name.to_string()))
+    fn path(name: &str) -> typed_ir::Path {
+        typed_ir::Path::from_name(typed_ir::Name(name.to_string()))
     }
 
-    fn path_segments(segments: &[&str]) -> core_ir::Path {
-        core_ir::Path {
+    fn path_segments(segments: &[&str]) -> typed_ir::Path {
+        typed_ir::Path {
             segments: segments
                 .iter()
-                .map(|segment| core_ir::Name((*segment).to_string()))
+                .map(|segment| typed_ir::Name((*segment).to_string()))
                 .collect(),
         }
     }

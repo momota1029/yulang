@@ -1,6 +1,9 @@
 use super::*;
 
-pub(super) fn reject_non_runtime_type(ty: &core_ir::Type, source: TypeSource) -> RuntimeResult<()> {
+pub(super) fn reject_non_runtime_type(
+    ty: &typed_ir::Type,
+    source: TypeSource,
+) -> RuntimeResult<()> {
     if contains_non_runtime_type(ty) {
         return Err(RuntimeError::NonRuntimeType {
             ty: ty.clone(),

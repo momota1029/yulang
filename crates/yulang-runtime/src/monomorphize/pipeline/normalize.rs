@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn normalize_hir_function_type(ty: RuntimeType) -> RuntimeType {
     match ty {
-        RuntimeType::Core(core_ir::Type::Fun { .. }) => core_function_as_hir_type(&ty),
+        RuntimeType::Core(typed_ir::Type::Fun { .. }) => core_function_as_hir_type(&ty),
         RuntimeType::Fun { param, ret } => RuntimeType::fun(
             normalize_hir_function_type(*param),
             normalize_hir_function_type(*ret),
@@ -28,7 +28,7 @@ pub(super) fn refresh_specialized_scheme_from_body(binding: &mut Binding) {
     if matches!(binding.body.kind, ExprKind::PrimitiveOp(_)) {
         return;
     }
-    binding.scheme = core_ir::Scheme {
+    binding.scheme = typed_ir::Scheme {
         requirements: Vec::new(),
         body: core_value_type(&binding.body.ty),
     };
@@ -48,7 +48,7 @@ pub(super) fn refresh_closed_specialized_schemes(mut module: Module) -> Module {
     module
 }
 
-fn is_synthetic_local_act_helper_path(path: &core_ir::Path) -> bool {
+fn is_synthetic_local_act_helper_path(path: &typed_ir::Path) -> bool {
     path.segments
         .first()
         .is_some_and(|segment| segment.0.starts_with('&') && segment.0.contains('#'))
@@ -63,8 +63,8 @@ fn close_unbound_effect_vars(binding: &mut Binding) {
     for requirement in &binding.scheme.requirements {
         for arg in &requirement.args {
             match arg {
-                core_ir::RoleRequirementArg::Input(bounds)
-                | core_ir::RoleRequirementArg::Associated { bounds, .. } => {
+                typed_ir::RoleRequirementArg::Input(bounds)
+                | typed_ir::RoleRequirementArg::Associated { bounds, .. } => {
                     collect_bounds_non_effect_vars(bounds, &mut non_effect_vars);
                 }
             }
@@ -73,7 +73,7 @@ fn close_unbound_effect_vars(binding: &mut Binding) {
     let substitutions = effect_vars
         .into_iter()
         .filter(|var| !binding.type_params.contains(var) && !non_effect_vars.contains(var))
-        .map(|var| (var, core_ir::Type::Never))
+        .map(|var| (var, typed_ir::Type::Never))
         .collect::<BTreeMap<_, _>>();
     if substitutions.is_empty() {
         return;
@@ -84,7 +84,7 @@ fn close_unbound_effect_vars(binding: &mut Binding) {
 
 pub(super) fn collect_binding_type_params(
     binding: &Binding,
-    params: &mut BTreeSet<core_ir::TypeVar>,
+    params: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     collect_core_type_vars(&binding.scheme.body, params);
     for requirement in &binding.scheme.requirements {
@@ -94,8 +94,8 @@ pub(super) fn collect_binding_type_params(
 }
 
 fn collect_type_bounds_effect_vars(
-    bounds: &core_ir::TypeBounds,
-    vars: &mut BTreeSet<core_ir::TypeVar>,
+    bounds: &typed_ir::TypeBounds,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     if let Some(lower) = bounds.lower.as_deref() {
         collect_effect_position_vars(lower, vars);
@@ -105,7 +105,7 @@ fn collect_type_bounds_effect_vars(
     }
 }
 
-fn collect_hir_effect_vars(ty: &RuntimeType, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_hir_effect_vars(ty: &RuntimeType, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match ty {
         RuntimeType::Unknown => {}
         RuntimeType::Core(ty) => collect_effect_position_vars(ty, vars),
@@ -120,7 +120,7 @@ fn collect_hir_effect_vars(ty: &RuntimeType, vars: &mut BTreeSet<core_ir::TypeVa
     }
 }
 
-fn collect_expr_effect_vars(expr: &Expr, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_expr_effect_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     collect_hir_effect_vars(&expr.ty, vars);
     match &expr.kind {
         ExprKind::Lambda { body, .. } => collect_expr_effect_vars(body, vars),
@@ -218,7 +218,7 @@ fn collect_expr_effect_vars(expr: &Expr, vars: &mut BTreeSet<core_ir::TypeVar>) 
     }
 }
 
-fn collect_stmt_effect_vars(stmt: &Stmt, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_stmt_effect_vars(stmt: &Stmt, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
             collect_expr_effect_vars(value, vars);
@@ -226,7 +226,7 @@ fn collect_stmt_effect_vars(stmt: &Stmt, vars: &mut BTreeSet<core_ir::TypeVar>) 
     }
 }
 
-fn collect_expr_non_effect_vars(expr: &Expr, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_expr_non_effect_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     collect_hir_non_effect_vars(&expr.ty, vars);
     match &expr.kind {
         ExprKind::Lambda { body, .. } => collect_expr_non_effect_vars(body, vars),
@@ -316,7 +316,7 @@ fn collect_expr_non_effect_vars(expr: &Expr, vars: &mut BTreeSet<core_ir::TypeVa
     }
 }
 
-fn collect_stmt_non_effect_vars(stmt: &Stmt, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_stmt_non_effect_vars(stmt: &Stmt, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match stmt {
         Stmt::Let { pattern, value } => {
             collect_pattern_non_effect_vars(pattern, vars);
@@ -328,11 +328,11 @@ fn collect_stmt_non_effect_vars(stmt: &Stmt, vars: &mut BTreeSet<core_ir::TypeVa
     }
 }
 
-fn collect_pattern_non_effect_vars(pattern: &Pattern, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_pattern_non_effect_vars(pattern: &Pattern, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     collect_hir_non_effect_vars(&pattern_type(pattern), vars);
 }
 
-fn collect_hir_non_effect_vars(ty: &RuntimeType, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_hir_non_effect_vars(ty: &RuntimeType, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match ty {
         RuntimeType::Unknown => {}
         RuntimeType::Core(ty) => collect_core_non_effect_vars(ty, vars),
@@ -345,8 +345,8 @@ fn collect_hir_non_effect_vars(ty: &RuntimeType, vars: &mut BTreeSet<core_ir::Ty
 }
 
 fn collect_bounds_non_effect_vars(
-    bounds: &core_ir::TypeBounds,
-    vars: &mut BTreeSet<core_ir::TypeVar>,
+    bounds: &typed_ir::TypeBounds,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     if let Some(lower) = bounds.lower.as_deref() {
         collect_core_non_effect_vars(lower, vars);
@@ -356,43 +356,45 @@ fn collect_bounds_non_effect_vars(
     }
 }
 
-fn collect_core_non_effect_vars(ty: &core_ir::Type, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_core_non_effect_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match ty {
-        core_ir::Type::Var(var) => {
+        typed_ir::Type::Var(var) => {
             vars.insert(var.clone());
         }
-        core_ir::Type::Fun { param, ret, .. } => {
+        typed_ir::Type::Fun { param, ret, .. } => {
             collect_core_non_effect_vars(param, vars);
             collect_core_non_effect_vars(ret, vars);
         }
-        core_ir::Type::Named { args, .. } => {
+        typed_ir::Type::Named { args, .. } => {
             for arg in args {
                 match arg {
-                    core_ir::TypeArg::Type(ty) => collect_core_non_effect_vars(ty, vars),
-                    core_ir::TypeArg::Bounds(bounds) => {
+                    typed_ir::TypeArg::Type(ty) => collect_core_non_effect_vars(ty, vars),
+                    typed_ir::TypeArg::Bounds(bounds) => {
                         collect_bounds_non_effect_vars(bounds, vars);
                     }
                 }
             }
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
             for item in items {
                 collect_core_non_effect_vars(item, vars);
             }
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             for field in &record.fields {
                 collect_core_non_effect_vars(&field.value, vars);
             }
             if let Some(spread) = &record.spread {
                 match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         collect_core_non_effect_vars(ty, vars);
                     }
                 }
             }
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             for case in &variant.cases {
                 for payload in &case.payloads {
                     collect_core_non_effect_vars(payload, vars);
@@ -402,22 +404,22 @@ fn collect_core_non_effect_vars(ty: &core_ir::Type, vars: &mut BTreeSet<core_ir:
                 collect_core_non_effect_vars(tail, vars);
             }
         }
-        core_ir::Type::Recursive { body, .. } => collect_core_non_effect_vars(body, vars),
-        core_ir::Type::Row { .. }
-        | core_ir::Type::Unknown
-        | core_ir::Type::Never
-        | core_ir::Type::Any => {}
+        typed_ir::Type::Recursive { body, .. } => collect_core_non_effect_vars(body, vars),
+        typed_ir::Type::Row { .. }
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any => {}
     }
 }
 
 pub(super) fn collect_role_requirement_vars(
-    requirement: &core_ir::RoleRequirement,
-    vars: &mut BTreeSet<core_ir::TypeVar>,
+    requirement: &typed_ir::RoleRequirement,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     for arg in &requirement.args {
         match arg {
-            core_ir::RoleRequirementArg::Input(bounds)
-            | core_ir::RoleRequirementArg::Associated { bounds, .. } => {
+            typed_ir::RoleRequirementArg::Input(bounds)
+            | typed_ir::RoleRequirementArg::Associated { bounds, .. } => {
                 collect_type_bounds_vars(bounds, vars);
             }
         }
@@ -425,8 +427,8 @@ pub(super) fn collect_role_requirement_vars(
 }
 
 pub(super) fn collect_type_bounds_vars(
-    bounds: &core_ir::TypeBounds,
-    vars: &mut BTreeSet<core_ir::TypeVar>,
+    bounds: &typed_ir::TypeBounds,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     if let Some(lower) = bounds.lower.as_deref() {
         collect_core_type_vars(lower, vars);
@@ -437,11 +439,11 @@ pub(super) fn collect_type_bounds_vars(
 }
 
 pub(super) fn collect_effect_position_vars(
-    ty: &core_ir::Type,
-    vars: &mut BTreeSet<core_ir::TypeVar>,
+    ty: &typed_ir::Type,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     match ty {
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -452,34 +454,36 @@ pub(super) fn collect_effect_position_vars(
             collect_effect_position_vars(param, vars);
             collect_effect_position_vars(ret, vars);
         }
-        core_ir::Type::Named { args, .. } => {
+        typed_ir::Type::Named { args, .. } => {
             for arg in args {
                 match arg {
-                    core_ir::TypeArg::Type(ty) => collect_effect_position_vars(ty, vars),
-                    core_ir::TypeArg::Bounds(bounds) => {
+                    typed_ir::TypeArg::Type(ty) => collect_effect_position_vars(ty, vars),
+                    typed_ir::TypeArg::Bounds(bounds) => {
                         collect_type_bounds_effect_vars(bounds, vars);
                     }
                 }
             }
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
             for item in items {
                 collect_effect_position_vars(item, vars);
             }
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             for field in &record.fields {
                 collect_effect_position_vars(&field.value, vars);
             }
             if let Some(spread) = &record.spread {
                 match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         collect_effect_position_vars(ty, vars);
                     }
                 }
             }
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             for case in &variant.cases {
                 for payload in &case.payloads {
                     collect_effect_position_vars(payload, vars);
@@ -489,46 +493,46 @@ pub(super) fn collect_effect_position_vars(
                 collect_effect_position_vars(tail, vars);
             }
         }
-        core_ir::Type::Recursive { body, .. } => collect_effect_position_vars(body, vars),
-        core_ir::Type::Row { .. }
-        | core_ir::Type::Unknown
-        | core_ir::Type::Var(_)
-        | core_ir::Type::Never
-        | core_ir::Type::Any => {}
+        typed_ir::Type::Recursive { body, .. } => collect_effect_position_vars(body, vars),
+        typed_ir::Type::Row { .. }
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Var(_)
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any => {}
     }
 }
 
-pub(super) fn collect_effect_vars(effect: &core_ir::Type, vars: &mut BTreeSet<core_ir::TypeVar>) {
+pub(super) fn collect_effect_vars(effect: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match effect {
-        core_ir::Type::Var(var) => {
+        typed_ir::Type::Var(var) => {
             vars.insert(var.clone());
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             for item in items {
                 collect_effect_vars(item, vars);
             }
             collect_effect_vars(tail, vars);
         }
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
             for item in items {
                 collect_effect_vars(item, vars);
             }
         }
-        core_ir::Type::Recursive { body, .. } => collect_effect_vars(body, vars),
-        core_ir::Type::Named { .. }
-        | core_ir::Type::Fun { .. }
-        | core_ir::Type::Tuple(_)
-        | core_ir::Type::Record(_)
-        | core_ir::Type::Variant(_)
-        | core_ir::Type::Unknown
-        | core_ir::Type::Never
-        | core_ir::Type::Any => {}
+        typed_ir::Type::Recursive { body, .. } => collect_effect_vars(body, vars),
+        typed_ir::Type::Named { .. }
+        | typed_ir::Type::Fun { .. }
+        | typed_ir::Type::Tuple(_)
+        | typed_ir::Type::Record(_)
+        | typed_ir::Type::Variant(_)
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any => {}
     }
 }
 
 pub(super) fn substitute_type_instantiation(
     instantiation: TypeInstantiation,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> TypeInstantiation {
     TypeInstantiation {
         target: instantiation.target,

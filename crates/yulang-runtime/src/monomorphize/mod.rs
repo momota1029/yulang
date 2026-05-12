@@ -11,7 +11,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::ir::{Expr, ExprKind, RecordSpreadExpr, Stmt, Type as RuntimeType};
 use crate::types::substitute_type;
@@ -50,22 +50,21 @@ use semantics::*;
 pub use solve::*;
 pub use specialize::*;
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Demand {
-    pub target: core_ir::Path,
+    pub target: typed_ir::Path,
     pub expected: RuntimeType,
     pub key: DemandKey,
 }
 
 impl Demand {
-    pub fn new(target: core_ir::Path, expected: RuntimeType) -> Self {
+    pub fn new(target: typed_ir::Path, expected: RuntimeType) -> Self {
         Self::new_with_semantics(&DemandSemantics::default(), target, expected)
     }
 
     pub(super) fn new_with_semantics(
         semantics: &DemandSemantics,
-        target: core_ir::Path,
+        target: typed_ir::Path,
         expected: RuntimeType,
     ) -> Self {
         let key = DemandKey::new(target.clone(), &expected);
@@ -81,7 +80,7 @@ impl Demand {
     }
 
     pub fn with_signature(
-        target: core_ir::Path,
+        target: typed_ir::Path,
         expected: RuntimeType,
         signature: DemandSignature,
     ) -> Self {
@@ -90,7 +89,7 @@ impl Demand {
 
     pub(super) fn with_signature_and_semantics(
         semantics: &DemandSemantics,
-        target: core_ir::Path,
+        target: typed_ir::Path,
         expected: RuntimeType,
         signature: DemandSignature,
     ) -> Self {
@@ -107,19 +106,19 @@ impl Demand {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DemandKey {
-    pub target: core_ir::Path,
+    pub target: typed_ir::Path,
     pub signature: DemandSignature,
 }
 
 impl DemandKey {
-    pub fn new(target: core_ir::Path, expected: &RuntimeType) -> Self {
+    pub fn new(target: typed_ir::Path, expected: &RuntimeType) -> Self {
         Self {
             target,
             signature: DemandSignature::from_runtime_type(expected).canonicalize_holes(),
         }
     }
 
-    pub fn from_signature(target: core_ir::Path, signature: DemandSignature) -> Self {
+    pub fn from_signature(target: typed_ir::Path, signature: DemandSignature) -> Self {
         Self {
             target,
             signature: signature.canonicalize_holes(),
@@ -195,12 +194,12 @@ pub enum DemandEffect {
 }
 
 impl DemandEffect {
-    pub fn from_core_type(ty: &core_ir::Type) -> Self {
+    pub fn from_core_type(ty: &typed_ir::Type) -> Self {
         let mut next_hole = 0;
         Self::from_core_type_with_holes(ty, &mut next_hole)
     }
 
-    pub fn from_core_type_with_holes(ty: &core_ir::Type, next_hole: &mut u32) -> Self {
+    pub fn from_core_type_with_holes(ty: &typed_ir::Type, next_hole: &mut u32) -> Self {
         let mut builder = SignatureBuilder {
             next_hole: *next_hole,
         };
@@ -238,7 +237,7 @@ pub enum DemandCoreType {
     Never,
     Hole(u32),
     Named {
-        path: core_ir::Path,
+        path: typed_ir::Path,
         args: Vec<DemandTypeArg>,
     },
     Fun {
@@ -254,7 +253,7 @@ pub enum DemandCoreType {
     Union(Vec<DemandCoreType>),
     Inter(Vec<DemandCoreType>),
     Recursive {
-        var: core_ir::TypeVar,
+        var: typed_ir::TypeVar,
         body: Box<DemandCoreType>,
     },
 }
@@ -679,7 +678,7 @@ fn canonical_type_arg_key(arg: &DemandTypeArg) -> String {
     }
 }
 
-fn canonical_path_key(path: &core_ir::Path) -> String {
+fn canonical_path_key(path: &typed_ir::Path) -> String {
     path.segments
         .iter()
         .map(|segment| segment.0.as_str())
@@ -689,14 +688,14 @@ fn canonical_path_key(path: &core_ir::Path) -> String {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DemandRecordField {
-    pub name: core_ir::Name,
+    pub name: typed_ir::Name,
     pub value: DemandCoreType,
     pub optional: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DemandVariantCase {
-    pub name: core_ir::Name,
+    pub name: typed_ir::Name,
     pub payloads: Vec<DemandCoreType>,
 }
 
@@ -724,17 +723,17 @@ impl SignatureBuilder {
         }
     }
 
-    fn core_type(&mut self, ty: &core_ir::Type) -> DemandCoreType {
+    fn core_type(&mut self, ty: &typed_ir::Type) -> DemandCoreType {
         match ty {
-            core_ir::Type::Never => DemandCoreType::Never,
-            core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_) => {
+            typed_ir::Type::Never => DemandCoreType::Never,
+            typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_) => {
                 DemandCoreType::Hole(self.fresh_hole())
             }
-            core_ir::Type::Named { path, args } => DemandCoreType::Named {
+            typed_ir::Type::Named { path, args } => DemandCoreType::Named {
                 path: path.clone(),
                 args: args.iter().map(|arg| self.type_arg(arg)).collect(),
             },
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param,
                 param_effect,
                 ret_effect,
@@ -745,10 +744,10 @@ impl SignatureBuilder {
                 ret_effect: Box::new(self.effect_type(ret_effect)),
                 ret: Box::new(self.core_type(ret)),
             },
-            core_ir::Type::Tuple(items) => {
+            typed_ir::Type::Tuple(items) => {
                 DemandCoreType::Tuple(items.iter().map(|item| self.core_type(item)).collect())
             }
-            core_ir::Type::Record(record) => DemandCoreType::Record(
+            typed_ir::Type::Record(record) => DemandCoreType::Record(
                 record
                     .fields
                     .iter()
@@ -759,7 +758,7 @@ impl SignatureBuilder {
                     })
                     .collect(),
             ),
-            core_ir::Type::Variant(variant) => DemandCoreType::Variant(
+            typed_ir::Type::Variant(variant) => DemandCoreType::Variant(
                 variant
                     .cases
                     .iter()
@@ -773,7 +772,7 @@ impl SignatureBuilder {
                     })
                     .collect(),
             ),
-            core_ir::Type::Row { items, tail } => {
+            typed_ir::Type::Row { items, tail } => {
                 let mut row = items
                     .iter()
                     .map(|item| self.effect_type(item))
@@ -781,24 +780,24 @@ impl SignatureBuilder {
                 row.push(self.effect_type(tail));
                 DemandCoreType::RowAsValue(row)
             }
-            core_ir::Type::Union(items) => {
+            typed_ir::Type::Union(items) => {
                 DemandCoreType::Union(items.iter().map(|item| self.core_type(item)).collect())
             }
-            core_ir::Type::Inter(items) => {
+            typed_ir::Type::Inter(items) => {
                 DemandCoreType::Inter(items.iter().map(|item| self.core_type(item)).collect())
             }
-            core_ir::Type::Recursive { var, body } => DemandCoreType::Recursive {
+            typed_ir::Type::Recursive { var, body } => DemandCoreType::Recursive {
                 var: var.clone(),
                 body: Box::new(self.core_type(body)),
             },
         }
     }
 
-    fn effect_type(&mut self, ty: &core_ir::Type) -> DemandEffect {
+    fn effect_type(&mut self, ty: &typed_ir::Type) -> DemandEffect {
         match ty {
-            core_ir::Type::Never => DemandEffect::Empty,
-            core_ir::Type::Any | core_ir::Type::Var(_) => DemandEffect::Hole(self.fresh_hole()),
-            core_ir::Type::Row { items, tail } => {
+            typed_ir::Type::Never => DemandEffect::Empty,
+            typed_ir::Type::Any | typed_ir::Type::Var(_) => DemandEffect::Hole(self.fresh_hole()),
+            typed_ir::Type::Row { items, tail } => {
                 let mut row = items
                     .iter()
                     .map(|item| self.effect_type(item))
@@ -818,10 +817,10 @@ impl SignatureBuilder {
         }
     }
 
-    fn type_arg(&mut self, arg: &core_ir::TypeArg) -> DemandTypeArg {
+    fn type_arg(&mut self, arg: &typed_ir::TypeArg) -> DemandTypeArg {
         match arg {
-            core_ir::TypeArg::Type(ty) => DemandTypeArg::Type(self.core_type(ty)),
-            core_ir::TypeArg::Bounds(bounds) => DemandTypeArg::Bounds {
+            typed_ir::TypeArg::Type(ty) => DemandTypeArg::Type(self.core_type(ty)),
+            typed_ir::TypeArg::Bounds(bounds) => DemandTypeArg::Bounds {
                 lower: bounds.lower.as_deref().map(|ty| self.core_type(ty)),
                 upper: bounds.upper.as_deref().map(|ty| self.core_type(ty)),
             },
@@ -841,8 +840,8 @@ impl SignatureBuilder {
 /// `Root::Binding` entries.  Suitable for both pruning and filtering passes.
 pub(super) fn reachable_binding_paths(
     module: &crate::ir::Module,
-) -> std::collections::HashSet<core_ir::Path> {
-    let bodies: std::collections::HashMap<core_ir::Path, &Expr> = module
+) -> std::collections::HashSet<typed_ir::Path> {
+    let bodies: std::collections::HashMap<typed_ir::Path, &Expr> = module
         .bindings
         .iter()
         .map(|b| (b.name.clone(), &b.body))
@@ -868,7 +867,7 @@ pub(super) fn reachable_binding_paths(
     reachable
 }
 
-pub(super) fn collect_expr_refs(expr: &Expr, out: &mut Vec<core_ir::Path>) {
+pub(super) fn collect_expr_refs(expr: &Expr, out: &mut Vec<typed_ir::Path>) {
     match &expr.kind {
         ExprKind::Var(path) => out.push(path.clone()),
         ExprKind::Lambda { body, .. }
@@ -951,7 +950,7 @@ pub(super) fn collect_expr_refs(expr: &Expr, out: &mut Vec<core_ir::Path>) {
     }
 }
 
-pub(super) fn collect_stmt_refs(stmt: &Stmt, out: &mut Vec<core_ir::Path>) {
+pub(super) fn collect_stmt_refs(stmt: &Stmt, out: &mut Vec<typed_ir::Path>) {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
             collect_expr_refs(value, out);
@@ -1062,7 +1061,7 @@ pub(super) fn effected_core_signature(ty: DemandCoreType, effect: DemandEffect) 
 }
 
 pub(super) fn apply_evidence_merged_signature(
-    evidence: &core_ir::ApplyEvidence,
+    evidence: &typed_ir::ApplyEvidence,
     fallback: DemandSignature,
 ) -> DemandSignature {
     let Some(evidence) = apply_evidence_signature(evidence) else {
@@ -1072,21 +1071,21 @@ pub(super) fn apply_evidence_merged_signature(
 }
 
 pub(super) fn apply_evidence_callee_signature(
-    evidence: &core_ir::ApplyEvidence,
+    evidence: &typed_ir::ApplyEvidence,
 ) -> Option<DemandSignature> {
     apply_evidence_callee_type(evidence)
         .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty)))
 }
 
 pub(super) fn apply_evidence_substituted_callee_signature(
-    evidence: &core_ir::ApplyEvidence,
+    evidence: &typed_ir::ApplyEvidence,
 ) -> Option<DemandSignature> {
     apply_evidence_substituted_callee_type(evidence)
         .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty)))
 }
 
 pub(super) fn apply_evidence_arg_signature(
-    evidence: &core_ir::ApplyEvidence,
+    evidence: &typed_ir::ApplyEvidence,
 ) -> Option<DemandSignature> {
     apply_evidence_arg_signature_with_expected_arg(
         evidence,
@@ -1095,7 +1094,7 @@ pub(super) fn apply_evidence_arg_signature(
 }
 
 pub(super) fn apply_evidence_arg_signature_with_expected_arg(
-    evidence: &core_ir::ApplyEvidence,
+    evidence: &typed_ir::ApplyEvidence,
     use_expected_arg: bool,
 ) -> Option<DemandSignature> {
     DEMAND_EVIDENCE_PROFILE.fetch_add_apply_arg_signature_calls();
@@ -1125,7 +1124,7 @@ pub(super) fn apply_evidence_arg_signature_with_expected_arg(
 }
 
 pub(super) fn apply_evidence_param_signature(
-    evidence: &core_ir::ApplyEvidence,
+    evidence: &typed_ir::ApplyEvidence,
 ) -> Option<DemandSignature> {
     let arg = apply_evidence_arg_signature(evidence);
     let callee = apply_evidence_expected_callee_param_signature(
@@ -1141,7 +1140,7 @@ pub(super) fn apply_evidence_param_signature(
 }
 
 pub(super) fn apply_evidence_expected_callee_param_signature(
-    evidence: &core_ir::ApplyEvidence,
+    evidence: &typed_ir::ApplyEvidence,
     use_expected_callee: bool,
 ) -> Option<DemandSignature> {
     DEMAND_EVIDENCE_PROFILE.fetch_add_apply_callee_signature_calls();
@@ -1157,7 +1156,7 @@ pub(super) fn apply_evidence_expected_callee_param_signature(
         return None;
     };
     DEMAND_EVIDENCE_PROFILE.fetch_add_expected_callee_hint_converted();
-    let core_ir::Type::Fun { param, .. } = ty else {
+    let typed_ir::Type::Fun { param, .. } = ty else {
         DEMAND_EVIDENCE_PROFILE.fetch_add_expected_callee_hint_rejected_non_function();
         return None;
     };
@@ -1177,8 +1176,8 @@ pub(super) fn apply_evidence_expected_callee_param_signature(
     Some(signature)
 }
 
-fn apply_evidence_signature(evidence: &core_ir::ApplyEvidence) -> Option<DemandSignature> {
-    if let Some(core_ir::Type::Fun {
+fn apply_evidence_signature(evidence: &typed_ir::ApplyEvidence) -> Option<DemandSignature> {
+    if let Some(typed_ir::Type::Fun {
         ret_effect, ret, ..
     }) = apply_evidence_callee_type(evidence)
     {
@@ -1197,11 +1196,11 @@ fn apply_evidence_signature(evidence: &core_ir::ApplyEvidence) -> Option<DemandS
         .map(|ty| DemandSignature::from_runtime_type(&RuntimeType::core(ty.clone())))
 }
 
-fn evidence_bounds_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
+fn evidence_bounds_type(bounds: &typed_ir::TypeBounds) -> Option<&typed_ir::Type> {
     bounds.lower.as_deref().or(bounds.upper.as_deref())
 }
 
-fn apply_evidence_callee_type(evidence: &core_ir::ApplyEvidence) -> Option<core_ir::Type> {
+fn apply_evidence_callee_type(evidence: &typed_ir::ApplyEvidence) -> Option<typed_ir::Type> {
     if let Some(callee) = apply_evidence_substituted_callee_type(evidence) {
         return Some(callee);
     }
@@ -1209,8 +1208,8 @@ fn apply_evidence_callee_type(evidence: &core_ir::ApplyEvidence) -> Option<core_
 }
 
 fn apply_evidence_substituted_callee_type(
-    evidence: &core_ir::ApplyEvidence,
-) -> Option<core_ir::Type> {
+    evidence: &typed_ir::ApplyEvidence,
+) -> Option<typed_ir::Type> {
     if std::env::var_os("YULANG_USE_APPLY_SUBSTITUTIONS").is_none() {
         return None;
     }
@@ -1327,7 +1326,7 @@ mod tests {
     #[test]
     fn demand_signature_turns_any_value_into_hole() {
         let ty = RuntimeType::fun(
-            RuntimeType::core(core_ir::Type::Any),
+            RuntimeType::core(typed_ir::Type::Any),
             RuntimeType::core(named("int")),
         );
 
@@ -1347,7 +1346,7 @@ mod tests {
 
     #[test]
     fn demand_signature_keeps_effect_holes_separate_from_value_holes() {
-        let ty = RuntimeType::thunk(core_ir::Type::Any, RuntimeType::core(core_ir::Type::Any));
+        let ty = RuntimeType::thunk(typed_ir::Type::Any, RuntimeType::core(typed_ir::Type::Any));
 
         let signature = DemandSignature::from_runtime_type(&ty);
 
@@ -1365,8 +1364,8 @@ mod tests {
         let mut queue = DemandQueue::default();
         let target = path("id");
 
-        assert!(queue.push(target.clone(), RuntimeType::core(core_ir::Type::Any)));
-        assert!(!queue.push(target, RuntimeType::core(core_ir::Type::Any)));
+        assert!(queue.push(target.clone(), RuntimeType::core(typed_ir::Type::Any)));
+        assert!(!queue.push(target, RuntimeType::core(typed_ir::Type::Any)));
         assert_eq!(queue.len(), 1);
     }
 
@@ -1386,7 +1385,7 @@ mod tests {
         let target = path("id");
 
         assert!(queue.push(target.clone(), RuntimeType::core(named("int"))));
-        assert!(!queue.push(target, RuntimeType::core(core_ir::Type::Any)));
+        assert!(!queue.push(target, RuntimeType::core(typed_ir::Type::Any)));
         assert_eq!(queue.len(), 1);
     }
 
@@ -1400,7 +1399,7 @@ mod tests {
             target,
             RuntimeType::fun(
                 RuntimeType::core(named("bool")),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             )
         ));
         assert_eq!(queue.len(), 2);
@@ -1409,13 +1408,13 @@ mod tests {
     #[test]
     fn demand_signature_can_continue_hole_numbering() {
         let first = RuntimeType::fun(
-            RuntimeType::core(core_ir::Type::Any),
-            RuntimeType::core(core_ir::Type::Any),
+            RuntimeType::core(typed_ir::Type::Any),
+            RuntimeType::core(typed_ir::Type::Any),
         );
         let mut next_hole = 0;
         let first = DemandSignature::from_runtime_type_with_holes(&first, &mut next_hole);
         let second = DemandSignature::from_runtime_type_with_holes(
-            &RuntimeType::core(core_ir::Type::Any),
+            &RuntimeType::core(typed_ir::Type::Any),
             &mut next_hole,
         );
 
@@ -1475,14 +1474,14 @@ mod tests {
 
     #[test]
     fn apply_evidence_arg_signature_can_use_closed_expected_arg_opt_in() {
-        let evidence = core_ir::ApplyEvidence {
+        let evidence = typed_ir::ApplyEvidence {
             callee_source_edge: None,
             expected_callee: None,
             arg_source_edge: Some(1),
-            callee: core_ir::TypeBounds::exact(core_ir::Type::Any),
-            arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
-            expected_arg: Some(core_ir::TypeBounds::exact(named("int"))),
-            result: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            callee: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+            arg: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+            expected_arg: Some(typed_ir::TypeBounds::exact(named("int"))),
+            result: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
             principal_callee: None,
             substitutions: Vec::new(),
             substitution_candidates: Vec::new(),
@@ -1502,14 +1501,14 @@ mod tests {
 
     #[test]
     fn apply_evidence_arg_signature_ignores_open_expected_arg() {
-        let evidence = core_ir::ApplyEvidence {
+        let evidence = typed_ir::ApplyEvidence {
             callee_source_edge: None,
             expected_callee: None,
             arg_source_edge: Some(1),
-            callee: core_ir::TypeBounds::exact(core_ir::Type::Any),
-            arg: core_ir::TypeBounds::exact(named("str")),
-            expected_arg: Some(core_ir::TypeBounds::exact(core_ir::Type::Any)),
-            result: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            callee: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+            arg: typed_ir::TypeBounds::exact(named("str")),
+            expected_arg: Some(typed_ir::TypeBounds::exact(typed_ir::Type::Any)),
+            result: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
             principal_callee: None,
             substitutions: Vec::new(),
             substitution_candidates: Vec::new(),
@@ -1528,19 +1527,19 @@ mod tests {
 
     #[test]
     fn apply_evidence_param_signature_can_use_closed_expected_callee_opt_in() {
-        let evidence = core_ir::ApplyEvidence {
+        let evidence = typed_ir::ApplyEvidence {
             callee_source_edge: Some(2),
-            expected_callee: Some(core_ir::TypeBounds::exact(core_ir::Type::Fun {
+            expected_callee: Some(typed_ir::TypeBounds::exact(typed_ir::Type::Fun {
                 param: Box::new(named("int")),
-                param_effect: Box::new(core_ir::Type::Never),
-                ret_effect: Box::new(core_ir::Type::Never),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
                 ret: Box::new(named("str")),
             })),
             arg_source_edge: None,
-            callee: core_ir::TypeBounds::exact(core_ir::Type::Any),
-            arg: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            callee: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
+            arg: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
             expected_arg: None,
-            result: core_ir::TypeBounds::exact(core_ir::Type::Any),
+            result: typed_ir::TypeBounds::exact(typed_ir::Type::Any),
             principal_callee: None,
             substitutions: Vec::new(),
             substitution_candidates: Vec::new(),
@@ -1706,7 +1705,7 @@ mod tests {
 
         let demand = Demand::with_signature(
             path_segments(&["user", "math", "add"]),
-            RuntimeType::core(core_ir::Type::Any),
+            RuntimeType::core(typed_ir::Type::Any),
             original.clone(),
         );
 
@@ -1725,7 +1724,7 @@ mod tests {
 
         let demand = Demand::with_signature(
             path_segments(&["user", "container", "fold"]),
-            RuntimeType::core(core_ir::Type::Any),
+            RuntimeType::core(typed_ir::Type::Any),
             original.clone(),
         );
 
@@ -1744,7 +1743,7 @@ mod tests {
 
         let demand = Demand::with_signature(
             path_segments(&["user", "list", "fold_impl"]),
-            RuntimeType::core(core_ir::Type::Any),
+            RuntimeType::core(typed_ir::Type::Any),
             original.clone(),
         );
 
@@ -1780,7 +1779,7 @@ mod tests {
 
         let demand = Demand::with_signature(
             path_segments(&["user", "container", "find"]),
-            RuntimeType::core(core_ir::Type::Any),
+            RuntimeType::core(typed_ir::Type::Any),
             original.clone(),
         );
 
@@ -1832,22 +1831,22 @@ mod tests {
         })
     }
 
-    fn named(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
             path: path(name),
             args: Vec::new(),
         }
     }
 
-    fn path(name: &str) -> core_ir::Path {
-        core_ir::Path::from_name(core_ir::Name(name.to_string()))
+    fn path(name: &str) -> typed_ir::Path {
+        typed_ir::Path::from_name(typed_ir::Name(name.to_string()))
     }
 
-    fn path_segments(segments: &[&str]) -> core_ir::Path {
-        core_ir::Path {
+    fn path_segments(segments: &[&str]) -> typed_ir::Path {
+        typed_ir::Path {
             segments: segments
                 .iter()
-                .map(|segment| core_ir::Name((*segment).to_string()))
+                .map(|segment| typed_ir::Name((*segment).to_string()))
                 .collect(),
         }
     }

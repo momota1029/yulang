@@ -7,9 +7,9 @@ use crate::types::{core_type_has_vars, hir_type_has_vars};
 #[derive(Debug, Clone)]
 pub struct DemandCollector {
     semantics: DemandSemantics,
-    generic_bindings: HashSet<core_ir::Path>,
-    generic_role_impls: HashMap<core_ir::Name, Vec<RoleImplCollectCandidate>>,
-    pure_handler_bindings: HashMap<core_ir::Path, Vec<core_ir::Path>>,
+    generic_bindings: HashSet<typed_ir::Path>,
+    generic_role_impls: HashMap<typed_ir::Name, Vec<RoleImplCollectCandidate>>,
+    pure_handler_bindings: HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
     enclosing_thunk_effects: Vec<DemandEffect>,
     expected_signatures: Vec<DemandSignature>,
     queue: DemandQueue,
@@ -156,7 +156,7 @@ impl DemandCollector {
                 self.collect_expr_with_expected(
                     cond,
                     DemandSignature::Core(DemandCoreType::Named {
-                        path: core_ir::Path::from_name(core_ir::Name("bool".to_string())),
+                        path: typed_ir::Path::from_name(typed_ir::Name("bool".to_string())),
                         args: Vec::new(),
                     }),
                 );
@@ -248,7 +248,7 @@ impl DemandCollector {
 
     fn call_signatures_from_head(
         &self,
-        target: &core_ir::Path,
+        target: &typed_ir::Path,
         head: &Expr,
         args: &[&Expr],
         expr: &Expr,
@@ -268,7 +268,7 @@ impl DemandCollector {
 
     fn lift_known_handler_return_to_enclosing_effect(
         &self,
-        target: &core_ir::Path,
+        target: &typed_ir::Path,
         ret: DemandSignature,
     ) -> DemandSignature {
         let consumed =
@@ -368,12 +368,12 @@ pub(super) fn binding_needs_demand_monomorphization(binding: &Binding) -> bool {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RoleImplCollectCandidate {
-    path: core_ir::Path,
+    path: typed_ir::Path,
     signature: DemandSignature,
 }
 
-fn generic_role_impls(module: &Module) -> HashMap<core_ir::Name, Vec<RoleImplCollectCandidate>> {
-    let mut generic_role_impls: HashMap<core_ir::Name, Vec<RoleImplCollectCandidate>> =
+fn generic_role_impls(module: &Module) -> HashMap<typed_ir::Name, Vec<RoleImplCollectCandidate>> {
+    let mut generic_role_impls: HashMap<typed_ir::Name, Vec<RoleImplCollectCandidate>> =
         HashMap::new();
     for binding in &module.bindings {
         if !is_impl_method_path(&binding.name) {
@@ -397,7 +397,7 @@ fn generic_role_impls(module: &Module) -> HashMap<core_ir::Name, Vec<RoleImplCol
     generic_role_impls
 }
 
-pub(super) fn is_impl_method_path(path: &core_ir::Path) -> bool {
+pub(super) fn is_impl_method_path(path: &typed_ir::Path) -> bool {
     path.segments
         .iter()
         .any(|segment| segment.0.starts_with("&impl#"))
@@ -448,26 +448,26 @@ fn uncurried_collect_signatures(
     }
 }
 
-fn role_requirement_has_vars(requirement: &core_ir::RoleRequirement) -> bool {
+fn role_requirement_has_vars(requirement: &typed_ir::RoleRequirement) -> bool {
     requirement.args.iter().any(|arg| match arg {
-        core_ir::RoleRequirementArg::Input(bounds)
-        | core_ir::RoleRequirementArg::Associated { bounds, .. } => type_bounds_have_vars(bounds),
+        typed_ir::RoleRequirementArg::Input(bounds)
+        | typed_ir::RoleRequirementArg::Associated { bounds, .. } => type_bounds_have_vars(bounds),
     })
 }
 
-fn type_bounds_have_vars(bounds: &core_ir::TypeBounds) -> bool {
+fn type_bounds_have_vars(bounds: &typed_ir::TypeBounds) -> bool {
     bounds.lower.as_deref().is_some_and(core_type_has_vars)
         || bounds.upper.as_deref().is_some_and(core_type_has_vars)
 }
 
-pub(super) fn is_role_method_path(path: &core_ir::Path) -> bool {
+pub(super) fn is_role_method_path(path: &typed_ir::Path) -> bool {
     let Some(role) = path.segments.iter().rev().nth(1) else {
         return false;
     };
     role.0.chars().next().is_some_and(char::is_uppercase)
 }
 
-fn is_materialized_specialization_binding(path: &core_ir::Path) -> bool {
+fn is_materialized_specialization_binding(path: &typed_ir::Path) -> bool {
     let Some(name) = path.segments.last().map(|name| name.0.as_str()) else {
         return false;
     };
@@ -475,14 +475,14 @@ fn is_materialized_specialization_binding(path: &core_ir::Path) -> bool {
         || generated_suffix_index(name, "__mono").is_some()
 }
 
-fn collect_demand_call_target(path: &core_ir::Path) -> core_ir::Path {
+fn collect_demand_call_target(path: &typed_ir::Path) -> typed_ir::Path {
     if generated_path_has_suffix(path, "__mono") {
         return path.clone();
     }
     demand_call_target(path)
 }
 
-fn generated_path_has_suffix(path: &core_ir::Path, marker: &str) -> bool {
+fn generated_path_has_suffix(path: &typed_ir::Path, marker: &str) -> bool {
     path.segments
         .last()
         .is_some_and(|name| generated_suffix_index(&name.0, marker).is_some())
@@ -497,7 +497,7 @@ fn generated_suffix_index(name: &str, marker: &str) -> Option<usize> {
         .flatten()
 }
 
-fn path_key(path: &core_ir::Path) -> String {
+fn path_key(path: &typed_ir::Path) -> String {
     path.segments
         .iter()
         .map(|segment| segment.0.as_str())
@@ -505,7 +505,7 @@ fn path_key(path: &core_ir::Path) -> String {
         .join("::")
 }
 
-fn applied_call_with_head(expr: &Expr) -> Option<(&core_ir::Path, &Expr, Vec<&Expr>)> {
+fn applied_call_with_head(expr: &Expr) -> Option<(&typed_ir::Path, &Expr, Vec<&Expr>)> {
     let mut head = expr;
     let mut args = Vec::new();
     loop {
@@ -621,7 +621,7 @@ fn transparent_call_head(mut expr: &Expr) -> &Expr {
 }
 
 fn strengthen_handler_arg_signatures(
-    consumed: &[core_ir::Path],
+    consumed: &[typed_ir::Path],
     mut args: Vec<DemandSignature>,
     ret: &DemandSignature,
 ) -> Vec<DemandSignature> {
@@ -654,7 +654,7 @@ fn strengthen_handler_arg_signatures(
 
 fn closed_collect_call_signature(
     semantics: &DemandSemantics,
-    target: &core_ir::Path,
+    target: &typed_ir::Path,
     args: Vec<DemandSignature>,
     ret: DemandSignature,
     arity: usize,
@@ -681,7 +681,7 @@ fn demand_effect_is_empty(effect: &DemandEffect) -> bool {
     }
 }
 
-fn demand_effect_is_consumed_by(effect: &DemandEffect, consumed: &[core_ir::Path]) -> bool {
+fn demand_effect_is_consumed_by(effect: &DemandEffect, consumed: &[typed_ir::Path]) -> bool {
     match effect {
         DemandEffect::Empty | DemandEffect::Hole(_) => false,
         DemandEffect::Atom(ty) => demand_effect_path(ty).is_some_and(|path| {
@@ -695,20 +695,20 @@ fn demand_effect_is_consumed_by(effect: &DemandEffect, consumed: &[core_ir::Path
     }
 }
 
-fn demand_effect_path(ty: &DemandCoreType) -> Option<&core_ir::Path> {
+fn demand_effect_path(ty: &DemandCoreType) -> Option<&typed_ir::Path> {
     match ty {
         DemandCoreType::Named { path, .. } => Some(path),
         _ => None,
     }
 }
 
-fn effect_paths_match(left: &core_ir::Path, right: &core_ir::Path) -> bool {
+fn effect_paths_match(left: &typed_ir::Path, right: &typed_ir::Path) -> bool {
     left == right
         || qualified_prefix_effect_paths_match(left, right)
         || qualified_prefix_effect_paths_match(right, left)
 }
 
-fn qualified_prefix_effect_paths_match(parent: &core_ir::Path, child: &core_ir::Path) -> bool {
+fn qualified_prefix_effect_paths_match(parent: &typed_ir::Path, child: &typed_ir::Path) -> bool {
     parent.segments.len() > 1
         && child.segments.len() > parent.segments.len()
         && child.segments.starts_with(parent.segments.as_slice())
@@ -883,8 +883,8 @@ fn expr_signature(expr: &Expr) -> DemandSignature {
     }
 }
 
-fn effect_operation_signature(path: &core_ir::Path, payload: DemandCoreType) -> DemandEffect {
-    let effect_path = core_ir::Path {
+fn effect_operation_signature(path: &typed_ir::Path, payload: DemandCoreType) -> DemandEffect {
+    let effect_path = typed_ir::Path {
         segments: path
             .segments
             .iter()
@@ -906,7 +906,6 @@ fn effect_operation_signature(path: &core_ir::Path, payload: DemandCoreType) -> 
     })
 }
 
-
 fn is_unit_or_hole(ty: &DemandCoreType) -> bool {
     match ty {
         DemandCoreType::Hole(_) => true,
@@ -926,19 +925,19 @@ mod tests {
     fn collector_enqueues_direct_generic_call_demand() {
         let id = path("id");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![generic_binding(id.clone())],
             root_exprs: vec![Expr::typed(
                 ExprKind::Apply {
                     callee: Box::new(Expr::typed(
                         ExprKind::Var(id.clone()),
                         RuntimeType::fun(
-                            RuntimeType::core(core_ir::Type::Any),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         ),
                     )),
                     arg: Box::new(Expr::typed(
-                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                        ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                         RuntimeType::core(named("int")),
                     )),
                     evidence: None,
@@ -975,7 +974,7 @@ mod tests {
     #[test]
     fn collector_keeps_principal_mono_call_materialized() {
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![generic_binding(path("id"))],
             root_exprs: vec![Expr::typed(
                 ExprKind::Apply {
@@ -987,7 +986,7 @@ mod tests {
                         ),
                     )),
                     arg: Box::new(Expr::typed(
-                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                        ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                         RuntimeType::core(named("int")),
                     )),
                     evidence: None,
@@ -1009,15 +1008,15 @@ mod tests {
         let id = path("id");
         let use_id = path("use_id__mono3");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![
                 generic_binding(id.clone()),
                 Binding {
                     name: use_id,
-                    type_params: vec![core_ir::TypeVar("b".to_string())],
-                    scheme: core_ir::Scheme {
+                    type_params: vec![typed_ir::TypeVar("b".to_string())],
+                    scheme: typed_ir::Scheme {
                         requirements: Vec::new(),
-                        body: core_ir::Type::Any,
+                        body: typed_ir::Type::Any,
                     },
                     body: Expr::typed(
                         ExprKind::Apply {
@@ -1029,7 +1028,7 @@ mod tests {
                                 ),
                             )),
                             arg: Box::new(Expr::typed(
-                                ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                                ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                                 RuntimeType::core(named("int")),
                             )),
                             evidence: None,
@@ -1066,15 +1065,15 @@ mod tests {
         let use_id = path("use_id__mono3");
         let main = path("main");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![
                 generic_binding(id.clone()),
                 Binding {
                     name: use_id,
-                    type_params: vec![core_ir::TypeVar("b".to_string())],
-                    scheme: core_ir::Scheme {
+                    type_params: vec![typed_ir::TypeVar("b".to_string())],
+                    scheme: typed_ir::Scheme {
                         requirements: Vec::new(),
-                        body: core_ir::Type::Any,
+                        body: typed_ir::Type::Any,
                     },
                     body: Expr::typed(
                         ExprKind::Apply {
@@ -1086,7 +1085,7 @@ mod tests {
                                 ),
                             )),
                             arg: Box::new(Expr::typed(
-                                ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                                ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                                 RuntimeType::core(named("int")),
                             )),
                             evidence: None,
@@ -1112,7 +1111,7 @@ mod tests {
     fn collector_ignores_monomorphic_direct_call() {
         let f = path("f");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![monomorphic_binding(f.clone())],
             root_exprs: vec![Expr::typed(
                 ExprKind::Apply {
@@ -1124,7 +1123,7 @@ mod tests {
                         ),
                     )),
                     arg: Box::new(Expr::typed(
-                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                        ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                         RuntimeType::core(named("int")),
                     )),
                     evidence: None,
@@ -1146,7 +1145,7 @@ mod tests {
     fn collector_enqueues_curried_generic_call_as_one_demand() {
         let f = path("f");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![generic_binding(f.clone())],
             root_exprs: vec![Expr::typed(
                 ExprKind::Apply {
@@ -1155,27 +1154,27 @@ mod tests {
                             callee: Box::new(Expr::typed(
                                 ExprKind::Var(f.clone()),
                                 RuntimeType::fun(
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                     RuntimeType::fun(
-                                        RuntimeType::core(core_ir::Type::Any),
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     ),
                                 ),
                             )),
                             arg: Box::new(Expr::typed(
-                                ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                                ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                                 RuntimeType::core(named("int")),
                             )),
                             evidence: None,
                             instantiation: None::<TypeInstantiation>,
                         },
                         RuntimeType::fun(
-                            RuntimeType::core(core_ir::Type::Any),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         ),
                     )),
                     arg: Box::new(Expr::typed(
-                        ExprKind::Lit(core_ir::Lit::String("x".to_string())),
+                        ExprKind::Lit(typed_ir::Lit::String("x".to_string())),
                         RuntimeType::core(named("str")),
                     )),
                     evidence: None,
@@ -1211,7 +1210,7 @@ mod tests {
         let role_add = path_segments(&["std", "prelude", "Add", "add"]);
         let impl_add = path_segments(&["std", "prelude", "&impl#1", "add"]);
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![generic_binding(impl_add.clone())],
             root_exprs: vec![Expr::typed(
                 ExprKind::Apply {
@@ -1223,7 +1222,7 @@ mod tests {
                         ),
                     )),
                     arg: Box::new(Expr::typed(
-                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                        ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                         RuntimeType::core(named("int")),
                     )),
                     evidence: None,
@@ -1232,12 +1231,12 @@ mod tests {
                 RuntimeType::core(named("int")),
             )],
             roots: vec![Root::Expr(0)],
-            role_impls: vec![core_ir::RoleImplGraphNode {
+            role_impls: vec![typed_ir::RoleImplGraphNode {
                 role: path_segments(&["std", "prelude", "Add"]),
                 inputs: Vec::new(),
                 associated_types: Vec::new(),
-                members: vec![core_ir::RecordField {
-                    name: core_ir::Name("add".to_string()),
+                members: vec![typed_ir::RecordField {
+                    name: typed_ir::Name("add".to_string()),
                     value: impl_add.clone(),
                     optional: false,
                 }],
@@ -1265,34 +1264,34 @@ mod tests {
         let f = path("f");
         let io = named("io");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![generic_binding(f.clone())],
             root_exprs: vec![Expr::typed(
                 ExprKind::Apply {
                     callee: Box::new(Expr::typed(
                         ExprKind::Var(f.clone()),
                         RuntimeType::fun(
-                            RuntimeType::core(core_ir::Type::Any),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         ),
                     )),
                     arg: Box::new(Expr::typed(
-                        ExprKind::Lit(core_ir::Lit::Unit),
+                        ExprKind::Lit(typed_ir::Lit::Unit),
                         RuntimeType::core(named("unit")),
                     )),
-                    evidence: Some(core_ir::ApplyEvidence {
+                    evidence: Some(typed_ir::ApplyEvidence {
                         callee_source_edge: None,
                         expected_callee: None,
                         arg_source_edge: None,
-                        callee: core_ir::TypeBounds::exact(core_ir::Type::Fun {
+                        callee: typed_ir::TypeBounds::exact(typed_ir::Type::Fun {
                             param: Box::new(named("unit")),
-                            param_effect: Box::new(core_ir::Type::Never),
-                            ret_effect: Box::new(core_ir::Type::Never),
+                            param_effect: Box::new(typed_ir::Type::Never),
+                            ret_effect: Box::new(typed_ir::Type::Never),
                             ret: Box::new(named("int")),
                         }),
-                        arg: core_ir::TypeBounds::exact(named("unit")),
+                        arg: typed_ir::TypeBounds::exact(named("unit")),
                         expected_arg: None,
-                        result: core_ir::TypeBounds::exact(named("int")),
+                        result: typed_ir::TypeBounds::exact(named("int")),
                         principal_callee: None,
                         substitutions: Vec::new(),
                         substitution_candidates: Vec::new(),
@@ -1324,38 +1323,38 @@ mod tests {
         );
     }
 
-    fn generic_binding(name: core_ir::Path) -> Binding {
+    fn generic_binding(name: typed_ir::Path) -> Binding {
         Binding {
             name,
-            type_params: vec![core_ir::TypeVar("a".to_string())],
-            scheme: core_ir::Scheme {
+            type_params: vec![typed_ir::TypeVar("a".to_string())],
+            scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
-                body: core_ir::Type::Any,
+                body: typed_ir::Type::Any,
             },
             body: Expr::typed(
-                ExprKind::Lit(core_ir::Lit::Unit),
+                ExprKind::Lit(typed_ir::Lit::Unit),
                 RuntimeType::core(named("unit")),
             ),
         }
     }
 
-    fn monomorphic_binding(name: core_ir::Path) -> Binding {
+    fn monomorphic_binding(name: typed_ir::Path) -> Binding {
         Binding {
             name,
             type_params: Vec::new(),
-            scheme: core_ir::Scheme {
+            scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
                 body: named("int"),
             },
             body: Expr::typed(
-                ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                 RuntimeType::core(named("int")),
             ),
         }
     }
 
-    fn named(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
             path: path(name),
             args: Vec::new(),
         }
@@ -1368,15 +1367,15 @@ mod tests {
         }
     }
 
-    fn path(name: &str) -> core_ir::Path {
-        core_ir::Path::from_name(core_ir::Name(name.to_string()))
+    fn path(name: &str) -> typed_ir::Path {
+        typed_ir::Path::from_name(typed_ir::Name(name.to_string()))
     }
 
-    fn path_segments(segments: &[&str]) -> core_ir::Path {
-        core_ir::Path {
+    fn path_segments(segments: &[&str]) -> typed_ir::Path {
+        typed_ir::Path {
             segments: segments
                 .iter()
-                .map(|segment| core_ir::Name((*segment).to_string()))
+                .map(|segment| typed_ir::Name((*segment).to_string()))
                 .collect(),
         }
     }

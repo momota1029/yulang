@@ -1,17 +1,17 @@
 use super::*;
 
-pub(super) fn core_type(ty: &RuntimeType) -> &core_ir::Type {
+pub(super) fn core_type(ty: &RuntimeType) -> &typed_ir::Type {
     match ty {
-        RuntimeType::Unknown => &core_ir::Type::Any,
+        RuntimeType::Unknown => &typed_ir::Type::Any,
         RuntimeType::Core(ty) => ty,
         RuntimeType::Thunk { value, .. } => core_type(value),
-        RuntimeType::Fun { .. } => &core_ir::Type::Any,
+        RuntimeType::Fun { .. } => &typed_ir::Type::Any,
     }
 }
 
 pub(super) fn core_function_as_hir_type(ty: &RuntimeType) -> RuntimeType {
     match ty {
-        RuntimeType::Core(core_ir::Type::Fun {
+        RuntimeType::Core(typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -27,7 +27,7 @@ pub(super) fn core_function_as_hir_type(ty: &RuntimeType) -> RuntimeType {
 pub(super) fn function_result_type(ty: &RuntimeType) -> Option<RuntimeType> {
     match ty {
         RuntimeType::Fun { ret, .. } => Some(ret.as_ref().clone()),
-        RuntimeType::Core(core_ir::Type::Fun {
+        RuntimeType::Core(typed_ir::Type::Fun {
             ret_effect, ret, ..
         }) => Some(effected_core_as_hir_type(ret, ret_effect)),
         _ => None,
@@ -37,7 +37,7 @@ pub(super) fn function_result_type(ty: &RuntimeType) -> Option<RuntimeType> {
 pub(super) fn function_param_type(ty: &RuntimeType) -> Option<RuntimeType> {
     match ty {
         RuntimeType::Fun { param, .. } => Some(param.as_ref().clone()),
-        RuntimeType::Core(core_ir::Type::Fun {
+        RuntimeType::Core(typed_ir::Type::Fun {
             param,
             param_effect,
             ..
@@ -47,8 +47,8 @@ pub(super) fn function_param_type(ty: &RuntimeType) -> Option<RuntimeType> {
 }
 
 pub(super) fn effected_core_as_hir_type(
-    value: &core_ir::Type,
-    effect: &core_ir::Type,
+    value: &typed_ir::Type,
+    effect: &typed_ir::Type,
 ) -> RuntimeType {
     let value = RuntimeType::core(value.clone());
     let effect = project_runtime_effect(effect);
@@ -110,7 +110,7 @@ pub(super) fn bind_thunk_for_expected(expr: Expr, expected: &RuntimeType) -> Exp
     }
 }
 
-pub(super) fn applied_head_path(expr: &Expr) -> Option<core_ir::Path> {
+pub(super) fn applied_head_path(expr: &Expr) -> Option<typed_ir::Path> {
     match &expr.kind {
         ExprKind::Var(path) => Some(path.clone()),
         ExprKind::Apply { callee, .. } => applied_head_path(callee),
@@ -174,10 +174,10 @@ pub(super) fn refine_lambda_type_from_body(
 }
 
 pub(super) fn flatten_nested_thunk_body(
-    effect: core_ir::Type,
+    effect: typed_ir::Type,
     value: RuntimeType,
     body: Expr,
-) -> (core_ir::Type, RuntimeType, Expr) {
+) -> (typed_ir::Type, RuntimeType, Expr) {
     let RuntimeType::Thunk {
         effect: inner_effect,
         value: inner_value,
@@ -196,7 +196,7 @@ pub(super) fn flatten_nested_thunk_body(
     (effect, value, body)
 }
 
-fn merge_refined_effects(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
+fn merge_refined_effects(left: typed_ir::Type, right: typed_ir::Type) -> typed_ir::Type {
     if effect_is_empty(&left) {
         return right;
     }
@@ -205,17 +205,17 @@ fn merge_refined_effects(left: core_ir::Type, right: core_ir::Type) -> core_ir::
     }
     match (left, right) {
         (
-            core_ir::Type::Row {
+            typed_ir::Type::Row {
                 mut items,
                 tail: left_tail,
             },
-            core_ir::Type::Row {
+            typed_ir::Type::Row {
                 items: right_items,
                 tail: right_tail,
             },
         ) if matches!(
             (left_tail.as_ref(), right_tail.as_ref()),
-            (core_ir::Type::Never, core_ir::Type::Never)
+            (typed_ir::Type::Never, typed_ir::Type::Never)
         ) =>
         {
             for item in right_items {
@@ -223,41 +223,41 @@ fn merge_refined_effects(left: core_ir::Type, right: core_ir::Type) -> core_ir::
                     items.push(item);
                 }
             }
-            effect_row(items, core_ir::Type::Never)
+            effect_row(items, typed_ir::Type::Never)
         }
-        (left, right) => core_ir::Type::Union(vec![left, right]),
+        (left, right) => typed_ir::Type::Union(vec![left, right]),
     }
 }
 
 pub(super) fn hir_type_is_core_never(ty: &RuntimeType) -> bool {
-    matches!(ty, RuntimeType::Core(core_ir::Type::Never))
+    matches!(ty, RuntimeType::Core(typed_ir::Type::Never))
 }
 
-pub(super) fn core_type_vars(ty: &core_ir::Type) -> BTreeSet<core_ir::TypeVar> {
+pub(super) fn core_type_vars(ty: &typed_ir::Type) -> BTreeSet<typed_ir::TypeVar> {
     let mut vars = BTreeSet::new();
     collect_type_vars(ty, &mut vars);
     vars
 }
 
-pub(super) fn all_type_vars(ty: &core_ir::Type) -> BTreeSet<core_ir::TypeVar> {
+pub(super) fn all_type_vars(ty: &typed_ir::Type) -> BTreeSet<typed_ir::TypeVar> {
     core_type_vars(ty)
 }
 
-pub(super) fn occurs_in(var: &core_ir::TypeVar, ty: &core_ir::Type) -> bool {
+pub(super) fn occurs_in(var: &typed_ir::TypeVar, ty: &typed_ir::Type) -> bool {
     core_type_vars(ty).contains(var)
 }
 
 pub(super) fn choose_refined_substitution(
-    existing: core_ir::Type,
-    candidate: core_ir::Type,
-) -> core_ir::Type {
+    existing: typed_ir::Type,
+    candidate: typed_ir::Type,
+) -> typed_ir::Type {
     if existing == candidate {
         return existing;
     }
-    if matches!(existing, core_ir::Type::Never) && !matches!(candidate, core_ir::Type::Never) {
+    if matches!(existing, typed_ir::Type::Never) && !matches!(candidate, typed_ir::Type::Never) {
         return candidate;
     }
-    if matches!(candidate, core_ir::Type::Never) {
+    if matches!(candidate, typed_ir::Type::Never) {
         return existing;
     }
     if type_compatible(&existing, &candidate) || type_compatible(&candidate, &existing) {
@@ -283,16 +283,16 @@ pub(super) fn pattern_type(pattern: &Pattern) -> Option<RuntimeType> {
 
 pub(super) fn tuple_item_type(ty: &RuntimeType, index: usize) -> Option<RuntimeType> {
     match ty {
-        RuntimeType::Core(core_ir::Type::Tuple(items)) => {
+        RuntimeType::Core(typed_ir::Type::Tuple(items)) => {
             items.get(index).cloned().map(RuntimeType::core)
         }
         _ => None,
     }
 }
 
-pub(super) fn record_field_type(ty: &RuntimeType, name: &core_ir::Name) -> Option<RuntimeType> {
+pub(super) fn record_field_type(ty: &RuntimeType, name: &typed_ir::Name) -> Option<RuntimeType> {
     match ty {
-        RuntimeType::Core(core_ir::Type::Record(record)) => record
+        RuntimeType::Core(typed_ir::Type::Record(record)) => record
             .fields
             .iter()
             .find(|field| field.name == *name)

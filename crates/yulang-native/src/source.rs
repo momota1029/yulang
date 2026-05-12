@@ -332,7 +332,7 @@ mod tests {
             ]),
             runtime::VmValue::Int("2".to_string()),
             runtime::VmValue::Variant {
-                tag: yulang_core_ir::Name("label".to_string()),
+                tag: yulang_typed_ir::Name("label".to_string()),
                 value: Some(Box::new(runtime::VmValue::Int("3".to_string()))),
             },
         ];
@@ -1556,18 +1556,18 @@ my total = top + 3
                 ]),
                 runtime::VmValue::Record(BTreeMap::from([
                     (
-                        yulang_core_ir::Name("x".to_string()),
+                        yulang_typed_ir::Name("x".to_string()),
                         runtime::VmValue::Int("1".to_string())
                     ),
                     (
-                        yulang_core_ir::Name("y".to_string()),
+                        yulang_typed_ir::Name("y".to_string()),
                         runtime::VmValue::Int("2".to_string())
                     )
                 ])),
                 runtime::VmValue::Int("1".to_string()),
                 runtime::VmValue::Int("4".to_string()),
                 runtime::VmValue::Variant {
-                    tag: yulang_core_ir::Name("label".to_string()),
+                    tag: yulang_typed_ir::Name("label".to_string()),
                     value: Some(Box::new(runtime::VmValue::String(
                         runtime::runtime::string_tree::StringTree::from_str("send")
                     )))

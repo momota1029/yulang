@@ -148,7 +148,7 @@ fn validate_embedded_std_compiled_unit_artifacts(
     }
     for artifact in artifacts {
         if artifact.manifest.artifact_format_version
-            != yulang_source::COMPILED_UNIT_ARTIFACT_FORMAT_VERSION
+            != yulang_sources::COMPILED_UNIT_ARTIFACT_FORMAT_VERSION
         {
             return Err(format!(
                 "unsupported compiled-unit artifact format {}",
@@ -156,7 +156,7 @@ fn validate_embedded_std_compiled_unit_artifacts(
             ));
         }
         if artifact.manifest.parser_format_version
-            != yulang_source::COMPILED_UNIT_PARSER_FORMAT_VERSION
+            != yulang_sources::COMPILED_UNIT_PARSER_FORMAT_VERSION
         {
             return Err(format!(
                 "unsupported parser format {}",
@@ -451,7 +451,9 @@ thread_local! {
     static SOURCE_LOWER_CACHE: RefCell<SourceLowerCache> = RefCell::new(SourceLowerCache::default());
 }
 
-fn lower_with_cache(source_set: &yulang_source::SourceSet) -> yulang_infer::ProfiledLoweredSources {
+fn lower_with_cache(
+    source_set: &yulang_sources::SourceSet,
+) -> yulang_infer::ProfiledLoweredSources {
     SOURCE_LOWER_CACHE
         .with(|cache| lower_source_set_with_std_cache_profiled(source_set, &mut cache.borrow_mut()))
 }
@@ -464,7 +466,7 @@ struct EmbeddedStdLowering {
 }
 
 fn lower_with_embedded_std_artifacts(
-    source_set: &yulang_source::SourceSet,
+    source_set: &yulang_sources::SourceSet,
 ) -> Result<EmbeddedStdLowering, String> {
     let artifacts = load_embedded_std_compiled_unit_artifacts()?;
     let std_artifacts = artifacts
@@ -508,18 +510,18 @@ fn lower_with_embedded_std_artifacts(
 
 fn compiled_builtin_runtime_surface(
     state: &yulang_infer::LowerState,
-    bundled_paths: &std::collections::HashSet<yulang_core_ir::Path>,
+    bundled_paths: &std::collections::HashSet<yulang_typed_ir::Path>,
 ) -> yulang_infer::CompiledRuntimeSurface {
     let binding_paths = state
         .ctx
         .collect_all_binding_paths()
         .into_iter()
         .filter(|(path, def)| {
-            let core_path = yulang_core_ir::Path {
+            let core_path = yulang_typed_ir::Path {
                 segments: path
                     .segments
                     .iter()
-                    .map(|segment| yulang_core_ir::Name(segment.0.clone()))
+                    .map(|segment| yulang_typed_ir::Name(segment.0.clone()))
                     .collect(),
             };
             path.segments
@@ -536,8 +538,8 @@ fn compiled_builtin_runtime_surface(
 }
 
 fn remove_program_paths(
-    program: &mut yulang_core_ir::CoreProgram,
-    paths: &std::collections::HashSet<yulang_core_ir::Path>,
+    program: &mut yulang_typed_ir::CoreProgram,
+    paths: &std::collections::HashSet<yulang_typed_ir::Path>,
 ) {
     program
         .program
@@ -1012,18 +1014,18 @@ g
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
             .spawn(|| {
-                let source_set = yulang_source::collect_inline_source_files_with_options(
+                let source_set = yulang_sources::collect_inline_source_files_with_options(
                     "use dep::*\nf 41\n",
-                    [yulang_source::InlineSource {
+                    [yulang_sources::InlineSource {
                         path: std::path::PathBuf::from("<dep>.yu"),
-                        module_path: yulang_core_ir::Path::new(vec![yulang_core_ir::Name(
+                        module_path: yulang_typed_ir::Path::new(vec![yulang_typed_ir::Name(
                             "dep".to_string(),
                         )]),
-                        origin: yulang_source::SourceOrigin::User,
+                        origin: yulang_sources::SourceOrigin::User,
                         source: "pub f x = x\n".to_string(),
                         meta: None,
                     }],
-                    yulang_source::SourceOptions {
+                    yulang_sources::SourceOptions {
                         std_root: None,
                         implicit_prelude: false,
                         search_paths: Vec::new(),
@@ -1111,7 +1113,7 @@ g
             .unwrap();
     }
 
-    fn remove_program_bindings_in_module(program: &mut yulang_core_ir::CoreProgram, module: &str) {
+    fn remove_program_bindings_in_module(program: &mut yulang_typed_ir::CoreProgram, module: &str) {
         program
             .program
             .bindings
@@ -1131,14 +1133,14 @@ g
         });
     }
 
-    fn path_starts_with(path: &yulang_core_ir::Path, module: &str) -> bool {
+    fn path_starts_with(path: &yulang_typed_ir::Path, module: &str) -> bool {
         path.segments
             .first()
             .is_some_and(|segment| segment.0 == module)
     }
 
     fn remove_program_bindings_present_in_bundle(
-        program: &mut yulang_core_ir::CoreProgram,
+        program: &mut yulang_typed_ir::CoreProgram,
         bundle: &yulang_infer::CompiledRuntimeBundle,
     ) {
         let bundled_paths = bundle

@@ -5,10 +5,10 @@ use crate::ir::{Binding, Expr, ExprKind, HandleArm, Module, Pattern, Stmt, Type 
 
 pub struct DemandChecker<'a> {
     semantics: DemandSemantics,
-    bindings: HashMap<core_ir::Path, &'a Binding>,
-    generic_bindings: HashSet<core_ir::Path>,
-    generic_role_impls: HashMap<core_ir::Name, Vec<RoleImplDemandCandidate>>,
-    pure_handler_bindings: HashMap<core_ir::Path, Vec<core_ir::Path>>,
+    bindings: HashMap<typed_ir::Path, &'a Binding>,
+    generic_bindings: HashSet<typed_ir::Path>,
+    generic_role_impls: HashMap<typed_ir::Name, Vec<RoleImplDemandCandidate>>,
+    pure_handler_bindings: HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
 }
 
 impl<'a> DemandChecker<'a> {
@@ -142,18 +142,18 @@ impl<'a> DemandChecker<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckedDemand {
-    pub target: core_ir::Path,
+    pub target: typed_ir::Path,
     pub expected: DemandSignature,
     pub actual: DemandSignature,
     pub solved: DemandSignature,
     pub substitutions: DemandSubstitution,
     pub child_demands: DemandQueue,
-    pub local_signatures: HashMap<core_ir::Path, DemandSignature>,
+    pub local_signatures: HashMap<typed_ir::Path, DemandSignature>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DemandCheckError {
-    MissingBinding(core_ir::Path),
+    MissingBinding(typed_ir::Path),
     Unify(DemandUnifyError),
 }
 
@@ -165,54 +165,54 @@ impl From<DemandUnifyError> for DemandCheckError {
 
 struct ExprChecker<'a> {
     semantics: &'a DemandSemantics,
-    generic_bindings: &'a HashSet<core_ir::Path>,
-    generic_role_impls: &'a HashMap<core_ir::Name, Vec<RoleImplDemandCandidate>>,
-    consumed_effects: &'a [core_ir::Path],
-    current_target: &'a core_ir::Path,
+    generic_bindings: &'a HashSet<typed_ir::Path>,
+    generic_role_impls: &'a HashMap<typed_ir::Name, Vec<RoleImplDemandCandidate>>,
+    consumed_effects: &'a [typed_ir::Path],
+    current_target: &'a typed_ir::Path,
     enclosing_thunk_effects: Vec<DemandEffect>,
-    locals: HashMap<core_ir::Path, DemandSignature>,
+    locals: HashMap<typed_ir::Path, DemandSignature>,
     next_hole: u32,
     unifier: DemandUnifier,
     child_demands: Vec<PendingChildDemand>,
-    local_signatures: Vec<(core_ir::Path, DemandSignature)>,
+    local_signatures: Vec<(typed_ir::Path, DemandSignature)>,
 }
 
 #[derive(Clone)]
 struct PendingChildDemand {
-    target: core_ir::Path,
+    target: typed_ir::Path,
     expected: RuntimeType,
     signature: DemandSignature,
 }
 
 struct LocalBinding {
-    local: core_ir::Path,
+    local: typed_ir::Path,
     previous: Option<DemandSignature>,
     signature: DemandSignature,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RoleImplDemandCandidate {
-    path: core_ir::Path,
+    path: typed_ir::Path,
     signature: DemandSignature,
 }
 
 #[derive(Clone)]
 struct ExprCheckerCheckpoint {
     enclosing_thunk_effects: Vec<DemandEffect>,
-    locals: HashMap<core_ir::Path, DemandSignature>,
+    locals: HashMap<typed_ir::Path, DemandSignature>,
     next_hole: u32,
     unifier: DemandUnifier,
     child_demands: Vec<PendingChildDemand>,
-    local_signatures: Vec<(core_ir::Path, DemandSignature)>,
+    local_signatures: Vec<(typed_ir::Path, DemandSignature)>,
 }
 
 impl<'a> ExprChecker<'a> {
     fn new(
         semantics: &'a DemandSemantics,
-        generic_bindings: &'a HashSet<core_ir::Path>,
-        generic_role_impls: &'a HashMap<core_ir::Name, Vec<RoleImplDemandCandidate>>,
-        consumed_effects: &'a [core_ir::Path],
-        current_target: &'a core_ir::Path,
+        generic_bindings: &'a HashSet<typed_ir::Path>,
+        generic_role_impls: &'a HashMap<typed_ir::Name, Vec<RoleImplDemandCandidate>>,
+        consumed_effects: &'a [typed_ir::Path],
+        current_target: &'a typed_ir::Path,
     ) -> Self {
         Self {
             semantics,
@@ -298,7 +298,7 @@ impl<'a> ExprChecker<'a> {
 
     fn lift_known_handler_return_to_enclosing_effect(
         &self,
-        target: &core_ir::Path,
+        target: &typed_ir::Path,
         ret: DemandSignature,
     ) -> DemandSignature {
         if known_consumed_effects_for_target(self.semantics, target).is_empty()
@@ -320,7 +320,7 @@ impl<'a> ExprChecker<'a> {
 
     fn lift_recursive_return_to_enclosing_effect(
         &self,
-        target: &core_ir::Path,
+        target: &typed_ir::Path,
         ret: DemandSignature,
     ) -> DemandSignature {
         if target != self.current_target || matches!(ret, DemandSignature::Thunk { .. }) {
@@ -341,7 +341,7 @@ impl<'a> ExprChecker<'a> {
     fn lift_effectful_expr_return_to_enclosing_effect(
         &self,
         expr: &Expr,
-        evidence: Option<&core_ir::ApplyEvidence>,
+        evidence: Option<&typed_ir::ApplyEvidence>,
         ret: DemandSignature,
     ) -> DemandSignature {
         if matches!(ret, DemandSignature::Thunk { .. })
@@ -601,7 +601,7 @@ impl<'a> ExprChecker<'a> {
     fn synth_lambda(
         &mut self,
         expr: &Expr,
-        param: &core_ir::Name,
+        param: &typed_ir::Name,
         body: &Expr,
         expected: Option<&DemandSignature>,
     ) -> Result<DemandSignature, DemandCheckError> {
@@ -623,7 +623,7 @@ impl<'a> ExprChecker<'a> {
         };
         let param_ty = self.preserve_lambda_param_runtime_shape(&expr.ty, param_ty);
         let actual = lambda_actual_signature(&expected, param_ty.clone(), ret.clone());
-        let local = core_ir::Path::from_name(param.clone());
+        let local = typed_ir::Path::from_name(param.clone());
         let previous = self.locals.insert(local.clone(), param_ty);
         let outer_thunk_effects = std::mem::take(&mut self.enclosing_thunk_effects);
         let result = self.check_expr(body, &ret);
@@ -733,7 +733,7 @@ impl<'a> ExprChecker<'a> {
     fn synth_variant(
         &mut self,
         expr: &Expr,
-        tag: &core_ir::Name,
+        tag: &typed_ir::Name,
         value: Option<&Expr>,
         expected: Option<&DemandSignature>,
     ) -> Result<DemandSignature, DemandCheckError> {
@@ -777,7 +777,7 @@ impl<'a> ExprChecker<'a> {
         &mut self,
         expr: &Expr,
         base: &Expr,
-        field: &core_ir::Name,
+        field: &typed_ir::Name,
         expected: Option<&DemandSignature>,
     ) -> Result<DemandSignature, DemandCheckError> {
         let base_ty = self.synth_expr(base, None)?;
@@ -895,7 +895,7 @@ impl<'a> ExprChecker<'a> {
             if !expr_returns_function(value) {
                 continue;
             }
-            let local = core_ir::Path::from_name(name.clone());
+            let local = typed_ir::Path::from_name(name.clone());
             let Some(expected) = self
                 .locals
                 .get(&local)
@@ -940,14 +940,14 @@ impl<'a> ExprChecker<'a> {
         expected: &DemandSignature,
     ) -> Result<(), DemandCheckError> {
         let mut inserted = Vec::new();
-        let payload_hint = if arm.effect == core_ir::Path::default() {
+        let payload_hint = if arm.effect == typed_ir::Path::default() {
             Some(signature_value(handled_body_ty))
         } else {
             self.effect_arm_payload_hint(&arm.effect, handled_body_ty)
         };
         self.push_pattern_bindings(&arm.payload, payload_hint.as_ref(), &mut inserted);
         if let Some(resume) = &arm.resume {
-            let local = core_ir::Path::from_name(resume.name.clone());
+            let local = typed_ir::Path::from_name(resume.name.clone());
             let ty = self.resume_signature_from_context(&resume.ty, handled_body_ty);
             let previous = self.locals.insert(local.clone(), ty.clone());
             inserted.push(LocalBinding {
@@ -1033,7 +1033,7 @@ impl<'a> ExprChecker<'a> {
     fn synth_coerce(
         &mut self,
         expr: &Expr,
-        from: &core_ir::Type,
+        from: &typed_ir::Type,
         inner: &Expr,
         expected: Option<&DemandSignature>,
     ) -> Result<DemandSignature, DemandCheckError> {
@@ -1047,7 +1047,7 @@ impl<'a> ExprChecker<'a> {
     fn synth_thunk(
         &mut self,
         expr: &Expr,
-        effect: &core_ir::Type,
+        effect: &typed_ir::Type,
         value: &RuntimeType,
         inner: &Expr,
         expected: Option<&DemandSignature>,
@@ -1090,7 +1090,7 @@ impl<'a> ExprChecker<'a> {
                 pattern: Pattern::Bind { name, ty },
                 value,
             } => {
-                let local = core_ir::Path::from_name(name.clone());
+                let local = typed_ir::Path::from_name(name.clone());
                 let placeholder = self.signature_from_type(ty);
                 let previous = self.locals.insert(local.clone(), placeholder.clone());
                 let value = self.synth_expr(value, Some(&placeholder))?;
@@ -1160,7 +1160,7 @@ impl<'a> ExprChecker<'a> {
     ) -> (
         DemandSubstitution,
         DemandQueue,
-        HashMap<core_ir::Path, DemandSignature>,
+        HashMap<typed_ir::Path, DemandSignature>,
     ) {
         let substitutions = self.unifier.finish();
         let mut child_demands = DemandQueue::with_semantics(self.semantics.clone());
@@ -1207,7 +1207,7 @@ impl<'a> ExprChecker<'a> {
         DemandSignature::from_runtime_type_with_holes(ty, &mut self.next_hole)
     }
 
-    fn effect_from_core_type(&mut self, ty: &core_ir::Type) -> DemandEffect {
+    fn effect_from_core_type(&mut self, ty: &typed_ir::Type) -> DemandEffect {
         DemandEffect::from_core_type_with_holes(ty, &mut self.next_hole)
     }
 
@@ -1514,7 +1514,7 @@ impl<'a> ExprChecker<'a> {
 
     fn closed_call_signature(
         &mut self,
-        target: &core_ir::Path,
+        target: &typed_ir::Path,
         head: &Expr,
         args: &[&Expr],
         ret: DemandSignature,
@@ -1564,12 +1564,12 @@ impl<'a> ExprChecker<'a> {
     fn primitive_application_signature(&mut self, expr: &Expr) -> Option<DemandSignature> {
         let (op, args) = applied_primitive_with_args(expr)?;
         match (op, args.as_slice()) {
-            (core_ir::PrimitiveOp::ListSingleton, [item]) => {
+            (typed_ir::PrimitiveOp::ListSingleton, [item]) => {
                 let item = signature_core_value(&self.local_or_runtime_signature(item));
                 named_single_arg_signature_like(&self.signature_from_type(&expr.ty), item)
                     .map(DemandSignature::Core)
             }
-            (core_ir::PrimitiveOp::ListMerge, [left, right]) => {
+            (typed_ir::PrimitiveOp::ListMerge, [left, right]) => {
                 let left = self.local_or_runtime_signature(left);
                 let right = self.local_or_runtime_signature(right);
                 let item = prefer_informative_list_item(&left, &right)?;
@@ -1582,7 +1582,7 @@ impl<'a> ExprChecker<'a> {
 
     fn lift_higher_order_call_return_to_enclosing_effect(
         &self,
-        target: &core_ir::Path,
+        target: &typed_ir::Path,
         args: &[DemandSignature],
         ret: DemandSignature,
     ) -> DemandSignature {
@@ -1663,7 +1663,7 @@ impl<'a> ExprChecker<'a> {
                 param: Box::new(self.signature_from_type(param)),
                 ret: Box::new(handled_body_ty.clone()),
             },
-            RuntimeType::Core(core_ir::Type::Fun {
+            RuntimeType::Core(typed_ir::Type::Fun {
                 param,
                 param_effect,
                 ..
@@ -1684,7 +1684,7 @@ impl<'a> ExprChecker<'a> {
 
     fn effect_arm_payload_hint(
         &self,
-        operation: &core_ir::Path,
+        operation: &typed_ir::Path,
         handled_body_ty: &DemandSignature,
     ) -> Option<DemandSignature> {
         let effect = thunk_signature_effect(handled_body_ty)?;
@@ -1708,7 +1708,7 @@ impl<'a> ExprChecker<'a> {
     ) {
         match pattern {
             Pattern::Bind { name, ty } => {
-                let local = core_ir::Path::from_name(name.clone());
+                let local = typed_ir::Path::from_name(name.clone());
                 let signature = expected
                     .cloned()
                     .unwrap_or_else(|| self.signature_from_type(ty));
@@ -1765,7 +1765,7 @@ impl<'a> ExprChecker<'a> {
             }
             Pattern::As { pattern, name, ty } => {
                 self.push_pattern_bindings(pattern, expected, inserted);
-                let local = core_ir::Path::from_name(name.clone());
+                let local = typed_ir::Path::from_name(name.clone());
                 let signature = expected
                     .cloned()
                     .unwrap_or_else(|| self.signature_from_type(ty));
@@ -1806,7 +1806,7 @@ impl<'a> ExprChecker<'a> {
     }
 }
 
-fn applied_call_with_head(expr: &Expr) -> Option<(&core_ir::Path, &Expr, Vec<&Expr>)> {
+fn applied_call_with_head(expr: &Expr) -> Option<(&typed_ir::Path, &Expr, Vec<&Expr>)> {
     let mut head = expr;
     let mut args = Vec::new();
     loop {
@@ -1881,7 +1881,7 @@ fn applied_call_principal_signature_hints(
     Some((params, ret))
 }
 
-fn applied_primitive_with_args(expr: &Expr) -> Option<(core_ir::PrimitiveOp, Vec<&Expr>)> {
+fn applied_primitive_with_args(expr: &Expr) -> Option<(typed_ir::PrimitiveOp, Vec<&Expr>)> {
     let mut callee = expr;
     let mut args = Vec::new();
     loop {
@@ -1941,7 +1941,7 @@ fn named_single_arg_signature_like(
     })
 }
 
-fn named_signature_path(signature: &DemandSignature) -> Option<core_ir::Path> {
+fn named_signature_path(signature: &DemandSignature) -> Option<typed_ir::Path> {
     match signature_value(signature) {
         DemandSignature::Core(DemandCoreType::Named { path, .. }) => Some(path),
         _ => None,
@@ -2031,7 +2031,7 @@ fn thunk_effect_signature(ty: &RuntimeType) -> Option<DemandEffect> {
 
 fn expr_or_evidence_has_effectful_result(
     expr: &Expr,
-    evidence: Option<&core_ir::ApplyEvidence>,
+    evidence: Option<&typed_ir::ApplyEvidence>,
 ) -> bool {
     thunk_effect_signature(&expr.ty)
         .as_ref()
@@ -2054,7 +2054,7 @@ fn signature_has_effectful_result(signature: &DemandSignature) -> bool {
 
 fn is_effect_polymorphic_higher_order_target(
     semantics: &DemandSemantics,
-    target: &core_ir::Path,
+    target: &typed_ir::Path,
 ) -> bool {
     semantics.is_effect_polymorphic_higher_order_target(target)
 }
@@ -2216,7 +2216,7 @@ fn preserve_operational_shapes(
 
 fn named_core(name: &str) -> DemandCoreType {
     DemandCoreType::Named {
-        path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+        path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
         args: Vec::new(),
     }
 }
@@ -2243,7 +2243,7 @@ fn single_payload_from_type_args(args: &[DemandTypeArg]) -> Option<DemandCoreTyp
 
 fn variant_expected_payload(
     expected: &DemandSignature,
-    tag: &core_ir::Name,
+    tag: &typed_ir::Name,
 ) -> Option<DemandSignature> {
     match expected {
         DemandSignature::Core(DemandCoreType::Variant(cases)) => cases
@@ -2260,7 +2260,7 @@ fn variant_expected_payload(
     }
 }
 
-fn named_variant_payload_is_type_arg(path: &core_ir::Path, tag: &core_ir::Name) -> bool {
+fn named_variant_payload_is_type_arg(path: &typed_ir::Path, tag: &typed_ir::Name) -> bool {
     let _ = (path, tag);
     true
 }
@@ -2280,15 +2280,15 @@ fn pattern_runtime_type(pattern: &Pattern) -> &RuntimeType {
 }
 
 fn runtime_type_is_any(ty: &RuntimeType) -> bool {
-    matches!(ty, RuntimeType::Core(core_ir::Type::Any))
+    matches!(ty, RuntimeType::Core(typed_ir::Type::Any))
 }
 
 fn runtime_any_type() -> RuntimeType {
-    RuntimeType::core(core_ir::Type::Any)
+    RuntimeType::core(typed_ir::Type::Any)
 }
 
 fn debug_demand_arg_rejection(
-    target: &core_ir::Path,
+    target: &typed_ir::Path,
     index: usize,
     hint: Option<&DemandSignature>,
     error: &DemandCheckError,
@@ -2300,7 +2300,7 @@ fn debug_demand_arg_rejection(
 }
 
 fn debug_check_demand_error(
-    target: &core_ir::Path,
+    target: &typed_ir::Path,
     expected: &DemandSignature,
     error: &DemandCheckError,
 ) {
@@ -2311,7 +2311,7 @@ fn debug_check_demand_error(
 }
 
 fn debug_unify_signature_error(
-    target: &core_ir::Path,
+    target: &typed_ir::Path,
     expected: &DemandSignature,
     actual: &DemandSignature,
     error: &DemandUnifyError,
@@ -2325,8 +2325,8 @@ fn debug_unify_signature_error(
 }
 
 fn debug_checked_locals(
-    target: &core_ir::Path,
-    locals: &HashMap<core_ir::Path, DemandSignature>,
+    target: &typed_ir::Path,
+    locals: &HashMap<typed_ir::Path, DemandSignature>,
     child_demands: &DemandQueue,
 ) {
     if std::env::var_os("YULANG_DEBUG_DEMAND_CHECK").is_none() {
@@ -2337,7 +2337,7 @@ fn debug_checked_locals(
 }
 
 fn debug_closed_call_param_hints(
-    target: &core_ir::Path,
+    target: &typed_ir::Path,
     arg_len: usize,
     closed_args: &[DemandSignature],
     closed_ret: &DemandSignature,
@@ -2383,8 +2383,8 @@ fn expr_returns_function(expr: &Expr) -> bool {
 
 fn generic_role_impl_candidates(
     module: &Module,
-) -> HashMap<core_ir::Name, Vec<RoleImplDemandCandidate>> {
-    let mut out: HashMap<core_ir::Name, Vec<RoleImplDemandCandidate>> = HashMap::new();
+) -> HashMap<typed_ir::Name, Vec<RoleImplDemandCandidate>> {
+    let mut out: HashMap<typed_ir::Name, Vec<RoleImplDemandCandidate>> = HashMap::new();
     for binding in &module.bindings {
         if !is_impl_method_path(&binding.name) {
             continue;
@@ -2433,7 +2433,7 @@ fn role_impl_demand_signature(call: &DemandSignature) -> DemandSignature {
 
 fn normalize_check_demand_signature(
     semantics: &DemandSemantics,
-    target: &core_ir::Path,
+    target: &typed_ir::Path,
     signature: DemandSignature,
 ) -> DemandSignature {
     let signature =
@@ -2444,7 +2444,7 @@ fn normalize_check_demand_signature(
 
 fn strengthen_handler_arg_signatures(
     semantics: &DemandSemantics,
-    target: &core_ir::Path,
+    target: &typed_ir::Path,
     mut args: Vec<DemandSignature>,
     hints: &[Option<DemandSignature>],
     ret: &DemandSignature,
@@ -2481,7 +2481,7 @@ fn signatures_may_unify(left: &DemandSignature, right: &DemandSignature) -> bool
         || DemandUnifier::new().unify_signature(right, left).is_ok()
 }
 
-fn path_key(path: &core_ir::Path) -> String {
+fn path_key(path: &typed_ir::Path) -> String {
     path.segments
         .iter()
         .map(|segment| segment.0.as_str())
@@ -2489,11 +2489,11 @@ fn path_key(path: &core_ir::Path) -> String {
         .join("::")
 }
 
-fn binding_references_path(binding: &Binding, target: &core_ir::Path) -> bool {
+fn binding_references_path(binding: &Binding, target: &typed_ir::Path) -> bool {
     expr_references_path(&binding.body, target)
 }
 
-fn expr_references_path(expr: &Expr, target: &core_ir::Path) -> bool {
+fn expr_references_path(expr: &Expr, target: &typed_ir::Path) -> bool {
     match &expr.kind {
         ExprKind::Var(path) => path == target,
         ExprKind::Lambda { body, .. }
@@ -2564,7 +2564,7 @@ fn expr_references_path(expr: &Expr, target: &core_ir::Path) -> bool {
     }
 }
 
-fn stmt_references_path(stmt: &Stmt, target: &core_ir::Path) -> bool {
+fn stmt_references_path(stmt: &Stmt, target: &typed_ir::Path) -> bool {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
             expr_references_path(value, target)
@@ -2572,7 +2572,7 @@ fn stmt_references_path(stmt: &Stmt, target: &core_ir::Path) -> bool {
     }
 }
 
-fn demand_effect_is_consumed(effect: &DemandEffect, consumed: &[core_ir::Path]) -> bool {
+fn demand_effect_is_consumed(effect: &DemandEffect, consumed: &[typed_ir::Path]) -> bool {
     match effect {
         DemandEffect::Empty | DemandEffect::Hole(_) => false,
         DemandEffect::Atom(ty) => demand_core_effect_path(ty).is_some_and(|path| {
@@ -2588,7 +2588,7 @@ fn demand_effect_is_consumed(effect: &DemandEffect, consumed: &[core_ir::Path]) 
 
 fn close_pure_handler_result(
     signature: DemandSignature,
-    consumed: &[core_ir::Path],
+    consumed: &[typed_ir::Path],
 ) -> DemandSignature {
     if consumed.is_empty() {
         return signature;
@@ -2609,7 +2609,7 @@ fn close_pure_handler_result(
 
 fn close_consumed_effect_holes(
     signature: DemandSignature,
-    consumed: &[core_ir::Path],
+    consumed: &[typed_ir::Path],
 ) -> DemandSignature {
     if consumed.is_empty() {
         return signature;
@@ -2636,7 +2636,7 @@ fn close_consumed_effect_holes(
 
 fn close_consumed_core_effect_holes(
     ty: DemandCoreType,
-    consumed: &[core_ir::Path],
+    consumed: &[typed_ir::Path],
 ) -> DemandCoreType {
     match ty {
         DemandCoreType::Fun {
@@ -2701,7 +2701,7 @@ fn close_consumed_core_effect_holes(
 
 fn close_consumed_type_arg_effect_holes(
     arg: DemandTypeArg,
-    consumed: &[core_ir::Path],
+    consumed: &[typed_ir::Path],
 ) -> DemandTypeArg {
     match arg {
         DemandTypeArg::Type(ty) => {
@@ -2716,7 +2716,7 @@ fn close_consumed_type_arg_effect_holes(
 
 fn close_consumed_demand_effect_holes(
     effect: DemandEffect,
-    consumed: &[core_ir::Path],
+    consumed: &[typed_ir::Path],
 ) -> DemandEffect {
     if !demand_effect_is_consumed(&effect, consumed) {
         return effect;
@@ -2762,18 +2762,18 @@ fn push_normalized_effect_item(item: DemandEffect, out: &mut Vec<DemandEffect>) 
     }
 }
 
-fn demand_core_effect_path(ty: &DemandCoreType) -> Option<&core_ir::Path> {
+fn demand_core_effect_path(ty: &DemandCoreType) -> Option<&typed_ir::Path> {
     match ty {
         DemandCoreType::Named { path, .. } => Some(path),
         _ => None,
     }
 }
 
-fn effect_operation_namespace(operation: &core_ir::Path) -> Option<core_ir::Path> {
+fn effect_operation_namespace(operation: &typed_ir::Path) -> Option<typed_ir::Path> {
     if operation.segments.is_empty() {
         return None;
     }
-    Some(core_ir::Path {
+    Some(typed_ir::Path {
         segments: operation.segments[..operation.segments.len() - 1].to_vec(),
     })
 }
@@ -2787,7 +2787,7 @@ fn thunk_signature_effect(signature: &DemandSignature) -> Option<&DemandEffect> 
 
 fn effect_payload_for_namespace(
     effect: &DemandEffect,
-    namespace: &core_ir::Path,
+    namespace: &typed_ir::Path,
 ) -> Option<DemandSignature> {
     match effect {
         DemandEffect::Atom(DemandCoreType::Named { path, args }) if path == namespace => {
@@ -2802,7 +2802,7 @@ fn effect_payload_for_namespace(
 
 fn relative_operation_payload_hint(
     effect: &DemandEffect,
-    operation: &core_ir::Path,
+    operation: &typed_ir::Path,
 ) -> Option<DemandSignature> {
     if operation.segments.len() != 1 {
         return None;
@@ -2867,13 +2867,13 @@ fn effect_payload_arg_core(arg: &DemandTypeArg) -> Option<DemandCoreType> {
     }
 }
 
-fn effect_paths_match(left: &core_ir::Path, right: &core_ir::Path) -> bool {
+fn effect_paths_match(left: &typed_ir::Path, right: &typed_ir::Path) -> bool {
     left == right
         || qualified_prefix_effect_paths_match(left, right)
         || qualified_prefix_effect_paths_match(right, left)
 }
 
-fn qualified_prefix_effect_paths_match(parent: &core_ir::Path, child: &core_ir::Path) -> bool {
+fn qualified_prefix_effect_paths_match(parent: &typed_ir::Path, child: &typed_ir::Path) -> bool {
     parent.segments.len() > 1
         && child.segments.len() > parent.segments.len()
         && child.segments.starts_with(parent.segments.as_slice())
@@ -3026,8 +3026,8 @@ fn type_arg_can_accept_closed_effect(arg: &DemandTypeArg) -> bool {
 }
 
 fn restore_local(
-    locals: &mut HashMap<core_ir::Path, DemandSignature>,
-    local: core_ir::Path,
+    locals: &mut HashMap<typed_ir::Path, DemandSignature>,
+    local: typed_ir::Path,
     previous: Option<DemandSignature>,
 ) {
     match previous {
@@ -3060,18 +3060,18 @@ mod tests {
         let id = path("id");
         let module = module_with_binding(binding(
             id.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Var(path("x")),
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -3100,17 +3100,17 @@ mod tests {
         let f = path("f");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
-                    ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                    ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                     RuntimeType::core(named("int")),
                 )),
             },
@@ -3119,7 +3119,7 @@ mod tests {
             f,
             RuntimeType::fun(
                 RuntimeType::core(named("unit")),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
         );
 
@@ -3141,20 +3141,20 @@ mod tests {
         let f = path("f");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
                 RuntimeType::core(named("int")),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Apply {
                         callee: Box::new(Expr::typed(
                             ExprKind::Lambda {
-                                param: core_ir::Name("y".to_string()),
+                                param: typed_ir::Name("y".to_string()),
                                 param_effect_annotation: None,
                                 param_function_allowed_effects: None,
                                 body: Box::new(Expr::typed(
@@ -3196,34 +3196,34 @@ mod tests {
         let id = path("id");
         let use_id = path("use_id");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![
                 binding(
                     id.clone(),
-                    vec![core_ir::TypeVar("a".to_string())],
+                    vec![typed_ir::TypeVar("a".to_string())],
                     RuntimeType::fun(
-                        RuntimeType::core(core_ir::Type::Any),
-                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
                     ),
                     ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
+                        param: typed_ir::Name("x".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                     },
                 ),
                 binding(
                     use_id.clone(),
-                    vec![core_ir::TypeVar("a".to_string())],
+                    vec![typed_ir::TypeVar("a".to_string())],
                     RuntimeType::fun(
                         RuntimeType::core(named("int")),
                         RuntimeType::core(named("int")),
                     ),
                     ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
+                        param: typed_ir::Name("x".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
@@ -3231,13 +3231,13 @@ mod tests {
                                 callee: Box::new(Expr::typed(
                                     ExprKind::Var(id.clone()),
                                     RuntimeType::fun(
-                                        RuntimeType::core(core_ir::Type::Any),
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     ),
                                 )),
                                 arg: Box::new(Expr::typed(
                                     ExprKind::Var(path("x")),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 )),
                                 evidence: None,
                                 instantiation: None,
@@ -3282,34 +3282,34 @@ mod tests {
         let use_run = path("use_run");
         let io = named("io");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![
                 binding(
                     run.clone(),
-                    vec![core_ir::TypeVar("a".to_string())],
+                    vec![typed_ir::TypeVar("a".to_string())],
                     RuntimeType::fun(
-                        RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
-                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
+                        RuntimeType::core(typed_ir::Type::Any),
                     ),
                     ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
+                        param: typed_ir::Name("x".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
-                            ExprKind::Lit(core_ir::Lit::Unit),
-                            RuntimeType::core(core_ir::Type::Any),
+                            ExprKind::Lit(typed_ir::Lit::Unit),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                     },
                 ),
                 binding(
                     use_run.clone(),
-                    vec![core_ir::TypeVar("a".to_string())],
+                    vec![typed_ir::TypeVar("a".to_string())],
                     RuntimeType::fun(
                         RuntimeType::core(named("int")),
                         RuntimeType::core(named("int")),
                     ),
                     ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
+                        param: typed_ir::Name("x".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
@@ -3319,21 +3319,21 @@ mod tests {
                                     RuntimeType::fun(
                                         RuntimeType::thunk(
                                             io.clone(),
-                                            RuntimeType::core(core_ir::Type::Any),
+                                            RuntimeType::core(typed_ir::Type::Any),
                                         ),
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     ),
                                 )),
                                 arg: Box::new(Expr::typed(
                                     ExprKind::Thunk {
                                         effect: io.clone(),
-                                        value: RuntimeType::core(core_ir::Type::Any),
+                                        value: RuntimeType::core(typed_ir::Type::Any),
                                         expr: Box::new(Expr::typed(
                                             ExprKind::Var(path("x")),
-                                            RuntimeType::core(core_ir::Type::Any),
+                                            RuntimeType::core(typed_ir::Type::Any),
                                         )),
                                     },
-                                    RuntimeType::thunk(io, RuntimeType::core(core_ir::Type::Any)),
+                                    RuntimeType::thunk(io, RuntimeType::core(typed_ir::Type::Any)),
                                 )),
                                 evidence: None,
                                 instantiation: None,
@@ -3385,15 +3385,15 @@ mod tests {
         );
         let module = module_with_binding(binding(
             run.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             run_ty.clone(),
             ExprKind::Lambda {
-                param: core_ir::Name("v".to_string()),
+                param: typed_ir::Name("v".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
+                        param: typed_ir::Name("x".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
@@ -3406,7 +3406,7 @@ mod tests {
                                         )),
                                         arg: Box::new(Expr::typed(
                                             ExprKind::Var(path("v")),
-                                            RuntimeType::core(core_ir::Type::Any),
+                                            RuntimeType::core(typed_ir::Type::Any),
                                         )),
                                         evidence: None,
                                         instantiation: None,
@@ -3419,7 +3419,7 @@ mod tests {
                                         value: value.clone(),
                                         expr: Box::new(Expr::typed(
                                             ExprKind::Var(path("v")),
-                                            RuntimeType::core(core_ir::Type::Any),
+                                            RuntimeType::core(typed_ir::Type::Any),
                                         )),
                                     },
                                     thunk.clone(),
@@ -3446,77 +3446,77 @@ mod tests {
         let id = path("id");
         let use_id = path("use_id");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![
                 binding(
                     id.clone(),
-                    vec![core_ir::TypeVar("a".to_string())],
+                    vec![typed_ir::TypeVar("a".to_string())],
                     RuntimeType::fun(
-                        RuntimeType::core(core_ir::Type::Any),
-                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
                     ),
                     ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
+                        param: typed_ir::Name("x".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                     },
                 ),
                 binding(
                     use_id.clone(),
-                    vec![core_ir::TypeVar("a".to_string())],
+                    vec![typed_ir::TypeVar("a".to_string())],
                     RuntimeType::fun(
-                        RuntimeType::core(core_ir::Type::Any),
-                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
                     ),
                     ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
+                        param: typed_ir::Name("x".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
                             ExprKind::Block {
                                 stmts: vec![Stmt::Let {
                                     pattern: Pattern::Bind {
-                                        name: core_ir::Name("y".to_string()),
-                                        ty: RuntimeType::core(core_ir::Type::Any),
+                                        name: typed_ir::Name("y".to_string()),
+                                        ty: RuntimeType::core(typed_ir::Type::Any),
                                     },
                                     value: Expr::typed(
                                         ExprKind::Apply {
                                             callee: Box::new(Expr::typed(
                                                 ExprKind::Var(id.clone()),
                                                 RuntimeType::fun(
-                                                    RuntimeType::core(core_ir::Type::Any),
-                                                    RuntimeType::core(core_ir::Type::Any),
+                                                    RuntimeType::core(typed_ir::Type::Any),
+                                                    RuntimeType::core(typed_ir::Type::Any),
                                                 ),
                                             )),
                                             arg: Box::new(Expr::typed(
                                                 ExprKind::Var(path("x")),
-                                                RuntimeType::core(core_ir::Type::Any),
+                                                RuntimeType::core(typed_ir::Type::Any),
                                             )),
                                             evidence: None,
                                             instantiation: None,
                                         },
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     ),
                                 }],
                                 tail: Some(Box::new(Expr::typed(
                                     ExprKind::Tuple(vec![
                                         Expr::typed(
                                             ExprKind::Var(path("y")),
-                                            RuntimeType::core(core_ir::Type::Any),
+                                            RuntimeType::core(typed_ir::Type::Any),
                                         ),
                                         Expr::typed(
-                                            ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                                            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                                             RuntimeType::core(named("int")),
                                         ),
                                     ]),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 ))),
                             },
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                     },
                 ),
@@ -3529,7 +3529,7 @@ mod tests {
             use_id,
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
-                RuntimeType::core(core_ir::Type::Tuple(vec![named("int"), named("int")])),
+                RuntimeType::core(typed_ir::Type::Tuple(vec![named("int"), named("int")])),
             ),
         );
 
@@ -3553,33 +3553,33 @@ mod tests {
         let f = path("f");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Block {
                         stmts: vec![Stmt::Let {
                             pattern: Pattern::Bind {
-                                name: core_ir::Name("y".to_string()),
-                                ty: RuntimeType::core(core_ir::Type::Any),
+                                name: typed_ir::Name("y".to_string()),
+                                ty: RuntimeType::core(typed_ir::Type::Any),
                             },
                             value: Expr::typed(
                                 ExprKind::Var(path("x")),
-                                RuntimeType::core(core_ir::Type::Any),
+                                RuntimeType::core(typed_ir::Type::Any),
                             ),
                         }],
                         tail: Some(Box::new(Expr::typed(
                             ExprKind::Var(path("y")),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         ))),
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -3587,7 +3587,7 @@ mod tests {
             f,
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
         );
 
@@ -3609,27 +3609,27 @@ mod tests {
         let f = path("f");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Tuple(vec![
                         Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         ),
                         Expr::typed(
-                            ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                             RuntimeType::core(named("int")),
                         ),
                     ]),
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -3637,7 +3637,7 @@ mod tests {
             f,
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
         );
 
@@ -3662,32 +3662,32 @@ mod tests {
         let f = path("f");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::If {
                         cond: Box::new(Expr::typed(
-                            ExprKind::Lit(core_ir::Lit::Bool(true)),
+                            ExprKind::Lit(typed_ir::Lit::Bool(true)),
                             RuntimeType::core(named("bool")),
                         )),
                         then_branch: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                         else_branch: Box::new(Expr::typed(
-                            ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                             RuntimeType::core(named("int")),
                         )),
                         evidence: None,
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -3695,7 +3695,7 @@ mod tests {
             f,
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
         );
 
@@ -3718,25 +3718,25 @@ mod tests {
         let io = named("io");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Thunk {
                         effect: io.clone(),
-                        value: RuntimeType::core(core_ir::Type::Any),
+                        value: RuntimeType::core(typed_ir::Type::Any),
                         expr: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                     },
-                    RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                    RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
                 )),
             },
         ));
@@ -3764,39 +3764,39 @@ mod tests {
         let io = named("io");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::If {
                         cond: Box::new(Expr::typed(
-                            ExprKind::Lit(core_ir::Lit::Bool(true)),
+                            ExprKind::Lit(typed_ir::Lit::Bool(true)),
                             RuntimeType::core(named("bool")),
                         )),
                         then_branch: Box::new(Expr::typed(
                             ExprKind::Thunk {
                                 effect: io.clone(),
-                                value: RuntimeType::core(core_ir::Type::Any),
+                                value: RuntimeType::core(typed_ir::Type::Any),
                                 expr: Box::new(Expr::typed(
                                     ExprKind::Var(path("x")),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 )),
                             },
-                            RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                            RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
                         )),
                         else_branch: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                         evidence: None,
                     },
-                    RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                    RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
                 )),
             },
         ));
@@ -3824,13 +3824,13 @@ mod tests {
         let io = named("io");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
@@ -3838,16 +3838,16 @@ mod tests {
                         expr: Box::new(Expr::typed(
                             ExprKind::Thunk {
                                 effect: io.clone(),
-                                value: RuntimeType::core(core_ir::Type::Any),
+                                value: RuntimeType::core(typed_ir::Type::Any),
                                 expr: Box::new(Expr::typed(
                                     ExprKind::Var(path("x")),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 )),
                             },
-                            RuntimeType::thunk(io, RuntimeType::core(core_ir::Type::Any)),
+                            RuntimeType::thunk(io, RuntimeType::core(typed_ir::Type::Any)),
                         )),
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -3855,7 +3855,7 @@ mod tests {
             f,
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
         );
 
@@ -3878,13 +3878,13 @@ mod tests {
         let io = named("io");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
@@ -3892,29 +3892,29 @@ mod tests {
                         body: Box::new(Expr::typed(
                             ExprKind::Thunk {
                                 effect: io.clone(),
-                                value: RuntimeType::core(core_ir::Type::Any),
+                                value: RuntimeType::core(typed_ir::Type::Any),
                                 expr: Box::new(Expr::typed(
                                     ExprKind::Var(path("x")),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 )),
                             },
-                            RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                            RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
                         )),
                         arms: vec![HandleArm {
-                            effect: core_ir::Path::default(),
+                            effect: typed_ir::Path::default(),
                             payload: Pattern::Bind {
-                                name: core_ir::Name("v".to_string()),
-                                ty: RuntimeType::core(core_ir::Type::Any),
+                                name: typed_ir::Name("v".to_string()),
+                                ty: RuntimeType::core(typed_ir::Type::Any),
                             },
                             resume: None,
                             guard: None,
                             body: Expr::typed(
                                 ExprKind::Var(path("v")),
-                                RuntimeType::core(core_ir::Type::Any),
+                                RuntimeType::core(typed_ir::Type::Any),
                             ),
                         }],
                         evidence: crate::ir::JoinEvidence {
-                            result: core_ir::Type::Any,
+                            result: typed_ir::Type::Any,
                         },
                         handler: crate::ir::HandleEffect {
                             consumes: Vec::new(),
@@ -3922,7 +3922,7 @@ mod tests {
                             residual_after: None,
                         },
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -3930,7 +3930,7 @@ mod tests {
             f,
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
         );
 
@@ -3951,53 +3951,53 @@ mod tests {
     fn checker_uses_apply_evidence_inside_handle_value_arm() {
         let f = path("f");
         let io = named("io");
-        let list_any = list_type(core_ir::Type::Any);
+        let list_any = list_type(typed_ir::Type::Any);
         let list_int = list_type(named("int"));
-        let singleton_ty = core_fun(core_ir::Type::Any, list_any.clone());
+        let singleton_ty = core_fun(typed_ir::Type::Any, list_any.clone());
         let singleton_int_ty = core_fun(named("int"), list_int.clone());
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Handle {
                         body: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                            RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
                         )),
                         arms: vec![HandleArm {
-                            effect: core_ir::Path::default(),
+                            effect: typed_ir::Path::default(),
                             payload: Pattern::Bind {
-                                name: core_ir::Name("v".to_string()),
-                                ty: RuntimeType::core(core_ir::Type::Any),
+                                name: typed_ir::Name("v".to_string()),
+                                ty: RuntimeType::core(typed_ir::Type::Any),
                             },
                             resume: None,
                             guard: None,
                             body: Expr::typed(
                                 ExprKind::Apply {
                                     callee: Box::new(Expr::typed(
-                                        ExprKind::PrimitiveOp(core_ir::PrimitiveOp::ListSingleton),
+                                        ExprKind::PrimitiveOp(typed_ir::PrimitiveOp::ListSingleton),
                                         RuntimeType::core(singleton_ty),
                                     )),
                                     arg: Box::new(Expr::typed(
                                         ExprKind::Var(path("v")),
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     )),
-                                    evidence: Some(core_ir::ApplyEvidence {
+                                    evidence: Some(typed_ir::ApplyEvidence {
                                         callee_source_edge: None,
                                         expected_callee: None,
                                         arg_source_edge: None,
-                                        callee: core_ir::TypeBounds::exact(singleton_int_ty),
-                                        arg: core_ir::TypeBounds::exact(named("int")),
+                                        callee: typed_ir::TypeBounds::exact(singleton_int_ty),
+                                        arg: typed_ir::TypeBounds::exact(named("int")),
                                         expected_arg: None,
-                                        result: core_ir::TypeBounds::exact(list_int.clone()),
+                                        result: typed_ir::TypeBounds::exact(list_int.clone()),
                                         principal_callee: None,
                                         substitutions: Vec::new(),
                                         substitution_candidates: Vec::new(),
@@ -4010,7 +4010,7 @@ mod tests {
                             ),
                         }],
                         evidence: crate::ir::JoinEvidence {
-                            result: core_ir::Type::Any,
+                            result: typed_ir::Type::Any,
                         },
                         handler: crate::ir::HandleEffect {
                             consumes: Vec::new(),
@@ -4018,7 +4018,7 @@ mod tests {
                             residual_after: None,
                         },
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -4047,46 +4047,49 @@ mod tests {
         let return_op = path("return");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::thunk(core_ir::Type::Any, RuntimeType::core(named("int"))),
+                RuntimeType::thunk(typed_ir::Type::Any, RuntimeType::core(named("int"))),
                 RuntimeType::core(named("int")),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Handle {
                         body: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::thunk(core_ir::Type::Any, RuntimeType::core(named("int"))),
+                            RuntimeType::thunk(
+                                typed_ir::Type::Any,
+                                RuntimeType::core(named("int")),
+                            ),
                         )),
                         arms: vec![
                             HandleArm {
                                 effect: return_op,
                                 payload: Pattern::Bind {
-                                    name: core_ir::Name("a".to_string()),
-                                    ty: RuntimeType::core(core_ir::Type::Any),
+                                    name: typed_ir::Name("a".to_string()),
+                                    ty: RuntimeType::core(typed_ir::Type::Any),
                                 },
                                 resume: None,
                                 guard: None,
                                 body: Expr::typed(
                                     ExprKind::Var(path("a")),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 ),
                             },
                             HandleArm {
-                                effect: core_ir::Path::default(),
+                                effect: typed_ir::Path::default(),
                                 payload: Pattern::Bind {
-                                    name: core_ir::Name("a".to_string()),
-                                    ty: RuntimeType::core(core_ir::Type::Any),
+                                    name: typed_ir::Name("a".to_string()),
+                                    ty: RuntimeType::core(typed_ir::Type::Any),
                                 },
                                 resume: None,
                                 guard: None,
                                 body: Expr::typed(
                                     ExprKind::Var(path("a")),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 ),
                             },
                         ],
@@ -4095,8 +4098,8 @@ mod tests {
                         },
                         handler: crate::ir::HandleEffect {
                             consumes: vec![sub.clone()],
-                            residual_before: Some(core_ir::Type::Any),
-                            residual_after: Some(core_ir::Type::Never),
+                            residual_before: Some(typed_ir::Type::Any),
+                            residual_after: Some(typed_ir::Type::Never),
                         },
                     },
                     RuntimeType::core(named("int")),
@@ -4116,7 +4119,7 @@ mod tests {
         let demand = Demand::with_signature(
             f,
             RuntimeType::fun(
-                RuntimeType::thunk(core_ir::Type::Any, RuntimeType::core(named("int"))),
+                RuntimeType::thunk(typed_ir::Type::Any, RuntimeType::core(named("int"))),
                 RuntimeType::core(named("int")),
             ),
             signature,
@@ -4147,46 +4150,49 @@ mod tests {
         let sub = path_segments(&["std", "flow", "sub"]);
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::thunk(core_ir::Type::Any, RuntimeType::core(named("int"))),
+                RuntimeType::thunk(typed_ir::Type::Any, RuntimeType::core(named("int"))),
                 RuntimeType::core(named("int")),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Handle {
                         body: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::thunk(core_ir::Type::Any, RuntimeType::core(named("int"))),
+                            RuntimeType::thunk(
+                                typed_ir::Type::Any,
+                                RuntimeType::core(named("int")),
+                            ),
                         )),
                         arms: vec![
                             HandleArm {
                                 effect: path("return"),
                                 payload: Pattern::Bind {
-                                    name: core_ir::Name("a".to_string()),
-                                    ty: RuntimeType::core(core_ir::Type::Any),
+                                    name: typed_ir::Name("a".to_string()),
+                                    ty: RuntimeType::core(typed_ir::Type::Any),
                                 },
                                 resume: None,
                                 guard: None,
                                 body: Expr::typed(
                                     ExprKind::Var(path("a")),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 ),
                             },
                             HandleArm {
-                                effect: core_ir::Path::default(),
+                                effect: typed_ir::Path::default(),
                                 payload: Pattern::Bind {
-                                    name: core_ir::Name("a".to_string()),
-                                    ty: RuntimeType::core(core_ir::Type::Any),
+                                    name: typed_ir::Name("a".to_string()),
+                                    ty: RuntimeType::core(typed_ir::Type::Any),
                                 },
                                 resume: None,
                                 guard: None,
                                 body: Expr::typed(
                                     ExprKind::Var(path("a")),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 ),
                             },
                         ],
@@ -4195,8 +4201,8 @@ mod tests {
                         },
                         handler: crate::ir::HandleEffect {
                             consumes: vec![sub.clone()],
-                            residual_before: Some(core_ir::Type::Any),
-                            residual_after: Some(core_ir::Type::Never),
+                            residual_before: Some(typed_ir::Type::Any),
+                            residual_after: Some(typed_ir::Type::Never),
                         },
                     },
                     RuntimeType::core(named("int")),
@@ -4219,7 +4225,7 @@ mod tests {
         let demand = Demand::with_signature(
             f,
             RuntimeType::fun(
-                RuntimeType::thunk(core_ir::Type::Any, RuntimeType::core(named("int"))),
+                RuntimeType::thunk(typed_ir::Type::Any, RuntimeType::core(named("int"))),
                 RuntimeType::core(named("int")),
             ),
             signature,
@@ -4251,33 +4257,33 @@ mod tests {
         let io = named("io");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Handle {
                         body: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                            RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
                         )),
                         arms: vec![HandleArm {
-                            effect: core_ir::Path::from_name(core_ir::Name("op".to_string())),
+                            effect: typed_ir::Path::from_name(typed_ir::Name("op".to_string())),
                             payload: Pattern::Wildcard {
                                 ty: RuntimeType::core(named("unit")),
                             },
                             resume: Some(crate::ir::ResumeBinding {
-                                name: core_ir::Name("k".to_string()),
+                                name: typed_ir::Name("k".to_string()),
                                 ty: RuntimeType::fun(
                                     RuntimeType::core(named("bool")),
                                     RuntimeType::thunk(
                                         io.clone(),
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     ),
                                 ),
                             }),
@@ -4292,12 +4298,12 @@ mod tests {
                                                     RuntimeType::core(named("bool")),
                                                     RuntimeType::thunk(
                                                         io.clone(),
-                                                        RuntimeType::core(core_ir::Type::Any),
+                                                        RuntimeType::core(typed_ir::Type::Any),
                                                     ),
                                                 ),
                                             )),
                                             arg: Box::new(Expr::typed(
-                                                ExprKind::Lit(core_ir::Lit::Bool(true)),
+                                                ExprKind::Lit(typed_ir::Lit::Bool(true)),
                                                 RuntimeType::core(named("bool")),
                                             )),
                                             evidence: None,
@@ -4305,32 +4311,32 @@ mod tests {
                                         },
                                         RuntimeType::thunk(
                                             io.clone(),
-                                            RuntimeType::core(core_ir::Type::Any),
+                                            RuntimeType::core(typed_ir::Type::Any),
                                         ),
                                     )),
                                 },
-                                RuntimeType::core(core_ir::Type::Any),
+                                RuntimeType::core(typed_ir::Type::Any),
                             ),
                         }],
                         evidence: crate::ir::JoinEvidence {
-                            result: core_ir::Type::Any,
+                            result: typed_ir::Type::Any,
                         },
                         handler: crate::ir::HandleEffect {
-                            consumes: vec![core_ir::Path::from_name(core_ir::Name(
+                            consumes: vec![typed_ir::Path::from_name(typed_ir::Name(
                                 "op".to_string(),
                             ))],
                             residual_before: Some(io.clone()),
                             residual_after: None,
                         },
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
         let demand = Demand::new(
             f,
             RuntimeType::fun(
-                RuntimeType::thunk(io, RuntimeType::core(core_ir::Type::Any)),
+                RuntimeType::thunk(io, RuntimeType::core(typed_ir::Type::Any)),
                 RuntimeType::core(named("int")),
             ),
         );
@@ -4355,36 +4361,36 @@ mod tests {
     fn checker_uses_handled_body_type_for_core_resume_result() {
         let f = path("f");
         let io = named("io");
-        let resume_ty = core_ir::Type::Fun {
+        let resume_ty = typed_ir::Type::Fun {
             param: Box::new(named("bool")),
-            param_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(io.clone()),
-            ret: Box::new(core_ir::Type::Any),
+            ret: Box::new(typed_ir::Type::Any),
         };
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Handle {
                         body: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::thunk(io.clone(), RuntimeType::core(core_ir::Type::Any)),
+                            RuntimeType::thunk(io.clone(), RuntimeType::core(typed_ir::Type::Any)),
                         )),
                         arms: vec![HandleArm {
-                            effect: core_ir::Path::from_name(core_ir::Name("op".to_string())),
+                            effect: typed_ir::Path::from_name(typed_ir::Name("op".to_string())),
                             payload: Pattern::Wildcard {
                                 ty: RuntimeType::core(named("unit")),
                             },
                             resume: Some(crate::ir::ResumeBinding {
-                                name: core_ir::Name("k".to_string()),
+                                name: typed_ir::Name("k".to_string()),
                                 ty: RuntimeType::core(resume_ty.clone()),
                             }),
                             guard: None,
@@ -4397,37 +4403,37 @@ mod tests {
                                                 RuntimeType::core(resume_ty),
                                             )),
                                             arg: Box::new(Expr::typed(
-                                                ExprKind::Lit(core_ir::Lit::Bool(true)),
+                                                ExprKind::Lit(typed_ir::Lit::Bool(true)),
                                                 RuntimeType::core(named("bool")),
                                             )),
                                             evidence: None,
                                             instantiation: None,
                                         },
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     )),
                                 },
-                                RuntimeType::core(core_ir::Type::Any),
+                                RuntimeType::core(typed_ir::Type::Any),
                             ),
                         }],
                         evidence: crate::ir::JoinEvidence {
-                            result: core_ir::Type::Any,
+                            result: typed_ir::Type::Any,
                         },
                         handler: crate::ir::HandleEffect {
-                            consumes: vec![core_ir::Path::from_name(core_ir::Name(
+                            consumes: vec![typed_ir::Path::from_name(typed_ir::Name(
                                 "op".to_string(),
                             ))],
                             residual_before: Some(io.clone()),
                             residual_after: None,
                         },
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
         let demand = Demand::new(
             f,
             RuntimeType::fun(
-                RuntimeType::thunk(io, RuntimeType::core(core_ir::Type::Any)),
+                RuntimeType::thunk(io, RuntimeType::core(typed_ir::Type::Any)),
                 RuntimeType::core(named("int")),
             ),
         );
@@ -4452,19 +4458,19 @@ mod tests {
     fn checker_accepts_consumed_thunk_inside_pure_handler_binding() {
         let f = path("f");
         let io = path("io");
-        let io_ty = core_ir::Type::Named {
+        let io_ty = typed_ir::Type::Named {
             path: io.clone(),
             args: Vec::new(),
         };
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::thunk(io_ty.clone(), RuntimeType::core(core_ir::Type::Any)),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::thunk(io_ty.clone(), RuntimeType::core(typed_ir::Type::Any)),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
@@ -4473,13 +4479,13 @@ mod tests {
                             ExprKind::Var(path("x")),
                             RuntimeType::thunk(
                                 io_ty.clone(),
-                                RuntimeType::core(core_ir::Type::Any),
+                                RuntimeType::core(typed_ir::Type::Any),
                             ),
                         )),
                         arms: vec![HandleArm {
-                            effect: core_ir::Path::default(),
+                            effect: typed_ir::Path::default(),
                             payload: Pattern::Wildcard {
-                                ty: RuntimeType::core(core_ir::Type::Any),
+                                ty: RuntimeType::core(typed_ir::Type::Any),
                             },
                             resume: None,
                             guard: None,
@@ -4488,7 +4494,7 @@ mod tests {
                                     effect: io_ty.clone(),
                                     value: RuntimeType::core(named("bool")),
                                     expr: Box::new(Expr::typed(
-                                        ExprKind::Lit(core_ir::Lit::Bool(true)),
+                                        ExprKind::Lit(typed_ir::Lit::Bool(true)),
                                         RuntimeType::core(named("bool")),
                                     )),
                                 },
@@ -4496,15 +4502,15 @@ mod tests {
                             ),
                         }],
                         evidence: crate::ir::JoinEvidence {
-                            result: core_ir::Type::Any,
+                            result: typed_ir::Type::Any,
                         },
                         handler: crate::ir::HandleEffect {
                             consumes: vec![io.clone()],
                             residual_before: Some(io_ty.clone()),
-                            residual_after: Some(core_ir::Type::Never),
+                            residual_after: Some(typed_ir::Type::Never),
                         },
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -4530,19 +4536,19 @@ mod tests {
     fn checker_removes_consumed_effect_from_pure_handler_result() {
         let f = path("f");
         let io = path("io");
-        let io_ty = core_ir::Type::Named {
+        let io_ty = typed_ir::Type::Named {
             path: io.clone(),
             args: Vec::new(),
         };
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::thunk(io_ty.clone(), RuntimeType::core(core_ir::Type::Any)),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::thunk(io_ty.clone(), RuntimeType::core(typed_ir::Type::Any)),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
@@ -4551,31 +4557,31 @@ mod tests {
                             ExprKind::Var(path("x")),
                             RuntimeType::thunk(
                                 io_ty.clone(),
-                                RuntimeType::core(core_ir::Type::Any),
+                                RuntimeType::core(typed_ir::Type::Any),
                             ),
                         )),
                         arms: vec![HandleArm {
-                            effect: core_ir::Path::default(),
+                            effect: typed_ir::Path::default(),
                             payload: Pattern::Wildcard {
-                                ty: RuntimeType::core(core_ir::Type::Any),
+                                ty: RuntimeType::core(typed_ir::Type::Any),
                             },
                             resume: None,
                             guard: None,
                             body: Expr::typed(
-                                ExprKind::Lit(core_ir::Lit::Bool(true)),
+                                ExprKind::Lit(typed_ir::Lit::Bool(true)),
                                 RuntimeType::core(named("bool")),
                             ),
                         }],
                         evidence: crate::ir::JoinEvidence {
-                            result: core_ir::Type::Any,
+                            result: typed_ir::Type::Any,
                         },
                         handler: crate::ir::HandleEffect {
                             consumes: vec![io.clone()],
                             residual_before: Some(io_ty.clone()),
-                            residual_after: Some(core_ir::Type::Never),
+                            residual_after: Some(typed_ir::Type::Never),
                         },
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -4606,9 +4612,9 @@ mod tests {
     #[test]
     fn checker_checks_coerce_inner_against_from_type() {
         let f = path("f");
-        let from = core_ir::Type::Record(core_ir::RecordType {
-            fields: vec![core_ir::RecordField {
-                name: core_ir::Name("value".to_string()),
+        let from = typed_ir::Type::Record(typed_ir::RecordType {
+            fields: vec![typed_ir::RecordField {
+                name: typed_ir::Name("value".to_string()),
                 value: named("int"),
                 optional: false,
             }],
@@ -4617,13 +4623,13 @@ mod tests {
         let to = named("box");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
@@ -4633,10 +4639,10 @@ mod tests {
                         expr: Box::new(Expr::typed(
                             ExprKind::Record {
                                 fields: vec![crate::ir::RecordExprField {
-                                    name: core_ir::Name("value".to_string()),
+                                    name: typed_ir::Name("value".to_string()),
                                     value: Expr::typed(
                                         ExprKind::Var(path("x")),
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     ),
                                 }],
                                 spread: None,
@@ -4670,48 +4676,48 @@ mod tests {
     fn checker_reads_lambda_body_for_expected_core_function() {
         let f = path("f");
         let io = named("io");
-        let core_fun = core_ir::Type::Fun {
+        let core_fun = typed_ir::Type::Fun {
             param: Box::new(named("unit")),
-            param_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(io.clone()),
             ret: Box::new(named("int")),
         };
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Lambda {
-                        param: core_ir::Name("u".to_string()),
+                        param: typed_ir::Name("u".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
                             ExprKind::Thunk {
                                 effect: io,
-                                value: RuntimeType::core(core_ir::Type::Any),
+                                value: RuntimeType::core(typed_ir::Type::Any),
                                 expr: Box::new(Expr::typed(
                                     ExprKind::Var(path("x")),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 )),
                             },
-                            RuntimeType::thunk(named("io"), RuntimeType::core(core_ir::Type::Any)),
+                            RuntimeType::thunk(named("io"), RuntimeType::core(typed_ir::Type::Any)),
                         )),
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
         let demand = Demand::new(
             f,
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
                 RuntimeType::core(core_fun),
             ),
         );
@@ -4740,36 +4746,36 @@ mod tests {
         let run = path("run");
         let io = named("io");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![
                 binding(
                     run.clone(),
-                    vec![core_ir::TypeVar("a".to_string())],
+                    vec![typed_ir::TypeVar("a".to_string())],
                     RuntimeType::fun(
-                        RuntimeType::core(core_ir::Type::Any),
-                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
                     ),
                     ExprKind::Lambda {
-                        param: core_ir::Name("y".to_string()),
+                        param: typed_ir::Name("y".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
                             ExprKind::Var(path("y")),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                     },
                 ),
                 binding(
                     f.clone(),
-                    vec![core_ir::TypeVar("a".to_string())],
-                    RuntimeType::core(core_ir::Type::Any),
+                    vec![typed_ir::TypeVar("a".to_string())],
+                    RuntimeType::core(typed_ir::Type::Any),
                     ExprKind::Lambda {
-                        param: core_ir::Name("u".to_string()),
+                        param: typed_ir::Name("u".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
                             ExprKind::Lambda {
-                                param: core_ir::Name("x".to_string()),
+                                param: typed_ir::Name("x".to_string()),
                                 param_effect_annotation: None,
                                 param_function_allowed_effects: None,
                                 body: Box::new(Expr::typed(
@@ -4777,21 +4783,21 @@ mod tests {
                                         callee: Box::new(Expr::typed(
                                             ExprKind::Var(run.clone()),
                                             RuntimeType::fun(
-                                                RuntimeType::core(core_ir::Type::Any),
-                                                RuntimeType::core(core_ir::Type::Any),
+                                                RuntimeType::core(typed_ir::Type::Any),
+                                                RuntimeType::core(typed_ir::Type::Any),
                                             ),
                                         )),
                                         arg: Box::new(Expr::typed(
                                             ExprKind::Var(path("x")),
-                                            RuntimeType::core(core_ir::Type::Any),
+                                            RuntimeType::core(typed_ir::Type::Any),
                                         )),
                                         evidence: None,
                                         instantiation: None,
                                     },
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 )),
                             },
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                     },
                 ),
@@ -4834,21 +4840,21 @@ mod tests {
     fn checker_applies_core_function_value_with_result_effect() {
         let f = path("f");
         let io = named("io");
-        let core_fun = core_ir::Type::Fun {
+        let core_fun = typed_ir::Type::Fun {
             param: Box::new(named("unit")),
-            param_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(io.clone()),
-            ret: Box::new(core_ir::Type::Any),
+            ret: Box::new(typed_ir::Type::Any),
         };
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
                 RuntimeType::core(core_fun.clone()),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("k".to_string()),
+                param: typed_ir::Name("k".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
@@ -4860,16 +4866,16 @@ mod tests {
                                     RuntimeType::core(core_fun.clone()),
                                 )),
                                 arg: Box::new(Expr::typed(
-                                    ExprKind::Lit(core_ir::Lit::Unit),
+                                    ExprKind::Lit(typed_ir::Lit::Unit),
                                     RuntimeType::core(named("unit")),
                                 )),
                                 evidence: None,
                                 instantiation: None,
                             },
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -4901,13 +4907,13 @@ mod tests {
         let f = path("f");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
@@ -4915,19 +4921,19 @@ mod tests {
                         base: Box::new(Expr::typed(
                             ExprKind::Record {
                                 fields: vec![crate::ir::RecordExprField {
-                                    name: core_ir::Name("value".to_string()),
+                                    name: typed_ir::Name("value".to_string()),
                                     value: Expr::typed(
                                         ExprKind::Var(path("x")),
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     ),
                                 }],
                                 spread: None,
                             },
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
-                        field: core_ir::Name("value".to_string()),
+                        field: typed_ir::Name("value".to_string()),
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -4935,7 +4941,7 @@ mod tests {
             f,
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
         );
 
@@ -4955,16 +4961,16 @@ mod tests {
     #[test]
     fn checker_tracks_variant_match_payload() {
         let f = path("f");
-        let tag = core_ir::Name("just".to_string());
+        let tag = typed_ir::Name("just".to_string());
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
@@ -4974,31 +4980,31 @@ mod tests {
                                 tag: tag.clone(),
                                 value: Some(Box::new(Expr::typed(
                                     ExprKind::Var(path("x")),
-                                    RuntimeType::core(core_ir::Type::Any),
+                                    RuntimeType::core(typed_ir::Type::Any),
                                 ))),
                             },
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                         arms: vec![crate::ir::MatchArm {
                             pattern: Pattern::Variant {
                                 tag,
                                 value: Some(Box::new(Pattern::Bind {
-                                    name: core_ir::Name("y".to_string()),
-                                    ty: RuntimeType::core(core_ir::Type::Any),
+                                    name: typed_ir::Name("y".to_string()),
+                                    ty: RuntimeType::core(typed_ir::Type::Any),
                                 })),
-                                ty: RuntimeType::core(core_ir::Type::Any),
+                                ty: RuntimeType::core(typed_ir::Type::Any),
                             },
                             guard: None,
                             body: Expr::typed(
                                 ExprKind::Var(path("y")),
-                                RuntimeType::core(core_ir::Type::Any),
+                                RuntimeType::core(typed_ir::Type::Any),
                             ),
                         }],
                         evidence: crate::ir::JoinEvidence {
-                            result: core_ir::Type::Any,
+                            result: typed_ir::Type::Any,
                         },
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -5006,7 +5012,7 @@ mod tests {
             f,
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
         );
 
@@ -5028,12 +5034,12 @@ mod tests {
         let f = path("f");
         let g = path("g");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![
                 binding(
                     f.clone(),
-                    vec![core_ir::TypeVar("a".to_string())],
-                    RuntimeType::core(core_ir::Type::Any),
+                    vec![typed_ir::TypeVar("a".to_string())],
+                    RuntimeType::core(typed_ir::Type::Any),
                     ExprKind::Match {
                         scrutinee: Box::new(Expr::typed(
                             ExprKind::Apply {
@@ -5041,17 +5047,17 @@ mod tests {
                                     ExprKind::Var(g.clone()),
                                     RuntimeType::fun(
                                         RuntimeType::core(named("unit")),
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     ),
                                 )),
                                 arg: Box::new(Expr::typed(
-                                    ExprKind::Lit(core_ir::Lit::Unit),
+                                    ExprKind::Lit(typed_ir::Lit::Unit),
                                     RuntimeType::core(named("unit")),
                                 )),
                                 evidence: None,
                                 instantiation: None,
                             },
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                         arms: vec![bool_match_arm(true, 1), bool_match_arm(false, 0)],
                         evidence: crate::ir::JoinEvidence {
@@ -5061,17 +5067,17 @@ mod tests {
                 ),
                 binding(
                     g.clone(),
-                    vec![core_ir::TypeVar("b".to_string())],
+                    vec![typed_ir::TypeVar("b".to_string())],
                     RuntimeType::fun(
                         RuntimeType::core(named("unit")),
-                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
                     ),
                     ExprKind::Lambda {
-                        param: core_ir::Name("_".to_string()),
+                        param: typed_ir::Name("_".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
-                            ExprKind::Lit(core_ir::Lit::Bool(true)),
+                            ExprKind::Lit(typed_ir::Lit::Bool(true)),
                             RuntimeType::core(named("bool")),
                         )),
                     },
@@ -5104,24 +5110,24 @@ mod tests {
         let f = path("f");
         let module = module_with_binding(binding(
             f.clone(),
-            vec![core_ir::TypeVar("a".to_string())],
+            vec![typed_ir::TypeVar("a".to_string())],
             RuntimeType::fun(
-                RuntimeType::core(core_ir::Type::Any),
-                RuntimeType::core(core_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
+                RuntimeType::core(typed_ir::Type::Any),
             ),
             ExprKind::Lambda {
-                param: core_ir::Name("x".to_string()),
+                param: typed_ir::Name("x".to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(Expr::typed(
                     ExprKind::Variant {
-                        tag: core_ir::Name("just".to_string()),
+                        tag: typed_ir::Name("just".to_string()),
                         value: Some(Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         ))),
                     },
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 )),
             },
         ));
@@ -5129,9 +5135,9 @@ mod tests {
             f,
             RuntimeType::fun(
                 RuntimeType::core(named("int")),
-                RuntimeType::core(core_ir::Type::Named {
+                RuntimeType::core(typed_ir::Type::Named {
                     path: path("opt"),
-                    args: vec![core_ir::TypeArg::Type(named("int"))],
+                    args: vec![typed_ir::TypeArg::Type(named("int"))],
                 }),
             ),
         );
@@ -5148,7 +5154,7 @@ mod tests {
 
     fn module_with_binding(binding: Binding) -> Module {
         Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![binding],
             root_exprs: Vec::new(),
             roots: vec![Root::Binding(path("f"))],
@@ -5157,47 +5163,47 @@ mod tests {
     }
 
     fn binding(
-        name: core_ir::Path,
-        type_params: Vec<core_ir::TypeVar>,
+        name: typed_ir::Path,
+        type_params: Vec<typed_ir::TypeVar>,
         ty: RuntimeType,
         kind: ExprKind,
     ) -> Binding {
         Binding {
             name,
             type_params,
-            scheme: core_ir::Scheme {
+            scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
-                body: core_ir::Type::Any,
+                body: typed_ir::Type::Any,
             },
             body: Expr::typed(kind, ty),
         }
     }
 
-    fn named(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
             path: path(name),
             args: Vec::new(),
         }
     }
 
-    fn list_type(item: core_ir::Type) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path {
+    fn list_type(item: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path {
                 segments: vec![
-                    core_ir::Name("std".to_string()),
-                    core_ir::Name("list".to_string()),
-                    core_ir::Name("list".to_string()),
+                    typed_ir::Name("std".to_string()),
+                    typed_ir::Name("list".to_string()),
+                    typed_ir::Name("list".to_string()),
                 ],
             },
-            args: vec![core_ir::TypeArg::Type(item)],
+            args: vec![typed_ir::TypeArg::Type(item)],
         }
     }
 
-    fn core_fun(param: core_ir::Type, ret: core_ir::Type) -> core_ir::Type {
-        core_ir::Type::Fun {
+    fn core_fun(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Fun {
             param: Box::new(param),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(ret),
         }
     }
@@ -5212,26 +5218,26 @@ mod tests {
     fn bool_match_arm(value: bool, result: i64) -> crate::ir::MatchArm {
         crate::ir::MatchArm {
             pattern: Pattern::Lit {
-                lit: core_ir::Lit::Bool(value),
+                lit: typed_ir::Lit::Bool(value),
                 ty: RuntimeType::core(named("bool")),
             },
             guard: None,
             body: Expr::typed(
-                ExprKind::Lit(core_ir::Lit::Int(result.to_string())),
+                ExprKind::Lit(typed_ir::Lit::Int(result.to_string())),
                 RuntimeType::core(named("int")),
             ),
         }
     }
 
-    fn path(name: &str) -> core_ir::Path {
-        core_ir::Path::from_name(core_ir::Name(name.to_string()))
+    fn path(name: &str) -> typed_ir::Path {
+        typed_ir::Path::from_name(typed_ir::Name(name.to_string()))
     }
 
-    fn path_segments(segments: &[&str]) -> core_ir::Path {
-        core_ir::Path {
+    fn path_segments(segments: &[&str]) -> typed_ir::Path {
+        typed_ir::Path {
             segments: segments
                 .iter()
-                .map(|segment| core_ir::Name((*segment).to_string()))
+                .map(|segment| typed_ir::Name((*segment).to_string()))
                 .collect(),
         }
     }

@@ -1,15 +1,15 @@
 use super::*;
 
-pub(super) fn pattern_bindings(pattern: &Pattern) -> Vec<(core_ir::Path, RuntimeType)> {
+pub(super) fn pattern_bindings(pattern: &Pattern) -> Vec<(typed_ir::Path, RuntimeType)> {
     let mut bindings = Vec::new();
     collect_pattern_bindings(pattern, &mut bindings);
     bindings
 }
 
 pub(super) fn push_bindings(
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
-    bindings: &[(core_ir::Path, RuntimeType)],
-) -> Vec<(core_ir::Path, Option<RuntimeType>)> {
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
+    bindings: &[(typed_ir::Path, RuntimeType)],
+) -> Vec<(typed_ir::Path, Option<RuntimeType>)> {
     bindings
         .iter()
         .map(|(path, ty)| (path.clone(), locals.insert(path.clone(), ty.clone())))
@@ -17,16 +17,16 @@ pub(super) fn push_bindings(
 }
 
 pub(super) fn push_binding(
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
-    path: core_ir::Path,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
+    path: typed_ir::Path,
     ty: RuntimeType,
-) -> Vec<(core_ir::Path, Option<RuntimeType>)> {
+) -> Vec<(typed_ir::Path, Option<RuntimeType>)> {
     vec![(path.clone(), locals.insert(path, ty))]
 }
 
 pub(super) fn pop_bindings(
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
-    previous: Vec<(core_ir::Path, Option<RuntimeType>)>,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
+    previous: Vec<(typed_ir::Path, Option<RuntimeType>)>,
 ) {
     for (path, ty) in previous.into_iter().rev() {
         match ty {
@@ -40,7 +40,7 @@ pub(super) fn pop_bindings(
     }
 }
 
-pub(super) fn push_stmt_bindings(locals: &mut HashMap<core_ir::Path, RuntimeType>, stmt: &Stmt) {
+pub(super) fn push_stmt_bindings(locals: &mut HashMap<typed_ir::Path, RuntimeType>, stmt: &Stmt) {
     match stmt {
         Stmt::Let { pattern, .. } => {
             for (path, ty) in pattern_bindings(pattern) {
@@ -54,14 +54,14 @@ pub(super) fn push_stmt_bindings(locals: &mut HashMap<core_ir::Path, RuntimeType
     }
 }
 
-fn collect_pattern_bindings(pattern: &Pattern, bindings: &mut Vec<(core_ir::Path, RuntimeType)>) {
+fn collect_pattern_bindings(pattern: &Pattern, bindings: &mut Vec<(typed_ir::Path, RuntimeType)>) {
     match pattern {
         Pattern::Bind { name, ty } => {
-            bindings.push((core_ir::Path::from_name(name.clone()), ty.clone()));
+            bindings.push((typed_ir::Path::from_name(name.clone()), ty.clone()));
         }
         Pattern::As { pattern, name, ty } => {
             collect_pattern_bindings(pattern, bindings);
-            bindings.push((core_ir::Path::from_name(name.clone()), ty.clone()));
+            bindings.push((typed_ir::Path::from_name(name.clone()), ty.clone()));
         }
         Pattern::Tuple { items, .. } | Pattern::List { prefix: items, .. } => {
             for item in items {

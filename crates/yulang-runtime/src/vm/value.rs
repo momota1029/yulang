@@ -9,7 +9,7 @@ pub(super) fn bind_pattern_with_defaults(
     match pattern {
         Pattern::Wildcard { .. } => Ok(()),
         Pattern::Bind { name, .. } => {
-            env.insert(core_ir::Path::from_name(name.clone()), value);
+            env.insert(typed_ir::Path::from_name(name.clone()), value);
             Ok(())
         }
         Pattern::Lit { lit, .. } if value == value_from_lit(lit) => Ok(()),
@@ -59,7 +59,7 @@ pub(super) fn bind_pattern_with_defaults(
         }
         Pattern::As { pattern, name, .. } => {
             bind_pattern_with_defaults(pattern, value.clone(), env, eval_default)?;
-            env.insert(core_ir::Path::from_name(name.clone()), value);
+            env.insert(typed_ir::Path::from_name(name.clone()), value);
             Ok(())
         }
         Pattern::Record { fields, .. } => {
@@ -120,17 +120,17 @@ pub(super) fn bind_pattern_with_defaults(
     }
 }
 
-pub(super) fn value_from_lit(lit: &core_ir::Lit) -> VmValue {
+pub(super) fn value_from_lit(lit: &typed_ir::Lit) -> VmValue {
     match lit {
-        core_ir::Lit::Int(value) => VmValue::Int(value.clone()),
-        core_ir::Lit::Float(value) => VmValue::Float(value.clone()),
-        core_ir::Lit::String(value) => VmValue::String(StringTree::from_str(value)),
-        core_ir::Lit::Bool(value) => VmValue::Bool(*value),
-        core_ir::Lit::Unit => VmValue::Unit,
+        typed_ir::Lit::Int(value) => VmValue::Int(value.clone()),
+        typed_ir::Lit::Float(value) => VmValue::Float(value.clone()),
+        typed_ir::Lit::String(value) => VmValue::String(StringTree::from_str(value)),
+        typed_ir::Lit::Bool(value) => VmValue::Bool(*value),
+        typed_ir::Lit::Unit => VmValue::Unit,
     }
 }
 
-pub(super) fn cast_value(value: VmValue, expected: &core_ir::Type) -> VmValue {
+pub(super) fn cast_value(value: VmValue, expected: &typed_ir::Type) -> VmValue {
     if is_float_type(expected) {
         if let VmValue::Int(value) = value {
             return VmValue::Float(if value.contains('.') {

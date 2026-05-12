@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::ir::{Expr, ExprKind, Module, Stmt};
 use crate::types::effect_paths;
@@ -15,13 +15,15 @@ impl DemandSemantics {
 
     pub(super) fn is_effect_polymorphic_higher_order_target(
         &self,
-        _target: &core_ir::Path,
+        _target: &typed_ir::Path,
     ) -> bool {
         false
     }
 }
 
-pub(super) fn pure_handler_bindings(module: &Module) -> HashMap<core_ir::Path, Vec<core_ir::Path>> {
+pub(super) fn pure_handler_bindings(
+    module: &Module,
+) -> HashMap<typed_ir::Path, Vec<typed_ir::Path>> {
     module
         .bindings
         .iter()
@@ -34,20 +36,20 @@ pub(super) fn pure_handler_bindings(module: &Module) -> HashMap<core_ir::Path, V
 
 pub(super) fn consumed_effects_for_target(
     _semantics: &DemandSemantics,
-    pure_handlers: &HashMap<core_ir::Path, Vec<core_ir::Path>>,
-    target: &core_ir::Path,
-) -> Vec<core_ir::Path> {
+    pure_handlers: &HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
+    target: &typed_ir::Path,
+) -> Vec<typed_ir::Path> {
     pure_handlers.get(target).cloned().unwrap_or_default()
 }
 
 pub(super) fn known_consumed_effects_for_target(
     _semantics: &DemandSemantics,
-    _target: &core_ir::Path,
-) -> Vec<core_ir::Path> {
+    _target: &typed_ir::Path,
+) -> Vec<typed_ir::Path> {
     Vec::new()
 }
 
-fn expr_pure_handler_consumes(expr: &Expr) -> Option<Vec<core_ir::Path>> {
+fn expr_pure_handler_consumes(expr: &Expr) -> Option<Vec<typed_ir::Path>> {
     match &expr.kind {
         ExprKind::Handle { handler, .. }
             if handler
@@ -75,12 +77,12 @@ fn expr_pure_handler_consumes(expr: &Expr) -> Option<Vec<core_ir::Path>> {
     }
 }
 
-fn core_effect_is_empty(effect: &core_ir::Type) -> bool {
-    matches!(effect, core_ir::Type::Never)
+fn core_effect_is_empty(effect: &typed_ir::Type) -> bool {
+    matches!(effect, typed_ir::Type::Never)
         || matches!(
             effect,
-            core_ir::Type::Row { items, tail }
-                if items.is_empty() && matches!(tail.as_ref(), core_ir::Type::Never)
+            typed_ir::Type::Row { items, tail }
+                if items.is_empty() && matches!(tail.as_ref(), typed_ir::Type::Never)
         )
         || effect_paths(effect).is_empty()
 }

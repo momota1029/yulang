@@ -251,7 +251,7 @@ pub(super) fn erase_match_arm(
 pub(super) fn erase_handle_arm(
     arm: HandleArm,
     effects: &EffectPathResolver,
-    consumes: &[core_ir::Path],
+    consumes: &[typed_ir::Path],
 ) -> Result<HandleArm, VmError> {
     Ok(HandleArm {
         effect: effects.resolve_handle_arm_path(arm.effect, consumes),
@@ -300,8 +300,8 @@ pub(super) fn is_erased_thunk_type(ty: &Type) -> bool {
 
 #[derive(Default)]
 pub(super) struct EffectPathResolver {
-    ops_by_last: HashMap<core_ir::Name, core_ir::Path>,
-    namespaces_by_last: HashMap<core_ir::Name, core_ir::Path>,
+    ops_by_last: HashMap<typed_ir::Name, typed_ir::Path>,
+    namespaces_by_last: HashMap<typed_ir::Name, typed_ir::Path>,
 }
 
 impl EffectPathResolver {
@@ -316,7 +316,7 @@ impl EffectPathResolver {
         resolver
     }
 
-    pub(super) fn resolve_op_path(&self, path: core_ir::Path) -> core_ir::Path {
+    pub(super) fn resolve_op_path(&self, path: typed_ir::Path) -> typed_ir::Path {
         let path = strip_synthetic_with_segments(path);
         if path.segments.len() == 1 {
             if let Some(resolved) = self.ops_by_last.get(&path.segments[0]) {
@@ -328,9 +328,9 @@ impl EffectPathResolver {
 
     pub(super) fn resolve_handle_arm_path(
         &self,
-        path: core_ir::Path,
-        consumes: &[core_ir::Path],
-    ) -> core_ir::Path {
+        path: typed_ir::Path,
+        consumes: &[typed_ir::Path],
+    ) -> typed_ir::Path {
         let path = strip_synthetic_with_segments(path);
         if path.segments.is_empty() {
             return path;
@@ -345,7 +345,7 @@ impl EffectPathResolver {
                 }
                 let mut segments = namespace.segments;
                 segments.push(op.clone());
-                let candidate = core_ir::Path { segments };
+                let candidate = typed_ir::Path { segments };
                 if !candidates.contains(&candidate) {
                     candidates.push(candidate);
                 }
@@ -356,26 +356,26 @@ impl EffectPathResolver {
         }
         if path.segments.len() > 1 {
             let op = path.segments.last().cloned().expect("non-empty path");
-            let namespace = core_ir::Path {
+            let namespace = typed_ir::Path {
                 segments: path.segments[..path.segments.len() - 1].to_vec(),
             };
             let resolved_namespace = self.resolve_namespace_path(namespace.clone());
             if resolved_namespace != namespace {
                 let mut segments = resolved_namespace.segments;
                 segments.push(op);
-                return self.resolve_op_path(core_ir::Path { segments });
+                return self.resolve_op_path(typed_ir::Path { segments });
             }
         }
         self.resolve_op_path(path)
     }
 
-    pub(super) fn resolve_effect_type(&self, ty: core_ir::Type) -> core_ir::Type {
+    pub(super) fn resolve_effect_type(&self, ty: typed_ir::Type) -> typed_ir::Type {
         match ty {
-            core_ir::Type::Named { path, args } => core_ir::Type::Named {
+            typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
                 path: self.resolve_namespace_path(path),
                 args,
             },
-            core_ir::Type::Row { items, tail } => core_ir::Type::Row {
+            typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
                 items: items
                     .into_iter()
                     .map(|item| self.resolve_effect_type(item))
@@ -386,7 +386,7 @@ impl EffectPathResolver {
         }
     }
 
-    pub(super) fn resolve_namespace_path(&self, path: core_ir::Path) -> core_ir::Path {
+    pub(super) fn resolve_namespace_path(&self, path: typed_ir::Path) -> typed_ir::Path {
         if path.segments.len() == 1 {
             if let Some(resolved) = self.namespaces_by_last.get(&path.segments[0]) {
                 return resolved.clone();
@@ -477,7 +477,7 @@ impl EffectPathResolver {
         }
     }
 
-    pub(super) fn insert_effect_op(&mut self, path: &core_ir::Path) {
+    pub(super) fn insert_effect_op(&mut self, path: &typed_ir::Path) {
         let path = strip_synthetic_with_segments(path.clone());
         let Some(op) = path.segments.last().cloned() else {
             return;
@@ -487,11 +487,11 @@ impl EffectPathResolver {
             .or_insert_with(|| path.clone());
         if let Some(base) = op.0.strip_suffix("#effect") {
             self.ops_by_last
-                .entry(core_ir::Name(base.to_string()))
+                .entry(typed_ir::Name(base.to_string()))
                 .or_insert_with(|| path.clone());
         }
         if path.segments.len() > 1 {
-            let namespace = core_ir::Path {
+            let namespace = typed_ir::Path {
                 segments: path.segments[..path.segments.len() - 1].to_vec(),
             };
             if let Some(name) = namespace.segments.last().cloned() {
@@ -501,8 +501,8 @@ impl EffectPathResolver {
     }
 }
 
-pub(super) fn strip_synthetic_with_segments(path: core_ir::Path) -> core_ir::Path {
-    core_ir::Path {
+pub(super) fn strip_synthetic_with_segments(path: typed_ir::Path) -> typed_ir::Path {
+    typed_ir::Path {
         segments: path
             .segments
             .into_iter()

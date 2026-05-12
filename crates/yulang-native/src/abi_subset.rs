@@ -1,6 +1,6 @@
 use std::fmt;
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::abi::{NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
 use crate::control_ir::NativeLiteral;
@@ -15,7 +15,7 @@ pub enum NativeAbiSubsetError {
     },
     UnsupportedPrimitive {
         function: String,
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
     },
 }
 
@@ -93,29 +93,29 @@ fn supported_literal(literal: &NativeLiteral) -> bool {
     )
 }
 
-fn supported_primitive(op: core_ir::PrimitiveOp) -> bool {
+fn supported_primitive(op: typed_ir::PrimitiveOp) -> bool {
     matches!(
         op,
-        core_ir::PrimitiveOp::BoolNot
-            | core_ir::PrimitiveOp::BoolEq
-            | core_ir::PrimitiveOp::IntAdd
-            | core_ir::PrimitiveOp::IntSub
-            | core_ir::PrimitiveOp::IntMul
-            | core_ir::PrimitiveOp::IntDiv
-            | core_ir::PrimitiveOp::IntEq
-            | core_ir::PrimitiveOp::IntLt
-            | core_ir::PrimitiveOp::IntLe
-            | core_ir::PrimitiveOp::IntGt
-            | core_ir::PrimitiveOp::IntGe
-            | core_ir::PrimitiveOp::FloatAdd
-            | core_ir::PrimitiveOp::FloatSub
-            | core_ir::PrimitiveOp::FloatMul
-            | core_ir::PrimitiveOp::FloatDiv
-            | core_ir::PrimitiveOp::FloatEq
-            | core_ir::PrimitiveOp::FloatLt
-            | core_ir::PrimitiveOp::FloatLe
-            | core_ir::PrimitiveOp::FloatGt
-            | core_ir::PrimitiveOp::FloatGe
+        typed_ir::PrimitiveOp::BoolNot
+            | typed_ir::PrimitiveOp::BoolEq
+            | typed_ir::PrimitiveOp::IntAdd
+            | typed_ir::PrimitiveOp::IntSub
+            | typed_ir::PrimitiveOp::IntMul
+            | typed_ir::PrimitiveOp::IntDiv
+            | typed_ir::PrimitiveOp::IntEq
+            | typed_ir::PrimitiveOp::IntLt
+            | typed_ir::PrimitiveOp::IntLe
+            | typed_ir::PrimitiveOp::IntGt
+            | typed_ir::PrimitiveOp::IntGe
+            | typed_ir::PrimitiveOp::FloatAdd
+            | typed_ir::PrimitiveOp::FloatSub
+            | typed_ir::PrimitiveOp::FloatMul
+            | typed_ir::PrimitiveOp::FloatDiv
+            | typed_ir::PrimitiveOp::FloatEq
+            | typed_ir::PrimitiveOp::FloatLt
+            | typed_ir::PrimitiveOp::FloatLe
+            | typed_ir::PrimitiveOp::FloatGt
+            | typed_ir::PrimitiveOp::FloatGe
     )
 }
 
@@ -138,7 +138,7 @@ mod tests {
                     params: Vec::new(),
                     stmts: vec![NativeAbiStmt::Primitive {
                         dest: ValueId(2),
-                        op: core_ir::PrimitiveOp::IntAdd,
+                        op: typed_ir::PrimitiveOp::IntAdd,
                         args: vec![ValueId(0), ValueId(1)],
                     }],
                     terminator: NativeTerminator::Return(ValueId(2)),
@@ -242,7 +242,7 @@ mod tests {
     fn rejects_list_primitive_before_heap_value_abi_exists() {
         let module = single_stmt_module(NativeAbiStmt::Primitive {
             dest: ValueId(0),
-            op: core_ir::PrimitiveOp::ListEmpty,
+            op: typed_ir::PrimitiveOp::ListEmpty,
             args: Vec::new(),
         });
 
@@ -250,7 +250,7 @@ mod tests {
             validate_cranelift_prototype_subset(&module),
             Err(NativeAbiSubsetError::UnsupportedPrimitive {
                 function: "root".to_string(),
-                op: core_ir::PrimitiveOp::ListEmpty,
+                op: typed_ir::PrimitiveOp::ListEmpty,
             })
         );
     }

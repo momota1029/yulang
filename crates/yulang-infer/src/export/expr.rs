@@ -8,7 +8,7 @@ use std::time::Instant;
 
 use crate::diagnostic::ExpectedEdgeId;
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::ast::expr::{
     CatchArmKind, ExprKind, Lit as TirLit, PatKind, RecordPatSpread, RecordSpread, TypedBlock,
@@ -41,9 +41,9 @@ use super::types::{
 pub fn export_expr(
     state: &LowerState,
     expr: &TypedExpr,
-    relevant_vars: BTreeSet<core_ir::TypeVar>,
+    relevant_vars: BTreeSet<typed_ir::TypeVar>,
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
-) -> core_ir::Expr {
+) -> typed_ir::Expr {
     let globals = collect_canonical_binding_paths(state);
     let mut principal_scheme_cache = HashMap::new();
     let mut base_bounds_cache = HashMap::new();
@@ -221,13 +221,13 @@ pub(super) struct ExprExporter<'a> {
     state: &'a LowerState,
     globals: &'a HashMap<DefId, Path>,
     locals: HashMap<DefId, Path>,
-    principal_scheme_cache: &'a mut HashMap<DefId, Option<core_ir::Scheme>>,
-    base_bounds_cache: &'a mut HashMap<TypeVar, core_ir::TypeBounds>,
+    principal_scheme_cache: &'a mut HashMap<DefId, Option<typed_ir::Scheme>>,
+    base_bounds_cache: &'a mut HashMap<TypeVar, typed_ir::TypeBounds>,
     complete_principal_cache: &'a mut CompletePrincipalCache,
-    principal_callee_scheme_cache: HashMap<TypeVar, Option<core_ir::Scheme>>,
-    relevant_bounds_cache: HashMap<TypeVar, core_ir::TypeBounds>,
+    principal_callee_scheme_cache: HashMap<TypeVar, Option<typed_ir::Scheme>>,
+    relevant_bounds_cache: HashMap<TypeVar, typed_ir::TypeBounds>,
     profile: Option<&'a mut ExprExportProfile>,
-    relevant_vars: BTreeSet<core_ir::TypeVar>,
+    relevant_vars: BTreeSet<typed_ir::TypeVar>,
     edge_evidence: &'a HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
     prefer_same_path_effect_ops: u32,
 }
@@ -285,11 +285,11 @@ impl<'a> ExprExporter<'a> {
     pub(super) fn new(
         state: &'a LowerState,
         globals: &'a HashMap<DefId, Path>,
-        principal_scheme_cache: &'a mut HashMap<DefId, Option<core_ir::Scheme>>,
-        base_bounds_cache: &'a mut HashMap<TypeVar, core_ir::TypeBounds>,
+        principal_scheme_cache: &'a mut HashMap<DefId, Option<typed_ir::Scheme>>,
+        base_bounds_cache: &'a mut HashMap<TypeVar, typed_ir::TypeBounds>,
         complete_principal_cache: &'a mut CompletePrincipalCache,
         profile: Option<&'a mut ExprExportProfile>,
-        relevant_vars: BTreeSet<core_ir::TypeVar>,
+        relevant_vars: BTreeSet<typed_ir::TypeVar>,
         edge_evidence: &'a HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
     ) -> Self {
         Self {
@@ -315,7 +315,7 @@ impl<'a> ExprExporter<'a> {
         self.edge_evidence.get(&id?)
     }
 
-    fn export_relevant_bounds_for_tv(&mut self, tv: TypeVar) -> core_ir::TypeBounds {
+    fn export_relevant_bounds_for_tv(&mut self, tv: TypeVar) -> typed_ir::TypeBounds {
         if let Some(bounds) = self.relevant_bounds_cache.get(&tv) {
             return bounds.clone();
         }
@@ -334,7 +334,7 @@ impl<'a> ExprExporter<'a> {
         bounds
     }
 
-    pub(super) fn export_expr(&mut self, expr: &TypedExpr) -> core_ir::Expr {
+    pub(super) fn export_expr(&mut self, expr: &TypedExpr) -> typed_ir::Expr {
         if let Some(profile) = self.profile.as_deref_mut() {
             profile.exprs += 1;
         }
@@ -342,10 +342,10 @@ impl<'a> ExprExporter<'a> {
             return exported;
         }
         match &expr.kind {
-            ExprKind::PrimitiveOp(op) => core_ir::Expr::PrimitiveOp(*op),
-            ExprKind::Lit(lit) => core_ir::Expr::Lit(export_lit(lit)),
-            ExprKind::Var(def) => core_ir::Expr::Var(self.path_for_def(*def)),
-            ExprKind::Ref(ref_id) => core_ir::Expr::Var(self.path_for_ref(*ref_id)),
+            ExprKind::PrimitiveOp(op) => typed_ir::Expr::PrimitiveOp(*op),
+            ExprKind::Lit(lit) => typed_ir::Expr::Lit(export_lit(lit)),
+            ExprKind::Var(def) => typed_ir::Expr::Var(self.path_for_def(*def)),
+            ExprKind::Ref(ref_id) => typed_ir::Expr::Var(self.path_for_ref(*ref_id)),
             ExprKind::App {
                 callee,
                 arg,
@@ -353,7 +353,7 @@ impl<'a> ExprExporter<'a> {
                 expected_callee_tv,
                 arg_edge_id,
                 expected_arg_tv,
-            } => core_ir::Expr::Apply {
+            } => typed_ir::Expr::Apply {
                 callee: Box::new(self.export_apply_callee(callee, expr)),
                 arg: Box::new(self.export_expr(arg)),
                 evidence: Some(self.export_apply_evidence(
@@ -379,7 +379,7 @@ impl<'a> ExprExporter<'a> {
                     .cloned();
                 let body = self.with_lambda_scope(*def, |this| this.export_expr(body));
                 let body = self.wrap_lambda_param_pattern(*def, &param, body);
-                core_ir::Expr::Lambda {
+                typed_ir::Expr::Lambda {
                     param,
                     param_effect_annotation,
                     param_function_allowed_effects,
@@ -387,36 +387,36 @@ impl<'a> ExprExporter<'a> {
                 }
             }
             ExprKind::Tuple(items) => {
-                core_ir::Expr::Tuple(items.iter().map(|item| self.export_expr(item)).collect())
+                typed_ir::Expr::Tuple(items.iter().map(|item| self.export_expr(item)).collect())
             }
-            ExprKind::Record { fields, spread } => core_ir::Expr::Record {
+            ExprKind::Record { fields, spread } => typed_ir::Expr::Record {
                 fields: fields
                     .iter()
-                    .map(|(name, value)| core_ir::RecordExprField {
+                    .map(|(name, value)| typed_ir::RecordExprField {
                         name: export_name(name),
                         value: self.export_expr(value),
                     })
                     .collect(),
                 spread: spread.as_ref().map(|spread| match spread {
                     RecordSpread::Head(expr) => {
-                        core_ir::RecordSpreadExpr::Head(Box::new(self.export_expr(expr)))
+                        typed_ir::RecordSpreadExpr::Head(Box::new(self.export_expr(expr)))
                     }
                     RecordSpread::Tail(expr) => {
-                        core_ir::RecordSpreadExpr::Tail(Box::new(self.export_expr(expr)))
+                        typed_ir::RecordSpreadExpr::Tail(Box::new(self.export_expr(expr)))
                     }
                 }),
             },
-            ExprKind::PolyVariant(name, payloads, origin) => core_ir::Expr::Variant {
+            ExprKind::PolyVariant(name, payloads, origin) => typed_ir::Expr::Variant {
                 tag: export_name(name),
                 value: payloads
                     .first()
                     .map(|payload| Box::new(self.export_expr(payload))),
                 source: match origin {
                     crate::ast::expr::PolyVariantOrigin::Syntax => {
-                        core_ir::VariantExprSource::PolyVariantSyntax
+                        typed_ir::VariantExprSource::PolyVariantSyntax
                     }
                     crate::ast::expr::PolyVariantOrigin::Constructor => {
-                        core_ir::VariantExprSource::Constructor
+                        typed_ir::VariantExprSource::Constructor
                     }
                 },
             },
@@ -426,10 +426,10 @@ impl<'a> ExprExporter<'a> {
                 } else if let Some(def) = self.state.infer.resolved_selection_def(expr.tv) {
                     let def = canonical_runtime_export_def(self.state, def);
                     let callee_tv = self.state.def_tvs.get(&def).copied().unwrap_or(expr.tv);
-                    core_ir::Expr::Apply {
-                        callee: Box::new(core_ir::Expr::Var(self.path_for_def(def))),
+                    typed_ir::Expr::Apply {
+                        callee: Box::new(typed_ir::Expr::Var(self.path_for_def(def))),
                         arg: Box::new(self.export_expr(recv)),
-                        evidence: Some(core_ir::ApplyEvidence {
+                        evidence: Some(typed_ir::ApplyEvidence {
                             callee_source_edge: None,
                             arg_source_edge: None,
                             callee: self.export_relevant_bounds_for_tv(callee_tv),
@@ -447,10 +447,10 @@ impl<'a> ExprExporter<'a> {
                 } else if let Some(def) = self.state.infer.resolve_extension_method_def(name) {
                     let def = canonical_runtime_export_def(self.state, def);
                     let callee_tv = self.state.def_tvs.get(&def).copied().unwrap_or(expr.tv);
-                    core_ir::Expr::Apply {
-                        callee: Box::new(core_ir::Expr::Var(self.path_for_def(def))),
+                    typed_ir::Expr::Apply {
+                        callee: Box::new(typed_ir::Expr::Var(self.path_for_def(def))),
                         arg: Box::new(self.export_expr(recv)),
-                        evidence: Some(core_ir::ApplyEvidence {
+                        evidence: Some(typed_ir::ApplyEvidence {
                             callee_source_edge: None,
                             arg_source_edge: None,
                             callee: self.export_relevant_bounds_for_tv(callee_tv),
@@ -466,37 +466,37 @@ impl<'a> ExprExporter<'a> {
                         }),
                     }
                 } else {
-                    core_ir::Expr::Select {
+                    typed_ir::Expr::Select {
                         base: Box::new(self.export_expr(recv)),
                         field: export_name(name),
                     }
                 }
             }
-            ExprKind::Match(scrutinee, arms) => core_ir::Expr::Match {
+            ExprKind::Match(scrutinee, arms) => typed_ir::Expr::Match {
                 scrutinee: Box::new(self.export_expr(scrutinee)),
                 arms: arms
                     .iter()
-                    .map(|arm| core_ir::MatchArm {
+                    .map(|arm| typed_ir::MatchArm {
                         pattern: self.export_pat(&arm.pat),
                         guard: arm.guard.as_ref().map(|guard| self.export_expr(guard)),
                         body: self.export_expr(&arm.body),
                     })
                     .collect(),
-                evidence: Some(core_ir::JoinEvidence {
+                evidence: Some(typed_ir::JoinEvidence {
                     result: self.export_relevant_bounds_for_tv(expr.tv),
                 }),
             },
-            ExprKind::Catch(body, arms) => core_ir::Expr::Handle {
+            ExprKind::Catch(body, arms) => typed_ir::Expr::Handle {
                 body: Box::new(
                     self.with_same_path_effect_ops_preferred(|this| this.export_expr(body)),
                 ),
                 arms: arms.iter().map(|arm| self.export_catch_arm(arm)).collect(),
-                evidence: Some(core_ir::JoinEvidence {
+                evidence: Some(typed_ir::JoinEvidence {
                     result: self.export_relevant_bounds_for_tv(expr.tv),
                 }),
             },
             ExprKind::Block(block) => self.export_block(block),
-            ExprKind::BindHere(expr) => core_ir::Expr::BindHere {
+            ExprKind::BindHere(expr) => typed_ir::Expr::BindHere {
                 expr: Box::new(self.export_expr(expr)),
             },
             ExprKind::Coerce {
@@ -512,7 +512,7 @@ impl<'a> ExprExporter<'a> {
                     {
                         return self.export_expr(expr);
                     }
-                    core_ir::Expr::Coerce {
+                    typed_ir::Expr::Coerce {
                         expr: Box::new(self.export_expr(expr)),
                         evidence: Some(complete_coerce_principal_evidence(
                             &self.state.infer,
@@ -522,8 +522,8 @@ impl<'a> ExprExporter<'a> {
                         )),
                     }
                 }),
-            ExprKind::PackForall(var, expr) => core_ir::Expr::Pack {
-                var: core_ir::TypeVar(format!("t{}", var.0)),
+            ExprKind::PackForall(var, expr) => typed_ir::Expr::Pack {
+                var: typed_ir::TypeVar(format!("t{}", var.0)),
                 expr: Box::new(self.export_expr(expr)),
             },
         }
@@ -535,7 +535,7 @@ impl<'a> ExprExporter<'a> {
         actual_tv: TypeVar,
         expected_tv: TypeVar,
         expr: &TypedExpr,
-    ) -> Option<core_ir::Expr> {
+    ) -> Option<typed_ir::Expr> {
         let edge = self.lookup_edge_evidence(edge_id)?;
         if edge.kind == crate::diagnostic::ExpectedEdgeKind::RepresentationCoerce {
             return None;
@@ -549,10 +549,10 @@ impl<'a> ExprExporter<'a> {
         let def = canonical_runtime_export_def(self.state, def);
         let callee_tv = self.state.def_tvs.get(&def).copied().unwrap_or(expected_tv);
         let arg = self.export_expr(expr);
-        Some(core_ir::Expr::Apply {
-            callee: Box::new(core_ir::Expr::Var(self.path_for_def(def))),
+        Some(typed_ir::Expr::Apply {
+            callee: Box::new(typed_ir::Expr::Var(self.path_for_def(def))),
             arg: Box::new(arg),
-            evidence: Some(core_ir::ApplyEvidence {
+            evidence: Some(typed_ir::ApplyEvidence {
                 callee_source_edge: None,
                 arg_source_edge: None,
                 callee: self.export_relevant_bounds_for_tv(callee_tv),
@@ -575,37 +575,37 @@ impl<'a> ExprExporter<'a> {
         recv: &TypedExpr,
         name: &Name,
         projection: &RefFieldProjection,
-    ) -> core_ir::Expr {
-        let parent_name = core_ir::Name(format!("__ref_field_parent_t{}", expr.tv.0));
-        let unit_get = core_ir::Name(format!("__ref_field_get_unit_t{}", expr.tv.0));
-        let unit_update = core_ir::Name(format!("__ref_field_update_unit_t{}", expr.tv.0));
-        let old_name = core_ir::Name(format!("__ref_field_old_t{}", expr.tv.0));
-        let resume_name = core_ir::Name(format!("__ref_field_resume_t{}", expr.tv.0));
-        let new_field_name = core_ir::Name(format!("__ref_field_new_t{}", expr.tv.0));
+    ) -> typed_ir::Expr {
+        let parent_name = typed_ir::Name(format!("__ref_field_parent_t{}", expr.tv.0));
+        let unit_get = typed_ir::Name(format!("__ref_field_get_unit_t{}", expr.tv.0));
+        let unit_update = typed_ir::Name(format!("__ref_field_update_unit_t{}", expr.tv.0));
+        let old_name = typed_ir::Name(format!("__ref_field_old_t{}", expr.tv.0));
+        let resume_name = typed_ir::Name(format!("__ref_field_resume_t{}", expr.tv.0));
+        let new_field_name = typed_ir::Name(format!("__ref_field_new_t{}", expr.tv.0));
 
         let get_body = apply_expr(
-            core_ir::Expr::Var(self.path_for_def(projection.field.def)),
+            typed_ir::Expr::Var(self.path_for_def(projection.field.def)),
             apply_unit(apply_expr(
-                core_ir::Expr::Var(ref_get_path(self.state)),
+                typed_ir::Expr::Var(ref_get_path(self.state)),
                 local_var(&parent_name),
             )),
         );
 
-        let update_body = core_ir::Expr::Handle {
+        let update_body = typed_ir::Expr::Handle {
             body: Box::new(apply_unit(apply_expr(
-                core_ir::Expr::Var(ref_update_effect_path(self.state)),
+                typed_ir::Expr::Var(ref_update_effect_path(self.state)),
                 local_var(&parent_name),
             ))),
-            arms: vec![core_ir::HandleArm {
+            arms: vec![typed_ir::HandleArm {
                 effect: ref_update_operation_path(self.state),
-                payload: core_ir::Pattern::Bind(old_name.clone()),
+                payload: typed_ir::Pattern::Bind(old_name.clone()),
                 resume: Some(resume_name.clone()),
                 guard: None,
-                body: core_ir::Expr::Block {
-                    stmts: vec![core_ir::Stmt::Let {
-                        pattern: core_ir::Pattern::Bind(new_field_name.clone()),
+                body: typed_ir::Expr::Block {
+                    stmts: vec![typed_ir::Stmt::Let {
+                        pattern: typed_ir::Pattern::Bind(new_field_name.clone()),
                         value: apply_expr(
-                            core_ir::Expr::Var(ref_update_operation_path(self.state)),
+                            typed_ir::Expr::Var(ref_update_operation_path(self.state)),
                             self.export_ref_field_old_value(projection, name, &old_name),
                         ),
                     }],
@@ -620,27 +620,27 @@ impl<'a> ExprExporter<'a> {
                     ))),
                 },
             }],
-            evidence: Some(core_ir::JoinEvidence {
-                result: core_ir::TypeBounds::exact(core_unit_type()),
+            evidence: Some(typed_ir::JoinEvidence {
+                result: typed_ir::TypeBounds::exact(core_unit_type()),
             }),
         };
 
         let child_ref = apply_expr(
-            core_ir::Expr::Var(core_standard_ref_type_path()),
-            core_ir::Expr::Record {
+            typed_ir::Expr::Var(core_standard_ref_type_path()),
+            typed_ir::Expr::Record {
                 fields: vec![
-                    core_ir::RecordExprField {
-                        name: core_ir::Name("get".to_string()),
-                        value: core_ir::Expr::Lambda {
+                    typed_ir::RecordExprField {
+                        name: typed_ir::Name("get".to_string()),
+                        value: typed_ir::Expr::Lambda {
                             param: unit_get,
                             param_effect_annotation: None,
                             param_function_allowed_effects: None,
                             body: Box::new(get_body),
                         },
                     },
-                    core_ir::RecordExprField {
-                        name: core_ir::Name("update_effect".to_string()),
-                        value: core_ir::Expr::Lambda {
+                    typed_ir::RecordExprField {
+                        name: typed_ir::Name("update_effect".to_string()),
+                        value: typed_ir::Expr::Lambda {
                             param: unit_update,
                             param_effect_annotation: None,
                             param_function_allowed_effects: None,
@@ -652,9 +652,9 @@ impl<'a> ExprExporter<'a> {
             },
         );
 
-        core_ir::Expr::Block {
-            stmts: vec![core_ir::Stmt::Let {
-                pattern: core_ir::Pattern::Bind(parent_name),
+        typed_ir::Expr::Block {
+            stmts: vec![typed_ir::Stmt::Let {
+                pattern: typed_ir::Pattern::Bind(parent_name),
                 value: self.export_expr(recv),
             }],
             tail: Some(Box::new(child_ref)),
@@ -671,7 +671,7 @@ impl<'a> ExprExporter<'a> {
         arg_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
         expected_arg_tv: TypeVar,
         include_principal: bool,
-    ) -> core_ir::ApplyEvidence {
+    ) -> typed_ir::ApplyEvidence {
         if let Some(profile) = self.profile.as_deref_mut() {
             profile.applies += 1;
         }
@@ -692,7 +692,7 @@ impl<'a> ExprExporter<'a> {
             if let Some(profile) = self.profile.as_deref_mut() {
                 profile.coalesced_apply_bounds += t.elapsed();
             }
-            core_ir::ApplyEvidence {
+            typed_ir::ApplyEvidence {
                 callee_source_edge: callee_source_edge.map(|id| id.0),
                 arg_source_edge: arg_source_edge.map(|id| id.0),
                 callee: callee_bounds,
@@ -707,11 +707,11 @@ impl<'a> ExprExporter<'a> {
                 principal_elaboration: None,
             }
         } else {
-            core_ir::ApplyEvidence {
+            typed_ir::ApplyEvidence {
                 callee_source_edge: callee_source_edge.map(|id| id.0),
                 arg_source_edge: arg_source_edge.map(|id| id.0),
                 callee: if self.relevant_vars.is_empty() && !role_method {
-                    core_ir::TypeBounds::default()
+                    typed_ir::TypeBounds::default()
                 } else {
                     self.export_relevant_bounds_for_tv(callee.tv)
                 },
@@ -796,7 +796,7 @@ impl<'a> ExprExporter<'a> {
         evidence
     }
 
-    fn principal_callee_scheme(&mut self, expr: &TypedExpr) -> Option<core_ir::Scheme> {
+    fn principal_callee_scheme(&mut self, expr: &TypedExpr) -> Option<typed_ir::Scheme> {
         if let Some(cached) = self.principal_callee_scheme_cache.get(&expr.tv) {
             return cached.clone();
         }
@@ -852,7 +852,7 @@ impl<'a> ExprExporter<'a> {
         Some(scheme)
     }
 
-    fn principal_callee_target(&self, expr: &TypedExpr) -> Option<core_ir::Path> {
+    fn principal_callee_target(&self, expr: &TypedExpr) -> Option<typed_ir::Path> {
         match &strip_transparent_wrappers(expr).kind {
             ExprKind::Var(def) => {
                 Some(self.path_for_def(canonical_runtime_export_def(self.state, *def)))
@@ -873,29 +873,29 @@ impl<'a> ExprExporter<'a> {
         expr: &TypedExpr,
         reference: &TypedExpr,
         value: &TypedExpr,
-    ) -> core_ir::Expr {
-        let ref_name = core_ir::Name(format!("__ref_set_ref_t{}", expr.tv.0));
-        let old_name = core_ir::Name(format!("__ref_set_old_t{}", expr.tv.0));
-        let resume_name = core_ir::Name(format!("__ref_set_resume_t{}", expr.tv.0));
-        core_ir::Expr::Block {
-            stmts: vec![core_ir::Stmt::Let {
-                pattern: core_ir::Pattern::Bind(ref_name.clone()),
+    ) -> typed_ir::Expr {
+        let ref_name = typed_ir::Name(format!("__ref_set_ref_t{}", expr.tv.0));
+        let old_name = typed_ir::Name(format!("__ref_set_old_t{}", expr.tv.0));
+        let resume_name = typed_ir::Name(format!("__ref_set_resume_t{}", expr.tv.0));
+        typed_ir::Expr::Block {
+            stmts: vec![typed_ir::Stmt::Let {
+                pattern: typed_ir::Pattern::Bind(ref_name.clone()),
                 value: self.export_expr(reference),
             }],
-            tail: Some(Box::new(core_ir::Expr::Handle {
+            tail: Some(Box::new(typed_ir::Expr::Handle {
                 body: Box::new(apply_unit(apply_expr(
-                    core_ir::Expr::Var(ref_update_effect_path(self.state)),
+                    typed_ir::Expr::Var(ref_update_effect_path(self.state)),
                     local_var(&ref_name),
                 ))),
-                arms: vec![core_ir::HandleArm {
+                arms: vec![typed_ir::HandleArm {
                     effect: ref_update_operation_path(self.state),
-                    payload: core_ir::Pattern::Bind(old_name),
+                    payload: typed_ir::Pattern::Bind(old_name),
                     resume: Some(resume_name.clone()),
                     guard: None,
                     body: apply_expr(local_var(&resume_name), self.export_expr(value)),
                 }],
-                evidence: Some(core_ir::JoinEvidence {
-                    result: core_ir::TypeBounds::exact(core_unit_type()),
+                evidence: Some(typed_ir::JoinEvidence {
+                    result: typed_ir::TypeBounds::exact(core_unit_type()),
                 }),
             })),
         }
@@ -905,14 +905,14 @@ impl<'a> ExprExporter<'a> {
         &mut self,
         projection: &RefFieldProjection,
         target_name: &Name,
-        old_name: &core_ir::Name,
-        target_value: core_ir::Expr,
-    ) -> core_ir::Expr {
+        old_name: &typed_ir::Name,
+        target_value: typed_ir::Expr,
+    ) -> typed_ir::Expr {
         let old = local_var(old_name);
         let mut fields = Vec::new();
         for field in &projection.fields {
             let selected_old_field = apply_expr(
-                core_ir::Expr::Var(self.path_for_def(field.def)),
+                typed_ir::Expr::Var(self.path_for_def(field.def)),
                 old.clone(),
             );
             let value = if field.name == *target_name {
@@ -920,14 +920,14 @@ impl<'a> ExprExporter<'a> {
             } else {
                 selected_old_field
             };
-            fields.push(core_ir::RecordExprField {
+            fields.push(typed_ir::RecordExprField {
                 name: export_name(&field.name),
                 value,
             });
         }
         apply_expr(
-            core_ir::Expr::Var(self.path_for_def(projection.constructor)),
-            core_ir::Expr::Record {
+            typed_ir::Expr::Var(self.path_for_def(projection.constructor)),
+            typed_ir::Expr::Record {
                 fields,
                 spread: None,
             },
@@ -938,19 +938,19 @@ impl<'a> ExprExporter<'a> {
         &mut self,
         projection: &RefFieldProjection,
         target_name: &Name,
-        old_name: &core_ir::Name,
-    ) -> core_ir::Expr {
+        old_name: &typed_ir::Name,
+    ) -> typed_ir::Expr {
         let old = local_var(old_name);
         let field = projection
             .fields
             .iter()
             .find(|field| field.name == *target_name)
             .unwrap_or(&projection.field);
-        apply_expr(core_ir::Expr::Var(self.path_for_def(field.def)), old)
+        apply_expr(typed_ir::Expr::Var(self.path_for_def(field.def)), old)
     }
 
-    fn export_block(&mut self, block: &TypedBlock) -> core_ir::Expr {
-        core_ir::Expr::Block {
+    fn export_block(&mut self, block: &TypedBlock) -> typed_ir::Expr {
+        typed_ir::Expr::Block {
             stmts: block
                 .stmts
                 .iter()
@@ -963,24 +963,24 @@ impl<'a> ExprExporter<'a> {
         }
     }
 
-    fn export_stmt(&mut self, stmt: &TypedStmt) -> core_ir::Stmt {
+    fn export_stmt(&mut self, stmt: &TypedStmt) -> typed_ir::Stmt {
         match stmt {
-            TypedStmt::Let(pattern, value) => core_ir::Stmt::Let {
+            TypedStmt::Let(pattern, value) => typed_ir::Stmt::Let {
                 pattern: self.export_pat(pattern),
                 value: self.export_expr(value),
             },
-            TypedStmt::Expr(expr) => core_ir::Stmt::Expr(self.export_expr(expr)),
-            TypedStmt::Module(def, body) => core_ir::Stmt::Module {
+            TypedStmt::Expr(expr) => typed_ir::Stmt::Expr(self.export_expr(expr)),
+            TypedStmt::Module(def, body) => typed_ir::Stmt::Module {
                 def: self.path_for_def(*def),
                 body: Box::new(self.export_block(body)),
             },
         }
     }
 
-    fn export_catch_arm(&mut self, arm: &TypedCatchArm) -> core_ir::HandleArm {
+    fn export_catch_arm(&mut self, arm: &TypedCatchArm) -> typed_ir::HandleArm {
         match &arm.kind {
-            CatchArmKind::Value(pattern, body) => core_ir::HandleArm {
-                effect: core_ir::Path::default(),
+            CatchArmKind::Value(pattern, body) => typed_ir::HandleArm {
+                effect: typed_ir::Path::default(),
                 payload: self.export_pat(pattern),
                 resume: None,
                 guard: arm.guard.as_ref().map(|guard| self.export_expr(guard)),
@@ -991,7 +991,7 @@ impl<'a> ExprExporter<'a> {
                 pat,
                 k,
                 body,
-            } => core_ir::HandleArm {
+            } => typed_ir::HandleArm {
                 effect: self.export_effect_operation_path(op_path),
                 payload: self.export_pat(pat),
                 resume: Some(self.local_name_for_def(*k)),
@@ -1001,28 +1001,28 @@ impl<'a> ExprExporter<'a> {
         }
     }
 
-    fn export_pat(&mut self, pat: &TypedPat) -> core_ir::Pattern {
+    fn export_pat(&mut self, pat: &TypedPat) -> typed_ir::Pattern {
         match &pat.kind {
-            PatKind::Wild => core_ir::Pattern::Wildcard,
-            PatKind::Lit(lit) => core_ir::Pattern::Lit(export_lit(lit)),
+            PatKind::Wild => typed_ir::Pattern::Wildcard,
+            PatKind::Lit(lit) => typed_ir::Pattern::Lit(export_lit(lit)),
             PatKind::Tuple(items) => {
-                core_ir::Pattern::Tuple(items.iter().map(|item| self.export_pat(item)).collect())
+                typed_ir::Pattern::Tuple(items.iter().map(|item| self.export_pat(item)).collect())
             }
             PatKind::List {
                 prefix,
                 spread,
                 suffix,
-            } => core_ir::Pattern::List {
+            } => typed_ir::Pattern::List {
                 prefix: prefix.iter().map(|item| self.export_pat(item)).collect(),
                 spread: spread
                     .as_ref()
                     .map(|spread| Box::new(self.export_pat(spread))),
                 suffix: suffix.iter().map(|item| self.export_pat(item)).collect(),
             },
-            PatKind::Record { spread, fields } => core_ir::Pattern::Record {
+            PatKind::Record { spread, fields } => typed_ir::Pattern::Record {
                 fields: fields
                     .iter()
-                    .map(|field| core_ir::RecordPatternField {
+                    .map(|field| typed_ir::RecordPatternField {
                         name: export_name(&field.name),
                         pattern: self.export_pat(&field.pat),
                         default: field
@@ -1033,34 +1033,34 @@ impl<'a> ExprExporter<'a> {
                     .collect(),
                 spread: spread.as_ref().map(|spread| match spread {
                     RecordPatSpread::Head(pat) => {
-                        core_ir::RecordSpreadPattern::Head(Box::new(self.export_pat(pat)))
+                        typed_ir::RecordSpreadPattern::Head(Box::new(self.export_pat(pat)))
                     }
                     RecordPatSpread::Tail(pat) => {
-                        core_ir::RecordSpreadPattern::Tail(Box::new(self.export_pat(pat)))
+                        typed_ir::RecordSpreadPattern::Tail(Box::new(self.export_pat(pat)))
                     }
                 }),
             },
-            PatKind::PolyVariant(name, items) => core_ir::Pattern::Variant {
+            PatKind::PolyVariant(name, items) => typed_ir::Pattern::Variant {
                 tag: export_name(name),
                 value: items.first().map(|item| Box::new(self.export_pat(item))),
             },
-            PatKind::Con(ref_id, payload) => core_ir::Pattern::Variant {
+            PatKind::Con(ref_id, payload) => typed_ir::Pattern::Variant {
                 tag: self
                     .path_for_ref(*ref_id)
                     .segments
                     .last()
                     .cloned()
-                    .unwrap_or(core_ir::Name("unknown".into())),
+                    .unwrap_or(typed_ir::Name("unknown".into())),
                 value: payload
                     .as_ref()
                     .map(|payload| Box::new(self.export_pat(payload))),
             },
-            PatKind::UnresolvedName(name) => core_ir::Pattern::Bind(export_name(name)),
-            PatKind::Or(lhs, rhs) => core_ir::Pattern::Or {
+            PatKind::UnresolvedName(name) => typed_ir::Pattern::Bind(export_name(name)),
+            PatKind::Or(lhs, rhs) => typed_ir::Pattern::Or {
                 left: Box::new(self.export_pat(lhs)),
                 right: Box::new(self.export_pat(rhs)),
             },
-            PatKind::As(pattern, def) => core_ir::Pattern::As {
+            PatKind::As(pattern, def) => typed_ir::Pattern::As {
                 pattern: Box::new(self.export_pat(pattern)),
                 name: self.local_name_for_def(*def),
             },
@@ -1104,25 +1104,25 @@ impl<'a> ExprExporter<'a> {
     fn wrap_lambda_param_pattern(
         &mut self,
         def: DefId,
-        param: &core_ir::Name,
-        body: core_ir::Expr,
-    ) -> core_ir::Expr {
+        param: &typed_ir::Name,
+        body: typed_ir::Expr,
+    ) -> typed_ir::Expr {
         let Some(pat) = self.state.lambda_param_pats.get(&def).cloned() else {
             return body;
         };
         if matches!(&pat.kind, PatKind::UnresolvedName(name) if export_name(name) == *param) {
             return body;
         }
-        core_ir::Expr::Block {
-            stmts: vec![core_ir::Stmt::Let {
+        typed_ir::Expr::Block {
+            stmts: vec![typed_ir::Stmt::Let {
                 pattern: self.export_pat(&pat),
-                value: core_ir::Expr::Var(core_ir::Path::from_name(param.clone())),
+                value: typed_ir::Expr::Var(typed_ir::Path::from_name(param.clone())),
             }],
             tail: Some(Box::new(body)),
         }
     }
 
-    fn local_name_for_def(&self, def: DefId) -> core_ir::Name {
+    fn local_name_for_def(&self, def: DefId) -> typed_ir::Name {
         if let Some(name) = self.state.def_name(def) {
             return export_name(name);
         }
@@ -1130,19 +1130,21 @@ impl<'a> ExprExporter<'a> {
             .segments
             .last()
             .cloned()
-            .unwrap_or(core_ir::Name(format!("local_{}", def.0)))
+            .unwrap_or(typed_ir::Name(format!("local_{}", def.0)))
     }
 
-    fn path_for_ref(&self, ref_id: RefId) -> core_ir::Path {
+    fn path_for_ref(&self, ref_id: RefId) -> typed_ir::Path {
         self.state
             .ctx
             .refs
             .get(ref_id)
             .map(|def| self.path_for_def(def))
-            .unwrap_or_else(|| core_ir::Path::from_name(core_ir::Name(format!("ref_{}", ref_id.0))))
+            .unwrap_or_else(|| {
+                typed_ir::Path::from_name(typed_ir::Name(format!("ref_{}", ref_id.0)))
+            })
     }
 
-    fn path_for_def(&self, def: DefId) -> core_ir::Path {
+    fn path_for_def(&self, def: DefId) -> typed_ir::Path {
         if let Some(path) = self.locals.get(&def) {
             return export_path(path);
         }
@@ -1150,12 +1152,12 @@ impl<'a> ExprExporter<'a> {
             return export_path(path);
         }
         if let Some(name) = self.state.def_name(def) {
-            return core_ir::Path::from_name(export_name(name));
+            return typed_ir::Path::from_name(export_name(name));
         }
         export_path(&self.synthetic_local_path(def))
     }
 
-    fn export_apply_callee(&mut self, callee: &TypedExpr, app: &TypedExpr) -> core_ir::Expr {
+    fn export_apply_callee(&mut self, callee: &TypedExpr, app: &TypedExpr) -> typed_ir::Expr {
         let ExprKind::Var(def) = &callee.kind else {
             return self.export_expr(callee);
         };
@@ -1167,7 +1169,7 @@ impl<'a> ExprExporter<'a> {
         }
         let result_bounds = self.export_relevant_bounds_for_tv(app.tv);
         if type_bounds_expect_runtime_value(&result_bounds) {
-            return core_ir::Expr::Var(self.path_for_def(value_def));
+            return typed_ir::Expr::Var(self.path_for_def(value_def));
         }
         self.export_expr(callee)
     }
@@ -1179,7 +1181,7 @@ impl<'a> ExprExporter<'a> {
         result
     }
 
-    fn export_effect_operation_path(&self, op_path: &Path) -> core_ir::Path {
+    fn export_effect_operation_path(&self, op_path: &Path) -> typed_ir::Path {
         let Some(def) = self.state.ctx.resolve_path_value(op_path) else {
             return export_path(op_path);
         };
@@ -1215,7 +1217,7 @@ impl<'a> ExprExporter<'a> {
         self.synthetic_local_path(def)
     }
 
-    fn export_resolved_role_method_call(&mut self, expr: &TypedExpr) -> Option<core_ir::Expr> {
+    fn export_resolved_role_method_call(&mut self, expr: &TypedExpr) -> Option<typed_ir::Expr> {
         let (head, apps) = collect_apply_spine_with_apps(expr);
         let args = apps
             .iter()
@@ -1241,7 +1243,7 @@ impl<'a> ExprExporter<'a> {
                 let mut concrete_callee_type = self
                     .intern_principal_scheme_for_def(def)
                     .map(|scheme| scheme.body);
-                let mut out = core_ir::Expr::Var(self.path_for_def(def));
+                let mut out = typed_ir::Expr::Var(self.path_for_def(def));
                 let _ = concrete_callee_type
                     .as_mut()
                     .and_then(take_rewritten_apply_slot_evidence);
@@ -1265,7 +1267,7 @@ impl<'a> ExprExporter<'a> {
                     let mut concrete_callee_type = self
                         .intern_principal_scheme_for_def(resolved)
                         .map(|scheme| scheme.body);
-                    let mut out = core_ir::Expr::Var(self.path_for_def(resolved));
+                    let mut out = typed_ir::Expr::Var(self.path_for_def(resolved));
                     for app in apps {
                         let slot = concrete_callee_type
                             .as_mut()
@@ -1282,7 +1284,7 @@ impl<'a> ExprExporter<'a> {
                     let mut concrete_callee_type = self
                         .intern_principal_scheme_for_def(resolved)
                         .map(|scheme| scheme.body);
-                    let mut out = core_ir::Expr::Var(self.path_for_def(resolved));
+                    let mut out = typed_ir::Expr::Var(self.path_for_def(resolved));
                     for app in apps {
                         let slot = concrete_callee_type
                             .as_mut()
@@ -1321,10 +1323,10 @@ impl<'a> ExprExporter<'a> {
 
     fn export_rewritten_apply(
         &mut self,
-        callee_expr: core_ir::Expr,
+        callee_expr: typed_ir::Expr,
         app: &TypedExpr,
         concrete_slot: Option<RewrittenApplySlotEvidence>,
-    ) -> core_ir::Expr {
+    ) -> typed_ir::Expr {
         let ExprKind::App {
             arg,
             callee_edge_id,
@@ -1338,13 +1340,13 @@ impl<'a> ExprExporter<'a> {
             return callee_expr;
         };
         if !export_rewritten_apply_slot_evidence_enabled() {
-            return core_ir::Expr::Apply {
+            return typed_ir::Expr::Apply {
                 callee: Box::new(callee_expr),
                 arg: Box::new(self.export_expr(arg)),
                 evidence: Some(source_only_apply_evidence(*callee_edge_id, *arg_edge_id)),
             };
         }
-        core_ir::Expr::Apply {
+        typed_ir::Expr::Apply {
             callee: Box::new(callee_expr),
             arg: Box::new(self.export_expr(arg)),
             evidence: Some(self.rewritten_apply_evidence(
@@ -1362,20 +1364,20 @@ impl<'a> ExprExporter<'a> {
 
     fn export_synthetic_selected_apply(
         &mut self,
-        callee_expr: core_ir::Expr,
+        callee_expr: typed_ir::Expr,
         def: DefId,
         recv: &TypedExpr,
         result: &TypedExpr,
         concrete_slot: Option<RewrittenApplySlotEvidence>,
-    ) -> core_ir::Expr {
+    ) -> typed_ir::Expr {
         let principal_scheme = self.intern_principal_scheme_for_def(def);
         let principal_callee = principal_scheme.as_ref().map(|scheme| scheme.body.clone());
-        let mut evidence = core_ir::ApplyEvidence {
+        let mut evidence = typed_ir::ApplyEvidence {
             callee_source_edge: None,
             arg_source_edge: None,
             callee: principal_callee
                 .clone()
-                .map(core_ir::TypeBounds::exact)
+                .map(typed_ir::TypeBounds::exact)
                 .unwrap_or_default(),
             expected_callee: None,
             arg: self.export_relevant_bounds_for_tv(recv.tv),
@@ -1433,7 +1435,7 @@ impl<'a> ExprExporter<'a> {
                 profile.principal_evidence_candidates += step_profile.candidates;
             }
         }
-        core_ir::Expr::Apply {
+        typed_ir::Expr::Apply {
             callee: Box::new(callee_expr),
             arg: Box::new(self.export_expr(recv)),
             evidence: Some(evidence),
@@ -1450,7 +1452,7 @@ impl<'a> ExprExporter<'a> {
         arg_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
         expected_arg_tv: TypeVar,
         concrete_slot: Option<RewrittenApplySlotEvidence>,
-    ) -> core_ir::ApplyEvidence {
+    ) -> typed_ir::ApplyEvidence {
         let mut evidence = self.export_apply_evidence(
             callee,
             arg,
@@ -1486,7 +1488,7 @@ impl<'a> ExprExporter<'a> {
             .resolve_concrete_role_method_call_def(&info, Some(recv.tv), &[])
     }
 
-    fn intern_principal_scheme_for_def(&mut self, def: DefId) -> Option<core_ir::Scheme> {
+    fn intern_principal_scheme_for_def(&mut self, def: DefId) -> Option<typed_ir::Scheme> {
         if let Some(cached) = self.principal_scheme_cache.get(&def) {
             return cached.clone();
         }
@@ -1537,8 +1539,8 @@ impl<'a> ExprExporter<'a> {
     }
 }
 
-fn apply_unit(callee: core_ir::Expr) -> core_ir::Expr {
-    apply_expr(callee, core_ir::Expr::Lit(core_ir::Lit::Unit))
+fn apply_unit(callee: typed_ir::Expr) -> typed_ir::Expr {
+    apply_expr(callee, typed_ir::Expr::Lit(typed_ir::Lit::Unit))
 }
 
 fn transparent_role_wrapper_method(state: &LowerState, def: DefId) -> Option<(Name, usize)> {
@@ -1576,21 +1578,21 @@ fn transparent_role_wrapper_method(state: &LowerState, def: DefId) -> Option<(Na
     Some((name.clone(), args.len()))
 }
 
-fn apply_expr(callee: core_ir::Expr, arg: core_ir::Expr) -> core_ir::Expr {
-    core_ir::Expr::Apply {
+fn apply_expr(callee: typed_ir::Expr, arg: typed_ir::Expr) -> typed_ir::Expr {
+    typed_ir::Expr::Apply {
         callee: Box::new(callee),
         arg: Box::new(arg),
         evidence: None,
     }
 }
 
-fn local_var(name: &core_ir::Name) -> core_ir::Expr {
-    core_ir::Expr::Var(core_ir::Path::from_name(name.clone()))
+fn local_var(name: &typed_ir::Name) -> typed_ir::Expr {
+    typed_ir::Expr::Var(typed_ir::Path::from_name(name.clone()))
 }
 
-fn core_unit_type() -> core_ir::Type {
-    core_ir::Type::Named {
-        path: core_ir::Path::from_name(core_ir::Name("unit".to_string())),
+fn core_unit_type() -> typed_ir::Type {
+    typed_ir::Type::Named {
+        path: typed_ir::Path::from_name(typed_ir::Name("unit".to_string())),
         args: Vec::new(),
     }
 }
@@ -1598,15 +1600,15 @@ fn core_unit_type() -> core_ir::Type {
 fn source_only_apply_evidence(
     callee_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
     arg_source_edge: Option<crate::diagnostic::ExpectedEdgeId>,
-) -> core_ir::ApplyEvidence {
-    core_ir::ApplyEvidence {
+) -> typed_ir::ApplyEvidence {
+    typed_ir::ApplyEvidence {
         callee_source_edge: callee_source_edge.map(|id| id.0),
         arg_source_edge: arg_source_edge.map(|id| id.0),
-        callee: core_ir::TypeBounds::default(),
+        callee: typed_ir::TypeBounds::default(),
         expected_callee: None,
-        arg: core_ir::TypeBounds::default(),
+        arg: typed_ir::TypeBounds::default(),
         expected_arg: None,
-        result: core_ir::TypeBounds::default(),
+        result: typed_ir::TypeBounds::default(),
         principal_callee: None,
         substitutions: Vec::new(),
         substitution_candidates: Vec::new(),
@@ -1617,14 +1619,14 @@ fn source_only_apply_evidence(
 
 #[derive(Debug, Clone)]
 struct RewrittenApplySlotEvidence {
-    expected_callee: core_ir::Type,
-    expected_arg: core_ir::Type,
+    expected_callee: typed_ir::Type,
+    expected_arg: typed_ir::Type,
 }
 
 fn take_rewritten_apply_slot_evidence(
-    callee: &mut core_ir::Type,
+    callee: &mut typed_ir::Type,
 ) -> Option<RewrittenApplySlotEvidence> {
-    let core_ir::Type::Fun { param, ret, .. } = callee.clone() else {
+    let typed_ir::Type::Fun { param, ret, .. } = callee.clone() else {
         return None;
     };
     let expected_callee = callee.clone();
@@ -1638,21 +1640,21 @@ fn take_rewritten_apply_slot_evidence(
 }
 
 fn apply_rewritten_slot_evidence(
-    evidence: &mut core_ir::ApplyEvidence,
+    evidence: &mut typed_ir::ApplyEvidence,
     slot: RewrittenApplySlotEvidence,
 ) {
-    evidence.expected_callee = Some(core_ir::TypeBounds::exact(slot.expected_callee));
-    evidence.expected_arg = Some(core_ir::TypeBounds::exact(slot.expected_arg));
+    evidence.expected_callee = Some(typed_ir::TypeBounds::exact(slot.expected_callee));
+    evidence.expected_arg = Some(typed_ir::TypeBounds::exact(slot.expected_arg));
 }
 
 fn build_principal_elaboration_plan(
-    evidence: &core_ir::ApplyEvidence,
-    target: Option<core_ir::Path>,
-) -> Option<core_ir::PrincipalElaborationPlan> {
+    evidence: &typed_ir::ApplyEvidence,
+    target: Option<typed_ir::Path>,
+) -> Option<typed_ir::PrincipalElaborationPlan> {
     let principal_callee = evidence.principal_callee.clone()?;
     let mut incomplete_reasons = Vec::new();
     if target.is_none() {
-        incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::MissingTarget);
+        incomplete_reasons.push(typed_ir::PrincipalElaborationIncompleteReason::MissingTarget);
     }
     let mut principal_vars = BTreeSet::new();
     collect_core_type_vars(&principal_callee, &mut principal_vars);
@@ -1666,33 +1668,33 @@ fn build_principal_elaboration_plan(
             .any(|candidate| candidate.var == var)
         {
             incomplete_reasons
-                .push(core_ir::PrincipalElaborationIncompleteReason::OpenCandidate(var));
+                .push(typed_ir::PrincipalElaborationIncompleteReason::OpenCandidate(var));
         } else {
             incomplete_reasons
-                .push(core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var));
+                .push(typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var));
         }
     }
     if evidence.expected_arg.is_none() {
-        incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::OpenArgType(
+        incomplete_reasons.push(typed_ir::PrincipalElaborationIncompleteReason::OpenArgType(
             0,
         ));
     }
     if type_bounds_empty(&evidence.result) {
-        incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::OpenResultType);
+        incomplete_reasons.push(typed_ir::PrincipalElaborationIncompleteReason::OpenResultType);
     }
     let complete = incomplete_reasons.is_empty();
-    Some(core_ir::PrincipalElaborationPlan {
+    Some(typed_ir::PrincipalElaborationPlan {
         target,
         principal_callee,
         substitutions: evidence.substitutions.clone(),
-        args: vec![core_ir::PrincipalElaborationArg {
+        args: vec![typed_ir::PrincipalElaborationArg {
             index: 0,
             intrinsic: evidence.arg.clone(),
             contextual: evidence.expected_arg.clone(),
             expected_runtime: None,
             source_edge: evidence.arg_source_edge,
         }],
-        result: core_ir::PrincipalElaborationResult {
+        result: typed_ir::PrincipalElaborationResult {
             intrinsic: evidence.result.clone(),
             contextual: None,
             expected_runtime: None,
@@ -1703,7 +1705,7 @@ fn build_principal_elaboration_plan(
     })
 }
 
-fn principal_elaboration_plan_needed(evidence: &core_ir::ApplyEvidence) -> bool {
+fn principal_elaboration_plan_needed(evidence: &typed_ir::ApplyEvidence) -> bool {
     if evidence.role_method
         || !evidence.substitutions.is_empty()
         || !evidence.substitution_candidates.is_empty()
@@ -1718,21 +1720,21 @@ fn principal_elaboration_plan_needed(evidence: &core_ir::ApplyEvidence) -> bool 
     !vars.is_empty()
 }
 
-fn type_bounds_empty(bounds: &core_ir::TypeBounds) -> bool {
+fn type_bounds_empty(bounds: &typed_ir::TypeBounds) -> bool {
     bounds.lower.is_none() && bounds.upper.is_none()
 }
 
-fn ref_get_path(state: &LowerState) -> core_ir::Path {
+fn ref_get_path(state: &LowerState) -> typed_ir::Path {
     let _ = state;
     core_standard_ref_member_path("get")
 }
 
-fn ref_update_effect_path(state: &LowerState) -> core_ir::Path {
+fn ref_update_effect_path(state: &LowerState) -> typed_ir::Path {
     let _ = state;
     core_standard_ref_member_path("update_effect")
 }
 
-fn ref_update_operation_path(state: &LowerState) -> core_ir::Path {
+fn ref_update_operation_path(state: &LowerState) -> typed_ir::Path {
     let _ = state;
     core_standard_ref_update_member_path("update")
 }
@@ -1763,7 +1765,7 @@ fn export_rewritten_apply_slot_evidence_enabled() -> bool {
     export_apply_substitutions_enabled()
 }
 
-fn type_bounds_expect_runtime_value(bounds: &core_ir::TypeBounds) -> bool {
+fn type_bounds_expect_runtime_value(bounds: &typed_ir::TypeBounds) -> bool {
     bounds
         .lower
         .as_deref()
@@ -1774,31 +1776,31 @@ fn type_bounds_expect_runtime_value(bounds: &core_ir::TypeBounds) -> bool {
             .is_some_and(core_type_is_runtime_value)
 }
 
-fn core_type_is_runtime_value(ty: &core_ir::Type) -> bool {
+fn core_type_is_runtime_value(ty: &typed_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Named { .. }
-        | core_ir::Type::Tuple(_)
-        | core_ir::Type::Record(_)
-        | core_ir::Type::Variant(_) => true,
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Named { .. }
+        | typed_ir::Type::Tuple(_)
+        | typed_ir::Type::Record(_)
+        | typed_ir::Type::Variant(_) => true,
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
             items.iter().any(core_type_is_runtime_value)
         }
-        core_ir::Type::Recursive { body, .. } => core_type_is_runtime_value(body),
-        core_ir::Type::Unknown
-        | core_ir::Type::Never
-        | core_ir::Type::Any
-        | core_ir::Type::Var(_)
-        | core_ir::Type::Fun { .. }
-        | core_ir::Type::Row { .. } => false,
+        typed_ir::Type::Recursive { body, .. } => core_type_is_runtime_value(body),
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_)
+        | typed_ir::Type::Fun { .. }
+        | typed_ir::Type::Row { .. } => false,
     }
 }
 
-fn export_lit(lit: &TirLit) -> core_ir::Lit {
+fn export_lit(lit: &TirLit) -> typed_ir::Lit {
     match lit {
-        TirLit::Int(value) => core_ir::Lit::Int(value.to_string()),
-        TirLit::Float(value) => core_ir::Lit::Float(value.to_string()),
-        TirLit::Str(value) => core_ir::Lit::String(value.clone()),
-        TirLit::Bool(value) => core_ir::Lit::Bool(*value),
-        TirLit::Unit => core_ir::Lit::Unit,
+        TirLit::Int(value) => typed_ir::Lit::Int(value.to_string()),
+        TirLit::Float(value) => typed_ir::Lit::Float(value.to_string()),
+        TirLit::Str(value) => typed_ir::Lit::String(value.clone()),
+        TirLit::Bool(value) => typed_ir::Lit::Bool(*value),
+        TirLit::Unit => typed_ir::Lit::Unit,
     }
 }

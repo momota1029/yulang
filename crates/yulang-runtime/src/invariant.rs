@@ -1,4 +1,4 @@
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::ir::{
@@ -320,7 +320,7 @@ impl InvariantChecker {
     }
 }
 
-fn path_name(path: &core_ir::Path) -> String {
+fn path_name(path: &typed_ir::Path) -> String {
     path.segments
         .iter()
         .map(|segment| segment.0.as_str())
@@ -342,16 +342,19 @@ fn runtime_type_has_runtime_fallback_in_value_position(ty: &RuntimeType) -> bool
     }
 }
 
-fn core_type_has_runtime_fallback_in_value_position(ty: &core_ir::Type, effect_slot: bool) -> bool {
+fn core_type_has_runtime_fallback_in_value_position(
+    ty: &typed_ir::Type,
+    effect_slot: bool,
+) -> bool {
     match ty {
-        core_ir::Type::Unknown => !effect_slot,
-        core_ir::Type::Any => !effect_slot && core_type_is_runtime_projection_fallback(ty),
-        core_ir::Type::Named { args, .. } => {
+        typed_ir::Type::Unknown => !effect_slot,
+        typed_ir::Type::Any => !effect_slot && core_type_is_runtime_projection_fallback(ty),
+        typed_ir::Type::Named { args, .. } => {
             args.iter().any(|arg| match arg {
-                core_ir::TypeArg::Type(ty) => {
+                typed_ir::TypeArg::Type(ty) => {
                     core_type_has_runtime_fallback_in_value_position(ty, false)
                 }
-                core_ir::TypeArg::Bounds(bounds) => {
+                typed_ir::TypeArg::Bounds(bounds) => {
                     bounds.lower.as_deref().is_some_and(|ty| {
                         core_type_has_runtime_fallback_in_value_position(ty, false)
                     }) || bounds.upper.as_deref().is_some_and(|ty| {
@@ -360,7 +363,7 @@ fn core_type_has_runtime_fallback_in_value_position(ty: &core_ir::Type, effect_s
                 }
             })
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -371,23 +374,23 @@ fn core_type_has_runtime_fallback_in_value_position(ty: &core_ir::Type, effect_s
                 || core_type_has_runtime_fallback_in_value_position(ret_effect, true)
                 || core_type_has_runtime_fallback_in_value_position(ret, false)
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
-            items
-                .iter()
-                .any(|item| core_type_has_runtime_fallback_in_value_position(item, false))
-        }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items
+            .iter()
+            .any(|item| core_type_has_runtime_fallback_in_value_position(item, false)),
+        typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
                 .any(|field| core_type_has_runtime_fallback_in_value_position(&field.value, false))
                 || record.spread.as_ref().is_some_and(|spread| match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         core_type_has_runtime_fallback_in_value_position(ty, false)
                     }
                 })
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant.cases.iter().any(|case| {
                 case.payloads
                     .iter()
@@ -397,16 +400,16 @@ fn core_type_has_runtime_fallback_in_value_position(ty: &core_ir::Type, effect_s
                 .as_deref()
                 .is_some_and(|tail| core_type_has_runtime_fallback_in_value_position(tail, false))
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             items
                 .iter()
                 .any(|item| core_type_has_runtime_fallback_in_value_position(item, true))
                 || core_type_has_runtime_fallback_in_value_position(tail, true)
         }
-        core_ir::Type::Recursive { body, .. } => {
+        typed_ir::Type::Recursive { body, .. } => {
             core_type_has_runtime_fallback_in_value_position(body, effect_slot)
         }
-        core_ir::Type::Var(_) | core_ir::Type::Never => false,
+        typed_ir::Type::Var(_) | typed_ir::Type::Never => false,
     }
 }
 
@@ -421,7 +424,7 @@ mod tests {
             ExprKind::AddId {
                 id: EffectIdRef::Peek,
                 allowed: named("io"),
-                thunk: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit())),
+                thunk: Box::new(Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), unit())),
             },
             unit(),
         ));
@@ -441,7 +444,7 @@ mod tests {
     fn rejects_bind_here_that_does_not_force_thunk() {
         let module = module_with_expr(Expr::typed(
             ExprKind::BindHere {
-                expr: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit())),
+                expr: Box::new(Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), unit())),
             },
             unit(),
         ));
@@ -463,7 +466,7 @@ mod tests {
             ExprKind::Thunk {
                 effect: named("io"),
                 value: RuntimeType::core(unit()),
-                expr: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit())),
+                expr: Box::new(Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), unit())),
             },
             RuntimeType::thunk(named("other"), RuntimeType::core(unit())),
         ));
@@ -481,8 +484,8 @@ mod tests {
 
     #[test]
     fn rejects_polymorphic_binding_before_vm() {
-        let mut module = module_with_expr(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit()));
-        module.bindings[0].type_params = vec![core_ir::TypeVar("a".to_string())];
+        let mut module = module_with_expr(Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), unit()));
+        module.bindings[0].type_params = vec![typed_ir::TypeVar("a".to_string())];
 
         let err = check_runtime_invariants(&module, RuntimeStage::BeforeVm).unwrap_err();
 
@@ -500,10 +503,10 @@ mod tests {
         let module = module_with_expr(Expr::typed(
             ExprKind::Thunk {
                 effect: named("io"),
-                value: RuntimeType::core(core_ir::Type::Unknown),
-                expr: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit())),
+                value: RuntimeType::core(typed_ir::Type::Unknown),
+                expr: Box::new(Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), unit())),
             },
-            RuntimeType::thunk(named("io"), RuntimeType::core(core_ir::Type::Unknown)),
+            RuntimeType::thunk(named("io"), RuntimeType::core(typed_ir::Type::Unknown)),
         ));
 
         let err = check_strict_runtime_value_types(&module, RuntimeStage::BeforeVm).unwrap_err();
@@ -522,8 +525,8 @@ mod tests {
         let module = module_with_expr(Expr::typed(
             ExprKind::Coerce {
                 from: unit(),
-                to: core_ir::Type::Unknown,
-                expr: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit())),
+                to: typed_ir::Type::Unknown,
+                expr: Box::new(Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), unit())),
             },
             unit(),
         ));
@@ -541,31 +544,31 @@ mod tests {
 
     fn module_with_expr(expr: Expr) -> Module {
         Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![Binding {
-                name: core_ir::Path::from_name(core_ir::Name("main".to_string())),
+                name: typed_ir::Path::from_name(typed_ir::Name("main".to_string())),
                 type_params: Vec::new(),
-                scheme: core_ir::Scheme {
+                scheme: typed_ir::Scheme {
                     requirements: Vec::new(),
                     body: unit(),
                 },
                 body: expr,
             }],
             root_exprs: Vec::new(),
-            roots: vec![Root::Binding(core_ir::Path::from_name(core_ir::Name(
+            roots: vec![Root::Binding(typed_ir::Path::from_name(typed_ir::Name(
                 "main".to_string(),
             )))],
             role_impls: Vec::new(),
         }
     }
 
-    fn unit() -> core_ir::Type {
+    fn unit() -> typed_ir::Type {
         named("unit")
     }
 
-    fn named(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args: Vec::new(),
         }
     }

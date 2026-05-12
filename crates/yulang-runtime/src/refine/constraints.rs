@@ -1,9 +1,9 @@
 use super::*;
 
 pub(super) struct TypeConstraints {
-    pub(super) binding_types: HashMap<core_ir::Path, RuntimeType>,
-    locals: HashMap<core_ir::Path, RuntimeType>,
-    substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    pub(super) binding_types: HashMap<typed_ir::Path, RuntimeType>,
+    locals: HashMap<typed_ir::Path, RuntimeType>,
+    substitutions: BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 }
 
 impl TypeConstraints {
@@ -55,7 +55,7 @@ impl TypeConstraints {
                 ..
             } => {
                 if let RuntimeType::Fun { param, ret } = self.resolve_hir(&expr.ty) {
-                    let local = core_ir::Path::from_name(param_name.clone());
+                    let local = typed_ir::Path::from_name(param_name.clone());
                     let previous = push_binding(&mut self.locals, local, *param);
                     self.collect_expr(body, Some(&ret));
                     pop_bindings(&mut self.locals, previous);
@@ -93,7 +93,7 @@ impl TypeConstraints {
                 self.collect_expr(else_branch, Some(&expr.ty));
             }
             ExprKind::Tuple(items) => {
-                if let RuntimeType::Core(core_ir::Type::Tuple(expected_items)) = &expr.ty {
+                if let RuntimeType::Core(typed_ir::Type::Tuple(expected_items)) = &expr.ty {
                     for (item, expected) in items.iter().zip(expected_items) {
                         self.collect_expr(item, Some(&RuntimeType::core(expected.clone())));
                     }
@@ -129,7 +129,7 @@ impl TypeConstraints {
             } => {
                 self.unify_core_bounds(
                     core_type(&expr.ty),
-                    &core_ir::TypeBounds::exact(evidence.result.clone()),
+                    &typed_ir::TypeBounds::exact(evidence.result.clone()),
                 );
                 self.collect_expr(scrutinee, None);
                 for arm in arms {
@@ -162,7 +162,7 @@ impl TypeConstraints {
             } => {
                 self.unify_core_bounds(
                     core_type(&expr.ty),
-                    &core_ir::TypeBounds::exact(evidence.result.clone()),
+                    &typed_ir::TypeBounds::exact(evidence.result.clone()),
                 );
                 self.collect_expr(body, None);
                 for arm in arms {
@@ -170,7 +170,7 @@ impl TypeConstraints {
                     let mut bindings = pattern_bindings(&arm.payload);
                     if let Some(resume) = &arm.resume {
                         bindings.push((
-                            core_ir::Path::from_name(resume.name.clone()),
+                            typed_ir::Path::from_name(resume.name.clone()),
                             resume.ty.clone(),
                         ));
                     }
@@ -224,7 +224,7 @@ impl TypeConstraints {
             ExprKind::Coerce { from, to, expr } => {
                 self.unify_core_bounds(
                     core_type(&expr.ty),
-                    &core_ir::TypeBounds::exact(to.clone()),
+                    &typed_ir::TypeBounds::exact(to.clone()),
                 );
                 self.collect_expr(expr, Some(&RuntimeType::core(from.clone())));
             }
@@ -304,7 +304,7 @@ impl TypeConstraints {
         }
     }
 
-    pub(super) fn unify_hir_bounds(&mut self, actual: &RuntimeType, bounds: &core_ir::TypeBounds) {
+    pub(super) fn unify_hir_bounds(&mut self, actual: &RuntimeType, bounds: &typed_ir::TypeBounds) {
         if let Some(ty) = project_runtime_bounds(bounds) {
             self.unify_hir(
                 actual,
@@ -315,8 +315,8 @@ impl TypeConstraints {
 
     pub(super) fn unify_core_bounds(
         &mut self,
-        actual: &core_ir::Type,
-        bounds: &core_ir::TypeBounds,
+        actual: &typed_ir::Type,
+        bounds: &typed_ir::TypeBounds,
     ) {
         if let Some(ty) = project_runtime_bounds(bounds) {
             self.unify_core(actual, &ty);
@@ -350,8 +350,8 @@ impl TypeConstraints {
             | (other, RuntimeType::Thunk { value, .. }) => {
                 self.unify_hir(&value, &other);
             }
-            (RuntimeType::Fun { .. }, RuntimeType::Core(core_ir::Type::Fun { .. }))
-            | (RuntimeType::Core(core_ir::Type::Fun { .. }), RuntimeType::Fun { .. }) => {
+            (RuntimeType::Fun { .. }, RuntimeType::Core(typed_ir::Type::Fun { .. }))
+            | (RuntimeType::Core(typed_ir::Type::Fun { .. }), RuntimeType::Fun { .. }) => {
                 let left = core_function_as_hir_type(&left);
                 let right = core_function_as_hir_type(&right);
                 self.unify_hir(&left, &right);
@@ -360,21 +360,21 @@ impl TypeConstraints {
         }
     }
 
-    pub(super) fn unify_core(&mut self, left: &core_ir::Type, right: &core_ir::Type) {
+    pub(super) fn unify_core(&mut self, left: &typed_ir::Type, right: &typed_ir::Type) {
         let left = self.resolve_core(left);
         let right = self.resolve_core(right);
         if left == right
-            || matches!(left, core_ir::Type::Any)
-            || matches!(right, core_ir::Type::Any)
+            || matches!(left, typed_ir::Type::Any)
+            || matches!(right, typed_ir::Type::Any)
         {
             return;
         }
         match (&left, &right) {
-            (core_ir::Type::Var(var), ty) => self.bind_var(var.clone(), ty.clone()),
-            (ty, core_ir::Type::Var(var)) => self.bind_var(var.clone(), ty.clone()),
+            (typed_ir::Type::Var(var), ty) => self.bind_var(var.clone(), ty.clone()),
+            (ty, typed_ir::Type::Var(var)) => self.bind_var(var.clone(), ty.clone()),
             (
-                core_ir::Type::Named { path, args },
-                core_ir::Type::Named {
+                typed_ir::Type::Named { path, args },
+                typed_ir::Type::Named {
                     path: right_path,
                     args: right_args,
                 },
@@ -384,13 +384,13 @@ impl TypeConstraints {
                 }
             }
             (
-                core_ir::Type::Fun {
+                typed_ir::Type::Fun {
                     param,
                     param_effect,
                     ret_effect,
                     ret,
                 },
-                core_ir::Type::Fun {
+                typed_ir::Type::Fun {
                     param: right_param,
                     param_effect: right_param_effect,
                     ret_effect: right_ret_effect,
@@ -402,14 +402,14 @@ impl TypeConstraints {
                 self.unify_core(ret_effect, right_ret_effect);
                 self.unify_core(ret, right_ret);
             }
-            (core_ir::Type::Tuple(items), core_ir::Type::Tuple(right_items))
+            (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(right_items))
                 if items.len() == right_items.len() =>
             {
                 for (item, right_item) in items.iter().zip(right_items) {
                     self.unify_core(item, right_item);
                 }
             }
-            (core_ir::Type::Record(record), core_ir::Type::Record(right_record)) => {
+            (typed_ir::Type::Record(record), typed_ir::Type::Record(right_record)) => {
                 for field in &record.fields {
                     if let Some(right_field) = right_record
                         .fields
@@ -421,46 +421,46 @@ impl TypeConstraints {
                 }
             }
             (
-                core_ir::Type::Row { items, tail },
-                core_ir::Type::Row {
+                typed_ir::Type::Row { items, tail },
+                typed_ir::Type::Row {
                     items: right_items,
                     tail: right_tail,
                 },
             ) => self.unify_effect_row(items, tail, right_items, right_tail),
-            (core_ir::Type::Union(items), ty) | (ty, core_ir::Type::Union(items)) => {
-                if matches!(ty, core_ir::Type::Never) {
+            (typed_ir::Type::Union(items), ty) | (ty, typed_ir::Type::Union(items)) => {
+                if matches!(ty, typed_ir::Type::Never) {
                     return;
                 }
                 for item in items
                     .iter()
-                    .filter(|item| !matches!(item, core_ir::Type::Never))
+                    .filter(|item| !matches!(item, typed_ir::Type::Never))
                 {
                     self.unify_core(item, ty);
                 }
             }
-            (core_ir::Type::Inter(items), ty) | (ty, core_ir::Type::Inter(items)) => {
+            (typed_ir::Type::Inter(items), ty) | (ty, typed_ir::Type::Inter(items)) => {
                 for item in items {
                     self.unify_core(item, ty);
                 }
             }
-            (core_ir::Type::Recursive { body, .. }, ty)
-            | (ty, core_ir::Type::Recursive { body, .. }) => self.unify_core(body, ty),
+            (typed_ir::Type::Recursive { body, .. }, ty)
+            | (ty, typed_ir::Type::Recursive { body, .. }) => self.unify_core(body, ty),
             _ => {}
         }
     }
 
-    pub(super) fn unify_type_arg(&mut self, left: &core_ir::TypeArg, right: &core_ir::TypeArg) {
+    pub(super) fn unify_type_arg(&mut self, left: &typed_ir::TypeArg, right: &typed_ir::TypeArg) {
         match (left, right) {
-            (core_ir::TypeArg::Type(left), core_ir::TypeArg::Type(right)) => {
+            (typed_ir::TypeArg::Type(left), typed_ir::TypeArg::Type(right)) => {
                 self.unify_core(left, right);
             }
-            (core_ir::TypeArg::Type(left), core_ir::TypeArg::Bounds(right)) => {
+            (typed_ir::TypeArg::Type(left), typed_ir::TypeArg::Bounds(right)) => {
                 self.unify_core_bounds(left, right);
             }
-            (core_ir::TypeArg::Bounds(left), core_ir::TypeArg::Type(right)) => {
+            (typed_ir::TypeArg::Bounds(left), typed_ir::TypeArg::Type(right)) => {
                 self.unify_core_bounds(right, left);
             }
-            (core_ir::TypeArg::Bounds(left), core_ir::TypeArg::Bounds(right)) => {
+            (typed_ir::TypeArg::Bounds(left), typed_ir::TypeArg::Bounds(right)) => {
                 if let (Some(left), Some(right)) =
                     (project_runtime_bounds(left), project_runtime_bounds(right))
                 {
@@ -472,16 +472,16 @@ impl TypeConstraints {
 
     pub(super) fn unify_effect_row(
         &mut self,
-        items: &[core_ir::Type],
-        tail: &core_ir::Type,
-        right_items: &[core_ir::Type],
-        right_tail: &core_ir::Type,
+        items: &[typed_ir::Type],
+        tail: &typed_ir::Type,
+        right_items: &[typed_ir::Type],
+        right_tail: &typed_ir::Type,
     ) {
         let mut matched_right = vec![false; right_items.len()];
         let mut left_row_vars = Vec::new();
         for item in items {
             match item {
-                core_ir::Type::Var(var) => left_row_vars.push(var.clone()),
+                typed_ir::Type::Var(var) => left_row_vars.push(var.clone()),
                 _ => {
                     for (index, right_item) in right_items.iter().enumerate() {
                         if matched_right[index] || !same_effect_head(item, right_item) {
@@ -508,10 +508,10 @@ impl TypeConstraints {
         self.unify_core(tail, &residual);
     }
 
-    pub(super) fn bind_var(&mut self, var: core_ir::TypeVar, ty: core_ir::Type) {
+    pub(super) fn bind_var(&mut self, var: typed_ir::TypeVar, ty: typed_ir::Type) {
         let ty = self.resolve_core(&ty);
-        if matches!(&ty, core_ir::Type::Var(actual) if actual == &var)
-            || matches!(ty, core_ir::Type::Any)
+        if matches!(&ty, typed_ir::Type::Var(actual) if actual == &var)
+            || matches!(ty, typed_ir::Type::Any)
         {
             return;
         }
@@ -533,11 +533,11 @@ impl TypeConstraints {
         substitute_hir_type(ty, &self.substitutions)
     }
 
-    pub(super) fn resolve_core(&self, ty: &core_ir::Type) -> core_ir::Type {
+    pub(super) fn resolve_core(&self, ty: &typed_ir::Type) -> typed_ir::Type {
         substitute_type(ty, &self.substitutions)
     }
 
-    pub(super) fn into_substitutions(self) -> BTreeMap<core_ir::TypeVar, core_ir::Type> {
+    pub(super) fn into_substitutions(self) -> BTreeMap<typed_ir::TypeVar, typed_ir::Type> {
         self.substitutions
             .iter()
             .map(|(var, ty)| (var.clone(), substitute_type(ty, &self.substitutions)))

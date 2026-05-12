@@ -18,7 +18,10 @@ pub fn demand_monomorphize_module(
         let (closed_specs, closed_fresh) = select_closed_specializations(&engine_out);
 
         if closed_specs.is_empty() {
-            rounds.push(DemandRoundProfile::empty(round_index, engine_out.queue_profile));
+            rounds.push(DemandRoundProfile::empty(
+                round_index,
+                engine_out.queue_profile,
+            ));
             return Ok(DemandMonomorphizeOutput {
                 module,
                 profile: DemandMonomorphizeProfile {
@@ -45,11 +48,8 @@ pub fn demand_monomorphize_module(
         );
 
         // Phase 5: rewrite — update call sites in the module to use specializations
-        let rewrite = rewrite_module_uses(
-            module.clone(),
-            &valid.specializations,
-            &engine_out.checked,
-        )?;
+        let rewrite =
+            rewrite_module_uses(module.clone(), &valid.specializations, &engine_out.checked)?;
 
         // Phase 6: missing — collect demands that neither emit nor rewrite resolved
         let mut all_missing = missing_from_emit;
@@ -95,9 +95,7 @@ pub fn demand_monomorphize_module(
         let emitted_specializations: Vec<_> = valid
             .specializations
             .iter()
-            .filter(|s| {
-                valid.emitted_names.contains(&s.path) && retained_names.contains(&s.path)
-            })
+            .filter(|s| valid.emitted_names.contains(&s.path) && retained_names.contains(&s.path))
             .cloned()
             .collect();
 
@@ -181,7 +179,7 @@ fn compute_pending_missing_demands(
 fn commit_demand_round(
     mut module: Module,
     emitted: Vec<Binding>,
-    emitted_names: &HashSet<core_ir::Path>,
+    emitted_names: &HashSet<typed_ir::Path>,
 ) -> Module {
     module.bindings.extend(emitted);
     retain_reachable_emitted_bindings(&mut module, emitted_names);
@@ -208,7 +206,7 @@ fn debug_closed_specializations(specializations: &[DemandSpecialization]) {
 struct ValidDemandOutput {
     specializations: Vec<DemandSpecialization>,
     emitted: Vec<Binding>,
-    emitted_names: HashSet<core_ir::Path>,
+    emitted_names: HashSet<typed_ir::Path>,
     rejected: Vec<RejectedDemandSpecialization>,
 }
 
@@ -335,7 +333,7 @@ fn emitted_binding_validates(module: &Module, binding: &Binding) -> bool {
     }
 }
 
-fn retain_reachable_emitted_bindings(module: &mut Module, emitted_names: &HashSet<core_ir::Path>) {
+fn retain_reachable_emitted_bindings(module: &mut Module, emitted_names: &HashSet<typed_ir::Path>) {
     if emitted_names.is_empty() {
         return;
     }
@@ -381,7 +379,6 @@ fn debug_missing_demand_round(round: usize, demands: &[Demand]) {
         );
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DemandMonomorphizeOutput {
@@ -434,7 +431,7 @@ pub struct RejectedDemandSpecialization {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RejectionReason {
     ValidationFailed,
-    DependsOnRejectedFresh(core_ir::Path),
+    DependsOnRejectedFresh(typed_ir::Path),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -527,7 +524,7 @@ fn debug_demand_queue_source(source: &str, queue: &DemandQueue) {
     }
 }
 
-fn debug_demand_source(source: &str, target: &core_ir::Path, signature: &DemandSignature) {
+fn debug_demand_source(source: &str, target: &typed_ir::Path, signature: &DemandSignature) {
     if std::env::var_os("YULANG_DEBUG_DEMAND_SOURCE").is_none() {
         return;
     }
@@ -569,22 +566,22 @@ mod tests {
         let id = path("id");
         let use_id = path("use_id");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![
                 binding(
                     id.clone(),
-                    vec![core_ir::TypeVar("a".to_string())],
+                    vec![typed_ir::TypeVar("a".to_string())],
                     RuntimeType::fun(
-                        RuntimeType::core(core_ir::Type::Any),
-                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
                     ),
                     ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
+                        param: typed_ir::Name("x".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
                             ExprKind::Var(path("x")),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         )),
                     },
                 ),
@@ -596,7 +593,7 @@ mod tests {
                         RuntimeType::core(named("int")),
                     ),
                     ExprKind::Lambda {
-                        param: core_ir::Name("x".to_string()),
+                        param: typed_ir::Name("x".to_string()),
                         param_effect_annotation: None,
                         param_function_allowed_effects: None,
                         body: Box::new(Expr::typed(
@@ -604,8 +601,8 @@ mod tests {
                                 callee: Box::new(Expr::typed(
                                     ExprKind::Var(id.clone()),
                                     RuntimeType::fun(
-                                        RuntimeType::core(core_ir::Type::Any),
-                                        RuntimeType::core(core_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
+                                        RuntimeType::core(typed_ir::Type::Any),
                                     ),
                                 )),
                                 arg: Box::new(Expr::typed(
@@ -630,7 +627,7 @@ mod tests {
                         ),
                     )),
                     arg: Box::new(Expr::typed(
-                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                        ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                         RuntimeType::core(named("int")),
                     )),
                     evidence: None,
@@ -655,7 +652,7 @@ mod tests {
         assert_eq!(output.specializations.len(), 1);
         assert_eq!(
             output.specializations[0].path,
-            core_ir::Path::from_name(core_ir::Name("id__ddmono0".to_string()))
+            typed_ir::Path::from_name(typed_ir::Name("id__ddmono0".to_string()))
         );
         let emitted = output.emit_bindings(&module).expect("emitted bindings");
         assert_eq!(emitted.len(), 1);
@@ -667,21 +664,21 @@ mod tests {
     fn demand_monomorphize_rewrites_root_call_to_specialization() {
         let id = path("id");
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![binding(
                 id.clone(),
-                vec![core_ir::TypeVar("a".to_string())],
+                vec![typed_ir::TypeVar("a".to_string())],
                 RuntimeType::fun(
-                    RuntimeType::core(core_ir::Type::Any),
-                    RuntimeType::core(core_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
+                    RuntimeType::core(typed_ir::Type::Any),
                 ),
                 ExprKind::Lambda {
-                    param: core_ir::Name("x".to_string()),
+                    param: typed_ir::Name("x".to_string()),
                     param_effect_annotation: None,
                     param_function_allowed_effects: None,
                     body: Box::new(Expr::typed(
                         ExprKind::Var(path("x")),
-                        RuntimeType::core(core_ir::Type::Any),
+                        RuntimeType::core(typed_ir::Type::Any),
                     )),
                 },
             )],
@@ -690,12 +687,12 @@ mod tests {
                     callee: Box::new(Expr::typed(
                         ExprKind::Var(id),
                         RuntimeType::fun(
-                            RuntimeType::core(core_ir::Type::Any),
-                            RuntimeType::core(core_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
+                            RuntimeType::core(typed_ir::Type::Any),
                         ),
                     )),
                     arg: Box::new(Expr::typed(
-                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                        ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                         RuntimeType::core(named("int")),
                     )),
                     evidence: None,
@@ -719,14 +716,14 @@ mod tests {
         };
         assert_eq!(
             path,
-            &core_ir::Path::from_name(core_ir::Name("id__ddmono0".to_string()))
+            &typed_ir::Path::from_name(typed_ir::Name("id__ddmono0".to_string()))
         );
     }
 
     #[test]
     fn filtering_rejects_fresh_bindings_that_depend_on_rejected_fresh_bindings() {
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: Vec::new(),
             root_exprs: Vec::new(),
             roots: Vec::new(),
@@ -751,19 +748,19 @@ mod tests {
             Binding {
                 name: helper,
                 type_params: Vec::new(),
-                scheme: core_ir::Scheme {
+                scheme: typed_ir::Scheme {
                     requirements: Vec::new(),
                     body: named("bool"),
                 },
                 body: Expr::typed(
-                    ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                    ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                     RuntimeType::core(named("int")),
                 ),
             },
             monomorphic_binding(
                 ok.clone(),
                 Expr::typed(
-                    ExprKind::Lit(core_ir::Lit::Int("2".to_string())),
+                    ExprKind::Lit(typed_ir::Lit::Int("2".to_string())),
                     RuntimeType::core(named("int")),
                 ),
             ),
@@ -790,27 +787,27 @@ mod tests {
     }
 
     fn binding(
-        name: core_ir::Path,
-        type_params: Vec<core_ir::TypeVar>,
+        name: typed_ir::Path,
+        type_params: Vec<typed_ir::TypeVar>,
         ty: RuntimeType,
         kind: ExprKind,
     ) -> Binding {
         Binding {
             name,
             type_params,
-            scheme: core_ir::Scheme {
+            scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
-                body: core_ir::Type::Any,
+                body: typed_ir::Type::Any,
             },
             body: Expr::typed(kind, ty),
         }
     }
 
-    fn monomorphic_binding(name: core_ir::Path, body: Expr) -> Binding {
+    fn monomorphic_binding(name: typed_ir::Path, body: Expr) -> Binding {
         Binding {
             name,
             type_params: Vec::new(),
-            scheme: core_ir::Scheme {
+            scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
                 body: named("int"),
             },
@@ -818,7 +815,7 @@ mod tests {
         }
     }
 
-    fn specialization(target: core_ir::Path, path: core_ir::Path) -> DemandSpecialization {
+    fn specialization(target: typed_ir::Path, path: typed_ir::Path) -> DemandSpecialization {
         let solved = DemandSignature::Core(named_demand("int"));
         DemandSpecialization {
             target: target.clone(),
@@ -835,22 +832,22 @@ mod tests {
         }
     }
 
-    fn named(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
             path: path(name),
             args: Vec::new(),
         }
     }
 
-    fn path(name: &str) -> core_ir::Path {
-        core_ir::Path::from_name(core_ir::Name(name.to_string()))
+    fn path(name: &str) -> typed_ir::Path {
+        typed_ir::Path::from_name(typed_ir::Name(name.to_string()))
     }
 
-    fn path_segments(segments: &[&str]) -> core_ir::Path {
-        core_ir::Path {
+    fn path_segments(segments: &[&str]) -> typed_ir::Path {
+        typed_ir::Path {
             segments: segments
                 .iter()
-                .map(|segment| core_ir::Name((*segment).to_string()))
+                .map(|segment| typed_ir::Name((*segment).to_string()))
                 .collect(),
         }
     }

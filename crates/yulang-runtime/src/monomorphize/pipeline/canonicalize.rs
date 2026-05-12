@@ -110,7 +110,7 @@ pub(super) fn inline_polymorphic_wrappers(mut module: Module) -> Module {
     module
 }
 
-fn nullary_constructor_tag(expr: &Expr) -> Option<&core_ir::Name> {
+fn nullary_constructor_tag(expr: &Expr) -> Option<&typed_ir::Name> {
     match &expr.kind {
         ExprKind::Variant { tag, value: None } => Some(tag),
         ExprKind::Coerce { expr, .. } => nullary_constructor_tag(expr),
@@ -118,14 +118,14 @@ fn nullary_constructor_tag(expr: &Expr) -> Option<&core_ir::Name> {
     }
 }
 
-fn unary_identity_wrapper_param(expr: &Expr) -> Option<&core_ir::Name> {
+fn unary_identity_wrapper_param(expr: &Expr) -> Option<&typed_ir::Name> {
     let ExprKind::Lambda { param, body, .. } = &expr.kind else {
         return None;
     };
     identity_body_param(body).filter(|body_param| *body_param == param)
 }
 
-fn identity_body_param(expr: &Expr) -> Option<&core_ir::Name> {
+fn identity_body_param(expr: &Expr) -> Option<&typed_ir::Name> {
     match &expr.kind {
         ExprKind::Var(path) if path.segments.len() == 1 => path.segments.first(),
         ExprKind::Coerce { expr, .. } | ExprKind::Pack { expr, .. } => identity_body_param(expr),
@@ -135,8 +135,8 @@ fn identity_body_param(expr: &Expr) -> Option<&core_ir::Name> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FieldAccessorInline {
-    field: core_ir::Name,
-    base_type: core_ir::Type,
+    field: typed_ir::Name,
+    base_type: typed_ir::Type,
 }
 
 fn unary_field_accessor(expr: &Expr) -> Option<FieldAccessorInline> {
@@ -153,7 +153,7 @@ fn unary_field_accessor(expr: &Expr) -> Option<FieldAccessorInline> {
     })
 }
 
-fn accessor_base_type(expr: &Expr, param: &core_ir::Name) -> Option<core_ir::Type> {
+fn accessor_base_type(expr: &Expr, param: &typed_ir::Name) -> Option<typed_ir::Type> {
     match &expr.kind {
         ExprKind::Var(path) if path.segments.as_slice() == std::slice::from_ref(param) => {
             Some(runtime_core_type(&expr.ty))
@@ -169,7 +169,7 @@ fn accessor_base_type(expr: &Expr, param: &core_ir::Name) -> Option<core_ir::Typ
 
 fn specialization_quality(
     binding: &Binding,
-    polymorphic_originals: &HashSet<core_ir::Path>,
+    polymorphic_originals: &HashSet<typed_ir::Path>,
 ) -> (usize, usize, usize) {
     let residual_refs = count_residual_refs(&binding.body, polymorphic_originals);
     let mut vars = BTreeSet::new();
@@ -178,7 +178,7 @@ fn specialization_quality(
     (residual_refs, vars.len(), usize::MAX - suffix)
 }
 
-fn count_residual_refs(expr: &Expr, residual_originals: &HashSet<core_ir::Path>) -> usize {
+fn count_residual_refs(expr: &Expr, residual_originals: &HashSet<typed_ir::Path>) -> usize {
     let own = match &expr.kind {
         ExprKind::Var(path) | ExprKind::EffectOp(path) => {
             usize::from(residual_originals.contains(path))
@@ -188,7 +188,7 @@ fn count_residual_refs(expr: &Expr, residual_originals: &HashSet<core_ir::Path>)
     own + count_residual_child_refs(expr, residual_originals)
 }
 
-fn count_residual_child_refs(expr: &Expr, residual_originals: &HashSet<core_ir::Path>) -> usize {
+fn count_residual_child_refs(expr: &Expr, residual_originals: &HashSet<typed_ir::Path>) -> usize {
     match &expr.kind {
         ExprKind::Lambda { body, .. } => count_residual_refs(body, residual_originals),
         ExprKind::Apply { callee, arg, .. } => {
@@ -282,7 +282,7 @@ fn count_residual_child_refs(expr: &Expr, residual_originals: &HashSet<core_ir::
     }
 }
 
-fn count_residual_stmt_refs(stmt: &Stmt, residual_originals: &HashSet<core_ir::Path>) -> usize {
+fn count_residual_stmt_refs(stmt: &Stmt, residual_originals: &HashSet<typed_ir::Path>) -> usize {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
             count_residual_refs(value, residual_originals)
@@ -292,9 +292,9 @@ fn count_residual_stmt_refs(stmt: &Stmt, residual_originals: &HashSet<core_ir::P
 
 fn inline_constructor_expr(
     expr: &mut Expr,
-    constructors: &HashMap<core_ir::Path, core_ir::Name>,
-    identity_wrappers: &HashSet<core_ir::Path>,
-    field_accessors: &HashMap<core_ir::Path, FieldAccessorInline>,
+    constructors: &HashMap<typed_ir::Path, typed_ir::Name>,
+    identity_wrappers: &HashSet<typed_ir::Path>,
+    field_accessors: &HashMap<typed_ir::Path, FieldAccessorInline>,
 ) {
     if let ExprKind::Var(path) = &expr.kind
         && let Some(tag) = constructors.get(path)
@@ -467,9 +467,9 @@ fn inline_constructor_expr(
 
 fn inline_constructor_stmt(
     stmt: &mut Stmt,
-    constructors: &HashMap<core_ir::Path, core_ir::Name>,
-    identity_wrappers: &HashSet<core_ir::Path>,
-    field_accessors: &HashMap<core_ir::Path, FieldAccessorInline>,
+    constructors: &HashMap<typed_ir::Path, typed_ir::Name>,
+    identity_wrappers: &HashSet<typed_ir::Path>,
+    field_accessors: &HashMap<typed_ir::Path, FieldAccessorInline>,
 ) {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
@@ -478,7 +478,7 @@ fn inline_constructor_stmt(
     }
 }
 
-fn rewrite_expr_paths(expr: &mut Expr, replacements: &HashMap<core_ir::Path, core_ir::Path>) {
+fn rewrite_expr_paths(expr: &mut Expr, replacements: &HashMap<typed_ir::Path, typed_ir::Path>) {
     match &mut expr.kind {
         ExprKind::Var(path) | ExprKind::EffectOp(path) => {
             if let Some(replacement) = replacements.get(path) {
@@ -563,7 +563,7 @@ fn rewrite_expr_paths(expr: &mut Expr, replacements: &HashMap<core_ir::Path, cor
     }
 }
 
-fn rewrite_stmt_paths(stmt: &mut Stmt, replacements: &HashMap<core_ir::Path, core_ir::Path>) {
+fn rewrite_stmt_paths(stmt: &mut Stmt, replacements: &HashMap<typed_ir::Path, typed_ir::Path>) {
     match stmt {
         Stmt::Let { value, .. } | Stmt::Expr(value) | Stmt::Module { body: value, .. } => {
             rewrite_expr_paths(value, replacements);

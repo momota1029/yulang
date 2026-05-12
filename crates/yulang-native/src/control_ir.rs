@@ -1,4 +1,4 @@
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeModule {
@@ -30,7 +30,7 @@ pub enum NativeStmt {
     },
     Primitive {
         dest: ValueId,
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
         args: Vec<ValueId>,
     },
     DirectCall {
@@ -48,13 +48,13 @@ pub enum NativeStmt {
     },
     Variant {
         dest: ValueId,
-        tag: core_ir::Name,
+        tag: typed_ir::Name,
         value: Option<ValueId>,
     },
     Select {
         dest: ValueId,
         base: ValueId,
-        field: core_ir::Name,
+        field: typed_ir::Name,
     },
     MakeClosure {
         dest: ValueId,
@@ -70,7 +70,7 @@ pub enum NativeStmt {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeRecordField {
-    pub name: core_ir::Name,
+    pub name: typed_ir::Name,
     pub value: ValueId,
 }
 

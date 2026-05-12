@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::fmt::Write as _;
-use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
+use yulang_typed_ir as typed_ir;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RunOutput {
@@ -210,7 +210,7 @@ fn push_separator(out: &mut String, first: &mut bool) {
     }
 }
 
-fn format_core_path(path: &core_ir::Path) -> String {
+fn format_core_path(path: &typed_ir::Path) -> String {
     if path.segments.is_empty() {
         "<root>".to_string()
     } else {

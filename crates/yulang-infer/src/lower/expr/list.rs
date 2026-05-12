@@ -114,7 +114,7 @@ fn specialized_list_empty_expr(state: &mut LowerState, item_tv: TypeVar) -> Type
     TypedExpr {
         tv,
         eff,
-        kind: ExprKind::PrimitiveOp(yulang_core_ir::PrimitiveOp::ListEmpty),
+        kind: ExprKind::PrimitiveOp(yulang_typed_ir::PrimitiveOp::ListEmpty),
     }
 }
 
@@ -148,7 +148,7 @@ fn specialized_list_singleton_expr(state: &mut LowerState, item_tv: TypeVar) -> 
     TypedExpr {
         tv,
         eff,
-        kind: ExprKind::PrimitiveOp(yulang_core_ir::PrimitiveOp::ListSingleton),
+        kind: ExprKind::PrimitiveOp(yulang_typed_ir::PrimitiveOp::ListSingleton),
     }
 }
 
@@ -196,7 +196,7 @@ fn specialized_list_merge_expr(state: &mut LowerState, item_tv: TypeVar) -> Type
     TypedExpr {
         tv,
         eff,
-        kind: ExprKind::PrimitiveOp(yulang_core_ir::PrimitiveOp::ListMerge),
+        kind: ExprKind::PrimitiveOp(yulang_typed_ir::PrimitiveOp::ListMerge),
     }
 }
 

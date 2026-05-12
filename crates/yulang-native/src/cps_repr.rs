@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::rc::Rc;
 
-use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
+use yulang_typed_ir as typed_ir;
 
 use crate::cps_ir::{
     CpsContinuation, CpsContinuationId, CpsFunction, CpsHandlerEnv, CpsHandlerId, CpsLiteral,
@@ -157,7 +157,7 @@ pub struct CpsReprHandler {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CpsReprHandlerArm {
-    pub effect: core_ir::Path,
+    pub effect: typed_ir::Path,
     pub entry: CpsContinuationId,
 }
 
@@ -210,14 +210,14 @@ pub enum CpsReprEvalError {
         kind: &'static str,
     },
     UnsupportedPrimitive {
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
     },
     PrimitiveTypeMismatch {
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
         value: runtime::VmValue,
     },
     InvalidPrimitiveArity {
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
         expected: usize,
         actual: usize,
     },
@@ -227,7 +227,7 @@ pub enum CpsReprEvalError {
     },
     MissingRecordField {
         function: String,
-        field: core_ir::Name,
+        field: typed_ir::Name,
     },
 }
 
@@ -413,10 +413,10 @@ fn cps_repr_value_to_vm(value: CpsReprRuntimeValue) -> Option<runtime::VmValue> 
 }
 
 fn eval_cps_repr_primitive(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: Vec<CpsReprRuntimeValue>,
 ) -> CpsReprEvalResult<CpsReprRuntimeValue> {
-    use core_ir::PrimitiveOp;
+    use typed_ir::PrimitiveOp;
     match op {
         PrimitiveOp::ListEmpty => {
             if args.len() > 1 {
@@ -517,7 +517,7 @@ fn eval_cps_repr_primitive(
 }
 
 fn cps_repr_value_to_usize(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     value: CpsReprRuntimeValue,
 ) -> CpsReprEvalResult<usize> {
     match value {
@@ -529,7 +529,7 @@ fn cps_repr_value_to_usize(
 }
 
 fn control_repr_list_items(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     value: CpsReprRuntimeValue,
 ) -> CpsReprEvalResult<Vec<CpsReprRuntimeValue>> {
     match value {
@@ -995,8 +995,8 @@ fn literal_lane(literal: &CpsLiteral) -> CpsReprAbiLane {
     }
 }
 
-fn primitive_result_lane(op: core_ir::PrimitiveOp) -> CpsReprAbiLane {
-    use core_ir::PrimitiveOp;
+fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
+    use typed_ir::PrimitiveOp;
     match op {
         PrimitiveOp::BoolNot
         | PrimitiveOp::BoolEq
@@ -1129,7 +1129,7 @@ fn resumption_target_return_lane(
 fn handler_arm_for_effect<'a>(
     function: &'a CpsReprFunction,
     id: CpsHandlerId,
-    effect: &core_ir::Path,
+    effect: &typed_ir::Path,
 ) -> Option<&'a CpsReprHandlerArm> {
     function
         .handlers
@@ -1143,7 +1143,7 @@ fn handler_arm_for_effect<'a>(
 fn handler_arm_for_effect_in_module<'a>(
     module: &'a CpsReprModule,
     id: CpsHandlerId,
-    effect: &core_ir::Path,
+    effect: &typed_ir::Path,
 ) -> Option<(&'a CpsReprHandlerArm, &'a CpsReprFunction)> {
     for owner in module.functions.iter().chain(module.roots.iter()) {
         if let Some(arm) = handler_arm_for_effect(owner, id, effect) {
@@ -1157,7 +1157,7 @@ fn handler_arm_for_stack<'a>(
     module: &'a CpsReprModule,
     current_function: &'a CpsReprFunction,
     stack: &'a [CpsReprHandlerFrame],
-    effect: &core_ir::Path,
+    effect: &typed_ir::Path,
     blocked: Option<u64>,
 ) -> CpsReprEvalResult<(
     &'a CpsReprHandlerArm,
@@ -1170,8 +1170,7 @@ fn handler_arm_for_stack<'a>(
         {
             continue;
         }
-        if let Some((arm, owner)) =
-            handler_arm_for_effect_in_module(module, frame.handler, effect)
+        if let Some((arm, owner)) = handler_arm_for_effect_in_module(module, frame.handler, effect)
         {
             return Ok((arm, frame, stack[..index].to_vec(), owner));
         }
@@ -1258,7 +1257,7 @@ fn values_with_handler_env(
     values
 }
 
-fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
+fn effect_matches(expected: &typed_ir::Path, actual: &typed_ir::Path) -> bool {
     actual == expected
         || (!expected.segments.is_empty()
             && actual.segments.len() == expected.segments.len() + 1
@@ -1655,8 +1654,7 @@ fn resume_continuation(
                                 } else {
                                     thunk.guard_stack
                                 };
-                                let owner =
-                                    function_by_name_repr(module, &thunk.owner_function)?;
+                                let owner = function_by_name_repr(module, &thunk.owner_function)?;
                                 let inherited = return_frames.len();
                                 result = eval_continuations(
                                     module,
@@ -1669,10 +1667,7 @@ fn resume_continuation(
                                     return_frames.clone(),
                                     inherited,
                                 )?;
-                                if matches!(
-                                    result,
-                                    CpsReprRuntimeValue::ScopeReturn { .. }
-                                ) {
+                                if matches!(result, CpsReprRuntimeValue::ScopeReturn { .. }) {
                                     break;
                                 }
                             }
@@ -1769,15 +1764,15 @@ fn resume_continuation(
                             .cloned()
                             .ok_or_else(|| CpsReprEvalError::MissingRecordField {
                                 function: function.name.clone(),
-                                field: core_ir::Name(index.to_string()),
+                                field: typed_ir::Name(index.to_string()),
                             })?,
                         CpsReprRuntimeValue::Plain(runtime::VmValue::Tuple(items)) => {
-                            cps_repr_value_from_vm(items.get(*index).cloned().ok_or_else(
-                                || CpsReprEvalError::MissingRecordField {
+                            cps_repr_value_from_vm(items.get(*index).cloned().ok_or_else(|| {
+                                CpsReprEvalError::MissingRecordField {
                                     function: function.name.clone(),
-                                    field: core_ir::Name(index.to_string()),
-                                },
-                            )?)
+                                    field: typed_ir::Name(index.to_string()),
+                                }
+                            })?)
                         }
                         other => other,
                     };
@@ -1988,8 +1983,7 @@ fn resume_continuation(
                         && top_index >= initial_frame_count
                     {
                         let top_frame = top_frame.clone();
-                        let top_owner =
-                            function_by_name_repr(module, &top_frame.owner_function)?;
+                        let top_owner = function_by_name_repr(module, &top_frame.owner_function)?;
                         return resume_continuation(
                             module,
                             top_owner,
@@ -2019,7 +2013,7 @@ fn resume_continuation(
                 else_cont,
             } => {
                 let cond = read_plain_value(function, &values, *cond)?;
-                current = if bool_value(core_ir::PrimitiveOp::BoolNot, &cond)? {
+                current = if bool_value(typed_ir::PrimitiveOp::BoolNot, &cond)? {
                     *then_cont
                 } else {
                     *else_cont
@@ -2050,9 +2044,7 @@ fn resume_continuation(
                 // captured in a prior resumption.handlers), it has no real
                 // install scope to dispatch to. Treat the arm body result as
                 // this eval frame's value, like the no-handler case.
-                let frame_in_active = active_handlers
-                    .iter()
-                    .any(|f| f.prompt == frame_prompt)
+                let frame_in_active = active_handlers.iter().any(|f| f.prompt == frame_prompt)
                     && frame.install_eval_id != REPR_SYNTHETIC_EVAL_ID;
                 let handled_anchor = if frame_in_active {
                     Some(CpsReprHandlerAnchor {
@@ -2118,19 +2110,21 @@ fn resume_continuation(
                         return Ok(v);
                     }
                     ScopeReturnActionRepr::Propagate(v) => {
-                        if let Some(routed) =
-                            try_route_scope_return_through_return_frames_repr(
-                                module,
-                                &v,
-                                &return_frames,
-                                initial_frame_count,
-                            )?
-                        {
+                        if let Some(routed) = try_route_scope_return_through_return_frames_repr(
+                            module,
+                            &v,
+                            &return_frames,
+                            initial_frame_count,
+                        )? {
                             return Ok(routed);
                         }
                         return Ok(v);
                     }
-                    ScopeReturnActionRepr::JumpOrExit { target, value, return_frame_threshold } => {
+                    ScopeReturnActionRepr::JumpOrExit {
+                        target,
+                        value,
+                        return_frame_threshold,
+                    } => {
                         if return_frames.len() > return_frame_threshold {
                             return_frames.truncate(return_frame_threshold);
                         }
@@ -2143,7 +2137,11 @@ fn resume_continuation(
                     }
                 }
             }
-            CpsTerminator::EffectfulCall { target, args: arg_ids, resume } => {
+            CpsTerminator::EffectfulCall {
+                target,
+                args: arg_ids,
+                resume,
+            } => {
                 let target_function = function_by_name_repr(module, target)?;
                 let call_args = arg_ids
                     .iter()
@@ -2187,8 +2185,7 @@ fn resume_continuation(
                         };
                         let mut new_frames = return_frames.clone();
                         new_frames.push(frame);
-                        let owner =
-                            function_by_name_repr(module, &thunk.owner_function)?;
+                        let owner = function_by_name_repr(module, &thunk.owner_function)?;
                         let handlers = if !active_handlers.is_empty() {
                             active_handlers.clone()
                         } else {
@@ -2218,7 +2215,11 @@ fn resume_continuation(
                     }
                 }
             }
-            CpsTerminator::EffectfulApply { closure, arg, resume } => {
+            CpsTerminator::EffectfulApply {
+                closure,
+                arg,
+                resume,
+            } => {
                 let callable = read_value(function, &values, *closure)?;
                 let pre_push_count = return_frames.len();
                 let frame = CpsReprReturnFrame {
@@ -2235,14 +2236,11 @@ fn resume_continuation(
                 match callable {
                     CpsReprRuntimeValue::Closure(closure) => {
                         let arg = read_value(function, &values, *arg)?;
-                        let owner =
-                            function_by_name_repr(module, &closure.owner_function)?;
+                        let owner = function_by_name_repr(module, &closure.owner_function)?;
                         let mut closure_values = closure.values.clone();
                         if let Some(self_id) = closure.recursive_self {
-                            closure_values.insert(
-                                self_id,
-                                CpsReprRuntimeValue::Closure(closure.clone()),
-                            );
+                            closure_values
+                                .insert(self_id, CpsReprRuntimeValue::Closure(closure.clone()));
                         }
                         return eval_continuations(
                             module,
@@ -2258,8 +2256,7 @@ fn resume_continuation(
                     }
                     CpsReprRuntimeValue::Resumption(resumption) => {
                         let arg = read_plain_value(function, &values, *arg)?;
-                        let owner =
-                            function_by_name_repr(module, &resumption.owner_function)?;
+                        let owner = function_by_name_repr(module, &resumption.owner_function)?;
                         let anchor = resumption.handled_anchor;
                         let resumed_handlers = merge_resumption_handlers_repr(
                             &resumption.handlers,
@@ -2359,8 +2356,7 @@ fn merge_extras_into_frames_repr(
     frames
         .iter()
         .map(|frame| {
-            let merged =
-                merge_resumption_handlers_repr(&frame.active_handlers, current, anchor);
+            let merged = merge_resumption_handlers_repr(&frame.active_handlers, current, anchor);
             let mut adjusted = frame.clone();
             adjusted.active_handlers = merged;
             adjusted
@@ -2435,7 +2431,11 @@ fn try_route_scope_return_through_return_frames_repr(
     return_frames: &[CpsReprReturnFrame],
     initial_frame_count: usize,
 ) -> CpsReprEvalResult<Option<CpsReprRuntimeValue>> {
-    let CpsReprRuntimeValue::ScopeReturn { prompt, target, value } = scope_return
+    let CpsReprRuntimeValue::ScopeReturn {
+        prompt,
+        target,
+        value,
+    } = scope_return
     else {
         return Ok(None);
     };
@@ -2451,11 +2451,9 @@ fn try_route_scope_return_through_return_frames_repr(
         let frame = &return_frames[frame_index];
         let frame_eval_id = frame.owner_eval_id;
         let frame_owner = &frame.owner_function;
-        let Some(handler_index) =
-            frame.active_handlers.iter().rposition(|handler| {
-                handler.prompt == prompt && handler.install_eval_id == frame_eval_id
-            })
-        else {
+        let Some(handler_index) = frame.active_handlers.iter().rposition(|handler| {
+            handler.prompt == prompt && handler.install_eval_id == frame_eval_id
+        }) else {
             continue;
         };
         let matched_handler = frame.active_handlers[handler_index].clone();
@@ -2464,8 +2462,7 @@ fn try_route_scope_return_through_return_frames_repr(
         }
         let mut post_handlers = frame.active_handlers.clone();
         post_handlers.truncate(handler_index);
-        let mut rest_frames: Vec<CpsReprReturnFrame> =
-            return_frames[..frame_index].to_vec();
+        let mut rest_frames: Vec<CpsReprReturnFrame> = return_frames[..frame_index].to_vec();
         let threshold = matched_handler.return_frame_threshold;
         if rest_frames.len() > threshold {
             rest_frames.truncate(threshold);
@@ -2602,7 +2599,7 @@ enum CpsReprRuntimeValue {
     List(Rc<Vec<CpsReprRuntimeValue>>),
     Tuple(Vec<CpsReprRuntimeValue>),
     Variant {
-        tag: core_ir::Name,
+        tag: typed_ir::Name,
         value: Option<Box<CpsReprRuntimeValue>>,
     },
     /// Carries a value produced by a handler arm body's non-local return.
@@ -2766,10 +2763,10 @@ fn eval_literal(literal: &CpsLiteral) -> runtime::VmValue {
 }
 
 fn eval_primitive(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[runtime::VmValue],
 ) -> CpsReprEvalResult<runtime::VmValue> {
-    use core_ir::PrimitiveOp;
+    use typed_ir::PrimitiveOp;
     match op {
         PrimitiveOp::BoolNot => Ok(runtime::VmValue::Bool(!bool_value(op, &args[0])?)),
         PrimitiveOp::IntAdd => Ok(runtime::VmValue::Int(
@@ -2795,7 +2792,7 @@ fn eval_primitive(
     }
 }
 
-fn int_value(op: core_ir::PrimitiveOp, value: &runtime::VmValue) -> CpsReprEvalResult<i64> {
+fn int_value(op: typed_ir::PrimitiveOp, value: &runtime::VmValue) -> CpsReprEvalResult<i64> {
     match value {
         runtime::VmValue::Int(value) => {
             value
@@ -2812,7 +2809,7 @@ fn int_value(op: core_ir::PrimitiveOp, value: &runtime::VmValue) -> CpsReprEvalR
     }
 }
 
-fn bool_value(op: core_ir::PrimitiveOp, value: &runtime::VmValue) -> CpsReprEvalResult<bool> {
+fn bool_value(op: typed_ir::PrimitiveOp, value: &runtime::VmValue) -> CpsReprEvalResult<bool> {
     match value {
         runtime::VmValue::Bool(value) => Ok(*value),
         value => Err(CpsReprEvalError::PrimitiveTypeMismatch {
@@ -2889,7 +2886,7 @@ mod tests {
                             },
                             CpsStmt::Primitive {
                                 dest: CpsValueId(2),
-                                op: core_ir::PrimitiveOp::IntAdd,
+                                op: typed_ir::PrimitiveOp::IntAdd,
                                 args: vec![CpsValueId(0), CpsValueId(1)],
                             },
                         ],
@@ -3053,7 +3050,7 @@ mod tests {
     }
 
     fn multishot_resumption_module() -> CpsModule {
-        let effect = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        let effect = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
         CpsModule {
             functions: Vec::new(),
             roots: vec![CpsFunction {
@@ -3097,7 +3094,7 @@ mod tests {
                             },
                             CpsStmt::Primitive {
                                 dest: CpsValueId(3),
-                                op: core_ir::PrimitiveOp::IntAdd,
+                                op: typed_ir::PrimitiveOp::IntAdd,
                                 args: vec![CpsValueId(1), CpsValueId(2)],
                             },
                         ],
@@ -3129,7 +3126,7 @@ mod tests {
                             },
                             CpsStmt::Primitive {
                                 dest: CpsValueId(9),
-                                op: core_ir::PrimitiveOp::IntAdd,
+                                op: typed_ir::PrimitiveOp::IntAdd,
                                 args: vec![CpsValueId(7), CpsValueId(8)],
                             },
                         ],
@@ -3141,7 +3138,7 @@ mod tests {
     }
 
     fn rebased_resumption_module() -> CpsModule {
-        let effect = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        let effect = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
         CpsModule {
             functions: Vec::new(),
             roots: vec![CpsFunction {
@@ -3220,7 +3217,7 @@ mod tests {
                         shot_kind: CpsShotKind::MultiShot,
                         stmts: vec![CpsStmt::Primitive {
                             dest: CpsValueId(13),
-                            op: core_ir::PrimitiveOp::IntAdd,
+                            op: typed_ir::PrimitiveOp::IntAdd,
                             args: vec![CpsValueId(1), CpsValueId(9)],
                         }],
                         terminator: CpsTerminator::Return(CpsValueId(13)),
@@ -3237,7 +3234,7 @@ mod tests {
                             },
                             CpsStmt::Primitive {
                                 dest: CpsValueId(11),
-                                op: core_ir::PrimitiveOp::IntAdd,
+                                op: typed_ir::PrimitiveOp::IntAdd,
                                 args: vec![CpsValueId(7), CpsValueId(10)],
                             },
                             CpsStmt::Resume {
@@ -3254,8 +3251,8 @@ mod tests {
     }
 
     fn blocked_handler_snapshot_module() -> CpsModule {
-        let start = core_ir::Path::from_name(core_ir::Name("start".to_string()));
-        let choose = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        let start = typed_ir::Path::from_name(typed_ir::Name("start".to_string()));
+        let choose = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
         CpsModule {
             functions: Vec::new(),
             roots: vec![CpsFunction {

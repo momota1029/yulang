@@ -2182,20 +2182,12 @@ dependencies = [
  "pprof",
  "reborrow-generic",
  "rowan",
- "yulang-core-ir",
  "yulang-infer",
  "yulang-native",
  "yulang-parser",
  "yulang-runtime",
- "yulang-source",
-]
-
-[[package]]
-name = "yulang-core-ir"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
+ "yulang-sources",
+ "yulang-typed-ir",
 ]
 
 [[package]]
@@ -2216,9 +2208,9 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
- "yulang-core-ir",
  "yulang-parser",
- "yulang-source",
+ "yulang-sources",
+ "yulang-typed-ir",
 ]
 
 [[package]]
@@ -2230,7 +2222,7 @@ dependencies = [
  "tower-lsp",
  "yulang-editor",
  "yulang-infer",
- "yulang-source",
+ "yulang-sources",
 ]
 
 [[package]]
@@ -2243,9 +2235,9 @@ dependencies = [
  "cranelift-module",
  "cranelift-native",
  "cranelift-object",
- "yulang-core-ir",
  "yulang-infer",
  "yulang-runtime",
+ "yulang-typed-ir",
 ]
 
 [[package]]
@@ -2266,19 +2258,27 @@ dependencies = [
 name = "yulang-runtime"
 version = "0.1.0"
 dependencies = [
- "yulang-core-ir",
  "yulang-infer",
+ "yulang-typed-ir",
 ]
 
 [[package]]
-name = "yulang-source"
+name = "yulang-sources"
 version = "0.1.0"
 dependencies = [
  "rowan",
  "serde",
  "serde_json",
- "yulang-core-ir",
  "yulang-parser",
+ "yulang-typed-ir",
+]
+
+[[package]]
+name = "yulang-typed-ir"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2291,11 +2291,11 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "wasm-bindgen",
- "yulang-core-ir",
  "yulang-editor",
  "yulang-infer",
  "yulang-runtime",
- "yulang-source",
+ "yulang-sources",
+ "yulang-typed-ir",
 ]
 
 [[package]]

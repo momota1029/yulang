@@ -1,26 +1,26 @@
 use super::*;
 
-pub(crate) fn should_thunk_effect(effect: &core_ir::Type) -> bool {
-    !effect_is_empty(effect) && !matches!(effect, core_ir::Type::Unknown | core_ir::Type::Any)
+pub(crate) fn should_thunk_effect(effect: &typed_ir::Type) -> bool {
+    !effect_is_empty(effect) && !matches!(effect, typed_ir::Type::Unknown | typed_ir::Type::Any)
 }
 
-pub(crate) fn effect_is_empty(effect: &core_ir::Type) -> bool {
+pub(crate) fn effect_is_empty(effect: &typed_ir::Type) -> bool {
     match effect {
-        core_ir::Type::Never => true,
-        core_ir::Type::Named { path, args } => {
+        typed_ir::Type::Never => true,
+        typed_ir::Type::Named { path, args } => {
             args.is_empty()
                 && matches!(
                     path.segments.as_slice(),
-                    [core_ir::Name(name)] if name == "never"
+                    [typed_ir::Name(name)] if name == "never"
                 )
         }
-        core_ir::Type::Row { items, tail } => items.is_empty() && effect_is_empty(tail),
-        core_ir::Type::Recursive { body, .. } => effect_is_empty(body),
+        typed_ir::Type::Row { items, tail } => items.is_empty() && effect_is_empty(tail),
+        typed_ir::Type::Recursive { body, .. } => effect_is_empty(body),
         _ => false,
     }
 }
 
-pub(crate) fn effect_compatible(expected: &core_ir::Type, actual: &core_ir::Type) -> bool {
+pub(crate) fn effect_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
     if core_type_contains_unknown(expected) || core_type_contains_unknown(actual) {
         return true;
     }
@@ -52,26 +52,26 @@ pub(crate) fn effect_compatible(expected: &core_ir::Type, actual: &core_ir::Type
     })
 }
 
-pub(crate) fn effect_paths(effect: &core_ir::Type) -> Vec<core_ir::Path> {
+pub(crate) fn effect_paths(effect: &typed_ir::Type) -> Vec<typed_ir::Path> {
     let mut paths = Vec::new();
     collect_effect_paths(effect, &mut paths);
     paths
 }
 
-pub(crate) fn collect_effect_paths(effect: &core_ir::Type, paths: &mut Vec<core_ir::Path>) {
+pub(crate) fn collect_effect_paths(effect: &typed_ir::Type, paths: &mut Vec<typed_ir::Path>) {
     match effect {
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             for item in items {
                 collect_effect_paths(item, paths);
             }
             collect_effect_paths(tail, paths);
         }
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
             for item in items {
                 collect_effect_paths(item, paths);
             }
         }
-        core_ir::Type::Recursive { body, .. } => collect_effect_paths(body, paths),
+        typed_ir::Type::Recursive { body, .. } => collect_effect_paths(body, paths),
         effect => {
             if let Some(path) = effect_path(effect) {
                 if !paths
@@ -85,49 +85,49 @@ pub(crate) fn collect_effect_paths(effect: &core_ir::Type, paths: &mut Vec<core_
     }
 }
 
-pub(crate) fn effect_path(ty: &core_ir::Type) -> Option<core_ir::Path> {
+pub(crate) fn effect_path(ty: &typed_ir::Type) -> Option<typed_ir::Path> {
     match ty {
-        core_ir::Type::Named { path, .. } => Some(path.clone()),
+        typed_ir::Type::Named { path, .. } => Some(path.clone()),
         _ => None,
     }
 }
 
-pub(crate) fn effect_paths_match(left: &core_ir::Path, right: &core_ir::Path) -> bool {
+pub(crate) fn effect_paths_match(left: &typed_ir::Path, right: &typed_ir::Path) -> bool {
     left == right
         || qualified_prefix_effect_paths_match(left, right)
         || qualified_prefix_effect_paths_match(right, left)
 }
 
-fn qualified_prefix_effect_paths_match(parent: &core_ir::Path, child: &core_ir::Path) -> bool {
+fn qualified_prefix_effect_paths_match(parent: &typed_ir::Path, child: &typed_ir::Path) -> bool {
     parent.segments.len() > 1
         && child.segments.len() > parent.segments.len()
         && child.segments.starts_with(parent.segments.as_slice())
 }
 
-fn effect_has_open_var(effect: &core_ir::Type) -> bool {
+fn effect_has_open_var(effect: &typed_ir::Type) -> bool {
     match effect {
-        core_ir::Type::Any | core_ir::Type::Var(_) => true,
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Any | typed_ir::Type::Var(_) => true,
+        typed_ir::Type::Row { items, tail } => {
             items.iter().any(effect_has_open_var) || effect_has_open_var(tail)
         }
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
             items.iter().any(effect_has_open_var)
         }
-        core_ir::Type::Recursive { body, .. } => effect_has_open_var(body),
+        typed_ir::Type::Recursive { body, .. } => effect_has_open_var(body),
         _ => false,
     }
 }
 
-pub(crate) fn effect_row(items: Vec<core_ir::Type>, tail: core_ir::Type) -> core_ir::Type {
+pub(crate) fn effect_row(items: Vec<typed_ir::Type>, tail: typed_ir::Type) -> typed_ir::Type {
     if items.is_empty() {
         return tail;
     }
-    core_ir::Type::Row {
+    typed_ir::Type::Row {
         items,
         tail: Box::new(tail),
     }
 }
 
-pub(crate) fn effect_row_from_items(items: Vec<core_ir::Type>) -> core_ir::Type {
-    effect_row(items, core_ir::Type::Never)
+pub(crate) fn effect_row_from_items(items: Vec<typed_ir::Type>) -> typed_ir::Type {
+    effect_row(items, typed_ir::Type::Never)
 }

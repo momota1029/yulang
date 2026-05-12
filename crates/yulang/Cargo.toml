@@ -6,12 +6,12 @@ license = "MIT OR Apache-2.0"
 description = "Experimental language with Simple-Sub-style inference, algebraic effects, effect rows, roles, and Ruby/Perl/Raku-inspired syntax."
 
 [dependencies]
-yulang-core-ir = { path = "../yulang-core-ir" }
+yulang-typed-ir = { path = "../yulang-typed-ir" }
 yulang-runtime = { path = "../yulang-runtime" }
 yulang-parser = { path = "../yulang-parser" }
 yulang-infer = { path = "../yulang-infer" }
 yulang-native = { path = "../yulang-native" }
-yulang-source = { path = "../yulang-source" }
+yulang-sources = { path = "../yulang-sources" }
 chasa = { path = "../chasa" }
 either = "1.13.0"
 im = "15.1.0"

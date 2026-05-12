@@ -1306,14 +1306,14 @@ mod tests {
 
     fn named_with_args(name: &str, args: Vec<DemandTypeArg>) -> DemandCoreType {
         DemandCoreType::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args,
         }
     }
 
     fn field(name: &str, value: DemandCoreType) -> DemandRecordField {
         DemandRecordField {
-            name: core_ir::Name(name.to_string()),
+            name: typed_ir::Name(name.to_string()),
             value,
             optional: false,
         }
@@ -1321,7 +1321,7 @@ mod tests {
 
     fn case(name: &str, payloads: Vec<DemandCoreType>) -> DemandVariantCase {
         DemandVariantCase {
-            name: core_ir::Name(name.to_string()),
+            name: typed_ir::Name(name.to_string()),
             payloads,
         }
     }

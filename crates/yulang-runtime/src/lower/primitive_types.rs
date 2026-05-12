@@ -1,11 +1,11 @@
 use super::*;
 use std::collections::HashMap;
 
-type PrimitiveTypeFamily = core_ir::PrimitiveTypeFamily;
+type PrimitiveTypeFamily = typed_ir::PrimitiveTypeFamily;
 
 #[derive(Debug, Clone)]
 pub(super) struct RuntimePrimitivePathTable {
-    types: HashMap<PrimitiveTypeFamily, core_ir::Path>,
+    types: HashMap<PrimitiveTypeFamily, typed_ir::Path>,
 }
 
 impl RuntimePrimitivePathTable {
@@ -26,7 +26,7 @@ impl RuntimePrimitivePathTable {
         Self { types }
     }
 
-    pub(super) fn from_graph(graph: &core_ir::CoreGraphView) -> Self {
+    pub(super) fn from_graph(graph: &typed_ir::CoreGraphView) -> Self {
         let mut table = Self::standard();
         for node in &graph.primitive_types {
             table.types.insert(node.family, node.path.clone());
@@ -34,37 +34,37 @@ impl RuntimePrimitivePathTable {
         table
     }
 
-    pub(super) fn lit_type(&self, lit: &core_ir::Lit) -> core_ir::Type {
+    pub(super) fn lit_type(&self, lit: &typed_ir::Lit) -> typed_ir::Type {
         let family = match lit {
-            core_ir::Lit::Int(_) => PrimitiveTypeFamily::Int,
-            core_ir::Lit::Float(_) => PrimitiveTypeFamily::Float,
-            core_ir::Lit::String(_) => PrimitiveTypeFamily::Str,
-            core_ir::Lit::Bool(_) => PrimitiveTypeFamily::Bool,
-            core_ir::Lit::Unit => PrimitiveTypeFamily::Unit,
+            typed_ir::Lit::Int(_) => PrimitiveTypeFamily::Int,
+            typed_ir::Lit::Float(_) => PrimitiveTypeFamily::Float,
+            typed_ir::Lit::String(_) => PrimitiveTypeFamily::Str,
+            typed_ir::Lit::Bool(_) => PrimitiveTypeFamily::Bool,
+            typed_ir::Lit::Unit => PrimitiveTypeFamily::Unit,
         };
         self.primitive_type(family, Vec::new())
     }
 
-    pub(super) fn bool_type(&self) -> core_ir::Type {
+    pub(super) fn bool_type(&self) -> typed_ir::Type {
         self.primitive_type(PrimitiveTypeFamily::Bool, Vec::new())
     }
 
-    pub(super) fn unit_type(&self) -> core_ir::Type {
+    pub(super) fn unit_type(&self) -> typed_ir::Type {
         self.primitive_type(PrimitiveTypeFamily::Unit, Vec::new())
     }
 
     pub(super) fn primitive_type(
         &self,
         family: PrimitiveTypeFamily,
-        args: Vec<core_ir::TypeArg>,
-    ) -> core_ir::Type {
-        core_ir::Type::Named {
+        args: Vec<typed_ir::TypeArg>,
+    ) -> typed_ir::Type {
+        typed_ir::Type::Named {
             path: self.primitive_type_path(family),
             args,
         }
     }
 
-    fn primitive_type_path(&self, family: PrimitiveTypeFamily) -> core_ir::Path {
+    fn primitive_type_path(&self, family: PrimitiveTypeFamily) -> typed_ir::Path {
         self.types
             .get(&family)
             .cloned()
@@ -79,16 +79,16 @@ impl Default for RuntimePrimitivePathTable {
 }
 
 #[cfg(test)]
-pub(super) fn bool_type() -> core_ir::Type {
+pub(super) fn bool_type() -> typed_ir::Type {
     RuntimePrimitivePathTable::standard().bool_type()
 }
 
 #[cfg(test)]
-pub(super) fn unit_type() -> core_ir::Type {
+pub(super) fn unit_type() -> typed_ir::Type {
     RuntimePrimitivePathTable::standard().unit_type()
 }
 
-fn standard_primitive_type_path(family: PrimitiveTypeFamily) -> core_ir::Path {
+fn standard_primitive_type_path(family: PrimitiveTypeFamily) -> typed_ir::Path {
     match family {
         PrimitiveTypeFamily::Int => bare_path("int"),
         PrimitiveTypeFamily::Float => bare_path("float"),
@@ -102,21 +102,21 @@ fn standard_primitive_type_path(family: PrimitiveTypeFamily) -> core_ir::Path {
 }
 
 #[cfg(test)]
-pub(super) fn named_type(name: &str) -> core_ir::Type {
-    core_ir::Type::Named {
+pub(super) fn named_type(name: &str) -> typed_ir::Type {
+    typed_ir::Type::Named {
         path: bare_path(name),
         args: Vec::new(),
     }
 }
 
-fn bare_path(name: &str) -> core_ir::Path {
-    core_ir::Path::from_name(core_ir::Name(name.to_string()))
+fn bare_path(name: &str) -> typed_ir::Path {
+    typed_ir::Path::from_name(typed_ir::Name(name.to_string()))
 }
 
-fn std_path(module: &str, name: &str) -> core_ir::Path {
-    core_ir::Path::new(vec![
-        core_ir::Name("std".to_string()),
-        core_ir::Name(module.to_string()),
-        core_ir::Name(name.to_string()),
+fn std_path(module: &str, name: &str) -> typed_ir::Path {
+    typed_ir::Path::new(vec![
+        typed_ir::Name("std".to_string()),
+        typed_ir::Name(module.to_string()),
+        typed_ir::Name(name.to_string()),
     ])
 }

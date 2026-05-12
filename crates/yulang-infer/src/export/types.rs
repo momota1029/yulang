@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, HashMap};
 
-use yulang_core_ir as core_ir;
-use yulang_core_ir::normalize_union_members;
+use yulang_typed_ir as typed_ir;
+use yulang_typed_ir::normalize_union_members;
 
 use crate::FrozenScheme;
 use crate::display::format::{Type as DisplayType, compact_scheme_to_type, compact_side_to_type};
@@ -20,11 +20,11 @@ use crate::types::RecordField;
 
 use super::names::{export_name, export_path};
 
-pub fn export_scheme_body(scheme: &CompactTypeScheme) -> core_ir::Type {
+pub fn export_scheme_body(scheme: &CompactTypeScheme) -> typed_ir::Type {
     export_display_type(scheme, &compact_scheme_to_type(scheme))
 }
 
-pub fn export_scheme_body_type_vars(scheme: &CompactTypeScheme) -> BTreeSet<core_ir::TypeVar> {
+pub fn export_scheme_body_type_vars(scheme: &CompactTypeScheme) -> BTreeSet<typed_ir::TypeVar> {
     let mut vars = BTreeSet::new();
     collect_core_type_vars(&export_scheme_body(scheme), &mut vars);
     vars
@@ -34,7 +34,7 @@ pub fn export_scheme(
     infer: &Infer,
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
-) -> core_ir::Scheme {
+) -> typed_ir::Scheme {
     let mut requirements = Vec::new();
     for constraint in constraints {
         let requirement = export_role_requirement(infer, scheme, constraint);
@@ -42,15 +42,15 @@ pub fn export_scheme(
             requirements.push(requirement);
         }
     }
-    core_ir::Scheme {
+    typed_ir::Scheme {
         requirements,
         body: export_scheme_body(scheme),
     }
 }
 
-pub fn export_frozen_scheme(_infer: &Infer, scheme: &FrozenScheme) -> core_ir::Scheme {
+pub fn export_frozen_scheme(_infer: &Infer, scheme: &FrozenScheme) -> typed_ir::Scheme {
     let compact = &scheme.compact;
-    core_ir::Scheme {
+    typed_ir::Scheme {
         requirements: Vec::new(),
         body: export_scheme_body(compact),
     }
@@ -59,18 +59,18 @@ pub fn export_frozen_scheme(_infer: &Infer, scheme: &FrozenScheme) -> core_ir::S
 pub fn export_frozen_scheme_body_type_vars(
     _infer: &Infer,
     scheme: &FrozenScheme,
-) -> BTreeSet<core_ir::TypeVar> {
+) -> BTreeSet<typed_ir::TypeVar> {
     let mut vars = BTreeSet::new();
     collect_core_type_vars(&export_scheme_body(&scheme.compact), &mut vars);
     vars
 }
 
-pub fn export_type_bounds_for_tv(infer: &Infer, tv: TypeVar) -> core_ir::TypeBounds {
+pub fn export_type_bounds_for_tv(infer: &Infer, tv: TypeVar) -> typed_ir::TypeBounds {
     let scheme = compact_type_var(infer, tv);
     export_type_bounds(&scheme, &scheme.cty)
 }
 
-pub fn export_compact_type_bounds(ty: &CompactType) -> core_ir::TypeBounds {
+pub fn export_compact_type_bounds(ty: &CompactType) -> typed_ir::TypeBounds {
     let scheme = CompactTypeScheme {
         cty: CompactBounds {
             self_var: None,
@@ -85,7 +85,7 @@ pub fn export_compact_type_bounds(ty: &CompactType) -> core_ir::TypeBounds {
 pub fn export_type_bounds_for_tvs(
     infer: &Infer,
     tvs: &[TypeVar],
-) -> HashMap<TypeVar, core_ir::TypeBounds> {
+) -> HashMap<TypeVar, typed_ir::TypeBounds> {
     let schemes = compact_type_vars_in_order(infer, tvs);
     tvs.iter()
         .copied()
@@ -97,7 +97,7 @@ pub fn export_type_bounds_for_tvs(
 pub fn extend_export_type_bounds_cache_for_tvs(
     infer: &Infer,
     tvs: &[TypeVar],
-    cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+    cache: &mut HashMap<TypeVar, typed_ir::TypeBounds>,
 ) {
     let missing = tvs
         .iter()
@@ -116,7 +116,7 @@ pub fn extend_export_type_bounds_cache_for_tvs(
 pub fn export_coalesced_type_bounds_for_tvs(
     infer: &Infer,
     tvs: &[TypeVar],
-) -> HashMap<TypeVar, core_ir::TypeBounds> {
+) -> HashMap<TypeVar, typed_ir::TypeBounds> {
     let schemes = compact_type_vars_in_order(infer, tvs);
     tvs.iter()
         .copied()
@@ -128,7 +128,7 @@ pub fn export_coalesced_type_bounds_for_tvs(
         .collect()
 }
 
-pub fn export_coalesced_type_bounds_for_tv(infer: &Infer, tv: TypeVar) -> core_ir::TypeBounds {
+pub fn export_coalesced_type_bounds_for_tv(infer: &Infer, tv: TypeVar) -> typed_ir::TypeBounds {
     let scheme = coalesce_by_co_occurrence(&compact_type_var(infer, tv));
     export_type_bounds(&scheme, &scheme.cty)
 }
@@ -136,8 +136,8 @@ pub fn export_coalesced_type_bounds_for_tv(infer: &Infer, tv: TypeVar) -> core_i
 pub fn export_relevant_type_bounds_for_tv(
     infer: &Infer,
     tv: TypeVar,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
-) -> core_ir::TypeBounds {
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> typed_ir::TypeBounds {
     let bounds = export_type_bounds_for_tv(infer, tv);
     project_type_bounds(bounds, relevant_vars)
 }
@@ -145,9 +145,9 @@ pub fn export_relevant_type_bounds_for_tv(
 pub fn export_relevant_type_bounds_for_tv_cached(
     infer: &Infer,
     tv: TypeVar,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
-    cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
-) -> core_ir::TypeBounds {
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
+    cache: &mut HashMap<TypeVar, typed_ir::TypeBounds>,
+) -> typed_ir::TypeBounds {
     let bounds = match cache.get(&tv) {
         Some(bounds) => bounds.clone(),
         None => {
@@ -164,11 +164,11 @@ pub fn export_coalesced_apply_evidence_bounds(
     callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> (
-    core_ir::TypeBounds,
-    core_ir::TypeBounds,
-    core_ir::TypeBounds,
+    typed_ir::TypeBounds,
+    typed_ir::TypeBounds,
+    typed_ir::TypeBounds,
 ) {
     let schemes = compact_type_vars_in_order(infer, &[callee_tv, arg_tv, result_tv]);
     let mut rec_vars = HashMap::new();
@@ -212,12 +212,12 @@ pub fn export_coalesced_apply_evidence_bounds_with_expected_arg(
     arg_tv: TypeVar,
     expected_arg_tv: TypeVar,
     result_tv: TypeVar,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> (
-    core_ir::TypeBounds,
-    core_ir::TypeBounds,
-    core_ir::TypeBounds,
-    core_ir::TypeBounds,
+    typed_ir::TypeBounds,
+    typed_ir::TypeBounds,
+    typed_ir::TypeBounds,
+    typed_ir::TypeBounds,
 ) {
     let schemes =
         compact_type_vars_in_order(infer, &[callee_tv, arg_tv, expected_arg_tv, result_tv]);
@@ -261,8 +261,8 @@ pub fn export_coalesced_coerce_evidence_bounds(
     infer: &Infer,
     actual_tv: TypeVar,
     expected_tv: TypeVar,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
-) -> (core_ir::TypeBounds, core_ir::TypeBounds) {
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> (typed_ir::TypeBounds, typed_ir::TypeBounds) {
     let schemes = compact_type_vars_in_order(infer, &[actual_tv, expected_tv]);
     let mut rec_vars = HashMap::new();
     let mut cty = CompactBounds::default();
@@ -302,34 +302,34 @@ pub fn export_role_requirement(
     infer: &Infer,
     scheme: &CompactTypeScheme,
     constraint: &CompactRoleConstraint,
-) -> core_ir::RoleRequirement {
+) -> typed_ir::RoleRequirement {
     let arg_infos = infer.role_arg_infos_of(&constraint.role);
     let args = constraint
         .args
         .iter()
         .enumerate()
         .map(|(index, arg)| match arg_infos.get(index) {
-            Some(info) if !info.is_input => core_ir::RoleRequirementArg::Associated {
-                name: core_ir::Name(info.name.clone()),
+            Some(info) if !info.is_input => typed_ir::RoleRequirementArg::Associated {
+                name: typed_ir::Name(info.name.clone()),
                 bounds: export_type_bounds(scheme, arg),
             },
-            _ => core_ir::RoleRequirementArg::Input(export_type_bounds(scheme, arg)),
+            _ => typed_ir::RoleRequirementArg::Input(export_type_bounds(scheme, arg)),
         })
         .collect();
-    core_ir::RoleRequirement {
+    typed_ir::RoleRequirement {
         role: export_path(&constraint.role),
         args,
     }
 }
 
-fn export_display_type(scheme: &CompactTypeScheme, ty: &DisplayType) -> core_ir::Type {
+fn export_display_type(scheme: &CompactTypeScheme, ty: &DisplayType) -> typed_ir::Type {
     let raw = match ty {
-        DisplayType::Var(tv) => core_ir::Type::Var(export_type_var(*tv)),
-        DisplayType::Prim(path) => core_ir::Type::Named {
+        DisplayType::Var(tv) => typed_ir::Type::Var(export_type_var(*tv)),
+        DisplayType::Prim(path) => typed_ir::Type::Named {
             path: export_path(path),
             args: Vec::new(),
         },
-        DisplayType::Con(path, args) => core_ir::Type::Named {
+        DisplayType::Con(path, args) => typed_ir::Type::Named {
             path: export_path(path),
             args: args
                 .iter()
@@ -341,36 +341,36 @@ fn export_display_type(scheme: &CompactTypeScheme, ty: &DisplayType) -> core_ir:
             arg_eff,
             ret_eff,
             ret,
-        } => core_ir::Type::Fun {
+        } => typed_ir::Type::Fun {
             param: Box::new(export_display_type(scheme, arg)),
             param_effect: Box::new(export_display_type(scheme, arg_eff)),
             ret_effect: Box::new(export_display_type(scheme, ret_eff)),
             ret: Box::new(export_display_type(scheme, ret)),
         },
-        DisplayType::Record(fields) => core_ir::Type::Record(core_ir::RecordType {
+        DisplayType::Record(fields) => typed_ir::Type::Record(typed_ir::RecordType {
             fields: export_record_fields(scheme, fields),
             spread: None,
         }),
         DisplayType::RecordTailSpread { fields, tail } => {
-            core_ir::Type::Record(core_ir::RecordType {
+            typed_ir::Type::Record(typed_ir::RecordType {
                 fields: export_record_fields(scheme, fields),
-                spread: Some(core_ir::RecordSpread::Tail(Box::new(export_display_type(
+                spread: Some(typed_ir::RecordSpread::Tail(Box::new(export_display_type(
                     scheme, tail,
                 )))),
             })
         }
         DisplayType::RecordHeadSpread { tail, fields } => {
-            core_ir::Type::Record(core_ir::RecordType {
+            typed_ir::Type::Record(typed_ir::RecordType {
                 fields: export_record_fields(scheme, fields),
-                spread: Some(core_ir::RecordSpread::Head(Box::new(export_display_type(
+                spread: Some(typed_ir::RecordSpread::Head(Box::new(export_display_type(
                     scheme, tail,
                 )))),
             })
         }
-        DisplayType::Variant(items) => core_ir::Type::Variant(core_ir::VariantType {
+        DisplayType::Variant(items) => typed_ir::Type::Variant(typed_ir::VariantType {
             cases: items
                 .iter()
-                .map(|(name, payloads)| core_ir::VariantCase {
+                .map(|(name, payloads)| typed_ir::VariantCase {
                     name: export_name(name),
                     payloads: payloads
                         .iter()
@@ -380,37 +380,37 @@ fn export_display_type(scheme: &CompactTypeScheme, ty: &DisplayType) -> core_ir:
                 .collect(),
             tail: None,
         }),
-        DisplayType::Tuple(items) => core_ir::Type::Tuple(
+        DisplayType::Tuple(items) => typed_ir::Type::Tuple(
             items
                 .iter()
                 .map(|item| export_display_type(scheme, item))
                 .collect(),
         ),
-        DisplayType::Row(items, tail) => core_ir::Type::Row {
+        DisplayType::Row(items, tail) => typed_ir::Type::Row {
             items: items
                 .iter()
                 .map(|item| export_display_type(scheme, item))
                 .collect(),
             tail: Box::new(export_display_type(scheme, tail)),
         },
-        DisplayType::Union(items) => core_ir::Type::Union(
+        DisplayType::Union(items) => typed_ir::Type::Union(
             items
                 .iter()
                 .map(|item| export_display_type(scheme, item))
                 .collect(),
         ),
-        DisplayType::Inter(items) => core_ir::Type::Inter(
+        DisplayType::Inter(items) => typed_ir::Type::Inter(
             items
                 .iter()
                 .map(|item| export_display_type(scheme, item))
                 .collect(),
         ),
-        DisplayType::Rec(tv, body) => core_ir::Type::Recursive {
+        DisplayType::Rec(tv, body) => typed_ir::Type::Recursive {
             var: export_type_var(*tv),
             body: Box::new(export_display_type(scheme, body)),
         },
-        DisplayType::Bot => core_ir::Type::Never,
-        DisplayType::Top => core_ir::Type::Any,
+        DisplayType::Bot => typed_ir::Type::Never,
+        DisplayType::Top => typed_ir::Type::Any,
     };
     normalize_core_type(raw)
 }
@@ -418,10 +418,10 @@ fn export_display_type(scheme: &CompactTypeScheme, ty: &DisplayType) -> core_ir:
 fn export_record_fields(
     scheme: &CompactTypeScheme,
     fields: &[RecordField<DisplayType>],
-) -> Vec<core_ir::RecordField<core_ir::Type>> {
+) -> Vec<typed_ir::RecordField<typed_ir::Type>> {
     fields
         .iter()
-        .map(|field| core_ir::RecordField {
+        .map(|field| typed_ir::RecordField {
             name: export_name(&field.name),
             value: export_display_type(scheme, &field.value),
             optional: field.optional,
@@ -429,16 +429,16 @@ fn export_record_fields(
         .collect()
 }
 
-fn export_type_arg(scheme: &CompactTypeScheme, arg: &CompactBounds) -> core_ir::TypeArg {
+fn export_type_arg(scheme: &CompactTypeScheme, arg: &CompactBounds) -> typed_ir::TypeArg {
     let bounds = export_type_bounds(scheme, arg);
     match (&bounds.lower, &bounds.upper) {
-        (Some(lower), Some(upper)) if lower == upper => core_ir::TypeArg::Type((**lower).clone()),
-        _ => core_ir::TypeArg::Bounds(bounds),
+        (Some(lower), Some(upper)) if lower == upper => typed_ir::TypeArg::Type((**lower).clone()),
+        _ => typed_ir::TypeArg::Bounds(bounds),
     }
 }
 
-fn export_type_bounds(scheme: &CompactTypeScheme, bounds: &CompactBounds) -> core_ir::TypeBounds {
-    core_ir::TypeBounds {
+fn export_type_bounds(scheme: &CompactTypeScheme, bounds: &CompactBounds) -> typed_ir::TypeBounds {
+    typed_ir::TypeBounds {
         lower: compact_side_option(scheme, &bounds.lower, true).map(Box::new),
         upper: compact_side_option(scheme, &bounds.upper, false).map(Box::new),
     }
@@ -448,7 +448,7 @@ fn compact_side_option(
     scheme: &CompactTypeScheme,
     ty: &CompactType,
     positive: bool,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     (!is_empty_compact_type(ty)).then(|| {
         export_display_type(
             scheme,
@@ -457,15 +457,15 @@ fn compact_side_option(
     })
 }
 
-fn export_type_var(tv: crate::ids::TypeVar) -> core_ir::TypeVar {
-    core_ir::TypeVar(format!("t{}", tv.0))
+fn export_type_var(tv: crate::ids::TypeVar) -> typed_ir::TypeVar {
+    typed_ir::TypeVar(format!("t{}", tv.0))
 }
 
 fn project_type_bounds(
-    bounds: core_ir::TypeBounds,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
-) -> core_ir::TypeBounds {
-    core_ir::TypeBounds {
+    bounds: typed_ir::TypeBounds,
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> typed_ir::TypeBounds {
+    typed_ir::TypeBounds {
         lower: bounds
             .lower
             .and_then(|ty| project_core_type(*ty, relevant_vars).map(Box::new)),
@@ -476,27 +476,27 @@ fn project_type_bounds(
 }
 
 fn project_core_type(
-    ty: core_ir::Type,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
-) -> Option<core_ir::Type> {
+    ty: typed_ir::Type,
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> Option<typed_ir::Type> {
     match ty {
-        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => Some(ty),
-        core_ir::Type::Var(var) => relevant_vars
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => Some(ty),
+        typed_ir::Type::Var(var) => relevant_vars
             .contains(&var)
-            .then_some(core_ir::Type::Var(var)),
-        core_ir::Type::Named { path, args } => Some(core_ir::Type::Named {
+            .then_some(typed_ir::Type::Var(var)),
+        typed_ir::Type::Named { path, args } => Some(typed_ir::Type::Named {
             path,
             args: args
                 .into_iter()
                 .map(|arg| project_type_arg(arg, relevant_vars))
                 .collect(),
         }),
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
             ret,
-        } => Some(core_ir::Type::Fun {
+        } => Some(typed_ir::Type::Fun {
             param: Box::new(project_core_value_type_or_any(*param, relevant_vars)),
             param_effect: Box::new(project_core_effect_type_or_any(
                 *param_effect,
@@ -505,34 +505,34 @@ fn project_core_type(
             ret_effect: Box::new(project_core_effect_type_or_any(*ret_effect, relevant_vars)),
             ret: Box::new(project_core_value_type_or_any(*ret, relevant_vars)),
         }),
-        core_ir::Type::Tuple(items) => {
+        typed_ir::Type::Tuple(items) => {
             let items = items
                 .into_iter()
                 .map(|item| project_core_value_type_or_any(item, relevant_vars))
                 .collect::<Vec<_>>();
-            (!items.is_empty()).then_some(core_ir::Type::Tuple(items))
+            (!items.is_empty()).then_some(typed_ir::Type::Tuple(items))
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             let fields = record
                 .fields
                 .into_iter()
-                .map(|field| core_ir::RecordField {
+                .map(|field| typed_ir::RecordField {
                     name: field.name,
                     value: project_core_value_type_or_any(field.value, relevant_vars),
                     optional: field.optional,
                 })
                 .collect::<Vec<_>>();
             let spread = record.spread.and_then(|spread| match spread {
-                core_ir::RecordSpread::Head(ty) => project_core_type(*ty, relevant_vars)
-                    .map(|ty| core_ir::RecordSpread::Head(Box::new(ty))),
-                core_ir::RecordSpread::Tail(ty) => project_core_type(*ty, relevant_vars)
-                    .map(|ty| core_ir::RecordSpread::Tail(Box::new(ty))),
+                typed_ir::RecordSpread::Head(ty) => project_core_type(*ty, relevant_vars)
+                    .map(|ty| typed_ir::RecordSpread::Head(Box::new(ty))),
+                typed_ir::RecordSpread::Tail(ty) => project_core_type(*ty, relevant_vars)
+                    .map(|ty| typed_ir::RecordSpread::Tail(Box::new(ty))),
             });
-            (!fields.is_empty() || spread.is_some()).then_some(core_ir::Type::Record(
-                core_ir::RecordType { fields, spread },
+            (!fields.is_empty() || spread.is_some()).then_some(typed_ir::Type::Record(
+                typed_ir::RecordType { fields, spread },
             ))
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             let cases = variant
                 .cases
                 .into_iter()
@@ -542,7 +542,7 @@ fn project_core_type(
                         .into_iter()
                         .map(|payload| project_core_value_type_or_any(payload, relevant_vars))
                         .collect::<Vec<_>>();
-                    core_ir::VariantCase {
+                    typed_ir::VariantCase {
                         name: case.name,
                         payloads,
                     }
@@ -551,27 +551,28 @@ fn project_core_type(
             let tail = variant
                 .tail
                 .and_then(|tail| project_core_type(*tail, relevant_vars).map(Box::new));
-            (!cases.is_empty() || tail.is_some())
-                .then_some(core_ir::Type::Variant(core_ir::VariantType { cases, tail }))
+            (!cases.is_empty() || tail.is_some()).then_some(typed_ir::Type::Variant(
+                typed_ir::VariantType { cases, tail },
+            ))
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             let items = items
                 .into_iter()
                 .filter_map(|item| project_core_type(item, relevant_vars))
                 .collect::<Vec<_>>();
-            let tail = project_core_type(*tail, relevant_vars).unwrap_or(core_ir::Type::Never);
-            (!items.is_empty() || !matches!(tail, core_ir::Type::Never)).then_some(
-                core_ir::Type::Row {
+            let tail = project_core_type(*tail, relevant_vars).unwrap_or(typed_ir::Type::Never);
+            (!items.is_empty() || !matches!(tail, typed_ir::Type::Never)).then_some(
+                typed_ir::Type::Row {
                     items,
                     tail: Box::new(tail),
                 },
             )
         }
-        core_ir::Type::Union(items) => project_type_list(items, relevant_vars, true),
-        core_ir::Type::Inter(items) => project_type_list(items, relevant_vars, false),
-        core_ir::Type::Recursive { var, body } => {
+        typed_ir::Type::Union(items) => project_type_list(items, relevant_vars, true),
+        typed_ir::Type::Inter(items) => project_type_list(items, relevant_vars, false),
+        typed_ir::Type::Recursive { var, body } => {
             let body = project_core_type(*body, relevant_vars)?;
-            Some(core_ir::Type::Recursive {
+            Some(typed_ir::Type::Recursive {
                 var,
                 body: Box::new(body),
             })
@@ -580,45 +581,45 @@ fn project_core_type(
 }
 
 pub(super) fn project_core_value_type_or_any(
-    ty: core_ir::Type,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
-) -> core_ir::Type {
-    project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Unknown)
+    ty: typed_ir::Type,
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> typed_ir::Type {
+    project_core_type(ty, relevant_vars).unwrap_or(typed_ir::Type::Unknown)
 }
 
 fn project_core_effect_type_or_any(
-    ty: core_ir::Type,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
-) -> core_ir::Type {
-    project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Unknown)
+    ty: typed_ir::Type,
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> typed_ir::Type {
+    project_core_type(ty, relevant_vars).unwrap_or(typed_ir::Type::Unknown)
 }
 
 fn project_type_arg(
-    arg: core_ir::TypeArg,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
-) -> core_ir::TypeArg {
+    arg: typed_ir::TypeArg,
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
+) -> typed_ir::TypeArg {
     match arg {
-        core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(
-            project_core_type(ty, relevant_vars).unwrap_or(core_ir::Type::Unknown),
+        typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(
+            project_core_type(ty, relevant_vars).unwrap_or(typed_ir::Type::Unknown),
         ),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Bounds(bounds) => {
             let bounds = project_type_bounds(bounds, relevant_vars);
             match (&bounds.lower, &bounds.upper) {
                 (Some(lower), Some(upper)) if lower == upper => {
-                    core_ir::TypeArg::Type((**lower).clone())
+                    typed_ir::TypeArg::Type((**lower).clone())
                 }
-                (None, None) => core_ir::TypeArg::Type(core_ir::Type::Unknown),
-                _ => core_ir::TypeArg::Bounds(bounds),
+                (None, None) => typed_ir::TypeArg::Type(typed_ir::Type::Unknown),
+                _ => typed_ir::TypeArg::Bounds(bounds),
             }
         }
     }
 }
 
 fn project_type_list(
-    items: Vec<core_ir::Type>,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
+    items: Vec<typed_ir::Type>,
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
     union: bool,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     let mut projected = items
         .into_iter()
         .filter_map(|item| project_core_type(item, relevant_vars))
@@ -626,21 +627,21 @@ fn project_type_list(
     match projected.len() {
         0 => None,
         1 => projected.pop(),
-        _ if union => Some(core_ir::Type::Union(projected)),
-        _ => Some(core_ir::Type::Inter(projected)),
+        _ if union => Some(typed_ir::Type::Union(projected)),
+        _ => Some(typed_ir::Type::Inter(projected)),
     }
 }
 
-pub(crate) fn collect_core_type_vars(ty: &core_ir::Type, vars: &mut BTreeSet<core_ir::TypeVar>) {
+pub(crate) fn collect_core_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match ty {
-        core_ir::Type::Var(var) => {
+        typed_ir::Type::Var(var) => {
             vars.insert(var.clone());
         }
-        core_ir::Type::Named { args, .. } => {
+        typed_ir::Type::Named { args, .. } => {
             for arg in args {
                 match arg {
-                    core_ir::TypeArg::Type(ty) => collect_core_type_vars(ty, vars),
-                    core_ir::TypeArg::Bounds(bounds) => {
+                    typed_ir::TypeArg::Type(ty) => collect_core_type_vars(ty, vars),
+                    typed_ir::TypeArg::Bounds(bounds) => {
                         if let Some(lower) = &bounds.lower {
                             collect_core_type_vars(lower, vars);
                         }
@@ -651,7 +652,7 @@ pub(crate) fn collect_core_type_vars(ty: &core_ir::Type, vars: &mut BTreeSet<cor
                 }
             }
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -662,24 +663,26 @@ pub(crate) fn collect_core_type_vars(ty: &core_ir::Type, vars: &mut BTreeSet<cor
             collect_core_type_vars(ret_effect, vars);
             collect_core_type_vars(ret, vars);
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
             for item in items {
                 collect_core_type_vars(item, vars);
             }
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             for field in &record.fields {
                 collect_core_type_vars(&field.value, vars);
             }
             if let Some(spread) = &record.spread {
                 match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         collect_core_type_vars(ty, vars);
                     }
                 }
             }
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             for case in &variant.cases {
                 for payload in &case.payloads {
                     collect_core_type_vars(payload, vars);
@@ -689,14 +692,14 @@ pub(crate) fn collect_core_type_vars(ty: &core_ir::Type, vars: &mut BTreeSet<cor
                 collect_core_type_vars(tail, vars);
             }
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             for item in items {
                 collect_core_type_vars(item, vars);
             }
             collect_core_type_vars(tail, vars);
         }
-        core_ir::Type::Recursive { body, .. } => collect_core_type_vars(body, vars),
-        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => {}
+        typed_ir::Type::Recursive { body, .. } => collect_core_type_vars(body, vars),
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
     }
 }
 
@@ -712,20 +715,20 @@ fn is_empty_compact_type(ty: &CompactType) -> bool {
         && ty.rows.is_empty()
 }
 
-fn normalize_core_type(ty: core_ir::Type) -> core_ir::Type {
+fn normalize_core_type(ty: typed_ir::Type) -> typed_ir::Type {
     match ty {
-        core_ir::Type::Unknown
-        | core_ir::Type::Never
-        | core_ir::Type::Any
-        | core_ir::Type::Var(_) => ty,
-        core_ir::Type::Named { path, args } => core_ir::Type::Named {
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_) => ty,
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
             path,
             args: args
                 .into_iter()
                 .map(|arg| match arg {
-                    core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(normalize_core_type(ty)),
-                    core_ir::TypeArg::Bounds(bounds) => {
-                        core_ir::TypeArg::Bounds(core_ir::TypeBounds {
+                    typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(normalize_core_type(ty)),
+                    typed_ir::TypeArg::Bounds(bounds) => {
+                        typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
                             lower: bounds.lower.map(|ty| Box::new(normalize_core_type(*ty))),
                             upper: bounds.upper.map(|ty| Box::new(normalize_core_type(*ty))),
                         })
@@ -733,44 +736,44 @@ fn normalize_core_type(ty: core_ir::Type) -> core_ir::Type {
                 })
                 .collect(),
         },
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
             ret,
-        } => core_ir::Type::Fun {
+        } => typed_ir::Type::Fun {
             param: Box::new(normalize_core_type(*param)),
             param_effect: Box::new(normalize_core_type(*param_effect)),
             ret_effect: Box::new(normalize_core_type(*ret_effect)),
             ret: Box::new(normalize_core_type(*ret)),
         },
-        core_ir::Type::Tuple(items) => {
-            core_ir::Type::Tuple(items.into_iter().map(normalize_core_type).collect())
+        typed_ir::Type::Tuple(items) => {
+            typed_ir::Type::Tuple(items.into_iter().map(normalize_core_type).collect())
         }
-        core_ir::Type::Record(record) => core_ir::Type::Record(core_ir::RecordType {
+        typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
             fields: record
                 .fields
                 .into_iter()
-                .map(|field| core_ir::RecordField {
+                .map(|field| typed_ir::RecordField {
                     name: field.name,
                     value: normalize_core_type(field.value),
                     optional: field.optional,
                 })
                 .collect(),
             spread: record.spread.map(|spread| match spread {
-                core_ir::RecordSpread::Head(ty) => {
-                    core_ir::RecordSpread::Head(Box::new(normalize_core_type(*ty)))
+                typed_ir::RecordSpread::Head(ty) => {
+                    typed_ir::RecordSpread::Head(Box::new(normalize_core_type(*ty)))
                 }
-                core_ir::RecordSpread::Tail(ty) => {
-                    core_ir::RecordSpread::Tail(Box::new(normalize_core_type(*ty)))
+                typed_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Tail(Box::new(normalize_core_type(*ty)))
                 }
             }),
         }),
-        core_ir::Type::Variant(variant) => core_ir::Type::Variant(core_ir::VariantType {
+        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
             cases: variant
                 .cases
                 .into_iter()
-                .map(|case| core_ir::VariantCase {
+                .map(|case| typed_ir::VariantCase {
                     name: case.name,
                     payloads: case.payloads.into_iter().map(normalize_core_type).collect(),
                 })
@@ -779,40 +782,40 @@ fn normalize_core_type(ty: core_ir::Type) -> core_ir::Type {
                 .tail
                 .map(|tail| Box::new(normalize_core_type(*tail))),
         }),
-        core_ir::Type::Row { items, tail } => core_ir::Type::Row {
+        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
             items: items.into_iter().map(normalize_core_type).collect(),
             tail: Box::new(normalize_core_type(*tail)),
         },
-        core_ir::Type::Union(items) => normalize_union(items),
-        core_ir::Type::Inter(items) => {
-            core_ir::Type::Inter(items.into_iter().map(normalize_core_type).collect())
+        typed_ir::Type::Union(items) => normalize_union(items),
+        typed_ir::Type::Inter(items) => {
+            typed_ir::Type::Inter(items.into_iter().map(normalize_core_type).collect())
         }
-        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var,
             body: Box::new(normalize_core_type(*body)),
         },
     }
 }
 
-fn normalize_union(items: Vec<core_ir::Type>) -> core_ir::Type {
+fn normalize_union(items: Vec<typed_ir::Type>) -> typed_ir::Type {
     let mut items = items
         .into_iter()
         .map(normalize_core_type)
         .flat_map(|item| match item {
-            core_ir::Type::Union(items) => items,
+            typed_ir::Type::Union(items) => items,
             other => vec![other],
         })
         .collect::<Vec<_>>();
     items = normalize_union_members(items);
     items.dedup();
     match items.len() {
-        0 => core_ir::Type::Never,
-        1 => items.into_iter().next().unwrap_or(core_ir::Type::Never),
-        _ => core_ir::Type::Union(items),
+        0 => typed_ir::Type::Never,
+        1 => items.into_iter().next().unwrap_or(typed_ir::Type::Never),
+        _ => typed_ir::Type::Union(items),
     }
 }
 
 #[allow(dead_code)]
-fn _export_name_for_assoc(name: &Name) -> core_ir::Name {
+fn _export_name_for_assoc(name: &Name) -> typed_ir::Name {
     export_name(name)
 }

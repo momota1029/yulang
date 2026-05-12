@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::parse_module_to_green_with_ops;
 use yulang_parser::sink::YulangLanguage;
-use yulang_source::{
+use yulang_sources::{
     CompiledSyntaxSurface, CompiledUnitManifest, SourceFile, SourceLoadError, SourceOptions,
     SourceOrigin, SourceSet, collect_source_files_with_options,
     collect_virtual_source_files_with_options,
@@ -21,8 +21,8 @@ use crate::lower::{LowerDetailProfile, LowerState};
 use crate::profile::{ProfileClock, with_profile_enabled};
 use crate::simplify::compact::{CompactType, CompactTypeScheme};
 use crate::symbols::{ModuleId, Name, Namespace, OperatorFixity, Path, Visibility};
-use yulang_core_ir as core_ir;
-use yulang_core_ir::CoreProgram;
+use yulang_typed_ir as typed_ir;
+use yulang_typed_ir::CoreProgram;
 
 pub struct LoweredSources {
     pub state: LowerState,
@@ -255,16 +255,16 @@ pub struct CompiledRuntimeBundle {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompiledRuntimeMergeError {
     ConflictingBinding {
-        path: core_ir::Path,
+        path: typed_ir::Path,
     },
     ConflictingGraphBinding {
-        path: core_ir::Path,
+        path: typed_ir::Path,
     },
     ConflictingRuntimeSymbol {
-        path: core_ir::Path,
+        path: typed_ir::Path,
     },
     ConflictingPrimitiveType {
-        family: core_ir::PrimitiveTypeFamily,
+        family: typed_ir::PrimitiveTypeFamily,
     },
 }
 
@@ -2277,7 +2277,7 @@ fn collect_std_snapshot_module_paths_from(
 
 fn compiled_namespace_surface_for_modules(
     state: &LowerState,
-    source_modules: &[yulang_core_ir::Path],
+    source_modules: &[yulang_typed_ir::Path],
     value_paths: &[(Path, crate::ids::DefId)],
     type_paths: &[(Path, crate::ids::DefId)],
 ) -> CompiledNamespaceSurface {
@@ -2416,7 +2416,7 @@ fn build_compiled_runtime_surfaces(
 fn compiled_runtime_binding_aliases(
     state: &LowerState,
     binding_paths: &[(Path, crate::ids::DefId)],
-) -> Vec<(core_ir::Path, core_ir::Path)> {
+) -> Vec<(typed_ir::Path, typed_ir::Path)> {
     let canonical_paths = state.ctx.canonical_value_paths();
     binding_paths
         .iter()
@@ -2441,7 +2441,7 @@ fn path_contains_impl_helper_module(path: &Path) -> bool {
         .any(|segment| segment.0.starts_with("&impl#"))
 }
 
-fn path_contains_runtime_identity_segment_core(path: &core_ir::Path) -> bool {
+fn path_contains_runtime_identity_segment_core(path: &typed_ir::Path) -> bool {
     path.segments
         .iter()
         .any(|segment| segment.0.starts_with("#effect-method:"))
@@ -2449,7 +2449,7 @@ fn path_contains_runtime_identity_segment_core(path: &core_ir::Path) -> bool {
 
 fn add_core_program_binding_aliases(
     program: &mut CoreProgram,
-    aliases: &[(core_ir::Path, core_ir::Path)],
+    aliases: &[(typed_ir::Path, typed_ir::Path)],
 ) {
     let mut existing_bindings = program
         .program
@@ -2472,7 +2472,7 @@ fn add_core_program_binding_aliases(
         };
         binding.name = alias.clone();
         if path_contains_runtime_identity_segment_core(alias) {
-            binding.body = core_ir::Expr::Var(canonical.clone());
+            binding.body = typed_ir::Expr::Var(canonical.clone());
         }
         existing_bindings.insert(alias.clone());
         program.program.bindings.push(binding);
@@ -2547,7 +2547,7 @@ fn prune_core_program_to_modules(program: &mut CoreProgram, module_paths: &[Vec<
     });
 }
 
-fn core_path_belongs_to_modules(path: &core_ir::Path, modules: &[Vec<String>]) -> bool {
+fn core_path_belongs_to_modules(path: &typed_ir::Path, modules: &[Vec<String>]) -> bool {
     let segments = path
         .segments
         .iter()
@@ -2556,12 +2556,12 @@ fn core_path_belongs_to_modules(path: &core_ir::Path, modules: &[Vec<String>]) -
     path_belongs_to_modules(&segments, modules)
 }
 
-fn core_path_from_symbol_path(path: &Path) -> core_ir::Path {
-    core_ir::Path {
+fn core_path_from_symbol_path(path: &Path) -> typed_ir::Path {
+    typed_ir::Path {
         segments: path
             .segments
             .iter()
-            .map(|segment| core_ir::Name(segment.0.clone()))
+            .map(|segment| typed_ir::Name(segment.0.clone()))
             .collect(),
     }
 }
@@ -2681,7 +2681,7 @@ fn remap_core_program_runtime_ids(
         remap_core_expr_runtime_ids(root, expected_edge_offset);
     }
     for root in &mut program.program.roots {
-        if let core_ir::PrincipalRoot::Expr(index) = root {
+        if let typed_ir::PrincipalRoot::Expr(index) = root {
             *index += root_expr_offset;
         }
     }
@@ -2698,18 +2698,18 @@ fn remap_core_program_runtime_ids(
         edge.parent += expected_edge_offset;
     }
     for graph_root in &mut program.graph.root_exprs {
-        let core_ir::GraphOwner::RootExpr(index) = &mut graph_root.owner;
+        let typed_ir::GraphOwner::RootExpr(index) = &mut graph_root.owner;
         *index += root_expr_offset;
     }
 }
 
-fn remap_core_expr_runtime_ids(expr: &mut core_ir::Expr, expected_edge_offset: u32) {
+fn remap_core_expr_runtime_ids(expr: &mut typed_ir::Expr, expected_edge_offset: u32) {
     match expr {
-        core_ir::Expr::Var(_) | core_ir::Expr::PrimitiveOp(_) | core_ir::Expr::Lit(_) => {}
-        core_ir::Expr::Lambda { body, .. } => {
+        typed_ir::Expr::Var(_) | typed_ir::Expr::PrimitiveOp(_) | typed_ir::Expr::Lit(_) => {}
+        typed_ir::Expr::Lambda { body, .. } => {
             remap_core_expr_runtime_ids(body, expected_edge_offset);
         }
-        core_ir::Expr::Apply {
+        typed_ir::Expr::Apply {
             callee,
             arg,
             evidence,
@@ -2720,7 +2720,7 @@ fn remap_core_expr_runtime_ids(expr: &mut core_ir::Expr, expected_edge_offset: u
                 remap_apply_evidence_runtime_ids(evidence, expected_edge_offset);
             }
         }
-        core_ir::Expr::If {
+        typed_ir::Expr::If {
             cond,
             then_branch,
             else_branch,
@@ -2730,12 +2730,12 @@ fn remap_core_expr_runtime_ids(expr: &mut core_ir::Expr, expected_edge_offset: u
             remap_core_expr_runtime_ids(then_branch, expected_edge_offset);
             remap_core_expr_runtime_ids(else_branch, expected_edge_offset);
         }
-        core_ir::Expr::Tuple(items) => {
+        typed_ir::Expr::Tuple(items) => {
             for item in items {
                 remap_core_expr_runtime_ids(item, expected_edge_offset);
             }
         }
-        core_ir::Expr::Record { fields, spread } => {
+        typed_ir::Expr::Record { fields, spread } => {
             for field in fields {
                 remap_core_expr_runtime_ids(&mut field.value, expected_edge_offset);
             }
@@ -2743,15 +2743,15 @@ fn remap_core_expr_runtime_ids(expr: &mut core_ir::Expr, expected_edge_offset: u
                 remap_record_spread_expr_runtime_ids(spread, expected_edge_offset);
             }
         }
-        core_ir::Expr::Variant { value, .. } => {
+        typed_ir::Expr::Variant { value, .. } => {
             if let Some(value) = value {
                 remap_core_expr_runtime_ids(value, expected_edge_offset);
             }
         }
-        core_ir::Expr::Select { base, .. } => {
+        typed_ir::Expr::Select { base, .. } => {
             remap_core_expr_runtime_ids(base, expected_edge_offset);
         }
-        core_ir::Expr::Match {
+        typed_ir::Expr::Match {
             scrutinee, arms, ..
         } => {
             remap_core_expr_runtime_ids(scrutinee, expected_edge_offset);
@@ -2762,7 +2762,7 @@ fn remap_core_expr_runtime_ids(expr: &mut core_ir::Expr, expected_edge_offset: u
                 remap_core_expr_runtime_ids(&mut arm.body, expected_edge_offset);
             }
         }
-        core_ir::Expr::Block { stmts, tail } => {
+        typed_ir::Expr::Block { stmts, tail } => {
             for stmt in stmts {
                 remap_core_stmt_runtime_ids(stmt, expected_edge_offset);
             }
@@ -2770,7 +2770,7 @@ fn remap_core_expr_runtime_ids(expr: &mut core_ir::Expr, expected_edge_offset: u
                 remap_core_expr_runtime_ids(tail, expected_edge_offset);
             }
         }
-        core_ir::Expr::Handle { body, arms, .. } => {
+        typed_ir::Expr::Handle { body, arms, .. } => {
             remap_core_expr_runtime_ids(body, expected_edge_offset);
             for arm in arms {
                 if let Some(guard) = &mut arm.guard {
@@ -2779,45 +2779,45 @@ fn remap_core_expr_runtime_ids(expr: &mut core_ir::Expr, expected_edge_offset: u
                 remap_core_expr_runtime_ids(&mut arm.body, expected_edge_offset);
             }
         }
-        core_ir::Expr::Coerce { expr, evidence } => {
+        typed_ir::Expr::Coerce { expr, evidence } => {
             remap_core_expr_runtime_ids(expr, expected_edge_offset);
             if let Some(evidence) = evidence {
                 remap_optional_expected_edge(&mut evidence.source_edge, expected_edge_offset);
             }
         }
-        core_ir::Expr::BindHere { expr } => {
+        typed_ir::Expr::BindHere { expr } => {
             remap_core_expr_runtime_ids(expr, expected_edge_offset);
         }
-        core_ir::Expr::Pack { expr, .. } => {
+        typed_ir::Expr::Pack { expr, .. } => {
             remap_core_expr_runtime_ids(expr, expected_edge_offset);
         }
     }
 }
 
 fn remap_record_spread_expr_runtime_ids(
-    spread: &mut core_ir::RecordSpreadExpr,
+    spread: &mut typed_ir::RecordSpreadExpr,
     expected_edge_offset: u32,
 ) {
     match spread {
-        core_ir::RecordSpreadExpr::Head(expr) | core_ir::RecordSpreadExpr::Tail(expr) => {
+        typed_ir::RecordSpreadExpr::Head(expr) | typed_ir::RecordSpreadExpr::Tail(expr) => {
             remap_core_expr_runtime_ids(expr, expected_edge_offset);
         }
     }
 }
 
-fn remap_core_stmt_runtime_ids(stmt: &mut core_ir::Stmt, expected_edge_offset: u32) {
+fn remap_core_stmt_runtime_ids(stmt: &mut typed_ir::Stmt, expected_edge_offset: u32) {
     match stmt {
-        core_ir::Stmt::Let { value, .. } | core_ir::Stmt::Expr(value) => {
+        typed_ir::Stmt::Let { value, .. } | typed_ir::Stmt::Expr(value) => {
             remap_core_expr_runtime_ids(value, expected_edge_offset);
         }
-        core_ir::Stmt::Module { body, .. } => {
+        typed_ir::Stmt::Module { body, .. } => {
             remap_core_expr_runtime_ids(body, expected_edge_offset);
         }
     }
 }
 
 fn remap_apply_evidence_runtime_ids(
-    evidence: &mut core_ir::ApplyEvidence,
+    evidence: &mut typed_ir::ApplyEvidence,
     expected_edge_offset: u32,
 ) {
     remap_optional_expected_edge(&mut evidence.callee_source_edge, expected_edge_offset);
@@ -2875,8 +2875,8 @@ fn merge_core_program_into(
 }
 
 fn merge_primitive_type_graph_nodes(
-    target: &mut Vec<core_ir::PrimitiveTypeGraphNode>,
-    source: Vec<core_ir::PrimitiveTypeGraphNode>,
+    target: &mut Vec<typed_ir::PrimitiveTypeGraphNode>,
+    source: Vec<typed_ir::PrimitiveTypeGraphNode>,
 ) -> Result<(), CompiledRuntimeMergeError> {
     for node in source {
         match target
@@ -2896,8 +2896,8 @@ fn merge_primitive_type_graph_nodes(
 }
 
 fn merge_role_impl_graph_nodes(
-    target: &mut Vec<core_ir::RoleImplGraphNode>,
-    source: Vec<core_ir::RoleImplGraphNode>,
+    target: &mut Vec<typed_ir::RoleImplGraphNode>,
+    source: Vec<typed_ir::RoleImplGraphNode>,
 ) {
     for node in source {
         if !target.contains(&node) {
@@ -2907,8 +2907,8 @@ fn merge_role_impl_graph_nodes(
 }
 
 fn merge_principal_bindings(
-    target: &mut Vec<core_ir::PrincipalBinding>,
-    source: Vec<core_ir::PrincipalBinding>,
+    target: &mut Vec<typed_ir::PrincipalBinding>,
+    source: Vec<typed_ir::PrincipalBinding>,
 ) -> Result<(), CompiledRuntimeMergeError> {
     let mut by_path = target
         .iter()
@@ -2929,8 +2929,8 @@ fn merge_principal_bindings(
 }
 
 fn merge_binding_graph_nodes(
-    target: &mut Vec<core_ir::BindingGraphNode>,
-    source: Vec<core_ir::BindingGraphNode>,
+    target: &mut Vec<typed_ir::BindingGraphNode>,
+    source: Vec<typed_ir::BindingGraphNode>,
 ) -> Result<(), CompiledRuntimeMergeError> {
     let mut by_path = target
         .iter()
@@ -2953,8 +2953,8 @@ fn merge_binding_graph_nodes(
 }
 
 fn merge_runtime_symbols(
-    target: &mut Vec<core_ir::RuntimeSymbol>,
-    source: Vec<core_ir::RuntimeSymbol>,
+    target: &mut Vec<typed_ir::RuntimeSymbol>,
+    source: Vec<typed_ir::RuntimeSymbol>,
 ) -> Result<(), CompiledRuntimeMergeError> {
     let mut by_path = target
         .iter()
@@ -3324,12 +3324,12 @@ fn import_compiled_namespace_module_map(
     modules
         .iter()
         .map(|module| {
-            let path = yulang_core_ir::Path {
+            let path = yulang_typed_ir::Path {
                 segments: module
                     .path
                     .iter()
                     .cloned()
-                    .map(yulang_core_ir::Name)
+                    .map(yulang_typed_ir::Name)
                     .collect(),
             };
             module_id_for_core_path(state, &path)
@@ -3535,7 +3535,7 @@ fn compiled_namespace_fixity_tag(fixity: StdInferSnapshotOperatorFixity) -> &'st
     }
 }
 
-fn module_id_for_core_path(state: &LowerState, path: &yulang_core_ir::Path) -> Option<ModuleId> {
+fn module_id_for_core_path(state: &LowerState, path: &yulang_typed_ir::Path) -> Option<ModuleId> {
     state.ctx.modules.module_ids().find(|module| {
         path_from_infer_path(&state.ctx.module_path(*module)).segments == path.segments
     })
@@ -3739,12 +3739,12 @@ fn compiled_namespace_module_children(
     modules
 }
 
-fn path_from_infer_path(path: &Path) -> yulang_core_ir::Path {
-    yulang_core_ir::Path {
+fn path_from_infer_path(path: &Path) -> yulang_typed_ir::Path {
+    yulang_typed_ir::Path {
         segments: path
             .segments
             .iter()
-            .map(|name| yulang_core_ir::Name(name.0.clone()))
+            .map(|name| yulang_typed_ir::Name(name.0.clone()))
             .collect(),
     }
 }

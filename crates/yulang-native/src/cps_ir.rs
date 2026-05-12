@@ -1,4 +1,4 @@
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CpsModule {
@@ -74,13 +74,13 @@ pub enum CpsStmt {
     },
     Variant {
         dest: CpsValueId,
-        tag: core_ir::Name,
+        tag: typed_ir::Name,
         value: Option<CpsValueId>,
     },
     Select {
         dest: CpsValueId,
         base: CpsValueId,
-        field: core_ir::Name,
+        field: typed_ir::Name,
     },
     TupleGet {
         dest: CpsValueId,
@@ -90,7 +90,7 @@ pub enum CpsStmt {
     VariantTagEq {
         dest: CpsValueId,
         variant: CpsValueId,
-        tag: core_ir::Name,
+        tag: typed_ir::Name,
     },
     VariantPayload {
         dest: CpsValueId,
@@ -98,7 +98,7 @@ pub enum CpsStmt {
     },
     Primitive {
         dest: CpsValueId,
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
         args: Vec<CpsValueId>,
     },
     DirectCall {
@@ -144,7 +144,7 @@ pub enum CpsStmt {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CpsRecordField {
-    pub name: core_ir::Name,
+    pub name: typed_ir::Name,
     pub value: CpsValueId,
 }
 
@@ -167,7 +167,7 @@ pub enum CpsTerminator {
         else_cont: CpsContinuationId,
     },
     Perform {
-        effect: core_ir::Path,
+        effect: typed_ir::Path,
         payload: CpsValueId,
         resume: CpsContinuationId,
         handler: CpsHandlerId,
@@ -207,7 +207,7 @@ pub struct CpsHandler {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CpsHandlerArm {
-    pub effect: core_ir::Path,
+    pub effect: typed_ir::Path,
     pub entry: CpsContinuationId,
 }
 

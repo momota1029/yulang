@@ -140,7 +140,10 @@ fn stmt_def(stmt: &CpsStmt) -> Option<CpsValueId> {
 fn continuation_uses(
     continuation: &crate::cps_ir::CpsContinuation,
     continuation_captures: &HashMap<crate::cps_ir::CpsContinuationId, Vec<CpsValueId>>,
-    handler_arm_entries: &HashMap<crate::cps_ir::CpsHandlerId, Vec<crate::cps_ir::CpsContinuationId>>,
+    handler_arm_entries: &HashMap<
+        crate::cps_ir::CpsHandlerId,
+        Vec<crate::cps_ir::CpsContinuationId>,
+    >,
 ) -> Vec<CpsValueId> {
     let mut uses = BTreeSet::new();
     for stmt in &continuation.stmts {
@@ -341,7 +344,7 @@ fn continuation_uses(
 
 #[cfg(test)]
 mod tests {
-    use yulang_core_ir as core_ir;
+    use yulang_typed_ir as typed_ir;
 
     use crate::cps_ir::{
         CpsContinuation, CpsContinuationId, CpsFunction, CpsLiteral, CpsModule, CpsShotKind,
@@ -381,7 +384,7 @@ mod tests {
                         shot_kind: CpsShotKind::MultiShot,
                         stmts: vec![CpsStmt::Primitive {
                             dest: CpsValueId(2),
-                            op: core_ir::PrimitiveOp::IntAdd,
+                            op: typed_ir::PrimitiveOp::IntAdd,
                             args: vec![CpsValueId(0), CpsValueId(1)],
                         }],
                         terminator: CpsTerminator::Return(CpsValueId(2)),

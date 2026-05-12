@@ -17,9 +17,9 @@ pub(crate) enum TypeChoice {
 }
 
 pub(crate) fn choose_bounds_type(
-    bounds: &core_ir::TypeBounds,
+    bounds: &typed_ir::TypeBounds,
     choice: BoundsChoice,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     choose_bounds_pair(
         bounds.lower.as_deref().cloned(),
         bounds.upper.as_deref().cloned(),
@@ -28,10 +28,10 @@ pub(crate) fn choose_bounds_type(
 }
 
 pub(crate) fn choose_bounds_pair(
-    lower: Option<core_ir::Type>,
-    upper: Option<core_ir::Type>,
+    lower: Option<typed_ir::Type>,
+    upper: Option<typed_ir::Type>,
     choice: BoundsChoice,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     match (lower, upper) {
         (Some(lower), Some(upper)) if lower == upper => Some(lower),
         (Some(lower), Some(upper)) => choose_distinct_bounds(lower, upper, choice),
@@ -42,10 +42,10 @@ pub(crate) fn choose_bounds_pair(
 }
 
 pub(crate) fn choose_core_type(
-    left: core_ir::Type,
-    right: core_ir::Type,
+    left: typed_ir::Type,
+    right: typed_ir::Type,
     choice: TypeChoice,
-) -> core_ir::Type {
+) -> typed_ir::Type {
     match choice {
         TypeChoice::RuntimeValue => choose_runtime_type(left, right),
         TypeChoice::VisiblePrincipal => choose_visible_type(left, right),
@@ -54,10 +54,10 @@ pub(crate) fn choose_core_type(
 }
 
 pub(crate) fn choose_optional_core_type(
-    left: Option<core_ir::Type>,
-    right: Option<core_ir::Type>,
+    left: Option<typed_ir::Type>,
+    right: Option<typed_ir::Type>,
     choice: TypeChoice,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     match (left, right) {
         (Some(left), Some(right)) => Some(choose_core_type(left, right, choice)),
         (Some(ty), None) | (None, Some(ty)) => Some(ty),
@@ -66,17 +66,17 @@ pub(crate) fn choose_optional_core_type(
 }
 
 pub(crate) fn choose_core_type_candidate(
-    current: Option<core_ir::Type>,
-    candidate: core_ir::Type,
+    current: Option<typed_ir::Type>,
+    candidate: typed_ir::Type,
     choice: TypeChoice,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     match current {
         Some(current) => Some(choose_core_type(current, candidate, choice)),
         None => Some(candidate),
     }
 }
 
-pub(crate) fn core_type_is_hole(ty: &core_ir::Type) -> bool {
+pub(crate) fn core_type_is_hole(ty: &typed_ir::Type) -> bool {
     core_type_is_inference_hole(ty)
 }
 
@@ -85,12 +85,12 @@ pub(crate) fn hir_type_is_hole(ty: &RuntimeType) -> bool {
 }
 
 #[cfg(test)]
-fn type_hole_count(ty: &core_ir::Type) -> usize {
+fn type_hole_count(ty: &typed_ir::Type) -> usize {
     match ty {
-        core_ir::Type::Unknown | core_ir::Type::Var(_) => 1,
-        core_ir::Type::Any => 0,
-        core_ir::Type::Named { args, .. } => args.iter().map(type_arg_hole_count).sum(),
-        core_ir::Type::Fun {
+        typed_ir::Type::Unknown | typed_ir::Type::Var(_) => 1,
+        typed_ir::Type::Any => 0,
+        typed_ir::Type::Named { args, .. } => args.iter().map(type_arg_hole_count).sum(),
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -101,10 +101,10 @@ fn type_hole_count(ty: &core_ir::Type) -> usize {
                 + type_hole_count(ret_effect)
                 + type_hole_count(ret)
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
-            items.iter().map(type_hole_count).sum()
-        }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().map(type_hole_count).sum(),
+        typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
@@ -116,7 +116,7 @@ fn type_hole_count(ty: &core_ir::Type) -> usize {
                     .map(record_spread_hole_count)
                     .unwrap_or(0)
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant
                 .cases
                 .iter()
@@ -125,19 +125,19 @@ fn type_hole_count(ty: &core_ir::Type) -> usize {
                 .sum::<usize>()
                 + variant.tail.as_deref().map(type_hole_count).unwrap_or(0)
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             items.iter().map(type_hole_count).sum::<usize>() + type_hole_count(tail)
         }
-        core_ir::Type::Recursive { body, .. } => type_hole_count(body),
-        core_ir::Type::Never => 0,
+        typed_ir::Type::Recursive { body, .. } => type_hole_count(body),
+        typed_ir::Type::Never => 0,
     }
 }
 
-pub(crate) fn type_imprecision_count(ty: &core_ir::Type) -> usize {
+pub(crate) fn type_imprecision_count(ty: &typed_ir::Type) -> usize {
     match ty {
-        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_) => 1,
-        core_ir::Type::Named { args, .. } => args.iter().map(type_arg_imprecision_count).sum(),
-        core_ir::Type::Fun {
+        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_) => 1,
+        typed_ir::Type::Named { args, .. } => args.iter().map(type_arg_imprecision_count).sum(),
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -148,10 +148,10 @@ pub(crate) fn type_imprecision_count(ty: &core_ir::Type) -> usize {
                 + type_imprecision_count(ret_effect)
                 + type_imprecision_count(ret)
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
-            items.iter().map(type_imprecision_count).sum()
-        }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().map(type_imprecision_count).sum(),
+        typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
@@ -163,7 +163,7 @@ pub(crate) fn type_imprecision_count(ty: &core_ir::Type) -> usize {
                     .map(record_spread_imprecision_count)
                     .unwrap_or(0)
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant
                 .cases
                 .iter()
@@ -176,11 +176,11 @@ pub(crate) fn type_imprecision_count(ty: &core_ir::Type) -> usize {
                     .map(type_imprecision_count)
                     .unwrap_or(0)
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             items.iter().map(type_imprecision_count).sum::<usize>() + type_imprecision_count(tail)
         }
-        core_ir::Type::Recursive { body, .. } => type_imprecision_count(body),
-        core_ir::Type::Never => 0,
+        typed_ir::Type::Recursive { body, .. } => type_imprecision_count(body),
+        typed_ir::Type::Never => 0,
     }
 }
 
@@ -197,28 +197,28 @@ pub(crate) fn hir_type_imprecision_count(ty: &RuntimeType) -> usize {
     }
 }
 
-pub(crate) fn type_choice_rank(ty: &core_ir::Type, choice: TypeChoice) -> u8 {
+pub(crate) fn type_choice_rank(ty: &typed_ir::Type, choice: TypeChoice) -> u8 {
     match ty {
-        core_ir::Type::Fun { .. } => 8,
-        core_ir::Type::Tuple(_) | core_ir::Type::Record(_) | core_ir::Type::Variant(_) => 7,
-        core_ir::Type::Named { .. } => 6,
-        core_ir::Type::Never => 2,
-        core_ir::Type::Var(_) if matches!(choice, TypeChoice::Substitution) => 1,
-        core_ir::Type::Recursive { body, .. } => type_choice_rank(body, choice),
-        core_ir::Type::Unknown
-        | core_ir::Type::Any
-        | core_ir::Type::Var(_)
-        | core_ir::Type::Union(_)
-        | core_ir::Type::Inter(_)
-        | core_ir::Type::Row { .. } => 0,
+        typed_ir::Type::Fun { .. } => 8,
+        typed_ir::Type::Tuple(_) | typed_ir::Type::Record(_) | typed_ir::Type::Variant(_) => 7,
+        typed_ir::Type::Named { .. } => 6,
+        typed_ir::Type::Never => 2,
+        typed_ir::Type::Var(_) if matches!(choice, TypeChoice::Substitution) => 1,
+        typed_ir::Type::Recursive { body, .. } => type_choice_rank(body, choice),
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_)
+        | typed_ir::Type::Union(_)
+        | typed_ir::Type::Inter(_)
+        | typed_ir::Type::Row { .. } => 0,
     }
 }
 
 fn choose_distinct_bounds(
-    lower: core_ir::Type,
-    upper: core_ir::Type,
+    lower: typed_ir::Type,
+    upper: typed_ir::Type,
     choice: BoundsChoice,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     match choice {
         BoundsChoice::RuntimeValue => {
             if is_runtime_floor(&lower) {
@@ -241,18 +241,21 @@ fn choose_distinct_bounds(
     }
 }
 
-fn choose_single_lower_bound(lower: core_ir::Type, choice: BoundsChoice) -> Option<core_ir::Type> {
+fn choose_single_lower_bound(
+    lower: typed_ir::Type,
+    choice: BoundsChoice,
+) -> Option<typed_ir::Type> {
     match choice {
         BoundsChoice::RuntimeValue if is_runtime_floor(&lower) => None,
         _ => Some(lower),
     }
 }
 
-fn choose_runtime_type(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
-    if matches!(left, core_ir::Type::Never) && matches!(right, core_ir::Type::Var(_)) {
+fn choose_runtime_type(left: typed_ir::Type, right: typed_ir::Type) -> typed_ir::Type {
+    if matches!(left, typed_ir::Type::Never) && matches!(right, typed_ir::Type::Var(_)) {
         return right;
     }
-    if matches!(left, core_ir::Type::Var(_)) && matches!(right, core_ir::Type::Never) {
+    if matches!(left, typed_ir::Type::Var(_)) && matches!(right, typed_ir::Type::Never) {
         return left;
     }
     if type_compatible(&left, &right) {
@@ -267,7 +270,7 @@ fn choose_runtime_type(left: core_ir::Type, right: core_ir::Type) -> core_ir::Ty
     }
 }
 
-fn choose_visible_type(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
+fn choose_visible_type(left: typed_ir::Type, right: typed_ir::Type) -> typed_ir::Type {
     match (core_type_is_hole(&left), core_type_is_hole(&right)) {
         (true, false) => return right,
         (false, true) => return left,
@@ -287,14 +290,14 @@ fn choose_visible_type(left: core_ir::Type, right: core_ir::Type) -> core_ir::Ty
     }
 }
 
-fn choose_substitution_type(left: core_ir::Type, right: core_ir::Type) -> core_ir::Type {
+fn choose_substitution_type(left: typed_ir::Type, right: typed_ir::Type) -> typed_ir::Type {
     if left == right {
         return left;
     }
-    if matches!(left, core_ir::Type::Never) && !matches!(right, core_ir::Type::Never) {
+    if matches!(left, typed_ir::Type::Never) && !matches!(right, typed_ir::Type::Never) {
         return right;
     }
-    if matches!(right, core_ir::Type::Never) {
+    if matches!(right, typed_ir::Type::Never) {
         return left;
     }
     if type_compatible(&left, &right) || type_compatible(&right, &left) {
@@ -304,7 +307,11 @@ fn choose_substitution_type(left: core_ir::Type, right: core_ir::Type) -> core_i
     }
 }
 
-fn choose_by_rank(left: core_ir::Type, right: core_ir::Type, choice: TypeChoice) -> core_ir::Type {
+fn choose_by_rank(
+    left: typed_ir::Type,
+    right: typed_ir::Type,
+    choice: TypeChoice,
+) -> typed_ir::Type {
     if type_choice_rank(&right, choice) > type_choice_rank(&left, choice) {
         right
     } else {
@@ -313,10 +320,10 @@ fn choose_by_rank(left: core_ir::Type, right: core_ir::Type, choice: TypeChoice)
 }
 
 #[cfg(test)]
-fn type_arg_hole_count(arg: &core_ir::TypeArg) -> usize {
+fn type_arg_hole_count(arg: &typed_ir::TypeArg) -> usize {
     match arg {
-        core_ir::TypeArg::Type(ty) => type_hole_count(ty),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(ty) => type_hole_count(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
             bounds.lower.as_deref().map(type_hole_count).unwrap_or(0)
                 + bounds.upper.as_deref().map(type_hole_count).unwrap_or(0)
         }
@@ -324,16 +331,16 @@ fn type_arg_hole_count(arg: &core_ir::TypeArg) -> usize {
 }
 
 #[cfg(test)]
-fn record_spread_hole_count(spread: &core_ir::RecordSpread) -> usize {
+fn record_spread_hole_count(spread: &typed_ir::RecordSpread) -> usize {
     match spread {
-        core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => type_hole_count(ty),
+        typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => type_hole_count(ty),
     }
 }
 
-fn type_arg_imprecision_count(arg: &core_ir::TypeArg) -> usize {
+fn type_arg_imprecision_count(arg: &typed_ir::TypeArg) -> usize {
     match arg {
-        core_ir::TypeArg::Type(ty) => type_imprecision_count(ty),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(ty) => type_imprecision_count(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
             bounds
                 .lower
                 .as_deref()
@@ -348,9 +355,9 @@ fn type_arg_imprecision_count(arg: &core_ir::TypeArg) -> usize {
     }
 }
 
-fn record_spread_imprecision_count(spread: &core_ir::RecordSpread) -> usize {
+fn record_spread_imprecision_count(spread: &typed_ir::RecordSpread) -> usize {
     match spread {
-        core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+        typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
             type_imprecision_count(ty)
         }
     }
@@ -363,8 +370,8 @@ mod tests {
     #[test]
     fn bounds_choice_names_upper_and_lower_priorities() {
         let lower = named("int");
-        let upper = core_ir::Type::Any;
-        let bounds = core_ir::TypeBounds {
+        let upper = typed_ir::Type::Any;
+        let bounds = typed_ir::TypeBounds {
             lower: Some(Box::new(lower.clone())),
             upper: Some(Box::new(upper.clone())),
         };
@@ -385,8 +392,8 @@ mod tests {
 
     #[test]
     fn runtime_bounds_skip_unusable_lower_floor() {
-        let bounds = core_ir::TypeBounds {
-            lower: Some(Box::new(core_ir::Type::Never)),
+        let bounds = typed_ir::TypeBounds {
+            lower: Some(Box::new(typed_ir::Type::Never)),
             upper: Some(Box::new(named("int"))),
         };
 
@@ -400,7 +407,7 @@ mod tests {
     fn visible_type_choice_prefers_concrete_shapes_over_holes() {
         assert_eq!(
             choose_core_type(
-                core_ir::Type::Any,
+                typed_ir::Type::Any,
                 named("int"),
                 TypeChoice::VisiblePrincipal
             ),
@@ -410,10 +417,10 @@ mod tests {
 
     #[test]
     fn hole_count_does_not_count_any_but_imprecision_does() {
-        assert_eq!(type_hole_count(&core_ir::Type::Any), 0);
-        assert_eq!(type_imprecision_count(&core_ir::Type::Any), 1);
+        assert_eq!(type_hole_count(&typed_ir::Type::Any), 0);
+        assert_eq!(type_imprecision_count(&typed_ir::Type::Any), 1);
         assert_eq!(
-            type_hole_count(&core_ir::Type::Var(core_ir::TypeVar("a".to_string()))),
+            type_hole_count(&typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()))),
             1
         );
     }
@@ -421,18 +428,26 @@ mod tests {
     #[test]
     fn substitution_type_choice_keeps_non_never_candidate() {
         assert_eq!(
-            choose_core_type(core_ir::Type::Never, named("int"), TypeChoice::Substitution),
+            choose_core_type(
+                typed_ir::Type::Never,
+                named("int"),
+                TypeChoice::Substitution
+            ),
             named("int")
         );
         assert_eq!(
-            choose_core_type(named("int"), core_ir::Type::Never, TypeChoice::Substitution),
+            choose_core_type(
+                named("int"),
+                typed_ir::Type::Never,
+                TypeChoice::Substitution
+            ),
             named("int")
         );
     }
 
-    fn named(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args: Vec::new(),
         }
     }

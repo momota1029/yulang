@@ -1,4 +1,4 @@
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::lower::LowerState;
 use crate::lower::builtin_types::{builtin_runtime_type_path, builtin_source_type_path};
@@ -40,6 +40,6 @@ pub(super) fn named_path(name: &str) -> Path {
     builtin_source_type_path(name)
 }
 
-pub(super) fn named_runtime_path(name: &str) -> core_ir::Path {
+pub(super) fn named_runtime_path(name: &str) -> typed_ir::Path {
     builtin_runtime_type_path(name)
 }

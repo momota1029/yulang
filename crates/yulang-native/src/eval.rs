@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
+use yulang_typed_ir as typed_ir;
 
 use crate::control_ir::{
     BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeStmt,
@@ -37,14 +37,14 @@ pub enum NativeEvalError {
         id: ValueId,
     },
     UnsupportedPrimitive {
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
     },
     PrimitiveTypeMismatch {
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
         value: runtime::VmValue,
     },
     InvalidPrimitiveArity {
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
         expected: usize,
         actual: usize,
     },
@@ -302,7 +302,7 @@ fn eval_blocks(
                 else_block,
             } => {
                 let cond = read_plain_value(&values, *cond)?;
-                current = if bool_value(core_ir::PrimitiveOp::BoolNot, &cond)? {
+                current = if bool_value(typed_ir::PrimitiveOp::BoolNot, &cond)? {
                     *then_block
                 } else {
                     *else_block
@@ -408,17 +408,17 @@ fn eval_literal(lit: &NativeLiteral) -> runtime::VmValue {
 }
 
 pub(crate) fn eval_primitive_for_abi(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[runtime::VmValue],
 ) -> NativeEvalResult<runtime::VmValue> {
     eval_primitive(op, args)
 }
 
 fn eval_primitive(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[runtime::VmValue],
 ) -> NativeEvalResult<runtime::VmValue> {
-    use core_ir::PrimitiveOp;
+    use typed_ir::PrimitiveOp;
     match op {
         PrimitiveOp::BoolNot => {
             expect_arity(op, args, 1)?;
@@ -479,7 +479,7 @@ fn eval_primitive(
 }
 
 fn int_bin_op(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[runtime::VmValue],
     f: impl FnOnce(i64, i64) -> i64,
 ) -> NativeEvalResult<runtime::VmValue> {
@@ -490,7 +490,7 @@ fn int_bin_op(
 }
 
 fn int_cmp_op(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[runtime::VmValue],
     f: impl FnOnce(i64, i64) -> bool,
 ) -> NativeEvalResult<runtime::VmValue> {
@@ -502,7 +502,7 @@ fn int_cmp_op(
 }
 
 fn float_bin_op(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[runtime::VmValue],
     f: impl FnOnce(f64, f64) -> f64,
 ) -> NativeEvalResult<runtime::VmValue> {
@@ -514,7 +514,7 @@ fn float_bin_op(
 }
 
 fn float_cmp_op(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[runtime::VmValue],
     f: impl FnOnce(f64, f64) -> bool,
 ) -> NativeEvalResult<runtime::VmValue> {
@@ -526,7 +526,7 @@ fn float_cmp_op(
 }
 
 fn expect_arity(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[runtime::VmValue],
     expected: usize,
 ) -> NativeEvalResult<()> {
@@ -541,7 +541,7 @@ fn expect_arity(
     }
 }
 
-fn int_value(op: core_ir::PrimitiveOp, value: &runtime::VmValue) -> NativeEvalResult<i64> {
+fn int_value(op: typed_ir::PrimitiveOp, value: &runtime::VmValue) -> NativeEvalResult<i64> {
     match value {
         runtime::VmValue::Int(value) => {
             value
@@ -558,7 +558,7 @@ fn int_value(op: core_ir::PrimitiveOp, value: &runtime::VmValue) -> NativeEvalRe
     }
 }
 
-fn float_value(op: core_ir::PrimitiveOp, value: &runtime::VmValue) -> NativeEvalResult<f64> {
+fn float_value(op: typed_ir::PrimitiveOp, value: &runtime::VmValue) -> NativeEvalResult<f64> {
     match value {
         runtime::VmValue::Float(value) => {
             value
@@ -575,7 +575,7 @@ fn float_value(op: core_ir::PrimitiveOp, value: &runtime::VmValue) -> NativeEval
     }
 }
 
-fn bool_value(op: core_ir::PrimitiveOp, value: &runtime::VmValue) -> NativeEvalResult<bool> {
+fn bool_value(op: typed_ir::PrimitiveOp, value: &runtime::VmValue) -> NativeEvalResult<bool> {
     match value {
         runtime::VmValue::Bool(value) => Ok(*value),
         value => Err(NativeEvalError::PrimitiveTypeMismatch {
@@ -586,7 +586,7 @@ fn bool_value(op: core_ir::PrimitiveOp, value: &runtime::VmValue) -> NativeEvalR
 }
 
 fn string_value(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     value: &runtime::VmValue,
 ) -> NativeEvalResult<&runtime::runtime::string_tree::StringTree> {
     match value {

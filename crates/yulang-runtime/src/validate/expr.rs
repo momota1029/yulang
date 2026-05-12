@@ -2,9 +2,9 @@ use super::*;
 
 pub(super) fn validate_expr(
     expr: &Expr,
-    bindings: &HashMap<core_ir::Path, BindingInfo>,
+    bindings: &HashMap<typed_ir::Path, BindingInfo>,
     type_arg_kinds: &TypeArgKinds,
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     validate_hir_type_no_any(&expr.ty, TypeSource::Validation, type_arg_kinds)?;
     match &expr.kind {
@@ -28,7 +28,7 @@ pub(super) fn validate_expr(
         ExprKind::PrimitiveOp(_) | ExprKind::Lit(_) => {}
         ExprKind::Lambda { param, body, .. } => {
             let (param_ty, ret) = validate_lambda_type(&expr.ty)?;
-            let local = core_ir::Path::from_name(param.clone());
+            let local = typed_ir::Path::from_name(param.clone());
             let previous = locals.insert(local.clone(), param_ty);
             validate_expr(body, bindings, type_arg_kinds, locals)?;
             require_same_hir_type(&ret, &body.ty, TypeSource::Expected)?;
@@ -56,7 +56,7 @@ pub(super) fn validate_expr(
                         }
                     }
                 }
-                RuntimeType::Core(core_ir::Type::Fun { param, ret, .. }) => {
+                RuntimeType::Core(typed_ir::Type::Fun { param, ret, .. }) => {
                     require_same_type(
                         param,
                         hir_value_core_type(&arg.ty).as_ref(),
@@ -68,7 +68,7 @@ pub(super) fn validate_expr(
                         TypeSource::ApplyEvidence,
                     )?;
                 }
-                RuntimeType::Core(core_ir::Type::Var(_) | core_ir::Type::Any) => {
+                RuntimeType::Core(typed_ir::Type::Var(_) | typed_ir::Type::Any) => {
                     if let Some(evidence) = evidence {
                         if let Some(arg_ty) =
                             choose_bounds_type(&evidence.arg, BoundsChoice::ValidationEvidence)
@@ -93,7 +93,7 @@ pub(super) fn validate_expr(
                 RuntimeType::Thunk { value, .. }
                     if matches!(
                         value.as_ref(),
-                        RuntimeType::Core(core_ir::Type::Var(_) | core_ir::Type::Any)
+                        RuntimeType::Core(typed_ir::Type::Var(_) | typed_ir::Type::Any)
                     ) =>
                 {
                     if let Some(evidence) = evidence {
@@ -294,9 +294,9 @@ pub(super) fn validate_expr(
 
 pub(super) fn validate_stmt(
     stmt: &Stmt,
-    bindings: &HashMap<core_ir::Path, BindingInfo>,
+    bindings: &HashMap<typed_ir::Path, BindingInfo>,
     type_arg_kinds: &TypeArgKinds,
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     match stmt {
         Stmt::Let { pattern, value } => {
@@ -313,7 +313,7 @@ pub(super) fn validate_stmt(
 }
 
 fn apply_evidence_result_matches(
-    evidence: Option<&core_ir::ApplyEvidence>,
+    evidence: Option<&typed_ir::ApplyEvidence>,
     actual: &RuntimeType,
 ) -> RuntimeResult<bool> {
     let Some(evidence) = evidence else {
@@ -345,11 +345,11 @@ fn expr_evidence_result_matches(expr: &Expr, actual: &RuntimeType) -> RuntimeRes
 
 pub(super) fn validate_match_arm(
     arm: &MatchArm,
-    scrutinee_ty: &core_ir::Type,
-    result_ty: &core_ir::Type,
-    bindings: &HashMap<core_ir::Path, BindingInfo>,
+    scrutinee_ty: &typed_ir::Type,
+    result_ty: &typed_ir::Type,
+    bindings: &HashMap<typed_ir::Path, BindingInfo>,
     type_arg_kinds: &TypeArgKinds,
-    locals: &HashMap<core_ir::Path, RuntimeType>,
+    locals: &HashMap<typed_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     let mut arm_locals = locals.clone();
     validate_match_pattern(&arm.pattern, scrutinee_ty, type_arg_kinds, &mut arm_locals)?;
@@ -367,9 +367,9 @@ pub(super) fn validate_match_arm(
 
 fn validate_match_pattern(
     pattern: &Pattern,
-    scrutinee_ty: &core_ir::Type,
+    scrutinee_ty: &typed_ir::Type,
     type_arg_kinds: &TypeArgKinds,
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     if let Pattern::Or { left, right, .. } = pattern {
         validate_match_pattern(left, scrutinee_ty, type_arg_kinds, locals)?;
@@ -388,11 +388,11 @@ fn validate_match_pattern(
 
 fn variant_pattern_is_disjoint_from_scrutinee(
     pattern: &Pattern,
-    scrutinee_ty: &core_ir::Type,
+    scrutinee_ty: &typed_ir::Type,
 ) -> bool {
     match pattern {
         Pattern::Variant { tag, .. } => match scrutinee_ty {
-            core_ir::Type::Variant(variant) => !variant.cases.iter().any(|case| case.name == *tag),
+            typed_ir::Type::Variant(variant) => !variant.cases.iter().any(|case| case.name == *tag),
             _ => false,
         },
         Pattern::As { pattern, .. } => {
@@ -404,23 +404,23 @@ fn variant_pattern_is_disjoint_from_scrutinee(
 
 pub(super) fn validate_handle_arm(
     arm: &HandleArm,
-    body_ty: &core_ir::Type,
-    result_ty: &core_ir::Type,
-    bindings: &HashMap<core_ir::Path, BindingInfo>,
+    body_ty: &typed_ir::Type,
+    result_ty: &typed_ir::Type,
+    bindings: &HashMap<typed_ir::Path, BindingInfo>,
     type_arg_kinds: &TypeArgKinds,
-    locals: &HashMap<core_ir::Path, RuntimeType>,
+    locals: &HashMap<typed_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     let mut arm_locals = locals.clone();
-    let payload_ty = if arm.effect == core_ir::Path::default() {
+    let payload_ty = if arm.effect == typed_ir::Path::default() {
         body_ty.clone()
     } else {
-        core_ir::Type::Any
+        typed_ir::Type::Any
     };
     validate_pattern(&arm.payload, &payload_ty, type_arg_kinds, &mut arm_locals)?;
     if let Some(resume) = &arm.resume {
         validate_resume_binding(resume, body_ty)?;
         arm_locals.insert(
-            core_ir::Path::from_name(resume.name.clone()),
+            typed_ir::Path::from_name(resume.name.clone()),
             resume.ty.clone(),
         );
     }
@@ -452,7 +452,7 @@ pub(super) fn validate_handle_effect(
 
 pub(super) fn validate_resume_binding(
     resume: &ResumeBinding,
-    body_ty: &core_ir::Type,
+    body_ty: &typed_ir::Type,
 ) -> RuntimeResult<()> {
     match &resume.ty {
         RuntimeType::Fun { ret, .. } => require_same_type(
@@ -460,7 +460,7 @@ pub(super) fn validate_resume_binding(
             hir_value_core_type(ret).as_ref(),
             TypeSource::Expected,
         ),
-        RuntimeType::Core(core_ir::Type::Fun { ret, .. }) => {
+        RuntimeType::Core(typed_ir::Type::Fun { ret, .. }) => {
             require_same_type(body_ty, ret, TypeSource::Expected)
         }
         other => Err(RuntimeError::NonFunctionCallee {
@@ -473,7 +473,7 @@ pub(super) fn validate_lambda_type(ty: &RuntimeType) -> RuntimeResult<(RuntimeTy
     match ty {
         RuntimeType::Fun { param, ret } => Ok((param.as_ref().clone(), ret.as_ref().clone())),
         RuntimeType::Thunk { value, .. } => validate_lambda_type(value),
-        RuntimeType::Core(core_ir::Type::Fun { param, ret, .. }) => Ok((
+        RuntimeType::Core(typed_ir::Type::Fun { param, ret, .. }) => Ok((
             RuntimeType::core(param.as_ref().clone()),
             RuntimeType::core(ret.as_ref().clone()),
         )),
@@ -485,7 +485,7 @@ pub(super) fn validate_lambda_type(ty: &RuntimeType) -> RuntimeResult<(RuntimeTy
 
 pub(super) fn validate_type_instantiation(
     instantiation: &TypeInstantiation,
-    bindings: &HashMap<core_ir::Path, BindingInfo>,
+    bindings: &HashMap<typed_ir::Path, BindingInfo>,
     type_arg_kinds: &TypeArgKinds,
 ) -> RuntimeResult<()> {
     let Some(info) = bindings.get(&instantiation.target) else {

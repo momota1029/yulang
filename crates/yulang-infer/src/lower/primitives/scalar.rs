@@ -1,4 +1,4 @@
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::ast::expr::TypedExpr;
 use crate::lower::LowerState;
@@ -11,7 +11,7 @@ pub(super) fn install_bool_unary_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_unary_primitive(state, module, name, op, "bool", "bool");
 }
@@ -20,7 +20,7 @@ pub(super) fn install_bool_binary_predicate_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_binary_predicate_primitive(state, module, name, op, "bool");
 }
@@ -29,7 +29,7 @@ pub(super) fn install_int_binary_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -85,7 +85,7 @@ pub(super) fn install_int_binary_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: binary_scheme_body("int"),
         },
@@ -96,7 +96,7 @@ pub(super) fn install_float_binary_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     let name = Name(name.to_string());
     if state.ctx.modules.node(module).values.contains_key(&name) {
@@ -152,7 +152,7 @@ pub(super) fn install_float_binary_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: binary_scheme_body("float"),
         },
@@ -163,7 +163,7 @@ pub(super) fn install_string_binary_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_binary_primitive(state, module, name, op, "str");
 }
@@ -172,7 +172,7 @@ pub(super) fn install_string_len_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_unary_primitive(state, module, name, op, "str", "int");
 }
@@ -181,7 +181,7 @@ pub(super) fn install_string_index_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_binary_mixed_primitive(state, module, name, op, "str", "int", "str");
 }
@@ -190,7 +190,7 @@ pub(super) fn install_string_index_range_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_binary_mixed_primitive(state, module, name, op, "str", "range", "str");
 }
@@ -199,7 +199,7 @@ pub(super) fn install_string_index_range_raw_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_ternary_mixed_primitive(state, module, name, op, ["str", "int", "int"], "str");
 }
@@ -208,7 +208,7 @@ pub(super) fn install_string_splice_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_ternary_mixed_primitive(state, module, name, op, ["str", "range", "str"], "str");
 }
@@ -217,7 +217,7 @@ pub(super) fn install_string_splice_raw_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_quaternary_mixed_primitive(
         state,
@@ -233,7 +233,7 @@ pub(super) fn install_to_string_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     param_name: &str,
 ) {
     install_unary_primitive(state, module, name, op, param_name, "str");
@@ -243,7 +243,7 @@ pub(super) fn install_int_binary_predicate_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_binary_predicate_primitive(state, module, name, op, "int");
 }
@@ -252,7 +252,7 @@ pub(super) fn install_float_binary_predicate_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) {
     install_binary_predicate_primitive(state, module, name, op, "float");
 }
@@ -261,7 +261,7 @@ fn install_unary_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     param_name: &str,
     ret_name: &str,
 ) {
@@ -305,7 +305,7 @@ fn install_unary_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: unary_scheme_body(param_name, ret_name),
         },
@@ -316,7 +316,7 @@ fn install_binary_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     type_name: &str,
 ) {
     let name = Name(name.to_string());
@@ -373,7 +373,7 @@ fn install_binary_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: binary_scheme_body(type_name),
         },
@@ -384,7 +384,7 @@ fn install_binary_mixed_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     first_name: &str,
     second_name: &str,
     ret_name: &str,
@@ -403,7 +403,7 @@ fn install_ternary_mixed_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     params: [&str; 3],
     ret_name: &str,
 ) {
@@ -414,7 +414,7 @@ fn install_quaternary_mixed_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     params: [&str; 4],
     ret_name: &str,
 ) {
@@ -425,7 +425,7 @@ fn install_mixed_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     params: &[&str],
     ret_name: &str,
 ) {
@@ -453,7 +453,7 @@ fn install_mixed_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: mixed_scheme_body(params, ret_name),
         },
@@ -494,7 +494,7 @@ fn install_binary_predicate_primitive(
     state: &mut LowerState,
     module: ModuleId,
     name: &str,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     arg_name: &str,
 ) {
     let name = Name(name.to_string());
@@ -551,84 +551,84 @@ fn install_binary_predicate_primitive(
     state.insert_principal_body(def, body);
     state.runtime_export_schemes.insert(
         def,
-        core_ir::Scheme {
+        typed_ir::Scheme {
             requirements: Vec::new(),
             body: binary_predicate_scheme_body(arg_name),
         },
     );
 }
 
-fn binary_scheme_body(name: &str) -> core_ir::Type {
-    let ty = core_ir::Type::Named {
+fn binary_scheme_body(name: &str) -> typed_ir::Type {
+    let ty = typed_ir::Type::Named {
         path: named_runtime_path(name),
         args: vec![],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(ty.clone()),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
-        ret: Box::new(core_ir::Type::Fun {
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
+        ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(ty.clone()),
-            param_effect: Box::new(core_ir::Type::Any),
-            ret_effect: Box::new(core_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(typed_ir::Type::Any),
             ret: Box::new(ty),
         }),
     }
 }
 
-fn unary_scheme_body(param_name: &str, ret_name: &str) -> core_ir::Type {
-    let param = core_ir::Type::Named {
+fn unary_scheme_body(param_name: &str, ret_name: &str) -> typed_ir::Type {
+    let param = typed_ir::Type::Named {
         path: named_runtime_path(param_name),
         args: vec![],
     };
-    let ret = core_ir::Type::Named {
+    let ret = typed_ir::Type::Named {
         path: named_runtime_path(ret_name),
         args: vec![],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(param),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
         ret: Box::new(ret),
     }
 }
 
-fn mixed_scheme_body(params: &[&str], ret_name: &str) -> core_ir::Type {
-    let ret = core_ir::Type::Named {
+fn mixed_scheme_body(params: &[&str], ret_name: &str) -> typed_ir::Type {
+    let ret = typed_ir::Type::Named {
         path: named_runtime_path(ret_name),
         args: vec![],
     };
     params.iter().rev().fold(ret, |ret, param_name| {
-        let param = core_ir::Type::Named {
+        let param = typed_ir::Type::Named {
             path: named_runtime_path(param_name),
             args: vec![],
         };
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param: Box::new(param),
-            param_effect: Box::new(core_ir::Type::Any),
-            ret_effect: Box::new(core_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(typed_ir::Type::Any),
             ret: Box::new(ret),
         }
     })
 }
 
-fn binary_predicate_scheme_body(name: &str) -> core_ir::Type {
-    let ty = core_ir::Type::Named {
-        path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+fn binary_predicate_scheme_body(name: &str) -> typed_ir::Type {
+    let ty = typed_ir::Type::Named {
+        path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
         args: vec![],
     };
-    let bool_ty = core_ir::Type::Named {
-        path: core_ir::Path::from_name(core_ir::Name("bool".to_string())),
+    let bool_ty = typed_ir::Type::Named {
+        path: typed_ir::Path::from_name(typed_ir::Name("bool".to_string())),
         args: vec![],
     };
-    core_ir::Type::Fun {
+    typed_ir::Type::Fun {
         param: Box::new(ty.clone()),
-        param_effect: Box::new(core_ir::Type::Any),
-        ret_effect: Box::new(core_ir::Type::Any),
-        ret: Box::new(core_ir::Type::Fun {
+        param_effect: Box::new(typed_ir::Type::Any),
+        ret_effect: Box::new(typed_ir::Type::Any),
+        ret: Box::new(typed_ir::Type::Fun {
             param: Box::new(ty),
-            param_effect: Box::new(core_ir::Type::Any),
-            ret_effect: Box::new(core_ir::Type::Any),
+            param_effect: Box::new(typed_ir::Type::Any),
+            ret_effect: Box::new(typed_ir::Type::Any),
             ret: Box::new(bool_ty),
         }),
     }

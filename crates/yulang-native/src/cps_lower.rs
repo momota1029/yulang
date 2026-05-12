@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
+use yulang_typed_ir as typed_ir;
 
 use crate::cps_capture::infer_cps_captures;
 use crate::cps_ir::{
@@ -25,20 +25,20 @@ pub enum CpsLowerError {
         kind: &'static str,
     },
     UnsupportedFreeVar {
-        path: core_ir::Path,
+        path: typed_ir::Path,
     },
     UnsupportedBareEffectOp {
-        path: core_ir::Path,
+        path: typed_ir::Path,
     },
     UnsupportedPattern {
         kind: &'static str,
     },
     UnsupportedBinding {
-        path: core_ir::Path,
+        path: typed_ir::Path,
         reason: &'static str,
     },
     PrimitiveArityMismatch {
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
         expected: usize,
         actual: usize,
     },
@@ -192,9 +192,9 @@ fn remap_handler_id(handler: &mut CpsHandlerId, offset: usize) {
 
 fn reachable_binding_paths(
     module: &runtime::Module,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
-    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
-) -> HashSet<core_ir::Path> {
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
+    bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
+) -> HashSet<typed_ir::Path> {
     let binding_bodies = module
         .bindings
         .iter()
@@ -227,9 +227,9 @@ fn reachable_binding_paths(
 
 fn collect_expr_direct_calls(
     expr: &runtime::Expr,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
-    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
-    out: &mut Vec<core_ir::Path>,
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
+    bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
+    out: &mut Vec<typed_ir::Path>,
 ) {
     if let Some((body, arms)) = inline_thunk_handler_apply(expr, functions, bindings) {
         collect_expr_direct_calls(&body, functions, bindings, out);
@@ -381,9 +381,9 @@ fn is_value_handler_arm(arm: &runtime::HandleArm) -> bool {
 }
 
 fn binding_has_self_direct_call(
-    target: &core_ir::Path,
+    target: &typed_ir::Path,
     expr: &runtime::Expr,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
 ) -> bool {
     if let Some((called, _)) = direct_apply_target(expr, functions)
         && &called == target
@@ -476,13 +476,13 @@ fn binding_has_self_direct_call(
     }
 }
 
-fn collect_expr_performed_effects(expr: &runtime::Expr) -> Vec<core_ir::Path> {
+fn collect_expr_performed_effects(expr: &runtime::Expr) -> Vec<typed_ir::Path> {
     let mut effects = Vec::new();
     collect_expr_performed_effects_into(expr, &mut effects);
     effects
 }
 
-fn collect_expr_performed_effects_into(expr: &runtime::Expr, out: &mut Vec<core_ir::Path>) {
+fn collect_expr_performed_effects_into(expr: &runtime::Expr, out: &mut Vec<typed_ir::Path>) {
     if let Some(request) = effect_apply_nested(expr)
         && !out.iter().any(|seen| seen == &request.effect)
     {
@@ -583,9 +583,9 @@ fn collect_expr_performed_effects_into(expr: &runtime::Expr, out: &mut Vec<core_
 
 fn collect_pattern_direct_calls(
     pattern: &runtime::Pattern,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
-    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
-    out: &mut Vec<core_ir::Path>,
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
+    bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
+    out: &mut Vec<typed_ir::Path>,
 ) {
     match pattern {
         runtime::Pattern::Tuple { items, .. } => {
@@ -647,8 +647,8 @@ fn unused_pure_let(
     value: &runtime::Expr,
     rest: &[runtime::Stmt],
     tail: Option<&runtime::Expr>,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
-    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
+    bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
 ) -> bool {
     let bound = pattern_bound_paths(pattern);
     !bound.is_empty()
@@ -656,16 +656,16 @@ fn unused_pure_let(
         && !stmts_or_tail_use_any_path(rest, tail, &bound)
 }
 
-fn pattern_bound_paths(pattern: &runtime::Pattern) -> HashSet<core_ir::Path> {
+fn pattern_bound_paths(pattern: &runtime::Pattern) -> HashSet<typed_ir::Path> {
     let mut paths = HashSet::new();
     collect_pattern_bound_paths(pattern, &mut paths);
     paths
 }
 
-fn collect_pattern_bound_paths(pattern: &runtime::Pattern, out: &mut HashSet<core_ir::Path>) {
+fn collect_pattern_bound_paths(pattern: &runtime::Pattern, out: &mut HashSet<typed_ir::Path>) {
     match pattern {
         runtime::Pattern::Bind { name, .. } => {
-            out.insert(core_ir::Path::from_name(name.clone()));
+            out.insert(typed_ir::Path::from_name(name.clone()));
         }
         runtime::Pattern::Tuple { items, .. } => {
             for item in items {
@@ -719,9 +719,9 @@ fn collect_pattern_bound_paths(pattern: &runtime::Pattern, out: &mut HashSet<cor
 
 fn pure_unused_expr(
     expr: &runtime::Expr,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
-    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
-    stack: &mut HashSet<core_ir::Path>,
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
+    bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
+    stack: &mut HashSet<typed_ir::Path>,
 ) -> bool {
     if let Some((op, args)) = primitive_apply(expr) {
         return args.len() == primitive_arity(op)
@@ -788,13 +788,13 @@ fn pure_unused_expr(
 fn stmts_or_tail_use_any_path(
     stmts: &[runtime::Stmt],
     tail: Option<&runtime::Expr>,
-    paths: &HashSet<core_ir::Path>,
+    paths: &HashSet<typed_ir::Path>,
 ) -> bool {
     stmts.iter().any(|stmt| stmt_uses_any_path(stmt, paths))
         || tail.is_some_and(|tail| expr_uses_any_path(tail, paths))
 }
 
-fn stmt_uses_any_path(stmt: &runtime::Stmt, paths: &HashSet<core_ir::Path>) -> bool {
+fn stmt_uses_any_path(stmt: &runtime::Stmt, paths: &HashSet<typed_ir::Path>) -> bool {
     match stmt {
         runtime::Stmt::Let { pattern, value } => {
             pattern_default_uses_any_path(pattern, paths) || expr_uses_any_path(value, paths)
@@ -807,7 +807,7 @@ fn stmt_uses_any_path(stmt: &runtime::Stmt, paths: &HashSet<core_ir::Path>) -> b
 
 fn pattern_default_uses_any_path(
     pattern: &runtime::Pattern,
-    paths: &HashSet<core_ir::Path>,
+    paths: &HashSet<typed_ir::Path>,
 ) -> bool {
     match pattern {
         runtime::Pattern::Tuple { items, .. } => items
@@ -860,7 +860,7 @@ fn pattern_default_uses_any_path(
     }
 }
 
-fn expr_uses_any_path(expr: &runtime::Expr, paths: &HashSet<core_ir::Path>) -> bool {
+fn expr_uses_any_path(expr: &runtime::Expr, paths: &HashSet<typed_ir::Path>) -> bool {
     match &expr.kind {
         runtime::ExprKind::Var(path) => paths.contains(path),
         runtime::ExprKind::Lambda { body, .. }
@@ -935,8 +935,8 @@ fn expr_uses_any_path(expr: &runtime::Expr, paths: &HashSet<core_ir::Path>) -> b
 
 fn direct_apply_target<'expr>(
     expr: &'expr runtime::Expr,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
-) -> Option<(core_ir::Path, Vec<&'expr runtime::Expr>)> {
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
+) -> Option<(typed_ir::Path, Vec<&'expr runtime::Expr>)> {
     direct_apply_path(expr, functions)
         .ok()
         .flatten()
@@ -945,8 +945,8 @@ fn direct_apply_target<'expr>(
 
 fn inline_thunk_handler_apply(
     expr: &runtime::Expr,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
-    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
+    bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
 ) -> Option<(runtime::Expr, Vec<runtime::HandleArm>)> {
     let (target, _, args) = direct_apply_path(expr, functions).ok()??;
     if args.len() != 1 {
@@ -963,7 +963,7 @@ fn inline_thunk_handler_apply(
     let runtime::ExprKind::Var(body_var) = &handled_body.kind else {
         return None;
     };
-    if body_var != &core_ir::Path::from_name(params[0].clone()) {
+    if body_var != &typed_ir::Path::from_name(params[0].clone()) {
         return None;
     }
     Some((args[0].clone(), arms.to_vec()))
@@ -983,8 +983,8 @@ fn transparent_expr(expr: &runtime::Expr) -> &runtime::Expr {
 
 fn lower_binding(
     binding: &runtime::Binding,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
-    bindings: &HashMap<core_ir::Path, &runtime::Binding>,
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
+    bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
 ) -> CpsLowerResult<CpsFunction> {
     if !binding.type_params.is_empty() {
         return Err(CpsLowerError::UnsupportedBinding {
@@ -1013,7 +1013,7 @@ fn lower_binding(
         })
 }
 
-fn binding_function_info(binding: &runtime::Binding) -> Option<(core_ir::Path, FunctionInfo)> {
+fn binding_function_info(binding: &runtime::Binding) -> Option<(typed_ir::Path, FunctionInfo)> {
     if let runtime::ExprKind::PrimitiveOp(op) = binding.body.kind {
         let arity = primitive_arity(op);
         return Some((
@@ -1077,7 +1077,7 @@ fn collect_fun_param_types(expr: &runtime::Expr, expected: usize) -> Vec<runtime
     params
 }
 
-fn lower_primitive_binding(path: &core_ir::Path, op: core_ir::PrimitiveOp) -> CpsFunction {
+fn lower_primitive_binding(path: &typed_ir::Path, op: typed_ir::PrimitiveOp) -> CpsFunction {
     let arity = primitive_arity(op);
     let params = (0..arity).map(CpsValueId).collect::<Vec<_>>();
     let dest = CpsValueId(arity);
@@ -1116,20 +1116,20 @@ struct FunctionInfo {
 
 struct FunctionLowerer<'a> {
     name: String,
-    functions: &'a HashMap<core_ir::Path, FunctionInfo>,
-    bindings: &'a HashMap<core_ir::Path, &'a runtime::Binding>,
+    functions: &'a HashMap<typed_ir::Path, FunctionInfo>,
+    bindings: &'a HashMap<typed_ir::Path, &'a runtime::Binding>,
     next_value: usize,
     next_continuation: usize,
     next_handler: usize,
     continuations: Vec<CpsContinuation>,
     handlers: Vec<CpsHandler>,
-    forced_handler_effects: Vec<(CpsHandlerId, core_ir::Path)>,
+    forced_handler_effects: Vec<(CpsHandlerId, typed_ir::Path)>,
     handlers_with_external_calls: HashSet<CpsHandlerId>,
     current: ContinuationBuilder,
-    locals: HashMap<core_ir::Path, CpsValueId>,
-    local_exprs: HashMap<core_ir::Path, runtime::Expr>,
-    resumptions: HashSet<core_ir::Path>,
-    inline_stack: HashSet<core_ir::Path>,
+    locals: HashMap<typed_ir::Path, CpsValueId>,
+    local_exprs: HashMap<typed_ir::Path, runtime::Expr>,
+    resumptions: HashSet<typed_ir::Path>,
+    inline_stack: HashSet<typed_ir::Path>,
     active_handler: Option<ActiveHandlerContext>,
     params: Vec<CpsValueId>,
     handler_value_conts: Vec<CpsContinuationId>,
@@ -1148,7 +1148,7 @@ struct FunctionLowerer<'a> {
 #[derive(Clone)]
 struct ActiveHandlerContext {
     handler: CpsHandlerId,
-    expected_effects: Vec<core_ir::Path>,
+    expected_effects: Vec<typed_ir::Path>,
     parent: Option<Box<ActiveHandlerContext>>,
 }
 
@@ -1165,9 +1165,9 @@ impl<'a> FunctionLowerer<'a> {
 impl<'a> FunctionLowerer<'a> {
     fn new(
         name: String,
-        functions: &'a HashMap<core_ir::Path, FunctionInfo>,
-        bindings: &'a HashMap<core_ir::Path, &'a runtime::Binding>,
-        params: Vec<core_ir::Name>,
+        functions: &'a HashMap<typed_ir::Path, FunctionInfo>,
+        bindings: &'a HashMap<typed_ir::Path, &'a runtime::Binding>,
+        params: Vec<typed_ir::Name>,
     ) -> Self {
         let mut next_value = 0;
         let mut param_values = Vec::with_capacity(params.len());
@@ -1175,7 +1175,7 @@ impl<'a> FunctionLowerer<'a> {
         for param in params {
             let value = CpsValueId(next_value);
             next_value += 1;
-            locals.insert(core_ir::Path::from_name(param), value);
+            locals.insert(typed_ir::Path::from_name(param), value);
             param_values.push(value);
         }
         // write15 targeted lowering: higher-order helpers whose callback
@@ -1293,10 +1293,7 @@ impl<'a> FunctionLowerer<'a> {
                 .into_iter()
                 .enumerate()
                 .map(|(idx, arg)| {
-                    if matches!(
-                        info_params.get(idx),
-                        Some(runtime::Type::Thunk { .. })
-                    ) {
+                    if matches!(info_params.get(idx), Some(runtime::Type::Thunk { .. })) {
                         self.lower_expr_as_thunk_value(arg)
                     } else {
                         self.lower_expr(arg)
@@ -1320,8 +1317,7 @@ impl<'a> FunctionLowerer<'a> {
             // performed. This narrow gate avoids the write24 regression
             // caused by the broader `info_returns_thunk && non-Thunk demand`
             // condition. write26+ may generalize via effect annotations.
-            let target_is_undet_each =
-                target.starts_with("std::undet::undet::each");
+            let target_is_undet_each = target.starts_with("std::undet::undet::each");
             if (self.higher_order_helper && info_returns_thunk)
                 || (target_is_undet_each && info_returns_thunk)
             {
@@ -1497,7 +1493,7 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_lambda(
         &mut self,
-        param: &core_ir::Name,
+        param: &typed_ir::Name,
         body: &runtime::Expr,
     ) -> CpsLowerResult<CpsValueId> {
         let entry = self.fresh_continuation();
@@ -1510,7 +1506,7 @@ impl<'a> FunctionLowerer<'a> {
         let saved_locals = self.locals.clone();
         let saved_local_exprs = self.local_exprs.clone();
         let saved_resumptions = self.resumptions.clone();
-        let param_path = core_ir::Path::from_name(param.clone());
+        let param_path = typed_ir::Path::from_name(param.clone());
         self.local_exprs.remove(&param_path);
         self.locals.insert(param_path, param_value);
         let value = if let Some(context) = self.active_handler.clone()
@@ -1544,8 +1540,8 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_recursive_lambda(
         &mut self,
-        name: &core_ir::Name,
-        param: &core_ir::Name,
+        name: &typed_ir::Name,
+        param: &typed_ir::Name,
         body: &runtime::Expr,
     ) -> CpsLowerResult<CpsValueId> {
         let entry = self.fresh_continuation();
@@ -1558,10 +1554,10 @@ impl<'a> FunctionLowerer<'a> {
         let saved_locals = self.locals.clone();
         let saved_local_exprs = self.local_exprs.clone();
         let saved_resumptions = self.resumptions.clone();
-        let self_path = core_ir::Path::from_name(name.clone());
+        let self_path = typed_ir::Path::from_name(name.clone());
         self.local_exprs.remove(&self_path);
         self.locals.insert(self_path, dest);
-        let param_path = core_ir::Path::from_name(param.clone());
+        let param_path = typed_ir::Path::from_name(param.clone());
         self.local_exprs.remove(&param_path);
         self.locals.insert(param_path, param_value);
         let value = if let Some(context) = self.active_handler.clone()
@@ -1661,10 +1657,7 @@ impl<'a> FunctionLowerer<'a> {
     /// `[eff] T` — must be wrapped via `lower_thunk` so the underlying
     /// `DirectCall` does not run before the caller has installed its
     /// handler scope.
-    fn lower_expr_as_thunk_value(
-        &mut self,
-        expr: &runtime::Expr,
-    ) -> CpsLowerResult<CpsValueId> {
+    fn lower_expr_as_thunk_value(&mut self, expr: &runtime::Expr) -> CpsLowerResult<CpsValueId> {
         // A syntactic Thunk literal `{ ... }` already produces a thunk
         // handle; a `Var` binding to a thunk-typed local just reads the
         // existing handle. Lowering either eagerly is fine — they don't
@@ -1736,7 +1729,7 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_variant(
         &mut self,
-        tag: &core_ir::Name,
+        tag: &typed_ir::Name,
         value: Option<&runtime::Expr>,
     ) -> CpsLowerResult<CpsValueId> {
         let value = value.map(|value| self.lower_expr(value)).transpose()?;
@@ -1752,7 +1745,7 @@ impl<'a> FunctionLowerer<'a> {
     fn lower_select(
         &mut self,
         base: &runtime::Expr,
-        field: &core_ir::Name,
+        field: &typed_ir::Name,
     ) -> CpsLowerResult<CpsValueId> {
         let base = self.lower_expr(base)?;
         let dest = self.fresh_value();
@@ -1850,7 +1843,7 @@ impl<'a> FunctionLowerer<'a> {
                     if let Some((name, param, body)) = recursive_lambda_let(pattern, value) {
                         let value = self.lower_recursive_lambda(name, param, body)?;
                         self.locals
-                            .insert(core_ir::Path::from_name(name.clone()), value);
+                            .insert(typed_ir::Path::from_name(name.clone()), value);
                         continue;
                     }
                     let value = self.lower_expr(value)?;
@@ -2147,7 +2140,7 @@ impl<'a> FunctionLowerer<'a> {
             self.local_exprs = saved_local_exprs.clone();
             self.resumptions = saved_resumptions.clone();
             self.bind_pattern(&arm.payload, handler_payload)?;
-            let resume_path = core_ir::Path::from_name(resume.name.clone());
+            let resume_path = typed_ir::Path::from_name(resume.name.clone());
             self.locals.insert(resume_path.clone(), handler_resume);
             self.resumptions.insert(resume_path);
             let handled = self.lower_handler_body_expr(&arm.body, Some(handler))?;
@@ -2208,10 +2201,10 @@ impl<'a> FunctionLowerer<'a> {
     fn lower_handled_body(
         &mut self,
         body: &runtime::Expr,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
         value_cont: Option<CpsContinuationId>,
-    ) -> CpsLowerResult<core_ir::Path> {
+    ) -> CpsLowerResult<typed_ir::Path> {
         if let runtime::ExprKind::Var(path) = &body.kind
             && let Some(expr) = self.local_exprs.get(path).cloned()
         {
@@ -2480,10 +2473,10 @@ impl<'a> FunctionLowerer<'a> {
         cond: &runtime::Expr,
         then_branch: &runtime::Expr,
         else_branch: &runtime::Expr,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
         value_cont: Option<CpsContinuationId>,
-    ) -> CpsLowerResult<core_ir::Path> {
+    ) -> CpsLowerResult<typed_ir::Path> {
         if !collect_expr_performed_effects(cond).is_empty() {
             return self.lower_handled_effect_condition_if(
                 cond,
@@ -2539,10 +2532,10 @@ impl<'a> FunctionLowerer<'a> {
         cond: &runtime::Expr,
         then_branch: &runtime::Expr,
         else_branch: &runtime::Expr,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
         value_cont: Option<CpsContinuationId>,
-    ) -> CpsLowerResult<core_ir::Path> {
+    ) -> CpsLowerResult<typed_ir::Path> {
         let saved_locals = self.locals.clone();
         let saved_local_exprs = self.local_exprs.clone();
         let saved_resumptions = self.resumptions.clone();
@@ -2596,10 +2589,10 @@ impl<'a> FunctionLowerer<'a> {
     fn lower_handled_match(
         &mut self,
         expr: &runtime::Expr,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
         value_cont: Option<CpsContinuationId>,
-    ) -> CpsLowerResult<core_ir::Path> {
+    ) -> CpsLowerResult<typed_ir::Path> {
         let runtime::ExprKind::Match {
             scrutinee, arms, ..
         } = &expr.kind
@@ -2650,7 +2643,7 @@ impl<'a> FunctionLowerer<'a> {
         });
         self.finish_handled_value(unit, value_cont);
 
-        let mut joined_effect: Option<core_ir::Path> = None;
+        let mut joined_effect: Option<typed_ir::Path> = None;
         for (arm, arm_cont) in arms.iter().zip(arm_conts) {
             self.current = ContinuationBuilder::new(arm_cont, Vec::new());
             self.locals = saved_locals.clone();
@@ -2680,10 +2673,10 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         stmts: &[runtime::Stmt],
         tail: Option<&runtime::Expr>,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
         value_cont: Option<CpsContinuationId>,
-    ) -> CpsLowerResult<core_ir::Path> {
+    ) -> CpsLowerResult<typed_ir::Path> {
         for (index, stmt) in stmts.iter().enumerate() {
             match stmt {
                 runtime::Stmt::Let { pattern, value } => {
@@ -2727,8 +2720,7 @@ impl<'a> FunctionLowerer<'a> {
                     // capture this function's "rest of the block" as a
                     // return frame in the resumption.
                     if self.active_handler.is_some()
-                        && let Some((target, info, args)) =
-                            direct_apply(value, self.functions)?
+                        && let Some((target, info, args)) = direct_apply(value, self.functions)?
                     {
                         return self.lower_handled_effectful_call_let(
                             pattern,
@@ -2840,10 +2832,10 @@ impl<'a> FunctionLowerer<'a> {
         call_ty: &runtime::Type,
         rest: &[runtime::Stmt],
         tail: Option<&runtime::Expr>,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
         value_cont: Option<CpsContinuationId>,
-    ) -> CpsLowerResult<core_ir::Path> {
+    ) -> CpsLowerResult<typed_ir::Path> {
         let info_params = info.params.clone();
         let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
         let lowered_args = args
@@ -2902,13 +2894,8 @@ impl<'a> FunctionLowerer<'a> {
         };
         self.bind_pattern(pattern, bound)?;
 
-        let rest_effect = self.lower_handled_block(
-            rest,
-            tail,
-            expected_effects,
-            handler,
-            value_cont,
-        )?;
+        let rest_effect =
+            self.lower_handled_block(rest, tail, expected_effects, handler, value_cont)?;
         Ok(rest_effect)
     }
 
@@ -2924,10 +2911,10 @@ impl<'a> FunctionLowerer<'a> {
         apply_ty: &runtime::Type,
         rest: &[runtime::Stmt],
         tail: Option<&runtime::Expr>,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
         value_cont: Option<CpsContinuationId>,
-    ) -> CpsLowerResult<core_ir::Path> {
+    ) -> CpsLowerResult<typed_ir::Path> {
         let closure = self.lower_expr(callee)?;
         let arg_value = self.lower_expr_as_call_arg(&callee.ty, arg)?;
 
@@ -2976,10 +2963,10 @@ impl<'a> FunctionLowerer<'a> {
         call_ty: &runtime::Type,
         rest: &[runtime::Stmt],
         tail: Option<&runtime::Expr>,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
         value_cont: Option<CpsContinuationId>,
-    ) -> CpsLowerResult<core_ir::Path> {
+    ) -> CpsLowerResult<typed_ir::Path> {
         let info_params = info.params.clone();
         let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
         let lowered_args = args
@@ -3033,10 +3020,10 @@ impl<'a> FunctionLowerer<'a> {
         apply_ty: &runtime::Type,
         rest: &[runtime::Stmt],
         tail: Option<&runtime::Expr>,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
         value_cont: Option<CpsContinuationId>,
-    ) -> CpsLowerResult<core_ir::Path> {
+    ) -> CpsLowerResult<typed_ir::Path> {
         let closure = self.lower_expr(callee)?;
         let arg_value = self.lower_expr_as_call_arg(&callee.ty, arg)?;
 
@@ -3068,9 +3055,9 @@ impl<'a> FunctionLowerer<'a> {
     fn begin_resume_after_perform(
         &mut self,
         request: CpsEffectApply<'_>,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
-    ) -> CpsLowerResult<(core_ir::Path, CpsValueId)> {
+    ) -> CpsLowerResult<(typed_ir::Path, CpsValueId)> {
         let effect = request.effect.clone();
         let payload = request.payload;
         let blocked = request.blocked;
@@ -3175,12 +3162,12 @@ impl<'a> FunctionLowerer<'a> {
 
     fn begin_resume_after_perform_value(
         &mut self,
-        effect: core_ir::Path,
+        effect: typed_ir::Path,
         payload: CpsValueId,
         blocked: Option<runtime::EffectIdRef>,
-        _expected_effects: &[core_ir::Path],
+        _expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
-    ) -> CpsLowerResult<(core_ir::Path, CpsValueId)> {
+    ) -> CpsLowerResult<(typed_ir::Path, CpsValueId)> {
         let blocked = blocked
             .map(|blocked| self.lower_effect_id_ref(blocked))
             .transpose()?;
@@ -3207,13 +3194,13 @@ impl<'a> FunctionLowerer<'a> {
         match pattern {
             runtime::Pattern::Wildcard { .. } => Ok(()),
             runtime::Pattern::Bind { name, .. } => {
-                let path = core_ir::Path::from_name(name.clone());
+                let path = typed_ir::Path::from_name(name.clone());
                 self.local_exprs.remove(&path);
                 self.locals.insert(path, value);
                 Ok(())
             }
             runtime::Pattern::Lit {
-                lit: core_ir::Lit::Unit,
+                lit: typed_ir::Lit::Unit,
                 ..
             } => Ok(()),
             runtime::Pattern::Lit { .. } => {
@@ -3253,7 +3240,7 @@ impl<'a> FunctionLowerer<'a> {
             runtime::Pattern::As { pattern, name, .. } => {
                 self.bind_pattern(pattern, value)?;
                 self.locals
-                    .insert(core_ir::Path::from_name(name.clone()), value);
+                    .insert(typed_ir::Path::from_name(name.clone()), value);
                 Ok(())
             }
         }
@@ -3277,7 +3264,7 @@ impl<'a> FunctionLowerer<'a> {
         handler
     }
 
-    fn current_effect_context(&self) -> (Vec<core_ir::Path>, CpsHandlerId) {
+    fn current_effect_context(&self) -> (Vec<typed_ir::Path>, CpsHandlerId) {
         self.active_handler
             .as_ref()
             .map(|context| (context.expected_effects.clone(), context.handler))
@@ -3287,9 +3274,9 @@ impl<'a> FunctionLowerer<'a> {
     fn effect_context_for_request(
         &self,
         request: &CpsEffectApply<'_>,
-        expected_effects: &[core_ir::Path],
+        expected_effects: &[typed_ir::Path],
         handler: CpsHandlerId,
-    ) -> (Vec<core_ir::Path>, CpsHandlerId) {
+    ) -> (Vec<typed_ir::Path>, CpsHandlerId) {
         if let Some(context) = self.active_context_for_effect(&request.effect) {
             return (context.expected_effects.clone(), context.handler);
         }
@@ -3299,7 +3286,7 @@ impl<'a> FunctionLowerer<'a> {
         (Vec::new(), dynamic_handler_id())
     }
 
-    fn active_context_for_effect(&self, effect: &core_ir::Path) -> Option<&ActiveHandlerContext> {
+    fn active_context_for_effect(&self, effect: &typed_ir::Path) -> Option<&ActiveHandlerContext> {
         let mut current = self.active_handler.as_ref();
         while let Some(context) = current {
             if matches_any_effect(&context.expected_effects, effect) {
@@ -3310,7 +3297,7 @@ impl<'a> FunctionLowerer<'a> {
         None
     }
 
-    fn performed_effects_for_handler(&self, handler: CpsHandlerId) -> Vec<core_ir::Path> {
+    fn performed_effects_for_handler(&self, handler: CpsHandlerId) -> Vec<typed_ir::Path> {
         let mut effects = Vec::new();
         for continuation in &self.continuations {
             if let CpsTerminator::Perform {
@@ -3361,11 +3348,8 @@ impl<'a> FunctionLowerer<'a> {
         let saved_local_exprs = self.local_exprs.clone();
         let saved_resumptions = self.resumptions.clone();
         for (idx, (param, arg)) in params.into_iter().zip(args).enumerate() {
-            let path = core_ir::Path::from_name(param);
-            let param_is_thunk = matches!(
-                info_params.get(idx),
-                Some(runtime::Type::Thunk { .. })
-            );
+            let path = typed_ir::Path::from_name(param);
+            let param_is_thunk = matches!(info_params.get(idx), Some(runtime::Type::Thunk { .. }));
             if is_inline_argument(arg) || matches!(arg.ty, runtime::Type::Thunk { .. }) {
                 self.local_exprs.insert(path, arg.clone());
             } else if param_is_thunk {
@@ -3406,7 +3390,7 @@ impl<'a> FunctionLowerer<'a> {
         let saved_locals = self.locals.clone();
         let saved_local_exprs = self.local_exprs.clone();
         let saved_resumptions = self.resumptions.clone();
-        let path = core_ir::Path::from_name(params[0].clone());
+        let path = typed_ir::Path::from_name(params[0].clone());
         if is_inline_argument(arg) || matches!(arg.ty, runtime::Type::Thunk { .. }) {
             self.local_exprs.insert(path, arg.as_ref().clone());
         } else {
@@ -3473,7 +3457,7 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         handler: CpsHandlerId,
         arms: &[runtime::HandleArm],
-        state_params: &[core_ir::Name],
+        state_params: &[typed_ir::Name],
         state_args: &[CpsValueId],
     ) -> Vec<CpsHandlerEnv> {
         let Some(handler) = self
@@ -3489,7 +3473,7 @@ impl<'a> FunctionLowerer<'a> {
                 .iter()
                 .zip(state_args.iter().copied())
                 .filter_map(|(param, value)| {
-                    expr_uses_path(&arm.body, &core_ir::Path::from_name(param.clone()))
+                    expr_uses_path(&arm.body, &typed_ir::Path::from_name(param.clone()))
                         .then_some(value)
                 })
                 .collect::<Vec<_>>();
@@ -3547,7 +3531,7 @@ impl<'a> FunctionLowerer<'a> {
     }
 }
 
-fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
+fn effect_matches(expected: &typed_ir::Path, actual: &typed_ir::Path) -> bool {
     actual == expected
         || (!expected.segments.is_empty()
             && actual.segments.len() == expected.segments.len() + 1
@@ -3581,7 +3565,7 @@ fn inline_callable_expr(expr: &runtime::Expr) -> runtime::Expr {
 }
 
 struct HandlerWrapperInfo {
-    params: Vec<core_ir::Name>,
+    params: Vec<typed_ir::Name>,
     arms: Vec<runtime::HandleArm>,
 }
 
@@ -3601,7 +3585,7 @@ fn handler_wrapper_info(binding: &runtime::Binding) -> Option<HandlerWrapperInfo
     let runtime::ExprKind::Var(body_var) = &handled_body.kind else {
         return None;
     };
-    if body_var != &core_ir::Path::from_name(handled_param.clone()) {
+    if body_var != &typed_ir::Path::from_name(handled_param.clone()) {
         return None;
     }
     Some(HandlerWrapperInfo {
@@ -3628,7 +3612,7 @@ fn handler_wrapper_handle(expr: &runtime::Expr) -> Option<(&runtime::Expr, &[run
     }
 }
 
-fn expr_uses_path(expr: &runtime::Expr, path: &core_ir::Path) -> bool {
+fn expr_uses_path(expr: &runtime::Expr, path: &typed_ir::Path) -> bool {
     match &expr.kind {
         runtime::ExprKind::Var(candidate) => candidate == path,
         runtime::ExprKind::Lambda { body, .. }
@@ -3702,21 +3686,21 @@ fn expr_uses_path(expr: &runtime::Expr, path: &core_ir::Path) -> bool {
     }
 }
 
-fn matches_any_effect(expected: &[core_ir::Path], actual: &core_ir::Path) -> bool {
+fn matches_any_effect(expected: &[typed_ir::Path], actual: &typed_ir::Path) -> bool {
     expected
         .iter()
         .any(|expected| effect_matches(expected, actual))
 }
 
 fn handled_effects_compatible(
-    expected: &[core_ir::Path],
-    left: &core_ir::Path,
-    right: &core_ir::Path,
+    expected: &[typed_ir::Path],
+    left: &typed_ir::Path,
+    right: &typed_ir::Path,
 ) -> bool {
     left == right || matches_any_effect(expected, left) || matches_any_effect(expected, right)
 }
 
-fn default_expected_effect(expected: &[core_ir::Path]) -> core_ir::Path {
+fn default_expected_effect(expected: &[typed_ir::Path]) -> typed_ir::Path {
     expected.first().cloned().unwrap_or_default()
 }
 
@@ -3749,7 +3733,7 @@ impl ContinuationBuilder {
     }
 }
 
-fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, &runtime::Expr) {
+fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<typed_ir::Name>, &runtime::Expr) {
     let mut params = Vec::new();
     let mut current = expr;
     while let runtime::ExprKind::Lambda { param, body, .. } = &current.kind {
@@ -3759,7 +3743,7 @@ fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, &runtime:
     (params, current)
 }
 
-fn collect_callable_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, runtime::Expr) {
+fn collect_callable_params(expr: &runtime::Expr) -> (Vec<typed_ir::Name>, runtime::Expr) {
     let (mut params, body) = collect_lambda_params(expr);
     let mut body = body.clone();
     while let runtime::ExprKind::Block {
@@ -3786,28 +3770,28 @@ fn collect_callable_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, runtime
 fn recursive_lambda_let<'a>(
     pattern: &'a runtime::Pattern,
     value: &'a runtime::Expr,
-) -> Option<(&'a core_ir::Name, &'a core_ir::Name, &'a runtime::Expr)> {
+) -> Option<(&'a typed_ir::Name, &'a typed_ir::Name, &'a runtime::Expr)> {
     let runtime::Pattern::Bind { name, .. } = pattern else {
         return None;
     };
     let runtime::ExprKind::Lambda { param, body, .. } = &value.kind else {
         return None;
     };
-    let self_path = core_ir::Path::from_name(name.clone());
+    let self_path = typed_ir::Path::from_name(name.clone());
     expr_uses_path(body, &self_path).then_some((name, param, body.as_ref()))
 }
 
-fn lower_literal(lit: &core_ir::Lit) -> CpsLiteral {
+fn lower_literal(lit: &typed_ir::Lit) -> CpsLiteral {
     match lit {
-        core_ir::Lit::Int(value) => CpsLiteral::Int(value.clone()),
-        core_ir::Lit::Float(value) => CpsLiteral::Float(value.clone()),
-        core_ir::Lit::String(value) => CpsLiteral::String(value.clone()),
-        core_ir::Lit::Bool(value) => CpsLiteral::Bool(*value),
-        core_ir::Lit::Unit => CpsLiteral::Unit,
+        typed_ir::Lit::Int(value) => CpsLiteral::Int(value.clone()),
+        typed_ir::Lit::Float(value) => CpsLiteral::Float(value.clone()),
+        typed_ir::Lit::String(value) => CpsLiteral::String(value.clone()),
+        typed_ir::Lit::Bool(value) => CpsLiteral::Bool(*value),
+        typed_ir::Lit::Unit => CpsLiteral::Unit,
     }
 }
 
-fn primitive_apply(expr: &runtime::Expr) -> Option<(core_ir::PrimitiveOp, Vec<&runtime::Expr>)> {
+fn primitive_apply(expr: &runtime::Expr) -> Option<(typed_ir::PrimitiveOp, Vec<&runtime::Expr>)> {
     let mut args = Vec::new();
     let mut current = expr;
     loop {
@@ -3829,7 +3813,7 @@ fn primitive_apply(expr: &runtime::Expr) -> Option<(core_ir::PrimitiveOp, Vec<&r
 
 #[derive(Debug, Clone)]
 struct CpsEffectApply<'a> {
-    effect: core_ir::Path,
+    effect: typed_ir::Path,
     payload: &'a runtime::Expr,
     blocked: Option<runtime::EffectIdRef>,
 }
@@ -3902,22 +3886,22 @@ fn transparent_effect_expr(expr: &runtime::Expr) -> &runtime::Expr {
     }
 }
 
-fn effect_allowed_by_type(allowed: &core_ir::Type, effect: &core_ir::Path) -> bool {
+fn effect_allowed_by_type(allowed: &typed_ir::Type, effect: &typed_ir::Path) -> bool {
     match allowed {
-        core_ir::Type::Any => true,
-        core_ir::Type::Never => false,
-        core_ir::Type::Named { path, .. } => effect_path_matches_allowed(path, effect),
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Any => true,
+        typed_ir::Type::Never => false,
+        typed_ir::Type::Named { path, .. } => effect_path_matches_allowed(path, effect),
+        typed_ir::Type::Row { items, tail } => {
             items
                 .iter()
                 .any(|item| effect_allowed_by_type(item, effect))
-                || matches!(tail.as_ref(), core_ir::Type::Any)
+                || matches!(tail.as_ref(), typed_ir::Type::Any)
         }
         _ => false,
     }
 }
 
-fn effect_path_matches_allowed(allowed: &core_ir::Path, effect: &core_ir::Path) -> bool {
+fn effect_path_matches_allowed(allowed: &typed_ir::Path, effect: &typed_ir::Path) -> bool {
     if effect.segments.starts_with(&allowed.segments) {
         return true;
     }
@@ -3965,7 +3949,7 @@ fn handler_body_plain_value_inner(expr: &runtime::Expr) -> Option<&runtime::Expr
 
 fn direct_apply<'expr, 'functions>(
     expr: &'expr runtime::Expr,
-    functions: &'functions HashMap<core_ir::Path, FunctionInfo>,
+    functions: &'functions HashMap<typed_ir::Path, FunctionInfo>,
 ) -> CpsLowerResult<Option<(String, &'functions FunctionInfo, Vec<&'expr runtime::Expr>)>> {
     let Some((_, target, args)) = direct_apply_path(expr, functions)? else {
         return Ok(None);
@@ -3993,11 +3977,11 @@ fn bool_match(expr: &runtime::Expr) -> Option<(&runtime::Expr, &runtime::Expr, &
     for arm in arms {
         match &arm.pattern {
             runtime::Pattern::Lit {
-                lit: core_ir::Lit::Bool(true),
+                lit: typed_ir::Lit::Bool(true),
                 ..
             } => then_branch = Some(&arm.body),
             runtime::Pattern::Lit {
-                lit: core_ir::Lit::Bool(false),
+                lit: typed_ir::Lit::Bool(false),
                 ..
             } => else_branch = Some(&arm.body),
             _ => return None,
@@ -4015,8 +3999,7 @@ fn bool_match(expr: &runtime::Expr) -> Option<(&runtime::Expr, &runtime::Expr, &
 fn callee_type_may_perform(ty: &runtime::Type) -> bool {
     match ty {
         runtime::Type::Fun { ret, .. } => {
-            matches!(ret.as_ref(), runtime::Type::Thunk { .. })
-                || callee_type_may_perform(ret)
+            matches!(ret.as_ref(), runtime::Type::Thunk { .. }) || callee_type_may_perform(ret)
         }
         runtime::Type::Thunk { .. } => true,
         runtime::Type::Unknown => true,
@@ -4026,10 +4009,10 @@ fn callee_type_may_perform(ty: &runtime::Type) -> bool {
 
 fn direct_apply_path<'expr, 'functions>(
     expr: &'expr runtime::Expr,
-    functions: &'functions HashMap<core_ir::Path, FunctionInfo>,
+    functions: &'functions HashMap<typed_ir::Path, FunctionInfo>,
 ) -> CpsLowerResult<
     Option<(
-        &'expr core_ir::Path,
+        &'expr typed_ir::Path,
         &'functions FunctionInfo,
         Vec<&'expr runtime::Expr>,
     )>,
@@ -4063,8 +4046,8 @@ fn direct_apply_path<'expr, 'functions>(
     Ok(Some((path, target, args)))
 }
 
-fn primitive_arity(op: core_ir::PrimitiveOp) -> usize {
-    use core_ir::PrimitiveOp;
+fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
+    use typed_ir::PrimitiveOp;
     match op {
         PrimitiveOp::BoolNot
         | PrimitiveOp::ListEmpty
@@ -4110,7 +4093,7 @@ fn primitive_arity(op: core_ir::PrimitiveOp) -> usize {
     }
 }
 
-fn path_name(path: &core_ir::Path) -> String {
+fn path_name(path: &typed_ir::Path) -> String {
     path.segments
         .iter()
         .map(|segment| segment.0.as_str())
@@ -4125,11 +4108,11 @@ mod tests {
 
     use super::*;
 
-    fn unknown_lit(lit: core_ir::Lit) -> runtime::Expr {
+    fn unknown_lit(lit: typed_ir::Lit) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::Lit(lit), runtime::Type::unknown())
     }
 
-    fn primitive(op: core_ir::PrimitiveOp) -> runtime::Expr {
+    fn primitive(op: typed_ir::PrimitiveOp) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::PrimitiveOp(op), runtime::Type::unknown())
     }
 
@@ -4163,25 +4146,27 @@ mod tests {
 
     fn var(name: &str) -> runtime::Expr {
         runtime::Expr::typed(
-            runtime::ExprKind::Var(core_ir::Path::from_name(core_ir::Name(name.to_string()))),
+            runtime::ExprKind::Var(typed_ir::Path::from_name(typed_ir::Name(name.to_string()))),
             runtime::Type::unknown(),
         )
     }
 
     fn effect_op(name: &str) -> runtime::Expr {
         runtime::Expr::typed(
-            runtime::ExprKind::EffectOp(core_ir::Path::from_name(core_ir::Name(name.to_string()))),
+            runtime::ExprKind::EffectOp(typed_ir::Path::from_name(typed_ir::Name(
+                name.to_string(),
+            ))),
             runtime::Type::unknown(),
         )
     }
 
-    fn effect_op_path(path: core_ir::Path) -> runtime::Expr {
+    fn effect_op_path(path: typed_ir::Path) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::EffectOp(path), runtime::Type::unknown())
     }
 
     fn bind_pattern(name: &str) -> runtime::Pattern {
         runtime::Pattern::Bind {
-            name: core_ir::Name(name.to_string()),
+            name: typed_ir::Name(name.to_string()),
             ty: runtime::Type::unknown(),
         }
     }
@@ -4193,7 +4178,7 @@ mod tests {
         body: runtime::Expr,
         arm_body: runtime::Expr,
     ) -> runtime::Expr {
-        let effect = core_ir::Path::from_name(core_ir::Name(effect.to_string()));
+        let effect = typed_ir::Path::from_name(typed_ir::Name(effect.to_string()));
         runtime::Expr::typed(
             runtime::ExprKind::Handle {
                 body: Box::new(body),
@@ -4201,14 +4186,14 @@ mod tests {
                     effect: effect.clone(),
                     payload: bind_pattern(payload),
                     resume: Some(runtime::ResumeBinding {
-                        name: core_ir::Name(resume.to_string()),
+                        name: typed_ir::Name(resume.to_string()),
                         ty: runtime::Type::unknown(),
                     }),
                     guard: None,
                     body: arm_body,
                 }],
                 evidence: runtime::JoinEvidence {
-                    result: core_ir::Type::Unknown,
+                    result: typed_ir::Type::Unknown,
                 },
                 handler: runtime::HandleEffect {
                     consumes: vec![effect],
@@ -4229,7 +4214,7 @@ mod tests {
         value_payload: &str,
         value_body: runtime::Expr,
     ) -> runtime::Expr {
-        let effect = core_ir::Path::from_name(core_ir::Name(effect.to_string()));
+        let effect = typed_ir::Path::from_name(typed_ir::Name(effect.to_string()));
         runtime::Expr::typed(
             runtime::ExprKind::Handle {
                 body: Box::new(body),
@@ -4238,14 +4223,14 @@ mod tests {
                         effect: effect.clone(),
                         payload: bind_pattern(payload),
                         resume: Some(runtime::ResumeBinding {
-                            name: core_ir::Name(resume.to_string()),
+                            name: typed_ir::Name(resume.to_string()),
                             ty: runtime::Type::unknown(),
                         }),
                         guard: None,
                         body: arm_body,
                     },
                     runtime::HandleArm {
-                        effect: core_ir::Path::default(),
+                        effect: typed_ir::Path::default(),
                         payload: bind_pattern(value_payload),
                         resume: None,
                         guard: None,
@@ -4253,7 +4238,7 @@ mod tests {
                     },
                 ],
                 evidence: runtime::JoinEvidence {
-                    result: core_ir::Type::Unknown,
+                    result: typed_ir::Type::Unknown,
                 },
                 handler: runtime::HandleEffect {
                     consumes: vec![effect],
@@ -4274,14 +4259,14 @@ mod tests {
             runtime::ExprKind::Handle {
                 body: Box::new(body),
                 arms: vec![runtime::HandleArm {
-                    effect: core_ir::Path::default(),
+                    effect: typed_ir::Path::default(),
                     payload: bind_pattern(value_payload),
                     resume: None,
                     guard: None,
                     body: value_body,
                 }],
                 evidence: runtime::JoinEvidence {
-                    result: core_ir::Type::Unknown,
+                    result: typed_ir::Type::Unknown,
                 },
                 handler: runtime::HandleEffect {
                     consumes: Vec::new(),
@@ -4294,7 +4279,7 @@ mod tests {
     }
 
     fn handle_once_expr(
-        effect: core_ir::Path,
+        effect: typed_ir::Path,
         payload: &str,
         resume: &str,
         body: runtime::Expr,
@@ -4307,14 +4292,14 @@ mod tests {
                     effect: effect.clone(),
                     payload: bind_pattern(payload),
                     resume: Some(runtime::ResumeBinding {
-                        name: core_ir::Name(resume.to_string()),
+                        name: typed_ir::Name(resume.to_string()),
                         ty: runtime::Type::unknown(),
                     }),
                     guard: None,
                     body: arm_body,
                 }],
                 evidence: runtime::JoinEvidence {
-                    result: core_ir::Type::Unknown,
+                    result: typed_ir::Type::Unknown,
                 },
                 handler: runtime::HandleEffect {
                     consumes: vec![effect],
@@ -4339,7 +4324,7 @@ mod tests {
     fn thunk(expr: runtime::Expr) -> runtime::Expr {
         runtime::Expr::typed(
             runtime::ExprKind::Thunk {
-                effect: core_ir::Type::Unknown,
+                effect: typed_ir::Type::Unknown,
                 value: runtime::Type::unknown(),
                 expr: Box::new(expr),
             },
@@ -4372,7 +4357,7 @@ mod tests {
 
     fn add_id(
         id: runtime::EffectIdRef,
-        allowed: core_ir::Type,
+        allowed: typed_ir::Type,
         thunk: runtime::Expr,
     ) -> runtime::Expr {
         runtime::Expr::typed(
@@ -4388,7 +4373,7 @@ mod tests {
     fn lambda(param: &str, body: runtime::Expr) -> runtime::Expr {
         runtime::Expr::typed(
             runtime::ExprKind::Lambda {
-                param: core_ir::Name(param.to_string()),
+                param: typed_ir::Name(param.to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(body),
@@ -4399,21 +4384,21 @@ mod tests {
 
     fn binding(name: &str, body: runtime::Expr) -> runtime::Binding {
         runtime::Binding {
-            name: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+            name: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             type_params: Vec::new(),
-            scheme: core_ir::Scheme {
+            scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
-                body: core_ir::Type::Unknown,
+                body: typed_ir::Type::Unknown,
             },
             body,
         }
     }
 
-    fn effect_path(effect: &str, op: &str) -> core_ir::Path {
-        core_ir::Path {
+    fn effect_path(effect: &str, op: &str) -> typed_ir::Path {
+        typed_ir::Path {
             segments: vec![
-                core_ir::Name(effect.to_string()),
-                core_ir::Name(op.to_string()),
+                typed_ir::Name(effect.to_string()),
+                typed_ir::Name(op.to_string()),
             ],
         }
     }
@@ -4427,7 +4412,7 @@ mod tests {
         expr: runtime::Expr,
     ) -> runtime::Module {
         runtime::Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings,
             root_exprs: vec![expr],
             roots: vec![runtime::Root::Expr(0)],
@@ -4439,10 +4424,10 @@ mod tests {
     fn lowers_pure_int_add_to_multishot_cps() {
         let expr = apply(
             apply(
-                primitive(core_ir::PrimitiveOp::IntAdd),
-                unknown_lit(core_ir::Lit::Int("20".to_string())),
+                primitive(typed_ir::PrimitiveOp::IntAdd),
+                unknown_lit(typed_ir::Lit::Int("20".to_string())),
             ),
-            unknown_lit(core_ir::Lit::Int("22".to_string())),
+            unknown_lit(typed_ir::Lit::Int("22".to_string())),
         );
         let module = module_with_root(expr);
         let lowered = lower_cps_module(&module).expect("lowered");
@@ -4467,7 +4452,7 @@ mod tests {
                 },
                 CpsStmt::Primitive {
                     dest: CpsValueId(2),
-                    op: core_ir::PrimitiveOp::IntAdd,
+                    op: typed_ir::PrimitiveOp::IntAdd,
                     args: vec![CpsValueId(0), CpsValueId(1)],
                 },
                 // lower_root forces the return value when the static
@@ -4504,10 +4489,10 @@ mod tests {
     fn lowers_add_id_blocked_effect_to_perform_blocked_guard() {
         let body = add_id(
             runtime::EffectIdRef::Peek,
-            core_ir::Type::Never,
+            typed_ir::Type::Never,
             apply(
                 effect_op("choose"),
-                unknown_lit(core_ir::Lit::Int("1".to_string())),
+                unknown_lit(typed_ir::Lit::Int("1".to_string())),
             ),
         );
         let module = module_with_root(handle_once("choose", "x", "k", body, var("x")));
@@ -4533,17 +4518,17 @@ mod tests {
     #[test]
     fn skips_unreachable_non_function_binding() {
         let module = runtime::Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: vec![runtime::Binding {
-                name: core_ir::Path::from_name(core_ir::Name("unused".to_string())),
+                name: typed_ir::Path::from_name(typed_ir::Name("unused".to_string())),
                 type_params: Vec::new(),
-                scheme: core_ir::Scheme {
+                scheme: typed_ir::Scheme {
                     requirements: Vec::new(),
-                    body: core_ir::Type::Unknown,
+                    body: typed_ir::Type::Unknown,
                 },
-                body: unknown_lit(core_ir::Lit::Int("0".to_string())),
+                body: unknown_lit(typed_ir::Lit::Int("0".to_string())),
             }],
-            root_exprs: vec![unknown_lit(core_ir::Lit::Int("41".to_string()))],
+            root_exprs: vec![unknown_lit(typed_ir::Lit::Int("41".to_string()))],
             roots: vec![runtime::Root::Expr(0)],
             role_impls: Vec::new(),
         };
@@ -4570,7 +4555,7 @@ mod tests {
             var("run"),
             thunk(apply(
                 effect_op_path(effect),
-                unknown_lit(core_ir::Lit::Int("41".to_string())),
+                unknown_lit(typed_ir::Lit::Int("41".to_string())),
             )),
         );
         let module = module_with_bindings_and_root(vec![handler], root);
@@ -4587,9 +4572,9 @@ mod tests {
     #[test]
     fn lowers_if_to_multishot_continuation_graph() {
         let module = module_with_root(if_expr(
-            unknown_lit(core_ir::Lit::Bool(true)),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
-            unknown_lit(core_ir::Lit::Int("2".to_string())),
+            unknown_lit(typed_ir::Lit::Bool(true)),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("2".to_string())),
         ));
         let lowered = lower_cps_module(&module).expect("lowered");
         let root = &lowered.roots[0];
@@ -4634,12 +4619,15 @@ mod tests {
             lambda(
                 "x",
                 apply(
-                    apply(primitive(core_ir::PrimitiveOp::IntAdd), var("x")),
-                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                    apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("x")),
+                    unknown_lit(typed_ir::Lit::Int("1".to_string())),
                 ),
             ),
         );
-        let root = apply(var("inc"), unknown_lit(core_ir::Lit::Int("41".to_string())));
+        let root = apply(
+            var("inc"),
+            unknown_lit(typed_ir::Lit::Int("41".to_string())),
+        );
         let module = module_with_bindings_and_root(vec![inc], root);
         let lowered = lower_cps_module(&module).expect("lowered");
 
@@ -4682,12 +4670,12 @@ mod tests {
     fn lowers_single_effect_handler_with_resumption() {
         let body = apply(
             effect_op("choose"),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let resume_two = apply(var("k"), unknown_lit(typed_ir::Lit::Int("2".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_two,
         );
         let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
@@ -4716,10 +4704,10 @@ mod tests {
 
     #[test]
     fn lowers_value_handler_arm() {
-        let body = unknown_lit(core_ir::Lit::Int("1".to_string()));
+        let body = unknown_lit(typed_ir::Lit::Int("1".to_string()));
         let value_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), var("value")),
-            unknown_lit(core_ir::Lit::Int("10".to_string())),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("value")),
+            unknown_lit(typed_ir::Lit::Int("10".to_string())),
         );
         let module = module_with_root(handle_value(body, "value", value_body));
         let lowered = lower_cps_module(&module).expect("lowered");
@@ -4735,12 +4723,12 @@ mod tests {
     fn leaves_resume_result_outside_value_arm() {
         let body = apply(
             effect_op("choose"),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
         );
         let arm_body = apply(var("k"), var("x"));
         let value_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), var("value")),
-            unknown_lit(core_ir::Lit::Int("10".to_string())),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("value")),
+            unknown_lit(typed_ir::Lit::Int("10".to_string())),
         );
         let module = module_with_root(handle_once_with_value(
             "choose", "x", "k", body, arm_body, "value", value_body,
@@ -4758,17 +4746,17 @@ mod tests {
     fn leaves_multishot_resume_results_outside_value_arm() {
         let body = apply(
             effect_op("choose"),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let resume_two = apply(var("k"), unknown_lit(typed_ir::Lit::Int("2".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_two,
         );
         let value_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), var("value")),
-            unknown_lit(core_ir::Lit::Int("10".to_string())),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("value")),
+            unknown_lit(typed_ir::Lit::Int("10".to_string())),
         );
         let module = module_with_root(handle_once_with_value(
             "choose", "x", "k", body, arm_body, "value", value_body,
@@ -4786,16 +4774,16 @@ mod tests {
     fn lowers_effect_handler_body_rest_into_resumption_continuation() {
         let choose_one = apply(
             effect_op("choose"),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
         );
         let body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), choose_one),
-            unknown_lit(core_ir::Lit::Int("10".to_string())),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), choose_one),
+            unknown_lit(typed_ir::Lit::Int("10".to_string())),
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let resume_two = apply(var("k"), unknown_lit(typed_ir::Lit::Int("2".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_two,
         );
         let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
@@ -4815,8 +4803,8 @@ mod tests {
             lambda(
                 "x",
                 apply(
-                    apply(primitive(core_ir::PrimitiveOp::IntAdd), var("x")),
-                    unknown_lit(core_ir::Lit::Int("10".to_string())),
+                    apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("x")),
+                    unknown_lit(typed_ir::Lit::Int("10".to_string())),
                 ),
             ),
         );
@@ -4824,13 +4812,13 @@ mod tests {
             var("inc"),
             apply(
                 effect_op("choose"),
-                unknown_lit(core_ir::Lit::Int("1".to_string())),
+                unknown_lit(typed_ir::Lit::Int("1".to_string())),
             ),
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let resume_two = apply(var("k"), unknown_lit(typed_ir::Lit::Int("2".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_two,
         );
         let module = module_with_bindings_and_root(
@@ -4853,18 +4841,18 @@ mod tests {
                 pattern: bind_pattern("y"),
                 value: apply(
                     effect_op("choose"),
-                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                    unknown_lit(typed_ir::Lit::Int("1".to_string())),
                 ),
             }],
             apply(
-                apply(primitive(core_ir::PrimitiveOp::IntAdd), var("y")),
-                unknown_lit(core_ir::Lit::Int("10".to_string())),
+                apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("y")),
+                unknown_lit(typed_ir::Lit::Int("10".to_string())),
             ),
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let resume_two = apply(var("k"), unknown_lit(typed_ir::Lit::Int("2".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_two,
         );
         let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
@@ -4885,19 +4873,19 @@ mod tests {
                     pattern: bind_pattern("a"),
                     value: apply(
                         effect_op("choose"),
-                        unknown_lit(core_ir::Lit::Int("1".to_string())),
+                        unknown_lit(typed_ir::Lit::Int("1".to_string())),
                     ),
                 },
                 runtime::Stmt::Let {
                     pattern: bind_pattern("b"),
                     value: apply(
                         effect_op("choose"),
-                        unknown_lit(core_ir::Lit::Int("2".to_string())),
+                        unknown_lit(typed_ir::Lit::Int("2".to_string())),
                     ),
                 },
             ],
             apply(
-                apply(primitive(core_ir::PrimitiveOp::IntAdd), var("a")),
+                apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("a")),
                 var("b"),
             ),
         );
@@ -4928,20 +4916,20 @@ mod tests {
         let body = block(
             vec![runtime::Stmt::Expr(apply(
                 effect_op("choose"),
-                unknown_lit(core_ir::Lit::Int("1".to_string())),
+                unknown_lit(typed_ir::Lit::Int("1".to_string())),
             ))],
             apply(
                 apply(
-                    primitive(core_ir::PrimitiveOp::IntAdd),
-                    unknown_lit(core_ir::Lit::Int("10".to_string())),
+                    primitive(typed_ir::PrimitiveOp::IntAdd),
+                    unknown_lit(typed_ir::Lit::Int("10".to_string())),
                 ),
-                unknown_lit(core_ir::Lit::Int("20".to_string())),
+                unknown_lit(typed_ir::Lit::Int("20".to_string())),
             ),
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let resume_two = apply(var("k"), unknown_lit(typed_ir::Lit::Int("2".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_two,
         );
         let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
@@ -4961,18 +4949,18 @@ mod tests {
                 pattern: bind_pattern("y"),
                 value: apply(
                     effect_op("choose"),
-                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                    unknown_lit(typed_ir::Lit::Int("1".to_string())),
                 ),
             }],
             apply(
-                apply(primitive(core_ir::PrimitiveOp::IntAdd), var("y")),
-                unknown_lit(core_ir::Lit::Int("10".to_string())),
+                apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("y")),
+                unknown_lit(typed_ir::Lit::Int("10".to_string())),
             ),
         )));
         let resume_x = apply(var("k"), var("x"));
-        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let resume_two = apply(var("k"), unknown_lit(typed_ir::Lit::Int("2".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_two,
         );
         let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
@@ -4991,25 +4979,25 @@ mod tests {
             vec![
                 runtime::Stmt::Let {
                     pattern: bind_pattern("z"),
-                    value: unknown_lit(core_ir::Lit::Int("10".to_string())),
+                    value: unknown_lit(typed_ir::Lit::Int("10".to_string())),
                 },
                 runtime::Stmt::Let {
                     pattern: bind_pattern("y"),
                     value: apply(
                         effect_op("choose"),
-                        unknown_lit(core_ir::Lit::Int("1".to_string())),
+                        unknown_lit(typed_ir::Lit::Int("1".to_string())),
                     ),
                 },
             ],
             apply(
-                apply(primitive(core_ir::PrimitiveOp::IntAdd), var("y")),
+                apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("y")),
                 var("z"),
             ),
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let resume_two = apply(var("k"), unknown_lit(typed_ir::Lit::Int("2".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_two,
         );
         let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
@@ -5032,7 +5020,7 @@ mod tests {
     fn lowers_bind_here_tail_effect_statement() {
         let body = bind_here(apply(
             effect_op("choose"),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
         ));
         let arm_body = apply(var("k"), var("x"));
         let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
@@ -5049,33 +5037,33 @@ mod tests {
     fn lowers_if_branches_with_distinct_resume_continuations() {
         let then_branch = apply(
             apply(
-                primitive(core_ir::PrimitiveOp::IntAdd),
+                primitive(typed_ir::PrimitiveOp::IntAdd),
                 apply(
                     effect_op("choose"),
-                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                    unknown_lit(typed_ir::Lit::Int("1".to_string())),
                 ),
             ),
-            unknown_lit(core_ir::Lit::Int("10".to_string())),
+            unknown_lit(typed_ir::Lit::Int("10".to_string())),
         );
         let else_branch = apply(
             apply(
-                primitive(core_ir::PrimitiveOp::IntAdd),
+                primitive(typed_ir::PrimitiveOp::IntAdd),
                 apply(
                     effect_op("choose"),
-                    unknown_lit(core_ir::Lit::Int("2".to_string())),
+                    unknown_lit(typed_ir::Lit::Int("2".to_string())),
                 ),
             ),
-            unknown_lit(core_ir::Lit::Int("20".to_string())),
+            unknown_lit(typed_ir::Lit::Int("20".to_string())),
         );
         let body = if_expr(
-            unknown_lit(core_ir::Lit::Bool(true)),
+            unknown_lit(typed_ir::Lit::Bool(true)),
             then_branch,
             else_branch,
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_three = apply(var("k"), unknown_lit(core_ir::Lit::Int("3".to_string())));
+        let resume_three = apply(var("k"), unknown_lit(typed_ir::Lit::Int("3".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_three,
         );
         let module = module_with_root(handle_once("choose", "x", "k", body, arm_body));
@@ -5092,8 +5080,8 @@ mod tests {
     fn rejects_direct_call_arity_mismatch() {
         let inc = binding("inc", lambda("x", var("x")));
         let root = apply(
-            apply(var("inc"), unknown_lit(core_ir::Lit::Int("1".to_string()))),
-            unknown_lit(core_ir::Lit::Int("2".to_string())),
+            apply(var("inc"), unknown_lit(typed_ir::Lit::Int("1".to_string()))),
+            unknown_lit(typed_ir::Lit::Int("2".to_string())),
         );
         let module = module_with_bindings_and_root(vec![inc], root);
 

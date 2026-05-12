@@ -150,7 +150,7 @@ pub(super) fn validate_hir_type_no_any(
 }
 
 pub(super) fn validate_effect_type_no_any(
-    ty: &core_ir::Type,
+    ty: &typed_ir::Type,
     source: TypeSource,
     type_arg_kinds: &TypeArgKinds,
 ) -> RuntimeResult<()> {
@@ -166,7 +166,7 @@ pub(super) fn validate_effect_type_no_any(
 }
 
 pub(super) fn validate_substitution_type_no_any(
-    ty: &core_ir::Type,
+    ty: &typed_ir::Type,
     source: TypeSource,
     type_arg_kinds: &TypeArgKinds,
 ) -> RuntimeResult<()> {
@@ -184,7 +184,7 @@ pub(super) fn validate_substitution_type_no_any(
 }
 
 pub(super) fn validate_core_type_no_any(
-    ty: &core_ir::Type,
+    ty: &typed_ir::Type,
     source: TypeSource,
     type_arg_kinds: &TypeArgKinds,
 ) -> RuntimeResult<()> {
@@ -200,38 +200,38 @@ pub(super) fn validate_core_type_no_any(
 }
 
 fn contains_non_runtime_type_inner(
-    ty: &core_ir::Type,
+    ty: &typed_ir::Type,
     effect_slot: bool,
-    allowed_vars: &BTreeSet<core_ir::TypeVar>,
+    allowed_vars: &BTreeSet<typed_ir::TypeVar>,
     type_arg_kinds: &TypeArgKinds,
 ) -> bool {
     match ty {
-        core_ir::Type::Unknown => false,
-        core_ir::Type::Never | core_ir::Type::Any => false,
-        core_ir::Type::Var(var) => !allowed_vars.contains(var),
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) if effect_slot => items
+        typed_ir::Type::Unknown => false,
+        typed_ir::Type::Never | typed_ir::Type::Any => false,
+        typed_ir::Type::Var(var) => !allowed_vars.contains(var),
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) if effect_slot => items
             .iter()
             .any(|item| contains_non_runtime_type_inner(item, true, allowed_vars, type_arg_kinds)),
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items)
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items)
             if same_runtime_value_choice(items, allowed_vars, type_arg_kinds) =>
         {
             false
         }
-        core_ir::Type::Union(_) | core_ir::Type::Inter(_) => true,
-        core_ir::Type::Row { .. } => !effect_slot,
-        core_ir::Type::Named { path, args } => args.iter().enumerate().any(|(index, arg)| {
+        typed_ir::Type::Union(_) | typed_ir::Type::Inter(_) => true,
+        typed_ir::Type::Row { .. } => !effect_slot,
+        typed_ir::Type::Named { path, args } => args.iter().enumerate().any(|(index, arg)| {
             let arg_effect_slot = type_arg_kinds
                 .get(path)
                 .and_then(|kinds| kinds.get(index))
                 .is_some_and(|kind| *kind == TypeArgKind::Effect);
             match arg {
-                core_ir::TypeArg::Type(ty) => contains_non_runtime_type_inner(
+                typed_ir::TypeArg::Type(ty) => contains_non_runtime_type_inner(
                     ty,
                     arg_effect_slot,
                     allowed_vars,
                     type_arg_kinds,
                 ),
-                core_ir::TypeArg::Bounds(bounds) => {
+                typed_ir::TypeArg::Bounds(bounds) => {
                     choose_bounds_type(bounds, BoundsChoice::RuntimeValue).is_some_and(|ty| {
                         contains_non_runtime_type_inner(
                             &ty,
@@ -243,7 +243,7 @@ fn contains_non_runtime_type_inner(
                 }
             }
         }),
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -254,19 +254,19 @@ fn contains_non_runtime_type_inner(
                 || contains_non_runtime_type_inner(ret_effect, true, allowed_vars, type_arg_kinds)
                 || contains_non_runtime_type_inner(ret, false, allowed_vars, type_arg_kinds)
         }
-        core_ir::Type::Tuple(items) => items
+        typed_ir::Type::Tuple(items) => items
             .iter()
             .any(|item| contains_non_runtime_type_inner(item, false, allowed_vars, type_arg_kinds)),
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             record.fields.iter().any(|field| {
                 contains_non_runtime_type_inner(&field.value, false, allowed_vars, type_arg_kinds)
             }) || record.spread.as_ref().is_some_and(|spread| match spread {
-                core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                     contains_non_runtime_type_inner(ty, false, allowed_vars, type_arg_kinds)
                 }
             })
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant.cases.iter().any(|case| {
                 case.payloads.iter().any(|payload| {
                     contains_non_runtime_type_inner(payload, false, allowed_vars, type_arg_kinds)
@@ -275,7 +275,7 @@ fn contains_non_runtime_type_inner(
                 contains_non_runtime_type_inner(tail, false, allowed_vars, type_arg_kinds)
             })
         }
-        core_ir::Type::Recursive { body, .. } => {
+        typed_ir::Type::Recursive { body, .. } => {
             contains_non_runtime_type_inner(body, effect_slot, allowed_vars, type_arg_kinds)
         }
     }
@@ -322,8 +322,8 @@ pub(super) fn require_apply_arg_hir_type(
 }
 
 fn same_runtime_value_choice(
-    items: &[core_ir::Type],
-    allowed_vars: &BTreeSet<core_ir::TypeVar>,
+    items: &[typed_ir::Type],
+    allowed_vars: &BTreeSet<typed_ir::TypeVar>,
     type_arg_kinds: &TypeArgKinds,
 ) -> bool {
     let Some(first) = items.first() else {
@@ -337,9 +337,9 @@ fn same_runtime_value_choice(
         })
 }
 
-pub(super) fn hir_value_core_type(ty: &RuntimeType) -> Cow<'_, core_ir::Type> {
+pub(super) fn hir_value_core_type(ty: &RuntimeType) -> Cow<'_, typed_ir::Type> {
     match ty {
-        RuntimeType::Unknown => Cow::Owned(core_ir::Type::Unknown),
+        RuntimeType::Unknown => Cow::Owned(typed_ir::Type::Unknown),
         RuntimeType::Core(ty) => Cow::Borrowed(ty),
         RuntimeType::Thunk { value, .. } => match value.as_ref() {
             RuntimeType::Core(ty) => Cow::Borrowed(ty),
@@ -349,13 +349,13 @@ pub(super) fn hir_value_core_type(ty: &RuntimeType) -> Cow<'_, core_ir::Type> {
     }
 }
 
-pub(super) fn is_constructor_path_for_type(path: &core_ir::Path, ty: &RuntimeType) -> bool {
+pub(super) fn is_constructor_path_for_type(path: &typed_ir::Path, ty: &RuntimeType) -> bool {
     match ty {
-        RuntimeType::Core(core_ir::Type::Named {
+        RuntimeType::Core(typed_ir::Type::Named {
             path: type_path, ..
         }) => constructor_parent_matches(path, type_path),
         RuntimeType::Fun { ret, .. } => {
-            let RuntimeType::Core(core_ir::Type::Named {
+            let RuntimeType::Core(typed_ir::Type::Named {
                 path: type_path, ..
             }) = ret.as_ref()
             else {
@@ -367,7 +367,10 @@ pub(super) fn is_constructor_path_for_type(path: &core_ir::Path, ty: &RuntimeTyp
     }
 }
 
-pub(super) fn constructor_parent_matches(path: &core_ir::Path, type_path: &core_ir::Path) -> bool {
+pub(super) fn constructor_parent_matches(
+    path: &typed_ir::Path,
+    type_path: &typed_ir::Path,
+) -> bool {
     path.segments.len() == type_path.segments.len() + 1
         && path
             .segments
@@ -376,16 +379,16 @@ pub(super) fn constructor_parent_matches(path: &core_ir::Path, type_path: &core_
             .all(|(left, right)| left == right)
 }
 
-pub(super) fn bool_type() -> core_ir::Type {
-    core_ir::Type::Named {
-        path: core_ir::Path::from_name(core_ir::Name("bool".to_string())),
+pub(super) fn bool_type() -> typed_ir::Type {
+    typed_ir::Type::Named {
+        path: typed_ir::Path::from_name(typed_ir::Name("bool".to_string())),
         args: Vec::new(),
     }
 }
 
-pub(super) fn effect_id_type() -> core_ir::Type {
-    core_ir::Type::Named {
-        path: core_ir::Path::from_name(core_ir::Name("__effect_id".to_string())),
+pub(super) fn effect_id_type() -> typed_ir::Type {
+    typed_ir::Type::Named {
+        path: typed_ir::Path::from_name(typed_ir::Name("__effect_id".to_string())),
         args: Vec::new(),
     }
 }
@@ -398,14 +401,14 @@ mod tests {
     #[test]
     fn thunk_type_allows_effect_row() {
         let value_ty = bool_type();
-        let effect = core_ir::Type::Row {
+        let effect = typed_ir::Type::Row {
             items: vec![named_type("junction")],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
-        let inner = Expr::typed(ExprKind::Lit(core_ir::Lit::Bool(true)), value_ty.clone());
+        let inner = Expr::typed(ExprKind::Lit(typed_ir::Lit::Bool(true)), value_ty.clone());
         let thunk_ty = Type::thunk(effect.clone(), Type::core(value_ty.clone()));
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: Vec::new(),
             root_exprs: vec![Expr::typed(
                 ExprKind::Thunk {
@@ -425,17 +428,17 @@ mod tests {
     #[test]
     fn thunk_type_allows_recursive_effect_row() {
         let value_ty = bool_type();
-        let effect = core_ir::Type::Recursive {
-            var: core_ir::TypeVar("e".to_string()),
-            body: Box::new(core_ir::Type::Row {
+        let effect = typed_ir::Type::Recursive {
+            var: typed_ir::TypeVar("e".to_string()),
+            body: Box::new(typed_ir::Type::Row {
                 items: vec![named_type("undet")],
-                tail: Box::new(core_ir::Type::Var(core_ir::TypeVar("e".to_string()))),
+                tail: Box::new(typed_ir::Type::Var(typed_ir::TypeVar("e".to_string()))),
             }),
         };
-        let inner = Expr::typed(ExprKind::Lit(core_ir::Lit::Bool(true)), value_ty.clone());
+        let inner = Expr::typed(ExprKind::Lit(typed_ir::Lit::Bool(true)), value_ty.clone());
         let thunk_ty = Type::thunk(effect.clone(), Type::core(value_ty.clone()));
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: Vec::new(),
             root_exprs: vec![Expr::typed(
                 ExprKind::Thunk {
@@ -455,23 +458,23 @@ mod tests {
     #[test]
     fn record_pattern_default_allows_missing_expected_field() {
         let int = named_type("int");
-        let value_ty = core_ir::Type::Record(core_ir::RecordType {
-            fields: vec![core_ir::RecordField {
-                name: core_ir::Name("base".to_string()),
+        let value_ty = typed_ir::Type::Record(typed_ir::RecordType {
+            fields: vec![typed_ir::RecordField {
+                name: typed_ir::Name("base".to_string()),
                 value: int.clone(),
                 optional: false,
             }],
             spread: None,
         });
-        let pattern_ty = Type::core(core_ir::Type::Record(core_ir::RecordType {
+        let pattern_ty = Type::core(typed_ir::Type::Record(typed_ir::RecordType {
             fields: vec![
-                core_ir::RecordField {
-                    name: core_ir::Name("base".to_string()),
+                typed_ir::RecordField {
+                    name: typed_ir::Name("base".to_string()),
                     value: int.clone(),
                     optional: false,
                 },
-                core_ir::RecordField {
-                    name: core_ir::Name("extra".to_string()),
+                typed_ir::RecordField {
+                    name: typed_ir::Name("extra".to_string()),
                     value: int.clone(),
                     optional: true,
                 },
@@ -479,7 +482,7 @@ mod tests {
             spread: None,
         }));
         let module = Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: Vec::new(),
             root_exprs: vec![Expr::typed(
                 ExprKind::Block {
@@ -487,21 +490,21 @@ mod tests {
                         pattern: crate::ir::Pattern::Record {
                             fields: vec![
                                 crate::ir::RecordPatternField {
-                                    name: core_ir::Name("base".to_string()),
+                                    name: typed_ir::Name("base".to_string()),
                                     pattern: crate::ir::Pattern::Bind {
-                                        name: core_ir::Name("base".to_string()),
+                                        name: typed_ir::Name("base".to_string()),
                                         ty: Type::core(int.clone()),
                                     },
                                     default: None,
                                 },
                                 crate::ir::RecordPatternField {
-                                    name: core_ir::Name("extra".to_string()),
+                                    name: typed_ir::Name("extra".to_string()),
                                     pattern: crate::ir::Pattern::Bind {
-                                        name: core_ir::Name("extra".to_string()),
+                                        name: typed_ir::Name("extra".to_string()),
                                         ty: Type::core(int.clone()),
                                     },
                                     default: Some(Expr::typed(
-                                        ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                                        ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                                         Type::core(int.clone()),
                                     )),
                                 },
@@ -512,9 +515,9 @@ mod tests {
                         value: Expr::typed(
                             ExprKind::Record {
                                 fields: vec![crate::ir::RecordExprField {
-                                    name: core_ir::Name("base".to_string()),
+                                    name: typed_ir::Name("base".to_string()),
                                     value: Expr::typed(
-                                        ExprKind::Lit(core_ir::Lit::Int("3".to_string())),
+                                        ExprKind::Lit(typed_ir::Lit::Int("3".to_string())),
                                         Type::core(int.clone()),
                                     ),
                                 }],
@@ -524,7 +527,9 @@ mod tests {
                         ),
                     }],
                     tail: Some(Box::new(Expr::typed(
-                        ExprKind::Var(core_ir::Path::from_name(core_ir::Name("extra".to_string()))),
+                        ExprKind::Var(typed_ir::Path::from_name(typed_ir::Name(
+                            "extra".to_string(),
+                        ))),
                         Type::core(int.clone()),
                     ))),
                 },
@@ -537,9 +542,9 @@ mod tests {
         validate_module(&module).expect("valid record default pattern");
     }
 
-    fn named_type(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named_type(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args: Vec::new(),
         }
     }

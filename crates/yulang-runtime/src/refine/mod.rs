@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::RuntimeResult;
 use crate::ir::{
@@ -87,7 +87,7 @@ pub(super) fn is_principal_polymorphic_binding(binding: &Binding) -> bool {
     !binding.type_params.is_empty() && !is_monomorphized_path(&binding.name)
 }
 
-pub(super) fn is_monomorphized_path(path: &core_ir::Path) -> bool {
+pub(super) fn is_monomorphized_path(path: &typed_ir::Path) -> bool {
     path.segments
         .last()
         .is_some_and(|name| name.0.contains("__mono"))

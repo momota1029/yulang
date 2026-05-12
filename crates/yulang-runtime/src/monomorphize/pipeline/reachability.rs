@@ -4,7 +4,7 @@ fn reachable_expr_binding_paths(
     bindings: &[Binding],
     root_exprs: &[Expr],
     roots: &[Root],
-) -> HashSet<core_ir::Path> {
+) -> HashSet<typed_ir::Path> {
     let bindings_by_path = bindings
         .iter()
         .map(|binding| (binding.name.clone(), binding))
@@ -42,7 +42,7 @@ fn reachable_expr_binding_paths(
     reachable
 }
 
-pub(super) fn final_reachable_binding_paths(module: &Module) -> HashSet<core_ir::Path> {
+pub(super) fn final_reachable_binding_paths(module: &Module) -> HashSet<typed_ir::Path> {
     module
         .bindings
         .iter()
@@ -50,7 +50,7 @@ pub(super) fn final_reachable_binding_paths(module: &Module) -> HashSet<core_ir:
         .collect()
 }
 
-pub(super) fn root_reachable_binding_paths(module: &Module) -> HashSet<core_ir::Path> {
+pub(super) fn root_reachable_binding_paths(module: &Module) -> HashSet<typed_ir::Path> {
     reachable_expr_binding_paths(&module.bindings, &module.root_exprs, &module.roots)
 }
 
@@ -102,7 +102,7 @@ pub(super) fn prune_unreachable_specializations(module: Module) -> Module {
     }
 }
 
-fn is_demand_specialization_path(path: &core_ir::Path) -> bool {
+fn is_demand_specialization_path(path: &typed_ir::Path) -> bool {
     path.segments
         .last()
         .and_then(|name| name.0.rsplit_once("__ddmono"))
@@ -148,8 +148,8 @@ pub(super) fn ensure_monomorphic_bindings(module: &Module) -> RuntimeResult<()> 
         for requirement in &binding.scheme.requirements {
             for arg in &requirement.args {
                 match arg {
-                    core_ir::RoleRequirementArg::Input(bounds)
-                    | core_ir::RoleRequirementArg::Associated { bounds, .. } => {
+                    typed_ir::RoleRequirementArg::Input(bounds)
+                    | typed_ir::RoleRequirementArg::Associated { bounds, .. } => {
                         if let Some(lower) = bounds.lower.as_deref() {
                             collect_core_type_vars(lower, &mut vars);
                         }

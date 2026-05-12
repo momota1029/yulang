@@ -4,7 +4,7 @@
 //! lanes to continuation parameters, captured environment slots, and returns so
 //! the Cranelift lowering can distinguish plain values from resumption pointers.
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::cps_ir::{
     CpsContinuationId, CpsHandlerId, CpsShotKind, CpsStmt, CpsTerminator, CpsValueId,
@@ -61,7 +61,7 @@ pub struct CpsReprAbiHandler {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CpsReprAbiHandlerArm {
-    pub effect: core_ir::Path,
+    pub effect: typed_ir::Path,
     pub entry: CpsContinuationId,
 }
 
@@ -171,7 +171,7 @@ fn value_lane(
 
 #[cfg(test)]
 mod tests {
-    use yulang_core_ir as core_ir;
+    use yulang_typed_ir as typed_ir;
 
     use crate::cps_ir::{CpsFunction, CpsHandler, CpsHandlerArm, CpsLiteral, CpsModule};
     use crate::cps_repr::lower_cps_repr_module;
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn lowers_resumption_parameter_to_pointer_lane() {
-        let effect = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        let effect = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
         let repr = lower_cps_repr_module(&CpsModule {
             functions: Vec::new(),
             roots: vec![CpsFunction {
@@ -224,7 +224,7 @@ mod tests {
                             },
                             CpsStmt::Primitive {
                                 dest: CpsValueId(6),
-                                op: core_ir::PrimitiveOp::IntAdd,
+                                op: typed_ir::PrimitiveOp::IntAdd,
                                 args: vec![CpsValueId(1), CpsValueId(5)],
                             },
                         ],

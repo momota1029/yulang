@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
+use yulang_typed_ir as typed_ir;
 
 use crate::abi::{NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
 use crate::control_ir::{BlockId, NativeLiteral, NativeTerminator, ValueId};
@@ -432,7 +432,7 @@ fn bool_value(value: &runtime::VmValue) -> NativeAbiEvalResult<bool> {
         runtime::VmValue::Bool(value) => Ok(*value),
         value => Err(NativeAbiEvalError::NativeEval(
             NativeEvalError::PrimitiveTypeMismatch {
-                op: core_ir::PrimitiveOp::BoolNot,
+                op: typed_ir::PrimitiveOp::BoolNot,
                 value: value.clone(),
             },
         )),
@@ -441,7 +441,7 @@ fn bool_value(value: &runtime::VmValue) -> NativeAbiEvalResult<bool> {
 
 #[cfg(test)]
 mod tests {
-    use yulang_core_ir as core_ir;
+    use yulang_typed_ir as typed_ir;
 
     use crate::abi::{
         NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt,
@@ -546,7 +546,7 @@ mod tests {
                     params: vec![ValueId(0), ValueId(1)],
                     stmts: vec![NativeStmt::Primitive {
                         dest: ValueId(2),
-                        op: core_ir::PrimitiveOp::IntAdd,
+                        op: typed_ir::PrimitiveOp::IntAdd,
                         args: vec![ValueId(0), ValueId(1)],
                     }],
                     terminator: NativeTerminator::Return(ValueId(2)),
@@ -601,7 +601,7 @@ mod tests {
                 params: vec![ValueId(0), ValueId(1)],
                 stmts: vec![NativeAbiStmt::Primitive {
                     dest: ValueId(2),
-                    op: core_ir::PrimitiveOp::IntAdd,
+                    op: typed_ir::PrimitiveOp::IntAdd,
                     args: vec![ValueId(0), ValueId(1)],
                 }],
                 terminator: NativeTerminator::Return(ValueId(2)),
@@ -624,7 +624,7 @@ mod tests {
                     },
                     NativeAbiStmt::Primitive {
                         dest: ValueId(2),
-                        op: core_ir::PrimitiveOp::IntAdd,
+                        op: typed_ir::PrimitiveOp::IntAdd,
                         args: vec![ValueId(0), ValueId(1)],
                     },
                 ],

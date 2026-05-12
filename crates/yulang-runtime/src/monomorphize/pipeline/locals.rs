@@ -14,15 +14,15 @@ pub(super) fn pattern_type(pattern: &Pattern) -> RuntimeType {
     }
 }
 
-pub(super) fn collect_expr_vars(expr: &Expr, vars: &mut HashSet<core_ir::Path>) {
+pub(super) fn collect_expr_vars(expr: &Expr, vars: &mut HashSet<typed_ir::Path>) {
     let mut bound = HashSet::new();
     collect_expr_free_vars(expr, &mut bound, vars);
 }
 
 fn collect_expr_free_vars(
     expr: &Expr,
-    bound: &mut HashSet<core_ir::Path>,
-    vars: &mut HashSet<core_ir::Path>,
+    bound: &mut HashSet<typed_ir::Path>,
+    vars: &mut HashSet<typed_ir::Path>,
 ) {
     match &expr.kind {
         ExprKind::Var(path) => {
@@ -31,7 +31,7 @@ fn collect_expr_free_vars(
             }
         }
         ExprKind::Lambda { param, body, .. } => {
-            with_bound_path(bound, core_ir::Path::from_name(param.clone()), |bound| {
+            with_bound_path(bound, typed_ir::Path::from_name(param.clone()), |bound| {
                 collect_expr_free_vars(body, bound, vars);
             });
         }
@@ -98,7 +98,7 @@ fn collect_expr_free_vars(
                     if let Some(resume) = &arm.resume {
                         with_bound_path(
                             bound,
-                            core_ir::Path::from_name(resume.name.clone()),
+                            typed_ir::Path::from_name(resume.name.clone()),
                             |bound| {
                                 collect_expr_free_vars(&arm.body, bound, vars);
                             },
@@ -127,8 +127,8 @@ fn collect_expr_free_vars(
 fn collect_block_free_vars(
     stmts: &[Stmt],
     tail: Option<&Expr>,
-    bound: &mut HashSet<core_ir::Path>,
-    vars: &mut HashSet<core_ir::Path>,
+    bound: &mut HashSet<typed_ir::Path>,
+    vars: &mut HashSet<typed_ir::Path>,
 ) {
     let checkpoint = bound.clone();
     for stmt in stmts {
@@ -142,8 +142,8 @@ fn collect_block_free_vars(
 
 fn collect_stmt_free_vars(
     stmt: &Stmt,
-    bound: &mut HashSet<core_ir::Path>,
-    vars: &mut HashSet<core_ir::Path>,
+    bound: &mut HashSet<typed_ir::Path>,
+    vars: &mut HashSet<typed_ir::Path>,
 ) {
     match stmt {
         Stmt::Let { pattern, value } => {
@@ -161,9 +161,9 @@ fn collect_stmt_free_vars(
 }
 
 fn with_bound_path(
-    bound: &mut HashSet<core_ir::Path>,
-    path: core_ir::Path,
-    f: impl FnOnce(&mut HashSet<core_ir::Path>),
+    bound: &mut HashSet<typed_ir::Path>,
+    path: typed_ir::Path,
+    f: impl FnOnce(&mut HashSet<typed_ir::Path>),
 ) {
     let inserted = bound.insert(path.clone());
     f(bound);
@@ -173,9 +173,9 @@ fn with_bound_path(
 }
 
 fn with_bound_pattern(
-    bound: &mut HashSet<core_ir::Path>,
+    bound: &mut HashSet<typed_ir::Path>,
     pattern: &Pattern,
-    f: impl FnOnce(&mut HashSet<core_ir::Path>),
+    f: impl FnOnce(&mut HashSet<typed_ir::Path>),
 ) {
     let checkpoint = bound.clone();
     bind_pattern_paths(bound, pattern);
@@ -183,10 +183,10 @@ fn with_bound_pattern(
     *bound = checkpoint;
 }
 
-fn bind_pattern_paths(bound: &mut HashSet<core_ir::Path>, pattern: &Pattern) {
+fn bind_pattern_paths(bound: &mut HashSet<typed_ir::Path>, pattern: &Pattern) {
     match pattern {
         Pattern::Bind { name, .. } => {
-            bound.insert(core_ir::Path::from_name(name.clone()));
+            bound.insert(typed_ir::Path::from_name(name.clone()));
         }
         Pattern::Tuple { items, .. } => {
             for item in items {
@@ -230,7 +230,7 @@ fn bind_pattern_paths(bound: &mut HashSet<core_ir::Path>, pattern: &Pattern) {
         }
         Pattern::As { pattern, name, .. } => {
             bind_pattern_paths(bound, pattern);
-            bound.insert(core_ir::Path::from_name(name.clone()));
+            bound.insert(typed_ir::Path::from_name(name.clone()));
         }
         Pattern::Wildcard { .. } | Pattern::Lit { .. } | Pattern::Variant { value: None, .. } => {}
     }
@@ -238,8 +238,8 @@ fn bind_pattern_paths(bound: &mut HashSet<core_ir::Path>, pattern: &Pattern) {
 
 fn collect_pattern_default_free_vars(
     pattern: &Pattern,
-    bound: &mut HashSet<core_ir::Path>,
-    vars: &mut HashSet<core_ir::Path>,
+    bound: &mut HashSet<typed_ir::Path>,
+    vars: &mut HashSet<typed_ir::Path>,
 ) {
     match pattern {
         Pattern::Tuple { items, .. } => {
@@ -299,17 +299,20 @@ mod tests {
 
     #[test]
     fn collect_expr_vars_ignores_handle_resume_in_arm_body() {
-        let resume = core_ir::Name("resume".to_string());
-        let resume_path = core_ir::Path::from_name(resume.clone());
-        let unit = RuntimeType::Core(core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name("unit".to_string())),
+        let resume = typed_ir::Name("resume".to_string());
+        let resume_path = typed_ir::Path::from_name(resume.clone());
+        let unit = RuntimeType::Core(typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("unit".to_string())),
             args: Vec::new(),
         });
         let expr = Expr::typed(
             ExprKind::Handle {
-                body: Box::new(Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), unit.clone())),
+                body: Box::new(Expr::typed(
+                    ExprKind::Lit(typed_ir::Lit::Unit),
+                    unit.clone(),
+                )),
                 arms: vec![HandleArm {
-                    effect: core_ir::Path::from_name(core_ir::Name("eff".to_string())),
+                    effect: typed_ir::Path::from_name(typed_ir::Name("eff".to_string())),
                     payload: Pattern::Wildcard { ty: unit.clone() },
                     resume: Some(ResumeBinding {
                         name: resume,
@@ -319,7 +322,7 @@ mod tests {
                     body: Expr::typed(ExprKind::Var(resume_path.clone()), unit.clone()),
                 }],
                 evidence: crate::ir::JoinEvidence {
-                    result: core_ir::Type::Never,
+                    result: typed_ir::Type::Never,
                 },
                 handler: crate::ir::HandleEffect {
                     consumes: Vec::new(),

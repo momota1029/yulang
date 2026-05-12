@@ -3,7 +3,7 @@ use std::time::Duration;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::time::Instant;
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use super::complete_principal::{
     CompletePrincipalCache, ExpectedEdgeEvidence, collect_expected_adapter_edge_evidence,
@@ -57,7 +57,7 @@ impl ExportClock {
     }
 }
 
-pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
+pub fn export_core_program(state: &mut LowerState) -> typed_ir::CoreProgram {
     let export_timing = std::env::var_os("YULANG_EXPORT_TIMING").is_some();
     let t0 = ExportClock::now(export_timing);
     let t_setup_refresh_before = ExportClock::now(export_timing);
@@ -162,7 +162,7 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
         );
     }
     let roots = (0..root_exprs.len())
-        .map(core_ir::PrincipalRoot::Expr)
+        .map(typed_ir::PrincipalRoot::Expr)
         .collect();
     let t5 = ExportClock::now(export_timing);
     let graph = export_type_graph_view_for_paths(state, &selected_paths, &bindings);
@@ -198,15 +198,15 @@ pub fn export_core_program(state: &mut LowerState) -> core_ir::CoreProgram {
             t0.elapsed().as_secs_f64() * 1000.0
         );
     }
-    core_ir::CoreProgram {
-        program: core_ir::PrincipalModule {
-            path: core_ir::Path::default(),
+    typed_ir::CoreProgram {
+        program: typed_ir::PrincipalModule {
+            path: typed_ir::Path::default(),
             bindings,
             root_exprs,
             roots,
         },
         graph,
-        evidence: core_ir::PrincipalEvidence {
+        evidence: typed_ir::PrincipalEvidence {
             expected_edges: expected_edge_evidence
                 .into_iter()
                 .map(export_expected_edge_evidence)
@@ -231,8 +231,8 @@ fn export_debug_principal_evidence_enabled() -> bool {
 
 fn export_expected_edge_evidence(
     evidence: super::complete_principal::ExpectedEdgeEvidence,
-) -> core_ir::ExpectedEdgeEvidence {
-    core_ir::ExpectedEdgeEvidence {
+) -> typed_ir::ExpectedEdgeEvidence {
+    typed_ir::ExpectedEdgeEvidence {
         id: evidence.id.0,
         kind: export_expected_edge_kind(evidence.kind),
         source_range: evidence.source_range,
@@ -248,8 +248,8 @@ fn export_expected_edge_evidence(
 
 fn export_derived_expected_edge_evidence(
     evidence: super::complete_principal::DerivedExpectedEdgeEvidence,
-) -> core_ir::DerivedExpectedEdgeEvidence {
-    core_ir::DerivedExpectedEdgeEvidence {
+) -> typed_ir::DerivedExpectedEdgeEvidence {
+    typed_ir::DerivedExpectedEdgeEvidence {
         parent: evidence.parent.0,
         kind: export_derived_expected_edge_kind(evidence.kind),
         polarity: export_edge_polarity(evidence.polarity),
@@ -265,67 +265,67 @@ fn export_derived_expected_edge_evidence(
 
 fn export_derived_expected_edge_kind(
     kind: super::complete_principal::DerivedExpectedEdgeKind,
-) -> core_ir::DerivedExpectedEdgeKind {
+) -> typed_ir::DerivedExpectedEdgeKind {
     match kind {
         super::complete_principal::DerivedExpectedEdgeKind::RecordField => {
-            core_ir::DerivedExpectedEdgeKind::RecordField
+            typed_ir::DerivedExpectedEdgeKind::RecordField
         }
         super::complete_principal::DerivedExpectedEdgeKind::TupleItem => {
-            core_ir::DerivedExpectedEdgeKind::TupleItem
+            typed_ir::DerivedExpectedEdgeKind::TupleItem
         }
         super::complete_principal::DerivedExpectedEdgeKind::VariantPayload => {
-            core_ir::DerivedExpectedEdgeKind::VariantPayload
+            typed_ir::DerivedExpectedEdgeKind::VariantPayload
         }
         super::complete_principal::DerivedExpectedEdgeKind::FunctionParam => {
-            core_ir::DerivedExpectedEdgeKind::FunctionParam
+            typed_ir::DerivedExpectedEdgeKind::FunctionParam
         }
         super::complete_principal::DerivedExpectedEdgeKind::FunctionReturn => {
-            core_ir::DerivedExpectedEdgeKind::FunctionReturn
+            typed_ir::DerivedExpectedEdgeKind::FunctionReturn
         }
     }
 }
 
 fn export_edge_polarity(
     polarity: super::complete_principal::EdgePolarity,
-) -> core_ir::EdgePolarity {
+) -> typed_ir::EdgePolarity {
     match polarity {
-        super::complete_principal::EdgePolarity::Covariant => core_ir::EdgePolarity::Covariant,
+        super::complete_principal::EdgePolarity::Covariant => typed_ir::EdgePolarity::Covariant,
         super::complete_principal::EdgePolarity::Contravariant => {
-            core_ir::EdgePolarity::Contravariant
+            typed_ir::EdgePolarity::Contravariant
         }
-        super::complete_principal::EdgePolarity::Invariant => core_ir::EdgePolarity::Invariant,
+        super::complete_principal::EdgePolarity::Invariant => typed_ir::EdgePolarity::Invariant,
     }
 }
 
 fn export_edge_path_segment(
     segment: super::complete_principal::EdgePathSegment,
-) -> core_ir::EdgePathSegment {
+) -> typed_ir::EdgePathSegment {
     match segment {
         super::complete_principal::EdgePathSegment::Field(name) => {
-            core_ir::EdgePathSegment::Field(name)
+            typed_ir::EdgePathSegment::Field(name)
         }
         super::complete_principal::EdgePathSegment::TupleIndex(index) => {
-            core_ir::EdgePathSegment::TupleIndex(index)
+            typed_ir::EdgePathSegment::TupleIndex(index)
         }
         super::complete_principal::EdgePathSegment::VariantCase(name) => {
-            core_ir::EdgePathSegment::VariantCase(name)
+            typed_ir::EdgePathSegment::VariantCase(name)
         }
         super::complete_principal::EdgePathSegment::PayloadIndex(index) => {
-            core_ir::EdgePathSegment::PayloadIndex(index)
+            typed_ir::EdgePathSegment::PayloadIndex(index)
         }
         super::complete_principal::EdgePathSegment::FunctionParam => {
-            core_ir::EdgePathSegment::FunctionParam
+            typed_ir::EdgePathSegment::FunctionParam
         }
         super::complete_principal::EdgePathSegment::FunctionReturn => {
-            core_ir::EdgePathSegment::FunctionReturn
+            typed_ir::EdgePathSegment::FunctionReturn
         }
     }
 }
 
 fn export_expected_adapter_edge_evidence(
     evidence: super::complete_principal::ExpectedAdapterEdgeEvidence,
-) -> core_ir::ExpectedAdapterEdgeEvidence {
-    core_ir::ExpectedAdapterEdgeEvidence {
+) -> typed_ir::ExpectedAdapterEdgeEvidence {
+    typed_ir::ExpectedAdapterEdgeEvidence {
         id: evidence.id.0,
         source_expected_edge: evidence.source_expected_edge.map(|id| id.0),
         kind: export_expected_adapter_edge_kind(evidence.kind),
@@ -342,58 +342,58 @@ fn export_expected_adapter_edge_evidence(
 
 fn export_expected_adapter_edge_kind(
     kind: crate::diagnostic::ExpectedAdapterEdgeKind,
-) -> core_ir::ExpectedAdapterEdgeKind {
+) -> typed_ir::ExpectedAdapterEdgeKind {
     match kind {
         crate::diagnostic::ExpectedAdapterEdgeKind::EffectOperationArgument => {
-            core_ir::ExpectedAdapterEdgeKind::EffectOperationArgument
+            typed_ir::ExpectedAdapterEdgeKind::EffectOperationArgument
         }
         crate::diagnostic::ExpectedAdapterEdgeKind::ValueToThunk => {
-            core_ir::ExpectedAdapterEdgeKind::ValueToThunk
+            typed_ir::ExpectedAdapterEdgeKind::ValueToThunk
         }
         crate::diagnostic::ExpectedAdapterEdgeKind::ThunkToValue => {
-            core_ir::ExpectedAdapterEdgeKind::ThunkToValue
+            typed_ir::ExpectedAdapterEdgeKind::ThunkToValue
         }
         crate::diagnostic::ExpectedAdapterEdgeKind::BindHere => {
-            core_ir::ExpectedAdapterEdgeKind::BindHere
+            typed_ir::ExpectedAdapterEdgeKind::BindHere
         }
         crate::diagnostic::ExpectedAdapterEdgeKind::HandlerResidual => {
-            core_ir::ExpectedAdapterEdgeKind::HandlerResidual
+            typed_ir::ExpectedAdapterEdgeKind::HandlerResidual
         }
         crate::diagnostic::ExpectedAdapterEdgeKind::HandlerReturn => {
-            core_ir::ExpectedAdapterEdgeKind::HandlerReturn
+            typed_ir::ExpectedAdapterEdgeKind::HandlerReturn
         }
         crate::diagnostic::ExpectedAdapterEdgeKind::ResumeArgument => {
-            core_ir::ExpectedAdapterEdgeKind::ResumeArgument
+            typed_ir::ExpectedAdapterEdgeKind::ResumeArgument
         }
     }
 }
 
 fn export_expected_edge_kind(
     kind: crate::diagnostic::ExpectedEdgeKind,
-) -> core_ir::ExpectedEdgeKind {
+) -> typed_ir::ExpectedEdgeKind {
     match kind {
-        crate::diagnostic::ExpectedEdgeKind::IfCondition => core_ir::ExpectedEdgeKind::IfCondition,
-        crate::diagnostic::ExpectedEdgeKind::IfBranch => core_ir::ExpectedEdgeKind::IfBranch,
-        crate::diagnostic::ExpectedEdgeKind::MatchGuard => core_ir::ExpectedEdgeKind::MatchGuard,
-        crate::diagnostic::ExpectedEdgeKind::MatchBranch => core_ir::ExpectedEdgeKind::MatchBranch,
-        crate::diagnostic::ExpectedEdgeKind::CatchGuard => core_ir::ExpectedEdgeKind::CatchGuard,
-        crate::diagnostic::ExpectedEdgeKind::CatchBranch => core_ir::ExpectedEdgeKind::CatchBranch,
+        crate::diagnostic::ExpectedEdgeKind::IfCondition => typed_ir::ExpectedEdgeKind::IfCondition,
+        crate::diagnostic::ExpectedEdgeKind::IfBranch => typed_ir::ExpectedEdgeKind::IfBranch,
+        crate::diagnostic::ExpectedEdgeKind::MatchGuard => typed_ir::ExpectedEdgeKind::MatchGuard,
+        crate::diagnostic::ExpectedEdgeKind::MatchBranch => typed_ir::ExpectedEdgeKind::MatchBranch,
+        crate::diagnostic::ExpectedEdgeKind::CatchGuard => typed_ir::ExpectedEdgeKind::CatchGuard,
+        crate::diagnostic::ExpectedEdgeKind::CatchBranch => typed_ir::ExpectedEdgeKind::CatchBranch,
         crate::diagnostic::ExpectedEdgeKind::ApplicationCallee => {
-            core_ir::ExpectedEdgeKind::ApplicationCallee
+            typed_ir::ExpectedEdgeKind::ApplicationCallee
         }
         crate::diagnostic::ExpectedEdgeKind::ApplicationArgument => {
-            core_ir::ExpectedEdgeKind::ApplicationArgument
+            typed_ir::ExpectedEdgeKind::ApplicationArgument
         }
-        crate::diagnostic::ExpectedEdgeKind::Annotation => core_ir::ExpectedEdgeKind::Annotation,
-        crate::diagnostic::ExpectedEdgeKind::RecordField => core_ir::ExpectedEdgeKind::RecordField,
+        crate::diagnostic::ExpectedEdgeKind::Annotation => typed_ir::ExpectedEdgeKind::Annotation,
+        crate::diagnostic::ExpectedEdgeKind::RecordField => typed_ir::ExpectedEdgeKind::RecordField,
         crate::diagnostic::ExpectedEdgeKind::VariantPayload => {
-            core_ir::ExpectedEdgeKind::VariantPayload
+            typed_ir::ExpectedEdgeKind::VariantPayload
         }
         crate::diagnostic::ExpectedEdgeKind::AssignmentValue => {
-            core_ir::ExpectedEdgeKind::AssignmentValue
+            typed_ir::ExpectedEdgeKind::AssignmentValue
         }
         crate::diagnostic::ExpectedEdgeKind::RepresentationCoerce => {
-            core_ir::ExpectedEdgeKind::RepresentationCoerce
+            typed_ir::ExpectedEdgeKind::RepresentationCoerce
         }
     }
 }
@@ -401,7 +401,7 @@ fn export_expected_edge_kind(
 fn refine_runtime_binding_scheme_bodies(
     state: &LowerState,
     paths: &[(Path, DefId)],
-    bindings: &mut [core_ir::PrincipalBinding],
+    bindings: &mut [typed_ir::PrincipalBinding],
 ) {
     for binding in bindings {
         let Some((_, def)) = paths
@@ -426,13 +426,13 @@ fn refine_runtime_binding_scheme_bodies(
     }
 }
 
-fn core_type_has_no_vars(ty: &core_ir::Type) -> bool {
+fn core_type_has_no_vars(ty: &typed_ir::Type) -> bool {
     let mut vars = BTreeSet::new();
     collect_core_type_vars(ty, &mut vars);
     vars.is_empty()
 }
 
-pub fn export_principal_module(state: &mut LowerState) -> core_ir::PrincipalModule {
+pub fn export_principal_module(state: &mut LowerState) -> typed_ir::PrincipalModule {
     state.refresh_selection_environment();
     let paths = collect_user_observable_binding_paths(state);
     let mut target_defs = paths.iter().map(|(_, def)| *def).collect::<HashSet<_>>();
@@ -441,17 +441,17 @@ pub fn export_principal_module(state: &mut LowerState) -> core_ir::PrincipalModu
     state.refresh_selection_environment();
     let edge_evidence = build_edge_evidence_cache(state);
     let root_exprs = export_root_exprs(state, &edge_evidence);
-    core_ir::PrincipalModule {
-        path: core_ir::Path::default(),
+    typed_ir::PrincipalModule {
+        path: typed_ir::Path::default(),
         bindings: export_bindings_for_paths(state, &paths, &root_exprs, &edge_evidence),
         roots: (0..root_exprs.len())
-            .map(core_ir::PrincipalRoot::Expr)
+            .map(typed_ir::PrincipalRoot::Expr)
             .collect(),
         root_exprs,
     }
 }
 
-pub fn export_principal_bindings(state: &mut LowerState) -> Vec<core_ir::PrincipalBinding> {
+pub fn export_principal_bindings(state: &mut LowerState) -> Vec<typed_ir::PrincipalBinding> {
     state.refresh_selection_environment();
     let paths = collect_user_observable_binding_paths(state);
     let mut target_defs = paths.iter().map(|(_, def)| *def).collect::<HashSet<_>>();
@@ -465,7 +465,7 @@ pub fn export_principal_bindings(state: &mut LowerState) -> Vec<core_ir::Princip
 pub fn export_core_program_for_binding_paths(
     state: &mut LowerState,
     paths: &[(Path, DefId)],
-) -> core_ir::CoreProgram {
+) -> typed_ir::CoreProgram {
     state.refresh_selection_environment();
     let target_defs = paths.iter().map(|(_, def)| *def).collect::<HashSet<_>>();
     state.finalize_compact_results_for_defs(&target_defs);
@@ -492,15 +492,15 @@ pub fn export_core_program_for_binding_paths(
         Vec::new()
     };
 
-    core_ir::CoreProgram {
-        program: core_ir::PrincipalModule {
-            path: core_ir::Path::default(),
+    typed_ir::CoreProgram {
+        program: typed_ir::PrincipalModule {
+            path: typed_ir::Path::default(),
             bindings,
             root_exprs,
             roots: Vec::new(),
         },
         graph,
-        evidence: core_ir::PrincipalEvidence {
+        evidence: typed_ir::PrincipalEvidence {
             expected_edges: expected_edge_evidence
                 .into_iter()
                 .map(export_expected_edge_evidence)
@@ -553,9 +553,9 @@ fn collect_user_observable_binding_paths(state: &LowerState) -> Vec<(Path, DefId
 fn export_bindings_for_paths(
     state: &mut LowerState,
     paths: &[(Path, DefId)],
-    extra_exprs: &[core_ir::Expr],
+    extra_exprs: &[typed_ir::Expr],
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
-) -> Vec<core_ir::PrincipalBinding> {
+) -> Vec<typed_ir::PrincipalBinding> {
     let export_timing = std::env::var_os("YULANG_EXPORT_TIMING").is_some();
     let t_canonical = ExportClock::now(export_timing);
     let canonical = collect_canonical_binding_paths(state);
@@ -671,7 +671,7 @@ fn export_bindings_for_paths(
     bindings
 }
 
-fn format_core_path_for_export_timing(path: &core_ir::Path) -> String {
+fn format_core_path_for_export_timing(path: &typed_ir::Path) -> String {
     if path.segments.is_empty() {
         return "<root>".to_string();
     }
@@ -682,8 +682,8 @@ fn format_core_path_for_export_timing(path: &core_ir::Path) -> String {
         .join("::")
 }
 
-fn dedup_bindings_by_runtime_path(bindings: &mut Vec<core_ir::PrincipalBinding>) {
-    let mut deduped: Vec<core_ir::PrincipalBinding> = Vec::with_capacity(bindings.len());
+fn dedup_bindings_by_runtime_path(bindings: &mut Vec<typed_ir::PrincipalBinding>) {
+    let mut deduped: Vec<typed_ir::PrincipalBinding> = Vec::with_capacity(bindings.len());
     for binding in bindings.drain(..) {
         match deduped.last_mut() {
             Some(current) if current.name == binding.name => {
@@ -697,14 +697,14 @@ fn dedup_bindings_by_runtime_path(bindings: &mut Vec<core_ir::PrincipalBinding>)
     *bindings = deduped;
 }
 
-fn binding_generality_score(binding: &core_ir::PrincipalBinding) -> usize {
+fn binding_generality_score(binding: &typed_ir::PrincipalBinding) -> usize {
     let mut vars = BTreeSet::new();
     collect_core_type_vars(&binding.scheme.body, &mut vars);
     for requirement in &binding.scheme.requirements {
         for arg in &requirement.args {
             match arg {
-                core_ir::RoleRequirementArg::Input(bounds)
-                | core_ir::RoleRequirementArg::Associated { bounds, .. } => {
+                typed_ir::RoleRequirementArg::Input(bounds)
+                | typed_ir::RoleRequirementArg::Associated { bounds, .. } => {
                     collect_bounds_vars(bounds, &mut vars);
                 }
             }
@@ -713,7 +713,7 @@ fn binding_generality_score(binding: &core_ir::PrincipalBinding) -> usize {
     vars.len()
 }
 
-fn collect_bounds_vars(bounds: &core_ir::TypeBounds, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_bounds_vars(bounds: &typed_ir::TypeBounds, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     if let Some(lower) = bounds.lower.as_deref() {
         collect_core_type_vars(lower, vars);
     }
@@ -725,8 +725,8 @@ fn collect_bounds_vars(bounds: &core_ir::TypeBounds, vars: &mut BTreeSet<core_ir
 fn export_type_graph_view_for_paths(
     state: &LowerState,
     paths: &[(Path, DefId)],
-    bindings: &[core_ir::PrincipalBinding],
-) -> core_ir::CoreGraphView {
+    bindings: &[typed_ir::PrincipalBinding],
+) -> typed_ir::CoreGraphView {
     let binding_nodes = paths
         .iter()
         .filter_map(|(path, def)| {
@@ -734,7 +734,7 @@ fn export_type_graph_view_for_paths(
             let binding = bindings
                 .iter()
                 .find(|binding| binding.name == export_path(path))?;
-            Some(core_ir::BindingGraphNode {
+            Some(typed_ir::BindingGraphNode {
                 binding: binding.name.clone(),
                 scheme_body: binding.scheme.body.clone(),
                 body_bounds: export_type_bounds_for_tv(&state.infer, body_tv),
@@ -745,7 +745,7 @@ fn export_type_graph_view_for_paths(
     let runtime_symbols = export_runtime_symbols(state, paths);
     let role_impls = export_role_impl_graph_nodes(state, paths);
     let primitive_types = state.primitive_paths.export_core_type_nodes();
-    core_ir::CoreGraphView {
+    typed_ir::CoreGraphView {
         bindings: binding_nodes,
         root_exprs,
         runtime_symbols,
@@ -757,7 +757,7 @@ fn export_type_graph_view_for_paths(
 fn export_role_impl_graph_nodes(
     state: &LowerState,
     paths: &[(Path, DefId)],
-) -> Vec<core_ir::RoleImplGraphNode> {
+) -> Vec<typed_ir::RoleImplGraphNode> {
     let mut def_paths = paths
         .iter()
         .map(|(path, def)| (*def, export_path(path)))
@@ -780,8 +780,8 @@ fn export_role_impl_graph_nodes(
             .member_defs
             .iter()
             .filter_map(|(name, def)| {
-                def_paths.get(def).map(|path| core_ir::RecordField {
-                    name: core_ir::Name(name.0.clone()),
+                def_paths.get(def).map(|path| typed_ir::RecordField {
+                    name: typed_ir::Name(name.0.clone()),
                     value: path.clone(),
                     optional: false,
                 })
@@ -796,15 +796,15 @@ fn export_role_impl_graph_nodes(
         for (index, arg) in candidate.compact_args.iter().enumerate() {
             let bounds = export_compact_type_bounds(arg);
             match role_infos.get(index) {
-                Some(info) if !info.is_input => associated_types.push(core_ir::RecordField {
-                    name: core_ir::Name(info.name.clone()),
+                Some(info) if !info.is_input => associated_types.push(typed_ir::RecordField {
+                    name: typed_ir::Name(info.name.clone()),
                     value: bounds,
                     optional: false,
                 }),
                 _ => inputs.push(bounds),
             }
         }
-        out.push(core_ir::RoleImplGraphNode {
+        out.push(typed_ir::RoleImplGraphNode {
             role: export_path(&candidate.role),
             inputs,
             associated_types,
@@ -824,7 +824,7 @@ fn export_role_impl_graph_nodes(
 fn export_runtime_symbols(
     state: &LowerState,
     paths: &[(Path, DefId)],
-) -> Vec<core_ir::RuntimeSymbol> {
+) -> Vec<typed_ir::RuntimeSymbol> {
     let canonical_paths = state.ctx.canonical_value_paths();
     let mut symbol_paths = paths.to_vec();
     let all_binding_paths = state.ctx.collect_all_binding_paths();
@@ -845,18 +845,18 @@ fn export_runtime_symbols(
         .iter()
         .map(|(path, def)| {
             let kind = if state.effect_op_args.contains_key(def) {
-                core_ir::RuntimeSymbolKind::EffectOperation
+                typed_ir::RuntimeSymbolKind::EffectOperation
             } else if state.infer.is_role_method_def(*def) || role_method_path(state, path) {
-                core_ir::RuntimeSymbolKind::RoleMethod
+                typed_ir::RuntimeSymbolKind::RoleMethod
             } else {
-                core_ir::RuntimeSymbolKind::Value
+                typed_ir::RuntimeSymbolKind::Value
             };
-            let path = if kind == core_ir::RuntimeSymbolKind::EffectOperation {
+            let path = if kind == typed_ir::RuntimeSymbolKind::EffectOperation {
                 canonical_paths.get(def).unwrap_or(path)
             } else {
                 path
             };
-            core_ir::RuntimeSymbol {
+            typed_ir::RuntimeSymbol {
                 path: export_path(path),
                 kind,
             }
@@ -867,9 +867,9 @@ fn export_runtime_symbols(
         path.segments.push(info.name.clone());
         let exported = export_path(&path);
         if !symbols.iter().any(|symbol| symbol.path == exported) {
-            symbols.push(core_ir::RuntimeSymbol {
+            symbols.push(typed_ir::RuntimeSymbol {
                 path: exported,
-                kind: core_ir::RuntimeSymbolKind::RoleMethod,
+                kind: typed_ir::RuntimeSymbolKind::RoleMethod,
             });
         }
     }
@@ -889,20 +889,20 @@ fn role_method_path(state: &LowerState, path: &Path) -> bool {
 pub(crate) fn export_principal_binding(
     state: &LowerState,
     globals: &HashMap<DefId, Path>,
-    principal_scheme_cache: &mut HashMap<DefId, Option<core_ir::Scheme>>,
-    base_bounds_cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+    principal_scheme_cache: &mut HashMap<DefId, Option<typed_ir::Scheme>>,
+    base_bounds_cache: &mut HashMap<TypeVar, typed_ir::TypeBounds>,
     complete_principal_cache: &mut CompletePrincipalCache,
     profile: Option<&mut ExprExportProfile>,
     path: &Path,
     def: DefId,
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
-) -> Option<core_ir::PrincipalBinding> {
+) -> Option<typed_ir::PrincipalBinding> {
     let body = state.principal_bodies.get(&def)?;
     let mut profile = profile;
     prefill_binding_bounds_cache(state, body, base_bounds_cache);
     if let Some(scheme) = state.runtime_export_schemes.get(&def) {
         let relevant_vars = collect_runtime_scheme_body_type_vars(scheme);
-        return Some(core_ir::PrincipalBinding {
+        return Some(typed_ir::PrincipalBinding {
             name: export_path(path),
             scheme: scheme.clone(),
             body: ExprExporter::new(
@@ -956,13 +956,13 @@ pub(crate) fn export_principal_binding(
             let fallback_body = fallback_scheme
                 .as_ref()
                 .map(export_scheme_body)
-                .unwrap_or(core_ir::Type::Unknown);
+                .unwrap_or(typed_ir::Type::Unknown);
             let relevant_vars = fallback_scheme
                 .as_ref()
                 .map(export_scheme_body_type_vars)
                 .unwrap_or_default();
             (
-                core_ir::Scheme {
+                typed_ir::Scheme {
                     requirements: Vec::new(),
                     body: fallback_body,
                 },
@@ -970,7 +970,7 @@ pub(crate) fn export_principal_binding(
             )
         }
     };
-    Some(core_ir::PrincipalBinding {
+    Some(typed_ir::PrincipalBinding {
         name: export_path(path),
         scheme,
         body: ExprExporter::new(
@@ -990,7 +990,7 @@ pub(crate) fn export_principal_binding(
 fn prefill_binding_bounds_cache(
     state: &LowerState,
     body: &TypedExpr,
-    base_bounds_cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+    base_bounds_cache: &mut HashMap<TypeVar, typed_ir::TypeBounds>,
 ) {
     let mut vars = HashSet::new();
     collect_expr_export_type_vars(body, &mut vars);
@@ -998,7 +998,7 @@ fn prefill_binding_bounds_cache(
     extend_export_type_bounds_cache_for_tvs(&state.infer, &vars, base_bounds_cache);
 }
 
-fn collect_runtime_scheme_body_type_vars(scheme: &core_ir::Scheme) -> BTreeSet<core_ir::TypeVar> {
+fn collect_runtime_scheme_body_type_vars(scheme: &typed_ir::Scheme) -> BTreeSet<typed_ir::TypeVar> {
     let mut vars = BTreeSet::new();
     collect_core_type_vars(&scheme.body, &mut vars);
     vars
@@ -1006,7 +1006,7 @@ fn collect_runtime_scheme_body_type_vars(scheme: &core_ir::Scheme) -> BTreeSet<c
 
 fn should_prefer_frozen_runtime_scheme(
     path: &Path,
-    relevant_vars: &BTreeSet<core_ir::TypeVar>,
+    relevant_vars: &BTreeSet<typed_ir::TypeVar>,
 ) -> bool {
     !relevant_vars.is_empty()
         && path
@@ -1242,7 +1242,7 @@ fn _path_key(path: &Path) -> String {
 fn export_root_exprs(
     state: &LowerState,
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
-) -> Vec<core_ir::Expr> {
+) -> Vec<typed_ir::Expr> {
     let globals = collect_canonical_binding_paths(state);
     let mut principal_scheme_cache = HashMap::new();
     let mut base_bounds_cache = HashMap::new();
@@ -1289,11 +1289,11 @@ fn export_root_exprs(
 fn export_owner_root_exprs(
     state: &LowerState,
     globals: &HashMap<DefId, Path>,
-    principal_scheme_cache: &mut HashMap<DefId, Option<core_ir::Scheme>>,
-    base_bounds_cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+    principal_scheme_cache: &mut HashMap<DefId, Option<typed_ir::Scheme>>,
+    base_bounds_cache: &mut HashMap<TypeVar, typed_ir::TypeBounds>,
     complete_principal_cache: &mut CompletePrincipalCache,
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
-) -> Vec<core_ir::Expr> {
+) -> Vec<typed_ir::Expr> {
     let mut roots = Vec::new();
     for owner in &state.top_level_expr_owners {
         let Some(body) = state.principal_bodies.get(owner) else {
@@ -1449,7 +1449,7 @@ fn collect_role_method_candidate_defs(
     defs
 }
 
-fn export_root_expr_nodes(state: &LowerState) -> Vec<core_ir::ExprGraphNode> {
+fn export_root_expr_nodes(state: &LowerState) -> Vec<typed_ir::ExprGraphNode> {
     let owner_nodes = export_owner_root_expr_nodes(state);
     if !owner_nodes.is_empty() {
         return owner_nodes;
@@ -1462,8 +1462,8 @@ fn export_root_expr_nodes(state: &LowerState) -> Vec<core_ir::ExprGraphNode> {
         }
         for stmt in &block.stmts {
             if let crate::ast::expr::TypedStmt::Expr(expr) = stmt {
-                nodes.push(core_ir::ExprGraphNode {
-                    owner: core_ir::GraphOwner::RootExpr(nodes.len()),
+                nodes.push(typed_ir::ExprGraphNode {
+                    owner: typed_ir::GraphOwner::RootExpr(nodes.len()),
                     bounds: export_relevant_type_bounds_for_tv(
                         &state.infer,
                         expr.tv,
@@ -1473,8 +1473,8 @@ fn export_root_expr_nodes(state: &LowerState) -> Vec<core_ir::ExprGraphNode> {
             }
         }
         if let Some(tail) = &block.tail {
-            nodes.push(core_ir::ExprGraphNode {
-                owner: core_ir::GraphOwner::RootExpr(nodes.len()),
+            nodes.push(typed_ir::ExprGraphNode {
+                owner: typed_ir::GraphOwner::RootExpr(nodes.len()),
                 bounds: export_relevant_type_bounds_for_tv(&state.infer, tail.tv, &BTreeSet::new()),
             });
         }
@@ -1482,7 +1482,7 @@ fn export_root_expr_nodes(state: &LowerState) -> Vec<core_ir::ExprGraphNode> {
     nodes
 }
 
-fn export_owner_root_expr_nodes(state: &LowerState) -> Vec<core_ir::ExprGraphNode> {
+fn export_owner_root_expr_nodes(state: &LowerState) -> Vec<typed_ir::ExprGraphNode> {
     let mut nodes = Vec::new();
     for owner in &state.top_level_expr_owners {
         let tv = match state.principal_bodies.get(owner) {
@@ -1492,8 +1492,8 @@ fn export_owner_root_expr_nodes(state: &LowerState) -> Vec<core_ir::ExprGraphNod
                 None => continue,
             },
         };
-        nodes.push(core_ir::ExprGraphNode {
-            owner: core_ir::GraphOwner::RootExpr(nodes.len()),
+        nodes.push(typed_ir::ExprGraphNode {
+            owner: typed_ir::GraphOwner::RootExpr(nodes.len()),
             bounds: export_relevant_type_bounds_for_tv(&state.infer, tv, &BTreeSet::new()),
         });
     }
@@ -1509,9 +1509,9 @@ mod tests {
     use crate::lower::LowerState;
     use crate::source::lower_virtual_source_with_options;
     use rowan::SyntaxNode;
-    use yulang_core_ir as core_ir;
     use yulang_parser::sink::YulangLanguage;
-    use yulang_source::SourceOptions;
+    use yulang_sources::SourceOptions;
+    use yulang_typed_ir as typed_ir;
 
     fn parse_and_lower(src: &str) -> LowerState {
         let green = yulang_parser::parse_module_to_green(src);
@@ -1533,11 +1533,11 @@ mod tests {
 
         assert!(program.graph.runtime_symbols.iter().any(|symbol| {
             path_segments(&symbol.path) == vec!["undet", "bool"]
-                && symbol.kind == core_ir::RuntimeSymbolKind::EffectOperation
+                && symbol.kind == typed_ir::RuntimeSymbolKind::EffectOperation
         }));
         assert!(program.graph.runtime_symbols.iter().any(|symbol| {
             path_segments(&symbol.path) == vec!["Add", "add"]
-                && symbol.kind == core_ir::RuntimeSymbolKind::RoleMethod
+                && symbol.kind == typed_ir::RuntimeSymbolKind::RoleMethod
         }));
     }
 
@@ -1560,7 +1560,7 @@ mod tests {
         .state
     }
 
-    fn path_segments(path: &core_ir::Path) -> Vec<&str> {
+    fn path_segments(path: &typed_ir::Path) -> Vec<&str> {
         path.segments
             .iter()
             .map(|segment| segment.0.as_str())
@@ -1614,7 +1614,7 @@ mod tests {
         assert_eq!(show.scheme.requirements.len(), 1);
         assert_eq!(
             show.scheme.requirements[0].role.segments,
-            vec![core_ir::Name("Display".to_string())]
+            vec![typed_ir::Name("Display".to_string())]
         );
     }
 
@@ -1634,26 +1634,29 @@ mod tests {
             .unwrap();
         assert_eq!(
             shown.scheme.body,
-            core_ir::Type::Named {
-                path: core_ir::Path::new(vec![
-                    core_ir::Name("std".to_string()),
-                    core_ir::Name("str".to_string()),
-                    core_ir::Name("str".to_string()),
+            typed_ir::Type::Named {
+                path: typed_ir::Path::new(vec![
+                    typed_ir::Name("std".to_string()),
+                    typed_ir::Name("str".to_string()),
+                    typed_ir::Name("str".to_string()),
                 ]),
                 args: Vec::new(),
             }
         );
         match &shown.body {
-            core_ir::Expr::Apply { callee, arg, .. } => {
-                assert_eq!(arg.as_ref(), &core_ir::Expr::Lit(core_ir::Lit::Bool(true)));
+            typed_ir::Expr::Apply { callee, arg, .. } => {
+                assert_eq!(
+                    arg.as_ref(),
+                    &typed_ir::Expr::Lit(typed_ir::Lit::Bool(true))
+                );
                 match callee.as_ref() {
-                    core_ir::Expr::Apply { callee, arg, .. } => {
+                    typed_ir::Expr::Apply { callee, arg, .. } => {
                         assert!(matches!(
                             arg.as_ref(),
-                            core_ir::Expr::Lit(core_ir::Lit::Int(_))
+                            typed_ir::Expr::Lit(typed_ir::Lit::Int(_))
                         ));
                         match callee.as_ref() {
-                            core_ir::Expr::Var(path) => {
+                            typed_ir::Expr::Var(path) => {
                                 let rendered = path
                                     .segments
                                     .iter()
@@ -1684,18 +1687,18 @@ mod tests {
         );
         let module = export_principal_module(&mut state);
         match &module.root_exprs[0] {
-            core_ir::Expr::Apply { callee, arg, .. } => {
+            typed_ir::Expr::Apply { callee, arg, .. } => {
                 assert_eq!(
                     arg.as_ref(),
-                    &core_ir::Expr::Lit(core_ir::Lit::Int("2".to_string()))
+                    &typed_ir::Expr::Lit(typed_ir::Lit::Int("2".to_string()))
                 );
                 match callee.as_ref() {
-                    core_ir::Expr::Apply { callee, arg, .. } => {
+                    typed_ir::Expr::Apply { callee, arg, .. } => {
                         assert_eq!(
                             arg.as_ref(),
-                            &core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string()))
+                            &typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string()))
                         );
-                        assert!(matches!(callee.as_ref(), core_ir::Expr::Var(_)));
+                        assert!(matches!(callee.as_ref(), typed_ir::Expr::Var(_)));
                     }
                     other => panic!("expected concrete impl apply chain, got {other:?}"),
                 }
@@ -1720,12 +1723,12 @@ mod tests {
             })
             .unwrap();
         match &plus1.body {
-            core_ir::Expr::Apply { callee, arg, .. } => {
+            typed_ir::Expr::Apply { callee, arg, .. } => {
                 assert!(matches!(
                     arg.as_ref(),
-                    core_ir::Expr::Lit(core_ir::Lit::Int(_))
+                    typed_ir::Expr::Lit(typed_ir::Lit::Int(_))
                 ));
-                assert!(matches!(callee.as_ref(), core_ir::Expr::Var(_)));
+                assert!(matches!(callee.as_ref(), typed_ir::Expr::Var(_)));
             }
             other => panic!("expected concrete helper body, got {other:?}"),
         }
@@ -1806,11 +1809,11 @@ mod tests {
             .find(|binding| binding.name.segments.last().map(|name| name.0.as_str()) == Some("id"))
             .unwrap();
         match &id.body {
-            core_ir::Expr::Lambda { param, body, .. } => {
+            typed_ir::Expr::Lambda { param, body, .. } => {
                 assert_eq!(param.0, "x");
                 assert_eq!(
                     body.as_ref(),
-                    &core_ir::Expr::Var(core_ir::Path::from_name(param.clone()))
+                    &typed_ir::Expr::Var(typed_ir::Path::from_name(param.clone()))
                 );
             }
             other => panic!("expected lambda body, got {other:?}"),
@@ -1826,17 +1829,17 @@ mod tests {
             .find(|binding| binding.name.segments.last().map(|name| name.0.as_str()) == Some("f"))
             .unwrap();
         match &f.body {
-            core_ir::Expr::Lambda { param, body, .. } => match body.as_ref() {
-                core_ir::Expr::Block { stmts, tail } => {
+            typed_ir::Expr::Lambda { param, body, .. } => match body.as_ref() {
+                typed_ir::Expr::Block { stmts, tail } => {
                     assert_eq!(stmts.len(), 1);
                     match &stmts[0] {
-                        core_ir::Stmt::Let { pattern, value } => {
+                        typed_ir::Stmt::Let { pattern, value } => {
                             assert_eq!(
                                 value,
-                                &core_ir::Expr::Var(core_ir::Path::from_name(param.clone()))
+                                &typed_ir::Expr::Var(typed_ir::Path::from_name(param.clone()))
                             );
                             match pattern {
-                                core_ir::Pattern::Record { fields, .. } => {
+                                typed_ir::Pattern::Record { fields, .. } => {
                                     assert_eq!(fields.len(), 2);
                                     assert_eq!(fields[0].name.0, "width");
                                     assert!(fields[0].default.is_some());
@@ -1861,7 +1864,7 @@ mod tests {
         let mut state = parse_and_lower("my id x = x\nid 1\n");
         let module = export_principal_module(&mut state);
         match &module.root_exprs[0] {
-            core_ir::Expr::Apply { evidence, .. } => {
+            typed_ir::Expr::Apply { evidence, .. } => {
                 let evidence = evidence.as_ref().expect("apply evidence");
                 let arg_has_int = evidence
                     .arg
@@ -1880,7 +1883,7 @@ mod tests {
                 );
                 assert_eq!(
                     evidence.callee,
-                    core_ir::TypeBounds::default(),
+                    typed_ir::TypeBounds::default(),
                     "root apply should only keep concrete evidence when there is no parent scheme, got {:?}",
                     evidence.callee
                 );
@@ -1917,15 +1920,15 @@ mod tests {
         assert_eq!(
             module.roots,
             vec![
-                core_ir::PrincipalRoot::Expr(0),
-                core_ir::PrincipalRoot::Expr(1)
+                typed_ir::PrincipalRoot::Expr(0),
+                typed_ir::PrincipalRoot::Expr(1)
             ]
         );
         assert_eq!(
             module.root_exprs,
             vec![
-                core_ir::Expr::Lit(core_ir::Lit::Int("1".to_string())),
-                core_ir::Expr::Lit(core_ir::Lit::Bool(true)),
+                typed_ir::Expr::Lit(typed_ir::Lit::Int("1".to_string())),
+                typed_ir::Expr::Lit(typed_ir::Lit::Bool(true)),
             ]
         );
     }
@@ -1936,17 +1939,17 @@ mod tests {
         let program = export_core_program(&mut state);
 
         assert!(program.graph.primitive_types.iter().any(|node| {
-            node.family == core_ir::PrimitiveTypeFamily::Str
+            node.family == typed_ir::PrimitiveTypeFamily::Str
                 && node.path
-                    == core_ir::Path::new(vec![
-                        core_ir::Name("std".to_string()),
-                        core_ir::Name("str".to_string()),
-                        core_ir::Name("str".to_string()),
+                    == typed_ir::Path::new(vec![
+                        typed_ir::Name("std".to_string()),
+                        typed_ir::Name("str".to_string()),
+                        typed_ir::Name("str".to_string()),
                     ])
         }));
         assert!(program.graph.primitive_types.iter().any(|node| {
-            node.family == core_ir::PrimitiveTypeFamily::Int
-                && node.path == core_ir::Path::from_name(core_ir::Name("int".to_string()))
+            node.family == typed_ir::PrimitiveTypeFamily::Int
+                && node.path == typed_ir::Path::from_name(typed_ir::Name("int".to_string()))
         }));
     }
 
@@ -1965,27 +1968,27 @@ mod tests {
                 .expect("write_var binding");
             assert_eq!(
                 write_var.scheme.body,
-                core_ir::Type::Named {
-                    path: core_ir::Path::from_name(core_ir::Name("int".to_string())),
+                typed_ir::Type::Named {
+                    path: typed_ir::Path::from_name(typed_ir::Name("int".to_string())),
                     args: Vec::new(),
                 }
             );
-            assert_eq!(module.roots, vec![core_ir::PrincipalRoot::Expr(0)]);
+            assert_eq!(module.roots, vec![typed_ir::PrincipalRoot::Expr(0)]);
             assert_eq!(
                 module.root_exprs,
-                vec![core_ir::Expr::Var(core_ir::Path::from_name(core_ir::Name(
-                    "write_var".to_string(),
-                )))]
+                vec![typed_ir::Expr::Var(typed_ir::Path::from_name(
+                    typed_ir::Name("write_var".to_string(),)
+                ))]
             );
         });
     }
 
-    fn contains_named_int(ty: &core_ir::Type) -> bool {
+    fn contains_named_int(ty: &typed_ir::Type) -> bool {
         match ty {
-            core_ir::Type::Named { path, .. } => {
+            typed_ir::Type::Named { path, .. } => {
                 path.segments.last().map(|name| name.0.as_str()) == Some("int")
             }
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param,
                 param_effect,
                 ret_effect,
@@ -1996,57 +1999,57 @@ mod tests {
                     || contains_named_int(ret_effect)
                     || contains_named_int(ret)
             }
-            core_ir::Type::Tuple(items)
-            | core_ir::Type::Union(items)
-            | core_ir::Type::Inter(items)
-            | core_ir::Type::Row { items, .. } => items.iter().any(contains_named_int),
-            core_ir::Type::Record(record) => {
+            typed_ir::Type::Tuple(items)
+            | typed_ir::Type::Union(items)
+            | typed_ir::Type::Inter(items)
+            | typed_ir::Type::Row { items, .. } => items.iter().any(contains_named_int),
+            typed_ir::Type::Record(record) => {
                 record
                     .fields
                     .iter()
                     .any(|field| contains_named_int(&field.value))
                     || record.spread.as_ref().is_some_and(|spread| match spread {
-                        core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                        typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                             contains_named_int(ty)
                         }
                     })
             }
-            core_ir::Type::Variant(variant) => {
+            typed_ir::Type::Variant(variant) => {
                 variant
                     .cases
                     .iter()
                     .any(|case| case.payloads.iter().any(contains_named_int))
                     || variant.tail.as_deref().is_some_and(contains_named_int)
             }
-            core_ir::Type::Recursive { body, .. } => contains_named_int(body),
-            core_ir::Type::Unknown
-            | core_ir::Type::Never
-            | core_ir::Type::Any
-            | core_ir::Type::Var(_) => false,
+            typed_ir::Type::Recursive { body, .. } => contains_named_int(body),
+            typed_ir::Type::Unknown
+            | typed_ir::Type::Never
+            | typed_ir::Type::Any
+            | typed_ir::Type::Var(_) => false,
         }
     }
 
-    fn concrete_coerce_evidence(evidence: &core_ir::CoerceEvidence) -> bool {
+    fn concrete_coerce_evidence(evidence: &typed_ir::CoerceEvidence) -> bool {
         (evidence.actual.lower.is_some() || evidence.actual.upper.is_some())
             && (evidence.expected.lower.is_some() || evidence.expected.upper.is_some())
     }
 
     fn find_coerce_evidence(
-        expr: &core_ir::Expr,
-        predicate: fn(&core_ir::CoerceEvidence) -> bool,
-    ) -> Option<&core_ir::CoerceEvidence> {
+        expr: &typed_ir::Expr,
+        predicate: fn(&typed_ir::CoerceEvidence) -> bool,
+    ) -> Option<&typed_ir::CoerceEvidence> {
         match expr {
-            core_ir::Expr::Coerce { evidence, expr } => evidence
+            typed_ir::Expr::Coerce { evidence, expr } => evidence
                 .as_ref()
                 .filter(|evidence| predicate(evidence))
                 .or_else(|| find_coerce_evidence(expr.as_ref(), predicate)),
-            core_ir::Expr::Lambda { body, .. } | core_ir::Expr::Pack { expr: body, .. } => {
+            typed_ir::Expr::Lambda { body, .. } | typed_ir::Expr::Pack { expr: body, .. } => {
                 find_coerce_evidence(body, predicate)
             }
-            core_ir::Expr::BindHere { expr } => find_coerce_evidence(expr, predicate),
-            core_ir::Expr::Apply { callee, arg, .. } => find_coerce_evidence(callee, predicate)
+            typed_ir::Expr::BindHere { expr } => find_coerce_evidence(expr, predicate),
+            typed_ir::Expr::Apply { callee, arg, .. } => find_coerce_evidence(callee, predicate)
                 .or_else(|| find_coerce_evidence(arg, predicate)),
-            core_ir::Expr::If {
+            typed_ir::Expr::If {
                 cond,
                 then_branch,
                 else_branch,
@@ -2054,24 +2057,24 @@ mod tests {
             } => find_coerce_evidence(cond, predicate)
                 .or_else(|| find_coerce_evidence(then_branch, predicate))
                 .or_else(|| find_coerce_evidence(else_branch, predicate)),
-            core_ir::Expr::Tuple(items) => items
+            typed_ir::Expr::Tuple(items) => items
                 .iter()
                 .find_map(|item| find_coerce_evidence(item, predicate)),
-            core_ir::Expr::Record { fields, spread } => fields
+            typed_ir::Expr::Record { fields, spread } => fields
                 .iter()
                 .find_map(|field| find_coerce_evidence(&field.value, predicate))
                 .or_else(|| match spread {
-                    Some(core_ir::RecordSpreadExpr::Head(expr))
-                    | Some(core_ir::RecordSpreadExpr::Tail(expr)) => {
+                    Some(typed_ir::RecordSpreadExpr::Head(expr))
+                    | Some(typed_ir::RecordSpreadExpr::Tail(expr)) => {
                         find_coerce_evidence(expr, predicate)
                     }
                     None => None,
                 }),
-            core_ir::Expr::Variant { value, .. } => value
+            typed_ir::Expr::Variant { value, .. } => value
                 .as_deref()
                 .and_then(|value| find_coerce_evidence(value, predicate)),
-            core_ir::Expr::Select { base, .. } => find_coerce_evidence(base, predicate),
-            core_ir::Expr::Match {
+            typed_ir::Expr::Select { base, .. } => find_coerce_evidence(base, predicate),
+            typed_ir::Expr::Match {
                 scrutinee, arms, ..
             } => find_coerce_evidence(scrutinee, predicate).or_else(|| {
                 arms.iter().find_map(|arm| {
@@ -2081,19 +2084,19 @@ mod tests {
                         .or_else(|| find_coerce_evidence(&arm.body, predicate))
                 })
             }),
-            core_ir::Expr::Block { stmts, tail } => stmts
+            typed_ir::Expr::Block { stmts, tail } => stmts
                 .iter()
                 .find_map(|stmt| match stmt {
-                    core_ir::Stmt::Let { value, .. } | core_ir::Stmt::Expr(value) => {
+                    typed_ir::Stmt::Let { value, .. } | typed_ir::Stmt::Expr(value) => {
                         find_coerce_evidence(value, predicate)
                     }
-                    core_ir::Stmt::Module { body, .. } => find_coerce_evidence(body, predicate),
+                    typed_ir::Stmt::Module { body, .. } => find_coerce_evidence(body, predicate),
                 })
                 .or_else(|| {
                     tail.as_deref()
                         .and_then(|tail| find_coerce_evidence(tail, predicate))
                 }),
-            core_ir::Expr::Handle { body, arms, .. } => find_coerce_evidence(body, predicate)
+            typed_ir::Expr::Handle { body, arms, .. } => find_coerce_evidence(body, predicate)
                 .or_else(|| {
                     arms.iter().find_map(|arm| {
                         arm.guard
@@ -2102,7 +2105,9 @@ mod tests {
                             .or_else(|| find_coerce_evidence(&arm.body, predicate))
                     })
                 }),
-            core_ir::Expr::Var(_) | core_ir::Expr::PrimitiveOp(_) | core_ir::Expr::Lit(_) => None,
+            typed_ir::Expr::Var(_) | typed_ir::Expr::PrimitiveOp(_) | typed_ir::Expr::Lit(_) => {
+                None
+            }
         }
     }
 }

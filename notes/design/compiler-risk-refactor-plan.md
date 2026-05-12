@@ -368,9 +368,9 @@ New risk noticed:
 
 New risk noticed:
 
-- The same `core_ir::Type::Fun` shape is used both for diagnostic display and
+- The same `typed_ir::Type::Fun` shape is used both for diagnostic display and
   for runtime-preserving function effect slots.  Future refactors should avoid
-  passing a bare `core_ir::Type` when the caller really needs one of these
+  passing a bare `typed_ir::Type` when the caller really needs one of these
   specific views.
 
 ### 2026-05-01: Monomorphization pass sequence named

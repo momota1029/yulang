@@ -10,7 +10,7 @@ use yulang_infer::{
     DefId, LowerState, Path as InferPath, collect_surface_diagnostics,
     lower_virtual_source_with_options, surface_diagnostic::SurfaceDiagnostic,
 };
-use yulang_source::{SourceOptions, collect_virtual_source_files_with_options};
+use yulang_sources::{SourceOptions, collect_virtual_source_files_with_options};
 
 struct Backend {
     client: Client,

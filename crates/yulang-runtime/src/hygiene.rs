@@ -1,4 +1,4 @@
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::ir::{EffectIdRef, EffectIdVar, Expr, ExprKind, HandleEffect, Module, Stmt};
 use crate::types::{effect_path, effect_paths};
@@ -199,7 +199,7 @@ fn format_id_ref(id: EffectIdRef) -> String {
     }
 }
 
-fn format_effect(effect: &core_ir::Type) -> String {
+fn format_effect(effect: &typed_ir::Type) -> String {
     let paths = effect_paths(effect);
     if !paths.is_empty() {
         return paths.iter().map(format_path).collect::<Vec<_>>().join("; ");
@@ -209,7 +209,7 @@ fn format_effect(effect: &core_ir::Type) -> String {
         .unwrap_or_else(|| format!("{effect:?}"))
 }
 
-fn format_path(path: &core_ir::Path) -> String {
+fn format_path(path: &typed_ir::Path) -> String {
     path.segments
         .iter()
         .map(|segment| segment.0.as_str())
@@ -222,17 +222,17 @@ mod tests {
     use super::*;
     use crate::ir::{Expr, ExprKind, Type as RuntimeType};
 
-    fn named_type(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named_type(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args: Vec::new(),
         }
     }
 
-    fn row(name: &str) -> core_ir::Type {
-        core_ir::Type::Row {
+    fn row(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Row {
             items: vec![named_type(name)],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         }
     }
 
@@ -245,7 +245,7 @@ mod tests {
                 effect: effect.clone(),
                 value: int.clone(),
                 expr: Box::new(Expr::typed(
-                    ExprKind::Lit(core_ir::Lit::Int("1".to_string())),
+                    ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
                     int,
                 )),
             },
@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn shows_handler_effect_summary_and_find_id() {
         let unit = RuntimeType::core(named_type("unit"));
-        let effect_path = core_ir::Path::from_name(core_ir::Name("io".to_string()));
+        let effect_path = typed_ir::Path::from_name(typed_ir::Name("io".to_string()));
         let expr = Expr::typed(
             ExprKind::Handle {
                 body: Box::new(Expr::typed(
@@ -292,7 +292,7 @@ mod tests {
                 handler: HandleEffect {
                     consumes: vec![effect_path],
                     residual_before: Some(row("io")),
-                    residual_after: Some(core_ir::Type::Never),
+                    residual_after: Some(typed_ir::Type::Never),
                 },
             },
             unit,

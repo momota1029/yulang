@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::abi::{NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
 use crate::control_ir::{NativeLiteral, NativeTerminator, ValueId};
@@ -22,13 +22,13 @@ pub enum NativeAbiRepr {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeAbiRecordFieldRepr {
-    pub name: core_ir::Name,
+    pub name: typed_ir::Name,
     pub value: NativeAbiRepr,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeAbiVariantCaseRepr {
-    pub tag: core_ir::Name,
+    pub tag: typed_ir::Name,
     pub value: Option<NativeAbiRepr>,
 }
 
@@ -223,7 +223,7 @@ fn classify_stmt(
     }
 }
 
-fn record_field_repr(repr: NativeAbiRepr, field: &core_ir::Name) -> NativeAbiRepr {
+fn record_field_repr(repr: NativeAbiRepr, field: &typed_ir::Name) -> NativeAbiRepr {
     match repr {
         NativeAbiRepr::Record(fields) => fields
             .into_iter()
@@ -270,11 +270,11 @@ fn literal_repr(literal: &NativeLiteral) -> NativeAbiRepr {
 }
 
 fn primitive_result_repr(
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[ValueId],
     values: &HashMap<ValueId, NativeAbiRepr>,
 ) -> NativeAbiRepr {
-    use core_ir::PrimitiveOp;
+    use typed_ir::PrimitiveOp;
     match op {
         PrimitiveOp::BoolNot
         | PrimitiveOp::BoolEq
@@ -488,7 +488,7 @@ mod tests {
             roots: vec![root_with_stmt(
                 NativeAbiStmt::Primitive {
                     dest: ValueId(0),
-                    op: core_ir::PrimitiveOp::ListEmpty,
+                    op: typed_ir::PrimitiveOp::ListEmpty,
                     args: Vec::new(),
                 },
                 ValueId(0),
@@ -525,7 +525,7 @@ mod tests {
                         },
                         NativeAbiStmt::Primitive {
                             dest: ValueId(1),
-                            op: core_ir::PrimitiveOp::ListSingleton,
+                            op: typed_ir::PrimitiveOp::ListSingleton,
                             args: vec![ValueId(0)],
                         },
                         NativeAbiStmt::Literal {
@@ -534,7 +534,7 @@ mod tests {
                         },
                         NativeAbiStmt::Primitive {
                             dest: ValueId(3),
-                            op: core_ir::PrimitiveOp::ListIndex,
+                            op: typed_ir::PrimitiveOp::ListIndex,
                             args: vec![ValueId(1), ValueId(2)],
                         },
                     ],

@@ -2,9 +2,9 @@ use super::*;
 
 pub(super) fn validate_pattern(
     pattern: &Pattern,
-    expected: &core_ir::Type,
+    expected: &typed_ir::Type,
     type_arg_kinds: &TypeArgKinds,
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     require_same_type(
         expected,
@@ -14,14 +14,14 @@ pub(super) fn validate_pattern(
     match pattern {
         Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
         Pattern::Bind { name, ty } => {
-            locals.insert(core_ir::Path::from_name(name.clone()), ty.clone());
+            locals.insert(typed_ir::Path::from_name(name.clone()), ty.clone());
         }
         Pattern::Tuple { items, .. } => {
             let erased_items;
             let item_tys = match expected {
-                core_ir::Type::Tuple(item_tys) => item_tys.as_slice(),
-                core_ir::Type::Any => {
-                    erased_items = vec![core_ir::Type::Any; items.len()];
+                typed_ir::Type::Tuple(item_tys) => item_tys.as_slice(),
+                typed_ir::Type::Any => {
+                    erased_items = vec![typed_ir::Type::Any; items.len()];
                     erased_items.as_slice()
                 }
                 _ => {
@@ -42,8 +42,8 @@ pub(super) fn validate_pattern(
             ..
         } => {
             for item in prefix.iter().chain(suffix) {
-                let item_ty = if matches!(expected, core_ir::Type::Any) {
-                    &core_ir::Type::Any
+                let item_ty = if matches!(expected, typed_ir::Type::Any) {
+                    &typed_ir::Type::Any
                 } else {
                     core_type(pattern_ty(item))
                 };
@@ -57,7 +57,7 @@ pub(super) fn validate_pattern(
             for field in fields {
                 let erased_field_ty;
                 let field_ty = match expected {
-                    core_ir::Type::Record(record) => match record
+                    typed_ir::Type::Record(record) => match record
                         .fields
                         .iter()
                         .find(|candidate| candidate.name == field.name)
@@ -72,8 +72,8 @@ pub(super) fn validate_pattern(
                             });
                         }
                     },
-                    core_ir::Type::Any => {
-                        erased_field_ty = core_ir::Type::Any;
+                    typed_ir::Type::Any => {
+                        erased_field_ty = typed_ir::Type::Any;
                         &erased_field_ty
                     }
                     _ => {
@@ -101,7 +101,7 @@ pub(super) fn validate_pattern(
         }
         Pattern::As { pattern, name, ty } => {
             validate_pattern(pattern, expected, type_arg_kinds, locals)?;
-            locals.insert(core_ir::Path::from_name(name.clone()), ty.clone());
+            locals.insert(typed_ir::Path::from_name(name.clone()), ty.clone());
         }
     }
     Ok(())
@@ -111,13 +111,13 @@ pub(super) fn validate_hir_pattern(
     pattern: &Pattern,
     expected: &RuntimeType,
     type_arg_kinds: &TypeArgKinds,
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     require_same_hir_type(expected, pattern_ty(pattern), TypeSource::Validation)?;
     match pattern {
         Pattern::Wildcard { .. } => Ok(()),
         Pattern::Bind { name, ty } => {
-            locals.insert(core_ir::Path::from_name(name.clone()), ty.clone());
+            locals.insert(typed_ir::Path::from_name(name.clone()), ty.clone());
             Ok(())
         }
         Pattern::Or { left, right, .. } => {
@@ -126,7 +126,7 @@ pub(super) fn validate_hir_pattern(
         }
         Pattern::As { pattern, name, ty } => {
             validate_hir_pattern(pattern, expected, type_arg_kinds, locals)?;
-            locals.insert(core_ir::Path::from_name(name.clone()), ty.clone());
+            locals.insert(typed_ir::Path::from_name(name.clone()), ty.clone());
             Ok(())
         }
         pattern => {
@@ -143,9 +143,9 @@ pub(super) fn validate_hir_pattern(
 
 pub(super) fn validate_record_spread_expr(
     spread: &Option<RecordSpreadExpr>,
-    bindings: &HashMap<core_ir::Path, BindingInfo>,
+    bindings: &HashMap<typed_ir::Path, BindingInfo>,
     type_arg_kinds: &TypeArgKinds,
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     match spread {
         Some(RecordSpreadExpr::Head(expr)) | Some(RecordSpreadExpr::Tail(expr)) => {
@@ -157,9 +157,9 @@ pub(super) fn validate_record_spread_expr(
 
 pub(super) fn validate_record_spread_pattern(
     spread: &Option<RecordSpreadPattern>,
-    expected: &core_ir::Type,
+    expected: &typed_ir::Type,
     type_arg_kinds: &TypeArgKinds,
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) -> RuntimeResult<()> {
     match spread {
         Some(RecordSpreadPattern::Head(pattern)) | Some(RecordSpreadPattern::Tail(pattern)) => {
@@ -198,8 +198,8 @@ pub(super) fn pattern_shape_name(pattern: &Pattern) -> &'static str {
 }
 
 pub(super) fn restore_local(
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
-    local: core_ir::Path,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
+    local: typed_ir::Path,
     previous: Option<RuntimeType>,
 ) {
     match previous {

@@ -1,19 +1,19 @@
 use super::*;
 
-pub(super) fn is_role_method_path(path: &core_ir::Path) -> bool {
+pub(super) fn is_role_method_path(path: &typed_ir::Path) -> bool {
     let Some(role) = path.segments.iter().rev().nth(1) else {
         return false;
     };
     role.0.chars().next().is_some_and(char::is_uppercase)
 }
 
-pub(super) fn is_specialized_path(path: &core_ir::Path) -> bool {
+pub(super) fn is_specialized_path(path: &typed_ir::Path) -> bool {
     path.segments
         .last()
         .is_some_and(|segment| segment.0.contains("__mono"))
 }
 
-pub(super) fn specialization_suffix(path: &core_ir::Path) -> Option<usize> {
+pub(super) fn specialization_suffix(path: &typed_ir::Path) -> Option<usize> {
     path.segments
         .last()?
         .0
@@ -23,7 +23,7 @@ pub(super) fn specialization_suffix(path: &core_ir::Path) -> Option<usize> {
         .ok()
 }
 
-pub(super) fn unspecialized_path(path: &core_ir::Path) -> Option<core_ir::Path> {
+pub(super) fn unspecialized_path(path: &typed_ir::Path) -> Option<typed_ir::Path> {
     let mut path = path.clone();
     let name = &mut path.segments.last_mut()?.0;
     let index = name.find("__mono")?;
@@ -31,7 +31,7 @@ pub(super) fn unspecialized_path(path: &core_ir::Path) -> Option<core_ir::Path> 
     Some(path)
 }
 
-pub(super) fn canonical_path(path: &core_ir::Path) -> String {
+pub(super) fn canonical_path(path: &typed_ir::Path) -> String {
     path.segments
         .iter()
         .map(|segment| segment.0.as_str())
@@ -39,13 +39,13 @@ pub(super) fn canonical_path(path: &core_ir::Path) -> String {
         .join("::")
 }
 
-pub(super) fn canonical_type(ty: &core_ir::Type, out: &mut String) {
+pub(super) fn canonical_type(ty: &typed_ir::Type, out: &mut String) {
     match ty {
-        core_ir::Type::Unknown => out.push('?'),
-        core_ir::Type::Any => out.push('_'),
-        core_ir::Type::Never => out.push('!'),
-        core_ir::Type::Var(var) => out.push_str(&var.0),
-        core_ir::Type::Named { path, args } => {
+        typed_ir::Type::Unknown => out.push('?'),
+        typed_ir::Type::Any => out.push('_'),
+        typed_ir::Type::Never => out.push('!'),
+        typed_ir::Type::Var(var) => out.push_str(&var.0),
+        typed_ir::Type::Named { path, args } => {
             out.push_str(&canonical_path(path));
             if !args.is_empty() {
                 out.push('<');
@@ -58,7 +58,7 @@ pub(super) fn canonical_type(ty: &core_ir::Type, out: &mut String) {
                 out.push('>');
             }
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -74,8 +74,8 @@ pub(super) fn canonical_type(ty: &core_ir::Type, out: &mut String) {
             canonical_type(ret, out);
             out.push(')');
         }
-        core_ir::Type::Tuple(items) => canonical_type_list("(", ")", items, out),
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Tuple(items) => canonical_type_list("(", ")", items, out),
+        typed_ir::Type::Record(record) => {
             out.push('{');
             for field in &record.fields {
                 out.push_str(&field.name.0);
@@ -85,7 +85,7 @@ pub(super) fn canonical_type(ty: &core_ir::Type, out: &mut String) {
             }
             out.push('}');
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             out.push('[');
             for case in &variant.cases {
                 out.push_str(&case.name.0);
@@ -94,14 +94,14 @@ pub(super) fn canonical_type(ty: &core_ir::Type, out: &mut String) {
             }
             out.push(']');
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             canonical_type_list("[", "]", items, out);
             out.push('|');
             canonical_type(tail, out);
         }
-        core_ir::Type::Union(items) => canonical_type_list("union(", ")", items, out),
-        core_ir::Type::Inter(items) => canonical_type_list("inter(", ")", items, out),
-        core_ir::Type::Recursive { var, body } => {
+        typed_ir::Type::Union(items) => canonical_type_list("union(", ")", items, out),
+        typed_ir::Type::Inter(items) => canonical_type_list("inter(", ")", items, out),
+        typed_ir::Type::Recursive { var, body } => {
             out.push_str("rec ");
             out.push_str(&var.0);
             out.push('.');
@@ -110,10 +110,10 @@ pub(super) fn canonical_type(ty: &core_ir::Type, out: &mut String) {
     }
 }
 
-fn canonical_type_arg(arg: &core_ir::TypeArg, out: &mut String) {
+fn canonical_type_arg(arg: &typed_ir::TypeArg, out: &mut String) {
     match arg {
-        core_ir::TypeArg::Type(ty) => canonical_type(ty, out),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(ty) => canonical_type(ty, out),
+        typed_ir::TypeArg::Bounds(bounds) => {
             out.push_str("bounds(");
             if let Some(lower) = bounds.lower.as_deref() {
                 canonical_type(lower, out);
@@ -127,7 +127,7 @@ fn canonical_type_arg(arg: &core_ir::TypeArg, out: &mut String) {
     }
 }
 
-fn canonical_type_list(open: &str, close: &str, items: &[core_ir::Type], out: &mut String) {
+fn canonical_type_list(open: &str, close: &str, items: &[typed_ir::Type], out: &mut String) {
     out.push_str(open);
     for (index, item) in items.iter().enumerate() {
         if index > 0 {

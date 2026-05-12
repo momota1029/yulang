@@ -7,8 +7,8 @@ use super::*;
 use crate::diagnostic::ExpectedEdgeKind;
 use crate::display::dump::{collect_expected_edges, render_compact_results};
 use crate::types::{Neg, Pos};
-use yulang_core_ir::{Name as CoreName, Path as CorePath};
-use yulang_source::{InlineSource, SourceOrigin, collect_inline_source_files_with_options};
+use yulang_sources::{InlineSource, SourceOrigin, collect_inline_source_files_with_options};
+use yulang_typed_ir::{Name as CoreName, Path as CorePath};
 
 fn run_with_large_stack<T>(f: impl FnOnce() -> T + Send + 'static) -> T
 where
@@ -586,19 +586,19 @@ fn lowers_pipeline_as_first_argument_to_rhs_spine() {
         .expect("y should be exported");
 
     match &y.body {
-        yulang_core_ir::Expr::Apply { callee, arg, .. } => {
+        yulang_typed_ir::Expr::Apply { callee, arg, .. } => {
             assert_eq!(
                 arg.as_ref(),
-                &yulang_core_ir::Expr::Lit(yulang_core_ir::Lit::Int("2".to_string()))
+                &yulang_typed_ir::Expr::Lit(yulang_typed_ir::Lit::Int("2".to_string()))
             );
             match callee.as_ref() {
-                yulang_core_ir::Expr::Apply { callee, arg, .. } => {
+                yulang_typed_ir::Expr::Apply { callee, arg, .. } => {
                     assert_eq!(
                         arg.as_ref(),
-                        &yulang_core_ir::Expr::Lit(yulang_core_ir::Lit::Int("1".to_string()))
+                        &yulang_typed_ir::Expr::Lit(yulang_typed_ir::Lit::Int("1".to_string()))
                     );
                     match callee.as_ref() {
-                        yulang_core_ir::Expr::Var(path) => {
+                        yulang_typed_ir::Expr::Var(path) => {
                             let rendered = path
                                 .segments
                                 .iter()
@@ -1258,16 +1258,16 @@ fn prelude_reexport_does_not_overwrite_list_len_primitive_body() {
             .find(|binding| {
                 binding.name.segments
                     == [
-                        yulang_core_ir::Name("std".to_string()),
-                        yulang_core_ir::Name("list".to_string()),
-                        yulang_core_ir::Name("len".to_string()),
+                        yulang_typed_ir::Name("std".to_string()),
+                        yulang_typed_ir::Name("list".to_string()),
+                        yulang_typed_ir::Name("len".to_string()),
                     ]
             })
             .expect("std::list::len should be exported");
 
         assert!(matches!(
             list_len.body,
-            yulang_core_ir::Expr::PrimitiveOp(yulang_core_ir::PrimitiveOp::ListLen)
+            yulang_typed_ir::Expr::PrimitiveOp(yulang_typed_ir::PrimitiveOp::ListLen)
         ));
     });
 }
@@ -1553,7 +1553,7 @@ fn compiled_namespace_artifact_preserves_operator_value_identity() {
             source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
             meta: None,
         }],
-        yulang_source::SourceOptions {
+        yulang_sources::SourceOptions {
             std_root: None,
             implicit_prelude: false,
             search_paths: Vec::new(),
@@ -1608,7 +1608,7 @@ fn compiled_namespace_artifact_preserves_value_and_type_symbols() {
             source: "pub struct box 'a:\n  value: 'a\n\npub make x = box x\n".to_string(),
             meta: None,
         }],
-        yulang_source::SourceOptions {
+        yulang_sources::SourceOptions {
             std_root: None,
             implicit_prelude: false,
             search_paths: Vec::new(),
@@ -1702,7 +1702,7 @@ fn compiled_namespace_import_restores_value_type_and_operator_resolution() {
                 meta: None,
             },
         ],
-        yulang_source::SourceOptions {
+        yulang_sources::SourceOptions {
             std_root: None,
             implicit_prelude: false,
             search_paths: Vec::new(),
@@ -1766,7 +1766,7 @@ fn compiled_typed_artifact_preserves_schemes_and_validates_symbols() {
             source: "pub id x = x\n".to_string(),
             meta: None,
         }],
-        yulang_source::SourceOptions {
+        yulang_sources::SourceOptions {
             std_root: None,
             implicit_prelude: false,
             search_paths: Vec::new(),
@@ -1811,7 +1811,7 @@ fn compiled_typed_import_resolves_scheme_refs() {
             source: "pub id x = x\n".to_string(),
             meta: None,
         }],
-        yulang_source::SourceOptions {
+        yulang_sources::SourceOptions {
             std_root: None,
             implicit_prelude: false,
             search_paths: Vec::new(),
@@ -1932,7 +1932,7 @@ fn compiled_unit_artifact_bundles_syntax_namespace_and_typed_surfaces() {
                 meta: None,
             },
         ],
-        yulang_source::SourceOptions {
+        yulang_sources::SourceOptions {
             std_root: None,
             implicit_prelude: false,
             search_paths: Vec::new(),
@@ -2012,7 +2012,7 @@ fn compiled_unit_import_restores_syntax_and_typed_refs() {
             source: "pub infix (%%) 50 51 = \\x -> \\y -> x\n".to_string(),
             meta: None,
         }],
-        yulang_source::SourceOptions {
+        yulang_sources::SourceOptions {
             std_root: None,
             implicit_prelude: false,
             search_paths: Vec::new(),
@@ -2082,7 +2082,7 @@ fn compiled_runtime_bundle_merges_surfaces_and_remaps_evidence_ids() {
         .iter()
         .find(|binding| binding.name.segments[0].0 == "right")
         .expect("right binding");
-    let yulang_core_ir::Expr::Coerce {
+    let yulang_typed_ir::Expr::Coerce {
         evidence: Some(evidence),
         ..
     } = &right_binding.body
@@ -2131,8 +2131,8 @@ fn compiled_runtime_bundle_rejects_conflicting_primitive_type_metadata() {
         .program
         .graph
         .primitive_types
-        .push(yulang_core_ir::PrimitiveTypeGraphNode {
-            family: yulang_core_ir::PrimitiveTypeFamily::Int,
+        .push(yulang_typed_ir::PrimitiveTypeGraphNode {
+            family: yulang_typed_ir::PrimitiveTypeFamily::Int,
             path: CorePath::new(vec![
                 CoreName("other".to_string()),
                 CoreName("int".to_string()),
@@ -2144,7 +2144,7 @@ fn compiled_runtime_bundle_rejects_conflicting_primitive_type_metadata() {
     assert!(matches!(
         err,
         CompiledRuntimeMergeError::ConflictingPrimitiveType {
-            family: yulang_core_ir::PrimitiveTypeFamily::Int
+            family: yulang_typed_ir::PrimitiveTypeFamily::Int
         }
     ));
 }
@@ -2154,7 +2154,7 @@ fn compiled_runtime_bundle_rejects_conflicting_binding_paths() {
     let left = runtime_surface_with_coerce_binding("same", 0);
     let mut right = runtime_surface_with_coerce_binding("same", 0);
     right.program.program.bindings[0].body =
-        yulang_core_ir::Expr::Lit(yulang_core_ir::Lit::Int("2".to_string()));
+        yulang_typed_ir::Expr::Lit(yulang_typed_ir::Lit::Int("2".to_string()));
 
     let err = CompiledRuntimeBundle::from_surfaces([&left, &right]).unwrap_err();
     assert!(matches!(
@@ -2186,7 +2186,7 @@ fn compiled_runtime_bundle_merges_before_user_program_and_remaps_user_evidence()
         .iter()
         .find(|binding| binding.name.segments[0].0 == "user")
         .expect("user binding");
-    let yulang_core_ir::Expr::Coerce {
+    let yulang_typed_ir::Expr::Coerce {
         evidence: Some(evidence),
         ..
     } = &user_binding.body
@@ -2196,13 +2196,13 @@ fn compiled_runtime_bundle_merges_before_user_program_and_remaps_user_evidence()
     assert_eq!(evidence.source_edge, Some(1));
 }
 
-fn primitive_type_node(name: &str) -> yulang_core_ir::PrimitiveTypeGraphNode {
+fn primitive_type_node(name: &str) -> yulang_typed_ir::PrimitiveTypeGraphNode {
     let family = match name {
-        "int" => yulang_core_ir::PrimitiveTypeFamily::Int,
-        "bool" => yulang_core_ir::PrimitiveTypeFamily::Bool,
+        "int" => yulang_typed_ir::PrimitiveTypeFamily::Int,
+        "bool" => yulang_typed_ir::PrimitiveTypeFamily::Bool,
         other => panic!("unsupported primitive test family: {other}"),
     };
-    yulang_core_ir::PrimitiveTypeGraphNode {
+    yulang_typed_ir::PrimitiveTypeGraphNode {
         family,
         path: CorePath::from_name(CoreName(name.to_string())),
     }
@@ -2210,49 +2210,51 @@ fn primitive_type_node(name: &str) -> yulang_core_ir::PrimitiveTypeGraphNode {
 
 fn runtime_surface_with_coerce_binding(name: &str, source_edge: u32) -> CompiledRuntimeSurface {
     let path = CorePath::new(vec![CoreName(name.to_string())]);
-    let any_scheme = yulang_core_ir::Scheme {
+    let any_scheme = yulang_typed_ir::Scheme {
         requirements: Vec::new(),
-        body: yulang_core_ir::Type::Any,
+        body: yulang_typed_ir::Type::Any,
     };
     CompiledRuntimeSurface {
-        program: yulang_core_ir::CoreProgram {
-            program: yulang_core_ir::PrincipalModule {
+        program: yulang_typed_ir::CoreProgram {
+            program: yulang_typed_ir::PrincipalModule {
                 path: CorePath::default(),
-                bindings: vec![yulang_core_ir::PrincipalBinding {
+                bindings: vec![yulang_typed_ir::PrincipalBinding {
                     name: path.clone(),
                     scheme: any_scheme,
-                    body: yulang_core_ir::Expr::Coerce {
-                        expr: Box::new(yulang_core_ir::Expr::Lit(yulang_core_ir::Lit::Int(
+                    body: yulang_typed_ir::Expr::Coerce {
+                        expr: Box::new(yulang_typed_ir::Expr::Lit(yulang_typed_ir::Lit::Int(
                             "1".to_string(),
                         ))),
-                        evidence: Some(yulang_core_ir::CoerceEvidence {
+                        evidence: Some(yulang_typed_ir::CoerceEvidence {
                             source_edge: Some(source_edge),
-                            actual: yulang_core_ir::TypeBounds::exact(yulang_core_ir::Type::Any),
-                            expected: yulang_core_ir::TypeBounds::exact(yulang_core_ir::Type::Any),
+                            actual: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+                            expected: yulang_typed_ir::TypeBounds::exact(
+                                yulang_typed_ir::Type::Any,
+                            ),
                         }),
                     },
                 }],
                 root_exprs: Vec::new(),
                 roots: Vec::new(),
             },
-            graph: yulang_core_ir::CoreGraphView {
-                bindings: vec![yulang_core_ir::BindingGraphNode {
+            graph: yulang_typed_ir::CoreGraphView {
+                bindings: vec![yulang_typed_ir::BindingGraphNode {
                     binding: path,
-                    scheme_body: yulang_core_ir::Type::Any,
-                    body_bounds: yulang_core_ir::TypeBounds::exact(yulang_core_ir::Type::Any),
+                    scheme_body: yulang_typed_ir::Type::Any,
+                    body_bounds: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
                 }],
                 root_exprs: Vec::new(),
                 runtime_symbols: Vec::new(),
                 role_impls: Vec::new(),
                 primitive_types: Vec::new(),
             },
-            evidence: yulang_core_ir::PrincipalEvidence {
-                expected_edges: vec![yulang_core_ir::ExpectedEdgeEvidence {
+            evidence: yulang_typed_ir::PrincipalEvidence {
+                expected_edges: vec![yulang_typed_ir::ExpectedEdgeEvidence {
                     id: source_edge,
-                    kind: yulang_core_ir::ExpectedEdgeKind::RepresentationCoerce,
+                    kind: yulang_typed_ir::ExpectedEdgeKind::RepresentationCoerce,
                     source_range: None,
-                    actual: yulang_core_ir::TypeBounds::exact(yulang_core_ir::Type::Any),
-                    expected: yulang_core_ir::TypeBounds::exact(yulang_core_ir::Type::Any),
+                    actual: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
+                    expected: yulang_typed_ir::TypeBounds::exact(yulang_typed_ir::Type::Any),
                     actual_effect: None,
                     expected_effect: None,
                     closed: true,

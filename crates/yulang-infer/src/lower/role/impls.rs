@@ -979,22 +979,22 @@ fn store_synthetic_error_throw_scheme(
 fn synthetic_error_throw_runtime_scheme(
     state: &LowerState,
     error_sig: &SigType,
-) -> core_ir::Scheme {
-    core_ir::Scheme {
+) -> typed_ir::Scheme {
+    typed_ir::Scheme {
         requirements: Vec::new(),
-        body: core_ir::Type::Fun {
+        body: typed_ir::Type::Fun {
             param: Box::new(export_runtime_sig_type(state, error_sig)),
-            param_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
             ret_effect: Box::new(core_error_effect_type(state, error_sig)),
             ret: Box::new(export_runtime_sig_type(state, &never_sig(error_sig.span()))),
         },
     }
 }
 
-fn core_error_effect_type(state: &LowerState, error_sig: &SigType) -> core_ir::Type {
-    core_ir::Type::Row {
+fn core_error_effect_type(state: &LowerState, error_sig: &SigType) -> typed_ir::Type {
+    typed_ir::Type::Row {
         items: vec![export_runtime_sig_type(state, error_sig)],
-        tail: Box::new(core_ir::Type::Never),
+        tail: Box::new(typed_ir::Type::Never),
     }
 }
 

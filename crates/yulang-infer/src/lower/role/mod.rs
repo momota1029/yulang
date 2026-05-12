@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use yulang_core_ir as core_ir;
 use yulang_parser::lex::SyntaxKind;
+use yulang_typed_ir as typed_ir;
 
 use super::signature::{
     SigRecordField, SigRow, SigType, SigVar, act_type_param_names, collect_all_sig_vars,

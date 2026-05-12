@@ -3,11 +3,11 @@ use crate::types::core_type_contains_unknown;
 
 pub(super) fn infer_handle_payload_type(
     primitive_paths: &RuntimePrimitivePathTable,
-    pattern: &core_ir::Pattern,
-    guard: Option<&core_ir::Expr>,
-    body: &core_ir::Expr,
-    result_ty: &core_ir::Type,
-) -> Option<core_ir::Type> {
+    pattern: &typed_ir::Pattern,
+    guard: Option<&typed_ir::Expr>,
+    body: &typed_ir::Expr,
+    result_ty: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
     let name = single_bound_name(pattern)?;
     guard
         .and_then(|guard| {
@@ -16,28 +16,28 @@ pub(super) fn infer_handle_payload_type(
         .or_else(|| infer_local_expected_type(primitive_paths, &name, body, result_ty))
 }
 
-pub(super) fn single_bound_name(pattern: &core_ir::Pattern) -> Option<core_ir::Name> {
+pub(super) fn single_bound_name(pattern: &typed_ir::Pattern) -> Option<typed_ir::Name> {
     match pattern {
-        core_ir::Pattern::Bind(name) => Some(name.clone()),
-        core_ir::Pattern::As { name, .. } => Some(name.clone()),
+        typed_ir::Pattern::Bind(name) => Some(name.clone()),
+        typed_ir::Pattern::As { name, .. } => Some(name.clone()),
         _ => None,
     }
 }
 
 pub(super) fn infer_local_expected_type(
     primitive_paths: &RuntimePrimitivePathTable,
-    name: &core_ir::Name,
-    expr: &core_ir::Expr,
-    expected: &core_ir::Type,
-) -> Option<core_ir::Type> {
+    name: &typed_ir::Name,
+    expr: &typed_ir::Expr,
+    expected: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
     match expr {
-        core_ir::Expr::Var(path) if path.segments.as_slice() == std::slice::from_ref(name) => {
+        typed_ir::Expr::Var(path) if path.segments.as_slice() == std::slice::from_ref(name) => {
             Some(expected.clone())
         }
-        core_ir::Expr::Coerce { expr, .. } | core_ir::Expr::Pack { expr, .. } => {
+        typed_ir::Expr::Coerce { expr, .. } | typed_ir::Expr::Pack { expr, .. } => {
             infer_local_expected_type(primitive_paths, name, expr, expected)
         }
-        core_ir::Expr::If {
+        typed_ir::Expr::If {
             cond,
             then_branch,
             else_branch,
@@ -45,7 +45,7 @@ pub(super) fn infer_local_expected_type(
         } => infer_local_expected_type(primitive_paths, name, cond, &primitive_paths.bool_type())
             .or_else(|| infer_local_expected_type(primitive_paths, name, then_branch, expected))
             .or_else(|| infer_local_expected_type(primitive_paths, name, else_branch, expected)),
-        core_ir::Expr::Match { arms, .. } => arms.iter().find_map(|arm| {
+        typed_ir::Expr::Match { arms, .. } => arms.iter().find_map(|arm| {
             arm.guard
                 .as_ref()
                 .and_then(|guard| {
@@ -58,10 +58,10 @@ pub(super) fn infer_local_expected_type(
                 })
                 .or_else(|| infer_local_expected_type(primitive_paths, name, &arm.body, expected))
         }),
-        core_ir::Expr::Block { tail, .. } => tail
+        typed_ir::Expr::Block { tail, .. } => tail
             .as_deref()
             .and_then(|tail| infer_local_expected_type(primitive_paths, name, tail, expected)),
-        core_ir::Expr::Handle { arms, .. } => arms.iter().find_map(|arm| {
+        typed_ir::Expr::Handle { arms, .. } => arms.iter().find_map(|arm| {
             arm.guard
                 .as_ref()
                 .and_then(|guard| {
@@ -80,11 +80,11 @@ pub(super) fn infer_local_expected_type(
 
 pub(super) fn infer_resume_param_type(
     primitive_paths: &RuntimePrimitivePathTable,
-    resume: &core_ir::Name,
-    guard: Option<&core_ir::Expr>,
-    body: &core_ir::Expr,
-    locals: &HashMap<core_ir::Path, RuntimeType>,
-) -> Option<core_ir::Type> {
+    resume: &typed_ir::Name,
+    guard: Option<&typed_ir::Expr>,
+    body: &typed_ir::Expr,
+    locals: &HashMap<typed_ir::Path, RuntimeType>,
+) -> Option<typed_ir::Type> {
     guard
         .and_then(|guard| infer_resume_param_type_from_expr(primitive_paths, resume, guard, locals))
         .or_else(|| infer_resume_param_type_from_expr(primitive_paths, resume, body, locals))
@@ -92,12 +92,12 @@ pub(super) fn infer_resume_param_type(
 
 pub(super) fn infer_resume_param_type_from_expr(
     primitive_paths: &RuntimePrimitivePathTable,
-    resume: &core_ir::Name,
-    expr: &core_ir::Expr,
-    locals: &HashMap<core_ir::Path, RuntimeType>,
-) -> Option<core_ir::Type> {
+    resume: &typed_ir::Name,
+    expr: &typed_ir::Expr,
+    locals: &HashMap<typed_ir::Path, RuntimeType>,
+) -> Option<typed_ir::Type> {
     match expr {
-        core_ir::Expr::Apply {
+        typed_ir::Expr::Apply {
             callee,
             arg,
             evidence,
@@ -112,13 +112,13 @@ pub(super) fn infer_resume_param_type_from_expr(
             infer_resume_param_type_from_expr(primitive_paths, resume, callee, locals)
                 .or_else(|| infer_resume_param_type_from_expr(primitive_paths, resume, arg, locals))
         }
-        core_ir::Expr::Lambda { body, .. }
-        | core_ir::Expr::Coerce { expr: body, .. }
-        | core_ir::Expr::BindHere { expr: body }
-        | core_ir::Expr::Pack { expr: body, .. } => {
+        typed_ir::Expr::Lambda { body, .. }
+        | typed_ir::Expr::Coerce { expr: body, .. }
+        | typed_ir::Expr::BindHere { expr: body }
+        | typed_ir::Expr::Pack { expr: body, .. } => {
             infer_resume_param_type_from_expr(primitive_paths, resume, body, locals)
         }
-        core_ir::Expr::If {
+        typed_ir::Expr::If {
             cond,
             then_branch,
             else_branch,
@@ -130,28 +130,28 @@ pub(super) fn infer_resume_param_type_from_expr(
             .or_else(|| {
                 infer_resume_param_type_from_expr(primitive_paths, resume, else_branch, locals)
             }),
-        core_ir::Expr::Tuple(items) => items.iter().find_map(|item| {
+        typed_ir::Expr::Tuple(items) => items.iter().find_map(|item| {
             infer_resume_param_type_from_expr(primitive_paths, resume, item, locals)
         }),
-        core_ir::Expr::Record { fields, spread } => fields
+        typed_ir::Expr::Record { fields, spread } => fields
             .iter()
             .find_map(|field| {
                 infer_resume_param_type_from_expr(primitive_paths, resume, &field.value, locals)
             })
             .or_else(|| match spread {
-                Some(core_ir::RecordSpreadExpr::Head(expr))
-                | Some(core_ir::RecordSpreadExpr::Tail(expr)) => {
+                Some(typed_ir::RecordSpreadExpr::Head(expr))
+                | Some(typed_ir::RecordSpreadExpr::Tail(expr)) => {
                     infer_resume_param_type_from_expr(primitive_paths, resume, expr, locals)
                 }
                 None => None,
             }),
-        core_ir::Expr::Variant { value, .. } => value.as_deref().and_then(|value| {
+        typed_ir::Expr::Variant { value, .. } => value.as_deref().and_then(|value| {
             infer_resume_param_type_from_expr(primitive_paths, resume, value, locals)
         }),
-        core_ir::Expr::Select { base, .. } => {
+        typed_ir::Expr::Select { base, .. } => {
             infer_resume_param_type_from_expr(primitive_paths, resume, base, locals)
         }
-        core_ir::Expr::Match {
+        typed_ir::Expr::Match {
             scrutinee, arms, ..
         } => infer_resume_param_type_from_expr(primitive_paths, resume, scrutinee, locals).or_else(
             || {
@@ -177,7 +177,7 @@ pub(super) fn infer_resume_param_type_from_expr(
                 })
             },
         ),
-        core_ir::Expr::Block { stmts, tail } => stmts
+        typed_ir::Expr::Block { stmts, tail } => stmts
             .iter()
             .find_map(|stmt| {
                 infer_resume_param_type_from_stmt(primitive_paths, resume, stmt, locals)
@@ -187,7 +187,7 @@ pub(super) fn infer_resume_param_type_from_expr(
                     infer_resume_param_type_from_expr(primitive_paths, resume, tail, locals)
                 })
             }),
-        core_ir::Expr::Handle { body, arms, .. } => {
+        typed_ir::Expr::Handle { body, arms, .. } => {
             infer_resume_param_type_from_expr(primitive_paths, resume, body, locals).or_else(|| {
                 arms.iter().find_map(|arm| {
                     arm.guard
@@ -211,30 +211,30 @@ pub(super) fn infer_resume_param_type_from_expr(
                 })
             })
         }
-        core_ir::Expr::Var(_) | core_ir::Expr::PrimitiveOp(_) | core_ir::Expr::Lit(_) => None,
+        typed_ir::Expr::Var(_) | typed_ir::Expr::PrimitiveOp(_) | typed_ir::Expr::Lit(_) => None,
     }
 }
 
 pub(super) fn infer_resume_param_type_from_stmt(
     primitive_paths: &RuntimePrimitivePathTable,
-    resume: &core_ir::Name,
-    stmt: &core_ir::Stmt,
-    locals: &HashMap<core_ir::Path, RuntimeType>,
-) -> Option<core_ir::Type> {
+    resume: &typed_ir::Name,
+    stmt: &typed_ir::Stmt,
+    locals: &HashMap<typed_ir::Path, RuntimeType>,
+) -> Option<typed_ir::Type> {
     match stmt {
-        core_ir::Stmt::Let { value, .. } | core_ir::Stmt::Expr(value) => {
+        typed_ir::Stmt::Let { value, .. } | typed_ir::Stmt::Expr(value) => {
             infer_resume_param_type_from_expr(primitive_paths, resume, value, locals)
         }
-        core_ir::Stmt::Module { body, .. } => {
+        typed_ir::Stmt::Module { body, .. } => {
             infer_resume_param_type_from_expr(primitive_paths, resume, body, locals)
         }
     }
 }
 
-pub(super) fn is_resume_call(resume: &core_ir::Name, callee: &core_ir::Expr) -> bool {
+pub(super) fn is_resume_call(resume: &typed_ir::Name, callee: &typed_ir::Expr) -> bool {
     match callee {
-        core_ir::Expr::Var(path) => path.segments.as_slice() == std::slice::from_ref(resume),
-        core_ir::Expr::Coerce { expr, .. } | core_ir::Expr::Pack { expr, .. } => {
+        typed_ir::Expr::Var(path) => path.segments.as_slice() == std::slice::from_ref(resume),
+        typed_ir::Expr::Coerce { expr, .. } | typed_ir::Expr::Pack { expr, .. } => {
             is_resume_call(resume, expr)
         }
         _ => false,
@@ -243,11 +243,11 @@ pub(super) fn is_resume_call(resume: &core_ir::Name, callee: &core_ir::Expr) -> 
 
 pub(super) fn literal_expr_type(
     primitive_paths: &RuntimePrimitivePathTable,
-    expr: &core_ir::Expr,
-) -> Option<core_ir::Type> {
+    expr: &typed_ir::Expr,
+) -> Option<typed_ir::Type> {
     match expr {
-        core_ir::Expr::Lit(lit) => Some(primitive_paths.lit_type(lit)),
-        core_ir::Expr::Coerce { expr, .. } | core_ir::Expr::Pack { expr, .. } => {
+        typed_ir::Expr::Lit(lit) => Some(primitive_paths.lit_type(lit)),
+        typed_ir::Expr::Coerce { expr, .. } | typed_ir::Expr::Pack { expr, .. } => {
             literal_expr_type(primitive_paths, expr)
         }
         _ => None,
@@ -255,19 +255,19 @@ pub(super) fn literal_expr_type(
 }
 
 fn local_expr_type(
-    expr: &core_ir::Expr,
-    locals: &HashMap<core_ir::Path, RuntimeType>,
-) -> Option<core_ir::Type> {
+    expr: &typed_ir::Expr,
+    locals: &HashMap<typed_ir::Path, RuntimeType>,
+) -> Option<typed_ir::Type> {
     match expr {
-        core_ir::Expr::Var(path) => locals.get(path).and_then(runtime_type_value_core),
-        core_ir::Expr::Coerce { expr, .. } | core_ir::Expr::Pack { expr, .. } => {
+        typed_ir::Expr::Var(path) => locals.get(path).and_then(runtime_type_value_core),
+        typed_ir::Expr::Coerce { expr, .. } | typed_ir::Expr::Pack { expr, .. } => {
             local_expr_type(expr, locals)
         }
         _ => None,
     }
 }
 
-fn runtime_type_value_core(ty: &RuntimeType) -> Option<core_ir::Type> {
+fn runtime_type_value_core(ty: &RuntimeType) -> Option<typed_ir::Type> {
     match ty {
         RuntimeType::Core(ty) if !core_type_contains_unknown(ty) => Some(ty.clone()),
         RuntimeType::Thunk { value, .. } => runtime_type_value_core(value),

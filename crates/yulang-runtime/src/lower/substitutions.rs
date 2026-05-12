@@ -1,8 +1,8 @@
 use super::*;
 
 pub(super) fn principal_module_type_vars(
-    module: &core_ir::PrincipalModule,
-) -> BTreeSet<core_ir::TypeVar> {
+    module: &typed_ir::PrincipalModule,
+) -> BTreeSet<typed_ir::TypeVar> {
     let mut vars = BTreeSet::new();
     for binding in &module.bindings {
         collect_type_vars(&binding.scheme.body, &mut vars);
@@ -10,8 +10,8 @@ pub(super) fn principal_module_type_vars(
         for requirement in &binding.scheme.requirements {
             for arg in &requirement.args {
                 match arg {
-                    core_ir::RoleRequirementArg::Input(bounds)
-                    | core_ir::RoleRequirementArg::Associated { bounds, .. } => {
+                    typed_ir::RoleRequirementArg::Input(bounds)
+                    | typed_ir::RoleRequirementArg::Associated { bounds, .. } => {
                         collect_type_bounds_vars(bounds, &mut vars);
                     }
                 }
@@ -24,11 +24,11 @@ pub(super) fn principal_module_type_vars(
     vars
 }
 
-fn collect_expr_type_vars(expr: &core_ir::Expr, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_expr_type_vars(expr: &typed_ir::Expr, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match expr {
-        core_ir::Expr::Lit(_) | core_ir::Expr::Var(_) | core_ir::Expr::PrimitiveOp(_) => {}
-        core_ir::Expr::Lambda { body, .. } => collect_expr_type_vars(body, vars),
-        core_ir::Expr::Apply {
+        typed_ir::Expr::Lit(_) | typed_ir::Expr::Var(_) | typed_ir::Expr::PrimitiveOp(_) => {}
+        typed_ir::Expr::Lambda { body, .. } => collect_expr_type_vars(body, vars),
+        typed_ir::Expr::Apply {
             callee,
             arg,
             evidence,
@@ -39,7 +39,7 @@ fn collect_expr_type_vars(expr: &core_ir::Expr, vars: &mut BTreeSet<core_ir::Typ
                 collect_apply_evidence_type_vars(evidence, vars);
             }
         }
-        core_ir::Expr::If {
+        typed_ir::Expr::If {
             cond,
             then_branch,
             else_branch,
@@ -52,12 +52,12 @@ fn collect_expr_type_vars(expr: &core_ir::Expr, vars: &mut BTreeSet<core_ir::Typ
                 collect_type_bounds_vars(&evidence.result, vars);
             }
         }
-        core_ir::Expr::Tuple(items) => {
+        typed_ir::Expr::Tuple(items) => {
             for item in items {
                 collect_expr_type_vars(item, vars);
             }
         }
-        core_ir::Expr::Record { fields, spread } => {
+        typed_ir::Expr::Record { fields, spread } => {
             for field in fields {
                 collect_expr_type_vars(&field.value, vars);
             }
@@ -65,13 +65,13 @@ fn collect_expr_type_vars(expr: &core_ir::Expr, vars: &mut BTreeSet<core_ir::Typ
                 collect_record_spread_expr_type_vars(spread, vars);
             }
         }
-        core_ir::Expr::Variant { value, .. } => {
+        typed_ir::Expr::Variant { value, .. } => {
             if let Some(value) = value {
                 collect_expr_type_vars(value, vars);
             }
         }
-        core_ir::Expr::Select { base, .. } => collect_expr_type_vars(base, vars),
-        core_ir::Expr::Match {
+        typed_ir::Expr::Select { base, .. } => collect_expr_type_vars(base, vars),
+        typed_ir::Expr::Match {
             scrutinee,
             arms,
             evidence,
@@ -87,7 +87,7 @@ fn collect_expr_type_vars(expr: &core_ir::Expr, vars: &mut BTreeSet<core_ir::Typ
                 collect_expr_type_vars(&arm.body, vars);
             }
         }
-        core_ir::Expr::Block { stmts, tail } => {
+        typed_ir::Expr::Block { stmts, tail } => {
             for stmt in stmts {
                 collect_stmt_type_vars(stmt, vars);
             }
@@ -95,7 +95,7 @@ fn collect_expr_type_vars(expr: &core_ir::Expr, vars: &mut BTreeSet<core_ir::Typ
                 collect_expr_type_vars(tail, vars);
             }
         }
-        core_ir::Expr::Handle {
+        typed_ir::Expr::Handle {
             body,
             arms,
             evidence,
@@ -111,44 +111,44 @@ fn collect_expr_type_vars(expr: &core_ir::Expr, vars: &mut BTreeSet<core_ir::Typ
                 collect_expr_type_vars(&arm.body, vars);
             }
         }
-        core_ir::Expr::Coerce { expr, evidence } => {
+        typed_ir::Expr::Coerce { expr, evidence } => {
             collect_expr_type_vars(expr, vars);
             if let Some(evidence) = evidence {
                 collect_type_bounds_vars(&evidence.actual, vars);
                 collect_type_bounds_vars(&evidence.expected, vars);
             }
         }
-        core_ir::Expr::BindHere { expr } => {
+        typed_ir::Expr::BindHere { expr } => {
             collect_expr_type_vars(expr, vars);
         }
-        core_ir::Expr::Pack { expr, .. } => {
+        typed_ir::Expr::Pack { expr, .. } => {
             collect_expr_type_vars(expr, vars);
         }
     }
 }
 
-fn collect_stmt_type_vars(stmt: &core_ir::Stmt, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_stmt_type_vars(stmt: &typed_ir::Stmt, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match stmt {
-        core_ir::Stmt::Let { value, .. } => collect_expr_type_vars(value, vars),
-        core_ir::Stmt::Expr(expr) => collect_expr_type_vars(expr, vars),
-        core_ir::Stmt::Module { body, .. } => collect_expr_type_vars(body, vars),
+        typed_ir::Stmt::Let { value, .. } => collect_expr_type_vars(value, vars),
+        typed_ir::Stmt::Expr(expr) => collect_expr_type_vars(expr, vars),
+        typed_ir::Stmt::Module { body, .. } => collect_expr_type_vars(body, vars),
     }
 }
 
 fn collect_record_spread_expr_type_vars(
-    spread: &core_ir::RecordSpreadExpr,
-    vars: &mut BTreeSet<core_ir::TypeVar>,
+    spread: &typed_ir::RecordSpreadExpr,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     match spread {
-        core_ir::RecordSpreadExpr::Head(expr) | core_ir::RecordSpreadExpr::Tail(expr) => {
+        typed_ir::RecordSpreadExpr::Head(expr) | typed_ir::RecordSpreadExpr::Tail(expr) => {
             collect_expr_type_vars(expr, vars);
         }
     }
 }
 
 fn collect_apply_evidence_type_vars(
-    evidence: &core_ir::ApplyEvidence,
-    vars: &mut BTreeSet<core_ir::TypeVar>,
+    evidence: &typed_ir::ApplyEvidence,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     collect_type_bounds_vars(&evidence.callee, vars);
     if let Some(expected) = &evidence.expected_callee {
@@ -176,8 +176,8 @@ fn collect_apply_evidence_type_vars(
 }
 
 fn collect_principal_elaboration_plan_type_vars(
-    plan: &core_ir::PrincipalElaborationPlan,
-    vars: &mut BTreeSet<core_ir::TypeVar>,
+    plan: &typed_ir::PrincipalElaborationPlan,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     collect_type_vars(&plan.principal_callee, vars);
     for substitution in &plan.substitutions {
@@ -206,9 +206,9 @@ fn collect_principal_elaboration_plan_type_vars(
     }
     for reason in &plan.incomplete_reasons {
         match reason {
-            core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var)
-            | core_ir::PrincipalElaborationIncompleteReason::ConflictingSubstitution(var)
-            | core_ir::PrincipalElaborationIncompleteReason::OpenCandidate(var) => {
+            typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var)
+            | typed_ir::PrincipalElaborationIncompleteReason::ConflictingSubstitution(var)
+            | typed_ir::PrincipalElaborationIncompleteReason::OpenCandidate(var) => {
                 vars.insert(var.clone());
             }
             _ => {}
@@ -216,7 +216,7 @@ fn collect_principal_elaboration_plan_type_vars(
     }
 }
 
-fn collect_type_bounds_vars(bounds: &core_ir::TypeBounds, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_type_bounds_vars(bounds: &typed_ir::TypeBounds, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     if let Some(lower) = bounds.lower.as_deref() {
         collect_type_vars(lower, vars);
     }
@@ -228,8 +228,8 @@ fn collect_type_bounds_vars(bounds: &core_ir::TypeBounds, vars: &mut BTreeSet<co
 pub(super) fn infer_hir_type_substitutions(
     template: &RuntimeType,
     actual: &RuntimeType,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) {
     match (template, actual) {
         (RuntimeType::Core(template), RuntimeType::Core(actual)) => {
@@ -262,7 +262,7 @@ pub(super) fn infer_hir_type_substitutions(
             infer_hir_type_substitutions(template_value, actual_value, params, substitutions);
         }
         (RuntimeType::Thunk { effect, value }, actual) => {
-            infer_type_substitutions(effect, &core_ir::Type::Never, params, substitutions);
+            infer_type_substitutions(effect, &typed_ir::Type::Never, params, substitutions);
             infer_hir_type_substitutions(value, actual, params, substitutions);
         }
         _ => {}
@@ -270,24 +270,24 @@ pub(super) fn infer_hir_type_substitutions(
 }
 
 pub(super) fn infer_role_requirement_substitutions(
-    requirements: &[core_ir::RoleRequirement],
-    role_impls: &[core_ir::RoleImplGraphNode],
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    requirements: &[typed_ir::RoleRequirement],
+    role_impls: &[typed_ir::RoleImplGraphNode],
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) {
     for requirement in requirements {
         let inputs = requirement
             .args
             .iter()
             .filter_map(|arg| match arg {
-                core_ir::RoleRequirementArg::Input(bounds) => {
+                typed_ir::RoleRequirementArg::Input(bounds) => {
                     substituted_requirement_bound(bounds, substitutions)
                 }
-                core_ir::RoleRequirementArg::Associated { .. } => None,
+                typed_ir::RoleRequirementArg::Associated { .. } => None,
             })
             .collect::<Vec<_>>();
         for arg in &requirement.args {
-            let core_ir::RoleRequirementArg::Associated { name, bounds } = arg else {
+            let typed_ir::RoleRequirementArg::Associated { name, bounds } = arg else {
                 continue;
             };
             let Some(resolved) =
@@ -304,19 +304,19 @@ pub(super) fn infer_role_requirement_substitutions(
 }
 
 pub(super) fn substituted_requirement_bound(
-    bounds: &core_ir::TypeBounds,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> Option<core_ir::Type> {
+    bounds: &typed_ir::TypeBounds,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> Option<typed_ir::Type> {
     choose_bounds_type(bounds, BoundsChoice::TirEvidence)
         .map(|ty| substitute_type(&ty, substitutions))
 }
 
 pub(super) fn resolve_associated_requirement(
-    requirement: &core_ir::RoleRequirement,
-    name: &core_ir::Name,
-    inputs: &[core_ir::Type],
-    role_impls: &[core_ir::RoleImplGraphNode],
-) -> Option<core_ir::Type> {
+    requirement: &typed_ir::RoleRequirement,
+    name: &typed_ir::Name,
+    inputs: &[typed_ir::Type],
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> Option<typed_ir::Type> {
     let mut resolved = None;
     for role_impl in role_impls.iter().filter(|role_impl| {
         role_impl.role == requirement.role && role_impl.inputs.len() == inputs.len()
@@ -343,10 +343,10 @@ pub(super) fn resolve_associated_requirement(
 }
 
 fn project_role_impl_associated_type(
-    impl_inputs: &[core_ir::TypeBounds],
-    actual_inputs: &[core_ir::Type],
-    associated: &core_ir::TypeBounds,
-) -> Option<core_ir::Type> {
+    impl_inputs: &[typed_ir::TypeBounds],
+    actual_inputs: &[typed_ir::Type],
+    associated: &typed_ir::TypeBounds,
+) -> Option<typed_ir::Type> {
     let mut impl_vars = BTreeSet::new();
     let templates = impl_inputs
         .iter()
@@ -368,10 +368,10 @@ fn project_role_impl_associated_type(
 }
 
 pub(super) fn visible_apply_result_type(
-    callee_ty: &core_ir::Type,
-    arg_ty: Option<&core_ir::Type>,
-) -> Option<core_ir::Type> {
-    let core_ir::Type::Fun { param, ret, .. } = callee_ty else {
+    callee_ty: &typed_ir::Type,
+    arg_ty: Option<&typed_ir::Type>,
+) -> Option<typed_ir::Type> {
+    let typed_ir::Type::Fun { param, ret, .. } = callee_ty else {
         return None;
     };
     let Some(arg_ty) = arg_ty else {
@@ -384,15 +384,15 @@ pub(super) fn visible_apply_result_type(
     Some(substitute_type(ret, &substitutions))
 }
 
-pub(super) fn principal_hir_type_params(ty: &RuntimeType) -> Vec<core_ir::TypeVar> {
+pub(super) fn principal_hir_type_params(ty: &RuntimeType) -> Vec<typed_ir::TypeVar> {
     let mut vars = BTreeSet::new();
     collect_hir_type_vars(ty, &mut vars);
     vars.retain(|var| !is_anonymous_type_var(var));
     vars.into_iter().collect()
 }
 
-pub(super) fn principal_core_type_params(ty: &core_ir::Type) -> Vec<core_ir::TypeVar> {
-    if !matches!(ty, core_ir::Type::Fun { .. }) {
+pub(super) fn principal_core_type_params(ty: &typed_ir::Type) -> Vec<typed_ir::TypeVar> {
+    if !matches!(ty, typed_ir::Type::Fun { .. }) {
         return Vec::new();
     }
     let mut vars = BTreeSet::new();
@@ -401,7 +401,9 @@ pub(super) fn principal_core_type_params(ty: &core_ir::Type) -> Vec<core_ir::Typ
     vars.into_iter().collect()
 }
 
-pub(super) fn principal_core_constructor_type_params(ty: &core_ir::Type) -> Vec<core_ir::TypeVar> {
+pub(super) fn principal_core_constructor_type_params(
+    ty: &typed_ir::Type,
+) -> Vec<typed_ir::TypeVar> {
     let mut vars = BTreeSet::new();
     collect_type_vars(ty, &mut vars);
     vars.retain(|var| !is_anonymous_type_var(var));
@@ -409,38 +411,40 @@ pub(super) fn principal_core_constructor_type_params(ty: &core_ir::Type) -> Vec<
 }
 
 fn collect_core_variant_payload_type_vars(
-    ty: &core_ir::Type,
-    vars: &mut BTreeSet<core_ir::TypeVar>,
+    ty: &typed_ir::Type,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     match ty {
-        core_ir::Type::Unknown
-        | core_ir::Type::Never
-        | core_ir::Type::Any
-        | core_ir::Type::Var(_)
-        | core_ir::Type::Named { .. }
-        | core_ir::Type::Row { .. } => {}
-        core_ir::Type::Fun { param, ret, .. } => {
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_)
+        | typed_ir::Type::Named { .. }
+        | typed_ir::Type::Row { .. } => {}
+        typed_ir::Type::Fun { param, ret, .. } => {
             collect_core_variant_payload_type_vars(param, vars);
             collect_core_variant_payload_type_vars(ret, vars);
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
             for item in items {
                 collect_core_variant_payload_type_vars(item, vars);
             }
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             for field in &record.fields {
                 collect_core_variant_payload_type_vars(&field.value, vars);
             }
             if let Some(spread) = &record.spread {
                 match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         collect_core_variant_payload_type_vars(ty, vars);
                     }
                 }
             }
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             for case in &variant.cases {
                 for payload in &case.payloads {
                     collect_type_vars(payload, vars);
@@ -450,7 +454,9 @@ fn collect_core_variant_payload_type_vars(
                 collect_core_variant_payload_type_vars(tail, vars);
             }
         }
-        core_ir::Type::Recursive { body, .. } => collect_core_variant_payload_type_vars(body, vars),
+        typed_ir::Type::Recursive { body, .. } => {
+            collect_core_variant_payload_type_vars(body, vars)
+        }
     }
 }
 
@@ -522,9 +528,9 @@ pub(super) fn refine_lambda_ret_type(expected: &RuntimeType, actual: &RuntimeTyp
 }
 
 pub(super) fn refine_effect_slot(
-    expected: &core_ir::Type,
-    actual: &core_ir::Type,
-) -> core_ir::Type {
+    expected: &typed_ir::Type,
+    actual: &typed_ir::Type,
+) -> typed_ir::Type {
     if core_type_is_imprecise_runtime_slot(expected) && !core_type_is_imprecise_runtime_slot(actual)
     {
         return actual.clone();
@@ -580,17 +586,17 @@ pub(super) fn refine_anonymous_hir_type(
 }
 
 pub(super) fn refine_anonymous_type(
-    expected: &core_ir::Type,
-    actual: &core_ir::Type,
-) -> core_ir::Type {
+    expected: &typed_ir::Type,
+    actual: &typed_ir::Type,
+) -> typed_ir::Type {
     match (expected, actual) {
-        (core_ir::Type::Var(var), actual) if is_anonymous_type_var(var) => actual.clone(),
+        (typed_ir::Type::Var(var), actual) if is_anonymous_type_var(var) => actual.clone(),
         (
-            core_ir::Type::Named { path, args },
-            core_ir::Type::Named {
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
                 args: actual_args, ..
             },
-        ) if args.len() == actual_args.len() => core_ir::Type::Named {
+        ) if args.len() == actual_args.len() => typed_ir::Type::Named {
             path: path.clone(),
             args: args
                 .iter()
@@ -599,28 +605,28 @@ pub(super) fn refine_anonymous_type(
                 .collect(),
         },
         (
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param,
                 param_effect,
                 ret_effect,
                 ret,
             },
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: actual_param,
                 param_effect: actual_param_effect,
                 ret_effect: actual_ret_effect,
                 ret: actual_ret,
             },
-        ) => core_ir::Type::Fun {
+        ) => typed_ir::Type::Fun {
             param: Box::new(refine_anonymous_type(param, actual_param)),
             param_effect: Box::new(refine_anonymous_type(param_effect, actual_param_effect)),
             ret_effect: Box::new(refine_anonymous_type(ret_effect, actual_ret_effect)),
             ret: Box::new(refine_anonymous_type(ret, actual_ret)),
         },
-        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items))
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
             if items.len() == actual_items.len() =>
         {
-            core_ir::Type::Tuple(
+            typed_ir::Type::Tuple(
                 items
                     .iter()
                     .zip(actual_items)
@@ -629,12 +635,12 @@ pub(super) fn refine_anonymous_type(
             )
         }
         (
-            core_ir::Type::Row { items, tail },
-            core_ir::Type::Row {
+            typed_ir::Type::Row { items, tail },
+            typed_ir::Type::Row {
                 items: actual_items,
                 tail: actual_tail,
             },
-        ) if items.len() == actual_items.len() => core_ir::Type::Row {
+        ) if items.len() == actual_items.len() => typed_ir::Type::Row {
             items: items
                 .iter()
                 .zip(actual_items)
@@ -642,28 +648,29 @@ pub(super) fn refine_anonymous_type(
                 .collect(),
             tail: Box::new(refine_anonymous_type(tail, actual_tail)),
         },
-        (core_ir::Type::Recursive { var, body }, core_ir::Type::Recursive { body: actual, .. }) => {
-            core_ir::Type::Recursive {
-                var: var.clone(),
-                body: Box::new(refine_anonymous_type(body, actual)),
-            }
-        }
+        (
+            typed_ir::Type::Recursive { var, body },
+            typed_ir::Type::Recursive { body: actual, .. },
+        ) => typed_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(refine_anonymous_type(body, actual)),
+        },
         _ => expected.clone(),
     }
 }
 
 pub(super) fn refine_anonymous_type_arg(
-    expected: &core_ir::TypeArg,
-    actual: &core_ir::TypeArg,
-) -> core_ir::TypeArg {
+    expected: &typed_ir::TypeArg,
+    actual: &typed_ir::TypeArg,
+) -> typed_ir::TypeArg {
     match (expected, actual) {
-        (core_ir::TypeArg::Type(expected), core_ir::TypeArg::Type(actual)) => {
-            core_ir::TypeArg::Type(refine_anonymous_type(expected, actual))
+        (typed_ir::TypeArg::Type(expected), typed_ir::TypeArg::Type(actual)) => {
+            typed_ir::TypeArg::Type(refine_anonymous_type(expected, actual))
         }
         _ => expected.clone(),
     }
 }
 
-pub(super) fn is_anonymous_type_var(var: &core_ir::TypeVar) -> bool {
+pub(super) fn is_anonymous_type_var(var: &typed_ir::TypeVar) -> bool {
     var.0 == "_"
 }

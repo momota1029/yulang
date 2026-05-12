@@ -194,17 +194,17 @@ pub fn compare_cps_repr_cranelift_i64_report(
 
 #[cfg(test)]
 mod tests {
-    use yulang_core_ir as core_ir;
+    use yulang_typed_ir as typed_ir;
 
     use crate::compare::compare_module;
 
     use super::*;
 
-    fn unknown_lit(lit: core_ir::Lit) -> runtime::Expr {
+    fn unknown_lit(lit: typed_ir::Lit) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::Lit(lit), runtime::Type::unknown())
     }
 
-    fn primitive(op: core_ir::PrimitiveOp) -> runtime::Expr {
+    fn primitive(op: typed_ir::PrimitiveOp) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::PrimitiveOp(op), runtime::Type::unknown())
     }
 
@@ -238,7 +238,7 @@ mod tests {
 
     fn var(name: &str) -> runtime::Expr {
         runtime::Expr::typed(
-            runtime::ExprKind::Var(core_ir::Path::from_name(core_ir::Name(name.to_string()))),
+            runtime::ExprKind::Var(typed_ir::Path::from_name(typed_ir::Name(name.to_string()))),
             runtime::Type::unknown(),
         )
     }
@@ -250,18 +250,18 @@ mod tests {
         )
     }
 
-    fn effect_operation_path(name: &str) -> core_ir::Path {
-        core_ir::Path {
+    fn effect_operation_path(name: &str) -> typed_ir::Path {
+        typed_ir::Path {
             segments: vec![
-                core_ir::Name(name.to_string()),
-                core_ir::Name(name.to_string()),
+                typed_ir::Name(name.to_string()),
+                typed_ir::Name(name.to_string()),
             ],
         }
     }
 
     fn bind_pattern(name: &str) -> runtime::Pattern {
         runtime::Pattern::Bind {
-            name: core_ir::Name(name.to_string()),
+            name: typed_ir::Name(name.to_string()),
             ty: runtime::Type::unknown(),
         }
     }
@@ -273,7 +273,7 @@ mod tests {
         body: runtime::Expr,
         arm_body: runtime::Expr,
     ) -> runtime::Expr {
-        let effect_namespace = core_ir::Path::from_name(core_ir::Name(effect.to_string()));
+        let effect_namespace = typed_ir::Path::from_name(typed_ir::Name(effect.to_string()));
         let effect_operation = effect_operation_path(effect);
         runtime::Expr::typed(
             runtime::ExprKind::Handle {
@@ -282,14 +282,14 @@ mod tests {
                     effect: effect_operation,
                     payload: bind_pattern(payload),
                     resume: Some(runtime::ResumeBinding {
-                        name: core_ir::Name(resume.to_string()),
+                        name: typed_ir::Name(resume.to_string()),
                         ty: runtime::Type::unknown(),
                     }),
                     guard: None,
                     body: arm_body,
                 }],
                 evidence: runtime::JoinEvidence {
-                    result: core_ir::Type::Unknown,
+                    result: typed_ir::Type::Unknown,
                 },
                 handler: runtime::HandleEffect {
                     consumes: vec![effect_namespace],
@@ -314,11 +314,11 @@ mod tests {
     fn thunk(expr: runtime::Expr) -> runtime::Expr {
         runtime::Expr::typed(
             runtime::ExprKind::Thunk {
-                effect: core_ir::Type::Unknown,
+                effect: typed_ir::Type::Unknown,
                 value: runtime::Type::unknown(),
                 expr: Box::new(expr),
             },
-            runtime::Type::thunk(core_ir::Type::Unknown, runtime::Type::unknown()),
+            runtime::Type::thunk(typed_ir::Type::Unknown, runtime::Type::unknown()),
         )
     }
 
@@ -329,7 +329,7 @@ mod tests {
     fn lambda(param: &str, body: runtime::Expr) -> runtime::Expr {
         runtime::Expr::typed(
             runtime::ExprKind::Lambda {
-                param: core_ir::Name(param.to_string()),
+                param: typed_ir::Name(param.to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(body),
@@ -340,11 +340,11 @@ mod tests {
 
     fn binding(name: &str, body: runtime::Expr) -> runtime::Binding {
         runtime::Binding {
-            name: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+            name: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             type_params: Vec::new(),
-            scheme: core_ir::Scheme {
+            scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
-                body: core_ir::Type::Unknown,
+                body: typed_ir::Type::Unknown,
             },
             body,
         }
@@ -359,7 +359,7 @@ mod tests {
         expr: runtime::Expr,
     ) -> runtime::Module {
         runtime::Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings,
             root_exprs: vec![expr],
             roots: vec![runtime::Root::Expr(0)],
@@ -380,10 +380,10 @@ mod tests {
     fn compares_pure_int_add_with_vm_and_native_control() {
         let expr = apply(
             apply(
-                primitive(core_ir::PrimitiveOp::IntAdd),
-                unknown_lit(core_ir::Lit::Int("20".to_string())),
+                primitive(typed_ir::PrimitiveOp::IntAdd),
+                unknown_lit(typed_ir::Lit::Int("20".to_string())),
             ),
-            unknown_lit(core_ir::Lit::Int("22".to_string())),
+            unknown_lit(typed_ir::Lit::Int("22".to_string())),
         );
         compare_all(&module_with_root(expr));
     }
@@ -392,10 +392,10 @@ mod tests {
     fn compares_pure_int_add_with_cps_repr_cranelift() {
         let expr = apply(
             apply(
-                primitive(core_ir::PrimitiveOp::IntAdd),
-                unknown_lit(core_ir::Lit::Int("20".to_string())),
+                primitive(typed_ir::PrimitiveOp::IntAdd),
+                unknown_lit(typed_ir::Lit::Int("20".to_string())),
             ),
-            unknown_lit(core_ir::Lit::Int("22".to_string())),
+            unknown_lit(typed_ir::Lit::Int("22".to_string())),
         );
         compare_cps_cranelift_i64(&module_with_root(expr));
     }
@@ -404,7 +404,7 @@ mod tests {
     fn compares_effect_handler_with_cps_repr_cranelift() {
         let body = apply(
             effect_op("choose"),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
         );
         let arm_body = apply(var("k"), var("x"));
 
@@ -421,12 +421,12 @@ mod tests {
     fn compares_multishot_effect_handler_with_cps_repr_cranelift() {
         let body = apply(
             effect_op("choose"),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let resume_two = apply(var("k"), unknown_lit(typed_ir::Lit::Int("2".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_two,
         );
 
@@ -443,16 +443,16 @@ mod tests {
     fn compares_effect_handler_rest_continuation_with_cps_repr_cranelift() {
         let choose_one = apply(
             effect_op("choose"),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
         );
         let body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), choose_one),
-            unknown_lit(core_ir::Lit::Int("10".to_string())),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), choose_one),
+            unknown_lit(typed_ir::Lit::Int("10".to_string())),
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_two = apply(var("k"), unknown_lit(core_ir::Lit::Int("2".to_string())));
+        let resume_two = apply(var("k"), unknown_lit(typed_ir::Lit::Int("2".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_two,
         );
 
@@ -469,33 +469,33 @@ mod tests {
     fn compares_effect_handler_branch_with_cps_repr_cranelift() {
         let then_branch = apply(
             apply(
-                primitive(core_ir::PrimitiveOp::IntAdd),
+                primitive(typed_ir::PrimitiveOp::IntAdd),
                 apply(
                     effect_op("choose"),
-                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                    unknown_lit(typed_ir::Lit::Int("1".to_string())),
                 ),
             ),
-            unknown_lit(core_ir::Lit::Int("10".to_string())),
+            unknown_lit(typed_ir::Lit::Int("10".to_string())),
         );
         let else_branch = apply(
             apply(
-                primitive(core_ir::PrimitiveOp::IntAdd),
+                primitive(typed_ir::PrimitiveOp::IntAdd),
                 apply(
                     effect_op("choose"),
-                    unknown_lit(core_ir::Lit::Int("2".to_string())),
+                    unknown_lit(typed_ir::Lit::Int("2".to_string())),
                 ),
             ),
-            unknown_lit(core_ir::Lit::Int("20".to_string())),
+            unknown_lit(typed_ir::Lit::Int("20".to_string())),
         );
         let body = if_expr(
-            unknown_lit(core_ir::Lit::Bool(true)),
+            unknown_lit(typed_ir::Lit::Bool(true)),
             then_branch,
             else_branch,
         );
         let resume_x = apply(var("k"), var("x"));
-        let resume_three = apply(var("k"), unknown_lit(core_ir::Lit::Int("3".to_string())));
+        let resume_three = apply(var("k"), unknown_lit(typed_ir::Lit::Int("3".to_string())));
         let arm_body = apply(
-            apply(primitive(core_ir::PrimitiveOp::IntAdd), resume_x),
+            apply(primitive(typed_ir::PrimitiveOp::IntAdd), resume_x),
             resume_three,
         );
 
@@ -513,13 +513,13 @@ mod tests {
         let expr = if_expr(
             apply(
                 apply(
-                    primitive(core_ir::PrimitiveOp::IntLt),
-                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                    primitive(typed_ir::PrimitiveOp::IntLt),
+                    unknown_lit(typed_ir::Lit::Int("1".to_string())),
                 ),
-                unknown_lit(core_ir::Lit::Int("2".to_string())),
+                unknown_lit(typed_ir::Lit::Int("2".to_string())),
             ),
-            unknown_lit(core_ir::Lit::String("then".to_string())),
-            unknown_lit(core_ir::Lit::String("else".to_string())),
+            unknown_lit(typed_ir::Lit::String("then".to_string())),
+            unknown_lit(typed_ir::Lit::String("else".to_string())),
         );
         compare_all(&module_with_root(expr));
     }
@@ -529,10 +529,10 @@ mod tests {
         let expr = block(
             vec![runtime::Stmt::Let {
                 pattern: bind_pattern("x"),
-                value: unknown_lit(core_ir::Lit::Int("21".to_string())),
+                value: unknown_lit(typed_ir::Lit::Int("21".to_string())),
             }],
             apply(
-                apply(primitive(core_ir::PrimitiveOp::IntAdd), var("x")),
+                apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("x")),
                 var("x"),
             ),
         );
@@ -547,15 +547,15 @@ mod tests {
                 "n",
                 if_expr(
                     apply(
-                        apply(primitive(core_ir::PrimitiveOp::IntLe), var("n")),
-                        unknown_lit(core_ir::Lit::Int("0".to_string())),
+                        apply(primitive(typed_ir::PrimitiveOp::IntLe), var("n")),
+                        unknown_lit(typed_ir::Lit::Int("0".to_string())),
                     ),
-                    unknown_lit(core_ir::Lit::Int("0".to_string())),
+                    unknown_lit(typed_ir::Lit::Int("0".to_string())),
                     apply(
                         var("countdown"),
                         apply(
-                            apply(primitive(core_ir::PrimitiveOp::IntSub), var("n")),
-                            unknown_lit(core_ir::Lit::Int("1".to_string())),
+                            apply(primitive(typed_ir::PrimitiveOp::IntSub), var("n")),
+                            unknown_lit(typed_ir::Lit::Int("1".to_string())),
                         ),
                     ),
                 ),
@@ -563,7 +563,7 @@ mod tests {
         );
         let root = apply(
             var("countdown"),
-            unknown_lit(core_ir::Lit::Int("3".to_string())),
+            unknown_lit(typed_ir::Lit::Int("3".to_string())),
         );
         compare_all(&module_with_bindings_and_root(vec![countdown], root));
     }

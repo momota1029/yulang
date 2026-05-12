@@ -111,20 +111,23 @@ pub(super) fn prepend_frames(continuation: &mut VmContinuation, mut frames: Vec<
     continuation.frames = frames;
 }
 
-pub(super) fn effect_is_allowed(allowed: &core_ir::Type, effect: &core_ir::Path) -> bool {
+pub(super) fn effect_is_allowed(allowed: &typed_ir::Type, effect: &typed_ir::Path) -> bool {
     match allowed {
-        core_ir::Type::Any => true,
-        core_ir::Type::Never => false,
-        core_ir::Type::Named { path, .. } => effect_path_matches_allowed(path, effect),
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Any => true,
+        typed_ir::Type::Never => false,
+        typed_ir::Type::Named { path, .. } => effect_path_matches_allowed(path, effect),
+        typed_ir::Type::Row { items, tail } => {
             items.iter().any(|item| effect_is_allowed(item, effect))
-                || matches!(tail.as_ref(), core_ir::Type::Any)
+                || matches!(tail.as_ref(), typed_ir::Type::Any)
         }
         _ => false,
     }
 }
 
-pub(super) fn effect_path_matches_allowed(allowed: &core_ir::Path, effect: &core_ir::Path) -> bool {
+pub(super) fn effect_path_matches_allowed(
+    allowed: &typed_ir::Path,
+    effect: &typed_ir::Path,
+) -> bool {
     if effect.segments.starts_with(&allowed.segments) {
         return true;
     }
@@ -133,10 +136,10 @@ pub(super) fn effect_path_matches_allowed(allowed: &core_ir::Path, effect: &core
     })
 }
 
-pub(super) fn is_float_type(ty: &core_ir::Type) -> bool {
-    matches!(ty, core_ir::Type::Named { path, args } if args.is_empty() && path == &standard_float_path())
+pub(super) fn is_float_type(ty: &typed_ir::Type) -> bool {
+    matches!(ty, typed_ir::Type::Named { path, args } if args.is_empty() && path == &standard_float_path())
 }
 
-fn standard_float_path() -> core_ir::Path {
-    core_ir::Path::from_name(core_ir::Name("float".to_string()))
+fn standard_float_path() -> typed_ir::Path {
+    typed_ir::Path::from_name(typed_ir::Name("float".to_string()))
 }

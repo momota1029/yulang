@@ -42,12 +42,12 @@ pub struct LowerState {
     /// lambda parameter def ごとの header pattern。
     pub lambda_param_pats: HashMap<DefId, crate::ast::expr::TypedPat>,
     /// lambda parameter def ごとの effect annotation 種別。
-    pub lambda_param_effect_annotations: HashMap<DefId, yulang_core_ir::ParamEffectAnnotation>,
+    pub lambda_param_effect_annotations: HashMap<DefId, yulang_typed_ir::ParamEffectAnnotation>,
     /// 関数シグネチャ注釈を持つ lambda/header parameter の latent effect 挙動。
     pub lambda_param_function_sig_hints: HashMap<DefId, FunctionSigEffectHint>,
     /// 関数シグネチャ注釈が許可する effect allow-list。
     pub lambda_param_function_allowed_effects:
-        HashMap<DefId, yulang_core_ir::FunctionSigAllowedEffects>,
+        HashMap<DefId, yulang_typed_ir::FunctionSigAllowedEffects>,
     /// top-level / observable binding の desugar 済み body。
     pub principal_bodies: HashMap<DefId, Arc<TypedExpr>>,
     /// lowering 中の self recursive binding が self-call で使う provisional scheme。
@@ -61,7 +61,7 @@ pub struct LowerState {
     /// lowering 後にも recursive binding だったことを残す集合。
     pub recursive_binding_defs: HashSet<DefId>,
     /// runtime export 用に固定した concrete scheme。
-    pub runtime_export_schemes: HashMap<DefId, yulang_core_ir::Scheme>,
+    pub runtime_export_schemes: HashMap<DefId, yulang_typed_ir::Scheme>,
     /// ファイル単位 root block。principal root export 用。
     pub top_level_blocks: Vec<(Path, crate::ast::expr::TypedBlock)>,
     /// top-level 式のために作った synthetic owner。
@@ -227,7 +227,7 @@ impl LowerState {
     pub(crate) fn primitive_runtime_value_path(
         &self,
         family: PrimitiveValueFamily,
-    ) -> yulang_core_ir::Path {
+    ) -> yulang_typed_ir::Path {
         self.primitive_paths
             .runtime_value_path(family)
             .unwrap_or_else(|| crate::lower::builtin_types::primitive_runtime_value_path(family))
@@ -694,7 +694,7 @@ impl LowerState {
     pub fn register_lambda_param_effect_annotation(
         &mut self,
         param_def: DefId,
-        annotation: yulang_core_ir::ParamEffectAnnotation,
+        annotation: yulang_typed_ir::ParamEffectAnnotation,
     ) {
         self.lambda_param_effect_annotations
             .insert(param_def, annotation);
@@ -711,7 +711,7 @@ impl LowerState {
     pub fn register_lambda_param_function_allowed_effects(
         &mut self,
         param_def: DefId,
-        allowed: yulang_core_ir::FunctionSigAllowedEffects,
+        allowed: yulang_typed_ir::FunctionSigAllowedEffects,
     ) {
         self.lambda_param_function_allowed_effects
             .insert(param_def, allowed);

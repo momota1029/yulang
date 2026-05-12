@@ -2,11 +2,11 @@ use std::env;
 use std::fs;
 use std::path::{Path as FsPath, PathBuf};
 
-use yulang_core_ir::{Name, Path};
-use yulang_source::{
+use yulang_sources::{
     InlineSource, SourceOptions, SourceOrigin, collect_inline_source_files_with_options,
     parse_source_meta,
 };
+use yulang_typed_ir::{Name, Path};
 
 fn main() {
     println!("cargo:rerun-if-changed=../../lib/std");
@@ -20,7 +20,7 @@ fn main() {
     fs::write(path, json).expect("write std compiled unit artifacts");
 }
 
-fn std_source_set() -> yulang_source::SourceSet {
+fn std_source_set() -> yulang_sources::SourceSet {
     let source = STD_SOURCES
         .iter()
         .map(|source| format!("use std::{}::*\n", source.name))

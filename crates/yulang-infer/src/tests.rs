@@ -473,7 +473,7 @@ fn core_program_carries_expected_edge_evidence_table() {
             .unwrap_or_else(|| panic!("missing core principal evidence for edge #{edge_id}"));
         assert_eq!(
             edge.kind,
-            yulang_core_ir::ExpectedEdgeKind::ApplicationArgument
+            yulang_typed_ir::ExpectedEdgeKind::ApplicationArgument
         );
         assert!(
             edge.expected.lower.is_some() || edge.expected.upper.is_some(),
@@ -492,7 +492,7 @@ fn core_program_carries_derived_expected_edge_evidence_table() {
             .derived_expected_edges
             .iter()
             .any(
-                |edge| edge.kind == yulang_core_ir::DerivedExpectedEdgeKind::RecordField
+                |edge| edge.kind == yulang_typed_ir::DerivedExpectedEdgeKind::RecordField
                     && edge.path.len() == 2
             ),
         "expected core principal evidence to expose nested record field derived edges: {:?}",
@@ -528,7 +528,7 @@ fn effect_operation_application_records_adapter_edge() {
 
     assert_eq!(
         core_adapter.kind,
-        yulang_core_ir::ExpectedAdapterEdgeKind::EffectOperationArgument
+        yulang_typed_ir::ExpectedAdapterEdgeKind::EffectOperationArgument
     );
     assert_eq!(
         core_adapter.source_expected_edge,
@@ -812,21 +812,21 @@ fn catch_records_handler_adapter_edges() {
             .evidence
             .expected_adapter_edges
             .iter()
-            .any(|edge| edge.kind == yulang_core_ir::ExpectedAdapterEdgeKind::HandlerResidual)
+            .any(|edge| edge.kind == yulang_typed_ir::ExpectedAdapterEdgeKind::HandlerResidual)
     );
     assert!(
         program
             .evidence
             .expected_adapter_edges
             .iter()
-            .any(|edge| edge.kind == yulang_core_ir::ExpectedAdapterEdgeKind::HandlerReturn)
+            .any(|edge| edge.kind == yulang_typed_ir::ExpectedAdapterEdgeKind::HandlerReturn)
     );
     assert!(
         program
             .evidence
             .expected_adapter_edges
             .iter()
-            .any(|edge| edge.kind == yulang_core_ir::ExpectedAdapterEdgeKind::ResumeArgument)
+            .any(|edge| edge.kind == yulang_typed_ir::ExpectedAdapterEdgeKind::ResumeArgument)
     );
 }
 
@@ -929,7 +929,7 @@ fn synthetic_representation_coerce_edges_have_core_evidence() {
     );
 }
 
-fn count_coerce_evidence_in_module(module: &yulang_core_ir::PrincipalModule) -> usize {
+fn count_coerce_evidence_in_module(module: &yulang_typed_ir::PrincipalModule) -> usize {
     module
         .bindings
         .iter()
@@ -942,7 +942,7 @@ fn count_coerce_evidence_in_module(module: &yulang_core_ir::PrincipalModule) -> 
             .sum::<usize>()
 }
 
-fn count_concrete_coerce_evidence_in_module(module: &yulang_core_ir::PrincipalModule) -> usize {
+fn count_concrete_coerce_evidence_in_module(module: &yulang_typed_ir::PrincipalModule) -> usize {
     module
         .bindings
         .iter()
@@ -956,7 +956,7 @@ fn count_concrete_coerce_evidence_in_module(module: &yulang_core_ir::PrincipalMo
 }
 
 fn apply_evidence_source_edges_in_module(
-    module: &yulang_core_ir::PrincipalModule,
+    module: &yulang_typed_ir::PrincipalModule,
 ) -> std::collections::BTreeSet<u32> {
     let mut source_edges = std::collections::BTreeSet::new();
     for binding in &module.bindings {
@@ -969,7 +969,7 @@ fn apply_evidence_source_edges_in_module(
 }
 
 fn apply_evidence_callee_source_edges_in_module(
-    module: &yulang_core_ir::PrincipalModule,
+    module: &yulang_typed_ir::PrincipalModule,
 ) -> std::collections::BTreeSet<u32> {
     let mut source_edges = std::collections::BTreeSet::new();
     for binding in &module.bindings {
@@ -982,11 +982,11 @@ fn apply_evidence_callee_source_edges_in_module(
 }
 
 fn collect_apply_evidence_callee_source_edges(
-    expr: &yulang_core_ir::Expr,
+    expr: &yulang_typed_ir::Expr,
     source_edges: &mut std::collections::BTreeSet<u32>,
 ) {
     visit_core_expr(expr, &mut |expr| {
-        if let yulang_core_ir::Expr::Apply { evidence, .. } = expr
+        if let yulang_typed_ir::Expr::Apply { evidence, .. } = expr
             && let Some(source_edge) = evidence
                 .as_ref()
                 .and_then(|evidence| evidence.callee_source_edge)
@@ -997,11 +997,11 @@ fn collect_apply_evidence_callee_source_edges(
 }
 
 fn collect_apply_evidence_source_edges(
-    expr: &yulang_core_ir::Expr,
+    expr: &yulang_typed_ir::Expr,
     source_edges: &mut std::collections::BTreeSet<u32>,
 ) {
     visit_core_expr(expr, &mut |expr| {
-        if let yulang_core_ir::Expr::Apply { evidence, .. } = expr
+        if let yulang_typed_ir::Expr::Apply { evidence, .. } = expr
             && let Some(source_edge) = evidence
                 .as_ref()
                 .and_then(|evidence| evidence.arg_source_edge)
@@ -1012,8 +1012,8 @@ fn collect_apply_evidence_source_edges(
 }
 
 fn apply_evidence_callee_source_expected_callees_in_module(
-    module: &yulang_core_ir::PrincipalModule,
-) -> Vec<(u32, Option<yulang_core_ir::TypeBounds>)> {
+    module: &yulang_typed_ir::PrincipalModule,
+) -> Vec<(u32, Option<yulang_typed_ir::TypeBounds>)> {
     let mut source_edges = Vec::new();
     for binding in &module.bindings {
         collect_apply_evidence_callee_source_expected_callees(&binding.body, &mut source_edges);
@@ -1025,11 +1025,11 @@ fn apply_evidence_callee_source_expected_callees_in_module(
 }
 
 fn collect_apply_evidence_callee_source_expected_callees(
-    expr: &yulang_core_ir::Expr,
-    source_edges: &mut Vec<(u32, Option<yulang_core_ir::TypeBounds>)>,
+    expr: &yulang_typed_ir::Expr,
+    source_edges: &mut Vec<(u32, Option<yulang_typed_ir::TypeBounds>)>,
 ) {
     visit_core_expr(expr, &mut |expr| {
-        if let yulang_core_ir::Expr::Apply { evidence, .. } = expr
+        if let yulang_typed_ir::Expr::Apply { evidence, .. } = expr
             && let Some(evidence) = evidence
             && let Some(source_edge) = evidence.callee_source_edge
         {
@@ -1039,8 +1039,8 @@ fn collect_apply_evidence_callee_source_expected_callees(
 }
 
 fn apply_evidence_source_expected_args_in_module(
-    module: &yulang_core_ir::PrincipalModule,
-) -> Vec<(u32, Option<yulang_core_ir::TypeBounds>)> {
+    module: &yulang_typed_ir::PrincipalModule,
+) -> Vec<(u32, Option<yulang_typed_ir::TypeBounds>)> {
     let mut source_edges = Vec::new();
     for binding in &module.bindings {
         collect_apply_evidence_source_expected_args(&binding.body, &mut source_edges);
@@ -1052,11 +1052,11 @@ fn apply_evidence_source_expected_args_in_module(
 }
 
 fn collect_apply_evidence_source_expected_args(
-    expr: &yulang_core_ir::Expr,
-    source_edges: &mut Vec<(u32, Option<yulang_core_ir::TypeBounds>)>,
+    expr: &yulang_typed_ir::Expr,
+    source_edges: &mut Vec<(u32, Option<yulang_typed_ir::TypeBounds>)>,
 ) {
     visit_core_expr(expr, &mut |expr| {
-        if let yulang_core_ir::Expr::Apply { evidence, .. } = expr
+        if let yulang_typed_ir::Expr::Apply { evidence, .. } = expr
             && let Some(evidence) = evidence
             && let Some(source_edge) = evidence.arg_source_edge
         {
@@ -1066,7 +1066,7 @@ fn collect_apply_evidence_source_expected_args(
 }
 
 fn coerce_evidence_source_edges_in_module(
-    module: &yulang_core_ir::PrincipalModule,
+    module: &yulang_typed_ir::PrincipalModule,
 ) -> std::collections::BTreeSet<u32> {
     let mut source_edges = std::collections::BTreeSet::new();
     for binding in &module.bindings {
@@ -1079,11 +1079,11 @@ fn coerce_evidence_source_edges_in_module(
 }
 
 fn collect_coerce_evidence_source_edges(
-    expr: &yulang_core_ir::Expr,
+    expr: &yulang_typed_ir::Expr,
     source_edges: &mut std::collections::BTreeSet<u32>,
 ) {
     visit_core_expr(expr, &mut |expr| {
-        if let yulang_core_ir::Expr::Coerce { evidence, .. } = expr
+        if let yulang_typed_ir::Expr::Coerce { evidence, .. } = expr
             && let Some(source_edge) = evidence.as_ref().and_then(|evidence| evidence.source_edge)
         {
             source_edges.insert(source_edge);
@@ -1091,18 +1091,18 @@ fn collect_coerce_evidence_source_edges(
     });
 }
 
-fn visit_core_expr(expr: &yulang_core_ir::Expr, visitor: &mut impl FnMut(&yulang_core_ir::Expr)) {
+fn visit_core_expr(expr: &yulang_typed_ir::Expr, visitor: &mut impl FnMut(&yulang_typed_ir::Expr)) {
     visitor(expr);
     match expr {
-        yulang_core_ir::Expr::Coerce { expr, .. } => visit_core_expr(expr, visitor),
-        yulang_core_ir::Expr::Lambda { body, .. }
-        | yulang_core_ir::Expr::Pack { expr: body, .. } => visit_core_expr(body, visitor),
-        yulang_core_ir::Expr::BindHere { expr } => visit_core_expr(expr, visitor),
-        yulang_core_ir::Expr::Apply { callee, arg, .. } => {
+        yulang_typed_ir::Expr::Coerce { expr, .. } => visit_core_expr(expr, visitor),
+        yulang_typed_ir::Expr::Lambda { body, .. }
+        | yulang_typed_ir::Expr::Pack { expr: body, .. } => visit_core_expr(body, visitor),
+        yulang_typed_ir::Expr::BindHere { expr } => visit_core_expr(expr, visitor),
+        yulang_typed_ir::Expr::Apply { callee, arg, .. } => {
             visit_core_expr(callee, visitor);
             visit_core_expr(arg, visitor);
         }
-        yulang_core_ir::Expr::If {
+        yulang_typed_ir::Expr::If {
             cond,
             then_branch,
             else_branch,
@@ -1112,32 +1112,32 @@ fn visit_core_expr(expr: &yulang_core_ir::Expr, visitor: &mut impl FnMut(&yulang
             visit_core_expr(then_branch, visitor);
             visit_core_expr(else_branch, visitor);
         }
-        yulang_core_ir::Expr::Tuple(items) => {
+        yulang_typed_ir::Expr::Tuple(items) => {
             for item in items {
                 visit_core_expr(item, visitor);
             }
         }
-        yulang_core_ir::Expr::Record { fields, spread } => {
+        yulang_typed_ir::Expr::Record { fields, spread } => {
             for field in fields {
                 visit_core_expr(&field.value, visitor);
             }
             if let Some(
-                yulang_core_ir::RecordSpreadExpr::Head(expr)
-                | yulang_core_ir::RecordSpreadExpr::Tail(expr),
+                yulang_typed_ir::RecordSpreadExpr::Head(expr)
+                | yulang_typed_ir::RecordSpreadExpr::Tail(expr),
             ) = spread
             {
                 visit_core_expr(expr, visitor);
             }
         }
-        yulang_core_ir::Expr::Variant { value, .. } => {
+        yulang_typed_ir::Expr::Variant { value, .. } => {
             if let Some(value) = value {
                 visit_core_expr(value, visitor);
             }
         }
-        yulang_core_ir::Expr::Select { base, .. } => {
+        yulang_typed_ir::Expr::Select { base, .. } => {
             visit_core_expr(base, visitor);
         }
-        yulang_core_ir::Expr::Match {
+        yulang_typed_ir::Expr::Match {
             scrutinee, arms, ..
         } => {
             visit_core_expr(scrutinee, visitor);
@@ -1148,13 +1148,14 @@ fn visit_core_expr(expr: &yulang_core_ir::Expr, visitor: &mut impl FnMut(&yulang
                 visit_core_expr(&arm.body, visitor);
             }
         }
-        yulang_core_ir::Expr::Block { stmts, tail } => {
+        yulang_typed_ir::Expr::Block { stmts, tail } => {
             for stmt in stmts {
                 match stmt {
-                    yulang_core_ir::Stmt::Let { value, .. } | yulang_core_ir::Stmt::Expr(value) => {
+                    yulang_typed_ir::Stmt::Let { value, .. }
+                    | yulang_typed_ir::Stmt::Expr(value) => {
                         visit_core_expr(value, visitor);
                     }
-                    yulang_core_ir::Stmt::Module { body, .. } => {
+                    yulang_typed_ir::Stmt::Module { body, .. } => {
                         visit_core_expr(body, visitor);
                     }
                 }
@@ -1163,7 +1164,7 @@ fn visit_core_expr(expr: &yulang_core_ir::Expr, visitor: &mut impl FnMut(&yulang
                 visit_core_expr(tail, visitor);
             }
         }
-        yulang_core_ir::Expr::Handle { body, arms, .. } => {
+        yulang_typed_ir::Expr::Handle { body, arms, .. } => {
             visit_core_expr(body, visitor);
             for arm in arms {
                 if let Some(guard) = &arm.guard {
@@ -1172,36 +1173,36 @@ fn visit_core_expr(expr: &yulang_core_ir::Expr, visitor: &mut impl FnMut(&yulang
                 visit_core_expr(&arm.body, visitor);
             }
         }
-        yulang_core_ir::Expr::Var(_)
-        | yulang_core_ir::Expr::PrimitiveOp(_)
-        | yulang_core_ir::Expr::Lit(_) => {}
+        yulang_typed_ir::Expr::Var(_)
+        | yulang_typed_ir::Expr::PrimitiveOp(_)
+        | yulang_typed_ir::Expr::Lit(_) => {}
     }
 }
 
-fn count_coerce_evidence(expr: &yulang_core_ir::Expr) -> usize {
+fn count_coerce_evidence(expr: &yulang_typed_ir::Expr) -> usize {
     count_coerce_evidence_by(expr, &|_| true)
 }
 
-fn count_concrete_coerce_evidence(expr: &yulang_core_ir::Expr) -> usize {
+fn count_concrete_coerce_evidence(expr: &yulang_typed_ir::Expr) -> usize {
     count_coerce_evidence_by(expr, &coerce_evidence_is_concrete)
 }
 
 fn count_coerce_evidence_by(
-    expr: &yulang_core_ir::Expr,
-    accepts: &impl Fn(&yulang_core_ir::CoerceEvidence) -> bool,
+    expr: &yulang_typed_ir::Expr,
+    accepts: &impl Fn(&yulang_typed_ir::CoerceEvidence) -> bool,
 ) -> usize {
     match expr {
-        yulang_core_ir::Expr::Coerce { evidence, expr } => {
+        yulang_typed_ir::Expr::Coerce { evidence, expr } => {
             usize::from(evidence.as_ref().is_some_and(accepts))
                 + count_coerce_evidence_by(expr, accepts)
         }
-        yulang_core_ir::Expr::Lambda { body, .. }
-        | yulang_core_ir::Expr::Pack { expr: body, .. } => count_coerce_evidence_by(body, accepts),
-        yulang_core_ir::Expr::BindHere { expr } => count_coerce_evidence_by(expr, accepts),
-        yulang_core_ir::Expr::Apply { callee, arg, .. } => {
+        yulang_typed_ir::Expr::Lambda { body, .. }
+        | yulang_typed_ir::Expr::Pack { expr: body, .. } => count_coerce_evidence_by(body, accepts),
+        yulang_typed_ir::Expr::BindHere { expr } => count_coerce_evidence_by(expr, accepts),
+        yulang_typed_ir::Expr::Apply { callee, arg, .. } => {
             count_coerce_evidence_by(callee, accepts) + count_coerce_evidence_by(arg, accepts)
         }
-        yulang_core_ir::Expr::If {
+        yulang_typed_ir::Expr::If {
             cond,
             then_branch,
             else_branch,
@@ -1211,29 +1212,29 @@ fn count_coerce_evidence_by(
                 + count_coerce_evidence_by(then_branch, accepts)
                 + count_coerce_evidence_by(else_branch, accepts)
         }
-        yulang_core_ir::Expr::Tuple(items) => items
+        yulang_typed_ir::Expr::Tuple(items) => items
             .iter()
             .map(|item| count_coerce_evidence_by(item, accepts))
             .sum(),
-        yulang_core_ir::Expr::Record { fields, spread } => {
+        yulang_typed_ir::Expr::Record { fields, spread } => {
             fields
                 .iter()
                 .map(|field| count_coerce_evidence_by(&field.value, accepts))
                 .sum::<usize>()
                 + match spread {
-                    Some(yulang_core_ir::RecordSpreadExpr::Head(expr))
-                    | Some(yulang_core_ir::RecordSpreadExpr::Tail(expr)) => {
+                    Some(yulang_typed_ir::RecordSpreadExpr::Head(expr))
+                    | Some(yulang_typed_ir::RecordSpreadExpr::Tail(expr)) => {
                         count_coerce_evidence_by(expr, accepts)
                     }
                     None => 0,
                 }
         }
-        yulang_core_ir::Expr::Variant { value, .. } => value
+        yulang_typed_ir::Expr::Variant { value, .. } => value
             .as_deref()
             .map(|value| count_coerce_evidence_by(value, accepts))
             .unwrap_or(0),
-        yulang_core_ir::Expr::Select { base, .. } => count_coerce_evidence_by(base, accepts),
-        yulang_core_ir::Expr::Match {
+        yulang_typed_ir::Expr::Select { base, .. } => count_coerce_evidence_by(base, accepts),
+        yulang_typed_ir::Expr::Match {
             scrutinee, arms, ..
         } => {
             count_coerce_evidence_by(scrutinee, accepts)
@@ -1248,14 +1249,15 @@ fn count_coerce_evidence_by(
                     })
                     .sum::<usize>()
         }
-        yulang_core_ir::Expr::Block { stmts, tail } => {
+        yulang_typed_ir::Expr::Block { stmts, tail } => {
             stmts
                 .iter()
                 .map(|stmt| match stmt {
-                    yulang_core_ir::Stmt::Let { value, .. } | yulang_core_ir::Stmt::Expr(value) => {
+                    yulang_typed_ir::Stmt::Let { value, .. }
+                    | yulang_typed_ir::Stmt::Expr(value) => {
                         count_coerce_evidence_by(value, accepts)
                     }
-                    yulang_core_ir::Stmt::Module { body, .. } => {
+                    yulang_typed_ir::Stmt::Module { body, .. } => {
                         count_coerce_evidence_by(body, accepts)
                     }
                 })
@@ -1265,7 +1267,7 @@ fn count_coerce_evidence_by(
                     .map(|tail| count_coerce_evidence_by(tail, accepts))
                     .unwrap_or(0)
         }
-        yulang_core_ir::Expr::Handle { body, arms, .. } => {
+        yulang_typed_ir::Expr::Handle { body, arms, .. } => {
             count_coerce_evidence_by(body, accepts)
                 + arms
                     .iter()
@@ -1278,29 +1280,29 @@ fn count_coerce_evidence_by(
                     })
                     .sum::<usize>()
         }
-        yulang_core_ir::Expr::Var(_)
-        | yulang_core_ir::Expr::PrimitiveOp(_)
-        | yulang_core_ir::Expr::Lit(_) => 0,
+        yulang_typed_ir::Expr::Var(_)
+        | yulang_typed_ir::Expr::PrimitiveOp(_)
+        | yulang_typed_ir::Expr::Lit(_) => 0,
     }
 }
 
-fn coerce_evidence_is_concrete(evidence: &yulang_core_ir::CoerceEvidence) -> bool {
+fn coerce_evidence_is_concrete(evidence: &yulang_typed_ir::CoerceEvidence) -> bool {
     concrete_type_bounds(&evidence.actual) && concrete_type_bounds(&evidence.expected)
 }
 
-fn concrete_type_bounds(bounds: &yulang_core_ir::TypeBounds) -> bool {
+fn concrete_type_bounds(bounds: &yulang_typed_ir::TypeBounds) -> bool {
     (bounds.lower.is_some() || bounds.upper.is_some())
         && bounds.lower.as_deref().is_none_or(concrete_type)
         && bounds.upper.as_deref().is_none_or(concrete_type)
 }
 
-fn concrete_type(ty: &yulang_core_ir::Type) -> bool {
+fn concrete_type(ty: &yulang_typed_ir::Type) -> bool {
     match ty {
-        yulang_core_ir::Type::Unknown => false,
-        yulang_core_ir::Type::Never | yulang_core_ir::Type::Any => true,
-        yulang_core_ir::Type::Var(_) => false,
-        yulang_core_ir::Type::Named { args, .. } => args.iter().all(concrete_type_arg),
-        yulang_core_ir::Type::Fun {
+        yulang_typed_ir::Type::Unknown => false,
+        yulang_typed_ir::Type::Never | yulang_typed_ir::Type::Any => true,
+        yulang_typed_ir::Type::Var(_) => false,
+        yulang_typed_ir::Type::Named { args, .. } => args.iter().all(concrete_type_arg),
+        yulang_typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -1311,42 +1313,42 @@ fn concrete_type(ty: &yulang_core_ir::Type) -> bool {
                 && concrete_type(ret_effect)
                 && concrete_type(ret)
         }
-        yulang_core_ir::Type::Tuple(items)
-        | yulang_core_ir::Type::Union(items)
-        | yulang_core_ir::Type::Inter(items) => items.iter().all(concrete_type),
-        yulang_core_ir::Type::Record(record) => {
+        yulang_typed_ir::Type::Tuple(items)
+        | yulang_typed_ir::Type::Union(items)
+        | yulang_typed_ir::Type::Inter(items) => items.iter().all(concrete_type),
+        yulang_typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
                 .all(|field| concrete_type(&field.value))
                 && record.spread.as_ref().is_none_or(concrete_record_spread)
         }
-        yulang_core_ir::Type::Variant(variant) => {
+        yulang_typed_ir::Type::Variant(variant) => {
             variant
                 .cases
                 .iter()
                 .all(|case| case.payloads.iter().all(concrete_type))
                 && variant.tail.as_deref().is_none_or(concrete_type)
         }
-        yulang_core_ir::Type::Row { items, tail } => {
+        yulang_typed_ir::Type::Row { items, tail } => {
             items.iter().all(concrete_type) && concrete_type(tail)
         }
-        yulang_core_ir::Type::Recursive { body, .. } => concrete_type(body),
+        yulang_typed_ir::Type::Recursive { body, .. } => concrete_type(body),
     }
 }
 
-fn concrete_record_spread(spread: &yulang_core_ir::RecordSpread) -> bool {
+fn concrete_record_spread(spread: &yulang_typed_ir::RecordSpread) -> bool {
     match spread {
-        yulang_core_ir::RecordSpread::Head(ty) | yulang_core_ir::RecordSpread::Tail(ty) => {
+        yulang_typed_ir::RecordSpread::Head(ty) | yulang_typed_ir::RecordSpread::Tail(ty) => {
             concrete_type(ty)
         }
     }
 }
 
-fn concrete_type_arg(arg: &yulang_core_ir::TypeArg) -> bool {
+fn concrete_type_arg(arg: &yulang_typed_ir::TypeArg) -> bool {
     match arg {
-        yulang_core_ir::TypeArg::Type(ty) => concrete_type(ty),
-        yulang_core_ir::TypeArg::Bounds(bounds) => concrete_type_bounds(bounds),
+        yulang_typed_ir::TypeArg::Type(ty) => concrete_type(ty),
+        yulang_typed_ir::TypeArg::Bounds(bounds) => concrete_type_bounds(bounds),
     }
 }
 
@@ -1361,13 +1363,13 @@ fn tuple_binding_can_widen_to_float_annotation() {
         .expect("t binding");
     assert_eq!(
         binding.scheme.body,
-        yulang_core_ir::Type::Tuple(vec![
-            yulang_core_ir::Type::Named {
-                path: yulang_core_ir::Path::from_name(yulang_core_ir::Name("float".to_string(),)),
+        yulang_typed_ir::Type::Tuple(vec![
+            yulang_typed_ir::Type::Named {
+                path: yulang_typed_ir::Path::from_name(yulang_typed_ir::Name("float".to_string(),)),
                 args: vec![],
             },
-            yulang_core_ir::Type::Named {
-                path: yulang_core_ir::Path::from_name(yulang_core_ir::Name("float".to_string(),)),
+            yulang_typed_ir::Type::Named {
+                path: yulang_typed_ir::Path::from_name(yulang_typed_ir::Name("float".to_string(),)),
                 args: vec![],
             },
         ]),
@@ -1385,22 +1387,22 @@ fn record_binding_can_widen_to_float_annotation() {
         .expect("r binding");
     assert_eq!(
         binding.scheme.body,
-        yulang_core_ir::Type::Record(yulang_core_ir::RecordType {
+        yulang_typed_ir::Type::Record(yulang_typed_ir::RecordType {
             fields: vec![
-                yulang_core_ir::RecordField {
-                    name: yulang_core_ir::Name("x".to_string()),
-                    value: yulang_core_ir::Type::Named {
-                        path: yulang_core_ir::Path::from_name(yulang_core_ir::Name(
+                yulang_typed_ir::RecordField {
+                    name: yulang_typed_ir::Name("x".to_string()),
+                    value: yulang_typed_ir::Type::Named {
+                        path: yulang_typed_ir::Path::from_name(yulang_typed_ir::Name(
                             "float".to_string(),
                         )),
                         args: vec![],
                     },
                     optional: false,
                 },
-                yulang_core_ir::RecordField {
-                    name: yulang_core_ir::Name("y".to_string()),
-                    value: yulang_core_ir::Type::Named {
-                        path: yulang_core_ir::Path::from_name(yulang_core_ir::Name(
+                yulang_typed_ir::RecordField {
+                    name: yulang_typed_ir::Name("y".to_string()),
+                    value: yulang_typed_ir::Type::Named {
+                        path: yulang_typed_ir::Path::from_name(yulang_typed_ir::Name(
                             "float".to_string(),
                         )),
                         args: vec![],

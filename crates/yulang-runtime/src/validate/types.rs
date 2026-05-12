@@ -1,8 +1,8 @@
 use super::*;
 
 pub(super) fn require_same_type(
-    expected: &core_ir::Type,
-    actual: &core_ir::Type,
+    expected: &typed_ir::Type,
+    actual: &typed_ir::Type,
     source: TypeSource,
 ) -> RuntimeResult<()> {
     if core_types_compatible(expected, actual)

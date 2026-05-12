@@ -147,7 +147,7 @@ fn format_value(value: ValueId) -> String {
 
 #[cfg(test)]
 mod tests {
-    use yulang_core_ir as core_ir;
+    use yulang_typed_ir as typed_ir;
 
     use crate::abi::{NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
     use crate::control_ir::{BlockId, NativeLiteral, NativeTerminator, ValueId};
@@ -166,7 +166,7 @@ mod tests {
                     params: Vec::new(),
                     stmts: vec![NativeAbiStmt::Primitive {
                         dest: ValueId(2),
-                        op: core_ir::PrimitiveOp::IntAdd,
+                        op: typed_ir::PrimitiveOp::IntAdd,
                         args: vec![ValueId(0), ValueId(1)],
                     }],
                     terminator: NativeTerminator::Return(ValueId(2)),

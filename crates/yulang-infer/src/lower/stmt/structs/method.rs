@@ -1,5 +1,5 @@
-use yulang_core_ir as core_ir;
 use yulang_parser::lex::SyntaxKind;
+use yulang_typed_ir as typed_ir;
 
 use crate::ast::expr::{ExprKind, Lit, PatKind, TypedExpr, TypedPat};
 use crate::lower::{LowerState, SyntaxNode};
@@ -169,16 +169,16 @@ pub(crate) fn lower_struct_with_binding(
             state.infer.constrain(Pos::Var(method_tv), neg_sig);
             state.runtime_export_schemes.insert(
                 method_def,
-                core_ir::Scheme {
+                typed_ir::Scheme {
                     requirements: Vec::new(),
-                    body: core_ir::Type::Fun {
+                    body: typed_ir::Type::Fun {
                         param: Box::new(super::super::export_runtime_struct_receiver_type(
                             state,
                             struct_path,
                             type_arg_tvs,
                         )),
-                        param_effect: Box::new(core_ir::Type::Never),
-                        ret_effect: Box::new(core_ir::Type::Never),
+                        param_effect: Box::new(typed_ir::Type::Never),
+                        ret_effect: Box::new(typed_ir::Type::Never),
                         ret: Box::new(super::super::export_runtime_struct_method_type(state, &sig)),
                     },
                 },

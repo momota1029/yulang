@@ -6,11 +6,11 @@ use std::path::{Path as FsPath, PathBuf};
 
 use rowan::{NodeOrToken, SyntaxNode};
 use serde::{Deserialize, Serialize};
-use yulang_core_ir::{Name, Path as ModulePath};
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::op::{BpVec, OpDef, OpTable, standard_op_table};
 use yulang_parser::parse_module_to_green;
 use yulang_parser::sink::YulangLanguage;
+use yulang_typed_ir::{Name, Path as ModulePath};
 
 mod cache;
 
@@ -2167,7 +2167,7 @@ mod tests {
 
     fn temp_root(name: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
-            "yulang-source-{name}-{}",
+            "yulang-sources-{name}-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()

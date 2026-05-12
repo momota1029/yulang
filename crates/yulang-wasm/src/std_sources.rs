@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use yulang_core_ir::{Name, Path};
-use yulang_source::{
+use yulang_sources::{
     InlineSource, SourceOptions, SourceOrigin, SourceSet, collect_inline_source_files_with_options,
     parse_source_meta,
 };
+use yulang_typed_ir::{Name, Path};
 
 pub fn source_set(source: &str) -> SourceSet {
     collect_inline_source_files_with_options(

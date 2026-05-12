@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::time::Duration;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::time::Instant;
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{
     ExpectedAdapterEdge, ExpectedAdapterEdgeId, ExpectedAdapterEdgeKind, ExpectedEdge,
@@ -36,14 +36,14 @@ use super::types::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct CompleteApplyPrincipalEvidence {
-    pub(super) principal_callee: core_ir::Type,
-    pub(super) substitutions: Vec<core_ir::TypeSubstitution>,
-    pub(super) substitution_candidates: Vec<core_ir::PrincipalSubstitutionCandidate>,
+    pub(super) principal_callee: typed_ir::Type,
+    pub(super) substitutions: Vec<typed_ir::TypeSubstitution>,
+    pub(super) substitution_candidates: Vec<typed_ir::PrincipalSubstitutionCandidate>,
 }
 
 #[derive(Debug, Default)]
 pub(crate) struct CompletePrincipalCache {
-    monomorphic_types: HashMap<TypeVar, Option<core_ir::Type>>,
+    monomorphic_types: HashMap<TypeVar, Option<typed_ir::Type>>,
 }
 
 #[derive(Debug, Default)]
@@ -85,11 +85,11 @@ impl CompletePrincipalClock {
 pub struct ExpectedEdgeEvidence {
     pub id: ExpectedEdgeId,
     pub kind: ExpectedEdgeKind,
-    pub source_range: Option<core_ir::SourceRange>,
-    pub actual: core_ir::TypeBounds,
-    pub expected: core_ir::TypeBounds,
-    pub actual_effect: Option<core_ir::TypeBounds>,
-    pub expected_effect: Option<core_ir::TypeBounds>,
+    pub source_range: Option<typed_ir::SourceRange>,
+    pub actual: typed_ir::TypeBounds,
+    pub expected: typed_ir::TypeBounds,
+    pub actual_effect: Option<typed_ir::TypeBounds>,
+    pub expected_effect: Option<typed_ir::TypeBounds>,
     pub closed: bool,
     pub informative: bool,
     pub runtime_usable: bool,
@@ -100,11 +100,11 @@ pub struct ExpectedAdapterEdgeEvidence {
     pub id: ExpectedAdapterEdgeId,
     pub source_expected_edge: Option<ExpectedEdgeId>,
     pub kind: ExpectedAdapterEdgeKind,
-    pub source_range: Option<core_ir::SourceRange>,
-    pub actual_value: Option<core_ir::TypeBounds>,
-    pub expected_value: Option<core_ir::TypeBounds>,
-    pub actual_effect: Option<core_ir::TypeBounds>,
-    pub expected_effect: Option<core_ir::TypeBounds>,
+    pub source_range: Option<typed_ir::SourceRange>,
+    pub actual_value: Option<typed_ir::TypeBounds>,
+    pub expected_value: Option<typed_ir::TypeBounds>,
+    pub actual_effect: Option<typed_ir::TypeBounds>,
+    pub expected_effect: Option<typed_ir::TypeBounds>,
     pub closed: bool,
     pub informative: bool,
     pub runtime_usable: bool,
@@ -116,8 +116,8 @@ pub struct DerivedExpectedEdgeEvidence {
     pub kind: DerivedExpectedEdgeKind,
     pub polarity: EdgePolarity,
     pub path: Vec<EdgePathSegment>,
-    pub actual: core_ir::TypeBounds,
-    pub expected: core_ir::TypeBounds,
+    pub actual: typed_ir::TypeBounds,
+    pub expected: typed_ir::TypeBounds,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,9 +138,9 @@ pub enum DerivedExpectedEdgeKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EdgePathSegment {
-    Field(core_ir::Name),
+    Field(typed_ir::Name),
     TupleIndex(usize),
-    VariantCase(core_ir::Name),
+    VariantCase(typed_ir::Name),
     PayloadIndex(usize),
     FunctionParam,
     FunctionReturn,
@@ -151,11 +151,11 @@ pub(super) fn complete_coerce_principal_evidence(
     source_edge: Option<ExpectedEdgeId>,
     actual_tv: TypeVar,
     expected_tv: TypeVar,
-) -> core_ir::CoerceEvidence {
+) -> typed_ir::CoerceEvidence {
     let relevant_vars = BTreeSet::new();
     let (actual, expected) =
         export_coalesced_coerce_evidence_bounds(infer, actual_tv, expected_tv, &relevant_vars);
-    core_ir::CoerceEvidence {
+    typed_ir::CoerceEvidence {
         source_edge: source_edge.map(|id| id.0),
         actual,
         expected,
@@ -165,7 +165,7 @@ pub(super) fn complete_coerce_principal_evidence(
 #[allow(dead_code)]
 pub(super) fn complete_apply_principal_evidence(
     infer: &Infer,
-    principal_scheme: core_ir::Scheme,
+    principal_scheme: typed_ir::Scheme,
     callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
@@ -189,7 +189,7 @@ pub(super) fn complete_apply_principal_evidence(
 #[allow(dead_code)]
 pub(super) fn complete_apply_principal_evidence_from_slot_bounds(
     infer: &Infer,
-    principal_scheme: core_ir::Scheme,
+    principal_scheme: typed_ir::Scheme,
     arg_tv: TypeVar,
     result_tv: TypeVar,
     slot_bounds: &ApplySlotBounds,
@@ -211,7 +211,7 @@ pub(super) fn complete_apply_principal_evidence_from_slot_bounds(
 
 pub(super) fn complete_apply_principal_evidence_from_slot_bounds_cached(
     infer: &Infer,
-    principal_scheme: core_ir::Scheme,
+    principal_scheme: typed_ir::Scheme,
     arg_tv: TypeVar,
     result_tv: TypeVar,
     slot_bounds: &ApplySlotBounds,
@@ -235,13 +235,13 @@ pub(super) fn complete_apply_principal_evidence_from_slot_bounds_cached(
 
 pub(super) fn complete_apply_principal_evidence_from_slot_bounds_cached_profiled(
     infer: &Infer,
-    principal_scheme: core_ir::Scheme,
+    principal_scheme: typed_ir::Scheme,
     arg_tv: TypeVar,
     result_tv: TypeVar,
     slot_bounds: &ApplySlotBounds,
     callee_edge_evidence: Option<&ExpectedEdgeEvidence>,
     arg_edge_evidence: Option<&ExpectedEdgeEvidence>,
-    base_bounds_cache: Option<&mut HashMap<TypeVar, core_ir::TypeBounds>>,
+    base_bounds_cache: Option<&mut HashMap<TypeVar, typed_ir::TypeBounds>>,
     cache: &mut CompletePrincipalCache,
     mut profile: Option<&mut CompletePrincipalStepProfile>,
 ) -> Option<CompleteApplyPrincipalEvidence> {
@@ -305,7 +305,7 @@ pub fn collect_expected_edge_evidence(state: &LowerState) -> Vec<ExpectedEdgeEvi
     if !coalesce_expected_edge_evidence_enabled() {
         return collect_fast_expected_edge_evidence(state);
     }
-    let mut coalesce_cache: HashMap<TypeVar, core_ir::TypeBounds> = HashMap::new();
+    let mut coalesce_cache: HashMap<TypeVar, typed_ir::TypeBounds> = HashMap::new();
     state
         .expected_edges
         .iter()
@@ -327,8 +327,8 @@ fn collect_source_only_expected_edge_evidence(state: &LowerState) -> Vec<Expecte
             id: edge.id,
             kind: edge.kind,
             source_range: source_range(edge.cause.span),
-            actual: core_ir::TypeBounds::default(),
-            expected: core_ir::TypeBounds::default(),
+            actual: typed_ir::TypeBounds::default(),
+            expected: typed_ir::TypeBounds::default(),
             actual_effect: None,
             expected_effect: None,
             closed: false,
@@ -395,7 +395,7 @@ pub fn collect_derived_expected_edge_evidence(
 
 fn collect_expected_edge_evidence_for_derivation(state: &LowerState) -> Vec<ExpectedEdgeEvidence> {
     if coalesce_expected_edge_evidence_enabled() {
-        let mut coalesce_cache: HashMap<TypeVar, core_ir::TypeBounds> = HashMap::new();
+        let mut coalesce_cache: HashMap<TypeVar, typed_ir::TypeBounds> = HashMap::new();
         return state
             .expected_edges
             .iter()
@@ -484,8 +484,8 @@ fn complete_expected_edge_evidence(infer: &Infer, edge: &ExpectedEdge) -> Expect
 fn coalesced_bounds_cached(
     infer: &Infer,
     tv: TypeVar,
-    cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
-) -> core_ir::TypeBounds {
+    cache: &mut HashMap<TypeVar, typed_ir::TypeBounds>,
+) -> typed_ir::TypeBounds {
     if let Some(cached) = cache.get(&tv) {
         return cached.clone();
     }
@@ -497,7 +497,7 @@ fn coalesced_bounds_cached(
 fn complete_expected_edge_evidence_cached(
     infer: &Infer,
     edge: &ExpectedEdge,
-    cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+    cache: &mut HashMap<TypeVar, typed_ir::TypeBounds>,
 ) -> ExpectedEdgeEvidence {
     let actual = coalesced_bounds_cached(infer, edge.actual_tv, cache);
     let expected = coalesced_bounds_cached(infer, edge.expected_tv, cache);
@@ -543,7 +543,7 @@ fn complete_expected_edge_evidence_cached(
 
 fn complete_expected_edge_evidence_from_bounds(
     edge: &ExpectedEdge,
-    bounds: &HashMap<TypeVar, core_ir::TypeBounds>,
+    bounds: &HashMap<TypeVar, typed_ir::TypeBounds>,
 ) -> ExpectedEdgeEvidence {
     let actual = bounds.get(&edge.actual_tv).cloned().unwrap_or_default();
     let expected = bounds.get(&edge.expected_tv).cloned().unwrap_or_default();
@@ -587,8 +587,8 @@ fn complete_expected_edge_evidence_from_bounds(
     }
 }
 
-fn source_range(range: Option<rowan::TextRange>) -> Option<core_ir::SourceRange> {
-    range.map(|range| core_ir::SourceRange {
+fn source_range(range: Option<rowan::TextRange>) -> Option<typed_ir::SourceRange> {
+    range.map(|range| typed_ir::SourceRange {
         start: u32::from(range.start()),
         end: u32::from(range.end()),
     })
@@ -596,17 +596,17 @@ fn source_range(range: Option<rowan::TextRange>) -> Option<core_ir::SourceRange>
 
 fn apply_principal_substitutions_from_parts(
     infer: &Infer,
-    _requirements: &[core_ir::RoleRequirement],
-    param: &core_ir::Type,
-    ret: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
+    _requirements: &[typed_ir::RoleRequirement],
+    param: &typed_ir::Type,
+    ret: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
     arg_tv: TypeVar,
     result_tv: TypeVar,
     slot_bounds: &ApplySlotBounds,
-    mut base_bounds_cache: Option<&mut HashMap<TypeVar, core_ir::TypeBounds>>,
+    mut base_bounds_cache: Option<&mut HashMap<TypeVar, typed_ir::TypeBounds>>,
     cache: &mut CompletePrincipalCache,
     mut profile: Option<&mut CompletePrincipalStepProfile>,
-) -> Vec<core_ir::TypeSubstitution> {
+) -> Vec<typed_ir::TypeSubstitution> {
     let mut unifier = PrincipalSubstitutionUnifier::new(&params);
     let t = CompletePrincipalClock::now(profile.is_some());
     if let Some(arg_ty) = monomorphic_type_from_bounds_ref(&slot_bounds.arg) {
@@ -650,7 +650,7 @@ fn apply_principal_substitutions_from_parts(
     let substitutions = unifier
         .into_substitutions()
         .filter(|(_, ty)| substitution_type_usable(ty, false))
-        .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
+        .map(|(var, ty)| typed_ir::TypeSubstitution { var, ty })
         .collect();
     if let Some(profile) = profile.as_deref_mut() {
         profile.substitution_emit += t.elapsed();
@@ -658,35 +658,35 @@ fn apply_principal_substitutions_from_parts(
     substitutions
 }
 
-fn collect_principal_params(principal_callee: &core_ir::Type) -> BTreeSet<core_ir::TypeVar> {
+fn collect_principal_params(principal_callee: &typed_ir::Type) -> BTreeSet<typed_ir::TypeVar> {
     let mut params = BTreeSet::new();
     collect_core_type_vars(principal_callee, &mut params);
     params
 }
 
 fn apply_principal_substitution_candidates_from_parts(
-    principal_callee: &core_ir::Type,
-    param: &core_ir::Type,
-    ret: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
+    principal_callee: &typed_ir::Type,
+    param: &typed_ir::Type,
+    ret: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
     callee_edge_evidence: Option<&ExpectedEdgeEvidence>,
     arg_edge_evidence: Option<&ExpectedEdgeEvidence>,
     slot_bounds: &ApplySlotBounds,
-) -> Vec<core_ir::PrincipalSubstitutionCandidate> {
+) -> Vec<typed_ir::PrincipalSubstitutionCandidate> {
     let mut candidates = Vec::new();
     collect_candidates_from_bounds(
         principal_callee,
         &slot_bounds.callee,
         &params,
         callee_edge_evidence.map(|e| e.id),
-        &mut vec![core_ir::PrincipalSlotPathSegment::Callee],
+        &mut vec![typed_ir::PrincipalSlotPathSegment::Callee],
         &mut candidates,
     );
     if let Some(evidence) = callee_edge_evidence {
         collect_candidates_from_expected_edge(
             evidence,
             &params,
-            &mut vec![core_ir::PrincipalSlotPathSegment::Callee],
+            &mut vec![typed_ir::PrincipalSlotPathSegment::Callee],
             &mut candidates,
         );
     }
@@ -695,14 +695,14 @@ fn apply_principal_substitution_candidates_from_parts(
         &slot_bounds.arg,
         &params,
         arg_edge_evidence.map(|e| e.id),
-        &mut vec![core_ir::PrincipalSlotPathSegment::Arg],
+        &mut vec![typed_ir::PrincipalSlotPathSegment::Arg],
         &mut candidates,
     );
     if let Some(evidence) = arg_edge_evidence {
         collect_candidates_from_expected_edge(
             evidence,
             &params,
-            &mut vec![core_ir::PrincipalSlotPathSegment::Arg],
+            &mut vec![typed_ir::PrincipalSlotPathSegment::Arg],
             &mut candidates,
         );
     }
@@ -711,7 +711,7 @@ fn apply_principal_substitution_candidates_from_parts(
         &slot_bounds.result,
         &params,
         None,
-        &mut vec![core_ir::PrincipalSlotPathSegment::Result],
+        &mut vec![typed_ir::PrincipalSlotPathSegment::Result],
         &mut candidates,
     );
     dedupe_principal_substitution_candidates(&mut candidates);
@@ -721,11 +721,11 @@ fn apply_principal_substitution_candidates_from_parts(
 #[allow(dead_code)]
 pub(super) fn residual_apply_principal_scheme(
     infer: &Infer,
-    principal_scheme: &core_ir::Scheme,
+    principal_scheme: &typed_ir::Scheme,
     callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
-) -> Option<core_ir::Scheme> {
+) -> Option<typed_ir::Scheme> {
     let mut cache = CompletePrincipalCache::default();
     residual_apply_principal_scheme_cached(
         infer,
@@ -739,12 +739,12 @@ pub(super) fn residual_apply_principal_scheme(
 
 pub(super) fn residual_apply_principal_scheme_cached(
     infer: &Infer,
-    principal_scheme: &core_ir::Scheme,
+    principal_scheme: &typed_ir::Scheme,
     _callee_tv: TypeVar,
     arg_tv: TypeVar,
     result_tv: TypeVar,
     cache: &mut CompletePrincipalCache,
-) -> Option<core_ir::Scheme> {
+) -> Option<typed_ir::Scheme> {
     let principal_callee = &principal_scheme.body;
     let Some((param, ret)) = principal_fun_param_ret(principal_callee) else {
         return None;
@@ -766,7 +766,7 @@ pub(super) fn residual_apply_principal_scheme_cached(
         .collect::<BTreeMap<_, _>>();
     let body = substitute_core_type(&principal_scheme.body, &substitutions);
     let (_, ret) = principal_fun_param_ret(&body)?;
-    Some(core_ir::Scheme {
+    Some(typed_ir::Scheme {
         requirements: principal_scheme.requirements.clone(),
         body: ret.clone(),
     })
@@ -774,14 +774,14 @@ pub(super) fn residual_apply_principal_scheme_cached(
 
 fn apply_principal_substitutions_from_monomorphic_tvs(
     infer: &Infer,
-    _requirements: &[core_ir::RoleRequirement],
-    param: &core_ir::Type,
-    ret: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
+    _requirements: &[typed_ir::RoleRequirement],
+    param: &typed_ir::Type,
+    ret: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
     arg_tv: TypeVar,
     result_tv: TypeVar,
     cache: &mut CompletePrincipalCache,
-) -> Vec<core_ir::TypeSubstitution> {
+) -> Vec<typed_ir::TypeSubstitution> {
     if params.is_empty() {
         return Vec::new();
     }
@@ -795,13 +795,13 @@ fn apply_principal_substitutions_from_monomorphic_tvs(
     unifier
         .into_substitutions()
         .filter(|(_, ty)| substitution_type_usable(ty, false))
-        .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
+        .map(|(var, ty)| typed_ir::TypeSubstitution { var, ty })
         .collect()
 }
 
 fn substitution_vars_cover_params(
-    substitutions: &[core_ir::TypeSubstitution],
-    params: &BTreeSet<core_ir::TypeVar>,
+    substitutions: &[typed_ir::TypeSubstitution],
+    params: &BTreeSet<typed_ir::TypeVar>,
 ) -> bool {
     if params.is_empty() {
         return true;
@@ -814,9 +814,9 @@ fn substitution_vars_cover_params(
 }
 
 pub(super) struct ApplySlotBounds {
-    pub(super) callee: core_ir::TypeBounds,
-    pub(super) arg: core_ir::TypeBounds,
-    pub(super) result: core_ir::TypeBounds,
+    pub(super) callee: typed_ir::TypeBounds,
+    pub(super) arg: typed_ir::TypeBounds,
+    pub(super) result: typed_ir::TypeBounds,
 }
 
 fn apply_slot_bounds(
@@ -835,7 +835,7 @@ fn apply_slot_bounds(
     }
 }
 
-fn monomorphic_type_from_bounds_ref(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
+fn monomorphic_type_from_bounds_ref(bounds: &typed_ir::TypeBounds) -> Option<&typed_ir::Type> {
     bounds
         .lower
         .as_deref()
@@ -850,12 +850,12 @@ fn monomorphic_type_from_bounds_ref(bounds: &core_ir::TypeBounds) -> Option<&cor
 }
 
 fn collect_candidates_from_bounds(
-    template: &core_ir::Type,
-    bounds: &core_ir::TypeBounds,
-    params: &BTreeSet<core_ir::TypeVar>,
+    template: &typed_ir::Type,
+    bounds: &typed_ir::TypeBounds,
+    params: &BTreeSet<typed_ir::TypeVar>,
     source_edge: Option<ExpectedEdgeId>,
-    path: &mut Vec<core_ir::PrincipalSlotPathSegment>,
-    out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+    path: &mut Vec<typed_ir::PrincipalSlotPathSegment>,
+    out: &mut Vec<typed_ir::PrincipalSubstitutionCandidate>,
 ) {
     if !type_mentions_any_param(template, params) {
         return;
@@ -865,7 +865,7 @@ fn collect_candidates_from_bounds(
             template,
             lower,
             params,
-            core_ir::PrincipalCandidateRelation::Lower,
+            typed_ir::PrincipalCandidateRelation::Lower,
             source_edge,
             path,
             out,
@@ -876,7 +876,7 @@ fn collect_candidates_from_bounds(
             template,
             upper,
             params,
-            core_ir::PrincipalCandidateRelation::Upper,
+            typed_ir::PrincipalCandidateRelation::Upper,
             source_edge,
             path,
             out,
@@ -889,7 +889,7 @@ fn collect_candidates_from_bounds(
             template,
             lower,
             params,
-            core_ir::PrincipalCandidateRelation::Exact,
+            typed_ir::PrincipalCandidateRelation::Exact,
             source_edge,
             path,
             out,
@@ -898,18 +898,18 @@ fn collect_candidates_from_bounds(
 }
 
 fn collect_candidates_from_type(
-    template: &core_ir::Type,
-    actual: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    relation: core_ir::PrincipalCandidateRelation,
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    relation: typed_ir::PrincipalCandidateRelation,
     source_edge: Option<ExpectedEdgeId>,
-    path: &mut Vec<core_ir::PrincipalSlotPathSegment>,
-    out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+    path: &mut Vec<typed_ir::PrincipalSlotPathSegment>,
+    out: &mut Vec<typed_ir::PrincipalSubstitutionCandidate>,
 ) {
     match (template, actual) {
-        (core_ir::Type::Var(var), actual) if params.contains(var) => {
+        (typed_ir::Type::Var(var), actual) if params.contains(var) => {
             if principal_candidate_type_recordable(var, actual) {
-                out.push(core_ir::PrincipalSubstitutionCandidate {
+                out.push(typed_ir::PrincipalSubstitutionCandidate {
                     var: var.clone(),
                     relation,
                     ty: actual.clone(),
@@ -919,11 +919,11 @@ fn collect_candidates_from_type(
             }
         }
         (
-            core_ir::Type::Named {
+            typed_ir::Type::Named {
                 path: template_path,
                 args,
             },
-            core_ir::Type::Named {
+            typed_ir::Type::Named {
                 path: actual_path,
                 args: actual_args,
             },
@@ -941,20 +941,20 @@ fn collect_candidates_from_type(
             }
         }
         (
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param,
                 param_effect: _,
                 ret_effect: _,
                 ret,
             },
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: actual_param,
                 param_effect: _,
                 ret_effect: _,
                 ret: actual_ret,
             },
         ) => {
-            path.push(core_ir::PrincipalSlotPathSegment::FunctionParam);
+            path.push(typed_ir::PrincipalSlotPathSegment::FunctionParam);
             collect_candidates_from_type(
                 param,
                 actual_param,
@@ -966,11 +966,11 @@ fn collect_candidates_from_type(
             );
             path.pop();
 
-            path.push(core_ir::PrincipalSlotPathSegment::FunctionReturn);
+            path.push(typed_ir::PrincipalSlotPathSegment::FunctionReturn);
             collect_candidates_from_type(ret, actual_ret, params, relation, source_edge, path, out);
             path.pop();
         }
-        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items))
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
             if items.len() == actual_items.len() =>
         {
             for (item, actual_item) in items.iter().zip(actual_items) {
@@ -985,7 +985,7 @@ fn collect_candidates_from_type(
                 );
             }
         }
-        (core_ir::Type::Union(items) | core_ir::Type::Inter(items), actual) => {
+        (typed_ir::Type::Union(items) | typed_ir::Type::Inter(items), actual) => {
             for item in items {
                 collect_candidates_from_type(
                     item,
@@ -998,23 +998,23 @@ fn collect_candidates_from_type(
                 );
             }
         }
-        (core_ir::Type::Recursive { body, .. }, actual) => {
+        (typed_ir::Type::Recursive { body, .. }, actual) => {
             collect_candidates_from_type(body, actual, params, relation, source_edge, path, out);
         }
-        (template, core_ir::Type::Recursive { body, .. }) => {
+        (template, typed_ir::Type::Recursive { body, .. }) => {
             collect_candidates_from_type(template, body, params, relation, source_edge, path, out);
         }
         _ => {}
     }
 }
 
-fn type_mentions_any_param(ty: &core_ir::Type, params: &BTreeSet<core_ir::TypeVar>) -> bool {
+fn type_mentions_any_param(ty: &typed_ir::Type, params: &BTreeSet<typed_ir::TypeVar>) -> bool {
     match ty {
-        core_ir::Type::Var(var) => params.contains(var),
-        core_ir::Type::Named { args, .. } => args
+        typed_ir::Type::Var(var) => params.contains(var),
+        typed_ir::Type::Named { args, .. } => args
             .iter()
             .any(|arg| type_arg_mentions_any_param(arg, params)),
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -1025,24 +1025,24 @@ fn type_mentions_any_param(ty: &core_ir::Type, params: &BTreeSet<core_ir::TypeVa
                 || type_mentions_any_param(ret_effect, params)
                 || type_mentions_any_param(ret, params)
         }
-        core_ir::Type::Tuple(items)
-        | core_ir::Type::Union(items)
-        | core_ir::Type::Inter(items)
-        | core_ir::Type::Row { items, .. } => items
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items)
+        | typed_ir::Type::Row { items, .. } => items
             .iter()
             .any(|item| type_mentions_any_param(item, params)),
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
                 .any(|field| type_mentions_any_param(&field.value, params))
                 || record.spread.as_ref().is_some_and(|spread| match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         type_mentions_any_param(ty, params)
                     }
                 })
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant.cases.iter().any(|case| {
                 case.payloads
                     .iter()
@@ -1052,18 +1052,18 @@ fn type_mentions_any_param(ty: &core_ir::Type, params: &BTreeSet<core_ir::TypeVa
                 .as_ref()
                 .is_some_and(|tail| type_mentions_any_param(tail, params))
         }
-        core_ir::Type::Recursive { body, .. } => type_mentions_any_param(body, params),
-        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => false,
+        typed_ir::Type::Recursive { body, .. } => type_mentions_any_param(body, params),
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
     }
 }
 
 fn type_arg_mentions_any_param(
-    arg: &core_ir::TypeArg,
-    params: &BTreeSet<core_ir::TypeVar>,
+    arg: &typed_ir::TypeArg,
+    params: &BTreeSet<typed_ir::TypeVar>,
 ) -> bool {
     match arg {
-        core_ir::TypeArg::Type(ty) => type_mentions_any_param(ty, params),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(ty) => type_mentions_any_param(ty, params),
+        typed_ir::TypeArg::Bounds(bounds) => {
             bounds
                 .lower
                 .as_ref()
@@ -1077,16 +1077,16 @@ fn type_arg_mentions_any_param(
 }
 
 fn collect_candidates_from_arg(
-    template: &core_ir::TypeArg,
-    actual: &core_ir::TypeArg,
-    params: &BTreeSet<core_ir::TypeVar>,
-    relation: core_ir::PrincipalCandidateRelation,
+    template: &typed_ir::TypeArg,
+    actual: &typed_ir::TypeArg,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    relation: typed_ir::PrincipalCandidateRelation,
     source_edge: Option<ExpectedEdgeId>,
-    path: &mut Vec<core_ir::PrincipalSlotPathSegment>,
-    out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+    path: &mut Vec<typed_ir::PrincipalSlotPathSegment>,
+    out: &mut Vec<typed_ir::PrincipalSubstitutionCandidate>,
 ) {
     match (template, actual) {
-        (core_ir::TypeArg::Type(template), core_ir::TypeArg::Type(actual)) => {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
             collect_candidates_from_type(
                 template,
                 actual,
@@ -1097,7 +1097,7 @@ fn collect_candidates_from_arg(
                 out,
             );
         }
-        (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Bounds(actual)) => {
             if let (Some(template), Some(actual)) = (&template.lower, &actual.lower) {
                 collect_candidates_from_type(
                     template,
@@ -1127,9 +1127,9 @@ fn collect_candidates_from_arg(
 
 fn collect_candidates_from_expected_edge(
     evidence: &ExpectedEdgeEvidence,
-    params: &BTreeSet<core_ir::TypeVar>,
-    path_prefix: &mut Vec<core_ir::PrincipalSlotPathSegment>,
-    out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    path_prefix: &mut Vec<typed_ir::PrincipalSlotPathSegment>,
+    out: &mut Vec<typed_ir::PrincipalSubstitutionCandidate>,
 ) {
     if let (Some(actual), Some(expected)) = (
         bounds_primary_type(&evidence.actual),
@@ -1173,22 +1173,22 @@ fn collect_candidates_from_expected_edge(
 }
 
 fn collect_candidates_from_expected_relation(
-    actual: &core_ir::Type,
-    expected: &core_ir::Type,
+    actual: &typed_ir::Type,
+    expected: &typed_ir::Type,
     polarity: EdgePolarity,
-    params: &BTreeSet<core_ir::TypeVar>,
+    params: &BTreeSet<typed_ir::TypeVar>,
     source_edge: Option<ExpectedEdgeId>,
-    path: &mut Vec<core_ir::PrincipalSlotPathSegment>,
-    out: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+    path: &mut Vec<typed_ir::PrincipalSlotPathSegment>,
+    out: &mut Vec<typed_ir::PrincipalSubstitutionCandidate>,
 ) {
     let (expected_relation, actual_relation) = match polarity {
         EdgePolarity::Covariant | EdgePolarity::Invariant => (
-            core_ir::PrincipalCandidateRelation::Lower,
-            core_ir::PrincipalCandidateRelation::Upper,
+            typed_ir::PrincipalCandidateRelation::Lower,
+            typed_ir::PrincipalCandidateRelation::Upper,
         ),
         EdgePolarity::Contravariant => (
-            core_ir::PrincipalCandidateRelation::Upper,
-            core_ir::PrincipalCandidateRelation::Lower,
+            typed_ir::PrincipalCandidateRelation::Upper,
+            typed_ir::PrincipalCandidateRelation::Lower,
         ),
     };
     collect_candidates_from_type(
@@ -1213,23 +1213,25 @@ fn collect_candidates_from_expected_relation(
 
 fn principal_slot_path_segment_from_edge_path_segment(
     segment: &EdgePathSegment,
-) -> core_ir::PrincipalSlotPathSegment {
+) -> typed_ir::PrincipalSlotPathSegment {
     match segment {
-        EdgePathSegment::Field(name) => core_ir::PrincipalSlotPathSegment::Field(name.clone()),
-        EdgePathSegment::TupleIndex(index) => core_ir::PrincipalSlotPathSegment::TupleIndex(*index),
+        EdgePathSegment::Field(name) => typed_ir::PrincipalSlotPathSegment::Field(name.clone()),
+        EdgePathSegment::TupleIndex(index) => {
+            typed_ir::PrincipalSlotPathSegment::TupleIndex(*index)
+        }
         EdgePathSegment::VariantCase(name) => {
-            core_ir::PrincipalSlotPathSegment::VariantCase(name.clone())
+            typed_ir::PrincipalSlotPathSegment::VariantCase(name.clone())
         }
         EdgePathSegment::PayloadIndex(index) => {
-            core_ir::PrincipalSlotPathSegment::PayloadIndex(*index)
+            typed_ir::PrincipalSlotPathSegment::PayloadIndex(*index)
         }
-        EdgePathSegment::FunctionParam => core_ir::PrincipalSlotPathSegment::FunctionParam,
-        EdgePathSegment::FunctionReturn => core_ir::PrincipalSlotPathSegment::FunctionReturn,
+        EdgePathSegment::FunctionParam => typed_ir::PrincipalSlotPathSegment::FunctionParam,
+        EdgePathSegment::FunctionReturn => typed_ir::PrincipalSlotPathSegment::FunctionReturn,
     }
 }
 
 fn dedupe_principal_substitution_candidates(
-    candidates: &mut Vec<core_ir::PrincipalSubstitutionCandidate>,
+    candidates: &mut Vec<typed_ir::PrincipalSubstitutionCandidate>,
 ) {
     let mut deduped = Vec::with_capacity(candidates.len());
     for candidate in candidates.drain(..) {
@@ -1241,28 +1243,28 @@ fn dedupe_principal_substitution_candidates(
 }
 
 fn flip_candidate_relation(
-    relation: core_ir::PrincipalCandidateRelation,
-) -> core_ir::PrincipalCandidateRelation {
+    relation: typed_ir::PrincipalCandidateRelation,
+) -> typed_ir::PrincipalCandidateRelation {
     match relation {
-        core_ir::PrincipalCandidateRelation::Lower => core_ir::PrincipalCandidateRelation::Upper,
-        core_ir::PrincipalCandidateRelation::Upper => core_ir::PrincipalCandidateRelation::Lower,
-        core_ir::PrincipalCandidateRelation::Exact => core_ir::PrincipalCandidateRelation::Exact,
+        typed_ir::PrincipalCandidateRelation::Lower => typed_ir::PrincipalCandidateRelation::Upper,
+        typed_ir::PrincipalCandidateRelation::Upper => typed_ir::PrincipalCandidateRelation::Lower,
+        typed_ir::PrincipalCandidateRelation::Exact => typed_ir::PrincipalCandidateRelation::Exact,
     }
 }
 
-fn principal_candidate_type_recordable(var: &core_ir::TypeVar, ty: &core_ir::Type) -> bool {
+fn principal_candidate_type_recordable(var: &typed_ir::TypeVar, ty: &typed_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Any | core_ir::Type::Never => false,
-        core_ir::Type::Var(actual) => actual != var,
+        typed_ir::Type::Any | typed_ir::Type::Never => false,
+        typed_ir::Type::Var(actual) => actual != var,
         _ => true,
     }
 }
 
-fn principal_fun_param_ret(ty: &core_ir::Type) -> Option<(&core_ir::Type, &core_ir::Type)> {
+fn principal_fun_param_ret(ty: &typed_ir::Type) -> Option<(&typed_ir::Type, &typed_ir::Type)> {
     match ty {
-        core_ir::Type::Fun { param, ret, .. } => Some((param, ret)),
-        core_ir::Type::Recursive { body, .. } => principal_fun_param_ret(body),
-        core_ir::Type::Inter(items) | core_ir::Type::Union(items) => {
+        typed_ir::Type::Fun { param, ret, .. } => Some((param, ret)),
+        typed_ir::Type::Recursive { body, .. } => principal_fun_param_ret(body),
+        typed_ir::Type::Inter(items) | typed_ir::Type::Union(items) => {
             items.iter().find_map(principal_fun_param_ret)
         }
         _ => None,
@@ -1270,62 +1272,62 @@ fn principal_fun_param_ret(ty: &core_ir::Type) -> Option<(&core_ir::Type, &core_
 }
 
 fn substitute_core_type(
-    ty: &core_ir::Type,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> core_ir::Type {
+    ty: &typed_ir::Type,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::Type {
     match ty {
-        core_ir::Type::Var(var) => substitutions
+        typed_ir::Type::Var(var) => substitutions
             .get(var)
             .cloned()
-            .unwrap_or_else(|| core_ir::Type::Var(var.clone())),
-        core_ir::Type::Named { path, args } => core_ir::Type::Named {
+            .unwrap_or_else(|| typed_ir::Type::Var(var.clone())),
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
             path: path.clone(),
             args: args
                 .iter()
                 .map(|arg| substitute_core_type_arg(arg, substitutions))
                 .collect(),
         },
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
             ret,
-        } => core_ir::Type::Fun {
+        } => typed_ir::Type::Fun {
             param: Box::new(substitute_core_type(param, substitutions)),
             param_effect: Box::new(substitute_core_type(param_effect, substitutions)),
             ret_effect: Box::new(substitute_core_type(ret_effect, substitutions)),
             ret: Box::new(substitute_core_type(ret, substitutions)),
         },
-        core_ir::Type::Tuple(items) => core_ir::Type::Tuple(
+        typed_ir::Type::Tuple(items) => typed_ir::Type::Tuple(
             items
                 .iter()
                 .map(|item| substitute_core_type(item, substitutions))
                 .collect(),
         ),
-        core_ir::Type::Record(record) => core_ir::Type::Record(core_ir::RecordType {
+        typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
             fields: record
                 .fields
                 .iter()
-                .map(|field| core_ir::RecordField {
+                .map(|field| typed_ir::RecordField {
                     name: field.name.clone(),
                     value: substitute_core_type(&field.value, substitutions),
                     optional: field.optional,
                 })
                 .collect(),
             spread: record.spread.as_ref().map(|spread| match spread {
-                core_ir::RecordSpread::Head(ty) => {
-                    core_ir::RecordSpread::Head(Box::new(substitute_core_type(ty, substitutions)))
+                typed_ir::RecordSpread::Head(ty) => {
+                    typed_ir::RecordSpread::Head(Box::new(substitute_core_type(ty, substitutions)))
                 }
-                core_ir::RecordSpread::Tail(ty) => {
-                    core_ir::RecordSpread::Tail(Box::new(substitute_core_type(ty, substitutions)))
+                typed_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Tail(Box::new(substitute_core_type(ty, substitutions)))
                 }
             }),
         }),
-        core_ir::Type::Variant(variant) => core_ir::Type::Variant(core_ir::VariantType {
+        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
             cases: variant
                 .cases
                 .iter()
-                .map(|case| core_ir::VariantCase {
+                .map(|case| typed_ir::VariantCase {
                     name: case.name.clone(),
                     payloads: case
                         .payloads
@@ -1339,42 +1341,42 @@ fn substitute_core_type(
                 .as_ref()
                 .map(|tail| Box::new(substitute_core_type(tail, substitutions))),
         }),
-        core_ir::Type::Row { items, tail } => core_ir::Type::Row {
+        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
             items: items
                 .iter()
                 .map(|item| substitute_core_type(item, substitutions))
                 .collect(),
             tail: Box::new(substitute_core_type(tail, substitutions)),
         },
-        core_ir::Type::Union(items) => core_ir::Type::Union(
+        typed_ir::Type::Union(items) => typed_ir::Type::Union(
             items
                 .iter()
                 .map(|item| substitute_core_type(item, substitutions))
                 .collect(),
         ),
-        core_ir::Type::Inter(items) => core_ir::Type::Inter(
+        typed_ir::Type::Inter(items) => typed_ir::Type::Inter(
             items
                 .iter()
                 .map(|item| substitute_core_type(item, substitutions))
                 .collect(),
         ),
-        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var: var.clone(),
             body: Box::new(substitute_core_type(body, substitutions)),
         },
-        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => ty.clone(),
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => ty.clone(),
     }
 }
 
 fn substitute_core_type_arg(
-    arg: &core_ir::TypeArg,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> core_ir::TypeArg {
+    arg: &typed_ir::TypeArg,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::TypeArg {
     match arg {
-        core_ir::TypeArg::Type(ty) => {
-            core_ir::TypeArg::Type(substitute_core_type(ty, substitutions))
+        typed_ir::TypeArg::Type(ty) => {
+            typed_ir::TypeArg::Type(substitute_core_type(ty, substitutions))
         }
-        core_ir::TypeArg::Bounds(bounds) => core_ir::TypeArg::Bounds(core_ir::TypeBounds {
+        typed_ir::TypeArg::Bounds(bounds) => typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
             lower: bounds
                 .lower
                 .as_ref()
@@ -1390,9 +1392,9 @@ fn substitute_core_type_arg(
 fn export_monomorphic_type_for_tv_cached(
     infer: &Infer,
     tv: TypeVar,
-    base_bounds_cache: Option<&mut HashMap<TypeVar, core_ir::TypeBounds>>,
+    base_bounds_cache: Option<&mut HashMap<TypeVar, typed_ir::TypeBounds>>,
     cache: &mut CompletePrincipalCache,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     if let Some(cached) = cache.monomorphic_types.get(&tv) {
         return cached.clone();
     }
@@ -1439,23 +1441,23 @@ const MAX_DERIVED_EDGE_DEPTH: usize = 4;
 fn derive_structural_edges(
     parent: ExpectedEdgeId,
     polarity: EdgePolarity,
-    actual: &core_ir::Type,
-    expected: &core_ir::Type,
+    actual: &typed_ir::Type,
+    expected: &typed_ir::Type,
     path: &mut Vec<EdgePathSegment>,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
     depth: usize,
 ) {
     match (actual, expected) {
-        (core_ir::Type::Record(actual), core_ir::Type::Record(expected)) => {
+        (typed_ir::Type::Record(actual), typed_ir::Type::Record(expected)) => {
             derive_record_field_edges(parent, polarity, actual, expected, path, derived, depth);
         }
-        (core_ir::Type::Tuple(actual), core_ir::Type::Tuple(expected)) => {
+        (typed_ir::Type::Tuple(actual), typed_ir::Type::Tuple(expected)) => {
             derive_tuple_item_edges(parent, polarity, actual, expected, path, derived, depth);
         }
-        (core_ir::Type::Variant(actual), core_ir::Type::Variant(expected)) => {
+        (typed_ir::Type::Variant(actual), typed_ir::Type::Variant(expected)) => {
             derive_variant_payload_edges(parent, polarity, actual, expected, path, derived, depth);
         }
-        (core_ir::Type::Fun { .. }, core_ir::Type::Fun { .. }) => {
+        (typed_ir::Type::Fun { .. }, typed_ir::Type::Fun { .. }) => {
             derive_function_edges(parent, polarity, actual, expected, path, derived, depth);
         }
         _ => {}
@@ -1465,8 +1467,8 @@ fn derive_structural_edges(
 fn derive_record_field_edges(
     parent: ExpectedEdgeId,
     polarity: EdgePolarity,
-    actual: &core_ir::RecordType,
-    expected: &core_ir::RecordType,
+    actual: &typed_ir::RecordType,
+    expected: &typed_ir::RecordType,
     path: &mut Vec<EdgePathSegment>,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
     depth: usize,
@@ -1505,8 +1507,8 @@ fn derive_record_field_edges(
 fn derive_tuple_item_edges(
     parent: ExpectedEdgeId,
     polarity: EdgePolarity,
-    actual: &[core_ir::Type],
-    expected: &[core_ir::Type],
+    actual: &[typed_ir::Type],
+    expected: &[typed_ir::Type],
     path: &mut Vec<EdgePathSegment>,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
     depth: usize,
@@ -1541,8 +1543,8 @@ fn derive_tuple_item_edges(
 fn derive_variant_payload_edges(
     parent: ExpectedEdgeId,
     polarity: EdgePolarity,
-    actual: &core_ir::VariantType,
-    expected: &core_ir::VariantType,
+    actual: &typed_ir::VariantType,
+    expected: &typed_ir::VariantType,
     path: &mut Vec<EdgePathSegment>,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
     depth: usize,
@@ -1593,19 +1595,19 @@ fn derive_variant_payload_edges(
 fn derive_function_edges(
     parent: ExpectedEdgeId,
     polarity: EdgePolarity,
-    actual: &core_ir::Type,
-    expected: &core_ir::Type,
+    actual: &typed_ir::Type,
+    expected: &typed_ir::Type,
     path: &mut Vec<EdgePathSegment>,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
     depth: usize,
 ) {
     let (
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param: actual_param,
             ret: actual_ret,
             ..
         },
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param: expected_param,
             ret: expected_ret,
             ..
@@ -1663,8 +1665,8 @@ fn push_derived_edge(
     kind: DerivedExpectedEdgeKind,
     polarity: EdgePolarity,
     path: &[EdgePathSegment],
-    actual: &core_ir::Type,
-    expected: &core_ir::Type,
+    actual: &typed_ir::Type,
+    expected: &typed_ir::Type,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
 ) {
     derived.push(DerivedExpectedEdgeEvidence {
@@ -1672,12 +1674,12 @@ fn push_derived_edge(
         kind,
         polarity,
         path: path.to_vec(),
-        actual: core_ir::TypeBounds::exact(derived_actual_slot_type(actual, expected)),
-        expected: core_ir::TypeBounds::exact(derived_slot_type(expected)),
+        actual: typed_ir::TypeBounds::exact(derived_actual_slot_type(actual, expected)),
+        expected: typed_ir::TypeBounds::exact(derived_slot_type(expected)),
     });
 }
 
-fn derived_actual_slot_type(actual: &core_ir::Type, expected: &core_ir::Type) -> core_ir::Type {
+fn derived_actual_slot_type(actual: &typed_ir::Type, expected: &typed_ir::Type) -> typed_ir::Type {
     let expected = derived_slot_type(expected);
     primary_structural_or_concrete_type_not_equal(actual, &expected)
         .or_else(|| primary_structural_or_concrete_type(actual))
@@ -1685,7 +1687,7 @@ fn derived_actual_slot_type(actual: &core_ir::Type, expected: &core_ir::Type) ->
         .clone()
 }
 
-fn derived_slot_type(ty: &core_ir::Type) -> core_ir::Type {
+fn derived_slot_type(ty: &typed_ir::Type) -> typed_ir::Type {
     primary_structural_or_concrete_type(ty)
         .unwrap_or(ty)
         .clone()
@@ -1694,8 +1696,8 @@ fn derived_slot_type(ty: &core_ir::Type) -> core_ir::Type {
 fn derive_child_edge(
     parent: ExpectedEdgeId,
     polarity: EdgePolarity,
-    actual: &core_ir::Type,
-    expected: &core_ir::Type,
+    actual: &typed_ir::Type,
+    expected: &typed_ir::Type,
     path: &mut Vec<EdgePathSegment>,
     derived: &mut Vec<DerivedExpectedEdgeEvidence>,
     depth: usize,
@@ -1726,7 +1728,7 @@ impl EdgePolarity {
     }
 }
 
-fn bounds_primary_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
+fn bounds_primary_type(bounds: &typed_ir::TypeBounds) -> Option<&typed_ir::Type> {
     bounds
         .lower
         .as_deref()
@@ -1739,40 +1741,40 @@ fn bounds_primary_type(bounds: &core_ir::TypeBounds) -> Option<&core_ir::Type> {
         })
 }
 
-fn primary_structural_or_concrete_type(ty: &core_ir::Type) -> Option<&core_ir::Type> {
+fn primary_structural_or_concrete_type(ty: &typed_ir::Type) -> Option<&typed_ir::Type> {
     match ty {
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => items
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => items
             .iter()
             .find_map(primary_structural_or_concrete_type)
             .or(Some(ty)),
-        core_ir::Type::Var(_) | core_ir::Type::Any | core_ir::Type::Never => None,
+        typed_ir::Type::Var(_) | typed_ir::Type::Any | typed_ir::Type::Never => None,
         _ => Some(ty),
     }
 }
 
 fn primary_structural_or_concrete_type_not_equal<'a>(
-    ty: &'a core_ir::Type,
-    expected: &core_ir::Type,
-) -> Option<&'a core_ir::Type> {
+    ty: &'a typed_ir::Type,
+    expected: &typed_ir::Type,
+) -> Option<&'a typed_ir::Type> {
     match ty {
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => items
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => items
             .iter()
             .filter_map(primary_structural_or_concrete_type)
             .find(|item| *item != expected),
-        core_ir::Type::Var(_) | core_ir::Type::Any | core_ir::Type::Never => None,
+        typed_ir::Type::Var(_) | typed_ir::Type::Any | typed_ir::Type::Never => None,
         _ if ty != expected => Some(ty),
         _ => None,
     }
 }
 
 struct PrincipalSubstitutionUnifier<'a> {
-    params: &'a BTreeSet<core_ir::TypeVar>,
-    substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: BTreeSet<core_ir::TypeVar>,
+    params: &'a BTreeSet<typed_ir::TypeVar>,
+    substitutions: BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: BTreeSet<typed_ir::TypeVar>,
 }
 
 impl<'a> PrincipalSubstitutionUnifier<'a> {
-    fn new(params: &'a BTreeSet<core_ir::TypeVar>) -> Self {
+    fn new(params: &'a BTreeSet<typed_ir::TypeVar>) -> Self {
         Self {
             params,
             substitutions: BTreeMap::new(),
@@ -1786,29 +1788,29 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
             .all(|param| self.substitutions.contains_key(param))
     }
 
-    fn into_substitutions(self) -> impl Iterator<Item = (core_ir::TypeVar, core_ir::Type)> {
+    fn into_substitutions(self) -> impl Iterator<Item = (typed_ir::TypeVar, typed_ir::Type)> {
         let conflicts = self.conflicts;
         self.substitutions
             .into_iter()
             .filter(move |(var, _)| !conflicts.contains(var))
     }
 
-    fn infer_value(&mut self, template: &core_ir::Type, actual: &core_ir::Type) {
+    fn infer_value(&mut self, template: &typed_ir::Type, actual: &typed_ir::Type) {
         self.infer(template, actual, false);
     }
 
-    fn infer_effect(&mut self, template: &core_ir::Type, actual: &core_ir::Type) {
+    fn infer_effect(&mut self, template: &typed_ir::Type, actual: &typed_ir::Type) {
         self.infer(template, actual, true);
     }
 
-    fn infer(&mut self, template: &core_ir::Type, actual: &core_ir::Type, allow_never: bool) {
+    fn infer(&mut self, template: &typed_ir::Type, actual: &typed_ir::Type, allow_never: bool) {
         match (template, actual) {
-            (core_ir::Type::Var(var), actual) if self.params.contains(var) => {
+            (typed_ir::Type::Var(var), actual) if self.params.contains(var) => {
                 self.bind(var, actual, allow_never);
             }
             (
-                core_ir::Type::Named { path, args },
-                core_ir::Type::Named {
+                typed_ir::Type::Named { path, args },
+                typed_ir::Type::Named {
                     path: actual_path,
                     args: actual_args,
                 },
@@ -1818,13 +1820,13 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
                 }
             }
             (
-                core_ir::Type::Fun {
+                typed_ir::Type::Fun {
                     param,
                     param_effect,
                     ret_effect,
                     ret,
                 },
-                core_ir::Type::Fun {
+                typed_ir::Type::Fun {
                     param: actual_param,
                     param_effect: actual_param_effect,
                     ret_effect: actual_ret_effect,
@@ -1836,14 +1838,14 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
                 self.infer_effect(ret_effect, actual_ret_effect);
                 self.infer_value(ret, actual_ret);
             }
-            (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items))
+            (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
                 if items.len() == actual_items.len() =>
             {
                 for (item, actual_item) in items.iter().zip(actual_items) {
                     self.infer(item, actual_item, allow_never);
                 }
             }
-            (core_ir::Type::Record(record), core_ir::Type::Record(actual_record)) => {
+            (typed_ir::Type::Record(record), typed_ir::Type::Record(actual_record)) => {
                 for field in &record.fields {
                     if let Some(actual_field) = actual_record
                         .fields
@@ -1854,12 +1856,12 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
                     }
                 }
             }
-            (core_ir::Type::Union(items) | core_ir::Type::Inter(items), actual) => {
+            (typed_ir::Type::Union(items) | typed_ir::Type::Inter(items), actual) => {
                 for item in items {
                     self.infer(item, actual, allow_never);
                 }
             }
-            (core_ir::Type::Recursive { var, body }, actual) => {
+            (typed_ir::Type::Recursive { var, body }, actual) => {
                 if !self.params.contains(var) {
                     self.infer(body, actual, allow_never);
                 }
@@ -1870,15 +1872,15 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
 
     fn infer_arg(
         &mut self,
-        template: &core_ir::TypeArg,
-        actual: &core_ir::TypeArg,
+        template: &typed_ir::TypeArg,
+        actual: &typed_ir::TypeArg,
         allow_never: bool,
     ) {
         match (template, actual) {
-            (core_ir::TypeArg::Type(template), core_ir::TypeArg::Type(actual)) => {
+            (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
                 self.infer(template, actual, allow_never);
             }
-            (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
+            (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Bounds(actual)) => {
                 if let (Some(template), Some(actual)) = (&template.lower, &actual.lower) {
                     self.infer(template, actual, allow_never);
                 }
@@ -1890,7 +1892,7 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
         }
     }
 
-    fn bind(&mut self, var: &core_ir::TypeVar, actual: &core_ir::Type, allow_never: bool) {
+    fn bind(&mut self, var: &typed_ir::TypeVar, actual: &typed_ir::Type, allow_never: bool) {
         if !substitution_type_usable(actual, allow_never) {
             return;
         }
@@ -1914,7 +1916,10 @@ impl<'a> PrincipalSubstitutionUnifier<'a> {
     }
 }
 
-fn merge_substitution_type(left: &core_ir::Type, right: &core_ir::Type) -> Option<core_ir::Type> {
+fn merge_substitution_type(
+    left: &typed_ir::Type,
+    right: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
     if left == right {
         return Some(left.clone());
     }
@@ -1926,8 +1931,8 @@ fn merge_substitution_type(left: &core_ir::Type, right: &core_ir::Type) -> Optio
     }
     match (left, right) {
         (
-            core_ir::Type::Named { path, args },
-            core_ir::Type::Named {
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
                 path: right_path,
                 args: right_args,
             },
@@ -1937,31 +1942,31 @@ fn merge_substitution_type(left: &core_ir::Type, right: &core_ir::Type) -> Optio
                 .zip(right_args)
                 .map(|(left, right)| merge_type_arg(left, right))
                 .collect::<Option<Vec<_>>>()?;
-            Some(core_ir::Type::Named {
+            Some(typed_ir::Type::Named {
                 path: path.clone(),
                 args,
             })
         }
         (
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param,
                 param_effect,
                 ret_effect,
                 ret,
             },
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: right_param,
                 param_effect: right_param_effect,
                 ret_effect: right_ret_effect,
                 ret: right_ret,
             },
-        ) => Some(core_ir::Type::Fun {
+        ) => Some(typed_ir::Type::Fun {
             param: Box::new(merge_substitution_type(param, right_param)?),
             param_effect: Box::new(merge_substitution_type(param_effect, right_param_effect)?),
             ret_effect: Box::new(merge_substitution_type(ret_effect, right_ret_effect)?),
             ret: Box::new(merge_substitution_type(ret, right_ret)?),
         }),
-        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(right_items))
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(right_items))
             if items.len() == right_items.len() =>
         {
             let items = items
@@ -1969,43 +1974,46 @@ fn merge_substitution_type(left: &core_ir::Type, right: &core_ir::Type) -> Optio
                 .zip(right_items)
                 .map(|(left, right)| merge_substitution_type(left, right))
                 .collect::<Option<Vec<_>>>()?;
-            Some(core_ir::Type::Tuple(items))
+            Some(typed_ir::Type::Tuple(items))
         }
         _ => None,
     }
 }
 
-fn merge_type_arg(left: &core_ir::TypeArg, right: &core_ir::TypeArg) -> Option<core_ir::TypeArg> {
+fn merge_type_arg(
+    left: &typed_ir::TypeArg,
+    right: &typed_ir::TypeArg,
+) -> Option<typed_ir::TypeArg> {
     match (left, right) {
-        (core_ir::TypeArg::Type(left), core_ir::TypeArg::Type(right)) => {
-            merge_substitution_type(left, right).map(core_ir::TypeArg::Type)
+        (typed_ir::TypeArg::Type(left), typed_ir::TypeArg::Type(right)) => {
+            merge_substitution_type(left, right).map(typed_ir::TypeArg::Type)
         }
-        (core_ir::TypeArg::Type(ty), core_ir::TypeArg::Bounds(bounds))
-        | (core_ir::TypeArg::Bounds(bounds), core_ir::TypeArg::Type(ty)) => {
-            type_fits_bounds(ty, bounds).then(|| core_ir::TypeArg::Type(ty.clone()))
+        (typed_ir::TypeArg::Type(ty), typed_ir::TypeArg::Bounds(bounds))
+        | (typed_ir::TypeArg::Bounds(bounds), typed_ir::TypeArg::Type(ty)) => {
+            type_fits_bounds(ty, bounds).then(|| typed_ir::TypeArg::Type(ty.clone()))
         }
-        (core_ir::TypeArg::Bounds(left), core_ir::TypeArg::Bounds(right)) => {
-            Some(core_ir::TypeArg::Bounds(merge_type_bounds(left, right)?))
+        (typed_ir::TypeArg::Bounds(left), typed_ir::TypeArg::Bounds(right)) => {
+            Some(typed_ir::TypeArg::Bounds(merge_type_bounds(left, right)?))
         }
     }
 }
 
 fn merge_type_bounds(
-    left: &core_ir::TypeBounds,
-    right: &core_ir::TypeBounds,
-) -> Option<core_ir::TypeBounds> {
+    left: &typed_ir::TypeBounds,
+    right: &typed_ir::TypeBounds,
+) -> Option<typed_ir::TypeBounds> {
     let lower = merge_optional_bound(left.lower.as_deref(), right.lower.as_deref())?;
     let upper = merge_optional_bound(left.upper.as_deref(), right.upper.as_deref())?;
-    Some(core_ir::TypeBounds {
+    Some(typed_ir::TypeBounds {
         lower: lower.map(Box::new),
         upper: upper.map(Box::new),
     })
 }
 
 fn merge_optional_bound(
-    left: Option<&core_ir::Type>,
-    right: Option<&core_ir::Type>,
-) -> Option<Option<core_ir::Type>> {
+    left: Option<&typed_ir::Type>,
+    right: Option<&typed_ir::Type>,
+) -> Option<Option<typed_ir::Type>> {
     match (left, right) {
         (Some(left), Some(right)) => merge_substitution_type(left, right).map(Some),
         (Some(ty), None) | (None, Some(ty)) => Some(Some(ty.clone())),
@@ -2013,7 +2021,7 @@ fn merge_optional_bound(
     }
 }
 
-fn type_fits_bounds(ty: &core_ir::Type, bounds: &core_ir::TypeBounds) -> bool {
+fn type_fits_bounds(ty: &typed_ir::Type, bounds: &typed_ir::TypeBounds) -> bool {
     bounds
         .lower
         .as_deref()
@@ -2024,27 +2032,27 @@ fn type_fits_bounds(ty: &core_ir::Type, bounds: &core_ir::TypeBounds) -> bool {
             .is_none_or(|upper| merge_substitution_type(upper, ty).is_some())
 }
 
-fn type_has_vars(ty: &core_ir::Type) -> bool {
+fn type_has_vars(ty: &typed_ir::Type) -> bool {
     let mut vars = BTreeSet::new();
     collect_core_type_vars(ty, &mut vars);
     !vars.is_empty()
 }
 
-fn substitution_type_usable(ty: &core_ir::Type, allow_never: bool) -> bool {
+fn substitution_type_usable(ty: &typed_ir::Type, allow_never: bool) -> bool {
     !matches!(
         ty,
-        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_)
-    ) && (allow_never || !matches!(ty, core_ir::Type::Never))
+        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_)
+    ) && (allow_never || !matches!(ty, typed_ir::Type::Never))
         && !type_has_vars(ty)
         && !type_has_unknown(ty)
 }
 
-fn type_has_unknown(ty: &core_ir::Type) -> bool {
+fn type_has_unknown(ty: &typed_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Unknown => true,
-        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => false,
-        core_ir::Type::Named { args, .. } => args.iter().any(type_arg_has_unknown),
-        core_ir::Type::Fun {
+        typed_ir::Type::Unknown => true,
+        typed_ir::Type::Never | typed_ir::Type::Any | typed_ir::Type::Var(_) => false,
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_has_unknown),
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -2055,77 +2063,77 @@ fn type_has_unknown(ty: &core_ir::Type) -> bool {
                 || type_has_unknown(ret_effect)
                 || type_has_unknown(ret)
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
-            items.iter().any(type_has_unknown)
-        }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(type_has_unknown),
+        typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
                 .any(|field| type_has_unknown(&field.value))
                 || record.spread.as_ref().is_some_and(|spread| match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         type_has_unknown(ty)
                     }
                 })
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant
                 .cases
                 .iter()
                 .any(|case| case.payloads.iter().any(type_has_unknown))
                 || variant.tail.as_deref().is_some_and(type_has_unknown)
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             items.iter().any(type_has_unknown) || type_has_unknown(tail)
         }
-        core_ir::Type::Recursive { body, .. } => type_has_unknown(body),
+        typed_ir::Type::Recursive { body, .. } => type_has_unknown(body),
     }
 }
 
-fn type_arg_has_unknown(arg: &core_ir::TypeArg) -> bool {
+fn type_arg_has_unknown(arg: &typed_ir::TypeArg) -> bool {
     match arg {
-        core_ir::TypeArg::Type(ty) => type_has_unknown(ty),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(ty) => type_has_unknown(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
             bounds.lower.as_deref().is_some_and(type_has_unknown)
                 || bounds.upper.as_deref().is_some_and(type_has_unknown)
         }
     }
 }
 
-fn type_bounds_closed(bounds: &core_ir::TypeBounds) -> bool {
+fn type_bounds_closed(bounds: &typed_ir::TypeBounds) -> bool {
     (bounds.lower.is_some() || bounds.upper.is_some())
         && bounds.lower.as_deref().is_none_or(|ty| !type_has_vars(ty))
         && bounds.upper.as_deref().is_none_or(|ty| !type_has_vars(ty))
 }
 
-fn type_bounds_informative(bounds: &core_ir::TypeBounds) -> bool {
+fn type_bounds_informative(bounds: &typed_ir::TypeBounds) -> bool {
     bounds.lower.as_deref().is_some_and(type_informative)
         || bounds.upper.as_deref().is_some_and(type_informative)
 }
 
-fn type_informative(ty: &core_ir::Type) -> bool {
+fn type_informative(ty: &typed_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Unknown
-        | core_ir::Type::Never
-        | core_ir::Type::Any
-        | core_ir::Type::Var(_) => false,
-        core_ir::Type::Named { .. } => true,
-        core_ir::Type::Fun { .. }
-        | core_ir::Type::Tuple(_)
-        | core_ir::Type::Record(_)
-        | core_ir::Type::Variant(_) => true,
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_) => false,
+        typed_ir::Type::Named { .. } => true,
+        typed_ir::Type::Fun { .. }
+        | typed_ir::Type::Tuple(_)
+        | typed_ir::Type::Record(_)
+        | typed_ir::Type::Variant(_) => true,
+        typed_ir::Type::Row { items, tail } => {
             items.iter().any(type_informative) || type_informative(tail)
         }
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
             items.iter().any(type_informative)
         }
-        core_ir::Type::Recursive { body, .. } => type_informative(body),
+        typed_ir::Type::Recursive { body, .. } => type_informative(body),
     }
 }
 
-fn value_type_bounds_runtime_usable(bounds: &core_ir::TypeBounds) -> bool {
+fn value_type_bounds_runtime_usable(bounds: &typed_ir::TypeBounds) -> bool {
     (bounds.lower.is_some() || bounds.upper.is_some())
         && bounds
             .lower
@@ -2137,7 +2145,7 @@ fn value_type_bounds_runtime_usable(bounds: &core_ir::TypeBounds) -> bool {
             .is_none_or(value_type_runtime_usable)
 }
 
-fn effect_type_bounds_runtime_usable(bounds: &core_ir::TypeBounds) -> bool {
+fn effect_type_bounds_runtime_usable(bounds: &typed_ir::TypeBounds) -> bool {
     (bounds.lower.is_some() || bounds.upper.is_some())
         && bounds
             .lower
@@ -2149,14 +2157,14 @@ fn effect_type_bounds_runtime_usable(bounds: &core_ir::TypeBounds) -> bool {
             .is_none_or(effect_type_runtime_usable)
 }
 
-fn value_type_runtime_usable(ty: &core_ir::Type) -> bool {
+fn value_type_runtime_usable(ty: &typed_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Unknown
-        | core_ir::Type::Never
-        | core_ir::Type::Any
-        | core_ir::Type::Var(_) => false,
-        core_ir::Type::Named { args, .. } => args.iter().all(type_arg_runtime_usable),
-        core_ir::Type::Fun {
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Var(_) => false,
+        typed_ir::Type::Named { args, .. } => args.iter().all(type_arg_runtime_usable),
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -2167,10 +2175,10 @@ fn value_type_runtime_usable(ty: &core_ir::Type) -> bool {
                 && effect_type_runtime_usable(ret_effect)
                 && value_type_runtime_usable(ret)
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
-            items.iter().all(value_type_runtime_usable)
-        }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().all(value_type_runtime_usable),
+        typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
@@ -2180,7 +2188,7 @@ fn value_type_runtime_usable(ty: &core_ir::Type) -> bool {
                     .as_ref()
                     .is_none_or(record_spread_runtime_usable)
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant
                 .cases
                 .iter()
@@ -2190,36 +2198,36 @@ fn value_type_runtime_usable(ty: &core_ir::Type) -> bool {
                     .as_deref()
                     .is_none_or(value_type_runtime_usable)
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             items.iter().all(effect_type_runtime_usable) && effect_type_runtime_usable(tail)
         }
-        core_ir::Type::Recursive { body, .. } => value_type_runtime_usable(body),
+        typed_ir::Type::Recursive { body, .. } => value_type_runtime_usable(body),
     }
 }
 
-fn effect_type_runtime_usable(ty: &core_ir::Type) -> bool {
+fn effect_type_runtime_usable(ty: &typed_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Never => true,
-        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_) => false,
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Never => true,
+        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_) => false,
+        typed_ir::Type::Row { items, tail } => {
             items.iter().all(effect_type_runtime_usable) && effect_type_runtime_usable(tail)
         }
         _ => value_type_runtime_usable(ty),
     }
 }
 
-fn record_spread_runtime_usable(spread: &core_ir::RecordSpread) -> bool {
+fn record_spread_runtime_usable(spread: &typed_ir::RecordSpread) -> bool {
     match spread {
-        core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+        typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
             value_type_runtime_usable(ty)
         }
     }
 }
 
-fn type_arg_runtime_usable(arg: &core_ir::TypeArg) -> bool {
+fn type_arg_runtime_usable(arg: &typed_ir::TypeArg) -> bool {
     match arg {
-        core_ir::TypeArg::Type(ty) => value_type_runtime_usable(ty),
-        core_ir::TypeArg::Bounds(bounds) => value_type_bounds_runtime_usable(bounds),
+        typed_ir::TypeArg::Type(ty) => value_type_runtime_usable(ty),
+        typed_ir::TypeArg::Bounds(bounds) => value_type_bounds_runtime_usable(bounds),
     }
 }
 
@@ -2231,55 +2239,55 @@ mod tests {
 
     use crate::{LowerState, diagnostic, lower_root};
 
-    fn tv(name: &str) -> core_ir::TypeVar {
-        core_ir::TypeVar(name.to_string())
+    fn tv(name: &str) -> typed_ir::TypeVar {
+        typed_ir::TypeVar(name.to_string())
     }
 
-    fn named(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args: Vec::new(),
         }
     }
 
-    fn list(arg: core_ir::TypeArg) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path {
+    fn list(arg: typed_ir::TypeArg) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path {
                 segments: vec![
-                    core_ir::Name("std".to_string()),
-                    core_ir::Name("list".to_string()),
-                    core_ir::Name("list".to_string()),
+                    typed_ir::Name("std".to_string()),
+                    typed_ir::Name("list".to_string()),
+                    typed_ir::Name("list".to_string()),
                 ],
             },
             args: vec![arg],
         }
     }
 
-    fn fun(param: core_ir::Type, ret: core_ir::Type) -> core_ir::Type {
-        core_ir::Type::Fun {
+    fn fun(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Fun {
             param: Box::new(param),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(ret),
         }
     }
 
-    fn variant(case_name: &str, payloads: Vec<core_ir::Type>) -> core_ir::Type {
-        core_ir::Type::Variant(core_ir::VariantType {
-            cases: vec![core_ir::VariantCase {
-                name: core_ir::Name(case_name.to_string()),
+    fn variant(case_name: &str, payloads: Vec<typed_ir::Type>) -> typed_ir::Type {
+        typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: vec![typed_ir::VariantCase {
+                name: typed_ir::Name(case_name.to_string()),
                 payloads,
             }],
             tail: None,
         })
     }
 
-    fn record(fields: Vec<(&str, core_ir::Type)>) -> core_ir::Type {
-        core_ir::Type::Record(core_ir::RecordType {
+    fn record(fields: Vec<(&str, typed_ir::Type)>) -> typed_ir::Type {
+        typed_ir::Type::Record(typed_ir::RecordType {
             fields: fields
                 .into_iter()
-                .map(|(name, value)| core_ir::RecordField {
-                    name: core_ir::Name(name.to_string()),
+                .map(|(name, value)| typed_ir::RecordField {
+                    name: typed_ir::Name(name.to_string()),
                     value,
                     optional: false,
                 })
@@ -2303,8 +2311,8 @@ mod tests {
 
     #[test]
     fn merges_bounds_arg_to_concrete_type_arg() {
-        let concrete = list(core_ir::TypeArg::Type(named("int")));
-        let bounded = list(core_ir::TypeArg::Bounds(core_ir::TypeBounds {
+        let concrete = list(typed_ir::TypeArg::Type(named("int")));
+        let bounded = list(typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
             lower: Some(Box::new(named("int"))),
             upper: None,
         }));
@@ -2315,7 +2323,7 @@ mod tests {
     #[test]
     fn value_position_does_not_bind_never() {
         let mut unifier = one_param_unifier();
-        unifier.infer_value(&core_ir::Type::Var(tv("t")), &core_ir::Type::Never);
+        unifier.infer_value(&typed_ir::Type::Var(tv("t")), &typed_ir::Type::Never);
 
         assert!(unifier.into_substitutions().next().is_none());
     }
@@ -2323,19 +2331,19 @@ mod tests {
     #[test]
     fn effect_position_can_bind_never() {
         let mut unifier = one_param_unifier();
-        unifier.infer_effect(&core_ir::Type::Var(tv("t")), &core_ir::Type::Never);
+        unifier.infer_effect(&typed_ir::Type::Var(tv("t")), &typed_ir::Type::Never);
 
         assert_eq!(
             unifier.into_substitutions().collect::<Vec<_>>(),
-            vec![(tv("t"), core_ir::Type::Never)]
+            vec![(tv("t"), typed_ir::Type::Never)]
         );
     }
 
     #[test]
     fn conflicting_candidates_drop_the_substitution() {
         let mut unifier = one_param_unifier();
-        unifier.infer_value(&core_ir::Type::Var(tv("t")), &named("int"));
-        unifier.infer_value(&core_ir::Type::Var(tv("t")), &named("bool"));
+        unifier.infer_value(&typed_ir::Type::Var(tv("t")), &named("int"));
+        unifier.infer_value(&typed_ir::Type::Var(tv("t")), &named("bool"));
 
         assert!(unifier.into_substitutions().next().is_none());
     }
@@ -2357,7 +2365,7 @@ mod tests {
             diagnostic::ExpectedEdgeKind::ApplicationArgument
         );
         assert_eq!(evidence.actual.lower.as_deref(), Some(&named("int")));
-        assert_eq!(evidence.expected, core_ir::TypeBounds::exact(named("int")));
+        assert_eq!(evidence.expected, typed_ir::TypeBounds::exact(named("int")));
         assert!(evidence.source_range.is_some());
         assert!(evidence.actual_effect.is_none());
         assert!(evidence.expected_effect.is_none());
@@ -2393,12 +2401,12 @@ mod tests {
             .iter()
             .find(|edge| {
                 edge.kind == DerivedExpectedEdgeKind::RecordField
-                    && edge.path == vec![EdgePathSegment::Field(core_ir::Name("x".to_string()))]
+                    && edge.path == vec![EdgePathSegment::Field(typed_ir::Name("x".to_string()))]
             })
             .expect("record field derived edge");
 
-        assert_eq!(field.actual, core_ir::TypeBounds::exact(named("int")));
-        assert_eq!(field.expected, core_ir::TypeBounds::exact(named("int")));
+        assert_eq!(field.actual, typed_ir::TypeBounds::exact(named("int")));
+        assert_eq!(field.expected, typed_ir::TypeBounds::exact(named("int")));
         assert_eq!(field.polarity, EdgePolarity::Covariant);
     }
 
@@ -2415,8 +2423,8 @@ mod tests {
             })
             .expect("tuple item derived edge");
 
-        assert_eq!(item.actual, core_ir::TypeBounds::exact(named("bool")));
-        assert_eq!(item.expected, core_ir::TypeBounds::exact(named("bool")));
+        assert_eq!(item.actual, typed_ir::TypeBounds::exact(named("bool")));
+        assert_eq!(item.expected, typed_ir::TypeBounds::exact(named("bool")));
         assert_eq!(item.polarity, EdgePolarity::Covariant);
     }
 
@@ -2426,8 +2434,8 @@ mod tests {
             id: ExpectedEdgeId(7),
             kind: ExpectedEdgeKind::Annotation,
             source_range: None,
-            actual: core_ir::TypeBounds::exact(fun(named("str"), named("bool"))),
-            expected: core_ir::TypeBounds::exact(fun(named("int"), named("int"))),
+            actual: typed_ir::TypeBounds::exact(fun(named("str"), named("bool"))),
+            expected: typed_ir::TypeBounds::exact(fun(named("int"), named("int"))),
             actual_effect: None,
             expected_effect: None,
             closed: true,
@@ -2455,10 +2463,10 @@ mod tests {
         assert_eq!(ret.parent, ExpectedEdgeId(7));
         assert_eq!(param.polarity, EdgePolarity::Contravariant);
         assert_eq!(ret.polarity, EdgePolarity::Covariant);
-        assert_eq!(param.actual, core_ir::TypeBounds::exact(named("str")));
-        assert_eq!(param.expected, core_ir::TypeBounds::exact(named("int")));
-        assert_eq!(ret.actual, core_ir::TypeBounds::exact(named("bool")));
-        assert_eq!(ret.expected, core_ir::TypeBounds::exact(named("int")));
+        assert_eq!(param.actual, typed_ir::TypeBounds::exact(named("str")));
+        assert_eq!(param.expected, typed_ir::TypeBounds::exact(named("int")));
+        assert_eq!(ret.actual, typed_ir::TypeBounds::exact(named("bool")));
+        assert_eq!(ret.expected, typed_ir::TypeBounds::exact(named("int")));
     }
 
     #[test]
@@ -2467,8 +2475,11 @@ mod tests {
             id: ExpectedEdgeId(9),
             kind: ExpectedEdgeKind::Annotation,
             source_range: None,
-            actual: core_ir::TypeBounds::exact(variant("some", vec![named("str"), named("bool")])),
-            expected: core_ir::TypeBounds::exact(variant("some", vec![named("int"), named("int")])),
+            actual: typed_ir::TypeBounds::exact(variant("some", vec![named("str"), named("bool")])),
+            expected: typed_ir::TypeBounds::exact(variant(
+                "some",
+                vec![named("int"), named("int")],
+            )),
             actual_effect: None,
             expected_effect: None,
             closed: true,
@@ -2483,7 +2494,7 @@ mod tests {
                 edge.kind == DerivedExpectedEdgeKind::VariantPayload
                     && edge.path
                         == vec![
-                            EdgePathSegment::VariantCase(core_ir::Name("some".to_string())),
+                            EdgePathSegment::VariantCase(typed_ir::Name("some".to_string())),
                             EdgePathSegment::PayloadIndex(1),
                         ]
             })
@@ -2491,8 +2502,8 @@ mod tests {
 
         assert_eq!(payload.parent, ExpectedEdgeId(9));
         assert_eq!(payload.polarity, EdgePolarity::Covariant);
-        assert_eq!(payload.actual, core_ir::TypeBounds::exact(named("bool")));
-        assert_eq!(payload.expected, core_ir::TypeBounds::exact(named("int")));
+        assert_eq!(payload.actual, typed_ir::TypeBounds::exact(named("bool")));
+        assert_eq!(payload.expected, typed_ir::TypeBounds::exact(named("int")));
     }
 
     #[test]
@@ -2501,11 +2512,11 @@ mod tests {
             id: ExpectedEdgeId(11),
             kind: ExpectedEdgeKind::Annotation,
             source_range: None,
-            actual: core_ir::TypeBounds::exact(record(vec![(
+            actual: typed_ir::TypeBounds::exact(record(vec![(
                 "a",
                 record(vec![("b", named("str"))]),
             )])),
-            expected: core_ir::TypeBounds::exact(record(vec![(
+            expected: typed_ir::TypeBounds::exact(record(vec![(
                 "a",
                 record(vec![("b", named("int"))]),
             )])),
@@ -2523,15 +2534,15 @@ mod tests {
                 edge.kind == DerivedExpectedEdgeKind::RecordField
                     && edge.path
                         == vec![
-                            EdgePathSegment::Field(core_ir::Name("a".to_string())),
-                            EdgePathSegment::Field(core_ir::Name("b".to_string())),
+                            EdgePathSegment::Field(typed_ir::Name("a".to_string())),
+                            EdgePathSegment::Field(typed_ir::Name("b".to_string())),
                         ]
             })
             .expect("nested record field derived edge");
 
         assert_eq!(nested.parent, ExpectedEdgeId(11));
         assert_eq!(nested.polarity, EdgePolarity::Covariant);
-        assert_eq!(nested.actual, core_ir::TypeBounds::exact(named("str")));
-        assert_eq!(nested.expected, core_ir::TypeBounds::exact(named("int")));
+        assert_eq!(nested.actual, typed_ir::TypeBounds::exact(named("str")));
+        assert_eq!(nested.expected, typed_ir::TypeBounds::exact(named("int")));
     }
 }

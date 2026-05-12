@@ -4,7 +4,7 @@
 //! allocation, environment loads, direct calls, and indirect closure calls
 //! explicit without committing to a machine-level value representation yet.
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::closure::{
     NativeClosureBlock, NativeClosureFunction, NativeClosureModule, NativeClosureStmt,
@@ -43,7 +43,7 @@ pub enum NativeAbiStmt {
     },
     Primitive {
         dest: ValueId,
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
         args: Vec<ValueId>,
     },
     DirectCall {
@@ -61,13 +61,13 @@ pub enum NativeAbiStmt {
     },
     Variant {
         dest: ValueId,
-        tag: core_ir::Name,
+        tag: typed_ir::Name,
         value: Option<ValueId>,
     },
     Select {
         dest: ValueId,
         base: ValueId,
-        field: core_ir::Name,
+        field: typed_ir::Name,
     },
     LoadEnv {
         dest: ValueId,

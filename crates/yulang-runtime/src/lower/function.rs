@@ -12,7 +12,7 @@ pub(super) fn function_parts(ty: &RuntimeType) -> RuntimeResult<FunctionParts> {
             param: (**param).clone(),
             ret: (**ret).clone(),
         }),
-        RuntimeType::Core(core @ core_ir::Type::Fun { .. }) => {
+        RuntimeType::Core(core @ typed_ir::Type::Fun { .. }) => {
             let ty = project_runtime_hir_type_with_vars(core, &BTreeSet::new());
             function_parts(&ty)
         }
@@ -40,16 +40,16 @@ pub(super) fn erased_fun_type(param: RuntimeType, ret: RuntimeType) -> RuntimeTy
     RuntimeType::fun(param, ret)
 }
 
-pub(super) fn runtime_bounds_type(bounds: &core_ir::TypeBounds) -> Option<core_ir::Type> {
+pub(super) fn runtime_bounds_type(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
     project_runtime_bounds(bounds)
 }
 
 pub(super) fn record_field_expected(
-    expected: Option<&core_ir::Type>,
-    name: &core_ir::Name,
-) -> Option<core_ir::Type> {
+    expected: Option<&typed_ir::Type>,
+    name: &typed_ir::Name,
+) -> Option<typed_ir::Type> {
     match expected {
-        Some(core_ir::Type::Record(record)) => record
+        Some(typed_ir::Type::Record(record)) => record
             .fields
             .iter()
             .find(|field| field.name == *name)
@@ -59,14 +59,14 @@ pub(super) fn record_field_expected(
 }
 
 pub(super) fn variant_payload_expected(
-    expected: Option<&core_ir::Type>,
-    tag: &core_ir::Name,
-) -> Option<core_ir::Type> {
+    expected: Option<&typed_ir::Type>,
+    tag: &typed_ir::Name,
+) -> Option<typed_ir::Type> {
     match expected {
-        Some(core_ir::Type::Variant(variant)) => {
+        Some(typed_ir::Type::Variant(variant)) => {
             variant_payload_expected_from_variant(variant, tag)
         }
-        Some(core_ir::Type::Union(items) | core_ir::Type::Inter(items)) => items
+        Some(typed_ir::Type::Union(items) | typed_ir::Type::Inter(items)) => items
             .iter()
             .find_map(|item| variant_payload_expected(Some(item), tag)),
         _ => None,
@@ -74,9 +74,9 @@ pub(super) fn variant_payload_expected(
 }
 
 fn variant_payload_expected_from_variant(
-    variant: &core_ir::VariantType,
-    tag: &core_ir::Name,
-) -> Option<core_ir::Type> {
+    variant: &typed_ir::VariantType,
+    tag: &typed_ir::Name,
+) -> Option<typed_ir::Type> {
     variant
         .cases
         .iter()
@@ -85,12 +85,12 @@ fn variant_payload_expected_from_variant(
 }
 
 pub(super) fn select_field_type(
-    ty: &core_ir::Type,
-    field: &core_ir::Name,
-) -> RuntimeResult<core_ir::Type> {
+    ty: &typed_ir::Type,
+    field: &typed_ir::Name,
+) -> RuntimeResult<typed_ir::Type> {
     match ty {
-        core_ir::Type::Any => Ok(core_ir::Type::Any),
-        core_ir::Type::Record(record) => record
+        typed_ir::Type::Any => Ok(typed_ir::Type::Any),
+        typed_ir::Type::Record(record) => record
             .fields
             .iter()
             .find(|candidate| candidate.name == *field)
@@ -106,12 +106,12 @@ pub(super) fn select_field_type(
     }
 }
 
-pub(super) fn unary_runtime_container_item_type(ty: &core_ir::Type) -> Option<core_ir::Type> {
+pub(super) fn unary_runtime_container_item_type(ty: &typed_ir::Type) -> Option<typed_ir::Type> {
     match ty {
-        core_ir::Type::Named { args, .. } if args.len() == 1 => {
+        typed_ir::Type::Named { args, .. } if args.len() == 1 => {
             args.first().and_then(|arg| match arg {
-                core_ir::TypeArg::Type(ty) => Some(ty.clone()),
-                core_ir::TypeArg::Bounds(bounds) => runtime_bounds_type(bounds),
+                typed_ir::TypeArg::Type(ty) => Some(ty.clone()),
+                typed_ir::TypeArg::Bounds(bounds) => runtime_bounds_type(bounds),
             })
         }
         _ => None,
@@ -119,8 +119,8 @@ pub(super) fn unary_runtime_container_item_type(ty: &core_ir::Type) -> Option<co
 }
 
 pub(super) fn require_same_type(
-    expected: &core_ir::Type,
-    actual: &core_ir::Type,
+    expected: &typed_ir::Type,
+    actual: &typed_ir::Type,
     source: TypeSource,
 ) -> RuntimeResult<()> {
     if core_types_compatible(expected, actual)
@@ -140,25 +140,28 @@ pub(super) fn require_same_type(
     })
 }
 
-pub(super) fn should_use_visible_root_type(graph: &core_ir::Type, visible: &core_ir::Type) -> bool {
-    (matches!(graph, core_ir::Type::Any) && !matches!(visible, core_ir::Type::Any))
+pub(super) fn should_use_visible_root_type(
+    graph: &typed_ir::Type,
+    visible: &typed_ir::Type,
+) -> bool {
+    (matches!(graph, typed_ir::Type::Any) && !matches!(visible, typed_ir::Type::Any))
         || matches!(
             (graph, visible),
-            (core_ir::Type::Tuple(graph_items), core_ir::Type::Tuple(visible_items))
+            (typed_ir::Type::Tuple(graph_items), typed_ir::Type::Tuple(visible_items))
                 if graph_items.len() != visible_items.len()
         )
 }
 
 pub(super) fn can_use_visible_root_type_without_graph(
-    expr: &core_ir::Expr,
-    visible: &core_ir::Type,
+    expr: &typed_ir::Expr,
+    visible: &typed_ir::Type,
 ) -> bool {
-    matches!(expr, core_ir::Expr::Var(_) | core_ir::Expr::Tuple(_))
-        || (matches!(expr, core_ir::Expr::Apply { .. }) && is_concrete_visible_root_type(visible))
+    matches!(expr, typed_ir::Expr::Var(_) | typed_ir::Expr::Tuple(_))
+        || (matches!(expr, typed_ir::Expr::Apply { .. }) && is_concrete_visible_root_type(visible))
 }
 
-pub(super) fn is_concrete_visible_root_type(ty: &core_ir::Type) -> bool {
-    if matches!(ty, core_ir::Type::Any) {
+pub(super) fn is_concrete_visible_root_type(ty: &typed_ir::Type) -> bool {
+    if matches!(ty, typed_ir::Type::Any) {
         return false;
     }
     let mut vars = BTreeSet::new();

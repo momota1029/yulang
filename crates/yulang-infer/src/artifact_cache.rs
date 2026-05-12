@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use yulang_source::{
+use yulang_sources::{
     COMPILED_UNIT_ARTIFACT_FORMAT_VERSION, COMPILED_UNIT_PARSER_FORMAT_VERSION,
     CompiledUnitManifest, YulangCachePaths,
 };
@@ -187,11 +187,11 @@ fn io_error_string(error: io::Error) -> String {
 mod tests {
     use super::*;
     use crate::source::{CompiledRuntimeSurface, CompiledTypedSurface};
-    use yulang_core_ir::CoreProgram;
-    use yulang_source::{
+    use yulang_sources::{
         CompiledSourceFileIdentity, CompiledSyntaxSurface, SourceCompilationUnitOrigin,
         SourceOrigin,
     };
+    use yulang_typed_ir::CoreProgram;
 
     #[test]
     fn writes_and_reads_compiled_unit_artifact() {

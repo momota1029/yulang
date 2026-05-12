@@ -9,7 +9,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::time::Duration;
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::invariant::{RuntimeStage, check_runtime_invariants};
@@ -159,7 +159,7 @@ pub struct MonomorphizePassProfile {
     pub progress: MonomorphizeProgress,
     pub demand_queue: DemandQueueProfile,
     pub principal_elaborate: SubstitutionSpecializeProfile,
-    pub added_binding_paths: Vec<core_ir::Path>,
+    pub added_binding_paths: Vec<typed_ir::Path>,
     pub added_specializations: Vec<DemandSpecialization>,
 }
 
@@ -174,7 +174,7 @@ pub struct SubstitutionSpecializeProfile {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubstitutionSpecializeTargetSkips {
-    pub target: core_ir::Path,
+    pub target: typed_ir::Path,
     pub survives_final_prune: Option<bool>,
     pub actionable: bool,
     pub reasons: Vec<SubstitutionSpecializeSkipCount>,
@@ -190,13 +190,13 @@ pub struct SubstitutionSpecializeSkipCount {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubstitutionSpecializeMissingVarCount {
-    pub var: core_ir::TypeVar,
+    pub var: typed_ir::TypeVar,
     pub count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubstitutionSpecializeTargetRewrites {
-    pub target: core_ir::Path,
+    pub target: typed_ir::Path,
     pub total_apply_visits: usize,
     pub rewrites: usize,
     pub cached_incomplete: usize,
@@ -228,7 +228,7 @@ pub struct SubstitutionSpecializeRewriteExprKindTiming {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubstitutionSpecializeTargetInferences {
-    pub target: core_ir::Path,
+    pub target: typed_ir::Path,
     pub sources: Vec<SubstitutionSpecializeInferenceCount>,
 }
 
@@ -346,8 +346,7 @@ fn run_principal_elaborate_pipeline(
     module = step.module;
     let step = run_profiled_mono_pass(module, MonoPass::PrincipalElaborate, &mut profile, debug)?;
     module = step.module;
-    let step =
-        run_profiled_mono_pass(module, MonoPass::RefreshClosedSchemes, &mut profile, debug)?;
+    let step = run_profiled_mono_pass(module, MonoPass::RefreshClosedSchemes, &mut profile, debug)?;
     module = step.module;
     let step = run_profiled_mono_pass(module, MonoPass::PruneUnreachable, &mut profile, debug)?;
     module = step.module;
@@ -396,9 +395,7 @@ fn run_legacy_demand_fixpoint_pipeline(
 
 fn run_mono_pipeline_unprofiled(module: Module) -> RuntimeResult<Module> {
     match MonomorphizeMode::detect() {
-        MonomorphizeMode::PrincipalElaborate => {
-            run_principal_elaborate_pipeline_unprofiled(module)
-        }
+        MonomorphizeMode::PrincipalElaborate => run_principal_elaborate_pipeline_unprofiled(module),
         MonomorphizeMode::LegacyDemandFixpoint => {
             run_mono_pipeline(module).map(|(module, _profile)| module)
         }
@@ -634,7 +631,7 @@ fn debug_mono_changed_items(pass: &str, before: &Module, after: &Module) {
     }
 }
 
-fn changed_binding_names(before: &Module, after: &Module) -> Vec<core_ir::Path> {
+fn changed_binding_names(before: &Module, after: &Module) -> Vec<typed_ir::Path> {
     let before_by_name = before
         .bindings
         .iter()
@@ -673,7 +670,7 @@ struct MonoStep {
     progress: MonoProgress,
     demand_queue: DemandQueueProfile,
     principal_elaborate: SubstitutionSpecializeProfile,
-    added_binding_paths: Vec<core_ir::Path>,
+    added_binding_paths: Vec<typed_ir::Path>,
     added_specializations: Vec<DemandSpecialization>,
 }
 
@@ -811,7 +808,7 @@ fn refine_module_types_for_mono(module: Module) -> RuntimeResult<MonoStep> {
     })
 }
 
-fn added_binding_paths(before: &Module, after: &Module) -> Vec<core_ir::Path> {
+fn added_binding_paths(before: &Module, after: &Module) -> Vec<typed_ir::Path> {
     let before_paths = before
         .bindings
         .iter()

@@ -77,7 +77,7 @@ Current useful prototypes:
   - reports missing paths structurally.
 - `StdCoreSnapshotData`
   - serializable std `CoreProgram` prototype.
-- `yulang-core-ir` serde support
+- `yulang-typed-ir` serde support
   - proves runtime-facing artifact serialization is viable.
 
 ## Compiled Unit Artifact

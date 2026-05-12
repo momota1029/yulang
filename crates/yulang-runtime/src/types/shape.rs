@@ -1,17 +1,17 @@
 use super::*;
 
-pub(crate) fn core_types_compatible(expected: &core_ir::Type, actual: &core_ir::Type) -> bool {
+pub(crate) fn core_types_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type) -> bool {
     if type_compatible(expected, actual) || (effect_is_empty(expected) && effect_is_empty(actual)) {
         return true;
     }
     match (expected, actual) {
         (
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: expected_param,
                 ret: expected_ret,
                 ..
             },
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: actual_param,
                 ret: actual_ret,
                 ..
@@ -24,7 +24,7 @@ pub(crate) fn core_types_compatible(expected: &core_ir::Type, actual: &core_ir::
     }
 }
 
-pub(crate) fn is_qualified_runtime_path(path: &core_ir::Path) -> bool {
+pub(crate) fn is_qualified_runtime_path(path: &typed_ir::Path) -> bool {
     path.segments.len() > 1
         || path
             .segments
@@ -32,15 +32,18 @@ pub(crate) fn is_qualified_runtime_path(path: &core_ir::Path) -> bool {
             .is_some_and(|segment| segment.0.contains("::"))
 }
 
-pub(crate) fn thunk_effect(ty: &RuntimeType) -> Option<core_ir::Type> {
+pub(crate) fn thunk_effect(ty: &RuntimeType) -> Option<typed_ir::Type> {
     match ty {
         RuntimeType::Thunk { effect, .. } => Some(effect.clone()),
         _ => None,
     }
 }
 
-pub(crate) fn is_nullary_constructor_path_for_type(path: &core_ir::Path, ty: &RuntimeType) -> bool {
-    let RuntimeType::Core(core_ir::Type::Named {
+pub(crate) fn is_nullary_constructor_path_for_type(
+    path: &typed_ir::Path,
+    ty: &RuntimeType,
+) -> bool {
+    let RuntimeType::Core(typed_ir::Type::Named {
         path: type_path, ..
     }) = ty
     else {
@@ -65,17 +68,17 @@ pub(crate) fn hir_type_has_vars(ty: &RuntimeType) -> bool {
     }
 }
 
-pub(crate) fn core_type_has_vars(ty: &core_ir::Type) -> bool {
+pub(crate) fn core_type_has_vars(ty: &typed_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Var(_) => true,
-        core_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
-            core_ir::TypeArg::Type(ty) => core_type_has_vars(ty),
-            core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::Type::Var(_) => true,
+        typed_ir::Type::Named { args, .. } => args.iter().any(|arg| match arg {
+            typed_ir::TypeArg::Type(ty) => core_type_has_vars(ty),
+            typed_ir::TypeArg::Bounds(bounds) => {
                 bounds.lower.as_deref().is_some_and(core_type_has_vars)
                     || bounds.upper.as_deref().is_some_and(core_type_has_vars)
             }
         }),
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -86,21 +89,21 @@ pub(crate) fn core_type_has_vars(ty: &core_ir::Type) -> bool {
                 || core_type_has_vars(ret_effect)
                 || core_type_has_vars(ret)
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
-            items.iter().any(core_type_has_vars)
-        }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(core_type_has_vars),
+        typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
                 .any(|field| core_type_has_vars(&field.value))
                 || record.spread.as_ref().is_some_and(|spread| match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         core_type_has_vars(ty)
                     }
                 })
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant
                 .cases
                 .iter()
@@ -108,15 +111,15 @@ pub(crate) fn core_type_has_vars(ty: &core_ir::Type) -> bool {
                 .any(core_type_has_vars)
                 || variant.tail.as_deref().is_some_and(core_type_has_vars)
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             items.iter().any(core_type_has_vars) || core_type_has_vars(tail)
         }
-        core_ir::Type::Recursive { body, .. } => core_type_has_vars(body),
-        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => false,
+        typed_ir::Type::Recursive { body, .. } => core_type_has_vars(body),
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => false,
     }
 }
 
-pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<core_ir::TypeVar>) {
+pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     collect_hir_type_vars(&expr.ty, vars);
     match &expr.kind {
         ExprKind::Lambda { body, .. } => collect_expr_type_vars(body, vars),
@@ -203,7 +206,7 @@ pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<core_ir::T
     }
 }
 
-pub(crate) fn collect_stmt_type_vars(stmt: &Stmt, vars: &mut BTreeSet<core_ir::TypeVar>) {
+pub(crate) fn collect_stmt_type_vars(stmt: &Stmt, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match stmt {
         Stmt::Let { pattern, value } => {
             collect_pattern_type_vars(pattern, vars);
@@ -213,7 +216,7 @@ pub(crate) fn collect_stmt_type_vars(stmt: &Stmt, vars: &mut BTreeSet<core_ir::T
     }
 }
 
-pub(crate) fn collect_pattern_type_vars(pattern: &Pattern, vars: &mut BTreeSet<core_ir::TypeVar>) {
+pub(crate) fn collect_pattern_type_vars(pattern: &Pattern, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match pattern {
         Pattern::Wildcard { ty }
         | Pattern::Bind { ty, .. }
@@ -279,7 +282,7 @@ pub(crate) fn collect_pattern_type_vars(pattern: &Pattern, vars: &mut BTreeSet<c
     }
 }
 
-pub(crate) fn collect_hir_type_vars(ty: &RuntimeType, vars: &mut BTreeSet<core_ir::TypeVar>) {
+pub(crate) fn collect_hir_type_vars(ty: &RuntimeType, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     match ty {
         RuntimeType::Unknown => {}
         RuntimeType::Core(ty) => collect_type_vars(ty, vars),
@@ -294,7 +297,7 @@ pub(crate) fn collect_hir_type_vars(ty: &RuntimeType, vars: &mut BTreeSet<core_i
     }
 }
 
-fn collect_match_arm_type_vars(arm: &MatchArm, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_match_arm_type_vars(arm: &MatchArm, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     collect_pattern_type_vars(&arm.pattern, vars);
     if let Some(guard) = &arm.guard {
         collect_expr_type_vars(guard, vars);
@@ -304,7 +307,7 @@ fn collect_match_arm_type_vars(arm: &MatchArm, vars: &mut BTreeSet<core_ir::Type
 
 fn collect_record_spread_expr_type_vars(
     spread: &Option<RecordSpreadExpr>,
-    vars: &mut BTreeSet<core_ir::TypeVar>,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     if let Some(spread) = spread {
         match spread {

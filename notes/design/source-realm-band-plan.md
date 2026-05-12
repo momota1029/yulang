@@ -262,7 +262,7 @@ live in the persistent user cache.
 
 ## Initial Implementation Shape
 
-Start with small identity types in `yulang-source`:
+Start with small identity types in `yulang-sources`:
 
 ```rust
 SourceRealm

@@ -9,8 +9,8 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::rc::Rc;
 
-use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
+use yulang_typed_ir as typed_ir;
 
 pub const NATIVE_PRIMITIVE_BOOL_NOT: i64 = 1;
 pub const NATIVE_PRIMITIVE_INT_TO_STRING: i64 = 2;
@@ -303,7 +303,7 @@ pub fn record_insert(
     };
     let name = std::str::from_utf8(name).ok()?;
     let mut fields = fields.clone();
-    fields.insert(core_ir_name(name), value.clone());
+    fields.insert(typed_ir_name(name), value.clone());
     Some(context.alloc(runtime::VmValue::Record(fields)))
 }
 
@@ -317,7 +317,7 @@ pub fn record_select(
         return None;
     };
     let name = std::str::from_utf8(name).ok()?;
-    let value = fields.get(&core_ir_name(name))?;
+    let value = fields.get(&typed_ir_name(name))?;
     Some(context.alloc(value.clone()))
 }
 
@@ -333,7 +333,7 @@ pub fn variant(
         Some(Box::new(unsafe { value.as_ref()? }.clone()))
     };
     Some(context.alloc(runtime::VmValue::Variant {
-        tag: core_ir_name(tag),
+        tag: typed_ir_name(tag),
         value,
     }))
 }
@@ -653,8 +653,8 @@ fn print_native_value(value: &runtime::VmValue) {
     }
 }
 
-fn core_ir_name(name: &str) -> core_ir::Name {
-    core_ir::Name(name.to_string())
+fn typed_ir_name(name: &str) -> typed_ir::Name {
+    typed_ir::Name(name.to_string())
 }
 
 fn int_value(value: &runtime::VmValue) -> Option<i64> {

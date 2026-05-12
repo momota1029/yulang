@@ -1,10 +1,10 @@
 use super::*;
 
 pub(super) fn should_use_graph_binding_type(
-    scheme_ty: &core_ir::Type,
-    graph_ty: &core_ir::Type,
+    scheme_ty: &typed_ir::Type,
+    graph_ty: &typed_ir::Type,
 ) -> bool {
-    matches!(scheme_ty, core_ir::Type::Any) && !matches!(graph_ty, core_ir::Type::Any)
+    matches!(scheme_ty, typed_ir::Type::Any) && !matches!(graph_ty, typed_ir::Type::Any)
 }
 
 pub(super) fn prefer_alias_target_runtime_type(
@@ -27,8 +27,8 @@ pub(super) fn choose_local_type_hint(
     expected: Option<RuntimeType>,
 ) -> Option<RuntimeType> {
     match (stored, expected) {
-        (Some(stored @ RuntimeType::Core(core_ir::Type::Never)), _) => Some(stored),
-        (Some(RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_))), Some(expected)) => {
+        (Some(stored @ RuntimeType::Core(typed_ir::Type::Never)), _) => Some(stored),
+        (Some(RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Var(_))), Some(expected)) => {
             Some(expected)
         }
         (Some(stored), Some(expected)) if hir_type_compatible(&expected, &stored) => {
@@ -80,7 +80,7 @@ pub(super) fn expected_arg_evidence_runtime_usable(ty: &RuntimeType) -> bool {
         && !hir_type_is_hole(ty)
         && !matches!(
             ty,
-            RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Never | core_ir::Type::Var(_))
+            RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Never | typed_ir::Type::Var(_))
         )
 }
 
@@ -107,7 +107,7 @@ pub(super) fn choose_expected_hir_type(
     expected: Option<RuntimeType>,
 ) -> Option<RuntimeType> {
     match (&ty, expected) {
-        (RuntimeType::Core(core_ir::Type::Any | core_ir::Type::Var(_)), Some(expected)) => {
+        (RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Var(_)), Some(expected)) => {
             Some(expected)
         }
         (_, Some(expected)) if hir_type_compatible(&expected, &ty) => {
@@ -140,9 +140,9 @@ fn hir_type_var_count(ty: &RuntimeType) -> usize {
 }
 
 pub(super) fn merge_visible_type_options(
-    left: Option<core_ir::Type>,
-    right: Option<core_ir::Type>,
-) -> Option<core_ir::Type> {
+    left: Option<typed_ir::Type>,
+    right: Option<typed_ir::Type>,
+) -> Option<typed_ir::Type> {
     choose_optional_core_type(left, right, TypeChoice::VisiblePrincipal)
 }
 

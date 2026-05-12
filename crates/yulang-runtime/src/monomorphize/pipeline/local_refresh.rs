@@ -11,7 +11,7 @@ pub(super) fn project_runtime_expr_types(expr: Expr) -> Expr {
     project_expr_runtime_types(expr)
 }
 
-fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<core_ir::Path, RuntimeType>) -> Expr {
+fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<typed_ir::Path, RuntimeType>) -> Expr {
     let mut ty = expr.ty;
     let kind = match expr.kind {
         ExprKind::Lambda {
@@ -21,7 +21,7 @@ fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<core_ir::Path, Runt
             body,
         } => {
             let previous = hir_function_param_type(&ty).map(|param_ty| {
-                let path = core_ir::Path::from_name(param.clone());
+                let path = typed_ir::Path::from_name(param.clone());
                 (path.clone(), locals.insert(path, param_ty))
             });
             let body = Box::new(refresh_expr_local_types(*body, locals));
@@ -139,7 +139,7 @@ fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<core_ir::Path, Runt
                     push_pattern_local_types(&payload, locals);
                     if let Some(resume) = &arm.resume {
                         locals.insert(
-                            core_ir::Path::from_name(resume.name.clone()),
+                            typed_ir::Path::from_name(resume.name.clone()),
                             resume.ty.clone(),
                         );
                     }
@@ -382,17 +382,17 @@ fn project_handle_body_runtime_types(body: Expr, handler: &HandleEffect) -> Expr
         .residual_before
         .clone()
         .filter(|effect| !effect_is_empty(effect))
-        .unwrap_or_else(|| core_ir::Type::Row {
+        .unwrap_or_else(|| typed_ir::Type::Row {
             items: handler
                 .consumes
                 .iter()
                 .cloned()
-                .map(|path| core_ir::Type::Named {
+                .map(|path| typed_ir::Type::Named {
                     path,
                     args: Vec::new(),
                 })
                 .collect(),
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         });
     let value = body.ty.clone();
     Expr::typed(
@@ -414,7 +414,7 @@ fn project_resume_runtime_types(resume: ResumeBinding) -> ResumeBinding {
 
 fn project_expr_runtime_type_from_kind(fallback: RuntimeType, kind: &ExprKind) -> RuntimeType {
     match kind {
-        ExprKind::Tuple(items) => RuntimeType::core(core_ir::Type::Tuple(
+        ExprKind::Tuple(items) => RuntimeType::core(typed_ir::Type::Tuple(
             items
                 .iter()
                 .map(|item| runtime_core_type(&item.ty))
@@ -450,7 +450,7 @@ fn project_expr_runtime_type_from_kind(fallback: RuntimeType, kind: &ExprKind) -
 fn project_apply_runtime_type_from_callee(callee: &RuntimeType) -> Option<RuntimeType> {
     match callee {
         RuntimeType::Fun { ret, .. } => Some(ret.as_ref().clone()),
-        RuntimeType::Core(core_ir::Type::Fun {
+        RuntimeType::Core(typed_ir::Type::Fun {
             ret_effect, ret, ..
         }) => Some(local_runtime_type_from_core_value_and_effect(
             ret.as_ref().clone(),
@@ -462,8 +462,8 @@ fn project_apply_runtime_type_from_callee(callee: &RuntimeType) -> Option<Runtim
 }
 
 fn local_runtime_type_from_core_value_and_effect(
-    value: core_ir::Type,
-    effect: core_ir::Type,
+    value: typed_ir::Type,
+    effect: typed_ir::Type,
 ) -> RuntimeType {
     let value = normalize_hir_function_type(RuntimeType::core(value));
     if effect_is_empty(&effect) {
@@ -548,15 +548,15 @@ fn project_pattern_runtime_types(pattern: Pattern) -> Pattern {
     }
 }
 
-fn project_core_runtime_type(ty: core_ir::Type) -> core_ir::Type {
+fn project_core_runtime_type(ty: typed_ir::Type) -> typed_ir::Type {
     project_runtime_type_with_vars(&ty, &BTreeSet::new())
 }
 
-fn project_core_runtime_effect(ty: core_ir::Type) -> core_ir::Type {
+fn project_core_runtime_effect(ty: typed_ir::Type) -> typed_ir::Type {
     project_runtime_effect(&ty)
 }
 
-fn refresh_stmt_local_types(stmt: Stmt, locals: &mut HashMap<core_ir::Path, RuntimeType>) -> Stmt {
+fn refresh_stmt_local_types(stmt: Stmt, locals: &mut HashMap<typed_ir::Path, RuntimeType>) -> Stmt {
     match stmt {
         Stmt::Let { pattern, value } => {
             let value = refresh_expr_local_types(value, locals);
@@ -592,7 +592,7 @@ fn refresh_pattern_value_local_types(pattern: Pattern, value_ty: &RuntimeType) -
             ty: value_ty.clone(),
         },
         Pattern::Tuple { items, .. } => match value_ty {
-            RuntimeType::Core(core_ir::Type::Tuple(value_items))
+            RuntimeType::Core(typed_ir::Type::Tuple(value_items))
                 if items.len() == value_items.len() =>
             {
                 Pattern::Tuple {
@@ -615,7 +615,7 @@ fn refresh_pattern_value_local_types(pattern: Pattern, value_ty: &RuntimeType) -
             },
         },
         Pattern::Record { fields, spread, .. } => match value_ty {
-            RuntimeType::Core(core_ir::Type::Record(record)) => Pattern::Record {
+            RuntimeType::Core(typed_ir::Type::Record(record)) => Pattern::Record {
                 fields: fields
                     .into_iter()
                     .map(|field| {
@@ -672,7 +672,7 @@ fn refresh_pattern_value_local_types(pattern: Pattern, value_ty: &RuntimeType) -
 }
 
 fn runtime_type_local_binding_usable(ty: &RuntimeType) -> bool {
-    !matches!(ty, RuntimeType::Core(core_ir::Type::Any))
+    !matches!(ty, RuntimeType::Core(typed_ir::Type::Any))
         && !hir_type_has_vars(ty)
         && !runtime_type_has_any(ty)
 }
@@ -688,12 +688,12 @@ fn runtime_type_has_any(ty: &RuntimeType) -> bool {
     }
 }
 
-fn core_type_has_any(ty: &core_ir::Type) -> bool {
+fn core_type_has_any(ty: &typed_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Any => true,
-        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Var(_) => false,
-        core_ir::Type::Named { args, .. } => args.iter().any(core_type_arg_has_any),
-        core_ir::Type::Fun {
+        typed_ir::Type::Any => true,
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Var(_) => false,
+        typed_ir::Type::Named { args, .. } => args.iter().any(core_type_arg_has_any),
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -704,22 +704,22 @@ fn core_type_has_any(ty: &core_ir::Type) -> bool {
                 || core_type_has_any(ret_effect)
                 || core_type_has_any(ret)
         }
-        core_ir::Type::Tuple(items)
-        | core_ir::Type::Union(items)
-        | core_ir::Type::Inter(items)
-        | core_ir::Type::Row { items, .. } => items.iter().any(core_type_has_any),
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items)
+        | typed_ir::Type::Row { items, .. } => items.iter().any(core_type_has_any),
+        typed_ir::Type::Record(record) => {
             record
                 .fields
                 .iter()
                 .any(|field| core_type_has_any(&field.value))
                 || record.spread.as_ref().is_some_and(|spread| match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         core_type_has_any(ty)
                     }
                 })
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant
                 .cases
                 .iter()
@@ -729,14 +729,14 @@ fn core_type_has_any(ty: &core_ir::Type) -> bool {
                     .as_ref()
                     .is_some_and(|tail| core_type_has_any(tail))
         }
-        core_ir::Type::Recursive { body, .. } => core_type_has_any(body),
+        typed_ir::Type::Recursive { body, .. } => core_type_has_any(body),
     }
 }
 
-fn core_type_arg_has_any(arg: &core_ir::TypeArg) -> bool {
+fn core_type_arg_has_any(arg: &typed_ir::TypeArg) -> bool {
     match arg {
-        core_ir::TypeArg::Type(ty) => core_type_has_any(ty),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(ty) => core_type_has_any(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
             bounds.lower.as_deref().is_some_and(core_type_has_any)
                 || bounds.upper.as_deref().is_some_and(core_type_has_any)
         }
@@ -745,7 +745,7 @@ fn core_type_arg_has_any(arg: &core_ir::TypeArg) -> bool {
 
 fn refresh_pattern_default_local_types(
     pattern: Pattern,
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
 ) -> Pattern {
     match pattern {
         Pattern::Tuple { items, ty } => Pattern::Tuple {
@@ -815,14 +815,14 @@ fn refresh_pattern_default_local_types(
     }
 }
 
-fn push_pattern_local_types(pattern: &Pattern, locals: &mut HashMap<core_ir::Path, RuntimeType>) {
+fn push_pattern_local_types(pattern: &Pattern, locals: &mut HashMap<typed_ir::Path, RuntimeType>) {
     match pattern {
         Pattern::Bind { name, ty } => {
-            locals.insert(core_ir::Path::from_name(name.clone()), ty.clone());
+            locals.insert(typed_ir::Path::from_name(name.clone()), ty.clone());
         }
         Pattern::As { pattern, name, ty } => {
             push_pattern_local_types(pattern, locals);
-            locals.insert(core_ir::Path::from_name(name.clone()), ty.clone());
+            locals.insert(typed_ir::Path::from_name(name.clone()), ty.clone());
         }
         Pattern::Tuple { items, .. } => {
             for item in items {
@@ -871,8 +871,8 @@ fn push_pattern_local_types(pattern: &Pattern, locals: &mut HashMap<core_ir::Pat
 }
 
 fn restore_local(
-    locals: &mut HashMap<core_ir::Path, RuntimeType>,
-    path: core_ir::Path,
+    locals: &mut HashMap<typed_ir::Path, RuntimeType>,
+    path: typed_ir::Path,
     previous: Option<RuntimeType>,
 ) {
     match previous {
@@ -888,7 +888,7 @@ fn restore_local(
 fn hir_function_param_type(ty: &RuntimeType) -> Option<RuntimeType> {
     match ty {
         RuntimeType::Fun { param, .. } => Some(param.as_ref().clone()),
-        RuntimeType::Core(core_ir::Type::Fun {
+        RuntimeType::Core(typed_ir::Type::Fun {
             param,
             param_effect,
             ..
@@ -897,7 +897,7 @@ fn hir_function_param_type(ty: &RuntimeType) -> Option<RuntimeType> {
     }
 }
 
-fn effected_core_as_hir_type(value: &core_ir::Type, effect: &core_ir::Type) -> RuntimeType {
+fn effected_core_as_hir_type(value: &typed_ir::Type, effect: &typed_ir::Type) -> RuntimeType {
     let value = normalize_hir_function_type(RuntimeType::core(value.clone()));
     let effect = project_runtime_effect(effect);
     if should_thunk_effect(&effect) {
@@ -908,15 +908,15 @@ fn effected_core_as_hir_type(value: &core_ir::Type, effect: &core_ir::Type) -> R
 }
 
 fn variant_pattern_runtime_type(
-    tag: &core_ir::Name,
+    tag: &typed_ir::Name,
     value: Option<&Pattern>,
     fallback: RuntimeType,
 ) -> RuntimeType {
-    if matches!(fallback, RuntimeType::Core(core_ir::Type::Named { .. })) {
+    if matches!(fallback, RuntimeType::Core(typed_ir::Type::Named { .. })) {
         return fallback;
     }
-    RuntimeType::core(core_ir::Type::Variant(core_ir::VariantType {
-        cases: vec![core_ir::VariantCase {
+    RuntimeType::core(typed_ir::Type::Variant(typed_ir::VariantType {
+        cases: vec![typed_ir::VariantCase {
             name: tag.clone(),
             payloads: value
                 .iter()

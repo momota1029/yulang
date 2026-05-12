@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::ir::{
     Expr, ExprKind, JoinEvidence, MatchArm, Pattern, RecordExprField, RecordPatternField,
@@ -34,25 +34,25 @@ mod tests {
     #[test]
     fn project_runtime_type_erases_observation_intersections() {
         let label = named("std::flow::label_loop::label");
-        let raw = core_ir::Type::Inter(vec![
-            core_ir::Type::Var(core_ir::TypeVar("t0".to_string())),
-            core_ir::Type::Fun {
-                param: Box::new(core_ir::Type::Union(vec![
-                    core_ir::Type::Var(core_ir::TypeVar("t1".to_string())),
+        let raw = typed_ir::Type::Inter(vec![
+            typed_ir::Type::Var(typed_ir::TypeVar("t0".to_string())),
+            typed_ir::Type::Fun {
+                param: Box::new(typed_ir::Type::Union(vec![
+                    typed_ir::Type::Var(typed_ir::TypeVar("t1".to_string())),
                     label.clone(),
                 ])),
-                param_effect: Box::new(core_ir::Type::Never),
-                ret_effect: Box::new(core_ir::Type::Row {
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Row {
                     items: Vec::new(),
-                    tail: Box::new(core_ir::Type::Any),
+                    tail: Box::new(typed_ir::Type::Any),
                 }),
-                ret: Box::new(core_ir::Type::Inter(vec![
-                    core_ir::Type::Var(core_ir::TypeVar("t2".to_string())),
-                    core_ir::Type::Fun {
+                ret: Box::new(typed_ir::Type::Inter(vec![
+                    typed_ir::Type::Var(typed_ir::TypeVar("t2".to_string())),
+                    typed_ir::Type::Fun {
                         param: Box::new(named("unit")),
-                        param_effect: Box::new(core_ir::Type::Never),
-                        ret_effect: Box::new(core_ir::Type::Never),
-                        ret: Box::new(core_ir::Type::Any),
+                        param_effect: Box::new(typed_ir::Type::Never),
+                        ret_effect: Box::new(typed_ir::Type::Never),
+                        ret: Box::new(typed_ir::Type::Any),
                     },
                 ])),
             },
@@ -63,22 +63,22 @@ mod tests {
         assert!(!contains_non_runtime_type(&projected), "{projected:?}");
         assert!(matches!(
             projected,
-            core_ir::Type::Fun { param, ret, .. }
-                if *param == label && matches!(*ret, core_ir::Type::Fun { .. })
+            typed_ir::Type::Fun { param, ret, .. }
+                if *param == label && matches!(*ret, typed_ir::Type::Fun { .. })
         ));
     }
 
     #[test]
     fn project_runtime_type_keeps_principal_vars_only() {
-        let principal = core_ir::TypeVar("a".to_string());
-        let observed = core_ir::TypeVar("t0".to_string());
+        let principal = typed_ir::TypeVar("a".to_string());
+        let observed = typed_ir::TypeVar("t0".to_string());
         let mut allowed = BTreeSet::new();
         allowed.insert(principal.clone());
-        let raw = core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
-            args: vec![core_ir::TypeArg::Type(core_ir::Type::Union(vec![
-                core_ir::Type::Var(principal.clone()),
-                core_ir::Type::Var(observed),
+        let raw = typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("list".to_string())),
+            args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Union(vec![
+                typed_ir::Type::Var(principal.clone()),
+                typed_ir::Type::Var(observed),
             ]))],
         };
 
@@ -86,38 +86,38 @@ mod tests {
 
         assert_eq!(
             projected,
-            core_ir::Type::Named {
-                path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
-                args: vec![core_ir::TypeArg::Type(core_ir::Type::Var(principal))],
+            typed_ir::Type::Named {
+                path: typed_ir::Path::from_name(typed_ir::Name("list".to_string())),
+                args: vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(principal))],
             }
         );
     }
 
     #[test]
     fn project_runtime_type_erases_unallowed_value_vars() {
-        let raw = core_ir::Type::Fun {
-            param: Box::new(core_ir::Type::Var(core_ir::TypeVar("t0".to_string()))),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Never),
-            ret: Box::new(core_ir::Type::Var(core_ir::TypeVar("t1".to_string()))),
+        let raw = typed_ir::Type::Fun {
+            param: Box::new(typed_ir::Type::Var(typed_ir::TypeVar("t0".to_string()))),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(typed_ir::Type::Var(typed_ir::TypeVar("t1".to_string()))),
         };
 
         let projected = project_runtime_type_with_vars(&raw, &BTreeSet::new());
 
         assert_eq!(
             projected,
-            core_ir::Type::Fun {
-                param: Box::new(core_ir::Type::Unknown),
-                param_effect: Box::new(core_ir::Type::Never),
-                ret_effect: Box::new(core_ir::Type::Never),
-                ret: Box::new(core_ir::Type::Unknown),
+            typed_ir::Type::Fun {
+                param: Box::new(typed_ir::Type::Unknown),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(typed_ir::Type::Unknown),
             }
         );
     }
 
     #[test]
     fn project_hir_type_uses_unknown_for_unallowed_value_vars() {
-        let raw = core_ir::Type::Var(core_ir::TypeVar("t0".to_string()));
+        let raw = typed_ir::Type::Var(typed_ir::TypeVar("t0".to_string()));
 
         let projected = project_runtime_hir_type_with_vars(&raw, &BTreeSet::new());
 
@@ -126,22 +126,22 @@ mod tests {
 
     #[test]
     fn project_hir_wraps_effect_variable_intersection_parameter() {
-        let value = core_ir::TypeVar("a".to_string());
-        let effect = core_ir::TypeVar("e".to_string());
+        let value = typed_ir::TypeVar("a".to_string());
+        let effect = typed_ir::TypeVar("e".to_string());
         let mut allowed = BTreeSet::new();
         allowed.insert(value.clone());
         allowed.insert(effect.clone());
-        let raw = core_ir::Type::Fun {
-            param: Box::new(core_ir::Type::Var(value.clone())),
-            param_effect: Box::new(core_ir::Type::Inter(vec![
-                core_ir::Type::Var(effect.clone()),
-                core_ir::Type::Row {
+        let raw = typed_ir::Type::Fun {
+            param: Box::new(typed_ir::Type::Var(value.clone())),
+            param_effect: Box::new(typed_ir::Type::Inter(vec![
+                typed_ir::Type::Var(effect.clone()),
+                typed_ir::Type::Row {
                     items: Vec::new(),
-                    tail: Box::new(core_ir::Type::Any),
+                    tail: Box::new(typed_ir::Type::Any),
                 },
             ])),
-            ret_effect: Box::new(core_ir::Type::Never),
-            ret: Box::new(core_ir::Type::Var(value.clone())),
+            ret_effect: Box::new(typed_ir::Type::Never),
+            ret: Box::new(typed_ir::Type::Var(value.clone())),
         };
 
         let projected = project_runtime_hir_type_with_vars(&raw, &allowed);
@@ -149,12 +149,12 @@ mod tests {
         let RuntimeType::Fun { param, ret } = projected else {
             panic!("expected function");
         };
-        assert_eq!(*ret, RuntimeType::core(core_ir::Type::Var(value.clone())));
+        assert_eq!(*ret, RuntimeType::core(typed_ir::Type::Var(value.clone())));
         assert_eq!(
             *param,
             RuntimeType::thunk(
-                core_ir::Type::Var(effect),
-                RuntimeType::core(core_ir::Type::Var(value))
+                typed_ir::Type::Var(effect),
+                RuntimeType::core(typed_ir::Type::Var(value))
             )
         );
     }
@@ -162,14 +162,14 @@ mod tests {
     #[test]
     fn project_runtime_type_prefers_concrete_lower_bound_for_type_arg() {
         let int = named("int");
-        let raw = core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
-            args: vec![core_ir::TypeArg::Bounds(core_ir::TypeBounds {
-                lower: Some(Box::new(core_ir::Type::Union(vec![
-                    core_ir::Type::Var(core_ir::TypeVar("t0".to_string())),
+        let raw = typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("list".to_string())),
+            args: vec![typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+                lower: Some(Box::new(typed_ir::Type::Union(vec![
+                    typed_ir::Type::Var(typed_ir::TypeVar("t0".to_string())),
                     int.clone(),
                 ]))),
-                upper: Some(Box::new(core_ir::Type::Any)),
+                upper: Some(Box::new(typed_ir::Type::Any)),
             })],
         };
 
@@ -177,9 +177,9 @@ mod tests {
 
         assert_eq!(
             projected,
-            core_ir::Type::Named {
-                path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
-                args: vec![core_ir::TypeArg::Type(int)],
+            typed_ir::Type::Named {
+                path: typed_ir::Path::from_name(typed_ir::Name("list".to_string())),
+                args: vec![typed_ir::TypeArg::Type(int)],
             }
         );
     }
@@ -188,19 +188,19 @@ mod tests {
     fn project_runtime_type_preserves_effect_row_type_arg() {
         let state = named("&state");
         let int = named("int");
-        let effect = core_ir::Type::Row {
+        let effect = typed_ir::Type::Row {
             items: vec![state.clone()],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
-        let raw = core_ir::Type::Named {
-            path: core_ir::Path::new(vec![
-                core_ir::Name("std".to_string()),
-                core_ir::Name("var".to_string()),
-                core_ir::Name("ref".to_string()),
+        let raw = typed_ir::Type::Named {
+            path: typed_ir::Path::new(vec![
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("var".to_string()),
+                typed_ir::Name("ref".to_string()),
             ]),
             args: vec![
-                core_ir::TypeArg::Type(effect.clone()),
-                core_ir::TypeArg::Type(int.clone()),
+                typed_ir::TypeArg::Type(effect.clone()),
+                typed_ir::TypeArg::Type(int.clone()),
             ],
         };
 
@@ -208,13 +208,16 @@ mod tests {
 
         assert_eq!(
             projected,
-            core_ir::Type::Named {
-                path: core_ir::Path::new(vec![
-                    core_ir::Name("std".to_string()),
-                    core_ir::Name("var".to_string()),
-                    core_ir::Name("ref".to_string()),
+            typed_ir::Type::Named {
+                path: typed_ir::Path::new(vec![
+                    typed_ir::Name("std".to_string()),
+                    typed_ir::Name("var".to_string()),
+                    typed_ir::Name("ref".to_string()),
                 ]),
-                args: vec![core_ir::TypeArg::Type(effect), core_ir::TypeArg::Type(int)],
+                args: vec![
+                    typed_ir::TypeArg::Type(effect),
+                    typed_ir::TypeArg::Type(int)
+                ],
             }
         );
         assert!(!contains_non_runtime_type(&projected), "{projected:?}");
@@ -222,24 +225,24 @@ mod tests {
 
     #[test]
     fn never_is_compatible_with_value_expected_type() {
-        assert!(type_compatible(&named("unit"), &core_ir::Type::Never));
-        assert!(!type_compatible(&core_ir::Type::Never, &named("unit")));
+        assert!(type_compatible(&named("unit"), &typed_ir::Type::Never));
+        assert!(!type_compatible(&typed_ir::Type::Never, &named("unit")));
     }
 
     #[test]
     fn project_runtime_effect_merges_rows_and_erases_holes() {
         let io = named("io");
         let yield_effect = named("yield");
-        let raw = core_ir::Type::Union(vec![
-            core_ir::Type::Row {
+        let raw = typed_ir::Type::Union(vec![
+            typed_ir::Type::Row {
                 items: vec![io.clone()],
-                tail: Box::new(core_ir::Type::Any),
+                tail: Box::new(typed_ir::Type::Any),
             },
-            core_ir::Type::Union(vec![
-                core_ir::Type::Var(core_ir::TypeVar("t0".to_string())),
-                core_ir::Type::Row {
+            typed_ir::Type::Union(vec![
+                typed_ir::Type::Var(typed_ir::TypeVar("t0".to_string())),
+                typed_ir::Type::Row {
                     items: vec![yield_effect.clone(), io.clone()],
-                    tail: Box::new(core_ir::Type::Never),
+                    tail: Box::new(typed_ir::Type::Never),
                 },
             ]),
         ]);
@@ -248,9 +251,9 @@ mod tests {
 
         assert_eq!(
             projected,
-            core_ir::Type::Row {
+            typed_ir::Type::Row {
                 items: vec![io, yield_effect],
-                tail: Box::new(core_ir::Type::Never),
+                tail: Box::new(typed_ir::Type::Never),
             }
         );
     }
@@ -262,11 +265,11 @@ mod tests {
         assert!(!needs_runtime_coercion(&named("int"), &named("float")));
     }
 
-    fn named(path: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::new(
+    fn named(path: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::new(
                 path.split("::")
-                    .map(|segment| core_ir::Name(segment.to_string()))
+                    .map(|segment| typed_ir::Name(segment.to_string()))
                     .collect(),
             ),
             args: Vec::new(),

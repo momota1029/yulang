@@ -1523,7 +1523,7 @@ std::flow::sub::sub:
     fn vm_applies_migrated_float_list_and_string_primitives() {
         assert_eq!(
             apply_primitive(
-                core_ir::PrimitiveOp::FloatAdd,
+                typed_ir::PrimitiveOp::FloatAdd,
                 &[
                     VmValue::Float("1.0".to_string()),
                     VmValue::Float("2.0".to_string())
@@ -1532,7 +1532,7 @@ std::flow::sub::sub:
             Ok(VmValue::Float("3.0".to_string()))
         );
         let range = apply_primitive(
-            core_ir::PrimitiveOp::ListIndexRange,
+            typed_ir::PrimitiveOp::ListIndexRange,
             &[
                 VmValue::List(ListTree::from_items(vec![
                     Rc::new(VmValue::Int("1".to_string())),
@@ -1556,7 +1556,7 @@ std::flow::sub::sub:
         );
         assert_eq!(
             apply_primitive(
-                core_ir::PrimitiveOp::StringIndexRange,
+                typed_ir::PrimitiveOp::StringIndexRange,
                 &[
                     VmValue::String(StringTree::from_str("aあ🙂z")),
                     range_value(1, 3),
@@ -1566,7 +1566,7 @@ std::flow::sub::sub:
         );
         assert_eq!(
             apply_primitive(
-                core_ir::PrimitiveOp::StringSplice,
+                typed_ir::PrimitiveOp::StringSplice,
                 &[
                     VmValue::String(StringTree::from_str("aあ🙂z")),
                     range_value(1, 3),
@@ -1579,7 +1579,7 @@ std::flow::sub::sub:
 
     fn empty_module() -> Module {
         Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: Vec::new(),
             root_exprs: Vec::new(),
             roots: Vec::new(),
@@ -1587,7 +1587,7 @@ std::flow::sub::sub:
         }
     }
 
-    fn blocked_thunk(guard_id: u64, allowed: core_ir::Type) -> VmThunk {
+    fn blocked_thunk(guard_id: u64, allowed: typed_ir::Type) -> VmThunk {
         VmThunk {
             body: ThunkBody::Value(VmValue::Unit),
             env: Env::new(),
@@ -1597,7 +1597,7 @@ std::flow::sub::sub:
     }
 
     fn request(
-        effect: core_ir::Path,
+        effect: typed_ir::Path,
         blocked_id: Option<u64>,
         guard_stack: GuardStack,
     ) -> VmRequest {
@@ -1624,11 +1624,11 @@ std::flow::sub::sub:
     fn value_expr(value: VmValue) -> Expr {
         match value {
             VmValue::Int(value) => Expr::typed(
-                ExprKind::Lit(core_ir::Lit::Int(value)),
+                ExprKind::Lit(typed_ir::Lit::Int(value)),
                 RuntimeType::core(named_type("int")),
             ),
             VmValue::Unit => Expr::typed(
-                ExprKind::Lit(core_ir::Lit::Unit),
+                ExprKind::Lit(typed_ir::Lit::Unit),
                 RuntimeType::core(named_type("unit")),
             ),
             other => panic!("unsupported test arm value: {other:?}"),
@@ -1646,34 +1646,34 @@ std::flow::sub::sub:
             })
     }
 
-    fn effect_type(name: &str) -> core_ir::Type {
+    fn effect_type(name: &str) -> typed_ir::Type {
         named_type(name)
     }
 
-    fn named_type(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named_type(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args: Vec::new(),
         }
     }
 
-    fn effect_path(effect: &str, op: &str) -> core_ir::Path {
-        core_ir::Path::new(vec![
-            core_ir::Name(effect.to_string()),
-            core_ir::Name(op.to_string()),
+    fn effect_path(effect: &str, op: &str) -> typed_ir::Path {
+        typed_ir::Path::new(vec![
+            typed_ir::Name(effect.to_string()),
+            typed_ir::Name(op.to_string()),
         ])
     }
 
     fn range_value(start: i64, end: i64) -> VmValue {
         VmValue::Variant {
-            tag: core_ir::Name("within".to_string()),
+            tag: typed_ir::Name("within".to_string()),
             value: Some(Box::new(VmValue::Tuple(vec![
                 VmValue::Variant {
-                    tag: core_ir::Name("included".to_string()),
+                    tag: typed_ir::Name("included".to_string()),
                     value: Some(Box::new(VmValue::Int(start.to_string()))),
                 },
                 VmValue::Variant {
-                    tag: core_ir::Name("excluded".to_string()),
+                    tag: typed_ir::Name("excluded".to_string()),
                     value: Some(Box::new(VmValue::Int(end.to_string()))),
                 },
             ]))),
@@ -1773,7 +1773,7 @@ std::flow::sub::sub:
             RuntimeType::Thunk {
                 value,
                 ..
-            } if matches!(value.as_ref(), RuntimeType::Core(core_ir::Type::Never))
+            } if matches!(value.as_ref(), RuntimeType::Core(typed_ir::Type::Never))
         )
     }
 
@@ -1811,48 +1811,48 @@ std::flow::sub::sub:
     fn is_int_list_hir_type(ty: &RuntimeType) -> bool {
         matches!(
             ty,
-            RuntimeType::Core(core_ir::Type::Named { path, args })
+            RuntimeType::Core(typed_ir::Type::Named { path, args })
                 if path.segments.last().is_some_and(|name| name.0 == "list")
-                    && matches!(args.as_slice(), [core_ir::TypeArg::Type(item)] if is_int_core_type(item))
+                    && matches!(args.as_slice(), [typed_ir::TypeArg::Type(item)] if is_int_core_type(item))
         )
     }
 
-    fn is_int_core_type(ty: &core_ir::Type) -> bool {
-        matches!(ty, core_ir::Type::Named { path, args } if args.is_empty() && path.segments.last().is_some_and(|name| name.0 == "int"))
+    fn is_int_core_type(ty: &typed_ir::Type) -> bool {
+        matches!(ty, typed_ir::Type::Named { path, args } if args.is_empty() && path.segments.last().is_some_and(|name| name.0 == "int"))
     }
 
-    fn effect_contains_sub_int(ty: &core_ir::Type) -> bool {
+    fn effect_contains_sub_int(ty: &typed_ir::Type) -> bool {
         match ty {
-            core_ir::Type::Named { path, args } => {
+            typed_ir::Type::Named { path, args } => {
                 path.segments.last().is_some_and(|name| name.0 == "sub")
-                    && matches!(args.as_slice(), [core_ir::TypeArg::Type(arg)] if is_int_core_type(arg))
+                    && matches!(args.as_slice(), [typed_ir::TypeArg::Type(arg)] if is_int_core_type(arg))
             }
-            core_ir::Type::Row { items, tail } => {
+            typed_ir::Type::Row { items, tail } => {
                 items.iter().any(effect_contains_sub_int) || effect_contains_sub_int(tail)
             }
-            core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+            typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
                 items.iter().any(effect_contains_sub_int)
             }
-            core_ir::Type::Recursive { body, .. } => effect_contains_sub_int(body),
+            typed_ir::Type::Recursive { body, .. } => effect_contains_sub_int(body),
             _ => false,
         }
     }
 
-    fn effect_contains_named(ty: &core_ir::Type, expected: &str) -> bool {
+    fn effect_contains_named(ty: &typed_ir::Type, expected: &str) -> bool {
         match ty {
-            core_ir::Type::Named { path, .. } => {
+            typed_ir::Type::Named { path, .. } => {
                 path.segments.last().is_some_and(|name| name.0 == expected)
             }
-            core_ir::Type::Row { items, tail } => {
+            typed_ir::Type::Row { items, tail } => {
                 items
                     .iter()
                     .any(|item| effect_contains_named(item, expected))
                     || effect_contains_named(tail, expected)
             }
-            core_ir::Type::Union(items) | core_ir::Type::Inter(items) => items
+            typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => items
                 .iter()
                 .any(|item| effect_contains_named(item, expected)),
-            core_ir::Type::Recursive { body, .. } => effect_contains_named(body, expected),
+            typed_ir::Type::Recursive { body, .. } => effect_contains_named(body, expected),
             _ => false,
         }
     }

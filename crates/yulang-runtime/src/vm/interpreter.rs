@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) struct VmInterpreter<'m> {
     module: &'m Module,
-    bindings: HashMap<core_ir::Path, usize>,
+    bindings: HashMap<typed_ir::Path, usize>,
     next_guard_id: u64,
     guard_stack: GuardStack,
     eval_depth: usize,
@@ -66,7 +66,7 @@ impl<'m> VmInterpreter<'m> {
             ExprKind::Lambda { param, body, .. } => {
                 let (param_ty, ret) = match &expr.ty {
                     Type::Fun { param, ret } => (param.as_ref().clone(), ret.as_ref().clone()),
-                    _ => (Type::Core(core_ir::Type::Any), body.ty.clone()),
+                    _ => (Type::Core(typed_ir::Type::Any), body.ty.clone()),
                 };
                 Ok(VmResult::Value(VmValue::Closure(Rc::new(VmClosure {
                     param: param.clone(),
@@ -194,7 +194,7 @@ impl<'m> VmInterpreter<'m> {
 
     pub(super) fn eval_var(
         &mut self,
-        path: &core_ir::Path,
+        path: &typed_ir::Path,
         env: &Env,
     ) -> Result<VmResult, VmError> {
         if let Some(value) = env.get(path) {
@@ -391,7 +391,7 @@ impl<'m> VmInterpreter<'m> {
                 if let Some(self_name) = &callee.self_name {
                     env.insert(self_name.clone(), VmValue::Closure(callee.clone()));
                 }
-                env.insert(core_ir::Path::from_name(callee.param.clone()), arg);
+                env.insert(typed_ir::Path::from_name(callee.param.clone()), arg);
                 let result = self.eval_expr(&callee.body, &env)?;
                 Ok(wrap_result_for_type(result, &callee.ret))
             }
@@ -498,7 +498,7 @@ impl<'m> VmInterpreter<'m> {
     pub(super) fn select_field(
         &self,
         value: VmValue,
-        field: &core_ir::Name,
+        field: &typed_ir::Name,
     ) -> Result<VmResult, VmError> {
         let VmValue::Record(fields) = value else {
             return Err(VmError::ExpectedRecord(value));
@@ -710,7 +710,7 @@ impl<'m> VmInterpreter<'m> {
         self.bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
         if let Some(resume) = &arm.resume {
             arm_env.insert(
-                core_ir::Path::from_name(resume.name.clone()),
+                typed_ir::Path::from_name(resume.name.clone()),
                 VmValue::Resume(Rc::new(VmResume {
                     continuation: request.continuation.clone().inside_handle(id),
                 })),
@@ -968,18 +968,18 @@ fn make_recursive_local_value(pattern: &Pattern, value: VmValue) -> VmValue {
         return value;
     };
     let mut closure = (*closure).clone();
-    closure.self_name = Some(core_ir::Path::from_name(name));
+    closure.self_name = Some(typed_ir::Path::from_name(name));
     VmValue::Closure(Rc::new(closure))
 }
 
 fn closure_param_forces_thunk_arg(param_ty: &Type) -> bool {
     !matches!(
         param_ty,
-        Type::Thunk { .. } | Type::Core(core_ir::Type::Any)
+        Type::Thunk { .. } | Type::Core(typed_ir::Type::Any)
     )
 }
 
-fn single_bind_name(pattern: &Pattern) -> Option<core_ir::Name> {
+fn single_bind_name(pattern: &Pattern) -> Option<typed_ir::Name> {
     match pattern {
         Pattern::Bind { name, .. } => Some(name.clone()),
         Pattern::As { name, .. } => Some(name.clone()),

@@ -326,16 +326,16 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                         ..
                     } => {}
                     NativeAbiStmt::Primitive {
-                        op: yulang_core_ir::PrimitiveOp::StringConcat,
+                        op: yulang_typed_ir::PrimitiveOp::StringConcat,
                         ..
                     } => {}
                     NativeAbiStmt::Primitive {
                         op:
-                            yulang_core_ir::PrimitiveOp::ListEmpty
-                            | yulang_core_ir::PrimitiveOp::ListSingleton
-                            | yulang_core_ir::PrimitiveOp::ListMerge
-                            | yulang_core_ir::PrimitiveOp::ListLen
-                            | yulang_core_ir::PrimitiveOp::ListIndex,
+                            yulang_typed_ir::PrimitiveOp::ListEmpty
+                            | yulang_typed_ir::PrimitiveOp::ListSingleton
+                            | yulang_typed_ir::PrimitiveOp::ListMerge
+                            | yulang_typed_ir::PrimitiveOp::ListLen
+                            | yulang_typed_ir::PrimitiveOp::ListIndex,
                         ..
                     } => {}
                     NativeAbiStmt::Primitive { op, .. }
@@ -867,7 +867,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
         }
         NativeAbiStmt::Primitive {
             dest,
-            op: yulang_core_ir::PrimitiveOp::StringConcat,
+            op: yulang_typed_ir::PrimitiveOp::StringConcat,
             args,
         } => {
             let args = read_values(builder, function, defined, args)?;
@@ -885,7 +885,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
         }
         NativeAbiStmt::Primitive {
             dest,
-            op: yulang_core_ir::PrimitiveOp::ListEmpty,
+            op: yulang_typed_ir::PrimitiveOp::ListEmpty,
             args,
         } => {
             if !args.is_empty() {
@@ -908,7 +908,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
         }
         NativeAbiStmt::Primitive {
             dest,
-            op: yulang_core_ir::PrimitiveOp::ListSingleton,
+            op: yulang_typed_ir::PrimitiveOp::ListSingleton,
             args,
         } => {
             let args = read_values(builder, function, defined, args)?;
@@ -926,7 +926,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
         }
         NativeAbiStmt::Primitive {
             dest,
-            op: yulang_core_ir::PrimitiveOp::ListMerge,
+            op: yulang_typed_ir::PrimitiveOp::ListMerge,
             args,
         } => {
             let args = read_values(builder, function, defined, args)?;
@@ -944,7 +944,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
         }
         NativeAbiStmt::Primitive {
             dest,
-            op: yulang_core_ir::PrimitiveOp::ListLen,
+            op: yulang_typed_ir::PrimitiveOp::ListLen,
             args,
         } => {
             let args = read_values(builder, function, defined, args)?;
@@ -962,7 +962,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
         }
         NativeAbiStmt::Primitive {
             dest,
-            op: yulang_core_ir::PrimitiveOp::ListIndex,
+            op: yulang_typed_ir::PrimitiveOp::ListIndex,
             args,
         } => {
             let args = read_values(builder, function, defined, args)?;
@@ -1195,41 +1195,41 @@ fn variable(value: ValueId) -> Variable {
     Variable::from_u32(value.0 as u32)
 }
 
-fn primitive_unary_code(op: yulang_core_ir::PrimitiveOp) -> Option<i64> {
+fn primitive_unary_code(op: yulang_typed_ir::PrimitiveOp) -> Option<i64> {
     match op {
-        yulang_core_ir::PrimitiveOp::BoolNot => Some(NATIVE_PRIMITIVE_BOOL_NOT),
-        yulang_core_ir::PrimitiveOp::IntToString => Some(NATIVE_PRIMITIVE_INT_TO_STRING),
-        yulang_core_ir::PrimitiveOp::IntToHex => Some(NATIVE_PRIMITIVE_INT_TO_HEX),
-        yulang_core_ir::PrimitiveOp::IntToUpperHex => Some(NATIVE_PRIMITIVE_INT_TO_UPPER_HEX),
-        yulang_core_ir::PrimitiveOp::FloatToString => Some(NATIVE_PRIMITIVE_FLOAT_TO_STRING),
-        yulang_core_ir::PrimitiveOp::BoolToString => Some(NATIVE_PRIMITIVE_BOOL_TO_STRING),
-        yulang_core_ir::PrimitiveOp::StringLen => Some(NATIVE_PRIMITIVE_STRING_LEN),
+        yulang_typed_ir::PrimitiveOp::BoolNot => Some(NATIVE_PRIMITIVE_BOOL_NOT),
+        yulang_typed_ir::PrimitiveOp::IntToString => Some(NATIVE_PRIMITIVE_INT_TO_STRING),
+        yulang_typed_ir::PrimitiveOp::IntToHex => Some(NATIVE_PRIMITIVE_INT_TO_HEX),
+        yulang_typed_ir::PrimitiveOp::IntToUpperHex => Some(NATIVE_PRIMITIVE_INT_TO_UPPER_HEX),
+        yulang_typed_ir::PrimitiveOp::FloatToString => Some(NATIVE_PRIMITIVE_FLOAT_TO_STRING),
+        yulang_typed_ir::PrimitiveOp::BoolToString => Some(NATIVE_PRIMITIVE_BOOL_TO_STRING),
+        yulang_typed_ir::PrimitiveOp::StringLen => Some(NATIVE_PRIMITIVE_STRING_LEN),
         _ => None,
     }
 }
 
-fn primitive_binary_code(op: yulang_core_ir::PrimitiveOp) -> Option<i64> {
+fn primitive_binary_code(op: yulang_typed_ir::PrimitiveOp) -> Option<i64> {
     match op {
-        yulang_core_ir::PrimitiveOp::BoolEq => Some(NATIVE_PRIMITIVE_BOOL_EQ),
-        yulang_core_ir::PrimitiveOp::IntAdd => Some(NATIVE_PRIMITIVE_INT_ADD),
-        yulang_core_ir::PrimitiveOp::IntSub => Some(NATIVE_PRIMITIVE_INT_SUB),
-        yulang_core_ir::PrimitiveOp::IntMul => Some(NATIVE_PRIMITIVE_INT_MUL),
-        yulang_core_ir::PrimitiveOp::IntDiv => Some(NATIVE_PRIMITIVE_INT_DIV),
-        yulang_core_ir::PrimitiveOp::IntEq => Some(NATIVE_PRIMITIVE_INT_EQ),
-        yulang_core_ir::PrimitiveOp::IntLt => Some(NATIVE_PRIMITIVE_INT_LT),
-        yulang_core_ir::PrimitiveOp::IntLe => Some(NATIVE_PRIMITIVE_INT_LE),
-        yulang_core_ir::PrimitiveOp::IntGt => Some(NATIVE_PRIMITIVE_INT_GT),
-        yulang_core_ir::PrimitiveOp::IntGe => Some(NATIVE_PRIMITIVE_INT_GE),
-        yulang_core_ir::PrimitiveOp::FloatAdd => Some(NATIVE_PRIMITIVE_FLOAT_ADD),
-        yulang_core_ir::PrimitiveOp::FloatSub => Some(NATIVE_PRIMITIVE_FLOAT_SUB),
-        yulang_core_ir::PrimitiveOp::FloatMul => Some(NATIVE_PRIMITIVE_FLOAT_MUL),
-        yulang_core_ir::PrimitiveOp::FloatDiv => Some(NATIVE_PRIMITIVE_FLOAT_DIV),
-        yulang_core_ir::PrimitiveOp::FloatEq => Some(NATIVE_PRIMITIVE_FLOAT_EQ),
-        yulang_core_ir::PrimitiveOp::FloatLt => Some(NATIVE_PRIMITIVE_FLOAT_LT),
-        yulang_core_ir::PrimitiveOp::FloatLe => Some(NATIVE_PRIMITIVE_FLOAT_LE),
-        yulang_core_ir::PrimitiveOp::FloatGt => Some(NATIVE_PRIMITIVE_FLOAT_GT),
-        yulang_core_ir::PrimitiveOp::FloatGe => Some(NATIVE_PRIMITIVE_FLOAT_GE),
-        yulang_core_ir::PrimitiveOp::StringIndex => Some(NATIVE_PRIMITIVE_STRING_INDEX),
+        yulang_typed_ir::PrimitiveOp::BoolEq => Some(NATIVE_PRIMITIVE_BOOL_EQ),
+        yulang_typed_ir::PrimitiveOp::IntAdd => Some(NATIVE_PRIMITIVE_INT_ADD),
+        yulang_typed_ir::PrimitiveOp::IntSub => Some(NATIVE_PRIMITIVE_INT_SUB),
+        yulang_typed_ir::PrimitiveOp::IntMul => Some(NATIVE_PRIMITIVE_INT_MUL),
+        yulang_typed_ir::PrimitiveOp::IntDiv => Some(NATIVE_PRIMITIVE_INT_DIV),
+        yulang_typed_ir::PrimitiveOp::IntEq => Some(NATIVE_PRIMITIVE_INT_EQ),
+        yulang_typed_ir::PrimitiveOp::IntLt => Some(NATIVE_PRIMITIVE_INT_LT),
+        yulang_typed_ir::PrimitiveOp::IntLe => Some(NATIVE_PRIMITIVE_INT_LE),
+        yulang_typed_ir::PrimitiveOp::IntGt => Some(NATIVE_PRIMITIVE_INT_GT),
+        yulang_typed_ir::PrimitiveOp::IntGe => Some(NATIVE_PRIMITIVE_INT_GE),
+        yulang_typed_ir::PrimitiveOp::FloatAdd => Some(NATIVE_PRIMITIVE_FLOAT_ADD),
+        yulang_typed_ir::PrimitiveOp::FloatSub => Some(NATIVE_PRIMITIVE_FLOAT_SUB),
+        yulang_typed_ir::PrimitiveOp::FloatMul => Some(NATIVE_PRIMITIVE_FLOAT_MUL),
+        yulang_typed_ir::PrimitiveOp::FloatDiv => Some(NATIVE_PRIMITIVE_FLOAT_DIV),
+        yulang_typed_ir::PrimitiveOp::FloatEq => Some(NATIVE_PRIMITIVE_FLOAT_EQ),
+        yulang_typed_ir::PrimitiveOp::FloatLt => Some(NATIVE_PRIMITIVE_FLOAT_LT),
+        yulang_typed_ir::PrimitiveOp::FloatLe => Some(NATIVE_PRIMITIVE_FLOAT_LE),
+        yulang_typed_ir::PrimitiveOp::FloatGt => Some(NATIVE_PRIMITIVE_FLOAT_GT),
+        yulang_typed_ir::PrimitiveOp::FloatGe => Some(NATIVE_PRIMITIVE_FLOAT_GE),
+        yulang_typed_ir::PrimitiveOp::StringIndex => Some(NATIVE_PRIMITIVE_STRING_INDEX),
         _ => None,
     }
 }
@@ -1348,7 +1348,7 @@ mod tests {
                     params: Vec::new(),
                     stmts: vec![NativeAbiStmt::Primitive {
                         dest: ValueId(2),
-                        op: yulang_core_ir::PrimitiveOp::StringConcat,
+                        op: yulang_typed_ir::PrimitiveOp::StringConcat,
                         args: vec![ValueId(0), ValueId(1)],
                     }],
                     terminator: NativeTerminator::Return(ValueId(2)),
@@ -1408,7 +1408,7 @@ mod tests {
                         },
                         NativeAbiStmt::Primitive {
                             dest: ValueId(1),
-                            op: yulang_core_ir::PrimitiveOp::ListSingleton,
+                            op: yulang_typed_ir::PrimitiveOp::ListSingleton,
                             args: vec![ValueId(0)],
                         },
                         NativeAbiStmt::Literal {
@@ -1417,12 +1417,12 @@ mod tests {
                         },
                         NativeAbiStmt::Primitive {
                             dest: ValueId(3),
-                            op: yulang_core_ir::PrimitiveOp::ListSingleton,
+                            op: yulang_typed_ir::PrimitiveOp::ListSingleton,
                             args: vec![ValueId(2)],
                         },
                         NativeAbiStmt::Primitive {
                             dest: ValueId(4),
-                            op: yulang_core_ir::PrimitiveOp::ListMerge,
+                            op: yulang_typed_ir::PrimitiveOp::ListMerge,
                             args: vec![ValueId(1), ValueId(3)],
                         },
                     ],
@@ -1535,7 +1535,7 @@ mod tests {
             },
             NativeAbiStmt::Primitive {
                 dest: ValueId(1),
-                op: yulang_core_ir::PrimitiveOp::ListSingleton,
+                op: yulang_typed_ir::PrimitiveOp::ListSingleton,
                 args: vec![ValueId(0)],
             },
             NativeAbiStmt::Literal {
@@ -1544,12 +1544,12 @@ mod tests {
             },
             NativeAbiStmt::Primitive {
                 dest: ValueId(3),
-                op: yulang_core_ir::PrimitiveOp::ListSingleton,
+                op: yulang_typed_ir::PrimitiveOp::ListSingleton,
                 args: vec![ValueId(2)],
             },
             NativeAbiStmt::Primitive {
                 dest: ValueId(4),
-                op: yulang_core_ir::PrimitiveOp::ListMerge,
+                op: yulang_typed_ir::PrimitiveOp::ListMerge,
                 args: vec![ValueId(1), ValueId(3)],
             },
         ];
@@ -1560,13 +1560,13 @@ mod tests {
             });
             stmts.push(NativeAbiStmt::Primitive {
                 dest,
-                op: yulang_core_ir::PrimitiveOp::ListIndex,
+                op: yulang_typed_ir::PrimitiveOp::ListIndex,
                 args: vec![ValueId(4), index],
             });
         } else {
             stmts.push(NativeAbiStmt::Primitive {
                 dest,
-                op: yulang_core_ir::PrimitiveOp::ListLen,
+                op: yulang_typed_ir::PrimitiveOp::ListLen,
                 args: vec![ValueId(4)],
             });
         }

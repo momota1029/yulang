@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn substitute_binding(
     binding: Binding,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> Binding {
     Binding {
         name: binding.name,
@@ -14,7 +14,7 @@ pub(super) fn substitute_binding(
 
 pub(super) fn substitute_expr(
     expr: Expr,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> Expr {
     let ty = substitute_hir_type(expr.ty, substitutions);
     let kind = match expr.kind {
@@ -170,7 +170,7 @@ pub(super) fn substitute_expr(
 
 pub(super) fn substitute_stmt(
     stmt: Stmt,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> Stmt {
     match stmt {
         Stmt::Let { pattern, value } => Stmt::Let {
@@ -187,7 +187,7 @@ pub(super) fn substitute_stmt(
 
 pub(super) fn substitute_pattern(
     pattern: Pattern,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> Pattern {
     match pattern {
         Pattern::Wildcard { ty } => Pattern::Wildcard {
@@ -266,15 +266,15 @@ pub(super) fn substitute_pattern(
 }
 
 fn variant_pattern_runtime_type(
-    tag: &core_ir::Name,
+    tag: &typed_ir::Name,
     value: Option<&Pattern>,
     fallback: RuntimeType,
 ) -> RuntimeType {
-    if matches!(fallback, RuntimeType::Core(core_ir::Type::Named { .. })) {
+    if matches!(fallback, RuntimeType::Core(typed_ir::Type::Named { .. })) {
         return fallback;
     }
-    RuntimeType::core(core_ir::Type::Variant(core_ir::VariantType {
-        cases: vec![core_ir::VariantCase {
+    RuntimeType::core(typed_ir::Type::Variant(typed_ir::VariantType {
+        cases: vec![typed_ir::VariantCase {
             name: tag.clone(),
             payloads: value
                 .iter()
@@ -287,7 +287,7 @@ fn variant_pattern_runtime_type(
 
 pub(super) fn substitute_hir_type(
     ty: RuntimeType,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> RuntimeType {
     let allowed_vars = BTreeSet::new();
     let ty = match ty {

@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult, TypeSource};
 use crate::ir::{
@@ -34,7 +34,7 @@ use types::*;
 #[derive(Debug, Clone)]
 pub(super) struct BindingInfo {
     pub(super) ty: RuntimeType,
-    pub(super) type_params: Vec<core_ir::TypeVar>,
+    pub(super) type_params: Vec<typed_ir::TypeVar>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,7 +43,7 @@ pub(super) enum TypeArgKind {
     Effect,
 }
 
-pub(super) type TypeArgKinds = HashMap<core_ir::Path, Vec<TypeArgKind>>;
+pub(super) type TypeArgKinds = HashMap<typed_ir::Path, Vec<TypeArgKind>>;
 
 pub fn validate_module(module: &Module) -> RuntimeResult<()> {
     let mut bindings = HashMap::new();
@@ -95,7 +95,7 @@ pub fn validate_module(module: &Module) -> RuntimeResult<()> {
 
 fn validate_binding(
     binding: &Binding,
-    bindings: &HashMap<core_ir::Path, BindingInfo>,
+    bindings: &HashMap<typed_ir::Path, BindingInfo>,
     type_arg_kinds: &TypeArgKinds,
 ) -> RuntimeResult<()> {
     if !binding.type_params.is_empty() {
@@ -130,13 +130,13 @@ fn infer_type_arg_kinds(bindings: &[Binding]) -> TypeArgKinds {
 }
 
 fn infer_type_arg_kinds_from_hir(ty: &RuntimeType, out: &mut TypeArgKinds) {
-    let mut vars = HashMap::<core_ir::TypeVar, TypeArgKind>::new();
+    let mut vars = HashMap::<typed_ir::TypeVar, TypeArgKind>::new();
     collect_hir_type_var_kinds(ty, TypeArgKind::Value, &mut vars);
     collect_hir_named_arg_kinds(ty, &vars, out);
 }
 
-fn infer_type_arg_kinds_from_core(ty: &core_ir::Type, out: &mut TypeArgKinds) {
-    let mut vars = HashMap::<core_ir::TypeVar, TypeArgKind>::new();
+fn infer_type_arg_kinds_from_core(ty: &typed_ir::Type, out: &mut TypeArgKinds) {
+    let mut vars = HashMap::<typed_ir::TypeVar, TypeArgKind>::new();
     collect_core_type_var_kinds(ty, TypeArgKind::Value, &mut vars);
     collect_core_named_arg_kinds(ty, &vars, out);
 }
@@ -242,7 +242,7 @@ fn infer_type_arg_kinds_from_expr(expr: &Expr, out: &mut TypeArgKinds) {
 fn collect_hir_type_var_kinds(
     ty: &RuntimeType,
     slot: TypeArgKind,
-    out: &mut HashMap<core_ir::TypeVar, TypeArgKind>,
+    out: &mut HashMap<typed_ir::TypeVar, TypeArgKind>,
 ) {
     match ty {
         RuntimeType::Unknown => {}
@@ -259,19 +259,19 @@ fn collect_hir_type_var_kinds(
 }
 
 fn collect_core_type_var_kinds(
-    ty: &core_ir::Type,
+    ty: &typed_ir::Type,
     slot: TypeArgKind,
-    out: &mut HashMap<core_ir::TypeVar, TypeArgKind>,
+    out: &mut HashMap<typed_ir::TypeVar, TypeArgKind>,
 ) {
     match ty {
-        core_ir::Type::Var(var) => merge_var_kind(out, var.clone(), slot),
-        core_ir::Type::Named { args, .. } => {
+        typed_ir::Type::Var(var) => merge_var_kind(out, var.clone(), slot),
+        typed_ir::Type::Named { args, .. } => {
             for arg in args {
                 match arg {
-                    core_ir::TypeArg::Type(ty) => {
+                    typed_ir::TypeArg::Type(ty) => {
                         collect_core_type_var_kinds(ty, TypeArgKind::Value, out)
                     }
-                    core_ir::TypeArg::Bounds(bounds) => {
+                    typed_ir::TypeArg::Bounds(bounds) => {
                         if let Some(lower) = bounds.lower.as_deref() {
                             collect_core_type_var_kinds(lower, TypeArgKind::Value, out);
                         }
@@ -282,7 +282,7 @@ fn collect_core_type_var_kinds(
                 }
             }
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -293,24 +293,26 @@ fn collect_core_type_var_kinds(
             collect_core_type_var_kinds(ret_effect, TypeArgKind::Effect, out);
             collect_core_type_var_kinds(ret, TypeArgKind::Value, out);
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
             for item in items {
                 collect_core_type_var_kinds(item, slot, out);
             }
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             for field in &record.fields {
                 collect_core_type_var_kinds(&field.value, TypeArgKind::Value, out);
             }
             if let Some(spread) = &record.spread {
                 match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         collect_core_type_var_kinds(ty, TypeArgKind::Value, out);
                     }
                 }
             }
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             for case in &variant.cases {
                 for payload in &case.payloads {
                     collect_core_type_var_kinds(payload, TypeArgKind::Value, out);
@@ -320,20 +322,20 @@ fn collect_core_type_var_kinds(
                 collect_core_type_var_kinds(tail, TypeArgKind::Value, out);
             }
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             for item in items {
                 collect_core_type_var_kinds(item, TypeArgKind::Effect, out);
             }
             collect_core_type_var_kinds(tail, TypeArgKind::Effect, out);
         }
-        core_ir::Type::Recursive { body, .. } => collect_core_type_var_kinds(body, slot, out),
-        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => {}
+        typed_ir::Type::Recursive { body, .. } => collect_core_type_var_kinds(body, slot, out),
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
     }
 }
 
 fn collect_hir_named_arg_kinds(
     ty: &RuntimeType,
-    vars: &HashMap<core_ir::TypeVar, TypeArgKind>,
+    vars: &HashMap<typed_ir::TypeVar, TypeArgKind>,
     out: &mut TypeArgKinds,
 ) {
     match ty {
@@ -351,12 +353,12 @@ fn collect_hir_named_arg_kinds(
 }
 
 fn collect_core_named_arg_kinds(
-    ty: &core_ir::Type,
-    vars: &HashMap<core_ir::TypeVar, TypeArgKind>,
+    ty: &typed_ir::Type,
+    vars: &HashMap<typed_ir::TypeVar, TypeArgKind>,
     out: &mut TypeArgKinds,
 ) {
     match ty {
-        core_ir::Type::Named { path, args } => {
+        typed_ir::Type::Named { path, args } => {
             for (index, arg) in args.iter().enumerate() {
                 if let Some(var) = type_arg_single_var(arg)
                     && let Some(kind) = vars.get(&var).copied()
@@ -364,8 +366,8 @@ fn collect_core_named_arg_kinds(
                     merge_type_arg_kind(out, path.clone(), index, kind);
                 }
                 match arg {
-                    core_ir::TypeArg::Type(ty) => collect_core_named_arg_kinds(ty, vars, out),
-                    core_ir::TypeArg::Bounds(bounds) => {
+                    typed_ir::TypeArg::Type(ty) => collect_core_named_arg_kinds(ty, vars, out),
+                    typed_ir::TypeArg::Bounds(bounds) => {
                         if let Some(lower) = bounds.lower.as_deref() {
                             collect_core_named_arg_kinds(lower, vars, out);
                         }
@@ -376,7 +378,7 @@ fn collect_core_named_arg_kinds(
                 }
             }
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -387,24 +389,26 @@ fn collect_core_named_arg_kinds(
             collect_core_named_arg_kinds(ret_effect, vars, out);
             collect_core_named_arg_kinds(ret, vars, out);
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
             for item in items {
                 collect_core_named_arg_kinds(item, vars, out);
             }
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             for field in &record.fields {
                 collect_core_named_arg_kinds(&field.value, vars, out);
             }
             if let Some(spread) = &record.spread {
                 match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         collect_core_named_arg_kinds(ty, vars, out);
                     }
                 }
             }
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             for case in &variant.cases {
                 for payload in &case.payloads {
                     collect_core_named_arg_kinds(payload, vars, out);
@@ -414,26 +418,26 @@ fn collect_core_named_arg_kinds(
                 collect_core_named_arg_kinds(tail, vars, out);
             }
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             for item in items {
                 collect_core_named_arg_kinds(item, vars, out);
             }
             collect_core_named_arg_kinds(tail, vars, out);
         }
-        core_ir::Type::Recursive { body, .. } => collect_core_named_arg_kinds(body, vars, out),
-        core_ir::Type::Unknown
-        | core_ir::Type::Var(_)
-        | core_ir::Type::Never
-        | core_ir::Type::Any => {}
+        typed_ir::Type::Recursive { body, .. } => collect_core_named_arg_kinds(body, vars, out),
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Var(_)
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any => {}
     }
 }
 
-fn type_arg_single_var(arg: &core_ir::TypeArg) -> Option<core_ir::TypeVar> {
+fn type_arg_single_var(arg: &typed_ir::TypeArg) -> Option<typed_ir::TypeVar> {
     match arg {
-        core_ir::TypeArg::Type(core_ir::Type::Var(var)) => Some(var.clone()),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(typed_ir::Type::Var(var)) => Some(var.clone()),
+        typed_ir::TypeArg::Bounds(bounds) => {
             match (bounds.lower.as_deref(), bounds.upper.as_deref()) {
-                (Some(core_ir::Type::Var(lower)), Some(core_ir::Type::Var(upper)))
+                (Some(typed_ir::Type::Var(lower)), Some(typed_ir::Type::Var(upper)))
                     if lower == upper =>
                 {
                     Some(lower.clone())
@@ -446,8 +450,8 @@ fn type_arg_single_var(arg: &core_ir::TypeArg) -> Option<core_ir::TypeVar> {
 }
 
 fn merge_var_kind(
-    out: &mut HashMap<core_ir::TypeVar, TypeArgKind>,
-    var: core_ir::TypeVar,
+    out: &mut HashMap<typed_ir::TypeVar, TypeArgKind>,
+    var: typed_ir::TypeVar,
     kind: TypeArgKind,
 ) {
     let entry = out.entry(var).or_insert(kind);
@@ -458,7 +462,7 @@ fn merge_var_kind(
 
 fn merge_type_arg_kind(
     out: &mut TypeArgKinds,
-    path: core_ir::Path,
+    path: typed_ir::Path,
     index: usize,
     kind: TypeArgKind,
 ) {
@@ -584,18 +588,18 @@ fn infer_concrete_effect_args_from_expr(expr: &Expr, out: &mut TypeArgKinds) {
     }
 }
 
-fn infer_concrete_effect_args_from_core(ty: &core_ir::Type, out: &mut TypeArgKinds) {
+fn infer_concrete_effect_args_from_core(ty: &typed_ir::Type, out: &mut TypeArgKinds) {
     match ty {
-        core_ir::Type::Named { path, args } => {
+        typed_ir::Type::Named { path, args } => {
             for (index, arg) in args.iter().enumerate() {
                 match arg {
-                    core_ir::TypeArg::Type(arg_ty) => {
-                        if matches!(arg_ty, core_ir::Type::Row { .. }) {
+                    typed_ir::TypeArg::Type(arg_ty) => {
+                        if matches!(arg_ty, typed_ir::Type::Row { .. }) {
                             merge_type_arg_kind(out, path.clone(), index, TypeArgKind::Effect);
                         }
                         infer_concrete_effect_args_from_core(arg_ty, out);
                     }
-                    core_ir::TypeArg::Bounds(bounds) => {
+                    typed_ir::TypeArg::Bounds(bounds) => {
                         if let Some(lower) = bounds.lower.as_deref() {
                             infer_concrete_effect_args_from_core(lower, out);
                         }
@@ -606,7 +610,7 @@ fn infer_concrete_effect_args_from_core(ty: &core_ir::Type, out: &mut TypeArgKin
                 }
             }
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -617,24 +621,26 @@ fn infer_concrete_effect_args_from_core(ty: &core_ir::Type, out: &mut TypeArgKin
             infer_concrete_effect_args_from_core(ret_effect, out);
             infer_concrete_effect_args_from_core(ret, out);
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
             for item in items {
                 infer_concrete_effect_args_from_core(item, out);
             }
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             for field in &record.fields {
                 infer_concrete_effect_args_from_core(&field.value, out);
             }
             if let Some(spread) = &record.spread {
                 match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         infer_concrete_effect_args_from_core(ty, out);
                     }
                 }
             }
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             for case in &variant.cases {
                 for payload in &case.payloads {
                     infer_concrete_effect_args_from_core(payload, out);
@@ -644,17 +650,17 @@ fn infer_concrete_effect_args_from_core(ty: &core_ir::Type, out: &mut TypeArgKin
                 infer_concrete_effect_args_from_core(tail, out);
             }
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             for item in items {
                 infer_concrete_effect_args_from_core(item, out);
             }
             infer_concrete_effect_args_from_core(tail, out);
         }
-        core_ir::Type::Recursive { body, .. } => infer_concrete_effect_args_from_core(body, out),
-        core_ir::Type::Unknown
-        | core_ir::Type::Var(_)
-        | core_ir::Type::Never
-        | core_ir::Type::Any => {}
+        typed_ir::Type::Recursive { body, .. } => infer_concrete_effect_args_from_core(body, out),
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Var(_)
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any => {}
     }
 }
 

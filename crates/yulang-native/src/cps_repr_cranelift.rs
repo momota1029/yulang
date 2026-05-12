@@ -8,8 +8,8 @@ use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataDescription, FuncId, Linkage, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule};
-use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
+use yulang_typed_ir as typed_ir;
 
 use crate::cps_ir::{
     CpsContinuationId, CpsHandlerId, CpsLiteral, CpsStmt, CpsTerminator, CpsValueId,
@@ -48,7 +48,7 @@ pub enum CpsReprCraneliftError {
     },
     UnsupportedPrimitive {
         function: String,
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
     },
     UnsupportedStmt {
         function: String,
@@ -763,7 +763,7 @@ struct HandlerCandidate {
 
 #[derive(Debug, Clone)]
 struct HandlerRegistry {
-    candidates: Vec<(core_ir::Path, HandlerCandidate)>,
+    candidates: Vec<(typed_ir::Path, HandlerCandidate)>,
 }
 
 impl HandlerRegistry {
@@ -790,7 +790,7 @@ impl HandlerRegistry {
         Self { candidates }
     }
 
-    fn candidates_for_effect(&self, effect: &core_ir::Path) -> Vec<HandlerCandidate> {
+    fn candidates_for_effect(&self, effect: &typed_ir::Path) -> Vec<HandlerCandidate> {
         self.candidates
             .iter()
             .filter(|(expected, _)| effect_matches(expected, effect))
@@ -2477,7 +2477,7 @@ fn make_tuple_value<M: Module>(
     call_i64_helper(module_backend, builder, helper_name, args)
 }
 
-fn tag_hash(tag: &core_ir::Name) -> i64 {
+fn tag_hash(tag: &typed_ir::Name) -> i64 {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in tag.0.as_bytes() {
         hash ^= u64::from(*byte);
@@ -2489,7 +2489,7 @@ fn tag_hash(tag: &core_ir::Name) -> i64 {
 fn register_variant_tag<M: Module, L: CpsLiteralStore>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
-    tag: &core_ir::Name,
+    tag: &typed_ir::Name,
     literals: &mut L,
 ) -> CpsReprCraneliftResult<ir::Value> {
     let tag_hash = builder.ins().iconst(types::I64, tag_hash(tag));
@@ -2993,7 +2993,7 @@ fn lower_terminator(
     Ok(())
 }
 
-fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
+fn effect_matches(expected: &typed_ir::Path, actual: &typed_ir::Path) -> bool {
     actual == expected
         || (!expected.segments.is_empty()
             && actual.segments.len() == expected.segments.len() + 1
@@ -3004,7 +3004,7 @@ fn effect_matches(expected: &core_ir::Path, actual: &core_ir::Path) -> bool {
 fn handler_candidates_for_effect(
     function: &CpsReprAbiFunction,
     registry: &HandlerRegistry,
-    effect: &core_ir::Path,
+    effect: &typed_ir::Path,
 ) -> CpsReprCraneliftResult<Vec<HandlerCandidate>> {
     let candidates = registry.candidates_for_effect(effect);
     if candidates.is_empty() {
@@ -3065,79 +3065,81 @@ fn lower_primitive<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
     args: &[ir::Value],
 ) -> CpsReprCraneliftResult<ir::Value> {
     let value = match op {
-        core_ir::PrimitiveOp::BoolNot => {
+        typed_ir::PrimitiveOp::BoolNot => {
             let zero = builder.ins().iconst(types::I64, 0);
             let is_zero = builder
                 .ins()
                 .icmp(ir::condcodes::IntCC::Equal, args[0], zero);
             builder.ins().uextend(types::I64, is_zero)
         }
-        core_ir::PrimitiveOp::BoolEq | core_ir::PrimitiveOp::IntEq => {
+        typed_ir::PrimitiveOp::BoolEq | typed_ir::PrimitiveOp::IntEq => {
             let eq = builder
                 .ins()
                 .icmp(ir::condcodes::IntCC::Equal, args[0], args[1]);
             builder.ins().uextend(types::I64, eq)
         }
-        core_ir::PrimitiveOp::IntAdd => builder.ins().iadd(args[0], args[1]),
-        core_ir::PrimitiveOp::IntSub => builder.ins().isub(args[0], args[1]),
-        core_ir::PrimitiveOp::IntMul => builder.ins().imul(args[0], args[1]),
-        core_ir::PrimitiveOp::IntDiv => builder.ins().sdiv(args[0], args[1]),
-        core_ir::PrimitiveOp::IntLt => int_cmp(builder, ir::condcodes::IntCC::SignedLessThan, args),
-        core_ir::PrimitiveOp::IntLe => {
+        typed_ir::PrimitiveOp::IntAdd => builder.ins().iadd(args[0], args[1]),
+        typed_ir::PrimitiveOp::IntSub => builder.ins().isub(args[0], args[1]),
+        typed_ir::PrimitiveOp::IntMul => builder.ins().imul(args[0], args[1]),
+        typed_ir::PrimitiveOp::IntDiv => builder.ins().sdiv(args[0], args[1]),
+        typed_ir::PrimitiveOp::IntLt => {
+            int_cmp(builder, ir::condcodes::IntCC::SignedLessThan, args)
+        }
+        typed_ir::PrimitiveOp::IntLe => {
             int_cmp(builder, ir::condcodes::IntCC::SignedLessThanOrEqual, args)
         }
-        core_ir::PrimitiveOp::IntGt => {
+        typed_ir::PrimitiveOp::IntGt => {
             int_cmp(builder, ir::condcodes::IntCC::SignedGreaterThan, args)
         }
-        core_ir::PrimitiveOp::IntGe => int_cmp(
+        typed_ir::PrimitiveOp::IntGe => int_cmp(
             builder,
             ir::condcodes::IntCC::SignedGreaterThanOrEqual,
             args,
         ),
-        core_ir::PrimitiveOp::ListEmpty => {
+        typed_ir::PrimitiveOp::ListEmpty => {
             call_i64_helper(module_backend, builder, "yulang_cps_list_empty_i64", &[])?
         }
-        core_ir::PrimitiveOp::ListSingleton => call_i64_helper(
+        typed_ir::PrimitiveOp::ListSingleton => call_i64_helper(
             module_backend,
             builder,
             "yulang_cps_list_singleton_i64",
             &[args[0]],
         )?,
-        core_ir::PrimitiveOp::ListMerge => call_i64_helper(
+        typed_ir::PrimitiveOp::ListMerge => call_i64_helper(
             module_backend,
             builder,
             "yulang_cps_list_merge_i64",
             &[args[0], args[1]],
         )?,
-        core_ir::PrimitiveOp::ListLen => call_i64_helper(
+        typed_ir::PrimitiveOp::ListLen => call_i64_helper(
             module_backend,
             builder,
             "yulang_cps_list_len_i64",
             &[args[0]],
         )?,
-        core_ir::PrimitiveOp::ListIndex => call_i64_helper(
+        typed_ir::PrimitiveOp::ListIndex => call_i64_helper(
             module_backend,
             builder,
             "yulang_cps_list_index_i64",
             &[args[0], args[1]],
         )?,
-        core_ir::PrimitiveOp::ListIndexRangeRaw => call_i64_helper(
+        typed_ir::PrimitiveOp::ListIndexRangeRaw => call_i64_helper(
             module_backend,
             builder,
             "yulang_cps_list_index_range_raw_i64",
             &[args[0], args[1], args[2]],
         )?,
-        core_ir::PrimitiveOp::ListSpliceRaw => call_i64_helper(
+        typed_ir::PrimitiveOp::ListSpliceRaw => call_i64_helper(
             module_backend,
             builder,
             "yulang_cps_list_splice_raw_i64",
             &[args[0], args[1], args[2], args[3]],
         )?,
-        core_ir::PrimitiveOp::ListViewRaw => call_i64_helper(
+        typed_ir::PrimitiveOp::ListViewRaw => call_i64_helper(
             module_backend,
             builder,
             "yulang_cps_list_view_raw_i64",
@@ -3322,28 +3324,28 @@ fn validate_environment_lane(
 
 fn validate_primitive(
     function: &CpsReprAbiFunction,
-    op: core_ir::PrimitiveOp,
+    op: typed_ir::PrimitiveOp,
 ) -> CpsReprCraneliftResult<()> {
     match op {
-        core_ir::PrimitiveOp::BoolNot
-        | core_ir::PrimitiveOp::BoolEq
-        | core_ir::PrimitiveOp::IntAdd
-        | core_ir::PrimitiveOp::IntSub
-        | core_ir::PrimitiveOp::IntMul
-        | core_ir::PrimitiveOp::IntDiv
-        | core_ir::PrimitiveOp::IntEq
-        | core_ir::PrimitiveOp::IntLt
-        | core_ir::PrimitiveOp::IntLe
-        | core_ir::PrimitiveOp::IntGt
-        | core_ir::PrimitiveOp::IntGe
-        | core_ir::PrimitiveOp::ListEmpty
-        | core_ir::PrimitiveOp::ListSingleton
-        | core_ir::PrimitiveOp::ListMerge
-        | core_ir::PrimitiveOp::ListLen
-        | core_ir::PrimitiveOp::ListIndex
-        | core_ir::PrimitiveOp::ListIndexRangeRaw
-        | core_ir::PrimitiveOp::ListSpliceRaw
-        | core_ir::PrimitiveOp::ListViewRaw => Ok(()),
+        typed_ir::PrimitiveOp::BoolNot
+        | typed_ir::PrimitiveOp::BoolEq
+        | typed_ir::PrimitiveOp::IntAdd
+        | typed_ir::PrimitiveOp::IntSub
+        | typed_ir::PrimitiveOp::IntMul
+        | typed_ir::PrimitiveOp::IntDiv
+        | typed_ir::PrimitiveOp::IntEq
+        | typed_ir::PrimitiveOp::IntLt
+        | typed_ir::PrimitiveOp::IntLe
+        | typed_ir::PrimitiveOp::IntGt
+        | typed_ir::PrimitiveOp::IntGe
+        | typed_ir::PrimitiveOp::ListEmpty
+        | typed_ir::PrimitiveOp::ListSingleton
+        | typed_ir::PrimitiveOp::ListMerge
+        | typed_ir::PrimitiveOp::ListLen
+        | typed_ir::PrimitiveOp::ListIndex
+        | typed_ir::PrimitiveOp::ListIndexRangeRaw
+        | typed_ir::PrimitiveOp::ListSpliceRaw
+        | typed_ir::PrimitiveOp::ListViewRaw => Ok(()),
         _ => Err(CpsReprCraneliftError::UnsupportedPrimitive {
             function: function.name.clone(),
             op,
@@ -4045,7 +4047,7 @@ fn native_cps_i64_heap(value: NativeCpsI64HeapValue) -> i64 {
 }
 
 fn native_cps_i64_variant(tag: &str, value: Option<i64>) -> i64 {
-    let hash = tag_hash(&core_ir::Name(tag.to_string()));
+    let hash = tag_hash(&typed_ir::Name(tag.to_string()));
     register_native_i64_tag_name(hash, tag);
     native_cps_i64_heap(NativeCpsI64HeapValue::Variant { tag: hash, value })
 }
@@ -6221,7 +6223,7 @@ mod tests {
 
     #[test]
     fn rejects_perform_until_effect_codegen_exists() {
-        let effect = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        let effect = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
         let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
             functions: Vec::new(),
             roots: vec![CpsFunction {
@@ -6267,10 +6269,10 @@ mod tests {
     fn jit_runs_runtime_module_through_cps_pipeline() {
         let expr = apply(
             apply(
-                primitive(core_ir::PrimitiveOp::IntAdd),
-                unknown_lit(core_ir::Lit::Int("20".to_string())),
+                primitive(typed_ir::PrimitiveOp::IntAdd),
+                unknown_lit(typed_ir::Lit::Int("20".to_string())),
             ),
-            unknown_lit(core_ir::Lit::Int("22".to_string())),
+            unknown_lit(typed_ir::Lit::Int("22".to_string())),
         );
         let mut jit = compile_runtime_module_to_cps_repr_jit(&module_with_root(expr))
             .expect("compiled runtime module through CPS repr");
@@ -6303,7 +6305,7 @@ mod tests {
                             },
                             CpsStmt::Primitive {
                                 dest: CpsValueId(2),
-                                op: core_ir::PrimitiveOp::IntAdd,
+                                op: typed_ir::PrimitiveOp::IntAdd,
                                 args: vec![CpsValueId(0), CpsValueId(1)],
                             },
                         ],
@@ -6358,8 +6360,8 @@ mod tests {
     }
 
     fn blocked_handler_snapshot_abi() -> CpsReprAbiModule {
-        let start = core_ir::Path::from_name(core_ir::Name("start".to_string()));
-        let choose = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        let start = typed_ir::Path::from_name(typed_ir::Name("start".to_string()));
+        let choose = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
         lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
             functions: Vec::new(),
             roots: vec![CpsFunction {
@@ -6479,7 +6481,7 @@ mod tests {
     }
 
     fn tail_resume_effect_abi() -> CpsReprAbiModule {
-        let effect = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        let effect = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
         lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
             functions: Vec::new(),
             roots: vec![CpsFunction {
@@ -6529,7 +6531,7 @@ mod tests {
                             },
                             CpsStmt::Primitive {
                                 dest: CpsValueId(3),
-                                op: core_ir::PrimitiveOp::IntAdd,
+                                op: typed_ir::PrimitiveOp::IntAdd,
                                 args: vec![CpsValueId(1), CpsValueId(2)],
                             },
                         ],
@@ -6553,7 +6555,7 @@ mod tests {
     }
 
     fn multishot_resume_effect_abi() -> CpsReprAbiModule {
-        let effect = core_ir::Path::from_name(core_ir::Name("choose".to_string()));
+        let effect = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
         lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
             functions: Vec::new(),
             roots: vec![CpsFunction {
@@ -6598,7 +6600,7 @@ mod tests {
                         shot_kind: CpsShotKind::MultiShot,
                         stmts: vec![CpsStmt::Primitive {
                             dest: CpsValueId(3),
-                            op: core_ir::PrimitiveOp::IntAdd,
+                            op: typed_ir::PrimitiveOp::IntAdd,
                             args: vec![CpsValueId(1), CpsValueId(2)],
                         }],
                         terminator: CpsTerminator::Return(CpsValueId(3)),
@@ -6625,7 +6627,7 @@ mod tests {
                             },
                             CpsStmt::Primitive {
                                 dest: CpsValueId(8),
-                                op: core_ir::PrimitiveOp::IntAdd,
+                                op: typed_ir::PrimitiveOp::IntAdd,
                                 args: vec![CpsValueId(6), CpsValueId(7)],
                             },
                         ],
@@ -6636,11 +6638,11 @@ mod tests {
         }))
     }
 
-    fn unknown_lit(lit: core_ir::Lit) -> runtime::Expr {
+    fn unknown_lit(lit: typed_ir::Lit) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::Lit(lit), runtime::Type::unknown())
     }
 
-    fn primitive(op: core_ir::PrimitiveOp) -> runtime::Expr {
+    fn primitive(op: typed_ir::PrimitiveOp) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::PrimitiveOp(op), runtime::Type::unknown())
     }
 
@@ -6658,7 +6660,7 @@ mod tests {
 
     fn module_with_root(expr: runtime::Expr) -> runtime::Module {
         runtime::Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: Vec::new(),
             root_exprs: vec![expr],
             roots: vec![runtime::Root::Expr(0)],

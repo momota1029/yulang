@@ -3,7 +3,7 @@ use std::time::Duration;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::time::Instant;
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::ExpectedEdgeId;
 use crate::ids::{DefId, TypeVar};
@@ -64,11 +64,11 @@ pub(crate) fn collect_canonical_binding_paths(state: &LowerState) -> HashMap<Def
 pub(crate) fn complete_referenced_binding_closure(
     state: &mut LowerState,
     globals: &HashMap<DefId, Path>,
-    principal_scheme_cache: &mut HashMap<DefId, Option<core_ir::Scheme>>,
-    base_bounds_cache: &mut HashMap<TypeVar, core_ir::TypeBounds>,
+    principal_scheme_cache: &mut HashMap<DefId, Option<typed_ir::Scheme>>,
+    base_bounds_cache: &mut HashMap<TypeVar, typed_ir::TypeBounds>,
     complete_principal_cache: &mut CompletePrincipalCache,
-    bindings: &mut Vec<core_ir::PrincipalBinding>,
-    extra_exprs: &[core_ir::Expr],
+    bindings: &mut Vec<typed_ir::PrincipalBinding>,
+    extra_exprs: &[typed_ir::Expr],
     edge_evidence: &HashMap<ExpectedEdgeId, ExpectedEdgeEvidence>,
 ) {
     let export_timing = std::env::var_os("YULANG_EXPORT_TIMING").is_some();
@@ -159,7 +159,7 @@ pub(crate) fn complete_referenced_binding_closure(
     }
 }
 
-fn format_core_path_for_export_timing(path: &core_ir::Path) -> String {
+fn format_core_path_for_export_timing(path: &typed_ir::Path) -> String {
     if path.segments.is_empty() {
         return "<root>".to_string();
     }
@@ -192,23 +192,23 @@ fn binding_path_preference_key(path: &Path) -> (usize, Vec<&str>) {
     (priority, lexical)
 }
 
-fn collect_expr_binding_refs(expr: &core_ir::Expr, out: &mut HashSet<core_ir::Path>) {
+fn collect_expr_binding_refs(expr: &typed_ir::Expr, out: &mut HashSet<typed_ir::Path>) {
     match expr {
-        core_ir::Expr::Var(path) => {
+        typed_ir::Expr::Var(path) => {
             out.insert(path.clone());
         }
-        core_ir::Expr::PrimitiveOp(_) | core_ir::Expr::Lit(_) => {}
-        core_ir::Expr::Lambda { body, .. }
-        | core_ir::Expr::Coerce { expr: body, .. }
-        | core_ir::Expr::BindHere { expr: body }
-        | core_ir::Expr::Pack { expr: body, .. } => {
+        typed_ir::Expr::PrimitiveOp(_) | typed_ir::Expr::Lit(_) => {}
+        typed_ir::Expr::Lambda { body, .. }
+        | typed_ir::Expr::Coerce { expr: body, .. }
+        | typed_ir::Expr::BindHere { expr: body }
+        | typed_ir::Expr::Pack { expr: body, .. } => {
             collect_expr_binding_refs(body, out);
         }
-        core_ir::Expr::Apply { callee, arg, .. } => {
+        typed_ir::Expr::Apply { callee, arg, .. } => {
             collect_expr_binding_refs(callee, out);
             collect_expr_binding_refs(arg, out);
         }
-        core_ir::Expr::If {
+        typed_ir::Expr::If {
             cond,
             then_branch,
             else_branch,
@@ -218,31 +218,31 @@ fn collect_expr_binding_refs(expr: &core_ir::Expr, out: &mut HashSet<core_ir::Pa
             collect_expr_binding_refs(then_branch, out);
             collect_expr_binding_refs(else_branch, out);
         }
-        core_ir::Expr::Tuple(items) => {
+        typed_ir::Expr::Tuple(items) => {
             for item in items {
                 collect_expr_binding_refs(item, out);
             }
         }
-        core_ir::Expr::Record { fields, spread } => {
+        typed_ir::Expr::Record { fields, spread } => {
             for field in fields {
                 collect_expr_binding_refs(&field.value, out);
             }
             if let Some(spread) = spread {
                 match spread {
-                    core_ir::RecordSpreadExpr::Head(expr)
-                    | core_ir::RecordSpreadExpr::Tail(expr) => {
+                    typed_ir::RecordSpreadExpr::Head(expr)
+                    | typed_ir::RecordSpreadExpr::Tail(expr) => {
                         collect_expr_binding_refs(expr, out);
                     }
                 }
             }
         }
-        core_ir::Expr::Variant { value, .. } => {
+        typed_ir::Expr::Variant { value, .. } => {
             if let Some(value) = value {
                 collect_expr_binding_refs(value, out);
             }
         }
-        core_ir::Expr::Select { base, .. } => collect_expr_binding_refs(base, out),
-        core_ir::Expr::Match {
+        typed_ir::Expr::Select { base, .. } => collect_expr_binding_refs(base, out),
+        typed_ir::Expr::Match {
             scrutinee, arms, ..
         } => {
             collect_expr_binding_refs(scrutinee, out);
@@ -253,20 +253,20 @@ fn collect_expr_binding_refs(expr: &core_ir::Expr, out: &mut HashSet<core_ir::Pa
                 collect_expr_binding_refs(&arm.body, out);
             }
         }
-        core_ir::Expr::Block { stmts, tail } => {
+        typed_ir::Expr::Block { stmts, tail } => {
             for stmt in stmts {
                 match stmt {
-                    core_ir::Stmt::Let { value, .. } | core_ir::Stmt::Expr(value) => {
+                    typed_ir::Stmt::Let { value, .. } | typed_ir::Stmt::Expr(value) => {
                         collect_expr_binding_refs(value, out);
                     }
-                    core_ir::Stmt::Module { body, .. } => collect_expr_binding_refs(body, out),
+                    typed_ir::Stmt::Module { body, .. } => collect_expr_binding_refs(body, out),
                 }
             }
             if let Some(tail) = tail {
                 collect_expr_binding_refs(tail, out);
             }
         }
-        core_ir::Expr::Handle { body, arms, .. } => {
+        typed_ir::Expr::Handle { body, arms, .. } => {
             collect_expr_binding_refs(body, out);
             for arm in arms {
                 if let Some(guard) = &arm.guard {

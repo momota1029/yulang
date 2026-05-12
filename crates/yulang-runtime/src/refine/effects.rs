@@ -1,6 +1,8 @@
 use super::*;
 
-pub(super) fn pure_handler_bindings(module: &Module) -> HashMap<core_ir::Path, Vec<core_ir::Path>> {
+pub(super) fn pure_handler_bindings(
+    module: &Module,
+) -> HashMap<typed_ir::Path, Vec<typed_ir::Path>> {
     module
         .bindings
         .iter()
@@ -11,7 +13,7 @@ pub(super) fn pure_handler_bindings(module: &Module) -> HashMap<core_ir::Path, V
         .collect()
 }
 
-pub(super) fn expr_pure_handler_consumes(expr: &Expr) -> Option<Vec<core_ir::Path>> {
+pub(super) fn expr_pure_handler_consumes(expr: &Expr) -> Option<Vec<typed_ir::Path>> {
     match &expr.kind {
         ExprKind::Handle { handler, .. }
             if handler.residual_after.as_ref().is_some_and(effect_is_empty) =>
@@ -36,7 +38,10 @@ pub(super) fn expr_pure_handler_consumes(expr: &Expr) -> Option<Vec<core_ir::Pat
     }
 }
 
-pub(super) fn effect_path_sets_intersect(left: &[core_ir::Path], right: &[core_ir::Path]) -> bool {
+pub(super) fn effect_path_sets_intersect(
+    left: &[typed_ir::Path],
+    right: &[typed_ir::Path],
+) -> bool {
     left.iter()
         .any(|left| right.iter().any(|right| effect_paths_match(left, right)))
 }

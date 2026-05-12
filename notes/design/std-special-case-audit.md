@@ -151,7 +151,7 @@
 
 ### Implicit Prelude
 
-`crates/yulang-source/src/lib.rs` の `use std::prelude::*` 注入は言語 surface の
+`crates/yulang-sources/src/lib.rs` の `use std::prelude::*` 注入は言語 surface の
 仕様として扱う。これは runtime 側の std 特例とは別枠。
 
 ### Debug / Diagnostic Only

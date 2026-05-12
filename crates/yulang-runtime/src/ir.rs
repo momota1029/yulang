@@ -1,19 +1,19 @@
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Module {
-    pub path: core_ir::Path,
+    pub path: typed_ir::Path,
     pub bindings: Vec<Binding>,
     pub root_exprs: Vec<Expr>,
     pub roots: Vec<Root>,
-    pub role_impls: Vec<core_ir::RoleImplGraphNode>,
+    pub role_impls: Vec<typed_ir::RoleImplGraphNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Binding {
-    pub name: core_ir::Path,
-    pub type_params: Vec<core_ir::TypeVar>,
-    pub scheme: core_ir::Scheme,
+    pub name: typed_ir::Path,
+    pub type_params: Vec<typed_ir::TypeVar>,
+    pub scheme: typed_ir::Scheme,
     pub body: Expr,
 }
 
@@ -43,23 +43,23 @@ fn clone_expr_without_apply_spine_recursion(expr: &Expr) -> Expr {
         Apply {
             ty: &'a Type,
             arg: &'a Expr,
-            evidence: &'a Option<core_ir::ApplyEvidence>,
+            evidence: &'a Option<typed_ir::ApplyEvidence>,
             instantiation: &'a Option<TypeInstantiation>,
         },
         Select {
             ty: &'a Type,
-            field: &'a core_ir::Name,
+            field: &'a typed_ir::Name,
         },
         Variant {
             ty: &'a Type,
-            tag: &'a core_ir::Name,
+            tag: &'a typed_ir::Name,
         },
         BindHere {
             ty: &'a Type,
         },
         Thunk {
             ty: &'a Type,
-            effect: &'a core_ir::Type,
+            effect: &'a typed_ir::Type,
             value: &'a Type,
         },
         LocalPushId {
@@ -69,16 +69,16 @@ fn clone_expr_without_apply_spine_recursion(expr: &Expr) -> Expr {
         AddId {
             ty: &'a Type,
             id: EffectIdRef,
-            allowed: &'a core_ir::Type,
+            allowed: &'a typed_ir::Type,
         },
         Coerce {
             ty: &'a Type,
-            from: &'a core_ir::Type,
-            to: &'a core_ir::Type,
+            from: &'a typed_ir::Type,
+            to: &'a typed_ir::Type,
         },
         Pack {
             ty: &'a Type,
-            var: &'a core_ir::TypeVar,
+            var: &'a typed_ir::TypeVar,
         },
     }
 
@@ -253,13 +253,13 @@ fn clone_expr_without_apply_spine_recursion(expr: &Expr) -> Expr {
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Type {
     Unknown,
-    Core(core_ir::Type),
+    Core(typed_ir::Type),
     Fun {
         param: Box<Type>,
         ret: Box<Type>,
     },
     Thunk {
-        effect: core_ir::Type,
+        effect: typed_ir::Type,
         value: Box<Type>,
     },
 }
@@ -269,7 +269,7 @@ impl Type {
         Self::Unknown
     }
 
-    pub fn core(ty: core_ir::Type) -> Self {
+    pub fn core(ty: typed_ir::Type) -> Self {
         Self::Core(ty)
     }
 
@@ -280,14 +280,14 @@ impl Type {
         }
     }
 
-    pub fn thunk(effect: core_ir::Type, value: Type) -> Self {
+    pub fn thunk(effect: typed_ir::Type, value: Type) -> Self {
         Self::Thunk {
             effect,
             value: Box::new(value),
         }
     }
 
-    pub fn as_core(&self) -> Option<&core_ir::Type> {
+    pub fn as_core(&self) -> Option<&typed_ir::Type> {
         match self {
             Type::Core(ty) => Some(ty),
             Type::Unknown | Type::Fun { .. } | Type::Thunk { .. } => None,
@@ -304,7 +304,7 @@ impl Clone for Type {
 fn clone_type_without_fun_spine_recursion(ty: &Type) -> Type {
     enum Frame<'a> {
         Fun { param: &'a Type },
-        Thunk { effect: &'a core_ir::Type },
+        Thunk { effect: &'a typed_ir::Type },
     }
 
     let mut current = ty;
@@ -343,8 +343,8 @@ fn clone_type_without_fun_spine_recursion(ty: &Type) -> Type {
     }
 }
 
-impl From<core_ir::Type> for Type {
-    fn from(ty: core_ir::Type) -> Self {
+impl From<typed_ir::Type> for Type {
+    fn from(ty: typed_ir::Type) -> Self {
         Type::Core(ty)
     }
 }
@@ -360,20 +360,20 @@ pub enum EffectIdRef {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExprKind {
-    Var(core_ir::Path),
-    EffectOp(core_ir::Path),
-    PrimitiveOp(core_ir::PrimitiveOp),
-    Lit(core_ir::Lit),
+    Var(typed_ir::Path),
+    EffectOp(typed_ir::Path),
+    PrimitiveOp(typed_ir::PrimitiveOp),
+    Lit(typed_ir::Lit),
     Lambda {
-        param: core_ir::Name,
-        param_effect_annotation: Option<core_ir::ParamEffectAnnotation>,
-        param_function_allowed_effects: Option<core_ir::FunctionSigAllowedEffects>,
+        param: typed_ir::Name,
+        param_effect_annotation: Option<typed_ir::ParamEffectAnnotation>,
+        param_function_allowed_effects: Option<typed_ir::FunctionSigAllowedEffects>,
         body: Box<Expr>,
     },
     Apply {
         callee: Box<Expr>,
         arg: Box<Expr>,
-        evidence: Option<core_ir::ApplyEvidence>,
+        evidence: Option<typed_ir::ApplyEvidence>,
         instantiation: Option<TypeInstantiation>,
     },
     If {
@@ -388,12 +388,12 @@ pub enum ExprKind {
         spread: Option<RecordSpreadExpr>,
     },
     Variant {
-        tag: core_ir::Name,
+        tag: typed_ir::Name,
         value: Option<Box<Expr>>,
     },
     Select {
         base: Box<Expr>,
-        field: core_ir::Name,
+        field: typed_ir::Name,
     },
     Match {
         scrutinee: Box<Expr>,
@@ -414,7 +414,7 @@ pub enum ExprKind {
         expr: Box<Expr>,
     },
     Thunk {
-        effect: core_ir::Type,
+        effect: typed_ir::Type,
         value: Type,
         expr: Box<Expr>,
     },
@@ -428,42 +428,42 @@ pub enum ExprKind {
     },
     AddId {
         id: EffectIdRef,
-        allowed: core_ir::Type,
+        allowed: typed_ir::Type,
         thunk: Box<Expr>,
     },
     Coerce {
-        from: core_ir::Type,
-        to: core_ir::Type,
+        from: typed_ir::Type,
+        to: typed_ir::Type,
         expr: Box<Expr>,
     },
     Pack {
-        var: core_ir::TypeVar,
+        var: typed_ir::TypeVar,
         expr: Box<Expr>,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JoinEvidence {
-    pub result: core_ir::Type,
+    pub result: typed_ir::Type,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeInstantiation {
-    pub target: core_ir::Path,
+    pub target: typed_ir::Path,
     pub args: Vec<TypeSubstitution>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeSubstitution {
-    pub var: core_ir::TypeVar,
-    pub ty: core_ir::Type,
+    pub var: typed_ir::TypeVar,
+    pub ty: typed_ir::Type,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stmt {
     Let { pattern: Pattern, value: Expr },
     Expr(Expr),
-    Module { def: core_ir::Path, body: Expr },
+    Module { def: typed_ir::Path, body: Expr },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -472,11 +472,11 @@ pub enum Pattern {
         ty: Type,
     },
     Bind {
-        name: core_ir::Name,
+        name: typed_ir::Name,
         ty: Type,
     },
     Lit {
-        lit: core_ir::Lit,
+        lit: typed_ir::Lit,
         ty: Type,
     },
     Tuple {
@@ -495,7 +495,7 @@ pub enum Pattern {
         ty: Type,
     },
     Variant {
-        tag: core_ir::Name,
+        tag: typed_ir::Name,
         value: Option<Box<Pattern>>,
         ty: Type,
     },
@@ -506,14 +506,14 @@ pub enum Pattern {
     },
     As {
         pattern: Box<Pattern>,
-        name: core_ir::Name,
+        name: typed_ir::Name,
         ty: Type,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordExprField {
-    pub name: core_ir::Name,
+    pub name: typed_ir::Name,
     pub value: Expr,
 }
 
@@ -525,7 +525,7 @@ pub enum RecordSpreadExpr {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordPatternField {
-    pub name: core_ir::Name,
+    pub name: typed_ir::Name,
     pub pattern: Pattern,
     pub default: Option<Expr>,
 }
@@ -545,7 +545,7 @@ pub struct MatchArm {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandleArm {
-    pub effect: core_ir::Path,
+    pub effect: typed_ir::Path,
     pub payload: Pattern,
     pub resume: Option<ResumeBinding>,
     pub guard: Option<Expr>,
@@ -554,20 +554,20 @@ pub struct HandleArm {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResumeBinding {
-    pub name: core_ir::Name,
+    pub name: typed_ir::Name,
     pub ty: Type,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandleEffect {
-    pub consumes: Vec<core_ir::Path>,
-    pub residual_before: Option<core_ir::Type>,
-    pub residual_after: Option<core_ir::Type>,
+    pub consumes: Vec<typed_ir::Path>,
+    pub residual_before: Option<typed_ir::Type>,
+    pub residual_after: Option<typed_ir::Type>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Root {
-    Binding(core_ir::Path),
+    Binding(typed_ir::Path),
     Expr(usize),
 }
 
@@ -577,7 +577,7 @@ mod tests {
 
     #[test]
     fn clones_deep_runtime_adapter_spine_without_recursing() {
-        let mut expr = Expr::typed(ExprKind::Lit(core_ir::Lit::Unit), Type::unknown());
+        let mut expr = Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), Type::unknown());
         for index in 0..20_000 {
             expr = match index % 3 {
                 0 => Expr::typed(
@@ -588,7 +588,7 @@ mod tests {
                 ),
                 1 => Expr::typed(
                     ExprKind::Thunk {
-                        effect: core_ir::Type::Unknown,
+                        effect: typed_ir::Type::Unknown,
                         value: Type::unknown(),
                         expr: Box::new(expr),
                     },
@@ -596,8 +596,8 @@ mod tests {
                 ),
                 _ => Expr::typed(
                     ExprKind::Coerce {
-                        from: core_ir::Type::Unknown,
-                        to: core_ir::Type::Any,
+                        from: typed_ir::Type::Unknown,
+                        to: typed_ir::Type::Any,
                         expr: Box::new(expr),
                     },
                     Type::unknown(),

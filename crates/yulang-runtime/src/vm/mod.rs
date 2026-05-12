@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::rc::Rc;
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::RuntimeError;
 use crate::invariant::{RuntimeStage, check_runtime_invariants};
@@ -72,11 +72,11 @@ pub fn compile_vm_module(module: Module) -> Result<VmModule, VmError> {
 pub enum VmError {
     Runtime(RuntimeError),
     ResidualPolymorphicBinding {
-        path: core_ir::Path,
-        vars: Vec<core_ir::TypeVar>,
+        path: typed_ir::Path,
+        vars: Vec<typed_ir::TypeVar>,
     },
     MissingRootExpr(usize),
-    UnboundVariable(core_ir::Path),
+    UnboundVariable(typed_ir::Path),
     PatternMismatch,
     ExpectedBool(VmValue),
     ExpectedInt(VmValue),
@@ -92,10 +92,10 @@ pub enum VmError {
         expected: usize,
         actual: usize,
     },
-    UnsupportedPrimitive(core_ir::PrimitiveOp),
+    UnsupportedPrimitive(typed_ir::PrimitiveOp),
     UnsupportedEffectIdVar(usize),
     UnsupportedFindId,
-    UnexpectedRequest(core_ir::Path),
+    UnexpectedRequest(typed_ir::Path),
 }
 
 impl fmt::Display for VmError {

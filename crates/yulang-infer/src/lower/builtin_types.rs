@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::symbols::{Name, Path};
 
@@ -22,7 +22,7 @@ pub(crate) enum PrimitiveValueFamily {
 pub(crate) struct PrimitivePathTable {
     source_types: HashMap<PrimitiveTypeFamily, Path>,
     source_type_aliases: HashMap<String, PrimitiveTypeFamily>,
-    runtime_values: HashMap<PrimitiveValueFamily, core_ir::Path>,
+    runtime_values: HashMap<PrimitiveValueFamily, typed_ir::Path>,
 }
 
 impl PrimitivePathTable {
@@ -68,7 +68,7 @@ impl PrimitivePathTable {
             })
     }
 
-    pub(crate) fn runtime_type_path_by_name(&self, name: &str) -> core_ir::Path {
+    pub(crate) fn runtime_type_path_by_name(&self, name: &str) -> typed_ir::Path {
         runtime_path(self.source_type_path_by_name(name))
     }
 
@@ -85,39 +85,42 @@ impl PrimitivePathTable {
         self.source_types.get(&family).cloned()
     }
 
-    pub(crate) fn runtime_value_path(&self, family: PrimitiveValueFamily) -> Option<core_ir::Path> {
+    pub(crate) fn runtime_value_path(
+        &self,
+        family: PrimitiveValueFamily,
+    ) -> Option<typed_ir::Path> {
         self.runtime_values.get(&family).cloned()
     }
 
-    pub(crate) fn export_core_type_nodes(&self) -> Vec<core_ir::PrimitiveTypeGraphNode> {
+    pub(crate) fn export_core_type_nodes(&self) -> Vec<typed_ir::PrimitiveTypeGraphNode> {
         let mut nodes = vec![
-            core_primitive_type_node(core_ir::PrimitiveTypeFamily::Int, bare_runtime_path("int")),
+            core_primitive_type_node(typed_ir::PrimitiveTypeFamily::Int, bare_runtime_path("int")),
             core_primitive_type_node(
-                core_ir::PrimitiveTypeFamily::Float,
+                typed_ir::PrimitiveTypeFamily::Float,
                 bare_runtime_path("float"),
             ),
             core_primitive_type_node(
-                core_ir::PrimitiveTypeFamily::Bool,
+                typed_ir::PrimitiveTypeFamily::Bool,
                 bare_runtime_path("bool"),
             ),
             core_primitive_type_node(
-                core_ir::PrimitiveTypeFamily::Unit,
+                typed_ir::PrimitiveTypeFamily::Unit,
                 bare_runtime_path("unit"),
             ),
         ];
         nodes.extend([
-            self.core_type_node(PrimitiveTypeFamily::Str, core_ir::PrimitiveTypeFamily::Str),
+            self.core_type_node(PrimitiveTypeFamily::Str, typed_ir::PrimitiveTypeFamily::Str),
             self.core_type_node(
                 PrimitiveTypeFamily::List,
-                core_ir::PrimitiveTypeFamily::List,
+                typed_ir::PrimitiveTypeFamily::List,
             ),
             self.core_type_node(
                 PrimitiveTypeFamily::ListView,
-                core_ir::PrimitiveTypeFamily::ListView,
+                typed_ir::PrimitiveTypeFamily::ListView,
             ),
             self.core_type_node(
                 PrimitiveTypeFamily::Range,
-                core_ir::PrimitiveTypeFamily::Range,
+                typed_ir::PrimitiveTypeFamily::Range,
             ),
         ]);
         nodes
@@ -126,8 +129,8 @@ impl PrimitivePathTable {
     fn core_type_node(
         &self,
         source_family: PrimitiveTypeFamily,
-        core_family: core_ir::PrimitiveTypeFamily,
-    ) -> core_ir::PrimitiveTypeGraphNode {
+        core_family: typed_ir::PrimitiveTypeFamily,
+    ) -> typed_ir::PrimitiveTypeGraphNode {
         let path = self
             .source_type_path(source_family)
             .map(runtime_path)
@@ -146,7 +149,7 @@ pub(crate) fn builtin_source_type_path(name: &str) -> Path {
     PrimitivePathTable::standard().source_type_path_by_name(name)
 }
 
-pub(crate) fn builtin_runtime_type_path(name: &str) -> core_ir::Path {
+pub(crate) fn builtin_runtime_type_path(name: &str) -> typed_ir::Path {
     PrimitivePathTable::standard().runtime_type_path_by_name(name)
 }
 
@@ -154,7 +157,7 @@ pub(crate) fn canonical_builtin_type_path(path: &Path) -> Option<Path> {
     PrimitivePathTable::standard().canonical_builtin_type_path(path)
 }
 
-pub(crate) fn primitive_runtime_value_path(family: PrimitiveValueFamily) -> core_ir::Path {
+pub(crate) fn primitive_runtime_value_path(family: PrimitiveValueFamily) -> typed_ir::Path {
     standard_runtime_value_path(family)
 }
 
@@ -169,24 +172,24 @@ fn standard_source_type_path(family: PrimitiveTypeFamily) -> Path {
     }
 }
 
-fn standard_runtime_value_path(family: PrimitiveValueFamily) -> core_ir::Path {
+fn standard_runtime_value_path(family: PrimitiveValueFamily) -> typed_ir::Path {
     let (module, value_name) = primitive_std_value_segments(family);
-    core_ir::Path::new(vec![
-        core_ir::Name("std".to_string()),
-        core_ir::Name(module.to_string()),
-        core_ir::Name(value_name.to_string()),
+    typed_ir::Path::new(vec![
+        typed_ir::Name("std".to_string()),
+        typed_ir::Name(module.to_string()),
+        typed_ir::Name(value_name.to_string()),
     ])
 }
 
 fn core_primitive_type_node(
-    family: core_ir::PrimitiveTypeFamily,
-    path: core_ir::Path,
-) -> core_ir::PrimitiveTypeGraphNode {
-    core_ir::PrimitiveTypeGraphNode { family, path }
+    family: typed_ir::PrimitiveTypeFamily,
+    path: typed_ir::Path,
+) -> typed_ir::PrimitiveTypeGraphNode {
+    typed_ir::PrimitiveTypeGraphNode { family, path }
 }
 
-fn bare_runtime_path(name: &str) -> core_ir::Path {
-    core_ir::Path::from_name(core_ir::Name(name.to_string()))
+fn bare_runtime_path(name: &str) -> typed_ir::Path {
+    typed_ir::Path::from_name(typed_ir::Name(name.to_string()))
 }
 
 fn primitive_std_type_segments(family: PrimitiveTypeFamily) -> (&'static str, &'static str) {
@@ -205,12 +208,12 @@ fn primitive_std_value_segments(family: PrimitiveValueFamily) -> (&'static str, 
     }
 }
 
-fn runtime_path(path: Path) -> core_ir::Path {
-    core_ir::Path {
+fn runtime_path(path: Path) -> typed_ir::Path {
+    typed_ir::Path {
         segments: path
             .segments
             .into_iter()
-            .map(|segment| core_ir::Name(segment.0))
+            .map(|segment| typed_ir::Name(segment.0))
             .collect(),
     }
 }

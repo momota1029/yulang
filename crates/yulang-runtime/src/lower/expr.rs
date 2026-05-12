@@ -23,7 +23,7 @@ pub(super) fn force_value_expr_profiled(
 pub(super) fn force_core_value_expr_profiled(
     expr: Expr,
     profile: &mut RuntimeAdapterProfile,
-) -> (Expr, core_ir::Type) {
+) -> (Expr, typed_ir::Type) {
     let (expr, ty) = force_value_expr_profiled(expr, profile);
     let ty = runtime_core_type(&ty);
     let expr = if matches!(expr.ty, RuntimeType::Core(_)) {

@@ -1,6 +1,6 @@
 use crate::ids::{DefId, RefId, TypeVar};
 use crate::symbols::{Name, Path};
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 /// 型変数つき式。tv は lowering 時に発行された fresh な TypeVar。
 /// eff はこの式の computation effect を表す TypeVar。
@@ -24,7 +24,7 @@ pub enum Lit {
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     Lit(Lit),
-    PrimitiveOp(core_ir::PrimitiveOp),
+    PrimitiveOp(typed_ir::PrimitiveOp),
     Var(DefId),
     Ref(RefId),
     App {

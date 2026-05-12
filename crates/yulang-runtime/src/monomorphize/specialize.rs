@@ -6,7 +6,7 @@ use crate::types::hir_type_has_vars;
 
 #[derive(Debug, Default, Clone)]
 pub struct SpecializationTable {
-    cache: HashMap<DemandKey, core_ir::Path>,
+    cache: HashMap<DemandKey, typed_ir::Path>,
     known: Vec<DemandSpecialization>,
     fresh: Vec<DemandSpecialization>,
     next_index: usize,
@@ -24,7 +24,7 @@ impl SpecializationTable {
         table
     }
 
-    pub fn allocate_fresh(&mut self, checked: &CheckedDemand) -> core_ir::Path {
+    pub fn allocate_fresh(&mut self, checked: &CheckedDemand) -> typed_ir::Path {
         let key = checked_key(checked);
         if !should_materialize_demand(&self.semantics, &key) {
             return checked.target.clone();
@@ -80,7 +80,7 @@ impl SpecializationTable {
         }
     }
 
-    fn seed_one_existing(&mut self, target: core_ir::Path, binding: &Binding) {
+    fn seed_one_existing(&mut self, target: typed_ir::Path, binding: &Binding) {
         if !binding.type_params.is_empty() || hir_type_has_vars(&binding.body.ty) {
             debug_seed_existing_specialization("skip-open-binding", &target, &binding.name, None);
             return;
@@ -110,7 +110,7 @@ impl SpecializationTable {
     }
 }
 
-pub(super) fn demand_call_target(path: &core_ir::Path) -> core_ir::Path {
+pub(super) fn demand_call_target(path: &typed_ir::Path) -> typed_ir::Path {
     unspecialized_demand_path(path)
         .or_else(|| unspecialized_legacy_mono_path(path))
         .unwrap_or_else(|| path.clone())
@@ -124,8 +124,8 @@ pub struct SpecializationOutput {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DemandSpecialization {
-    pub target: core_ir::Path,
-    pub path: core_ir::Path,
+    pub target: typed_ir::Path,
+    pub path: typed_ir::Path,
     pub key: DemandKey,
     pub solved: DemandSignature,
 }
@@ -134,7 +134,7 @@ fn checked_key(checked: &CheckedDemand) -> DemandKey {
     DemandKey::from_signature(checked.target.clone(), checked.expected.clone())
 }
 
-fn specialized_path(target: &core_ir::Path, index: usize) -> core_ir::Path {
+fn specialized_path(target: &typed_ir::Path, index: usize) -> typed_ir::Path {
     let mut path = target.clone();
     match path.segments.last_mut() {
         Some(name) => {
@@ -142,14 +142,14 @@ fn specialized_path(target: &core_ir::Path, index: usize) -> core_ir::Path {
         }
         None => {
             path.segments
-                .push(core_ir::Name(format!("__ddmono{index}")));
+                .push(typed_ir::Name(format!("__ddmono{index}")));
         }
     }
     path
 }
 
 fn existing_specialization(
-    target: core_ir::Path,
+    target: typed_ir::Path,
     binding: &Binding,
     signature: DemandSignature,
 ) -> DemandSpecialization {
@@ -167,8 +167,8 @@ fn should_materialize_demand(_semantics: &DemandSemantics, _key: &DemandKey) -> 
 
 fn debug_seed_existing_specialization(
     action: &str,
-    target: &core_ir::Path,
-    path: &core_ir::Path,
+    target: &typed_ir::Path,
+    path: &typed_ir::Path,
     signature: Option<&DemandSignature>,
 ) {
     if std::env::var_os("YULANG_DEBUG_DEMAND_SOURCE").is_none() {
@@ -187,7 +187,7 @@ fn next_specialization_index(module: &Module) -> usize {
         .unwrap_or(0)
 }
 
-fn demand_specialization_suffix(path: &core_ir::Path) -> Option<usize> {
+fn demand_specialization_suffix(path: &typed_ir::Path) -> Option<usize> {
     path.segments
         .last()?
         .0
@@ -197,7 +197,7 @@ fn demand_specialization_suffix(path: &core_ir::Path) -> Option<usize> {
         .ok()
 }
 
-fn unspecialized_demand_path(path: &core_ir::Path) -> Option<core_ir::Path> {
+fn unspecialized_demand_path(path: &typed_ir::Path) -> Option<typed_ir::Path> {
     let mut base = path.clone();
     let name = &mut base.segments.last_mut()?.0;
     let index = name.find("__ddmono")?;
@@ -205,7 +205,7 @@ fn unspecialized_demand_path(path: &core_ir::Path) -> Option<core_ir::Path> {
     Some(base)
 }
 
-fn unspecialized_legacy_mono_path(path: &core_ir::Path) -> Option<core_ir::Path> {
+fn unspecialized_legacy_mono_path(path: &typed_ir::Path) -> Option<typed_ir::Path> {
     let mut base = path.clone();
     let name = &mut base.segments.last_mut()?.0;
     let index = name.find("__mono")?;
@@ -266,7 +266,7 @@ mod tests {
         }
     }
 
-    fn path(name: &str) -> core_ir::Path {
-        core_ir::Path::from_name(core_ir::Name(name.to_string()))
+    fn path(name: &str) -> typed_ir::Path {
+        typed_ir::Path::from_name(typed_ir::Name(name.to_string()))
     }
 }

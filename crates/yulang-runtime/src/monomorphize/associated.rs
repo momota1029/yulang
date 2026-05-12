@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn close_known_associated_type_signature_with_semantics(
     _semantics: &DemandSemantics,
-    _target: &core_ir::Path,
+    _target: &typed_ir::Path,
     signature: DemandSignature,
 ) -> DemandSignature {
     signature

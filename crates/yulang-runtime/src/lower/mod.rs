@@ -8,7 +8,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::diagnostic::{
     RuntimeCalleeLabel, RuntimeError, RuntimeResult, TypeMismatchContext, TypeMismatchPhase,
@@ -145,8 +145,8 @@ pub struct RuntimeAdapterProfile {
 pub struct ObservedAdapterEvidence {
     pub kind: ObservedAdapterEvidenceKind,
     pub phase: RuntimeApplyAdapterPhase,
-    pub owner: Option<core_ir::Path>,
-    pub apply_target: Option<core_ir::Path>,
+    pub owner: Option<typed_ir::Path>,
+    pub apply_target: Option<typed_ir::Path>,
     pub source_expected_edge: Option<u32>,
     pub actual: RuntimeType,
     pub expected: RuntimeType,
@@ -162,8 +162,8 @@ pub enum ObservedAdapterEvidenceKind {
 pub struct RuntimeAdapterEvent {
     pub kind: RuntimeAdapterEventKind,
     pub phase: RuntimeApplyAdapterPhase,
-    pub owner: Option<core_ir::Path>,
-    pub apply_target: Option<core_ir::Path>,
+    pub owner: Option<typed_ir::Path>,
+    pub apply_target: Option<typed_ir::Path>,
     pub callee_source_edge: Option<u32>,
     pub arg_source_edge: Option<u32>,
     pub actual: RuntimeType,
@@ -213,14 +213,14 @@ pub struct DerivedExpectedEvidenceProfile {
     pub invariant: usize,
 }
 
-pub fn lower_core_program(program: core_ir::CoreProgram) -> RuntimeResult<Module> {
+pub fn lower_core_program(program: typed_ir::CoreProgram) -> RuntimeResult<Module> {
     let graph = program.graph;
     let evidence = program.evidence;
     lower_principal_module_with_graph_and_evidence(program.program, &graph, &evidence)
 }
 
 pub fn lower_core_program_profiled(
-    program: core_ir::CoreProgram,
+    program: typed_ir::CoreProgram,
 ) -> RuntimeResult<RuntimeLowerOutput> {
     let core_shape = profile_core_program(&program);
     let graph = program.graph;
@@ -233,22 +233,22 @@ pub fn lower_core_program_profiled(
     )
 }
 
-pub fn lower_principal_module(module: core_ir::PrincipalModule) -> RuntimeResult<Module> {
-    lower_principal_module_with_graph(module, &core_ir::CoreGraphView::default())
+pub fn lower_principal_module(module: typed_ir::PrincipalModule) -> RuntimeResult<Module> {
+    lower_principal_module_with_graph(module, &typed_ir::CoreGraphView::default())
 }
 
 pub fn lower_principal_module_with_graph(
-    module: core_ir::PrincipalModule,
-    graph: &core_ir::CoreGraphView,
+    module: typed_ir::PrincipalModule,
+    graph: &typed_ir::CoreGraphView,
 ) -> RuntimeResult<Module> {
-    let evidence = core_ir::PrincipalEvidence::default();
+    let evidence = typed_ir::PrincipalEvidence::default();
     lower_principal_module_with_graph_and_evidence(module, graph, &evidence)
 }
 
 fn lower_principal_module_with_graph_and_evidence(
-    module: core_ir::PrincipalModule,
-    graph: &core_ir::CoreGraphView,
-    evidence: &core_ir::PrincipalEvidence,
+    module: typed_ir::PrincipalModule,
+    graph: &typed_ir::CoreGraphView,
+    evidence: &typed_ir::PrincipalEvidence,
 ) -> RuntimeResult<Module> {
     lower_principal_module_with_graph_and_evidence_inner(
         module,
@@ -261,18 +261,18 @@ fn lower_principal_module_with_graph_and_evidence(
 }
 
 fn lower_principal_module_with_graph_and_evidence_profiled(
-    module: core_ir::PrincipalModule,
-    graph: &core_ir::CoreGraphView,
-    evidence: &core_ir::PrincipalEvidence,
+    module: typed_ir::PrincipalModule,
+    graph: &typed_ir::CoreGraphView,
+    evidence: &typed_ir::PrincipalEvidence,
     core_shape: CoreShapeProfile,
 ) -> RuntimeResult<RuntimeLowerOutput> {
     lower_principal_module_with_graph_and_evidence_inner(module, graph, evidence, core_shape, true)
 }
 
 fn lower_principal_module_with_graph_and_evidence_inner(
-    module: core_ir::PrincipalModule,
-    graph: &core_ir::CoreGraphView,
-    evidence: &core_ir::PrincipalEvidence,
+    module: typed_ir::PrincipalModule,
+    graph: &typed_ir::CoreGraphView,
+    evidence: &typed_ir::PrincipalEvidence,
     core_shape: CoreShapeProfile,
     collect_profile: bool,
 ) -> RuntimeResult<RuntimeLowerOutput> {
@@ -412,8 +412,8 @@ fn lower_principal_module_with_graph_and_evidence_inner(
         .roots
         .into_iter()
         .map(|root| match root {
-            core_ir::PrincipalRoot::Binding(path) => Root::Binding(path),
-            core_ir::PrincipalRoot::Expr(index) => Root::Expr(index),
+            typed_ir::PrincipalRoot::Binding(path) => Root::Binding(path),
+            typed_ir::PrincipalRoot::Expr(index) => Root::Expr(index),
         })
         .collect();
     let module = Module {
@@ -447,11 +447,11 @@ fn lower_principal_module_with_graph_and_evidence_inner(
     })
 }
 
-fn is_constructor_variant_expr(expr: &core_ir::Expr) -> bool {
+fn is_constructor_variant_expr(expr: &typed_ir::Expr) -> bool {
     matches!(
         expr,
-        core_ir::Expr::Variant {
-            source: core_ir::VariantExprSource::Constructor,
+        typed_ir::Expr::Variant {
+            source: typed_ir::VariantExprSource::Constructor,
             ..
         }
     )
@@ -459,7 +459,7 @@ fn is_constructor_variant_expr(expr: &core_ir::Expr) -> bool {
 
 fn collect_observed_adapter_evidence(
     profile: &mut RuntimeAdapterProfile,
-    evidence: &core_ir::PrincipalEvidence,
+    evidence: &typed_ir::PrincipalEvidence,
 ) {
     profile.observed_adapter_evidence = profile
         .events
@@ -471,7 +471,7 @@ fn collect_observed_adapter_evidence(
 
 fn profile_observed_adapter_source_coverage(
     profile: &mut RuntimeAdapterProfile,
-    evidence: &core_ir::PrincipalEvidence,
+    evidence: &typed_ir::PrincipalEvidence,
 ) {
     let observed = profile.observed_adapter_evidence.clone();
     for observed in observed {
@@ -484,10 +484,10 @@ fn profile_observed_adapter_source_coverage(
             .expected_edge(source_expected_edge)
             .map(|edge| edge.kind)
         {
-            Some(core_ir::ExpectedEdgeKind::ApplicationCallee) => {
+            Some(typed_ir::ExpectedEdgeKind::ApplicationCallee) => {
                 profile.observed_adapter_source_application_callee += 1;
             }
-            Some(core_ir::ExpectedEdgeKind::ApplicationArgument) => {
+            Some(typed_ir::ExpectedEdgeKind::ApplicationArgument) => {
                 profile.observed_adapter_source_application_argument += 1;
             }
             Some(_) | None => {
@@ -527,7 +527,7 @@ fn observed_adapter_evidence_from_event(
 
 fn profile_runtime_adapter_expected_matches(
     profile: &mut RuntimeAdapterProfile,
-    evidence: &core_ir::PrincipalEvidence,
+    evidence: &typed_ir::PrincipalEvidence,
 ) {
     for event in &profile.events {
         if expected_adapter_event_match(evidence, event) {
@@ -551,7 +551,7 @@ fn profile_runtime_adapter_expected_matches(
 
 fn profile_runtime_adapter_derived_parent_matches(
     profile: &mut RuntimeAdapterProfile,
-    evidence: &core_ir::PrincipalEvidence,
+    evidence: &typed_ir::PrincipalEvidence,
 ) {
     for event in &profile.events {
         let Some(source_edge) = runtime_adapter_event_source_edge(event) else {
@@ -570,7 +570,7 @@ fn profile_runtime_adapter_derived_parent_matches(
 }
 
 fn expected_adapter_event_match(
-    evidence: &core_ir::PrincipalEvidence,
+    evidence: &typed_ir::PrincipalEvidence,
     event: &RuntimeAdapterEvent,
 ) -> bool {
     evidence
@@ -580,7 +580,7 @@ fn expected_adapter_event_match(
 }
 
 fn expected_adapter_edge_matches_event(
-    edge: &core_ir::ExpectedAdapterEdgeEvidence,
+    edge: &typed_ir::ExpectedAdapterEdgeEvidence,
     event: &RuntimeAdapterEvent,
 ) -> bool {
     if expected_adapter_event_kind(edge.kind) != Some(event.kind) {
@@ -604,25 +604,25 @@ fn runtime_adapter_event_source_edge(event: &RuntimeAdapterEvent) -> Option<u32>
 }
 
 fn expected_adapter_event_kind(
-    kind: core_ir::ExpectedAdapterEdgeKind,
+    kind: typed_ir::ExpectedAdapterEdgeKind,
 ) -> Option<RuntimeAdapterEventKind> {
     match kind {
-        core_ir::ExpectedAdapterEdgeKind::ValueToThunk => {
+        typed_ir::ExpectedAdapterEdgeKind::ValueToThunk => {
             Some(RuntimeAdapterEventKind::ValueToThunk)
         }
-        core_ir::ExpectedAdapterEdgeKind::ThunkToValue => {
+        typed_ir::ExpectedAdapterEdgeKind::ThunkToValue => {
             Some(RuntimeAdapterEventKind::ThunkToValue)
         }
-        core_ir::ExpectedAdapterEdgeKind::BindHere => Some(RuntimeAdapterEventKind::BindHere),
-        core_ir::ExpectedAdapterEdgeKind::EffectOperationArgument
-        | core_ir::ExpectedAdapterEdgeKind::HandlerResidual
-        | core_ir::ExpectedAdapterEdgeKind::HandlerReturn
-        | core_ir::ExpectedAdapterEdgeKind::ResumeArgument => None,
+        typed_ir::ExpectedAdapterEdgeKind::BindHere => Some(RuntimeAdapterEventKind::BindHere),
+        typed_ir::ExpectedAdapterEdgeKind::EffectOperationArgument
+        | typed_ir::ExpectedAdapterEdgeKind::HandlerResidual
+        | typed_ir::ExpectedAdapterEdgeKind::HandlerReturn
+        | typed_ir::ExpectedAdapterEdgeKind::ResumeArgument => None,
     }
 }
 
 fn expected_adapter_evidence_profile(
-    evidence: &core_ir::PrincipalEvidence,
+    evidence: &typed_ir::PrincipalEvidence,
 ) -> ExpectedAdapterEvidenceProfile {
     let mut profile = ExpectedAdapterEvidenceProfile::default();
     for edge in &evidence.expected_adapter_edges {
@@ -637,25 +637,25 @@ fn expected_adapter_evidence_profile(
             profile.informative += 1;
         }
         match edge.kind {
-            core_ir::ExpectedAdapterEdgeKind::EffectOperationArgument => {
+            typed_ir::ExpectedAdapterEdgeKind::EffectOperationArgument => {
                 profile.effect_operation_argument += 1;
             }
-            core_ir::ExpectedAdapterEdgeKind::ValueToThunk => {
+            typed_ir::ExpectedAdapterEdgeKind::ValueToThunk => {
                 profile.value_to_thunk += 1;
             }
-            core_ir::ExpectedAdapterEdgeKind::ThunkToValue => {
+            typed_ir::ExpectedAdapterEdgeKind::ThunkToValue => {
                 profile.thunk_to_value += 1;
             }
-            core_ir::ExpectedAdapterEdgeKind::BindHere => {
+            typed_ir::ExpectedAdapterEdgeKind::BindHere => {
                 profile.bind_here += 1;
             }
-            core_ir::ExpectedAdapterEdgeKind::HandlerResidual => {
+            typed_ir::ExpectedAdapterEdgeKind::HandlerResidual => {
                 profile.handler_residual += 1;
             }
-            core_ir::ExpectedAdapterEdgeKind::HandlerReturn => {
+            typed_ir::ExpectedAdapterEdgeKind::HandlerReturn => {
                 profile.handler_return += 1;
             }
-            core_ir::ExpectedAdapterEdgeKind::ResumeArgument => {
+            typed_ir::ExpectedAdapterEdgeKind::ResumeArgument => {
                 profile.resume_argument += 1;
             }
         }
@@ -664,36 +664,36 @@ fn expected_adapter_evidence_profile(
 }
 
 fn derived_expected_evidence_profile(
-    evidence: &core_ir::PrincipalEvidence,
+    evidence: &typed_ir::PrincipalEvidence,
 ) -> DerivedExpectedEvidenceProfile {
     let mut profile = DerivedExpectedEvidenceProfile::default();
     for edge in &evidence.derived_expected_edges {
         profile.total += 1;
         match edge.kind {
-            core_ir::DerivedExpectedEdgeKind::RecordField => profile.record_field += 1,
-            core_ir::DerivedExpectedEdgeKind::TupleItem => profile.tuple_item += 1,
-            core_ir::DerivedExpectedEdgeKind::VariantPayload => profile.variant_payload += 1,
-            core_ir::DerivedExpectedEdgeKind::FunctionParam => profile.function_param += 1,
-            core_ir::DerivedExpectedEdgeKind::FunctionReturn => profile.function_return += 1,
+            typed_ir::DerivedExpectedEdgeKind::RecordField => profile.record_field += 1,
+            typed_ir::DerivedExpectedEdgeKind::TupleItem => profile.tuple_item += 1,
+            typed_ir::DerivedExpectedEdgeKind::VariantPayload => profile.variant_payload += 1,
+            typed_ir::DerivedExpectedEdgeKind::FunctionParam => profile.function_param += 1,
+            typed_ir::DerivedExpectedEdgeKind::FunctionReturn => profile.function_return += 1,
         }
         match edge.polarity {
-            core_ir::EdgePolarity::Covariant => profile.covariant += 1,
-            core_ir::EdgePolarity::Contravariant => profile.contravariant += 1,
-            core_ir::EdgePolarity::Invariant => profile.invariant += 1,
+            typed_ir::EdgePolarity::Covariant => profile.covariant += 1,
+            typed_ir::EdgePolarity::Contravariant => profile.contravariant += 1,
+            typed_ir::EdgePolarity::Invariant => profile.invariant += 1,
         }
     }
     profile
 }
 
 fn normalize_initial_alias_types(
-    bindings: &[core_ir::PrincipalBinding],
-    env: &mut HashMap<core_ir::Path, RuntimeType>,
-    binding_infos: &mut HashMap<core_ir::Path, BindingInfo>,
+    bindings: &[typed_ir::PrincipalBinding],
+    env: &mut HashMap<typed_ir::Path, RuntimeType>,
+    binding_infos: &mut HashMap<typed_ir::Path, BindingInfo>,
 ) {
     for _ in 0..bindings.len() {
         let mut changed = false;
         for binding in bindings {
-            let core_ir::Expr::Var(target) = &binding.body else {
+            let typed_ir::Expr::Var(target) = &binding.body else {
                 continue;
             };
             let Some(current_ty) = env.get(&binding.name).cloned() else {
@@ -721,11 +721,13 @@ fn normalize_initial_alias_types(
     }
 }
 
-fn direct_aliases(bindings: &[core_ir::PrincipalBinding]) -> HashMap<core_ir::Path, core_ir::Path> {
+fn direct_aliases(
+    bindings: &[typed_ir::PrincipalBinding],
+) -> HashMap<typed_ir::Path, typed_ir::Path> {
     bindings
         .iter()
         .filter_map(|binding| match &binding.body {
-            core_ir::Expr::Var(target) if target != &binding.name => {
+            typed_ir::Expr::Var(target) if target != &binding.name => {
                 Some((binding.name.clone(), target.clone()))
             }
             _ => None,
@@ -734,19 +736,19 @@ fn direct_aliases(bindings: &[core_ir::PrincipalBinding]) -> HashMap<core_ir::Pa
 }
 
 struct Lowerer<'a> {
-    env: HashMap<core_ir::Path, RuntimeType>,
-    binding_infos: HashMap<core_ir::Path, BindingInfo>,
-    aliases: HashMap<core_ir::Path, core_ir::Path>,
-    graph: &'a core_ir::CoreGraphView,
-    runtime_symbols: HashMap<core_ir::Path, core_ir::RuntimeSymbolKind>,
+    env: HashMap<typed_ir::Path, RuntimeType>,
+    binding_infos: HashMap<typed_ir::Path, BindingInfo>,
+    aliases: HashMap<typed_ir::Path, typed_ir::Path>,
+    graph: &'a typed_ir::CoreGraphView,
+    runtime_symbols: HashMap<typed_ir::Path, typed_ir::RuntimeSymbolKind>,
     primitive_paths: RuntimePrimitivePathTable,
-    principal_vars: BTreeSet<core_ir::TypeVar>,
-    expected_edges_by_id: HashMap<u32, &'a core_ir::ExpectedEdgeEvidence>,
+    principal_vars: BTreeSet<typed_ir::TypeVar>,
+    expected_edges_by_id: HashMap<u32, &'a typed_ir::ExpectedEdgeEvidence>,
     use_expected_arg_evidence: bool,
     use_principal_elaboration: bool,
     expected_arg_evidence_profile: ExpectedArgEvidenceProfile,
     runtime_adapter_profile: RuntimeAdapterProfile,
-    current_binding: Option<core_ir::Path>,
+    current_binding: Option<typed_ir::Path>,
     current_runtime_adapter_source: Option<RuntimeAdapterSource>,
     next_synthetic_type_var: usize,
     next_effect_id_var: usize,
@@ -755,8 +757,8 @@ struct Lowerer<'a> {
 #[derive(Clone)]
 struct BindingInfo {
     ty: RuntimeType,
-    type_params: Vec<core_ir::TypeVar>,
-    requirements: Vec<core_ir::RoleRequirement>,
+    type_params: Vec<typed_ir::TypeVar>,
+    requirements: Vec<typed_ir::RoleRequirement>,
 }
 
 #[cfg(test)]

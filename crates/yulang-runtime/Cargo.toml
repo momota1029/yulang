@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-yulang-core-ir = { path = "../yulang-core-ir" }
+yulang-typed-ir = { path = "../yulang-typed-ir" }
 
 [dev-dependencies]
 yulang-infer = { path = "../yulang-infer" }

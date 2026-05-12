@@ -16,5 +16,5 @@ tower-lsp = "0.20"
 tokio = { version = "1", features = ["full"] }
 yulang-editor = { version = "0.1.0", path = "../yulang-editor" }
 yulang-infer = { version = "0.1.0", path = "../yulang-infer" }
-yulang-source = { version = "0.1.0", path = "../yulang-source" }
+yulang-sources = { version = "0.1.0", path = "../yulang-sources" }
 rowan = "0.15"

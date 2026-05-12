@@ -32,7 +32,7 @@ fn is_expected_nullary_constructor(expr: &Expr, expected: Option<&RuntimeType>) 
     }
 }
 
-fn expr_var_path(expr: &Expr) -> Option<&core_ir::Path> {
+fn expr_var_path(expr: &Expr) -> Option<&typed_ir::Path> {
     match &expr.kind {
         ExprKind::Var(path) => Some(path),
         _ => None,
@@ -44,7 +44,7 @@ fn refine_expr_type_from_context(
     binding_ty: Option<&RuntimeType>,
     expected: Option<&RuntimeType>,
     constructor_expected: bool,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> RuntimeType {
     if constructor_expected {
         return expected

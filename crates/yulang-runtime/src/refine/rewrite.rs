@@ -1,10 +1,10 @@
 use super::*;
 
 pub(super) struct RefineRewriter {
-    pub(super) substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    pub(super) binding_types: HashMap<core_ir::Path, RuntimeType>,
-    pub(super) locals: HashMap<core_ir::Path, RuntimeType>,
-    pub(super) pure_handler_bindings: HashMap<core_ir::Path, Vec<core_ir::Path>>,
+    pub(super) substitutions: BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    pub(super) binding_types: HashMap<typed_ir::Path, RuntimeType>,
+    pub(super) locals: HashMap<typed_ir::Path, RuntimeType>,
+    pub(super) pure_handler_bindings: HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
 }
 
 impl RefineRewriter {
@@ -90,7 +90,7 @@ impl RefineRewriter {
                     }
                     _ => (None, None),
                 };
-                let local = core_ir::Path::from_name(param.clone());
+                let local = typed_ir::Path::from_name(param.clone());
                 let previous = param_ty.map(|ty| push_binding(&mut self.locals, local, ty));
                 let mut body = self.expr(*body, body_expected.as_ref());
                 if let Some(previous) = previous {
@@ -253,7 +253,7 @@ impl RefineRewriter {
                         let mut bindings = pattern_bindings(&payload);
                         if let Some(resume) = &resume {
                             bindings.push((
-                                core_ir::Path::from_name(resume.name.clone()),
+                                typed_ir::Path::from_name(resume.name.clone()),
                                 resume.ty.clone(),
                             ));
                         }

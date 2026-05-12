@@ -1,74 +1,74 @@
 use super::*;
 
 pub(crate) fn infer_type_substitutions(
-    template: &core_ir::Type,
-    actual: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) {
     infer_type_substitutions_inner(template, actual, params, substitutions, 128, false, false);
 }
 
 pub(crate) fn substitute_type(
-    ty: &core_ir::Type,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> core_ir::Type {
+    ty: &typed_ir::Type,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::Type {
     match ty {
-        core_ir::Type::Unknown => core_ir::Type::Unknown,
-        core_ir::Type::Never => core_ir::Type::Never,
-        core_ir::Type::Any => core_ir::Type::Any,
-        core_ir::Type::Var(var) => substitutions
+        typed_ir::Type::Unknown => typed_ir::Type::Unknown,
+        typed_ir::Type::Never => typed_ir::Type::Never,
+        typed_ir::Type::Any => typed_ir::Type::Any,
+        typed_ir::Type::Var(var) => substitutions
             .get(var)
             .cloned()
-            .unwrap_or_else(|| core_ir::Type::Var(var.clone())),
-        core_ir::Type::Named { path, args } => core_ir::Type::Named {
+            .unwrap_or_else(|| typed_ir::Type::Var(var.clone())),
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
             path: path.clone(),
             args: args
                 .iter()
                 .map(|arg| substitute_type_arg(arg, substitutions))
                 .collect(),
         },
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
             ret,
-        } => core_ir::Type::Fun {
+        } => typed_ir::Type::Fun {
             param: Box::new(substitute_type(param, substitutions)),
             param_effect: Box::new(substitute_type(param_effect, substitutions)),
             ret_effect: Box::new(substitute_type(ret_effect, substitutions)),
             ret: Box::new(substitute_type(ret, substitutions)),
         },
-        core_ir::Type::Tuple(items) => core_ir::Type::Tuple(
+        typed_ir::Type::Tuple(items) => typed_ir::Type::Tuple(
             items
                 .iter()
                 .map(|item| substitute_type(item, substitutions))
                 .collect(),
         ),
-        core_ir::Type::Record(record) => core_ir::Type::Record(core_ir::RecordType {
+        typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
             fields: record
                 .fields
                 .iter()
-                .map(|field| core_ir::RecordField {
+                .map(|field| typed_ir::RecordField {
                     name: field.name.clone(),
                     value: substitute_type(&field.value, substitutions),
                     optional: field.optional,
                 })
                 .collect(),
             spread: record.spread.as_ref().map(|spread| match spread {
-                core_ir::RecordSpread::Head(ty) => {
-                    core_ir::RecordSpread::Head(Box::new(substitute_type(ty, substitutions)))
+                typed_ir::RecordSpread::Head(ty) => {
+                    typed_ir::RecordSpread::Head(Box::new(substitute_type(ty, substitutions)))
                 }
-                core_ir::RecordSpread::Tail(ty) => {
-                    core_ir::RecordSpread::Tail(Box::new(substitute_type(ty, substitutions)))
+                typed_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Tail(Box::new(substitute_type(ty, substitutions)))
                 }
             }),
         }),
-        core_ir::Type::Variant(variant) => core_ir::Type::Variant(core_ir::VariantType {
+        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
             cases: variant
                 .cases
                 .iter()
-                .map(|case| core_ir::VariantCase {
+                .map(|case| typed_ir::VariantCase {
                     name: case.name.clone(),
                     payloads: case
                         .payloads
@@ -82,29 +82,29 @@ pub(crate) fn substitute_type(
                 .as_ref()
                 .map(|tail| Box::new(substitute_type(tail, substitutions))),
         }),
-        core_ir::Type::Row { items, tail } => core_ir::Type::Row {
+        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
             items: items
                 .iter()
                 .map(|item| substitute_type(item, substitutions))
                 .collect(),
             tail: Box::new(substitute_type(tail, substitutions)),
         },
-        core_ir::Type::Union(items) => core_ir::Type::Union(
+        typed_ir::Type::Union(items) => typed_ir::Type::Union(
             items
                 .iter()
                 .map(|item| substitute_type(item, substitutions))
                 .collect(),
         ),
-        core_ir::Type::Inter(items) => core_ir::Type::Inter(
+        typed_ir::Type::Inter(items) => typed_ir::Type::Inter(
             items
                 .iter()
                 .map(|item| substitute_type(item, substitutions))
                 .collect(),
         ),
-        core_ir::Type::Recursive { var, body } => {
+        typed_ir::Type::Recursive { var, body } => {
             let mut substitutions = substitutions.clone();
             substitutions.remove(var);
-            core_ir::Type::Recursive {
+            typed_ir::Type::Recursive {
                 var: var.clone(),
                 body: Box::new(substitute_type(body, &substitutions)),
             }
@@ -114,7 +114,7 @@ pub(crate) fn substitute_type(
 
 pub(crate) fn substitute_hir_type(
     ty: &RuntimeType,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> RuntimeType {
     match ty {
         RuntimeType::Unknown => RuntimeType::unknown(),
@@ -131,10 +131,10 @@ pub(crate) fn substitute_hir_type(
 }
 
 pub(crate) fn substitute_scheme(
-    scheme: core_ir::Scheme,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> core_ir::Scheme {
-    core_ir::Scheme {
+    scheme: typed_ir::Scheme,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::Scheme {
+    typed_ir::Scheme {
         requirements: scheme
             .requirements
             .into_iter()
@@ -145,20 +145,20 @@ pub(crate) fn substitute_scheme(
 }
 
 pub(crate) fn substitute_role_requirement(
-    requirement: core_ir::RoleRequirement,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> core_ir::RoleRequirement {
-    core_ir::RoleRequirement {
+    requirement: typed_ir::RoleRequirement,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::RoleRequirement {
+    typed_ir::RoleRequirement {
         role: requirement.role,
         args: requirement
             .args
             .into_iter()
             .map(|arg| match arg {
-                core_ir::RoleRequirementArg::Input(bounds) => {
-                    core_ir::RoleRequirementArg::Input(substitute_bounds(bounds, substitutions))
+                typed_ir::RoleRequirementArg::Input(bounds) => {
+                    typed_ir::RoleRequirementArg::Input(substitute_bounds(bounds, substitutions))
                 }
-                core_ir::RoleRequirementArg::Associated { name, bounds } => {
-                    core_ir::RoleRequirementArg::Associated {
+                typed_ir::RoleRequirementArg::Associated { name, bounds } => {
+                    typed_ir::RoleRequirementArg::Associated {
                         name,
                         bounds: substitute_bounds(bounds, substitutions),
                     }
@@ -169,9 +169,9 @@ pub(crate) fn substitute_role_requirement(
 }
 
 pub(crate) fn substitute_apply_evidence(
-    evidence: core_ir::ApplyEvidence,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> core_ir::ApplyEvidence {
+    evidence: typed_ir::ApplyEvidence,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::ApplyEvidence {
     let mut evidence_vars = BTreeSet::new();
     if let Some(principal) = &evidence.principal_callee {
         collect_type_vars(principal, &mut evidence_vars);
@@ -181,7 +181,7 @@ pub(crate) fn substitute_apply_evidence(
         .filter_map(|(var, ty)| {
             evidence_vars
                 .contains(var)
-                .then(|| core_ir::TypeSubstitution {
+                .then(|| typed_ir::TypeSubstitution {
                     var: var.clone(),
                     ty: substitute_type(ty, substitutions),
                 })
@@ -194,7 +194,7 @@ pub(crate) fn substitute_apply_evidence(
         {
             continue;
         }
-        evidence_substitutions.push(core_ir::TypeSubstitution {
+        evidence_substitutions.push(typed_ir::TypeSubstitution {
             var: substitution.var,
             ty: substitute_type(&substitution.ty, substitutions),
         });
@@ -202,7 +202,7 @@ pub(crate) fn substitute_apply_evidence(
     let substitution_candidates = evidence
         .substitution_candidates
         .into_iter()
-        .map(|candidate| core_ir::PrincipalSubstitutionCandidate {
+        .map(|candidate| typed_ir::PrincipalSubstitutionCandidate {
             var: candidate.var,
             relation: candidate.relation,
             ty: substitute_type(&candidate.ty, substitutions),
@@ -214,7 +214,7 @@ pub(crate) fn substitute_apply_evidence(
         substitute_principal_elaboration_plan(plan, substitutions, &substitution_candidates)
     });
 
-    core_ir::ApplyEvidence {
+    typed_ir::ApplyEvidence {
         callee_source_edge: evidence.callee_source_edge,
         arg_source_edge: evidence.arg_source_edge,
         callee: substitute_bounds(evidence.callee, substitutions),
@@ -237,24 +237,24 @@ pub(crate) fn substitute_apply_evidence(
 }
 
 fn substitute_principal_elaboration_plan(
-    plan: core_ir::PrincipalElaborationPlan,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
-) -> core_ir::PrincipalElaborationPlan {
+    plan: typed_ir::PrincipalElaborationPlan,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    substitution_candidates: &[typed_ir::PrincipalSubstitutionCandidate],
+) -> typed_ir::PrincipalElaborationPlan {
     let plan = substitute_principal_elaboration_plan_slots(plan, substitutions);
     normalize_principal_elaboration_plan(plan, substitution_candidates)
 }
 
 fn substitute_principal_elaboration_plan_slots(
-    plan: core_ir::PrincipalElaborationPlan,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> core_ir::PrincipalElaborationPlan {
+    plan: typed_ir::PrincipalElaborationPlan,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::PrincipalElaborationPlan {
     let mut plan_vars = BTreeSet::new();
     collect_type_vars(&plan.principal_callee, &mut plan_vars);
     let mut plan_substitutions = substitutions
         .iter()
         .filter_map(|(var, ty)| {
-            plan_vars.contains(var).then(|| core_ir::TypeSubstitution {
+            plan_vars.contains(var).then(|| typed_ir::TypeSubstitution {
                 var: var.clone(),
                 ty: substitute_type(ty, substitutions),
             })
@@ -267,20 +267,20 @@ fn substitute_principal_elaboration_plan_slots(
         {
             continue;
         }
-        plan_substitutions.push(core_ir::TypeSubstitution {
+        plan_substitutions.push(typed_ir::TypeSubstitution {
             var: substitution.var,
             ty: substitute_type(&substitution.ty, substitutions),
         });
     }
 
-    core_ir::PrincipalElaborationPlan {
+    typed_ir::PrincipalElaborationPlan {
         target: plan.target,
         principal_callee: substitute_type(&plan.principal_callee, substitutions),
         substitutions: plan_substitutions,
         args: plan
             .args
             .into_iter()
-            .map(|arg| core_ir::PrincipalElaborationArg {
+            .map(|arg| typed_ir::PrincipalElaborationArg {
                 index: arg.index,
                 intrinsic: substitute_bounds(arg.intrinsic, substitutions),
                 contextual: arg
@@ -292,7 +292,7 @@ fn substitute_principal_elaboration_plan_slots(
                 source_edge: arg.source_edge,
             })
             .collect(),
-        result: core_ir::PrincipalElaborationResult {
+        result: typed_ir::PrincipalElaborationResult {
             intrinsic: substitute_bounds(plan.result.intrinsic, substitutions),
             contextual: plan
                 .result
@@ -306,7 +306,7 @@ fn substitute_principal_elaboration_plan_slots(
         adapters: plan
             .adapters
             .into_iter()
-            .map(|adapter| core_ir::PrincipalAdapterHole {
+            .map(|adapter| typed_ir::PrincipalAdapterHole {
                 kind: adapter.kind,
                 source_edge: adapter.source_edge,
                 actual: substitute_type(&adapter.actual, substitutions),
@@ -319,17 +319,17 @@ fn substitute_principal_elaboration_plan_slots(
 }
 
 pub(crate) fn normalize_principal_elaboration_plan(
-    plan: core_ir::PrincipalElaborationPlan,
-    substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
-) -> core_ir::PrincipalElaborationPlan {
+    plan: typed_ir::PrincipalElaborationPlan,
+    substitution_candidates: &[typed_ir::PrincipalSubstitutionCandidate],
+) -> typed_ir::PrincipalElaborationPlan {
     normalize_principal_elaboration_plan_with_requirements(plan, substitution_candidates, &[])
 }
 
 pub(crate) fn normalize_principal_elaboration_plan_with_requirements(
-    plan: core_ir::PrincipalElaborationPlan,
-    substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
-    requirements: &[core_ir::RoleRequirement],
-) -> core_ir::PrincipalElaborationPlan {
+    plan: typed_ir::PrincipalElaborationPlan,
+    substitution_candidates: &[typed_ir::PrincipalSubstitutionCandidate],
+    requirements: &[typed_ir::RoleRequirement],
+) -> typed_ir::PrincipalElaborationPlan {
     normalize_principal_elaboration_plan_with_role_impls(
         plan,
         substitution_candidates,
@@ -339,11 +339,11 @@ pub(crate) fn normalize_principal_elaboration_plan_with_requirements(
 }
 
 pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
-    plan: core_ir::PrincipalElaborationPlan,
-    substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
-    requirements: &[core_ir::RoleRequirement],
-    role_impls: &[core_ir::RoleImplGraphNode],
-) -> core_ir::PrincipalElaborationPlan {
+    plan: typed_ir::PrincipalElaborationPlan,
+    substitution_candidates: &[typed_ir::PrincipalSubstitutionCandidate],
+    requirements: &[typed_ir::RoleRequirement],
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> typed_ir::PrincipalElaborationPlan {
     let required_vars = principal_elaboration_required_vars(&plan);
     if required_vars.is_empty() {
         return rebuild_principal_elaboration_plan_status(
@@ -423,7 +423,7 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
             64,
         );
     }
-    if let Some(core_ir::Type::Var(var)) =
+    if let Some(typed_ir::Type::Var(var)) =
         principal_fun_result_after_args(&substituted_principal, plan.args.len())
         && required_vars.contains(var)
         && !substitutions.contains_key(var)
@@ -462,10 +462,10 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
 }
 
 fn principal_plan_result_self_closed_type(
-    result: &core_ir::PrincipalElaborationResult,
-    var: &core_ir::TypeVar,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> Option<core_ir::Type> {
+    result: &typed_ir::PrincipalElaborationResult,
+    var: &typed_ir::TypeVar,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> Option<typed_ir::Type> {
     result
         .contextual
         .as_ref()
@@ -474,10 +474,10 @@ fn principal_plan_result_self_closed_type(
 }
 
 fn principal_plan_bounds_self_closed_type(
-    bounds: &core_ir::TypeBounds,
-    var: &core_ir::TypeVar,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> Option<core_ir::Type> {
+    bounds: &typed_ir::TypeBounds,
+    var: &typed_ir::TypeVar,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> Option<typed_ir::Type> {
     let lower = bounds
         .lower
         .as_deref()
@@ -496,11 +496,11 @@ fn principal_plan_bounds_self_closed_type(
 }
 
 fn rebuild_principal_elaboration_plan_status(
-    mut plan: core_ir::PrincipalElaborationPlan,
-    substitutions: BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: BTreeSet<core_ir::TypeVar>,
-    substitution_candidates: &[core_ir::PrincipalSubstitutionCandidate],
-) -> core_ir::PrincipalElaborationPlan {
+    mut plan: typed_ir::PrincipalElaborationPlan,
+    substitutions: BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: BTreeSet<typed_ir::TypeVar>,
+    substitution_candidates: &[typed_ir::PrincipalSubstitutionCandidate],
+) -> typed_ir::PrincipalElaborationPlan {
     if !substitutions.is_empty() {
         let non_conflicting_substitutions = substitutions
             .iter()
@@ -511,12 +511,14 @@ fn rebuild_principal_elaboration_plan_status(
     let required_vars = principal_elaboration_required_vars(&plan);
     let mut incomplete_reasons = Vec::new();
     if plan.target.is_none() {
-        incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::MissingTarget);
+        incomplete_reasons.push(typed_ir::PrincipalElaborationIncompleteReason::MissingTarget);
     }
     for var in &required_vars {
         if conflicts.contains(var) {
             incomplete_reasons.push(
-                core_ir::PrincipalElaborationIncompleteReason::ConflictingSubstitution(var.clone()),
+                typed_ir::PrincipalElaborationIncompleteReason::ConflictingSubstitution(
+                    var.clone(),
+                ),
             );
         } else if !substitutions.contains_key(var) {
             let has_open_candidate = substitution_candidates
@@ -525,40 +527,42 @@ fn rebuild_principal_elaboration_plan_status(
                 || plan.incomplete_reasons.iter().any(|reason| {
                     matches!(
                         reason,
-                        core_ir::PrincipalElaborationIncompleteReason::OpenCandidate(candidate_var)
+                        typed_ir::PrincipalElaborationIncompleteReason::OpenCandidate(candidate_var)
                             if candidate_var == var
                     )
                 });
             if has_open_candidate {
                 incomplete_reasons.push(
-                    core_ir::PrincipalElaborationIncompleteReason::OpenCandidate(var.clone()),
+                    typed_ir::PrincipalElaborationIncompleteReason::OpenCandidate(var.clone()),
                 );
             } else {
                 incomplete_reasons.push(
-                    core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(var.clone()),
+                    typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(
+                        var.clone(),
+                    ),
                 );
             }
         }
     }
     for arg in &plan.args {
         if principal_plan_arg_type(arg).is_none() {
-            incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::OpenArgType(
+            incomplete_reasons.push(typed_ir::PrincipalElaborationIncompleteReason::OpenArgType(
                 arg.index,
             ));
         }
     }
     if principal_plan_result_type(&plan.result).is_none() {
-        incomplete_reasons.push(core_ir::PrincipalElaborationIncompleteReason::OpenResultType);
+        incomplete_reasons.push(typed_ir::PrincipalElaborationIncompleteReason::OpenResultType);
     }
     incomplete_reasons.extend(
         plan.incomplete_reasons
             .iter()
             .filter_map(|reason| match reason {
-                core_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(kind) => {
-                    Some(core_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(*kind))
+                typed_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(kind) => {
+                    Some(typed_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(*kind))
                 }
-                core_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan => {
-                    Some(core_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan)
+                typed_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan => {
+                    Some(typed_ir::PrincipalElaborationIncompleteReason::HandlerBoundaryWithoutPlan)
                 }
                 _ => None,
             }),
@@ -566,7 +570,7 @@ fn rebuild_principal_elaboration_plan_status(
 
     plan.substitutions = substitutions
         .into_iter()
-        .map(|(var, ty)| core_ir::TypeSubstitution { var, ty })
+        .map(|(var, ty)| typed_ir::TypeSubstitution { var, ty })
         .collect();
     plan.complete = incomplete_reasons.is_empty();
     plan.incomplete_reasons = incomplete_reasons;
@@ -574,17 +578,17 @@ fn rebuild_principal_elaboration_plan_status(
 }
 
 fn principal_elaboration_required_vars(
-    plan: &core_ir::PrincipalElaborationPlan,
-) -> BTreeSet<core_ir::TypeVar> {
+    plan: &typed_ir::PrincipalElaborationPlan,
+) -> BTreeSet<typed_ir::TypeVar> {
     let mut vars = BTreeSet::new();
     collect_type_vars(&plan.principal_callee, &mut vars);
     vars
 }
 
 fn principal_elaboration_never_usable_vars(
-    plan: &core_ir::PrincipalElaborationPlan,
-) -> BTreeSet<core_ir::TypeVar> {
-    let mut usage = BTreeMap::<core_ir::TypeVar, PrincipalVarUsage>::new();
+    plan: &typed_ir::PrincipalElaborationPlan,
+) -> BTreeSet<typed_ir::TypeVar> {
+    let mut usage = BTreeMap::<typed_ir::TypeVar, PrincipalVarUsage>::new();
     collect_principal_var_usage(&plan.principal_callee, false, &mut usage);
     usage
         .into_iter()
@@ -618,12 +622,12 @@ impl PrincipalVarUsage {
 }
 
 fn collect_principal_var_usage(
-    ty: &core_ir::Type,
+    ty: &typed_ir::Type,
     effect_slot: bool,
-    usage: &mut BTreeMap<core_ir::TypeVar, PrincipalVarUsage>,
+    usage: &mut BTreeMap<typed_ir::TypeVar, PrincipalVarUsage>,
 ) {
     match ty {
-        core_ir::Type::Var(var) => {
+        typed_ir::Type::Var(var) => {
             let usage = usage.entry(var.clone()).or_default();
             if effect_slot {
                 usage.mark_effect();
@@ -631,12 +635,12 @@ fn collect_principal_var_usage(
                 usage.mark_value();
             }
         }
-        core_ir::Type::Named { args, .. } => {
+        typed_ir::Type::Named { args, .. } => {
             for arg in args {
                 collect_principal_type_arg_usage(arg, usage);
             }
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -647,24 +651,26 @@ fn collect_principal_var_usage(
             collect_principal_var_usage(ret_effect, true, usage);
             collect_principal_var_usage(ret, false, usage);
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
             for item in items {
                 collect_principal_var_usage(item, effect_slot, usage);
             }
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             for field in &record.fields {
                 collect_principal_var_usage(&field.value, false, usage);
             }
             if let Some(spread) = &record.spread {
                 match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         collect_principal_var_usage(ty, false, usage);
                     }
                 }
             }
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             for case in &variant.cases {
                 for payload in &case.payloads {
                     collect_principal_var_usage(payload, false, usage);
@@ -674,13 +680,13 @@ fn collect_principal_var_usage(
                 collect_principal_var_usage(tail, false, usage);
             }
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             for item in items {
                 match item {
-                    core_ir::Type::Var(var) => {
+                    typed_ir::Type::Var(var) => {
                         usage.entry(var.clone()).or_default().mark_effect();
                     }
-                    core_ir::Type::Named { args, .. } => {
+                    typed_ir::Type::Named { args, .. } => {
                         for arg in args {
                             collect_principal_type_arg_usage(arg, usage);
                         }
@@ -690,21 +696,21 @@ fn collect_principal_var_usage(
             }
             collect_principal_var_usage(tail, true, usage);
         }
-        core_ir::Type::Recursive { var, body } => {
+        typed_ir::Type::Recursive { var, body } => {
             collect_principal_var_usage(body, effect_slot, usage);
             usage.remove(var);
         }
-        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => {}
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
     }
 }
 
 fn collect_principal_type_arg_usage(
-    arg: &core_ir::TypeArg,
-    usage: &mut BTreeMap<core_ir::TypeVar, PrincipalVarUsage>,
+    arg: &typed_ir::TypeArg,
+    usage: &mut BTreeMap<typed_ir::TypeVar, PrincipalVarUsage>,
 ) {
     match arg {
-        core_ir::TypeArg::Type(ty) => collect_principal_type_arg_type_usage(ty, usage),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(ty) => collect_principal_type_arg_type_usage(ty, usage),
+        typed_ir::TypeArg::Bounds(bounds) => {
             if let Some(lower) = bounds.lower.as_deref() {
                 collect_principal_type_arg_type_usage(lower, usage);
             }
@@ -716,19 +722,19 @@ fn collect_principal_type_arg_usage(
 }
 
 fn collect_principal_type_arg_type_usage(
-    ty: &core_ir::Type,
-    usage: &mut BTreeMap<core_ir::TypeVar, PrincipalVarUsage>,
+    ty: &typed_ir::Type,
+    usage: &mut BTreeMap<typed_ir::TypeVar, PrincipalVarUsage>,
 ) {
     match ty {
-        core_ir::Type::Var(var) => {
+        typed_ir::Type::Var(var) => {
             usage.entry(var.clone()).or_default().mark_type_arg();
         }
-        core_ir::Type::Named { args, .. } => {
+        typed_ir::Type::Named { args, .. } => {
             for arg in args {
                 collect_principal_type_arg_usage(arg, usage);
             }
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -739,24 +745,26 @@ fn collect_principal_type_arg_type_usage(
             collect_principal_var_usage(ret_effect, true, usage);
             collect_principal_var_usage(ret, false, usage);
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
             for item in items {
                 collect_principal_type_arg_type_usage(item, usage);
             }
         }
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             for field in &record.fields {
                 collect_principal_var_usage(&field.value, false, usage);
             }
             if let Some(spread) = &record.spread {
                 match spread {
-                    core_ir::RecordSpread::Head(ty) | core_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
                         collect_principal_var_usage(ty, false, usage);
                     }
                 }
             }
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             for case in &variant.cases {
                 for payload in &case.payloads {
                     collect_principal_var_usage(payload, false, usage);
@@ -766,49 +774,52 @@ fn collect_principal_type_arg_type_usage(
                 collect_principal_var_usage(tail, false, usage);
             }
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             for item in items {
                 collect_principal_var_usage(item, true, usage);
             }
             collect_principal_var_usage(tail, true, usage);
         }
-        core_ir::Type::Recursive { var, body } => {
+        typed_ir::Type::Recursive { var, body } => {
             collect_principal_type_arg_type_usage(body, usage);
             usage.remove(var);
         }
-        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Any => {}
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
     }
 }
 
-fn principal_fun_param_at(ty: &core_ir::Type, index: usize) -> Option<&core_ir::Type> {
+fn principal_fun_param_at(ty: &typed_ir::Type, index: usize) -> Option<&typed_ir::Type> {
     let mut current = ty;
     for _ in 0..index {
         current = match current {
-            core_ir::Type::Fun { ret, .. } => ret,
-            core_ir::Type::Recursive { body, .. } => body,
+            typed_ir::Type::Fun { ret, .. } => ret,
+            typed_ir::Type::Recursive { body, .. } => body,
             _ => return None,
         };
     }
     match current {
-        core_ir::Type::Fun { param, .. } => Some(param),
-        core_ir::Type::Recursive { body, .. } => principal_fun_param_at(body, 0),
+        typed_ir::Type::Fun { param, .. } => Some(param),
+        typed_ir::Type::Recursive { body, .. } => principal_fun_param_at(body, 0),
         _ => None,
     }
 }
 
-fn principal_fun_result_after_args(ty: &core_ir::Type, arg_count: usize) -> Option<&core_ir::Type> {
+fn principal_fun_result_after_args(
+    ty: &typed_ir::Type,
+    arg_count: usize,
+) -> Option<&typed_ir::Type> {
     let mut current = ty;
     for _ in 0..arg_count {
         current = match current {
-            core_ir::Type::Fun { ret, .. } => ret,
-            core_ir::Type::Recursive { body, .. } => body,
+            typed_ir::Type::Fun { ret, .. } => ret,
+            typed_ir::Type::Recursive { body, .. } => body,
             _ => return None,
         };
     }
     Some(current)
 }
 
-fn principal_plan_arg_type(arg: &core_ir::PrincipalElaborationArg) -> Option<core_ir::Type> {
+fn principal_plan_arg_type(arg: &typed_ir::PrincipalElaborationArg) -> Option<typed_ir::Type> {
     arg.expected_runtime
         .clone()
         .or_else(|| principal_plan_bounds_slot_type(arg.contextual.as_ref(), false))
@@ -816,8 +827,8 @@ fn principal_plan_arg_type(arg: &core_ir::PrincipalElaborationArg) -> Option<cor
 }
 
 fn principal_plan_result_type(
-    result: &core_ir::PrincipalElaborationResult,
-) -> Option<core_ir::Type> {
+    result: &typed_ir::PrincipalElaborationResult,
+) -> Option<typed_ir::Type> {
     result
         .expected_runtime
         .clone()
@@ -826,9 +837,9 @@ fn principal_plan_result_type(
 }
 
 fn principal_plan_bounds_slot_type(
-    bounds: Option<&core_ir::TypeBounds>,
+    bounds: Option<&typed_ir::TypeBounds>,
     allow_never: bool,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     let bounds = bounds?;
     let lower = bounds
         .lower
@@ -851,31 +862,31 @@ fn principal_plan_bounds_slot_type(
     }
 }
 
-fn principal_plan_slot_type_usable(ty: &core_ir::Type, allow_never: bool) -> bool {
-    !matches!(ty, core_ir::Type::Var(_))
-        && (allow_never || !matches!(ty, core_ir::Type::Never))
+fn principal_plan_slot_type_usable(ty: &typed_ir::Type, allow_never: bool) -> bool {
+    !matches!(ty, typed_ir::Type::Var(_))
+        && (allow_never || !matches!(ty, typed_ir::Type::Never))
         && !type_has_vars(ty)
 }
 
 fn insert_exact_projected_substitution(
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: &mut BTreeSet<core_ir::TypeVar>,
-    var: core_ir::TypeVar,
-    ty: core_ir::Type,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+    var: typed_ir::TypeVar,
+    ty: typed_ir::Type,
 ) {
     if type_has_any(&ty) {
         return;
     }
     if let Some(existing) = substitutions.get(&var) {
-        if existing == &core_ir::Type::Never && ty != core_ir::Type::Never {
+        if existing == &typed_ir::Type::Never && ty != typed_ir::Type::Never {
             substitutions.insert(var, ty);
-        } else if ty == core_ir::Type::Never {
+        } else if ty == typed_ir::Type::Never {
             // `Never` is the empty effect when it appears in effect positions.
             // Keep a more informative closed effect if one has already been
             // projected. Value positions do not insert `Never` here.
-        } else if existing == &core_ir::Type::Any && ty != core_ir::Type::Any {
+        } else if existing == &typed_ir::Type::Any && ty != typed_ir::Type::Any {
             substitutions.insert(var, ty);
-        } else if ty == core_ir::Type::Any {
+        } else if ty == typed_ir::Type::Any {
             // `Any` is a real top type, but a concrete projection is more useful
             // for a specialization key when both are observed for the same slot.
         } else if let Some(merged) = merge_projected_type_precision(existing, &ty) {
@@ -891,23 +902,23 @@ fn insert_exact_projected_substitution(
 }
 
 fn merge_projected_type_precision(
-    existing: &core_ir::Type,
-    incoming: &core_ir::Type,
-) -> Option<core_ir::Type> {
+    existing: &typed_ir::Type,
+    incoming: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
     if existing == incoming {
         return Some(existing.clone());
     }
     match (existing, incoming) {
-        (core_ir::Type::Unknown, incoming) => Some(incoming.clone()),
-        (existing, core_ir::Type::Unknown) => Some(existing.clone()),
-        (core_ir::Type::Any, incoming) => Some(incoming.clone()),
-        (existing, core_ir::Type::Any) => Some(existing.clone()),
+        (typed_ir::Type::Unknown, incoming) => Some(incoming.clone()),
+        (existing, typed_ir::Type::Unknown) => Some(existing.clone()),
+        (typed_ir::Type::Any, incoming) => Some(incoming.clone()),
+        (existing, typed_ir::Type::Any) => Some(existing.clone()),
         (
-            core_ir::Type::Named {
+            typed_ir::Type::Named {
                 path: existing_path,
                 args: existing_args,
             },
-            core_ir::Type::Named {
+            typed_ir::Type::Named {
                 path: incoming_path,
                 args: incoming_args,
             },
@@ -917,40 +928,40 @@ fn merge_projected_type_precision(
                 .zip(incoming_args)
                 .map(|(existing, incoming)| merge_projected_type_arg_precision(existing, incoming))
                 .collect::<Option<Vec<_>>>()?;
-            Some(core_ir::Type::Named {
+            Some(typed_ir::Type::Named {
                 path: existing_path.clone(),
                 args,
             })
         }
-        (existing, core_ir::Type::Union(incoming_items))
+        (existing, typed_ir::Type::Union(incoming_items))
             if incoming_items
                 .iter()
                 .any(|item| merge_projected_type_precision(existing, item).is_some()) =>
         {
             Some(existing.clone())
         }
-        (core_ir::Type::Union(existing_items), incoming)
+        (typed_ir::Type::Union(existing_items), incoming)
             if existing_items
                 .iter()
                 .any(|item| merge_projected_type_precision(item, incoming).is_some()) =>
         {
             Some(incoming.clone())
         }
-        (existing, core_ir::Type::Inter(incoming_items))
+        (existing, typed_ir::Type::Inter(incoming_items))
             if incoming_items
                 .iter()
                 .any(|item| merge_projected_type_precision(existing, item).is_some()) =>
         {
             Some(existing.clone())
         }
-        (core_ir::Type::Inter(existing_items), incoming)
+        (typed_ir::Type::Inter(existing_items), incoming)
             if existing_items
                 .iter()
                 .any(|item| merge_projected_type_precision(item, incoming).is_some()) =>
         {
             Some(incoming.clone())
         }
-        (core_ir::Type::Tuple(existing_items), core_ir::Type::Tuple(incoming_items))
+        (typed_ir::Type::Tuple(existing_items), typed_ir::Type::Tuple(incoming_items))
             if existing_items.len() == incoming_items.len() =>
         {
             let items = existing_items
@@ -958,22 +969,22 @@ fn merge_projected_type_precision(
                 .zip(incoming_items)
                 .map(|(existing, incoming)| merge_projected_type_precision(existing, incoming))
                 .collect::<Option<Vec<_>>>()?;
-            Some(core_ir::Type::Tuple(items))
+            Some(typed_ir::Type::Tuple(items))
         }
         (
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: existing_param,
                 param_effect: existing_param_effect,
                 ret_effect: existing_ret_effect,
                 ret: existing_ret,
             },
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: incoming_param,
                 param_effect: incoming_param_effect,
                 ret_effect: incoming_ret_effect,
                 ret: incoming_ret,
             },
-        ) => Some(core_ir::Type::Fun {
+        ) => Some(typed_ir::Type::Fun {
             param: Box::new(merge_projected_type_precision(
                 existing_param,
                 incoming_param,
@@ -993,20 +1004,20 @@ fn merge_projected_type_precision(
 }
 
 fn merge_projected_type_arg_precision(
-    existing: &core_ir::TypeArg,
-    incoming: &core_ir::TypeArg,
-) -> Option<core_ir::TypeArg> {
+    existing: &typed_ir::TypeArg,
+    incoming: &typed_ir::TypeArg,
+) -> Option<typed_ir::TypeArg> {
     match (existing, incoming) {
-        (core_ir::TypeArg::Type(existing), core_ir::TypeArg::Type(incoming)) => Some(
-            core_ir::TypeArg::Type(merge_projected_type_precision(existing, incoming)?),
+        (typed_ir::TypeArg::Type(existing), typed_ir::TypeArg::Type(incoming)) => Some(
+            typed_ir::TypeArg::Type(merge_projected_type_precision(existing, incoming)?),
         ),
-        (core_ir::TypeArg::Bounds(existing), core_ir::TypeArg::Bounds(incoming)) => Some(
-            core_ir::TypeArg::Bounds(merge_projected_bounds_precision(existing, incoming)?),
+        (typed_ir::TypeArg::Bounds(existing), typed_ir::TypeArg::Bounds(incoming)) => Some(
+            typed_ir::TypeArg::Bounds(merge_projected_bounds_precision(existing, incoming)?),
         ),
-        (core_ir::TypeArg::Bounds(existing), core_ir::TypeArg::Type(incoming))
-        | (core_ir::TypeArg::Type(incoming), core_ir::TypeArg::Bounds(existing)) => {
+        (typed_ir::TypeArg::Bounds(existing), typed_ir::TypeArg::Type(incoming))
+        | (typed_ir::TypeArg::Type(incoming), typed_ir::TypeArg::Bounds(existing)) => {
             let existing = principal_plan_bounds_single_closed_type(existing, false)?;
-            Some(core_ir::TypeArg::Type(merge_projected_type_precision(
+            Some(typed_ir::TypeArg::Type(merge_projected_type_precision(
                 &existing, incoming,
             )?))
         }
@@ -1014,9 +1025,9 @@ fn merge_projected_type_arg_precision(
 }
 
 fn merge_projected_bounds_precision(
-    existing: &core_ir::TypeBounds,
-    incoming: &core_ir::TypeBounds,
-) -> Option<core_ir::TypeBounds> {
+    existing: &typed_ir::TypeBounds,
+    incoming: &typed_ir::TypeBounds,
+) -> Option<typed_ir::TypeBounds> {
     let lower = match (existing.lower.as_deref(), incoming.lower.as_deref()) {
         (Some(existing), Some(incoming)) => Some(Box::new(merge_projected_type_precision(
             existing, incoming,
@@ -1033,69 +1044,69 @@ fn merge_projected_bounds_precision(
         (None, Some(incoming)) => Some(Box::new(incoming.clone())),
         (None, None) => None,
     };
-    Some(core_ir::TypeBounds { lower, upper })
+    Some(typed_ir::TypeBounds { lower, upper })
 }
 
 fn normalize_projected_substitution_type(
-    ty: &core_ir::Type,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> core_ir::Type {
+    ty: &typed_ir::Type,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::Type {
     normalize_projected_runtime_shape(collapse_repeated_top_choice_type(substitute_type(
         ty,
         substitutions,
     )))
 }
 
-fn normalize_projected_runtime_shape(ty: core_ir::Type) -> core_ir::Type {
+fn normalize_projected_runtime_shape(ty: typed_ir::Type) -> typed_ir::Type {
     match ty {
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
             ret,
-        } => core_ir::Type::Fun {
+        } => typed_ir::Type::Fun {
             param: Box::new(normalize_projected_runtime_shape(*param)),
             param_effect: Box::new(normalize_projected_effect_shape(*param_effect)),
             ret_effect: Box::new(normalize_projected_effect_shape(*ret_effect)),
             ret: Box::new(normalize_projected_runtime_shape(*ret)),
         },
-        core_ir::Type::Named { path, args } => core_ir::Type::Named {
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
             path,
             args: args
                 .into_iter()
                 .map(normalize_projected_runtime_shape_arg)
                 .collect(),
         },
-        core_ir::Type::Tuple(items) => core_ir::Type::Tuple(
+        typed_ir::Type::Tuple(items) => typed_ir::Type::Tuple(
             items
                 .into_iter()
                 .map(normalize_projected_runtime_shape)
                 .collect(),
         ),
-        core_ir::Type::Record(record) => core_ir::Type::Record(core_ir::RecordType {
+        typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
             fields: record
                 .fields
                 .into_iter()
-                .map(|field| core_ir::RecordField {
+                .map(|field| typed_ir::RecordField {
                     name: field.name,
                     value: normalize_projected_runtime_shape(field.value),
                     optional: field.optional,
                 })
                 .collect(),
             spread: record.spread.map(|spread| match spread {
-                core_ir::RecordSpread::Head(ty) => {
-                    core_ir::RecordSpread::Head(Box::new(normalize_projected_runtime_shape(*ty)))
+                typed_ir::RecordSpread::Head(ty) => {
+                    typed_ir::RecordSpread::Head(Box::new(normalize_projected_runtime_shape(*ty)))
                 }
-                core_ir::RecordSpread::Tail(ty) => {
-                    core_ir::RecordSpread::Tail(Box::new(normalize_projected_runtime_shape(*ty)))
+                typed_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Tail(Box::new(normalize_projected_runtime_shape(*ty)))
                 }
             }),
         }),
-        core_ir::Type::Variant(variant) => core_ir::Type::Variant(core_ir::VariantType {
+        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
             cases: variant
                 .cases
                 .into_iter()
-                .map(|case| core_ir::VariantCase {
+                .map(|case| typed_ir::VariantCase {
                     name: case.name,
                     payloads: case
                         .payloads
@@ -1108,20 +1119,20 @@ fn normalize_projected_runtime_shape(ty: core_ir::Type) -> core_ir::Type {
                 .tail
                 .map(|tail| Box::new(normalize_projected_runtime_shape(*tail))),
         }),
-        core_ir::Type::Union(items) => core_ir::Type::Union(
+        typed_ir::Type::Union(items) => typed_ir::Type::Union(
             items
                 .into_iter()
                 .map(normalize_projected_runtime_shape)
                 .collect(),
         ),
-        core_ir::Type::Inter(items) => core_ir::Type::Inter(
+        typed_ir::Type::Inter(items) => typed_ir::Type::Inter(
             items
                 .into_iter()
                 .map(normalize_projected_runtime_shape)
                 .collect(),
         ),
-        core_ir::Type::Row { items, tail } => normalize_projected_effect_row_shape(items, *tail),
-        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+        typed_ir::Type::Row { items, tail } => normalize_projected_effect_row_shape(items, *tail),
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var,
             body: Box::new(normalize_projected_runtime_shape(*body)),
         },
@@ -1129,33 +1140,33 @@ fn normalize_projected_runtime_shape(ty: core_ir::Type) -> core_ir::Type {
     }
 }
 
-fn normalize_projected_effect_shape(ty: core_ir::Type) -> core_ir::Type {
+fn normalize_projected_effect_shape(ty: typed_ir::Type) -> typed_ir::Type {
     match ty {
-        core_ir::Type::Unknown => core_ir::Type::Never,
-        core_ir::Type::Row { items, tail } => normalize_projected_effect_row_shape(items, *tail),
-        core_ir::Type::Named { .. } => ty,
-        core_ir::Type::Never | core_ir::Type::Any | core_ir::Type::Var(_) => ty,
-        _ => core_ir::Type::Never,
+        typed_ir::Type::Unknown => typed_ir::Type::Never,
+        typed_ir::Type::Row { items, tail } => normalize_projected_effect_row_shape(items, *tail),
+        typed_ir::Type::Named { .. } => ty,
+        typed_ir::Type::Never | typed_ir::Type::Any | typed_ir::Type::Var(_) => ty,
+        _ => typed_ir::Type::Never,
     }
 }
 
 fn normalize_projected_effect_row_shape(
-    items: Vec<core_ir::Type>,
-    tail: core_ir::Type,
-) -> core_ir::Type {
+    items: Vec<typed_ir::Type>,
+    tail: typed_ir::Type,
+) -> typed_ir::Type {
     let tail = match normalize_projected_effect_shape(tail) {
-        core_ir::Type::Row {
+        typed_ir::Type::Row {
             items: nested_items,
             tail: nested_tail,
         } if nested_items.is_empty() => *nested_tail,
-        core_ir::Type::Row { items, tail } => core_ir::Type::Row { items, tail },
-        tail @ (core_ir::Type::Never
-        | core_ir::Type::Any
-        | core_ir::Type::Unknown
-        | core_ir::Type::Var(_)) => tail,
-        _ => core_ir::Type::Never,
+        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row { items, tail },
+        tail @ (typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Unknown
+        | typed_ir::Type::Var(_)) => tail,
+        _ => typed_ir::Type::Never,
     };
-    core_ir::Type::Row {
+    typed_ir::Type::Row {
         items: items
             .into_iter()
             .map(normalize_projected_runtime_shape)
@@ -1164,10 +1175,12 @@ fn normalize_projected_effect_row_shape(
     }
 }
 
-fn normalize_projected_runtime_shape_arg(arg: core_ir::TypeArg) -> core_ir::TypeArg {
+fn normalize_projected_runtime_shape_arg(arg: typed_ir::TypeArg) -> typed_ir::TypeArg {
     match arg {
-        core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(normalize_projected_runtime_shape(ty)),
-        core_ir::TypeArg::Bounds(bounds) => core_ir::TypeArg::Bounds(core_ir::TypeBounds {
+        typed_ir::TypeArg::Type(ty) => {
+            typed_ir::TypeArg::Type(normalize_projected_runtime_shape(ty))
+        }
+        typed_ir::TypeArg::Bounds(bounds) => typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
             lower: bounds
                 .lower
                 .map(|ty| Box::new(normalize_projected_runtime_shape(*ty))),
@@ -1178,23 +1191,23 @@ fn normalize_projected_runtime_shape_arg(arg: core_ir::TypeArg) -> core_ir::Type
     }
 }
 
-fn collapse_repeated_top_choice_type(ty: core_ir::Type) -> core_ir::Type {
+fn collapse_repeated_top_choice_type(ty: typed_ir::Type) -> typed_ir::Type {
     match ty {
-        core_ir::Type::Union(items) => {
-            collapse_repeated_top_choice_items(items, core_ir::Type::Union)
+        typed_ir::Type::Union(items) => {
+            collapse_repeated_top_choice_items(items, typed_ir::Type::Union)
         }
-        core_ir::Type::Inter(items) => {
-            collapse_repeated_top_choice_items(items, core_ir::Type::Inter)
+        typed_ir::Type::Inter(items) => {
+            collapse_repeated_top_choice_items(items, typed_ir::Type::Inter)
         }
         other => other,
     }
 }
 
 fn collapse_repeated_top_choice_items(
-    items: Vec<core_ir::Type>,
-    rebuild: impl FnOnce(Vec<core_ir::Type>) -> core_ir::Type,
-) -> core_ir::Type {
-    let mut unique = Vec::<core_ir::Type>::new();
+    items: Vec<typed_ir::Type>,
+    rebuild: impl FnOnce(Vec<typed_ir::Type>) -> typed_ir::Type,
+) -> typed_ir::Type {
+    let mut unique = Vec::<typed_ir::Type>::new();
     for item in items {
         if !unique.iter().any(|existing| existing == &item) {
             unique.push(item);
@@ -1208,53 +1221,53 @@ fn collapse_repeated_top_choice_items(
 }
 
 fn merge_projected_effect_rows(
-    left: &core_ir::Type,
-    right: &core_ir::Type,
-) -> Option<core_ir::Type> {
-    if !matches!(left, core_ir::Type::Row { .. }) && !matches!(right, core_ir::Type::Row { .. }) {
+    left: &typed_ir::Type,
+    right: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    if !matches!(left, typed_ir::Type::Row { .. }) && !matches!(right, typed_ir::Type::Row { .. }) {
         return None;
     }
     let (mut items, left_tail) = projected_effect_row_parts(left.clone());
     let (right_items, right_tail) = projected_effect_row_parts(right.clone());
     for item in right_items {
-        if !matches!(item, core_ir::Type::Never) && !items.iter().any(|existing| existing == &item)
+        if !matches!(item, typed_ir::Type::Never) && !items.iter().any(|existing| existing == &item)
         {
             items.push(item);
         }
     }
-    let tail = if matches!(left_tail, core_ir::Type::Never) || left_tail == right_tail {
+    let tail = if matches!(left_tail, typed_ir::Type::Never) || left_tail == right_tail {
         right_tail
-    } else if matches!(right_tail, core_ir::Type::Never) {
+    } else if matches!(right_tail, typed_ir::Type::Never) {
         left_tail
     } else {
-        core_ir::Type::Union(vec![left_tail, right_tail])
+        typed_ir::Type::Union(vec![left_tail, right_tail])
     };
     if items.is_empty() {
         return Some(tail);
     }
-    Some(core_ir::Type::Row {
+    Some(typed_ir::Type::Row {
         items,
         tail: Box::new(tail),
     })
 }
 
-fn projected_effect_row_parts(effect: core_ir::Type) -> (Vec<core_ir::Type>, core_ir::Type) {
+fn projected_effect_row_parts(effect: typed_ir::Type) -> (Vec<typed_ir::Type>, typed_ir::Type) {
     match effect {
-        core_ir::Type::Never => (Vec::new(), core_ir::Type::Never),
-        core_ir::Type::Row { items, tail } => (items, *tail),
-        other => (vec![other], core_ir::Type::Never),
+        typed_ir::Type::Never => (Vec::new(), typed_ir::Type::Never),
+        typed_ir::Type::Row { items, tail } => (items, *tail),
+        other => (vec![other], typed_ir::Type::Never),
     }
 }
 
 fn project_substitutions_from_candidates(
-    candidates: &[core_ir::PrincipalSubstitutionCandidate],
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    candidates: &[typed_ir::PrincipalSubstitutionCandidate],
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     let mut by_var = BTreeMap::<
-        core_ir::TypeVar,
-        Vec<(core_ir::PrincipalCandidateRelation, core_ir::Type)>,
+        typed_ir::TypeVar,
+        Vec<(typed_ir::PrincipalCandidateRelation, typed_ir::Type)>,
     >::new();
     for candidate in candidates {
         if !params.contains(&candidate.var) {
@@ -1296,7 +1309,7 @@ fn project_substitutions_from_candidates(
             candidates
                 .iter()
                 .filter(|(relation, _)| {
-                    matches!(relation, core_ir::PrincipalCandidateRelation::Exact)
+                    matches!(relation, typed_ir::PrincipalCandidateRelation::Exact)
                 })
                 .map(|(_, ty)| ty),
         );
@@ -1316,7 +1329,7 @@ fn project_substitutions_from_candidates(
             candidates
                 .iter()
                 .filter(|(relation, _)| {
-                    matches!(relation, core_ir::PrincipalCandidateRelation::Lower)
+                    matches!(relation, typed_ir::PrincipalCandidateRelation::Lower)
                 })
                 .map(|(_, ty)| ty),
         );
@@ -1324,7 +1337,7 @@ fn project_substitutions_from_candidates(
             candidates
                 .iter()
                 .filter(|(relation, _)| {
-                    matches!(relation, core_ir::PrincipalCandidateRelation::Upper)
+                    matches!(relation, typed_ir::PrincipalCandidateRelation::Upper)
                 })
                 .map(|(_, ty)| ty),
         );
@@ -1337,9 +1350,9 @@ fn project_substitutions_from_candidates(
 }
 
 fn unique_owned_candidate_type(
-    candidates: impl Iterator<Item = core_ir::Type>,
+    candidates: impl Iterator<Item = typed_ir::Type>,
 ) -> CandidateTypeChoice {
-    let mut choice: Option<core_ir::Type> = None;
+    let mut choice: Option<typed_ir::Type> = None;
     for candidate in candidates {
         match &choice {
             Some(existing) if existing != &candidate => return CandidateTypeChoice::Conflict,
@@ -1351,16 +1364,16 @@ fn unique_owned_candidate_type(
 }
 
 fn self_or_closed_candidate_type(
-    var: &core_ir::TypeVar,
-    ty: &core_ir::Type,
-) -> Option<core_ir::Type> {
+    var: &typed_ir::TypeVar,
+    ty: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
     let items = match ty {
-        core_ir::Type::Union(items) | core_ir::Type::Inter(items) => items,
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => items,
         _ => return None,
     };
-    let mut closed = None::<core_ir::Type>;
+    let mut closed = None::<typed_ir::Type>;
     for item in items {
-        if matches!(item, core_ir::Type::Var(item_var) if item_var == var) {
+        if matches!(item, typed_ir::Type::Var(item_var) if item_var == var) {
             continue;
         }
         if !principal_plan_substitution_type_usable(item, false) {
@@ -1376,11 +1389,11 @@ fn self_or_closed_candidate_type(
 }
 
 fn project_substitutions_from_role_requirements(
-    requirements: &[core_ir::RoleRequirement],
-    role_impls: &[core_ir::RoleImplGraphNode],
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    requirements: &[typed_ir::RoleRequirement],
+    role_impls: &[typed_ir::RoleImplGraphNode],
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     for _ in 0..4 {
         let before = (substitutions.len(), conflicts.len());
@@ -1389,11 +1402,11 @@ fn project_substitutions_from_role_requirements(
                 .args
                 .iter()
                 .filter_map(|arg| match arg {
-                    core_ir::RoleRequirementArg::Input(bounds) => {
+                    typed_ir::RoleRequirementArg::Input(bounds) => {
                         let bounds = substitute_bounds(bounds.clone(), substitutions);
                         principal_plan_bounds_slot_type(Some(&bounds), false)
                     }
-                    core_ir::RoleRequirementArg::Associated { .. } => None,
+                    typed_ir::RoleRequirementArg::Associated { .. } => None,
                 })
                 .collect::<Vec<_>>();
             if inputs.is_empty() {
@@ -1423,11 +1436,11 @@ fn project_substitutions_from_role_requirements(
 }
 
 fn project_associated_substitution(
-    associated: (&core_ir::Name, &core_ir::TypeBounds),
-    item: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    associated: (&typed_ir::Name, &typed_ir::TypeBounds),
+    item: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
     let (_, bounds) = associated;
     if !principal_plan_substitution_type_usable(item, false) {
@@ -1459,11 +1472,11 @@ fn project_associated_substitution(
 }
 
 fn resolve_associated_requirement_from_impls(
-    requirement: &core_ir::RoleRequirement,
-    name: &core_ir::Name,
-    inputs: &[core_ir::Type],
-    role_impls: &[core_ir::RoleImplGraphNode],
-) -> Option<core_ir::Type> {
+    requirement: &typed_ir::RoleRequirement,
+    name: &typed_ir::Name,
+    inputs: &[typed_ir::Type],
+    role_impls: &[typed_ir::RoleImplGraphNode],
+) -> Option<typed_ir::Type> {
     let mut resolved = None;
     for role_impl in role_impls.iter().filter(|role_impl| {
         role_impl.role == requirement.role && role_impl.inputs.len() == inputs.len()
@@ -1490,10 +1503,10 @@ fn resolve_associated_requirement_from_impls(
 }
 
 fn project_role_impl_associated_type(
-    impl_inputs: &[core_ir::TypeBounds],
-    actual_inputs: &[core_ir::Type],
-    associated: &core_ir::TypeBounds,
-) -> Option<core_ir::Type> {
+    impl_inputs: &[typed_ir::TypeBounds],
+    actual_inputs: &[typed_ir::Type],
+    associated: &typed_ir::TypeBounds,
+) -> Option<typed_ir::Type> {
     let mut impl_vars = BTreeSet::new();
     let templates = impl_inputs
         .iter()
@@ -1526,7 +1539,7 @@ fn project_role_impl_associated_type(
     )
 }
 
-fn collect_type_bounds_vars(bounds: &core_ir::TypeBounds, vars: &mut BTreeSet<core_ir::TypeVar>) {
+fn collect_type_bounds_vars(bounds: &typed_ir::TypeBounds, vars: &mut BTreeSet<typed_ir::TypeVar>) {
     if let Some(lower) = bounds.lower.as_deref() {
         collect_type_vars(lower, vars);
     }
@@ -1536,24 +1549,24 @@ fn collect_type_bounds_vars(bounds: &core_ir::TypeBounds, vars: &mut BTreeSet<co
 }
 
 fn requirement_associated(
-    arg: &core_ir::RoleRequirementArg,
-) -> Option<(&core_ir::Name, &core_ir::TypeBounds)> {
+    arg: &typed_ir::RoleRequirementArg,
+) -> Option<(&typed_ir::Name, &typed_ir::TypeBounds)> {
     match arg {
-        core_ir::RoleRequirementArg::Associated { name, bounds } => Some((name, bounds)),
-        core_ir::RoleRequirementArg::Input(_) => None,
+        typed_ir::RoleRequirementArg::Associated { name, bounds } => Some((name, bounds)),
+        typed_ir::RoleRequirementArg::Input(_) => None,
     }
 }
 
 enum CandidateTypeChoice {
     None,
-    One(core_ir::Type),
+    One(typed_ir::Type),
     Conflict,
 }
 
 fn unique_candidate_type<'a>(
-    candidates: impl Iterator<Item = &'a core_ir::Type>,
+    candidates: impl Iterator<Item = &'a typed_ir::Type>,
 ) -> CandidateTypeChoice {
-    let mut choice: Option<core_ir::Type> = None;
+    let mut choice: Option<typed_ir::Type> = None;
     for candidate in candidates {
         match &choice {
             Some(existing) if existing != candidate => return CandidateTypeChoice::Conflict,
@@ -1565,11 +1578,11 @@ fn unique_candidate_type<'a>(
 }
 
 pub(crate) fn project_closed_substitutions_from_type(
-    template: &core_ir::Type,
-    actual: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
     allow_never: bool,
     depth: usize,
 ) {
@@ -1577,7 +1590,7 @@ pub(crate) fn project_closed_substitutions_from_type(
         return;
     }
     match (template, actual) {
-        (core_ir::Type::Var(var), actual) if params.contains(var) => {
+        (typed_ir::Type::Var(var), actual) if params.contains(var) => {
             let actual = if allow_never {
                 normalize_projected_effect_shape(substitute_type(actual, substitutions))
             } else {
@@ -1588,8 +1601,8 @@ pub(crate) fn project_closed_substitutions_from_type(
             }
         }
         (
-            core_ir::Type::Named { path, args },
-            core_ir::Type::Named {
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
                 path: actual_path,
                 args: actual_args,
             },
@@ -1607,13 +1620,13 @@ pub(crate) fn project_closed_substitutions_from_type(
             }
         }
         (
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param,
                 param_effect,
                 ret_effect,
                 ret,
             },
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: actual_param,
                 param_effect: actual_param_effect,
                 ret_effect: actual_ret_effect,
@@ -1657,7 +1670,7 @@ pub(crate) fn project_closed_substitutions_from_type(
                 depth - 1,
             );
         }
-        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items))
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
             if items.len() == actual_items.len() =>
         {
             for (item, actual_item) in items.iter().zip(actual_items) {
@@ -1672,7 +1685,7 @@ pub(crate) fn project_closed_substitutions_from_type(
                 );
             }
         }
-        (core_ir::Type::Record(record), core_ir::Type::Record(actual_record)) => {
+        (typed_ir::Type::Record(record), typed_ir::Type::Record(actual_record)) => {
             for field in &record.fields {
                 let Some(actual_field) = actual_record
                     .fields
@@ -1692,7 +1705,7 @@ pub(crate) fn project_closed_substitutions_from_type(
                 );
             }
         }
-        (core_ir::Type::Variant(variant), core_ir::Type::Variant(actual_variant)) => {
+        (typed_ir::Type::Variant(variant), typed_ir::Type::Variant(actual_variant)) => {
             for case in &variant.cases {
                 let Some(actual_case) = actual_variant
                     .cases
@@ -1717,7 +1730,7 @@ pub(crate) fn project_closed_substitutions_from_type(
                 }
             }
         }
-        (core_ir::Type::Union(items) | core_ir::Type::Inter(items), actual)
+        (typed_ir::Type::Union(items) | typed_ir::Type::Inter(items), actual)
             if principal_plan_substitution_type_usable(
                 &normalize_projected_substitution_type(actual, substitutions),
                 allow_never,
@@ -1740,8 +1753,8 @@ pub(crate) fn project_closed_substitutions_from_type(
             }
         }
         (
-            core_ir::Type::Row { items, tail },
-            core_ir::Type::Row {
+            typed_ir::Type::Row { items, tail },
+            typed_ir::Type::Row {
                 items: actual_items,
                 tail: actual_tail,
             },
@@ -1757,19 +1770,19 @@ pub(crate) fn project_closed_substitutions_from_type(
                 depth - 1,
             );
         }
-        (core_ir::Type::Row { items, tail }, actual) if allow_never => {
+        (typed_ir::Type::Row { items, tail }, actual) if allow_never => {
             project_closed_effect_row_substitutions(
                 items,
                 tail,
                 std::slice::from_ref(actual),
-                &core_ir::Type::Never,
+                &typed_ir::Type::Never,
                 params,
                 substitutions,
                 conflicts,
                 depth - 1,
             );
         }
-        (core_ir::Type::Recursive { body, .. }, actual) => {
+        (typed_ir::Type::Recursive { body, .. }, actual) => {
             project_closed_substitutions_from_type(
                 body,
                 actual,
@@ -1780,7 +1793,7 @@ pub(crate) fn project_closed_substitutions_from_type(
                 depth - 1,
             );
         }
-        (template, core_ir::Type::Recursive { body, .. }) => {
+        (template, typed_ir::Type::Recursive { body, .. }) => {
             project_closed_substitutions_from_type(
                 template,
                 body,
@@ -1796,35 +1809,35 @@ pub(crate) fn project_closed_substitutions_from_type(
 }
 
 fn projection_choice_item_matches_actual(
-    template: &core_ir::Type,
-    actual: &core_ir::Type,
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
     allow_never: bool,
 ) -> bool {
     match (template, actual) {
-        (core_ir::Type::Var(_), _) => false,
-        (core_ir::Type::Unknown | core_ir::Type::Any, _) => false,
-        (_, core_ir::Type::Unknown | core_ir::Type::Any) => false,
-        (_, core_ir::Type::Never) => allow_never && matches!(template, core_ir::Type::Never),
-        (core_ir::Type::Never, _) => false,
+        (typed_ir::Type::Var(_), _) => false,
+        (typed_ir::Type::Unknown | typed_ir::Type::Any, _) => false,
+        (_, typed_ir::Type::Unknown | typed_ir::Type::Any) => false,
+        (_, typed_ir::Type::Never) => allow_never && matches!(template, typed_ir::Type::Never),
+        (typed_ir::Type::Never, _) => false,
         (
-            core_ir::Type::Named { path, args },
-            core_ir::Type::Named {
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
                 path: actual_path,
                 args: actual_args,
             },
         ) => path == actual_path && args.len() == actual_args.len(),
-        (core_ir::Type::Fun { .. }, core_ir::Type::Fun { .. }) => true,
-        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items)) => {
+        (typed_ir::Type::Fun { .. }, typed_ir::Type::Fun { .. }) => true,
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items)) => {
             items.len() == actual_items.len()
         }
-        (core_ir::Type::Record(_), core_ir::Type::Record(_)) => true,
-        (core_ir::Type::Variant(_), core_ir::Type::Variant(_)) => true,
-        (core_ir::Type::Row { .. }, core_ir::Type::Row { .. }) => true,
-        (core_ir::Type::Row { .. }, _) => allow_never,
-        (core_ir::Type::Recursive { body, .. }, actual) => {
+        (typed_ir::Type::Record(_), typed_ir::Type::Record(_)) => true,
+        (typed_ir::Type::Variant(_), typed_ir::Type::Variant(_)) => true,
+        (typed_ir::Type::Row { .. }, typed_ir::Type::Row { .. }) => true,
+        (typed_ir::Type::Row { .. }, _) => allow_never,
+        (typed_ir::Type::Recursive { body, .. }, actual) => {
             projection_choice_item_matches_actual(body, actual, allow_never)
         }
-        (template, core_ir::Type::Recursive { body, .. }) => {
+        (template, typed_ir::Type::Recursive { body, .. }) => {
             projection_choice_item_matches_actual(template, body, allow_never)
         }
         (template, actual) => template == actual,
@@ -1832,11 +1845,11 @@ fn projection_choice_item_matches_actual(
 }
 
 pub(crate) fn project_closed_substitutions_from_type_bounds(
-    template: &core_ir::Type,
-    actual: &core_ir::TypeBounds,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    template: &typed_ir::Type,
+    actual: &typed_ir::TypeBounds,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
     allow_never: bool,
     depth: usize,
 ) {
@@ -1878,13 +1891,13 @@ pub(crate) fn project_closed_substitutions_from_type_bounds(
 }
 
 fn project_closed_effect_row_substitutions(
-    template_items: &[core_ir::Type],
-    template_tail: &core_ir::Type,
-    actual_items: &[core_ir::Type],
-    actual_tail: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    template_items: &[typed_ir::Type],
+    template_tail: &typed_ir::Type,
+    actual_items: &[typed_ir::Type],
+    actual_tail: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
     depth: usize,
 ) {
     if depth == 0 {
@@ -1895,7 +1908,7 @@ fn project_closed_effect_row_substitutions(
 
     for template in template_items {
         match template {
-            core_ir::Type::Var(var) if params.contains(var) => row_vars.push(var.clone()),
+            typed_ir::Type::Var(var) if params.contains(var) => row_vars.push(var.clone()),
             _ => {
                 for (index, actual) in actual_items.iter().enumerate() {
                     if matched_actual[index] || !same_effect_head(template, actual) {
@@ -1941,16 +1954,16 @@ fn project_closed_effect_row_substitutions(
 }
 
 fn project_closed_substitutions_from_type_arg(
-    template: &core_ir::TypeArg,
-    actual: &core_ir::TypeArg,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    template: &typed_ir::TypeArg,
+    actual: &typed_ir::TypeArg,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
     _allow_never: bool,
     depth: usize,
 ) {
     match (template, actual) {
-        (core_ir::TypeArg::Type(template), core_ir::TypeArg::Type(actual)) => {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
             project_closed_substitutions_from_type(
                 template,
                 actual,
@@ -1961,7 +1974,7 @@ fn project_closed_substitutions_from_type_arg(
                 depth,
             );
         }
-        (core_ir::TypeArg::Type(template), core_ir::TypeArg::Bounds(actual)) => {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Bounds(actual)) => {
             let actual_bounds = substitute_bounds(actual.clone(), substitutions);
             if let Some(actual) = principal_plan_bounds_single_closed_type(&actual_bounds, false) {
                 project_closed_substitutions_from_type(
@@ -1975,7 +1988,7 @@ fn project_closed_substitutions_from_type_arg(
                 );
             }
         }
-        (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Type(actual)) => {
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Type(actual)) => {
             let actual = normalize_projected_substitution_type(actual, substitutions);
             if !principal_plan_substitution_type_usable(&actual, false) {
                 return;
@@ -1990,7 +2003,7 @@ fn project_closed_substitutions_from_type_arg(
                 depth,
             );
         }
-        (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Bounds(actual)) => {
             let actual_bounds = substitute_bounds(actual.clone(), substitutions);
             if let Some(actual) = principal_plan_bounds_single_closed_type(&actual_bounds, false) {
                 project_closed_substitutions_from_bounds(
@@ -2008,11 +2021,11 @@ fn project_closed_substitutions_from_type_arg(
 }
 
 fn project_closed_substitutions_from_bounds(
-    template: &core_ir::TypeBounds,
-    actual: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    template: &typed_ir::TypeBounds,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
     allow_never: bool,
     depth: usize,
 ) {
@@ -2071,11 +2084,11 @@ enum BoundChoicePolarity {
 }
 
 fn project_choice_var_items_from_bound(
-    template: &core_ir::Type,
-    actual: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    conflicts: &mut BTreeSet<core_ir::TypeVar>,
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
     allow_never: bool,
     polarity: BoundChoicePolarity,
     depth: usize,
@@ -2092,9 +2105,9 @@ fn project_choice_var_items_from_bound(
         return;
     }
     match (polarity, template) {
-        (BoundChoicePolarity::Lower, core_ir::Type::Union(items)) => {
+        (BoundChoicePolarity::Lower, typed_ir::Type::Union(items)) => {
             for item in items {
-                if let core_ir::Type::Var(var) = item
+                if let typed_ir::Type::Var(var) = item
                     && params.contains(var)
                 {
                     insert_exact_projected_substitution(
@@ -2117,9 +2130,9 @@ fn project_choice_var_items_from_bound(
                 );
             }
         }
-        (BoundChoicePolarity::Lower, core_ir::Type::Inter(items))
-        | (BoundChoicePolarity::Upper, core_ir::Type::Union(items))
-        | (BoundChoicePolarity::Upper, core_ir::Type::Inter(items)) => {
+        (BoundChoicePolarity::Lower, typed_ir::Type::Inter(items))
+        | (BoundChoicePolarity::Upper, typed_ir::Type::Union(items))
+        | (BoundChoicePolarity::Upper, typed_ir::Type::Inter(items)) => {
             for item in items {
                 project_choice_var_items_from_bound(
                     item,
@@ -2133,7 +2146,7 @@ fn project_choice_var_items_from_bound(
                 );
             }
         }
-        (_, core_ir::Type::Recursive { body, .. }) => {
+        (_, typed_ir::Type::Recursive { body, .. }) => {
             project_choice_var_items_from_bound(
                 body,
                 &actual,
@@ -2150,9 +2163,9 @@ fn project_choice_var_items_from_bound(
 }
 
 fn principal_plan_bounds_single_closed_type(
-    bounds: &core_ir::TypeBounds,
+    bounds: &typed_ir::TypeBounds,
     allow_never: bool,
-) -> Option<core_ir::Type> {
+) -> Option<typed_ir::Type> {
     let lower = bounds
         .lower
         .as_deref()
@@ -2171,62 +2184,62 @@ fn principal_plan_bounds_single_closed_type(
     principal_plan_substitution_type_usable(&choice, allow_never).then_some(choice)
 }
 
-fn normalize_projected_closed_choice_type(ty: core_ir::Type) -> core_ir::Type {
+fn normalize_projected_closed_choice_type(ty: typed_ir::Type) -> typed_ir::Type {
     collapse_repeated_top_choice_type(collapse_single_bound_type_args(
         normalize_projected_runtime_shape(ty),
     ))
 }
 
-fn collapse_single_bound_type_args(ty: core_ir::Type) -> core_ir::Type {
+fn collapse_single_bound_type_args(ty: typed_ir::Type) -> typed_ir::Type {
     match ty {
-        core_ir::Type::Named { path, args } => core_ir::Type::Named {
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
             path,
             args: args
                 .into_iter()
                 .map(collapse_single_bound_type_arg)
                 .collect(),
         },
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
             ret,
-        } => core_ir::Type::Fun {
+        } => typed_ir::Type::Fun {
             param: Box::new(collapse_single_bound_type_args(*param)),
             param_effect: Box::new(collapse_single_bound_type_args(*param_effect)),
             ret_effect: Box::new(collapse_single_bound_type_args(*ret_effect)),
             ret: Box::new(collapse_single_bound_type_args(*ret)),
         },
-        core_ir::Type::Tuple(items) => core_ir::Type::Tuple(
+        typed_ir::Type::Tuple(items) => typed_ir::Type::Tuple(
             items
                 .into_iter()
                 .map(collapse_single_bound_type_args)
                 .collect(),
         ),
-        core_ir::Type::Record(record) => core_ir::Type::Record(core_ir::RecordType {
+        typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
             fields: record
                 .fields
                 .into_iter()
-                .map(|field| core_ir::RecordField {
+                .map(|field| typed_ir::RecordField {
                     name: field.name,
                     value: collapse_single_bound_type_args(field.value),
                     optional: field.optional,
                 })
                 .collect(),
             spread: record.spread.map(|spread| match spread {
-                core_ir::RecordSpread::Head(ty) => {
-                    core_ir::RecordSpread::Head(Box::new(collapse_single_bound_type_args(*ty)))
+                typed_ir::RecordSpread::Head(ty) => {
+                    typed_ir::RecordSpread::Head(Box::new(collapse_single_bound_type_args(*ty)))
                 }
-                core_ir::RecordSpread::Tail(ty) => {
-                    core_ir::RecordSpread::Tail(Box::new(collapse_single_bound_type_args(*ty)))
+                typed_ir::RecordSpread::Tail(ty) => {
+                    typed_ir::RecordSpread::Tail(Box::new(collapse_single_bound_type_args(*ty)))
                 }
             }),
         }),
-        core_ir::Type::Variant(variant) => core_ir::Type::Variant(core_ir::VariantType {
+        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
             cases: variant
                 .cases
                 .into_iter()
-                .map(|case| core_ir::VariantCase {
+                .map(|case| typed_ir::VariantCase {
                     name: case.name,
                     payloads: case
                         .payloads
@@ -2239,26 +2252,26 @@ fn collapse_single_bound_type_args(ty: core_ir::Type) -> core_ir::Type {
                 .tail
                 .map(|tail| Box::new(collapse_single_bound_type_args(*tail))),
         }),
-        core_ir::Type::Union(items) => core_ir::Type::Union(
+        typed_ir::Type::Union(items) => typed_ir::Type::Union(
             items
                 .into_iter()
                 .map(collapse_single_bound_type_args)
                 .collect(),
         ),
-        core_ir::Type::Inter(items) => core_ir::Type::Inter(
+        typed_ir::Type::Inter(items) => typed_ir::Type::Inter(
             items
                 .into_iter()
                 .map(collapse_single_bound_type_args)
                 .collect(),
         ),
-        core_ir::Type::Row { items, tail } => core_ir::Type::Row {
+        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
             items: items
                 .into_iter()
                 .map(collapse_single_bound_type_args)
                 .collect(),
             tail: Box::new(collapse_single_bound_type_args(*tail)),
         },
-        core_ir::Type::Recursive { var, body } => core_ir::Type::Recursive {
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var,
             body: Box::new(collapse_single_bound_type_args(*body)),
         },
@@ -2266,11 +2279,11 @@ fn collapse_single_bound_type_args(ty: core_ir::Type) -> core_ir::Type {
     }
 }
 
-fn collapse_single_bound_type_arg(arg: core_ir::TypeArg) -> core_ir::TypeArg {
+fn collapse_single_bound_type_arg(arg: typed_ir::TypeArg) -> typed_ir::TypeArg {
     match arg {
-        core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(collapse_single_bound_type_args(ty)),
-        core_ir::TypeArg::Bounds(bounds) => {
-            let bounds = core_ir::TypeBounds {
+        typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(collapse_single_bound_type_args(ty)),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            let bounds = typed_ir::TypeBounds {
                 lower: bounds
                     .lower
                     .map(|ty| Box::new(collapse_single_bound_type_args(*ty))),
@@ -2279,17 +2292,17 @@ fn collapse_single_bound_type_arg(arg: core_ir::TypeArg) -> core_ir::TypeArg {
                     .map(|ty| Box::new(collapse_single_bound_type_args(*ty))),
             };
             principal_plan_bounds_single_closed_type(&bounds, false)
-                .map(core_ir::TypeArg::Type)
-                .unwrap_or(core_ir::TypeArg::Bounds(bounds))
+                .map(typed_ir::TypeArg::Type)
+                .unwrap_or(typed_ir::TypeArg::Bounds(bounds))
         }
     }
 }
 
-fn principal_plan_substitution_type_usable(ty: &core_ir::Type, allow_never: bool) -> bool {
+fn principal_plan_substitution_type_usable(ty: &typed_ir::Type, allow_never: bool) -> bool {
     !matches!(
         ty,
-        core_ir::Type::Unknown | core_ir::Type::Any | core_ir::Type::Var(_)
-    ) && (allow_never || !matches!(ty, core_ir::Type::Never))
+        typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_)
+    ) && (allow_never || !matches!(ty, typed_ir::Type::Never))
         && !type_has_vars(ty)
         && !type_has_any(ty)
         && (allow_never || !core_type_contains_unknown(ty))
@@ -2297,7 +2310,7 @@ fn principal_plan_substitution_type_usable(ty: &core_ir::Type, allow_never: bool
 
 pub(crate) fn substitute_join_evidence(
     evidence: JoinEvidence,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> JoinEvidence {
     JoinEvidence {
         result: substitute_type(&evidence.result, substitutions),
@@ -2305,10 +2318,10 @@ pub(crate) fn substitute_join_evidence(
 }
 
 pub(crate) fn substitute_bounds(
-    bounds: core_ir::TypeBounds,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> core_ir::TypeBounds {
-    core_ir::TypeBounds {
+    bounds: typed_ir::TypeBounds,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::TypeBounds {
+    typed_ir::TypeBounds {
         lower: bounds
             .lower
             .map(|lower| Box::new(substitute_type(&lower, substitutions))),
@@ -2319,10 +2332,10 @@ pub(crate) fn substitute_bounds(
 }
 
 pub(super) fn infer_type_substitutions_inner(
-    template: &core_ir::Type,
-    actual: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     depth: usize,
     include_function_effects: bool,
     prefer_non_never: bool,
@@ -2331,12 +2344,12 @@ pub(super) fn infer_type_substitutions_inner(
         return;
     }
     match (template, actual) {
-        (core_ir::Type::Var(var), actual) if params.contains(var) => {
+        (typed_ir::Type::Var(var), actual) if params.contains(var) => {
             insert_substitution(substitutions, var.clone(), actual.clone(), prefer_non_never);
         }
         (
-            core_ir::Type::Named { path, args },
-            core_ir::Type::Named {
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
                 path: actual_path,
                 args: actual_args,
             },
@@ -2354,13 +2367,13 @@ pub(super) fn infer_type_substitutions_inner(
             }
         }
         (
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param,
                 param_effect,
                 ret_effect,
                 ret,
             },
-            core_ir::Type::Fun {
+            typed_ir::Type::Fun {
                 param: actual_param,
                 param_effect: actual_param_effect,
                 ret_effect: actual_ret_effect,
@@ -2406,7 +2419,7 @@ pub(super) fn infer_type_substitutions_inner(
                 prefer_non_never,
             );
         }
-        (core_ir::Type::Tuple(items), core_ir::Type::Tuple(actual_items))
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
             if items.len() == actual_items.len() =>
         {
             for (item, actual_item) in items.iter().zip(actual_items) {
@@ -2421,7 +2434,7 @@ pub(super) fn infer_type_substitutions_inner(
                 );
             }
         }
-        (core_ir::Type::Union(items) | core_ir::Type::Inter(items), actual) => {
+        (typed_ir::Type::Union(items) | typed_ir::Type::Inter(items), actual) => {
             for item in items {
                 infer_type_substitutions_inner(
                     item,
@@ -2434,7 +2447,7 @@ pub(super) fn infer_type_substitutions_inner(
                 );
             }
         }
-        (core_ir::Type::Record(record), core_ir::Type::Record(actual_record)) => {
+        (typed_ir::Type::Record(record), typed_ir::Type::Record(actual_record)) => {
             for field in &record.fields {
                 if let Some(actual_field) = actual_record
                     .fields
@@ -2454,8 +2467,8 @@ pub(super) fn infer_type_substitutions_inner(
             }
         }
         (
-            core_ir::Type::Row { items, tail },
-            core_ir::Type::Row {
+            typed_ir::Type::Row { items, tail },
+            typed_ir::Type::Row {
                 items: actual_items,
                 tail: actual_tail,
             },
@@ -2472,12 +2485,12 @@ pub(super) fn infer_type_substitutions_inner(
                 prefer_non_never,
             );
         }
-        (core_ir::Type::Row { items, tail }, actual) => {
+        (typed_ir::Type::Row { items, tail }, actual) => {
             infer_effect_row_substitutions(
                 items,
                 tail,
                 std::slice::from_ref(actual),
-                &core_ir::Type::Never,
+                &typed_ir::Type::Never,
                 params,
                 substitutions,
                 depth - 1,
@@ -2485,7 +2498,7 @@ pub(super) fn infer_type_substitutions_inner(
                 prefer_non_never,
             );
         }
-        (core_ir::Type::Variant(variant), core_ir::Type::Variant(actual_variant)) => {
+        (typed_ir::Type::Variant(variant), typed_ir::Type::Variant(actual_variant)) => {
             for case in &variant.cases {
                 let Some(actual_case) = actual_variant
                     .cases
@@ -2510,7 +2523,7 @@ pub(super) fn infer_type_substitutions_inner(
                 }
             }
         }
-        (core_ir::Type::Recursive { body, .. }, actual) => {
+        (typed_ir::Type::Recursive { body, .. }, actual) => {
             infer_type_substitutions_inner(
                 body,
                 actual,
@@ -2521,7 +2534,7 @@ pub(super) fn infer_type_substitutions_inner(
                 prefer_non_never,
             );
         }
-        (template, core_ir::Type::Recursive { body, .. }) => {
+        (template, typed_ir::Type::Recursive { body, .. }) => {
             infer_type_substitutions_inner(
                 template,
                 body,
@@ -2537,12 +2550,12 @@ pub(super) fn infer_type_substitutions_inner(
 }
 
 pub(super) fn infer_effect_row_substitutions(
-    template_items: &[core_ir::Type],
-    template_tail: &core_ir::Type,
-    actual_items: &[core_ir::Type],
-    actual_tail: &core_ir::Type,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    template_items: &[typed_ir::Type],
+    template_tail: &typed_ir::Type,
+    actual_items: &[typed_ir::Type],
+    actual_tail: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     depth: usize,
     include_function_effects: bool,
     prefer_non_never: bool,
@@ -2552,7 +2565,7 @@ pub(super) fn infer_effect_row_substitutions(
 
     for template in template_items {
         match template {
-            core_ir::Type::Var(var) if params.contains(var) => {
+            typed_ir::Type::Var(var) if params.contains(var) => {
                 row_vars.push(var.clone());
             }
             _ => {
@@ -2597,11 +2610,11 @@ pub(super) fn infer_effect_row_substitutions(
     );
 }
 
-pub(crate) fn same_effect_head(left: &core_ir::Type, right: &core_ir::Type) -> bool {
+pub(crate) fn same_effect_head(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
     match (left, right) {
         (
-            core_ir::Type::Named { path, .. },
-            core_ir::Type::Named {
+            typed_ir::Type::Named { path, .. },
+            typed_ir::Type::Named {
                 path: actual_path, ..
             },
         ) => path == actual_path,
@@ -2610,32 +2623,32 @@ pub(crate) fn same_effect_head(left: &core_ir::Type, right: &core_ir::Type) -> b
 }
 
 pub(super) fn effect_row_from_items_and_tail(
-    items: Vec<core_ir::Type>,
-    tail: core_ir::Type,
-) -> core_ir::Type {
+    items: Vec<typed_ir::Type>,
+    tail: typed_ir::Type,
+) -> typed_ir::Type {
     if items.is_empty() {
         return tail;
     }
     if effect_is_empty(&tail) && items.len() == 1 {
         return items.into_iter().next().unwrap();
     }
-    core_ir::Type::Row {
+    typed_ir::Type::Row {
         items,
         tail: Box::new(tail),
     }
 }
 
 pub(super) fn infer_type_arg_substitutions(
-    template: &core_ir::TypeArg,
-    actual: &core_ir::TypeArg,
-    params: &BTreeSet<core_ir::TypeVar>,
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
+    template: &typed_ir::TypeArg,
+    actual: &typed_ir::TypeArg,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     depth: usize,
     include_function_effects: bool,
     prefer_non_never: bool,
 ) {
     match (template, actual) {
-        (core_ir::TypeArg::Type(template), core_ir::TypeArg::Type(actual)) => {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
             infer_type_substitutions_inner(
                 template,
                 actual,
@@ -2646,7 +2659,7 @@ pub(super) fn infer_type_arg_substitutions(
                 prefer_non_never,
             );
         }
-        (core_ir::TypeArg::Type(template), core_ir::TypeArg::Bounds(actual)) => {
+        (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Bounds(actual)) => {
             if let Some(actual) = tir_evidence_bound(actual) {
                 infer_type_substitutions_inner(
                     template,
@@ -2659,7 +2672,7 @@ pub(super) fn infer_type_arg_substitutions(
                 );
             }
         }
-        (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Type(actual)) => {
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Type(actual)) => {
             if let Some(template) = tir_evidence_bound(template) {
                 infer_type_substitutions_inner(
                     &template,
@@ -2672,7 +2685,7 @@ pub(super) fn infer_type_arg_substitutions(
                 );
             }
         }
-        (core_ir::TypeArg::Bounds(template), core_ir::TypeArg::Bounds(actual)) => {
+        (typed_ir::TypeArg::Bounds(template), typed_ir::TypeArg::Bounds(actual)) => {
             if let (Some(template), Some(actual)) =
                 (tir_evidence_bound(template), tir_evidence_bound(actual))
             {
@@ -2691,15 +2704,16 @@ pub(super) fn infer_type_arg_substitutions(
 }
 
 pub(super) fn insert_substitution(
-    substitutions: &mut BTreeMap<core_ir::TypeVar, core_ir::Type>,
-    var: core_ir::TypeVar,
-    ty: core_ir::Type,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    var: typed_ir::TypeVar,
+    ty: typed_ir::Type,
     prefer_non_never: bool,
 ) {
-    if matches!(ty, core_ir::Type::Unknown | core_ir::Type::Any) {
+    if matches!(ty, typed_ir::Type::Unknown | typed_ir::Type::Any) {
         return;
     }
-    if matches!(&ty, core_ir::Type::Var(actual) if actual == &var) || type_contains_var(&ty, &var) {
+    if matches!(&ty, typed_ir::Type::Var(actual) if actual == &var) || type_contains_var(&ty, &var)
+    {
         return;
     }
     match substitutions.get(&var).cloned() {
@@ -2728,18 +2742,18 @@ pub(super) fn insert_substitution(
     }
 }
 
-pub(super) fn type_has_vars(ty: &core_ir::Type) -> bool {
+pub(super) fn type_has_vars(ty: &typed_ir::Type) -> bool {
     let mut vars = BTreeSet::new();
     collect_type_vars(ty, &mut vars);
     !vars.is_empty()
 }
 
-fn type_has_any(ty: &core_ir::Type) -> bool {
+fn type_has_any(ty: &typed_ir::Type) -> bool {
     match ty {
-        core_ir::Type::Any => true,
-        core_ir::Type::Unknown | core_ir::Type::Never | core_ir::Type::Var(_) => false,
-        core_ir::Type::Named { args, .. } => args.iter().any(type_arg_has_any),
-        core_ir::Type::Fun {
+        typed_ir::Type::Any => true,
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Var(_) => false,
+        typed_ir::Type::Named { args, .. } => args.iter().any(type_arg_has_any),
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -2750,14 +2764,14 @@ fn type_has_any(ty: &core_ir::Type) -> bool {
                 || type_has_any(ret_effect)
                 || type_has_any(ret)
         }
-        core_ir::Type::Tuple(items) | core_ir::Type::Union(items) | core_ir::Type::Inter(items) => {
-            items.iter().any(type_has_any)
-        }
-        core_ir::Type::Row { items, tail } => items.iter().any(type_has_any) || type_has_any(tail),
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(type_has_any),
+        typed_ir::Type::Row { items, tail } => items.iter().any(type_has_any) || type_has_any(tail),
+        typed_ir::Type::Record(record) => {
             record.fields.iter().any(|field| type_has_any(&field.value))
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             variant
                 .cases
                 .iter()
@@ -2765,37 +2779,37 @@ fn type_has_any(ty: &core_ir::Type) -> bool {
                 .any(type_has_any)
                 || variant.tail.as_deref().is_some_and(type_has_any)
         }
-        core_ir::Type::Recursive { body, .. } => type_has_any(body),
+        typed_ir::Type::Recursive { body, .. } => type_has_any(body),
     }
 }
 
-fn type_arg_has_any(arg: &core_ir::TypeArg) -> bool {
+fn type_arg_has_any(arg: &typed_ir::TypeArg) -> bool {
     match arg {
-        core_ir::TypeArg::Type(ty) => type_has_any(ty),
-        core_ir::TypeArg::Bounds(bounds) => {
+        typed_ir::TypeArg::Type(ty) => type_has_any(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
             bounds.lower.as_deref().is_some_and(type_has_any)
                 || bounds.upper.as_deref().is_some_and(type_has_any)
         }
     }
 }
 
-pub(super) fn type_contains_var(ty: &core_ir::Type, var: &core_ir::TypeVar) -> bool {
+pub(super) fn type_contains_var(ty: &typed_ir::Type, var: &typed_ir::TypeVar) -> bool {
     let mut vars = BTreeSet::new();
     collect_type_vars(ty, &mut vars);
     vars.contains(var)
 }
 
-pub(super) fn tir_evidence_bound(bounds: &core_ir::TypeBounds) -> Option<core_ir::Type> {
+pub(super) fn tir_evidence_bound(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
     choose_bounds_type(bounds, BoundsChoice::TirEvidence)
 }
 
 pub(super) fn substitute_type_arg(
-    arg: &core_ir::TypeArg,
-    substitutions: &BTreeMap<core_ir::TypeVar, core_ir::Type>,
-) -> core_ir::TypeArg {
+    arg: &typed_ir::TypeArg,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::TypeArg {
     match arg {
-        core_ir::TypeArg::Type(ty) => core_ir::TypeArg::Type(substitute_type(ty, substitutions)),
-        core_ir::TypeArg::Bounds(bounds) => core_ir::TypeArg::Bounds(core_ir::TypeBounds {
+        typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(substitute_type(ty, substitutions)),
+        typed_ir::TypeArg::Bounds(bounds) => typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
             lower: bounds
                 .lower
                 .as_ref()
@@ -2819,13 +2833,13 @@ mod tests {
         let mut substitutions = BTreeMap::new();
         substitutions.insert(t.clone(), named("int"));
 
-        let plan = list_plan_for_arg(list_of(core_ir::Type::Var(t)));
+        let plan = list_plan_for_arg(list_of(typed_ir::Type::Var(t)));
         let normalized = substitute_principal_elaboration_plan(plan, &substitutions, &[]);
 
         assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);
         assert_eq!(
             normalized.substitutions,
-            vec![core_ir::TypeSubstitution {
+            vec![typed_ir::TypeSubstitution {
                 var: a,
                 ty: named("int"),
             }]
@@ -2837,16 +2851,16 @@ mod tests {
         let a = tv("a");
         let t = tv("t");
         let mut plan = list_plan_for_arg(list_of(named("int")));
-        plan.substitutions = vec![core_ir::TypeSubstitution {
+        plan.substitutions = vec![typed_ir::TypeSubstitution {
             var: t.clone(),
             ty: named("int"),
         }];
-        let candidates = vec![core_ir::PrincipalSubstitutionCandidate {
+        let candidates = vec![typed_ir::PrincipalSubstitutionCandidate {
             var: a.clone(),
-            relation: core_ir::PrincipalCandidateRelation::Exact,
-            ty: core_ir::Type::Var(t),
+            relation: typed_ir::PrincipalCandidateRelation::Exact,
+            ty: typed_ir::Type::Var(t),
             source_edge: None,
-            path: vec![core_ir::PrincipalSlotPathSegment::Result],
+            path: vec![typed_ir::PrincipalSlotPathSegment::Result],
         }];
 
         let normalized = normalize_principal_elaboration_plan(plan, &candidates);
@@ -2855,11 +2869,11 @@ mod tests {
         assert_eq!(
             normalized.substitutions,
             vec![
-                core_ir::TypeSubstitution {
+                typed_ir::TypeSubstitution {
                     var: a,
                     ty: named("int"),
                 },
-                core_ir::TypeSubstitution {
+                typed_ir::TypeSubstitution {
                     var: tv("t"),
                     ty: named("int"),
                 },
@@ -2869,43 +2883,43 @@ mod tests {
 
     #[test]
     fn plan_normalization_leaves_open_child_var_missing() {
-        let plan = list_plan_for_arg(list_of(core_ir::Type::Var(tv("t"))));
+        let plan = list_plan_for_arg(list_of(typed_ir::Type::Var(tv("t"))));
         let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
 
         assert!(!normalized.complete);
         assert!(normalized.incomplete_reasons.contains(
-            &core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
+            &typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
         ));
     }
 
     #[test]
     fn plan_normalization_does_not_solve_union_actuals() {
-        let plan = list_plan_for_arg(list_of(core_ir::Type::Union(vec![
-            core_ir::Type::Var(tv("t")),
+        let plan = list_plan_for_arg(list_of(typed_ir::Type::Union(vec![
+            typed_ir::Type::Var(tv("t")),
             named("int"),
         ])));
         let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
 
         assert!(!normalized.complete);
         assert!(normalized.incomplete_reasons.contains(
-            &core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
+            &typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
         ));
     }
 
     #[test]
     fn plan_normalization_closes_child_var_from_single_closed_type_arg_bound() {
-        let plan = list_plan_for_arg(core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
-            args: vec![core_ir::TypeArg::Bounds(core_ir::TypeBounds::upper(named(
-                "int",
-            )))],
+        let plan = list_plan_for_arg(typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("list".to_string())),
+            args: vec![typed_ir::TypeArg::Bounds(typed_ir::TypeBounds::upper(
+                named("int"),
+            ))],
         });
         let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
 
         assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);
         assert_eq!(
             normalized.substitutions,
-            vec![core_ir::TypeSubstitution {
+            vec![typed_ir::TypeSubstitution {
                 var: tv("a"),
                 ty: named("int"),
             }]
@@ -2915,17 +2929,17 @@ mod tests {
     #[test]
     fn plan_normalization_closes_child_var_from_repeated_choice_bound_args() {
         let list_int = list_of(named("int"));
-        let list_bounded_int = core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
-            args: vec![core_ir::TypeArg::Bounds(core_ir::TypeBounds {
-                lower: Some(Box::new(core_ir::Type::Union(vec![
+        let list_bounded_int = typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("list".to_string())),
+            args: vec![typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+                lower: Some(Box::new(typed_ir::Type::Union(vec![
                     named("int"),
                     named("int"),
                 ]))),
                 upper: Some(Box::new(named("int"))),
             })],
         };
-        let plan = list_plan_for_arg(core_ir::Type::Union(vec![
+        let plan = list_plan_for_arg(typed_ir::Type::Union(vec![
             list_int.clone(),
             list_bounded_int,
             list_int,
@@ -2935,7 +2949,7 @@ mod tests {
         assert!(normalized.complete, "{:?}", normalized.incomplete_reasons);
         assert_eq!(
             normalized.substitutions,
-            vec![core_ir::TypeSubstitution {
+            vec![typed_ir::TypeSubstitution {
                 var: tv("a"),
                 ty: named("int"),
             }]
@@ -2944,27 +2958,27 @@ mod tests {
 
     #[test]
     fn plan_normalization_does_not_infer_fold_item_from_list_shape_without_impl_graph() {
-        let mut plan = core_ir::PrincipalElaborationPlan {
-            target: Some(core_ir::Path::from_name(core_ir::Name("all".to_string()))),
-            principal_callee: core_ir::Type::Fun {
-                param: Box::new(core_ir::Type::Var(tv("container"))),
-                param_effect: Box::new(core_ir::Type::Never),
-                ret_effect: Box::new(core_ir::Type::Never),
-                ret: Box::new(core_ir::Type::Var(tv("item"))),
+        let mut plan = typed_ir::PrincipalElaborationPlan {
+            target: Some(typed_ir::Path::from_name(typed_ir::Name("all".to_string()))),
+            principal_callee: typed_ir::Type::Fun {
+                param: Box::new(typed_ir::Type::Var(tv("container"))),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(typed_ir::Type::Var(tv("item"))),
             },
-            substitutions: vec![core_ir::TypeSubstitution {
+            substitutions: vec![typed_ir::TypeSubstitution {
                 var: tv("container"),
                 ty: list_of(named("int")),
             }],
-            args: vec![core_ir::PrincipalElaborationArg {
+            args: vec![typed_ir::PrincipalElaborationArg {
                 index: 0,
-                intrinsic: core_ir::TypeBounds::exact(list_of(named("int"))),
+                intrinsic: typed_ir::TypeBounds::exact(list_of(named("int"))),
                 contextual: None,
                 expected_runtime: None,
                 source_edge: None,
             }],
-            result: core_ir::PrincipalElaborationResult {
-                intrinsic: core_ir::TypeBounds::default(),
+            result: typed_ir::PrincipalElaborationResult {
+                intrinsic: typed_ir::TypeBounds::default(),
                 contextual: None,
                 expected_runtime: None,
             },
@@ -2972,20 +2986,20 @@ mod tests {
             complete: false,
             incomplete_reasons: Vec::new(),
         };
-        plan.result.contextual = Some(core_ir::TypeBounds::exact(core_ir::Type::Var(tv("item"))));
+        plan.result.contextual = Some(typed_ir::TypeBounds::exact(typed_ir::Type::Var(tv("item"))));
 
         let normalized = normalize_principal_elaboration_plan_with_requirements(
             plan,
             &[],
-            &[core_ir::RoleRequirement {
-                role: core_ir::Path::from_name(core_ir::Name("Fold".to_string())),
+            &[typed_ir::RoleRequirement {
+                role: typed_ir::Path::from_name(typed_ir::Name("Fold".to_string())),
                 args: vec![
-                    core_ir::RoleRequirementArg::Input(core_ir::TypeBounds::exact(
-                        core_ir::Type::Var(tv("container")),
+                    typed_ir::RoleRequirementArg::Input(typed_ir::TypeBounds::exact(
+                        typed_ir::Type::Var(tv("container")),
                     )),
-                    core_ir::RoleRequirementArg::Associated {
-                        name: core_ir::Name("item".to_string()),
-                        bounds: core_ir::TypeBounds::exact(core_ir::Type::Var(tv("item"))),
+                    typed_ir::RoleRequirementArg::Associated {
+                        name: typed_ir::Name("item".to_string()),
+                        bounds: typed_ir::TypeBounds::exact(typed_ir::Type::Var(tv("item"))),
                     },
                 ],
             }],
@@ -2993,33 +3007,33 @@ mod tests {
 
         assert!(!normalized.complete);
         assert!(normalized.incomplete_reasons.contains(
-            &core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("item"))
+            &typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("item"))
         ));
     }
 
     #[test]
     fn plan_normalization_projects_associated_role_requirement_from_impl_graph() {
-        let mut plan = core_ir::PrincipalElaborationPlan {
-            target: Some(core_ir::Path::from_name(core_ir::Name("get".to_string()))),
-            principal_callee: core_ir::Type::Fun {
-                param: Box::new(core_ir::Type::Var(tv("container"))),
-                param_effect: Box::new(core_ir::Type::Never),
-                ret_effect: Box::new(core_ir::Type::Never),
-                ret: Box::new(core_ir::Type::Var(tv("item"))),
+        let mut plan = typed_ir::PrincipalElaborationPlan {
+            target: Some(typed_ir::Path::from_name(typed_ir::Name("get".to_string()))),
+            principal_callee: typed_ir::Type::Fun {
+                param: Box::new(typed_ir::Type::Var(tv("container"))),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(typed_ir::Type::Var(tv("item"))),
             },
-            substitutions: vec![core_ir::TypeSubstitution {
+            substitutions: vec![typed_ir::TypeSubstitution {
                 var: tv("container"),
                 ty: named("bag"),
             }],
-            args: vec![core_ir::PrincipalElaborationArg {
+            args: vec![typed_ir::PrincipalElaborationArg {
                 index: 0,
-                intrinsic: core_ir::TypeBounds::exact(named("bag")),
+                intrinsic: typed_ir::TypeBounds::exact(named("bag")),
                 contextual: None,
                 expected_runtime: None,
                 source_edge: None,
             }],
-            result: core_ir::PrincipalElaborationResult {
-                intrinsic: core_ir::TypeBounds::default(),
+            result: typed_ir::PrincipalElaborationResult {
+                intrinsic: typed_ir::TypeBounds::default(),
                 contextual: None,
                 expected_runtime: None,
             },
@@ -3027,14 +3041,14 @@ mod tests {
             complete: false,
             incomplete_reasons: Vec::new(),
         };
-        plan.result.contextual = Some(core_ir::TypeBounds::exact(core_ir::Type::Var(tv("item"))));
+        plan.result.contextual = Some(typed_ir::TypeBounds::exact(typed_ir::Type::Var(tv("item"))));
 
-        let role_impls = vec![core_ir::RoleImplGraphNode {
-            role: core_ir::Path::from_name(core_ir::Name("Readable".to_string())),
-            inputs: vec![core_ir::TypeBounds::exact(named("bag"))],
-            associated_types: vec![core_ir::RecordField {
-                name: core_ir::Name("item".to_string()),
-                value: core_ir::TypeBounds::exact(named("int")),
+        let role_impls = vec![typed_ir::RoleImplGraphNode {
+            role: typed_ir::Path::from_name(typed_ir::Name("Readable".to_string())),
+            inputs: vec![typed_ir::TypeBounds::exact(named("bag"))],
+            associated_types: vec![typed_ir::RecordField {
+                name: typed_ir::Name("item".to_string()),
+                value: typed_ir::TypeBounds::exact(named("int")),
                 optional: false,
             }],
             members: Vec::new(),
@@ -3042,15 +3056,15 @@ mod tests {
         let normalized = normalize_principal_elaboration_plan_with_role_impls(
             plan,
             &[],
-            &[core_ir::RoleRequirement {
-                role: core_ir::Path::from_name(core_ir::Name("Readable".to_string())),
+            &[typed_ir::RoleRequirement {
+                role: typed_ir::Path::from_name(typed_ir::Name("Readable".to_string())),
                 args: vec![
-                    core_ir::RoleRequirementArg::Input(core_ir::TypeBounds::exact(
-                        core_ir::Type::Var(tv("container")),
+                    typed_ir::RoleRequirementArg::Input(typed_ir::TypeBounds::exact(
+                        typed_ir::Type::Var(tv("container")),
                     )),
-                    core_ir::RoleRequirementArg::Associated {
-                        name: core_ir::Name("item".to_string()),
-                        bounds: core_ir::TypeBounds::exact(core_ir::Type::Var(tv("item"))),
+                    typed_ir::RoleRequirementArg::Associated {
+                        name: typed_ir::Name("item".to_string()),
+                        bounds: typed_ir::TypeBounds::exact(typed_ir::Type::Var(tv("item"))),
                     },
                 ],
             }],
@@ -3061,7 +3075,7 @@ mod tests {
         assert!(
             normalized
                 .substitutions
-                .contains(&core_ir::TypeSubstitution {
+                .contains(&typed_ir::TypeSubstitution {
                     var: tv("item"),
                     ty: named("int"),
                 })
@@ -3070,9 +3084,9 @@ mod tests {
 
     #[test]
     fn plan_normalization_does_not_project_conflicting_type_arg_bounds() {
-        let plan = list_plan_for_arg(core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
-            args: vec![core_ir::TypeArg::Bounds(core_ir::TypeBounds {
+        let plan = list_plan_for_arg(typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("list".to_string())),
+            args: vec![typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
                 lower: Some(Box::new(named("int"))),
                 upper: Some(Box::new(named("bool"))),
             })],
@@ -3081,7 +3095,7 @@ mod tests {
 
         assert!(!normalized.complete);
         assert!(normalized.incomplete_reasons.contains(
-            &core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
+            &typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a"))
         ));
     }
 
@@ -3098,8 +3112,8 @@ mod tests {
     fn plan_normalization_preserves_missing_adapter_hole_reason() {
         let mut plan = list_plan_for_arg(list_of(named("int")));
         plan.incomplete_reasons = vec![
-            core_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(
-                core_ir::PrincipalAdapterKind::ValueToThunk,
+            typed_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(
+                typed_ir::PrincipalAdapterKind::ValueToThunk,
             ),
         ];
         let normalized = substitute_principal_elaboration_plan(plan, &BTreeMap::new(), &[]);
@@ -3107,8 +3121,8 @@ mod tests {
         assert!(!normalized.complete);
         assert!(normalized.adapters.is_empty());
         assert!(normalized.incomplete_reasons.contains(
-            &core_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(
-                core_ir::PrincipalAdapterKind::ValueToThunk,
+            &typed_ir::PrincipalElaborationIncompleteReason::MissingAdapterHole(
+                typed_ir::PrincipalAdapterKind::ValueToThunk,
             )
         ));
     }
@@ -3117,19 +3131,19 @@ mod tests {
     fn closed_projection_matches_effect_row_residuals_without_graph_solving() {
         let item = tv("item");
         let residual = tv("residual");
-        let template = core_ir::Type::Row {
+        let template = typed_ir::Type::Row {
             items: vec![named_with_args(
                 "sub",
-                vec![core_ir::TypeArg::Type(core_ir::Type::Var(item.clone()))],
+                vec![typed_ir::TypeArg::Type(typed_ir::Type::Var(item.clone()))],
             )],
-            tail: Box::new(core_ir::Type::Var(residual.clone())),
+            tail: Box::new(typed_ir::Type::Var(residual.clone())),
         };
-        let actual = core_ir::Type::Row {
+        let actual = typed_ir::Type::Row {
             items: vec![
-                named_with_args("sub", vec![core_ir::TypeArg::Type(named("int"))]),
+                named_with_args("sub", vec![typed_ir::TypeArg::Type(named("int"))]),
                 named("junction"),
             ],
-            tail: Box::new(core_ir::Type::Never),
+            tail: Box::new(typed_ir::Type::Never),
         };
         let params = BTreeSet::from([item.clone(), residual.clone()]);
         let mut substitutions = BTreeMap::new();
@@ -3154,9 +3168,9 @@ mod tests {
     fn closed_projection_does_not_solve_principal_var_union_from_closed_actual() {
         let left = tv("left");
         let right = tv("right");
-        let template = core_ir::Type::Union(vec![
-            core_ir::Type::Var(left.clone()),
-            core_ir::Type::Var(right.clone()),
+        let template = typed_ir::Type::Union(vec![
+            typed_ir::Type::Var(left.clone()),
+            typed_ir::Type::Var(right.clone()),
         ]);
         let actual = named("int");
         let params = BTreeSet::from([left.clone(), right.clone()]);
@@ -3178,60 +3192,60 @@ mod tests {
         assert_eq!(substitutions.get(&right), None);
     }
 
-    fn list_plan_for_arg(arg_ty: core_ir::Type) -> core_ir::PrincipalElaborationPlan {
-        core_ir::PrincipalElaborationPlan {
-            target: Some(core_ir::Path::from_name(core_ir::Name(
+    fn list_plan_for_arg(arg_ty: typed_ir::Type) -> typed_ir::PrincipalElaborationPlan {
+        typed_ir::PrincipalElaborationPlan {
+            target: Some(typed_ir::Path::from_name(typed_ir::Name(
                 "view_raw".to_string(),
             ))),
-            principal_callee: core_ir::Type::Fun {
-                param: Box::new(list_of(core_ir::Type::Var(tv("a")))),
-                param_effect: Box::new(core_ir::Type::Never),
-                ret_effect: Box::new(core_ir::Type::Never),
+            principal_callee: typed_ir::Type::Fun {
+                param: Box::new(list_of(typed_ir::Type::Var(tv("a")))),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
                 ret: Box::new(named("unit")),
             },
             substitutions: Vec::new(),
-            args: vec![core_ir::PrincipalElaborationArg {
+            args: vec![typed_ir::PrincipalElaborationArg {
                 index: 0,
-                intrinsic: core_ir::TypeBounds::exact(arg_ty),
+                intrinsic: typed_ir::TypeBounds::exact(arg_ty),
                 contextual: None,
                 expected_runtime: None,
                 source_edge: None,
             }],
-            result: core_ir::PrincipalElaborationResult {
-                intrinsic: core_ir::TypeBounds::exact(named("unit")),
+            result: typed_ir::PrincipalElaborationResult {
+                intrinsic: typed_ir::TypeBounds::exact(named("unit")),
                 contextual: None,
                 expected_runtime: None,
             },
             adapters: Vec::new(),
             complete: false,
             incomplete_reasons: vec![
-                core_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a")),
+                typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(tv("a")),
             ],
         }
     }
 
-    fn list_of(item: core_ir::Type) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name("list".to_string())),
-            args: vec![core_ir::TypeArg::Type(item)],
+    fn list_of(item: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name("list".to_string())),
+            args: vec![typed_ir::TypeArg::Type(item)],
         }
     }
 
-    fn named(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args: Vec::new(),
         }
     }
 
-    fn named_with_args(name: &str, args: Vec<core_ir::TypeArg>) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named_with_args(name: &str, args: Vec<typed_ir::TypeArg>) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args,
         }
     }
 
-    fn tv(name: &str) -> core_ir::TypeVar {
-        core_ir::TypeVar(name.to_string())
+    fn tv(name: &str) -> typed_ir::TypeVar {
+        typed_ir::TypeVar(name.to_string())
     }
 }

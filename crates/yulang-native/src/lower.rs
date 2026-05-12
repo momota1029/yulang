@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-use yulang_core_ir as core_ir;
 use yulang_runtime as runtime;
+use yulang_typed_ir as typed_ir;
 
 use crate::control_ir::{
     BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeRecordField,
@@ -26,11 +26,11 @@ pub enum NativeLowerError {
         kind: &'static str,
     },
     UnsupportedBinding {
-        path: core_ir::Path,
+        path: typed_ir::Path,
         reason: &'static str,
     },
     PrimitiveArityMismatch {
-        op: core_ir::PrimitiveOp,
+        op: typed_ir::PrimitiveOp,
         expected: usize,
         actual: usize,
     },
@@ -131,7 +131,7 @@ pub fn lower_module(module: &runtime::Module) -> NativeLowerResult<NativeModule>
 
 fn lower_binding(
     binding: &runtime::Binding,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
 ) -> NativeLowerResult<LoweredFunction> {
     if !binding.type_params.is_empty() {
         return Err(NativeLowerError::UnsupportedBinding {
@@ -206,8 +206,8 @@ fn binding_function_info(binding: &runtime::Binding) -> FunctionInfo {
 }
 
 fn lower_primitive_binding(
-    path: &core_ir::Path,
-    op: core_ir::PrimitiveOp,
+    path: &typed_ir::Path,
+    op: typed_ir::PrimitiveOp,
 ) -> NativeLowerResult<LoweredFunction> {
     let arity = primitive_arity(op);
     let params = (0..arity).map(ValueId).collect::<Vec<_>>();
@@ -246,12 +246,12 @@ struct FunctionInfo {
 
 struct FunctionLowerer<'a> {
     name: String,
-    functions: &'a HashMap<core_ir::Path, FunctionInfo>,
+    functions: &'a HashMap<typed_ir::Path, FunctionInfo>,
     next_value: usize,
     next_block: usize,
     blocks: Vec<NativeBlock>,
     current: BlockBuilder,
-    locals: HashMap<core_ir::Path, ValueId>,
+    locals: HashMap<typed_ir::Path, ValueId>,
     params: Vec<ValueId>,
     captures: Vec<ValueId>,
     generated: Vec<NativeFunction>,
@@ -261,8 +261,8 @@ struct FunctionLowerer<'a> {
 impl<'a> FunctionLowerer<'a> {
     fn new(
         name: String,
-        functions: &'a HashMap<core_ir::Path, FunctionInfo>,
-        params: Vec<core_ir::Name>,
+        functions: &'a HashMap<typed_ir::Path, FunctionInfo>,
+        params: Vec<typed_ir::Name>,
     ) -> Self {
         let mut next_value = 0;
         let mut param_values = Vec::with_capacity(params.len());
@@ -270,7 +270,7 @@ impl<'a> FunctionLowerer<'a> {
         for param in params {
             let value = ValueId(next_value);
             next_value += 1;
-            locals.insert(core_ir::Path::from_name(param), value);
+            locals.insert(typed_ir::Path::from_name(param), value);
             param_values.push(value);
         }
         Self {
@@ -290,9 +290,9 @@ impl<'a> FunctionLowerer<'a> {
 
     fn new_closure(
         name: String,
-        functions: &'a HashMap<core_ir::Path, FunctionInfo>,
-        captures: Vec<core_ir::Path>,
-        param: core_ir::Name,
+        functions: &'a HashMap<typed_ir::Path, FunctionInfo>,
+        captures: Vec<typed_ir::Path>,
+        param: typed_ir::Name,
     ) -> Self {
         let mut next_value = 0;
         let mut params = Vec::with_capacity(captures.len() + 1);
@@ -306,7 +306,7 @@ impl<'a> FunctionLowerer<'a> {
         let captures = params.clone();
         let param_value = ValueId(next_value);
         next_value += 1;
-        locals.insert(core_ir::Path::from_name(param), param_value);
+        locals.insert(typed_ir::Path::from_name(param), param_value);
         params.push(param_value);
         Self {
             name,
@@ -499,7 +499,7 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_variant(
         &mut self,
-        tag: &core_ir::Name,
+        tag: &typed_ir::Name,
         value: Option<&runtime::Expr>,
     ) -> NativeLowerResult<ValueId> {
         let value = value.map(|value| self.lower_expr(value)).transpose()?;
@@ -515,7 +515,7 @@ impl<'a> FunctionLowerer<'a> {
     fn lower_select(
         &mut self,
         base: &runtime::Expr,
-        field: &core_ir::Name,
+        field: &typed_ir::Name,
     ) -> NativeLowerResult<ValueId> {
         let base = self.lower_expr(base)?;
         let dest = self.fresh_value();
@@ -621,11 +621,11 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_lambda(
         &mut self,
-        param: &core_ir::Name,
+        param: &typed_ir::Name,
         body: &runtime::Expr,
     ) -> NativeLowerResult<ValueId> {
         let mut bound = HashSet::new();
-        bound.insert(core_ir::Path::from_name(param.clone()));
+        bound.insert(typed_ir::Path::from_name(param.clone()));
         let mut capture_paths = free_vars(body, &mut bound)
             .into_iter()
             .filter(|path| self.locals.contains_key(path))
@@ -673,7 +673,7 @@ impl<'a> FunctionLowerer<'a> {
             runtime::Pattern::Wildcard { .. } => Ok(()),
             runtime::Pattern::Bind { name, .. } => {
                 self.locals
-                    .insert(core_ir::Path::from_name(name.clone()), value);
+                    .insert(typed_ir::Path::from_name(name.clone()), value);
                 Ok(())
             }
             runtime::Pattern::Lit { .. } => {
@@ -724,11 +724,11 @@ fn bool_literal_match_arms(arms: &[runtime::MatchArm]) -> Option<(&runtime::Expr
         }
         match &arm.pattern {
             runtime::Pattern::Lit {
-                lit: core_ir::Lit::Bool(true),
+                lit: typed_ir::Lit::Bool(true),
                 ..
             } if then_branch.is_none() => then_branch = Some(&arm.body),
             runtime::Pattern::Lit {
-                lit: core_ir::Lit::Bool(false),
+                lit: typed_ir::Lit::Bool(false),
                 ..
             } if else_branch.is_none() => else_branch = Some(&arm.body),
             _ => return None,
@@ -737,7 +737,7 @@ fn bool_literal_match_arms(arms: &[runtime::MatchArm]) -> Option<(&runtime::Expr
     Some((then_branch?, else_branch?))
 }
 
-fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, &runtime::Expr) {
+fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<typed_ir::Name>, &runtime::Expr) {
     let mut params = Vec::new();
     let mut current = expr;
     while let runtime::ExprKind::Lambda { param, body, .. } = &current.kind {
@@ -747,7 +747,7 @@ fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, &runtime:
     (params, current)
 }
 
-fn collect_callable_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, runtime::Expr) {
+fn collect_callable_params(expr: &runtime::Expr) -> (Vec<typed_ir::Name>, runtime::Expr) {
     let (mut params, body) = collect_lambda_params(expr);
     let mut body = body.clone();
     while let runtime::ExprKind::Block {
@@ -771,7 +771,7 @@ fn collect_callable_params(expr: &runtime::Expr) -> (Vec<core_ir::Name>, runtime
     (params, body)
 }
 
-fn free_vars(expr: &runtime::Expr, bound: &mut HashSet<core_ir::Path>) -> HashSet<core_ir::Path> {
+fn free_vars(expr: &runtime::Expr, bound: &mut HashSet<typed_ir::Path>) -> HashSet<typed_ir::Path> {
     match &expr.kind {
         runtime::ExprKind::Var(path) => {
             if bound.contains(path) {
@@ -785,7 +785,7 @@ fn free_vars(expr: &runtime::Expr, bound: &mut HashSet<core_ir::Path>) -> HashSe
             }
         }
         runtime::ExprKind::Lambda { param, body, .. } => {
-            let path = core_ir::Path::from_name(param.clone());
+            let path = typed_ir::Path::from_name(param.clone());
             let inserted = bound.insert(path.clone());
             let vars = free_vars(body, bound);
             if inserted {
@@ -817,7 +817,7 @@ fn free_vars(expr: &runtime::Expr, bound: &mut HashSet<core_ir::Path>) -> HashSe
                     runtime::Stmt::Let { pattern, value } => {
                         vars.extend(free_vars(value, bound));
                         for name in pattern_bind_names(pattern) {
-                            let path = core_ir::Path::from_name(name);
+                            let path = typed_ir::Path::from_name(name);
                             if bound.insert(path.clone()) {
                                 inserted.push(path);
                             }
@@ -867,7 +867,7 @@ fn free_vars(expr: &runtime::Expr, bound: &mut HashSet<core_ir::Path>) -> HashSe
             for arm in arms {
                 let mut arm_bound = bound.clone();
                 for name in pattern_bind_names(&arm.pattern) {
-                    arm_bound.insert(core_ir::Path::from_name(name));
+                    arm_bound.insert(typed_ir::Path::from_name(name));
                 }
                 if let Some(guard) = &arm.guard {
                     vars.extend(free_vars(guard, &mut arm_bound));
@@ -881,10 +881,10 @@ fn free_vars(expr: &runtime::Expr, bound: &mut HashSet<core_ir::Path>) -> HashSe
             for arm in arms {
                 let mut arm_bound = bound.clone();
                 for name in pattern_bind_names(&arm.payload) {
-                    arm_bound.insert(core_ir::Path::from_name(name));
+                    arm_bound.insert(typed_ir::Path::from_name(name));
                 }
                 if let Some(resume) = &arm.resume {
-                    arm_bound.insert(core_ir::Path::from_name(resume.name.clone()));
+                    arm_bound.insert(typed_ir::Path::from_name(resume.name.clone()));
                 }
                 if let Some(guard) = &arm.guard {
                     vars.extend(free_vars(guard, &mut arm_bound));
@@ -907,7 +907,7 @@ fn free_vars(expr: &runtime::Expr, bound: &mut HashSet<core_ir::Path>) -> HashSe
     }
 }
 
-fn pattern_bind_names(pattern: &runtime::Pattern) -> Vec<core_ir::Name> {
+fn pattern_bind_names(pattern: &runtime::Pattern) -> Vec<typed_ir::Name> {
     match pattern {
         runtime::Pattern::Bind { name, .. } => vec![name.clone()],
         runtime::Pattern::Tuple { items, .. } => {
@@ -979,17 +979,17 @@ impl BlockBuilder {
     }
 }
 
-fn lower_literal(lit: &core_ir::Lit) -> NativeLiteral {
+fn lower_literal(lit: &typed_ir::Lit) -> NativeLiteral {
     match lit {
-        core_ir::Lit::Int(value) => NativeLiteral::Int(value.clone()),
-        core_ir::Lit::Float(value) => NativeLiteral::Float(value.clone()),
-        core_ir::Lit::String(value) => NativeLiteral::String(value.clone()),
-        core_ir::Lit::Bool(value) => NativeLiteral::Bool(*value),
-        core_ir::Lit::Unit => NativeLiteral::Unit,
+        typed_ir::Lit::Int(value) => NativeLiteral::Int(value.clone()),
+        typed_ir::Lit::Float(value) => NativeLiteral::Float(value.clone()),
+        typed_ir::Lit::String(value) => NativeLiteral::String(value.clone()),
+        typed_ir::Lit::Bool(value) => NativeLiteral::Bool(*value),
+        typed_ir::Lit::Unit => NativeLiteral::Unit,
     }
 }
 
-fn primitive_apply(expr: &runtime::Expr) -> Option<(core_ir::PrimitiveOp, Vec<&runtime::Expr>)> {
+fn primitive_apply(expr: &runtime::Expr) -> Option<(typed_ir::PrimitiveOp, Vec<&runtime::Expr>)> {
     let mut args = Vec::new();
     let mut current = expr;
     while let runtime::ExprKind::Apply { callee, arg, .. } = &current.kind {
@@ -1005,7 +1005,7 @@ fn primitive_apply(expr: &runtime::Expr) -> Option<(core_ir::PrimitiveOp, Vec<&r
 
 fn direct_apply<'expr>(
     expr: &'expr runtime::Expr,
-    functions: &HashMap<core_ir::Path, FunctionInfo>,
+    functions: &HashMap<typed_ir::Path, FunctionInfo>,
 ) -> NativeLowerResult<Option<(String, Vec<&'expr runtime::Expr>)>> {
     let mut args = Vec::new();
     let mut current = expr;
@@ -1030,7 +1030,7 @@ fn direct_apply<'expr>(
     Ok(Some((target_name.clone(), args)))
 }
 
-fn path_name(path: &core_ir::Path) -> String {
+fn path_name(path: &typed_ir::Path) -> String {
     path.segments
         .iter()
         .map(|segment| segment.0.as_str())
@@ -1038,8 +1038,8 @@ fn path_name(path: &core_ir::Path) -> String {
         .join("::")
 }
 
-fn primitive_arity(op: core_ir::PrimitiveOp) -> usize {
-    use core_ir::PrimitiveOp;
+fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
+    use typed_ir::PrimitiveOp;
     match op {
         PrimitiveOp::BoolNot
         | PrimitiveOp::ListEmpty
@@ -1089,11 +1089,11 @@ fn primitive_arity(op: core_ir::PrimitiveOp) -> usize {
 mod tests {
     use super::*;
 
-    fn unknown_lit(lit: core_ir::Lit) -> runtime::Expr {
+    fn unknown_lit(lit: typed_ir::Lit) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::Lit(lit), runtime::Type::unknown())
     }
 
-    fn primitive(op: core_ir::PrimitiveOp) -> runtime::Expr {
+    fn primitive(op: typed_ir::PrimitiveOp) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::PrimitiveOp(op), runtime::Type::unknown())
     }
 
@@ -1136,7 +1136,7 @@ mod tests {
                 arms: vec![
                     runtime::MatchArm {
                         pattern: runtime::Pattern::Lit {
-                            lit: core_ir::Lit::Bool(true),
+                            lit: typed_ir::Lit::Bool(true),
                             ty: runtime::Type::unknown(),
                         },
                         guard: None,
@@ -1144,7 +1144,7 @@ mod tests {
                     },
                     runtime::MatchArm {
                         pattern: runtime::Pattern::Lit {
-                            lit: core_ir::Lit::Bool(false),
+                            lit: typed_ir::Lit::Bool(false),
                             ty: runtime::Type::unknown(),
                         },
                         guard: None,
@@ -1152,7 +1152,7 @@ mod tests {
                     },
                 ],
                 evidence: runtime::JoinEvidence {
-                    result: core_ir::Type::Unknown,
+                    result: typed_ir::Type::Unknown,
                 },
             },
             runtime::Type::unknown(),
@@ -1162,7 +1162,7 @@ mod tests {
     fn thunk(expr: runtime::Expr) -> runtime::Expr {
         runtime::Expr::typed(
             runtime::ExprKind::Thunk {
-                effect: core_ir::Type::Never,
+                effect: typed_ir::Type::Never,
                 value: runtime::Type::unknown(),
                 expr: Box::new(expr),
             },
@@ -1185,7 +1185,7 @@ mod tests {
                 body: Box::new(expr),
                 arms: Vec::new(),
                 evidence: runtime::JoinEvidence {
-                    result: core_ir::Type::Unknown,
+                    result: typed_ir::Type::Unknown,
                 },
                 handler: runtime::HandleEffect {
                     consumes: Vec::new(),
@@ -1199,14 +1199,14 @@ mod tests {
 
     fn var(name: &str) -> runtime::Expr {
         runtime::Expr::typed(
-            runtime::ExprKind::Var(core_ir::Path::from_name(core_ir::Name(name.to_string()))),
+            runtime::ExprKind::Var(typed_ir::Path::from_name(typed_ir::Name(name.to_string()))),
             runtime::Type::unknown(),
         )
     }
 
     fn bind_pattern(name: &str) -> runtime::Pattern {
         runtime::Pattern::Bind {
-            name: core_ir::Name(name.to_string()),
+            name: typed_ir::Name(name.to_string()),
             ty: runtime::Type::unknown(),
         }
     }
@@ -1224,7 +1224,7 @@ mod tests {
     fn lambda(param: &str, body: runtime::Expr) -> runtime::Expr {
         runtime::Expr::typed(
             runtime::ExprKind::Lambda {
-                param: core_ir::Name(param.to_string()),
+                param: typed_ir::Name(param.to_string()),
                 param_effect_annotation: None,
                 param_function_allowed_effects: None,
                 body: Box::new(body),
@@ -1235,11 +1235,11 @@ mod tests {
 
     fn binding(name: &str, body: runtime::Expr) -> runtime::Binding {
         runtime::Binding {
-            name: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+            name: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             type_params: Vec::new(),
-            scheme: core_ir::Scheme {
+            scheme: typed_ir::Scheme {
                 requirements: Vec::new(),
-                body: core_ir::Type::Unknown,
+                body: typed_ir::Type::Unknown,
             },
             body,
         }
@@ -1257,7 +1257,7 @@ mod tests {
         expr: runtime::Expr,
     ) -> runtime::Module {
         runtime::Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings,
             root_exprs: vec![expr],
             roots: vec![runtime::Root::Expr(0)],
@@ -1267,7 +1267,7 @@ mod tests {
 
     fn module_with_root(expr: runtime::Expr) -> runtime::Module {
         runtime::Module {
-            path: core_ir::Path::default(),
+            path: typed_ir::Path::default(),
             bindings: Vec::new(),
             root_exprs: vec![expr],
             roots: vec![runtime::Root::Expr(0)],
@@ -1277,7 +1277,7 @@ mod tests {
 
     #[test]
     fn lowers_literal_root() {
-        let module = module_with_root(unknown_lit(core_ir::Lit::Int("42".to_string())));
+        let module = module_with_root(unknown_lit(typed_ir::Lit::Int("42".to_string())));
         let lowered = lower_module(&module).expect("lowered");
 
         assert_eq!(lowered.roots.len(), 1);
@@ -1298,10 +1298,10 @@ mod tests {
     fn lowers_primitive_apply_root() {
         let expr = apply(
             apply(
-                primitive(core_ir::PrimitiveOp::IntAdd),
-                unknown_lit(core_ir::Lit::Int("1".to_string())),
+                primitive(typed_ir::PrimitiveOp::IntAdd),
+                unknown_lit(typed_ir::Lit::Int("1".to_string())),
             ),
-            unknown_lit(core_ir::Lit::Int("2".to_string())),
+            unknown_lit(typed_ir::Lit::Int("2".to_string())),
         );
         let module = module_with_root(expr);
         let lowered = lower_module(&module).expect("lowered");
@@ -1319,7 +1319,7 @@ mod tests {
                 },
                 NativeStmt::Primitive {
                     dest: ValueId(2),
-                    op: core_ir::PrimitiveOp::IntAdd,
+                    op: typed_ir::PrimitiveOp::IntAdd,
                     args: vec![ValueId(0), ValueId(1)],
                 },
             ]
@@ -1329,7 +1329,7 @@ mod tests {
     #[test]
     fn rejects_effect_operation_root() {
         let expr = runtime::Expr::typed(
-            runtime::ExprKind::EffectOp(core_ir::Path::from_name(core_ir::Name(
+            runtime::ExprKind::EffectOp(typed_ir::Path::from_name(typed_ir::Name(
                 "read".to_string(),
             ))),
             runtime::Type::unknown(),
@@ -1347,7 +1347,7 @@ mod tests {
     #[test]
     fn rejects_effect_operation_under_handle_wrapper() {
         let expr = handle(runtime::Expr::typed(
-            runtime::ExprKind::EffectOp(core_ir::Path::from_name(core_ir::Name(
+            runtime::ExprKind::EffectOp(typed_ir::Path::from_name(typed_ir::Name(
                 "read".to_string(),
             ))),
             runtime::Type::unknown(),
@@ -1365,9 +1365,9 @@ mod tests {
     #[test]
     fn lowers_if_with_branch_and_merge_blocks() {
         let module = module_with_root(if_expr(
-            unknown_lit(core_ir::Lit::Bool(true)),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
-            unknown_lit(core_ir::Lit::Int("2".to_string())),
+            unknown_lit(typed_ir::Lit::Bool(true)),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("2".to_string())),
         ));
         let lowered = lower_module(&module).expect("lowered");
         let blocks = &lowered.roots[0].blocks;
@@ -1402,9 +1402,9 @@ mod tests {
     #[test]
     fn lowers_bool_match_with_branch_and_merge_blocks() {
         let module = module_with_root(bool_match(
-            unknown_lit(core_ir::Lit::Bool(true)),
-            unknown_lit(core_ir::Lit::Int("1".to_string())),
-            unknown_lit(core_ir::Lit::Int("2".to_string())),
+            unknown_lit(typed_ir::Lit::Bool(true)),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+            unknown_lit(typed_ir::Lit::Int("2".to_string())),
         ));
         let lowered = lower_module(&module).expect("lowered");
         let blocks = &lowered.roots[0].blocks;
@@ -1438,7 +1438,7 @@ mod tests {
 
     #[test]
     fn lowers_effect_free_execution_wrappers() {
-        let module = module_with_root(handle(bind_here(thunk(unknown_lit(core_ir::Lit::Int(
+        let module = module_with_root(handle(bind_here(thunk(unknown_lit(typed_ir::Lit::Int(
             "42".to_string(),
         ))))));
         let lowered = lower_module(&module).expect("lowered");
@@ -1461,7 +1461,7 @@ mod tests {
         let module = module_with_root(block(
             vec![runtime::Stmt::Let {
                 pattern: bind_pattern("x"),
-                value: unknown_lit(core_ir::Lit::Int("42".to_string())),
+                value: unknown_lit(typed_ir::Lit::Int("42".to_string())),
             }],
             var("x"),
         ));
@@ -1487,12 +1487,15 @@ mod tests {
             lambda(
                 "x",
                 apply(
-                    apply(primitive(core_ir::PrimitiveOp::IntAdd), var("x")),
-                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                    apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("x")),
+                    unknown_lit(typed_ir::Lit::Int("1".to_string())),
                 ),
             ),
         );
-        let root = apply(var("inc"), unknown_lit(core_ir::Lit::Int("41".to_string())));
+        let root = apply(
+            var("inc"),
+            unknown_lit(typed_ir::Lit::Int("41".to_string())),
+        );
         let module = module_with_binding_and_root(inc, root);
         let lowered = lower_module(&module).expect("lowered");
 
@@ -1523,8 +1526,8 @@ mod tests {
     fn rejects_direct_call_arity_mismatch() {
         let inc = binding("inc", lambda("x", var("x")));
         let root = apply(
-            apply(var("inc"), unknown_lit(core_ir::Lit::Int("1".to_string()))),
-            unknown_lit(core_ir::Lit::Int("2".to_string())),
+            apply(var("inc"), unknown_lit(typed_ir::Lit::Int("1".to_string()))),
+            unknown_lit(typed_ir::Lit::Int("2".to_string())),
         );
         let module = module_with_binding_and_root(inc, root);
 
@@ -1552,7 +1555,7 @@ mod tests {
                     lambda(
                         "y",
                         apply(
-                            apply(primitive(core_ir::PrimitiveOp::IntAdd), var("z")),
+                            apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("z")),
                             var("y"),
                         ),
                     ),
@@ -1562,9 +1565,9 @@ mod tests {
         let root = apply(
             apply(
                 var("add_after_let"),
-                unknown_lit(core_ir::Lit::Int("20".to_string())),
+                unknown_lit(typed_ir::Lit::Int("20".to_string())),
             ),
-            unknown_lit(core_ir::Lit::Int("22".to_string())),
+            unknown_lit(typed_ir::Lit::Int("22".to_string())),
         );
         let module = module_with_binding_and_root(add_after_let, root);
         let lowered = lower_module(&module).expect("lowered");
@@ -1608,8 +1611,8 @@ mod tests {
             lambda(
                 "x",
                 apply(
-                    apply(primitive(core_ir::PrimitiveOp::IntAdd), var("x")),
-                    unknown_lit(core_ir::Lit::Int("1".to_string())),
+                    apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("x")),
+                    unknown_lit(typed_ir::Lit::Int("1".to_string())),
                 ),
             ),
         );
@@ -1619,7 +1622,7 @@ mod tests {
         );
         let root = apply(
             var("twice"),
-            unknown_lit(core_ir::Lit::Int("40".to_string())),
+            unknown_lit(typed_ir::Lit::Int("40".to_string())),
         );
         let module = module_with_bindings_and_root(vec![inc, twice], root);
         let lowered = lower_module(&module).expect("lowered");

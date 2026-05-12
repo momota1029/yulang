@@ -120,7 +120,8 @@ npm run build
 ## Repository Layout
 
 - `crates/yulang-parser`: parser and syntax tree support.
-- `crates/yulang-source`: source loading and module handling.
+- `crates/yulang-sources`: source-set collection, realms, compilation units, and syntax artifacts.
+- `crates/yulang-typed-ir`: typed intermediate representation and principal-type evidence.
 - `crates/yulang-infer`: type inference and principal-type export.
 - `crates/yulang-runtime`: runtime IR, monomorphization, and interpreter.
 - `crates/yulang-wasm`: WebAssembly API used by the playground.

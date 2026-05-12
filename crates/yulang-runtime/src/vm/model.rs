@@ -15,12 +15,12 @@ pub enum VmValue {
     Unit,
     List(ListTree<Rc<VmValue>>),
     Tuple(Vec<VmValue>),
-    Record(BTreeMap<core_ir::Name, VmValue>),
+    Record(BTreeMap<typed_ir::Name, VmValue>),
     Variant {
-        tag: core_ir::Name,
+        tag: typed_ir::Name,
         value: Option<Box<VmValue>>,
     },
-    EffectOp(core_ir::Path),
+    EffectOp(typed_ir::Path),
     PrimitiveOp(Rc<VmPrimitive>),
     Resume(Rc<VmResume>),
     Closure(Rc<VmClosure>),
@@ -30,7 +30,7 @@ pub enum VmValue {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VmRequest {
-    pub effect: core_ir::Path,
+    pub effect: typed_ir::Path,
     pub payload: VmValue,
     pub continuation: VmContinuation,
     pub blocked_id: Option<u64>,
@@ -38,18 +38,18 @@ pub struct VmRequest {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VmPrimitive {
-    pub op: core_ir::PrimitiveOp,
+    pub op: typed_ir::PrimitiveOp,
     pub args: Vec<VmValue>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VmClosure {
-    pub(super) param: core_ir::Name,
+    pub(super) param: typed_ir::Name,
     pub(super) param_ty: Type,
     pub(super) body: Expr,
     pub(super) ret: Type,
     pub(super) env: Env,
-    pub(super) self_name: Option<core_ir::Path>,
+    pub(super) self_name: Option<typed_ir::Path>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -65,7 +65,7 @@ pub(super) enum ThunkBody {
     Value(VmValue),
     Expr(Expr),
     Emit {
-        effect: core_ir::Path,
+        effect: typed_ir::Path,
         payload: VmValue,
     },
 }
@@ -124,7 +124,7 @@ pub(super) struct PersistentVectorChunk<T> {
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct BlockedEffect {
     pub(super) guard_id: u64,
-    pub(super) allowed: core_ir::Type,
+    pub(super) allowed: typed_ir::Type,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -149,7 +149,7 @@ pub(super) enum Frame {
         env: Env,
     },
     Select {
-        field: core_ir::Name,
+        field: typed_ir::Name,
     },
     Match {
         arms: Vec<MatchArm>,
@@ -186,11 +186,11 @@ pub(super) enum Frame {
         parent: GuardStack,
     },
     Coerce {
-        to: core_ir::Type,
+        to: typed_ir::Type,
     },
     WrapThunkResult {
         expected_ty: Type,
     },
 }
 
-pub(super) type Env = HashMap<core_ir::Path, VmValue>;
+pub(super) type Env = HashMap<typed_ir::Path, VmValue>;

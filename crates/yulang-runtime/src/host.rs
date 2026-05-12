@@ -1,4 +1,4 @@
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 use crate::vm::{VmError, VmModule, VmProfile, VmRequest, VmResult, VmValue};
 
@@ -65,7 +65,7 @@ fn handle_console_request(request: &VmRequest, stdout: &mut String) -> Option<Vm
     }
 }
 
-fn console_effect_is(path: &core_ir::Path, op: &str) -> bool {
+fn console_effect_is(path: &typed_ir::Path, op: &str) -> bool {
     let [std, console_module, console_act, operation] = path.segments.as_slice() else {
         return false;
     };
@@ -115,7 +115,7 @@ fn handle_fs_request(_request: &VmRequest) -> Option<VmValue> {
     None
 }
 
-fn fs_effect_operation(path: &core_ir::Path) -> Option<&str> {
+fn fs_effect_operation(path: &typed_ir::Path) -> Option<&str> {
     let [std, fs_module, fs_act, operation] = path.segments.as_slice() else {
         return None;
     };
@@ -142,14 +142,14 @@ fn host_path_text_pair(value: &VmValue) -> Option<(String, String)> {
 
 fn host_opt_some(value: VmValue) -> VmValue {
     VmValue::Variant {
-        tag: core_ir::Name("just".to_string()),
+        tag: typed_ir::Name("just".to_string()),
         value: Some(Box::new(value)),
     }
 }
 
 fn host_opt_none() -> VmValue {
     VmValue::Variant {
-        tag: core_ir::Name("nil".to_string()),
+        tag: typed_ir::Name("nil".to_string()),
         value: None,
     }
 }

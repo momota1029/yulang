@@ -1,19 +1,19 @@
 use std::fmt;
 
-use yulang_core_ir as core_ir;
+use yulang_typed_ir as typed_ir;
 
 pub type RuntimeResult<T> = Result<T, RuntimeError>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeError {
     MissingBindingType {
-        path: core_ir::Path,
+        path: typed_ir::Path,
     },
     MissingRootType {
         index: usize,
     },
     MissingLocalType {
-        path: core_ir::Path,
+        path: typed_ir::Path,
     },
     MissingExpectedType {
         node: &'static str,
@@ -23,39 +23,39 @@ pub enum RuntimeError {
         node: &'static str,
     },
     NonFunctionCallee {
-        ty: core_ir::Type,
+        ty: typed_ir::Type,
     },
     ExpectedThunk {
-        ty: core_ir::Type,
+        ty: typed_ir::Type,
     },
     TypeMismatch {
-        expected: core_ir::Type,
-        actual: core_ir::Type,
+        expected: typed_ir::Type,
+        actual: typed_ir::Type,
         source: TypeSource,
         context: Option<TypeMismatchContext>,
     },
     UnsupportedPatternShape {
         pattern: &'static str,
-        ty: core_ir::Type,
+        ty: typed_ir::Type,
     },
     UnsupportedSelectBase {
-        field: core_ir::Name,
-        ty: core_ir::Type,
+        field: typed_ir::Name,
+        ty: typed_ir::Type,
     },
     UnboundVariable {
-        path: core_ir::Path,
+        path: typed_ir::Path,
     },
     ResidualAny {
-        ty: core_ir::Type,
+        ty: typed_ir::Type,
         source: TypeSource,
     },
     NonRuntimeType {
-        ty: core_ir::Type,
+        ty: typed_ir::Type,
         source: TypeSource,
     },
     ResidualPolymorphicBinding {
-        path: core_ir::Path,
-        vars: Vec<core_ir::TypeVar>,
+        path: typed_ir::Path,
+        vars: Vec<typed_ir::TypeVar>,
         source: ResidualPolymorphicSource,
     },
     InvariantViolation {
@@ -92,8 +92,8 @@ pub struct TypeMismatchContext {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeCalleeLabel {
-    Path(core_ir::Path),
-    Primitive(core_ir::PrimitiveOp),
+    Path(typed_ir::Path),
+    Primitive(typed_ir::PrimitiveOp),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -271,7 +271,7 @@ This usually means a name, field, method, or operator could not be resolved."
 
 impl std::error::Error for RuntimeError {}
 
-fn display_path(path: &core_ir::Path) -> String {
+fn display_path(path: &typed_ir::Path) -> String {
     path.segments
         .iter()
         .map(|segment| segment.0.as_str())
@@ -286,7 +286,7 @@ fn display_callee_label(label: &RuntimeCalleeLabel) -> String {
     }
 }
 
-fn display_callee_path(path: &core_ir::Path) -> String {
+fn display_callee_path(path: &typed_ir::Path) -> String {
     match path.segments.as_slice() {
         [std, int, add] if std.0 == "std" && int.0 == "int" && add.0 == "add" => "+".to_string(),
         [std, int, sub] if std.0 == "std" && int.0 == "int" && sub.0 == "sub" => "-".to_string(),
@@ -296,61 +296,61 @@ fn display_callee_path(path: &core_ir::Path) -> String {
     }
 }
 
-fn display_primitive_op(op: core_ir::PrimitiveOp) -> &'static str {
+fn display_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
     match op {
-        core_ir::PrimitiveOp::BoolNot => "not",
-        core_ir::PrimitiveOp::BoolEq => "==",
-        core_ir::PrimitiveOp::IntAdd => "+",
-        core_ir::PrimitiveOp::IntSub => "-",
-        core_ir::PrimitiveOp::IntMul => "*",
-        core_ir::PrimitiveOp::IntDiv => "/",
-        core_ir::PrimitiveOp::IntEq => "==",
-        core_ir::PrimitiveOp::IntLt => "<",
-        core_ir::PrimitiveOp::IntLe => "<=",
-        core_ir::PrimitiveOp::IntGt => ">",
-        core_ir::PrimitiveOp::IntGe => ">=",
-        core_ir::PrimitiveOp::FloatAdd => "+",
-        core_ir::PrimitiveOp::FloatSub => "-",
-        core_ir::PrimitiveOp::FloatMul => "*",
-        core_ir::PrimitiveOp::FloatDiv => "/",
-        core_ir::PrimitiveOp::FloatEq => "==",
-        core_ir::PrimitiveOp::FloatLt => "<",
-        core_ir::PrimitiveOp::FloatLe => "<=",
-        core_ir::PrimitiveOp::FloatGt => ">",
-        core_ir::PrimitiveOp::FloatGe => ">=",
-        core_ir::PrimitiveOp::StringConcat => "++",
-        core_ir::PrimitiveOp::ListIndex => "[]",
-        core_ir::PrimitiveOp::ListIndexRange => "[..]",
-        core_ir::PrimitiveOp::ListSplice => "splice",
-        core_ir::PrimitiveOp::StringIndex => "[]",
-        core_ir::PrimitiveOp::StringIndexRange => "[..]",
-        core_ir::PrimitiveOp::StringSplice => "splice",
+        typed_ir::PrimitiveOp::BoolNot => "not",
+        typed_ir::PrimitiveOp::BoolEq => "==",
+        typed_ir::PrimitiveOp::IntAdd => "+",
+        typed_ir::PrimitiveOp::IntSub => "-",
+        typed_ir::PrimitiveOp::IntMul => "*",
+        typed_ir::PrimitiveOp::IntDiv => "/",
+        typed_ir::PrimitiveOp::IntEq => "==",
+        typed_ir::PrimitiveOp::IntLt => "<",
+        typed_ir::PrimitiveOp::IntLe => "<=",
+        typed_ir::PrimitiveOp::IntGt => ">",
+        typed_ir::PrimitiveOp::IntGe => ">=",
+        typed_ir::PrimitiveOp::FloatAdd => "+",
+        typed_ir::PrimitiveOp::FloatSub => "-",
+        typed_ir::PrimitiveOp::FloatMul => "*",
+        typed_ir::PrimitiveOp::FloatDiv => "/",
+        typed_ir::PrimitiveOp::FloatEq => "==",
+        typed_ir::PrimitiveOp::FloatLt => "<",
+        typed_ir::PrimitiveOp::FloatLe => "<=",
+        typed_ir::PrimitiveOp::FloatGt => ">",
+        typed_ir::PrimitiveOp::FloatGe => ">=",
+        typed_ir::PrimitiveOp::StringConcat => "++",
+        typed_ir::PrimitiveOp::ListIndex => "[]",
+        typed_ir::PrimitiveOp::ListIndexRange => "[..]",
+        typed_ir::PrimitiveOp::ListSplice => "splice",
+        typed_ir::PrimitiveOp::StringIndex => "[]",
+        typed_ir::PrimitiveOp::StringIndexRange => "[..]",
+        typed_ir::PrimitiveOp::StringSplice => "splice",
         _ => primitive_op_name(op),
     }
 }
 
-fn primitive_op_name(op: core_ir::PrimitiveOp) -> &'static str {
+fn primitive_op_name(op: typed_ir::PrimitiveOp) -> &'static str {
     match op {
-        core_ir::PrimitiveOp::ListEmpty => "list.empty",
-        core_ir::PrimitiveOp::ListSingleton => "list.singleton",
-        core_ir::PrimitiveOp::ListLen => "list.len",
-        core_ir::PrimitiveOp::ListMerge => "list.merge",
-        core_ir::PrimitiveOp::ListIndexRangeRaw => "list.index_range_raw",
-        core_ir::PrimitiveOp::ListSpliceRaw => "list.splice_raw",
-        core_ir::PrimitiveOp::ListViewRaw => "list.view_raw",
-        core_ir::PrimitiveOp::StringLen => "string.len",
-        core_ir::PrimitiveOp::StringIndexRangeRaw => "string.index_range_raw",
-        core_ir::PrimitiveOp::StringSpliceRaw => "string.splice_raw",
-        core_ir::PrimitiveOp::IntToString => "int.to_string",
-        core_ir::PrimitiveOp::IntToHex => "int.to_hex",
-        core_ir::PrimitiveOp::IntToUpperHex => "int.to_upper_hex",
-        core_ir::PrimitiveOp::FloatToString => "float.to_string",
-        core_ir::PrimitiveOp::BoolToString => "bool.to_string",
+        typed_ir::PrimitiveOp::ListEmpty => "list.empty",
+        typed_ir::PrimitiveOp::ListSingleton => "list.singleton",
+        typed_ir::PrimitiveOp::ListLen => "list.len",
+        typed_ir::PrimitiveOp::ListMerge => "list.merge",
+        typed_ir::PrimitiveOp::ListIndexRangeRaw => "list.index_range_raw",
+        typed_ir::PrimitiveOp::ListSpliceRaw => "list.splice_raw",
+        typed_ir::PrimitiveOp::ListViewRaw => "list.view_raw",
+        typed_ir::PrimitiveOp::StringLen => "string.len",
+        typed_ir::PrimitiveOp::StringIndexRangeRaw => "string.index_range_raw",
+        typed_ir::PrimitiveOp::StringSpliceRaw => "string.splice_raw",
+        typed_ir::PrimitiveOp::IntToString => "int.to_string",
+        typed_ir::PrimitiveOp::IntToHex => "int.to_hex",
+        typed_ir::PrimitiveOp::IntToUpperHex => "int.to_upper_hex",
+        typed_ir::PrimitiveOp::FloatToString => "float.to_string",
+        typed_ir::PrimitiveOp::BoolToString => "bool.to_string",
         _ => "primitive",
     }
 }
 
-fn display_type_vars(vars: &[core_ir::TypeVar]) -> String {
+fn display_type_vars(vars: &[typed_ir::TypeVar]) -> String {
     if vars.is_empty() {
         return "<none>".to_string();
     }
@@ -360,7 +360,7 @@ fn display_type_vars(vars: &[core_ir::TypeVar]) -> String {
         .join(", ")
 }
 
-fn display_type_var(var: &core_ir::TypeVar) -> &str {
+fn display_type_var(var: &typed_ir::TypeVar) -> &str {
     let name = var.0.as_str();
     if name
         .strip_prefix('t')
@@ -372,13 +372,13 @@ fn display_type_var(var: &core_ir::TypeVar) -> &str {
     }
 }
 
-fn display_type(ty: &core_ir::Type) -> String {
+fn display_type(ty: &typed_ir::Type) -> String {
     match ty {
-        core_ir::Type::Unknown => "?".to_string(),
-        core_ir::Type::Var(var) => display_type_var(var).to_string(),
-        core_ir::Type::Never => "never".to_string(),
-        core_ir::Type::Any => "_".to_string(),
-        core_ir::Type::Named { path, args } => {
+        typed_ir::Type::Unknown => "?".to_string(),
+        typed_ir::Type::Var(var) => display_type_var(var).to_string(),
+        typed_ir::Type::Never => "never".to_string(),
+        typed_ir::Type::Any => "_".to_string(),
+        typed_ir::Type::Named { path, args } => {
             let name = display_path(path);
             if args.is_empty() {
                 name
@@ -393,7 +393,7 @@ fn display_type(ty: &core_ir::Type) -> String {
                 )
             }
         }
-        core_ir::Type::Fun {
+        typed_ir::Type::Fun {
             param,
             param_effect,
             ret_effect,
@@ -409,7 +409,7 @@ fn display_type(ty: &core_ir::Type) -> String {
                 format!("{param} -{param_effect} / {ret_effect}-> {ret}")
             }
         }
-        core_ir::Type::Tuple(items) => format!(
+        typed_ir::Type::Tuple(items) => format!(
             "({})",
             items
                 .iter()
@@ -417,7 +417,7 @@ fn display_type(ty: &core_ir::Type) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        core_ir::Type::Record(record) => {
+        typed_ir::Type::Record(record) => {
             let mut parts = record
                 .fields
                 .iter()
@@ -432,15 +432,15 @@ fn display_type(ty: &core_ir::Type) -> String {
                 })
                 .collect::<Vec<_>>();
             match &record.spread {
-                Some(core_ir::RecordSpread::Head(rest))
-                | Some(core_ir::RecordSpread::Tail(rest)) => {
+                Some(typed_ir::RecordSpread::Head(rest))
+                | Some(typed_ir::RecordSpread::Tail(rest)) => {
                     parts.push(format!("..{}", display_type(rest)));
                 }
                 None => {}
             }
             format!("{{{}}}", parts.join(", "))
         }
-        core_ir::Type::Variant(variant) => {
+        typed_ir::Type::Variant(variant) => {
             let mut parts = variant
                 .cases
                 .iter()
@@ -465,35 +465,35 @@ fn display_type(ty: &core_ir::Type) -> String {
             }
             format!("[{}]", parts.join(" | "))
         }
-        core_ir::Type::Row { items, tail } => {
+        typed_ir::Type::Row { items, tail } => {
             let mut parts = items.iter().map(display_type).collect::<Vec<_>>();
             parts.push(format!("..{}", display_type(tail)));
             format!("[{}]", parts.join("; "))
         }
-        core_ir::Type::Union(items) => items
+        typed_ir::Type::Union(items) => items
             .iter()
             .map(display_type)
             .collect::<Vec<_>>()
             .join(" | "),
-        core_ir::Type::Inter(items) => items
+        typed_ir::Type::Inter(items) => items
             .iter()
             .map(display_type)
             .collect::<Vec<_>>()
             .join(" & "),
-        core_ir::Type::Recursive { var, body } => {
+        typed_ir::Type::Recursive { var, body } => {
             format!("rec {}. {}", var.0, display_type(body))
         }
     }
 }
 
-fn display_type_arg(arg: &core_ir::TypeArg) -> String {
+fn display_type_arg(arg: &typed_ir::TypeArg) -> String {
     match arg {
-        core_ir::TypeArg::Type(ty) => display_type(ty),
-        core_ir::TypeArg::Bounds(bounds) => display_type_bounds(bounds),
+        typed_ir::TypeArg::Type(ty) => display_type(ty),
+        typed_ir::TypeArg::Bounds(bounds) => display_type_bounds(bounds),
     }
 }
 
-fn display_type_bounds(bounds: &core_ir::TypeBounds) -> String {
+fn display_type_bounds(bounds: &typed_ir::TypeBounds) -> String {
     match (&bounds.lower, &bounds.upper) {
         (Some(lower), Some(upper)) if lower == upper => display_type(lower),
         (Some(lower), Some(upper)) => format!("{}..{}", display_type(lower), display_type(upper)),
@@ -529,11 +529,11 @@ mod tests {
             actual: fun_type(named_type("int"), named_type("int")),
             source: TypeSource::ApplyEvidence,
             context: Some(TypeMismatchContext {
-                callee: Some(RuntimeCalleeLabel::Path(core_ir::Path {
+                callee: Some(RuntimeCalleeLabel::Path(typed_ir::Path {
                     segments: vec![
-                        core_ir::Name("std".to_string()),
-                        core_ir::Name("int".to_string()),
-                        core_ir::Name("add".to_string()),
+                        typed_ir::Name("std".to_string()),
+                        typed_ir::Name("int".to_string()),
+                        typed_ir::Name("add".to_string()),
                     ],
                 })),
                 phase: TypeMismatchPhase::ApplyResult,
@@ -561,8 +561,8 @@ mod tests {
     #[test]
     fn displays_residual_polymorphic_source() {
         let error = RuntimeError::ResidualPolymorphicBinding {
-            path: core_ir::Path::from_name(core_ir::Name("f".to_string())),
-            vars: vec![core_ir::TypeVar("a".to_string())],
+            path: typed_ir::Path::from_name(typed_ir::Name("f".to_string())),
+            vars: vec![typed_ir::TypeVar("a".to_string())],
             source: ResidualPolymorphicSource::RuntimeTypes,
         };
 
@@ -577,8 +577,8 @@ mod tests {
     #[test]
     fn displays_internal_type_vars_as_user_type_vars() {
         let error = RuntimeError::ResidualPolymorphicBinding {
-            path: core_ir::Path::from_name(core_ir::Name("wrap".to_string())),
-            vars: vec![core_ir::TypeVar("t4230".to_string())],
+            path: typed_ir::Path::from_name(typed_ir::Name("wrap".to_string())),
+            vars: vec![typed_ir::TypeVar("t4230".to_string())],
             source: ResidualPolymorphicSource::TypeParams,
         };
 
@@ -590,18 +590,18 @@ mod tests {
         );
     }
 
-    fn fun_type(param: core_ir::Type, ret: core_ir::Type) -> core_ir::Type {
-        core_ir::Type::Fun {
+    fn fun_type(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
+        typed_ir::Type::Fun {
             param: Box::new(param),
-            param_effect: Box::new(core_ir::Type::Never),
-            ret_effect: Box::new(core_ir::Type::Never),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(typed_ir::Type::Never),
             ret: Box::new(ret),
         }
     }
 
-    fn named_type(name: &str) -> core_ir::Type {
-        core_ir::Type::Named {
-            path: core_ir::Path::from_name(core_ir::Name(name.to_string())),
+    fn named_type(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args: Vec::new(),
         }
     }

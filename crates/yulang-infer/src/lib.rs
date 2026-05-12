@@ -83,7 +83,7 @@ pub use symbols::{
 };
 pub use types::arena::TypeArena;
 pub use types::{EffectAtom, Neg, Pos, RecordField, Variance};
-pub use yulang_source::{
+pub use yulang_sources::{
     SourceLoadError, SourceOptions, SourceOrigin, SourceSet,
     collect_virtual_source_files_with_options,
 };
