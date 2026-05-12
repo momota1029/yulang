@@ -3,7 +3,7 @@ use reborrow_generic::Reborrow as _;
 
 use crate::EventInput;
 use crate::context::In;
-use crate::expr::scan::{ExprLedTag, ExprNudTag, scan_expr_led, scan_expr_nud, scan_expr_tail_led};
+use crate::expr::scan::{ExprLedTag, ExprNudTag, scan_expr_led, scan_expr_nud};
 use crate::lex::{Lex, SyntaxKind, Token, TriviaInfo};
 use crate::op::BpVec;
 use crate::parse::emit_invalid;
@@ -28,7 +28,7 @@ pub(super) fn parse_tail_bp<I: EventInput, S: EventSink>(
     {
         return Some(Ok(Either::Left(leading_info)));
     }
-    let Some(led) = i.maybe_fn(|i| scan_expr_tail_led(leading_info, i))? else {
+    let Some(led) = i.maybe_fn(|i| scan_expr_led(leading_info, i))? else {
         return Some(Ok(Either::Left(leading_info)));
     };
     pratt_tail_bp(min_bp, led, i)

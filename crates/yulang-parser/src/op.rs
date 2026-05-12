@@ -252,7 +252,7 @@ pub fn standard_op_table() -> OpTable {
         }};
     }
 
-    add!("+", prefix: 70, infix: (50, 50));
+    add!("+", infix: (50, 50));
     add!("-", prefix: 70, infix: (50, 50));
     add!("*", infix: (60, 60));
     add!("/", infix: (60, 60));

@@ -2207,17 +2207,19 @@ fn stmt_binding_rhs_keeps_indented_pipeline_continuation() {
 }
 
 #[test]
-fn stmt_indented_compact_negative_number_keeps_prefix() {
+fn stmt_indented_compact_negative_number_continues_ml_apply() {
     let got = parse_stmt_all("1\n    -2\n");
     let expected = vec![
         "(Expr",
         "  Number \"1\"",
-        ")",
-        "(Expr",
-        "  (PrefixNode",
-        "    Prefix \"-\"",
+        "  (ApplyML",
         "    (Expr",
-        "      Number \"2\"",
+        "      (PrefixNode",
+        "        Prefix \"-\"",
+        "        (Expr",
+        "          Number \"2\"",
+        "        )",
+        "      )",
         "    )",
         "  )",
         ")",
@@ -2226,15 +2228,13 @@ fn stmt_indented_compact_negative_number_keeps_prefix() {
 }
 
 #[test]
-fn stmt_indented_compact_positive_number_keeps_prefix() {
+fn stmt_indented_compact_positive_number_continues_infix() {
     let got = parse_stmt_all("1\n    +2\n");
     let expected = vec![
         "(Expr",
         "  Number \"1\"",
-        ")",
-        "(Expr",
-        "  (PrefixNode",
-        "    Prefix \"+\"",
+        "  (InfixNode",
+        "    Infix \"+\"",
         "    (Expr",
         "      Number \"2\"",
         "    )",
@@ -2253,6 +2253,32 @@ fn stmt_indented_identifier_continues_ml_apply() {
         "  (ApplyML",
         "    (Expr",
         "      Ident \"x\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_indented_compact_negative_argument_after_apply_continues_ml_apply() {
+    let got = parse_stmt_all("f 1\n    -2\n");
+    let expected = vec![
+        "(Expr",
+        "  Ident \"f\"",
+        "  (ApplyML",
+        "    (Expr",
+        "      Number \"1\"",
+        "    )",
+        "  )",
+        "  (ApplyML",
+        "    (Expr",
+        "      (PrefixNode",
+        "        Prefix \"-\"",
+        "        (Expr",
+        "          Number \"2\"",
+        "        )",
+        "      )",
         "    )",
         "  )",
         ")",

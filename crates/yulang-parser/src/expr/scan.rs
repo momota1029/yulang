@@ -138,22 +138,6 @@ fn read_expr_nud_punct(kind: SyntaxKind, stop: im::HashSet<SyntaxKind>) -> ExprN
 
 pub fn scan_expr_led<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
-    i: In<I, S>,
-) -> Option<Token<ExprLedTag>> {
-    scan_expr_led_with_mode(leading_info, true, i)
-}
-
-pub fn scan_expr_tail_led<I: EventInput, S: EventSink>(
-    leading_info: TriviaInfo,
-    i: In<I, S>,
-) -> Option<Token<ExprLedTag>> {
-    let allow_prefix_nud = !matches!(leading_info, TriviaInfo::Newline { .. });
-    scan_expr_led_with_mode(leading_info, allow_prefix_nud, i)
-}
-
-fn scan_expr_led_with_mode<I: EventInput, S: EventSink>(
-    leading_info: TriviaInfo,
-    allow_prefix_nud: bool,
     mut i: In<I, S>,
 ) -> Option<Token<ExprLedTag>> {
     let fence_stop = from_fn(|mut i: In<I, S>| {
@@ -218,11 +202,7 @@ fn scan_expr_led_with_mode<I: EventInput, S: EventSink>(
                 };
                 Some((tag, (kind, text)))
             }),
-            from_fn(|mut i| {
-                allow_prefix_nud.then_some(())?;
-                let item = scan_unknown(i.rb())?;
-                Some((ExprLedTag::Stop, item))
-            }),
+            (value(ExprLedTag::Stop), scan_unknown),
         ))?;
         let trailing_trivia = i.run(scan_trivia)?;
         Some(Lex::new(leading_info, kind, text, trailing_trivia).tag(tag))
@@ -230,9 +210,8 @@ fn scan_expr_led_with_mode<I: EventInput, S: EventSink>(
     let op_parser = from_fn(|mut i: In<I, S>| {
         let (use_, def, lex) = op::scan::scan_op_led(i.rb(), leading_info)?;
         let tag = match use_ {
-            OpUse::Prefix if allow_prefix_nud => ExprLedTag::MlNud(ExprNudTag::Prefix(def.prefix?)),
-            OpUse::Nullfix if allow_prefix_nud => ExprLedTag::MlNud(ExprNudTag::Nullfix),
-            OpUse::Prefix | OpUse::Nullfix => return None,
+            OpUse::Prefix => ExprLedTag::MlNud(ExprNudTag::Prefix(def.prefix?)),
+            OpUse::Nullfix => ExprLedTag::MlNud(ExprNudTag::Nullfix),
             OpUse::Infix => {
                 let (lbp, rbp) = def.infix?;
                 ExprLedTag::Infix(lbp, rbp)
@@ -250,7 +229,6 @@ fn scan_expr_led_with_mode<I: EventInput, S: EventSink>(
         Some(lex.tag(ExprLedTag::MlNud(ExprNudTag::RuleLitStart)))
     });
     let doc_comment_led = from_fn(|mut i: In<I, S>| {
-        allow_prefix_nud.then_some(())?;
         let (kind, text) = scan_doc_comment_token(i.rb())?;
         // trailing trivia は空にして本文を parse_ym_doc(DocLine) に委ねる
         Some(Lex::new(leading_info, kind, text, Trivia::empty()).tag(ExprLedTag::Stop))
