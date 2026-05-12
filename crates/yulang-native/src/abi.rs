@@ -70,6 +70,20 @@ pub enum NativeAbiStmt {
         base: ValueId,
         field: typed_ir::Name,
     },
+    TupleGet {
+        dest: ValueId,
+        tuple: ValueId,
+        index: usize,
+    },
+    VariantTagEq {
+        dest: ValueId,
+        variant: ValueId,
+        tag: typed_ir::Name,
+    },
+    VariantPayload {
+        dest: ValueId,
+        variant: ValueId,
+    },
     LoadEnv {
         dest: ValueId,
         slot: usize,
@@ -171,6 +185,20 @@ fn lower_native_stmt(stmt: &NativeStmt) -> NativeAbiStmt {
             dest: *dest,
             base: *base,
             field: field.clone(),
+        },
+        NativeStmt::TupleGet { dest, tuple, index } => NativeAbiStmt::TupleGet {
+            dest: *dest,
+            tuple: *tuple,
+            index: *index,
+        },
+        NativeStmt::VariantTagEq { dest, variant, tag } => NativeAbiStmt::VariantTagEq {
+            dest: *dest,
+            variant: *variant,
+            tag: tag.clone(),
+        },
+        NativeStmt::VariantPayload { dest, variant } => NativeAbiStmt::VariantPayload {
+            dest: *dest,
+            variant: *variant,
         },
         NativeStmt::MakeClosure {
             dest,

@@ -580,10 +580,112 @@ impl<'a> FunctionLowerer<'a> {
         scrutinee: &runtime::Expr,
         arms: &[runtime::MatchArm],
     ) -> NativeLowerResult<ValueId> {
-        let Some((then_branch, else_branch)) = bool_literal_match_arms(arms) else {
-            return Err(NativeLowerError::UnsupportedExpr { kind: "match" });
-        };
-        self.lower_if(scrutinee, then_branch, else_branch)
+        if let Some((then_branch, else_branch)) = bool_literal_match_arms(arms) {
+            return self.lower_if(scrutinee, then_branch, else_branch);
+        }
+        if arms.iter().any(|arm| arm.guard.is_some()) {
+            return Err(NativeLowerError::UnsupportedExpr {
+                kind: "match guard",
+            });
+        }
+
+        let saved_locals = self.locals.clone();
+        let merge_block = self.fresh_block();
+        let result = self.fresh_value();
+        let fallback_block = self.fresh_block();
+        let arm_blocks = (0..arms.len())
+            .map(|_| self.fresh_block())
+            .collect::<Vec<_>>();
+
+        let mut current_test_block = None;
+        for (index, arm) in arms.iter().enumerate() {
+            if let Some(test_block) = current_test_block {
+                self.current = BlockBuilder::new(test_block, Vec::new());
+                self.locals = saved_locals.clone();
+            }
+            let scrutinee_value = self.lower_expr(scrutinee)?;
+            let next_block = if index + 1 == arms.len() {
+                fallback_block
+            } else {
+                let next = self.fresh_block();
+                current_test_block = Some(next);
+                next
+            };
+            self.lower_pattern_test(scrutinee_value, &arm.pattern, arm_blocks[index], next_block)?;
+            self.finish_current();
+        }
+
+        self.current = BlockBuilder::new(fallback_block, Vec::new());
+        let unit = self.fresh_value();
+        self.current.stmts.push(NativeStmt::Literal {
+            dest: unit,
+            literal: NativeLiteral::Unit,
+        });
+        self.terminate(NativeTerminator::Jump {
+            target: merge_block,
+            args: vec![unit],
+        });
+        self.finish_current();
+
+        for (arm, arm_block) in arms.iter().zip(arm_blocks) {
+            self.current = BlockBuilder::new(arm_block, Vec::new());
+            self.locals = saved_locals.clone();
+            let scrutinee_value = self.lower_expr(scrutinee)?;
+            self.bind_pattern(&arm.pattern, scrutinee_value)?;
+            let value = self.lower_expr(&arm.body)?;
+            self.terminate(NativeTerminator::Jump {
+                target: merge_block,
+                args: vec![value],
+            });
+            self.finish_current();
+        }
+
+        self.current = BlockBuilder::new(merge_block, vec![result]);
+        self.locals = saved_locals;
+        Ok(result)
+    }
+
+    fn lower_pattern_test(
+        &mut self,
+        value: ValueId,
+        pattern: &runtime::Pattern,
+        then_block: BlockId,
+        else_block: BlockId,
+    ) -> NativeLowerResult<()> {
+        match pattern {
+            runtime::Pattern::Wildcard { .. }
+            | runtime::Pattern::Bind { .. }
+            | runtime::Pattern::Tuple { .. }
+            | runtime::Pattern::Record { .. }
+            | runtime::Pattern::As { .. } => {
+                self.terminate(NativeTerminator::Jump {
+                    target: then_block,
+                    args: Vec::new(),
+                });
+                Ok(())
+            }
+            runtime::Pattern::Variant { tag, .. } => {
+                let cond = self.fresh_value();
+                self.current.stmts.push(NativeStmt::VariantTagEq {
+                    dest: cond,
+                    variant: value,
+                    tag: tag.clone(),
+                });
+                self.terminate(NativeTerminator::Branch {
+                    cond,
+                    then_block,
+                    else_block,
+                });
+                Ok(())
+            }
+            runtime::Pattern::Lit { .. } => {
+                Err(NativeLowerError::UnsupportedPattern { kind: "literal" })
+            }
+            runtime::Pattern::List { .. } => {
+                Err(NativeLowerError::UnsupportedPattern { kind: "list" })
+            }
+            runtime::Pattern::Or { .. } => Err(NativeLowerError::UnsupportedPattern { kind: "or" }),
+        }
     }
 
     fn lower_block(
@@ -684,20 +786,57 @@ impl<'a> FunctionLowerer<'a> {
             runtime::Pattern::Lit { .. } => {
                 Err(NativeLowerError::UnsupportedPattern { kind: "literal" })
             }
-            runtime::Pattern::Tuple { .. } => {
-                Err(NativeLowerError::UnsupportedPattern { kind: "tuple" })
+            runtime::Pattern::Tuple { items, .. } => {
+                for (index, item) in items.iter().enumerate() {
+                    let item_value = self.fresh_value();
+                    self.current.stmts.push(NativeStmt::TupleGet {
+                        dest: item_value,
+                        tuple: value,
+                        index,
+                    });
+                    self.bind_pattern(item, item_value)?;
+                }
+                Ok(())
             }
             runtime::Pattern::List { .. } => {
                 Err(NativeLowerError::UnsupportedPattern { kind: "list" })
             }
-            runtime::Pattern::Record { .. } => {
-                Err(NativeLowerError::UnsupportedPattern { kind: "record" })
+            runtime::Pattern::Record { fields, spread, .. } => {
+                if spread.is_some() {
+                    return Err(NativeLowerError::UnsupportedPattern {
+                        kind: "record spread",
+                    });
+                }
+                for field in fields {
+                    let field_value = self.fresh_value();
+                    self.current.stmts.push(NativeStmt::Select {
+                        dest: field_value,
+                        base: value,
+                        field: field.name.clone(),
+                    });
+                    self.bind_pattern(&field.pattern, field_value)?;
+                }
+                Ok(())
             }
-            runtime::Pattern::Variant { .. } => {
-                Err(NativeLowerError::UnsupportedPattern { kind: "variant" })
+            runtime::Pattern::Variant {
+                value: Some(payload),
+                ..
+            } => {
+                let payload_value = self.fresh_value();
+                self.current.stmts.push(NativeStmt::VariantPayload {
+                    dest: payload_value,
+                    variant: value,
+                });
+                self.bind_pattern(payload, payload_value)
             }
+            runtime::Pattern::Variant { value: None, .. } => Ok(()),
             runtime::Pattern::Or { .. } => Err(NativeLowerError::UnsupportedPattern { kind: "or" }),
-            runtime::Pattern::As { .. } => Err(NativeLowerError::UnsupportedPattern { kind: "as" }),
+            runtime::Pattern::As { pattern, name, .. } => {
+                self.bind_pattern(pattern, value)?;
+                self.locals
+                    .insert(typed_ir::Path::from_name(name.clone()), value);
+                Ok(())
+            }
         }
     }
 

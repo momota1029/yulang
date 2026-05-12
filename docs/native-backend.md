@@ -49,7 +49,7 @@ checklist, see *Detailed progress* below.
 | List literals, list merge, length, index, raw view  | value backend          |   ✅   |
 | Tuple, record, variant, record field selection      | value backend          |   ✅   |
 | Record spread expressions                           | value backend          |   ✅   |
-| General pattern matching                            | —                      |   ❌   |
+| Variant / tuple pattern matching                    | value backend          |   △    |
 | Lambdas / first-class function values (pure)        | CPS repr (prototype)   |   △   |
 | Closures with captured state                        | CPS repr (prototype)   |   △   |
 
@@ -117,8 +117,14 @@ or out of here into the user-facing table once they stabilize.
 - [x] String range index and splice work.
 - [x] Tuple, record, record field selection, record spread expressions, and
       variant construction work.
-- [ ] General pattern matching is not supported in the value backend.
-- [ ] General multi-block control flow is not supported in the value backend.
+- [x] Value-backend branch/jump lowering works for effect-free `if` and the
+      current pattern-match subset.
+- [x] Variant tag tests, variant payload binding, and tuple payload binding
+      work in value-backend pattern matching.
+- [ ] List, record-spread, guarded, and literal pattern matching are not
+      supported in the value backend.
+- [ ] General multi-block control flow outside the current branch/jump subset
+      is not supported in the value backend.
 - [ ] Closure allocation, closure environments, and indirect closure calls are
       not supported in the value backend.
 - [ ] Generic runtime value layout is still backed by `VmValue`; compact native

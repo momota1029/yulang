@@ -173,6 +173,11 @@ runtime/core IR
     Rust helper / record base lowering 経由で扱う。`std::list::view_raw []` /
     `[1]` / `[1, 2]` と `{ ..{x: 5}, y: 6 }.x` /
     `{ x: 7, ..{y: 8} }.y` は JIT / object 生成で確認済み。
+  - value-lane Cranelift は branch / jump と Bool helper を追加し、effect-free
+    `if` と variant / tuple pattern match の小さい核を扱う。`:just (1, 2)`
+    の tuple payload bind と `std::list::view_raw [1]` の `:leaf x` match は
+    JIT / object 生成で確認済み。list / guarded / literal pattern はまだ
+    unsupported。
   - `yulang-sources` に realm / band の薄い identity 型を追加した。既存の
     `SourceSet` は「今回コンパイルに集めた source aggregate」のまま残し、
     realm / band を source identity layer として上に置く。

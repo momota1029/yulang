@@ -57,7 +57,7 @@ The columns trace a value through the pipeline:
 | Companion methods (`with:`)          |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | Roles and role constraints           |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | User-defined operators (`OpDef`)     |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
-| Pattern matching (record / tuple / list / variant) | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Pattern matching (record / tuple / list / variant) | ✅ | ✅ | ✅ | ✅ | △ | ✅ |
 | Casts / coercions                    |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  △   |
 
 ### Control flow

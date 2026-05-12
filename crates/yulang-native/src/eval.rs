@@ -39,6 +39,12 @@ pub enum NativeEvalError {
     ExpectedRecord {
         value: runtime::VmValue,
     },
+    ExpectedTuple {
+        value: runtime::VmValue,
+    },
+    ExpectedVariant {
+        value: runtime::VmValue,
+    },
     UnsupportedPrimitive {
         op: typed_ir::PrimitiveOp,
     },
@@ -86,6 +92,12 @@ impl fmt::Display for NativeEvalError {
             }
             NativeEvalError::ExpectedRecord { value } => {
                 write!(f, "native control expected record, got {value:?}")
+            }
+            NativeEvalError::ExpectedTuple { value } => {
+                write!(f, "native control expected tuple, got {value:?}")
+            }
+            NativeEvalError::ExpectedVariant { value } => {
+                write!(f, "native control expected variant, got {value:?}")
             }
             NativeEvalError::UnsupportedPrimitive { op } => {
                 write!(
@@ -254,6 +266,43 @@ fn eval_blocks(
                     }
                     .ok_or(NativeEvalError::ExpectedPlainValue { id: *base })?;
                     write_value(&mut values, *dest, NativeRuntimeValue::Plain(value));
+                }
+                NativeStmt::TupleGet { dest, tuple, index } => {
+                    let value = read_plain_value(&values, *tuple)?;
+                    let runtime::VmValue::Tuple(items) = value else {
+                        return Err(NativeEvalError::ExpectedTuple { value });
+                    };
+                    let value = items.get(*index).cloned().ok_or_else(|| {
+                        NativeEvalError::ExpectedTuple {
+                            value: runtime::VmValue::Tuple(items.clone()),
+                        }
+                    })?;
+                    write_value(&mut values, *dest, NativeRuntimeValue::Plain(value));
+                }
+                NativeStmt::VariantTagEq { dest, variant, tag } => {
+                    let value = read_plain_value(&values, *variant)?;
+                    let runtime::VmValue::Variant {
+                        tag: actual_tag, ..
+                    } = value
+                    else {
+                        return Err(NativeEvalError::ExpectedVariant { value });
+                    };
+                    write_value(
+                        &mut values,
+                        *dest,
+                        NativeRuntimeValue::Plain(runtime::VmValue::Bool(actual_tag == *tag)),
+                    );
+                }
+                NativeStmt::VariantPayload { dest, variant } => {
+                    let value = read_plain_value(&values, *variant)?;
+                    let runtime::VmValue::Variant {
+                        value: Some(payload),
+                        ..
+                    } = value
+                    else {
+                        return Err(NativeEvalError::ExpectedVariant { value });
+                    };
+                    write_value(&mut values, *dest, NativeRuntimeValue::Plain(*payload));
                 }
                 NativeStmt::MakeClosure {
                     dest,

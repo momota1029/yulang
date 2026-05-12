@@ -85,6 +85,22 @@ fn format_stmt(stmt: &NativeAbiStmt) -> String {
             format_value(*base),
             field.0
         ),
+        NativeAbiStmt::TupleGet { dest, tuple, index } => format!(
+            "{} = tuple_get {}[{index}]",
+            format_value(*dest),
+            format_value(*tuple)
+        ),
+        NativeAbiStmt::VariantTagEq { dest, variant, tag } => format!(
+            "{} = variant_tag_eq {} :{}",
+            format_value(*dest),
+            format_value(*variant),
+            tag.0
+        ),
+        NativeAbiStmt::VariantPayload { dest, variant } => format!(
+            "{} = variant_payload {}",
+            format_value(*dest),
+            format_value(*variant)
+        ),
         NativeAbiStmt::LoadEnv { dest, slot } => {
             format!("{} = load_env[{slot}]", format_value(*dest))
         }

@@ -57,6 +57,20 @@ pub enum NativeStmt {
         base: ValueId,
         field: typed_ir::Name,
     },
+    TupleGet {
+        dest: ValueId,
+        tuple: ValueId,
+        index: usize,
+    },
+    VariantTagEq {
+        dest: ValueId,
+        variant: ValueId,
+        tag: typed_ir::Name,
+    },
+    VariantPayload {
+        dest: ValueId,
+        variant: ValueId,
+    },
     MakeClosure {
         dest: ValueId,
         target: String,

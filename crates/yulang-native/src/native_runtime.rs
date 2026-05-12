@@ -95,6 +95,14 @@ pub fn make_bool(context: &mut NativeRuntimeContext, value: bool) -> *mut runtim
     context.alloc(runtime::VmValue::Bool(value))
 }
 
+pub fn bool_is_true(value: *mut runtime::VmValue) -> Option<i64> {
+    let value = unsafe { value.as_ref()? };
+    let runtime::VmValue::Bool(value) = value else {
+        return None;
+    };
+    Some(i64::from(*value))
+}
+
 pub fn make_unit(context: &mut NativeRuntimeContext) -> *mut runtime::VmValue {
     context.alloc(runtime::VmValue::Unit)
 }
@@ -479,6 +487,18 @@ pub fn tuple_push(
     Some(context.alloc(runtime::VmValue::Tuple(items)))
 }
 
+pub fn tuple_get(
+    context: &mut NativeRuntimeContext,
+    tuple: *mut runtime::VmValue,
+    index: usize,
+) -> Option<*mut runtime::VmValue> {
+    let tuple = unsafe { tuple.as_ref()? };
+    let runtime::VmValue::Tuple(items) = tuple else {
+        return None;
+    };
+    Some(context.alloc(items.get(index)?.clone()))
+}
+
 pub fn record_empty(context: &mut NativeRuntimeContext) -> *mut runtime::VmValue {
     context.alloc(runtime::VmValue::Record(BTreeMap::new()))
 }
@@ -529,6 +549,37 @@ pub fn variant(
         tag: typed_ir_name(tag),
         value,
     }))
+}
+
+pub fn variant_tag_eq(
+    context: &mut NativeRuntimeContext,
+    variant: *mut runtime::VmValue,
+    tag: &[u8],
+) -> Option<*mut runtime::VmValue> {
+    let variant = unsafe { variant.as_ref()? };
+    let runtime::VmValue::Variant {
+        tag: actual_tag, ..
+    } = variant
+    else {
+        return None;
+    };
+    let tag = std::str::from_utf8(tag).ok()?;
+    Some(context.alloc(runtime::VmValue::Bool(actual_tag.0 == tag)))
+}
+
+pub fn variant_payload(
+    context: &mut NativeRuntimeContext,
+    variant: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let variant = unsafe { variant.as_ref()? };
+    let runtime::VmValue::Variant {
+        value: Some(payload),
+        ..
+    } = variant
+    else {
+        return None;
+    };
+    Some(context.alloc((**payload).clone()))
 }
 
 #[unsafe(no_mangle)]
@@ -612,6 +663,11 @@ pub extern "C" fn yulang_native_make_bool(
         return std::ptr::null_mut();
     };
     make_bool(context, value != 0)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_bool_is_true(value: *mut runtime::VmValue) -> i64 {
+    bool_is_true(value).unwrap_or(0)
 }
 
 #[unsafe(no_mangle)]
@@ -855,6 +911,18 @@ pub extern "C" fn yulang_native_tuple_push(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_tuple_get(
+    context: *mut NativeRuntimeContext,
+    tuple: *mut runtime::VmValue,
+    index: usize,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    tuple_get(context, tuple, index).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn yulang_native_record_empty(
     context: *mut NativeRuntimeContext,
 ) -> *mut runtime::VmValue {
@@ -911,6 +979,33 @@ pub extern "C" fn yulang_native_variant(
         return std::ptr::null_mut();
     };
     variant(context, tag, value).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_variant_tag_eq(
+    context: *mut NativeRuntimeContext,
+    variant: *mut runtime::VmValue,
+    tag_ptr: *const u8,
+    tag_len: usize,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    let Some(tag) = bytes_from_raw(tag_ptr, tag_len) else {
+        return std::ptr::null_mut();
+    };
+    variant_tag_eq(context, variant, tag).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_variant_payload(
+    context: *mut NativeRuntimeContext,
+    variant: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    variant_payload(context, variant).unwrap_or(std::ptr::null_mut())
 }
 
 fn print_native_value(value: &runtime::VmValue) {

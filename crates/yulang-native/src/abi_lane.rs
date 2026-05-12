@@ -214,6 +214,29 @@ fn classify_stmt(
                 ),
             );
         }
+        NativeAbiStmt::TupleGet { dest, tuple, index } => {
+            values.insert(
+                *dest,
+                tuple_item_repr(
+                    values.get(tuple).cloned().unwrap_or(NativeAbiRepr::Unknown),
+                    *index,
+                ),
+            );
+        }
+        NativeAbiStmt::VariantTagEq { dest, .. } => {
+            values.insert(*dest, NativeAbiRepr::Bool);
+        }
+        NativeAbiStmt::VariantPayload { dest, variant } => {
+            values.insert(
+                *dest,
+                variant_payload_repr(
+                    values
+                        .get(variant)
+                        .cloned()
+                        .unwrap_or(NativeAbiRepr::Unknown),
+                ),
+            );
+        }
         NativeAbiStmt::LoadEnv { dest, .. } => {
             values.insert(*dest, NativeAbiRepr::Unknown);
         }
@@ -233,6 +256,24 @@ fn record_field_repr(repr: NativeAbiRepr, field: &typed_ir::Name) -> NativeAbiRe
             .find(|item| item.name == *field)
             .map(|item| item.value)
             .unwrap_or(NativeAbiRepr::Unknown),
+        _ => NativeAbiRepr::Unknown,
+    }
+}
+
+fn tuple_item_repr(repr: NativeAbiRepr, index: usize) -> NativeAbiRepr {
+    match repr {
+        NativeAbiRepr::Tuple(items) => items.get(index).cloned().unwrap_or(NativeAbiRepr::Unknown),
+        _ => NativeAbiRepr::Unknown,
+    }
+}
+
+fn variant_payload_repr(repr: NativeAbiRepr) -> NativeAbiRepr {
+    match repr {
+        NativeAbiRepr::Variant(cases) => cases
+            .into_iter()
+            .filter_map(|case| case.value)
+            .reduce(merge_reprs)
+            .unwrap_or(NativeAbiRepr::Unit),
         _ => NativeAbiRepr::Unknown,
     }
 }

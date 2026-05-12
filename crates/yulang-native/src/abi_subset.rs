@@ -76,7 +76,10 @@ fn validate_stmt(function: &NativeAbiFunction, stmt: &NativeAbiStmt) -> NativeAb
         NativeAbiStmt::Tuple { .. }
         | NativeAbiStmt::Record { .. }
         | NativeAbiStmt::Variant { .. }
-        | NativeAbiStmt::Select { .. } => Ok(()),
+        | NativeAbiStmt::Select { .. }
+        | NativeAbiStmt::TupleGet { .. }
+        | NativeAbiStmt::VariantTagEq { .. }
+        | NativeAbiStmt::VariantPayload { .. } => Ok(()),
         NativeAbiStmt::LoadEnv { .. }
         | NativeAbiStmt::AllocateClosure { .. }
         | NativeAbiStmt::IndirectClosureCall { .. } => Ok(()),

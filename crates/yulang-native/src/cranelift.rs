@@ -442,7 +442,10 @@ fn lower_stmt<M: Module>(
         NativeAbiStmt::Tuple { .. }
         | NativeAbiStmt::Record { .. }
         | NativeAbiStmt::Variant { .. }
-        | NativeAbiStmt::Select { .. } => {
+        | NativeAbiStmt::Select { .. }
+        | NativeAbiStmt::TupleGet { .. }
+        | NativeAbiStmt::VariantTagEq { .. }
+        | NativeAbiStmt::VariantPayload { .. } => {
             return Err(NativeCraneliftError::UnsupportedStmt {
                 function: state.function.name.clone(),
                 kind: "value-lane structural stmt",
@@ -720,6 +723,9 @@ fn function_call_targets(function: &NativeAbiFunction) -> Vec<String> {
                 | NativeAbiStmt::Record { .. }
                 | NativeAbiStmt::Variant { .. }
                 | NativeAbiStmt::Select { .. }
+                | NativeAbiStmt::TupleGet { .. }
+                | NativeAbiStmt::VariantTagEq { .. }
+                | NativeAbiStmt::VariantPayload { .. }
                 | NativeAbiStmt::LoadEnv { .. }
                 | NativeAbiStmt::IndirectClosureCall { .. } => {}
             }
@@ -763,7 +769,10 @@ fn validate_scalar_stmt(
         NativeAbiStmt::Tuple { .. }
         | NativeAbiStmt::Record { .. }
         | NativeAbiStmt::Variant { .. }
-        | NativeAbiStmt::Select { .. } => Err(NativeCraneliftError::UnsupportedStmt {
+        | NativeAbiStmt::Select { .. }
+        | NativeAbiStmt::TupleGet { .. }
+        | NativeAbiStmt::VariantTagEq { .. }
+        | NativeAbiStmt::VariantPayload { .. } => Err(NativeCraneliftError::UnsupportedStmt {
             function: function.name.clone(),
             kind: "value-lane structural stmt",
         }),
@@ -841,6 +850,9 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
                 | NativeAbiStmt::Record { dest, .. }
                 | NativeAbiStmt::Variant { dest, .. }
                 | NativeAbiStmt::Select { dest, .. }
+                | NativeAbiStmt::TupleGet { dest, .. }
+                | NativeAbiStmt::VariantTagEq { dest, .. }
+                | NativeAbiStmt::VariantPayload { dest, .. }
                 | NativeAbiStmt::LoadEnv { dest, .. }
                 | NativeAbiStmt::AllocateClosure { dest, .. }
                 | NativeAbiStmt::IndirectClosureCall { dest, .. } => values.push(*dest),

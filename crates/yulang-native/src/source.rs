@@ -1619,6 +1619,47 @@ std::list::view_raw [1, 2]"#,
     }
 
     #[test]
+    fn evals_variant_and_tuple_match_source_through_cranelift_value_lane() {
+        let values = run_with_large_stack(|| {
+            eval_source_value_lane(
+                r#"case :just (1, 2):
+    :nil -> 0
+    :just (x, y) -> x + y
+
+case std::list::view_raw [1]:
+    :empty -> 0
+    :leaf x -> x
+    :node(_, _) -> 9"#,
+            )
+            .expect("native value jit eval")
+            .into_iter()
+            .map(|value| match value {
+                runtime::VmValue::Int(value) => value,
+                value => panic!("expected int value, got {value:?}"),
+            })
+            .collect::<Vec<_>>()
+        });
+
+        assert_eq!(values, vec!["3", "1"]);
+    }
+
+    #[test]
+    fn evals_if_source_through_cranelift_value_lane() {
+        let values = run_with_large_stack(|| {
+            eval_source_value_lane("if true:\n    1\nelse:\n    2")
+                .expect("native value jit eval")
+                .into_iter()
+                .map(|value| match value {
+                    runtime::VmValue::Int(value) => value,
+                    value => panic!("expected int value, got {value:?}"),
+                })
+                .collect::<Vec<_>>()
+        });
+
+        assert_eq!(values, vec!["1"]);
+    }
+
+    #[test]
     fn evals_string_range_and_splice_source_through_cranelift_value_lane() {
         let values = run_with_large_stack(|| {
             strings(
@@ -1799,6 +1840,40 @@ std::list::view_raw [1, 2]
                 "root_4".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn emits_variant_and_tuple_match_source_value_object() {
+        let object = run_with_large_stack(|| {
+            compile_source_value_object(
+                r#"case :just (1, 2):
+    :nil -> 0
+    :just (x, y) -> x + y
+
+case std::list::view_raw [1]:
+    :empty -> 0
+    :leaf x -> x
+    :node(_, _) -> 9"#,
+            )
+            .expect("native value object")
+        });
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(
+            object.roots(),
+            &["root_0".to_string(), "root_1".to_string()]
+        );
+    }
+
+    #[test]
+    fn emits_if_source_value_object() {
+        let object = run_with_large_stack(|| {
+            compile_source_value_object("if true:\n    1\nelse:\n    2")
+                .expect("native value object")
+        });
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(object.roots(), &["root_0".to_string()]);
     }
 
     fn int_lists(values: Vec<runtime::VmValue>) -> Vec<Vec<String>> {

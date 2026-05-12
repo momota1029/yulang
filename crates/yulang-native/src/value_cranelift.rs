@@ -9,7 +9,7 @@ use cranelift_module::{DataDescription, FuncId, Linkage, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule};
 use yulang_runtime as runtime;
 
-use crate::abi::{NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
+use crate::abi::{NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
 use crate::abi_validate::{NativeAbiValidateError, validate_abi_module};
 use crate::control_ir::{BlockId, NativeLiteral, NativeTerminator, ValueId};
 use crate::native_runtime::{
@@ -22,17 +22,18 @@ use crate::native_runtime::{
     NATIVE_PRIMITIVE_INT_LE, NATIVE_PRIMITIVE_INT_LT, NATIVE_PRIMITIVE_INT_MUL,
     NATIVE_PRIMITIVE_INT_SUB, NATIVE_PRIMITIVE_INT_TO_HEX, NATIVE_PRIMITIVE_INT_TO_STRING,
     NATIVE_PRIMITIVE_INT_TO_UPPER_HEX, NATIVE_PRIMITIVE_STRING_INDEX, NATIVE_PRIMITIVE_STRING_LEN,
-    NativeRuntimeContext, yulang_native_concat_string, yulang_native_list_empty,
-    yulang_native_list_index, yulang_native_list_index_range, yulang_native_list_index_range_raw,
-    yulang_native_list_len, yulang_native_list_merge, yulang_native_list_singleton,
-    yulang_native_list_splice, yulang_native_list_splice_raw, yulang_native_list_view_raw,
-    yulang_native_make_bool, yulang_native_make_float, yulang_native_make_int,
-    yulang_native_make_string, yulang_native_make_unit, yulang_native_primitive_binary,
-    yulang_native_primitive_unary, yulang_native_record_empty, yulang_native_record_insert,
-    yulang_native_record_select, yulang_native_string_index_range,
+    NativeRuntimeContext, yulang_native_bool_is_true, yulang_native_concat_string,
+    yulang_native_list_empty, yulang_native_list_index, yulang_native_list_index_range,
+    yulang_native_list_index_range_raw, yulang_native_list_len, yulang_native_list_merge,
+    yulang_native_list_singleton, yulang_native_list_splice, yulang_native_list_splice_raw,
+    yulang_native_list_view_raw, yulang_native_make_bool, yulang_native_make_float,
+    yulang_native_make_int, yulang_native_make_string, yulang_native_make_unit,
+    yulang_native_primitive_binary, yulang_native_primitive_unary, yulang_native_record_empty,
+    yulang_native_record_insert, yulang_native_record_select, yulang_native_string_index_range,
     yulang_native_string_index_range_raw, yulang_native_string_splice,
-    yulang_native_string_splice_raw, yulang_native_tuple_empty, yulang_native_tuple_push,
-    yulang_native_variant,
+    yulang_native_string_splice_raw, yulang_native_tuple_empty, yulang_native_tuple_get,
+    yulang_native_tuple_push, yulang_native_variant, yulang_native_variant_payload,
+    yulang_native_variant_tag_eq,
 };
 
 pub type NativeValueCraneliftResult<T> = Result<T, NativeValueCraneliftError>;
@@ -192,6 +193,10 @@ pub fn compile_value_abi_module(
         yulang_native_make_bool as *const u8,
     );
     builder.symbol(
+        "yulang_native_bool_is_true",
+        yulang_native_bool_is_true as *const u8,
+    );
+    builder.symbol(
         "yulang_native_make_unit",
         yulang_native_make_unit as *const u8,
     );
@@ -272,6 +277,10 @@ pub fn compile_value_abi_module(
         yulang_native_tuple_push as *const u8,
     );
     builder.symbol(
+        "yulang_native_tuple_get",
+        yulang_native_tuple_get as *const u8,
+    );
+    builder.symbol(
         "yulang_native_record_empty",
         yulang_native_record_empty as *const u8,
     );
@@ -284,6 +293,14 @@ pub fn compile_value_abi_module(
         yulang_native_record_select as *const u8,
     );
     builder.symbol("yulang_native_variant", yulang_native_variant as *const u8);
+    builder.symbol(
+        "yulang_native_variant_tag_eq",
+        yulang_native_variant_tag_eq as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_variant_payload",
+        yulang_native_variant_payload as *const u8,
+    );
     let mut jit = JITModule::new(builder);
 
     let helpers = declare_helpers(&mut jit)?;
@@ -400,7 +417,10 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                     NativeAbiStmt::Tuple { .. }
                     | NativeAbiStmt::Record { .. }
                     | NativeAbiStmt::Variant { .. }
-                    | NativeAbiStmt::Select { .. } => {}
+                    | NativeAbiStmt::Select { .. }
+                    | NativeAbiStmt::TupleGet { .. }
+                    | NativeAbiStmt::VariantTagEq { .. }
+                    | NativeAbiStmt::VariantPayload { .. } => {}
                     NativeAbiStmt::LoadEnv { .. } => {
                         return Err(NativeValueCraneliftError::UnsupportedStmt {
                             function: function.name.clone(),
@@ -419,15 +439,6 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                             kind: "indirect closure call",
                         });
                     }
-                }
-            }
-            match &block.terminator {
-                NativeTerminator::Return(_) => {}
-                NativeTerminator::Jump { .. } | NativeTerminator::Branch { .. } => {
-                    return Err(NativeValueCraneliftError::UnsupportedFunction {
-                        function: function.name.clone(),
-                        reason: "multi-block control flow",
-                    });
                 }
             }
         }
@@ -487,6 +498,7 @@ struct ValueHelpers {
     make_int: FuncId,
     make_float: FuncId,
     make_bool: FuncId,
+    bool_is_true: FuncId,
     make_unit: FuncId,
     make_string: FuncId,
     concat_string: FuncId,
@@ -508,10 +520,13 @@ struct ValueHelpers {
     string_splice_raw: FuncId,
     tuple_empty: FuncId,
     tuple_push: FuncId,
+    tuple_get: FuncId,
     record_empty: FuncId,
     record_insert: FuncId,
     record_select: FuncId,
     variant: FuncId,
+    variant_tag_eq: FuncId,
+    variant_payload: FuncId,
 }
 
 fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<ValueHelpers> {
@@ -519,6 +534,7 @@ fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
         make_int: declare_make_int(module_backend)?,
         make_float: declare_make_float(module_backend)?,
         make_bool: declare_make_bool(module_backend)?,
+        bool_is_true: declare_bool_is_true(module_backend)?,
         make_unit: declare_make_unit(module_backend)?,
         make_string: declare_make_string(module_backend)?,
         concat_string: declare_concat_string(module_backend)?,
@@ -540,10 +556,13 @@ fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
         string_splice_raw: declare_string_splice_raw(module_backend)?,
         tuple_empty: declare_tuple_empty(module_backend)?,
         tuple_push: declare_tuple_push(module_backend)?,
+        tuple_get: declare_tuple_get(module_backend)?,
         record_empty: declare_record_empty(module_backend)?,
         record_insert: declare_record_insert(module_backend)?,
         record_select: declare_record_select(module_backend)?,
         variant: declare_variant(module_backend)?,
+        variant_tag_eq: declare_variant_tag_eq(module_backend)?,
+        variant_payload: declare_variant_payload(module_backend)?,
     })
 }
 
@@ -576,6 +595,15 @@ fn declare_make_bool<M: Module>(module_backend: &mut M) -> NativeValueCraneliftR
     sig.returns.push(AbiParam::new(types::I64));
     module_backend
         .declare_function("yulang_native_make_bool", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_bool_is_true<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_bool_is_true", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
@@ -792,6 +820,17 @@ fn declare_tuple_push<M: Module>(module_backend: &mut M) -> NativeValueCranelift
         .map_err(cranelift_error)
 }
 
+fn declare_tuple_get<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_tuple_get", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
 fn declare_record_empty<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
     let mut sig = module_backend.make_signature();
     sig.params.push(AbiParam::new(types::I64));
@@ -835,6 +874,30 @@ fn declare_variant<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
     sig.returns.push(AbiParam::new(types::I64));
     module_backend
         .declare_function("yulang_native_variant", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_variant_tag_eq<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_variant_tag_eq", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_variant_payload<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_variant_payload", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
@@ -898,64 +961,201 @@ fn lower_value_function<M: Module, L: ValueLiteralStore>(
 ) -> NativeValueCraneliftResult<()> {
     let mut builder_context = FunctionBuilderContext::new();
     let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
-    let block = function
+    let blocks = create_value_blocks(&mut builder, function);
+    declare_value_variables(&mut builder, function);
+    let context = bind_value_function_params(&mut builder, function, &blocks)?;
+
+    for block in &function.blocks {
+        let clif_block = value_block_ref(function, &blocks, block.id)?;
+        builder.switch_to_block(clif_block);
+        bind_value_block_params(&mut builder, function, block, clif_block)?;
+        let mut values = block_defined_values(function, block);
+        for stmt in &block.stmts {
+            let dest = lower_value_stmt(
+                module_backend,
+                &mut builder,
+                function,
+                stmt,
+                functions,
+                helpers,
+                context,
+                &values,
+                literals,
+            )?;
+            values.insert(dest, ());
+        }
+        lower_value_terminator(
+            module_backend,
+            &mut builder,
+            function,
+            helpers,
+            &blocks,
+            &values,
+            &block.terminator,
+        )?;
+    }
+    builder.seal_all_blocks();
+    builder.finalize();
+    Ok(())
+}
+
+fn create_value_blocks(
+    builder: &mut FunctionBuilder<'_>,
+    function: &NativeAbiFunction,
+) -> HashMap<BlockId, ir::Block> {
+    let entry = function.blocks.first().map(|block| block.id);
+    function
         .blocks
-        .first()
-        .ok_or_else(|| NativeValueCraneliftError::MissingBlock {
-            function: function.name.clone(),
-            block: BlockId(0),
-        })?;
-    let clif_block = builder.create_block();
-    builder.append_block_params_for_function_params(clif_block);
-    builder.switch_to_block(clif_block);
-    let block_params = builder.block_params(clif_block).to_vec();
-    let context = block_params[0];
-    let mut values = HashMap::new();
+        .iter()
+        .map(|block| {
+            let clif_block = builder.create_block();
+            let params = if Some(block.id) == entry && block.params.starts_with(&function.params) {
+                &block.params[function.params.len()..]
+            } else {
+                block.params.as_slice()
+            };
+            for _ in params {
+                builder.append_block_param(clif_block, types::I64);
+            }
+            (block.id, clif_block)
+        })
+        .collect()
+}
+
+fn declare_value_variables(builder: &mut FunctionBuilder<'_>, function: &NativeAbiFunction) {
     let mut declared = HashSet::new();
     for value in function_value_ids(function) {
         if declared.insert(value) {
             builder.declare_var(variable(value), types::I64);
         }
     }
+}
+
+fn bind_value_function_params(
+    builder: &mut FunctionBuilder<'_>,
+    function: &NativeAbiFunction,
+    blocks: &HashMap<BlockId, ir::Block>,
+) -> NativeValueCraneliftResult<ir::Value> {
+    let entry = function
+        .blocks
+        .first()
+        .ok_or_else(|| NativeValueCraneliftError::MissingBlock {
+            function: function.name.clone(),
+            block: BlockId(0),
+        })?;
+    let entry_block = value_block_ref(function, blocks, entry.id)?;
+    builder.append_block_params_for_function_params(entry_block);
+    builder.switch_to_block(entry_block);
+    let block_params = builder.block_params(entry_block).to_vec();
+    let context = block_params[0];
     for (param, value) in function.params.iter().zip(block_params.into_iter().skip(1)) {
         builder.def_var(variable(*param), value);
-        values.insert(*param, ());
     }
-    for stmt in &block.stmts {
-        let dest = lower_value_stmt(
-            module_backend,
-            &mut builder,
-            function,
-            stmt,
-            functions,
-            helpers,
-            context,
-            &values,
-            literals,
-        )?;
-        values.insert(dest, ());
+    Ok(context)
+}
+
+fn bind_value_block_params(
+    builder: &mut FunctionBuilder<'_>,
+    function: &NativeAbiFunction,
+    block: &NativeAbiBlock,
+    clif_block: ir::Block,
+) -> NativeValueCraneliftResult<()> {
+    let clif_params = builder.block_params(clif_block).to_vec();
+    let offset = if function
+        .blocks
+        .first()
+        .is_some_and(|entry| entry.id == block.id)
+    {
+        1 + function.params.len()
+    } else {
+        0
+    };
+    for (param, value) in block
+        .params
+        .iter()
+        .zip(clif_params.into_iter().skip(offset))
+    {
+        builder.def_var(variable(*param), value);
     }
-    match &block.terminator {
+    Ok(())
+}
+
+fn block_defined_values(
+    function: &NativeAbiFunction,
+    block: &NativeAbiBlock,
+) -> HashMap<ValueId, ()> {
+    let mut values = HashMap::new();
+    if function
+        .blocks
+        .first()
+        .is_some_and(|entry| entry.id == block.id)
+    {
+        values.extend(function.params.iter().copied().map(|param| (param, ())));
+    }
+    values.extend(block.params.iter().copied().map(|param| (param, ())));
+    values
+}
+
+fn lower_value_terminator<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &NativeAbiFunction,
+    helpers: &ValueHelpers,
+    blocks: &HashMap<BlockId, ir::Block>,
+    values: &HashMap<ValueId, ()>,
+    terminator: &NativeTerminator,
+) -> NativeValueCraneliftResult<()> {
+    match terminator {
         NativeTerminator::Return(value) => {
-            if !values.contains_key(value) {
-                return Err(NativeValueCraneliftError::MissingValue {
-                    function: function.name.clone(),
-                    value: *value,
-                });
-            }
-            let value = builder.use_var(variable(*value));
+            let value = read_value(builder, function, values, *value)?;
             builder.ins().return_(&[value]);
         }
-        NativeTerminator::Jump { .. } | NativeTerminator::Branch { .. } => {
-            return Err(NativeValueCraneliftError::UnsupportedFunction {
-                function: function.name.clone(),
-                reason: "multi-block control flow",
-            });
+        NativeTerminator::Jump { target, args } => {
+            let target = value_block_ref(function, blocks, *target)?;
+            let args = read_block_args(builder, function, values, args)?;
+            builder.ins().jump(target, &args);
+        }
+        NativeTerminator::Branch {
+            cond,
+            then_block,
+            else_block,
+        } => {
+            let cond = read_value(builder, function, values, *cond)?;
+            let cond = lower_value_bool_condition(module_backend, builder, helpers, cond)?;
+            let then_block = value_block_ref(function, blocks, *then_block)?;
+            let else_block = value_block_ref(function, blocks, *else_block)?;
+            builder.ins().brif(cond, then_block, &[], else_block, &[]);
         }
     }
-    builder.seal_all_blocks();
-    builder.finalize();
     Ok(())
+}
+
+fn lower_value_bool_condition<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    helpers: &ValueHelpers,
+    value: ir::Value,
+) -> NativeValueCraneliftResult<ir::Value> {
+    let callee = module_backend.declare_func_in_func(helpers.bool_is_true, builder.func);
+    let call = builder.ins().call(callee, &[value]);
+    let value = single_call_result(builder, call, "yulang_native_bool_is_true")?;
+    Ok(builder
+        .ins()
+        .icmp_imm(ir::condcodes::IntCC::NotEqual, value, 0))
+}
+
+fn value_block_ref(
+    function: &NativeAbiFunction,
+    blocks: &HashMap<BlockId, ir::Block>,
+    block: BlockId,
+) -> NativeValueCraneliftResult<ir::Block> {
+    blocks
+        .get(&block)
+        .copied()
+        .ok_or(NativeValueCraneliftError::MissingBlock {
+            function: function.name.clone(),
+            block,
+        })
 }
 
 fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
@@ -1371,6 +1571,53 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             builder.def_var(variable(*dest), result);
             Ok(*dest)
         }
+        NativeAbiStmt::TupleGet { dest, tuple, index } => {
+            if !defined.contains_key(tuple) {
+                return Err(NativeValueCraneliftError::MissingValue {
+                    function: function.name.clone(),
+                    value: *tuple,
+                });
+            }
+            let tuple = builder.use_var(variable(*tuple));
+            let index = builder.ins().iconst(types::I64, *index as i64);
+            let callee = module_backend.declare_func_in_func(helpers.tuple_get, builder.func);
+            let call = builder.ins().call(callee, &[context, tuple, index]);
+            let result = single_call_result(builder, call, "yulang_native_tuple_get")?;
+            builder.def_var(variable(*dest), result);
+            Ok(*dest)
+        }
+        NativeAbiStmt::VariantTagEq { dest, variant, tag } => {
+            if !defined.contains_key(variant) {
+                return Err(NativeValueCraneliftError::MissingValue {
+                    function: function.name.clone(),
+                    value: *variant,
+                });
+            }
+            let variant = builder.use_var(variable(*variant));
+            let (tag_ptr, tag_len) =
+                literals.literal_bytes(module_backend, builder, tag.0.as_bytes())?;
+            let callee = module_backend.declare_func_in_func(helpers.variant_tag_eq, builder.func);
+            let call = builder
+                .ins()
+                .call(callee, &[context, variant, tag_ptr, tag_len]);
+            let result = single_call_result(builder, call, "yulang_native_variant_tag_eq")?;
+            builder.def_var(variable(*dest), result);
+            Ok(*dest)
+        }
+        NativeAbiStmt::VariantPayload { dest, variant } => {
+            if !defined.contains_key(variant) {
+                return Err(NativeValueCraneliftError::MissingValue {
+                    function: function.name.clone(),
+                    value: *variant,
+                });
+            }
+            let variant = builder.use_var(variable(*variant));
+            let callee = module_backend.declare_func_in_func(helpers.variant_payload, builder.func);
+            let call = builder.ins().call(callee, &[context, variant]);
+            let result = single_call_result(builder, call, "yulang_native_variant_payload")?;
+            builder.def_var(variable(*dest), result);
+            Ok(*dest)
+        }
         NativeAbiStmt::LoadEnv { .. } => Err(NativeValueCraneliftError::UnsupportedStmt {
             function: function.name.clone(),
             kind: "environment load",
@@ -1423,6 +1670,33 @@ fn read_values(
         .collect()
 }
 
+fn read_value(
+    builder: &mut FunctionBuilder<'_>,
+    function: &NativeAbiFunction,
+    defined: &HashMap<ValueId, ()>,
+    value: ValueId,
+) -> NativeValueCraneliftResult<ir::Value> {
+    if !defined.contains_key(&value) {
+        return Err(NativeValueCraneliftError::MissingValue {
+            function: function.name.clone(),
+            value,
+        });
+    }
+    Ok(builder.use_var(variable(value)))
+}
+
+fn read_block_args(
+    builder: &mut FunctionBuilder<'_>,
+    function: &NativeAbiFunction,
+    defined: &HashMap<ValueId, ()>,
+    values: &[ValueId],
+) -> NativeValueCraneliftResult<Vec<ir::BlockArg>> {
+    Ok(read_values(builder, function, defined, values)?
+        .into_iter()
+        .map(ir::BlockArg::Value)
+        .collect())
+}
+
 fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
     let mut values = Vec::new();
     values.extend(function.params.iter().copied());
@@ -1437,6 +1711,9 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
                 | NativeAbiStmt::Record { dest, .. }
                 | NativeAbiStmt::Variant { dest, .. }
                 | NativeAbiStmt::Select { dest, .. }
+                | NativeAbiStmt::TupleGet { dest, .. }
+                | NativeAbiStmt::VariantTagEq { dest, .. }
+                | NativeAbiStmt::VariantPayload { dest, .. }
                 | NativeAbiStmt::LoadEnv { dest, .. }
                 | NativeAbiStmt::AllocateClosure { dest, .. }
                 | NativeAbiStmt::IndirectClosureCall { dest, .. } => values.push(*dest),

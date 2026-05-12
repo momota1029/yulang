@@ -203,6 +203,11 @@ fn validate_stmt_uses(
             Ok(())
         }
         NativeAbiStmt::Select { base, .. } => require_value(function, block, values, *base),
+        NativeAbiStmt::TupleGet { tuple, .. } => require_value(function, block, values, *tuple),
+        NativeAbiStmt::VariantTagEq { variant, .. }
+        | NativeAbiStmt::VariantPayload { variant, .. } => {
+            require_value(function, block, values, *variant)
+        }
         NativeAbiStmt::LoadEnv { slot, .. } => {
             if *slot >= function.environment_slots {
                 return Err(NativeAbiValidateError::EnvSlotOutOfRange {
@@ -259,6 +264,9 @@ fn stmt_dest(stmt: &NativeAbiStmt) -> ValueId {
         | NativeAbiStmt::Record { dest, .. }
         | NativeAbiStmt::Variant { dest, .. }
         | NativeAbiStmt::Select { dest, .. }
+        | NativeAbiStmt::TupleGet { dest, .. }
+        | NativeAbiStmt::VariantTagEq { dest, .. }
+        | NativeAbiStmt::VariantPayload { dest, .. }
         | NativeAbiStmt::LoadEnv { dest, .. }
         | NativeAbiStmt::AllocateClosure { dest, .. }
         | NativeAbiStmt::IndirectClosureCall { dest, .. } => *dest,

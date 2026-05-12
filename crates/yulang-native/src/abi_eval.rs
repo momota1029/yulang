@@ -50,6 +50,12 @@ pub enum NativeAbiEvalError {
     ExpectedRecord {
         value: runtime::VmValue,
     },
+    ExpectedTuple {
+        value: runtime::VmValue,
+    },
+    ExpectedVariant {
+        value: runtime::VmValue,
+    },
     NativeEval(NativeEvalError),
 }
 
@@ -103,6 +109,12 @@ impl fmt::Display for NativeAbiEvalError {
             }
             NativeAbiEvalError::ExpectedRecord { value } => {
                 write!(f, "native ABI expected record, got {value:?}")
+            }
+            NativeAbiEvalError::ExpectedTuple { value } => {
+                write!(f, "native ABI expected tuple, got {value:?}")
+            }
+            NativeAbiEvalError::ExpectedVariant { value } => {
+                write!(f, "native ABI expected variant, got {value:?}")
             }
             NativeAbiEvalError::NativeEval(error) => write!(f, "{error}"),
         }
@@ -251,6 +263,43 @@ fn eval_blocks(
                     }
                     .ok_or(NativeAbiEvalError::ExpectedPlainValue { id: *base })?;
                     write_value(&mut values, *dest, plain(value));
+                }
+                NativeAbiStmt::TupleGet { dest, tuple, index } => {
+                    let value = read_plain_value(&values, *tuple)?;
+                    let runtime::VmValue::Tuple(items) = value else {
+                        return Err(NativeAbiEvalError::ExpectedTuple { value });
+                    };
+                    let value = items.get(*index).cloned().ok_or_else(|| {
+                        NativeAbiEvalError::ExpectedTuple {
+                            value: runtime::VmValue::Tuple(items.clone()),
+                        }
+                    })?;
+                    write_value(&mut values, *dest, plain(value));
+                }
+                NativeAbiStmt::VariantTagEq { dest, variant, tag } => {
+                    let value = read_plain_value(&values, *variant)?;
+                    let runtime::VmValue::Variant {
+                        tag: actual_tag, ..
+                    } = value
+                    else {
+                        return Err(NativeAbiEvalError::ExpectedVariant { value });
+                    };
+                    write_value(
+                        &mut values,
+                        *dest,
+                        plain(runtime::VmValue::Bool(actual_tag == *tag)),
+                    );
+                }
+                NativeAbiStmt::VariantPayload { dest, variant } => {
+                    let value = read_plain_value(&values, *variant)?;
+                    let runtime::VmValue::Variant {
+                        value: Some(payload),
+                        ..
+                    } = value
+                    else {
+                        return Err(NativeAbiEvalError::ExpectedVariant { value });
+                    };
+                    write_value(&mut values, *dest, plain(*payload));
                 }
                 NativeAbiStmt::LoadEnv { dest, slot } => {
                     let value = env.get(*slot).cloned().ok_or_else(|| {
