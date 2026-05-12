@@ -28,7 +28,12 @@ impl<I: EventInput, S: EventSink> StopListMachine<I, S> for BraceStmtBlockMachin
             return Some(Err(Either::Left(*leading_info)));
         }
 
-        match super::parse_statement(*leading_info, i.rb())? {
+        let old_stop = i.env.stop.clone();
+        i.env.stop.insert(SyntaxKind::Comma);
+        let parsed = super::parse_statement(*leading_info, i.rb());
+        i.env.stop = old_stop;
+
+        match parsed? {
             Either::Left(info) => {
                 if matches!(info, TriviaInfo::Newline { .. }) {
                     i.env.state.sink.start(SyntaxKind::Separator);
@@ -37,7 +42,9 @@ impl<I: EventInput, S: EventSink> StopListMachine<I, S> for BraceStmtBlockMachin
                 *leading_info = info;
                 Some(Ok(()))
             }
-            Either::Right(stop) if stop.kind == SyntaxKind::Semicolon => {
+            Either::Right(stop)
+                if matches!(stop.kind, SyntaxKind::Comma | SyntaxKind::Semicolon) =>
+            {
                 i.env.state.sink.start(SyntaxKind::Separator);
                 i.env.state.sink.lex(&stop);
                 i.env.state.sink.finish();

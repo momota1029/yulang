@@ -197,25 +197,25 @@ pub(super) fn lower_poly_variant_expr(
 }
 
 fn apply_colon_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -> TypedExpr {
-    if let Some(arg_node) = suffix.children().find(|c| {
+    let mut result = acc;
+    for arg_node in suffix.children().filter(|c| {
         matches!(
             c.kind(),
             SyntaxKind::Expr | SyntaxKind::IndentBlock | SyntaxKind::BraceGroup
         )
     }) {
         let arg = lower_expr(state, &arg_node);
-        make_app_with_cause(
+        result = make_app_with_cause(
             state,
-            acc,
+            result,
             arg,
             ConstraintCause {
                 span: Some(suffix.text_range()),
                 reason: ConstraintReason::ApplyArg,
             },
-        )
-    } else {
-        acc
+        );
     }
+    result
 }
 
 fn apply_infix_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -> TypedExpr {

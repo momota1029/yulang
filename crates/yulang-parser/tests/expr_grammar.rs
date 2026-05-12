@@ -921,6 +921,70 @@ fn expr_apply_colon_inline() {
 }
 
 #[test]
+fn expr_apply_colon_inline_comma_args() {
+    let got = parse_expression("f: x, y + z");
+    let expected = vec![
+        "(Expr",
+        "  Ident \"f\"",
+        "  (ApplyColon",
+        "    Colon \":\"",
+        "    (Expr",
+        "      Ident \"x\"",
+        "    )",
+        "    (Separator",
+        "      Comma \",\"",
+        "    )",
+        "    (Expr",
+        "      Ident \"y\"",
+        "      (InfixNode",
+        "        Infix \"+\"",
+        "        (Expr",
+        "          Ident \"z\"",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn expr_record_fields_keep_outer_comma_separator() {
+    let got = parse_expression("{x: 1, y: 2}");
+    let expected = vec![
+        "(Expr",
+        "  (BraceGroup",
+        "    BraceL \"{\"",
+        "    (Expr",
+        "      Ident \"x\"",
+        "      (ApplyColon",
+        "        Colon \":\"",
+        "        (Expr",
+        "          Number \"1\"",
+        "        )",
+        "      )",
+        "    )",
+        "    (Separator",
+        "      Comma \",\"",
+        "    )",
+        "    (Expr",
+        "      Ident \"y\"",
+        "      (ApplyColon",
+        "        Colon \":\"",
+        "        (Expr",
+        "          Number \"2\"",
+        "        )",
+        "      )",
+        "    )",
+        "    BraceR \"}\"",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_symbol_after_space_is_ml_argument() {
     let got = parse_expression("f :foo");
     let expected = vec![

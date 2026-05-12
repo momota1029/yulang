@@ -16,6 +16,7 @@ use crate::typ::parse::parse_type;
 use super::control::parse_inline_or_indent;
 use super::core::{parse_expr_bp, parse_expr_from_nud};
 use super::group::{delimited, parse_call_group};
+use super::parse_expr;
 
 pub(super) fn parse_tail_bp<I: EventInput, S: EventSink>(
     min_bp: Option<&BpVec>,
@@ -77,9 +78,7 @@ pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
             i.env.state.sink.start(SyntaxKind::ApplyColon);
             i.env.state.sink.lex(&led.lex);
             i.env.state.line_indent = i.env.indent;
-            let mut rhs = i.rb();
-            rhs.env.ml_arg = false;
-            match parse_inline_or_indent(rhs, led.lex.trailing_trivia_info())? {
+            match parse_apply_colon_rhs(i.rb(), led.lex.trailing_trivia_info())? {
                 Either::Left(next_info) => {
                     i.env.state.sink.finish();
                     return Some(Ok(Either::Left(next_info)));
@@ -259,6 +258,53 @@ pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
 fn emit_missing_invalid<I: EventInput, S: EventSink>(i: In<I, S>) {
     i.env.state.sink.start(SyntaxKind::InvalidToken);
     i.env.state.sink.finish();
+}
+
+fn parse_apply_colon_rhs<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading_info: TriviaInfo,
+) -> Option<Either<TriviaInfo, Lex>> {
+    let line_indent = i.env.state.line_indent;
+    match leading_info {
+        TriviaInfo::Newline { indent, .. } if indent > line_indent => {
+            let next = parse_indent_stmt_block(i, indent, leading_info)?;
+            Some(Either::Left(next))
+        }
+        TriviaInfo::Newline { .. } => Some(Either::Left(leading_info)),
+        _ => {
+            i.env.ml_arg = false;
+            parse_apply_colon_inline_args(i, leading_info)
+        }
+    }
+}
+
+fn parse_apply_colon_inline_args<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    mut leading_info: TriviaInfo,
+) -> Option<Either<TriviaInfo, Lex>> {
+    let comma_separates_outer_list = i.env.stop.contains(&SyntaxKind::Comma);
+    loop {
+        let old_stop = i.env.stop.clone();
+        if !comma_separates_outer_list {
+            i.env.stop.insert(SyntaxKind::Comma);
+        }
+        let parsed = parse_expr(leading_info, i.rb());
+        i.env.stop = old_stop;
+        let parsed = parsed?;
+
+        match parsed {
+            Either::Left(info) => return Some(Either::Left(info)),
+            Either::Right(stop)
+                if !comma_separates_outer_list && stop.kind == SyntaxKind::Comma =>
+            {
+                leading_info = stop.trailing_trivia_info();
+                i.env.state.sink.start(SyntaxKind::Separator);
+                i.env.state.sink.lex(&stop);
+                i.env.state.sink.finish();
+            }
+            Either::Right(stop) => return Some(Either::Right(stop)),
+        }
+    }
 }
 
 fn is_path_segment(token: &Token<ExprNudTag>) -> bool {
