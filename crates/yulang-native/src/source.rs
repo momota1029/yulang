@@ -553,11 +553,9 @@ once_dfs_int { each_list [1, 2, 3] }
 "#;
 
         run_with_large_stack(|| {
-            let module = runtime_module_from_source_with_options(
-                source,
-                native_default_source_options(),
-            )
-            .expect("runtime module");
+            let module =
+                runtime_module_from_source_with_options(source, native_default_source_options())
+                    .expect("runtime module");
 
             let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
             crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
@@ -594,8 +592,7 @@ once_dfs_int { each_list [1, 2, 3] }
 
             // Layer 2: CPS repr eval vs VM
             let repr = crate::cps_repr::lower_cps_repr_module(&cps);
-            let repr_values =
-                crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
+            let repr_values = crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
             let vm_results = runtime::compile_vm_module(module.clone())
                 .expect("VM compile")
                 .eval_roots()
@@ -629,11 +626,9 @@ once_dfs_int { each [1, 2, 3] }
 "#;
 
         run_with_large_stack(|| {
-            let module = runtime_module_from_source_with_options(
-                source,
-                native_default_source_options(),
-            )
-            .expect("runtime module");
+            let module =
+                runtime_module_from_source_with_options(source, native_default_source_options())
+                    .expect("runtime module");
 
             let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
             crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
@@ -668,8 +663,7 @@ once_dfs_int { each [1, 2, 3] }
             eprintln!("Layer 1 (CPS eval): OK");
 
             let repr = crate::cps_repr::lower_cps_repr_module(&cps);
-            let repr_values =
-                crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
+            let repr_values = crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
             let vm_results = runtime::compile_vm_module(module.clone())
                 .expect("VM compile")
                 .eval_roots()
@@ -764,11 +758,9 @@ case (each [1, 2, 3]).once:
 "#;
 
         run_with_large_stack(|| {
-            let module = runtime_module_from_source_with_options(
-                source,
-                native_default_source_options(),
-            )
-            .expect("runtime module");
+            let module =
+                runtime_module_from_source_with_options(source, native_default_source_options())
+                    .expect("runtime module");
 
             let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
             crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
@@ -818,11 +810,9 @@ case (each [1, 2, 3]).once:
 "#;
 
         run_with_large_stack(|| {
-            let module = runtime_module_from_source_with_options(
-                source,
-                native_default_source_options(),
-            )
-            .expect("runtime module");
+            let module =
+                runtime_module_from_source_with_options(source, native_default_source_options())
+                    .expect("runtime module");
 
             let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
             crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
@@ -831,8 +821,7 @@ case (each [1, 2, 3]).once:
             eprintln!("Layer 1 (CPS eval): OK");
 
             let repr = crate::cps_repr::lower_cps_repr_module(&cps);
-            let repr_values =
-                crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
+            let repr_values = crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
             let vm_results = runtime::compile_vm_module(module.clone())
                 .expect("VM compile")
                 .eval_roots()
@@ -882,8 +871,7 @@ sum_down 5
     }
 
     #[test]
-    #[ignore = "write13: local callback effect, caller continuation through closure apply"]
-    fn debugs_local_choice_callback_rest_eval() {
+    fn compares_local_choice_callback_rest_through_cps_repr_cranelift() {
         // Test A from write13: closure callback that performs an effect,
         // with caller's post-call cont needing to run inside inner once's H2.
         // Differs from caller_rest_eval by routing the perform through a
@@ -914,31 +902,13 @@ my work(): [choice] int = {
 once_dfs_int { work() }
 "#;
         run_with_large_stack(|| {
-            let module = runtime_module_from_source_with_options(
-                source,
-                native_default_source_options(),
-            )
-            .expect("runtime module");
-
-            let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
-            crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
-
-            let cps_values = crate::cps_eval::eval_cps_module(&cps).expect("CPS eval");
-            let vm_results = runtime::compile_vm_module(module.clone())
-                .expect("VM compile")
-                .eval_roots()
-                .expect("VM eval");
-            let vm_value = match &vm_results[0] {
-                runtime::VmResult::Value(v) => v.clone(),
-                runtime::VmResult::Request(_) => panic!("VM gave request"),
-            };
-            assert_eq!(cps_values[0], vm_value, "cps:{:?} vm:{:?}", cps_values[0], vm_value);
+            compare_source_cps_repr_i64(source)
+                .expect("local choice callback rest CPS repr jit compare");
         });
     }
 
     #[test]
-    #[ignore = "write12 step1: local choice effect, caller continuation in resumption"]
-    fn debugs_local_choice_caller_rest_eval() {
+    fn compares_local_choice_caller_rest_through_cps_repr_cranelift() {
         // Minimal test for return-frame semantics: choose() performs branch,
         // work() calls choose() and then guards — the resumption k must capture
         // work's post-call continuation so reject inside work lands in the
@@ -969,25 +939,8 @@ my work(): [choice] int = {
 once_dfs_int { work() }
 "#;
         run_with_large_stack(|| {
-            let module = runtime_module_from_source_with_options(
-                source,
-                native_default_source_options(),
-            )
-            .expect("runtime module");
-
-            let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
-            crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
-
-            let cps_values = crate::cps_eval::eval_cps_module(&cps).expect("CPS eval");
-            let vm_results = runtime::compile_vm_module(module.clone())
-                .expect("VM compile")
-                .eval_roots()
-                .expect("VM eval");
-            let vm_value = match &vm_results[0] {
-                runtime::VmResult::Value(v) => v.clone(),
-                runtime::VmResult::Request(_) => panic!("VM gave request"),
-            };
-            assert_eq!(cps_values[0], vm_value, "cps:{:?} vm:{:?}", cps_values[0], vm_value);
+            compare_source_cps_repr_i64(source)
+                .expect("local choice caller rest CPS repr jit compare");
         });
     }
 
@@ -1008,11 +961,9 @@ case work().once:
 "#;
 
         run_with_large_stack(|| {
-            let module = runtime_module_from_source_with_options(
-                source,
-                native_default_source_options(),
-            )
-            .expect("runtime module");
+            let module =
+                runtime_module_from_source_with_options(source, native_default_source_options())
+                    .expect("runtime module");
 
             let cps = crate::cps_lower::lower_cps_module(&module).expect("CPS lowering");
             crate::cps_validate::validate_cps_module(&cps).expect("CPS validation");
@@ -1021,8 +972,7 @@ case work().once:
             eprintln!("Layer 1 (CPS eval): OK");
 
             let repr = crate::cps_repr::lower_cps_repr_module(&cps);
-            let repr_values =
-                crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
+            let repr_values = crate::cps_repr::eval_cps_repr_module(&repr).expect("CPS repr eval");
             let vm_results = runtime::compile_vm_module(module.clone())
                 .expect("VM compile")
                 .eval_roots()
@@ -1061,7 +1011,29 @@ case mk().once:
     }
 
     #[test]
-    #[ignore = "write27-f: backtracking after all rejected choices still accepts a later value"]
+    fn compares_std_undet_once_all_rejected_explicit_reject_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"use std::undet::*
+
+my mk(): int = {
+    my n = each [1, 2, 3]
+    if n > 10:
+        n
+    else:
+        reject ()
+}
+
+case mk().once:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just v -> v
+"#,
+            )
+            .expect("std undet once explicit reject all rejected");
+        });
+    }
+
+    #[test]
     fn compares_std_undet_once_returns_nil_when_all_rejected_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(
@@ -1083,7 +1055,6 @@ case mk().once:
     }
 
     #[test]
-    #[ignore = "write27-f: nested choice backtracking still exits with the last scalar value"]
     fn compares_std_undet_once_two_nested_choices_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(
@@ -1106,7 +1077,6 @@ case mk().once:
     }
 
     #[test]
-    #[ignore = "write15: fold_impl now emits EffectfulCall/Apply; needs Cranelift backend support"]
     fn compares_std_each_with_local_once_dfs_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(
@@ -1183,7 +1153,6 @@ case (each [2]).once:
     }
 
     #[test]
-    #[ignore = "write15: fold_impl now emits EffectfulCall/Apply; needs Cranelift backend support"]
     fn compiles_std_undet_once_through_cps_repr_object() {
         run_with_large_stack(|| {
             let module = runtime_module_from_source_with_options(

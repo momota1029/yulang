@@ -170,8 +170,8 @@ or out of here into the user-facing table once they stabilize.
       repr scalar path and an outer `case` can unwrap the scalar payload.
 - [x] `std::undet` `.once` can skip an initially rejected finite-list choice
       and agree with the VM for the first accepted scalar result.
-- [ ] `std::undet` `.once` still has open backtracking gaps for all-rejected
-      finite lists and some nested choice programs.
+- [x] `std::undet` `.once` handles all-rejected finite lists and nested
+      finite-list choices through the Cranelift CPS repr scalar path.
 - [x] First-class lambda values can be created and applied through the
       Cranelift CPS repr scalar path for pure higher-order calls.
 - [ ] General thunk values are only partially represented; thunk roots can be
@@ -190,10 +190,16 @@ or out of here into the user-facing table once they stabilize.
 - [x] `std::undet.each` runs through CPS eval, CPS repr eval, and the
       Cranelift JIT against a local DFS once helper. Handler-arm
       non-local returns propagate through every internal call site as
-      `CpsRuntimeValue::Aborted` in the evaluators and as a thread-local
-      abort slot in the Cranelift runtime, so a `sub::return` inside a
-      `fold` callback skips the surrounding `reject()` and reaches the
-      handler scope.
+      `CpsRuntimeValue::Aborted` in the evaluators and as a scoped
+      thread-local abort signal in the Cranelift runtime, so a
+      `sub::return` inside a `fold` callback skips the surrounding
+      `reject()` and reaches the handler scope.
+- [x] `ResumeWithHandler` restores captured return frames in the Cranelift CPS
+      repr path, so direct-call caller-rest continuations can run under the
+      temporary handler installed around `k true`.
+- [x] Closure-application caller-rest through `EffectfulApply` can route an
+      effectful operation through a callback and still run the caller's
+      post-call continuation under the temporary `ResumeWithHandler` handler.
 - [ ] General closures and heap value lanes are not complete.
 - [ ] Non-scalar CPS return values can flow through the prototype as opaque
       `i64` heap pointers, but generated CPS executables do not yet print them
