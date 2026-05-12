@@ -101,6 +101,12 @@ fn format_stmt(stmt: &NativeAbiStmt) -> String {
             format_value(*dest),
             format_value(*variant)
         ),
+        NativeAbiStmt::ValueEq { dest, left, right } => format!(
+            "{} = value_eq {} {}",
+            format_value(*dest),
+            format_value(*left),
+            format_value(*right)
+        ),
         NativeAbiStmt::LoadEnv { dest, slot } => {
             format!("{} = load_env[{slot}]", format_value(*dest))
         }

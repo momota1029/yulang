@@ -445,7 +445,8 @@ fn lower_stmt<M: Module>(
         | NativeAbiStmt::Select { .. }
         | NativeAbiStmt::TupleGet { .. }
         | NativeAbiStmt::VariantTagEq { .. }
-        | NativeAbiStmt::VariantPayload { .. } => {
+        | NativeAbiStmt::VariantPayload { .. }
+        | NativeAbiStmt::ValueEq { .. } => {
             return Err(NativeCraneliftError::UnsupportedStmt {
                 function: state.function.name.clone(),
                 kind: "value-lane structural stmt",
@@ -726,6 +727,7 @@ fn function_call_targets(function: &NativeAbiFunction) -> Vec<String> {
                 | NativeAbiStmt::TupleGet { .. }
                 | NativeAbiStmt::VariantTagEq { .. }
                 | NativeAbiStmt::VariantPayload { .. }
+                | NativeAbiStmt::ValueEq { .. }
                 | NativeAbiStmt::LoadEnv { .. }
                 | NativeAbiStmt::IndirectClosureCall { .. } => {}
             }
@@ -772,7 +774,8 @@ fn validate_scalar_stmt(
         | NativeAbiStmt::Select { .. }
         | NativeAbiStmt::TupleGet { .. }
         | NativeAbiStmt::VariantTagEq { .. }
-        | NativeAbiStmt::VariantPayload { .. } => Err(NativeCraneliftError::UnsupportedStmt {
+        | NativeAbiStmt::VariantPayload { .. }
+        | NativeAbiStmt::ValueEq { .. } => Err(NativeCraneliftError::UnsupportedStmt {
             function: function.name.clone(),
             kind: "value-lane structural stmt",
         }),
@@ -853,6 +856,7 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
                 | NativeAbiStmt::TupleGet { dest, .. }
                 | NativeAbiStmt::VariantTagEq { dest, .. }
                 | NativeAbiStmt::VariantPayload { dest, .. }
+                | NativeAbiStmt::ValueEq { dest, .. }
                 | NativeAbiStmt::LoadEnv { dest, .. }
                 | NativeAbiStmt::AllocateClosure { dest, .. }
                 | NativeAbiStmt::IndirectClosureCall { dest, .. } => values.push(*dest),

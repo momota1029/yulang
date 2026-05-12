@@ -49,7 +49,7 @@ checklist, see *Detailed progress* below.
 | List literals, list merge, length, index, raw view  | value backend          |   ✅   |
 | Tuple, record, variant, record field selection      | value backend          |   ✅   |
 | Record spread expressions                           | value backend          |   ✅   |
-| Variant / tuple pattern matching                    | value backend          |   △    |
+| Literal / variant / tuple pattern matching          | value backend          |   △    |
 | Lambdas / first-class function values (pure)        | CPS repr (prototype)   |   △   |
 | Closures with captured state                        | CPS repr (prototype)   |   △   |
 
@@ -121,8 +121,10 @@ or out of here into the user-facing table once they stabilize.
       current pattern-match subset.
 - [x] Variant tag tests, variant payload binding, and tuple payload binding
       work in value-backend pattern matching.
-- [ ] List, record-spread, guarded, and literal pattern matching are not
-      supported in the value backend.
+- [x] Literal pattern tests work in value-backend pattern matching through
+      boxed runtime value equality.
+- [ ] List, record-spread, and guarded pattern matching are not supported in
+      the value backend.
 - [ ] General multi-block control flow outside the current branch/jump subset
       is not supported in the value backend.
 - [ ] Closure allocation, closure environments, and indirect closure calls are

@@ -103,6 +103,16 @@ pub fn bool_is_true(value: *mut runtime::VmValue) -> Option<i64> {
     Some(i64::from(*value))
 }
 
+pub fn value_eq(
+    context: &mut NativeRuntimeContext,
+    left: *mut runtime::VmValue,
+    right: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let left = unsafe { left.as_ref()? };
+    let right = unsafe { right.as_ref()? };
+    Some(context.alloc(runtime::VmValue::Bool(vm_value_eq(left, right))))
+}
+
 pub fn make_unit(context: &mut NativeRuntimeContext) -> *mut runtime::VmValue {
     context.alloc(runtime::VmValue::Unit)
 }
@@ -671,6 +681,18 @@ pub extern "C" fn yulang_native_bool_is_true(value: *mut runtime::VmValue) -> i6
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_value_eq(
+    context: *mut NativeRuntimeContext,
+    left: *mut runtime::VmValue,
+    right: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    value_eq(context, left, right).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn yulang_native_make_unit(
     context: *mut NativeRuntimeContext,
 ) -> *mut runtime::VmValue {
@@ -1126,6 +1148,60 @@ fn bool_value(value: &runtime::VmValue) -> Option<bool> {
         return None;
     };
     Some(*value)
+}
+
+fn vm_value_eq(left: &runtime::VmValue, right: &runtime::VmValue) -> bool {
+    match (left, right) {
+        (runtime::VmValue::Int(left), runtime::VmValue::Int(right))
+        | (runtime::VmValue::Float(left), runtime::VmValue::Float(right)) => left == right,
+        (runtime::VmValue::String(left), runtime::VmValue::String(right)) => {
+            left.to_flat_string() == right.to_flat_string()
+        }
+        (runtime::VmValue::Bool(left), runtime::VmValue::Bool(right)) => left == right,
+        (runtime::VmValue::Unit, runtime::VmValue::Unit) => true,
+        (runtime::VmValue::Tuple(left), runtime::VmValue::Tuple(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| vm_value_eq(left, right))
+        }
+        (runtime::VmValue::Record(left), runtime::VmValue::Record(right)) => {
+            left.len() == right.len()
+                && left.iter().all(|(name, left)| {
+                    right
+                        .get(name)
+                        .is_some_and(|right| vm_value_eq(left, right))
+                })
+        }
+        (
+            runtime::VmValue::Variant {
+                tag: left_tag,
+                value: left_value,
+            },
+            runtime::VmValue::Variant {
+                tag: right_tag,
+                value: right_value,
+            },
+        ) => {
+            left_tag == right_tag
+                && match (left_value, right_value) {
+                    (Some(left), Some(right)) => vm_value_eq(left, right),
+                    (None, None) => true,
+                    _ => false,
+                }
+        }
+        (runtime::VmValue::List(left), runtime::VmValue::List(right)) => {
+            let left = left.to_vec();
+            let right = right.to_vec();
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(&right)
+                    .all(|(left, right)| vm_value_eq(left, right))
+        }
+        _ => left == right,
+    }
 }
 
 fn string_value(value: &runtime::VmValue) -> Option<&runtime::runtime::string_tree::StringTree> {

@@ -71,6 +71,11 @@ pub enum NativeStmt {
         dest: ValueId,
         variant: ValueId,
     },
+    ValueEq {
+        dest: ValueId,
+        left: ValueId,
+        right: ValueId,
+    },
     MakeClosure {
         dest: ValueId,
         target: String,

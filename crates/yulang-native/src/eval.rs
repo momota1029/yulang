@@ -304,6 +304,15 @@ fn eval_blocks(
                     };
                     write_value(&mut values, *dest, NativeRuntimeValue::Plain(*payload));
                 }
+                NativeStmt::ValueEq { dest, left, right } => {
+                    let left = read_plain_value(&values, *left)?;
+                    let right = read_plain_value(&values, *right)?;
+                    write_value(
+                        &mut values,
+                        *dest,
+                        NativeRuntimeValue::Plain(runtime::VmValue::Bool(left == right)),
+                    );
+                }
                 NativeStmt::MakeClosure {
                     dest,
                     target,

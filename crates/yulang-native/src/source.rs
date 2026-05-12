@@ -1644,6 +1644,31 @@ case std::list::view_raw [1]:
     }
 
     #[test]
+    fn evals_literal_match_source_through_cranelift_value_lane() {
+        let values = run_with_large_stack(|| {
+            eval_source_value_lane(
+                r#"case 2:
+    1 -> 9
+    2 -> 4
+    _ -> 0
+
+case ():
+    () -> 5
+    _ -> 9"#,
+            )
+            .expect("native value jit eval")
+            .into_iter()
+            .map(|value| match value {
+                runtime::VmValue::Int(value) => value,
+                value => panic!("expected int value, got {value:?}"),
+            })
+            .collect::<Vec<_>>()
+        });
+
+        assert_eq!(values, vec!["4", "5"]);
+    }
+
+    #[test]
     fn evals_if_source_through_cranelift_value_lane() {
         let values = run_with_large_stack(|| {
             eval_source_value_lane("if true:\n    1\nelse:\n    2")
@@ -1854,6 +1879,29 @@ case std::list::view_raw [1]:
     :empty -> 0
     :leaf x -> x
     :node(_, _) -> 9"#,
+            )
+            .expect("native value object")
+        });
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(
+            object.roots(),
+            &["root_0".to_string(), "root_1".to_string()]
+        );
+    }
+
+    #[test]
+    fn emits_literal_match_source_value_object() {
+        let object = run_with_large_stack(|| {
+            compile_source_value_object(
+                r#"case 2:
+    1 -> 9
+    2 -> 4
+    _ -> 0
+
+case ():
+    () -> 5
+    _ -> 9"#,
             )
             .expect("native value object")
         });

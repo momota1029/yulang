@@ -631,7 +631,7 @@ impl<'a> FunctionLowerer<'a> {
             self.current = BlockBuilder::new(arm_block, Vec::new());
             self.locals = saved_locals.clone();
             let scrutinee_value = self.lower_expr(scrutinee)?;
-            self.bind_pattern(&arm.pattern, scrutinee_value)?;
+            self.bind_matched_pattern(&arm.pattern, scrutinee_value)?;
             let value = self.lower_expr(&arm.body)?;
             self.terminate(NativeTerminator::Jump {
                 target: merge_block,
@@ -653,16 +653,30 @@ impl<'a> FunctionLowerer<'a> {
         else_block: BlockId,
     ) -> NativeLowerResult<()> {
         match pattern {
-            runtime::Pattern::Wildcard { .. }
-            | runtime::Pattern::Bind { .. }
-            | runtime::Pattern::Tuple { .. }
-            | runtime::Pattern::Record { .. }
-            | runtime::Pattern::As { .. } => {
+            runtime::Pattern::Wildcard { .. } | runtime::Pattern::Bind { .. } => {
                 self.terminate(NativeTerminator::Jump {
                     target: then_block,
                     args: Vec::new(),
                 });
                 Ok(())
+            }
+            runtime::Pattern::Tuple { .. } | runtime::Pattern::Record { .. }
+                if !pattern_has_refutable_child(pattern) =>
+            {
+                self.terminate(NativeTerminator::Jump {
+                    target: then_block,
+                    args: Vec::new(),
+                });
+                Ok(())
+            }
+            runtime::Pattern::Tuple { .. } => {
+                Err(NativeLowerError::UnsupportedPattern { kind: "tuple test" })
+            }
+            runtime::Pattern::Record { .. } => Err(NativeLowerError::UnsupportedPattern {
+                kind: "record test",
+            }),
+            runtime::Pattern::As { pattern, .. } => {
+                self.lower_pattern_test(value, pattern, then_block, else_block)
             }
             runtime::Pattern::Variant { tag, .. } => {
                 let cond = self.fresh_value();
@@ -678,8 +692,24 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 Ok(())
             }
-            runtime::Pattern::Lit { .. } => {
-                Err(NativeLowerError::UnsupportedPattern { kind: "literal" })
+            runtime::Pattern::Lit { lit, .. } => {
+                let literal = self.fresh_value();
+                self.current.stmts.push(NativeStmt::Literal {
+                    dest: literal,
+                    literal: lower_literal(lit),
+                });
+                let cond = self.fresh_value();
+                self.current.stmts.push(NativeStmt::ValueEq {
+                    dest: cond,
+                    left: value,
+                    right: literal,
+                });
+                self.terminate(NativeTerminator::Branch {
+                    cond,
+                    then_block,
+                    else_block,
+                });
+                Ok(())
             }
             runtime::Pattern::List { .. } => {
                 Err(NativeLowerError::UnsupportedPattern { kind: "list" })
@@ -840,6 +870,63 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
+    fn bind_matched_pattern(
+        &mut self,
+        pattern: &runtime::Pattern,
+        value: ValueId,
+    ) -> NativeLowerResult<()> {
+        match pattern {
+            runtime::Pattern::Lit { .. } => Ok(()),
+            runtime::Pattern::Tuple { items, .. } => {
+                for (index, item) in items.iter().enumerate() {
+                    let item_value = self.fresh_value();
+                    self.current.stmts.push(NativeStmt::TupleGet {
+                        dest: item_value,
+                        tuple: value,
+                        index,
+                    });
+                    self.bind_pattern(item, item_value)?;
+                }
+                Ok(())
+            }
+            runtime::Pattern::Record { fields, spread, .. } => {
+                if spread.is_some() {
+                    return Err(NativeLowerError::UnsupportedPattern {
+                        kind: "record spread",
+                    });
+                }
+                for field in fields {
+                    let field_value = self.fresh_value();
+                    self.current.stmts.push(NativeStmt::Select {
+                        dest: field_value,
+                        base: value,
+                        field: field.name.clone(),
+                    });
+                    self.bind_pattern(&field.pattern, field_value)?;
+                }
+                Ok(())
+            }
+            runtime::Pattern::Variant {
+                value: Some(payload),
+                ..
+            } => {
+                let payload_value = self.fresh_value();
+                self.current.stmts.push(NativeStmt::VariantPayload {
+                    dest: payload_value,
+                    variant: value,
+                });
+                self.bind_pattern(payload, payload_value)
+            }
+            runtime::Pattern::As { pattern, name, .. } => {
+                self.bind_pattern(pattern, value)?;
+                self.locals
+                    .insert(typed_ir::Path::from_name(name.clone()), value);
+                Ok(())
+            }
+            _ => self.bind_pattern(pattern, value),
+        }
+    }
+
     fn terminate(&mut self, terminator: NativeTerminator) {
         self.current.terminator = Some(terminator);
     }
@@ -879,6 +966,24 @@ fn bool_literal_match_arms(arms: &[runtime::MatchArm]) -> Option<(&runtime::Expr
         }
     }
     Some((then_branch?, else_branch?))
+}
+
+fn pattern_has_refutable_child(pattern: &runtime::Pattern) -> bool {
+    match pattern {
+        runtime::Pattern::Wildcard { .. } | runtime::Pattern::Bind { .. } => false,
+        runtime::Pattern::Lit { .. }
+        | runtime::Pattern::List { .. }
+        | runtime::Pattern::Variant { .. }
+        | runtime::Pattern::Or { .. } => true,
+        runtime::Pattern::Tuple { items, .. } => items.iter().any(pattern_has_refutable_child),
+        runtime::Pattern::Record { fields, spread, .. } => {
+            spread.is_some()
+                || fields
+                    .iter()
+                    .any(|field| pattern_has_refutable_child(&field.pattern))
+        }
+        runtime::Pattern::As { pattern, .. } => pattern_has_refutable_child(pattern),
+    }
 }
 
 fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<typed_ir::Name>, &runtime::Expr) {

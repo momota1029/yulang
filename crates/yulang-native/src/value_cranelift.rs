@@ -32,8 +32,8 @@ use crate::native_runtime::{
     yulang_native_record_insert, yulang_native_record_select, yulang_native_string_index_range,
     yulang_native_string_index_range_raw, yulang_native_string_splice,
     yulang_native_string_splice_raw, yulang_native_tuple_empty, yulang_native_tuple_get,
-    yulang_native_tuple_push, yulang_native_variant, yulang_native_variant_payload,
-    yulang_native_variant_tag_eq,
+    yulang_native_tuple_push, yulang_native_value_eq, yulang_native_variant,
+    yulang_native_variant_payload, yulang_native_variant_tag_eq,
 };
 
 pub type NativeValueCraneliftResult<T> = Result<T, NativeValueCraneliftError>;
@@ -195,6 +195,10 @@ pub fn compile_value_abi_module(
     builder.symbol(
         "yulang_native_bool_is_true",
         yulang_native_bool_is_true as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_value_eq",
+        yulang_native_value_eq as *const u8,
     );
     builder.symbol(
         "yulang_native_make_unit",
@@ -420,7 +424,8 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                     | NativeAbiStmt::Select { .. }
                     | NativeAbiStmt::TupleGet { .. }
                     | NativeAbiStmt::VariantTagEq { .. }
-                    | NativeAbiStmt::VariantPayload { .. } => {}
+                    | NativeAbiStmt::VariantPayload { .. }
+                    | NativeAbiStmt::ValueEq { .. } => {}
                     NativeAbiStmt::LoadEnv { .. } => {
                         return Err(NativeValueCraneliftError::UnsupportedStmt {
                             function: function.name.clone(),
@@ -499,6 +504,7 @@ struct ValueHelpers {
     make_float: FuncId,
     make_bool: FuncId,
     bool_is_true: FuncId,
+    value_eq: FuncId,
     make_unit: FuncId,
     make_string: FuncId,
     concat_string: FuncId,
@@ -535,6 +541,7 @@ fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
         make_float: declare_make_float(module_backend)?,
         make_bool: declare_make_bool(module_backend)?,
         bool_is_true: declare_bool_is_true(module_backend)?,
+        value_eq: declare_value_eq(module_backend)?,
         make_unit: declare_make_unit(module_backend)?,
         make_string: declare_make_string(module_backend)?,
         concat_string: declare_concat_string(module_backend)?,
@@ -604,6 +611,17 @@ fn declare_bool_is_true<M: Module>(module_backend: &mut M) -> NativeValueCraneli
     sig.returns.push(AbiParam::new(types::I64));
     module_backend
         .declare_function("yulang_native_bool_is_true", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_value_eq<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_value_eq", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
@@ -1618,6 +1636,27 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             builder.def_var(variable(*dest), result);
             Ok(*dest)
         }
+        NativeAbiStmt::ValueEq { dest, left, right } => {
+            if !defined.contains_key(left) {
+                return Err(NativeValueCraneliftError::MissingValue {
+                    function: function.name.clone(),
+                    value: *left,
+                });
+            }
+            if !defined.contains_key(right) {
+                return Err(NativeValueCraneliftError::MissingValue {
+                    function: function.name.clone(),
+                    value: *right,
+                });
+            }
+            let left = builder.use_var(variable(*left));
+            let right = builder.use_var(variable(*right));
+            let callee = module_backend.declare_func_in_func(helpers.value_eq, builder.func);
+            let call = builder.ins().call(callee, &[context, left, right]);
+            let result = single_call_result(builder, call, "yulang_native_value_eq")?;
+            builder.def_var(variable(*dest), result);
+            Ok(*dest)
+        }
         NativeAbiStmt::LoadEnv { .. } => Err(NativeValueCraneliftError::UnsupportedStmt {
             function: function.name.clone(),
             kind: "environment load",
@@ -1714,6 +1753,7 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
                 | NativeAbiStmt::TupleGet { dest, .. }
                 | NativeAbiStmt::VariantTagEq { dest, .. }
                 | NativeAbiStmt::VariantPayload { dest, .. }
+                | NativeAbiStmt::ValueEq { dest, .. }
                 | NativeAbiStmt::LoadEnv { dest, .. }
                 | NativeAbiStmt::AllocateClosure { dest, .. }
                 | NativeAbiStmt::IndirectClosureCall { dest, .. } => values.push(*dest),

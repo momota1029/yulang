@@ -176,8 +176,10 @@ runtime/core IR
   - value-lane Cranelift は branch / jump と Bool helper を追加し、effect-free
     `if` と variant / tuple pattern match の小さい核を扱う。`:just (1, 2)`
     の tuple payload bind と `std::list::view_raw [1]` の `:leaf x` match は
-    JIT / object 生成で確認済み。list / guarded / literal pattern はまだ
-    unsupported。
+    JIT / object 生成で確認済み。list / guarded pattern はまだ unsupported。
+  - value-lane Cranelift は boxed `VmValue` equality helper を追加し、literal
+    pattern match も扱う。`case 2` と `case ()` の literal arm は JIT /
+    object 生成で確認済み。list / guarded pattern はまだ unsupported。
   - `yulang-sources` に realm / band の薄い identity 型を追加した。既存の
     `SourceSet` は「今回コンパイルに集めた source aggregate」のまま残し、
     realm / band を source identity layer として上に置く。
