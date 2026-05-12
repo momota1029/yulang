@@ -59,7 +59,7 @@ checklist, see *Detailed progress* below.
 | --------------------------------------------------- | ---------------------- | :----: |
 | Small source-defined algebraic effects              | CPS repr               |   ✅   |
 | Multi-shot resumption (scalar)                      | CPS repr               |   ✅   |
-| `std::undet` `.once` over a finite list             | CPS repr               |   ✅   |
+| `std::undet` `.once` first solution over a finite list | CPS repr            |   ✅   |
 | Mutable reference edit / update through effects     | CPS repr (scalar)      |   ✅   |
 | Effectful thunks across function boundaries         | —                      |   ❌   |
 | `std::junction` effectful boolean conditions        | —                      |   ❌   |
@@ -166,6 +166,12 @@ or out of here into the user-facing table once they stabilize.
       `fold` / `sub` and return a scalar through the Cranelift CPS repr path.
 - [x] `std::undet` `.once` over a finite list compiles through the CPS repr
       object/executable path.
+- [x] `std::undet` `.once` can return `opt::just v` through the Cranelift CPS
+      repr scalar path and an outer `case` can unwrap the scalar payload.
+- [x] `std::undet` `.once` can skip an initially rejected finite-list choice
+      and agree with the VM for the first accepted scalar result.
+- [ ] `std::undet` `.once` still has open backtracking gaps for all-rejected
+      finite lists and some nested choice programs.
 - [x] First-class lambda values can be created and applied through the
       Cranelift CPS repr scalar path for pure higher-order calls.
 - [ ] General thunk values are only partially represented; thunk roots can be

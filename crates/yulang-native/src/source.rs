@@ -850,7 +850,6 @@ case (each [1, 2, 3]).once:
     }
 
     #[test]
-    #[ignore = "write15: fold_impl now emits EffectfulCall/Apply; needs Cranelift backend support"]
     fn compares_std_undet_once_scalar_unwrapped_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(
@@ -1041,7 +1040,6 @@ case work().once:
     }
 
     #[test]
-    #[ignore = "Phase F: root thunk leak via helper fn with reject path; CPS eval returns Thunk"]
     fn compares_std_undet_once_skips_rejected_first_choice_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(
@@ -1063,7 +1061,7 @@ case mk().once:
     }
 
     #[test]
-    #[ignore = "Phase F: root thunk leak via helper fn with reject path; CPS eval returns Thunk"]
+    #[ignore = "write27-f: backtracking after all rejected choices still accepts a later value"]
     fn compares_std_undet_once_returns_nil_when_all_rejected_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(
@@ -1085,7 +1083,7 @@ case mk().once:
     }
 
     #[test]
-    #[ignore = "Phase F: root thunk leak via helper fn with reject path; CPS eval returns Thunk"]
+    #[ignore = "write27-f: nested choice backtracking still exits with the last scalar value"]
     fn compares_std_undet_once_two_nested_choices_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(
@@ -1153,6 +1151,34 @@ once_dfs_int { each_list [1, 2, 3] }
 "#,
             )
             .expect("source once finite each_list recursive CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_prelude_source_opt_just_case_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"case std::opt::opt::just 2:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just v -> v
+"#,
+            )
+            .expect("source opt::just case CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_std_undet_once_value_arm_only_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"use std::undet::*
+
+case (each [2]).once:
+    std::opt::opt::nil -> 0
+    std::opt::opt::just v -> v
+"#,
+            )
+            .expect("std undet once value-arm-only CPS repr jit compare");
         });
     }
 
