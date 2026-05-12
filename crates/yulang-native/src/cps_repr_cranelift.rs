@@ -3767,6 +3767,26 @@ fn jit_trace_enabled() -> bool {
     }
 }
 
+/// write27-e e4: debug toggle to skip the current-handler match in
+/// `route_scope_return_i64` and force the frame-walk path. Used to
+/// verify whether the test failure on Layer 3 is caused by an
+/// over-eager current-handler match.
+fn jit_force_frame_walk_sr() -> bool {
+    use std::sync::atomic::{AtomicU8, Ordering};
+    static STATE: AtomicU8 = AtomicU8::new(0);
+    match STATE.load(Ordering::Relaxed) {
+        2 => true,
+        1 => false,
+        _ => {
+            let on = std::env::var("YULANG_CPS_JIT_FORCE_FRAME_WALK_SR")
+                .map(|v| v == "1")
+                .unwrap_or(false);
+            STATE.store(if on { 2 } else { 1 }, Ordering::Relaxed);
+            on
+        }
+    }
+}
+
 thread_local! {
     static NATIVE_CPS_I64_HEAP_VALUES: RefCell<HashSet<i64>> = RefCell::new(HashSet::new());
     static NATIVE_CPS_I64_TAG_NAMES: RefCell<HashMap<i64, Box<str>>> = RefCell::new(HashMap::new());
@@ -4225,12 +4245,17 @@ extern "C" fn yulang_cps_make_recursive_closure_i64_4(
 }
 
 extern "C" fn yulang_cps_apply_closure_i64(value: usize, arg: i64) -> i64 {
+    // write27-e: Layer 2 calls a closure with the **caller**'s active
+    // handlers and guards (eval_continuations(..., active_handlers,
+    // guard_stack, ...) at cps_repr.rs:2247). The previous JIT impl
+    // appended `closure.handlers` to the thread-local stack, which
+    // caused exponential growth: every nested apply_closure stacked
+    // another copy of the handler chain on top, and a captured
+    // resumption then re-inherited those duplicates. Use the
+    // caller's thread-local state as-is and ignore `closure.handlers`
+    // / `closure.guard_stack` at call time.
     let closure = unsafe { &*(value as *const NativeCpsI64Closure) };
-    with_native_i64_cps_state(
-        native_i64_handler_stack_with_captured(&closure.handlers),
-        closure.guard_stack.to_vec(),
-        || (closure.code)(closure.env.as_ptr(), arg),
-    )
+    (closure.code)(closure.env.as_ptr(), arg)
 }
 
 extern "C" fn yulang_cps_tuple_i64_0() -> i64 {
@@ -4407,11 +4432,60 @@ extern "C" fn yulang_cps_list_view_raw_i64(value: i64) -> i64 {
 
 extern "C" fn yulang_cps_resume_i64(resumption: *const NativeCpsI64Resumption, arg: i64) -> i64 {
     let resumption = unsafe { &*resumption };
-    with_native_i64_cps_state(
-        resumption.handlers.to_vec(),
+    // write27-e: mirror Layer 2's `CpsStmt::Resume` (cps_repr.rs:1879).
+    //   resumed_handlers  = merge_resumption_handlers(captured, current, anchor)
+    //   adjusted_frames   = merge_extras_into_frames(captured_frames, current, anchor)
+    //   eval_continuations(..., resumed_handlers, ..., adjusted_frames, initial=0)
+    // The JIT version save/restores thread-local return_frames + eval
+    // context around the call so the caller's outer frames stay
+    // hidden during the resumed eval (matches Layer 2 where eval_continuations
+    // gets its own local state).
+    let current_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().clone());
+    let anchor = resumption.handled_anchor;
+    let resumed_handlers =
+        merge_resumption_handlers_native(&resumption.handlers, &current_handlers, anchor);
+    let adjusted_frames = merge_extras_into_frames_native(
+        &resumption.return_frames,
+        &current_handlers,
+        anchor,
+    );
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] resume: anchor={:?} captured={} current={} resumed={} adjusted_frames={}",
+            anchor,
+            format_handler_stack(&resumption.handlers),
+            format_handler_stack(&current_handlers),
+            format_handler_stack(&resumed_handlers),
+            adjusted_frames.len(),
+        );
+    }
+    // Swap state.
+    let saved_frames = NATIVE_CPS_I64_RETURN_FRAMES
+        .with(|f| std::mem::replace(&mut *f.borrow_mut(), adjusted_frames));
+    let fresh_eval = NATIVE_CPS_I64_NEXT_EVAL_ID.with(|next| {
+        let id = *next.borrow();
+        *next.borrow_mut() = id + 1;
+        id
+    });
+    let saved_eval_ctx = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
+        std::mem::replace(
+            &mut *ctx.borrow_mut(),
+            NativeCpsI64EvalContext {
+                current_eval_id: fresh_eval,
+                initial_frame_count: 0,
+            },
+        )
+    });
+    let result = with_native_i64_cps_state(
+        resumed_handlers,
         resumption.guard_stack.to_vec(),
         || (resumption.code)(resumption.env.as_ptr(), arg),
-    )
+    );
+    // Restore state. (Handlers/guards were already restored by
+    // `with_native_i64_cps_state`.)
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|f| *f.borrow_mut() = saved_frames);
+    NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow_mut() = saved_eval_ctx);
+    result
 }
 
 extern "C" fn yulang_cps_resume_with_handler_i64(
@@ -4531,6 +4605,53 @@ fn merge_extras_into_frames_native(
 ///   3. anchor-merge each of resumption.return_frames' handler snapshots.
 ///   4. combined_frames = new_frames + adjusted_resumption_frames.
 ///   5. swap thread-local state and call `resumption.code(env, arg)`.
+/// write27-e e1: compact formatter for a handler stack — emits
+/// `[h<id>(p=..., ev=..., origin=..., inh=...) ...]` so trace lines
+/// don't blow up but each frame's identity is still visible.
+fn format_handler_stack(stack: &[NativeCpsI64HandlerFrame]) -> String {
+    let mut s = String::from("[");
+    for (i, frame) in stack.iter().enumerate() {
+        if i > 0 {
+            s.push_str(", ");
+        }
+        s.push_str(&format!(
+            "h{}(p={},ev={},{:?},inh={})",
+            frame.handler,
+            frame.prompt,
+            if frame.install_eval_id == NATIVE_CPS_I64_SYNTHETIC_EVAL_ID {
+                "SYN".to_string()
+            } else {
+                frame.install_eval_id.to_string()
+            },
+            frame.origin,
+            frame.inherited,
+        ));
+    }
+    s.push(']');
+    s
+}
+
+/// write27-e e1: compact formatter for a return-frame stack — useful
+/// to verify anchor merge actually modified each frame's
+/// `active_handlers`.
+fn format_return_frames(frames: &[NativeCpsI64ReturnFrame]) -> String {
+    let mut s = String::from("[");
+    for (i, frame) in frames.iter().enumerate() {
+        if i > 0 {
+            s.push_str(", ");
+        }
+        s.push_str(&format!(
+            "F#{}(owner_eval={},init={},handlers={})",
+            i,
+            frame.owner_eval_id,
+            frame.owner_initial_frame_count,
+            format_handler_stack(&frame.handlers),
+        ));
+    }
+    s.push(']');
+    s
+}
+
 fn effectful_apply_resumption_native(
     resumption: *const NativeCpsI64Resumption,
     arg: i64,
@@ -4544,6 +4665,14 @@ fn effectful_apply_resumption_native(
     let current_handlers =
         NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().clone());
     let current_guards = NATIVE_CPS_I64_GUARD_STACK.with(|s| s.borrow().clone());
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] effectful_apply_resumption.in: anchor={:?} captured={} current={}",
+            resumption.handled_anchor,
+            format_handler_stack(&resumption.handlers),
+            format_handler_stack(&current_handlers),
+        );
+    }
     // 1. Build F_post.
     let f_post = NativeCpsI64ReturnFrame {
         continuation: post_cont as usize,
@@ -4570,8 +4699,8 @@ fn effectful_apply_resumption_native(
     let combined_len = new_frames.len();
     let resumed_len = resumed_handlers.len();
     // 5. swap state + call.
-    NATIVE_CPS_I64_RETURN_FRAMES.with(|f| *f.borrow_mut() = new_frames);
-    NATIVE_CPS_I64_HANDLER_STACK.with(|s| *s.borrow_mut() = resumed_handlers);
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|f| *f.borrow_mut() = new_frames.clone());
+    NATIVE_CPS_I64_HANDLER_STACK.with(|s| *s.borrow_mut() = resumed_handlers.clone());
     NATIVE_CPS_I64_GUARD_STACK
         .with(|s| *s.borrow_mut() = resumption.guard_stack.to_vec());
     let fresh_eval = NATIVE_CPS_I64_NEXT_EVAL_ID.with(|next| {
@@ -4587,8 +4716,13 @@ fn effectful_apply_resumption_native(
     });
     if jit_trace_enabled() {
         eprintln!(
-            "[JIT-CPS] effectful_apply_resumption: anchor={:?} fresh_eval={} combined_frames={} resumed_handlers={}",
-            anchor, fresh_eval, combined_len, resumed_len
+            "[JIT-CPS] effectful_apply_resumption.out: anchor={:?} fresh_eval={} combined_len={} resumed={} resumed_handlers={} new_frames={}",
+            anchor,
+            fresh_eval,
+            combined_len,
+            resumed_len,
+            format_handler_stack(&resumed_handlers),
+            format_return_frames(&new_frames),
         );
     }
     (resumption.code)(resumption.env.as_ptr(), arg)
@@ -4851,9 +4985,21 @@ extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
             };
         });
         if jit_trace_enabled() {
+            let current_eval =
+                NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().current_eval_id);
+            let current_initial =
+                NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
+            let stack = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().clone());
+            let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().clone());
             eprintln!(
-                "[JIT-CPS] scope_return_set (perform_finish): prompt={} target={:#x} value={}",
-                meta.prompt, meta.escape_continuation, value
+                "[JIT-CPS] scope_return_set (perform_finish): prompt={} target={:#x} value={} current_eval={} initial={} stack={} frames={}",
+                meta.prompt,
+                meta.escape_continuation,
+                value,
+                current_eval,
+                current_initial,
+                format_handler_stack(&stack),
+                format_return_frames(&frames),
             );
         }
     }
@@ -4931,15 +5077,38 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
     let current_initial =
         NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
 
+    if jit_trace_enabled() {
+        let stack = NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().clone());
+        let frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|f| f.borrow().clone());
+        eprintln!(
+            "[JIT-CPS] route_scope_return.scan: prompt={} value={} current_eval={} initial={} force_frame_walk={} stack={} frames={}",
+            prompt,
+            value,
+            current_eval,
+            current_initial,
+            jit_force_frame_walk_sr(),
+            format_handler_stack(&stack),
+            format_return_frames(&frames),
+        );
+    }
+
+    // write27-e e4: optionally skip the current-handler scan so we can
+    // see whether the frame-walk path matches Layer 1/2's frontier.
+    // Toggled via `YULANG_CPS_JIT_FORCE_FRAME_WALK_SR=1`.
+    let skip_current = jit_force_frame_walk_sr();
+
     // 1. Walk the current handler stack reverse.
-    let cur_match: Option<(usize, NativeCpsI64HandlerFrame)> =
+    let cur_match: Option<(usize, NativeCpsI64HandlerFrame)> = if skip_current {
+        None
+    } else {
         NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
             let stack = stack.borrow();
             stack
                 .iter()
                 .rposition(|f| f.prompt == prompt && f.install_eval_id == current_eval)
                 .map(|idx| (idx, stack[idx].clone()))
-        });
+        })
+    };
     if let Some((idx, frame)) = cur_match {
         NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow_mut().truncate(idx));
         NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
@@ -5676,11 +5845,34 @@ extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
             return value as i64;
         }
         let thunk = unsafe { &*(value as *const NativeCpsI64Thunk) };
-        value = with_native_i64_cps_state(
-            native_i64_handler_stack_for_force(&thunk.handlers),
-            thunk.guard_stack.to_vec(),
-            || (thunk.code)(thunk.env.as_ptr()),
-        ) as usize;
+        // write27-e: Layer 2 (cps_repr.rs:1638-1681) uses
+        // `if !active_handlers.is_empty() { active_handlers } else
+        //  { thunk.handlers }` for the inner eval — i.e. the caller's
+        // active handlers shadow the captured thunk handlers when the
+        // caller has any. Previously the JIT appended thunk.handlers
+        // onto the current stack (via
+        // `native_i64_handler_stack_for_force`), which compounded the
+        // synthetic PendingEnv frames every time a thunk got forced
+        // inside another thunk. Use the caller stack as-is when it
+        // has at least one frame; otherwise fall back to the thunk's
+        // captured stack.
+        let current_handlers_empty =
+            NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().is_empty());
+        let current_guards_empty =
+            NATIVE_CPS_I64_GUARD_STACK.with(|s| s.borrow().is_empty());
+        let handlers = if current_handlers_empty {
+            thunk.handlers.to_vec()
+        } else {
+            NATIVE_CPS_I64_HANDLER_STACK.with(|s| s.borrow().clone())
+        };
+        let guards = if current_guards_empty {
+            thunk.guard_stack.to_vec()
+        } else {
+            NATIVE_CPS_I64_GUARD_STACK.with(|s| s.borrow().clone())
+        };
+        value = with_native_i64_cps_state(handlers, guards, || {
+            (thunk.code)(thunk.env.as_ptr())
+        }) as usize;
     }
 }
 
