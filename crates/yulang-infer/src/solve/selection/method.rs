@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use crate::ids::{DefId, NegId, PosId, TypeVar, fresh_type_var};
-use crate::scheme::{OwnedSchemeInstance, SmallSubst, instantiate_frozen_scheme_with_subst};
+use crate::ids::{fresh_type_var, DefId, NegId, PosId, TypeVar};
+use crate::scheme::{instantiate_frozen_scheme_with_subst, OwnedSchemeInstance, SmallSubst};
 use crate::simplify::compact::CompactType;
 use crate::solve::{
     DeferredSelection, EffectMethodInfo, ExtensionMethodInfo, Infer, RefFieldProjection,
     RoleMethodInfo,
 };
-use crate::symbols::{Name, Path};
+use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{Neg, Pos};
 
 use super::effect_method::EffectMethodResolution;
@@ -157,6 +157,9 @@ impl Infer {
         if self.selection_receiver_has_known_non_record_lower(recv_tv, &mut HashSet::new()) {
             return false;
         }
+        if self.selection_name_has_non_record_candidate_from(selection.module, &selection.name) {
+            return false;
+        }
 
         self.constrain_with_cause(
             self.alloc_pos(Pos::Var(recv_tv)),
@@ -171,6 +174,31 @@ impl Infer {
             self.decrement_pending_selection(owner);
         }
         true
+    }
+
+    pub(crate) fn selection_name_has_non_record_candidate_from(
+        &self,
+        module: ModuleId,
+        name: &Name,
+    ) -> bool {
+        self.type_methods
+            .values()
+            .any(|methods| methods.contains_key(name))
+            || self
+                .ref_type_methods
+                .values()
+                .any(|methods| methods.contains_key(name))
+            || self.role_methods.contains_key(name)
+            || self.extension_methods.get(name).is_some_and(|methods| {
+                methods.iter().any(|info| {
+                    selection_info_is_accessible_from(module, info.module, info.visibility)
+                })
+            })
+            || self.effect_methods.get(name).is_some_and(|methods| {
+                methods.iter().any(|info| {
+                    selection_info_is_accessible_from(module, info.module, info.visibility)
+                })
+            })
     }
 
     fn selection_receiver_has_known_non_record_lower(
@@ -1096,6 +1124,17 @@ impl Infer {
             ),
             self.resolve_ref_field_projection_from_inner_pos(right, name, dependent, seen),
         )
+    }
+}
+
+fn selection_info_is_accessible_from(
+    current_module: ModuleId,
+    candidate_module: ModuleId,
+    visibility: Visibility,
+) -> bool {
+    match visibility {
+        Visibility::My => current_module == candidate_module,
+        Visibility::Our | Visibility::Pub => true,
     }
 }
 

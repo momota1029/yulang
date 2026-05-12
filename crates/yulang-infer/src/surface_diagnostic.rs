@@ -24,7 +24,15 @@ pub fn collect_surface_diagnostics(state: &LowerState) -> Vec<SurfaceDiagnostic>
 
     for selections in state.infer.deferred_selections.borrow().values() {
         for selection in selections {
-            let message = unresolved_selection_message(selection.name.0.as_str());
+            let message = if selection.structural_record_allowed
+                && state
+                    .infer
+                    .selection_name_has_non_record_candidate_from(selection.module, &selection.name)
+            {
+                ambiguous_selection_message(selection.name.0.as_str())
+            } else {
+                unresolved_selection_message(selection.name.0.as_str())
+            };
             push_unique(&mut diagnostics, &mut seen, message, selection.cause.span);
         }
     }
@@ -58,6 +66,12 @@ fn unresolved_selection_message(name: &str) -> String {
         "index" => "cannot index this value; no matching index operation was found".to_string(),
         _ => format!("no field or method named `.{name}` could be resolved"),
     }
+}
+
+fn ambiguous_selection_message(name: &str) -> String {
+    format!(
+        "could not resolve `.{name}` because the receiver type is not specific enough to choose a method; add a receiver type annotation"
+    )
 }
 
 fn format_path(path: &Path) -> String {

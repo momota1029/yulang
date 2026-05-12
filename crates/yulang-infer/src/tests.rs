@@ -2708,6 +2708,37 @@ fn source_record_field_selection_final_fallback_introduces_record_requirement() 
 }
 
 #[test]
+fn source_unannotated_method_selection_reports_receiver_specificity() {
+    run_with_large_stack(|| {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            concat!(
+                "struct point { x: int, y: int } with:\n",
+                "    our p.norm2 = p.x * p.x + p.y * p.y\n",
+                "\n",
+                "my get_norm p = p.norm2\n",
+                "get_norm (point { x: 3, y: 4 })\n",
+            ),
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("source should lower");
+
+        let diagnostics = collect_surface_diagnostics(&lowered.state);
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic.message
+                == "could not resolve `.norm2` because the receiver type is not specific enough to choose a method; add a receiver type annotation"),
+            "unannotated nominal method selection should report the receiver specificity issue, got {diagnostics:?}",
+        );
+    });
+}
+
+#[test]
 fn concrete_non_record_field_selection_stays_unresolved_for_diagnostic() {
     let lowered = lower_virtual_source_with_options(
         "\"a,b,c\".split \",\"\n",
