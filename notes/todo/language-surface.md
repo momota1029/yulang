@@ -14,8 +14,7 @@
 - `error fs_err:` は enum と act operation をまとめて定義する最小 sugar として入っている。
 - error constructor は data constructor と effect operation の両方として使える。
 - `fail` は `std::prelude` の先頭側で `prefix(fail)` として export される。parser/lower の keyword や特例ではない。
-- 現在の `fail` は effect operation を prefix で読ませる暫定 no-op operator。error value と対応 operation をつなぐ generated `fail` はまだ未実装。
-- 最終的な `fail err` は error value と対応する operation をつなぐ。role に固定しない。
+- 最終形は `pub prefix(fail) = \e -> e.throw`。`Throw 'e` role に associated effect row `throws` を入れて、role 経由でも effect が握りつぶされないようにする。現在の identity 実装はその準備が終わるまでの placeholder。
 - `not` / `return` / `last` / `next` / `redo` は parser builtin ではなく prelude の operator export として扱う。
 - list の末尾取得は `xs.last` を優先し、`last xs` という関数呼び出し互換は持たない。
 - `die` / `warn` / `say` は Perl/Raku 系の scripting convenience として別枠で扱う。
@@ -23,18 +22,22 @@
 - `from` entry は広い error family への cast / wrapper を生成する。`error` 専用ではなく、ordinary enum でも使える方向にする。
 - `variant from source_type` は ordinary enum / error の単一 payload variant として parse され、`Cast source_type -> enum_type` impl を生成する。
 - `std::result::result 'ok 'err` は入っている。
-- `error E:` は `E::wrap` を生成する。これは対応する単一 error effect を捕まえて `result ok E` に閉じる helper として扱う。
-- `io_err::raise` のような generated aggregation handler は狭い error effect を広いものへ集約する。role method ではなく、error namespace に生える関数として扱う。
+- `error E:` は `E::wrap` を生成する。`from` entry がある場合は `from`-link した狭い error effect も同時に catch して `result ok E` に閉じる。
+- `error E:` は `E::up` を生成する。`from` entry で繋がる狭い error effect を `E` の effect 行へ持ち上げる handler。`raise` という旧称は使わない。
+- `error E:` は `impl Display E` を auto 生成する。`E::wrap` で取り出した `err E` 側を素直に表示できるようにする。
+- error は原則名指しで catch する。任意の error を runtime 表示に流す anyhow 的経路は採用しない。
 
 TODO:
 
 - `from` entry の collision rule と diagnostics を固める。
-- generated `fail` surface の正確な形を定義する。特に data constructor と same-name effect operation の文脈解決を固定する。
+- `Throw 'e` role に associated effect row `throws` を入れる。role declaration の `ret_eff` を empty に固定している経路を、associated effect 変数に差し替える。
+- `pub prefix(fail) = \e -> e.throw` への切替。transparent operator wrapper として call site で展開する経路を確認する。
 - `die` / `warn` / `say` の std placement と host behavior を決める。
 - `Cast` を role、builtin relation、syntax-directed conversion のどれにするか決める。
 - `enum` variant の `from` grammar と collision rule を決める。
-- generated `raise` handler の signature と desugaring を決める。
-- anyhow 的な `any_err` と、`Display E` を要求して `result ok any_err` に落とす primitive `catch_any` / `wrap_any` を設計する。
+- `E::up` の signature と desugaring を最終化する。
+- `E::wrap` の集約対象を `from` リンク先 error にも広げる。
+- `error E:` から `impl Display E` を auto 生成する。生成形 (field 名なし variant / payload 付き variant) の整え方を決める。
 - constructor-like effect arms の handler syntax を決める。
 - `never` が user-facing signature にどう現れるか決める。
 - `E::wrap` で `never` 計算を包む時に成功側型をどう明示・既定化するか決める。

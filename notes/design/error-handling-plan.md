@@ -95,6 +95,24 @@ Required shape:
 - convenient pattern matching;
 - no hidden host policy in constructor choice.
 
+## Named-Catch Principle
+
+Every error catch site names the error family it is handling. There is no
+type-erased catch-all, and there is no runtime dispatch over arbitrary
+`Display` instances. This is the single rule that keeps the rest of the design
+small:
+
+- Error effects always appear in signatures with concrete names.
+- Aggregation across narrower families is explicit through `from` entries on
+  the wider `error` declaration; the generated `wrap` and `up` helpers carry
+  out the conversion.
+- `Display` impls are auto-generated for `error E:` so that named catches can
+  present the error without needing type erasure.
+
+The convenience cost of giving up an anyhow-style boundary is real, but it
+preserves the main property of the effect-row type system: every error has a
+visible origin and a visible handler.
+
 ## Proposed Direction: Typed Error Effects
 
 The leading candidate is a thiserror-like surface encoded with ordinary data
@@ -123,7 +141,7 @@ error fs_err:
 read_text: path -> [fs; fs_err] str
 ```
 
-Possible desugaring:
+Desugaring:
 
 ```text
 enum fs_err =
@@ -136,21 +154,48 @@ act fs_err:
   denied: path -> never
   invalid_path: str -> never
 
-fail e = case e:
-  fs_err::not_found path -> fs_err::not_found path
-  fs_err::denied path -> fs_err::denied path
-  fs_err::invalid_path text -> fs_err::invalid_path text
+impl Throw fs_err:
+  type throws = '[fs_err]
+  our e.throw = case e:
+    fs_err::not_found path  -> fs_err::not_found path
+    fs_err::denied path     -> fs_err::denied path
+    fs_err::invalid_path s  -> fs_err::invalid_path s
+
+impl Display fs_err:
+  our e.show = case e:
+    fs_err::not_found path  -> "file not found: " + path
+    fs_err::denied path     -> "permission denied: " + path
+    fs_err::invalid_path s  -> "invalid path: " + s
 ```
 
-The exact `fail` surface still needs design. The intended user-facing spelling
-is prefix-like:
+The user-facing throw is a prefix operator:
 
 ```text
 fail fs_err::not_found path
 ```
 
+`fail` is defined in `std::prelude` as a transparent wrapper over the `Throw`
+role method:
+
+```text
+pub prefix(fail) = \e -> e.throw
+```
+
 This keeps detailed error construction direct without forcing receiver-heavy
 spelling such as `(fs_err::not_found path).fail`.
+
+The `Throw 'e` role exposes an associated effect row:
+
+```text
+pub role Throw 'e:
+  type throws
+  our e.throw: [throws] never
+```
+
+The associated `throws` row is what keeps `fail` honest. Without it the role
+declaration's `ret_eff` collapses to empty, and `\e -> e.throw` silently loses
+the effect of the impl body. With `throws` as an associated row, generic uses
+such as `fail` carry the impl's effect row out to the call site.
 
 The important point is that operation names mirror constructor names. This
 makes handlers direct:
@@ -161,43 +206,53 @@ catch read_text path:
   fs_err::denied path, _ -> ...
 ```
 
-`error` can be a reserved word for this sugar.
+`error` is a reserved word for this sugar.
 
 Current prototype note:
 
-- `std::fs` now uses `error fs_err:` to define both the data constructors and
+- `std::fs` uses `error fs_err:` to define both the data constructors and
   same-name effect operations.
-- `variant from source_type` now parses as a single-payload wrapper variant for
+- `variant from source_type` parses as a single-payload wrapper variant for
   both `enum` and `error`, and lowering generates the corresponding
   `Cast source_type -> enum_type` implementation.
-- Runtime lowering must keep constructor values and effect operations distinct
+- Runtime lowering keeps constructor values and effect operations distinct
   by context: value construction lowers as an ordinary binding, while an
   effectful expected callee lowers as an effect operation.
-- `result ok err` now exists in `std::result` as a value container for
+- `result ok err` exists in `std::result` as a value container for
   effectful computations that are intentionally closed into values.
-- `error E:` now generates `E::wrap`, which catches exactly the corresponding
-  error effect and returns `result ok E`.
-- `std::prelude` currently exports `prefix(fail)` as parser-visible operator
-  syntax. The provisional implementation is identity-like, so
-  `fail fs_err::not_found path` works by letting the same-name effect operation
-  execute. This is intentionally not the final generated data-value `fail`
-  surface.
 - `std::fs` no longer carries a manual `Throw fs_err` shim; `Throw fs_err` is
   generated from the `error fs_err:` declaration.
-- A direct generic `prefix(fail) = \e -> e.throw` does not yet work under the
-  current principal-only monomorphize path: the operator wrapper can remain as a
-  residual polymorphic binding when the argument's constructor/effect operation
-  context is still open. The real fix belongs in generated error lowering or in
-  principal elaboration, not in a parser/lower special case.
-- `E::wrap` is intentionally single-error for now. It does not aggregate
-  several effects or preserve an open effect tail.
 - `read_text_or_throw` is a transitional checked API. The host request still
   collapses all read failures to `opt::nil`, so it maps `nil` conservatively to
   `fs_err::not_found` until host requests can return typed filesystem errors.
-- An anyhow-like boundary should be added separately: likely an `any_err` value
-  plus a primitive `catch_any`/`wrap_any` that requires `Display E` and uses the
-  compiler-known error operation table to turn handled error operations back
-  into values before stringifying.
+
+Outstanding work for the throw side:
+
+- `Throw 'e` role needs the associated `throws` row. Currently the role
+  declaration in `std/error.yu` lowers `ret_eff` to the empty row, which clamps
+  the throw effect to empty at the role level. The synthesized impl stores its
+  own frozen scheme with the right effect atom, so the concrete `error E:`
+  path happens to propagate effects, but generic uses like
+  `\e -> e.throw` lose the effect through role resolution.
+- Once the role carries an associated effect row, the prelude can switch from
+  the identity placeholder to the real definition:
+
+  ```text
+  pub prefix(fail) = \e -> e.throw
+  ```
+
+  At call sites where `e` has a concrete error type, the transparent operator
+  wrapper expands and the impl's `throws` row flows out, the same way
+  `std::ops` operator wrappers expose concrete role methods today.
+
+Anyhow-style aggregation is intentionally not in scope:
+
+- A single open error namespace would erase the concrete error type and
+  require runtime dispatch on `Display`. That cost loses the main benefit of
+  effect-row typing: knowing where each error is raised and caught.
+- All catching is done by name. Aggregation across narrower error families is
+  expressed through explicit `from` entries on the wider `error` declaration
+  and through `E::wrap` / `E::up`, not through a type-erased `any_err`.
 
 Script-level convenience names should stay separate from typed error effects:
 
@@ -233,22 +288,43 @@ impl Cast parse_err:
   our e.cast = io_err::parse e
 ```
 
-The generated error namespace should also provide an aggregation handler named
-`raise`. This is not a role method. It is a generated function in the wider
-error namespace that catches child error effects and rethrows the parent error
-effect through the corresponding wrapper constructor. This lets code collect
-errors as effects by placing a handler expression, instead of only by writing a
-fully annotated return type.
+Each `error E:` declaration generates two helpers in `E`'s companion module:
 
-Sketch:
+- `E::wrap`: closes the error effect into a value. With `from` entries it
+  catches the wider error effect together with all `from`-linked narrower
+  error effects in one pass and returns `result ok E`. The `err` side carries
+  the concrete `E` ADT, which is `Display` via the auto-generated impl.
+
+  ```text
+  io_err::wrap:
+    (() -> [io_err; fs_err; parse_err; e] a) -> [e] result a io_err
+  ```
+
+- `E::up`: lifts narrower errors into the wider error effect. It catches
+  `from`-linked narrower error effects and rethrows them as `E` through the
+  corresponding wrapper constructor. Equivalent to running `E::wrap` and
+  re-throwing the `err` side, but written as a single handler so users don't
+  have to peel the result manually.
+
+  ```text
+  io_err::up:
+    (() -> [io_err; fs_err; parse_err; e] a) -> [io_err; e] a
+  ```
+
+`up` is the everyday spelling for "let narrower errors bubble up as `E`":
 
 ```text
-io_err::raise:
-  [_; fs_err; parse_err; e] a -> [io_err; e] a
+my read_and_parse path =
+  io_err::up:
+    let text = fs::read_text_or_throw path  // throws [fs_err]
+    parse_json text                          // throws [parse_err]
+  // the block's effect row is [io_err; ...]
 ```
 
-This is the "thiserror-like" path: concrete error enums are the public boundary,
-but errors are still carried, peeled, and aggregated by effects.
+This is the "thiserror-like" path: concrete error enums are the public
+boundary, errors are carried, peeled, and aggregated by effects, and the
+generated `Display E` impl lets `E::wrap` produce a user-presentable value
+without losing the concrete type.
 
 ## Alternatives
 
@@ -348,23 +424,53 @@ Success condition:
 - Native `read_text` can throw/report missing/denied/failed without collapsing
   all errors to `nil`.
 
-### Phase 3: Error Aggregation
+### Phase 3: Honest Throw
+
+- Add an associated effect row `throws` to `Throw 'e`. The role declaration
+  in `std/error.yu` becomes:
+
+  ```text
+  pub role Throw 'e:
+    type throws
+    our e.throw: [throws] never
+  ```
+
+- Lower role declarations so that an associated effect row appears in
+  `ret_eff` instead of being clamped to the empty row.
+- Synthesized `impl Throw E` from `error E:` sets `type throws = [E]`.
+- Switch `std::prelude` from the placeholder identity `\e -> e` to the real
+  definition `\e -> e.throw`.
+- Auto-generate `impl Display E` for every `error E:` declaration so that the
+  value retrieved through `wrap` or surfaced in diagnostics is presentable.
+
+Success condition:
+
+- `\e -> e.throw` works as a transparent generic operator. `fail e` carries
+  the impl's effect row through to the call site.
+- A regression test demonstrates that the role declaration no longer collapses
+  the throw effect to empty.
+
+### Phase 4: Error Aggregation
 
 - Add explicit aggregation examples such as `error io_err: fs from fs_err`.
 - Decide how explicit casts/wrapping are written and how generated `from`
   entries interact with ordinary user-defined casts.
-- Implement handler-based aggregation such as `io_err::raise` that catches
-  narrower error effects and throws the wider API error effect.
+- Extend `E::wrap` so that it catches the wider error effect together with
+  all `from`-linked narrower error effects in one pass.
+- Generate `E::up` in the wider error's companion module as a handler that
+  lifts narrower errors into `E` and rethrows them as `E`.
 
 Success condition:
 
 - User code can publish a single error type while internally using multiple
   narrower error families.
+- `io_err::up: ...` reads as the standard way to absorb narrower errors into
+  the wider effect row.
 
-### Phase 4: Result Type
+### Phase 5: Result Type
 
-- Add `result 'ok 'err = ok 'ok | err 'err` only if value-level error capture is
-  still useful after error effects exist.
+- `result 'ok 'err = ok 'ok | err 'err` is in `std::result` and serves as the
+  value form for error effects closed by `E::wrap`.
 - Treat `result` as a helper for closing an error effect into a value, not the
   primary error mechanism.
 
@@ -373,7 +479,7 @@ Success condition:
 - User code can choose between handling an error effect directly and converting
   it into a value.
 
-### Phase 5: Filesystem API Stabilization
+### Phase 6: Filesystem API Stabilization
 
 - Decide whether `path` is a real type or `str` alias.
 - Add path helpers.
@@ -391,3 +497,6 @@ Success condition:
 - Do not use `result` for compiler diagnostics.
 - Do not pretend wasm has native filesystem access.
 - Do not expose raw OS errors as stable language semantics.
+- Do not introduce an anyhow-style open error namespace or runtime
+  `Display`-based dispatch over arbitrary errors. All catching is by name; all
+  aggregation is explicit through `from` entries and `wrap` / `up`.
