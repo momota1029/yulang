@@ -711,9 +711,30 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 Ok(())
             }
-            runtime::Pattern::List { .. } => {
-                Err(NativeLowerError::UnsupportedPattern { kind: "list" })
+            runtime::Pattern::List {
+                prefix,
+                spread,
+                suffix,
+                ..
+            } if list_pattern_children_are_irrefutable(prefix, spread.as_deref(), suffix) => {
+                let len = self.emit_primitive(typed_ir::PrimitiveOp::ListLen, vec![value]);
+                let required = self.emit_int_literal((prefix.len() + suffix.len()) as i64);
+                let op = if spread.is_some() {
+                    typed_ir::PrimitiveOp::IntGe
+                } else {
+                    typed_ir::PrimitiveOp::IntEq
+                };
+                let cond = self.emit_primitive(op, vec![len, required]);
+                self.terminate(NativeTerminator::Branch {
+                    cond,
+                    then_block,
+                    else_block,
+                });
+                Ok(())
             }
+            runtime::Pattern::List { .. } => Err(NativeLowerError::UnsupportedPattern {
+                kind: "list nested refutable",
+            }),
             runtime::Pattern::Or { .. } => Err(NativeLowerError::UnsupportedPattern { kind: "or" }),
         }
     }
@@ -828,9 +849,17 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 Ok(())
             }
-            runtime::Pattern::List { .. } => {
-                Err(NativeLowerError::UnsupportedPattern { kind: "list" })
+            runtime::Pattern::List {
+                prefix,
+                spread,
+                suffix,
+                ..
+            } if list_pattern_children_are_irrefutable(prefix, spread.as_deref(), suffix) => {
+                self.bind_list_pattern(prefix, spread.as_deref(), suffix, value)
             }
+            runtime::Pattern::List { .. } => Err(NativeLowerError::UnsupportedPattern {
+                kind: "list nested refutable",
+            }),
             runtime::Pattern::Record { fields, spread, .. } => {
                 if spread.is_some() {
                     return Err(NativeLowerError::UnsupportedPattern {
@@ -917,6 +946,14 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 self.bind_pattern(payload, payload_value)
             }
+            runtime::Pattern::List {
+                prefix,
+                spread,
+                suffix,
+                ..
+            } if list_pattern_children_are_irrefutable(prefix, spread.as_deref(), suffix) => {
+                self.bind_list_pattern(prefix, spread.as_deref(), suffix, value)
+            }
             runtime::Pattern::As { pattern, name, .. } => {
                 self.bind_pattern(pattern, value)?;
                 self.locals
@@ -925,6 +962,70 @@ impl<'a> FunctionLowerer<'a> {
             }
             _ => self.bind_pattern(pattern, value),
         }
+    }
+
+    fn bind_list_pattern(
+        &mut self,
+        prefix: &[runtime::Pattern],
+        spread: Option<&runtime::Pattern>,
+        suffix: &[runtime::Pattern],
+        value: ValueId,
+    ) -> NativeLowerResult<()> {
+        let len = if spread.is_some() || !suffix.is_empty() {
+            Some(self.emit_primitive(typed_ir::PrimitiveOp::ListLen, vec![value]))
+        } else {
+            None
+        };
+        for (index, item) in prefix.iter().enumerate() {
+            let index = self.emit_int_literal(index as i64);
+            let item_value =
+                self.emit_primitive(typed_ir::PrimitiveOp::ListIndex, vec![value, index]);
+            self.bind_pattern(item, item_value)?;
+        }
+        if let Some(spread) = spread {
+            let start = self.emit_int_literal(prefix.len() as i64);
+            let suffix_len = self.emit_int_literal(suffix.len() as i64);
+            let end = self.emit_primitive(
+                typed_ir::PrimitiveOp::IntSub,
+                vec![len.expect("list spread requires len"), suffix_len],
+            );
+            let slice = self.emit_primitive(
+                typed_ir::PrimitiveOp::ListIndexRangeRaw,
+                vec![value, start, end],
+            );
+            self.bind_pattern(spread, slice)?;
+        }
+        for (offset, item) in suffix.iter().enumerate() {
+            let suffix_len = self.emit_int_literal(suffix.len() as i64);
+            let suffix_start = self.emit_primitive(
+                typed_ir::PrimitiveOp::IntSub,
+                vec![len.expect("list suffix requires len"), suffix_len],
+            );
+            let offset = self.emit_int_literal(offset as i64);
+            let index =
+                self.emit_primitive(typed_ir::PrimitiveOp::IntAdd, vec![suffix_start, offset]);
+            let item_value =
+                self.emit_primitive(typed_ir::PrimitiveOp::ListIndex, vec![value, index]);
+            self.bind_pattern(item, item_value)?;
+        }
+        Ok(())
+    }
+
+    fn emit_int_literal(&mut self, value: i64) -> ValueId {
+        let dest = self.fresh_value();
+        self.current.stmts.push(NativeStmt::Literal {
+            dest,
+            literal: NativeLiteral::Int(value.to_string()),
+        });
+        dest
+    }
+
+    fn emit_primitive(&mut self, op: typed_ir::PrimitiveOp, args: Vec<ValueId>) -> ValueId {
+        let dest = self.fresh_value();
+        self.current
+            .stmts
+            .push(NativeStmt::Primitive { dest, op, args });
+        dest
     }
 
     fn terminate(&mut self, terminator: NativeTerminator) {
@@ -984,6 +1085,18 @@ fn pattern_has_refutable_child(pattern: &runtime::Pattern) -> bool {
         }
         runtime::Pattern::As { pattern, .. } => pattern_has_refutable_child(pattern),
     }
+}
+
+fn list_pattern_children_are_irrefutable(
+    prefix: &[runtime::Pattern],
+    spread: Option<&runtime::Pattern>,
+    suffix: &[runtime::Pattern],
+) -> bool {
+    prefix
+        .iter()
+        .chain(spread)
+        .chain(suffix)
+        .all(|pattern| !pattern_has_refutable_child(pattern))
 }
 
 fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<typed_ir::Name>, &runtime::Expr) {

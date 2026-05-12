@@ -180,6 +180,10 @@ runtime/core IR
   - value-lane Cranelift は boxed `VmValue` equality helper を追加し、literal
     pattern match も扱う。`case 2` と `case ()` の literal arm は JIT /
     object 生成で確認済み。list / guarded pattern はまだ unsupported。
+  - value-lane Cranelift は list pattern の長さテストと irrefutable な
+    prefix/spread/suffix bind も扱う。`[head, ..middle, tail]` と
+    `[..init, z]` は JIT / object 生成 / executable で確認済み。nested
+    refutable list pattern と guarded pattern はまだ unsupported。
   - `yulang-sources` に realm / band の薄い identity 型を追加した。既存の
     `SourceSet` は「今回コンパイルに集めた source aggregate」のまま残し、
     realm / band を source identity layer として上に置く。

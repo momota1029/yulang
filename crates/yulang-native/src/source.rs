@@ -1669,6 +1669,35 @@ case ():
     }
 
     #[test]
+    fn evals_list_pattern_source_through_cranelift_value_lane() {
+        let values = run_with_large_stack(|| {
+            eval_source_value_lane(
+                r#"case [1, 2, 3, 4]:
+    [] -> 0
+    [head, ..middle, tail] -> head + tail + middle.len
+    _ -> 9
+
+case [4, 5, 6]:
+    [] -> 0
+    [..init, z] -> z + init.len
+
+case [7]:
+    [a, b] -> a
+    _ -> 0"#,
+            )
+            .expect("native value jit eval")
+            .into_iter()
+            .map(|value| match value {
+                runtime::VmValue::Int(value) => value,
+                value => panic!("expected int value, got {value:?}"),
+            })
+            .collect::<Vec<_>>()
+        });
+
+        assert_eq!(values, vec!["7", "8", "0"]);
+    }
+
+    #[test]
     fn evals_if_source_through_cranelift_value_lane() {
         let values = run_with_large_stack(|| {
             eval_source_value_lane("if true:\n    1\nelse:\n    2")
@@ -1910,6 +1939,37 @@ case ():
         assert_eq!(
             object.roots(),
             &["root_0".to_string(), "root_1".to_string()]
+        );
+    }
+
+    #[test]
+    fn emits_list_pattern_source_value_object() {
+        let object = run_with_large_stack(|| {
+            compile_source_value_object(
+                r#"case [1, 2, 3, 4]:
+    [] -> 0
+    [head, ..middle, tail] -> head + tail + middle.len
+    _ -> 9
+
+case [4, 5, 6]:
+    [] -> 0
+    [..init, z] -> z + init.len
+
+case [7]:
+    [a, b] -> a
+    _ -> 0"#,
+            )
+            .expect("native value object")
+        });
+
+        assert!(!object.bytes().is_empty());
+        assert_eq!(
+            object.roots(),
+            &[
+                "root_0".to_string(),
+                "root_1".to_string(),
+                "root_2".to_string()
+            ]
         );
     }
 

@@ -500,6 +500,50 @@ fn eval_primitive(
                 bool_value(op, &args[0])? == bool_value(op, &args[1])?,
             ))
         }
+        PrimitiveOp::ListLen => {
+            expect_arity(op, args, 1)?;
+            Ok(runtime::VmValue::Int(
+                list_value(op, &args[0])?.len().to_string(),
+            ))
+        }
+        PrimitiveOp::ListIndex => {
+            expect_arity(op, args, 2)?;
+            let index = usize::try_from(int_value(op, &args[1])?).map_err(|_| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[1].clone(),
+                }
+            })?;
+            let value = list_value(op, &args[0])?.index(index).ok_or_else(|| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[0].clone(),
+                }
+            })?;
+            Ok(value.as_ref().clone())
+        }
+        PrimitiveOp::ListIndexRangeRaw => {
+            expect_arity(op, args, 3)?;
+            let start = usize::try_from(int_value(op, &args[1])?).map_err(|_| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[1].clone(),
+                }
+            })?;
+            let end = usize::try_from(int_value(op, &args[2])?).map_err(|_| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[2].clone(),
+                }
+            })?;
+            let value = list_value(op, &args[0])?
+                .index_range(start, end)
+                .ok_or_else(|| NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[0].clone(),
+                })?;
+            Ok(runtime::VmValue::List(value))
+        }
         PrimitiveOp::IntAdd => int_bin_op(op, args, |left, right| left + right),
         PrimitiveOp::IntSub => int_bin_op(op, args, |left, right| left - right),
         PrimitiveOp::IntMul => int_bin_op(op, args, |left, right| left * right),
@@ -661,6 +705,19 @@ fn string_value(
 ) -> NativeEvalResult<&runtime::runtime::string_tree::StringTree> {
     match value {
         runtime::VmValue::String(value) => Ok(value),
+        value => Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: value.clone(),
+        }),
+    }
+}
+
+fn list_value(
+    op: typed_ir::PrimitiveOp,
+    value: &runtime::VmValue,
+) -> NativeEvalResult<&runtime::runtime::list_tree::ListTree<std::rc::Rc<runtime::VmValue>>> {
+    match value {
+        runtime::VmValue::List(value) => Ok(value),
         value => Err(NativeEvalError::PrimitiveTypeMismatch {
             op,
             value: value.clone(),
