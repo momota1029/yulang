@@ -2285,3 +2285,46 @@ fn stmt_indented_compact_negative_argument_after_apply_continues_ml_apply() {
     ];
     assert_eq!(got, expected);
 }
+
+#[test]
+fn stmt_brace_block_same_indent_after_inline_else_starts_next_expr() {
+    let source = concat!(
+        "my f = sub::sub {\n",
+        "        xs.fold (): \\() x -> if branch() { sub::return x } else ()\n",
+        "        reject()\n",
+        "}\n",
+    );
+    let root = parse_stmt_once_green(source);
+    let else_arm = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ElseArm)
+        .expect("else arm");
+    assert!(!else_arm.text().to_string().contains("reject"));
+
+    let block = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::BraceGroup)
+        .find(|node| node.text().to_string().contains("reject"))
+        .expect("outer brace block");
+    let direct_exprs = block
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Expr)
+        .count();
+    assert_eq!(direct_exprs, 2);
+}
+
+#[test]
+fn stmt_brace_block_deeper_indent_continues_current_expr() {
+    let source = "my f = {\n    1\n        +2\n    3\n}\n";
+    let root = parse_stmt_once_green(source);
+    let block = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::BraceGroup)
+        .expect("brace block");
+    let exprs = block
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Expr)
+        .map(|node| node.text().to_string().trim().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(exprs, vec!["1\n        +2", "3"]);
+}

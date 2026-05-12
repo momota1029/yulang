@@ -29,9 +29,14 @@ impl<I: EventInput, S: EventSink> StopListMachine<I, S> for BraceStmtBlockMachin
         }
 
         let old_stop = i.env.stop.clone();
+        let old_indent = i.env.indent;
         i.env.suspend_outer_block_stops_in_group();
         i.env.stop.insert(SyntaxKind::Comma);
+        if let TriviaInfo::Newline { indent, .. } = *leading_info {
+            i.env.indent = indent;
+        }
         let parsed = super::parse_statement(*leading_info, i.rb());
+        i.env.indent = old_indent;
         i.env.stop = old_stop;
 
         match parsed? {
