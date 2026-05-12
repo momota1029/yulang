@@ -1,0 +1,31 @@
+-- bug (再発): `-` と `/` が右結合になっている
+--
+-- 期待:
+--   10 - 3 - 2 = (10 - 3) - 2 = 5
+--   24 / 4 / 2 = (24 / 4) / 2 = 3
+-- 実際 (古い std が当たっている時):
+--   10 - 3 - 2 → 9   (= 10 - (3 - 2))
+--   24 / 4 / 2 → 12  (= 24 / (4 / 2))
+--
+-- 状況: in-tree の lib/std/ops.yu は左結合になるよう binding power を調整済み:
+--
+--   pub infix (-) 5.0.0 5.0.1 = \x -> \y -> x.sub y
+--   pub infix (/) 6.0.0 6.0.1 = \x -> \y -> x.div y
+--
+-- (right BP > left BP で左結合になる Pratt 系の定義)
+--
+-- 一方、`yulang-ls --install-std` で配置される
+-- `~/.yulang/lib/yulang-0.1.0/std/ops.yu` は古いまま:
+--
+--   pub infix (-) 5.0.0 5.0.0 ...
+--   pub infix (/) 6.0.0 6.0.0 ...
+--
+-- 同じ BP だと右結合に倒れるため、上書きされた環境では silent に挙動が変わる。
+--
+-- str_len_overflow_via_stale_std.yu と同根: install-std が古い snapshot で
+-- 新しい std を上書きしてしまう配布側の問題。`YULANG_STD` で in-tree std を
+-- 指せば回避できる:
+--
+--   export YULANG_STD=$HOME/rust/yulang/lib/std
+
+(10 - 3 - 2, 24 / 4 / 2)

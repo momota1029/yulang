@@ -1,0 +1,29 @@
+-- bug: `for` ループ内で list を参照に向けて伸ばすと effect row が合わない
+--
+-- 期待: $evens に [1, 2, 3, 4, 5, 6] が溜まる
+-- 実際: error: expected type type mismatch:
+--             expected [std::flow::loop; ..never], got [&evens#762; ..never]
+--
+-- 同じ `for` の中で int を更新する分には問題ない:
+--
+--   {
+--       my $sum = 0
+--       for x in [1, 2, 3]:
+--           &sum = $sum + x   -- OK
+--       $sum
+--   }
+--   → 6
+--
+-- list を伸ばすパターンは `+ [x]` でも `.append [x]` でも落ちる。
+-- 同じ block 内なので `&evens` ref handler は外側にいるはずだが、
+-- list を作る side で副作用付きの method 解決が走るのか、
+-- for_in callee が body の effect row に `&evens` を通せていない様子。
+--
+-- 「ループでコレクションを作る」は実用で頻出するので、優先度は高め。
+
+{
+    my $evens : list int = []
+    for x in [1, 2, 3, 4, 5, 6]:
+        &evens = $evens + [x]
+    $evens
+}

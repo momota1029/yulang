@@ -1,0 +1,23 @@
+-- bug: 複数行に分けた `|` パイプが parse できない
+--
+-- 期待: [30, 40, 50]
+-- 実際: error: invalid token in source
+--
+-- 同じ意味を 1 行で書くと通る:
+--
+--   [1, 2, 3, 4, 5] | std::list::filter (\x -> x > 2) | std::list::map (\x -> x * 10)
+--   → [30, 40, 50]
+--
+-- docs/ja/reference/syntax-style.md にも次の書き方が書かれているが、
+-- 実際にはパースに失敗する:
+--
+--   xs
+--       | map f
+--       | filter pred
+--
+-- パイプを行頭に置くスタイルは Elm / F# / Elixir などで一般的なので、
+-- 動くようにしておきたい (現状は docs の例とコンパイラの挙動が乖離)。
+
+[1, 2, 3, 4, 5]
+    | std::list::filter (\x -> x > 2)
+    | std::list::map (\x -> x * 10)

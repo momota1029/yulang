@@ -11,6 +11,16 @@
   `%{x}` 文字列 interpolation に渡すと型推論が壊れる
   (top-level block で同じ body を書くと通る)
 
+## parser / 構文
+
+- [`multiline_pipe.yu`](multiline_pipe.yu) — 行頭に置いた `|` パイプが
+  invalid token になる
+
+## for ループとエフェクト
+
+- [`for_ref_list_grow.yu`](for_ref_list_grow.yu) — `for` ループ内で list ref を
+  `+ [x]` で伸ばすと loop effect と ref effect の row が合わない
+
 ## ドット解決
 
 - [`dot_via_param.yu`](dot_via_param.yu) — 2 段階バグ。
@@ -26,6 +36,14 @@
 - [`handler_thunk_panic.yu`](handler_thunk_panic.yu) — `listen prog ""` のように
   「効果計算」じゃなく「関数値」を handler に渡すケースを、型エラーとして
   早めに止め切れていない
+
+## 配布 / std install
+
+- [`str_len_overflow_via_stale_std.yu`](str_len_overflow_via_stale_std.yu) —
+  `yulang-ls --install-std` が古い std snapshot を戻すと `"hi".len` が再び
+  stack overflow する
+- [`sub_div_right_assoc.yu`](sub_div_right_assoc.yu) — 古い std snapshot が当たると
+  `-` と `/` の binding power が古く、右結合に戻る
 
 ## メモ
 
