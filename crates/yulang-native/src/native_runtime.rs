@@ -267,6 +267,30 @@ pub fn list_index(
     Some(context.alloc(value.as_ref().clone()))
 }
 
+pub fn list_index_range_raw(
+    context: &mut NativeRuntimeContext,
+    list: *mut runtime::VmValue,
+    start: *mut runtime::VmValue,
+    end: *mut runtime::VmValue,
+) -> Option<*mut runtime::VmValue> {
+    let list = unsafe { list.as_ref()? };
+    let start = unsafe { start.as_ref()? };
+    let end = unsafe { end.as_ref()? };
+    let runtime::VmValue::List(list) = list else {
+        return None;
+    };
+    let runtime::VmValue::Int(start) = start else {
+        return None;
+    };
+    let runtime::VmValue::Int(end) = end else {
+        return None;
+    };
+    let start = start.parse::<usize>().ok()?;
+    let end = end.parse::<usize>().ok()?;
+    let value = list.index_range(start, end)?;
+    Some(context.alloc(runtime::VmValue::List(value)))
+}
+
 pub fn tuple_empty(context: &mut NativeRuntimeContext) -> *mut runtime::VmValue {
     context.alloc(runtime::VmValue::Tuple(Vec::new()))
 }
@@ -522,6 +546,19 @@ pub extern "C" fn yulang_native_list_index(
         return std::ptr::null_mut();
     };
     list_index(context, list, index).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_list_index_range_raw(
+    context: *mut NativeRuntimeContext,
+    list: *mut runtime::VmValue,
+    start: *mut runtime::VmValue,
+    end: *mut runtime::VmValue,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    list_index_range_raw(context, list, start, end).unwrap_or(std::ptr::null_mut())
 }
 
 #[unsafe(no_mangle)]

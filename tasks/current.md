@@ -151,6 +151,9 @@ runtime/core IR
     `VmValue` を返す。JIT と native runtime API の小さい regression で固定した。
     `--native-run-value-exe` でも `true` / `()` / `1.5` と
     `[1, 2].len` / `[1, 2].index 1` の executable 出力を確認済み。
+  - value-lane Cranelift は `ListIndexRangeRaw` も Rust helper 経由で
+    `VmValue::List` を返す。`std::list::index_range_raw [1, 2, 3, 4] 1 3` は
+    JIT / object 生成 / `--native-run-value-exe` で確認済み。
   - value-lane Cranelift は tuple / record / variant も opaque `VmValue`
     pointer として作れるようにした。native IR / ABI IR には構造値 stmt を追加し、
     codegen では `tuple_empty` / `tuple_push`、`record_empty` / `record_insert`、
@@ -341,8 +344,10 @@ runtime/core IR
      `cargo build -p yulang-native` で更新する。
    - value-lane object/executable 側で bool / unit / float と list index / len を
      source から動かす回帰を足した。
-   - 次に必要なもの: value-lane object/executable 側で list range index を
-     source から動かすか、range 専用 native 表現を決める。
+   - value-lane object/executable 側で raw list range index を source から動かす
+     回帰を足した。
+   - 次に必要なもの: `ListIndexRange` 用の range value 正規化を helper 化するか、
+     range 専用 native 表現を決める。
 5. thunk / closure value を backend 境界で実体化する。
    汎用 thunk invocation と closure environment を扱えるようにする。
 6. fallback policy を設計する。
