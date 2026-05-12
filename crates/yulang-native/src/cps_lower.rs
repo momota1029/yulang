@@ -1883,11 +1883,6 @@ impl<'a> FunctionLowerer<'a> {
         else {
             return Err(CpsLowerError::UnsupportedExpr { kind: "match" });
         };
-        if arms.iter().any(|arm| arm.guard.is_some()) {
-            return Err(CpsLowerError::UnsupportedExpr {
-                kind: "match guard",
-            });
-        }
         let scrutinee = self.lower_expr(scrutinee)?;
         let saved_locals = self.locals.clone();
         let saved_local_exprs = self.local_exprs.clone();
@@ -1896,8 +1891,11 @@ impl<'a> FunctionLowerer<'a> {
         let result = self.fresh_value();
         let fallback_cont = self.fresh_continuation();
         let mut arm_conts = Vec::with_capacity(arms.len());
+        let mut guard_conts = Vec::with_capacity(arms.len());
+        let mut next_conts = Vec::with_capacity(arms.len());
         for _ in arms {
             arm_conts.push(self.fresh_continuation());
+            guard_conts.push(None);
         }
 
         let mut current_test_cont = None;
@@ -1915,7 +1913,15 @@ impl<'a> FunctionLowerer<'a> {
                 current_test_cont = Some(next);
                 next
             };
-            if self.lower_pattern_test(scrutinee, &arm.pattern, arm_conts[index], next_cont)? {
+            next_conts.push(next_cont);
+            let success_cont = if arm.guard.is_some() {
+                let guard_cont = self.fresh_continuation();
+                guard_conts[index] = Some(guard_cont);
+                guard_cont
+            } else {
+                arm_conts[index]
+            };
+            if self.lower_pattern_test(scrutinee, &arm.pattern, success_cont, next_cont)? {
                 self.finish_current();
             }
         }
@@ -1931,6 +1937,44 @@ impl<'a> FunctionLowerer<'a> {
             args: vec![unit],
         });
         self.finish_current();
+
+        for (index, arm) in arms.iter().enumerate() {
+            let Some(guard_cont) = guard_conts[index] else {
+                continue;
+            };
+            let Some(guard) = &arm.guard else {
+                continue;
+            };
+            self.current = ContinuationBuilder::new(guard_cont, Vec::new());
+            self.locals = saved_locals.clone();
+            self.local_exprs = saved_local_exprs.clone();
+            self.resumptions = saved_resumptions.clone();
+            self.bind_pattern(&arm.pattern, scrutinee)?;
+            if !collect_expr_performed_effects(guard).is_empty() {
+                let (expected_effects, handler) = self.current_effect_context();
+                let guard_value_cont = self.fresh_continuation();
+                let guard_value = self.fresh_value();
+                self.lower_handled_body(guard, &expected_effects, handler, Some(guard_value_cont))?;
+                self.current = ContinuationBuilder::new(guard_value_cont, vec![guard_value]);
+                self.locals = saved_locals.clone();
+                self.local_exprs = saved_local_exprs.clone();
+                self.resumptions = saved_resumptions.clone();
+                self.terminate(CpsTerminator::Branch {
+                    cond: guard_value,
+                    then_cont: arm_conts[index],
+                    else_cont: next_conts[index],
+                });
+                self.finish_current();
+            } else {
+                let guard_value = self.lower_expr(guard)?;
+                self.terminate(CpsTerminator::Branch {
+                    cond: guard_value,
+                    then_cont: arm_conts[index],
+                    else_cont: next_conts[index],
+                });
+                self.finish_current();
+            }
+        }
 
         for (arm, arm_cont) in arms.iter().zip(arm_conts) {
             self.current = ContinuationBuilder::new(arm_cont, Vec::new());
@@ -2076,9 +2120,9 @@ impl<'a> FunctionLowerer<'a> {
         let body_made_external_call = self.handlers_with_external_calls.contains(&handler);
         let mut handler_entries = Vec::with_capacity(effect_arms.len());
         for arm in &effect_arms {
-            let directly_used = used_effects
-                .iter()
-                .any(|effect| effect_matches(&arm.effect, effect));
+            let directly_used = used_effects.iter().any(|effect| {
+                effect_matches(&arm.effect, effect) || effect_matches(effect, &arm.effect)
+            });
             // Materialize all handler arms when the body forwards effects through
             // an effectful direct call (e.g. recursive helper returning [eff] T):
             // the callee performs effects with handler = dynamic_handler_id() so
@@ -2599,20 +2643,17 @@ impl<'a> FunctionLowerer<'a> {
         else {
             return Err(CpsLowerError::UnsupportedExpr { kind: "match" });
         };
-        if arms.iter().any(|arm| arm.guard.is_some()) {
-            return Err(CpsLowerError::UnsupportedExpr {
-                kind: "match guard",
-            });
-        }
-
         let scrutinee = self.lower_expr(scrutinee)?;
         let saved_locals = self.locals.clone();
         let saved_local_exprs = self.local_exprs.clone();
         let saved_resumptions = self.resumptions.clone();
         let fallback_cont = self.fresh_continuation();
         let mut arm_conts = Vec::with_capacity(arms.len());
+        let mut guard_conts = Vec::with_capacity(arms.len());
+        let mut next_conts = Vec::with_capacity(arms.len());
         for _ in arms {
             arm_conts.push(self.fresh_continuation());
+            guard_conts.push(None);
         }
 
         let mut current_test_cont = None;
@@ -2630,7 +2671,15 @@ impl<'a> FunctionLowerer<'a> {
                 current_test_cont = Some(next);
                 next
             };
-            if self.lower_pattern_test(scrutinee, &arm.pattern, arm_conts[index], next_cont)? {
+            next_conts.push(next_cont);
+            let success_cont = if arm.guard.is_some() {
+                let guard_cont = self.fresh_continuation();
+                guard_conts[index] = Some(guard_cont);
+                guard_cont
+            } else {
+                arm_conts[index]
+            };
+            if self.lower_pattern_test(scrutinee, &arm.pattern, success_cont, next_cont)? {
                 self.finish_current();
             }
         }
@@ -2644,6 +2693,49 @@ impl<'a> FunctionLowerer<'a> {
         self.finish_handled_value(unit, value_cont);
 
         let mut joined_effect: Option<typed_ir::Path> = None;
+        for (index, arm) in arms.iter().enumerate() {
+            let Some(guard_cont) = guard_conts[index] else {
+                continue;
+            };
+            let Some(guard) = &arm.guard else {
+                continue;
+            };
+            self.current = ContinuationBuilder::new(guard_cont, Vec::new());
+            self.locals = saved_locals.clone();
+            self.local_exprs = saved_local_exprs.clone();
+            self.resumptions = saved_resumptions.clone();
+            self.bind_pattern(&arm.pattern, scrutinee)?;
+            if !collect_expr_performed_effects(guard).is_empty() {
+                let guard_value_cont = self.fresh_continuation();
+                let guard_value = self.fresh_value();
+                let guard_effect = self.lower_handled_body(
+                    guard,
+                    expected_effects,
+                    handler,
+                    Some(guard_value_cont),
+                )?;
+                join_handled_effect(&mut joined_effect, expected_effects, guard_effect)?;
+                self.current = ContinuationBuilder::new(guard_value_cont, vec![guard_value]);
+                self.locals = saved_locals.clone();
+                self.local_exprs = saved_local_exprs.clone();
+                self.resumptions = saved_resumptions.clone();
+                self.terminate(CpsTerminator::Branch {
+                    cond: guard_value,
+                    then_cont: arm_conts[index],
+                    else_cont: next_conts[index],
+                });
+                self.finish_current();
+            } else {
+                let guard_value = self.lower_expr(guard)?;
+                self.terminate(CpsTerminator::Branch {
+                    cond: guard_value,
+                    then_cont: arm_conts[index],
+                    else_cont: next_conts[index],
+                });
+                self.finish_current();
+            }
+        }
+
         for (arm, arm_cont) in arms.iter().zip(arm_conts) {
             self.current = ContinuationBuilder::new(arm_cont, Vec::new());
             self.locals = saved_locals.clone();
@@ -2652,15 +2744,7 @@ impl<'a> FunctionLowerer<'a> {
             self.bind_pattern(&arm.pattern, scrutinee)?;
             let effect =
                 self.lower_handled_body(&arm.body, expected_effects, handler, value_cont)?;
-            if let Some(previous) = &joined_effect {
-                if !handled_effects_compatible(expected_effects, previous, &effect) {
-                    return Err(CpsLowerError::UnsupportedExpr {
-                        kind: "handler effect mismatch",
-                    });
-                }
-            } else {
-                joined_effect = Some(effect);
-            }
+            join_handled_effect(&mut joined_effect, expected_effects, effect)?;
         }
 
         self.locals = saved_locals;
@@ -3700,6 +3784,23 @@ fn handled_effects_compatible(
     left == right || matches_any_effect(expected, left) || matches_any_effect(expected, right)
 }
 
+fn join_handled_effect(
+    joined: &mut Option<typed_ir::Path>,
+    expected: &[typed_ir::Path],
+    effect: typed_ir::Path,
+) -> CpsLowerResult<()> {
+    if let Some(previous) = joined {
+        if !handled_effects_compatible(expected, previous, &effect) {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "handler effect mismatch",
+            });
+        }
+    } else {
+        *joined = Some(effect);
+    }
+    Ok(())
+}
+
 fn default_expected_effect(expected: &[typed_ir::Path]) -> typed_ir::Path {
     expected.first().cloned().unwrap_or_default()
 }
@@ -4084,6 +4185,7 @@ fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | PrimitiveOp::FloatLe
         | PrimitiveOp::FloatGt
         | PrimitiveOp::FloatGe
+        | PrimitiveOp::StringEq
         | PrimitiveOp::StringConcat => 2,
         PrimitiveOp::ListSplice
         | PrimitiveOp::ListIndexRangeRaw

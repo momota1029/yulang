@@ -337,7 +337,8 @@ fn primitive_result_repr(
         | PrimitiveOp::FloatLt
         | PrimitiveOp::FloatLe
         | PrimitiveOp::FloatGt
-        | PrimitiveOp::FloatGe => NativeAbiRepr::Bool,
+        | PrimitiveOp::FloatGe
+        | PrimitiveOp::StringEq => NativeAbiRepr::Bool,
         PrimitiveOp::IntAdd | PrimitiveOp::IntSub | PrimitiveOp::IntMul | PrimitiveOp::IntDiv => {
             NativeAbiRepr::Int
         }

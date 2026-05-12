@@ -2,6 +2,7 @@ mod check;
 mod ctor;
 pub(crate) use ctor::{
     enum_variant_def_for_pattern, pattern_ctor_path, resolve_pattern_constructor_ref,
+    struct_constructor_def_for_pattern,
 };
 mod pattern;
 

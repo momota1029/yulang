@@ -114,6 +114,9 @@ fn parse_struct_named_field<I: EventInput, S: EventSink>(
         return Some((leading_info, None));
     };
     let info = name.trailing_trivia_info();
+    if name.kind == SyntaxKind::DocComment {
+        return Some((info, Some(name)));
+    }
     i.env.state.sink.start(SyntaxKind::StructField);
     if name.kind != SyntaxKind::Ident {
         emit_invalid(i.rb(), name);

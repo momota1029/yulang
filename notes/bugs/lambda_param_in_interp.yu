@@ -1,0 +1,24 @@
+-- bug: lambda の引数を文字列 interpolation `%{x}` に渡すと型推論が壊れる
+--
+-- 期待: f 5 → 6 が返り、`x is 5` が表示される
+-- 実際: error: argument type mismatch in call to `std::prelude::Display::show`:
+--             expected (), got int
+--
+-- 切り分け済みの動作:
+--
+--   \x -> { println "x is %{x}"; x + 1 }   -- 落ちる (param x を interp)
+--   \x -> { println "x is %{5}"; x + 1 }   -- 動く (リテラルを interp)
+--   \x -> { println "hello"; x + 1 }       -- 動く (interp なし)
+--
+--   { println "x is %{5}"; 6 }             -- 動く (lambda じゃない block ならOK)
+--
+-- 同じ body を top-level の block で書くと通るので、lambda 本体の中で
+-- 「param の型が show に流れる」経路だけが壊れている。
+-- Display::show の型が () に固められ、x: int を当てた時点で衝突しているように見える。
+
+my f = \x -> {
+    println "x is %{x}"
+    x + 1
+}
+
+f 5

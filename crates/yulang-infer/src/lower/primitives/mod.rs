@@ -17,10 +17,11 @@ use scalar::{
     install_bool_binary_predicate_primitive, install_bool_unary_primitive,
     install_float_binary_predicate_primitive, install_float_binary_primitive,
     install_int_binary_predicate_primitive, install_int_binary_primitive,
-    install_string_binary_primitive, install_string_index_primitive,
-    install_string_index_range_primitive, install_string_index_range_raw_primitive,
-    install_string_len_primitive, install_string_splice_primitive,
-    install_string_splice_raw_primitive, install_to_string_primitive,
+    install_string_binary_predicate_primitive, install_string_binary_primitive,
+    install_string_index_primitive, install_string_index_range_primitive,
+    install_string_index_range_raw_primitive, install_string_len_primitive,
+    install_string_splice_primitive, install_string_splice_raw_primitive,
+    install_to_string_primitive,
 };
 use support::{ensure_builtin_type, ensure_child_module};
 
@@ -175,6 +176,12 @@ pub fn install_builtin_primitives(state: &mut LowerState) {
         str_module,
         "concat",
         typed_ir::PrimitiveOp::StringConcat,
+    );
+    install_string_binary_predicate_primitive(
+        state,
+        str_module,
+        "eq",
+        typed_ir::PrimitiveOp::StringEq,
     );
     install_string_len_primitive(state, str_module, "len", typed_ir::PrimitiveOp::StringLen);
     install_string_index_primitive(

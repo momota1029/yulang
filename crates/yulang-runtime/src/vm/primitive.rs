@@ -37,6 +37,7 @@ pub(super) fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | typed_ir::PrimitiveOp::FloatLe
         | typed_ir::PrimitiveOp::FloatGt
         | typed_ir::PrimitiveOp::FloatGe
+        | typed_ir::PrimitiveOp::StringEq
         | typed_ir::PrimitiveOp::StringConcat => 2,
         typed_ir::PrimitiveOp::ListSplice
         | typed_ir::PrimitiveOp::ListIndexRangeRaw
@@ -105,6 +106,9 @@ pub fn apply_primitive(op: typed_ir::PrimitiveOp, args: &[VmValue]) -> Result<Vm
         )),
         typed_ir::PrimitiveOp::FloatGe => Ok(VmValue::Bool(
             float_value(&args[0])? >= float_value(&args[1])?,
+        )),
+        typed_ir::PrimitiveOp::StringEq => Ok(VmValue::Bool(
+            string_value(&args[0])?.to_flat_string() == string_value(&args[1])?.to_flat_string(),
         )),
         typed_ir::PrimitiveOp::ListEmpty => Ok(VmValue::List(ListTree::empty())),
         typed_ir::PrimitiveOp::ListSingleton => {

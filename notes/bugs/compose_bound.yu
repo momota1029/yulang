@@ -1,0 +1,10 @@
+-- bug: compose を bind に置くと推論落ちする
+--
+-- 期待: f 3 → 7 ( (3 * 2) + 1 = 7 )
+-- 実際: cannot infer all runtime types needed for `std::prelude::compose` ...
+--
+-- 直接 `compose f g 3` と書けば 7 が返るので、binding に置いた時の
+-- generalization が compose の高階な type variable を取りこぼしている。
+
+my f = compose (\x -> std::int::add x 1) (\x -> std::int::mul x 2)
+f 3

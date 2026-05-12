@@ -216,7 +216,7 @@ pub(super) fn resolve_role_method_call(
     let allow_boundary = true;
     let Some(concrete_inputs) = role_input_tvs
         .iter()
-        .map(|tv| super::compact_repr::concrete_tv_lower_repr(infer, *tv, allow_boundary))
+        .map(|tvs| super::compact_repr::concrete_tv_lower_join_repr(infer, tvs, allow_boundary))
         .collect::<Option<Vec<_>>>()
     else {
         return RoleMethodResolution::Unresolved;
@@ -589,8 +589,8 @@ fn role_method_input_tvs(
     arg_infos: &[RoleArgInfo],
     recv_tv: Option<TypeVar>,
     arg_tvs: &[TypeVar],
-) -> Option<Vec<TypeVar>> {
-    let mut mapped = HashMap::<String, TypeVar>::new();
+) -> Option<Vec<Vec<TypeVar>>> {
+    let mut mapped = HashMap::<String, Vec<TypeVar>>::new();
     let mut remaining_arg_tvs = arg_tvs;
     if info.has_receiver {
         let recv_tv = match recv_tv {
@@ -602,14 +602,14 @@ fn role_method_input_tvs(
             }
         };
         let recv_name = arg_infos.iter().find(|info| info.is_input)?.name.clone();
-        mapped.insert(recv_name, recv_tv);
+        mapped.entry(recv_name).or_default().push(recv_tv);
     }
     if let Some(sig) = info.sig.as_ref() {
         let mut sig_inputs = Vec::new();
         collect_sig_input_var_names(sig, &mut sig_inputs);
         for (arg_tv, sig_name) in remaining_arg_tvs.iter().zip(sig_inputs) {
             if let Some(name) = sig_name {
-                mapped.entry(name).or_insert(*arg_tv);
+                mapped.entry(name).or_default().push(*arg_tv);
             }
         }
     }
@@ -620,7 +620,7 @@ fn role_method_input_tvs(
         .collect::<Vec<_>>();
     input_names
         .into_iter()
-        .map(|name| mapped.get(&name).copied())
+        .map(|name| mapped.get(&name).cloned())
         .collect()
 }
 

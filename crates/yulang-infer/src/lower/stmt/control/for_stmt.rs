@@ -3,9 +3,12 @@ use yulang_parser::lex::SyntaxKind;
 use crate::ast::expr::TypedExpr;
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::{Name, Path};
+use crate::types::{Neg, Pos};
 
 pub(crate) fn lower_for_stmt(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
-    let iter = for_iter_expr(node)
+    let iter_node = for_iter_expr(node);
+    let iter = iter_node
+        .as_ref()
         .map(|expr| crate::lower::expr::lower_expr(state, &expr))
         .unwrap_or_else(|| crate::lower::expr::unit_expr(state));
 
@@ -19,7 +22,7 @@ pub(crate) fn lower_for_stmt(state: &mut LowerState, node: &SyntaxNode) -> Typed
         );
     }
 
-    let body = lower_for_body_lambda(state, node);
+    let body = lower_for_body_lambda(state, node, iter_node.as_ref(), &iter);
     let for_in = if let Some(spec) = &label_act {
         crate::lower::expr::resolve_path_expr(
             state,
@@ -35,7 +38,12 @@ pub(crate) fn lower_for_stmt(state: &mut LowerState, node: &SyntaxNode) -> Typed
     crate::lower::expr::make_app(state, applied_iter, body)
 }
 
-fn lower_for_body_lambda(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
+fn lower_for_body_lambda(
+    state: &mut LowerState,
+    node: &SyntaxNode,
+    iter_node: Option<&SyntaxNode>,
+    iter: &TypedExpr,
+) -> TypedExpr {
     let body_owner = state.current_owner.or_else(|| {
         let owner = state.fresh_def();
         let owner_tv = state.fresh_tv();
@@ -61,6 +69,12 @@ fn lower_for_body_lambda(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr
             state,
             super::super::HeaderArg::Unit,
         ));
+    }
+    if iter_node.is_some_and(iter_expr_is_list_literal)
+        && let Some(item_arg) = arg_pats.last()
+        && !item_arg.unit_arg
+    {
+        constrain_iter_list_item(state, iter, item_arg.tv);
     }
     if let Some(owner) = body_owner {
         for arg_pat in &arg_pats {
@@ -89,6 +103,29 @@ fn lower_for_body_lambda(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr
     state.ctx.pop_local();
 
     super::super::wrap_header_lambdas(state, raw_body, arg_pats)
+}
+
+fn iter_expr_is_list_literal(node: &SyntaxNode) -> bool {
+    node.kind() == SyntaxKind::Bracket
+        || node
+            .children()
+            .any(|child| child.kind() == SyntaxKind::Bracket)
+}
+
+fn constrain_iter_list_item(
+    state: &mut LowerState,
+    iter: &TypedExpr,
+    item_tv: crate::ids::TypeVar,
+) {
+    let list_path = state.builtin_source_type_path("list");
+    let list_args = vec![(Pos::Var(item_tv), Neg::Var(item_tv))];
+    state.infer.constrain(
+        state.pos_con(list_path.clone(), list_args.clone()),
+        Neg::Var(iter.tv),
+    );
+    state
+        .infer
+        .constrain(Pos::Var(iter.tv), state.neg_con(list_path, list_args));
 }
 
 fn for_label(node: &SyntaxNode) -> Option<SyntaxNode> {

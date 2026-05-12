@@ -21,8 +21,8 @@ pub(super) fn lower_number_token(
         label: Some(text.to_string()),
     });
     let eff = state.fresh_exact_pure_eff_tv();
-    let (kind, type_name) = if let Ok(n) = text.parse::<i64>() {
-        (ExprKind::Lit(Lit::Int(n)), "int")
+    let (kind, type_name) = if is_integer_number_token(text) {
+        (ExprKind::Lit(Lit::Int(text.to_string())), "int")
     } else if let Ok(f) = text.parse::<f64>() {
         (ExprKind::Lit(Lit::Float(f)), "float")
     } else {
@@ -30,6 +30,10 @@ pub(super) fn lower_number_token(
     };
     state.infer.constrain(prim_type(type_name), Neg::Var(tv));
     TypedExpr { tv, eff, kind }
+}
+
+fn is_integer_number_token(text: &str) -> bool {
+    text.chars().all(|ch| ch.is_ascii_digit())
 }
 
 pub(super) fn lower_string_lit(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {

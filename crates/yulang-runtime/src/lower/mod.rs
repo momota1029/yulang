@@ -27,12 +27,13 @@ use crate::types::{
     contains_non_runtime_type, core_type_has_vars, core_type_is_imprecise_runtime_slot,
     core_types_compatible, diagnostic_core_type, effect_compatible, effect_is_empty, effect_path,
     effect_paths, effect_paths_match, effect_row_from_items, hir_type_imprecision_count,
-    hir_type_is_hole, infer_type_substitutions, is_qualified_runtime_path, needs_runtime_coercion,
-    project_runtime_bounds, project_runtime_effect, project_runtime_hir_type_with_vars,
-    project_runtime_type_with_vars, runtime_core_type, runtime_type_contains_unknown,
-    runtime_type_is_imprecise_runtime_slot, should_thunk_effect, strict_core_type as core_type,
-    substitute_bounds, substitute_hir_type, substitute_type, thunk_effect, type_compatible,
-    wildcard_effect_type,
+    hir_type_is_hole, infer_type_substitutions, infer_type_substitutions_prefer_non_never,
+    infer_type_substitutions_prefer_non_never_skip_empty_effects, is_qualified_runtime_path,
+    needs_runtime_coercion, project_runtime_bounds, project_runtime_effect,
+    project_runtime_hir_type_with_vars, project_runtime_type_with_vars, runtime_core_type,
+    runtime_type_contains_unknown, runtime_type_is_imprecise_runtime_slot, should_thunk_effect,
+    strict_core_type as core_type, substitute_bounds, substitute_hir_type, substitute_type,
+    thunk_effect, type_compatible, wildcard_effect_type,
 };
 use crate::validate::validate_module;
 
@@ -287,14 +288,9 @@ fn lower_principal_module_with_graph_and_evidence_inner(
                 BindingInfo {
                     type_params: {
                         if is_constructor_variant_expr(&binding.body) {
-                            principal_core_constructor_type_params(&binding.scheme.body)
+                            principal_runtime_type_params(&binding.scheme.body, &ty, true)
                         } else {
-                            let core_type_params = principal_core_type_params(&binding.scheme.body);
-                            if core_type_params.is_empty() {
-                                principal_hir_type_params(&ty)
-                            } else {
-                                core_type_params
-                            }
+                            principal_runtime_type_params(&binding.scheme.body, &ty, false)
                         }
                     },
                     ty,

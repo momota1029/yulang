@@ -413,15 +413,38 @@ fn refine_runtime_binding_scheme_bodies(
         if state.runtime_export_schemes.contains_key(def) {
             continue;
         }
+        if binding
+            .name
+            .segments
+            .first()
+            .map(|segment| segment.0.as_str() == "std")
+            .unwrap_or(false)
+        {
+            continue;
+        }
         let Some(&body_tv) = state.def_tvs.get(def) else {
             continue;
         };
+        if let Some(closed) = erase_open_vars_from_runtime_type(&binding.scheme.body)
+            && core_type_has_no_vars(&closed)
+            && !core_value_type_has_unknown(&closed)
+        {
+            binding.scheme.body = closed;
+            binding.scheme.requirements.clear();
+            continue;
+        }
         let bounds = export_coalesced_type_bounds_for_tv(&state.infer, body_tv);
         let (Some(lower), Some(upper)) = (bounds.lower.as_deref(), bounds.upper.as_deref()) else {
             continue;
         };
         if lower == upper && core_type_has_no_vars(lower) {
             binding.scheme.body = lower.clone();
+            binding.scheme.requirements.clear();
+            continue;
+        }
+        if let Some(closed) = closed_runtime_type_from_bounds(lower, upper) {
+            binding.scheme.body = closed;
+            binding.scheme.requirements.clear();
         }
     }
 }
@@ -430,6 +453,213 @@ fn core_type_has_no_vars(ty: &typed_ir::Type) -> bool {
     let mut vars = BTreeSet::new();
     collect_core_type_vars(ty, &mut vars);
     vars.is_empty()
+}
+
+fn core_value_type_has_unknown(ty: &typed_ir::Type) -> bool {
+    match ty {
+        typed_ir::Type::Unknown => true,
+        typed_ir::Type::Never | typed_ir::Type::Any | typed_ir::Type::Var(_) => false,
+        typed_ir::Type::Named { args, .. } => args.iter().any(core_type_arg_has_unknown),
+        typed_ir::Type::Fun { param, ret, .. } => {
+            core_value_type_has_unknown(param) || core_value_type_has_unknown(ret)
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => items.iter().any(core_value_type_has_unknown),
+        typed_ir::Type::Record(record) => {
+            record
+                .fields
+                .iter()
+                .any(|field| core_value_type_has_unknown(&field.value))
+                || record.spread.as_ref().is_some_and(|spread| match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        core_value_type_has_unknown(ty)
+                    }
+                })
+        }
+        typed_ir::Type::Variant(variant) => {
+            variant
+                .cases
+                .iter()
+                .any(|case| case.payloads.iter().any(core_value_type_has_unknown))
+                || variant
+                    .tail
+                    .as_ref()
+                    .is_some_and(|tail| core_value_type_has_unknown(tail))
+        }
+        typed_ir::Type::Row { items, tail } => {
+            items.iter().any(core_value_type_has_unknown) || core_value_type_has_unknown(tail)
+        }
+        typed_ir::Type::Recursive { body, .. } => core_value_type_has_unknown(body),
+    }
+}
+
+fn core_type_arg_has_unknown(arg: &typed_ir::TypeArg) -> bool {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => core_value_type_has_unknown(ty),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            bounds
+                .lower
+                .as_ref()
+                .is_some_and(|ty| core_value_type_has_unknown(ty))
+                || bounds
+                    .upper
+                    .as_ref()
+                    .is_some_and(|ty| core_value_type_has_unknown(ty))
+        }
+    }
+}
+
+fn closed_runtime_type_from_bounds(
+    lower: &typed_ir::Type,
+    upper: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    let lower = erase_open_vars_from_runtime_type(lower)?;
+    let upper = erase_open_vars_from_runtime_type(upper)?;
+    (lower == upper && core_type_has_no_vars(&lower)).then_some(lower)
+}
+
+fn erase_open_vars_from_runtime_type(ty: &typed_ir::Type) -> Option<typed_ir::Type> {
+    match ty {
+        typed_ir::Type::Var(_) => None,
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Named { .. } => Some(erase_open_vars_from_type_arg_type(ty)),
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => Some(typed_ir::Type::Fun {
+            param: Box::new(
+                erase_open_vars_from_runtime_type(param).unwrap_or(typed_ir::Type::Unknown),
+            ),
+            param_effect: Box::new(
+                erase_open_vars_from_runtime_type(param_effect).unwrap_or(typed_ir::Type::Unknown),
+            ),
+            ret_effect: Box::new(
+                erase_open_vars_from_runtime_type(ret_effect).unwrap_or(typed_ir::Type::Unknown),
+            ),
+            ret: Box::new(
+                erase_open_vars_from_runtime_type(ret).unwrap_or(typed_ir::Type::Unknown),
+            ),
+        }),
+        typed_ir::Type::Tuple(items) => Some(typed_ir::Type::Tuple(
+            items
+                .iter()
+                .map(|item| {
+                    erase_open_vars_from_runtime_type(item).unwrap_or(typed_ir::Type::Unknown)
+                })
+                .collect(),
+        )),
+        typed_ir::Type::Record(record) => Some(typed_ir::Type::Record(typed_ir::RecordType {
+            fields: record
+                .fields
+                .iter()
+                .map(|field| typed_ir::RecordField {
+                    name: field.name.clone(),
+                    value: erase_open_vars_from_runtime_type(&field.value)
+                        .unwrap_or(typed_ir::Type::Unknown),
+                    optional: field.optional,
+                })
+                .collect(),
+            spread: None,
+        })),
+        typed_ir::Type::Variant(variant) => Some(typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: variant
+                .cases
+                .iter()
+                .map(|case| typed_ir::VariantCase {
+                    name: case.name.clone(),
+                    payloads: case
+                        .payloads
+                        .iter()
+                        .map(|payload| {
+                            erase_open_vars_from_runtime_type(payload)
+                                .unwrap_or(typed_ir::Type::Unknown)
+                        })
+                        .collect(),
+                })
+                .collect(),
+            tail: None,
+        })),
+        typed_ir::Type::Row { items, tail } => Some(typed_ir::Type::Row {
+            items: items
+                .iter()
+                .filter_map(erase_open_vars_from_runtime_type)
+                .collect(),
+            tail: Box::new(
+                erase_open_vars_from_runtime_type(tail).unwrap_or(typed_ir::Type::Never),
+            ),
+        }),
+        typed_ir::Type::Union(items) => erase_open_vars_from_runtime_type_list(items, true),
+        typed_ir::Type::Inter(items) => erase_open_vars_from_runtime_type_list(items, false),
+        typed_ir::Type::Recursive { var, body } => {
+            erase_open_vars_from_runtime_type(body).map(|body| typed_ir::Type::Recursive {
+                var: var.clone(),
+                body: Box::new(body),
+            })
+        }
+    }
+}
+
+fn erase_open_vars_from_type_arg_type(ty: &typed_ir::Type) -> typed_ir::Type {
+    match ty {
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(|arg| match arg {
+                    typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(
+                        erase_open_vars_from_runtime_type(ty).unwrap_or(typed_ir::Type::Unknown),
+                    ),
+                    typed_ir::TypeArg::Bounds(bounds) => {
+                        let lower = bounds
+                            .lower
+                            .as_deref()
+                            .and_then(erase_open_vars_from_runtime_type);
+                        let upper = bounds
+                            .upper
+                            .as_deref()
+                            .and_then(erase_open_vars_from_runtime_type);
+                        match (lower, upper) {
+                            (Some(lower), Some(upper)) if lower == upper => {
+                                typed_ir::TypeArg::Type(lower)
+                            }
+                            (Some(ty), None) | (None, Some(ty)) => typed_ir::TypeArg::Type(ty),
+                            (Some(lower), Some(upper)) => {
+                                typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+                                    lower: Some(Box::new(lower)),
+                                    upper: Some(Box::new(upper)),
+                                })
+                            }
+                            (None, None) => typed_ir::TypeArg::Type(typed_ir::Type::Unknown),
+                        }
+                    }
+                })
+                .collect(),
+        },
+        other => other.clone(),
+    }
+}
+
+fn erase_open_vars_from_runtime_type_list(
+    items: &[typed_ir::Type],
+    union: bool,
+) -> Option<typed_ir::Type> {
+    let mut closed = items
+        .iter()
+        .filter_map(erase_open_vars_from_runtime_type)
+        .collect::<Vec<_>>();
+    closed.sort_by_key(|ty| format!("{ty:?}"));
+    closed.dedup();
+    match closed.len() {
+        0 => None,
+        1 => closed.pop(),
+        _ if union => Some(typed_ir::Type::Union(closed)),
+        _ => Some(typed_ir::Type::Inter(closed)),
+    }
 }
 
 pub fn export_principal_module(state: &mut LowerState) -> typed_ir::PrincipalModule {

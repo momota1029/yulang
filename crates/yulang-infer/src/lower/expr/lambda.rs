@@ -118,12 +118,7 @@ fn lower_single_arg_lambda(
         state.register_def_eff_tv(def, read_eff_tv);
     }
     if let Some(pat) = &pat_node {
-        if let Some(name_tok) = pat
-            .children_with_tokens()
-            .filter_map(|it| it.into_token())
-            .find(|t| t.kind() == SyntaxKind::Ident)
-        {
-            let name = Name(name_tok.text().to_string());
+        if let Some(name) = lambda_direct_binding_name(pat) {
             state.register_def_name(def, name.clone());
             state.ctx.bind_local(name, def);
         } else {
@@ -191,5 +186,53 @@ fn lower_single_arg_lambda(
         tv,
         eff,
         kind: ExprKind::Lam(def, Box::new(body)),
+    }
+}
+
+fn lambda_direct_binding_name(node: &SyntaxNode) -> Option<Name> {
+    match node.kind() {
+        SyntaxKind::Pattern => {
+            if node.children().any(|child| {
+                matches!(
+                    child.kind(),
+                    SyntaxKind::ApplyML
+                        | SyntaxKind::ApplyC
+                        | SyntaxKind::PatRecord
+                        | SyntaxKind::PatList
+                        | SyntaxKind::PatOr
+                        | SyntaxKind::PatAs
+                        | SyntaxKind::PathSep
+                )
+            }) {
+                return None;
+            }
+            if let Some(group) = node
+                .children()
+                .find(|child| child.kind() == SyntaxKind::PatParenGroup)
+            {
+                return lambda_direct_binding_name(&group);
+            }
+            node.children_with_tokens()
+                .filter_map(|it| it.into_token())
+                .find(|tok| tok.kind() == SyntaxKind::Ident && tok.text() != "_")
+                .map(|tok| Name(tok.text().to_string()))
+        }
+        SyntaxKind::PatParenGroup => {
+            let mut pats = node.children().filter(|child| {
+                matches!(
+                    child.kind(),
+                    SyntaxKind::Pattern
+                        | SyntaxKind::PatOr
+                        | SyntaxKind::PatAs
+                        | SyntaxKind::PatParenGroup
+                )
+            });
+            let pat = pats.next()?;
+            if pats.next().is_some() {
+                return None;
+            }
+            lambda_direct_binding_name(&pat)
+        }
+        _ => None,
     }
 }

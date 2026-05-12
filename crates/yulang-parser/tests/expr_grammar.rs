@@ -1462,6 +1462,22 @@ fn expr_case_parenthesized_record_scrutinee() {
 }
 
 #[test]
+fn expr_case_struct_constructor_scrutinee() {
+    let got =
+        parse_expression("case pair { a: 1, b: 2 }:\n  pair { a: x, b: y } -> x + y\n  _ -> 0");
+    let case_blocks = got
+        .iter()
+        .filter(|line| line.contains("(CaseBlock"))
+        .count();
+    assert_eq!(case_blocks, 1, "{got:?}");
+    assert!(got.iter().any(|line| line.contains("(ApplyML")), "{got:?}");
+    assert!(
+        !got.iter().any(|line| line.contains("(InvalidToken")),
+        "{got:?}"
+    );
+}
+
+#[test]
 fn expr_case_qualified_variant_and_call_body() {
     let got = parse_expression(
         "case std::list::view_raw xs:\n  std::list::list_view::empty -> z\n  std::list::list_view::leaf x -> f(z, x)\n  std::list::list_view::node(left, right) -> z",

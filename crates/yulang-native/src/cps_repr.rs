@@ -1015,7 +1015,8 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | PrimitiveOp::FloatLt
         | PrimitiveOp::FloatLe
         | PrimitiveOp::FloatGt
-        | PrimitiveOp::FloatGe => CpsReprAbiLane::ScalarI64,
+        | PrimitiveOp::FloatGe
+        | PrimitiveOp::StringEq => CpsReprAbiLane::ScalarI64,
         PrimitiveOp::FloatAdd
         | PrimitiveOp::FloatSub
         | PrimitiveOp::FloatMul

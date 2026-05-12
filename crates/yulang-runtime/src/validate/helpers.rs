@@ -386,6 +386,26 @@ pub(super) fn bool_type() -> typed_ir::Type {
     }
 }
 
+pub(super) fn literal_core_type(lit: &typed_ir::Lit) -> typed_ir::Type {
+    let path = match lit {
+        typed_ir::Lit::Int(_) => typed_ir::Path::from_name(typed_ir::Name("int".to_string())),
+        typed_ir::Lit::Float(_) => typed_ir::Path::from_name(typed_ir::Name("float".to_string())),
+        typed_ir::Lit::String(_) => typed_ir::Path {
+            segments: vec![
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("str".to_string()),
+                typed_ir::Name("str".to_string()),
+            ],
+        },
+        typed_ir::Lit::Bool(_) => typed_ir::Path::from_name(typed_ir::Name("bool".to_string())),
+        typed_ir::Lit::Unit => typed_ir::Path::from_name(typed_ir::Name("unit".to_string())),
+    };
+    typed_ir::Type::Named {
+        path,
+        args: Vec::new(),
+    }
+}
+
 pub(super) fn effect_id_type() -> typed_ir::Type {
     typed_ir::Type::Named {
         path: typed_ir::Path::from_name(typed_ir::Name("__effect_id".to_string())),
@@ -396,7 +416,7 @@ pub(super) fn effect_id_type() -> typed_ir::Type {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::{Expr, ExprKind, Module, Root, Type};
+    use crate::ir::{Expr, ExprKind, HandleArm, HandleEffect, JoinEvidence, Module, Root, Type};
 
     #[test]
     fn thunk_type_allows_effect_row() {
@@ -540,6 +560,52 @@ mod tests {
         };
 
         validate_module(&module).expect("valid record default pattern");
+    }
+
+    #[test]
+    fn handle_body_must_be_a_thunk() {
+        let int = named_type("int");
+        let body = Expr::typed(
+            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
+            Type::core(int.clone()),
+        );
+        let module = Module {
+            path: typed_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![Expr::typed(
+                ExprKind::Handle {
+                    body: Box::new(body),
+                    arms: vec![HandleArm {
+                        effect: typed_ir::Path::default(),
+                        payload: crate::ir::Pattern::Wildcard {
+                            ty: Type::core(int.clone()),
+                        },
+                        resume: None,
+                        guard: None,
+                        body: Expr::typed(
+                            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
+                            Type::core(int.clone()),
+                        ),
+                    }],
+                    evidence: JoinEvidence {
+                        result: int.clone(),
+                    },
+                    handler: HandleEffect {
+                        consumes: Vec::new(),
+                        residual_before: None,
+                        residual_after: None,
+                    },
+                },
+                Type::core(int.clone()),
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        assert_eq!(
+            validate_module(&module),
+            Err(RuntimeError::ExpectedThunk { ty: int })
+        );
     }
 
     fn named_type(name: &str) -> typed_ir::Type {

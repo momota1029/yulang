@@ -115,13 +115,7 @@ fn collect_lambda_capture_effs(
 ) {
     match &expr.kind {
         ExprKind::Lit(_) | ExprKind::PrimitiveOp(_) | ExprKind::Ref(_) => {}
-        ExprKind::Var(def) => {
-            if !local_defs.contains(def) {
-                if let Some(&eff_tv) = state.def_eff_tvs.get(def) {
-                    out.insert(eff_tv);
-                }
-            }
-        }
+        ExprKind::Var(_) => {}
         ExprKind::App { callee, arg, .. } => {
             collect_lambda_capture_effs(state, callee, local_defs, out);
             collect_lambda_capture_effs(state, arg, local_defs, out);

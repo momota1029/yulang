@@ -136,6 +136,7 @@ pub(super) fn lower_core_pattern(
             })
         }
         typed_ir::Pattern::Record { fields, spread } => {
+            let named_record = named_struct_record_type(lowerer, ty);
             let fields = fields
                 .into_iter()
                 .map(|field| {
@@ -146,6 +147,13 @@ pub(super) fn lower_core_pattern(
                             .find(|candidate| candidate.name == field.name)
                             .map(|candidate| candidate.value.clone()),
                         typed_ir::Type::Any => Some(typed_ir::Type::Any),
+                        typed_ir::Type::Named { .. } => named_record.as_ref().and_then(|record| {
+                            record
+                                .fields
+                                .iter()
+                                .find(|candidate| candidate.name == field.name)
+                                .map(|candidate| candidate.value.clone())
+                        }),
                         _ => {
                             return Err(RuntimeError::UnsupportedPatternShape {
                                 pattern: "record",
@@ -232,6 +240,194 @@ pub(super) fn lower_core_pattern(
                 ty: ty.clone().into(),
             })
         }
+    }
+}
+
+fn named_struct_record_type(
+    lowerer: &Lowerer<'_>,
+    ty: &typed_ir::Type,
+) -> Option<typed_ir::RecordType> {
+    let typed_ir::Type::Named { path, args } = ty else {
+        return None;
+    };
+    let (param, ret) = lowerer
+        .env
+        .get(path)
+        .and_then(runtime_constructor_parts)
+        .or_else(|| {
+            lowerer.env.values().find_map(|candidate| {
+                runtime_constructor_parts(candidate)
+                    .filter(|(_, ret)| named_type_path(ret) == Some(path))
+            })
+        })?;
+    let RuntimeType::Core(typed_ir::Type::Named {
+        path: ret_path,
+        args: ret_args,
+    }) = &ret
+    else {
+        return None;
+    };
+    if ret_path != path || ret_args.len() != args.len() {
+        return None;
+    }
+    let RuntimeType::Core(typed_ir::Type::Record(record)) = &param else {
+        return None;
+    };
+    let substitutions = ret_args
+        .iter()
+        .zip(args.iter())
+        .filter_map(|(from, to)| match (from, to) {
+            (typed_ir::TypeArg::Type(typed_ir::Type::Var(var)), typed_ir::TypeArg::Type(ty)) => {
+                Some((var.clone(), ty.clone()))
+            }
+            _ => None,
+        })
+        .collect::<HashMap<_, _>>();
+    Some(substitute_record_type_vars(record, &substitutions))
+}
+
+fn runtime_constructor_parts(ty: &RuntimeType) -> Option<(RuntimeType, RuntimeType)> {
+    match ty {
+        RuntimeType::Fun { param, ret } => Some((param.as_ref().clone(), ret.as_ref().clone())),
+        RuntimeType::Core(typed_ir::Type::Fun { param, ret, .. }) => Some((
+            RuntimeType::core((**param).clone()),
+            RuntimeType::core((**ret).clone()),
+        )),
+        _ => None,
+    }
+}
+
+fn named_type_path(ty: &RuntimeType) -> Option<&typed_ir::Path> {
+    let RuntimeType::Core(typed_ir::Type::Named { path, args: _ }) = ty else {
+        return None;
+    };
+    Some(path)
+}
+
+fn substitute_record_type_vars(
+    record: &typed_ir::RecordType,
+    substitutions: &HashMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::RecordType {
+    typed_ir::RecordType {
+        fields: record
+            .fields
+            .iter()
+            .map(|field| typed_ir::RecordField {
+                name: field.name.clone(),
+                value: substitute_pattern_type_vars(&field.value, substitutions),
+                optional: field.optional,
+            })
+            .collect(),
+        spread: record.spread.as_ref().map(|spread| match spread {
+            typed_ir::RecordSpread::Head(ty) => typed_ir::RecordSpread::Head(Box::new(
+                substitute_pattern_type_vars(ty, substitutions),
+            )),
+            typed_ir::RecordSpread::Tail(ty) => typed_ir::RecordSpread::Tail(Box::new(
+                substitute_pattern_type_vars(ty, substitutions),
+            )),
+        }),
+    }
+}
+
+fn substitute_pattern_type_vars(
+    ty: &typed_ir::Type,
+    substitutions: &HashMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::Type {
+    match ty {
+        typed_ir::Type::Var(var) => substitutions
+            .get(var)
+            .cloned()
+            .unwrap_or_else(|| ty.clone()),
+        typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
+            path: path.clone(),
+            args: args
+                .iter()
+                .map(|arg| substitute_pattern_type_arg_vars(arg, substitutions))
+                .collect(),
+        },
+        typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        } => typed_ir::Type::Fun {
+            param: Box::new(substitute_pattern_type_vars(param, substitutions)),
+            param_effect: Box::new(substitute_pattern_type_vars(param_effect, substitutions)),
+            ret_effect: Box::new(substitute_pattern_type_vars(ret_effect, substitutions)),
+            ret: Box::new(substitute_pattern_type_vars(ret, substitutions)),
+        },
+        typed_ir::Type::Tuple(items) => typed_ir::Type::Tuple(
+            items
+                .iter()
+                .map(|item| substitute_pattern_type_vars(item, substitutions))
+                .collect(),
+        ),
+        typed_ir::Type::Record(record) => {
+            typed_ir::Type::Record(substitute_record_type_vars(record, substitutions))
+        }
+        typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
+            cases: variant
+                .cases
+                .iter()
+                .map(|case| typed_ir::VariantCase {
+                    name: case.name.clone(),
+                    payloads: case
+                        .payloads
+                        .iter()
+                        .map(|payload| substitute_pattern_type_vars(payload, substitutions))
+                        .collect(),
+                })
+                .collect(),
+            tail: variant
+                .tail
+                .as_ref()
+                .map(|tail| Box::new(substitute_pattern_type_vars(tail, substitutions))),
+        }),
+        typed_ir::Type::Union(items) => typed_ir::Type::Union(
+            items
+                .iter()
+                .map(|item| substitute_pattern_type_vars(item, substitutions))
+                .collect(),
+        ),
+        typed_ir::Type::Inter(items) => typed_ir::Type::Inter(
+            items
+                .iter()
+                .map(|item| substitute_pattern_type_vars(item, substitutions))
+                .collect(),
+        ),
+        typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
+            items: items
+                .iter()
+                .map(|item| substitute_pattern_type_vars(item, substitutions))
+                .collect(),
+            tail: Box::new(substitute_pattern_type_vars(tail, substitutions)),
+        },
+        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(substitute_pattern_type_vars(body, substitutions)),
+        },
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => ty.clone(),
+    }
+}
+
+fn substitute_pattern_type_arg_vars(
+    arg: &typed_ir::TypeArg,
+    substitutions: &HashMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> typed_ir::TypeArg {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => {
+            typed_ir::TypeArg::Type(substitute_pattern_type_vars(ty, substitutions))
+        }
+        typed_ir::TypeArg::Bounds(bounds) => typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+            lower: bounds
+                .lower
+                .as_ref()
+                .map(|ty| Box::new(substitute_pattern_type_vars(ty, substitutions))),
+            upper: bounds
+                .upper
+                .as_ref()
+                .map(|ty| Box::new(substitute_pattern_type_vars(ty, substitutions))),
+        }),
     }
 }
 

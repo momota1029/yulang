@@ -1148,6 +1148,90 @@ fn stmt_enum_decl_inline_variants() {
 }
 
 #[test]
+fn stmt_enum_decl_inline_variant_with_multiple_payload_types() {
+    let got = parse_stmt_once("enum shape = circle int | rect int int");
+    let expected = vec![
+        "(EnumDecl",
+        "  Enum \"enum\"",
+        "  Ident \"shape\"",
+        "  (TypeVars",
+        "  )",
+        "  Equal \"=\"",
+        "  (EnumVariant",
+        "    Ident \"circle\"",
+        "    (TypeExpr",
+        "      Ident \"int\"",
+        "    )",
+        "  )",
+        "  Pipe \"|\"",
+        "  (EnumVariant",
+        "    Ident \"rect\"",
+        "    (TypeExpr",
+        "      Ident \"int\"",
+        "    )",
+        "    (TypeExpr",
+        "      Ident \"int\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_enum_decl_call_payload_keeps_type_application() {
+    let got = parse_stmt_once("enum box = boxed list(int)");
+    let expected = vec![
+        "(EnumDecl",
+        "  Enum \"enum\"",
+        "  Ident \"box\"",
+        "  (TypeVars",
+        "  )",
+        "  Equal \"=\"",
+        "  (EnumVariant",
+        "    Ident \"boxed\"",
+        "    (TypeExpr",
+        "      Ident \"list\"",
+        "      (TypeCall",
+        "        ParenL \"(\"",
+        "        (TypeExpr",
+        "          Ident \"int\"",
+        "        )",
+        "        ParenR \")\"",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn stmt_enum_decl_equal_indent_variants() {
+    let got = parse_stmt_once("enum tree =\n    leaf\n    | node int");
+    let expected = vec![
+        "(EnumDecl",
+        "  Enum \"enum\"",
+        "  Ident \"tree\"",
+        "  (TypeVars",
+        "  )",
+        "  Equal \"=\"",
+        "  (EnumVariant",
+        "    Ident \"leaf\"",
+        "  )",
+        "  Pipe \"|\"",
+        "  (EnumVariant",
+        "    Ident \"node\"",
+        "    (TypeExpr",
+        "      Ident \"int\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn stmt_enum_decl_inline_with_block() {
     let got = parse_stmt_once("enum E = A with:\n  our x.foo = true");
     let expected = vec![
@@ -2055,4 +2139,32 @@ fn stmt_binding_case_body_with_guarded_arms_keeps_case_arms() {
     let got = parse_stmt_once(source);
     assert!(got.iter().any(|line| line.contains("(CaseArm")));
     assert!(got.iter().any(|line| line.contains("(CaseGuard")));
+}
+
+#[test]
+fn stmt_binding_case_body_with_where_guard_keeps_case_arms() {
+    let source = "my f(x: bool) = case 1:\n  1 where x -> 1\n  _ -> 0\n";
+    let got = parse_stmt_once(source);
+    assert!(got.iter().any(|line| line.contains("(CaseArm")));
+    assert!(got.iter().any(|line| line.contains("(CaseGuard")));
+    assert!(
+        !got.iter().any(|line| line.contains("(InvalidToken")),
+        "where guard should not emit invalid tokens: {got:?}"
+    );
+}
+
+#[test]
+fn stmt_binding_case_body_with_or_pattern_builds_green_tree() {
+    let source = "my f = case 2:\n  1 | 2 | 3 -> \"hit\"\n  _ -> \"miss\"\n";
+    let module = parse_module_green(source);
+    let arms = module
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::CaseArm)
+        .count();
+    let or_patterns = module
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::PatOr)
+        .count();
+    assert_eq!(arms, 2);
+    assert_eq!(or_patterns, 2);
 }

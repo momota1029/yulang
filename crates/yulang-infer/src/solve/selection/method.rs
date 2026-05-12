@@ -154,6 +154,9 @@ impl Infer {
         if !selection.structural_record_allowed {
             return false;
         }
+        if self.selection_receiver_has_known_non_record_lower(recv_tv, &mut HashSet::new()) {
+            return false;
+        }
 
         self.constrain_with_cause(
             self.alloc_pos(Pos::Var(recv_tv)),
@@ -168,6 +171,54 @@ impl Infer {
             self.decrement_pending_selection(owner);
         }
         true
+    }
+
+    fn selection_receiver_has_known_non_record_lower(
+        &self,
+        recv_tv: TypeVar,
+        seen: &mut HashSet<TypeVar>,
+    ) -> bool {
+        if !seen.insert(recv_tv) {
+            return false;
+        }
+
+        for lower in self.lower_refs_of(recv_tv) {
+            if self.pos_is_known_non_record_lower(lower, seen) {
+                return true;
+            }
+        }
+
+        for instance in self.compact_lower_instances_of(recv_tv) {
+            let lower = self.materialize_compact_lower_instance(&instance);
+            if self.pos_is_known_non_record_lower(lower, seen) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn pos_is_known_non_record_lower(&self, pos: PosId, seen: &mut HashSet<TypeVar>) -> bool {
+        match self.arena.get_pos(pos) {
+            Pos::Record(_)
+            | Pos::RecordTailSpread { .. }
+            | Pos::RecordHeadSpread { .. }
+            | Pos::Bot => false,
+            Pos::Var(inner) | Pos::Raw(inner) => {
+                self.selection_receiver_has_known_non_record_lower(inner, seen)
+            }
+            Pos::Union(left, right) => {
+                self.pos_is_known_non_record_lower(left, &mut seen.clone())
+                    && self.pos_is_known_non_record_lower(right, seen)
+            }
+            Pos::Forall(_, inner) => self.pos_is_known_non_record_lower(inner, seen),
+            Pos::Atom(_)
+            | Pos::Con(_, _)
+            | Pos::Fun { .. }
+            | Pos::PolyVariant(_)
+            | Pos::Tuple(_)
+            | Pos::Row(_, _) => true,
+        }
     }
 
     pub(super) fn resolve_selection_def_inner(

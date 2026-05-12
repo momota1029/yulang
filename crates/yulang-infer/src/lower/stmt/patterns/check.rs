@@ -367,6 +367,9 @@ pub(crate) fn bind_pattern_locals(state: &mut LowerState, node: &SyntaxNode) {
                 .children()
                 .any(|child| child.kind() == SyntaxKind::PathSep);
             if !has_path_sep && !pattern_has_poly_variant_colon(node) {
+                if pattern_resolves_to_constructor(state, node) {
+                    return;
+                }
                 if let Some(name) = super::pattern_binding_name(node) {
                     let def = state.fresh_def();
                     let tv = state.fresh_tv();
@@ -387,4 +390,10 @@ fn pattern_has_poly_variant_colon(node: &SyntaxNode) -> bool {
     node.children_with_tokens()
         .filter_map(|item| item.into_token())
         .any(|token| matches!(token.kind(), SyntaxKind::Colon | SyntaxKind::Symbol))
+}
+
+fn pattern_resolves_to_constructor(state: &LowerState, node: &SyntaxNode) -> bool {
+    super::pattern_ctor_path(node)
+        .and_then(|path| super::enum_variant_def_for_pattern(state, &path))
+        .is_some()
 }

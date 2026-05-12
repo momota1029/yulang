@@ -1,0 +1,29 @@
+-- bug: 文字列リテラルでの case パターンが、scrutinee を見ずに最初の arm に倒れる
+--
+-- 期待: scrutinee と一致する arm が選ばれ、合わなければ `_` arm に落ちる
+-- 実際: scrutinee の値に関係なく、最初の文字列 arm が常にマッチする
+--
+--   case "x":
+--       "a" -> 1
+--       "b" -> 2
+--       _ -> 99
+--   → [0] 1     (本来は 99 になるはず)
+--
+--   my lookup name =
+--       case name:
+--           "alice" -> 30
+--           "bob" -> 25
+--           _ -> 99
+--   (lookup "alice", lookup "bob", lookup "charlie") → (30, 30, 30)
+--
+-- 整数リテラル (`1 -> ..., 2 -> ..., _ -> ...`) では正しく動作するので、
+-- string literal の equality 比較がパターン側で抜け落ちている疑い。
+-- silent wrong 系で「動いてるように見えるのに違う結果」になるため危険度高め。
+
+my f s =
+    case s:
+        "a" -> 1
+        "b" -> 2
+        _ -> 99
+
+(f "a", f "b", f "x")

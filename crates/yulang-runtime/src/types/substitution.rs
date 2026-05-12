@@ -6,7 +6,52 @@ pub(crate) fn infer_type_substitutions(
     params: &BTreeSet<typed_ir::TypeVar>,
     substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) {
-    infer_type_substitutions_inner(template, actual, params, substitutions, 128, false, false);
+    infer_type_substitutions_inner(
+        template,
+        actual,
+        params,
+        substitutions,
+        128,
+        false,
+        false,
+        false,
+    );
+}
+
+pub(crate) fn infer_type_substitutions_prefer_non_never(
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) {
+    infer_type_substitutions_inner(
+        template,
+        actual,
+        params,
+        substitutions,
+        128,
+        false,
+        true,
+        false,
+    );
+}
+
+pub(crate) fn infer_type_substitutions_prefer_non_never_skip_empty_effects(
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) {
+    infer_type_substitutions_inner(
+        template,
+        actual,
+        params,
+        substitutions,
+        128,
+        false,
+        true,
+        true,
+    );
 }
 
 pub(crate) fn substitute_type(
@@ -2339,6 +2384,7 @@ pub(super) fn infer_type_substitutions_inner(
     depth: usize,
     include_function_effects: bool,
     prefer_non_never: bool,
+    skip_empty_effect_residual: bool,
 ) {
     if depth == 0 {
         return;
@@ -2363,6 +2409,7 @@ pub(super) fn infer_type_substitutions_inner(
                     depth - 1,
                     include_function_effects,
                     prefer_non_never,
+                    skip_empty_effect_residual,
                 );
             }
         }
@@ -2388,6 +2435,7 @@ pub(super) fn infer_type_substitutions_inner(
                 depth - 1,
                 include_function_effects,
                 prefer_non_never,
+                skip_empty_effect_residual,
             );
             if include_function_effects {
                 infer_type_substitutions_inner(
@@ -2398,6 +2446,7 @@ pub(super) fn infer_type_substitutions_inner(
                     depth - 1,
                     include_function_effects,
                     prefer_non_never,
+                    skip_empty_effect_residual,
                 );
                 infer_type_substitutions_inner(
                     ret_effect,
@@ -2407,6 +2456,7 @@ pub(super) fn infer_type_substitutions_inner(
                     depth - 1,
                     include_function_effects,
                     prefer_non_never,
+                    skip_empty_effect_residual,
                 );
             }
             infer_type_substitutions_inner(
@@ -2417,6 +2467,7 @@ pub(super) fn infer_type_substitutions_inner(
                 depth - 1,
                 include_function_effects,
                 prefer_non_never,
+                skip_empty_effect_residual,
             );
         }
         (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
@@ -2431,6 +2482,7 @@ pub(super) fn infer_type_substitutions_inner(
                     depth - 1,
                     include_function_effects,
                     prefer_non_never,
+                    skip_empty_effect_residual,
                 );
             }
         }
@@ -2444,6 +2496,7 @@ pub(super) fn infer_type_substitutions_inner(
                     depth - 1,
                     include_function_effects,
                     prefer_non_never,
+                    skip_empty_effect_residual,
                 );
             }
         }
@@ -2462,6 +2515,7 @@ pub(super) fn infer_type_substitutions_inner(
                         depth - 1,
                         include_function_effects,
                         prefer_non_never,
+                        skip_empty_effect_residual,
                     );
                 }
             }
@@ -2483,6 +2537,7 @@ pub(super) fn infer_type_substitutions_inner(
                 depth - 1,
                 include_function_effects,
                 prefer_non_never,
+                skip_empty_effect_residual,
             );
         }
         (typed_ir::Type::Row { items, tail }, actual) => {
@@ -2496,6 +2551,7 @@ pub(super) fn infer_type_substitutions_inner(
                 depth - 1,
                 include_function_effects,
                 prefer_non_never,
+                skip_empty_effect_residual,
             );
         }
         (typed_ir::Type::Variant(variant), typed_ir::Type::Variant(actual_variant)) => {
@@ -2518,6 +2574,7 @@ pub(super) fn infer_type_substitutions_inner(
                             depth - 1,
                             include_function_effects,
                             prefer_non_never,
+                            skip_empty_effect_residual,
                         );
                     }
                 }
@@ -2532,6 +2589,7 @@ pub(super) fn infer_type_substitutions_inner(
                 depth - 1,
                 include_function_effects,
                 prefer_non_never,
+                skip_empty_effect_residual,
             );
         }
         (template, typed_ir::Type::Recursive { body, .. }) => {
@@ -2543,6 +2601,7 @@ pub(super) fn infer_type_substitutions_inner(
                 depth - 1,
                 include_function_effects,
                 prefer_non_never,
+                skip_empty_effect_residual,
             );
         }
         _ => {}
@@ -2559,6 +2618,7 @@ pub(super) fn infer_effect_row_substitutions(
     depth: usize,
     include_function_effects: bool,
     prefer_non_never: bool,
+    skip_empty_effect_residual: bool,
 ) {
     let mut matched_actual = vec![false; actual_items.len()];
     let mut row_vars = Vec::new();
@@ -2581,6 +2641,7 @@ pub(super) fn infer_effect_row_substitutions(
                         depth,
                         include_function_effects,
                         prefer_non_never,
+                        skip_empty_effect_residual,
                     );
                     matched_actual[index] = true;
                     break;
@@ -2597,7 +2658,12 @@ pub(super) fn infer_effect_row_substitutions(
     let residual = effect_row_from_items_and_tail(residual_items, actual_tail.clone());
 
     for var in row_vars {
-        insert_substitution(substitutions, var, residual.clone(), prefer_non_never);
+        if !(skip_empty_effect_residual && effect_is_empty(&residual)) {
+            insert_substitution(substitutions, var, residual.clone(), prefer_non_never);
+        }
+    }
+    if skip_empty_effect_residual && effect_is_empty(&residual) {
+        return;
     }
     infer_type_substitutions_inner(
         template_tail,
@@ -2607,6 +2673,7 @@ pub(super) fn infer_effect_row_substitutions(
         depth,
         include_function_effects,
         prefer_non_never,
+        skip_empty_effect_residual,
     );
 }
 
@@ -2646,6 +2713,7 @@ pub(super) fn infer_type_arg_substitutions(
     depth: usize,
     include_function_effects: bool,
     prefer_non_never: bool,
+    skip_empty_effect_residual: bool,
 ) {
     match (template, actual) {
         (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
@@ -2657,6 +2725,7 @@ pub(super) fn infer_type_arg_substitutions(
                 depth,
                 include_function_effects,
                 prefer_non_never,
+                skip_empty_effect_residual,
             );
         }
         (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Bounds(actual)) => {
@@ -2669,6 +2738,7 @@ pub(super) fn infer_type_arg_substitutions(
                     depth,
                     include_function_effects,
                     prefer_non_never,
+                    skip_empty_effect_residual,
                 );
             }
         }
@@ -2682,6 +2752,7 @@ pub(super) fn infer_type_arg_substitutions(
                     depth,
                     include_function_effects,
                     prefer_non_never,
+                    skip_empty_effect_residual,
                 );
             }
         }
@@ -2697,6 +2768,7 @@ pub(super) fn infer_type_arg_substitutions(
                     depth,
                     include_function_effects,
                     prefer_non_never,
+                    skip_empty_effect_residual,
                 );
             }
         }

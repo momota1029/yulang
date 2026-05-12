@@ -168,6 +168,15 @@ pub(super) fn install_string_binary_primitive(
     install_binary_primitive(state, module, name, op, "str");
 }
 
+pub(super) fn install_string_binary_predicate_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_binary_predicate_primitive(state, module, name, op, "str");
+}
+
 pub(super) fn install_string_len_primitive(
     state: &mut LowerState,
     module: ModuleId,
@@ -614,7 +623,7 @@ fn mixed_scheme_body(params: &[&str], ret_name: &str) -> typed_ir::Type {
 
 fn binary_predicate_scheme_body(name: &str) -> typed_ir::Type {
     let ty = typed_ir::Type::Named {
-        path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
+        path: named_runtime_path(name),
         args: vec![],
     };
     let bool_ty = typed_ir::Type::Named {

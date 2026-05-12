@@ -81,7 +81,15 @@ fn variant_payload_expected_from_variant(
         .cases
         .iter()
         .find(|case| case.name == *tag)
-        .and_then(|case| case.payloads.first().cloned())
+        .and_then(|case| variant_case_payload_value_type(&case.payloads))
+}
+
+fn variant_case_payload_value_type(payloads: &[typed_ir::Type]) -> Option<typed_ir::Type> {
+    match payloads {
+        [] => None,
+        [payload] => Some(payload.clone()),
+        payloads => Some(typed_ir::Type::Tuple(payloads.to_vec())),
+    }
 }
 
 pub(super) fn select_field_type(

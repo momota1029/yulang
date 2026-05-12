@@ -384,21 +384,14 @@ fn run(options: &CliOptions) {
             println!();
         }
 
-        if options.infer
-            || options.core_ir
-            || options.runtime_ir
-            || options.hygiene_ir
-            || options.run_vm
-            || options.native_compare_i64
-            || options.native_abi_lanes
-            || options.native_object.is_some()
-            || options.native_exe.is_some()
-            || options.native_value_exe.is_some()
-            || options.native_run.is_some()
-            || options.native_run_exe.is_some()
-            || options.native_run_value_exe.is_some()
-            || options.native_run_cps_repr_exe.is_some()
-        {
+        let run_semantic_pipeline = options.requests_semantic_pipeline();
+
+        if run_semantic_pipeline && has_invalid_token(&root) {
+            eprintln!("error: invalid token in source");
+            process::exit(1);
+        }
+
+        if run_semantic_pipeline {
             run_infer_views(
                 options.path.as_deref(),
                 &root,
@@ -466,6 +459,33 @@ fn print_cst(node: &SyntaxNode<YulangLanguage>, indent: usize) {
     }
     for child in node.children() {
         print_cst(&child, indent + 1);
+    }
+}
+
+fn has_invalid_token(node: &SyntaxNode<YulangLanguage>) -> bool {
+    node.kind() == SyntaxKind::InvalidToken
+        || node.children().any(|child| has_invalid_token(&child))
+}
+
+impl CliOptions {
+    fn requests_semantic_pipeline(&self) -> bool {
+        self.infer || self.requests_runtime_pipeline()
+    }
+
+    fn requests_runtime_pipeline(&self) -> bool {
+        self.core_ir
+            || self.runtime_ir
+            || self.hygiene_ir
+            || self.run_vm
+            || self.native_compare_i64
+            || self.native_abi_lanes
+            || self.native_object.is_some()
+            || self.native_exe.is_some()
+            || self.native_value_exe.is_some()
+            || self.native_run.is_some()
+            || self.native_run_exe.is_some()
+            || self.native_run_value_exe.is_some()
+            || self.native_run_cps_repr_exe.is_some()
     }
 }
 
@@ -622,6 +642,7 @@ fn run_infer_views(
     let errors = state.infer.type_errors();
     let surface_diagnostics = collect_infer_surface_diagnostics(&state);
     let error_duration = error_start.elapsed();
+    let requests_runtime_pipeline = options.requests_runtime_pipeline();
 
     let (rendered, render_duration, binding_names, quantified_counts) = if options.infer {
         let render_start = Instant::now();
@@ -650,48 +671,21 @@ fn run_infer_views(
         (None, Duration::ZERO, None, None)
     };
 
-    let infer_program = if surface_diagnostics.is_empty()
-        && (options.core_ir
-            || options.runtime_ir
-            || options.hygiene_ir
-            || options.run_vm
-            || options.native_compare_i64
-            || options.native_abi_lanes
-            || options.native_object.is_some()
-            || options.native_exe.is_some()
-            || options.native_value_exe.is_some()
-            || options.native_run.is_some()
-            || options.native_run_exe.is_some()
-            || options.native_run_value_exe.is_some()
-            || options.native_run_cps_repr_exe.is_some())
-    {
-        Some(export_core_program(&mut state))
-    } else {
-        None
-    };
+    let infer_program =
+        if errors.is_empty() && surface_diagnostics.is_empty() && requests_runtime_pipeline {
+            Some(export_core_program(&mut state))
+        } else {
+            None
+        };
 
     if emit_output {
-        for error in errors {
+        for error in &errors {
             print_infer_type_error(&state, &error, &diagnostic_source);
         }
         for diagnostic in &surface_diagnostics {
             print_infer_surface_diagnostic(diagnostic, &diagnostic_source);
         }
-        if !surface_diagnostics.is_empty()
-            && (options.core_ir
-                || options.runtime_ir
-                || options.hygiene_ir
-                || options.run_vm
-                || options.native_compare_i64
-                || options.native_abi_lanes
-                || options.native_object.is_some()
-                || options.native_exe.is_some()
-                || options.native_value_exe.is_some()
-                || options.native_run.is_some()
-                || options.native_run_exe.is_some()
-                || options.native_run_value_exe.is_some()
-                || options.native_run_cps_repr_exe.is_some())
-        {
+        if requests_runtime_pipeline && (!errors.is_empty() || !surface_diagnostics.is_empty()) {
             process::exit(1);
         }
         if let Some(rendered) = rendered {
@@ -3747,6 +3741,7 @@ fn format_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
         typed_ir::PrimitiveOp::FloatLe => "std::float::le",
         typed_ir::PrimitiveOp::FloatGt => "std::float::gt",
         typed_ir::PrimitiveOp::FloatGe => "std::float::ge",
+        typed_ir::PrimitiveOp::StringEq => "std::str::eq",
         typed_ir::PrimitiveOp::StringConcat => "std::str::concat",
         typed_ir::PrimitiveOp::IntToString => "std::int::to_string",
         typed_ir::PrimitiveOp::IntToHex => "std::int::to_hex",
@@ -5413,6 +5408,22 @@ mod tests {
             profile_repeat: 1,
             install_std: false,
         }
+    }
+
+    #[test]
+    fn semantic_pipeline_rejects_invalid_tokens() {
+        let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green("2 ** 10"));
+
+        assert!(has_invalid_token(&root));
+    }
+
+    #[test]
+    fn cst_only_does_not_request_semantic_pipeline() {
+        let mut options = test_cli_options();
+        options.infer = false;
+        options.show_cst = true;
+
+        assert!(!options.requests_semantic_pipeline());
     }
 
     #[test]

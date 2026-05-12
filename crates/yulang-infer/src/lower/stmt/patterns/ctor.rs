@@ -59,6 +59,30 @@ pub(crate) fn enum_variant_def_for_pattern(state: &LowerState, path: &Path) -> O
     state.same_path_value_def_for_path(&canonical)
 }
 
+pub(crate) fn struct_constructor_def_for_pattern(state: &LowerState, path: &Path) -> Option<DefId> {
+    let value_def = if path.segments.len() == 1 {
+        state.ctx.resolve_value(&path.segments[0])
+    } else {
+        state.ctx.resolve_path_value(path)
+    };
+    if let Some(def) = value_def {
+        if state
+            .infer
+            .type_field_sets
+            .values()
+            .any(|field_set| field_set.constructor == def)
+        {
+            return Some(def);
+        }
+    }
+    let type_path = state.ctx.resolve_current_type_path(path)?.canonical_path;
+    state
+        .infer
+        .type_field_sets
+        .get(&type_path)
+        .map(|field_set| field_set.constructor)
+}
+
 pub(crate) fn resolve_pattern_constructor_ref(state: &mut LowerState, def: DefId) -> RefId {
     let tv = state.fresh_tv();
 

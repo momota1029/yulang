@@ -47,6 +47,10 @@ pub trait DelimitedListMachine<I: EventInput, S: EventSink> {
                 Either::Right(stop) => {
                     let next_info = stop.trailing_trivia_info();
                     match stop.kind {
+                        SyntaxKind::DocComment => {
+                            leading_info =
+                                crate::stmt::parse_doc_comment_decl_from_stop(i.rb(), stop)?;
+                        }
                         kind if kind == self.end_kind() => {
                             i.env.state.sink.lex(&stop);
                             return Some(next_info);

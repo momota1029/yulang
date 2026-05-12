@@ -198,7 +198,6 @@ fn parse_tail_bp<I: EventInput, S: EventSink>(
                     }
                     Ok(Either::Right(stop)) => {
                         i.env.state.sink.finish();
-                        i.env.state.sink.finish();
                         return Some(Ok(Either::Right(stop)));
                     }
                     Err(led) => {

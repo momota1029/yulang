@@ -134,6 +134,17 @@ impl Display float:
 impl Eq bool:
     our x.eq y = std::bool::eq x y
 
+impl Eq str:
+    our x.eq y = std::str::eq x y
+
+impl Eq (list int):
+    our xs.eq ys = case (std::list::view_raw xs, std::list::view_raw ys):
+        (std::list::list_view::empty, std::list::list_view::empty) -> true
+        (std::list::list_view::leaf x, std::list::list_view::leaf y) -> std::int::eq x y
+        (std::list::list_view::node(xl, xr), std::list::list_view::node(yl, yr)) ->
+            xl.eq yl and xr.eq yr
+        _ -> false
+
 impl Display bool:
     our x.show = std::bool::to_string x
 

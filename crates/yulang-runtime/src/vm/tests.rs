@@ -152,10 +152,120 @@ sub:
     }
 
     #[test]
+    fn vm_preserves_large_integer_literal_text() {
+        let results = eval_source_with_std("99999999999999999999999\n");
+
+        assert_eq!(
+            results,
+            vec![TestValue::Int("99999999999999999999999".to_string())]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_primitive_float_add_example() {
         let results = eval_source_with_std("my x = std::float::add 1.0 2.0\nx\n");
 
         assert_eq!(results, vec![TestValue::Float("3.0".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_source_mixed_numeric_add_with_float_widening() {
+        let results = eval_source_with_std("(1 + 2.5, 1.0 + 2, 1 + 2)\n");
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Float("3.5".to_string()),
+                TestValue::Float("3.0".to_string()),
+                TestValue::Int("3".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_matches_struct_constructor_patterns_as_records() {
+        let results = eval_source_with_std(
+            r#"struct pair { a: int, b: int }
+
+my get_a (pair { a: x, b: _ }) = x
+
+(
+    case (pair { a: 1, b: 2 }):
+        pair { a: x, b: y } -> std::int::add x y
+        _ -> 0,
+    get_a (pair { a: 7, b: 9 })
+)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Int("3".to_string()),
+                TestValue::Int("7".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_keeps_items_after_doc_comments_inside_literals_and_struct_fields() {
+        let results = eval_source_with_std(
+            r#"struct point {
+    -- x coord
+    x: int,
+    y: int
+}
+
+my r = {
+    -- x field
+    x: 1,
+    y: 2
+}
+
+my xs = [
+    -- first
+    1, 2, 3
+]
+
+((point { x: 3, y: 4 }).y, r.y, xs.len)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Int("4".to_string()),
+                TestValue::Int("2".to_string()),
+                TestValue::Int("3".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_for_loop_with_ref_write_body() {
+        let results = eval_source_with_std(
+            r#"{
+    my $sum = 0
+    for x in [1, 2, 3, 4, 5]:
+        &sum = $sum + x
+    $sum
+}
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("15".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_for_loop_with_console_body() {
+        let (results, stdout) = eval_source_with_std_host(
+            r#"for i in [1, 2, 3]:
+    println (i).show
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Unit]);
+        assert_eq!(stdout, "1\n2\n3\n");
     }
 
     #[test]
@@ -340,6 +450,36 @@ act fs_err:
                     value: Some(Box::new(TestValue::String(
                         path.to_string_lossy().to_string()
                     ))),
+                })),
+            }]
+        );
+    }
+
+    #[test]
+    fn vm_lifts_error_from_variant_with_up_helper() {
+        let results = eval_source_with_std(
+            r#"error io_a:
+    bad_a str
+
+error io_b:
+    a from io_a
+
+my run(): int = fail io_a::bad_a "oops"
+
+io_b::wrap: io_b::up: run()
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Variant {
+                tag: "err".to_string(),
+                value: Some(Box::new(TestValue::Variant {
+                    tag: "a".to_string(),
+                    value: Some(Box::new(TestValue::Variant {
+                        tag: "bad_a".to_string(),
+                        value: Some(Box::new(TestValue::String("oops".to_string()))),
+                    })),
                 })),
             }]
         );

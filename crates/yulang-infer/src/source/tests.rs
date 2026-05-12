@@ -861,6 +861,37 @@ fn lowers_nested_list_pattern_wildcards_from_source_loader() {
 }
 
 #[test]
+fn resolves_unqualified_prelude_variant_pattern_from_source_loader() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "case just 42:\n  just n -> n\n  _ -> 0\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let program = crate::export_core_program(&mut lowered.state);
+        let result = program
+            .program
+            .root_exprs
+            .first()
+            .expect("root expression should be exported");
+        let yulang_typed_ir::Expr::Match { arms, .. } = result else {
+            panic!("result should lower to a match expression");
+        };
+        let yulang_typed_ir::Pattern::Variant { tag, .. } = &arms[0].pattern else {
+            panic!("first arm should be a variant pattern");
+        };
+        assert_eq!(tag, &yulang_typed_ir::Name("just".to_string()));
+    });
+}
+
+#[test]
 fn lowers_list_index_from_implicit_prelude() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -3968,11 +3999,13 @@ fn lowers_constant_case_guards() {
                 assert_eq!(arms.len(), 2);
                 assert!(matches!(
                     strip_expected_boundary(&arms[0].body).kind,
-                    crate::ast::expr::ExprKind::Lit(crate::ast::expr::Lit::Int(1))
+                    crate::ast::expr::ExprKind::Lit(crate::ast::expr::Lit::Int(ref value))
+                        if value == "1"
                 ));
                 assert!(matches!(
                     strip_expected_boundary(&arms[1].body).kind,
-                    crate::ast::expr::ExprKind::Lit(crate::ast::expr::Lit::Int(0))
+                    crate::ast::expr::ExprKind::Lit(crate::ast::expr::Lit::Int(ref value))
+                        if value == "0"
                 ));
             }
             other => panic!("expected match body, got {other:?}"),
@@ -4485,6 +4518,90 @@ fn fail_with_concrete_error_carries_throw_effect() {
         assert!(
             ty.contains("std::fs::fs_err"),
             "raise_concrete should carry fs_err in its effect row, got: {ty}"
+        );
+    });
+}
+
+#[test]
+fn runtime_export_closes_monomorphic_bindings_with_open_display_vars() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my fact (n: int) : int =\n  if n <= 1: 1\n  else: n * fact (n - 1)\n\n\
+             my add (x: int) (y: int) : int = x + y\n\
+             my add5 = add 5\n\
+             my pair = (1, \"hello\")\n\
+             fact 5\n\
+             add5 10\n\
+             case pair:\n  (n, s) -> s + \" \" + (n).show\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let program = crate::export_core_program(&mut lowered.state);
+        let rendered = program
+            .program
+            .bindings
+            .iter()
+            .map(|binding| {
+                (
+                    binding
+                        .name
+                        .segments
+                        .iter()
+                        .map(|segment| segment.0.clone())
+                        .collect::<Vec<_>>()
+                        .join("::"),
+                    crate::display::dump::format_runtime_export_scheme(&binding.scheme),
+                )
+            })
+            .collect::<Vec<_>>();
+        let fact = rendered_type(&rendered, "fact");
+        let add = rendered_type(&rendered, "add");
+        assert!(
+            fact.contains("int") && !fact.contains("Add") && !fact.contains('α'),
+            "fact should be exported as a closed int function, got: {fact}"
+        );
+        assert!(
+            add.contains("int") && !add.contains("Add") && !add.contains('α'),
+            "add should be exported as a closed int function, got: {add}"
+        );
+        assert_eq!(rendered_type(&rendered, "pair"), "(int, std::str::str)");
+    });
+}
+
+#[test]
+fn principal_apply_evidence_fills_runtime_irrelevant_type_params() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my xs = []\nxs.len\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let program = crate::export_core_program(&mut lowered.state);
+        let yulang_typed_ir::Expr::Apply {
+            evidence: Some(evidence),
+            ..
+        } = &program.program.root_exprs[0]
+        else {
+            panic!("root should be an apply with principal evidence");
+        };
+        assert_eq!(evidence.substitutions.len(), 1);
+        assert_eq!(
+            evidence.substitutions[0].ty,
+            yulang_typed_ir::Type::Tuple(Vec::new())
         );
     });
 }

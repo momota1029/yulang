@@ -61,6 +61,32 @@ pub fn export_expr(
     .export_expr(expr)
 }
 
+fn export_variant_expr_payload<'a>(
+    payloads: &'a [TypedExpr],
+    mut export_payload: impl FnMut(&'a TypedExpr) -> typed_ir::Expr,
+) -> Option<Box<typed_ir::Expr>> {
+    match payloads {
+        [] => None,
+        [payload] => Some(Box::new(export_payload(payload))),
+        payloads => Some(Box::new(typed_ir::Expr::Tuple(
+            payloads.iter().map(export_payload).collect(),
+        ))),
+    }
+}
+
+fn export_variant_pattern_payload<'a>(
+    payloads: &'a [TypedPat],
+    mut export_payload: impl FnMut(&'a TypedPat) -> typed_ir::Pattern,
+) -> Option<Box<typed_ir::Pattern>> {
+    match payloads {
+        [] => None,
+        [payload] => Some(Box::new(export_payload(payload))),
+        payloads => Some(Box::new(typed_ir::Pattern::Tuple(
+            payloads.iter().map(export_payload).collect(),
+        ))),
+    }
+}
+
 pub(super) fn collect_expr_export_type_vars(expr: &TypedExpr, vars: &mut HashSet<TypeVar>) {
     vars.insert(expr.tv);
     vars.insert(expr.eff);
@@ -408,9 +434,7 @@ impl<'a> ExprExporter<'a> {
             },
             ExprKind::PolyVariant(name, payloads, origin) => typed_ir::Expr::Variant {
                 tag: export_name(name),
-                value: payloads
-                    .first()
-                    .map(|payload| Box::new(self.export_expr(payload))),
+                value: export_variant_expr_payload(payloads, |payload| self.export_expr(payload)),
                 source: match origin {
                     crate::ast::expr::PolyVariantOrigin::Syntax => {
                         typed_ir::VariantExprSource::PolyVariantSyntax
@@ -1042,8 +1066,13 @@ impl<'a> ExprExporter<'a> {
             },
             PatKind::PolyVariant(name, items) => typed_ir::Pattern::Variant {
                 tag: export_name(name),
-                value: items.first().map(|item| Box::new(self.export_pat(item))),
+                value: export_variant_pattern_payload(items, |item| self.export_pat(item)),
             },
+            PatKind::Con(ref_id, payload)
+                if self.is_struct_constructor_pattern_ref(*ref_id) && payload.is_some() =>
+            {
+                self.export_pat(payload.as_ref().expect("payload checked"))
+            }
             PatKind::Con(ref_id, payload) => typed_ir::Pattern::Variant {
                 tag: self
                     .path_for_ref(*ref_id)
@@ -1076,6 +1105,17 @@ impl<'a> ExprExporter<'a> {
             self.locals.remove(&def);
         }
         out
+    }
+
+    fn is_struct_constructor_pattern_ref(&self, ref_id: crate::ids::RefId) -> bool {
+        let Some(resolved) = self.state.ctx.refs.resolved().get(&ref_id) else {
+            return false;
+        };
+        self.state
+            .infer
+            .type_field_sets
+            .values()
+            .any(|field_set| field_set.constructor == resolved.def_id)
     }
 
     fn with_lambda_scope<T>(&mut self, def: DefId, f: impl FnOnce(&mut Self) -> T) -> T {
@@ -1797,7 +1837,7 @@ fn core_type_is_runtime_value(ty: &typed_ir::Type) -> bool {
 
 fn export_lit(lit: &TirLit) -> typed_ir::Lit {
     match lit {
-        TirLit::Int(value) => typed_ir::Lit::Int(value.to_string()),
+        TirLit::Int(value) => typed_ir::Lit::Int(value.clone()),
         TirLit::Float(value) => typed_ir::Lit::Float(value.to_string()),
         TirLit::Str(value) => typed_ir::Lit::String(value.clone()),
         TirLit::Bool(value) => typed_ir::Lit::Bool(*value),

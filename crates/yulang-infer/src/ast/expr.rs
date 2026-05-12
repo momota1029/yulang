@@ -14,7 +14,7 @@ pub struct TypedExpr {
 
 #[derive(Debug, Clone)]
 pub enum Lit {
-    Int(i64),
+    Int(String),
     Float(f64),
     Str(String),
     Bool(bool),

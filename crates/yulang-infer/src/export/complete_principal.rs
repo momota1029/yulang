@@ -255,7 +255,7 @@ pub(super) fn complete_apply_principal_evidence_from_slot_bounds_cached_profiled
     }
 
     let t = CompletePrincipalClock::now(profile.is_some());
-    let substitutions = apply_principal_substitutions_from_parts(
+    let mut substitutions = apply_principal_substitutions_from_parts(
         infer,
         &principal_scheme.requirements,
         param,
@@ -271,7 +271,7 @@ pub(super) fn complete_apply_principal_evidence_from_slot_bounds_cached_profiled
     if let Some(profile) = profile.as_deref_mut() {
         profile.substitutions += t.elapsed();
     }
-    let substitution_candidates = if substitution_vars_cover_params(&substitutions, &params) {
+    let mut substitution_candidates = if substitution_vars_cover_params(&substitutions, &params) {
         Vec::new()
     } else {
         let t = CompletePrincipalClock::now(profile.is_some());
@@ -289,6 +289,13 @@ pub(super) fn complete_apply_principal_evidence_from_slot_bounds_cached_profiled
         }
         candidates
     };
+    complete_substitutions_from_candidates_and_irrelevant_ret(
+        principal_callee,
+        ret,
+        &params,
+        &mut substitutions,
+        &mut substitution_candidates,
+    );
     (!substitutions.is_empty() || !substitution_candidates.is_empty()).then_some(
         CompleteApplyPrincipalEvidence {
             principal_callee: principal_scheme.body,
@@ -651,11 +658,145 @@ fn apply_principal_substitutions_from_parts(
         .into_substitutions()
         .filter(|(_, ty)| substitution_type_usable(ty, false))
         .map(|(var, ty)| typed_ir::TypeSubstitution { var, ty })
-        .collect();
+        .collect::<Vec<_>>();
     if let Some(profile) = profile.as_deref_mut() {
         profile.substitution_emit += t.elapsed();
     }
     substitutions
+}
+
+fn complete_substitutions_from_candidates_and_irrelevant_ret(
+    principal_callee: &typed_ir::Type,
+    ret: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut Vec<typed_ir::TypeSubstitution>,
+    candidates: &mut Vec<typed_ir::PrincipalSubstitutionCandidate>,
+) {
+    promote_unambiguous_candidate_substitutions(substitutions, candidates);
+    let covered = substitutions
+        .iter()
+        .map(|substitution| substitution.var.clone())
+        .collect::<BTreeSet<_>>();
+    let mut result_value_vars = BTreeSet::new();
+    collect_runtime_value_type_vars(ret, &mut result_value_vars);
+    let mut callee_value_vars = BTreeSet::new();
+    collect_runtime_value_type_vars(principal_callee, &mut callee_value_vars);
+    for param in params {
+        if covered.contains(param) || result_value_vars.contains(param) {
+            continue;
+        }
+        substitutions.push(typed_ir::TypeSubstitution {
+            var: param.clone(),
+            ty: if callee_value_vars.contains(param) {
+                typed_ir::Type::Tuple(Vec::new())
+            } else {
+                typed_ir::Type::Never
+            },
+        });
+    }
+    let covered = substitutions
+        .iter()
+        .map(|substitution| substitution.var.clone())
+        .collect::<BTreeSet<_>>();
+    candidates.retain(|candidate| !covered.contains(&candidate.var));
+}
+
+fn promote_unambiguous_candidate_substitutions(
+    substitutions: &mut Vec<typed_ir::TypeSubstitution>,
+    candidates: &[typed_ir::PrincipalSubstitutionCandidate],
+) {
+    let covered = substitutions
+        .iter()
+        .map(|substitution| substitution.var.clone())
+        .collect::<BTreeSet<_>>();
+    let mut by_var = BTreeMap::<typed_ir::TypeVar, Vec<typed_ir::Type>>::new();
+    for candidate in candidates {
+        if covered.contains(&candidate.var) || !substitution_type_usable(&candidate.ty, false) {
+            continue;
+        }
+        let choices = by_var.entry(candidate.var.clone()).or_default();
+        if !choices.contains(&candidate.ty) {
+            choices.push(candidate.ty.clone());
+        }
+    }
+    for (var, choices) in by_var {
+        if choices.len() != 1 {
+            continue;
+        }
+        let ty = choices.into_iter().next().unwrap_or(typed_ir::Type::Never);
+        substitutions.push(typed_ir::TypeSubstitution { var, ty });
+    }
+}
+
+fn collect_runtime_value_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match ty {
+        typed_ir::Type::Var(var) => {
+            vars.insert(var.clone());
+        }
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_runtime_value_type_arg_vars(arg, vars);
+            }
+        }
+        typed_ir::Type::Fun { param, ret, .. } => {
+            collect_runtime_value_type_vars(param, vars);
+            collect_runtime_value_type_vars(ret, vars);
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_runtime_value_type_vars(item, vars);
+            }
+        }
+        typed_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_runtime_value_type_vars(&field.value, vars);
+            }
+            if let Some(spread) = &record.spread {
+                match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        collect_runtime_value_type_vars(ty, vars);
+                    }
+                }
+            }
+        }
+        typed_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_runtime_value_type_vars(payload, vars);
+                }
+            }
+            if let Some(tail) = &variant.tail {
+                collect_runtime_value_type_vars(tail, vars);
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_runtime_value_type_vars(item, vars);
+            }
+            collect_runtime_value_type_vars(tail, vars);
+        }
+        typed_ir::Type::Recursive { body, .. } => collect_runtime_value_type_vars(body, vars),
+        typed_ir::Type::Unknown | typed_ir::Type::Never | typed_ir::Type::Any => {}
+    }
+}
+
+fn collect_runtime_value_type_arg_vars(
+    arg: &typed_ir::TypeArg,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => collect_runtime_value_type_vars(ty, vars),
+        typed_ir::TypeArg::Bounds(bounds) => {
+            if let Some(lower) = &bounds.lower {
+                collect_runtime_value_type_vars(lower, vars);
+            }
+            if let Some(upper) = &bounds.upper {
+                collect_runtime_value_type_vars(upper, vars);
+            }
+        }
+    }
 }
 
 fn collect_principal_params(principal_callee: &typed_ir::Type) -> BTreeSet<typed_ir::TypeVar> {

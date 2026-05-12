@@ -65,56 +65,7 @@ fn parse_statement_from_stop<I: EventInput, S: EventSink>(
             op_def::parse_op_def_stmt(i, None, stop)
         }
         SyntaxKind::Where => where_clause::parse_where_clause(i.rb(), stop),
-        SyntaxKind::DocComment => {
-            i.env.state.sink.start(SyntaxKind::DocCommentDecl);
-            i.env.state.sink.lex(&stop);
-            if stop.text.as_ref() == "---" {
-                // ブロック doc: `---` ... `---`
-                i.env.state.sink.start(SyntaxKind::YmDoc);
-                i.env.inline = false;
-                let doc_stop = parse_doc_body_pub(i.rb())?;
-                i.env.state.sink.finish(); // YmDoc
-                if matches!(
-                    doc_stop.nud.tag,
-                    MarkNudTag::Block(BlockNudTag::DocBlockClose)
-                ) {
-                    if let Some(lex) = &doc_stop.nud.lex {
-                        i.env.state.sink.push(SyntaxKind::DocComment, &lex.text);
-                    }
-                }
-                i.env.state.sink.finish(); // DocCommentDecl
-                // 閉じ `---` 後の余白を消費してその TriviaInfo を次の leading info にする
-                let next_info = i
-                    .run(scan_trivia)
-                    .map(|t| t.info())
-                    .unwrap_or(TriviaInfo::None);
-                Some(Either::Left(next_info))
-            } else {
-                // ライン doc: `--` rest-of-line — YmParagraph で包む
-                i.env.state.sink.start(SyntaxKind::YmDoc);
-                i.env.inline = true;
-                i.env.state.sink.start(SyntaxKind::YmParagraph);
-                let inline_stop = parse_inline(i.rb())?;
-                i.env.state.sink.finish(); // YmParagraph
-                i.env.state.sink.finish(); // YmDoc
-                i.env.state.sink.finish(); // DocCommentDecl
-                // scan_mark が \n\n を含む trivia を全消費済み
-                // blank_line は doc コメント後に伝播させない（後続 stmt には関係ない）
-                let next_info = match inline_stop.trivia.info() {
-                    TriviaInfo::Newline {
-                        indent,
-                        quote_level,
-                        ..
-                    } => TriviaInfo::Newline {
-                        indent,
-                        quote_level,
-                        blank_line: false,
-                    },
-                    other => other,
-                };
-                Some(Either::Left(next_info))
-            }
-        }
+        SyntaxKind::DocComment => Some(Either::Left(parse_doc_comment_decl_from_stop(i, stop)?)),
         SyntaxKind::Semicolon
         | SyntaxKind::Comma
         | SyntaxKind::BraceR
@@ -127,6 +78,54 @@ fn parse_statement_from_stop<I: EventInput, S: EventSink>(
             Some(Either::Left(next_info))
         }
     }
+}
+
+pub(crate) fn parse_doc_comment_decl_from_stop<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    stop: Lex,
+) -> Option<TriviaInfo> {
+    i.env.state.sink.start(SyntaxKind::DocCommentDecl);
+    i.env.state.sink.lex(&stop);
+    if stop.text.as_ref() == "---" {
+        i.env.state.sink.start(SyntaxKind::YmDoc);
+        i.env.inline = false;
+        let doc_stop = parse_doc_body_pub(i.rb())?;
+        i.env.state.sink.finish();
+        if matches!(
+            doc_stop.nud.tag,
+            MarkNudTag::Block(BlockNudTag::DocBlockClose)
+        ) {
+            if let Some(lex) = &doc_stop.nud.lex {
+                i.env.state.sink.push(SyntaxKind::DocComment, &lex.text);
+            }
+        }
+        i.env.state.sink.finish();
+        return Some(
+            i.run(scan_trivia)
+                .map(|t| t.info())
+                .unwrap_or(TriviaInfo::None),
+        );
+    }
+
+    i.env.state.sink.start(SyntaxKind::YmDoc);
+    i.env.inline = true;
+    i.env.state.sink.start(SyntaxKind::YmParagraph);
+    let inline_stop = parse_inline(i.rb())?;
+    i.env.state.sink.finish();
+    i.env.state.sink.finish();
+    i.env.state.sink.finish();
+    Some(match inline_stop.trivia.info() {
+        TriviaInfo::Newline {
+            indent,
+            quote_level,
+            ..
+        } => TriviaInfo::Newline {
+            indent,
+            quote_level,
+            blank_line: false,
+        },
+        other => other,
+    })
 }
 
 fn parse_visibility_stmt<I: EventInput, S: EventSink>(

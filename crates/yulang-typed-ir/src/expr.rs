@@ -202,6 +202,7 @@ pub enum PrimitiveOp {
     FloatLe,
     FloatGt,
     FloatGe,
+    StringEq,
     StringConcat,
     IntToString,
     IntToHex,

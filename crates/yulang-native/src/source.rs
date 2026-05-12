@@ -1231,6 +1231,30 @@ catch choose::pick 1 + 2:
     }
 
     #[test]
+    fn compares_prelude_source_case_guard_bind_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"case 4:
+    n if n > 3 -> n
+    _ -> 0
+"#,
+            )
+            .expect("source case guard bind CPS repr jit compare with prelude");
+        });
+    }
+
+    #[test]
+    fn compares_std_junction_value_arm_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"std::junction::junction::junction { true }
+"#,
+            )
+            .expect("std junction value-arm CPS repr jit compare");
+        });
+    }
+
+    #[test]
     fn compares_prelude_source_handler_value_arm_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(

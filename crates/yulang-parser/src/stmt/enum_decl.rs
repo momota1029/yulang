@@ -64,14 +64,20 @@ pub(super) fn parse_enum_decl<I: EventInput, S: EventSink>(
             SyntaxKind::Equal => {
                 let eq = scan_stmt_lex(leading_info, i.rb())?;
                 i.env.state.sink.lex(&eq);
-                match parse_enum_variants_inline(i.rb(), eq.trailing_trivia_info())? {
-                    Either::Left(info) => leading_info = info,
-                    Either::Right(stop) if stop.kind == SyntaxKind::With => {
-                        with_kw = Some(stop);
-                    }
-                    Either::Right(stop) => {
-                        i.env.state.sink.finish();
-                        return Some(Either::Right(stop));
+                let eq_info = eq.trailing_trivia_info();
+                if matches!(eq_info, TriviaInfo::Newline { indent, .. } if indent > i.env.indent) {
+                    let base_indent = i.env.indent;
+                    leading_info = parse_enum_variants_indent_block(i.rb(), eq_info, base_indent)?;
+                } else {
+                    match parse_enum_variants_inline(i.rb(), eq_info)? {
+                        Either::Left(info) => leading_info = info,
+                        Either::Right(stop) if stop.kind == SyntaxKind::With => {
+                            with_kw = Some(stop);
+                        }
+                        Either::Right(stop) => {
+                            i.env.state.sink.finish();
+                            return Some(Either::Right(stop));
+                        }
                     }
                 }
                 body_parsed = true;
@@ -188,7 +194,7 @@ fn parse_enum_variant<I: EventInput, S: EventSink>(
                         info = parse_struct_tuple_fields_after_open(i.rb(), open)?;
                     }
                     _ => {
-                        let parsed = parse_type_with_stops(i.rb(), info, type_stops)?;
+                        let parsed = parse_enum_payload_types(i.rb(), info, type_stops)?;
                         match parsed {
                             Either::Left(next_info) => info = next_info,
                             Either::Right(stop) => {
@@ -205,6 +211,42 @@ fn parse_enum_variant<I: EventInput, S: EventSink>(
     Some((info, None))
 }
 
+fn parse_enum_payload_types<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    mut leading_info: TriviaInfo,
+    stops: &[SyntaxKind],
+) -> Option<Either<TriviaInfo, Lex>> {
+    loop {
+        if matches!(leading_info, TriviaInfo::Newline { .. }) {
+            return Some(Either::Left(leading_info));
+        }
+        let Some(next) = peek_stmt_lex(leading_info, i.rb()) else {
+            return Some(Either::Left(leading_info));
+        };
+        if stops.contains(&next.kind) {
+            let stop = scan_stmt_lex(leading_info, i.rb())?;
+            return Some(Either::Right(stop));
+        }
+        let parsed = parse_enum_payload_type(i.rb(), leading_info, stops)?;
+        match parsed {
+            Either::Left(next_info) => leading_info = next_info,
+            other => return Some(other),
+        }
+    }
+}
+
+fn parse_enum_payload_type<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading_info: TriviaInfo,
+    stops: &[SyntaxKind],
+) -> Option<Either<TriviaInfo, Lex>> {
+    let old_ml_arg = i.env.ml_arg;
+    i.env.ml_arg = true;
+    let parsed = parse_type_with_stops(i.rb(), leading_info, stops);
+    i.env.ml_arg = old_ml_arg;
+    parsed
+}
+
 struct EnumVariantsBraceMachine;
 
 struct EnumVariantsIndentMachine;
@@ -212,15 +254,22 @@ struct EnumVariantsIndentMachine;
 impl<I: EventInput, S: EventSink> IndentListMachine<I, S> for EnumVariantsIndentMachine {
     fn parse_item(
         &mut self,
-        i: In<I, S>,
-        leading_info: TriviaInfo,
+        mut i: In<I, S>,
+        mut leading_info: TriviaInfo,
         _block_indent: usize,
     ) -> Option<(TriviaInfo, Option<Lex>)> {
-        parse_enum_variant(i, leading_info, &[SyntaxKind::Comma])
+        if let Some(next) = peek_stmt_lex(leading_info, i.rb()) {
+            if next.kind == SyntaxKind::Pipe {
+                let pipe = scan_stmt_lex(leading_info, i.rb())?;
+                i.env.state.sink.lex(&pipe);
+                leading_info = pipe.trailing_trivia_info();
+            }
+        }
+        parse_enum_variant(i, leading_info, &[SyntaxKind::Comma, SyntaxKind::Pipe])
     }
 
     fn is_item_separator(&self, kind: SyntaxKind) -> bool {
-        matches!(kind, SyntaxKind::Comma)
+        matches!(kind, SyntaxKind::Comma | SyntaxKind::Pipe)
     }
 }
 

@@ -7277,6 +7277,7 @@ fn role_impl_closed_substitutions(
                 64,
             );
         }
+        let protected_value_vars = substitutions.keys().cloned().collect::<BTreeSet<_>>();
         for actual in
             role_impl_arg_projection_types_for_substitution(arg, evidence, ambient_substitutions)
         {
@@ -7290,6 +7291,7 @@ fn role_impl_closed_substitutions(
                 64,
             );
         }
+        conflicts.retain(|var| !protected_value_vars.contains(var));
     }
     for actual_ret in role_impl_result_projection_types(spine, result_ty, ambient_substitutions) {
         project_closed_value_substitutions_from_type(

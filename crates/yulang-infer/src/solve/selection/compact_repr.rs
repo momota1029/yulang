@@ -1,5 +1,5 @@
 use crate::ids::TypeVar;
-use crate::simplify::compact::{CompactBounds, CompactType, compact_type_var};
+use crate::simplify::compact::{CompactBounds, CompactType, compact_type_var, merge_compact_types};
 use crate::symbols::{Name, Path};
 
 use super::Infer;
@@ -20,6 +20,20 @@ pub(super) fn concrete_tv_lower_repr(
 ) -> Option<CompactType> {
     let scheme = compact_type_var(infer, tv);
     concrete_or_boundary_compact_type(&scheme.cty.lower, allow_boundary)
+}
+
+pub(super) fn concrete_tv_lower_join_repr(
+    infer: &Infer,
+    tvs: &[TypeVar],
+    allow_boundary: bool,
+) -> Option<CompactType> {
+    let mut out = CompactType::default();
+    for tv in tvs {
+        let repr = concrete_tv_lower_repr(infer, *tv, allow_boundary)?;
+        out = merge_compact_types(true, out, repr);
+    }
+    normalize_builtin_numeric_compact_type(&mut out);
+    (out != CompactType::default() && is_concrete_compact_type(&out, allow_boundary)).then_some(out)
 }
 
 pub(super) fn concrete_lower_bounds_repr(

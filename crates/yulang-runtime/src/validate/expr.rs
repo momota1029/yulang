@@ -25,7 +25,14 @@ pub(super) fn validate_expr(
                 return Err(RuntimeError::UnboundVariable { path: path.clone() });
             }
         }
-        ExprKind::PrimitiveOp(_) | ExprKind::Lit(_) => {}
+        ExprKind::PrimitiveOp(_) => {}
+        ExprKind::Lit(lit) => {
+            require_same_type(
+                &literal_core_type(lit),
+                core_type(&expr.ty),
+                TypeSource::Expected,
+            )?;
+        }
         ExprKind::Lambda { param, body, .. } => {
             let (param_ty, ret) = validate_lambda_type(&expr.ty)?;
             let local = typed_ir::Path::from_name(param.clone());
@@ -205,6 +212,11 @@ pub(super) fn validate_expr(
             handler,
         } => {
             validate_expr(body, bindings, type_arg_kinds, locals)?;
+            if !matches!(body.ty, RuntimeType::Thunk { .. }) {
+                return Err(RuntimeError::ExpectedThunk {
+                    ty: diagnostic_core_type(&body.ty),
+                });
+            }
             require_same_type(
                 &evidence.result,
                 hir_value_core_type(&expr.ty).as_ref(),

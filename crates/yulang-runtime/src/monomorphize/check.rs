@@ -740,9 +740,9 @@ impl<'a> ExprChecker<'a> {
         if let Some(expected @ DemandSignature::Core(DemandCoreType::Variant(cases))) = expected {
             if let Some(value) = value
                 && let Some(case) = cases.iter().find(|case| case.name == *tag)
-                && let Some(payload) = case.payloads.first()
+                && let Some(payload) = demand_variant_case_payload_value(&case.payloads)
             {
-                self.check_expr(value, &DemandSignature::Core(payload.clone()))?;
+                self.check_expr(value, &DemandSignature::Core(payload))?;
             }
             return Ok(expected.clone());
         }
@@ -2241,6 +2241,14 @@ fn single_payload_from_type_args(args: &[DemandTypeArg]) -> Option<DemandCoreTyp
     }
 }
 
+fn demand_variant_case_payload_value(payloads: &[DemandCoreType]) -> Option<DemandCoreType> {
+    match payloads {
+        [] => None,
+        [payload] => Some(payload.clone()),
+        payloads => Some(DemandCoreType::Tuple(payloads.to_vec())),
+    }
+}
+
 fn variant_expected_payload(
     expected: &DemandSignature,
     tag: &typed_ir::Name,
@@ -2249,8 +2257,8 @@ fn variant_expected_payload(
         DemandSignature::Core(DemandCoreType::Variant(cases)) => cases
             .iter()
             .find(|case| case.name == *tag)
-            .and_then(|case| case.payloads.first())
-            .map(|payload| DemandSignature::Core(payload.clone())),
+            .and_then(|case| demand_variant_case_payload_value(&case.payloads))
+            .map(DemandSignature::Core),
         DemandSignature::Core(DemandCoreType::Named { path, args })
             if named_variant_payload_is_type_arg(path, tag) =>
         {

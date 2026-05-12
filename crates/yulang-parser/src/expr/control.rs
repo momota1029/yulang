@@ -225,6 +225,7 @@ struct CaseLikeConfig {
     guard_node: SyntaxKind,
     allow_handler_name: bool,
     allow_inline_list: bool,
+    allow_brace_block: bool,
 }
 
 pub(super) fn parse_case_expr<I: EventInput, S: EventSink>(
@@ -238,6 +239,7 @@ pub(super) fn parse_case_expr<I: EventInput, S: EventSink>(
         guard_node: SyntaxKind::CaseGuard,
         allow_handler_name: false,
         allow_inline_list: true,
+        allow_brace_block: false,
     };
     parse_case_like_expr(i, case_lex, &config)
 }
@@ -253,6 +255,7 @@ pub(super) fn parse_catch_expr<I: EventInput, S: EventSink>(
         guard_node: SyntaxKind::CatchGuard,
         allow_handler_name: true,
         allow_inline_list: false,
+        allow_brace_block: true,
     };
     parse_case_like_expr(i, catch_lex, &config)
 }
@@ -270,7 +273,9 @@ fn parse_case_like_expr<I: EventInput, S: EventSink>(
     // target expression (the scrutinee)
     let old_stop = i.env.stop.clone();
     i.env.stop.insert(SyntaxKind::Colon);
-    i.env.stop.insert(SyntaxKind::BraceL);
+    if config.allow_brace_block {
+        i.env.stop.insert(SyntaxKind::BraceL);
+    }
     let target = parse_expr(kw.trailing_trivia_info(), i.rb());
     i.env.stop = old_stop;
 
@@ -426,7 +431,7 @@ impl<'c, I: EventInput, S: EventSink> IndentListMachine<I, S> for ArmIndentMachi
     }
 }
 
-/// arm のパース: `<pat> (if <guard>)? -> <body>`
+/// arm のパース: `<pat> ((if|where) <guard>)? -> <body>`
 /// catch の場合、pat の後に `, <name>` がありえる
 fn parse_arm<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
@@ -435,10 +440,11 @@ fn parse_arm<I: EventInput, S: EventSink>(
 ) -> Option<Either<TriviaInfo, Lex>> {
     i.env.state.sink.start(config.arm_node);
 
-    // パターンをパース (Arrow と If を stop に追加)
+    // パターンをパース (Arrow と guard keyword を stop に追加)
     let old_stop = i.env.stop.clone();
     i.env.stop.insert(SyntaxKind::Arrow);
     i.env.stop.insert(SyntaxKind::If);
+    i.env.stop.insert(SyntaxKind::Where);
     if config.allow_handler_name {
         i.env.stop.insert(SyntaxKind::Comma);
     }
@@ -461,6 +467,7 @@ fn parse_arm<I: EventInput, S: EventSink>(
         let old_stop = i.env.stop.clone();
         i.env.stop.insert(SyntaxKind::Arrow);
         i.env.stop.insert(SyntaxKind::If);
+        i.env.stop.insert(SyntaxKind::Where);
         let name_result = parse_pattern(pat_stop.trailing_trivia_info(), i.rb());
         i.env.stop = old_stop;
         match name_result? {
@@ -474,8 +481,8 @@ fn parse_arm<I: EventInput, S: EventSink>(
         pat_stop
     };
 
-    // guard: `if <expr> ->` のオプションガード
-    let arrow_lex = if next_stop.kind == SyntaxKind::If {
+    // guard: `(if|where) <expr> ->` のオプションガード
+    let arrow_lex = if matches!(next_stop.kind, SyntaxKind::If | SyntaxKind::Where) {
         i.env.state.sink.start(config.guard_node);
         i.env.state.sink.lex(&next_stop);
 

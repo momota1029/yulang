@@ -8,7 +8,7 @@ pub(super) fn validate_pattern(
 ) -> RuntimeResult<()> {
     require_same_type(
         expected,
-        core_type(pattern_ty(pattern)),
+        hir_value_core_type(pattern_ty(pattern)).as_ref(),
         TypeSource::Validation,
     )?;
     match pattern {
@@ -42,10 +42,12 @@ pub(super) fn validate_pattern(
             ..
         } => {
             for item in prefix.iter().chain(suffix) {
+                let inferred_item_ty;
                 let item_ty = if matches!(expected, typed_ir::Type::Any) {
                     &typed_ir::Type::Any
                 } else {
-                    core_type(pattern_ty(item))
+                    inferred_item_ty = hir_value_core_type(pattern_ty(item));
+                    inferred_item_ty.as_ref()
                 };
                 validate_pattern(item, item_ty, type_arg_kinds, locals)?;
             }
@@ -76,6 +78,7 @@ pub(super) fn validate_pattern(
                         erased_field_ty = typed_ir::Type::Any;
                         &erased_field_ty
                     }
+                    typed_ir::Type::Named { .. } => core_type(pattern_ty(&field.pattern)),
                     _ => {
                         return Err(RuntimeError::UnsupportedPatternShape {
                             pattern: "record",

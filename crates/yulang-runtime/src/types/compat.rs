@@ -82,12 +82,7 @@ pub(super) fn type_compatible_inner(
                     .iter()
                     .find(|case| case.name == actual.name)
                     .is_some_and(|case| {
-                        actual.payloads.len() == case.payloads.len()
-                            && actual
-                                .payloads
-                                .iter()
-                                .zip(&case.payloads)
-                                .all(|(left, right)| type_compatible_inner(left, right, depth - 1))
+                        variant_payloads_compatible(&case.payloads, &actual.payloads, depth - 1)
                     })
             })
         }
@@ -125,6 +120,26 @@ pub(super) fn type_compatible_inner(
         ) if var == actual_var => type_compatible_inner(body, actual_body, depth - 1),
         _ => false,
     }
+}
+
+fn variant_payloads_compatible(
+    expected: &[typed_ir::Type],
+    actual: &[typed_ir::Type],
+    depth: usize,
+) -> bool {
+    if expected.len() == actual.len() {
+        return actual
+            .iter()
+            .zip(expected)
+            .all(|(left, right)| type_compatible_inner(right, left, depth));
+    }
+    if expected.len() > 1 && actual.len() == 1 {
+        return type_compatible_inner(&typed_ir::Type::Tuple(expected.to_vec()), &actual[0], depth);
+    }
+    if expected.len() == 1 && actual.len() > 1 {
+        return type_compatible_inner(&expected[0], &typed_ir::Type::Tuple(actual.to_vec()), depth);
+    }
+    false
 }
 
 pub(super) fn can_widen_runtime_value(actual: &typed_ir::Type, expected: &typed_ir::Type) -> bool {

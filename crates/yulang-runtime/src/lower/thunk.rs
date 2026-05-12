@@ -173,6 +173,18 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
             }
             let (expr, actual) = force_value_expr_profiled(expr, profile);
             require_same_hir_type(expected, &actual, source)?;
+            let expected_core = runtime_core_type(expected);
+            let actual_core = runtime_core_type(&actual);
+            if needs_runtime_coercion(&expected_core, &actual_core) {
+                return Ok(Expr::typed(
+                    ExprKind::Coerce {
+                        from: actual_core,
+                        to: expected_core,
+                        expr: Box::new(expr),
+                    },
+                    expected.clone(),
+                ));
+            }
             Ok(expr)
         }
     }

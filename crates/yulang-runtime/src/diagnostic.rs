@@ -318,6 +318,7 @@ fn display_primitive_op(op: typed_ir::PrimitiveOp) -> &'static str {
         typed_ir::PrimitiveOp::FloatLe => "<=",
         typed_ir::PrimitiveOp::FloatGt => ">",
         typed_ir::PrimitiveOp::FloatGe => ">=",
+        typed_ir::PrimitiveOp::StringEq => "==",
         typed_ir::PrimitiveOp::StringConcat => "++",
         typed_ir::PrimitiveOp::ListIndex => "[]",
         typed_ir::PrimitiveOp::ListIndexRange => "[..]",

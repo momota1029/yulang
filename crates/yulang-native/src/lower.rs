@@ -1587,6 +1587,7 @@ fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | PrimitiveOp::FloatLe
         | PrimitiveOp::FloatGt
         | PrimitiveOp::FloatGe
+        | PrimitiveOp::StringEq
         | PrimitiveOp::StringConcat => 2,
         PrimitiveOp::ListSplice
         | PrimitiveOp::ListIndexRangeRaw

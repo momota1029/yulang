@@ -30,6 +30,11 @@ impl Lowerer<'_> {
         } else {
             body_ty.clone()
         };
+        let runtime_type_params = principal_runtime_type_params(
+            &binding.scheme.body,
+            &stored_ty,
+            body_is_constructor_variant,
+        );
         let type_params = if core_type_params_empty {
             principal_hir_type_params(&stored_ty)
         } else {
@@ -44,7 +49,7 @@ impl Lowerer<'_> {
             binding.name.clone(),
             BindingInfo {
                 ty: stored_ty,
-                type_params: type_params.clone(),
+                type_params: runtime_type_params,
                 requirements: scheme.requirements.clone(),
             },
         );
@@ -2137,9 +2142,19 @@ impl Lowerer<'_> {
         }
         let params = info.type_params.iter().cloned().collect::<BTreeSet<_>>();
         let actual_callee_ty = erased_fun_type(arg_ty.clone(), result_ty.clone());
-        infer_hir_type_substitutions(&template_ty, &actual_callee_ty, &params, &mut substitutions);
+        infer_hir_type_substitutions_prefer_non_never(
+            &template_ty,
+            &actual_callee_ty,
+            &params,
+            &mut substitutions,
+        );
         if let Some(callee_hint) = callee_hint {
-            infer_hir_type_substitutions(&template_ty, callee_hint, &params, &mut substitutions);
+            infer_hir_type_substitutions_prefer_non_never(
+                &template_ty,
+                callee_hint,
+                &params,
+                &mut substitutions,
+            );
         }
         infer_role_requirement_substitutions(
             &info.requirements,
@@ -2148,11 +2163,17 @@ impl Lowerer<'_> {
             &mut substitutions,
         );
         let substituted_ty = substitute_hir_type(&template_ty, &substitutions);
+        let value_params = hir_value_type_params(&info.ty)
+            .into_iter()
+            .collect::<BTreeSet<_>>();
         let args = info
             .type_params
             .iter()
             .filter_map(|var| {
                 let ty = substitutions.get(var)?;
+                if !value_params.contains(var) && matches!(ty, typed_ir::Type::Never) {
+                    return None;
+                }
                 if matches!(ty, typed_ir::Type::Var(actual) if actual == var) {
                     return None;
                 }

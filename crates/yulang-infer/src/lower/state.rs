@@ -87,6 +87,8 @@ pub struct LowerState {
     pub effect_arities: HashMap<Path, usize>,
     /// effect path ごとの act type 引数。
     pub effect_args: HashMap<Path, Vec<(TypeVar, TypeVar)>>,
+    /// `error` 宣言から生成された effect operation と同名 constructor。
+    pub error_throw_variants: HashMap<Path, Vec<crate::lower::role::ErrorThrowVariant>>,
     /// operation DefId ごとの effect atom 引数。
     pub effect_op_args: HashMap<DefId, Vec<(TypeVar, TypeVar)>>,
     /// operation DefId が属する effect path。
@@ -165,6 +167,7 @@ impl LowerState {
             current_owner: None,
             effect_arities: HashMap::new(),
             effect_args: HashMap::new(),
+            error_throw_variants: HashMap::new(),
             effect_op_args: HashMap::new(),
             effect_op_effect_paths: HashMap::new(),
             same_path_effect_ops: HashMap::new(),

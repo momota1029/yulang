@@ -84,14 +84,13 @@ fn lower_enum_variant(
         enum_path.clone(),
         super::super::invariant_args(type_arg_tvs),
     );
-    let frozen_ctor_scheme = if let Some(sig) = enum_variant_payload_sig(variant_node) {
+    let payload_sigs = enum_variant_payload_sigs(variant_node);
+    let frozen_ctor_scheme = if !payload_sigs.is_empty() {
         let mut neg_scope = type_scope.clone();
-        let payload_neg =
-            crate::lower::signature::lower_pure_sig_neg_type(state, &sig, &mut neg_scope);
-        let fun_pos = state.pos_fun(
-            payload_neg,
-            state.neg_row(vec![], Neg::Top),
-            state.pos_row(vec![], Pos::Bot),
+        let fun_pos = enum_constructor_pos_for_payloads(
+            state,
+            &payload_sigs,
+            &mut neg_scope,
             enum_pos.clone(),
         );
         crate::scheme::freeze_pos_scheme(&state.infer, state.infer.alloc_pos(fun_pos))
@@ -99,27 +98,31 @@ fn lower_enum_variant(
         crate::scheme::freeze_pos_scheme(&state.infer, state.infer.alloc_pos(enum_pos.clone()))
     };
 
-    let body = if let Some(sig) = enum_variant_payload_sig(variant_node) {
+    let body = if !payload_sigs.is_empty() {
         let mut pos_scope = type_scope.clone();
         let mut neg_scope = type_scope.clone();
-        let payload_pos = crate::lower::signature::lower_pure_sig_type(state, &sig, &mut pos_scope);
-        let payload_neg =
-            crate::lower::signature::lower_pure_sig_neg_type(state, &sig, &mut neg_scope);
-        state.infer.constrain(
-            state.pos_fun(
-                payload_neg.clone(),
-                state.neg_row(vec![], Neg::Top),
-                state.pos_row(vec![], Pos::Bot),
-                enum_pos.clone(),
-            ),
-            Neg::Var(ctor_tv),
+        let payloads = payload_sigs
+            .iter()
+            .map(|sig| {
+                (
+                    crate::lower::signature::lower_pure_sig_type(state, sig, &mut pos_scope),
+                    crate::lower::signature::lower_pure_sig_neg_type(state, sig, &mut neg_scope),
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut neg_scope_for_ctor = type_scope.clone();
+        let ctor_pos = enum_constructor_pos_for_payloads(
+            state,
+            &payload_sigs,
+            &mut neg_scope_for_ctor,
+            enum_pos.clone(),
         );
-        synthetic_enum_unary_constructor_body(
+        state.infer.constrain(ctor_pos, Neg::Var(ctor_tv));
+        synthetic_enum_payload_constructor_body(
             state,
             ctor_def,
             &variant_name,
-            payload_pos,
-            payload_neg,
+            payloads,
             enum_pos,
             enum_neg,
         )
@@ -153,24 +156,60 @@ fn lower_enum_variant(
 pub(crate) fn enum_variant_payload_sig(
     variant_node: &SyntaxNode,
 ) -> Option<crate::lower::signature::SigType> {
-    if let Some(type_expr) = super::super::child_node(variant_node, SyntaxKind::TypeExpr) {
-        return crate::lower::signature::parse_sig_type_expr(&type_expr);
+    let payloads = enum_variant_payload_sigs(variant_node);
+    match payloads.len() {
+        0 => None,
+        1 => payloads.into_iter().next(),
+        _ => Some(crate::lower::signature::SigType::Tuple {
+            items: payloads,
+            span: variant_node.text_range(),
+        }),
+    }
+}
+
+fn enum_variant_payload_sigs(variant_node: &SyntaxNode) -> Vec<crate::lower::signature::SigType> {
+    let type_items = super::super::child_nodes(variant_node, SyntaxKind::TypeExpr)
+        .into_iter()
+        .filter_map(|type_expr| crate::lower::signature::parse_sig_type_expr(&type_expr))
+        .collect::<Vec<_>>();
+    if !type_items.is_empty() {
+        return type_items;
     }
 
-    let tuple_items = super::super::child_nodes(variant_node, SyntaxKind::StructField)
+    let Some(tuple_items) = super::super::child_nodes(variant_node, SyntaxKind::StructField)
         .into_iter()
         .filter_map(|field| super::super::child_node(&field, SyntaxKind::TypeExpr))
         .map(|type_expr| crate::lower::signature::parse_sig_type_expr(&type_expr))
-        .collect::<Option<Vec<_>>>()?;
+        .collect::<Option<Vec<_>>>()
+    else {
+        return Vec::new();
+    };
 
     if tuple_items.is_empty() {
-        None
+        Vec::new()
     } else {
-        Some(crate::lower::signature::SigType::Tuple {
+        vec![crate::lower::signature::SigType::Tuple {
             items: tuple_items,
             span: variant_node.text_range(),
-        })
+        }]
     }
+}
+
+fn enum_constructor_pos_for_payloads(
+    state: &mut LowerState,
+    payload_sigs: &[crate::lower::signature::SigType],
+    scope: &mut HashMap<String, TypeVar>,
+    ret: Pos,
+) -> Pos {
+    payload_sigs.iter().rev().fold(ret, |ret, sig| {
+        let payload_neg = crate::lower::signature::lower_pure_sig_neg_type(state, sig, scope);
+        state.pos_fun(
+            payload_neg,
+            state.neg_row(vec![], Neg::Top),
+            state.pos_row(vec![], Pos::Bot),
+            ret,
+        )
+    })
 }
 
 fn enum_variant_has_from_marker(variant_node: &SyntaxNode) -> bool {
@@ -250,76 +289,57 @@ fn synthetic_enum_nullary_constructor_body(
     state.representation_coerce(variant_tv, ret_tv, body_eff, variant)
 }
 
-fn synthetic_enum_unary_constructor_body(
+fn synthetic_enum_payload_constructor_body(
     state: &mut LowerState,
     ctor_def: DefId,
     tag: &Name,
-    payload_pos: Pos,
-    payload_neg: Neg,
+    payload_types: Vec<(Pos, Neg)>,
     enum_pos: Pos,
     enum_neg: Neg,
 ) -> TypedExpr {
-    let arg_def = state.fresh_def();
-    let arg_tv = state.fresh_tv();
-    let payload_tv = state.fresh_tv();
     let variant_tv = state.fresh_tv();
     let ret_tv = state.fresh_tv();
-    let arg_name = Name("value".to_string());
-    state.register_def_tv(arg_def, arg_tv);
-    state.register_def_name(arg_def, arg_name.clone());
-    state.register_def_owner(arg_def, ctor_def);
-    state.infer.constrain(payload_pos, Neg::Var(payload_tv));
-    state.infer.constrain(Pos::Var(payload_tv), payload_neg);
-    state
-        .infer
-        .constrain(Pos::Var(arg_tv), Neg::Var(payload_tv));
-    state
-        .infer
-        .constrain(Pos::Var(payload_tv), Neg::Var(arg_tv));
+    let mut payload_tvs = Vec::with_capacity(payload_types.len());
+    let mut payload_exprs = Vec::with_capacity(payload_types.len());
+    let mut arg_pats = Vec::with_capacity(payload_types.len());
 
-    let payload_coerce_eff = state.fresh_exact_pure_eff_tv();
-    let arg_expr_eff = state.fresh_exact_pure_eff_tv();
-    let payload = state.representation_coerce(
-        arg_tv,
-        payload_tv,
-        payload_coerce_eff,
-        TypedExpr {
-            tv: arg_tv,
-            eff: arg_expr_eff,
-            kind: ExprKind::Var(arg_def),
-        },
-    );
+    for (index, (payload_pos, payload_neg)) in payload_types.into_iter().enumerate() {
+        let arg_def = state.fresh_def();
+        let arg_tv = state.fresh_tv();
+        let payload_tv = state.fresh_tv();
+        let arg_name = if index == 0 {
+            Name("value".to_string())
+        } else {
+            Name(format!("value{index}"))
+        };
+        state.register_def_tv(arg_def, arg_tv);
+        state.register_def_name(arg_def, arg_name.clone());
+        state.register_def_owner(arg_def, ctor_def);
+        state.infer.constrain(payload_pos, Neg::Var(payload_tv));
+        state.infer.constrain(Pos::Var(payload_tv), payload_neg);
+        state
+            .infer
+            .constrain(Pos::Var(arg_tv), Neg::Var(payload_tv));
+        state
+            .infer
+            .constrain(Pos::Var(payload_tv), Neg::Var(arg_tv));
 
-    let variant = TypedExpr {
-        tv: variant_tv,
-        eff: state.fresh_exact_pure_eff_tv(),
-        kind: ExprKind::PolyVariant(
-            tag.clone(),
-            vec![payload],
-            crate::ast::expr::PolyVariantOrigin::Constructor,
-        ),
-    };
-    state.infer.constrain(
-        state.pos_variant(vec![(tag.clone(), vec![Pos::Var(payload_tv)])]),
-        Neg::Var(variant_tv),
-    );
-    state.infer.constrain(
-        Pos::Var(variant_tv),
-        Neg::PolyVariant(vec![(
-            tag.clone(),
-            vec![state.infer.alloc_neg(Neg::Var(payload_tv))],
-        )]),
-    );
-    state.infer.constrain(enum_pos, Neg::Var(ret_tv));
-    state.infer.constrain(Pos::Var(ret_tv), enum_neg);
+        let payload_coerce_eff = state.fresh_exact_pure_eff_tv();
+        let arg_expr_eff = state.fresh_exact_pure_eff_tv();
+        payload_exprs.push(state.representation_coerce(
+            arg_tv,
+            payload_tv,
+            payload_coerce_eff,
+            TypedExpr {
+                tv: arg_tv,
+                eff: arg_expr_eff,
+                kind: ExprKind::Var(arg_def),
+            },
+        ));
+        payload_tvs.push(payload_tv);
 
-    let body_eff = state.fresh_exact_pure_eff_tv();
-    let body = state.representation_coerce(variant_tv, ret_tv, body_eff, variant);
-    let arg_eff_tv = state.fresh_exact_pure_eff_tv();
-    super::super::wrap_header_lambdas(
-        state,
-        body,
-        vec![super::super::ArgPatInfo {
+        let arg_eff_tv = state.fresh_exact_pure_eff_tv();
+        arg_pats.push(super::super::ArgPatInfo {
             def: arg_def,
             tv: arg_tv,
             arg_eff_tv,
@@ -331,6 +351,40 @@ fn synthetic_enum_unary_constructor_body(
             local_bindings: vec![(arg_name, arg_def)],
             ann: None,
             unit_arg: false,
-        }],
-    )
+        });
+    }
+
+    let variant = TypedExpr {
+        tv: variant_tv,
+        eff: state.fresh_exact_pure_eff_tv(),
+        kind: ExprKind::PolyVariant(
+            tag.clone(),
+            payload_exprs,
+            crate::ast::expr::PolyVariantOrigin::Constructor,
+        ),
+    };
+    state.infer.constrain(
+        state.pos_variant(vec![(
+            tag.clone(),
+            payload_tvs.iter().copied().map(Pos::Var).collect(),
+        )]),
+        Neg::Var(variant_tv),
+    );
+    state.infer.constrain(
+        Pos::Var(variant_tv),
+        Neg::PolyVariant(vec![(
+            tag.clone(),
+            payload_tvs
+                .iter()
+                .copied()
+                .map(|payload_tv| state.infer.alloc_neg(Neg::Var(payload_tv)))
+                .collect(),
+        )]),
+    );
+    state.infer.constrain(enum_pos, Neg::Var(ret_tv));
+    state.infer.constrain(Pos::Var(ret_tv), enum_neg);
+
+    let body_eff = state.fresh_exact_pure_eff_tv();
+    let body = state.representation_coerce(variant_tv, ret_tv, body_eff, variant);
+    super::super::wrap_header_lambdas(state, body, arg_pats)
 }

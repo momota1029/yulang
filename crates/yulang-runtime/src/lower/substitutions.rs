@@ -225,15 +225,69 @@ fn collect_type_bounds_vars(bounds: &typed_ir::TypeBounds, vars: &mut BTreeSet<t
     }
 }
 
-pub(super) fn infer_hir_type_substitutions(
+pub(super) fn infer_hir_type_substitutions_prefer_non_never(
     template: &RuntimeType,
     actual: &RuntimeType,
     params: &BTreeSet<typed_ir::TypeVar>,
     substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) {
+    infer_hir_type_substitutions_with_options(
+        template,
+        actual,
+        params,
+        substitutions,
+        HirSubstitutionOptions {
+            prefer_non_never: true,
+            skip_empty_effect_residual: false,
+        },
+    );
+}
+
+#[derive(Clone, Copy)]
+struct HirSubstitutionOptions {
+    prefer_non_never: bool,
+    skip_empty_effect_residual: bool,
+}
+
+impl HirSubstitutionOptions {
+    fn skip_empty_effect_residual(self) -> Self {
+        Self {
+            skip_empty_effect_residual: true,
+            ..self
+        }
+    }
+}
+
+fn infer_hir_type_substitutions_with_options(
+    template: &RuntimeType,
+    actual: &RuntimeType,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    options: HirSubstitutionOptions,
+) {
     match (template, actual) {
+        (RuntimeType::Fun { .. }, RuntimeType::Core(core @ typed_ir::Type::Fun { .. })) => {
+            let actual = project_runtime_hir_type_with_vars(core, params);
+            infer_hir_type_substitutions_with_options(
+                template,
+                &actual,
+                params,
+                substitutions,
+                options,
+            );
+        }
+        (RuntimeType::Core(core @ typed_ir::Type::Fun { .. }), RuntimeType::Fun { .. }) => {
+            let template = project_runtime_hir_type_with_vars(core, params);
+            infer_hir_type_substitutions_with_options(
+                &template,
+                actual,
+                params,
+                substitutions,
+                options,
+            );
+        }
         (RuntimeType::Core(template), RuntimeType::Core(actual)) => {
-            infer_type_substitutions(template, actual, params, substitutions);
+            infer_runtime_type_substitutions(template, actual, params, substitutions, options);
         }
         (
             RuntimeType::Fun {
@@ -245,8 +299,26 @@ pub(super) fn infer_hir_type_substitutions(
                 ret: actual_ret,
             },
         ) => {
-            infer_hir_type_substitutions(template_param, actual_param, params, substitutions);
-            infer_hir_type_substitutions(template_ret, actual_ret, params, substitutions);
+            infer_hir_type_substitutions_with_options(
+                template_param,
+                actual_param,
+                params,
+                substitutions,
+                options,
+            );
+            let ret_options =
+                if options.prefer_non_never && runtime_hir_is_function_like(actual_ret) {
+                    options.skip_empty_effect_residual()
+                } else {
+                    options
+                };
+            infer_hir_type_substitutions_with_options(
+                template_ret,
+                actual_ret,
+                params,
+                substitutions,
+                ret_options,
+            );
         }
         (
             RuntimeType::Thunk {
@@ -258,14 +330,72 @@ pub(super) fn infer_hir_type_substitutions(
                 value: actual_value,
             },
         ) => {
-            infer_type_substitutions(template_effect, actual_effect, params, substitutions);
-            infer_hir_type_substitutions(template_value, actual_value, params, substitutions);
+            infer_runtime_type_substitutions(
+                template_effect,
+                actual_effect,
+                params,
+                substitutions,
+                options,
+            );
+            infer_hir_type_substitutions_with_options(
+                template_value,
+                actual_value,
+                params,
+                substitutions,
+                options,
+            );
         }
         (RuntimeType::Thunk { effect, value }, actual) => {
-            infer_type_substitutions(effect, &typed_ir::Type::Never, params, substitutions);
-            infer_hir_type_substitutions(value, actual, params, substitutions);
+            if !(options.skip_empty_effect_residual
+                && matches!(effect, typed_ir::Type::Var(var) if params.contains(var)))
+            {
+                infer_runtime_type_substitutions(
+                    effect,
+                    &typed_ir::Type::Never,
+                    params,
+                    substitutions,
+                    options,
+                );
+            }
+            infer_hir_type_substitutions_with_options(
+                value,
+                actual,
+                params,
+                substitutions,
+                options,
+            );
         }
         _ => {}
+    }
+}
+
+fn runtime_hir_is_function_like(ty: &RuntimeType) -> bool {
+    matches!(
+        ty,
+        RuntimeType::Fun { .. } | RuntimeType::Core(typed_ir::Type::Fun { .. })
+    )
+}
+
+fn infer_runtime_type_substitutions(
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    options: HirSubstitutionOptions,
+) {
+    if options.prefer_non_never {
+        if options.skip_empty_effect_residual {
+            infer_type_substitutions_prefer_non_never_skip_empty_effects(
+                template,
+                actual,
+                params,
+                substitutions,
+            );
+        } else {
+            infer_type_substitutions_prefer_non_never(template, actual, params, substitutions);
+        }
+    } else {
+        infer_type_substitutions(template, actual, params, substitutions);
     }
 }
 
@@ -389,6 +519,102 @@ pub(super) fn principal_hir_type_params(ty: &RuntimeType) -> Vec<typed_ir::TypeV
     collect_hir_type_vars(ty, &mut vars);
     vars.retain(|var| !is_anonymous_type_var(var));
     vars.into_iter().collect()
+}
+
+pub(super) fn hir_value_type_params(ty: &RuntimeType) -> Vec<typed_ir::TypeVar> {
+    let mut vars = BTreeSet::new();
+    collect_hir_value_type_vars(ty, &mut vars);
+    vars.retain(|var| !is_anonymous_type_var(var));
+    vars.into_iter().collect()
+}
+
+pub(super) fn principal_runtime_type_params(
+    core: &typed_ir::Type,
+    hir: &RuntimeType,
+    constructor_variant: bool,
+) -> Vec<typed_ir::TypeVar> {
+    let mut vars = if constructor_variant {
+        principal_core_constructor_type_params(core)
+            .into_iter()
+            .collect::<BTreeSet<_>>()
+    } else {
+        principal_core_type_params(core)
+            .into_iter()
+            .collect::<BTreeSet<_>>()
+    };
+    collect_hir_type_vars(hir, &mut vars);
+    vars.retain(|var| !is_anonymous_type_var(var));
+    vars.into_iter().collect()
+}
+
+fn collect_hir_value_type_vars(ty: &RuntimeType, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match ty {
+        RuntimeType::Unknown => {}
+        RuntimeType::Core(ty) => collect_core_value_type_vars(ty, vars),
+        RuntimeType::Fun { param, ret } => {
+            collect_hir_value_type_vars(param, vars);
+            collect_hir_value_type_vars(ret, vars);
+        }
+        RuntimeType::Thunk { value, .. } => collect_hir_value_type_vars(value, vars),
+    }
+}
+
+fn collect_core_value_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    match ty {
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Row { .. } => {}
+        typed_ir::Type::Var(var) => {
+            vars.insert(var.clone());
+        }
+        typed_ir::Type::Named { args, .. } => {
+            for arg in args {
+                collect_type_arg_value_type_vars(arg, vars);
+            }
+        }
+        typed_ir::Type::Fun { param, ret, .. } => {
+            collect_core_value_type_vars(param, vars);
+            collect_core_value_type_vars(ret, vars);
+        }
+        typed_ir::Type::Tuple(items)
+        | typed_ir::Type::Union(items)
+        | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_core_value_type_vars(item, vars);
+            }
+        }
+        typed_ir::Type::Record(record) => {
+            for field in &record.fields {
+                collect_core_value_type_vars(&field.value, vars);
+            }
+            if let Some(spread) = &record.spread {
+                match spread {
+                    typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
+                        collect_core_value_type_vars(ty, vars);
+                    }
+                }
+            }
+        }
+        typed_ir::Type::Variant(variant) => {
+            for case in &variant.cases {
+                for payload in &case.payloads {
+                    collect_core_value_type_vars(payload, vars);
+                }
+            }
+        }
+        typed_ir::Type::Recursive { body, .. } => collect_core_value_type_vars(body, vars),
+    }
+}
+
+fn collect_type_arg_value_type_vars(
+    arg: &typed_ir::TypeArg,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => collect_core_value_type_vars(ty, vars),
+        typed_ir::TypeArg::Bounds(bounds) => collect_type_bounds_vars(bounds, vars),
+    }
 }
 
 pub(super) fn principal_core_type_params(ty: &typed_ir::Type) -> Vec<typed_ir::TypeVar> {

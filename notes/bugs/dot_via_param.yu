@@ -1,0 +1,32 @@
+-- bug: 関数引数経由のドット呼び出しのエラーが分かりにくい / 注釈つきでも誤って構造的解決される
+--
+-- これは 2 段階のバグ。
+--
+-- (a) 注釈なし版: `my get_norm p = p.norm2`
+--     期待: 「p の型が決まらないので `.norm2` を解決できない。注釈してね」
+--     実際: error: could not determine the type of expression #0. This usually
+--                  means a name, field, method, or operator could not be resolved.
+--
+--     推論として通らないのは正しい挙動 (引数型が未確定なので Con かどうかも分からない)。
+--     しかし出力されるエラーが top-level expression へのものになっていて、
+--     原因が「ドット解決の遅延発火が起きなかった」ことだと分からない。
+--     診断改善が必要。
+--
+-- (b) 注釈あり版: `my get_norm (p: point) : int = p.norm2`
+--     期待: 25 が返る
+--     実際: result type mismatch in call to `point`: expected {norm2: int}, got point
+--
+--     `p: point` と書いても、`p.norm2` がなぜか structural な record access
+--     ({norm2: int}) として解決されている。引数注釈の point が dot 解決の
+--     companion ルートまで伝わっていない。
+
+struct point { x: int, y: int } with:
+    our p.norm2 = p.x * p.x + p.y * p.y
+
+-- (a) 診断バグ版
+my get_norm p = p.norm2
+get_norm (point { x: 3, y: 4 })
+
+-- (b) 注釈つきでも壊れる版 (片方ずつコメント解除して試す)
+-- my get_norm (p: point) : int = p.norm2
+-- get_norm (point { x: 3, y: 4 })

@@ -78,6 +78,16 @@ fn lower_ctor_or_name_pat(state: &mut LowerState, node: &SyntaxNode) -> PatKind 
                 );
             }
         }
+        if let Some(def) = super::struct_constructor_def_for_pattern(state, &path) {
+            let ref_id = super::resolve_pattern_constructor_ref(state, def);
+            return PatKind::Con(
+                ref_id,
+                payload
+                    .into_iter()
+                    .map(|inner_node| Box::new(lower_pat(state, &inner_node)))
+                    .next(),
+            );
+        }
     }
 
     if let Some(name) = pattern_binding_name(node) {
@@ -105,8 +115,8 @@ fn literal_pat(node: &SyntaxNode) -> Option<Lit> {
 }
 
 fn number_lit(text: &str) -> Option<Lit> {
-    if let Ok(n) = text.parse::<i64>() {
-        return Some(Lit::Int(n));
+    if text.chars().all(|ch| ch.is_ascii_digit()) {
+        return Some(Lit::Int(text.to_string()));
     }
     if let Ok(f) = text.parse::<f64>() {
         return Some(Lit::Float(f));

@@ -1,7 +1,7 @@
 use rowan::TextRange;
 use yulang_parser::lex::SyntaxKind;
 
-use crate::lower::role::ErrorThrowVariant;
+use crate::lower::role::{ErrorThrowVariant, ErrorUpSource};
 use crate::lower::signature::{SigType, SigVar, act_type_param_names, fresh_type_scope};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::{Name, Path, Visibility};
@@ -54,6 +54,7 @@ pub(crate) fn lower_error_decl(state: &mut LowerState, node: &SyntaxNode) {
     );
 
     let mut throw_variants = Vec::new();
+    let mut up_sources = Vec::new();
     for variant in super::super::child_nodes(node, SyntaxKind::EnumVariant) {
         let Some(variant_name) = super::super::ident_name(&variant) else {
             continue;
@@ -75,13 +76,25 @@ pub(crate) fn lower_error_decl(state: &mut LowerState, node: &SyntaxNode) {
             continue;
         };
         throw_variants.push(ErrorThrowVariant {
-            payload_sig,
+            payload_sig: payload_sig.clone(),
             constructor_def,
             operation_def,
         });
+        if enum_variant_has_from_marker(&variant)
+            && let Some(source_sig) = payload_sig
+        {
+            up_sources.push(ErrorUpSource {
+                source_sig,
+                target_operation_def: operation_def,
+            });
+        }
     }
+    state
+        .error_throw_variants
+        .insert(effect_path.clone(), throw_variants.clone());
     let error_sig = error_type_sig(&effect_path, &act_type_param_names(node), node.text_range());
     crate::lower::role::lower_synthetic_error_wrap(state, &error_sig, &throw_variants, visibility);
+    crate::lower::role::lower_synthetic_error_up(state, &error_sig, &up_sources, visibility);
     state.ctx.leave_module(saved_module);
     crate::lower::role::lower_synthetic_error_throw(state, &error_sig, throw_variants);
 }
@@ -143,4 +156,22 @@ fn error_visibility(node: &SyntaxNode) -> Visibility {
     } else {
         Visibility::Pub
     }
+}
+
+fn enum_variant_has_from_marker(variant_node: &SyntaxNode) -> bool {
+    let mut seen_name = false;
+    for token in variant_node
+        .children_with_tokens()
+        .filter_map(|item| item.into_token())
+    {
+        if token.kind() != SyntaxKind::Ident {
+            continue;
+        }
+        if !seen_name {
+            seen_name = true;
+            continue;
+        }
+        return token.text() == "from";
+    }
+    false
 }

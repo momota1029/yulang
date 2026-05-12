@@ -77,7 +77,7 @@ The columns trace a value through the pipeline:
 | Algebraic handlers (`catch expr:`)   |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | Effect row inference (residual rows) |  ✅   |  ✅   |   –    |     –      |   –    |  ✅  |
 | `std::undet` (nondeterminism)        |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
-| `std::junction` (effectful boolean)  |  ✅   |  ✅   |   ✅   |     ✅     |   ❌   |  ✅  |
+| `std::junction` (effectful boolean)  |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | Multi-shot resumption                |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  △   |
 
 ### Library and host

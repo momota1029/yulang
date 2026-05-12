@@ -730,6 +730,34 @@ fn std_fs_error_generates_wrap_helper() {
 }
 
 #[test]
+fn error_from_variant_generates_up_helper() {
+    let mut state = parse_and_lower(
+        "error fs_err:\n  not_found str\n\n\
+error io_err:\n  fs from fs_err\n\n\
+my wrapped = io_err::up 1\n",
+    );
+    state.finalize_compact_results();
+    let path = symbols::Path {
+        segments: vec![
+            symbols::Name("io_err".to_string()),
+            symbols::Name("up".to_string()),
+        ],
+    };
+    let up_def = state
+        .ctx
+        .resolve_path_value(&path)
+        .expect("error declaration should generate a companion up helper");
+    assert!(
+        state.principal_bodies.contains_key(&up_def),
+        "generated up helper should have a principal body"
+    );
+    assert!(
+        state.infer.type_errors().is_empty(),
+        "generated up helper should typecheck"
+    );
+}
+
+#[test]
 fn error_from_variant_generates_cast_impl() {
     let mut state = parse_and_lower(
         "role Cast 'from:\n  type to\n  our from.cast: to\n\n\
@@ -2676,6 +2704,23 @@ fn source_record_field_selection_final_fallback_introduces_record_requirement() 
     assert!(
         lowered.state.infer.deferred_selections.borrow().is_empty(),
         "final record field fallback should not leave the selection deferred",
+    );
+}
+
+#[test]
+fn concrete_non_record_field_selection_stays_unresolved_for_diagnostic() {
+    let lowered = lower_virtual_source_with_options(
+        "\"a,b,c\".split \",\"\n",
+        None,
+        SourceOptions::default(),
+    )
+    .expect("source should lower");
+
+    let diagnostics = collect_surface_diagnostics(&lowered.state);
+    assert!(
+        diagnostics.iter().any(|diagnostic| diagnostic.message
+            == "no field or method named `.split` could be resolved"),
+        "missing string method should remain a surface diagnostic, got {diagnostics:?}",
     );
 }
 
