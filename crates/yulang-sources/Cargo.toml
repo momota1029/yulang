@@ -1,6 +1,6 @@
 [package]
 name = "yulang-sources"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Source-set collection, realms, compilation units, and syntax artifacts for Yulang"
@@ -10,8 +10,8 @@ readme = "../../README.md"
 [dependencies]
 rowan = "0.15"
 serde = { version = "1", features = ["derive"] }
-yulang-parser = { version = "0.1.0", path = "../yulang-parser" }
-yulang-typed-ir = { version = "0.1.0", path = "../yulang-typed-ir" }
+yulang-parser = { version = "0.1.1", path = "../yulang-parser" }
+yulang-typed-ir = { version = "0.1.1", path = "../yulang-typed-ir" }
 
 [dev-dependencies]
 serde_json = "1"

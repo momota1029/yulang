@@ -8,7 +8,7 @@ repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
 
 [dependencies]
-yulang-infer = { version = "0.1.1", path = "../yulang-infer" }
+yulang-infer = { version = "0.1.2", path = "../yulang-infer" }
 yulang-native = { version = "0.1.0", path = "../yulang-native" }
 yulang-runtime = { version = "0.1.0", path = "../yulang-runtime" }
-yulang-sources = { version = "0.1.1", path = "../yulang-sources" }
+yulang-sources = { version = "0.1.2", path = "../yulang-sources" }

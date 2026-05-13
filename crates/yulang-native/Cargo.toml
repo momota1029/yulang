@@ -17,5 +17,5 @@ cranelift-jit = "0.121"
 cranelift-module = "0.121"
 cranelift-native = "0.121"
 cranelift-object = "0.121"
-yulang-typed-ir = { version = "0.1.0", path = "../yulang-typed-ir" }
+yulang-typed-ir = { version = "0.1.1", path = "../yulang-typed-ir" }
 yulang-runtime = { version = "0.1.0", path = "../yulang-runtime" }
