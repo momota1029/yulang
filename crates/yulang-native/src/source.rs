@@ -945,6 +945,25 @@ once_dfs_int { work() }
     }
 
     #[test]
+    fn compares_effectful_thunk_function_value_argument_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"pub act choice:
+  pub pick: int -> int
+
+my make(x: int): [_] int = choice::pick x
+my apply(f: int -> [_] int, x: int): [_] int = f x
+
+catch apply make 41:
+    choice::pick x, _ -> x + 1
+    v -> v
+"#,
+            )
+            .expect("effectful thunk function value argument CPS repr jit compare");
+        });
+    }
+
+    #[test]
     #[ignore = "Phase F debug: std::undet.once with reject layer-by-layer"]
     fn debugs_std_undet_once_skip_eval_layers() {
         let source = r#"use std::undet::*

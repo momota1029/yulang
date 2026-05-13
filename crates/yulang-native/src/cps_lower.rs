@@ -379,6 +379,9 @@ fn collect_expr_direct_calls(
             collect_expr_direct_calls(expr, functions, bindings, out);
         }
         runtime::ExprKind::Var(path) => {
+            if functions.contains_key(path) {
+                out.push(path.clone());
+            }
             if let Some(binding) = bindings.get(path)
                 && let Some(body) = binding_value_body(binding)
                 && !matches!(&body.kind, runtime::ExprKind::Var(inner) if inner == path)
@@ -1423,6 +1426,12 @@ impl<'a> FunctionLowerer<'a> {
                 if let Some(expr) = self.local_exprs.get(path).cloned() {
                     return self.lower_expr(&inline_callable_expr(&expr));
                 }
+                if let Some(value) = self.locals.get(path).copied() {
+                    return Ok(value);
+                }
+                if let Some(info) = self.functions.get(path) {
+                    return self.lower_function_value(path, info);
+                }
                 if let Some(expr) = self.bindings.get(path).and_then(|binding| {
                     binding_value_body(binding).filter(
                         |body| !matches!(&body.kind, runtime::ExprKind::Var(inner) if inner == path),
@@ -1436,10 +1445,7 @@ impl<'a> FunctionLowerer<'a> {
                     self.inline_stack.remove(path);
                     return value;
                 }
-                self.locals
-                    .get(path)
-                    .copied()
-                    .ok_or_else(|| CpsLowerError::UnsupportedFreeVar { path: path.clone() })
+                Err(CpsLowerError::UnsupportedFreeVar { path: path.clone() })
             }
             runtime::ExprKind::If {
                 cond,
@@ -1638,6 +1644,44 @@ impl<'a> FunctionLowerer<'a> {
         self.current
             .stmts
             .push(CpsStmt::MakeRecursiveClosure { dest, entry });
+        Ok(dest)
+    }
+
+    fn lower_function_value(
+        &mut self,
+        path: &typed_ir::Path,
+        info: &FunctionInfo,
+    ) -> CpsLowerResult<CpsValueId> {
+        if info.arity != 1 {
+            return Err(CpsLowerError::UnsupportedBinding {
+                path: path.clone(),
+                reason: "function value with arity other than 1",
+            });
+        }
+        let entry = self.fresh_continuation();
+        let dest = self.fresh_value();
+        let param_value = self.fresh_value();
+        let saved_current = std::mem::replace(
+            &mut self.current,
+            ContinuationBuilder::new(entry, vec![param_value]),
+        );
+        let result = self.fresh_value();
+        self.current.stmts.push(CpsStmt::DirectCall {
+            dest: result,
+            target: info.name.clone(),
+            args: vec![param_value],
+        });
+        if matches!(info.ret, runtime::Type::Thunk { .. })
+            || self.target_may_perform_when_called(path)
+        {
+            self.mark_active_handlers_external_call();
+        }
+        self.terminate(CpsTerminator::Return(result));
+        self.finish_current();
+        self.current = saved_current;
+        self.current
+            .stmts
+            .push(CpsStmt::MakeClosure { dest, entry });
         Ok(dest)
     }
 
@@ -5136,6 +5180,9 @@ fn direct_apply_path<'expr, 'functions>(
     let Some(target) = functions.get(path) else {
         return Ok(None);
     };
+    if args.is_empty() {
+        return Ok(None);
+    }
     if args.len() != target.arity {
         return Err(CpsLowerError::CallArityMismatch {
             target: target.name.clone(),

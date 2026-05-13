@@ -61,7 +61,7 @@ checklist, see *Detailed progress* below.
 | Multi-shot resumption (scalar)                      | CPS repr               |   ✅   |
 | `std::undet` `.once` first solution over a finite list | CPS repr            |   ✅   |
 | Mutable reference edit / update through effects     | CPS repr (scalar)      |   ✅   |
-| Effectful thunks across function boundaries         | —                      |   ❌   |
+| Effectful thunks across function boundaries         | CPS repr (scalar)      |   △   |
 | `std::junction` effectful boolean conditions        | CPS repr               |   ✅   |
 | Finite-list `for` loops with `last` / `next` control | CPS repr (scalar)      |   ✅   |
 
@@ -211,6 +211,9 @@ or out of here into the user-facing table once they stabilize.
       `ApplyClosure` / `ForceThunk`; Cranelift backs the new stmts with
       thread-local install/uninstall helpers that share the existing
       handler-stack runtime.
+- [x] Single-argument top-level function values can be passed through a
+      higher-order helper and return an effectful thunk through the Cranelift
+      CPS repr scalar path.
 - [x] `std::undet.each` runs through CPS eval, CPS repr eval, and the
       Cranelift JIT against a local DFS once helper. Handler-arm
       non-local returns propagate through every internal call site as
