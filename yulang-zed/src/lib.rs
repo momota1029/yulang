@@ -1,6 +1,7 @@
 use zed_extension_api::{self as zed, LanguageServerId, Result, Worktree};
 
-const LANGUAGE_SERVER_BINARY: &str = "yulang-ls";
+const LANGUAGE_SERVER_BINARY: &str = "yulang";
+const LANGUAGE_SERVER_SUBCOMMAND: &str = "server";
 
 struct YulangExtension;
 
@@ -30,7 +31,7 @@ impl zed::Extension for YulangExtension {
 
         Ok(zed::Command {
             command: binary,
-            args: vec![],
+            args: vec![LANGUAGE_SERVER_SUBCOMMAND.into()],
             env,
         })
     }

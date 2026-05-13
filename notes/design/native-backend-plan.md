@@ -169,18 +169,18 @@ Open questions:
 
 ## CLI Shape
 
-Add experimental flags only after the control IR exists.
+Add experimental subcommands only after the control IR exists.
 
-Possible flags:
+Possible invocations:
 
 ```text
-yulang --native-ir <file>
-yulang --native-run <file>
-yulang --native-compare <file>
+yulang dump --runtime-ir <file>
+yulang native <file>
+yulang debug compare-i64 <file>
 ```
 
-`--native-compare` should run VM and native code and fail if formatted root
-results differ.  That keeps the early backend honest.
+`yulang debug compare-i64` should run VM and native code and fail if formatted
+root results differ.  That keeps the early backend honest.
 
 For unsupported programs:
 
