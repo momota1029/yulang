@@ -1347,7 +1347,16 @@ fn project_substitutions_from_candidates(
     }
 
     for (var, candidates) in by_var {
-        if substitutions.contains_key(&var) || conflicts.contains(&var) {
+        if let Some(existing) = substitutions.get(&var) {
+            if candidates
+                .iter()
+                .any(|(relation, ty)| !substitution_satisfies_candidate(existing, *relation, ty))
+            {
+                conflicts.insert(var);
+            }
+            continue;
+        }
+        if conflicts.contains(&var) {
             continue;
         }
         let self_closed = unique_owned_candidate_type(
@@ -1408,6 +1417,20 @@ fn project_substitutions_from_candidates(
         {
             insert_exact_projected_substitution(substitutions, conflicts, var, lower);
         }
+    }
+}
+
+fn substitution_satisfies_candidate(
+    substitution: &typed_ir::Type,
+    relation: typed_ir::PrincipalCandidateRelation,
+    candidate: &typed_ir::Type,
+) -> bool {
+    match relation {
+        typed_ir::PrincipalCandidateRelation::Exact => {
+            type_compatible(substitution, candidate) && type_compatible(candidate, substitution)
+        }
+        typed_ir::PrincipalCandidateRelation::Lower => type_compatible(substitution, candidate),
+        typed_ir::PrincipalCandidateRelation::Upper => type_compatible(candidate, substitution),
     }
 }
 
@@ -2971,6 +2994,57 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn plan_normalization_rejects_substitution_that_violates_candidate_bounds() {
+        let item = tv("item");
+        let mut plan = typed_ir::PrincipalElaborationPlan {
+            target: Some(typed_ir::Path::from_name(typed_ir::Name(
+                "for_in".to_string(),
+            ))),
+            principal_callee: typed_ir::Type::Fun {
+                param: Box::new(typed_ir::Type::Var(item.clone())),
+                param_effect: Box::new(typed_ir::Type::Never),
+                ret_effect: Box::new(typed_ir::Type::Never),
+                ret: Box::new(named("unit")),
+            },
+            substitutions: vec![typed_ir::TypeSubstitution {
+                var: item.clone(),
+                ty: named("unit"),
+            }],
+            args: vec![typed_ir::PrincipalElaborationArg {
+                index: 0,
+                intrinsic: typed_ir::TypeBounds::exact(named("int")),
+                contextual: None,
+                expected_runtime: None,
+                source_edge: Some(1),
+            }],
+            result: typed_ir::PrincipalElaborationResult {
+                intrinsic: typed_ir::TypeBounds::exact(named("unit")),
+                contextual: None,
+                expected_runtime: None,
+            },
+            adapters: Vec::new(),
+            complete: false,
+            incomplete_reasons: Vec::new(),
+        };
+        plan.incomplete_reasons =
+            vec![typed_ir::PrincipalElaborationIncompleteReason::MissingSubstitution(item.clone())];
+        let candidates = vec![typed_ir::PrincipalSubstitutionCandidate {
+            var: item.clone(),
+            relation: typed_ir::PrincipalCandidateRelation::Lower,
+            ty: named("int"),
+            source_edge: Some(1),
+            path: vec![typed_ir::PrincipalSlotPathSegment::Arg],
+        }];
+
+        let normalized = normalize_principal_elaboration_plan(plan, &candidates);
+
+        assert!(!normalized.complete);
+        assert!(normalized.incomplete_reasons.contains(
+            &typed_ir::PrincipalElaborationIncompleteReason::ConflictingSubstitution(item)
+        ));
     }
 
     #[test]

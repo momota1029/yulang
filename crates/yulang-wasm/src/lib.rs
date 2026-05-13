@@ -1259,6 +1259,30 @@ f()
     }
 
     #[test]
+    fn runs_sub_return_from_range_for_loop() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner(
+                    r#"// sub gives an expression a local return.
+
+my first_over limit = sub:
+    for x in 0..: if x * x > limit: return x
+    0
+
+first_over 40
+"#,
+                );
+                assert!(output.ok, "{:?}", output.diagnostics);
+                assert_eq!(output.results.len(), 1);
+                assert_eq!(output.results[0].value, "7");
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
     fn reports_runtime_type_mismatch_without_internal_type_dump() {
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
