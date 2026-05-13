@@ -1,3 +1,4 @@
+use rowan::TextRange;
 use yulang_parser::lex::SyntaxKind;
 
 use crate::ids::DefId;
@@ -41,11 +42,10 @@ pub(crate) fn preregister_binding(state: &mut LowerState, node: &SyntaxNode) -> 
             state.register_def_owner(def, owner);
         }
         state.register_def_name(def, name.clone());
-        if let Some(pat_node) = &pat_node {
-            state.register_def_span(def, pat_node.text_range());
-        } else {
-            state.register_def_span(def, header.text_range());
-        }
+        state.register_def_span(
+            def,
+            binding_name_span(&header).unwrap_or(header.text_range()),
+        );
         if let Some(fixity) = operator_fixity {
             state.ctx.mark_operator_def(def, fixity);
             if super::super::header_operator_is_lazy(&header) {
@@ -115,11 +115,10 @@ pub(crate) fn preregister_binding_as_module_value(
         state.register_def_tv(def, tv);
         state.mark_let_bound_def(def);
         state.register_def_name(def, name.clone());
-        if let Some(pat_node) = &pat_node {
-            state.register_def_span(def, pat_node.text_range());
-        } else {
-            state.register_def_span(def, header.text_range());
-        }
+        state.register_def_span(
+            def,
+            binding_name_span(&header).unwrap_or(header.text_range()),
+        );
         if let Some(fixity) = operator_fixity {
             state.ctx.mark_operator_def(def, fixity);
             if super::super::header_operator_is_lazy(&header) {
@@ -199,11 +198,12 @@ fn preregister_pat_names(
                 .children_with_tokens()
                 .filter_map(|it| it.into_token())
                 .find_map(|t| match t.kind() {
-                    SyntaxKind::Ident => Some(Name(t.text().to_string())),
-                    SyntaxKind::SigilIdent => super::super::sigil_pattern_binding_name(t.text()),
+                    SyntaxKind::Ident => Some((Name(t.text().to_string()), t.text_range())),
+                    SyntaxKind::SigilIdent => super::super::sigil_pattern_binding_name(t.text())
+                        .map(|name| (name, t.text_range())),
                     _ => None,
                 });
-            if let Some(name) = direct {
+            if let Some((name, span)) = direct {
                 let def = state.fresh_def();
                 let tv = state.fresh_tv();
                 state.register_def_tv(def, tv);
@@ -212,7 +212,7 @@ fn preregister_pat_names(
                     state.register_def_owner(def, owner);
                 }
                 state.register_def_name(def, name.clone());
-                state.register_def_span(def, node.text_range());
+                state.register_def_span(def, span);
                 if is_pub {
                     state.insert_value(state.ctx.current_module, name, def);
                 } else if is_module_private {
@@ -235,6 +235,21 @@ fn is_module_private_binding(state: &LowerState, is_pub: bool) -> bool {
     !is_pub && state.current_owner.is_none() && state.ctx.local_depth() == 1
 }
 
+fn binding_name_span(header: &SyntaxNode) -> Option<TextRange> {
+    if header.kind() == SyntaxKind::OpDefHeader {
+        return token_span(header, SyntaxKind::OpName);
+    }
+    let pattern = super::super::child_node(header, SyntaxKind::Pattern)?;
+    token_span(&pattern, SyntaxKind::Ident).or_else(|| token_span(&pattern, SyntaxKind::OpName))
+}
+
+fn token_span(node: &SyntaxNode, kind: SyntaxKind) -> Option<TextRange> {
+    node.children_with_tokens()
+        .filter_map(|it| it.into_token())
+        .find(|token| token.kind() == kind)
+        .map(|token| token.text_range())
+}
+
 fn preregister_pat_names_as_module_values(state: &mut LowerState, node: &SyntaxNode) {
     match node.kind() {
         SyntaxKind::Pattern | SyntaxKind::PatOr | SyntaxKind::PatAs | SyntaxKind::PatParenGroup => {
@@ -245,17 +260,18 @@ fn preregister_pat_names_as_module_values(state: &mut LowerState, node: &SyntaxN
                 .children_with_tokens()
                 .filter_map(|it| it.into_token())
                 .find_map(|t| match t.kind() {
-                    SyntaxKind::Ident => Some(Name(t.text().to_string())),
-                    SyntaxKind::SigilIdent => super::super::sigil_pattern_binding_name(t.text()),
+                    SyntaxKind::Ident => Some((Name(t.text().to_string()), t.text_range())),
+                    SyntaxKind::SigilIdent => super::super::sigil_pattern_binding_name(t.text())
+                        .map(|name| (name, t.text_range())),
                     _ => None,
                 });
-            if let Some(name) = direct {
+            if let Some((name, span)) = direct {
                 let def = state.fresh_def();
                 let tv = state.fresh_tv();
                 state.register_def_tv(def, tv);
                 state.mark_let_bound_def(def);
                 state.register_def_name(def, name.clone());
-                state.register_def_span(def, node.text_range());
+                state.register_def_span(def, span);
                 state.insert_value(state.ctx.current_module, name, def);
             }
         }

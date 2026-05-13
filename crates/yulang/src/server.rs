@@ -9,8 +9,8 @@ use yulang_editor::semantic_tokens;
 use yulang_infer::simplify::compact::compact_type_var;
 use yulang_infer::{
     DefId, LowerState, Name as InferName, Path as InferPath, collect_compact_results_for_paths,
-    collect_surface_diagnostics, format_compact_scheme, lower_virtual_source_with_options,
-    render_compact_results, surface_diagnostic::SurfaceDiagnostic,
+    collect_surface_diagnostics, format_coalesced_scheme, lower_virtual_source_with_options,
+    surface_diagnostic::SurfaceDiagnostic,
 };
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
@@ -220,8 +220,9 @@ struct HoverTarget {
     path: Vec<String>,
     path_index: usize,
     range: Range,
+    token_kind: SyntaxKind,
+    in_type_expr: bool,
     syntax_range: rowan::TextRange,
-    path_syntax_range: rowan::TextRange,
 }
 
 fn hover_target_at(source: &str, position: Position) -> Option<HoverTarget> {
@@ -259,16 +260,14 @@ fn hover_target_at(source: &str, position: Position) -> Option<HoverTarget> {
         .iter()
         .position(|(token, _, _)| token == &tokens[target_idx].0)?;
     let name = path.get(path_index)?.clone();
-    let path_syntax_range =
-        rowan::TextRange::new(tokens[start_idx].2.start(), tokens[end_idx].2.end());
-
     Some(HoverTarget {
         name,
         path,
         path_index,
         range: tokens[target_idx].1,
+        token_kind: tokens[target_idx].0.kind(),
+        in_type_expr: token_has_ancestor(&tokens[target_idx].0, SyntaxKind::TypeExpr),
         syntax_range: tokens[target_idx].2,
-        path_syntax_range,
     })
 }
 
@@ -281,6 +280,10 @@ fn is_hover_name_token(token: &SyntaxToken) -> bool {
 
 fn hover_name_text(token: &SyntaxToken) -> String {
     token.text().trim_start_matches('.').to_string()
+}
+
+fn token_has_ancestor(token: &SyntaxToken, kind: SyntaxKind) -> bool {
+    token.parent_ancestors().any(|node| node.kind() == kind)
 }
 
 fn hover_path_bounds(
@@ -310,6 +313,10 @@ fn hover_type_from_lower_state(
     state: &mut LowerState,
     target: &HoverTarget,
 ) -> Option<(String, String)> {
+    if target.in_type_expr {
+        return None;
+    }
+
     if let Some(def) = resolve_hover_target_source_def(state, target) {
         return hover_type_for_def(state, def);
     }
@@ -318,10 +325,7 @@ fn hover_type_from_lower_state(
         return hover_type_for_def(state, def);
     }
 
-    let rendered = render_compact_results(state);
-    rendered
-        .into_iter()
-        .find(|(rendered_name, _)| rendered_name == &target.name)
+    None
 }
 
 fn resolve_hover_target_source_def(state: &LowerState, target: &HoverTarget) -> Option<DefId> {
@@ -329,25 +333,28 @@ fn resolve_hover_target_source_def(state: &LowerState, target: &HoverTarget) -> 
         .value_use_spans
         .iter()
         .rev()
-        .find_map(|(span, def)| {
-            span_contains_range(*span, target.path_syntax_range).then_some(*def)
-        })
+        .find_map(|(span, def)| span_contains_range(*span, target.syntax_range).then_some(*def))
         .or_else(|| {
             state.ref_spans.iter().find_map(|(ref_id, span)| {
-                span_contains_range(*span, target.path_syntax_range)
+                span_contains_range(*span, target.syntax_range)
                     .then(|| state.ctx.refs.get(*ref_id))
                     .flatten()
             })
         })
-        .or_else(|| {
-            state.def_spans.iter().find_map(|(def, span)| {
-                span_contains_range(*span, target.syntax_range).then_some(*def)
-            })
-        })
+        .or_else(|| narrowest_def_span_containing(state, target.syntax_range))
 }
 
 fn span_contains_range(outer: rowan::TextRange, inner: rowan::TextRange) -> bool {
     outer.start() <= inner.start() && inner.end() <= outer.end()
+}
+
+fn narrowest_def_span_containing(state: &LowerState, target: rowan::TextRange) -> Option<DefId> {
+    state
+        .def_spans
+        .iter()
+        .filter(|(_, span)| span_contains_range(**span, target))
+        .min_by_key(|(_, span)| usize::from(span.end()) - usize::from(span.start()))
+        .map(|(def, _)| *def)
 }
 
 fn resolve_hover_target_def(state: &LowerState, target: &HoverTarget) -> Option<DefId> {
@@ -355,7 +362,7 @@ fn resolve_hover_target_def(state: &LowerState, target: &HoverTarget) -> Option<
     if target.path.len() > 1 && is_path_tail {
         return state.ctx.resolve_path_value(&infer_path(&target.path));
     }
-    if target.path.len() == 1 {
+    if target.path.len() == 1 && target.token_kind == SyntaxKind::OpName {
         return state
             .ctx
             .resolve_value(&InferName(target.name.clone()))
@@ -365,6 +372,9 @@ fn resolve_hover_target_def(state: &LowerState, target: &HoverTarget) -> Option<
 }
 
 fn hover_type_for_def(state: &mut LowerState, def: DefId) -> Option<(String, String)> {
+    if let (Some(name), Some(ty)) = (state.def_name(def), state.def_hover_types.get(&def)) {
+        return Some((name.0.clone(), ty.clone()));
+    }
     state.finalize_compact_results();
     let paths = hover_paths_for_def(state, def);
     if let Some(result) = collect_compact_results_for_paths(state, &paths)
@@ -380,7 +390,7 @@ fn hover_type_for_def(state: &mut LowerState, def: DefId) -> Option<(String, Str
             .get(&def)
             .map(|tv| compact_type_var(&state.infer, *tv))
     })?;
-    Some((name, format_compact_scheme(&scheme)))
+    Some((name, format_coalesced_scheme(&scheme)))
 }
 
 fn hover_paths_for_def(state: &LowerState, def: DefId) -> Vec<(InferPath, DefId)> {
@@ -956,7 +966,8 @@ mod tests {
             panic!("hover should use markdown");
         };
         assert!(content.value.contains("x:"));
-        assert!(content.value.contains("α"));
+        assert!(content.value.contains("x: α"));
+        assert!(!content.value.contains("->"));
         assert!(!content.value.contains("int"));
     }
 
@@ -981,8 +992,172 @@ mod tests {
             panic!("hover should use markdown");
         };
         assert!(content.value.contains("x:"));
-        assert!(content.value.contains("α"));
+        assert!(content.value.contains("x: α"));
+        assert!(!content.value.contains("->"));
         assert!(!content.value.contains("int"));
+    }
+
+    #[test]
+    fn hover_source_map_ignores_implicit_prelude_spans() {
+        let source = "my x = 1\nmy f x = x\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 1,
+                character: 9,
+            },
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("x: α"));
+        assert!(!content.value.contains("->"));
+        assert!(!content.value.contains("std::"));
+    }
+
+    #[test]
+    fn hover_uses_parameter_definition_inside_multi_arg_binding_header() {
+        let source = "my bound start stop = start\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 0,
+                character: 10,
+            },
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("start: α"));
+        assert!(!content.value.contains("->"));
+    }
+
+    #[test]
+    fn hover_does_not_show_value_type_on_type_annotation_name() {
+        let source = "my bound start: int = start\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 0,
+                character: 16,
+            },
+        );
+        assert!(hover.is_none());
+    }
+
+    #[test]
+    fn hover_uses_annotated_parameter_reference_not_binding_function_type() {
+        let source = "pub exclusive(start: int, end: int): range = range::within (bound::excluded start, bound::excluded end)\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+            position_of(source, "start,").expect("body start position"),
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("start: int"));
+        assert!(!content.value.contains("->"));
+        assert!(!content.value.contains("range"));
+    }
+
+    #[test]
+    fn hover_source_spans_account_for_implicit_prelude_prefix() {
+        let source = "pub exclusive(start: int, end: int): range = range::within (bound::excluded start, bound::excluded end)\n";
+        let std_root = resolve_or_install_std_root(None, None)
+            .expect("stdlib root resolution")
+            .expect("stdlib root");
+        let hover = hover_for_source(
+            source,
+            None,
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+            position_of(source, "start,").expect("body start position"),
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("start: int"));
+        assert!(!content.value.contains("->"));
+        assert!(!content.value.contains("range"));
+    }
+
+    fn position_of(source: &str, needle: &str) -> Option<Position> {
+        let offset = source.find(needle)?;
+        Some(byte_to_position(&line_starts(source), offset))
+    }
+
+    #[test]
+    fn hover_uses_parameter_reference_inside_multi_arg_binding_body() {
+        let source = "my bound start stop = start\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 0,
+                character: 24,
+            },
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("start: α"));
+        assert!(!content.value.contains("->"));
+    }
+
+    #[test]
+    fn hover_does_not_fallback_to_same_named_global_for_unknown_bare_ident() {
+        let source = "my start x = x\nmy probe = missing\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 1,
+                character: 11,
+            },
+        );
+        assert!(hover.is_none());
     }
 }
 

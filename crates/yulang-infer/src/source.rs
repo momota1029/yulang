@@ -1279,7 +1279,13 @@ fn lower_source_file_inner(
     profile.parse += parse;
     let root = SyntaxNode::<YulangLanguage>::new_root(green);
     let lower_start = ProfileClock::now();
-    lower_root_in_module(state, &root, tir_module_path(file));
+    state.with_source_span_recording(
+        file.origin == SourceOrigin::Entry,
+        file.source_prefix_len,
+        |state| {
+            lower_root_in_module(state, &root, tir_module_path(file));
+        },
+    );
     let lower_roots = lower_start.elapsed();
     profile.lower_roots += lower_roots;
     push_origin_profile(profile, file.origin, parse, lower_roots);

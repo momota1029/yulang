@@ -543,6 +543,7 @@ pub struct SourceFile {
     pub origin: SourceOrigin,
     pub band: Option<ResolvedBandId>,
     pub op_table: OpTable,
+    pub source_prefix_len: usize,
     pub source: String,
     pub meta: SourceMeta,
 }
@@ -681,6 +682,7 @@ impl InlineSourceLoader {
             return;
         }
 
+        let source_prefix_len = source_prefix.len();
         let mut source = source.to_string();
         if !source_prefix.is_empty() {
             source.insert_str(0, source_prefix);
@@ -693,6 +695,7 @@ impl InlineSourceLoader {
             origin,
             band: None,
             op_table: standard_op_table(),
+            source_prefix_len,
             source,
             meta,
         });
@@ -765,6 +768,7 @@ impl SourceLoader {
             return Ok(());
         }
 
+        let source_prefix_len = source_prefix.len();
         let mut source = fs::read_to_string(path).map_err(|error| SourceLoadError::Io {
             path: path.to_path_buf(),
             error,
@@ -806,6 +810,7 @@ impl SourceLoader {
             origin,
             band: None,
             op_table: standard_op_table(),
+            source_prefix_len,
             source,
             meta,
         });
@@ -835,6 +840,7 @@ impl SourceLoader {
             return Ok(());
         }
 
+        let source_prefix_len = source_prefix.len();
         let mut source = source.to_string();
         if !source_prefix.is_empty() {
             source.insert_str(0, source_prefix);
@@ -873,6 +879,7 @@ impl SourceLoader {
             origin,
             band: None,
             op_table: standard_op_table(),
+            source_prefix_len,
             source,
             meta,
         });

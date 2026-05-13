@@ -37,6 +37,8 @@ pub struct LowerState {
     pub def_owners: HashMap<DefId, DefId>,
     /// local DefId の人間向け名前。
     pub def_names: HashMap<DefId, crate::symbols::Name>,
+    /// source 上に明示された型注釈から得た hover 用の型表示。
+    pub def_hover_types: HashMap<DefId, String>,
     /// source 上の定義名 span。LSP hover など、lowering 済みの名前解決結果を
     /// source 位置へ戻すために使う。
     pub def_spans: HashMap<DefId, rowan::TextRange>,
@@ -44,6 +46,8 @@ pub struct LowerState {
     pub value_use_spans: Vec<(rowan::TextRange, DefId)>,
     /// source 上の未解決/後解決参照 span。
     pub ref_spans: HashMap<RefId, rowan::TextRange>,
+    record_source_spans: bool,
+    source_span_offset: usize,
     /// lambda parameter def ごとの pattern local binder 群。
     pub lambda_local_defs: HashMap<DefId, Vec<DefId>>,
     /// lambda parameter def ごとの header pattern。
@@ -150,9 +154,12 @@ impl LowerState {
             continuation_defs: HashSet::new(),
             def_owners: HashMap::new(),
             def_names: HashMap::new(),
+            def_hover_types: HashMap::new(),
             def_spans: HashMap::new(),
             value_use_spans: Vec::new(),
             ref_spans: HashMap::new(),
+            record_source_spans: false,
+            source_span_offset: 0,
             lambda_local_defs: HashMap::new(),
             lambda_param_pats: HashMap::new(),
             lambda_param_effect_annotations: HashMap::new(),
@@ -696,16 +703,54 @@ impl LowerState {
         self.def_names.get(&def)
     }
 
+    pub fn register_def_hover_type(&mut self, def: DefId, ty: String) {
+        self.def_hover_types.insert(def, ty);
+    }
+
     pub fn register_def_span(&mut self, def: DefId, span: rowan::TextRange) {
-        self.def_spans.insert(def, span);
+        if let Some(span) = self.recorded_source_span(span) {
+            self.def_spans.insert(def, span);
+        }
     }
 
     pub fn record_value_use_span(&mut self, span: rowan::TextRange, def: DefId) {
-        self.value_use_spans.push((span, def));
+        if let Some(span) = self.recorded_source_span(span) {
+            self.value_use_spans.push((span, def));
+        }
     }
 
     pub fn record_ref_span(&mut self, ref_id: RefId, span: rowan::TextRange) {
-        self.ref_spans.insert(ref_id, span);
+        if let Some(span) = self.recorded_source_span(span) {
+            self.ref_spans.insert(ref_id, span);
+        }
+    }
+
+    pub(crate) fn with_source_span_recording<T>(
+        &mut self,
+        enabled: bool,
+        source_span_offset: usize,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let saved = self.record_source_spans;
+        let saved_offset = self.source_span_offset;
+        self.record_source_spans = enabled;
+        self.source_span_offset = source_span_offset;
+        let out = f(self);
+        self.record_source_spans = saved;
+        self.source_span_offset = saved_offset;
+        out
+    }
+
+    fn recorded_source_span(&self, span: rowan::TextRange) -> Option<rowan::TextRange> {
+        if !self.record_source_spans {
+            return None;
+        }
+        let start = usize::from(span.start()).checked_sub(self.source_span_offset)?;
+        let end = usize::from(span.end()).checked_sub(self.source_span_offset)?;
+        Some(rowan::TextRange::new(
+            (start as u32).into(),
+            (end as u32).into(),
+        ))
     }
 
     pub fn register_lambda_local_defs(&mut self, param_def: DefId, local_defs: Vec<DefId>) {

@@ -64,8 +64,7 @@ fn lower_expr_chain_prefix_with_pipe_arg(
         };
 
         let mut path_segs: Vec<Name> = Vec::new();
-        let mut path_start = None;
-        let mut path_end = None;
+        let mut path_tail_span = None;
         let mut head_expr: Option<TypedExpr> = None;
         match &head {
             Token(t) if t.kind() == SyntaxKind::SigilIdent && t.text().starts_with('$') => {
@@ -73,8 +72,7 @@ fn lower_expr_chain_prefix_with_pipe_arg(
             }
             Token(t) if matches!(t.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent) => {
                 path_segs.push(Name(t.text().to_string()));
-                path_start = Some(t.text_range().start());
-                path_end = Some(t.text_range().end());
+                path_tail_span = Some(t.text_range());
             }
             Token(t) if t.kind() == SyntaxKind::Symbol => {
                 head_expr = Some(lower_poly_variant_expr(
@@ -125,8 +123,8 @@ fn lower_expr_chain_prefix_with_pipe_arg(
         while let Some(item) = items.peek() {
             match item {
                 Node(n) if n.kind() == SyntaxKind::PathSep => {
-                    if let Some(seg) = path_sep_ident(n) {
-                        path_end = Some(n.text_range().end());
+                    if let Some((seg, span)) = path_sep_ident_with_span(n) {
+                        path_tail_span = Some(span);
                         path_segs.push(seg);
                     }
                     items.next();
@@ -146,12 +144,12 @@ fn lower_expr_chain_prefix_with_pipe_arg(
             if let Some(expr) = lower_sub_syntax(state, &mut items) {
                 expr
             } else {
-                resolve_path_expr_at(state, path_segs, path_span(path_start, path_end))
+                resolve_path_expr_at(state, path_segs, path_tail_span)
             }
         } else if let Some(expr) = head_expr {
             expr
         } else {
-            resolve_path_expr_at(state, path_segs, path_span(path_start, path_end))
+            resolve_path_expr_at(state, path_segs, path_tail_span)
         };
         if let Some(pipe_arg) = pipe_arg.take() {
             acc = make_app_with_cause(
@@ -199,13 +197,6 @@ fn lower_expr_chain_prefix_with_pipe_arg(
 
         acc
     })()
-}
-
-fn path_span(
-    start: Option<rowan::TextSize>,
-    end: Option<rowan::TextSize>,
-) -> Option<rowan::TextRange> {
-    Some(rowan::TextRange::new(start?, end?))
 }
 
 fn symbol_variant_name(text: &str) -> Name {
@@ -486,6 +477,10 @@ fn standard_sub_synthetic_act_source() -> stmt::SyntheticActSource {
 
 /// PathSep ノードからパスセグメントを取り出す。
 fn path_sep_ident(node: &SyntaxNode) -> Option<Name> {
+    path_sep_ident_with_span(node).map(|(name, _)| name)
+}
+
+fn path_sep_ident_with_span(node: &SyntaxNode) -> Option<(Name, rowan::TextRange)> {
     node.children_with_tokens()
         .filter_map(|it| it.into_token())
         .find(|t| {
@@ -499,7 +494,7 @@ fn path_sep_ident(node: &SyntaxNode) -> Option<Name> {
                     | SyntaxKind::Nullfix
             )
         })
-        .map(|t| Name(t.text().to_string()))
+        .map(|t| (Name(t.text().to_string()), t.text_range()))
 }
 
 fn qualified_method_path_from_field(

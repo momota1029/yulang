@@ -1,3 +1,4 @@
+use rowan::TextRange;
 use yulang_parser::lex::SyntaxKind;
 
 use crate::ast::expr::{PatKind, TypedPat};
@@ -38,7 +39,10 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             let tv = state.fresh_tv();
             let arg_eff_tv = state.fresh_exact_pure_eff_tv();
             state.register_def_tv(def, tv);
-            state.register_def_span(def, param_pat.text_range());
+            state.register_def_span(
+                def,
+                pattern_name_span(&param_pat).unwrap_or(param_pat.text_range()),
+            );
             ArgPatInfo {
                 def,
                 tv,
@@ -69,7 +73,13 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
                 },
             });
             state.register_def_tv(def, tv);
-            state.register_def_span(def, param_pat.text_range());
+            state.register_def_span(
+                def,
+                pattern_name_span(&param_pat).unwrap_or(param_pat.text_range()),
+            );
+            if let Some(hover_ty) = hover_type_from_pattern_annotation(&param_pat) {
+                state.register_def_hover_type(def, hover_ty);
+            }
             if let Some(read_eff_tv) = read_eff_tv {
                 state.register_def_eff_tv(def, read_eff_tv);
             }
@@ -100,7 +110,12 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             }
             for (name, def) in &local_bindings {
                 state.register_def_name(*def, name.clone());
-                state.register_def_span(*def, param_pat.text_range());
+                if let Some(span) = pattern_name_span_for_name(&param_pat, name) {
+                    state.register_def_span(*def, span);
+                }
+                if let Some(hover_ty) = hover_type_from_pattern_annotation(&param_pat) {
+                    state.register_def_hover_type(*def, hover_ty);
+                }
             }
             ArgPatInfo {
                 def,
@@ -164,6 +179,35 @@ fn header_arg_direct_binding_name(param_pat: &SyntaxNode) -> Option<Name> {
         return None;
     }
     super::super::pattern_binding_name(param_pat)
+}
+
+fn pattern_name_span(node: &SyntaxNode) -> Option<TextRange> {
+    node.children_with_tokens()
+        .filter_map(|it| it.into_token())
+        .find(|token| matches!(token.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent))
+        .map(|token| token.text_range())
+}
+
+fn pattern_name_span_for_name(node: &SyntaxNode, name: &Name) -> Option<TextRange> {
+    node.descendants_with_tokens()
+        .filter_map(|it| it.into_token())
+        .find(|token| pattern_token_name(token.text()) == Some(name.clone()))
+        .map(|token| token.text_range())
+}
+
+fn pattern_token_name(text: &str) -> Option<Name> {
+    if text.starts_with('$') {
+        super::super::sigil_pattern_binding_name(text)
+    } else {
+        Some(Name(text.to_string()))
+    }
+}
+
+fn hover_type_from_pattern_annotation(node: &SyntaxNode) -> Option<String> {
+    let type_expr = crate::lower::ann::pat_type_ann_node(node)
+        .and_then(|ann| super::super::child_node(&ann, SyntaxKind::TypeExpr))?;
+    let sig = crate::lower::signature::parse_sig_type_expr(&type_expr)?;
+    crate::lower::signature::render_concrete_sig_type(&sig)
 }
 
 fn is_unit_arg_pattern(node: &SyntaxNode) -> bool {
