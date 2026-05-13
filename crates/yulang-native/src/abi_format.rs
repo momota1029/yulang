@@ -71,6 +71,16 @@ fn format_stmt(stmt: &NativeAbiStmt) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
+        NativeAbiStmt::RecordWithoutFields { dest, base, fields } => format!(
+            "{} = record_without_fields {} - {{{}}}",
+            format_value(*dest),
+            format_value(*base),
+            fields
+                .iter()
+                .map(|field| field.0.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         NativeAbiStmt::Variant { dest, tag, value } => format!(
             "{} = variant :{}({})",
             format_value(*dest),

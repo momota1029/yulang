@@ -30,11 +30,11 @@ use crate::native_runtime::{
     yulang_native_make_bool, yulang_native_make_float, yulang_native_make_int,
     yulang_native_make_string, yulang_native_make_unit, yulang_native_primitive_binary,
     yulang_native_primitive_unary, yulang_native_record_empty, yulang_native_record_insert,
-    yulang_native_record_select, yulang_native_string_index_range,
-    yulang_native_string_index_range_raw, yulang_native_string_splice,
-    yulang_native_string_splice_raw, yulang_native_tuple_empty, yulang_native_tuple_get,
-    yulang_native_tuple_push, yulang_native_value_eq, yulang_native_variant,
-    yulang_native_variant_payload, yulang_native_variant_tag_eq,
+    yulang_native_record_select, yulang_native_record_without_field,
+    yulang_native_string_index_range, yulang_native_string_index_range_raw,
+    yulang_native_string_splice, yulang_native_string_splice_raw, yulang_native_tuple_empty,
+    yulang_native_tuple_get, yulang_native_tuple_push, yulang_native_value_eq,
+    yulang_native_variant, yulang_native_variant_payload, yulang_native_variant_tag_eq,
 };
 
 pub type NativeValueCraneliftResult<T> = Result<T, NativeValueCraneliftError>;
@@ -301,6 +301,10 @@ pub fn compile_value_abi_module(
         "yulang_native_record_select",
         yulang_native_record_select as *const u8,
     );
+    builder.symbol(
+        "yulang_native_record_without_field",
+        yulang_native_record_without_field as *const u8,
+    );
     builder.symbol("yulang_native_variant", yulang_native_variant as *const u8);
     builder.symbol(
         "yulang_native_variant_tag_eq",
@@ -425,6 +429,7 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
                     NativeAbiStmt::DirectCall { .. } => {}
                     NativeAbiStmt::Tuple { .. }
                     | NativeAbiStmt::Record { .. }
+                    | NativeAbiStmt::RecordWithoutFields { .. }
                     | NativeAbiStmt::Variant { .. }
                     | NativeAbiStmt::Select { .. }
                     | NativeAbiStmt::TupleGet { .. }
@@ -537,6 +542,7 @@ struct ValueHelpers {
     record_empty: FuncId,
     record_insert: FuncId,
     record_select: FuncId,
+    record_without_field: FuncId,
     variant: FuncId,
     variant_tag_eq: FuncId,
     variant_payload: FuncId,
@@ -575,6 +581,7 @@ fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
         record_empty: declare_record_empty(module_backend)?,
         record_insert: declare_record_insert(module_backend)?,
         record_select: declare_record_select(module_backend)?,
+        record_without_field: declare_record_without_field(module_backend)?,
         variant: declare_variant(module_backend)?,
         variant_tag_eq: declare_variant_tag_eq(module_backend)?,
         variant_payload: declare_variant_payload(module_backend)?,
@@ -899,6 +906,20 @@ fn declare_record_select<M: Module>(module_backend: &mut M) -> NativeValueCranel
     sig.returns.push(AbiParam::new(types::I64));
     module_backend
         .declare_function("yulang_native_record_select", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_record_without_field<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_record_without_field", Linkage::Import, &sig)
         .map_err(cranelift_error)
 }
 
@@ -1568,6 +1589,27 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             builder.def_var(variable(*dest), record);
             Ok(*dest)
         }
+        NativeAbiStmt::RecordWithoutFields { dest, base, fields } => {
+            if !defined.contains_key(base) {
+                return Err(NativeValueCraneliftError::MissingValue {
+                    function: function.name.clone(),
+                    value: *base,
+                });
+            }
+            let mut record = builder.use_var(variable(*base));
+            for field in fields {
+                let (name_ptr, name_len) =
+                    literals.literal_bytes(module_backend, builder, field.0.as_bytes())?;
+                let callee =
+                    module_backend.declare_func_in_func(helpers.record_without_field, builder.func);
+                let call = builder
+                    .ins()
+                    .call(callee, &[context, record, name_ptr, name_len]);
+                record = single_call_result(builder, call, "yulang_native_record_without_field")?;
+            }
+            builder.def_var(variable(*dest), record);
+            Ok(*dest)
+        }
         NativeAbiStmt::Variant { dest, tag, value } => {
             let (tag_ptr, tag_len) =
                 literals.literal_bytes(module_backend, builder, tag.0.as_bytes())?;
@@ -1788,6 +1830,7 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
                 | NativeAbiStmt::DirectCall { dest, .. }
                 | NativeAbiStmt::Tuple { dest, .. }
                 | NativeAbiStmt::Record { dest, .. }
+                | NativeAbiStmt::RecordWithoutFields { dest, .. }
                 | NativeAbiStmt::Variant { dest, .. }
                 | NativeAbiStmt::Select { dest, .. }
                 | NativeAbiStmt::TupleGet { dest, .. }

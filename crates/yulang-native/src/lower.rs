@@ -804,11 +804,6 @@ impl<'a> FunctionLowerer<'a> {
                 ..
             } => self.emit_list_pattern_condition(prefix, spread.as_deref(), suffix, value),
             runtime::Pattern::Record { fields, spread, .. } => {
-                if spread.is_some() {
-                    return Err(NativeLowerError::UnsupportedPattern {
-                        kind: "record spread",
-                    });
-                }
                 let mut cond = None;
                 for field in fields {
                     let field_value = self.fresh_value();
@@ -819,6 +814,11 @@ impl<'a> FunctionLowerer<'a> {
                     });
                     let field_cond = self.emit_pattern_condition(field_value, &field.pattern)?;
                     cond = self.combine_optional_conditions(cond, field_cond);
+                }
+                if let Some(spread) = record_spread_pattern(spread.as_ref()) {
+                    let rest = self.emit_record_without_fields(value, fields);
+                    let spread_cond = self.emit_pattern_condition(rest, spread)?;
+                    cond = self.combine_optional_conditions(cond, spread_cond);
                 }
                 Ok(cond)
             }
@@ -937,11 +937,6 @@ impl<'a> FunctionLowerer<'a> {
                 kind: "list nested refutable",
             }),
             runtime::Pattern::Record { fields, spread, .. } => {
-                if spread.is_some() {
-                    return Err(NativeLowerError::UnsupportedPattern {
-                        kind: "record spread",
-                    });
-                }
                 for field in fields {
                     let field_value = self.fresh_value();
                     self.current.stmts.push(NativeStmt::Select {
@@ -950,6 +945,10 @@ impl<'a> FunctionLowerer<'a> {
                         field: field.name.clone(),
                     });
                     self.bind_pattern(&field.pattern, field_value)?;
+                }
+                if let Some(spread) = record_spread_pattern(spread.as_ref()) {
+                    let rest = self.emit_record_without_fields(value, fields);
+                    self.bind_pattern(spread, rest)?;
                 }
                 Ok(())
             }
@@ -995,11 +994,6 @@ impl<'a> FunctionLowerer<'a> {
                 Ok(())
             }
             runtime::Pattern::Record { fields, spread, .. } => {
-                if spread.is_some() {
-                    return Err(NativeLowerError::UnsupportedPattern {
-                        kind: "record spread",
-                    });
-                }
                 for field in fields {
                     let field_value = self.fresh_value();
                     self.current.stmts.push(NativeStmt::Select {
@@ -1008,6 +1002,10 @@ impl<'a> FunctionLowerer<'a> {
                         field: field.name.clone(),
                     });
                     self.bind_matched_pattern(&field.pattern, field_value)?;
+                }
+                if let Some(spread) = record_spread_pattern(spread.as_ref()) {
+                    let rest = self.emit_record_without_fields(value, fields);
+                    self.bind_matched_pattern(spread, rest)?;
                 }
                 Ok(())
             }
@@ -1132,6 +1130,20 @@ impl<'a> FunctionLowerer<'a> {
         Ok(())
     }
 
+    fn emit_record_without_fields(
+        &mut self,
+        value: ValueId,
+        fields: &[runtime::RecordPatternField],
+    ) -> ValueId {
+        let dest = self.fresh_value();
+        self.current.stmts.push(NativeStmt::RecordWithoutFields {
+            dest,
+            base: value,
+            fields: fields.iter().map(|field| field.name.clone()).collect(),
+        });
+        dest
+    }
+
     fn emit_int_literal(&mut self, value: i64) -> ValueId {
         let dest = self.fresh_value();
         self.current.stmts.push(NativeStmt::Literal {
@@ -1227,10 +1239,10 @@ fn pattern_has_refutable_child(pattern: &runtime::Pattern) -> bool {
         | runtime::Pattern::Or { .. } => true,
         runtime::Pattern::Tuple { items, .. } => items.iter().any(pattern_has_refutable_child),
         runtime::Pattern::Record { fields, spread, .. } => {
-            spread.is_some()
-                || fields
-                    .iter()
-                    .any(|field| pattern_has_refutable_child(&field.pattern))
+            fields
+                .iter()
+                .any(|field| pattern_has_refutable_child(&field.pattern))
+                || record_spread_pattern(spread.as_ref()).is_some_and(pattern_has_refutable_child)
         }
         runtime::Pattern::As { pattern, .. } => pattern_has_refutable_child(pattern),
     }
@@ -1246,6 +1258,16 @@ fn list_pattern_children_are_irrefutable(
         .chain(spread)
         .chain(suffix)
         .all(|pattern| !pattern_has_refutable_child(pattern))
+}
+
+fn record_spread_pattern(
+    spread: Option<&runtime::RecordSpreadPattern>,
+) -> Option<&runtime::Pattern> {
+    match spread {
+        Some(runtime::RecordSpreadPattern::Head(pattern))
+        | Some(runtime::RecordSpreadPattern::Tail(pattern)) => Some(pattern),
+        None => None,
+    }
 }
 
 fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<typed_ir::Name>, &runtime::Expr) {

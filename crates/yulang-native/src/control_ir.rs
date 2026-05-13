@@ -47,6 +47,11 @@ pub enum NativeStmt {
         base: Option<ValueId>,
         fields: Vec<NativeRecordField>,
     },
+    RecordWithoutFields {
+        dest: ValueId,
+        base: ValueId,
+        fields: Vec<typed_ir::Name>,
+    },
     Variant {
         dest: ValueId,
         tag: typed_ir::Name,

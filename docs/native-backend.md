@@ -135,9 +135,10 @@ or out of here into the user-facing table once they stabilize.
       list item tests work in the value backend.
 - [x] Record pattern field tests and bindings work in the value backend,
       including shorthand fields such as `{ok, n}`.
+- [x] Record-spread patterns bind the remaining record fields in the VM,
+      native-control eval, ABI eval, and value backend.
 - [x] Guarded pattern matching works when the guard expression stays inside
       the existing value-backend expression subset.
-- [ ] Record-spread patterns are not supported in the value backend.
 - [ ] General multi-block control flow outside the current branch/jump subset
       is not supported in the value backend.
 - [ ] Closure allocation, closure environments, and indirect closure calls are

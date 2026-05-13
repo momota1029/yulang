@@ -75,6 +75,7 @@ fn validate_stmt(function: &NativeAbiFunction, stmt: &NativeAbiStmt) -> NativeAb
         NativeAbiStmt::DirectCall { .. } => Ok(()),
         NativeAbiStmt::Tuple { .. }
         | NativeAbiStmt::Record { .. }
+        | NativeAbiStmt::RecordWithoutFields { .. }
         | NativeAbiStmt::Variant { .. }
         | NativeAbiStmt::Select { .. }
         | NativeAbiStmt::TupleGet { .. }

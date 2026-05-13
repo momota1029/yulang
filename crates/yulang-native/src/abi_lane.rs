@@ -194,6 +194,18 @@ fn classify_stmt(
             }
             values.insert(*dest, NativeAbiRepr::Record(repr_fields));
         }
+        NativeAbiStmt::RecordWithoutFields { dest, base, fields } => {
+            let mut repr_fields = values
+                .get(base)
+                .cloned()
+                .and_then(|repr| match repr {
+                    NativeAbiRepr::Record(fields) => Some(fields),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            repr_fields.retain(|field| !fields.contains(&field.name));
+            values.insert(*dest, NativeAbiRepr::Record(repr_fields));
+        }
         NativeAbiStmt::Variant { dest, tag, value } => {
             values.insert(
                 *dest,

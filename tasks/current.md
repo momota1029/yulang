@@ -196,7 +196,9 @@ runtime/core IR
     同じ local definition を共有する。`{flag, width}` は関数引数 pattern と
     guarded case arm の両方で確認済みで、value-lane Cranelift の guarded
     match でも `{ok, n}` を JIT / object 生成で確認済み。
-  - record-spread pattern はまだ unsupported。
+  - record-spread pattern は VM で明示 field を除いた残りの record を spread
+    pattern に渡す。native control IR / ABI IR には `RecordWithoutFields` を追加し、
+    value-lane Cranelift でも同じ helper 経由で VM 比較済み。
   - `yulang-sources` に realm / band の薄い identity 型を追加した。既存の
     `SourceSet` は「今回コンパイルに集めた source aggregate」のまま残し、
     realm / band を source identity layer として上に置く。

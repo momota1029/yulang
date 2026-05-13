@@ -196,6 +196,9 @@ fn validate_stmt_uses(
             }
             Ok(())
         }
+        NativeAbiStmt::RecordWithoutFields { base, .. } => {
+            require_value(function, block, values, *base)
+        }
         NativeAbiStmt::Variant { value, .. } => {
             if let Some(value) = value {
                 require_value(function, block, values, *value)?;
@@ -270,6 +273,7 @@ fn stmt_dest(stmt: &NativeAbiStmt) -> ValueId {
         | NativeAbiStmt::DirectCall { dest, .. }
         | NativeAbiStmt::Tuple { dest, .. }
         | NativeAbiStmt::Record { dest, .. }
+        | NativeAbiStmt::RecordWithoutFields { dest, .. }
         | NativeAbiStmt::Variant { dest, .. }
         | NativeAbiStmt::Select { dest, .. }
         | NativeAbiStmt::TupleGet { dest, .. }

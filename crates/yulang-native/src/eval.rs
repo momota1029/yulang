@@ -246,6 +246,20 @@ fn eval_blocks(
                         NativeRuntimeValue::Plain(runtime::VmValue::Record(record)),
                     );
                 }
+                NativeStmt::RecordWithoutFields { dest, base, fields } => {
+                    let mut record = match read_plain_value(&values, *base)? {
+                        runtime::VmValue::Record(fields) => fields,
+                        value => return Err(NativeEvalError::ExpectedRecord { value }),
+                    };
+                    for field in fields {
+                        record.remove(field);
+                    }
+                    write_value(
+                        &mut values,
+                        *dest,
+                        NativeRuntimeValue::Plain(runtime::VmValue::Record(record)),
+                    );
+                }
                 NativeStmt::Variant { dest, tag, value } => {
                     let value = value
                         .map(|value| read_plain_value(&values, value).map(Box::new))

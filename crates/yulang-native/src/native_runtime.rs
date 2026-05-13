@@ -561,6 +561,21 @@ pub fn record_select(
     Some(context.alloc(value.clone()))
 }
 
+pub fn record_without_field(
+    context: &mut NativeRuntimeContext,
+    record: *mut runtime::VmValue,
+    name: &[u8],
+) -> Option<*mut runtime::VmValue> {
+    let record = unsafe { record.as_ref()? };
+    let runtime::VmValue::Record(fields) = record else {
+        return None;
+    };
+    let name = std::str::from_utf8(name).ok()?;
+    let mut fields = fields.clone();
+    fields.remove(&typed_ir_name(name));
+    Some(context.alloc(runtime::VmValue::Record(fields)))
+}
+
 pub fn variant(
     context: &mut NativeRuntimeContext,
     tag: &[u8],
@@ -1014,6 +1029,22 @@ pub extern "C" fn yulang_native_record_select(
         return std::ptr::null_mut();
     };
     record_select(context, record, name).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_record_without_field(
+    context: *mut NativeRuntimeContext,
+    record: *mut runtime::VmValue,
+    name_ptr: *const u8,
+    name_len: usize,
+) -> *mut runtime::VmValue {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    let Some(name) = bytes_from_raw(name_ptr, name_len) else {
+        return std::ptr::null_mut();
+    };
+    record_without_field(context, record, name).unwrap_or(std::ptr::null_mut())
 }
 
 #[unsafe(no_mangle)]

@@ -243,6 +243,16 @@ fn eval_blocks(
                     }
                     write_value(&mut values, *dest, plain(runtime::VmValue::Record(record)));
                 }
+                NativeAbiStmt::RecordWithoutFields { dest, base, fields } => {
+                    let mut record = match read_plain_value(&values, *base)? {
+                        runtime::VmValue::Record(fields) => fields,
+                        value => return Err(NativeAbiEvalError::ExpectedRecord { value }),
+                    };
+                    for field in fields {
+                        record.remove(field);
+                    }
+                    write_value(&mut values, *dest, plain(runtime::VmValue::Record(record)));
+                }
                 NativeAbiStmt::Variant { dest, tag, value } => {
                     let value = value
                         .map(|value| read_plain_value(&values, value).map(Box::new))

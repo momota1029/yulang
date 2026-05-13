@@ -441,6 +441,7 @@ fn lower_stmt<M: Module>(
         }
         NativeAbiStmt::Tuple { .. }
         | NativeAbiStmt::Record { .. }
+        | NativeAbiStmt::RecordWithoutFields { .. }
         | NativeAbiStmt::Variant { .. }
         | NativeAbiStmt::Select { .. }
         | NativeAbiStmt::TupleGet { .. }
@@ -723,6 +724,7 @@ fn function_call_targets(function: &NativeAbiFunction) -> Vec<String> {
                 | NativeAbiStmt::Primitive { .. }
                 | NativeAbiStmt::Tuple { .. }
                 | NativeAbiStmt::Record { .. }
+                | NativeAbiStmt::RecordWithoutFields { .. }
                 | NativeAbiStmt::Variant { .. }
                 | NativeAbiStmt::Select { .. }
                 | NativeAbiStmt::TupleGet { .. }
@@ -772,6 +774,7 @@ fn validate_scalar_stmt(
         NativeAbiStmt::DirectCall { .. } => Ok(()),
         NativeAbiStmt::Tuple { .. }
         | NativeAbiStmt::Record { .. }
+        | NativeAbiStmt::RecordWithoutFields { .. }
         | NativeAbiStmt::Variant { .. }
         | NativeAbiStmt::Select { .. }
         | NativeAbiStmt::TupleGet { .. }
@@ -854,6 +857,7 @@ fn function_value_ids(function: &NativeAbiFunction) -> Vec<ValueId> {
                 | NativeAbiStmt::DirectCall { dest, .. }
                 | NativeAbiStmt::Tuple { dest, .. }
                 | NativeAbiStmt::Record { dest, .. }
+                | NativeAbiStmt::RecordWithoutFields { dest, .. }
                 | NativeAbiStmt::Variant { dest, .. }
                 | NativeAbiStmt::Select { dest, .. }
                 | NativeAbiStmt::TupleGet { dest, .. }

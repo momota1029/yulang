@@ -60,6 +60,11 @@ pub enum NativeAbiStmt {
         base: Option<ValueId>,
         fields: Vec<NativeRecordField>,
     },
+    RecordWithoutFields {
+        dest: ValueId,
+        base: ValueId,
+        fields: Vec<typed_ir::Name>,
+    },
     Variant {
         dest: ValueId,
         tag: typed_ir::Name,
@@ -186,6 +191,13 @@ fn lower_native_stmt(stmt: &NativeStmt) -> NativeAbiStmt {
             base: *base,
             fields: fields.clone(),
         },
+        NativeStmt::RecordWithoutFields { dest, base, fields } => {
+            NativeAbiStmt::RecordWithoutFields {
+                dest: *dest,
+                base: *base,
+                fields: fields.clone(),
+            }
+        }
         NativeStmt::Variant { dest, tag, value } => NativeAbiStmt::Variant {
             dest: *dest,
             tag: tag.clone(),

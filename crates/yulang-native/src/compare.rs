@@ -711,6 +711,24 @@ mod tests {
         }
     }
 
+    fn record_pattern(
+        fields: Vec<(&str, runtime::Pattern)>,
+        spread: Option<runtime::RecordSpreadPattern>,
+    ) -> runtime::Pattern {
+        runtime::Pattern::Record {
+            fields: fields
+                .into_iter()
+                .map(|(name, pattern)| runtime::RecordPatternField {
+                    name: typed_ir::Name(name.to_string()),
+                    pattern,
+                    default: None,
+                })
+                .collect(),
+            spread,
+            ty: runtime::Type::unknown(),
+        }
+    }
+
     fn module_with_binding_and_root(
         binding: runtime::Binding,
         expr: runtime::Expr,
@@ -961,6 +979,26 @@ mod tests {
         };
         let module = module_with_root(match_expr(
             list(vec![int_lit("1"), int_lit("2"), int_lit("3")]),
+            vec![arm],
+        ));
+
+        compare_module_value(&module).expect("value paths match");
+    }
+
+    #[test]
+    fn compares_record_spread_pattern_with_value_cranelift() {
+        let arm = runtime::MatchArm {
+            pattern: record_pattern(
+                vec![("x", bind_pattern("x"))],
+                Some(runtime::RecordSpreadPattern::Tail(Box::new(bind_pattern(
+                    "rest",
+                )))),
+            ),
+            guard: None,
+            body: select(var("rest"), "y"),
+        };
+        let module = module_with_root(match_expr(
+            record(vec![("x", int_lit("1")), ("y", int_lit("2"))]),
             vec![arm],
         ));
 

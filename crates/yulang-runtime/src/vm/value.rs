@@ -62,11 +62,13 @@ pub(super) fn bind_pattern_with_defaults(
             env.insert(typed_ir::Path::from_name(name.clone()), value);
             Ok(())
         }
-        Pattern::Record { fields, .. } => {
+        Pattern::Record { fields, spread, .. } => {
             let VmValue::Record(values) = value else {
                 return Err(VmError::PatternMismatch);
             };
+            let mut rest = values.clone();
             for field in fields {
+                rest.remove(&field.name);
                 let Some(value) = values.get(&field.name).cloned() else {
                     let Some(default) = &field.default else {
                         return Err(VmError::PatternMismatch);
@@ -76,6 +78,13 @@ pub(super) fn bind_pattern_with_defaults(
                     continue;
                 };
                 bind_pattern_with_defaults(&field.pattern, value, env, eval_default)?;
+            }
+            if let Some(spread) = spread {
+                let spread = match spread {
+                    crate::RecordSpreadPattern::Head(pattern)
+                    | crate::RecordSpreadPattern::Tail(pattern) => pattern,
+                };
+                bind_pattern_with_defaults(spread, VmValue::Record(rest), env, eval_default)?;
             }
             Ok(())
         }
