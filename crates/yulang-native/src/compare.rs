@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[cfg(feature = "source")]
 use yulang_infer as infer;
 use yulang_runtime as runtime;
 
@@ -9,6 +10,7 @@ use crate::closure::closure_convert_module;
 use crate::cranelift::{NativeCraneliftError, compile_abi_module};
 use crate::eval::{NativeEvalError, eval_module};
 use crate::lower::{NativeLowerError, lower_module};
+#[cfg(feature = "source")]
 use crate::source::{
     NativeSourceError, native_default_source_options, runtime_module_from_source_with_options,
 };
@@ -133,6 +135,7 @@ pub fn compare_module(module: &runtime::Module) -> Result<(), NativeCompareError
 
 #[derive(Debug)]
 pub enum NativeSourceCompareError {
+    #[cfg(feature = "source")]
     Source(NativeSourceError),
     Lower(NativeLowerError),
     Eval(NativeEvalError),
@@ -181,6 +184,7 @@ pub enum NativeSourceCompareError {
 impl fmt::Display for NativeSourceCompareError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            #[cfg(feature = "source")]
             NativeSourceCompareError::Source(error) => write!(f, "{error}"),
             NativeSourceCompareError::Lower(error) => write!(f, "{error}"),
             NativeSourceCompareError::Eval(error) => write!(f, "{error}"),
@@ -234,6 +238,7 @@ impl fmt::Display for NativeSourceCompareError {
 
 impl std::error::Error for NativeSourceCompareError {}
 
+#[cfg(feature = "source")]
 impl From<NativeSourceError> for NativeSourceCompareError {
     fn from(error: NativeSourceError) -> Self {
         NativeSourceCompareError::Source(error)
@@ -270,6 +275,7 @@ impl From<NativeCraneliftError> for NativeSourceCompareError {
     }
 }
 
+#[cfg(feature = "source")]
 pub fn compare_source_i64(source: &str) -> Result<(), NativeSourceCompareError> {
     compare_source_i64_with_options(source, native_default_source_options())
 }
@@ -278,6 +284,7 @@ pub fn compare_module_i64(module: &runtime::Module) -> Result<(), NativeSourceCo
     compare_runtime_module_i64(module.clone())
 }
 
+#[cfg(feature = "source")]
 pub fn compare_source_i64_with_options(
     source: &str,
     options: infer::SourceOptions,

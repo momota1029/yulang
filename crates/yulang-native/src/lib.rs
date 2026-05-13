@@ -29,6 +29,7 @@ pub mod cranelift;
 pub mod eval;
 pub mod lower;
 pub mod native_runtime;
+#[cfg(feature = "source")]
 pub mod source;
 pub mod value_cranelift;
 
@@ -50,8 +51,9 @@ pub use closure::{
 };
 pub use compare::{
     NativeCompareError, NativeSourceCompareError, compare_module, compare_module_i64,
-    compare_source_i64, compare_source_i64_with_options,
 };
+#[cfg(feature = "source")]
+pub use compare::{compare_source_i64, compare_source_i64_with_options};
 pub use control_ir::{
     BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeStmt,
     NativeTerminator, ValueId,
@@ -123,6 +125,7 @@ pub use native_runtime::{
     yulang_native_tuple_push, yulang_native_variant, yulang_native_variant_payload,
     yulang_native_variant_tag_eq,
 };
+#[cfg(feature = "source")]
 pub use source::{
     NativeSourceError, NativeSourceResult, analyze_source_abi_reprs,
     analyze_source_abi_reprs_with_options, compare_source_cps_repr_i64,
