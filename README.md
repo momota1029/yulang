@@ -21,12 +21,27 @@ The implementation is still changing quickly. The repository is public so
 the current compiler, standard library, tests, and WebAssembly playground
 can be read together, not because the language is stable.
 
+Yulang is currently best read as an alpha-stage research language. The
+interpreter, playground, standard library, and language server are usable
+enough to try real examples, but syntax, type display, effect semantics,
+native lowering, and library APIs may still move.
+
+The current language server reports parse/lowering/type errors with source
+ranges, and many type errors include related locations such as the literal,
+annotation, application argument, or inferred origin that contributed to the
+mismatch. The diagnostics are intended to make experimentation practical, but
+they are not yet a complete UX contract.
+
 ## Playground
 
 The browser playground runs the current WebAssembly build and shows both
 evaluated results and inferred public types:
 
 <https://yulang.momota.pw>
+
+The playground uses the same in-progress WebAssembly pipeline as the repository.
+It may briefly show an empty page while the bundle and standard-library state
+load; this is a loading-state limitation, not part of the language semantics.
 
 ## A First Look
 
@@ -63,6 +78,10 @@ For a longer guided tour:
 - **Native backend** — [docs/native-backend.md](docs/native-backend.md)
   describes the native pipeline: which programs run natively today, the
   CLI commands, and the value / CPS representation status in detail.
+- **Language server** — `yulang server` provides hover, document symbols,
+  semantic tokens, and diagnostics. Error reporting is now source-based enough
+  for day-to-day exploration, including LSP `relatedInformation` for many type
+  errors, but not every diagnostic has perfect provenance yet.
 - **Type inference theory** — [web/docs/reference/type-theory.md](web/docs/reference/type-theory.md)
   and [web/docs/ja/reference/type-theory.md](web/docs/ja/reference/type-theory.md)
   introduce effect rows, handler hygiene, and hidden handler evidence from
@@ -73,33 +92,69 @@ For a longer guided tour:
 - **Standard library** — [`lib/std/`](lib/std) is the in-progress standard
   library written in Yulang.
 
+Useful examples to try when evaluating the current implementation:
+
+- `examples/showcase.yu` — broad syntax and library tour.
+- `examples/06_undet_once.yu` — nondeterminism through library effects.
+- `examples/10_effect_handler.yu` — algebraic effect handlers.
+- `examples/04_sub_return.yu` — local early return through `sub:`.
+- `examples/11_attached_impl.yu` — attached role implementations.
+
 ## Quick Start
+
+Install the CLI and embedded standard library:
+
+```bash
+cargo install yulang
+yulang install std
+```
 
 Run a file on the interpreter (the semantic oracle for everything else):
 
 ```bash
-cargo run -q -p yulang -- run examples/06_undet_once.yu
+yulang run examples/06_undet_once.yu
 ```
 
 Print inferred public types:
 
 ```bash
-cargo run -q -p yulang -- check examples/08_types.yu
-```
-
-Install the language server (it ships with the main `yulang` binary):
-
-```bash
-cargo install yulang
-yulang install-std
-yulang server
+yulang check examples/08_types.yu
 ```
 
 The standard library is installed to
-`~/.yulang/lib/yulang-0.1.0/std`. `yulang server` also installs this embedded
-standard library automatically on first use if neither `YULANG_STD` nor a
-nearby `lib/std` is available. The legacy `yulang-ls` binary is now a
-deprecated stub that delegates to `yulang server`.
+`~/.yulang/lib/yulang-0.1.0/std`. `yulang run`, `yulang check`, and
+`yulang server` can also install this embedded standard library automatically
+on first use if neither `YULANG_STD` nor a nearby `lib/std` is available.
+The legacy `yulang-ls` binary is now a deprecated stub that delegates to
+`yulang server`.
+
+Start the language server directly:
+
+```bash
+yulang server
+```
+
+Zed support lives in [`yulang-zed/`](yulang-zed). The extension is not published
+through the Zed extension registry yet; install it as a dev extension from Zed
+and select the `yulang-zed` directory. When a `yulang` binary is available in
+the worktree environment or in `~/.cargo/bin`, the extension starts
+`yulang server` automatically.
+
+The language server currently supports:
+
+- hover for inferred values, locals, methods, and many type references;
+- semantic tokens and document symbols;
+- diagnostics for parser/lowering/type errors;
+- `relatedInformation` on many type errors, for example pointing from an
+  application error back to the literal or annotation that supplied a type.
+
+Known LSP limits:
+
+- diagnostic wording is still compiler-oriented in places;
+- some related locations are approximate when inference keeps only a broad
+  application or adapter span;
+- hidden handler evidence is intentionally not shown in normal hover/type
+  display, even when it distinguishes two internal principal schemes.
 
 To use a different standard library checkout:
 
@@ -110,7 +165,7 @@ export YULANG_STD=/path/to/yulang/lib/std
 Run an inline program:
 
 ```bash
-RUSTC_WRAPPER= cargo run -q -p yulang --release -- run <<'YU'
+yulang run <<'YU'
 use std::undet::*
 
 (each [1, 2, 3] + each [4, 5, 6]).once

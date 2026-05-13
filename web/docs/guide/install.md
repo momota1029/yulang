@@ -23,6 +23,33 @@ For local experimentation, `cargo run -p yulang -- path/to/file.yu` is the
 important command. The web deployment steps below are only needed when updating
 the hosted playground/docs site.
 
+## Published CLI
+
+Install the main CLI with Cargo, then install the embedded standard library:
+
+```sh
+cargo install yulang
+yulang install std
+```
+
+After that, run or check programs directly:
+
+```sh
+yulang run examples/06_undet_once.yu
+yulang check examples/08_types.yu
+```
+
+The language server ships in the same binary:
+
+```sh
+yulang server
+```
+
+The Zed extension is not in the public Zed extension registry yet. To use it
+today, install `yulang-zed/` from this repository as a Zed dev extension. The
+extension starts `yulang server` when the `yulang` binary is available in the
+worktree environment or in `~/.cargo/bin`.
+
 The repository is a Rust workspace. The main crates are:
 
 | Crate | Purpose |

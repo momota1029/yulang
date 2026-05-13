@@ -171,7 +171,13 @@ enum Cmd {
     Dump(DumpArgs),
     /// Parser views (parse event tree for one fragment)
     Parse(ParseArgs),
+    /// Install Yulang resources
+    Install {
+        #[command(subcommand)]
+        target: InstallTarget,
+    },
     /// Install the embedded std sources and exit
+    #[command(hide = true)]
     InstallStd,
     /// Backend diagnostics
     Debug {
@@ -180,6 +186,12 @@ enum Cmd {
     },
     /// Start the Yulang language server
     Server,
+}
+
+#[derive(clap::Subcommand)]
+enum InstallTarget {
+    /// Install the embedded std sources and exit
+    Std,
 }
 
 #[derive(clap::Args)]
@@ -316,7 +328,10 @@ fn parse_args() -> CliOptions {
             opts.path = path;
             opts.parse_mode = Some(parse_as);
         }
-        Cmd::InstallStd => {
+        Cmd::Install {
+            target: InstallTarget::Std,
+        }
+        | Cmd::InstallStd => {
             opts.install_std = true;
         }
         Cmd::Debug { op } => match op {
