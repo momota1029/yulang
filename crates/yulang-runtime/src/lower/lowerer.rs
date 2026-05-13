@@ -134,7 +134,15 @@ impl Lowerer<'_> {
                     } else {
                         ExprKind::Var(resolved_path)
                     };
-                Ok(Expr::typed(kind, ty))
+                let expr = Expr::typed(kind, ty);
+                if local_ty.is_some()
+                    && matches!(expr.ty, RuntimeType::Thunk { .. })
+                    && let Some(boundary) = self.local_param_boundaries.get(&path)
+                    && boundary.applies_to_thunk_var
+                {
+                    return Ok(add_boundary_id_with_peek(expr, boundary.effect.clone()));
+                }
+                Ok(expr)
             }
             typed_ir::Expr::PrimitiveOp(op) => {
                 let ty = expected.cloned().unwrap_or_else(RuntimeType::unknown);
@@ -206,6 +214,26 @@ impl Lowerer<'_> {
                 );
                 let local = typed_ir::Path::from_name(param.clone());
                 let previous = locals.insert(local.clone(), param_ty.clone());
+                let boundary_effect = runtime_boundary_effect_for_param(
+                    param_effect_annotation.as_ref(),
+                    param_function_allowed_effects.as_ref(),
+                    &param_ty,
+                )
+                .map(|effect| project_runtime_effect(&effect));
+                let applies_to_thunk_var =
+                    param_effect_annotation.is_some() || param_function_allowed_effects.is_some();
+                let applies_to_call_outside_handler = applies_to_thunk_var;
+                let previous_boundary = match boundary_effect {
+                    Some(effect) => self.local_param_boundaries.insert(
+                        local.clone(),
+                        LocalParamBoundary {
+                            effect,
+                            applies_to_thunk_var,
+                            applies_to_call_outside_handler,
+                        },
+                    ),
+                    None => self.local_param_boundaries.remove(&local),
+                };
                 let body_expected = match ret_expected {
                     Some(ret) => Some(ret.clone()),
                     None => None,
@@ -214,6 +242,11 @@ impl Lowerer<'_> {
                     self.lower_expr(*body, body_expected.as_ref(), locals, TypeSource::Expected)?;
                 let actual_param_ty = locals.get(&local).cloned().unwrap_or(param_ty);
                 restore_local(locals, local, previous);
+                restore_local_param_boundary(
+                    &mut self.local_param_boundaries,
+                    typed_ir::Path::from_name(param.clone()),
+                    previous_boundary,
+                );
                 let body = self.protect_function_body(body);
                 let actual_ty = RuntimeType::fun(actual_param_ty, body.ty.clone());
                 let ty = match expected.as_ref() {
@@ -298,6 +331,16 @@ impl Lowerer<'_> {
                     .map(RuntimeType::core);
                 let callee_local_hint = match callee_expr.as_ref() {
                     Some(typed_ir::Expr::Var(path)) => locals.get(path).cloned(),
+                    _ => None,
+                };
+                let callee_boundary_effect = match callee_expr.as_ref() {
+                    Some(typed_ir::Expr::Var(path)) => {
+                        self.local_param_boundaries.get(path).and_then(|boundary| {
+                            (boundary.applies_to_call_outside_handler
+                                || self.handler_body_depth > 0)
+                                .then(|| boundary.effect.clone())
+                        })
+                    }
                     _ => None,
                 };
                 let callee_stored_hint =
@@ -766,6 +809,9 @@ impl Lowerer<'_> {
                         apply = attach_expr_effect(apply, effect);
                     }
                 }
+                if let Some(allowed) = callee_boundary_effect {
+                    apply = add_boundary_id_with_peek(apply, allowed);
+                }
                 finalize_effectful_expr_profiled(
                     apply,
                     expected,
@@ -1130,7 +1176,10 @@ impl Lowerer<'_> {
                     } else {
                         result_hint
                     };
-                let body = self.lower_expr(*body, None, locals, TypeSource::Expected)?;
+                self.handler_body_depth += 1;
+                let body_result = self.lower_expr(*body, None, locals, TypeSource::Expected);
+                self.handler_body_depth -= 1;
+                let body = body_result?;
                 let body_effect_before =
                     expr_forced_effect(&body).or_else(|| thunk_effect(&body.ty));
                 let handled = self
@@ -2606,6 +2655,21 @@ fn type_mismatch_phase_for_runtime_apply_phase(
         | RuntimeApplyAdapterPhase::PrepareFinalArgument
         | RuntimeApplyAdapterPhase::PrepareEffectOperationArgument => {
             TypeMismatchPhase::ApplyArgument
+        }
+    }
+}
+
+fn restore_local_param_boundary(
+    boundaries: &mut HashMap<typed_ir::Path, LocalParamBoundary>,
+    local: typed_ir::Path,
+    previous: Option<LocalParamBoundary>,
+) {
+    match previous {
+        Some(previous) => {
+            boundaries.insert(local, previous);
+        }
+        None => {
+            boundaries.remove(&local);
         }
     }
 }

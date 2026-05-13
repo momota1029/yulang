@@ -101,6 +101,22 @@ pub(super) fn mark_request(mut request: VmRequest, thunk: &VmThunk) -> VmRequest
     request
 }
 
+pub(super) fn mark_request_with_active_blocked(
+    mut request: VmRequest,
+    blocked_effects: &[BlockedEffect],
+) -> VmRequest {
+    for blocked in blocked_effects.iter().rev() {
+        if effect_is_allowed(&blocked.allowed, &request.effect) {
+            continue;
+        }
+        if request.blocked_id.is_some() {
+            continue;
+        }
+        request.blocked_id = Some(blocked.guard_id);
+    }
+    request
+}
+
 pub(super) fn push_frame(mut request: VmRequest, frame: Frame) -> VmRequest {
     request.continuation.frames.insert(0, frame);
     request
@@ -131,9 +147,31 @@ pub(super) fn effect_path_matches_allowed(
     if effect.segments.starts_with(&allowed.segments) {
         return true;
     }
-    allowed.segments.split_last().is_some_and(|(_, namespace)| {
-        !namespace.is_empty() && effect.segments.starts_with(namespace)
-    })
+    if allowed.segments.len() > 1
+        && effect.segments.len() == allowed.segments.len()
+        && effect.segments[..effect.segments.len() - 1]
+            == allowed.segments[..allowed.segments.len() - 1]
+        && effect_segment_matches_allowed(
+            &allowed.segments[allowed.segments.len() - 1],
+            &effect.segments[effect.segments.len() - 1],
+        )
+    {
+        return true;
+    }
+    effect
+        .segments
+        .iter()
+        .enumerate()
+        .skip(1)
+        .any(|(index, _)| effect.segments[index..].starts_with(&allowed.segments))
+}
+
+fn effect_segment_matches_allowed(allowed: &typed_ir::Name, effect: &typed_ir::Name) -> bool {
+    allowed == effect
+        || effect
+            .0
+            .strip_suffix("#effect")
+            .is_some_and(|base| base == allowed.0)
 }
 
 pub(super) fn is_float_type(ty: &typed_ir::Type) -> bool {

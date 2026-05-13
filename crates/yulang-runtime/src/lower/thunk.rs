@@ -61,6 +61,27 @@ pub(super) fn allowed_effect_for_param(
     }
 }
 
+pub(super) fn runtime_boundary_effect_for_param(
+    annotation: Option<&typed_ir::ParamEffectAnnotation>,
+    function_allowed_effects: Option<&typed_ir::FunctionSigAllowedEffects>,
+    _param_ty: &RuntimeType,
+) -> Option<typed_ir::Type> {
+    if let Some(allowed) = function_allowed_effects {
+        return Some(function_allowed_effect_type(allowed));
+    }
+    match annotation {
+        Some(typed_ir::ParamEffectAnnotation::Wildcard) => Some(wildcard_effect_type()),
+        Some(typed_ir::ParamEffectAnnotation::Region(name)) => Some(typed_ir::Type::Row {
+            items: vec![typed_ir::Type::Named {
+                path: typed_ir::Path::from_name(name.clone()),
+                args: Vec::new(),
+            }],
+            tail: Box::new(typed_ir::Type::Never),
+        }),
+        None => Some(empty_row()),
+    }
+}
+
 pub(super) fn returns_thunk(ty: &RuntimeType) -> bool {
     match ty {
         RuntimeType::Thunk { .. } => true,
@@ -73,6 +94,23 @@ pub(super) fn empty_row() -> typed_ir::Type {
     typed_ir::Type::Row {
         items: Vec::new(),
         tail: Box::new(typed_ir::Type::Never),
+    }
+}
+
+fn function_allowed_effect_type(allowed: &typed_ir::FunctionSigAllowedEffects) -> typed_ir::Type {
+    match allowed {
+        typed_ir::FunctionSigAllowedEffects::Wildcard => wildcard_effect_type(),
+        typed_ir::FunctionSigAllowedEffects::Effects(paths) => typed_ir::Type::Row {
+            items: paths
+                .iter()
+                .cloned()
+                .map(|path| typed_ir::Type::Named {
+                    path,
+                    args: Vec::new(),
+                })
+                .collect(),
+            tail: Box::new(typed_ir::Type::Never),
+        },
     }
 }
 
@@ -664,9 +702,15 @@ pub(super) fn add_id_to_created_thunks(expr: Expr) -> Expr {
             body: Box::new(add_id_to_created_thunks(*body)),
         },
         ExprKind::FindId { id } => ExprKind::FindId { id },
-        ExprKind::AddId { id, allowed, thunk } => ExprKind::AddId {
+        ExprKind::AddId {
             id,
             allowed,
+            active,
+            thunk,
+        } => ExprKind::AddId {
+            id,
+            allowed,
+            active,
             thunk: Box::new(add_id_to_created_thunks(*thunk)),
         },
         ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
@@ -692,10 +736,23 @@ pub(super) fn add_id_with_peek_if_needed(thunk: Expr, allowed: typed_ir::Type) -
     if !should_thunk_effect(&allowed) {
         return thunk;
     }
+    add_id_with_peek(thunk, allowed, false)
+}
+
+pub(super) fn add_boundary_id_with_peek(thunk: Expr, allowed: typed_ir::Type) -> Expr {
+    let allowed = project_runtime_effect(&allowed);
+    add_id_with_peek(thunk, allowed, true)
+}
+
+fn add_id_with_peek(thunk: Expr, allowed: typed_ir::Type, active: bool) -> Expr {
+    if !matches!(thunk.ty, RuntimeType::Thunk { .. }) {
+        return thunk;
+    }
     Expr::typed(
         ExprKind::AddId {
             id: EffectIdRef::Peek,
             allowed,
+            active,
             thunk: Box::new(thunk.clone()),
         },
         thunk.ty,

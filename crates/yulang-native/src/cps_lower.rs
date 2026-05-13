@@ -4982,7 +4982,9 @@ fn effect_apply_nested(expr: &runtime::Expr) -> Option<CpsEffectApply<'_>> {
             runtime::ExprKind::BindHere { expr }
             | runtime::ExprKind::Coerce { expr, .. }
             | runtime::ExprKind::Pack { expr, .. } => current = expr,
-            runtime::ExprKind::AddId { id, allowed, thunk } => {
+            runtime::ExprKind::AddId {
+                id, allowed, thunk, ..
+            } => {
                 let request = effect_apply_nested(thunk)?;
                 if blocked.is_none() && !effect_allowed_by_type(allowed, &request.effect) {
                     blocked = Some(*id);

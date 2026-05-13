@@ -315,12 +315,18 @@ impl RefineRewriter {
             },
             ExprKind::PeekId => ExprKind::PeekId,
             ExprKind::FindId { id } => ExprKind::FindId { id },
-            ExprKind::AddId { id, allowed, thunk } => {
+            ExprKind::AddId {
+                id,
+                allowed,
+                active,
+                thunk,
+            } => {
                 let thunk = self.expr(*thunk, Some(&ty));
                 ty = thunk.ty.clone();
                 ExprKind::AddId {
                     id,
                     allowed: substitute_type(&allowed, &self.substitutions),
+                    active,
                     thunk: Box::new(thunk),
                 }
             }

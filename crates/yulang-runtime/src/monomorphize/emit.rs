@@ -700,10 +700,16 @@ impl<'a> BodyEmitter<'a> {
                 },
                 self.expr_type(expr, expected)?,
             )),
-            ExprKind::AddId { id, allowed, thunk } => Ok(Expr::typed(
+            ExprKind::AddId {
+                id,
+                allowed,
+                active,
+                thunk,
+            } => Ok(Expr::typed(
                 ExprKind::AddId {
                     id: *id,
                     allowed: allowed.clone(),
+                    active: *active,
                     thunk: Box::new(self.rewrite_expr(thunk, expected)?),
                 },
                 self.expr_type(expr, expected)?,
@@ -890,6 +896,7 @@ impl<'a> BodyEmitter<'a> {
             ExprKind::AddId {
                 id: EffectIdRef::Peek,
                 allowed: effect,
+                active: false,
                 thunk: Box::new(thunk),
             },
             thunk_ty,
@@ -4048,6 +4055,7 @@ mod tests {
             ExprKind::AddId {
                 id: EffectIdRef::Peek,
                 allowed: undet.clone(),
+                active: false,
                 thunk: Box::new(Expr::typed(
                     ExprKind::Thunk {
                         effect: undet.clone(),

@@ -124,6 +124,8 @@ mod tests {
             use_principal_elaboration: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
             current_binding: None,
             current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
@@ -326,6 +328,8 @@ mod tests {
             use_principal_elaboration: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
             current_binding: None,
             current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
@@ -1231,7 +1235,10 @@ mod tests {
         let ExprKind::LocalPushId { body, .. } = &body.kind else {
             panic!("expected local push around thunk admin");
         };
-        let ExprKind::AddId { id, allowed, thunk } = &body.kind else {
+        let ExprKind::AddId {
+            id, allowed, thunk, ..
+        } = &body.kind
+        else {
             panic!("expected add_id around created thunk");
         };
         assert_eq!(*id, EffectIdRef::Peek);
@@ -1261,7 +1268,10 @@ mod tests {
 
         let expr = add_id_to_created_thunks(thunk);
 
-        let ExprKind::AddId { id, allowed, thunk } = &expr.kind else {
+        let ExprKind::AddId {
+            id, allowed, thunk, ..
+        } = &expr.kind
+        else {
             panic!("expected add_id around thunk");
         };
         assert_eq!(*id, EffectIdRef::Peek);
@@ -1406,6 +1416,8 @@ mod tests {
             use_principal_elaboration: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
             current_binding: None,
             current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
@@ -1466,6 +1478,8 @@ mod tests {
             use_principal_elaboration: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
             current_binding: None,
             current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
@@ -1561,6 +1575,8 @@ mod tests {
             use_principal_elaboration: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
             current_binding: None,
             current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
@@ -1662,6 +1678,8 @@ mod tests {
             use_principal_elaboration: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
             current_binding: None,
             current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,
@@ -1789,6 +1807,8 @@ mod tests {
             use_principal_elaboration: false,
             expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
             runtime_adapter_profile: RuntimeAdapterProfile::default(),
+            local_param_boundaries: HashMap::new(),
+            handler_body_depth: 0,
             current_binding: None,
             current_runtime_adapter_source: None,
             next_synthetic_type_var: 0,

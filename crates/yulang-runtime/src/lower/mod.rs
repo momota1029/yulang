@@ -338,6 +338,8 @@ fn lower_principal_module_with_graph_and_evidence_inner(
         use_principal_elaboration: std::env::var_os("YULANG_DISABLE_PRINCIPAL_ELABORATE").is_none(),
         expected_arg_evidence_profile: ExpectedArgEvidenceProfile::default(),
         runtime_adapter_profile: RuntimeAdapterProfile::default(),
+        local_param_boundaries: HashMap::new(),
+        handler_body_depth: 0,
         current_binding: None,
         current_runtime_adapter_source: None,
         next_synthetic_type_var: 0,
@@ -744,6 +746,8 @@ struct Lowerer<'a> {
     use_principal_elaboration: bool,
     expected_arg_evidence_profile: ExpectedArgEvidenceProfile,
     runtime_adapter_profile: RuntimeAdapterProfile,
+    local_param_boundaries: HashMap<typed_ir::Path, LocalParamBoundary>,
+    handler_body_depth: usize,
     current_binding: Option<typed_ir::Path>,
     current_runtime_adapter_source: Option<RuntimeAdapterSource>,
     next_synthetic_type_var: usize,
@@ -755,6 +759,13 @@ struct BindingInfo {
     ty: RuntimeType,
     type_params: Vec<typed_ir::TypeVar>,
     requirements: Vec<typed_ir::RoleRequirement>,
+}
+
+#[derive(Debug, Clone)]
+struct LocalParamBoundary {
+    effect: typed_ir::Type,
+    applies_to_thunk_var: bool,
+    applies_to_call_outside_handler: bool,
 }
 
 #[cfg(test)]

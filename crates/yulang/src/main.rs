@@ -4682,7 +4682,9 @@ fn format_runtime_expr(expr: &runtime::Expr, verbose: bool) -> String {
         runtime::ExprKind::FindId { id } => {
             format!("find_id {}", format_runtime_effect_id_ref(*id))
         }
-        runtime::ExprKind::AddId { id, allowed, thunk } => {
+        runtime::ExprKind::AddId {
+            id, allowed, thunk, ..
+        } => {
             format!(
                 "add_id[{}, {}] {}",
                 format_runtime_effect_id_ref(*id),

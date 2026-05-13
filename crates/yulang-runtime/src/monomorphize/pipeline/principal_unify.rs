@@ -972,12 +972,18 @@ impl PrincipalUnifier {
                     body: Box::new(body),
                 }
             }
-            ExprKind::AddId { id, allowed, thunk } => {
+            ExprKind::AddId {
+                id,
+                allowed,
+                active,
+                thunk,
+            } => {
                 let thunk = self.rewrite_expr(*thunk, result_context);
                 ty = thunk.ty.clone();
                 ExprKind::AddId {
                     id,
                     allowed,
+                    active,
                     thunk: Box::new(thunk),
                 }
             }

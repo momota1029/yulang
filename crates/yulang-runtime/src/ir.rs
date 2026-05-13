@@ -70,6 +70,7 @@ fn clone_expr_without_apply_spine_recursion(expr: &Expr) -> Expr {
             ty: &'a Type,
             id: EffectIdRef,
             allowed: &'a typed_ir::Type,
+            active: bool,
         },
         Coerce {
             ty: &'a Type,
@@ -140,11 +141,17 @@ fn clone_expr_without_apply_spine_recursion(expr: &Expr) -> Expr {
                 });
                 current = body;
             }
-            ExprKind::AddId { id, allowed, thunk } => {
+            ExprKind::AddId {
+                id,
+                allowed,
+                active,
+                thunk,
+            } => {
                 frames.push(Frame::AddId {
                     ty: &current.ty,
                     id: *id,
                     allowed,
+                    active: *active,
                 });
                 current = thunk;
             }
@@ -222,11 +229,17 @@ fn clone_expr_without_apply_spine_recursion(expr: &Expr) -> Expr {
                     body: Box::new(cloned),
                 },
             },
-            Frame::AddId { ty, id, allowed } => Expr {
+            Frame::AddId {
+                ty,
+                id,
+                allowed,
+                active,
+            } => Expr {
                 ty: ty.clone(),
                 kind: ExprKind::AddId {
                     id,
                     allowed: allowed.clone(),
+                    active,
                     thunk: Box::new(cloned),
                 },
             },
@@ -429,6 +442,7 @@ pub enum ExprKind {
     AddId {
         id: EffectIdRef,
         allowed: typed_ir::Type,
+        active: bool,
         thunk: Box<Expr>,
     },
     Coerce {

@@ -5,7 +5,7 @@ use crate::ir::{
     Expr, ExprKind, MatchArm, Module, Pattern, RecordExprField, RecordPatternField,
     RecordSpreadExpr, RecordSpreadPattern, Stmt, Type as RuntimeType,
 };
-use crate::types::{core_type_is_runtime_projection_fallback, effect_is_empty};
+use crate::types::core_type_is_runtime_projection_fallback;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeStage {
@@ -182,16 +182,7 @@ impl InvariantChecker {
             ExprKind::LocalPushId { body, .. } => {
                 self.expr(body, format!("{context}/local_push_id"))
             }
-            ExprKind::AddId { allowed, thunk, .. } => {
-                if matches!(thunk.ty, RuntimeType::Thunk { .. }) {
-                    if effect_is_empty(allowed) {
-                        return self.fail(context, "add_id allowed effect must not be empty");
-                    }
-                    self.expr(thunk, format!("{context}/add_id"))
-                } else {
-                    self.fail(context, "add_id must wrap a thunk")
-                }
-            }
+            ExprKind::AddId { thunk, .. } => self.expr(thunk, format!("{context}/add_id")),
             ExprKind::Coerce {
                 expr: inner,
                 from,
@@ -419,25 +410,18 @@ mod tests {
     use crate::ir::{Binding, EffectIdRef, Root};
 
     #[test]
-    fn rejects_add_id_that_does_not_wrap_thunk() {
+    fn accepts_add_id_that_does_not_wrap_thunk_as_noop() {
         let module = module_with_expr(Expr::typed(
             ExprKind::AddId {
                 id: EffectIdRef::Peek,
                 allowed: named("io"),
+                active: false,
                 thunk: Box::new(Expr::typed(ExprKind::Lit(typed_ir::Lit::Unit), unit())),
             },
             unit(),
         ));
 
-        let err = check_runtime_invariants(&module, RuntimeStage::Lowered).unwrap_err();
-
-        assert!(matches!(
-            err,
-            RuntimeError::InvariantViolation {
-                message: "add_id must wrap a thunk",
-                ..
-            }
-        ));
+        check_runtime_invariants(&module, RuntimeStage::Lowered).unwrap();
     }
 
     #[test]

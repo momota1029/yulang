@@ -35,7 +35,9 @@ fn format_hygiene_expr_into(expr: &Expr, indent: usize, out: &mut String) {
             );
             format_hygiene_expr_into(body, indent + 1, out);
         }
-        ExprKind::AddId { id, allowed, thunk } => {
+        ExprKind::AddId {
+            id, allowed, thunk, ..
+        } => {
             line(
                 indent,
                 out,
@@ -258,6 +260,7 @@ mod tests {
                     ExprKind::AddId {
                         id: EffectIdRef::Peek,
                         allowed: effect,
+                        active: false,
                         thunk: Box::new(thunk),
                     },
                     RuntimeType::thunk(row("io"), RuntimeType::core(named_type("int"))),

@@ -279,11 +279,6 @@ pub(super) fn validate_expr(
         }
         ExprKind::AddId { allowed, thunk, .. } => {
             validate_expr(thunk, bindings, type_arg_kinds, locals)?;
-            if !matches!(thunk.ty, RuntimeType::Thunk { .. }) {
-                return Err(RuntimeError::ExpectedThunk {
-                    ty: diagnostic_core_type(&thunk.ty),
-                });
-            }
             require_same_hir_type(&expr.ty, &thunk.ty, TypeSource::Expected)?;
             validate_effect_type_no_any(allowed, TypeSource::Validation, type_arg_kinds)?;
         }

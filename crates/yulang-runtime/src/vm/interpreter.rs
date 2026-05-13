@@ -5,6 +5,7 @@ pub(super) struct VmInterpreter<'m> {
     bindings: HashMap<typed_ir::Path, usize>,
     next_guard_id: u64,
     guard_stack: GuardStack,
+    active_blocked_effects: Vec<BlockedEffect>,
     eval_depth: usize,
     profile: VmProfile,
 }
@@ -21,6 +22,7 @@ impl<'m> VmInterpreter<'m> {
                 .collect(),
             next_guard_id: 0,
             guard_stack: GuardStack::default(),
+            active_blocked_effects: Vec::new(),
             eval_depth: 0,
             profile: VmProfile::default(),
         }
@@ -173,16 +175,22 @@ impl<'m> VmInterpreter<'m> {
             ExprKind::FindId { id } => {
                 Ok(VmResult::Value(VmValue::Bool(self.find_effect_id(*id)?)))
             }
-            ExprKind::AddId { id, allowed, thunk } => {
+            ExprKind::AddId {
+                id,
+                allowed,
+                active,
+                thunk,
+            } => {
                 let id = self.eval_effect_id(*id)?;
-                let thunk = self.eval_value(thunk, env)?;
-                let VmValue::Thunk(thunk) = thunk else {
-                    return Err(VmError::ExpectedThunk(thunk));
+                let result = self.eval_expr(thunk, env)?;
+                let VmResult::Value(VmValue::Thunk(thunk)) = result else {
+                    return Ok(result);
                 };
                 let mut thunk = (*thunk).clone();
                 thunk.blocked.push(BlockedEffect {
                     guard_id: id,
                     allowed: allowed.clone(),
+                    active: *active,
                 });
                 Ok(VmResult::Value(VmValue::Thunk(Rc::new(thunk))))
             }
@@ -300,10 +308,19 @@ impl<'m> VmInterpreter<'m> {
             return Ok(VmResult::Value(value));
         };
         let parent = self.guard_stack.clone();
+        let active_len = self.active_blocked_effects.len();
         self.guard_stack = thunk.guard_stack.clone();
+        self.active_blocked_effects.extend(
+            thunk
+                .blocked
+                .iter()
+                .filter(|blocked| blocked.active)
+                .cloned(),
+        );
         match &thunk.body {
             ThunkBody::Value(value) => {
                 self.guard_stack = parent;
+                self.active_blocked_effects.truncate(active_len);
                 Ok(VmResult::Value(value.clone()))
             }
             ThunkBody::Expr(expr) => {
@@ -316,19 +333,21 @@ impl<'m> VmInterpreter<'m> {
                     other => Ok(other),
                 };
                 self.guard_stack = parent;
+                self.active_blocked_effects.truncate(active_len);
                 result
             }
             ThunkBody::Emit { effect, payload } => {
-                let result = Ok(VmResult::Request(mark_request(
-                    VmRequest {
-                        effect: effect.clone(),
-                        payload: payload.clone(),
-                        continuation: VmContinuation::new(self.guard_stack.clone()),
-                        blocked_id: None,
-                    },
-                    &thunk,
-                )));
+                let request = VmRequest {
+                    effect: effect.clone(),
+                    payload: payload.clone(),
+                    continuation: VmContinuation::new(self.guard_stack.clone()),
+                    blocked_id: None,
+                };
+                let request =
+                    mark_request_with_active_blocked(request, &self.active_blocked_effects);
+                let result = Ok(VmResult::Request(mark_request(request, &thunk)));
                 self.guard_stack = parent;
+                self.active_blocked_effects.truncate(active_len);
                 result
             }
         }

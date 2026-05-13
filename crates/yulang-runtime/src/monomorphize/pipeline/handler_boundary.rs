@@ -823,10 +823,16 @@ fn rewrite_first_handle(expr: Expr, plan: &HandlerAdapterPlan) -> Expr {
             },
             ty,
         ),
-        ExprKind::AddId { id, allowed, thunk } => Expr::typed(
+        ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } => Expr::typed(
             ExprKind::AddId {
                 id,
                 allowed,
+                active,
                 thunk: Box::new(rewrite_first_handle(*thunk, plan)),
             },
             ty,
@@ -959,7 +965,12 @@ fn wrap_first_handle_returns_with_effect(
                 ty,
             )
         }
-        ExprKind::AddId { id, allowed, thunk } => {
+        ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } => {
             let thunk = wrap_first_handle_returns_with_effect(
                 *thunk,
                 effect,
@@ -971,6 +982,7 @@ fn wrap_first_handle_returns_with_effect(
                 ExprKind::AddId {
                     id,
                     allowed,
+                    active,
                     thunk: Box::new(thunk),
                 },
                 ty,
@@ -1031,6 +1043,7 @@ fn wrap_handler_return(body: Expr, effect: &typed_ir::Type, next_effect_id: &mut
         ExprKind::AddId {
             id: crate::ir::EffectIdRef::Peek,
             allowed: effect.clone(),
+            active: false,
             thunk: Box::new(thunk),
         },
         thunk_ty,

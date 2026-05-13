@@ -1334,6 +1334,75 @@ catch out::say "hi":
     }
 
     #[test]
+    fn vm_hides_unannotated_higher_order_callback_effect_from_local_handler() {
+        let results = eval_source_with_std(
+            r#"act undet:
+  our bool: () -> bool
+
+my shallow(f) = catch f():
+  undet::bool(), _ -> true
+
+my outer(x: [_] bool) = catch x:
+  undet::bool(), _ -> false
+
+outer(shallow(\() -> undet::bool()))
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Bool(false)]);
+    }
+
+    #[test]
+    fn vm_keeps_wildcard_higher_order_callback_effect_visible_to_local_handler() {
+        let results = eval_source_with_std(
+            r#"act undet:
+  our bool: () -> bool
+
+my shallow(f: () -> [_] bool) = catch f():
+  undet::bool(), _ -> true
+  value -> value
+
+shallow(\() -> undet::bool())
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Bool(true)]);
+    }
+
+    #[test]
+    fn vm_keeps_only_selectively_annotated_thunk_effect_visible_to_local_handler() {
+        let results = eval_source_with_std(
+            r#"act a:
+  our get: () -> int
+
+act b:
+  our get: () -> int
+
+my shallow(x: [a] int) = catch x:
+  a::get(), _ -> 1
+  b::get(), _ -> 2
+  value -> value
+
+my outer(x: [_] int) = catch x:
+  b::get(), _ -> 20
+
+(
+  shallow(a::get()),
+  outer(shallow(b::get()))
+)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Int("1".to_string()),
+                TestValue::Int("20".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_rejects_function_value_as_effectful_handler_input() {
         let err = runtime_module_with_std_result(
             r#"pub act out:
@@ -1995,7 +2064,11 @@ run_into_strings: {
             body: ThunkBody::Value(VmValue::Unit),
             env: Env::new(),
             guard_stack: GuardStack::default(),
-            blocked: vec![BlockedEffect { guard_id, allowed }],
+            blocked: vec![BlockedEffect {
+                guard_id,
+                allowed,
+                active: false,
+            }],
         }
     }
 

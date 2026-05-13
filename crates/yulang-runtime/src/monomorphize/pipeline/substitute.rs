@@ -147,9 +147,15 @@ pub(super) fn substitute_expr(
         },
         ExprKind::PeekId => ExprKind::PeekId,
         ExprKind::FindId { id } => ExprKind::FindId { id },
-        ExprKind::AddId { id, allowed, thunk } => ExprKind::AddId {
+        ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } => ExprKind::AddId {
             id,
             allowed: substitute_type(&allowed, substitutions),
+            active,
             thunk: Box::new(substitute_expr(*thunk, substitutions)),
         },
         ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {

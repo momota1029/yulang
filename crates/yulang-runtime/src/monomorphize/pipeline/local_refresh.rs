@@ -176,9 +176,15 @@ fn refresh_expr_local_types(expr: Expr, locals: &mut HashMap<typed_ir::Path, Run
             id,
             body: Box::new(refresh_expr_local_types(*body, locals)),
         },
-        ExprKind::AddId { id, allowed, thunk } => ExprKind::AddId {
+        ExprKind::AddId {
             id,
             allowed,
+            active,
+            thunk,
+        } => ExprKind::AddId {
+            id,
+            allowed,
+            active,
             thunk: Box::new(refresh_expr_local_types(*thunk, locals)),
         },
         ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {
@@ -334,9 +340,15 @@ fn project_expr_runtime_types(expr: Expr) -> Expr {
             id,
             body: Box::new(project_expr_runtime_types(*body)),
         },
-        ExprKind::AddId { id, allowed, thunk } => ExprKind::AddId {
+        ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } => ExprKind::AddId {
             id,
             allowed: project_core_runtime_effect(allowed),
+            active,
             thunk: Box::new(project_expr_runtime_types(*thunk)),
         },
         ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {

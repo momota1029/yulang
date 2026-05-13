@@ -198,9 +198,15 @@ pub(super) fn erase_kind(
             id,
             body: Box::new(erase_expr(*body, effects)?),
         },
-        ExprKind::AddId { id, allowed, thunk } => ExprKind::AddId {
+        ExprKind::AddId {
+            id,
+            allowed,
+            active,
+            thunk,
+        } => ExprKind::AddId {
             id,
             allowed: effects.resolve_effect_type(allowed),
+            active,
             thunk: Box::new(erase_expr(*thunk, effects)?),
         },
         ExprKind::Coerce { from, to, expr } => ExprKind::Coerce {

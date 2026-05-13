@@ -125,6 +125,7 @@ pub(super) struct PersistentVectorChunk<T> {
 pub(super) struct BlockedEffect {
     pub(super) guard_id: u64,
     pub(super) allowed: typed_ir::Type,
+    pub(super) active: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
