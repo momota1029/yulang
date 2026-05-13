@@ -2315,6 +2315,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "yulang-compile"
+version = "0.1.0"
+dependencies = [
+ "yulang-infer",
+ "yulang-native",
+ "yulang-runtime",
+ "yulang-sources",
+]
+
+[[package]]
 name = "yulang-editor"
 version = "0.1.0"
 dependencies = [
@@ -2354,7 +2364,6 @@ dependencies = [
  "cranelift-module",
  "cranelift-native",
  "cranelift-object",
- "yulang-infer",
  "yulang-runtime",
  "yulang-typed-ir",
 ]

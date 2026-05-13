@@ -235,6 +235,9 @@ or out of here into the user-facing table once they stabilize.
 
 ### Cache and package/build status
 
+- [x] `yulang-compile` owns source-level glue above inference and native
+      codegen; `yulang-native` no longer depends on `yulang-infer` directly or
+      indirectly.
 - [x] `target/yulang` is used for local native experiment outputs.
 - [x] Persistent cache paths exist for compiled unit artifacts.
 - [x] Realm/band source identity is documented as the direction for package-like

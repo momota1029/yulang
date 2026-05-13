@@ -29,8 +29,6 @@ pub mod cranelift;
 pub mod eval;
 pub mod lower;
 pub mod native_runtime;
-#[cfg(feature = "source")]
-pub mod source;
 pub mod value_cranelift;
 
 pub use abi::{
@@ -52,8 +50,6 @@ pub use closure::{
 pub use compare::{
     NativeCompareError, NativeSourceCompareError, compare_module, compare_module_i64,
 };
-#[cfg(feature = "source")]
-pub use compare::{compare_source_i64, compare_source_i64_with_options};
 pub use control_ir::{
     BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeStmt,
     NativeTerminator, ValueId,
@@ -124,18 +120,6 @@ pub use native_runtime::{
     yulang_native_string_splice_raw, yulang_native_tuple_empty, yulang_native_tuple_get,
     yulang_native_tuple_push, yulang_native_variant, yulang_native_variant_payload,
     yulang_native_variant_tag_eq,
-};
-#[cfg(feature = "source")]
-pub use source::{
-    NativeSourceError, NativeSourceResult, analyze_source_abi_reprs,
-    analyze_source_abi_reprs_with_options, compare_source_cps_repr_i64,
-    compare_source_cps_repr_i64_with_options, compile_source, compile_source_object,
-    compile_source_object_with_options, compile_source_value_object,
-    compile_source_value_object_with_options, compile_source_with_options, eval_source,
-    eval_source_cps_repr_i64, eval_source_cps_repr_i64_with_options, eval_source_i64,
-    eval_source_i64_with_options, eval_source_value_lane, eval_source_value_lane_with_options,
-    eval_source_with_options, native_default_source_options,
-    runtime_module_from_source_with_options,
 };
 pub use value_cranelift::{
     NativeValueCraneliftError, NativeValueJitModule, NativeValueObjectModule,

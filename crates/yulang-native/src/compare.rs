@@ -1,7 +1,5 @@
 use std::fmt;
 
-#[cfg(feature = "source")]
-use yulang_infer as infer;
 use yulang_runtime as runtime;
 
 use crate::abi::lower_closure_module_to_abi;
@@ -10,10 +8,6 @@ use crate::closure::closure_convert_module;
 use crate::cranelift::{NativeCraneliftError, compile_abi_module};
 use crate::eval::{NativeEvalError, eval_module};
 use crate::lower::{NativeLowerError, lower_module};
-#[cfg(feature = "source")]
-use crate::source::{
-    NativeSourceError, native_default_source_options, runtime_module_from_source_with_options,
-};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NativeCompareError {
@@ -135,8 +129,6 @@ pub fn compare_module(module: &runtime::Module) -> Result<(), NativeCompareError
 
 #[derive(Debug)]
 pub enum NativeSourceCompareError {
-    #[cfg(feature = "source")]
-    Source(NativeSourceError),
     Lower(NativeLowerError),
     Eval(NativeEvalError),
     Abi(NativeAbiEvalError),
@@ -184,8 +176,6 @@ pub enum NativeSourceCompareError {
 impl fmt::Display for NativeSourceCompareError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            #[cfg(feature = "source")]
-            NativeSourceCompareError::Source(error) => write!(f, "{error}"),
             NativeSourceCompareError::Lower(error) => write!(f, "{error}"),
             NativeSourceCompareError::Eval(error) => write!(f, "{error}"),
             NativeSourceCompareError::Abi(error) => write!(f, "{error}"),
@@ -238,13 +228,6 @@ impl fmt::Display for NativeSourceCompareError {
 
 impl std::error::Error for NativeSourceCompareError {}
 
-#[cfg(feature = "source")]
-impl From<NativeSourceError> for NativeSourceCompareError {
-    fn from(error: NativeSourceError) -> Self {
-        NativeSourceCompareError::Source(error)
-    }
-}
-
 impl From<NativeLowerError> for NativeSourceCompareError {
     fn from(error: NativeLowerError) -> Self {
         NativeSourceCompareError::Lower(error)
@@ -275,22 +258,8 @@ impl From<NativeCraneliftError> for NativeSourceCompareError {
     }
 }
 
-#[cfg(feature = "source")]
-pub fn compare_source_i64(source: &str) -> Result<(), NativeSourceCompareError> {
-    compare_source_i64_with_options(source, native_default_source_options())
-}
-
 pub fn compare_module_i64(module: &runtime::Module) -> Result<(), NativeSourceCompareError> {
     compare_runtime_module_i64(module.clone())
-}
-
-#[cfg(feature = "source")]
-pub fn compare_source_i64_with_options(
-    source: &str,
-    options: infer::SourceOptions,
-) -> Result<(), NativeSourceCompareError> {
-    let runtime_module = runtime_module_from_source_with_options(source, options)?;
-    compare_runtime_module_i64(runtime_module)
 }
 
 fn compare_runtime_module_i64(
@@ -682,74 +651,5 @@ mod tests {
         ));
 
         compare_module_i64(&module).expect("scalar paths match");
-    }
-
-    #[test]
-    fn compares_source_int_literal_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("41");
-    }
-
-    #[test]
-    fn compares_source_bool_literal_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("true");
-    }
-
-    #[test]
-    fn compares_source_bool_not_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("not false");
-    }
-
-    #[test]
-    fn compares_source_if_bool_literal_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("if true: 10 else: 20");
-    }
-
-    #[test]
-    fn compares_source_if_bool_primitive_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("if not false: 10 else: 20");
-    }
-
-    #[test]
-    fn compares_source_simple_function_call_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("my id x = x\nid 41");
-    }
-
-    #[test]
-    fn compares_source_function_with_if_bool_literal_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("my choose x y = if true: x else: y\nchoose 10 20");
-    }
-
-    #[test]
-    fn compares_source_int_add_operator_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("1 + 2");
-    }
-
-    #[test]
-    fn compares_source_operator_inside_function_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("my inc x = x + 1\ninc 41");
-    }
-
-    #[test]
-    fn compares_source_int_comparison_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("1 < 2");
-    }
-
-    #[test]
-    fn compares_source_if_int_comparison_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("if 1 < 2: 10 else: 20");
-    }
-
-    #[test]
-    fn compares_source_nested_function_calls_with_vm_native_and_cranelift() {
-        compare_source_with_large_stack("my inc x = x + 1\nmy twice x = inc (inc x)\ntwice 40");
-    }
-
-    fn compare_source_with_large_stack(source: &'static str) {
-        std::thread::Builder::new()
-            .stack_size(64 * 1024 * 1024)
-            .spawn(move || compare_source_i64(source).expect("source scalar paths match"))
-            .expect("spawn source compare thread")
-            .join()
-            .expect("join source compare thread");
     }
 }
