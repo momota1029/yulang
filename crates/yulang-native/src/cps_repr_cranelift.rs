@@ -318,6 +318,14 @@ pub fn compile_cps_repr_abi_module(
         "yulang_cps_set_resumption_anchor_from_selected_i64",
         yulang_cps_set_resumption_anchor_from_selected_i64 as *const u8,
     );
+    builder.symbol(
+        "yulang_cps_add_thunk_boundary_i64",
+        yulang_cps_add_thunk_boundary_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_active_blocked_guard_i64",
+        yulang_cps_active_blocked_guard_i64 as *const u8,
+    );
     // write27-d d4: EffectfulApply Resumption helpers + predicate.
     builder.symbol(
         "yulang_cps_is_resumption_i64",
@@ -764,6 +772,7 @@ struct HandlerCandidate {
 #[derive(Debug, Clone)]
 struct HandlerRegistry {
     candidates: Vec<(typed_ir::Path, HandlerCandidate)>,
+    effects: Vec<typed_ir::Path>,
 }
 
 impl HandlerRegistry {
@@ -786,8 +795,17 @@ impl HandlerRegistry {
                     })
                 })
             })
-            .collect();
-        Self { candidates }
+            .collect::<Vec<_>>();
+        let mut effects = Vec::new();
+        for (effect, _) in &candidates {
+            if !effects.iter().any(|existing| existing == effect) {
+                effects.push(effect.clone());
+            }
+        }
+        Self {
+            candidates,
+            effects,
+        }
     }
 
     fn candidates_for_effect(&self, effect: &typed_ir::Path) -> Vec<HandlerCandidate> {
@@ -796,6 +814,49 @@ impl HandlerRegistry {
             .filter(|(expected, _)| effect_matches(expected, effect))
             .map(|(_, candidate)| candidate.clone())
             .collect()
+    }
+
+    fn effect_mask(
+        &self,
+        function: &CpsReprAbiFunction,
+        effect: &typed_ir::Path,
+    ) -> CpsReprCraneliftResult<i64> {
+        let mut mask = 0_i64;
+        for (index, registered) in self.effects.iter().enumerate() {
+            if index >= 62 {
+                return Err(CpsReprCraneliftError::UnsupportedFunction {
+                    function: function.name.clone(),
+                    reason: "effect id outside scalar boundary mask",
+                });
+            }
+            if effect_matches(registered, effect) {
+                mask |= 1_i64 << index;
+            }
+        }
+        Ok(mask)
+    }
+
+    fn allowed_mask(
+        &self,
+        function: &CpsReprAbiFunction,
+        allowed: &typed_ir::Type,
+    ) -> CpsReprCraneliftResult<i64> {
+        if matches!(allowed, typed_ir::Type::Any) {
+            return Ok(-1);
+        }
+        let mut mask = 0_i64;
+        for (index, effect) in self.effects.iter().enumerate() {
+            if index >= 62 {
+                return Err(CpsReprCraneliftError::UnsupportedFunction {
+                    function: function.name.clone(),
+                    reason: "effect id outside scalar boundary mask",
+                });
+            }
+            if effect_allowed_by_type(allowed, effect) {
+                mask |= 1_i64 << index;
+            }
+        }
+        Ok(mask)
     }
 }
 
@@ -1038,6 +1099,7 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
             function,
             stmt,
             functions,
+            handlers,
             literals,
         )?;
         if let Some(dest) = stmt_dest(stmt) {
@@ -1157,6 +1219,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
     function: &CpsReprAbiFunction,
     stmt: &CpsStmt,
     functions: &DeclaredFunctions,
+    handlers: &HandlerRegistry,
     literals: &mut L,
 ) -> CpsReprCraneliftResult<()> {
     match stmt {
@@ -1187,8 +1250,24 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let value = make_thunk(module_backend, builder, function, *entry, functions)?;
             builder.def_var(variable(*dest), value);
         }
-        CpsStmt::AddThunkBoundary { dest, thunk, .. } => {
+        CpsStmt::AddThunkBoundary {
+            dest,
+            thunk,
+            guard,
+            allowed,
+            active,
+        } => {
             let value = read_value(builder, function, *thunk)?;
+            let guard = read_value(builder, function, *guard)?;
+            let allowed_mask = handlers.allowed_mask(function, allowed)?;
+            let allowed_mask = builder.ins().iconst(types::I64, allowed_mask);
+            let active = builder.ins().iconst(types::I64, i64::from(*active));
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_add_thunk_boundary_i64",
+                &[value, guard, allowed_mask, active],
+            )?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::MakeClosure { dest, entry } => {
@@ -1559,10 +1638,25 @@ fn lower_effect_terminator<M: Module>(
             };
             let fallback = builder.ins().iconst(types::I64, fallback_handler);
             let allowed_mask = builder.ins().iconst(types::I64, allowed_mask);
-            let blocked = blocked
+            let static_blocked = blocked
                 .map(|blocked| read_value(builder, function, blocked))
                 .transpose()?
                 .unwrap_or_else(|| builder.ins().iconst(types::I64, -1));
+            let effect_mask = handlers.effect_mask(function, effect)?;
+            let effect_mask = builder.ins().iconst(types::I64, effect_mask);
+            let active_blocked = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_active_blocked_guard_i64",
+                &[effect_mask],
+            )?;
+            let no_static_block =
+                builder
+                    .ins()
+                    .icmp_imm(ir::condcodes::IntCC::Equal, static_blocked, -1);
+            let blocked = builder
+                .ins()
+                .select(no_static_block, active_blocked, static_blocked);
             let selected = call_i64_helper(
                 module_backend,
                 builder,
@@ -3012,6 +3106,52 @@ fn effect_matches(expected: &typed_ir::Path, actual: &typed_ir::Path) -> bool {
         || (expected.segments.len() == 1 && actual.segments.last() == expected.segments.first())
 }
 
+fn effect_allowed_by_type(allowed: &typed_ir::Type, effect: &typed_ir::Path) -> bool {
+    match allowed {
+        typed_ir::Type::Any => true,
+        typed_ir::Type::Never => false,
+        typed_ir::Type::Named { path, .. } => effect_path_matches_allowed(path, effect),
+        typed_ir::Type::Row { items, tail } => {
+            items
+                .iter()
+                .any(|item| effect_allowed_by_type(item, effect))
+                || matches!(tail.as_ref(), typed_ir::Type::Any)
+        }
+        _ => false,
+    }
+}
+
+fn effect_path_matches_allowed(allowed: &typed_ir::Path, effect: &typed_ir::Path) -> bool {
+    if effect.segments.starts_with(&allowed.segments) {
+        return true;
+    }
+    if allowed.segments.len() > 1
+        && effect.segments.len() == allowed.segments.len()
+        && effect.segments[..effect.segments.len() - 1]
+            == allowed.segments[..allowed.segments.len() - 1]
+        && effect_segment_matches_allowed(
+            &allowed.segments[allowed.segments.len() - 1],
+            &effect.segments[effect.segments.len() - 1],
+        )
+    {
+        return true;
+    }
+    effect
+        .segments
+        .iter()
+        .enumerate()
+        .skip(1)
+        .any(|(index, _)| effect.segments[index..].starts_with(&allowed.segments))
+}
+
+fn effect_segment_matches_allowed(allowed: &typed_ir::Name, effect: &typed_ir::Name) -> bool {
+    allowed == effect
+        || effect
+            .0
+            .strip_suffix("#effect")
+            .is_some_and(|base| base == allowed.0)
+}
+
 fn handler_candidates_for_effect(
     function: &CpsReprAbiFunction,
     registry: &HandlerRegistry,
@@ -3510,6 +3650,13 @@ struct NativeCpsI64HandlerAnchor {
     install_eval_id: u64,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct NativeCpsI64BlockedEffect {
+    guard_id: i64,
+    allowed_mask: i64,
+    active: bool,
+}
+
 #[repr(C)]
 struct NativeCpsI64Resumption {
     code: NativeCpsI64Continuation,
@@ -3534,6 +3681,7 @@ struct NativeCpsI64Thunk {
     env: Box<[i64]>,
     handlers: Box<[NativeCpsI64HandlerFrame]>,
     guard_stack: Box<[i64]>,
+    active_blocked: Box<[NativeCpsI64BlockedEffect]>,
 }
 
 #[repr(C)]
@@ -3726,6 +3874,7 @@ thread_local! {
     static NATIVE_CPS_I64_RESUMPTIONS: RefCell<HashSet<usize>> = RefCell::new(HashSet::new());
     static NATIVE_CPS_I64_HANDLER_STACK: RefCell<Vec<NativeCpsI64HandlerFrame>> = const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_GUARD_STACK: RefCell<Vec<i64>> = const { RefCell::new(Vec::new()) };
+    static NATIVE_CPS_I64_ACTIVE_BLOCKED: RefCell<Vec<NativeCpsI64BlockedEffect>> = const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_NEXT_GUARD: RefCell<i64> = const { RefCell::new(0) };
     static NATIVE_CPS_I64_NEXT_RESUMPTION_DEBUG_ID: RefCell<u64> = const { RefCell::new(1) };
     static NATIVE_CPS_I64_NEXT_RETURN_FRAME_DEBUG_ID: RefCell<u64> = const { RefCell::new(1) };
@@ -3801,6 +3950,7 @@ fn reset_native_i64_cps_state() {
     NATIVE_CPS_I64_TAG_NAMES.with(|names| names.borrow_mut().clear());
     NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow_mut().clear());
     NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow_mut().clear());
+    NATIVE_CPS_I64_ACTIVE_BLOCKED.with(|stack| stack.borrow_mut().clear());
     NATIVE_CPS_I64_NEXT_GUARD.with(|next| *next.borrow_mut() = 0);
     NATIVE_CPS_I64_NEXT_RESUMPTION_DEBUG_ID.with(|next| *next.borrow_mut() = 1);
     NATIVE_CPS_I64_NEXT_RETURN_FRAME_DEBUG_ID.with(|next| *next.borrow_mut() = 1);
@@ -3893,13 +4043,26 @@ fn with_native_i64_cps_state<T>(
     guard_stack: Vec<i64>,
     run: impl FnOnce() -> T,
 ) -> T {
+    let active_blocked = NATIVE_CPS_I64_ACTIVE_BLOCKED.with(|stack| stack.borrow().clone());
+    with_native_i64_cps_state_and_active(handlers, guard_stack, active_blocked, run)
+}
+
+fn with_native_i64_cps_state_and_active<T>(
+    handlers: Vec<NativeCpsI64HandlerFrame>,
+    guard_stack: Vec<i64>,
+    active_blocked: Vec<NativeCpsI64BlockedEffect>,
+    run: impl FnOnce() -> T,
+) -> T {
     let previous_handlers = NATIVE_CPS_I64_HANDLER_STACK
         .with(|stack| std::mem::replace(&mut *stack.borrow_mut(), handlers));
     let previous_guards = NATIVE_CPS_I64_GUARD_STACK
         .with(|stack| std::mem::replace(&mut *stack.borrow_mut(), guard_stack));
+    let previous_active = NATIVE_CPS_I64_ACTIVE_BLOCKED
+        .with(|stack| std::mem::replace(&mut *stack.borrow_mut(), active_blocked));
     let result = run();
     NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = previous_handlers);
     NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = previous_guards);
+    NATIVE_CPS_I64_ACTIVE_BLOCKED.with(|stack| *stack.borrow_mut() = previous_active);
     result
 }
 
@@ -4011,6 +4174,38 @@ fn make_native_i64_thunk(code: usize, env: Vec<i64>) -> usize {
         env: env.into_boxed_slice(),
         handlers: handlers.into_boxed_slice(),
         guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
+        active_blocked: Box::new([]),
+    })) as usize;
+    NATIVE_CPS_I64_THUNKS.with(|thunks| {
+        thunks.borrow_mut().insert(ptr);
+    });
+    ptr
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_add_thunk_boundary_i64(
+    value: usize,
+    guard_id: i64,
+    allowed_mask: i64,
+    active: i64,
+) -> usize {
+    let is_thunk = NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&value));
+    if !is_thunk {
+        return value;
+    }
+    let thunk = unsafe { &*(value as *const NativeCpsI64Thunk) };
+    let mut active_blocked = thunk.active_blocked.to_vec();
+    active_blocked.push(NativeCpsI64BlockedEffect {
+        guard_id,
+        allowed_mask,
+        active: active != 0,
+    });
+    let ptr = Box::into_raw(Box::new(NativeCpsI64Thunk {
+        code: thunk.code,
+        env: thunk.env.clone(),
+        handlers: thunk.handlers.clone(),
+        guard_stack: thunk.guard_stack.clone(),
+        active_blocked: active_blocked.into_boxed_slice(),
     })) as usize;
     NATIVE_CPS_I64_THUNKS.with(|thunks| {
         thunks.borrow_mut().insert(ptr);
@@ -5216,6 +5411,19 @@ extern "C" fn yulang_cps_select_handler_i64(
     -1
 }
 
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_active_blocked_guard_i64(effect_mask: i64) -> i64 {
+    NATIVE_CPS_I64_ACTIVE_BLOCKED.with(|stack| {
+        stack
+            .borrow()
+            .iter()
+            .rev()
+            .find(|blocked| blocked.active && (blocked.allowed_mask & effect_mask) == 0)
+            .map(|blocked| blocked.guard_id)
+            .unwrap_or(-1)
+    })
+}
+
 /// write27-c c3: reinstate the outer handler stack saved at the most
 /// recent `select_handler` call. The Perform path calls this after
 /// the arm body returns so the post-arm `route_scope_return` can walk
@@ -6248,10 +6456,19 @@ extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
         } else {
             NATIVE_CPS_I64_GUARD_STACK.with(|s| s.borrow().clone())
         };
+        let mut active_blocked = NATIVE_CPS_I64_ACTIVE_BLOCKED.with(|stack| stack.borrow().clone());
+        active_blocked.extend(
+            thunk
+                .active_blocked
+                .iter()
+                .copied()
+                .filter(|blocked| blocked.active),
+        );
         let saved_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
         let saved_eval_ctx = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow());
-        let result =
-            with_native_i64_cps_state(handlers, guards, || (thunk.code)(thunk.env.as_ptr()));
+        let result = with_native_i64_cps_state_and_active(handlers, guards, active_blocked, || {
+            (thunk.code)(thunk.env.as_ptr())
+        });
         NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
             let mut frames = frames.borrow_mut();
             // Layer 2 evaluates the thunk with a cloned frame stack. Mirror
@@ -6343,6 +6560,26 @@ mod tests {
         let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
 
         assert_eq!(jit.run_roots_i64().expect("ran"), vec![100]);
+    }
+
+    #[test]
+    fn jit_uses_active_thunk_boundary_when_selecting_handler() {
+        let abi = active_thunk_boundary_abi(typed_ir::Type::Never);
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![20]);
+    }
+
+    #[test]
+    fn jit_keeps_allowed_thunk_boundary_visible_to_inner_handler() {
+        let choose = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
+        let abi = active_thunk_boundary_abi(typed_ir::Type::Named {
+            path: choose,
+            args: Vec::new(),
+        });
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![10]);
     }
 
     #[test]
@@ -6606,6 +6843,137 @@ mod tests {
                             dest: CpsValueId(13),
                             literal: CpsLiteral::Int("100".to_string()),
                         }],
+                        terminator: CpsTerminator::Return(CpsValueId(13)),
+                    },
+                ],
+            }],
+        }))
+    }
+
+    fn active_thunk_boundary_abi(allowed: typed_ir::Type) -> CpsReprAbiModule {
+        let choose = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
+        lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: vec![
+                    crate::cps_ir::CpsHandler {
+                        id: crate::cps_ir::CpsHandlerId(0),
+                        arms: vec![crate::cps_ir::CpsHandlerArm {
+                            effect: choose.clone(),
+                            entry: CpsContinuationId(3),
+                        }],
+                    },
+                    crate::cps_ir::CpsHandler {
+                        id: crate::cps_ir::CpsHandlerId(1),
+                        arms: vec![crate::cps_ir::CpsHandlerArm {
+                            effect: choose.clone(),
+                            entry: CpsContinuationId(4),
+                        }],
+                    },
+                ],
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![
+                            CpsStmt::InstallHandler {
+                                handler: crate::cps_ir::CpsHandlerId(0),
+                                envs: Vec::new(),
+                                escape: CpsContinuationId(5),
+                            },
+                            CpsStmt::FreshGuard {
+                                dest: CpsValueId(0),
+                                var: yulang_runtime::EffectIdVar(0),
+                            },
+                            CpsStmt::MakeThunk {
+                                dest: CpsValueId(1),
+                                entry: CpsContinuationId(1),
+                            },
+                            CpsStmt::AddThunkBoundary {
+                                dest: CpsValueId(2),
+                                thunk: CpsValueId(1),
+                                guard: CpsValueId(0),
+                                allowed,
+                                active: true,
+                            },
+                            CpsStmt::InstallHandler {
+                                handler: crate::cps_ir::CpsHandlerId(1),
+                                envs: Vec::new(),
+                                escape: CpsContinuationId(6),
+                            },
+                            CpsStmt::ForceThunk {
+                                dest: CpsValueId(3),
+                                thunk: CpsValueId(2),
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(3)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(4),
+                            literal: CpsLiteral::Int("1".to_string()),
+                        }],
+                        terminator: CpsTerminator::Perform {
+                            effect: choose,
+                            payload: CpsValueId(4),
+                            resume: CpsContinuationId(2),
+                            handler: crate::cps_ir::CpsHandlerId(0),
+                            blocked: None,
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: vec![CpsValueId(5)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(5)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(3),
+                        params: vec![CpsValueId(6), CpsValueId(7)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(8),
+                            literal: CpsLiteral::Int("20".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(8)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(4),
+                        params: vec![CpsValueId(9), CpsValueId(10)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(11),
+                            literal: CpsLiteral::Int("10".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(11)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(5),
+                        params: vec![CpsValueId(12)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(12)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(6),
+                        params: vec![CpsValueId(13)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: Vec::new(),
                         terminator: CpsTerminator::Return(CpsValueId(13)),
                     },
                 ],

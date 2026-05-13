@@ -176,9 +176,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] CPS/CPS-repr interpreters keep `AddId` effect boundaries on thunk
       values, activate boundary guards during thunk force, and use those
       guards while resolving `Perform`.
-- [ ] CPS repr Cranelift still treats `AddId` thunk-boundary wrappers as
-      transparent values; full runtime active-boundary dispatch is still
-      limited to the CPS/CPS-repr interpreter paths.
+- [x] CPS repr Cranelift stores active thunk-boundary guard masks on thunk
+      pointers, activates them while forcing thunks, and combines them with
+      static `Perform.blocked` guards during handler selection.
 - [x] Mutable reference edit/update runs through effect-aware CPS and the
       Cranelift CPS repr scalar path with VM comparison.
 - [x] A minimal `once`-style branch handler can resume the first branch from
