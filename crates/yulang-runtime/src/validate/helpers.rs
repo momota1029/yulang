@@ -317,12 +317,7 @@ pub(super) fn require_apply_arg_hir_type(
             }
             require_same_hir_type(expected_value, actual_value, source)
         }
-        _ => {
-            if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
-                eprintln!("validate apply arg hir {source:?}: {expected:?} / {actual:?}");
-            }
-            require_same_hir_type(expected, actual, source)
-        }
+        _ => require_same_hir_type(expected, actual, source),
     }
 }
 

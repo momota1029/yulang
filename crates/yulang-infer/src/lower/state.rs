@@ -37,6 +37,13 @@ pub struct LowerState {
     pub def_owners: HashMap<DefId, DefId>,
     /// local DefId の人間向け名前。
     pub def_names: HashMap<DefId, crate::symbols::Name>,
+    /// source 上の定義名 span。LSP hover など、lowering 済みの名前解決結果を
+    /// source 位置へ戻すために使う。
+    pub def_spans: HashMap<DefId, rowan::TextRange>,
+    /// source 上の値参照 span。alias されて TypedExpr::Var になる参照も含める。
+    pub value_use_spans: Vec<(rowan::TextRange, DefId)>,
+    /// source 上の未解決/後解決参照 span。
+    pub ref_spans: HashMap<RefId, rowan::TextRange>,
     /// lambda parameter def ごとの pattern local binder 群。
     pub lambda_local_defs: HashMap<DefId, Vec<DefId>>,
     /// lambda parameter def ごとの header pattern。
@@ -143,6 +150,9 @@ impl LowerState {
             continuation_defs: HashSet::new(),
             def_owners: HashMap::new(),
             def_names: HashMap::new(),
+            def_spans: HashMap::new(),
+            value_use_spans: Vec::new(),
+            ref_spans: HashMap::new(),
             lambda_local_defs: HashMap::new(),
             lambda_param_pats: HashMap::new(),
             lambda_param_effect_annotations: HashMap::new(),
@@ -684,6 +694,18 @@ impl LowerState {
 
     pub fn def_name(&self, def: DefId) -> Option<&crate::symbols::Name> {
         self.def_names.get(&def)
+    }
+
+    pub fn register_def_span(&mut self, def: DefId, span: rowan::TextRange) {
+        self.def_spans.insert(def, span);
+    }
+
+    pub fn record_value_use_span(&mut self, span: rowan::TextRange, def: DefId) {
+        self.value_use_spans.push((span, def));
+    }
+
+    pub fn record_ref_span(&mut self, ref_id: RefId, span: rowan::TextRange) {
+        self.ref_spans.insert(ref_id, span);
     }
 
     pub fn register_lambda_local_defs(&mut self, param_def: DefId, local_defs: Vec<DefId>) {

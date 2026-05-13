@@ -53,9 +53,6 @@ pub(super) fn validate_expr(
             }
             match &callee.ty {
                 RuntimeType::Fun { param, ret } => {
-                    if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
-                        eprintln!("validate fun apply expr={expr:?}");
-                    }
                     require_apply_arg_hir_type(param, &arg.ty, TypeSource::ApplyEvidence)?;
                     if let Err(err) =
                         require_apply_result_hir_type(ret, &expr.ty, TypeSource::ApplyEvidence)
@@ -66,9 +63,6 @@ pub(super) fn validate_expr(
                     }
                 }
                 RuntimeType::Core(typed_ir::Type::Fun { param, ret, .. }) => {
-                    if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
-                        eprintln!("validate core apply expr={expr:?}");
-                    }
                     require_same_type(
                         param,
                         hir_value_core_type(&arg.ty).as_ref(),
@@ -85,12 +79,6 @@ pub(super) fn validate_expr(
                         if let Some(arg_ty) =
                             choose_bounds_type(&evidence.arg, BoundsChoice::ValidationEvidence)
                         {
-                            if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
-                                eprintln!(
-                                    "validate imprecise callee arg expr={expr:?} expected={arg_ty:?} actual={:?}",
-                                    core_type(&arg.ty)
-                                );
-                            }
                             require_same_type(
                                 &arg_ty,
                                 core_type(&arg.ty),
@@ -118,12 +106,6 @@ pub(super) fn validate_expr(
                         if let Some(arg_ty) =
                             choose_bounds_type(&evidence.arg, BoundsChoice::ValidationEvidence)
                         {
-                            if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
-                                eprintln!(
-                                    "validate thunk-imprecise callee arg expr={expr:?} expected={arg_ty:?} actual={:?}",
-                                    core_type(&arg.ty)
-                                );
-                            }
                             require_same_type(
                                 &arg_ty,
                                 core_type(&arg.ty),

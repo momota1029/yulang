@@ -1819,12 +1819,9 @@ impl Lowerer<'_> {
         &self,
         evidence: &typed_ir::ApplyEvidence,
     ) -> Option<typed_ir::Type> {
-        let plan_arg = evidence
-            .principal_elaboration
-            .as_ref()
-            .and_then(|plan| {
-                self.visible_principal_plan_arg_type(plan, 0, evidence.principal_callee.as_ref())
-            });
+        let plan_arg = evidence.principal_elaboration.as_ref().and_then(|plan| {
+            self.visible_principal_plan_arg_type(plan, 0, evidence.principal_callee.as_ref())
+        });
         let principal_arg = evidence.principal_callee.as_ref().and_then(|principal| {
             self.visible_principal_callee_param_type(principal, &evidence.substitutions)
         });
@@ -1871,11 +1868,8 @@ impl Lowerer<'_> {
     ) -> Option<typed_ir::Type> {
         let arg = plan.args.iter().find(|arg| arg.index == index)?;
         let principal = principal_hint.unwrap_or(&plan.principal_callee);
-        let substitutions = visible_principal_arg_substitution_map(
-            principal,
-            &plan.substitutions,
-            index,
-        );
+        let substitutions =
+            visible_principal_arg_substitution_map(principal, &plan.substitutions, index);
         let expected = arg
             .expected_runtime
             .as_ref()

@@ -7,6 +7,35 @@ use crate::types::{Neg, Pos};
 
 use super::support::{named_path, named_runtime_path};
 
+fn store_list_primitive_scheme(
+    state: &mut LowerState,
+    def: crate::ids::DefId,
+    principal: crate::ids::PosId,
+    body: typed_ir::Type,
+) {
+    state.infer.store_frozen_scheme(
+        def,
+        crate::scheme::freeze_pos_scheme(&state.infer, principal),
+    );
+    state.runtime_export_schemes.insert(
+        def,
+        typed_ir::Scheme {
+            requirements: Vec::new(),
+            body,
+        },
+    );
+}
+
+fn store_list_runtime_scheme(state: &mut LowerState, def: crate::ids::DefId, body: typed_ir::Type) {
+    state.runtime_export_schemes.insert(
+        def,
+        typed_ir::Scheme {
+            requirements: Vec::new(),
+            body,
+        },
+    );
+}
+
 pub(super) fn install_list_len_primitive(
     state: &mut LowerState,
     module: ModuleId,
@@ -44,6 +73,8 @@ pub(super) fn install_list_len_primitive(
         Neg::Var(neg_ret_eff),
         state.neg_con(int_path, vec![]),
     );
+    let pos_sig = state.infer.alloc_pos(pos_sig);
+    let neg_sig = state.infer.alloc_neg(neg_sig);
     state.infer.constrain(pos_sig, Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_sig);
 
@@ -53,13 +84,7 @@ pub(super) fn install_list_len_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body: list_len_scheme_body(),
-        },
-    );
+    store_list_runtime_scheme(state, def, list_len_scheme_body());
 }
 
 pub(super) fn install_list_index_primitive(
@@ -113,6 +138,8 @@ pub(super) fn install_list_index_primitive(
             Neg::Var(item_tv),
         ),
     );
+    let pos_sig = state.infer.alloc_pos(pos_sig);
+    let neg_sig = state.infer.alloc_neg(neg_sig);
     state.infer.constrain(pos_sig, Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_sig);
 
@@ -122,13 +149,7 @@ pub(super) fn install_list_index_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body: list_index_scheme_body(),
-        },
-    );
+    store_list_runtime_scheme(state, def, list_index_scheme_body());
 }
 
 pub(super) fn install_list_index_range_primitive(
@@ -182,6 +203,8 @@ pub(super) fn install_list_index_range_primitive(
             state.neg_con(list_path, list_args),
         ),
     );
+    let pos_sig = state.infer.alloc_pos(pos_sig);
+    let neg_sig = state.infer.alloc_neg(neg_sig);
     state.infer.constrain(pos_sig, Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_sig);
 
@@ -191,13 +214,7 @@ pub(super) fn install_list_index_range_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body: list_index_range_scheme_body(),
-        },
-    );
+    store_list_runtime_scheme(state, def, list_index_range_scheme_body());
 }
 
 pub(super) fn install_list_empty_primitive(
@@ -237,6 +254,8 @@ pub(super) fn install_list_empty_primitive(
         Neg::Var(neg_ret_eff),
         state.neg_con(list_path, list_args),
     );
+    let pos_sig = state.infer.alloc_pos(pos_sig);
+    let neg_sig = state.infer.alloc_neg(neg_sig);
     state.infer.constrain(pos_sig, Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_sig);
 
@@ -246,13 +265,7 @@ pub(super) fn install_list_empty_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body: list_empty_scheme_body(),
-        },
-    );
+    store_list_runtime_scheme(state, def, list_empty_scheme_body());
 }
 
 pub(super) fn install_list_splice_primitive(
@@ -323,6 +336,8 @@ pub(super) fn install_list_splice_primitive(
             ),
         ),
     );
+    let pos_sig = state.infer.alloc_pos(pos_sig);
+    let neg_sig = state.infer.alloc_neg(neg_sig);
     state.infer.constrain(pos_sig, Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_sig);
 
@@ -332,13 +347,7 @@ pub(super) fn install_list_splice_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body: list_splice_scheme_body(),
-        },
-    );
+    store_list_runtime_scheme(state, def, list_splice_scheme_body());
 }
 
 pub(super) fn install_list_singleton_primitive(
@@ -377,6 +386,8 @@ pub(super) fn install_list_singleton_primitive(
         Neg::Var(neg_ret_eff),
         state.neg_con(list_path, list_args),
     );
+    let pos_sig = state.infer.alloc_pos(pos_sig);
+    let neg_sig = state.infer.alloc_neg(neg_sig);
     state.infer.constrain(pos_sig, Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_sig);
 
@@ -386,13 +397,7 @@ pub(super) fn install_list_singleton_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body: list_singleton_scheme_body(),
-        },
-    );
+    store_list_runtime_scheme(state, def, list_singleton_scheme_body());
 }
 
 pub(super) fn install_list_merge_primitive(
@@ -448,6 +453,8 @@ pub(super) fn install_list_merge_primitive(
             ),
         ),
     );
+    let pos_sig = state.infer.alloc_pos(pos_sig);
+    let neg_sig = state.infer.alloc_neg(neg_sig);
     state.infer.constrain(pos_sig, Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_sig);
 
@@ -457,13 +464,7 @@ pub(super) fn install_list_merge_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body: list_merge_scheme_body(),
-        },
-    );
+    store_list_runtime_scheme(state, def, list_merge_scheme_body());
 }
 
 pub(super) fn install_list_index_range_raw_primitive(
@@ -531,6 +532,8 @@ pub(super) fn install_list_index_range_raw_primitive(
             ),
         ),
     );
+    let pos_sig = state.infer.alloc_pos(pos_sig);
+    let neg_sig = state.infer.alloc_neg(neg_sig);
     state.infer.constrain(pos_sig, Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_sig);
 
@@ -540,13 +543,7 @@ pub(super) fn install_list_index_range_raw_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body: list_index_range_raw_scheme_body(),
-        },
-    );
+    store_list_runtime_scheme(state, def, list_index_range_raw_scheme_body());
 }
 
 pub(super) fn install_list_splice_raw_primitive(
@@ -628,6 +625,8 @@ pub(super) fn install_list_splice_raw_primitive(
             ),
         ),
     );
+    let pos_sig = state.infer.alloc_pos(pos_sig);
+    let neg_sig = state.infer.alloc_neg(neg_sig);
     state.infer.constrain(pos_sig, Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_sig);
 
@@ -637,13 +636,7 @@ pub(super) fn install_list_splice_raw_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body: list_splice_raw_scheme_body(),
-        },
-    );
+    store_list_runtime_scheme(state, def, list_splice_raw_scheme_body());
 }
 
 pub(super) fn install_list_view_raw_primitive(
@@ -682,6 +675,8 @@ pub(super) fn install_list_view_raw_primitive(
         Neg::Var(neg_ret_eff),
         list_view_neg_type(state, item_tv),
     );
+    let pos_sig = state.infer.alloc_pos(pos_sig);
+    let neg_sig = state.infer.alloc_neg(neg_sig);
     state.infer.constrain(pos_sig, Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), neg_sig);
 
@@ -691,13 +686,7 @@ pub(super) fn install_list_view_raw_primitive(
         kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
     };
     state.insert_principal_body(def, body);
-    state.runtime_export_schemes.insert(
-        def,
-        typed_ir::Scheme {
-            requirements: Vec::new(),
-            body: list_view_scheme_body(),
-        },
-    );
+    store_list_primitive_scheme(state, def, pos_sig, list_view_scheme_body());
 }
 
 fn list_len_scheme_body() -> typed_ir::Type {

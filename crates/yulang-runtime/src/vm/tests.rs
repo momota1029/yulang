@@ -1853,7 +1853,14 @@ run_into_strings: {
         let arm = handle_value_arm("undet", "branch", VmValue::Int("7".to_string()));
 
         let result = vm
-            .handle_request(request, 0, &[arm], &Env::new(), &handler_stack)
+            .handle_request(
+                request,
+                0,
+                &[arm],
+                &Env::new(),
+                &handler_stack,
+                &RuntimeType::core(named_type("int")),
+            )
             .unwrap();
 
         assert_eq!(result, VmResult::Value(VmValue::Int("7".to_string())));
@@ -1872,7 +1879,14 @@ run_into_strings: {
         let arm = handle_value_arm("undet", "branch", VmValue::Int("7".to_string()));
 
         let result = vm
-            .handle_request(request, 0, &[arm], &Env::new(), &handler_stack)
+            .handle_request(
+                request,
+                0,
+                &[arm],
+                &Env::new(),
+                &handler_stack,
+                &RuntimeType::core(named_type("int")),
+            )
             .unwrap();
 
         assert!(matches!(result, VmResult::Request(_)));

@@ -38,6 +38,7 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             let tv = state.fresh_tv();
             let arg_eff_tv = state.fresh_exact_pure_eff_tv();
             state.register_def_tv(def, tv);
+            state.register_def_span(def, param_pat.text_range());
             ArgPatInfo {
                 def,
                 tv,
@@ -68,6 +69,7 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
                 },
             });
             state.register_def_tv(def, tv);
+            state.register_def_span(def, param_pat.text_range());
             if let Some(read_eff_tv) = read_eff_tv {
                 state.register_def_eff_tv(def, read_eff_tv);
             }
@@ -98,6 +100,7 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             }
             for (name, def) in &local_bindings {
                 state.register_def_name(*def, name.clone());
+                state.register_def_span(*def, param_pat.text_range());
             }
             ArgPatInfo {
                 def,

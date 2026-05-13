@@ -41,6 +41,11 @@ pub(crate) fn preregister_binding(state: &mut LowerState, node: &SyntaxNode) -> 
             state.register_def_owner(def, owner);
         }
         state.register_def_name(def, name.clone());
+        if let Some(pat_node) = &pat_node {
+            state.register_def_span(def, pat_node.text_range());
+        } else {
+            state.register_def_span(def, header.text_range());
+        }
         if let Some(fixity) = operator_fixity {
             state.ctx.mark_operator_def(def, fixity);
             if super::super::header_operator_is_lazy(&header) {
@@ -110,6 +115,11 @@ pub(crate) fn preregister_binding_as_module_value(
         state.register_def_tv(def, tv);
         state.mark_let_bound_def(def);
         state.register_def_name(def, name.clone());
+        if let Some(pat_node) = &pat_node {
+            state.register_def_span(def, pat_node.text_range());
+        } else {
+            state.register_def_span(def, header.text_range());
+        }
         if let Some(fixity) = operator_fixity {
             state.ctx.mark_operator_def(def, fixity);
             if super::super::header_operator_is_lazy(&header) {
@@ -202,6 +212,7 @@ fn preregister_pat_names(
                     state.register_def_owner(def, owner);
                 }
                 state.register_def_name(def, name.clone());
+                state.register_def_span(def, node.text_range());
                 if is_pub {
                     state.insert_value(state.ctx.current_module, name, def);
                 } else if is_module_private {
@@ -244,6 +255,7 @@ fn preregister_pat_names_as_module_values(state: &mut LowerState, node: &SyntaxN
                 state.register_def_tv(def, tv);
                 state.mark_let_bound_def(def);
                 state.register_def_name(def, name.clone());
+                state.register_def_span(def, node.text_range());
                 state.insert_value(state.ctx.current_module, name, def);
             }
         }

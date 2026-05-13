@@ -12,7 +12,7 @@ use crate::symbols::{Name, OperatorFixity, Path};
 use super::{
     apply_suffix, lower_expr, lower_expr_atom, lower_number_token, lower_poly_variant_expr,
     lower_var_read_expr, make_app_with_cause, resolve_operator_expr, resolve_path_expr,
-    try_resolve_local_operator_expr, try_resolve_operator_expr, unit_expr,
+    resolve_path_expr_at, try_resolve_local_operator_expr, try_resolve_operator_expr, unit_expr,
 };
 
 // ── chain lowering ────────────────────────────────────────────────────────────
@@ -64,6 +64,8 @@ fn lower_expr_chain_prefix_with_pipe_arg(
         };
 
         let mut path_segs: Vec<Name> = Vec::new();
+        let mut path_start = None;
+        let mut path_end = None;
         let mut head_expr: Option<TypedExpr> = None;
         match &head {
             Token(t) if t.kind() == SyntaxKind::SigilIdent && t.text().starts_with('$') => {
@@ -71,6 +73,8 @@ fn lower_expr_chain_prefix_with_pipe_arg(
             }
             Token(t) if matches!(t.kind(), SyntaxKind::Ident | SyntaxKind::SigilIdent) => {
                 path_segs.push(Name(t.text().to_string()));
+                path_start = Some(t.text_range().start());
+                path_end = Some(t.text_range().end());
             }
             Token(t) if t.kind() == SyntaxKind::Symbol => {
                 head_expr = Some(lower_poly_variant_expr(
@@ -122,6 +126,7 @@ fn lower_expr_chain_prefix_with_pipe_arg(
             match item {
                 Node(n) if n.kind() == SyntaxKind::PathSep => {
                     if let Some(seg) = path_sep_ident(n) {
+                        path_end = Some(n.text_range().end());
                         path_segs.push(seg);
                     }
                     items.next();
@@ -141,12 +146,12 @@ fn lower_expr_chain_prefix_with_pipe_arg(
             if let Some(expr) = lower_sub_syntax(state, &mut items) {
                 expr
             } else {
-                resolve_path_expr(state, path_segs)
+                resolve_path_expr_at(state, path_segs, path_span(path_start, path_end))
             }
         } else if let Some(expr) = head_expr {
             expr
         } else {
-            resolve_path_expr(state, path_segs)
+            resolve_path_expr_at(state, path_segs, path_span(path_start, path_end))
         };
         if let Some(pipe_arg) = pipe_arg.take() {
             acc = make_app_with_cause(
@@ -169,7 +174,7 @@ fn lower_expr_chain_prefix_with_pipe_arg(
                 Node(n) => {
                     if n.kind() == SyntaxKind::Field {
                         if let Some(path) = qualified_method_path_from_field(&n, &mut items) {
-                            let callee = resolve_path_expr(state, path);
+                            let callee = resolve_path_expr_at(state, path, Some(n.text_range()));
                             acc = make_app_with_cause(
                                 state,
                                 callee,
@@ -194,6 +199,13 @@ fn lower_expr_chain_prefix_with_pipe_arg(
 
         acc
     })()
+}
+
+fn path_span(
+    start: Option<rowan::TextSize>,
+    end: Option<rowan::TextSize>,
+) -> Option<rowan::TextRange> {
+    Some(rowan::TextRange::new(start?, end?))
 }
 
 fn symbol_variant_name(text: &str) -> Name {

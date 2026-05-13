@@ -2702,9 +2702,7 @@ impl PrincipalUnifier {
                 64,
             );
         }
-        if !conflicts.is_empty()
-            && conflicts.iter().all(|var| effect_only_vars.contains(var))
-        {
+        if !conflicts.is_empty() && conflicts.iter().all(|var| effect_only_vars.contains(var)) {
             self.bump("principal-unify-runtime-effect-effect-conflict-kept");
             debug_principal_unify_projection_outcome(
                 "effect-conflict-kept",

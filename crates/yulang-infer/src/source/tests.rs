@@ -3432,7 +3432,7 @@ fn lowers_std_list_helpers_through_implicit_prelude() {
         );
         assert_eq!(
             rendered_type(&rendered, "take_map"),
-            "std::list::list<int> -> (int -> int) -> std::list::list<int>"
+            "std::list::list<int> -> (int -> int) -> std::list::list<int | α>"
         );
         assert_eq!(
             rendered_type(&rendered, "take_filter"),

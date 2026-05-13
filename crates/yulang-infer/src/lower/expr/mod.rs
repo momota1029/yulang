@@ -65,7 +65,8 @@ use operator::{infix_op_ref, prefix_op_ref, suffix_op_ref};
 pub(crate) use path::resolve_bound_def_expr;
 use path::resolve_operator_expr;
 pub(super) use path::{
-    resolve_path_expr, try_resolve_local_operator_expr, try_resolve_operator_expr,
+    resolve_path_expr, resolve_path_expr_at, try_resolve_local_operator_expr,
+    try_resolve_operator_expr,
 };
 use prim::{neg_prim_type, prim_type};
 use record::lower_record_literal;

@@ -35,6 +35,11 @@ pub fn eval_root_with_basic_host(
     let (mut result, mut vm_profile) = module.eval_root_expr_profiled(index)?;
     loop {
         match result {
+            VmResult::Value(value @ VmValue::Thunk(_)) => {
+                let forced = module.force_value_profiled(value)?;
+                result = forced.0;
+                vm_profile.merge(forced.1);
+            }
             VmResult::Value(_) => return Ok((result, vm_profile)),
             VmResult::Request(request) => {
                 let Some(value) = handle_host_request(&request, stdout) else {

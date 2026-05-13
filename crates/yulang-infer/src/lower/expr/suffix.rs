@@ -10,7 +10,7 @@ use crate::types::{Neg, Pos};
 
 use super::{
     infix_op_ref, lower_expr, lower_var_assignment, make_app_with_cause, neg_prim_type,
-    prefix_op_ref, prim_type, resolve_path_expr, suffix_op_ref, unit_expr,
+    prefix_op_ref, prim_type, resolve_path_expr_at, suffix_op_ref, unit_expr,
 };
 
 /// サフィックスノードを acc に適用して新しい TypedExpr を返す。
@@ -74,7 +74,7 @@ fn apply_field_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNod
     if let Some((name, structural_record_allowed)) = field {
         if let ExprKind::Var(def) = &acc.kind {
             if let Some(path) = state.ctx.resolve_field_alias(*def, &name) {
-                return resolve_path_expr(state, path.segments);
+                return resolve_path_expr_at(state, path.segments, Some(suffix.text_range()));
             }
         }
         push_deferred_selection(state, acc, suffix, name, tv, eff, structural_record_allowed)

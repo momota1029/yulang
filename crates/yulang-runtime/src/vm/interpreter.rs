@@ -134,7 +134,12 @@ impl<'m> VmInterpreter<'m> {
             ExprKind::Block { stmts, tail } => {
                 self.eval_block(stmts.clone(), tail.as_deref().cloned(), env.clone())
             }
-            ExprKind::Handle { body, arms, .. } => self.eval_handle(body, arms, env),
+            ExprKind::Handle {
+                body,
+                arms,
+                evidence,
+                ..
+            } => self.eval_handle(body, arms, &Type::core(evidence.result.clone()), env),
             ExprKind::BindHere { expr } => match self.eval_expr(expr, env)? {
                 VmResult::Value(value) => self.bind_here(value),
                 VmResult::Request(request) => {
@@ -644,6 +649,7 @@ impl<'m> VmInterpreter<'m> {
         &mut self,
         body: &Expr,
         arms: &[HandleArm],
+        expected_ty: &Type,
         env: &Env,
     ) -> Result<VmResult, VmError> {
         let id = self.fresh_guard_id();
@@ -653,7 +659,7 @@ impl<'m> VmInterpreter<'m> {
             other => other,
         };
         match result {
-            VmResult::Value(value) => self.handle_value(value, arms, env),
+            VmResult::Value(value) => self.handle_value(value, arms, env, expected_ty),
             VmResult::Request(request) => {
                 let request = push_frame(
                     request,
@@ -662,9 +668,10 @@ impl<'m> VmInterpreter<'m> {
                         arms: arms.to_vec(),
                         env: env.clone(),
                         guard_stack: handler_guard_stack.clone(),
+                        expected_ty: expected_ty.clone(),
                     },
                 );
-                self.handle_request(request, id, arms, env, &handler_guard_stack)
+                self.handle_request(request, id, arms, env, &handler_guard_stack, expected_ty)
             }
         }
     }
@@ -674,6 +681,7 @@ impl<'m> VmInterpreter<'m> {
         value: VmValue,
         arms: &[HandleArm],
         env: &Env,
+        expected_ty: &Type,
     ) -> Result<VmResult, VmError> {
         for arm in arms.iter().filter(|arm| arm.effect.segments.is_empty()) {
             let mut arm_env = env.clone();
@@ -683,7 +691,8 @@ impl<'m> VmInterpreter<'m> {
             {
                 continue;
             }
-            return self.eval_expr(&arm.body, &arm_env);
+            let result = self.eval_expr(&arm.body, &arm_env)?;
+            return self.force_handle_result_for_type(result, expected_ty);
         }
         Ok(VmResult::Value(value))
     }
@@ -695,6 +704,7 @@ impl<'m> VmInterpreter<'m> {
         arms: &[HandleArm],
         env: &Env,
         handler_guard_stack: &GuardStack,
+        expected_ty: &Type,
     ) -> Result<VmResult, VmError> {
         if request
             .blocked_id
@@ -727,6 +737,7 @@ impl<'m> VmInterpreter<'m> {
                     env.clone(),
                     arm_env,
                     arm.body.clone(),
+                    expected_ty.clone(),
                 ),
                 VmResult::Request(guard_request) => Ok(VmResult::Request(push_frame(
                     guard_request,
@@ -739,12 +750,13 @@ impl<'m> VmInterpreter<'m> {
                         env: env.clone(),
                         arm_env,
                         body: arm.body.clone(),
+                        expected_ty: expected_ty.clone(),
                     },
                 ))),
             };
         }
         let result = self.eval_expr(&arm.body, &arm_env)?;
-        self.continue_result(result, outer)
+        self.continue_handle_result_for_type(result, outer, expected_ty)
     }
 
     pub(super) fn continue_handle_guard(
@@ -757,11 +769,12 @@ impl<'m> VmInterpreter<'m> {
         _env: Env,
         arm_env: Env,
         body: Expr,
+        expected_ty: Type,
     ) -> Result<VmResult, VmError> {
         match guard {
             VmValue::Bool(true) => {
                 let result = self.eval_expr(&body, &arm_env)?;
-                self.continue_result(result, outer)
+                self.continue_handle_result_for_type(result, outer, &expected_ty)
             }
             VmValue::Bool(false) => Ok(VmResult::Request(request)),
             other => Err(VmError::ExpectedBool(other)),
@@ -853,6 +866,7 @@ impl<'m> VmInterpreter<'m> {
                 arms,
                 env,
                 guard_stack,
+                expected_ty,
             } => match value {
                 VmValue::Thunk(thunk) => {
                     let result = self.bind_here(VmValue::Thunk(thunk))?;
@@ -861,12 +875,13 @@ impl<'m> VmInterpreter<'m> {
                         arms,
                         env,
                         guard_stack,
+                        expected_ty,
                     });
                     Ok(result)
                 }
                 value => {
                     continuation.guard_stack = guard_stack;
-                    self.handle_value(value, &arms, &env)
+                    self.handle_value(value, &arms, &env, &expected_ty)
                 }
             },
             Frame::HandleGuard {
@@ -878,7 +893,18 @@ impl<'m> VmInterpreter<'m> {
                 env,
                 arm_env,
                 body,
-            } => self.continue_handle_guard(value, request, outer, id, arms, env, arm_env, body),
+                expected_ty,
+            } => self.continue_handle_guard(
+                value,
+                request,
+                outer,
+                id,
+                arms,
+                env,
+                arm_env,
+                body,
+                expected_ty,
+            ),
             Frame::LocalPushId { parent } => {
                 continuation.guard_stack = parent;
                 Ok(VmResult::Value(value))
@@ -904,6 +930,45 @@ impl<'m> VmInterpreter<'m> {
         }
     }
 
+    fn force_handle_result_for_type(
+        &mut self,
+        result: VmResult,
+        expected_ty: &Type,
+    ) -> Result<VmResult, VmError> {
+        if matches!(expected_ty, Type::Thunk { .. }) {
+            return Ok(result);
+        }
+        match result {
+            VmResult::Value(VmValue::Thunk(thunk)) => self.bind_here(VmValue::Thunk(thunk)),
+            VmResult::Request(request) => {
+                Ok(VmResult::Request(push_frame(request, Frame::BindHere)))
+            }
+            other => Ok(other),
+        }
+    }
+
+    fn continue_handle_result_for_type(
+        &mut self,
+        result: VmResult,
+        mut continuation: VmContinuation,
+        expected_ty: &Type,
+    ) -> Result<VmResult, VmError> {
+        if matches!(expected_ty, Type::Thunk { .. }) {
+            return self.continue_result(result, continuation);
+        }
+        match result {
+            VmResult::Value(VmValue::Thunk(thunk)) => {
+                let result = self.bind_here(VmValue::Thunk(thunk))?;
+                self.continue_result(result, continuation)
+            }
+            VmResult::Request(request) => {
+                continuation.frames.push(Frame::BindHere);
+                self.continue_result(VmResult::Request(request), continuation)
+            }
+            other => self.continue_result(other, continuation),
+        }
+    }
+
     pub(super) fn propagate_request(&mut self, request: VmRequest) -> Result<VmResult, VmError> {
         self.propagate_request_before(request, usize::MAX)
     }
@@ -926,13 +991,19 @@ impl<'m> VmInterpreter<'m> {
             arms,
             env,
             guard_stack,
+            expected_ty,
         } = &frames[index]
         else {
             unreachable!();
         };
-        let (id, arms, env, handler_guard_stack) =
-            (*id, arms.clone(), env.clone(), guard_stack.clone());
-        match self.handle_request(request, id, &arms, &env, &handler_guard_stack)? {
+        let (id, arms, env, handler_guard_stack, expected_ty) = (
+            *id,
+            arms.clone(),
+            env.clone(),
+            guard_stack.clone(),
+            expected_ty.clone(),
+        );
+        match self.handle_request(request, id, &arms, &env, &handler_guard_stack, &expected_ty)? {
             VmResult::Request(request) => self.propagate_request_before(request, index),
             value => Ok(value),
         }

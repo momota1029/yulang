@@ -99,6 +99,7 @@ impl VarNamer {
 
 struct CompactToTypeCtx<'a> {
     scheme: &'a CompactTypeScheme,
+    lower_witnesses: HashMap<TypeVar, CompactType>,
     in_process_vars: HashMap<(TypeVar, bool), TypeVar>,
     recursive_var_hits: HashSet<(TypeVar, bool)>,
     in_process_types: HashMap<(String, bool), TypeVar>,
@@ -109,6 +110,7 @@ impl<'a> CompactToTypeCtx<'a> {
     fn new(scheme: &'a CompactTypeScheme) -> Self {
         Self {
             scheme,
+            lower_witnesses: collect_lower_witnesses(scheme),
             in_process_vars: HashMap::new(),
             recursive_var_hits: HashSet::new(),
             in_process_types: HashMap::new(),
@@ -167,6 +169,11 @@ impl<'a> CompactToTypeCtx<'a> {
 
     fn coalesce_type_body(&mut self, ty: &CompactType, positive: bool) -> Type {
         let mut parts = Vec::new();
+        let ty = if positive {
+            ty.clone()
+        } else {
+            self.drop_witnessed_negative_vars(ty)
+        };
 
         let mut vars = ty.vars.iter().copied().collect::<Vec<_>>();
         vars.sort_by_key(|tv| tv.0);
@@ -247,6 +254,17 @@ impl<'a> CompactToTypeCtx<'a> {
         }));
 
         combine_types(parts, positive)
+    }
+
+    fn drop_witnessed_negative_vars(&self, ty: &CompactType) -> CompactType {
+        let mut ty = ty.clone();
+        let original = ty.clone();
+        ty.vars.retain(|tv| {
+            self.lower_witnesses
+                .get(tv)
+                .is_none_or(|witness| !compact_type_contains_witness(&original, witness))
+        });
+        ty
     }
 }
 
@@ -1116,6 +1134,90 @@ fn type_contains_var(ty: &Type, var: TypeVar) -> bool {
 fn compact_bounds_contains_var(bounds: &CompactBounds, var: TypeVar) -> bool {
     compact_type_contains_var_for_render(&bounds.lower, var)
         || compact_type_contains_var_for_render(&bounds.upper, var)
+}
+
+fn collect_lower_witnesses(scheme: &CompactTypeScheme) -> HashMap<TypeVar, CompactType> {
+    let mut out = HashMap::new();
+    collect_bounds_lower_witnesses(&scheme.cty, &mut out);
+    for bounds in scheme.rec_vars.values() {
+        collect_bounds_lower_witnesses(bounds, &mut out);
+    }
+    out
+}
+
+fn collect_bounds_lower_witnesses(bounds: &CompactBounds, out: &mut HashMap<TypeVar, CompactType>) {
+    if let Some(upper_vars) = compact_var_set(&bounds.upper) {
+        for var in upper_vars {
+            let witness = compact_type_without_var(&bounds.lower, var);
+            if !is_empty_compact(&witness) {
+                out.entry(var)
+                    .and_modify(|existing| {
+                        *existing = crate::simplify::compact::merge_compact_types(
+                            true,
+                            existing.clone(),
+                            witness.clone(),
+                        );
+                    })
+                    .or_insert(witness);
+            }
+        }
+    }
+    collect_type_lower_witnesses(&bounds.lower, out);
+    collect_type_lower_witnesses(&bounds.upper, out);
+}
+
+fn collect_type_lower_witnesses(ty: &CompactType, out: &mut HashMap<TypeVar, CompactType>) {
+    for con in &ty.cons {
+        for arg in &con.args {
+            collect_bounds_lower_witnesses(arg, out);
+        }
+    }
+    for fun in &ty.funs {
+        collect_type_lower_witnesses(&fun.arg, out);
+        collect_type_lower_witnesses(&fun.arg_eff, out);
+        collect_type_lower_witnesses(&fun.ret_eff, out);
+        collect_type_lower_witnesses(&fun.ret, out);
+    }
+    for record in &ty.records {
+        for field in &record.fields {
+            collect_type_lower_witnesses(&field.value, out);
+        }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_type_lower_witnesses(&field.value, out);
+        }
+        collect_type_lower_witnesses(&spread.tail, out);
+    }
+    for variant in &ty.variants {
+        for (_, payloads) in &variant.items {
+            for payload in payloads {
+                collect_type_lower_witnesses(payload, out);
+            }
+        }
+    }
+    for items in &ty.tuples {
+        for item in items {
+            collect_type_lower_witnesses(item, out);
+        }
+    }
+    for row in &ty.rows {
+        for item in &row.items {
+            collect_type_lower_witnesses(item, out);
+        }
+        collect_type_lower_witnesses(&row.tail, out);
+    }
+}
+
+fn compact_type_without_var(ty: &CompactType, var: TypeVar) -> CompactType {
+    let mut ty = ty.clone();
+    ty.vars.remove(&var);
+    ty
+}
+
+fn compact_type_contains_witness(ty: &CompactType, witness: &CompactType) -> bool {
+    common_compact_type(ty, witness)
+        .is_some_and(|common| !is_empty_compact(&common) && common == *witness)
 }
 
 fn compact_type_contains_var_for_render(ty: &CompactType, var: TypeVar) -> bool {

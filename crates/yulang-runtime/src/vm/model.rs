@@ -171,6 +171,7 @@ pub(super) enum Frame {
         arms: Vec<HandleArm>,
         env: Env,
         guard_stack: GuardStack,
+        expected_ty: Type,
     },
     HandleGuard {
         id: u64,
@@ -181,6 +182,7 @@ pub(super) enum Frame {
         env: Env,
         arm_env: Env,
         body: Expr,
+        expected_ty: Type,
     },
     LocalPushId {
         parent: GuardStack,

@@ -17,6 +17,14 @@ use super::prim_type;
 /// 解決できた場合: `def_tv <: tv`（定義の型が使用箇所に流れ込む）
 /// 変数参照自体は純粋（副作用なし）なので `[] <: eff`
 pub(in crate::lower) fn resolve_path_expr(state: &mut LowerState, segs: Vec<Name>) -> TypedExpr {
+    resolve_path_expr_at(state, segs, None)
+}
+
+pub(in crate::lower) fn resolve_path_expr_at(
+    state: &mut LowerState,
+    segs: Vec<Name>,
+    span: Option<rowan::TextRange>,
+) -> TypedExpr {
     let start = Instant::now();
     let path = Path { segments: segs };
 
@@ -50,11 +58,14 @@ pub(in crate::lower) fn resolve_path_expr(state: &mut LowerState, segs: Vec<Name
     match resolve_value_use(state, path) {
         ResolvedValueUse::Resolved(def) => {
             let result = resolve_bound_def_expr(state, def);
+            if let Some(span) = span {
+                state.record_value_use_span(span, def);
+            }
             state.lower_detail.resolve_path_expr += start.elapsed();
             result
         }
         ResolvedValueUse::Unresolved(unresolved) => {
-            let result = unresolved_value_use_expr(state, unresolved);
+            let result = unresolved_value_use_expr(state, unresolved, span);
             state.lower_detail.resolve_path_expr += start.elapsed();
             result
         }
@@ -92,7 +103,11 @@ fn resolve_value_use(state: &LowerState, path: Path) -> ResolvedValueUse {
     })
 }
 
-fn unresolved_value_use_expr(state: &mut LowerState, unresolved: UnresolvedValueUse) -> TypedExpr {
+fn unresolved_value_use_expr(
+    state: &mut LowerState,
+    unresolved: UnresolvedValueUse,
+    span: Option<rowan::TextRange>,
+) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_exact_pure_eff_tv();
     let ref_id = state.ctx.fresh_ref();
@@ -106,6 +121,9 @@ fn unresolved_value_use_expr(state: &mut LowerState, unresolved: UnresolvedValue
             owner: unresolved.owner,
         },
     );
+    if let Some(span) = span {
+        state.record_ref_span(ref_id, span);
+    }
     TypedExpr {
         tv,
         eff,

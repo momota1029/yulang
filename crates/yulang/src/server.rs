@@ -6,10 +6,11 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_editor::semantic_tokens;
+use yulang_infer::simplify::compact::compact_type_var;
 use yulang_infer::{
     DefId, LowerState, Name as InferName, Path as InferPath, collect_compact_results_for_paths,
-    collect_surface_diagnostics, lower_virtual_source_with_options, render_compact_results,
-    surface_diagnostic::SurfaceDiagnostic,
+    collect_surface_diagnostics, format_compact_scheme, lower_virtual_source_with_options,
+    render_compact_results, surface_diagnostic::SurfaceDiagnostic,
 };
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
@@ -219,6 +220,8 @@ struct HoverTarget {
     path: Vec<String>,
     path_index: usize,
     range: Range,
+    syntax_range: rowan::TextRange,
+    path_syntax_range: rowan::TextRange,
 }
 
 fn hover_target_at(source: &str, position: Position) -> Option<HoverTarget> {
@@ -233,34 +236,39 @@ fn hover_target_at(source: &str, position: Position) -> Option<HoverTarget> {
         .filter_map(|it| it.into_token())
         .filter(|token| is_hover_name_token(token) || token.kind() == SyntaxKind::ColonColon)
         .map(|token| {
-            let range = byte_range_with_offset_to_lsp(&line_starts, token.text_range(), leading);
-            (token, range)
+            let syntax_range = token.text_range();
+            let range = byte_range_with_offset_to_lsp(&line_starts, syntax_range, leading);
+            (token, range, syntax_range)
         })
         .collect::<Vec<_>>();
 
-    let target_idx = tokens.iter().position(|(token, range)| {
+    let target_idx = tokens.iter().position(|(token, range, _)| {
         is_hover_name_token(token) && range_contains_position(*range, position)
     })?;
     let (start_idx, end_idx) = hover_path_bounds(&tokens, target_idx);
     let path_tokens = (start_idx..=end_idx)
         .step_by(2)
         .filter_map(|idx| tokens.get(idx))
-        .filter(|(token, _)| is_hover_name_token(token))
+        .filter(|(token, _, _)| is_hover_name_token(token))
         .collect::<Vec<_>>();
     let path = path_tokens
         .iter()
-        .map(|(token, _)| hover_name_text(token))
+        .map(|(token, _, _)| hover_name_text(token))
         .collect::<Vec<_>>();
     let path_index = path_tokens
         .iter()
-        .position(|(token, _)| token == &tokens[target_idx].0)?;
+        .position(|(token, _, _)| token == &tokens[target_idx].0)?;
     let name = path.get(path_index)?.clone();
+    let path_syntax_range =
+        rowan::TextRange::new(tokens[start_idx].2.start(), tokens[end_idx].2.end());
 
     Some(HoverTarget {
         name,
         path,
         path_index,
         range: tokens[target_idx].1,
+        syntax_range: tokens[target_idx].2,
+        path_syntax_range,
     })
 }
 
@@ -275,7 +283,10 @@ fn hover_name_text(token: &SyntaxToken) -> String {
     token.text().trim_start_matches('.').to_string()
 }
 
-fn hover_path_bounds(tokens: &[(SyntaxToken, Range)], target_idx: usize) -> (usize, usize) {
+fn hover_path_bounds(
+    tokens: &[(SyntaxToken, Range, rowan::TextRange)],
+    target_idx: usize,
+) -> (usize, usize) {
     let mut start_idx = target_idx;
     while start_idx >= 2
         && tokens[start_idx - 1].0.kind() == SyntaxKind::ColonColon
@@ -299,6 +310,10 @@ fn hover_type_from_lower_state(
     state: &mut LowerState,
     target: &HoverTarget,
 ) -> Option<(String, String)> {
+    if let Some(def) = resolve_hover_target_source_def(state, target) {
+        return hover_type_for_def(state, def);
+    }
+
     if let Some(def) = resolve_hover_target_def(state, target) {
         return hover_type_for_def(state, def);
     }
@@ -307,6 +322,32 @@ fn hover_type_from_lower_state(
     rendered
         .into_iter()
         .find(|(rendered_name, _)| rendered_name == &target.name)
+}
+
+fn resolve_hover_target_source_def(state: &LowerState, target: &HoverTarget) -> Option<DefId> {
+    state
+        .value_use_spans
+        .iter()
+        .rev()
+        .find_map(|(span, def)| {
+            span_contains_range(*span, target.path_syntax_range).then_some(*def)
+        })
+        .or_else(|| {
+            state.ref_spans.iter().find_map(|(ref_id, span)| {
+                span_contains_range(*span, target.path_syntax_range)
+                    .then(|| state.ctx.refs.get(*ref_id))
+                    .flatten()
+            })
+        })
+        .or_else(|| {
+            state.def_spans.iter().find_map(|(def, span)| {
+                span_contains_range(*span, target.syntax_range).then_some(*def)
+            })
+        })
+}
+
+fn span_contains_range(outer: rowan::TextRange, inner: rowan::TextRange) -> bool {
+    outer.start() <= inner.start() && inner.end() <= outer.end()
 }
 
 fn resolve_hover_target_def(state: &LowerState, target: &HoverTarget) -> Option<DefId> {
@@ -326,9 +367,20 @@ fn resolve_hover_target_def(state: &LowerState, target: &HoverTarget) -> Option<
 fn hover_type_for_def(state: &mut LowerState, def: DefId) -> Option<(String, String)> {
     state.finalize_compact_results();
     let paths = hover_paths_for_def(state, def);
-    collect_compact_results_for_paths(state, &paths)
+    if let Some(result) = collect_compact_results_for_paths(state, &paths)
         .into_iter()
         .next()
+    {
+        return Some(result);
+    }
+    let name = state.def_name(def)?.0.clone();
+    let scheme = state.compact_scheme_of(def).or_else(|| {
+        state
+            .def_tvs
+            .get(&def)
+            .map(|tv| compact_type_var(&state.infer, *tv))
+    })?;
+    Some((name, format_compact_scheme(&scheme)))
 }
 
 fn hover_paths_for_def(state: &LowerState, def: DefId) -> Vec<(InferPath, DefId)> {
@@ -881,6 +933,56 @@ mod tests {
         };
         assert!(content.value.contains("maybe::nil:"));
         assert!(content.value.contains("maybe"));
+    }
+
+    #[test]
+    fn hover_uses_resolved_local_reference_not_global_name() {
+        let source = "my x = 1\nmy f x = x\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 1,
+                character: 9,
+            },
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("x:"));
+        assert!(content.value.contains("α"));
+        assert!(!content.value.contains("int"));
+    }
+
+    #[test]
+    fn hover_uses_resolved_local_definition_not_global_name() {
+        let source = "my x = 1\nmy f x = x\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 1,
+                character: 5,
+            },
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("x:"));
+        assert!(content.value.contains("α"));
+        assert!(!content.value.contains("int"));
     }
 }
 

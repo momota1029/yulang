@@ -49,6 +49,12 @@ impl VmModule {
         VmInterpreter::new(&self.module).resume(request.continuation, value)
     }
 
+    pub fn force_value_profiled(&self, value: VmValue) -> Result<(VmResult, VmProfile), VmError> {
+        let mut interpreter = VmInterpreter::new(&self.module);
+        let result = interpreter.bind_here(value)?;
+        Ok((result, interpreter.profile()))
+    }
+
     pub fn resume_request_profiled(
         &self,
         request: VmRequest,

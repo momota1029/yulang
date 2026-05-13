@@ -326,10 +326,12 @@ fn lower_pat_kind(state: &mut LowerState, node: &SyntaxNode, context: PatContext
             let def = state.fresh_def();
             let def_tv = state.fresh_tv();
             state.register_def_tv(def, def_tv);
+            state.register_def_span(def, node.text_range());
             if let Some(alias_name) = super::super::ident_name(node) {
                 if let Some(owner) = state.current_owner {
                     state.register_def_owner(def, owner);
                 }
+                state.register_def_name(def, alias_name.clone());
                 state.ctx.bind_local(alias_name, def);
             }
             PatKind::As(Box::new(inner), def)
@@ -475,6 +477,7 @@ fn lower_record_pat(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
                                 let def_tv = state.fresh_tv();
                                 state.register_def_tv(def, def_tv);
                                 state.register_def_name(def, fname.clone());
+                                state.register_def_span(def, item.text_range());
                                 if let Some(owner) = state.current_owner {
                                     state.register_def_owner(def, owner);
                                 }

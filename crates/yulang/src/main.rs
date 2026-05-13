@@ -162,13 +162,9 @@ struct Cli {
 #[derive(clap::Subcommand)]
 enum Cmd {
     /// Type-check and print principal types (no path = read stdin)
-    Check {
-        path: Option<String>,
-    },
+    Check { path: Option<String> },
     /// Execute the program on the VM
-    Run {
-        path: Option<String>,
-    },
+    Run { path: Option<String> },
     /// Native backend: compile and/or run
     Native(NativeArgs),
     /// Print intermediate representations
