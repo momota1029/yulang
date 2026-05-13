@@ -11,6 +11,7 @@ mod compact;
 mod errors;
 mod extrude;
 mod frozen;
+mod handler_match;
 mod records;
 mod rows;
 mod shape;

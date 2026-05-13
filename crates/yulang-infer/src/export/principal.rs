@@ -7,7 +7,8 @@ use yulang_typed_ir as typed_ir;
 
 use super::complete_principal::{
     CompletePrincipalCache, ExpectedEdgeEvidence, collect_expected_adapter_edge_evidence,
-    collect_expected_edge_evidence, derive_all_expected_edge_evidence,
+    collect_expected_edge_evidence, collect_handler_match_evidence,
+    derive_all_expected_edge_evidence,
 };
 use super::expr::{ExprExportProfile, ExprExporter, collect_expr_export_type_vars};
 use super::names::{export_path, path_key};
@@ -184,12 +185,14 @@ pub fn export_core_program(state: &mut LowerState) -> typed_ir::CoreProgram {
     } else {
         Vec::new()
     };
+    let handler_matches = collect_handler_match_evidence(state);
     if export_timing {
         eprintln!(
-            "  export: derived_edges={:.3}ms count={} adapter_edges={}",
+            "  export: derived_edges={:.3}ms count={} adapter_edges={} handler_matches={}",
             t6.elapsed().as_secs_f64() * 1000.0,
             derived_edges.len(),
-            adapter_edges.len()
+            adapter_edges.len(),
+            handler_matches.len()
         );
     }
     if export_timing {
@@ -219,6 +222,10 @@ pub fn export_core_program(state: &mut LowerState) -> typed_ir::CoreProgram {
                 .into_iter()
                 .map(export_derived_expected_edge_evidence)
                 .collect(),
+            handler_matches: handler_matches
+                .into_iter()
+                .map(export_handler_match_evidence)
+                .collect(),
         },
     }
 }
@@ -240,6 +247,22 @@ fn export_expected_edge_evidence(
         expected: evidence.expected,
         actual_effect: evidence.actual_effect,
         expected_effect: evidence.expected_effect,
+        closed: evidence.closed,
+        informative: evidence.informative,
+        runtime_usable: evidence.runtime_usable,
+    }
+}
+
+fn export_handler_match_evidence(
+    evidence: super::complete_principal::HandlerMatchEvidence,
+) -> typed_ir::HandlerMatchEvidence {
+    typed_ir::HandlerMatchEvidence {
+        id: evidence.id,
+        source_range: evidence.source_range,
+        actual_effect: evidence.actual_effect,
+        keep: evidence.keep,
+        handled: evidence.handled,
+        residual_effect: evidence.residual_effect,
         closed: evidence.closed,
         informative: evidence.informative,
         runtime_usable: evidence.runtime_usable,
@@ -721,6 +744,7 @@ pub fn export_core_program_for_binding_paths(
     } else {
         Vec::new()
     };
+    let handler_matches = collect_handler_match_evidence(state);
 
     typed_ir::CoreProgram {
         program: typed_ir::PrincipalModule {
@@ -742,6 +766,10 @@ pub fn export_core_program_for_binding_paths(
             derived_expected_edges: derived_edges
                 .into_iter()
                 .map(export_derived_expected_edge_evidence)
+                .collect(),
+            handler_matches: handler_matches
+                .into_iter()
+                .map(export_handler_match_evidence)
                 .collect(),
         },
     }

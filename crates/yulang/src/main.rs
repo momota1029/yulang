@@ -5499,6 +5499,7 @@ mod tests {
                 }],
                 expected_adapter_edges: Vec::new(),
                 derived_expected_edges: Vec::new(),
+                handler_matches: Vec::new(),
             },
         };
         let error = runtime::RuntimeError::TypeMismatch {

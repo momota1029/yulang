@@ -23,6 +23,8 @@ pub struct PrincipalEvidence {
     pub expected_edges: Vec<ExpectedEdgeEvidence>,
     pub expected_adapter_edges: Vec<ExpectedAdapterEdgeEvidence>,
     pub derived_expected_edges: Vec<DerivedExpectedEdgeEvidence>,
+    #[serde(default)]
+    pub handler_matches: Vec<HandlerMatchEvidence>,
 }
 
 impl PrincipalEvidence {
@@ -43,6 +45,10 @@ impl PrincipalEvidence {
         self.derived_expected_edges
             .iter()
             .filter(move |edge| edge.parent == parent)
+    }
+
+    pub fn handler_match(&self, id: u32) -> Option<&HandlerMatchEvidence> {
+        self.handler_matches.iter().find(|edge| edge.id == id)
     }
 }
 
@@ -90,6 +96,26 @@ pub struct ExpectedAdapterEdgeEvidence {
     pub closed: bool,
     pub informative: bool,
     pub runtime_usable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HandlerMatchEvidence {
+    pub id: u32,
+    pub source_range: Option<SourceRange>,
+    pub actual_effect: crate::types::TypeBounds,
+    pub keep: DelimiterKeepEvidence,
+    pub handled: Vec<crate::types::TypeBounds>,
+    pub residual_effect: crate::types::TypeBounds,
+    pub closed: bool,
+    pub informative: bool,
+    pub runtime_usable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DelimiterKeepEvidence {
+    None,
+    Surface,
+    Set(Vec<Path>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -13,6 +13,7 @@ use crate::lower::{LowerState, SyntaxNode};
 use crate::scheme::{
     collect_neg_free_vars, collect_pos_free_vars, subst_neg_id_map, subst_pos_id_map,
 };
+use crate::solve::ShiftKeep;
 use crate::symbols::{Name, Path};
 use crate::types::{Neg, Pos};
 
@@ -186,33 +187,73 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
             state.infer.constrain(Pos::Var(tv), Neg::Var(comp.tv));
         }
 
+        if !handled_ops.is_empty() {
+            record_handler_body_boundary_keep(state, &comp);
+        }
+
         if handled_ops.is_empty() {
             state.infer.constrain(Pos::Var(comp.eff), Neg::Var(eff));
         } else if saw_value_arm {
             record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
             let rest_eff = state.fresh_tv();
             state.infer.mark_through(rest_eff);
-            state.infer.constrain(
-                state.pos_row(handled_pos_ops, Pos::Var(rest_eff)),
-                Neg::Var(comp.eff),
+            let handled = handled_ops
+                .iter()
+                .cloned()
+                .map(|op| state.infer.alloc_neg(op))
+                .collect();
+            state.infer.record_handler_match(
+                comp.eff,
+                handled,
+                rest_eff,
+                ConstraintCause {
+                    span: Some(node.text_range()),
+                    reason: ConstraintReason::CatchBranch,
+                },
             );
-            state.infer.constrain(
-                Pos::Var(comp.eff),
-                state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
-            );
+            let visible =
+                visible_handler_surface_ops(state, comp.eff, &handled_pos_ops, &handled_ops);
+            if !visible.neg.is_empty() {
+                state.infer.constrain(
+                    state.pos_row(visible.pos, Pos::Var(rest_eff)),
+                    Neg::Var(comp.eff),
+                );
+                state.infer.constrain(
+                    Pos::Var(comp.eff),
+                    state.neg_row(visible.neg, Neg::Var(rest_eff)),
+                );
+            }
             state.infer.constrain(Pos::Var(rest_eff), Neg::Var(eff));
         } else {
             record_handler_residual_adapter_edge(state, &comp, tv, eff, node);
             let rest_eff = state.fresh_tv();
             state.infer.mark_through(rest_eff);
-            state.infer.constrain(
-                state.pos_row(handled_pos_ops, Pos::Var(rest_eff)),
-                Neg::Var(comp.eff),
+            let handled = handled_ops
+                .iter()
+                .cloned()
+                .map(|op| state.infer.alloc_neg(op))
+                .collect();
+            state.infer.record_handler_match(
+                comp.eff,
+                handled,
+                rest_eff,
+                ConstraintCause {
+                    span: Some(node.text_range()),
+                    reason: ConstraintReason::CatchBranch,
+                },
             );
-            state.infer.constrain(
-                Pos::Var(comp.eff),
-                state.neg_row(handled_ops.clone(), Neg::Var(rest_eff)),
-            );
+            let visible =
+                visible_handler_surface_ops(state, comp.eff, &handled_pos_ops, &handled_ops);
+            if !visible.neg.is_empty() {
+                state.infer.constrain(
+                    state.pos_row(visible.pos, Pos::Var(rest_eff)),
+                    Neg::Var(comp.eff),
+                );
+                state.infer.constrain(
+                    Pos::Var(comp.eff),
+                    state.neg_row(visible.neg, Neg::Var(rest_eff)),
+                );
+            }
             for arm in &arms {
                 if let CatchArmKind::Effect { body, .. } = &arm.kind {
                     state.infer.constrain(
@@ -231,6 +272,89 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
     })();
     state.lower_detail.lower_catch += start.elapsed();
     result
+}
+
+struct VisibleHandlerOps {
+    pos: Vec<Pos>,
+    neg: Vec<Neg>,
+}
+
+fn visible_handler_surface_ops(
+    state: &LowerState,
+    comp_eff: crate::ids::TypeVar,
+    handled_pos_ops: &[Pos],
+    handled_ops: &[Neg],
+) -> VisibleHandlerOps {
+    match state.infer.effect_boundary_keep(comp_eff) {
+        ShiftKeep::None => VisibleHandlerOps {
+            pos: Vec::new(),
+            neg: Vec::new(),
+        },
+        ShiftKeep::Surface => VisibleHandlerOps {
+            pos: handled_pos_ops.to_vec(),
+            neg: handled_ops.to_vec(),
+        },
+        ShiftKeep::Set(paths) => {
+            let mut pos = Vec::new();
+            let mut neg = Vec::new();
+            for (pos_op, neg_op) in handled_pos_ops.iter().zip(handled_ops.iter()) {
+                if neg_op_path(neg_op)
+                    .is_some_and(|path| paths.iter().any(|allowed| allowed == path))
+                {
+                    pos.push(pos_op.clone());
+                    neg.push(neg_op.clone());
+                }
+            }
+            VisibleHandlerOps { pos, neg }
+        }
+    }
+}
+
+fn record_handler_body_boundary_keep(state: &LowerState, comp: &TypedExpr) {
+    let Some(keep) = handler_body_boundary_keep(state, comp) else {
+        return;
+    };
+    state.infer.record_effect_boundary_keep(comp.eff, keep);
+}
+
+fn handler_body_boundary_keep(state: &LowerState, comp: &TypedExpr) -> Option<ShiftKeep> {
+    let def = match &comp.kind {
+        ExprKind::Var(def) => *def,
+        ExprKind::App { callee, .. } => match &callee.kind {
+            ExprKind::Var(def) => *def,
+            _ => return None,
+        },
+        _ => return None,
+    };
+    if state.effect_op_args.contains_key(&def) {
+        return None;
+    }
+    if state.is_unannotated_current_lambda_param(def) {
+        return Some(ShiftKeep::None);
+    }
+    let allowed = state.lambda_param_function_allowed_effects.get(&def)?;
+    Some(match allowed {
+        yulang_typed_ir::FunctionSigAllowedEffects::Wildcard => ShiftKeep::Surface,
+        yulang_typed_ir::FunctionSigAllowedEffects::Effects(paths) => ShiftKeep::Set(
+            paths
+                .iter()
+                .map(|path| Path {
+                    segments: path
+                        .segments
+                        .iter()
+                        .map(|name| Name(name.0.clone()))
+                        .collect(),
+                })
+                .collect(),
+        ),
+    })
+}
+
+fn neg_op_path(op: &Neg) -> Option<&Path> {
+    match op {
+        Neg::Atom(atom) => Some(&atom.path),
+        _ => None,
+    }
 }
 
 fn record_handler_return_adapter_edge(

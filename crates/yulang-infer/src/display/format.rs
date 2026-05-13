@@ -1608,6 +1608,9 @@ fn format_type_inner(ty: &Type, namer: &mut VarNamer, needs_paren: bool) -> Stri
 }
 
 fn format_row_inline(ty: &Type, namer: &mut VarNamer) -> Option<String> {
+    if is_empty_row(ty) {
+        return None;
+    }
     match ty {
         Type::Bot | Type::Top => None,
         Type::Union(items) => {
@@ -1628,6 +1631,13 @@ fn format_row_inline(ty: &Type, namer: &mut VarNamer) -> Option<String> {
                 .iter()
                 .map(|item| format_type_inner(item, namer, false))
                 .collect::<Vec<_>>();
+            if is_empty_row(tail) {
+                return if items.is_empty() {
+                    None
+                } else {
+                    Some(items.join(", "))
+                };
+            }
             match tail.as_ref() {
                 Type::Bot | Type::Top => {
                     if items.is_empty() {
@@ -2262,6 +2272,9 @@ fn is_var_only_compact(ty: &CompactType) -> bool {
 
 fn is_empty_row(ty: &Type) -> bool {
     matches!(ty, Type::Row(items, tail) if items.is_empty() && matches!(tail.as_ref(), Type::Bot))
+        || matches!(ty, Type::Rec(tv, body)
+            if matches!(body.as_ref(), Type::Row(items, tail)
+                if items.is_empty() && matches!(tail.as_ref(), Type::Var(inner) if inner == tv)))
 }
 
 fn is_empty_effect_placeholder(ty: &Type) -> bool {

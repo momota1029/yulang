@@ -79,6 +79,22 @@ pub struct DeferredRoleMethodCall {
 }
 
 #[derive(Debug, Clone)]
+pub struct HandlerMatchEdge {
+    pub actual: TypeVar,
+    pub keep: ShiftKeep,
+    pub handled: Vec<NegId>,
+    pub residual: TypeVar,
+    pub cause: ConstraintCause,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ShiftKeep {
+    None,
+    Surface,
+    Set(Vec<Path>),
+}
+
+#[derive(Debug, Clone)]
 pub struct ExtensionMethodInfo {
     pub name: Name,
     pub def: DefId,
@@ -126,6 +142,9 @@ pub struct Infer {
     pub upper_members: RefCell<FxHashSet<(TypeVar, NegId)>>,
     pub compact_lower_instances: RefCell<FxHashMap<TypeVar, SmallVec<[OwnedSchemeInstance; 2]>>>,
     pub through: RefCell<FxHashSet<TypeVar>>,
+    pub handler_matches: RefCell<Vec<HandlerMatchEdge>>,
+    pub handler_match_dependents: RefCell<FxHashMap<TypeVar, SmallVec<[usize; 2]>>>,
+    pub effect_boundary_keeps: RefCell<FxHashMap<TypeVar, ShiftKeep>>,
     pub levels: RefCell<FxHashMap<TypeVar, u32>>,
     pub origins: RefCell<FxHashMap<TypeVar, TypeOrigin>>,
     pub errors: RefCell<Vec<TypeError>>,
@@ -171,6 +190,9 @@ impl Infer {
             upper_members: RefCell::new(FxHashSet::default()),
             compact_lower_instances: RefCell::new(FxHashMap::default()),
             through: RefCell::new(FxHashSet::default()),
+            handler_matches: RefCell::new(Vec::new()),
+            handler_match_dependents: RefCell::new(FxHashMap::default()),
+            effect_boundary_keeps: RefCell::new(FxHashMap::default()),
             levels: RefCell::new(FxHashMap::default()),
             origins: RefCell::new(FxHashMap::default()),
             errors: RefCell::new(Vec::new()),

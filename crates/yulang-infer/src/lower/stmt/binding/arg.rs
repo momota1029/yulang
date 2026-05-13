@@ -102,7 +102,7 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             if let Some(hint) = hint {
                 state.register_lambda_param_function_sig(def, hint);
             }
-            if let Some(allowed) = exportable_function_sig_allowed_effects(&param_pat) {
+            if let Some(allowed) = exportable_function_sig_allowed_effects(state, &param_pat) {
                 state.register_lambda_param_function_allowed_effects(def, allowed);
             }
             if let Some(annotation) = exportable_param_effect_annotation(&param_pat, ann.as_ref()) {
@@ -270,6 +270,7 @@ fn exportable_param_effect_annotation(
 }
 
 fn exportable_function_sig_allowed_effects(
+    state: &LowerState,
     pat: &SyntaxNode,
 ) -> Option<yulang_typed_ir::FunctionSigAllowedEffects> {
     let type_expr = crate::lower::ann::pat_type_ann_node(pat)
@@ -295,6 +296,7 @@ fn exportable_function_sig_allowed_effects(
             | crate::lower::signature::SigType::Apply { path, .. } => path,
             _ => return None,
         };
+        let path = state.ctx.canonical_current_type_path(&path);
         effects.push(yulang_typed_ir::Path {
             segments: path
                 .segments

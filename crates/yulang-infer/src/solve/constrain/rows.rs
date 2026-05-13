@@ -78,7 +78,7 @@ impl Infer {
         }
     }
 
-    fn constrain_row_item_match(
+    pub(super) fn constrain_row_item_match(
         &self,
         pos: PosId,
         neg: NegId,

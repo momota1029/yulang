@@ -5,16 +5,17 @@ pub mod type_order;
 pub mod types;
 
 pub use expr::{
-    ApplyEvidence, Binding, BindingVisibility, CoerceEvidence, CoreProgram,
+    ApplyEvidence, Binding, BindingVisibility, CoerceEvidence, CoreProgram, DelimiterKeepEvidence,
     DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, EdgePolarity,
     ExpectedAdapterEdgeEvidence, ExpectedAdapterEdgeKind, ExpectedEdgeEvidence, ExpectedEdgeKind,
-    Expr, FunctionSigAllowedEffects, HandleArm, ImplDecl, ImplMember, Item, JoinEvidence, Lit,
-    MatchArm, Module, ParamEffectAnnotation, Pattern, PrimitiveOp, PrincipalAdapterHole,
-    PrincipalAdapterKind, PrincipalBinding, PrincipalCandidateRelation, PrincipalElaborationArg,
-    PrincipalElaborationIncompleteReason, PrincipalElaborationPlan, PrincipalElaborationResult,
-    PrincipalEvidence, PrincipalModule, PrincipalRoot, PrincipalSlotPathSegment,
-    PrincipalSubstitutionCandidate, RecordExprField, RecordPatternField, RecordSpreadExpr,
-    RecordSpreadPattern, RoleDecl, RoleMember, SourceRange, Stmt, VariantExprSource,
+    Expr, FunctionSigAllowedEffects, HandleArm, HandlerMatchEvidence, ImplDecl, ImplMember, Item,
+    JoinEvidence, Lit, MatchArm, Module, ParamEffectAnnotation, Pattern, PrimitiveOp,
+    PrincipalAdapterHole, PrincipalAdapterKind, PrincipalBinding, PrincipalCandidateRelation,
+    PrincipalElaborationArg, PrincipalElaborationIncompleteReason, PrincipalElaborationPlan,
+    PrincipalElaborationResult, PrincipalEvidence, PrincipalModule, PrincipalRoot,
+    PrincipalSlotPathSegment, PrincipalSubstitutionCandidate, RecordExprField, RecordPatternField,
+    RecordSpreadExpr, RecordSpreadPattern, RoleDecl, RoleMember, SourceRange, Stmt,
+    VariantExprSource,
 };
 pub use graph::{
     BindingGraphNode, CoreGraphView, ExprGraphNode, GraphOwner, PrimitiveTypeFamily,

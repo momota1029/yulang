@@ -2329,6 +2329,7 @@ fn runtime_surface_with_coerce_binding(name: &str, source_edge: u32) -> Compiled
                 }],
                 expected_adapter_edges: Vec::new(),
                 derived_expected_edges: Vec::new(),
+                handler_matches: Vec::new(),
             },
         },
     }
@@ -3690,7 +3691,9 @@ fn effect_method_list_selection_uses_receiver_effect_row() {
              my collect(x: [undet; _] _) = x.list\n\
              my collected = (each [1, 2, 3] + each [4, 5, 6]).list\n\
              my logic_value = (each [1, 2, 3] + each [4, 5, 6]).logic\n\
-             my once_value = (each [1, 2, 3] + each [4, 5, 6]).once\n",
+             my once_value = (each [1, 2, 3] + each [4, 5, 6]).once\n\
+             my direct_list = (each [1, 2, 3]).list\n\
+             my direct_once = (each [1, 2, 3]).once\n",
             Some(repo_root),
             SourceOptions {
                 std_root: Some(std_root),
@@ -3713,6 +3716,14 @@ fn effect_method_list_selection_uses_receiver_effect_row() {
             "std::list::list<int>"
         );
         assert_eq!(rendered_type(&rendered, "once_value"), "std::opt::opt<int>");
+        assert_eq!(
+            rendered_type(&rendered, "direct_list"),
+            "std::list::list<int | α>"
+        );
+        assert_eq!(
+            rendered_type(&rendered, "direct_once"),
+            "std::opt::opt<int | α>"
+        );
     });
 }
 

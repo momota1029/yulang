@@ -1546,7 +1546,35 @@ mod tests {
             .iter()
             .find(|(name, _)| name == "shallow_det")
             .expect("shallow_det should be rendered");
-        assert_eq!(shallow_det.1, "α -> [undet] α");
+        assert_eq!(shallow_det.1, "α -> α");
+    }
+
+    #[test]
+    fn handler_match_evidence_records_unannotated_callback_keep_none() {
+        let green = yulang_parser::parse_module_to_green(
+            "act undet:\n  our bool: () -> bool\n\nmy shallow(f) = catch f():\n  undet::bool(), k -> k true\n",
+        );
+        let root: SyntaxNode<YulangLanguage> = SyntaxNode::new_root(green);
+        let mut state = LowerState::new();
+        lower_root(&mut state, &root);
+
+        let program = crate::export_core_program(&mut state);
+        let handler_match = program
+            .evidence
+            .handler_matches
+            .iter()
+            .find(|edge| matches!(edge.keep, yulang_typed_ir::DelimiterKeepEvidence::None))
+            .expect("unannotated callback catch should record Keep::None");
+        assert!(!handler_match.handled.is_empty());
+
+        let rendered = render_compact_results(&mut state);
+        let shallow = rendered
+            .iter()
+            .find(|(name, _)| name == "shallow")
+            .expect("shallow should be rendered");
+        assert!(!shallow.1.contains("handler_match"));
+        assert!(!shallow.1.contains("Shift"));
+        assert!(!shallow.1.contains("Peel"));
     }
 
     #[test]

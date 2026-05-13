@@ -9,6 +9,7 @@ use crate::ids::TypeVar;
 use crate::lower::{FunctionSigEffectHint, LowerState};
 use crate::solve::DeferredRoleMethodCall;
 use crate::solve::RoleMethodInfo;
+use crate::solve::ShiftKeep;
 use crate::solve::role::role_method_info_for_path;
 use crate::types::{Neg, Pos};
 
@@ -143,6 +144,12 @@ pub(crate) fn make_app_with_cause(
         state.infer.constrain(Pos::Var(arg.eff), Neg::Var(call_eff));
     }
     state.infer.constrain(Pos::Var(func.eff), Neg::Var(eff));
+    if let Some(keep) = thunk_boundary_keep_for_call(state, &func) {
+        state
+            .infer
+            .record_effect_boundary_keep(call_eff, keep.clone());
+        state.infer.record_effect_boundary_keep(eff, keep);
+    }
     state.infer.constrain(Pos::Var(call_eff), Neg::Var(eff));
     if pure_argument_slot || anf_arg {
         state.infer.constrain(Pos::Var(arg.eff), Neg::Var(eff));
@@ -188,6 +195,31 @@ pub(crate) fn make_app_with_cause(
     };
     register_role_method_call_spine(state, &result);
     result
+}
+
+fn thunk_boundary_keep_for_call(state: &LowerState, func: &TypedExpr) -> Option<ShiftKeep> {
+    let ExprKind::Var(def) = &func.kind else {
+        return None;
+    };
+    if state.is_unannotated_current_lambda_param(*def) {
+        return Some(ShiftKeep::None);
+    }
+    let allowed = state.lambda_param_function_allowed_effects.get(def)?;
+    Some(match allowed {
+        yulang_typed_ir::FunctionSigAllowedEffects::Wildcard => ShiftKeep::Surface,
+        yulang_typed_ir::FunctionSigAllowedEffects::Effects(paths) => ShiftKeep::Set(
+            paths
+                .iter()
+                .map(|path| crate::symbols::Path {
+                    segments: path
+                        .segments
+                        .iter()
+                        .map(|name| crate::symbols::Name(name.0.clone()))
+                        .collect(),
+                })
+                .collect(),
+        ),
+    })
 }
 
 fn debug_app_enabled() -> bool {

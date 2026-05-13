@@ -23,10 +23,12 @@ use crate::diagnostic::{
     ExpectedAdapterEdge, ExpectedAdapterEdgeId, ExpectedAdapterEdgeKind, ExpectedEdge,
     ExpectedEdgeId, ExpectedEdgeKind,
 };
-use crate::ids::TypeVar;
+use crate::ids::{NegId, TypeVar};
 use crate::lower::LowerState;
-use crate::solve::Infer;
+use crate::solve::{Infer, ShiftKeep};
+use crate::types::Neg;
 
+use super::names::export_path;
 use super::types::{
     collect_core_type_vars, export_coalesced_apply_evidence_bounds,
     export_coalesced_coerce_evidence_bounds, export_coalesced_type_bounds_for_tv,
@@ -105,6 +107,19 @@ pub struct ExpectedAdapterEdgeEvidence {
     pub expected_value: Option<typed_ir::TypeBounds>,
     pub actual_effect: Option<typed_ir::TypeBounds>,
     pub expected_effect: Option<typed_ir::TypeBounds>,
+    pub closed: bool,
+    pub informative: bool,
+    pub runtime_usable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HandlerMatchEvidence {
+    pub id: u32,
+    pub source_range: Option<typed_ir::SourceRange>,
+    pub actual_effect: typed_ir::TypeBounds,
+    pub keep: typed_ir::DelimiterKeepEvidence,
+    pub handled: Vec<typed_ir::TypeBounds>,
+    pub residual_effect: typed_ir::TypeBounds,
     pub closed: bool,
     pub informative: bool,
     pub runtime_usable: bool,
@@ -391,6 +406,50 @@ pub fn collect_expected_adapter_edge_evidence(
         .collect()
 }
 
+pub fn collect_handler_match_evidence(state: &LowerState) -> Vec<HandlerMatchEvidence> {
+    let edges = state.infer.handler_matches.borrow();
+    if edges.is_empty() {
+        return Vec::new();
+    }
+
+    let mut cache: HashMap<TypeVar, typed_ir::TypeBounds> = HashMap::new();
+    edges
+        .iter()
+        .enumerate()
+        .map(|(index, edge)| {
+            let actual_effect = coalesced_bounds_cached(&state.infer, edge.actual, &mut cache);
+            let residual_effect = coalesced_bounds_cached(&state.infer, edge.residual, &mut cache);
+            let handled = edge
+                .handled
+                .iter()
+                .map(|handled| handler_match_handled_bounds(&state.infer, *handled, &mut cache))
+                .collect::<Vec<_>>();
+            let closed = type_bounds_closed(&actual_effect)
+                && type_bounds_closed(&residual_effect)
+                && handled.iter().all(type_bounds_closed);
+            let informative = type_bounds_informative(&actual_effect)
+                || type_bounds_informative(&residual_effect)
+                || handled.iter().any(type_bounds_informative);
+            let runtime_usable = closed
+                && informative
+                && effect_type_bounds_runtime_usable(&actual_effect)
+                && effect_type_bounds_runtime_usable(&residual_effect)
+                && handled.iter().all(effect_type_bounds_runtime_usable);
+            HandlerMatchEvidence {
+                id: index as u32,
+                source_range: source_range(edge.cause.span),
+                actual_effect,
+                keep: export_delimiter_keep_evidence(&edge.keep),
+                handled,
+                residual_effect,
+                closed,
+                informative,
+                runtime_usable,
+            }
+        })
+        .collect()
+}
+
 pub fn collect_derived_expected_edge_evidence(
     state: &LowerState,
 ) -> Vec<DerivedExpectedEdgeEvidence> {
@@ -499,6 +558,50 @@ fn coalesced_bounds_cached(
     let bounds = export_coalesced_type_bounds_for_tv(infer, tv);
     cache.insert(tv, bounds.clone());
     bounds
+}
+
+fn handler_match_handled_bounds(
+    infer: &Infer,
+    handled: NegId,
+    cache: &mut HashMap<TypeVar, typed_ir::TypeBounds>,
+) -> typed_ir::TypeBounds {
+    match infer.arena.get_neg(handled) {
+        Neg::Atom(atom) => typed_ir::TypeBounds::exact(typed_ir::Type::Named {
+            path: export_path(&atom.path),
+            args: atom
+                .args
+                .iter()
+                .map(|(pos, neg)| {
+                    let lower = coalesced_bounds_cached(infer, *pos, cache)
+                        .lower
+                        .unwrap_or_else(|| Box::new(typed_ir::Type::Var(export_type_var(*pos))));
+                    let upper = coalesced_bounds_cached(infer, *neg, cache)
+                        .upper
+                        .unwrap_or_else(|| Box::new(typed_ir::Type::Var(export_type_var(*neg))));
+                    typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
+                        lower: Some(lower),
+                        upper: Some(upper),
+                    })
+                })
+                .collect(),
+        }),
+        Neg::Var(tv) => coalesced_bounds_cached(infer, tv, cache),
+        _ => typed_ir::TypeBounds::default(),
+    }
+}
+
+fn export_type_var(tv: TypeVar) -> typed_ir::TypeVar {
+    typed_ir::TypeVar(format!("t{}", tv.0))
+}
+
+fn export_delimiter_keep_evidence(keep: &ShiftKeep) -> typed_ir::DelimiterKeepEvidence {
+    match keep {
+        ShiftKeep::None => typed_ir::DelimiterKeepEvidence::None,
+        ShiftKeep::Surface => typed_ir::DelimiterKeepEvidence::Surface,
+        ShiftKeep::Set(paths) => {
+            typed_ir::DelimiterKeepEvidence::Set(paths.iter().map(export_path).collect())
+        }
+    }
 }
 
 fn complete_expected_edge_evidence_cached(

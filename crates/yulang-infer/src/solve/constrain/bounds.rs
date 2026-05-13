@@ -14,6 +14,7 @@ impl Infer {
         let added = self.add_lower(target, pos);
         if added {
             self.update_through_after_lower(target, pos, cause, cache);
+            self.solve_handler_matches_for(target, cause, cache);
         }
         added
     }
@@ -30,6 +31,7 @@ impl Infer {
             if let Neg::Var(target) = self.arena.get_neg(neg) {
                 self.propagate_through(source, target, cause, cache);
             }
+            self.solve_handler_matches_for(source, cause, cache);
         }
         added
     }

@@ -814,6 +814,15 @@ impl LowerState {
             .copied()
     }
 
+    pub fn is_unannotated_current_lambda_param(&self, def: DefId) -> bool {
+        self.current_owner
+            .is_some_and(|owner| self.def_owner(def) == Some(owner))
+            && !self.is_let_bound_def(def)
+            && !self.is_continuation_def(def)
+            && !self.lambda_param_effect_annotations.contains_key(&def)
+            && !self.lambda_param_function_sig_hints.contains_key(&def)
+    }
+
     pub fn record_top_level_block(&mut self, path: Path, block: crate::ast::expr::TypedBlock) {
         self.top_level_blocks.push((path, block));
     }
