@@ -343,6 +343,28 @@ first_over 40
 `,
     },
     {
+        label: { ja: "callback 衛生性", en: "Callback Hygiene" },
+        source: `// Callback effects are hygienic:
+// f's return is not captured by g's local sub.
+
+use std::*
+use std::flow::*
+
+our f() = return 0
+
+our g h = sub:
+    h()
+    return 1
+
+my a = sub:
+    my b = g f
+    println b.show
+    2
+
+a
+`,
+    },
+    {
         label: { ja: "非決定 list", en: "Nondet List" },
         source: `// each branches; .list collects every result.
 
