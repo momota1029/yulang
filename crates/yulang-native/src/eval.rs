@@ -512,6 +512,27 @@ fn eval_primitive(
                 bool_value(op, &args[0])? == bool_value(op, &args[1])?,
             ))
         }
+        PrimitiveOp::ListEmpty => {
+            expect_arity(op, args, 1)?;
+            Ok(runtime::VmValue::List(
+                runtime::runtime::list_tree::ListTree::empty(),
+            ))
+        }
+        PrimitiveOp::ListSingleton => {
+            expect_arity(op, args, 1)?;
+            Ok(runtime::VmValue::List(
+                runtime::runtime::list_tree::ListTree::singleton(std::rc::Rc::new(args[0].clone())),
+            ))
+        }
+        PrimitiveOp::ListMerge => {
+            expect_arity(op, args, 2)?;
+            Ok(runtime::VmValue::List(
+                runtime::runtime::list_tree::ListTree::concat(
+                    list_value(op, &args[0])?.clone(),
+                    list_value(op, &args[1])?.clone(),
+                ),
+            ))
+        }
         PrimitiveOp::ListLen => {
             expect_arity(op, args, 1)?;
             Ok(runtime::VmValue::Int(
@@ -556,6 +577,78 @@ fn eval_primitive(
                 })?;
             Ok(runtime::VmValue::List(value))
         }
+        PrimitiveOp::ListIndexRange => {
+            expect_arity(op, args, 2)?;
+            let list = list_value(op, &args[0])?;
+            let (start, end) = normalized_int_range_value(op, &args[1], list.len())?;
+            let value = list.index_range(start, end).ok_or_else(|| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[0].clone(),
+                }
+            })?;
+            Ok(runtime::VmValue::List(value))
+        }
+        PrimitiveOp::ListSplice => {
+            expect_arity(op, args, 3)?;
+            let list = list_value(op, &args[0])?;
+            let (start, end) = normalized_int_range_value(op, &args[1], list.len())?;
+            let insert = list_value(op, &args[2])?;
+            let value = list.splice(start, end, insert.clone()).ok_or_else(|| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[0].clone(),
+                }
+            })?;
+            Ok(runtime::VmValue::List(value))
+        }
+        PrimitiveOp::ListSpliceRaw => {
+            expect_arity(op, args, 4)?;
+            let start = usize::try_from(int_value(op, &args[1])?).map_err(|_| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[1].clone(),
+                }
+            })?;
+            let end = usize::try_from(int_value(op, &args[2])?).map_err(|_| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[2].clone(),
+                }
+            })?;
+            let list = list_value(op, &args[0])?;
+            let insert = list_value(op, &args[3])?;
+            let value = list.splice(start, end, insert.clone()).ok_or_else(|| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[0].clone(),
+                }
+            })?;
+            Ok(runtime::VmValue::List(value))
+        }
+        PrimitiveOp::ListViewRaw => {
+            expect_arity(op, args, 1)?;
+            let value = match list_value(op, &args[0])?.view() {
+                runtime::runtime::list_tree::ListView::Empty => runtime::VmValue::Variant {
+                    tag: typed_ir::Name("empty".to_string()),
+                    value: None,
+                },
+                runtime::runtime::list_tree::ListView::Leaf(single) => runtime::VmValue::Variant {
+                    tag: typed_ir::Name("leaf".to_string()),
+                    value: Some(Box::new((*single).clone())),
+                },
+                runtime::runtime::list_tree::ListView::Node { left, right, .. } => {
+                    runtime::VmValue::Variant {
+                        tag: typed_ir::Name("node".to_string()),
+                        value: Some(Box::new(runtime::VmValue::Tuple(vec![
+                            runtime::VmValue::List(left),
+                            runtime::VmValue::List(right),
+                        ]))),
+                    }
+                }
+            };
+            Ok(value)
+        }
         PrimitiveOp::IntAdd => int_bin_op(op, args, |left, right| left + right),
         PrimitiveOp::IntSub => int_bin_op(op, args, |left, right| left - right),
         PrimitiveOp::IntMul => int_bin_op(op, args, |left, right| left * right),
@@ -582,9 +675,122 @@ fn eval_primitive(
                 runtime::runtime::string_tree::StringTree::concat(left.clone(), right.clone()),
             ))
         }
+        PrimitiveOp::StringEq => {
+            expect_arity(op, args, 2)?;
+            Ok(runtime::VmValue::Bool(
+                string_value(op, &args[0])?.to_flat_string()
+                    == string_value(op, &args[1])?.to_flat_string(),
+            ))
+        }
+        PrimitiveOp::StringLen => {
+            expect_arity(op, args, 1)?;
+            Ok(runtime::VmValue::Int(
+                string_value(op, &args[0])?.len().to_string(),
+            ))
+        }
+        PrimitiveOp::StringIndex => {
+            expect_arity(op, args, 2)?;
+            let index = usize::try_from(int_value(op, &args[1])?).map_err(|_| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[1].clone(),
+                }
+            })?;
+            let value = string_value(op, &args[0])?.index(index).ok_or_else(|| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[0].clone(),
+                }
+            })?;
+            Ok(value_from_string(&value.to_string()))
+        }
+        PrimitiveOp::StringIndexRange => {
+            expect_arity(op, args, 2)?;
+            let text = string_value(op, &args[0])?;
+            let (start, end) = normalized_int_range_value(op, &args[1], text.len())?;
+            let value = text.index_range(start, end).ok_or_else(|| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[0].clone(),
+                }
+            })?;
+            Ok(runtime::VmValue::String(value))
+        }
+        PrimitiveOp::StringSplice => {
+            expect_arity(op, args, 3)?;
+            let text = string_value(op, &args[0])?;
+            let (start, end) = normalized_int_range_value(op, &args[1], text.len())?;
+            let insert = string_value(op, &args[2])?;
+            let value = text.splice(start, end, insert.clone()).ok_or_else(|| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[0].clone(),
+                }
+            })?;
+            Ok(runtime::VmValue::String(value))
+        }
+        PrimitiveOp::StringIndexRangeRaw => {
+            expect_arity(op, args, 3)?;
+            let start = usize::try_from(int_value(op, &args[1])?).map_err(|_| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[1].clone(),
+                }
+            })?;
+            let end = usize::try_from(int_value(op, &args[2])?).map_err(|_| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[2].clone(),
+                }
+            })?;
+            let value = string_value(op, &args[0])?
+                .index_range(start, end)
+                .ok_or_else(|| NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[0].clone(),
+                })?;
+            Ok(runtime::VmValue::String(value))
+        }
+        PrimitiveOp::StringSpliceRaw => {
+            expect_arity(op, args, 4)?;
+            let start = usize::try_from(int_value(op, &args[1])?).map_err(|_| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[1].clone(),
+                }
+            })?;
+            let end = usize::try_from(int_value(op, &args[2])?).map_err(|_| {
+                NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[2].clone(),
+                }
+            })?;
+            let insert = string_value(op, &args[3])?;
+            let value = string_value(op, &args[0])?
+                .splice(start, end, insert.clone())
+                .ok_or_else(|| NativeEvalError::PrimitiveTypeMismatch {
+                    op,
+                    value: args[0].clone(),
+                })?;
+            Ok(runtime::VmValue::String(value))
+        }
         PrimitiveOp::IntToString => {
             expect_arity(op, args, 1)?;
             Ok(value_from_string(&int_value(op, &args[0])?.to_string()))
+        }
+        PrimitiveOp::IntToHex => {
+            expect_arity(op, args, 1)?;
+            Ok(value_from_string(&format!(
+                "{:x}",
+                int_value(op, &args[0])?
+            )))
+        }
+        PrimitiveOp::IntToUpperHex => {
+            expect_arity(op, args, 1)?;
+            Ok(value_from_string(&format!(
+                "{:X}",
+                int_value(op, &args[0])?
+            )))
         }
         PrimitiveOp::FloatToString => {
             expect_arity(op, args, 1)?;
@@ -600,7 +806,6 @@ fn eval_primitive(
                 "false"
             }))
         }
-        _ => Err(NativeEvalError::UnsupportedPrimitive { op }),
     }
 }
 
@@ -735,6 +940,139 @@ fn list_value(
             value: value.clone(),
         }),
     }
+}
+
+fn normalized_int_range_value(
+    op: typed_ir::PrimitiveOp,
+    value: &runtime::VmValue,
+    len: usize,
+) -> NativeEvalResult<(usize, usize)> {
+    let original = value.clone();
+    let runtime::VmValue::Variant { tag, value } = value else {
+        return Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: original,
+        });
+    };
+    if tag.0 != "within" {
+        return Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: original,
+        });
+    }
+    let Some(payload) = value.as_ref() else {
+        return Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: runtime::VmValue::Variant {
+                tag: tag.clone(),
+                value: value.clone(),
+            },
+        });
+    };
+    let runtime::VmValue::Tuple(items) = payload.as_ref() else {
+        return Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: payload.as_ref().clone(),
+        });
+    };
+    let [start, end] = items.as_slice() else {
+        return Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: runtime::VmValue::Tuple(items.clone()),
+        });
+    };
+    let start = normalized_start_bound_value(op, start)?;
+    let end = normalized_end_bound_value(op, end, len)?;
+    if start <= end && end <= len {
+        Ok((start, end))
+    } else {
+        Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: payload.as_ref().clone(),
+        })
+    }
+}
+
+fn normalized_start_bound_value(
+    op: typed_ir::PrimitiveOp,
+    value: &runtime::VmValue,
+) -> NativeEvalResult<usize> {
+    let original = value.clone();
+    let runtime::VmValue::Variant { tag, value } = value else {
+        return Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: original,
+        });
+    };
+    match tag.0.as_str() {
+        "unbounded" => Ok(0),
+        "included" => {
+            let value = int_variant_payload(op, value)?;
+            usize::try_from(value).map_err(|_| NativeEvalError::PrimitiveTypeMismatch {
+                op,
+                value: value_from_string(&value.to_string()),
+            })
+        }
+        "excluded" => {
+            let value = int_variant_payload(op, value)?;
+            usize::try_from(value + 1).map_err(|_| NativeEvalError::PrimitiveTypeMismatch {
+                op,
+                value: value_from_string(&value.to_string()),
+            })
+        }
+        _ => Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: original,
+        }),
+    }
+}
+
+fn normalized_end_bound_value(
+    op: typed_ir::PrimitiveOp,
+    value: &runtime::VmValue,
+    len: usize,
+) -> NativeEvalResult<usize> {
+    let original = value.clone();
+    let runtime::VmValue::Variant { tag, value } = value else {
+        return Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: original,
+        });
+    };
+    match tag.0.as_str() {
+        "unbounded" => Ok(len),
+        "included" => {
+            let value = int_variant_payload(op, value)?;
+            usize::try_from(value + 1).map_err(|_| NativeEvalError::PrimitiveTypeMismatch {
+                op,
+                value: value_from_string(&value.to_string()),
+            })
+        }
+        "excluded" => {
+            let value = int_variant_payload(op, value)?;
+            usize::try_from(value).map_err(|_| NativeEvalError::PrimitiveTypeMismatch {
+                op,
+                value: value_from_string(&value.to_string()),
+            })
+        }
+        _ => Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: original,
+        }),
+    }
+}
+
+fn int_variant_payload(
+    op: typed_ir::PrimitiveOp,
+    value: &Option<Box<runtime::VmValue>>,
+) -> NativeEvalResult<i64> {
+    let Some(value) = value.as_ref() else {
+        return Err(NativeEvalError::PrimitiveTypeMismatch {
+            op,
+            value: runtime::VmValue::Unit,
+        });
+    };
+    int_value(op, value)
 }
 
 fn format_float_value(value: f64) -> String {

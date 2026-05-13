@@ -41,6 +41,7 @@ pub const NATIVE_PRIMITIVE_FLOAT_LE: i64 = 117;
 pub const NATIVE_PRIMITIVE_FLOAT_GT: i64 = 118;
 pub const NATIVE_PRIMITIVE_FLOAT_GE: i64 = 119;
 pub const NATIVE_PRIMITIVE_STRING_INDEX: i64 = 120;
+pub const NATIVE_PRIMITIVE_STRING_EQ: i64 = 121;
 
 #[derive(Default)]
 pub struct NativeRuntimeContext {
@@ -234,6 +235,9 @@ pub fn primitive_binary(
             let index = usize::try_from(int_value(right)?).ok()?;
             runtime::VmValue::String(string_tree_from(string_value(left)?.index(index)?))
         }
+        NATIVE_PRIMITIVE_STRING_EQ => runtime::VmValue::Bool(
+            string_value(left)?.to_flat_string() == string_value(right)?.to_flat_string(),
+        ),
         _ => return None,
     };
     Some(context.alloc(result))

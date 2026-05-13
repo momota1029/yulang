@@ -356,12 +356,11 @@ runtime/core IR
 3. value ABI を広げる。
    `int` / `bool` / `unit` だけでなく、`str` / `list` / tuple / record /
    variant を pointer lane で通す。
-   - 現状: tuple / record / variant construction は source から value-lane
-     Cranelift まで通る。record field select helper はあるが、source 側の
-     method/field 解決で直接 `{x: 1}.x` へはまだ繋がっていない。
-   - 次に必要なもの: list value lane の primitive 範囲をさらに広げる。
-     `ListIndexRange` / `ListIndexRangeRaw` を helper 化するか、range 専用 native
-     表現を待つか決める。
+   - 現状: tuple / record / variant construction と record field selection は
+     source から value-lane Cranelift まで通る。VM / native-control eval /
+     native ABI eval / value-lane Cranelift を boxed `VmValue` root で比較する
+     regression harness も追加済み。string equality、string range/splice、
+     list range/splice/view 系も同じ harness で VM と比較している。
    - 次に必要なもの: boxed scalar value の範囲を整理する。
      value lane 用の int/bool/unit/float は boxed `VmValue` として動くので、
      次は native scalar lane と boxed value lane の境界をどこで選ぶか決める。

@@ -110,12 +110,18 @@ or out of here into the user-facing table once they stabilize.
 - [x] Basic numeric and boolean primitives run through runtime helper symbols:
       `+`, `-`, `*`, `/`, comparisons, equality, and `not`.
 - [x] Basic conversion/string primitives are wired through helpers:
-      integer/float/bool to string, string length, and string index.
+      integer/float/bool to string, string equality, string length, and
+      string index/range/splice.
 - [x] Local `my` bindings and top-level non-function bindings can be evaluated
       by the value backend.
 - [x] String concatenation works.
 - [x] List literals, list merge, list length, list index, raw view, range
       index, and splice work.
+- [x] Native-control eval, native ABI eval, and value-backend Cranelift share
+      a VM comparison harness for boxed `VmValue` roots. This covers
+      non-scalar regressions such as string/list range and splice primitives,
+      record selection, record spread expressions, and list spread pattern
+      bindings.
 - [x] String range index and splice work.
 - [x] Tuple, record, record field selection, record spread expressions, and
       variant construction work.

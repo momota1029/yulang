@@ -48,7 +48,8 @@ pub use closure::{
     NativeClosureSlot, NativeClosureStmt, closure_convert_module,
 };
 pub use compare::{
-    NativeCompareError, NativeSourceCompareError, compare_module, compare_module_i64,
+    NativeCompareError, NativeSourceCompareError, NativeValueCompareError, compare_module,
+    compare_module_i64, compare_module_value,
 };
 pub use control_ir::{
     BlockId, NativeBlock, NativeFunction, NativeLiteral, NativeModule, NativeStmt,
