@@ -340,6 +340,7 @@ fn lower_principal_module_with_graph_and_evidence_inner(
         runtime_adapter_profile: RuntimeAdapterProfile::default(),
         local_param_boundaries: HashMap::new(),
         handler_body_depth: 0,
+        current_function_boundary: None,
         current_binding: None,
         current_runtime_adapter_source: None,
         next_synthetic_type_var: 0,
@@ -748,6 +749,7 @@ struct Lowerer<'a> {
     runtime_adapter_profile: RuntimeAdapterProfile,
     local_param_boundaries: HashMap<typed_ir::Path, LocalParamBoundary>,
     handler_body_depth: usize,
+    current_function_boundary: Option<EffectIdVar>,
     current_binding: Option<typed_ir::Path>,
     current_runtime_adapter_source: Option<RuntimeAdapterSource>,
     next_synthetic_type_var: usize,
@@ -763,6 +765,7 @@ struct BindingInfo {
 
 #[derive(Debug, Clone)]
 struct LocalParamBoundary {
+    id: EffectIdVar,
     effect: typed_ir::Type,
     applies_to_thunk_var: bool,
     applies_to_call_outside_handler: bool,

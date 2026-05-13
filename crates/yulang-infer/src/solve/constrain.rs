@@ -178,6 +178,11 @@ impl Infer {
             (_, Neg::Var(b)) => {
                 self.constrain_to_neg_var(pos, b, cause, cache);
             }
+            (Pos::Var(a), Neg::Row(_, tail))
+                if self.effect_boundary_keep(a) == super::ShiftKeep::CallBoundary =>
+            {
+                self.constrain_step(pos, tail, cause, cache);
+            }
             (Pos::Var(a), Neg::Row(_, tail)) if self.is_through(a) => {
                 self.constrain_step(pos, tail, cause, cache);
             }

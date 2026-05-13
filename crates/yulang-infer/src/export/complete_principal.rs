@@ -596,7 +596,7 @@ fn export_type_var(tv: TypeVar) -> typed_ir::TypeVar {
 
 fn export_delimiter_keep_evidence(keep: &ShiftKeep) -> typed_ir::DelimiterKeepEvidence {
     match keep {
-        ShiftKeep::None => typed_ir::DelimiterKeepEvidence::None,
+        ShiftKeep::None | ShiftKeep::CallBoundary => typed_ir::DelimiterKeepEvidence::None,
         ShiftKeep::Surface => typed_ir::DelimiterKeepEvidence::Surface,
         ShiftKeep::Set(paths) => {
             typed_ir::DelimiterKeepEvidence::Set(paths.iter().map(export_path).collect())

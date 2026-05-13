@@ -740,8 +740,12 @@ pub(super) fn add_id_with_peek_if_needed(thunk: Expr, allowed: typed_ir::Type) -
 }
 
 pub(super) fn add_boundary_id_with_peek(thunk: Expr, allowed: typed_ir::Type) -> Expr {
+    add_boundary_id(thunk, EffectIdRef::Peek, allowed)
+}
+
+pub(super) fn add_boundary_id(thunk: Expr, id: EffectIdRef, allowed: typed_ir::Type) -> Expr {
     let allowed = project_runtime_effect(&allowed);
-    add_id_with_peek(thunk, allowed, true)
+    add_id_required(thunk, id, allowed, true)
 }
 
 fn add_id_with_peek(thunk: Expr, allowed: typed_ir::Type, active: bool) -> Expr {
@@ -751,6 +755,21 @@ fn add_id_with_peek(thunk: Expr, allowed: typed_ir::Type, active: bool) -> Expr 
     Expr::typed(
         ExprKind::AddId {
             id: EffectIdRef::Peek,
+            allowed,
+            active,
+            thunk: Box::new(thunk.clone()),
+        },
+        thunk.ty,
+    )
+}
+
+fn add_id_required(thunk: Expr, id: EffectIdRef, allowed: typed_ir::Type, active: bool) -> Expr {
+    if !matches!(thunk.ty, RuntimeType::Thunk { .. }) {
+        return thunk;
+    }
+    Expr::typed(
+        ExprKind::AddId {
+            id,
             allowed,
             active,
             thunk: Box::new(thunk.clone()),
@@ -820,6 +839,91 @@ pub(super) fn contains_peek_add_id(expr: &Expr) -> bool {
         | ExprKind::Pack { expr, .. } => contains_peek_add_id(expr),
         ExprKind::LocalPushId { body, .. } => contains_peek_add_id(body),
         ExprKind::AddId { thunk, .. } => contains_peek_add_id(thunk),
+        ExprKind::Var(_)
+        | ExprKind::EffectOp(_)
+        | ExprKind::PrimitiveOp(_)
+        | ExprKind::Lit(_)
+        | ExprKind::PeekId
+        | ExprKind::FindId { .. } => false,
+    }
+}
+
+pub(super) fn contains_effect_id_var(expr: &Expr, target: EffectIdVar) -> bool {
+    match &expr.kind {
+        ExprKind::AddId {
+            id: EffectIdRef::Var(id),
+            ..
+        }
+        | ExprKind::FindId {
+            id: EffectIdRef::Var(id),
+        } if *id == target => true,
+        ExprKind::Lambda { body, .. } => contains_effect_id_var(body, target),
+        ExprKind::Apply { callee, arg, .. } => {
+            contains_effect_id_var(callee, target) || contains_effect_id_var(arg, target)
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            contains_effect_id_var(cond, target)
+                || contains_effect_id_var(then_branch, target)
+                || contains_effect_id_var(else_branch, target)
+        }
+        ExprKind::Tuple(items) => items
+            .iter()
+            .any(|item| contains_effect_id_var(item, target)),
+        ExprKind::Record { fields, spread } => {
+            fields
+                .iter()
+                .any(|field| contains_effect_id_var(&field.value, target))
+                || spread.as_ref().is_some_and(|spread| match spread {
+                    RecordSpreadExpr::Head(expr) | RecordSpreadExpr::Tail(expr) => {
+                        contains_effect_id_var(expr, target)
+                    }
+                })
+        }
+        ExprKind::Variant { value, .. } => value
+            .as_deref()
+            .is_some_and(|value| contains_effect_id_var(value, target)),
+        ExprKind::Select { base, .. } => contains_effect_id_var(base, target),
+        ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            contains_effect_id_var(scrutinee, target)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .is_some_and(|guard| contains_effect_id_var(guard, target))
+                        || contains_effect_id_var(&arm.body, target)
+                })
+        }
+        ExprKind::Block { stmts, tail } => {
+            stmts.iter().any(|stmt| match stmt {
+                Stmt::Let { value, .. } | Stmt::Expr(value) => {
+                    contains_effect_id_var(value, target)
+                }
+                Stmt::Module { body, .. } => contains_effect_id_var(body, target),
+            }) || tail
+                .as_deref()
+                .is_some_and(|tail| contains_effect_id_var(tail, target))
+        }
+        ExprKind::Handle { body, arms, .. } => {
+            contains_effect_id_var(body, target)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .is_some_and(|guard| contains_effect_id_var(guard, target))
+                        || contains_effect_id_var(&arm.body, target)
+                })
+        }
+        ExprKind::BindHere { expr }
+        | ExprKind::Thunk { expr, .. }
+        | ExprKind::Coerce { expr, .. }
+        | ExprKind::Pack { expr, .. } => contains_effect_id_var(expr, target),
+        ExprKind::LocalPushId { body, .. } => contains_effect_id_var(body, target),
+        ExprKind::AddId { thunk, .. } => contains_effect_id_var(thunk, target),
         ExprKind::Var(_)
         | ExprKind::EffectOp(_)
         | ExprKind::PrimitiveOp(_)

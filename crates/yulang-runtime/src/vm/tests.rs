@@ -1433,6 +1433,64 @@ listen prog ""
     }
 
     #[test]
+    fn vm_keeps_parameter_return_effect_hygienic_across_sub() {
+        let results = eval_source_with_std(
+            r#"use std::flow::*
+
+our f() = return 0
+our g h = sub:
+    h()
+    return 1
+
+my a = sub:
+    my b = g f
+    println b.show
+    2
+
+a
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("0".to_string())]);
+    }
+
+    #[test]
+    fn vm_keeps_parameter_loop_last_hygienic_across_for() {
+        let module = runtime_module_with_std(
+            r#"use std::flow::loop::*
+
+our f() = last
+our g h =
+    my $x = 0
+    for x in 0..5:
+        &x = $x + 1
+        h()
+    $x
+
+g f
+"#,
+        );
+        let escaped_loop_last = run_with_large_stack(move || {
+            let module = compile_vm_module(module).expect("compiled runtime VM module");
+            let Ok(results) = module.eval_roots() else {
+                return false;
+            };
+            matches!(
+                results.as_slice(),
+                [VmResult::Request(request)]
+                    if request.effect == typed_ir::Path::new(vec![
+                        typed_ir::Name("std".to_string()),
+                        typed_ir::Name("flow".to_string()),
+                        typed_ir::Name("loop".to_string()),
+                        typed_ir::Name("last".to_string()),
+                    ])
+            )
+        });
+
+        assert!(escaped_loop_last);
+    }
+
+    #[test]
     fn vm_runs_source_for_loop_with_unused_item_binding() {
         let results = eval_source_with_std(
             r#"{

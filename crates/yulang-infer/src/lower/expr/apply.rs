@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::OnceLock;
 
-use crate::ast::expr::{ExprKind, TypedExpr};
+use crate::ast::expr::{ExprKind, Lit, TypedExpr};
 use crate::diagnostic::{
     ConstraintCause, ExpectedAdapterEdgeKind, ExpectedEdgeKind, TypeOrigin, TypeOriginKind,
 };
@@ -144,7 +144,7 @@ pub(crate) fn make_app_with_cause(
         state.infer.constrain(Pos::Var(arg.eff), Neg::Var(call_eff));
     }
     state.infer.constrain(Pos::Var(func.eff), Neg::Var(eff));
-    if let Some(keep) = thunk_boundary_keep_for_call(state, &func) {
+    if let Some(keep) = thunk_boundary_keep_for_call(state, &func, &arg) {
         state
             .infer
             .record_effect_boundary_keep(call_eff, keep.clone());
@@ -197,10 +197,17 @@ pub(crate) fn make_app_with_cause(
     result
 }
 
-fn thunk_boundary_keep_for_call(state: &LowerState, func: &TypedExpr) -> Option<ShiftKeep> {
+fn thunk_boundary_keep_for_call(
+    state: &LowerState,
+    func: &TypedExpr,
+    arg: &TypedExpr,
+) -> Option<ShiftKeep> {
     let ExprKind::Var(def) = &func.kind else {
         return None;
     };
+    if direct_nullary_call_needs_boundary(state, *def, arg) {
+        return Some(ShiftKeep::CallBoundary);
+    }
     if state.is_unannotated_current_lambda_param(*def) {
         return Some(ShiftKeep::None);
     }
@@ -220,6 +227,23 @@ fn thunk_boundary_keep_for_call(state: &LowerState, func: &TypedExpr) -> Option<
                 .collect(),
         ),
     })
+}
+
+fn direct_nullary_call_needs_boundary(
+    state: &LowerState,
+    def: crate::ids::DefId,
+    arg: &TypedExpr,
+) -> bool {
+    matches!(arg.kind, ExprKind::Lit(Lit::Unit))
+        && state.current_owner.is_some()
+        && state.is_let_bound_def(def)
+        && state
+            .ctx
+            .canonical_value_paths()
+            .get(&def)
+            .is_some_and(|path| path.segments.len() == 1)
+        && !state.effect_op_args.contains_key(&def)
+        && !state.is_continuation_def(def)
 }
 
 fn debug_app_enabled() -> bool {

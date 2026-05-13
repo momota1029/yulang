@@ -156,7 +156,7 @@ impl Infer {
 
     fn shift_keep_captures_neg(&self, keep: &ShiftKeep, handled: NegId) -> bool {
         match keep {
-            ShiftKeep::None => false,
+            ShiftKeep::None | ShiftKeep::CallBoundary => false,
             ShiftKeep::Surface => true,
             ShiftKeep::Set(paths) => self
                 .neg_effect_path(handled)

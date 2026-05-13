@@ -140,7 +140,11 @@ impl Lowerer<'_> {
                     && let Some(boundary) = self.local_param_boundaries.get(&path)
                     && boundary.applies_to_thunk_var
                 {
-                    return Ok(add_boundary_id_with_peek(expr, boundary.effect.clone()));
+                    return Ok(add_boundary_id(
+                        expr,
+                        EffectIdRef::Var(boundary.id),
+                        boundary.effect.clone(),
+                    ));
                 }
                 Ok(expr)
             }
@@ -214,6 +218,7 @@ impl Lowerer<'_> {
                 );
                 let local = typed_ir::Path::from_name(param.clone());
                 let previous = locals.insert(local.clone(), param_ty.clone());
+                let boundary_id = self.fresh_effect_id_var();
                 let boundary_effect = runtime_boundary_effect_for_param(
                     param_effect_annotation.as_ref(),
                     param_function_allowed_effects.as_ref(),
@@ -222,11 +227,13 @@ impl Lowerer<'_> {
                 .map(|effect| project_runtime_effect(&effect));
                 let applies_to_thunk_var =
                     param_effect_annotation.is_some() || param_function_allowed_effects.is_some();
-                let applies_to_call_outside_handler = applies_to_thunk_var;
+                let applies_to_call_outside_handler = applies_to_thunk_var
+                    || !ret_expected.is_some_and(runtime_type_returns_function);
                 let previous_boundary = match boundary_effect {
                     Some(effect) => self.local_param_boundaries.insert(
                         local.clone(),
                         LocalParamBoundary {
+                            id: boundary_id,
                             effect,
                             applies_to_thunk_var,
                             applies_to_call_outside_handler,
@@ -234,12 +241,15 @@ impl Lowerer<'_> {
                     ),
                     None => self.local_param_boundaries.remove(&local),
                 };
+                let previous_function_boundary =
+                    self.current_function_boundary.replace(boundary_id);
                 let body_expected = match ret_expected {
                     Some(ret) => Some(ret.clone()),
                     None => None,
                 };
                 let body =
                     self.lower_expr(*body, body_expected.as_ref(), locals, TypeSource::Expected)?;
+                self.current_function_boundary = previous_function_boundary;
                 let actual_param_ty = locals.get(&local).cloned().unwrap_or(param_ty);
                 restore_local(locals, local, previous);
                 restore_local_param_boundary(
@@ -247,7 +257,7 @@ impl Lowerer<'_> {
                     typed_ir::Path::from_name(param.clone()),
                     previous_boundary,
                 );
-                let body = self.protect_function_body(body);
+                let body = self.protect_function_body(body, boundary_id);
                 let actual_ty = RuntimeType::fun(actual_param_ty, body.ty.clone());
                 let ty = match expected.as_ref() {
                     Some(expected @ RuntimeType::Fun { .. }) => {
@@ -333,16 +343,19 @@ impl Lowerer<'_> {
                     Some(typed_ir::Expr::Var(path)) => locals.get(path).cloned(),
                     _ => None,
                 };
-                let callee_boundary_effect = match callee_expr.as_ref() {
+                let callee_boundary = match callee_expr.as_ref() {
                     Some(typed_ir::Expr::Var(path)) => {
                         self.local_param_boundaries.get(path).and_then(|boundary| {
                             (boundary.applies_to_call_outside_handler
                                 || self.handler_body_depth > 0)
-                                .then(|| boundary.effect.clone())
+                                .then(|| boundary.clone())
                         })
                     }
                     _ => None,
                 };
+                let callee_boundary_effect = callee_boundary
+                    .as_ref()
+                    .map(|boundary| boundary.effect.clone());
                 let callee_stored_hint =
                     callee_local_hint
                         .clone()
@@ -629,6 +642,19 @@ impl Lowerer<'_> {
                     }
                 };
                 let actual_arg_ty = arg.ty.clone();
+                let direct_nullary_boundary_effect =
+                    if direct_nullary_function_call_needs_hygiene_boundary(
+                        apply_target.as_ref(),
+                        &actual_arg_ty,
+                        callee_is_effect_operation,
+                        locals,
+                        &self.env,
+                        &self.primitive_paths.unit_type(),
+                    ) {
+                        self.current_function_boundary.map(|id| (id, empty_row()))
+                    } else {
+                        None
+                    };
                 if matches!(
                     callee.ty,
                     RuntimeType::Unknown
@@ -791,6 +817,19 @@ impl Lowerer<'_> {
                     ) => result_ty,
                     _ => final_fun_parts.ret,
                 };
+                let boundary_allowed = callee_boundary_effect
+                    .map(|allowed| {
+                        (
+                            callee_boundary.as_ref().map(|boundary| boundary.id),
+                            allowed,
+                        )
+                    })
+                    .or_else(|| {
+                        direct_nullary_boundary_effect.map(|(id, allowed)| (Some(id), allowed))
+                    });
+                let boundary_ret_effect = boundary_allowed
+                    .as_ref()
+                    .and_then(|_| apply_evidence_ret_effect(evidence.as_ref()));
                 let mut apply = Expr::typed(
                     ExprKind::Apply {
                         callee: Box::new(callee),
@@ -809,8 +848,23 @@ impl Lowerer<'_> {
                         apply = attach_expr_effect(apply, effect);
                     }
                 }
-                if let Some(allowed) = callee_boundary_effect {
-                    apply = add_boundary_id_with_peek(apply, allowed);
+                if let Some((boundary_id, allowed)) = boundary_allowed {
+                    if !matches!(apply.ty, RuntimeType::Thunk { .. })
+                        && let Some(effect) = boundary_ret_effect
+                    {
+                        apply = attach_expr_effect(apply, effect);
+                    }
+                    let Some(boundary_id) = boundary_id else {
+                        apply = add_boundary_id_with_peek(apply, allowed);
+                        return finalize_effectful_expr_profiled(
+                            apply,
+                            expected,
+                            expected_source,
+                            &mut self.runtime_adapter_profile,
+                            self.current_runtime_adapter_source.clone(),
+                        );
+                    };
+                    apply = add_boundary_id(apply, EffectIdRef::Var(boundary_id), allowed);
                 }
                 finalize_effectful_expr_profiled(
                     apply,
@@ -2125,14 +2179,14 @@ impl Lowerer<'_> {
         id
     }
 
-    pub(super) fn protect_function_body(&mut self, body: Expr) -> Expr {
+    pub(super) fn protect_function_body(&mut self, body: Expr, boundary_id: EffectIdVar) -> Expr {
         let body = add_id_to_created_thunks(body);
-        if !contains_peek_add_id(&body) {
+        if !contains_peek_add_id(&body) && !contains_effect_id_var(&body, boundary_id) {
             return body;
         }
         Expr::typed(
             ExprKind::LocalPushId {
-                id: self.fresh_effect_id_var(),
+                id: boundary_id,
                 body: Box::new(body.clone()),
             },
             body.ty,
@@ -2401,6 +2455,40 @@ fn attach_effect_to_hir_type(ty: RuntimeType, effect: typed_ir::Type) -> Runtime
     }
 }
 
+fn apply_evidence_ret_effect(evidence: Option<&typed_ir::ApplyEvidence>) -> Option<typed_ir::Type> {
+    let evidence = evidence?;
+    evidence
+        .expected_callee
+        .as_ref()
+        .and_then(bounds_ret_effect)
+        .or_else(|| bounds_ret_effect(&evidence.callee))
+        .map(|effect| project_runtime_effect(&effect))
+        .filter(|effect| !effect_is_empty(effect))
+}
+
+fn bounds_ret_effect(bounds: &typed_ir::TypeBounds) -> Option<typed_ir::Type> {
+    bounds
+        .upper
+        .as_deref()
+        .and_then(type_ret_effect)
+        .or_else(|| bounds.lower.as_deref().and_then(type_ret_effect))
+}
+
+fn type_ret_effect(ty: &typed_ir::Type) -> Option<typed_ir::Type> {
+    match ty {
+        typed_ir::Type::Fun { ret_effect, .. } => Some((**ret_effect).clone()),
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
+            items.iter().find_map(type_ret_effect)
+        }
+        typed_ir::Type::Recursive { body, .. } => type_ret_effect(body),
+        _ => None,
+    }
+}
+
+fn runtime_type_returns_function(ty: &RuntimeType) -> bool {
+    matches!(value_hir_type(ty), RuntimeType::Fun { .. })
+}
+
 fn choose_final_apply_param(
     final_param: &RuntimeType,
     selected_arg_hint: Option<&RuntimeType>,
@@ -2514,6 +2602,35 @@ fn is_runtime_irrelevant_value_substitution(ty: &typed_ir::Type) -> bool {
 
 fn runtime_type_is_irrelevant_unit_value(ty: &RuntimeType) -> bool {
     matches!(ty, RuntimeType::Core(typed_ir::Type::Tuple(items)) if items.is_empty())
+}
+
+fn direct_nullary_function_call_needs_hygiene_boundary(
+    callee: Option<&typed_ir::Path>,
+    arg_ty: &RuntimeType,
+    callee_is_effect_operation: bool,
+    locals: &HashMap<typed_ir::Path, RuntimeType>,
+    env: &HashMap<typed_ir::Path, RuntimeType>,
+    unit_ty: &typed_ir::Type,
+) -> bool {
+    if callee_is_effect_operation
+        || !(runtime_type_is_irrelevant_unit_value(arg_ty)
+            || runtime_core_type(value_hir_type(arg_ty)) == *unit_ty)
+    {
+        return false;
+    }
+    let Some(path) = callee else {
+        return false;
+    };
+    env.contains_key(path)
+        && !locals.contains_key(path)
+        && path.segments.len() == 1
+        && !is_synthetic_operator_path(path)
+}
+
+fn is_synthetic_operator_path(path: &typed_ir::Path) -> bool {
+    path.segments
+        .iter()
+        .any(|segment| segment.0.starts_with("#op:"))
 }
 
 fn hir_type_contains_unknown(ty: &RuntimeType) -> bool {

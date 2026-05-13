@@ -1034,6 +1034,7 @@ impl<'m> VmInterpreter<'m> {
             EffectIdRef::Var(var) => self
                 .guard_stack
                 .find_var(var)
+                .or_else(|| self.guard_stack.peek())
                 .ok_or(VmError::UnsupportedEffectIdVar(var.0)),
         }
     }

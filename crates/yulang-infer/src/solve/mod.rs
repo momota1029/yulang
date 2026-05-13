@@ -90,6 +90,7 @@ pub struct HandlerMatchEdge {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShiftKeep {
     None,
+    CallBoundary,
     Surface,
     Set(Vec<Path>),
 }

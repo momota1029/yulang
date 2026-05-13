@@ -286,7 +286,7 @@ fn visible_handler_surface_ops(
     handled_ops: &[Neg],
 ) -> VisibleHandlerOps {
     match state.infer.effect_boundary_keep(comp_eff) {
-        ShiftKeep::None => VisibleHandlerOps {
+        ShiftKeep::None | ShiftKeep::CallBoundary => VisibleHandlerOps {
             pos: Vec::new(),
             neg: Vec::new(),
         },
