@@ -373,7 +373,7 @@ fn display_type_var(var: &typed_ir::TypeVar) -> &str {
     }
 }
 
-fn display_type(ty: &typed_ir::Type) -> String {
+pub fn display_type(ty: &typed_ir::Type) -> String {
     match ty {
         typed_ir::Type::Unknown => "?".to_string(),
         typed_ir::Type::Var(var) => display_type_var(var).to_string(),

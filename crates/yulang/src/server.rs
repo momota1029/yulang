@@ -12,15 +12,18 @@ use yulang_infer::simplify::compact::{
 };
 use yulang_infer::{
     DefId, LowerState, Name as InferName, Path as InferPath, TypeVar,
-    collect_compact_results_for_paths, collect_surface_diagnostics, format_coalesced_scheme,
-    lower_virtual_source_with_options, surface_diagnostic::SurfaceDiagnostic,
+    collect_compact_results_for_paths, collect_surface_diagnostics, export_core_program,
+    format_coalesced_scheme, lower_virtual_source_with_options,
+    surface_diagnostic::SurfaceDiagnostic,
 };
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
+use yulang_runtime as runtime;
 use yulang_sources::{
     SourceOptions, collect_virtual_source_files_with_options, is_std_root,
     resolve_or_install_std_root,
 };
+use yulang_typed_ir as typed_ir;
 
 type SyntaxNode = rowan::SyntaxNode<YulangLanguage>;
 type SyntaxToken = rowan::SyntaxToken<YulangLanguage>;
@@ -62,11 +65,11 @@ impl Backend {
         };
 
         let options = self.source_options(base_dir.as_deref());
+        let uri_for_diagnostics = uri.clone();
         let diagnostics = tokio::task::spawn_blocking(move || {
             match lower_virtual_source_with_options(&source, base_dir, options) {
                 Ok(lowered) => {
-                    let surface = collect_surface_diagnostics(&lowered.state);
-                    surface_to_lsp(&lowered.diagnostic_source, &source, surface)
+                    diagnostics_for_lowered_source(&uri_for_diagnostics, &source, lowered)
                 }
                 Err(e) => vec![Diagnostic {
                     range: Range::default(),
@@ -85,7 +88,35 @@ impl Backend {
     }
 }
 
+fn diagnostics_for_lowered_source(
+    uri: &Url,
+    document_source: &str,
+    mut lowered: yulang_infer::LoweredSources,
+) -> Vec<Diagnostic> {
+    let surface = collect_surface_diagnostics(&lowered.state);
+    let mut diagnostics = surface_to_lsp(uri, &lowered.diagnostic_source, document_source, surface);
+    if !diagnostics.is_empty() {
+        return diagnostics;
+    }
+
+    let program = export_core_program(&mut lowered.state);
+    let evidence = program.evidence.clone();
+    if let Err(error) = runtime::lower_core_program(program).and_then(runtime::monomorphize_module)
+        && let Some(diagnostic) = runtime_error_to_lsp(
+            uri,
+            &lowered.diagnostic_source,
+            document_source,
+            &evidence,
+            &error,
+        )
+    {
+        diagnostics.push(diagnostic);
+    }
+    diagnostics
+}
+
 fn surface_to_lsp(
+    uri: &Url,
     diagnostic_source: &str,
     document_source: &str,
     diags: Vec<SurfaceDiagnostic>,
@@ -100,14 +131,190 @@ fn surface_to_lsp(
                 .and_then(|span| shift_span_to_document(span, prefix_len))
                 .map(|span| byte_range_to_lsp(&line_starts, span))
                 .unwrap_or_default();
+            let related_information = d
+                .related
+                .into_iter()
+                .filter_map(|related| {
+                    let range = related
+                        .span
+                        .and_then(|span| shift_span_to_document(span, prefix_len))
+                        .map(|span| byte_range_to_lsp(&line_starts, span))?;
+                    Some(DiagnosticRelatedInformation {
+                        location: Location {
+                            uri: uri.clone(),
+                            range,
+                        },
+                        message: related.message,
+                    })
+                })
+                .collect::<Vec<_>>();
             Diagnostic {
                 range,
                 severity: Some(DiagnosticSeverity::ERROR),
                 message: d.message,
+                related_information: (!related_information.is_empty())
+                    .then_some(related_information),
                 ..Default::default()
             }
         })
         .collect()
+}
+
+fn runtime_error_to_lsp(
+    uri: &Url,
+    diagnostic_source: &str,
+    document_source: &str,
+    evidence: &typed_ir::PrincipalEvidence,
+    error: &runtime::RuntimeError,
+) -> Option<Diagnostic> {
+    let runtime::RuntimeError::TypeMismatch {
+        expected,
+        actual,
+        context: Some(context),
+        ..
+    } = error
+    else {
+        return None;
+    };
+    let prefix_len = diagnostic_prefix_len(diagnostic_source, document_source);
+    let line_starts = line_starts(document_source);
+    let primary_edge = runtime_type_mismatch_primary_edge(context, evidence);
+    let primary_range = primary_edge
+        .and_then(|edge| edge.source_range)
+        .and_then(|range| source_range_to_lsp(&line_starts, range, prefix_len))
+        .unwrap_or_default();
+    let mut related = Vec::new();
+    let actual_edge = runtime_type_mismatch_actual_edge(context, evidence);
+    push_runtime_type_related(
+        &mut related,
+        uri,
+        &line_starts,
+        prefix_len,
+        actual_edge,
+        runtime_type_related_message("actual", actual, actual_edge),
+    );
+    let expected_edge = runtime_type_mismatch_expected_edge(context, evidence);
+    push_runtime_type_related(
+        &mut related,
+        uri,
+        &line_starts,
+        prefix_len,
+        expected_edge,
+        runtime_type_related_message("expected", expected, expected_edge),
+    );
+
+    Some(Diagnostic {
+        range: primary_range,
+        severity: Some(DiagnosticSeverity::ERROR),
+        code: Some(NumberOrString::String("type-mismatch".to_string())),
+        source: Some("yulang".to_string()),
+        message: error.to_string(),
+        related_information: (!related.is_empty()).then_some(related),
+        ..Default::default()
+    })
+}
+
+fn runtime_type_mismatch_primary_edge<'a>(
+    context: &runtime::diagnostic::TypeMismatchContext,
+    evidence: &'a typed_ir::PrincipalEvidence,
+) -> Option<&'a typed_ir::ExpectedEdgeEvidence> {
+    match context.phase {
+        runtime::diagnostic::TypeMismatchPhase::ApplyCallee => context.callee_source_edge,
+        runtime::diagnostic::TypeMismatchPhase::ApplyArgument => context.arg_source_edge,
+        runtime::diagnostic::TypeMismatchPhase::ApplyResult
+        | runtime::diagnostic::TypeMismatchPhase::Expected => {
+            context.arg_source_edge.or(context.callee_source_edge)
+        }
+    }
+    .and_then(|id| evidence.expected_edge(id))
+}
+
+fn runtime_type_mismatch_actual_edge<'a>(
+    context: &runtime::diagnostic::TypeMismatchContext,
+    evidence: &'a typed_ir::PrincipalEvidence,
+) -> Option<&'a typed_ir::ExpectedEdgeEvidence> {
+    match context.phase {
+        runtime::diagnostic::TypeMismatchPhase::ApplyCallee => context.callee_source_edge,
+        runtime::diagnostic::TypeMismatchPhase::ApplyArgument => context.arg_source_edge,
+        runtime::diagnostic::TypeMismatchPhase::ApplyResult
+        | runtime::diagnostic::TypeMismatchPhase::Expected => {
+            context.arg_source_edge.or(context.callee_source_edge)
+        }
+    }
+    .and_then(|id| evidence.expected_edge(id))
+}
+
+fn runtime_type_mismatch_expected_edge<'a>(
+    context: &runtime::diagnostic::TypeMismatchContext,
+    evidence: &'a typed_ir::PrincipalEvidence,
+) -> Option<&'a typed_ir::ExpectedEdgeEvidence> {
+    match context.phase {
+        runtime::diagnostic::TypeMismatchPhase::ApplyCallee => context.arg_source_edge,
+        runtime::diagnostic::TypeMismatchPhase::ApplyArgument => context.callee_source_edge,
+        runtime::diagnostic::TypeMismatchPhase::ApplyResult
+        | runtime::diagnostic::TypeMismatchPhase::Expected => {
+            context.callee_source_edge.or(context.arg_source_edge)
+        }
+    }
+    .and_then(|id| evidence.expected_edge(id))
+}
+
+fn runtime_type_related_message(
+    role: &str,
+    ty: &typed_ir::Type,
+    edge: Option<&typed_ir::ExpectedEdgeEvidence>,
+) -> String {
+    let mut message = format!(
+        "{role} type here is `{}`",
+        runtime::diagnostic::display_type(ty)
+    );
+    if let Some(edge) = edge {
+        message.push_str(" (");
+        message.push_str(expected_edge_kind_label(edge.kind));
+        message.push(')');
+    }
+    message
+}
+
+fn expected_edge_kind_label(kind: typed_ir::ExpectedEdgeKind) -> &'static str {
+    match kind {
+        typed_ir::ExpectedEdgeKind::IfCondition => "if condition",
+        typed_ir::ExpectedEdgeKind::IfBranch => "if branch",
+        typed_ir::ExpectedEdgeKind::MatchGuard => "match guard",
+        typed_ir::ExpectedEdgeKind::MatchBranch => "match branch",
+        typed_ir::ExpectedEdgeKind::CatchGuard => "catch guard",
+        typed_ir::ExpectedEdgeKind::CatchBranch => "catch branch",
+        typed_ir::ExpectedEdgeKind::ApplicationCallee => "application callee",
+        typed_ir::ExpectedEdgeKind::ApplicationArgument => "application argument",
+        typed_ir::ExpectedEdgeKind::Annotation => "annotation",
+        typed_ir::ExpectedEdgeKind::RecordField => "record field",
+        typed_ir::ExpectedEdgeKind::VariantPayload => "variant payload",
+        typed_ir::ExpectedEdgeKind::AssignmentValue => "assignment value",
+        typed_ir::ExpectedEdgeKind::RepresentationCoerce => "representation coercion",
+    }
+}
+
+fn push_runtime_type_related(
+    related: &mut Vec<DiagnosticRelatedInformation>,
+    uri: &Url,
+    line_starts: &[usize],
+    prefix_len: usize,
+    edge: Option<&typed_ir::ExpectedEdgeEvidence>,
+    message: String,
+) {
+    let Some(range) = edge
+        .and_then(|edge| edge.source_range)
+        .and_then(|range| source_range_to_lsp(line_starts, range, prefix_len))
+    else {
+        return;
+    };
+    related.push(DiagnosticRelatedInformation {
+        location: Location {
+            uri: uri.clone(),
+            range,
+        },
+        message,
+    });
 }
 
 fn diagnostic_prefix_len(diagnostic_source: &str, document_source: &str) -> usize {
@@ -115,6 +322,19 @@ fn diagnostic_prefix_len(diagnostic_source: &str, document_source: &str) -> usiz
         .strip_suffix(document_source)
         .map(str::len)
         .unwrap_or(0)
+}
+
+fn source_range_to_lsp(
+    line_starts: &[usize],
+    range: typed_ir::SourceRange,
+    prefix_len: usize,
+) -> Option<Range> {
+    let start = usize::try_from(range.start).ok()?.checked_sub(prefix_len)?;
+    let end = usize::try_from(range.end).ok()?.checked_sub(prefix_len)?;
+    Some(byte_range_to_lsp(
+        line_starts,
+        rowan::TextRange::new((start as u32).into(), (end as u32).into()),
+    ))
 }
 
 fn shift_span_to_document(span: rowan::TextRange, prefix_len: usize) -> Option<rowan::TextRange> {
@@ -1435,6 +1655,128 @@ mod tests {
         assert!(!content.value.contains('|'));
     }
 
+    #[test]
+    fn diagnostics_include_runtime_type_mismatch_related_information() {
+        let source = "my f(x: int) = x\nf true\n";
+        let uri = Url::parse("file:///diagnostics.yu").expect("test uri");
+        let int = test_named_type("int");
+        let bool = test_named_type("bool");
+        let evidence = typed_ir::PrincipalEvidence {
+            expected_edges: vec![
+                typed_ir::ExpectedEdgeEvidence {
+                    id: 1,
+                    kind: typed_ir::ExpectedEdgeKind::Annotation,
+                    source_range: Some(test_source_range(source, "int")),
+                    actual: typed_ir::TypeBounds::exact(int.clone()),
+                    expected: typed_ir::TypeBounds::exact(int.clone()),
+                    actual_effect: None,
+                    expected_effect: None,
+                    closed: true,
+                    informative: true,
+                    runtime_usable: true,
+                },
+                typed_ir::ExpectedEdgeEvidence {
+                    id: 2,
+                    kind: typed_ir::ExpectedEdgeKind::ApplicationArgument,
+                    source_range: Some(test_source_range(source, "true")),
+                    actual: typed_ir::TypeBounds::exact(bool.clone()),
+                    expected: typed_ir::TypeBounds::exact(int.clone()),
+                    actual_effect: None,
+                    expected_effect: None,
+                    closed: true,
+                    informative: true,
+                    runtime_usable: true,
+                },
+            ],
+            ..Default::default()
+        };
+        let error = runtime::RuntimeError::TypeMismatch {
+            expected: int,
+            actual: bool,
+            source: runtime::TypeSource::ApplyEvidence,
+            context: Some(runtime::diagnostic::TypeMismatchContext {
+                callee: None,
+                phase: runtime::diagnostic::TypeMismatchPhase::ApplyArgument,
+                callee_source_edge: Some(1),
+                arg_source_edge: Some(2),
+            }),
+        };
+        let diagnostic =
+            runtime_error_to_lsp(&uri, source, source, &evidence, &error).expect("diagnostic");
+
+        assert!(
+            diagnostic.message.contains("type mismatch"),
+            "{diagnostic:?}"
+        );
+        assert!(
+            diagnostic.message.contains("expected int"),
+            "{diagnostic:?}"
+        );
+        assert!(diagnostic.message.contains("got bool"), "{diagnostic:?}");
+        assert_eq!(
+            diagnostic.range.start,
+            position_of(source, "true").expect("true position")
+        );
+        let related = diagnostic
+            .related_information
+            .as_ref()
+            .expect("related information");
+        assert!(
+            related
+                .iter()
+                .any(|info| info.message.contains("actual type here is `bool`")
+                    && info.message.contains("application argument")
+                    && info.location.range.start
+                        == position_of(source, "true").expect("true position")),
+            "{related:?}"
+        );
+        assert!(
+            related
+                .iter()
+                .any(|info| info.message.contains("expected type here is `int`")
+                    && info.message.contains("annotation")),
+            "{related:?}"
+        );
+    }
+
+    #[test]
+    fn diagnostics_include_non_function_application() {
+        let source = "my a = 1 2\n";
+        let uri = Url::parse("file:///diagnostics.yu").expect("test uri");
+        let lowered = lower_virtual_source_with_options(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("lowered source");
+        let diagnostics = diagnostics_for_lowered_source(&uri, source, lowered);
+        let diagnostic = diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.message == "expected function")
+            .expect("non-function application diagnostic");
+
+        assert_eq!(
+            diagnostic.range.start,
+            position_of(source, "2").expect("argument position")
+        );
+        let related = diagnostic
+            .related_information
+            .as_ref()
+            .expect("related information");
+        assert!(
+            related
+                .iter()
+                .any(|info| info.message.contains("literal `1`")
+                    && info.location.range.start
+                        == position_of(source, "1").expect("callee position")),
+            "{related:?}"
+        );
+    }
+
     fn std_source_options() -> SourceOptions {
         SourceOptions {
             std_root: resolve_or_install_std_root(None, None)
@@ -1448,6 +1790,21 @@ mod tests {
     fn position_of(source: &str, needle: &str) -> Option<Position> {
         let offset = source.find(needle)?;
         Some(byte_to_position(&line_starts(source), offset))
+    }
+
+    fn test_source_range(source: &str, needle: &str) -> typed_ir::SourceRange {
+        let start = source.find(needle).expect("source range start") as u32;
+        typed_ir::SourceRange {
+            start,
+            end: start + needle.len() as u32,
+        }
+    }
+
+    fn test_named_type(name: &str) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
+            args: Vec::new(),
+        }
     }
 
     #[test]
