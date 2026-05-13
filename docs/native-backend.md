@@ -157,6 +157,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] `sub`/`return`-style control has a small CPS repr regression path.
 - [x] Tuple, record, variant, and record selection can be lowered and evaluated
       in the CPS/CPS-repr interpreters.
+- [x] CPS/CPS-repr interpreters reuse the native-control primitive evaluator
+      for ordinary `VmValue` primitives, so string/list range, splice, view,
+      equality, and conversion semantics stay aligned with the value backend.
 - [x] Handler entry continuations receive captured environments in the
       Cranelift CPS repr path.
 - [x] Lazy branch conditions that flow through thunk-valued continuation params

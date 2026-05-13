@@ -2911,47 +2911,7 @@ fn eval_primitive(
     op: typed_ir::PrimitiveOp,
     args: &[runtime::VmValue],
 ) -> CpsReprEvalResult<runtime::VmValue> {
-    use typed_ir::PrimitiveOp;
-    match op {
-        PrimitiveOp::BoolNot => Ok(runtime::VmValue::Bool(!bool_value(op, &args[0])?)),
-        PrimitiveOp::IntAdd => Ok(runtime::VmValue::Int(
-            (int_value(op, &args[0])? + int_value(op, &args[1])?).to_string(),
-        )),
-        PrimitiveOp::IntSub => Ok(runtime::VmValue::Int(
-            (int_value(op, &args[0])? - int_value(op, &args[1])?).to_string(),
-        )),
-        PrimitiveOp::IntMul => Ok(runtime::VmValue::Int(
-            (int_value(op, &args[0])? * int_value(op, &args[1])?).to_string(),
-        )),
-        PrimitiveOp::IntEq => Ok(runtime::VmValue::Bool(
-            int_value(op, &args[0])? == int_value(op, &args[1])?,
-        )),
-        PrimitiveOp::IntLt => Ok(runtime::VmValue::Bool(
-            int_value(op, &args[0])? < int_value(op, &args[1])?,
-        )),
-        PrimitiveOp::IntLe => Ok(runtime::VmValue::Bool(
-            int_value(op, &args[0])? <= int_value(op, &args[1])?,
-        )),
-        _ => runtime::vm::primitive::apply_primitive(op, args)
-            .map_err(|_| CpsReprEvalError::UnsupportedPrimitive { op }),
-    }
-}
-
-fn int_value(op: typed_ir::PrimitiveOp, value: &runtime::VmValue) -> CpsReprEvalResult<i64> {
-    match value {
-        runtime::VmValue::Int(value) => {
-            value
-                .parse()
-                .map_err(|_| CpsReprEvalError::PrimitiveTypeMismatch {
-                    op,
-                    value: runtime::VmValue::Int(value.clone()),
-                })
-        }
-        value => Err(CpsReprEvalError::PrimitiveTypeMismatch {
-            op,
-            value: value.clone(),
-        }),
-    }
+    crate::eval::eval_primitive_for_abi(op, args).map_err(cps_repr_primitive_error)
 }
 
 fn bool_value(op: typed_ir::PrimitiveOp, value: &runtime::VmValue) -> CpsReprEvalResult<bool> {
@@ -2964,8 +2924,31 @@ fn bool_value(op: typed_ir::PrimitiveOp, value: &runtime::VmValue) -> CpsReprEva
     }
 }
 
+fn cps_repr_primitive_error(error: crate::eval::NativeEvalError) -> CpsReprEvalError {
+    match error {
+        crate::eval::NativeEvalError::InvalidPrimitiveArity {
+            op,
+            expected,
+            actual,
+        } => CpsReprEvalError::InvalidPrimitiveArity {
+            op,
+            expected,
+            actual,
+        },
+        crate::eval::NativeEvalError::PrimitiveTypeMismatch { op, value } => {
+            CpsReprEvalError::PrimitiveTypeMismatch { op, value }
+        }
+        crate::eval::NativeEvalError::UnsupportedPrimitive { op } => {
+            CpsReprEvalError::UnsupportedPrimitive { op }
+        }
+        other => unreachable!("native primitive evaluator returned non-primitive error: {other}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
     use super::*;
 
     #[test]
@@ -3056,6 +3039,120 @@ mod tests {
         assert_eq!(
             eval_cps_repr_module(&lowered).expect("evaluated"),
             vec![runtime::VmValue::Int("42".to_string())]
+        );
+    }
+
+    #[test]
+    fn evaluates_plain_value_primitives_through_native_evaluator() {
+        let module = CpsModule {
+            functions: Vec::new(),
+            roots: vec![
+                CpsFunction {
+                    name: "string-root".to_string(),
+                    params: Vec::new(),
+                    entry: CpsContinuationId(0),
+                    handlers: Vec::new(),
+                    continuations: vec![CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(0),
+                                literal: CpsLiteral::String("aあ🙂z".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(1),
+                                literal: CpsLiteral::Int("1".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(2),
+                                literal: CpsLiteral::Int("3".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(3),
+                                literal: CpsLiteral::String("bc".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(4),
+                                op: typed_ir::PrimitiveOp::StringSpliceRaw,
+                                args: vec![
+                                    CpsValueId(0),
+                                    CpsValueId(1),
+                                    CpsValueId(2),
+                                    CpsValueId(3),
+                                ],
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(4)),
+                    }],
+                },
+                CpsFunction {
+                    name: "list-root".to_string(),
+                    params: Vec::new(),
+                    entry: CpsContinuationId(0),
+                    handlers: Vec::new(),
+                    continuations: vec![CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(0),
+                                literal: CpsLiteral::Int("1".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(1),
+                                literal: CpsLiteral::Int("2".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(2),
+                                op: typed_ir::PrimitiveOp::ListSingleton,
+                                args: vec![CpsValueId(0)],
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(3),
+                                op: typed_ir::PrimitiveOp::ListSingleton,
+                                args: vec![CpsValueId(1)],
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(4),
+                                op: typed_ir::PrimitiveOp::ListMerge,
+                                args: vec![CpsValueId(2), CpsValueId(3)],
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(5),
+                                op: typed_ir::PrimitiveOp::ListViewRaw,
+                                args: vec![CpsValueId(4)],
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(5)),
+                    }],
+                },
+            ],
+        };
+        let lowered = lower_cps_repr_module(&module);
+
+        assert_eq!(
+            eval_cps_repr_module(&lowered).expect("evaluated"),
+            vec![
+                runtime::VmValue::String(runtime::runtime::string_tree::StringTree::from_str(
+                    "abcz",
+                )),
+                runtime::VmValue::Variant {
+                    tag: typed_ir::Name("node".to_string()),
+                    value: Some(Box::new(runtime::VmValue::Tuple(vec![
+                        runtime::VmValue::List(runtime::runtime::list_tree::ListTree::from_items(
+                            [Rc::new(runtime::VmValue::Int("1".to_string())),]
+                        )),
+                        runtime::VmValue::List(runtime::runtime::list_tree::ListTree::from_items(
+                            [Rc::new(runtime::VmValue::Int("2".to_string())),]
+                        )),
+                    ]))),
+                },
+            ]
         );
     }
 
