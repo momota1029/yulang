@@ -18,7 +18,7 @@ yulang-parser = { version = "0.1.1", path = "../yulang-parser" }
 yulang-infer = { version = "0.1.2", path = "../yulang-infer" }
 yulang-native = { version = "0.1.0", path = "../yulang-native", default-features = false }
 yulang-sources = { version = "0.1.2", path = "../yulang-sources" }
-yulang-editor = { version = "0.1.0", path = "../yulang-editor", optional = true }
+yulang-editor = { version = "0.1.1", path = "../yulang-editor", optional = true }
 chasa = "0.5.0"
 clap = { version = "4", features = ["derive"] }
 either = "1.13.0"
