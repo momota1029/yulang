@@ -104,6 +104,7 @@ struct CliOptions {
     profile_flamegraph: Option<String>,
     profile_repeat: usize,
     install_std: bool,
+    server: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -271,6 +272,7 @@ fn parse_args() -> CliOptions {
             cli.profile_repeat
         },
         install_std: false,
+        server: false,
     };
     match cli.cmd {
         Cmd::Check { path } => {
@@ -332,10 +334,7 @@ fn parse_args() -> CliOptions {
             }
         },
         Cmd::Server => {
-            eprintln!(
-                "yulang server: not yet integrated into the main binary — for now run the separate `yulang-ls` crate"
-            );
-            process::exit(2);
+            opts.server = true;
         }
     }
     opts
@@ -370,6 +369,21 @@ fn run(options: &CliOptions) {
         }
         eprintln!("{}", root.display());
         return;
+    }
+
+    if options.server {
+        #[cfg(feature = "server")]
+        {
+            yulang::server::run_blocking();
+            return;
+        }
+        #[cfg(not(feature = "server"))]
+        {
+            eprintln!(
+                "yulang server: this build was compiled without the `server` feature; rebuild with `cargo build --features server`"
+            );
+            process::exit(2);
+        }
     }
 
     for iteration in 0..options.profile_repeat {
@@ -5414,6 +5428,7 @@ mod tests {
             profile_flamegraph: None,
             profile_repeat: 1,
             install_std: false,
+            server: false,
         }
     }
 

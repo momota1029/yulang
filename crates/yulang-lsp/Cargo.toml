@@ -1,9 +1,9 @@
 [package]
 name = "yulang-ls"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Language server for Yulang"
+description = "Deprecated: use `yulang server` from the `yulang` crate instead."
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
 
@@ -12,10 +12,4 @@ name = "yulang-ls"
 path = "src/main.rs"
 
 [dependencies]
-tower-lsp = "0.20"
-tokio = { version = "1", features = ["full"] }
-yulang-editor = { version = "0.1.0", path = "../yulang-editor" }
-yulang-infer = { version = "0.1.1", path = "../yulang-infer" }
-yulang-parser = { version = "0.1.0", path = "../yulang-parser" }
-yulang-sources = { version = "0.1.1", path = "../yulang-sources" }
-rowan = "0.15"
+yulang = { version = "0.1.0", path = "../yulang", default-features = false, features = ["server"] }

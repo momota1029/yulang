@@ -82,17 +82,19 @@ Print inferred public types:
 cargo run -q -p yulang -- check examples/08_types.yu
 ```
 
-Install the language server:
+Install the language server (it ships with the main `yulang` binary):
 
 ```bash
-cargo install yulang-ls
-yulang-ls --install-std
+cargo install yulang
+yulang install-std
+yulang server
 ```
 
 The standard library is installed to
-`~/.yulang/lib/yulang-0.1.0/std`. `yulang-ls` also installs this embedded
+`~/.yulang/lib/yulang-0.1.0/std`. `yulang server` also installs this embedded
 standard library automatically on first use if neither `YULANG_STD` nor a
-nearby `lib/std` is available.
+nearby `lib/std` is available. The legacy `yulang-ls` binary is now a
+deprecated stub that delegates to `yulang server`.
 
 To use a different standard library checkout:
 

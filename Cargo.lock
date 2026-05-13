@@ -2303,6 +2303,9 @@ dependencies = [
  "pprof",
  "reborrow-generic",
  "rowan",
+ "tokio",
+ "tower-lsp",
+ "yulang-editor",
  "yulang-infer",
  "yulang-native",
  "yulang-parser",
@@ -2336,15 +2339,9 @@ dependencies = [
 
 [[package]]
 name = "yulang-ls"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
- "rowan",
- "tokio",
- "tower-lsp",
- "yulang-editor",
- "yulang-infer",
- "yulang-parser",
- "yulang-sources",
+ "yulang",
 ]
 
 [[package]]

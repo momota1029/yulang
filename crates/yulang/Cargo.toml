@@ -7,6 +7,10 @@ description = "Experimental language with Simple-Sub-style inference, algebraic 
 repository = "https://github.com/momota1029/yulang"
 readme = "../../README.md"
 
+[features]
+default = ["server"]
+server = ["dep:tower-lsp", "dep:tokio", "dep:yulang-editor"]
+
 [dependencies]
 yulang-typed-ir = { version = "0.1.0", path = "../yulang-typed-ir" }
 yulang-runtime = { version = "0.1.0", path = "../yulang-runtime" }
@@ -14,6 +18,7 @@ yulang-parser = { version = "0.1.0", path = "../yulang-parser" }
 yulang-infer = { version = "0.1.1", path = "../yulang-infer" }
 yulang-native = { version = "0.1.0", path = "../yulang-native" }
 yulang-sources = { version = "0.1.1", path = "../yulang-sources" }
+yulang-editor = { version = "0.1.0", path = "../yulang-editor", optional = true }
 chasa = "0.5.0"
 clap = { version = "4", features = ["derive"] }
 either = "1.13.0"
@@ -21,3 +26,5 @@ im = "15.1.0"
 reborrow-generic = "0.1.2"
 rowan = "0.15"
 pprof = { version = "0.14", features = ["flamegraph"] }
+tower-lsp = { version = "0.20", optional = true }
+tokio = { version = "1", features = ["full"], optional = true }
