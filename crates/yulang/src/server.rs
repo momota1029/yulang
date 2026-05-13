@@ -6,7 +6,10 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_editor::semantic_tokens;
-use yulang_infer::simplify::compact::{compact_type_var, compact_type_vars_in_order};
+use yulang_infer::simplify::compact::{
+    CompactBounds, CompactFun, CompactType, CompactTypeScheme, compact_type_var,
+    compact_type_vars_in_order,
+};
 use yulang_infer::{
     DefId, LowerState, Name as InferName, Path as InferPath, TypeVar,
     collect_compact_results_for_paths, collect_surface_diagnostics, format_coalesced_scheme,
@@ -273,8 +276,17 @@ fn hover_type_from_lower_state(
         return None;
     }
 
-    if let Some((recv_tv, result_tv)) = resolve_hover_target_selection_tvs(state, target) {
-        return hover_type_for_selection(state, &target.name, recv_tv, result_tv);
+    if let Some((recv_tv, recv_eff, result_tv, result_eff)) =
+        resolve_hover_target_selection_tvs(state, target)
+    {
+        return hover_type_for_selection(
+            state,
+            &target.name,
+            recv_tv,
+            recv_eff,
+            result_tv,
+            result_eff,
+        );
     }
 
     if let Some(def) = resolve_hover_target_source_def(state, target) {
@@ -291,14 +303,15 @@ fn hover_type_from_lower_state(
 fn resolve_hover_target_selection_tvs(
     state: &LowerState,
     target: &HoverTarget,
-) -> Option<(TypeVar, TypeVar)> {
-    state
-        .selection_spans
-        .iter()
-        .rev()
-        .find_map(|(span, recv_tv, result_tv)| {
-            span_contains_range(*span, target.syntax_range).then_some((*recv_tv, *result_tv))
-        })
+) -> Option<(TypeVar, TypeVar, TypeVar, TypeVar)> {
+    state.selection_spans.iter().rev().find_map(|span| {
+        span_contains_range(span.span, target.syntax_range).then_some((
+            span.recv_tv,
+            span.recv_eff,
+            span.result_tv,
+            span.result_eff,
+        ))
+    })
 }
 
 fn resolve_hover_target_source_def(state: &LowerState, target: &HoverTarget) -> Option<DefId> {
@@ -365,10 +378,23 @@ fn hover_type_for_selection(
     state: &mut LowerState,
     name: &str,
     recv_tv: TypeVar,
+    recv_eff: TypeVar,
     result_tv: TypeVar,
+    result_eff: TypeVar,
 ) -> Option<(String, String)> {
+    if let Some(def) = state.resolved_selection_def(result_tv) {
+        if let Some(public_def) = public_effect_method_hover_def(state, def) {
+            if let Some((_, ty)) = hover_type_for_def(state, public_def) {
+                return Some((name.to_string(), ty));
+            }
+        }
+        if let Some((_, ty)) = hover_type_for_def(state, def) {
+            return Some((name.to_string(), ty));
+        }
+    }
+
     state.finalize_compact_results();
-    let direct = compact_type_var(&state.infer, result_tv);
+    let direct = compact_hover_selection_scheme(state, recv_tv, recv_eff, result_tv, result_eff);
     let scheme = if compact_scheme_has_union_surface(&direct) {
         let mut source_defs = state.def_spans.keys().copied().collect::<Vec<_>>();
         source_defs.sort_by_key(|def| def.0);
@@ -376,16 +402,112 @@ fn hover_type_for_selection(
             .into_iter()
             .filter_map(|def| state.def_tvs.get(&def).copied())
             .collect::<Vec<_>>();
-        roots.push(recv_tv);
-        roots.push(result_tv);
-        compact_type_vars_in_order(&state.infer, &roots)
-            .into_iter()
-            .last()
-            .unwrap_or(direct)
+        push_selection_hover_roots(&mut roots, recv_tv, recv_eff, result_tv, result_eff);
+        compact_hover_selection_scheme_from_roots(
+            state, recv_tv, recv_eff, result_tv, result_eff, &roots,
+        )
+        .unwrap_or(direct)
     } else {
         direct
     };
     Some((name.to_string(), format_coalesced_scheme(&scheme)))
+}
+
+fn public_effect_method_hover_def(state: &LowerState, def: DefId) -> Option<DefId> {
+    let info = state
+        .infer
+        .effect_methods
+        .values()
+        .flat_map(|infos| infos.iter())
+        .find(|info| info.def == def)?;
+    let mut path = info.effect.clone();
+    path.segments.push(info.name.clone());
+    state.ctx.resolve_path_value(&path)
+}
+
+fn compact_hover_selection_scheme(
+    state: &LowerState,
+    recv_tv: TypeVar,
+    recv_eff: TypeVar,
+    result_tv: TypeVar,
+    result_eff: TypeVar,
+) -> CompactTypeScheme {
+    let mut roots = Vec::new();
+    push_selection_hover_roots(&mut roots, recv_tv, recv_eff, result_tv, result_eff);
+    compact_hover_selection_scheme_from_roots(
+        state, recv_tv, recv_eff, result_tv, result_eff, &roots,
+    )
+    .unwrap_or_else(|| compact_type_var(&state.infer, result_tv))
+}
+
+fn compact_hover_selection_scheme_from_roots(
+    state: &LowerState,
+    recv_tv: TypeVar,
+    recv_eff: TypeVar,
+    result_tv: TypeVar,
+    result_eff: TypeVar,
+    roots: &[TypeVar],
+) -> Option<CompactTypeScheme> {
+    let compacted = compact_type_vars_in_order(&state.infer, roots);
+    let selection_start = roots.len().checked_sub(4)?;
+    debug_assert_eq!(roots[selection_start], recv_tv);
+    debug_assert_eq!(roots[selection_start + 1], recv_eff);
+    debug_assert_eq!(roots[selection_start + 2], result_eff);
+    debug_assert_eq!(roots[selection_start + 3], result_tv);
+    let recv = compacted.get(selection_start)?;
+    let recv_eff = compacted.get(selection_start + 1)?;
+    let result_eff = compacted.get(selection_start + 2)?;
+    let result = compacted.get(selection_start + 3)?;
+    let lower_fun = CompactFun {
+        arg: recv.cty.lower.clone(),
+        arg_eff: recv_eff.cty.lower.clone(),
+        ret_eff: result_eff.cty.lower.clone(),
+        ret: result.cty.lower.clone(),
+    };
+    let upper_fun = CompactFun {
+        arg: recv.cty.upper.clone(),
+        arg_eff: recv_eff.cty.upper.clone(),
+        ret_eff: result_eff.cty.upper.clone(),
+        ret: result.cty.upper.clone(),
+    };
+    Some(CompactTypeScheme {
+        cty: CompactBounds {
+            self_var: None,
+            lower: CompactType {
+                funs: vec![lower_fun],
+                ..CompactType::default()
+            },
+            upper: CompactType {
+                funs: vec![upper_fun],
+                ..CompactType::default()
+            },
+        },
+        rec_vars: merge_compact_rec_vars(&compacted),
+    })
+}
+
+fn push_selection_hover_roots(
+    roots: &mut Vec<TypeVar>,
+    recv_tv: TypeVar,
+    recv_eff: TypeVar,
+    result_tv: TypeVar,
+    result_eff: TypeVar,
+) {
+    roots.extend([recv_tv, recv_eff, result_eff, result_tv]);
+}
+
+fn merge_compact_rec_vars(
+    schemes: &[CompactTypeScheme],
+) -> std::collections::HashMap<TypeVar, CompactBounds> {
+    schemes
+        .iter()
+        .flat_map(|scheme| {
+            scheme
+                .rec_vars
+                .iter()
+                .map(|(var, bounds)| (*var, bounds.clone()))
+        })
+        .collect()
 }
 
 fn compact_hover_scheme(
@@ -511,10 +633,7 @@ fn hover_for_source(
     })
 }
 
-fn document_symbol_for_node(
-    node: &SyntaxNode,
-    line_starts: &[usize],
-) -> Option<DocumentSymbol> {
+fn document_symbol_for_node(node: &SyntaxNode, line_starts: &[usize]) -> Option<DocumentSymbol> {
     let spec = symbol_spec(node)?;
     let name_token = symbol_name_token(node, spec.name_kind);
     let name = name_token
@@ -1270,9 +1389,30 @@ mod tests {
             panic!("hover should use markdown");
         };
         assert!(content.value.contains("once:"));
+        assert!(content.value.contains("α [std::undet::undet; β] -> [β]"));
         assert!(content.value.contains("std::opt::opt"));
         assert!(!content.value.contains("α & β"));
-        assert!(!content.value.contains("-> ["));
+        assert!(!content.value.contains("ζ | η"));
+    }
+
+    #[test]
+    fn hover_resolves_effect_method_selection_as_function_type() {
+        let source = "{ each [1, 2, 3] }.list\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            std_source_options(),
+            position_of(source, "list").expect("list position"),
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("list:"));
+        assert!(content.value.contains("α [std::undet::undet; β] -> [β]"));
+        assert!(content.value.contains("std::list::list<α>"));
+        assert!(!content.value.contains("α & β"));
+        assert!(!content.value.contains("ζ | η"));
     }
 
     #[test]

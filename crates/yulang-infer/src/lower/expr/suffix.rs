@@ -372,7 +372,7 @@ fn push_deferred_selection(
             structural_record_allowed,
         });
     if let Some(span) = source_span {
-        state.record_selection_span(span, recv_tv, tv);
+        state.record_selection_span(span, recv_tv, acc.eff, tv, eff);
     }
     TypedExpr {
         tv,
