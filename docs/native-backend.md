@@ -141,8 +141,11 @@ or out of here into the user-facing table once they stabilize.
       the existing value-backend expression subset.
 - [ ] General multi-block control flow outside the current branch/jump subset
       is not supported in the value backend.
-- [ ] Closure allocation, closure environments, and indirect closure calls are
-      not supported in the value backend.
+- [x] Non-escaping closure allocation, closure environment loads, and indirect
+      closure calls work in the value backend when the closure is allocated and
+      called inside the compiled subset.
+- [ ] Escaping closure values are not supported as ordinary runtime values in
+      the value backend.
 - [ ] Generic runtime value layout is still backed by `VmValue`; compact native
       representations are not finalized.
 

@@ -926,6 +926,29 @@ mod tests {
     }
 
     #[test]
+    fn compares_value_lambda_capture_with_value_cranelift() {
+        let expr = block(
+            vec![runtime::Stmt::Let {
+                pattern: bind_pattern("suffix"),
+                value: string_lit("!"),
+            }],
+            apply(
+                lambda(
+                    "text",
+                    primitive_call(
+                        typed_ir::PrimitiveOp::StringConcat,
+                        vec![var("text"), var("suffix")],
+                    ),
+                ),
+                string_lit("yu"),
+            ),
+        );
+        let module = module_with_root(expr);
+
+        compare_module_value(&module).expect("value paths match");
+    }
+
+    #[test]
     fn compares_if_with_vm_native_abi_and_cranelift() {
         let module = module_with_root(if_expr(
             apply(

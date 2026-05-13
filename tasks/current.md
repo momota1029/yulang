@@ -187,6 +187,10 @@ runtime/core IR
   - value-lane Cranelift は pattern 全体の Bool 条件を `BoolAnd` で合成し、
     refutable list item test も扱う。`[0, x]` fallback 後の `[1, x]` は
     JIT / object 生成で確認済み。
+  - value-lane Cranelift は scalar backend と同じ限定 closure lowering を持つ。
+    局所 `AllocateClosure` を code target + environment value table として保持し、
+    `IndirectClosureCall` を hidden env args 付き direct call へ戻す。closure value を
+    runtime value として返す / block param に流す形は引き続き unsupported。
   - value-lane Cranelift は guarded pattern match も扱う。pattern match 後に
     pattern locals を bind した guard block を挟み、false guard は次 arm へ
     fallthrough する。bool literal guard と pattern-bound bool guard は
