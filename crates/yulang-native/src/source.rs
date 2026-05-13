@@ -1255,6 +1255,115 @@ catch choose::pick 1 + 2:
     }
 
     #[test]
+    fn compares_std_junction_quantifiers_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"case std::junction::junction::junction { all [1, 2, 3] < any [2, 3, 4] }:
+    true -> 1
+    _ -> 0
+"#,
+            )
+            .expect("std junction quantifiers CPS repr jit compare");
+        });
+    }
+
+    #[test]
+    fn compares_std_junction_if_condition_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"if all [1, 2, 3] < any [2, 3, 4]:
+    1
+else:
+    0
+"#,
+            )
+            .expect("std junction if condition CPS repr jit compare");
+        });
+    }
+
+    #[test]
+    fn compares_std_junction_lazy_or_false_false_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"if false or false:
+    1
+else:
+    2
+"#,
+            )
+            .expect("lazy or false/false CPS repr jit compare");
+        });
+    }
+
+    #[test]
+    fn compares_std_junction_lazy_and_false_false_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"if false and false:
+    1
+else:
+    2
+"#,
+            )
+            .expect("lazy and false/false CPS repr jit compare");
+        });
+    }
+
+    #[test]
+    fn compares_std_flow_for_list_noop_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"{
+    for x in [1, 2, 3]:
+        ()
+    7
+}
+"#,
+            )
+            .expect("std flow finite-list for CPS repr jit compare");
+        });
+    }
+
+    #[test]
+    fn compares_std_flow_for_list_next_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"std::flow::sub::sub {
+    for x in [1, 2, 3]:
+        if x == 1:
+            next
+        else:
+            std::flow::sub::return x
+    0
+}
+"#,
+            )
+            .expect("std flow finite-list next CPS repr jit compare");
+        });
+    }
+
+    #[test]
+    fn compares_std_flow_for_list_last_through_cps_repr_cranelift() {
+        run_with_large_stack(|| {
+            compare_source_cps_repr_i64(
+                r#"std::flow::sub::sub {
+    for x in [1, 2, 3]:
+        if x == 1:
+            next
+        else:
+            if x == 2:
+                last
+            else:
+                std::flow::sub::return x
+    0
+}
+"#,
+            )
+            .expect("std flow finite-list last CPS repr jit compare");
+        });
+    }
+
+    #[test]
     fn compares_prelude_source_handler_value_arm_through_cps_repr_cranelift() {
         run_with_large_stack(|| {
             compare_source_cps_repr_i64(

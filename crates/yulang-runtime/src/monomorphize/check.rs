@@ -2127,9 +2127,9 @@ fn strengthen_container_callback_param_signatures(
     if args.len() < 2 {
         return args;
     }
-    let Some(item) = list_item_signature(&args[0]).filter(|item| {
-        !core_signature_is_uninformative(item)
-    }) else {
+    let Some(item) =
+        list_item_signature(&args[0]).filter(|item| !core_signature_is_uninformative(item))
+    else {
         return args;
     };
     strengthen_callback_first_param(&mut args[1], item);
@@ -2493,14 +2493,20 @@ fn strengthen_handler_arg_signatures(
     if known_consumed_effects_for_target(semantics, target).is_empty() {
         return args;
     }
-    let Some(first) = args.first_mut() else {
+    let Some(arg_index) = hints
+        .iter()
+        .position(|hint| matches!(hint, Some(DemandSignature::Thunk { .. })))
+    else {
         return args;
     };
     let Some(DemandSignature::Thunk {
         effect: consumed_effect,
         value: consumed_value,
-    }) = hints.first().and_then(|hint| hint.as_ref())
+    }) = hints.get(arg_index).and_then(|hint| hint.as_ref())
     else {
+        return args;
+    };
+    let Some(arg) = args.get_mut(arg_index) else {
         return args;
     };
     let (effect, value) = match ret {
@@ -2513,7 +2519,7 @@ fn strengthen_handler_arg_signatures(
         ),
         _ => (consumed_effect.clone(), consumed_value.clone()),
     };
-    *first = DemandSignature::Thunk { effect, value };
+    *arg = DemandSignature::Thunk { effect, value };
     args
 }
 

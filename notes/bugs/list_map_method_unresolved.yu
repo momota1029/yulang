@@ -1,0 +1,47 @@
+-- bug: list の `.map` companion method が解決できない
+--
+-- 期待:
+--   `lib/std/list.yu` の `type list 'a with: our xs.map f = std::list::map xs f`
+--   によって、`[1, 2, 3].map (\x -> x * 2)` は `[2, 4, 6]` を返すはず。
+--   `web/docs/ja/reference/idioms.md` の代表例
+--
+--     xs.map double .filter (\x -> x > 0) .len
+--
+--   も同じく動くべき。
+--
+-- 実際:
+--   error: no field or method named `.map` could be resolved
+--   at 1:3
+--
+--   recv 型を `list int` まで具体化しても、関数 f に型注釈を付けても、結果型を
+--   `list int` で受けても、同じエラー。
+--
+-- 切り分け:
+--
+--   [1, 2, 3].len                → 通る (impl Length 由来)
+--   [1, 2, 3].append [4]         → 通る (同じ `type list 'a with:` ブロック内)
+--   [1, 2, 3].last               → 通る (同じブロック)
+--   [1, 2, 3].splice (1..3) [9]  → 通る (同じブロック)
+--   [1, 2, 3].map (\x -> x)      → 落ちる
+--
+--   `xs.map f = std::list::map xs f` の隣に書いてある `xs.append`、`xs.last`、
+--   `xs.splice` は全て同じスタイルで定義されていて全部解決できるのに、
+--   `.map` だけ解決できない。free function 側の `std::list::map` は普通に
+--   呼べる (`std::list::map xs (\x -> x * 2)` で `[2, 4, 6]`)。
+--
+-- 影響:
+--   - docs の代表的なメソッドチェイン `.map .filter .len` がそのまま動かない。
+--   - list の代表的な高階メソッドが封じられて、毎回 `std::list::map xs f` の
+--     free function 形か、`xs |> map: f` の pipe 形に書き換える必要がある。
+--   - `result::map` も同名なので、companion method の解決経路で `.map` を
+--     候補配列が複数掴んで諦めている可能性。`.append` のような unique 名の
+--     method は通るので、name conflict の解消経路が壊れている疑い。
+--
+-- メモ:
+--   diagnostic は「no field or method named `.map` could be resolved」と言う
+--   だけで、候補の有無や ambiguity を報告しない。candidate selection 側で
+--   何かが noise として除去されているか、あるいは selection の前段で `.map`
+--   を別名 (たとえば `pub map` の free function path) と取り違えて failure に
+--   している可能性。
+
+[1, 2, 3].map (\x -> x * 2)

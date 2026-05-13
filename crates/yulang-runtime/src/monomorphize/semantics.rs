@@ -6,11 +6,21 @@ use crate::ir::{Expr, ExprKind, Module, Stmt};
 use crate::types::effect_paths;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub(crate) struct DemandSemantics;
+pub(crate) struct DemandSemantics {
+    handler_bindings: HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
+}
 
 impl DemandSemantics {
-    pub(super) fn from_module(_module: &Module) -> Self {
-        Self
+    pub(super) fn from_module(module: &Module) -> Self {
+        let handler_bindings = module
+            .bindings
+            .iter()
+            .filter_map(|binding| {
+                expr_handler_consumes(&binding.body)
+                    .map(|consumes| (binding.name.clone(), consumes))
+            })
+            .collect();
+        Self { handler_bindings }
     }
 
     pub(super) fn is_effect_polymorphic_higher_order_target(
@@ -43,10 +53,35 @@ pub(super) fn consumed_effects_for_target(
 }
 
 pub(super) fn known_consumed_effects_for_target(
-    _semantics: &DemandSemantics,
-    _target: &typed_ir::Path,
+    semantics: &DemandSemantics,
+    target: &typed_ir::Path,
 ) -> Vec<typed_ir::Path> {
-    Vec::new()
+    semantics
+        .handler_bindings
+        .get(target)
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn expr_handler_consumes(expr: &Expr) -> Option<Vec<typed_ir::Path>> {
+    match &expr.kind {
+        ExprKind::Handle { handler, .. } => Some(handler.consumes.clone()),
+        ExprKind::Lambda { body, .. }
+        | ExprKind::BindHere { expr: body }
+        | ExprKind::Thunk { expr: body, .. }
+        | ExprKind::LocalPushId { body, .. }
+        | ExprKind::AddId { thunk: body, .. }
+        | ExprKind::Coerce { expr: body, .. }
+        | ExprKind::Pack { expr: body, .. } => expr_handler_consumes(body),
+        ExprKind::Block {
+            tail: Some(tail), ..
+        } => expr_handler_consumes(tail),
+        ExprKind::Block { stmts, tail: None } => match stmts.last() {
+            Some(Stmt::Expr(expr)) => expr_handler_consumes(expr),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 fn expr_pure_handler_consumes(expr: &Expr) -> Option<Vec<typed_ir::Path>> {

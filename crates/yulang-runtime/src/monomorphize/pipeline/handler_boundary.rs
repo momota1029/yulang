@@ -700,7 +700,7 @@ fn handler_boundary_param_type(param: RuntimeType, plan: &HandlerAdapterPlan) ->
     };
     match param {
         RuntimeType::Thunk { value, .. } => RuntimeType::thunk(effect, *value),
-        other => other,
+        other => RuntimeType::thunk(effect, other),
     }
 }
 

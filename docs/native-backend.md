@@ -62,8 +62,8 @@ checklist, see *Detailed progress* below.
 | `std::undet` `.once` first solution over a finite list | CPS repr            |   ✅   |
 | Mutable reference edit / update through effects     | CPS repr (scalar)      |   ✅   |
 | Effectful thunks across function boundaries         | —                      |   ❌   |
-| `std::junction` effectful boolean conditions        | CPS repr               |   △   |
-| `for` / `last` / `next` loops                       | —                      |   ❌   |
+| `std::junction` effectful boolean conditions        | CPS repr               |   ✅   |
+| Finite-list `for` loops with `last` / `next` control | CPS repr (scalar)      |   ✅   |
 
 #### Output
 
@@ -191,9 +191,11 @@ or out of here into the user-facing table once they stabilize.
       and agree with the VM for the first accepted scalar result.
 - [x] `std::undet` `.once` handles all-rejected finite lists and nested
       finite-list choices through the Cranelift CPS repr scalar path.
-- [x] `std::junction::junction { true }` works through the Cranelift CPS repr
-      scalar path; `std::junction::any` / `all` still need effectful helper
-      calls to materialize the surrounding junction handler entries.
+- [x] `std::junction::junction { true }`, explicit `case junction { ... }`,
+      and `if all [1, 2, 3] < any [2, 3, 4]` run through the Cranelift CPS
+      repr scalar path.
+- [x] Finite-list `for` loops, including `last` / `next` loop control, run
+      through the Cranelift CPS repr scalar path for scalar observable roots.
 - [x] First-class lambda values can be created and applied through the
       Cranelift CPS repr scalar path for pure higher-order calls.
 - [ ] General thunk values are only partially represented; thunk roots can be

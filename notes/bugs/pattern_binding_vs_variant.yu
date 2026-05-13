@@ -1,0 +1,70 @@
+-- bug: enum / error の variant 名と同じ名前を pattern binding に使うと、
+--      binding ではなく nested variant pattern として解釈される
+--
+-- 期待:
+--   `result::err err -> ...` の 2 番目の `err` は、payload を `err` という
+--   local 名に束縛する pattern binding。`err` (= `result::err` の variant) は
+--   in-scope だけれど、pattern position では shadowing して fresh binding
+--   として扱うのが普通の言語慣習。
+--
+--   web/docs/ja/reference/errors.md の `wrap` レシピ:
+--
+--     case fs_err::wrap: fs::read_text_or_throw path:
+--         result::ok text -> text
+--         result::err err -> err.show
+--
+--   は素直に動くはず。
+--
+-- 実際:
+--   type error: expected std::result::result<?, ?>, found fs_err
+--   type error: expected fs_err, found std::result::result<?, ?>
+--
+--   `err` 名の binding が、prelude が re-export している variant constructor
+--   `err` (= `result::err`) として解釈され、`result::err err` は
+--   「payload も `err` variant である result::err」というネストパターンになる。
+--   payload の型 (fs_err) と nested pattern が期待する型 (result) が衝突して
+--   上記のように 2 方向の type error が出る。
+--
+-- 切り分け:
+--
+--   case (result::ok 5): result::ok ok -> ok            → 落ちる
+--   case (result::ok 5): result::ok n -> n              → 通る
+--   case (just 5): just just -> just                    → 落ちる
+--   case (just 5): just x -> x                          → 通る
+--   case res: result::err err -> "err"  (body で err 未使用) → 落ちる
+--   case res: result::err foo -> foo.show               → 通る
+--
+--   pattern の binding 名が in-scope の variant constructor (ここでは prelude
+--   が re-export した `ok` / `err` / `just` / `nil` 等) と一致するときだけ
+--   発火する。body で binding を使うかどうかには関係なく、pattern 解釈の段で
+--   壊れている。
+--
+-- 影響:
+--   - `result::err err` という素直で読みやすい binding が書けない。
+--     errors.md の `wrap` レシピが書いた通り動かない。
+--   - `just just` / `ok ok` / `err err` のような「variant の中身を同じ名前で
+--     bind する」記法も全滅。prelude が標準 enum (`opt`, `result`) の variant
+--     を unqualified で re-export している以上、これらの名前はよく被る。
+--   - `local_name_vs_nullfix` (resolve 済み) の pattern 位置版と思われる。
+--     expression 位置では fix 済みでも pattern position の名前解決が同じ
+--     shadow rule を持っていないのが原因と推測。
+--
+-- メモ:
+--   pattern parser が ident を見たとき、in-scope な variant 名と一致するなら
+--   「0-arity constructor pattern」として扱う規則になっていると思われる。
+--   それは pattern の先頭位置 (`result::err` の `err`) では正しい挙動だけれど、
+--   「すでに constructor pattern の payload 位置に来た ident」については
+--   binding として優先する必要がある。
+
+pub error fs_err:
+    not_found str
+
+my read path =
+    case path:
+        "/missing" -> fail fs_err::not_found path
+        _ -> "ok"
+
+my res = fs_err::wrap: read "/missing"
+case res:
+    result::ok text -> text
+    result::err err -> "err"

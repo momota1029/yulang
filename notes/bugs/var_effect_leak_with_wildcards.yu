@@ -1,0 +1,68 @@
+-- bug: handler 関数の型注釈に `_` (wildcard) を混ぜると、局所 ref の
+--      `&x::get` effect が handler scope を抜けて漏れる
+--
+-- 期待:
+--   `my $entries = []` で開いた var effect は、その block 内で完結するはず。
+--   `web/docs/ja/guide/cookbook.md` の「自前 effect を handler で受ける」の
+--   コード:
+--
+--     my run(action: [log; _] _): (_, list str) =
+--         my $entries = []
+--         my result = catch action:
+--             log::put msg, k -> k ()
+--             v -> v
+--         (result, $entries)
+--
+--     run: log::put "x"
+--
+--   は `((), [])` (= action の値, 集めた log) を返すはず。`&entries::get` は
+--   `my $entries = []` の synthetic var handler で受け止まる。
+--
+-- 実際:
+--   [0] request &entries#764::get () blocked=None
+--
+--   `$entries` を読むときの `&entries::get` 操作が、`my $entries = []` の
+--   handler を素通りして program の最外まで漏れている。
+--
+-- 切り分け:
+--
+--   action: [log; _] _   + return: (_, list str)     → 漏れる (cookbook 形)
+--   action: [log; _] _   + return: (unit, list str)  → 漏れる
+--   action: [log] ()     + return: (_, list str)     → 漏れる
+--   action: [log; _] ()  + return: (unit, list str)  → 通る ((), [])
+--   action: [log] ()     + return: (unit, list str)  → 通る ((), [])
+--
+--   action の値型または return 型に `_` が混ざると、ref effect が外に漏れる。
+--   両方とも具体的に書けば `&entries` は handler の中で閉じる。
+--
+-- 影響:
+--   - cookbook の handler レシピがそのまま動かず、`_` を全て具体型に
+--     書き換える必要がある。
+--   - 「結果は何でもよく、log だけ集める」のような polymorphic handler を
+--     `_` で書く自然な書き方ができない。
+--   - ref effect が外に漏れること自体は handler の健全性に関わる: catch を
+--     超えて var の get / set が見えてしまうと、別 handler が誤って捕まえる
+--     恐れがある (`&` 名で衝突しない設計ではあるけれど、scope を抜けて
+--     handler ID が見えるのは安全側ではない)。
+--
+-- メモ:
+--   `&entries#764::get` の `#764` はおそらく hygiene で振った unique ID。
+--   `my $entries = []` で本来作られる scoped handler が、catch を let-bind
+--   した時点で「結果の場所」だけ閉じて var handler は外側に転落しているか、
+--   または return 型の `_` が `&entries` row を取り込んで signature 側に
+--   leak する evidence を立てている、のどちらか。
+--   前に同じ症状で出ていた `missing join evidence for handle` (resolve 済み)
+--   と兄弟っぽいので、同じ「wildcard 解決 + handler 適用境界」の経路と
+--   思われる。
+
+pub act log:
+    pub put: str -> ()
+
+my run(action: [log; _] _): (_, list str) =
+    my $entries = []
+    my result = catch action:
+        log::put msg, k -> k ()
+        v -> v
+    (result, $entries)
+
+run: log::put "x"

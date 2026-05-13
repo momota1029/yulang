@@ -205,6 +205,11 @@ fn resolve_nullfix_operator_expr(
     name: Name,
     span: rowan::TextRange,
 ) -> TypedExpr {
+    if let Some(def) = state.ctx.resolve_bound_value(&name)
+        && !state.ctx.is_operator_def(def)
+    {
+        return crate::lower::expr::resolve_bound_def_expr(state, def);
+    }
     if let Some(expr) = try_resolve_local_operator_expr(state, &name, OperatorFixity::Nullfix) {
         return expr;
     }

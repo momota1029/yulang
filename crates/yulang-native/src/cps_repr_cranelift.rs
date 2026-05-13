@@ -5405,15 +5405,7 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         }
         let cont: NativeCpsI64Continuation =
             unsafe { std::mem::transmute(frame.escape_continuation) };
-        let result = cont(frame.escape_env.as_ptr(), value);
-        // The SR is already consumed, so sync callers would otherwise
-        // keep executing their local rest. Mark the escape result as an
-        // abort only while unwinding an inner eval frame; root-level
-        // handlers must still allow their outer continuations to run.
-        if current_initial > 0 {
-            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(result));
-        }
-        return result;
+        return cont(frame.escape_env.as_ptr(), value);
     }
 
     // 2. Walk the return-frame stack from current_initial up to find a
@@ -5477,9 +5469,9 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         let cont: NativeCpsI64Continuation =
             unsafe { std::mem::transmute(handler.escape_continuation) };
         let result = cont(handler.escape_env.as_ptr(), value);
-        // See the current-handler path above: after a frame-walk match,
-        // the native call stack still needs a short-circuit signal until
-        // the next real handler boundary re-wraps the value.
+        // A frame-walk match jumps across an older eval frame. The native
+        // call stack still needs a short-circuit signal until the next real
+        // handler boundary re-wraps the value.
         if current_initial > 0 {
             NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(result));
         }
@@ -6243,8 +6235,28 @@ extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
         } else {
             NATIVE_CPS_I64_GUARD_STACK.with(|s| s.borrow().clone())
         };
-        value = with_native_i64_cps_state(handlers, guards, || (thunk.code)(thunk.env.as_ptr()))
-            as usize;
+        let saved_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
+        let saved_eval_ctx = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow());
+        let result =
+            with_native_i64_cps_state(handlers, guards, || (thunk.code)(thunk.env.as_ptr()));
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+            let mut frames = frames.borrow_mut();
+            // Layer 2 evaluates the thunk with a cloned frame stack. Mirror
+            // that at the native boundary: keep unconsumed caller frames,
+            // drop frames created inside the thunk, and never resurrect a
+            // caller frame that the thunk already consumed.
+            let keep_len = frames
+                .iter()
+                .zip(saved_frames.iter())
+                .take_while(|(current, saved)| current.debug_id == saved.debug_id)
+                .count();
+            frames.truncate(keep_len);
+            for (current, saved) in frames.iter_mut().zip(saved_frames.into_iter()) {
+                *current = saved;
+            }
+        });
+        NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow_mut() = saved_eval_ctx);
+        value = result as usize;
     }
 }
 

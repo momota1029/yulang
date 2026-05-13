@@ -1379,6 +1379,71 @@ listen prog ""
     }
 
     #[test]
+    fn vm_runs_source_for_range_with_unit_body() {
+        let results = eval_source_with_std("for x in 0..3: ()\n");
+
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
+    fn vm_runs_lambda_destructuring_pattern_arguments() {
+        let results = eval_source_with_std(
+            r#"my f = \(x, y) -> x + y
+f (1, 2)
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("3".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_variant_payload_binding_that_shadows_constructor() {
+        let results = eval_source_with_std(
+            r#"pub error fs_err:
+    not_found str
+
+my read path =
+    case path:
+        "/missing" -> fail fs_err::not_found path
+        _ -> "ok"
+
+my res = fs_err::wrap: read "/missing"
+case res:
+    result::ok text -> text
+    result::err err -> "err"
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::String("err".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_handler_with_wildcard_result_and_local_ref() {
+        let results = eval_source_with_std(
+            r#"pub act log:
+    pub put: str -> ()
+
+my run(action: [log; _] _): (_, list str) =
+    my $entries = []
+    my result = catch action:
+        log::put msg, k -> k ()
+        v -> v
+    (result, $entries)
+
+run: log::put "x"
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Unit,
+                TestValue::List(Vec::new())
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_for_loop_updates_annotated_ref_in_body() {
         let results = eval_source_with_std(
             r#"{
@@ -1530,6 +1595,42 @@ std::flow::sub::sub:
         let results = eval_source_with_std(FOR_LOOP_LAST_MIXED_SOURCE);
 
         assert_eq!(results, vec![TestValue::Unit, TestValue::Unit]);
+    }
+
+    #[test]
+    fn vm_runs_local_binding_that_shadows_nullfix_operator() {
+        let results = eval_source_with_std(
+            r#"my last = 99
+last
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("99".to_string())]);
+    }
+
+    #[test]
+    fn runtime_lowers_handler_wildcard_result_join_after_let_bind() {
+        runtime_module_with_std_result(
+            r#"pub act log:
+    pub put: str -> ()
+
+my run_into_strings(action: [log; _] _): (_, list str) =
+    my $entries = []
+    my result = catch action:
+        log::put msg, k ->
+            &entries = $entries + [msg]
+            k ()
+        v -> v
+    (result, $entries)
+
+run_into_strings: {
+    log::put "first"
+    log::put "second"
+    42
+}
+"#,
+        )
+        .expect("handler wildcard join should lower to runtime IR");
     }
 
     #[test]

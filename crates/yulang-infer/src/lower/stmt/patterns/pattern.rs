@@ -7,9 +7,23 @@ use crate::symbols::Name;
 
 /// パターンノードを TypedPat に lower する。
 pub fn lower_pat(state: &mut LowerState, node: &SyntaxNode) -> TypedPat {
+    lower_pat_with_context(state, node, PatContext::Head)
+}
+
+fn lower_pat_with_context(
+    state: &mut LowerState,
+    node: &SyntaxNode,
+    context: PatContext,
+) -> TypedPat {
     let tv = state.fresh_tv();
-    let kind = lower_pat_kind(state, node);
+    let kind = lower_pat_kind(state, node, context);
     TypedPat { tv, kind }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PatContext {
+    Head,
+    ConstructorPayload,
 }
 
 pub(crate) fn pattern_binding_name(node: &SyntaxNode) -> Option<Name> {
@@ -47,9 +61,22 @@ fn pattern_payload_node(node: &SyntaxNode) -> Option<SyntaxNode> {
         .find(|c| matches!(c.kind(), SyntaxKind::ApplyML | SyntaxKind::ApplyC))
 }
 
-fn lower_ctor_or_name_pat(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
+fn lower_ctor_or_name_pat(
+    state: &mut LowerState,
+    node: &SyntaxNode,
+    context: PatContext,
+) -> PatKind {
     if let Some(lit) = literal_pat(node) {
         return PatKind::Lit(lit);
+    }
+
+    if context == PatContext::ConstructorPayload
+        && pattern_payload_node(node).is_none()
+        && !pattern_has_path_sep(node)
+        && !pattern_has_poly_variant_colon(node)
+        && let Some(name) = pattern_binding_name(node)
+    {
+        return PatKind::UnresolvedName(name);
     }
 
     if let Some(path) = super::pattern_ctor_path(node) {
@@ -73,7 +100,13 @@ fn lower_ctor_or_name_pat(state: &mut LowerState, node: &SyntaxNode) -> PatKind 
                     ref_id,
                     payload
                         .into_iter()
-                        .map(|inner_node| Box::new(lower_pat(state, &inner_node)))
+                        .map(|inner_node| {
+                            Box::new(lower_pat_with_context(
+                                state,
+                                &inner_node,
+                                PatContext::ConstructorPayload,
+                            ))
+                        })
                         .next(),
                 );
             }
@@ -84,7 +117,13 @@ fn lower_ctor_or_name_pat(state: &mut LowerState, node: &SyntaxNode) -> PatKind 
                 ref_id,
                 payload
                     .into_iter()
-                    .map(|inner_node| Box::new(lower_pat(state, &inner_node)))
+                    .map(|inner_node| {
+                        Box::new(lower_pat_with_context(
+                            state,
+                            &inner_node,
+                            PatContext::ConstructorPayload,
+                        ))
+                    })
                     .next(),
             );
         }
@@ -101,6 +140,11 @@ fn lower_ctor_or_name_pat(state: &mut LowerState, node: &SyntaxNode) -> PatKind 
     } else {
         PatKind::Wild
     }
+}
+
+fn pattern_has_path_sep(node: &SyntaxNode) -> bool {
+    node.children()
+        .any(|child| child.kind() == SyntaxKind::PathSep)
 }
 
 fn literal_pat(node: &SyntaxNode) -> Option<Lit> {
@@ -151,7 +195,10 @@ fn plain_string_lit_text(node: &SyntaxNode) -> Option<String> {
 
 fn plain_rule_lit_text(node: &SyntaxNode) -> Option<String> {
     let mut text = String::new();
-    for token in node.descendants_with_tokens().filter_map(|item| item.into_token()) {
+    for token in node
+        .descendants_with_tokens()
+        .filter_map(|item| item.into_token())
+    {
         match token.kind() {
             SyntaxKind::RuleLitText => text.push_str(token.text()),
             SyntaxKind::RuleLitStart
@@ -244,7 +291,7 @@ fn number_lit(text: &str) -> Option<Lit> {
     None
 }
 
-fn lower_pat_kind(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
+fn lower_pat_kind(state: &mut LowerState, node: &SyntaxNode, context: PatContext) -> PatKind {
     match node.kind() {
         SyntaxKind::Pattern => {
             if let Some(inner) = node.children().next() {
@@ -256,16 +303,16 @@ fn lower_pat_kind(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
                         | SyntaxKind::PatList
                         | SyntaxKind::PatRecord
                 ) {
-                    return lower_pat_kind(state, &inner);
+                    return lower_pat_kind(state, &inner, context);
                 }
             }
-            lower_ctor_or_name_pat(state, node)
+            lower_ctor_or_name_pat(state, node, context)
         }
         SyntaxKind::PatOr => {
             let children: Vec<_> = node.children().collect();
             if children.len() >= 2 {
-                let lhs = lower_pat(state, &children[0]);
-                let rhs = lower_pat(state, &children[1]);
+                let lhs = lower_pat_with_context(state, &children[0], context);
+                let rhs = lower_pat_with_context(state, &children[1], context);
                 PatKind::Or(Box::new(lhs), Box::new(rhs))
             } else {
                 PatKind::Wild
@@ -275,7 +322,7 @@ fn lower_pat_kind(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
             let Some(pat_node) = node.children().next() else {
                 return PatKind::Wild;
             };
-            let inner = lower_pat(state, &pat_node);
+            let inner = lower_pat_with_context(state, &pat_node, context);
             let def = state.fresh_def();
             let def_tv = state.fresh_tv();
             state.register_def_tv(def, def_tv);
@@ -296,12 +343,12 @@ fn lower_pat_kind(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
                         SyntaxKind::Pattern | SyntaxKind::PatOr | SyntaxKind::PatAs
                     )
                 })
-                .map(|c| lower_pat(state, &c))
+                .map(|c| lower_pat_with_context(state, &c, context))
                 .collect();
             if pats.is_empty() {
                 PatKind::Lit(crate::ast::expr::Lit::Unit)
             } else if pats.len() == 1 {
-                lower_pat_kind(state, &node.children().next().unwrap())
+                lower_pat_kind(state, &node.children().next().unwrap(), context)
             } else {
                 PatKind::Tuple(pats)
             }
@@ -320,7 +367,7 @@ fn lower_pat_kind(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
                             | SyntaxKind::PatRecord
                     )
                 })
-                .map(|c| lower_pat(state, &c))
+                .map(|c| lower_pat_with_context(state, &c, context))
                 .collect();
             if pats.is_empty() {
                 PatKind::Wild
@@ -332,7 +379,7 @@ fn lower_pat_kind(state: &mut LowerState, node: &SyntaxNode) -> PatKind {
         }
         SyntaxKind::PatList => lower_list_pat(state, node),
         SyntaxKind::PatRecord => lower_record_pat(state, node),
-        _ => lower_ctor_or_name_pat(state, node),
+        _ => lower_ctor_or_name_pat(state, node, context),
     }
 }
 

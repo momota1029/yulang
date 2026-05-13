@@ -628,6 +628,12 @@ impl Lowerer<'_> {
                 {
                     final_param = actual_arg_ty.clone();
                 }
+                if matches!(callee.kind, ExprKind::EffectOp(_))
+                    && runtime_type_is_irrelevant_unit_value(&final_param)
+                    && !runtime_type_is_imprecise_runtime_slot(&actual_arg_ty)
+                {
+                    final_param = actual_arg_ty.clone();
+                }
                 if evidence
                     .as_ref()
                     .is_some_and(|evidence| evidence.role_method)
@@ -1816,7 +1822,9 @@ impl Lowerer<'_> {
         let plan_arg = evidence
             .principal_elaboration
             .as_ref()
-            .and_then(|plan| self.visible_principal_plan_arg_type(plan, 0));
+            .and_then(|plan| {
+                self.visible_principal_plan_arg_type(plan, 0, evidence.principal_callee.as_ref())
+            });
         let principal_arg = evidence.principal_callee.as_ref().and_then(|principal| {
             self.visible_principal_callee_param_type(principal, &evidence.substitutions)
         });
@@ -1859,9 +1867,15 @@ impl Lowerer<'_> {
         &self,
         plan: &typed_ir::PrincipalElaborationPlan,
         index: usize,
+        principal_hint: Option<&typed_ir::Type>,
     ) -> Option<typed_ir::Type> {
         let arg = plan.args.iter().find(|arg| arg.index == index)?;
-        let substitutions = type_substitution_map(&plan.substitutions);
+        let principal = principal_hint.unwrap_or(&plan.principal_callee);
+        let substitutions = visible_principal_arg_substitution_map(
+            principal,
+            &plan.substitutions,
+            index,
+        );
         let expected = arg
             .expected_runtime
             .as_ref()
@@ -1896,7 +1910,7 @@ impl Lowerer<'_> {
         principal: &typed_ir::Type,
         substitutions: &[typed_ir::TypeSubstitution],
     ) -> Option<typed_ir::Type> {
-        let substitutions = type_substitution_map(substitutions);
+        let substitutions = visible_principal_arg_substitution_map(principal, substitutions, 0);
         let principal = substitute_type(principal, &substitutions);
         let typed_ir::Type::Fun { param, .. } = principal else {
             return None;
@@ -2106,14 +2120,25 @@ impl Lowerer<'_> {
     ) -> RuntimeResult<typed_ir::Type> {
         let evidence_ty = evidence
             .and_then(|evidence| self.tir_evidence_runtime_type(&evidence.result))
+            .filter(|ty| !matches!(ty, typed_ir::Type::Never));
+        let concrete_evidence_ty = evidence_ty
+            .clone()
             .filter(|ty| !core_type_is_imprecise_runtime_slot(ty));
-        evidence_ty
+        let fallback_evidence_ty = evidence_ty.map(|ty| {
+            if core_type_is_imprecise_runtime_slot(&ty) {
+                typed_ir::Type::Unknown
+            } else {
+                ty
+            }
+        });
+        concrete_evidence_ty
             .or_else(|| match expected.map(value_hir_type) {
                 Some(RuntimeType::Core(ty)) => Some(ty.clone()),
                 Some(RuntimeType::Thunk { value, .. }) => Some(runtime_core_type(value)),
                 Some(RuntimeType::Unknown) => Some(typed_ir::Type::Unknown),
                 Some(RuntimeType::Fun { .. }) | None => None,
             })
+            .or(fallback_evidence_ty)
             .ok_or(RuntimeError::MissingJoinEvidence { node })
     }
 
@@ -2410,6 +2435,42 @@ fn type_substitution_map(
         .iter()
         .map(|substitution| (substitution.var.clone(), substitution.ty.clone()))
         .collect()
+}
+
+fn visible_principal_arg_substitution_map(
+    principal: &typed_ir::Type,
+    substitutions: &[typed_ir::TypeSubstitution],
+    index: usize,
+) -> BTreeMap<typed_ir::TypeVar, typed_ir::Type> {
+    let mut substitutions = type_substitution_map(substitutions);
+    if index == 0
+        && let Some(var) = direct_principal_param_var(principal)
+        && substitutions
+            .get(&var)
+            .is_some_and(is_runtime_irrelevant_value_substitution)
+    {
+        substitutions.remove(&var);
+    }
+    substitutions
+}
+
+fn direct_principal_param_var(principal: &typed_ir::Type) -> Option<typed_ir::TypeVar> {
+    let typed_ir::Type::Fun { param, .. } = principal else {
+        return None;
+    };
+    match param.as_ref() {
+        typed_ir::Type::Var(var) => Some(var.clone()),
+        _ => None,
+    }
+}
+
+fn is_runtime_irrelevant_value_substitution(ty: &typed_ir::Type) -> bool {
+    matches!(ty, typed_ir::Type::Never)
+        || matches!(ty, typed_ir::Type::Tuple(items) if items.is_empty())
+}
+
+fn runtime_type_is_irrelevant_unit_value(ty: &RuntimeType) -> bool {
+    matches!(ty, RuntimeType::Core(typed_ir::Type::Tuple(items)) if items.is_empty())
 }
 
 fn hir_type_contains_unknown(ty: &RuntimeType) -> bool {

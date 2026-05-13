@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use crate::ids::{fresh_type_var, DefId, NegId, PosId, TypeVar};
-use crate::scheme::{instantiate_frozen_scheme_with_subst, OwnedSchemeInstance, SmallSubst};
+use crate::ids::{DefId, NegId, PosId, TypeVar, fresh_type_var};
+use crate::scheme::{OwnedSchemeInstance, SmallSubst, instantiate_frozen_scheme_with_subst};
 use crate::simplify::compact::CompactType;
 use crate::solve::{
     DeferredSelection, EffectMethodInfo, ExtensionMethodInfo, Infer, RefFieldProjection,

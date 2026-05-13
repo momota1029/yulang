@@ -1394,6 +1394,11 @@ impl PrincipalUnifier {
             self.bump("principal-unify-result-constructor-payload-completed-plan");
             plan = completed;
         }
+        if let Some(completed) = self.complete_plan_from_constructor_phantom_slots(&original, &plan)
+        {
+            self.bump("principal-unify-constructor-phantom-completed-plan");
+            plan = completed;
+        }
         let binding_required_vars = self.required_vars_for_binding(&original);
         let plan_substitutions = plan_substitution_map(&plan);
         let effect_only_vars = binding_effect_only_vars(&original);
@@ -1896,6 +1901,59 @@ impl PrincipalUnifier {
         );
         if !conflicts.is_empty() || substitutions == before {
             return None;
+        }
+        let projected_substitutions = substitutions.clone();
+        let mut plan = plan.clone();
+        plan.substitutions = substitutions
+            .into_iter()
+            .map(|(var, ty)| typed_ir::TypeSubstitution { var, ty })
+            .collect();
+        let mut normalized = normalize_principal_elaboration_plan_with_role_impls(
+            plan,
+            &[],
+            &original.scheme.requirements,
+            &self.role_associated_impls,
+        );
+        preserve_projected_substitutions_if_normalized_empty(
+            &mut normalized,
+            projected_substitutions,
+        );
+        debug_principal_unify_normalized_plan(&normalized);
+        Some(normalized)
+    }
+
+    fn complete_plan_from_constructor_phantom_slots(
+        &mut self,
+        original: &Binding,
+        plan: &typed_ir::PrincipalElaborationPlan,
+    ) -> Option<typed_ir::PrincipalElaborationPlan> {
+        let payload_vars = variant_constructor_payload_type_vars(&original.body)?;
+        let before = plan_substitution_map(plan);
+        let missing = missing_required_vars(original, &before);
+        if missing.is_empty() {
+            return None;
+        }
+        let effect_only_vars = binding_effect_only_vars(original);
+        let mut substitutions = before.clone();
+        for var in missing {
+            if payload_vars.contains(&var) {
+                continue;
+            }
+            let ty = if effect_only_vars.contains(&var) {
+                typed_ir::Type::Never
+            } else {
+                typed_ir::Type::Tuple(Vec::new())
+            };
+            substitutions.insert(var, ty);
+        }
+        if substitutions == before {
+            return None;
+        }
+        if debug_principal_unify_enabled() {
+            eprintln!(
+                "principal-unify constructor-phantom {} payload_vars={payload_vars:?} substitutions={substitutions:?}",
+                canonical_path(&original.name)
+            );
         }
         let projected_substitutions = substitutions.clone();
         let mut plan = plan.clone();
@@ -2644,6 +2702,18 @@ impl PrincipalUnifier {
                 64,
             );
         }
+        if !conflicts.is_empty()
+            && conflicts.iter().all(|var| effect_only_vars.contains(var))
+        {
+            self.bump("principal-unify-runtime-effect-effect-conflict-kept");
+            debug_principal_unify_projection_outcome(
+                "effect-conflict-kept",
+                plan.target.as_ref(),
+                &substitutions,
+                &conflicts,
+            );
+            conflicts.clear();
+        }
         let required_vars_closed = required_vars
             .iter()
             .all(|var| substitutions.contains_key(var) || effect_only_vars.contains(var));
@@ -3165,7 +3235,7 @@ fn project_container_callback_item_from_args(
     let Some((callback, _callback_effect)) = params.get(1) else {
         return;
     };
-    let Some(var) = callback_first_param_var(callback) else {
+    let Some(var) = callback_item_param_var(callback) else {
         return;
     };
     if !required_vars.contains(&var) {
@@ -3201,14 +3271,16 @@ fn type_arg_closed_type(arg: &typed_ir::TypeArg) -> Option<typed_ir::Type> {
     }
 }
 
-fn callback_first_param_var(callback: &typed_ir::Type) -> Option<typed_ir::TypeVar> {
-    let typed_ir::Type::Fun { param, .. } = callback else {
-        return None;
-    };
-    let typed_ir::Type::Var(var) = param.as_ref() else {
-        return None;
-    };
-    Some(var.clone())
+fn callback_item_param_var(callback: &typed_ir::Type) -> Option<typed_ir::TypeVar> {
+    let mut current = callback;
+    let mut item_var = None;
+    while let typed_ir::Type::Fun { param, ret, .. } = current {
+        if let typed_ir::Type::Var(var) = param.as_ref() {
+            item_var = Some(var.clone());
+        }
+        current = ret;
+    }
+    item_var
 }
 
 fn type_is_open_or_default_unit(ty: &typed_ir::Type) -> bool {
@@ -4647,6 +4719,7 @@ fn principal_rewrite_type_from_kind(fallback: RuntimeType, kind: &ExprKind) -> R
         ExprKind::Apply { callee, .. } => {
             principal_rewrite_apply_type(&callee.ty).unwrap_or(fallback)
         }
+        ExprKind::Lambda { body, .. } => update_lambda_return_type(fallback, &body.ty),
         ExprKind::BindHere { expr } => match &expr.ty {
             RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
             _ => fallback,
@@ -4671,6 +4744,30 @@ fn principal_rewrite_apply_type(callee: &RuntimeType) -> Option<RuntimeType> {
         RuntimeType::Thunk { value, .. } => principal_rewrite_apply_type(value),
         RuntimeType::Unknown | RuntimeType::Core(_) => None,
     }
+}
+
+fn update_lambda_return_type(ty: RuntimeType, body_ty: &RuntimeType) -> RuntimeType {
+    match ty {
+        RuntimeType::Fun { param, ret } => RuntimeType::fun(
+            *param,
+            choose_rewritten_lambda_return(*ret, body_ty.clone()),
+        ),
+        other => other,
+    }
+}
+
+fn choose_rewritten_lambda_return(existing: RuntimeType, rewritten: RuntimeType) -> RuntimeType {
+    if runtime_type_contains_unknown(&rewritten) && !runtime_type_contains_unknown(&existing) {
+        existing
+    } else if runtime_type_is_unit_value(&rewritten) && !runtime_type_is_unit_value(&existing) {
+        existing
+    } else {
+        rewritten
+    }
+}
+
+fn runtime_type_is_unit_value(ty: &RuntimeType) -> bool {
+    matches!(ty, RuntimeType::Core(typed_ir::Type::Tuple(items)) if items.is_empty())
 }
 
 fn refresh_apply_expr_type_from_callee(expr: Expr) -> Expr {
@@ -4871,6 +4968,27 @@ fn missing_required_vars(
         .collect::<Vec<_>>();
     vars.sort_by(|left, right| left.0.cmp(&right.0));
     vars
+}
+
+fn variant_constructor_payload_type_vars(expr: &Expr) -> Option<BTreeSet<typed_ir::TypeVar>> {
+    match &expr.kind {
+        ExprKind::Lambda { body, .. } => variant_constructor_payload_type_vars(body),
+        ExprKind::Block {
+            stmts,
+            tail: Some(tail),
+        } if stmts.is_empty() => variant_constructor_payload_type_vars(tail),
+        ExprKind::Coerce { expr, .. } | ExprKind::Pack { expr, .. } => {
+            variant_constructor_payload_type_vars(expr)
+        }
+        ExprKind::Variant { value, .. } => {
+            let mut vars = BTreeSet::new();
+            if let Some(value) = value {
+                collect_hir_type_vars(&value.ty, &mut vars);
+            }
+            Some(vars)
+        }
+        _ => None,
+    }
 }
 
 fn missing_binding_type_params(

@@ -18,8 +18,12 @@ pub act junction:
             false -> ()
         ret true
     pub junction(x: [_] _) = catch x:
-        or(), k -> junction(k true) or junction(k false)
-        and(), k -> junction(k true) and junction(k false)
+        or(), k -> case junction(k true):
+            true -> true
+            _ -> junction(k false)
+        and(), k -> case junction(k true):
+            true -> junction(k false)
+            _ -> false
         ret b, _ -> b
 
 pub any xs = junction::any xs

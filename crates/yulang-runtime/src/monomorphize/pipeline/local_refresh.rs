@@ -1,6 +1,6 @@
 use super::*;
 use crate::HandleEffect;
-use crate::types::runtime_core_type;
+use crate::types::{runtime_core_type, runtime_type_contains_unknown};
 
 pub(super) fn refresh_local_expr_types(expr: Expr) -> Expr {
     let mut locals = HashMap::new();
@@ -435,6 +435,7 @@ fn project_expr_runtime_type_from_kind(fallback: RuntimeType, kind: &ExprKind) -
         ExprKind::Apply { callee, .. } => {
             project_apply_runtime_type_from_callee(&callee.ty).unwrap_or(fallback)
         }
+        ExprKind::Lambda { body, .. } => update_lambda_return_type(fallback, &body.ty),
         ExprKind::BindHere { expr } => match &expr.ty {
             RuntimeType::Thunk { value, .. } => value.as_ref().clone(),
             _ => fallback,
@@ -459,6 +460,30 @@ fn project_apply_runtime_type_from_callee(callee: &RuntimeType) -> Option<Runtim
         RuntimeType::Thunk { value, .. } => project_apply_runtime_type_from_callee(value),
         RuntimeType::Unknown | RuntimeType::Core(_) => None,
     }
+}
+
+fn update_lambda_return_type(ty: RuntimeType, body_ty: &RuntimeType) -> RuntimeType {
+    match ty {
+        RuntimeType::Fun { param, ret } => RuntimeType::fun(
+            *param,
+            choose_projected_lambda_return(*ret, body_ty.clone()),
+        ),
+        other => other,
+    }
+}
+
+fn choose_projected_lambda_return(existing: RuntimeType, projected: RuntimeType) -> RuntimeType {
+    if runtime_type_contains_unknown(&projected) && !runtime_type_contains_unknown(&existing) {
+        existing
+    } else if runtime_type_is_unit_value(&projected) && !runtime_type_is_unit_value(&existing) {
+        existing
+    } else {
+        projected
+    }
+}
+
+fn runtime_type_is_unit_value(ty: &RuntimeType) -> bool {
+    matches!(ty, RuntimeType::Core(typed_ir::Type::Tuple(items)) if items.is_empty())
 }
 
 fn local_runtime_type_from_core_value_and_effect(

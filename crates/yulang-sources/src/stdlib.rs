@@ -191,6 +191,13 @@ mod tests {
         assert!(!str_source.contains("pub len(s: str): int = std::str::len s"));
     }
 
+    #[test]
+    fn embedded_list_exposes_map_companion_method() {
+        let list_source = embedded_std_source("list.yu");
+
+        assert!(list_source.contains("our xs.map f = std::list::map xs f"));
+    }
+
     fn embedded_std_source(name: &str) -> &'static str {
         EMBEDDED_STD_FILES
             .iter()

@@ -317,7 +317,12 @@ pub(super) fn require_apply_arg_hir_type(
             }
             require_same_hir_type(expected_value, actual_value, source)
         }
-        _ => require_same_hir_type(expected, actual, source),
+        _ => {
+            if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
+                eprintln!("validate apply arg hir {source:?}: {expected:?} / {actual:?}");
+            }
+            require_same_hir_type(expected, actual, source)
+        }
     }
 }
 
@@ -403,6 +408,31 @@ pub(super) fn literal_core_type(lit: &typed_ir::Lit) -> typed_ir::Type {
     typed_ir::Type::Named {
         path,
         args: Vec::new(),
+    }
+}
+
+pub(super) fn literal_core_type_accepts(lit: &typed_ir::Lit, actual: &typed_ir::Type) -> bool {
+    if core_types_compatible(&literal_core_type(lit), actual) {
+        return true;
+    }
+    let typed_ir::Type::Named { path, args } = actual else {
+        return false;
+    };
+    if !args.is_empty() {
+        return false;
+    }
+    path.segments
+        .last()
+        .is_some_and(|name| name.0 == literal_primitive_leaf_name(lit))
+}
+
+fn literal_primitive_leaf_name(lit: &typed_ir::Lit) -> &'static str {
+    match lit {
+        typed_ir::Lit::Int(_) => "int",
+        typed_ir::Lit::Float(_) => "float",
+        typed_ir::Lit::String(_) => "str",
+        typed_ir::Lit::Bool(_) => "bool",
+        typed_ir::Lit::Unit => "unit",
     }
 }
 
@@ -563,7 +593,7 @@ mod tests {
     }
 
     #[test]
-    fn handle_body_must_be_a_thunk() {
+    fn pure_value_handler_body_can_be_plain_value() {
         let int = named_type("int");
         let body = Expr::typed(
             ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
@@ -592,6 +622,50 @@ mod tests {
                     },
                     handler: HandleEffect {
                         consumes: Vec::new(),
+                        residual_before: None,
+                        residual_after: None,
+                    },
+                },
+                Type::core(int.clone()),
+            )],
+            roots: vec![Root::Expr(0)],
+            role_impls: Vec::new(),
+        };
+
+        validate_module(&module).expect("plain value body for value-only handler");
+    }
+
+    #[test]
+    fn effectful_handle_body_must_be_a_thunk() {
+        let int = named_type("int");
+        let effect = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
+        let body = Expr::typed(
+            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
+            Type::core(int.clone()),
+        );
+        let module = Module {
+            path: typed_ir::Path::default(),
+            bindings: Vec::new(),
+            root_exprs: vec![Expr::typed(
+                ExprKind::Handle {
+                    body: Box::new(body),
+                    arms: vec![HandleArm {
+                        effect: effect.clone(),
+                        payload: crate::ir::Pattern::Wildcard {
+                            ty: Type::core(int.clone()),
+                        },
+                        resume: None,
+                        guard: None,
+                        body: Expr::typed(
+                            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
+                            Type::core(int.clone()),
+                        ),
+                    }],
+                    evidence: JoinEvidence {
+                        result: int.clone(),
+                    },
+                    handler: HandleEffect {
+                        consumes: vec![effect],
                         residual_before: None,
                         residual_after: None,
                     },

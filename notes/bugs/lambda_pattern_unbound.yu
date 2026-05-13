@@ -1,0 +1,46 @@
+-- bug: lambda 引数に destructuring pattern を書くと、束縛した名前が
+--      lambda 本体で「unbound」と言われる
+--
+-- 期待:
+--   `web/docs/ja/reference/functions.md` (および patterns.md) に書かれた
+--
+--     \(x, y) -> x + y
+--     \{ name } -> "hello, " + name
+--
+--   は、lambda 引数 pattern として tuple や record を分解して、body で
+--   `x` / `y` / `name` を使える。`my f (x, y) = x + y` の binding 形は
+--   同じ pattern を使って正しく動く。
+--
+-- 実際:
+--   error: unbound variable x      (\(x, y) -> x + y)
+--   error: unbound variable name   (\{ name } -> name)
+--   error: unbound variable n      (\{ name: n } -> n)
+--
+--   --parse-expr 出力では LambdaExpr の Pattern として PatParenGroup や
+--   record pattern が正しく入っていて、構文側は通る。lower / 名前解決で
+--   pattern が変数を導入していない経路だと思われる。
+--
+-- 切り分け:
+--
+--   my f (x, y) = x + y            → 通る  (binding 形)
+--   my f { name } = name            → 通る
+--   \x -> x                         → 通る  (単純な名前 pattern なら OK)
+--   \(x, y) -> x + y                → 落ちる
+--   \{ name } -> name               → 落ちる
+--   \x -> case x: (a, b) -> a + b   → 通る  (内部で case する workaround)
+--
+--   型注釈付き `my f: (int, int) -> int = \(x, y) -> x + y` でも落ちる。
+--   構文的に lambda の引数 pattern が destructuring すると、その下の名前が
+--   scope に入っていない。
+--
+-- 影響:
+--   - functions.md / patterns.md の「ラムダの引数自体も pattern」例が
+--     そのまま動かない。
+--   - destructuring を使った point-free 風の書き方 (`map (\(k, v) -> ...)`
+--     的なパターン) が書けず、毎回 `case` で展開する必要がある。
+--   - binding の引数 pattern とは別経路で lower されている疑い。binding 側
+--     (`my f (x, y) = ...`) は通るので、lambda lowering が pattern の
+--     introduce step を抜かしているように見える。
+
+my f = \(x, y) -> x + y
+f (1, 2)
