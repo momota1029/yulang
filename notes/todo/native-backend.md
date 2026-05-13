@@ -3,6 +3,26 @@
 目的: 現在の VM を参照実装とデバッグ対象として残しながら、Yulang プログラムを
 CPS 風 lowering 経由で Cranelift にコンパイルする。
 
+## 公開後の優先
+
+公開後は「native で全部動く」と言い切るより、VM と同じ結果になる範囲を小さく明示して広げる。
+
+近い作業:
+
+- README の `Native Backend Progress` と実装状態を常に合わせる。
+- `--native-run-value-exe` / `--native-value-exe` の成功範囲を regression にする。
+- value-lane Cranelift の未対応値を、小さい VM compare から順に埋める。
+- CPS repr Cranelift は effectful control の VM 差分を優先して潰す。
+- unsupported root は、panic ではなく構造化された native unsupported diagnostic にする。
+- native の object / executable output は `target/yulang` の cache layout から外れないようにする。
+
+今すぐ増やさないもの:
+
+- native 専用の言語仕様。
+- VM と違う handler semantics。
+- 名前や std path 文字列に依存した lowering 特例。
+- runtime ABI が固まる前の広い最適化。
+
 ## 目標の形
 
 ```text
