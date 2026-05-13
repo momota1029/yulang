@@ -88,3 +88,8 @@ error fs_err:
 `fail`、名指し catch、`wrap`、`from` 集約、`up` の使い方を含む全体像は [エラー](./errors) を参照。
 
 通常の `enum` variant でも `from` は使える。[キャスト](./casts) を参照。
+
+## 関連
+
+- [値と型](./types) — function type と effect row の表示。
+- [型推論の理論](./type-theory) — handler が effect を消す規則と hidden evidence。

@@ -63,6 +63,11 @@ For a longer guided tour:
 - **Native backend** — [docs/native-backend.md](docs/native-backend.md)
   describes the native pipeline: which programs run natively today, the
   CLI commands, and the value / CPS representation status in detail.
+- **Type inference theory** — [web/docs/reference/type-theory.md](web/docs/reference/type-theory.md)
+  and [web/docs/ja/reference/type-theory.md](web/docs/ja/reference/type-theory.md)
+  introduce effect rows, handler hygiene, and hidden handler evidence from
+  the public reference side. Implementation details live in
+  [docs/hidden-effect-evidence.ja.md](docs/hidden-effect-evidence.ja.md).
 - **Examples** — [`examples/`](examples) holds runnable Yulang programs
   exercising specific features. `examples/showcase.yu` is a broader tour.
 - **Standard library** — [`lib/std/`](lib/std) is the in-progress standard

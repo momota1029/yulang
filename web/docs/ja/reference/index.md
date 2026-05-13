@@ -66,4 +66,5 @@ markdown と ```yulang fence を含められる。
 - [パターンマッチ](./patterns)
 - [モジュール](./modules)
 - [イディオム](./idioms)
+- [型推論の理論](./type-theory)
 - 標準ライブラリ：[中核](./std/core), [list](./std/list), [str](./std/str), [opt](./std/opt), [result](./std/result), [undet](./std/undet)

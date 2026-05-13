@@ -164,3 +164,8 @@ is not yet a stable source annotation syntax for writing them directly.
 You will usually see these in the Types pane when a branch, default value, or
 pattern spread leaves more than one possible shape. Adding an annotation can
 often collapse the displayed type to the intended public shape.
+
+## See also
+
+- [Effects](./effects) — declaring, calling, and handling effects.
+- [Type Inference Theory](./type-theory) — subtyping, effect rows, and handler hygiene.

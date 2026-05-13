@@ -109,3 +109,8 @@ See [Errors](./errors) for the full story, including `fail`, named catch,
 `wrap`, `from` aggregation, and `up`.
 
 Ordinary `enum` variants may also use `from`; see [Casts](./casts).
+
+## See also
+
+- [Values & Types](./types) — function types and effect row notation.
+- [Type Inference Theory](./type-theory) — how handlers remove effects and why some evidence is hidden.

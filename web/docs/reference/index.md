@@ -49,4 +49,5 @@ trees and tooling, so they are not interchangeable with `//`.
 - [Operator Declarations](./operators)
 - [Modules](./modules)
 - [Idioms](./idioms)
+- [Type Inference Theory](./type-theory)
 - Standard Library: [Core](./std/core), [list](./std/list), [str](./std/str), [opt](./std/opt), [result](./std/result), [undet](./std/undet)

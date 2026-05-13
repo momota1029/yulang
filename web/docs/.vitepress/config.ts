@@ -44,6 +44,7 @@ const englishSidebar = {
         { text: "Pattern Matching", link: "/reference/patterns" },
         { text: "Modules", link: "/reference/modules" },
         { text: "Idioms", link: "/reference/idioms" },
+        { text: "Type Inference Theory", link: "/reference/type-theory" },
       ],
     },
     {
@@ -93,6 +94,7 @@ const japaneseSidebar = {
         { text: "パターンマッチ", link: "/ja/reference/patterns" },
         { text: "モジュール", link: "/ja/reference/modules" },
         { text: "イディオム", link: "/ja/reference/idioms" },
+        { text: "型推論の理論", link: "/ja/reference/type-theory" },
       ],
     },
     {
