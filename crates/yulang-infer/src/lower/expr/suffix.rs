@@ -52,7 +52,7 @@ pub(super) fn apply_synthetic_field_selection(
 ) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
-    push_deferred_selection(state, acc, node, name, tv, eff, false)
+    push_deferred_selection(state, acc, node, name, tv, eff, false, Some(node.text_range()))
 }
 
 fn apply_field_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -> TypedExpr {
@@ -69,15 +69,25 @@ fn apply_field_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNod
             (
                 Name(s.trim_start_matches('.').to_string()),
                 field_like_source,
+                t.text_range(),
             )
         });
-    if let Some((name, structural_record_allowed)) = field {
+    if let Some((name, structural_record_allowed, selection_span)) = field {
         if let ExprKind::Var(def) = &acc.kind {
             if let Some(path) = state.ctx.resolve_field_alias(*def, &name) {
                 return resolve_path_expr_at(state, path.segments, Some(suffix.text_range()));
             }
         }
-        push_deferred_selection(state, acc, suffix, name, tv, eff, structural_record_allowed)
+        push_deferred_selection(
+            state,
+            acc,
+            suffix,
+            name,
+            tv,
+            eff,
+            structural_record_allowed,
+            Some(selection_span),
+        )
     } else {
         acc
     }
@@ -306,6 +316,7 @@ fn apply_index_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNod
         tv,
         eff,
         false,
+        None,
     );
     make_app_with_cause(state, select, idx, apply_arg_cause(suffix))
 }
@@ -325,6 +336,7 @@ fn push_deferred_selection(
     tv: crate::ids::TypeVar,
     eff: crate::ids::TypeVar,
     structural_record_allowed: bool,
+    source_span: Option<rowan::TextRange>,
 ) -> TypedExpr {
     let owner = state.current_owner;
     if let Some(owner) = owner {
@@ -349,6 +361,9 @@ fn push_deferred_selection(
             },
             structural_record_allowed,
         });
+    if let Some(span) = source_span {
+        state.record_selection_span(span, tv);
+    }
     TypedExpr {
         tv,
         eff,

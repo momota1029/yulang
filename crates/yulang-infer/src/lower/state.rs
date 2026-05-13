@@ -46,6 +46,8 @@ pub struct LowerState {
     pub value_use_spans: Vec<(rowan::TextRange, DefId)>,
     /// source 上の未解決/後解決参照 span。
     pub ref_spans: HashMap<RefId, rowan::TextRange>,
+    /// source 上の field / method selection span。
+    pub selection_spans: Vec<(rowan::TextRange, TypeVar)>,
     record_source_spans: bool,
     source_span_offset: usize,
     /// lambda parameter def ごとの pattern local binder 群。
@@ -158,6 +160,7 @@ impl LowerState {
             def_spans: HashMap::new(),
             value_use_spans: Vec::new(),
             ref_spans: HashMap::new(),
+            selection_spans: Vec::new(),
             record_source_spans: false,
             source_span_offset: 0,
             lambda_local_defs: HashMap::new(),
@@ -703,6 +706,10 @@ impl LowerState {
         self.def_names.get(&def)
     }
 
+    pub fn resolved_selection_def(&self, result_tv: TypeVar) -> Option<DefId> {
+        self.infer.resolved_selection_def(result_tv)
+    }
+
     pub fn register_def_hover_type(&mut self, def: DefId, ty: String) {
         self.def_hover_types.insert(def, ty);
     }
@@ -722,6 +729,12 @@ impl LowerState {
     pub fn record_ref_span(&mut self, ref_id: RefId, span: rowan::TextRange) {
         if let Some(span) = self.recorded_source_span(span) {
             self.ref_spans.insert(ref_id, span);
+        }
+    }
+
+    pub fn record_selection_span(&mut self, span: rowan::TextRange, result_tv: TypeVar) {
+        if let Some(span) = self.recorded_source_span(span) {
+            self.selection_spans.push((span, result_tv));
         }
     }
 

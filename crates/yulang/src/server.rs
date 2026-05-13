@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -6,7 +6,7 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_editor::semantic_tokens;
-use yulang_infer::simplify::compact::compact_type_var;
+use yulang_infer::simplify::compact::{compact_type_var, compact_type_vars_in_order};
 use yulang_infer::{
     DefId, LowerState, Name as InferName, Path as InferPath, collect_compact_results_for_paths,
     collect_surface_diagnostics, format_coalesced_scheme, lower_virtual_source_with_options,
@@ -230,7 +230,7 @@ fn hover_target_at(source: &str, position: Position) -> Option<HoverTarget> {
 fn is_hover_name_token(token: &SyntaxToken) -> bool {
     matches!(
         token.kind(),
-        SyntaxKind::Ident | SyntaxKind::SigilIdent | SyntaxKind::OpName
+        SyntaxKind::Ident | SyntaxKind::SigilIdent | SyntaxKind::OpName | SyntaxKind::DotField
     )
 }
 
@@ -297,6 +297,13 @@ fn resolve_hover_target_source_def(state: &LowerState, target: &HoverTarget) -> 
                     .flatten()
             })
         })
+        .or_else(|| {
+            state.selection_spans.iter().rev().find_map(|(span, tv)| {
+                span_contains_range(*span, target.syntax_range)
+                    .then(|| state.resolved_selection_def(*tv))
+                    .flatten()
+            })
+        })
         .or_else(|| narrowest_def_span_containing(state, target.syntax_range))
 }
 
@@ -340,13 +347,66 @@ fn hover_type_for_def(state: &mut LowerState, def: DefId) -> Option<(String, Str
         return Some(result);
     }
     let name = state.def_name(def)?.0.clone();
-    let scheme = state.compact_scheme_of(def).or_else(|| {
-        state
-            .def_tvs
-            .get(&def)
-            .map(|tv| compact_type_var(&state.infer, *tv))
-    })?;
+    let scheme = compact_hover_scheme(state, def)?;
     Some((name, format_coalesced_scheme(&scheme)))
+}
+
+fn compact_hover_scheme(
+    state: &mut LowerState,
+    def: DefId,
+) -> Option<yulang_infer::simplify::compact::CompactTypeScheme> {
+    if let Some(scheme) = state.compact_scheme_of(def) {
+        return Some(scheme);
+    }
+    let def_tv = *state.def_tvs.get(&def)?;
+    let direct = compact_type_var(&state.infer, def_tv);
+    let Some(owner) = state.def_owner(def) else {
+        return Some(direct);
+    };
+    if !compact_scheme_has_union_surface(&direct) {
+        return Some(direct);
+    }
+    if let Some(owner_tv) = state.def_tvs.get(&owner).copied() {
+        let target_defs = HashSet::from([owner, def]);
+        state.finalize_compact_results_for_defs(&target_defs);
+        if let Some(scheme) = state.compact_scheme_of(def) {
+            return Some(scheme);
+        }
+        return compact_type_vars_in_order(&state.infer, &[owner_tv, def_tv])
+            .into_iter()
+            .last();
+    }
+    Some(direct)
+}
+
+fn compact_scheme_has_union_surface(
+    scheme: &yulang_infer::simplify::compact::CompactTypeScheme,
+) -> bool {
+    compact_type_has_multiple_alternatives(&scheme.cty.lower)
+        || compact_type_has_multiple_alternatives(&scheme.cty.upper)
+}
+
+fn compact_type_has_multiple_alternatives(
+    ty: &yulang_infer::simplify::compact::CompactType,
+) -> bool {
+    let mut alternatives = ty.vars.len()
+        + ty.prims.len()
+        + ty.cons.len()
+        + ty.funs.len()
+        + ty.records.len()
+        + ty.record_spreads.len()
+        + ty.variants.len()
+        + ty.tuples.len()
+        + ty.rows.len();
+    alternatives += ty
+        .funs
+        .iter()
+        .filter(|fun| {
+            compact_type_has_multiple_alternatives(&fun.arg)
+                || compact_type_has_multiple_alternatives(&fun.ret)
+        })
+        .count();
+    alternatives > 1
 }
 
 fn hover_paths_for_def(state: &LowerState, def: DefId) -> Vec<(InferPath, DefId)> {
@@ -1157,6 +1217,43 @@ mod tests {
         };
         assert!(content.value.contains("guard: bool"));
         assert!(content.value.contains("std::undet::undet"));
+    }
+
+    #[test]
+    fn hover_resolves_method_selection() {
+        let source = "{ each [1, 2, 3] }.once\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            std_source_options(),
+            position_of(source, "once").expect("once position"),
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("once:"));
+        assert!(content.value.contains("std::undet::undet"));
+    }
+
+    #[test]
+    fn hover_compacts_local_with_owner_context() {
+        let source = "{\n    my a = each [1, 2, 3]\n    guard: a > 1\n    a\n}.once\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            std_source_options(),
+            Position {
+                line: 2,
+                character: 11,
+            },
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("a: int"));
+        assert!(!content.value.contains('|'));
     }
 
     fn std_source_options() -> SourceOptions {
