@@ -49,16 +49,16 @@ compiler は次を登録する。
 
 ## 実行する
 
-file を実行するには `--run` を使う。
+file を実行するには `run` サブコマンドを使う。
 
 ```bash
-cargo run -q -p yulang -- --run examples/01_struct_with.yu
+cargo run -q -p yulang -- run examples/01_struct_with.yu
 ```
 
-public binding の推論結果を見るには `--infer` を使う。
+public binding の推論結果を見るには `check` サブコマンドを使う。
 
 ```bash
-cargo run -q -p yulang -- --infer examples/08_types.yu
+cargo run -q -p yulang -- check examples/08_types.yu
 ```
 
 出力例:

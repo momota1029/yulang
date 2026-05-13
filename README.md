@@ -73,13 +73,13 @@ For a longer guided tour:
 Run a file on the interpreter (the semantic oracle for everything else):
 
 ```bash
-cargo run -q -p yulang -- --run examples/06_undet_once.yu
+cargo run -q -p yulang -- run examples/06_undet_once.yu
 ```
 
 Print inferred public types:
 
 ```bash
-cargo run -q -p yulang -- --infer examples/08_types.yu
+cargo run -q -p yulang -- check examples/08_types.yu
 ```
 
 Install the language server:
@@ -103,7 +103,7 @@ export YULANG_STD=/path/to/yulang/lib/std
 Run an inline program:
 
 ```bash
-RUSTC_WRAPPER= cargo run -q -p yulang --release -- --run <<'YU'
+RUSTC_WRAPPER= cargo run -q -p yulang --release -- run <<'YU'
 use std::undet::*
 
 (each [1, 2, 3] + each [4, 5, 6]).once

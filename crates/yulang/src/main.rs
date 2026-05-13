@@ -106,7 +106,7 @@ struct CliOptions {
     install_std: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 enum ParserMode {
     Expr,
     Pat,
@@ -121,181 +121,224 @@ enum NativeOutput {
     Default,
 }
 
-fn parse_args() -> CliOptions {
-    let mut show_cst = false;
-    let mut parse_mode = None;
-    let mut infer = false;
-    let mut core_ir = false;
-    let mut runtime_ir = false;
-    let mut hygiene_ir = false;
-    let mut run_vm = false;
-    let mut native_compare_i64 = false;
-    let mut native_abi_lanes = false;
-    let mut native_object = None;
-    let mut native_exe = None;
-    let mut native_value_exe = None;
-    let mut native_run = None;
-    let mut native_run_exe = None;
-    let mut native_run_value_exe = None;
-    let mut native_run_cps_repr_exe = None;
-    let mut verbose_ir = false;
-    let mut infer_phase_timings = false;
-    let mut runtime_phase_timings = false;
-    let mut path = None;
-    let mut no_prelude = false;
-    let mut std_root = None;
-    let mut profile_flamegraph = None;
-    let mut profile_repeat = 1usize;
-    let mut install_std = false;
-    let mut args = env::args().skip(1).peekable();
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "--help" | "-h" => {
-                print_usage();
-                process::exit(0);
-            }
-            "--cst" => show_cst = true,
-            "--parse-expr" => parse_mode = Some(ParserMode::Expr),
-            "--parse-pat" => parse_mode = Some(ParserMode::Pat),
-            "--parse-stmt" => parse_mode = Some(ParserMode::Stmt),
-            "--parse-type" | "--parse-typ" => parse_mode = Some(ParserMode::Type),
-            "--parse-mark" => parse_mode = Some(ParserMode::Mark),
-            "--infer" => infer = true,
-            "--core-ir" => core_ir = true,
-            "--runtime-ir" => runtime_ir = true,
-            "--hygiene-ir" => hygiene_ir = true,
-            "--run" => run_vm = true,
-            "--native-compare-i64" => native_compare_i64 = true,
-            "--native-abi-lanes" => native_abi_lanes = true,
-            "--native-object" => {
-                native_object = Some(parse_optional_native_output(&mut args));
-            }
-            "--native-exe" | "--native-executable" => {
-                native_exe = Some(parse_optional_native_output(&mut args));
-            }
-            "--native-value-exe" => {
-                native_value_exe = Some(parse_optional_native_output(&mut args));
-            }
-            "--native-run" => {
-                native_run = Some(parse_optional_native_output(&mut args));
-            }
-            "--native-run-exe" | "--native-run-executable" => {
-                native_run_exe = Some(parse_optional_native_output(&mut args));
-            }
-            "--native-run-value-exe" => {
-                native_run_value_exe = Some(parse_optional_native_output(&mut args));
-            }
-            "--native-run-cps-repr-exe" => {
-                native_run_cps_repr_exe = Some(parse_optional_native_output(&mut args));
-            }
-            "--verbose-ir" => verbose_ir = true,
-            "--infer-phase-timings" => infer_phase_timings = true,
-            "--runtime-phase-timings" => runtime_phase_timings = true,
-            "--no-prelude" => no_prelude = true,
-            "--install-std" => install_std = true,
-            "--std-root" => {
-                let Some(value) = args.next() else {
-                    eprintln!("missing value for --std-root");
-                    print_usage();
-                    process::exit(2);
-                };
-                std_root = Some(value);
-            }
-            "--profile-flamegraph" => {
-                let Some(value) = args.next() else {
-                    eprintln!("missing value for --profile-flamegraph");
-                    print_usage();
-                    process::exit(2);
-                };
-                profile_flamegraph = Some(value);
-            }
-            "--profile-repeat" => {
-                let Some(value) = args.next() else {
-                    eprintln!("missing value for --profile-repeat");
-                    print_usage();
-                    process::exit(2);
-                };
-                profile_repeat = match value.parse() {
-                    Ok(n) if n > 0 => n,
-                    _ => {
-                        eprintln!("--profile-repeat must be a positive integer");
-                        process::exit(2);
-                    }
-                };
-            }
-            s if s.starts_with("--") => {
-                eprintln!("unknown option: {s}");
-                print_usage();
-                process::exit(2);
-            }
-            _ => {
-                if path.is_some() {
-                    print_usage();
-                    process::exit(2);
-                }
-                path = Some(arg);
-            }
-        }
-    }
-    if parse_mode.is_none()
-        && !show_cst
-        && !infer
-        && !core_ir
-        && !runtime_ir
-        && !hygiene_ir
-        && !run_vm
-        && !native_compare_i64
-        && !native_abi_lanes
-        && native_object.is_none()
-        && native_exe.is_none()
-        && native_value_exe.is_none()
-        && native_run.is_none()
-        && native_run_exe.is_none()
-        && native_run_value_exe.is_none()
-        && native_run_cps_repr_exe.is_none()
-        && !install_std
-    {
-        infer = true;
-    }
-    CliOptions {
-        show_cst,
-        parse_mode,
-        infer,
-        core_ir,
-        runtime_ir,
-        hygiene_ir,
-        run_vm,
-        native_compare_i64,
-        native_abi_lanes,
-        native_object,
-        native_exe,
-        native_value_exe,
-        native_run,
-        native_run_exe,
-        native_run_value_exe,
-        native_run_cps_repr_exe,
-        verbose_ir,
-        infer_phase_timings,
-        runtime_phase_timings,
-        path,
-        no_prelude,
-        std_root,
-        profile_flamegraph,
-        profile_repeat,
-        install_std,
-    }
+#[derive(clap::Parser)]
+#[command(
+    name = "yulang",
+    version,
+    about = "Yulang language CLI",
+    disable_help_subcommand = true
+)]
+struct Cli {
+    #[command(subcommand)]
+    cmd: Cmd,
+
+    /// Also print the CST before downstream phases
+    #[arg(long, global = true)]
+    cst: bool,
+    /// Do not implicitly import std::prelude
+    #[arg(long, global = true)]
+    no_prelude: bool,
+    /// Use an alternate std source root
+    #[arg(long, global = true, value_name = "PATH")]
+    std_root: Option<String>,
+    /// Include detailed graph/evidence sections in IR dumps
+    #[arg(long, global = true)]
+    verbose_ir: bool,
+    /// Print coarse timing breakdown for the infer pipeline
+    #[arg(long, global = true)]
+    infer_phase_timings: bool,
+    /// Print coarse timing breakdown for runtime lowering/VM
+    #[arg(long, global = true)]
+    runtime_phase_timings: bool,
+    /// Write a CPU flamegraph SVG with pprof
+    #[arg(long, global = true, value_name = "SVG")]
+    profile_flamegraph: Option<String>,
+    /// Run the pipeline N times and print only the last result
+    #[arg(long, global = true, value_name = "N", default_value_t = 1)]
+    profile_repeat: usize,
 }
 
-fn parse_optional_native_output(
-    args: &mut std::iter::Peekable<impl Iterator<Item = String>>,
-) -> NativeOutput {
-    match args.peek() {
-        Some(next) if !next.starts_with("--") => NativeOutput::Path(
-            args.next()
-                .expect("peeked native output argument should be present"),
-        ),
-        _ => NativeOutput::Default,
+#[derive(clap::Subcommand)]
+enum Cmd {
+    /// Type-check and print principal types (no path = read stdin)
+    Check {
+        path: Option<String>,
+    },
+    /// Execute the program on the VM
+    Run {
+        path: Option<String>,
+    },
+    /// Native backend: compile and/or run
+    Native(NativeArgs),
+    /// Print intermediate representations
+    Dump(DumpArgs),
+    /// Parser views (parse event tree for one fragment)
+    Parse(ParseArgs),
+    /// Install the embedded std sources and exit
+    InstallStd,
+    /// Backend diagnostics
+    Debug {
+        #[command(subcommand)]
+        op: DebugOp,
+    },
+    /// Start the Yulang language server
+    Server,
+}
+
+#[derive(clap::Args)]
+struct NativeArgs {
+    path: Option<String>,
+    /// What to produce/run
+    #[arg(long, value_enum, default_value_t = NativeKind::Run)]
+    kind: NativeKind,
+    /// Output path for the artifact (defaults to target/yulang/bin/)
+    #[arg(long, value_name = "PATH")]
+    out: Option<String>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq)]
+enum NativeKind {
+    Object,
+    Exe,
+    ValueExe,
+    Run,
+    RunExe,
+    RunValueExe,
+    RunCpsReprExe,
+}
+
+#[derive(clap::Args)]
+struct DumpArgs {
+    path: Option<String>,
+    /// Print principal core-ir exported from yulang-infer
+    #[arg(long)]
+    core_ir: bool,
+    /// Print strict typed runtime IR lowered from principal core-ir
+    #[arg(long)]
+    runtime_ir: bool,
+    /// Print runtime effect-id hygiene operations
+    #[arg(long)]
+    hygiene_ir: bool,
+}
+
+#[derive(clap::Args)]
+struct ParseArgs {
+    path: Option<String>,
+    /// What to parse
+    #[arg(long = "as", value_enum)]
+    parse_as: ParserMode,
+}
+
+#[derive(clap::Subcommand)]
+enum DebugOp {
+    /// Compare VM / native control / native ABI / Cranelift scalar i64 results
+    CompareI64 { path: Option<String> },
+    /// Print native ABI value representation classification
+    AbiLanes { path: Option<String> },
+}
+
+fn parse_args() -> CliOptions {
+    use clap::Parser as _;
+    let cli = Cli::parse();
+    let mut opts = CliOptions {
+        show_cst: cli.cst,
+        parse_mode: None,
+        infer: false,
+        core_ir: false,
+        runtime_ir: false,
+        hygiene_ir: false,
+        run_vm: false,
+        native_compare_i64: false,
+        native_abi_lanes: false,
+        native_object: None,
+        native_exe: None,
+        native_value_exe: None,
+        native_run: None,
+        native_run_exe: None,
+        native_run_value_exe: None,
+        native_run_cps_repr_exe: None,
+        verbose_ir: cli.verbose_ir,
+        infer_phase_timings: cli.infer_phase_timings,
+        runtime_phase_timings: cli.runtime_phase_timings,
+        path: None,
+        no_prelude: cli.no_prelude,
+        std_root: cli.std_root,
+        profile_flamegraph: cli.profile_flamegraph,
+        profile_repeat: if cli.profile_repeat == 0 {
+            eprintln!("--profile-repeat must be a positive integer");
+            process::exit(2);
+        } else {
+            cli.profile_repeat
+        },
+        install_std: false,
+    };
+    match cli.cmd {
+        Cmd::Check { path } => {
+            opts.infer = true;
+            opts.path = path;
+        }
+        Cmd::Run { path } => {
+            opts.run_vm = true;
+            opts.path = path;
+        }
+        Cmd::Native(NativeArgs { path, kind, out }) => {
+            opts.path = path;
+            let output = match out {
+                Some(p) => NativeOutput::Path(p),
+                None => NativeOutput::Default,
+            };
+            match kind {
+                NativeKind::Object => opts.native_object = Some(output),
+                NativeKind::Exe => opts.native_exe = Some(output),
+                NativeKind::ValueExe => opts.native_value_exe = Some(output),
+                NativeKind::Run => opts.native_run = Some(output),
+                NativeKind::RunExe => opts.native_run_exe = Some(output),
+                NativeKind::RunValueExe => opts.native_run_value_exe = Some(output),
+                NativeKind::RunCpsReprExe => opts.native_run_cps_repr_exe = Some(output),
+            }
+        }
+        Cmd::Dump(DumpArgs {
+            path,
+            core_ir,
+            runtime_ir,
+            hygiene_ir,
+        }) => {
+            if !core_ir && !runtime_ir && !hygiene_ir {
+                eprintln!(
+                    "yulang dump: specify at least one of --core-ir, --runtime-ir, --hygiene-ir"
+                );
+                process::exit(2);
+            }
+            opts.path = path;
+            opts.core_ir = core_ir;
+            opts.runtime_ir = runtime_ir;
+            opts.hygiene_ir = hygiene_ir;
+        }
+        Cmd::Parse(ParseArgs { path, parse_as }) => {
+            opts.path = path;
+            opts.parse_mode = Some(parse_as);
+        }
+        Cmd::InstallStd => {
+            opts.install_std = true;
+        }
+        Cmd::Debug { op } => match op {
+            DebugOp::CompareI64 { path } => {
+                opts.native_compare_i64 = true;
+                opts.path = path;
+            }
+            DebugOp::AbiLanes { path } => {
+                opts.native_abi_lanes = true;
+                opts.path = path;
+            }
+        },
+        Cmd::Server => {
+            eprintln!(
+                "yulang server: not yet integrated into the main binary — for now run the separate `yulang-ls` crate"
+            );
+            process::exit(2);
+        }
     }
+    opts
 }
 
 fn read_source(path: Option<&str>) -> String {
@@ -316,42 +359,6 @@ fn read_source(path: Option<&str>) -> String {
             buf
         }
     }
-}
-
-fn print_usage() {
-    eprintln!(
-        "usage: yulang [--cst] [--parse-expr|--parse-pat|--parse-stmt|--parse-type|--parse-mark] [--infer] [--core-ir] [--runtime-ir] [--hygiene-ir] [--run] [--native-run [path]] [--native-compare-i64] [--native-abi-lanes] [--verbose-ir] [--infer-phase-timings] [--runtime-phase-timings] [--no-prelude] [--std-root <path>] [--install-std] [--profile-flamegraph <svg>] [<path>]"
-    );
-    eprintln!("       (no path = read from stdin)");
-    eprintln!("       --cst         also print the CST before types");
-    eprintln!("       --parse-expr  print the parser event tree for one expression");
-    eprintln!("       --parse-pat   print the parser event tree for one pattern");
-    eprintln!("       --parse-stmt  print the parser event tree for statements");
-    eprintln!("       --parse-type  print the parser event tree for one type");
-    eprintln!("       --parse-mark  print the parser event tree for raw Yumark source");
-    eprintln!("       --infer       print inferred principal types");
-    eprintln!("       --core-ir     print principal core-ir exported from yulang-infer");
-    eprintln!("       --runtime-ir  print strict typed runtime IR lowered from principal core-ir");
-    eprintln!("       --hygiene-ir  print runtime effect-id hygiene operations");
-    eprintln!("       --run         execute the program and print results");
-    eprintln!(
-        "       --native-compare-i64  compare VM/native-control/native-ABI/Cranelift scalar i64 results"
-    );
-    eprintln!("       --native-abi-lanes  print native ABI value representation classification");
-    eprintln!("       --native-run [path]  link and run a native executable");
-    eprintln!("       native output path defaults to target/yulang/bin/ when omitted");
-    eprintln!("       --verbose-ir  include detailed graph/evidence sections in IR dumps");
-    eprintln!("       --infer-phase-timings  print coarse timing breakdown for the infer pipeline");
-    eprintln!(
-        "       --runtime-phase-timings  print coarse timing breakdown for runtime lowering/VM"
-    );
-    eprintln!("       --no-prelude  do not implicitly import std::prelude");
-    eprintln!("       --std-root <path>  use an alternate std source root");
-    eprintln!("       --install-std  install the embedded std sources and exit");
-    eprintln!("       --profile-flamegraph <svg>  write a CPU flamegraph SVG with pprof");
-    eprintln!(
-        "       --profile-repeat <n>  run the pipeline n times and print only the last result"
-    );
 }
 
 fn run(options: &CliOptions) {

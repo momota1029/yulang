@@ -49,16 +49,16 @@ The surface expression `.norm2` is resolved after type inference has enough info
 
 ## Running Code
 
-Use `--run` to execute a file:
+Use the `run` subcommand to execute a file:
 
 ```bash
-cargo run -q -p yulang -- --run examples/01_struct_with.yu
+cargo run -q -p yulang -- run examples/01_struct_with.yu
 ```
 
-Use `--infer` to print inferred public bindings:
+Use the `check` subcommand to print inferred public bindings:
 
 ```bash
-cargo run -q -p yulang -- --infer examples/08_types.yu
+cargo run -q -p yulang -- check examples/08_types.yu
 ```
 
 Example output:
