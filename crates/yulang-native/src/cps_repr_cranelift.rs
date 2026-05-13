@@ -597,6 +597,18 @@ pub fn compile_cps_repr_abi_module(
         yulang_cps_list_view_raw_i64 as *const u8,
     );
     builder.symbol(
+        "yulang_cps_int_to_string_i64",
+        yulang_cps_int_to_string_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_console_print_i64",
+        yulang_cps_console_print_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_console_println_i64",
+        yulang_cps_console_println_i64 as *const u8,
+    );
+    builder.symbol(
         "yulang_cps_fresh_guard_i64",
         yulang_cps_fresh_guard_i64 as *const u8,
     );
@@ -1620,7 +1632,27 @@ fn lower_effect_terminator<M: Module>(
             handler,
             blocked,
         } => {
-            let candidates = handler_candidates_for_effect(function, handlers, effect)?;
+            let host_fallback = host_console_effect_kind(effect);
+            let candidates = handlers.candidates_for_effect(effect);
+            if candidates.is_empty() {
+                let Some(kind) = host_fallback else {
+                    return Err(CpsReprCraneliftError::UnsupportedTerminator {
+                        function: function.name.clone(),
+                        kind: "perform without handler entry",
+                    });
+                };
+                let payload = read_value(builder, function, *payload)?;
+                lower_host_console_perform(
+                    module_backend,
+                    builder,
+                    function,
+                    kind,
+                    payload,
+                    *resume,
+                    functions,
+                )?;
+                return Ok(());
+            }
             let allowed_mask = handler_mask(function, &candidates)?;
             let resumption = make_resumption(
                 module_backend,
@@ -1682,6 +1714,7 @@ fn lower_effect_terminator<M: Module>(
                 selected,
                 payload,
                 resumption,
+                host_fallback.map(|kind| (kind, *resume)),
                 functions,
             )?;
         }
@@ -2058,6 +2091,7 @@ fn lower_selected_handler_return<M: Module>(
     selected: ir::Value,
     payload: ir::Value,
     resumption: ir::Value,
+    host_fallback: Option<(HostConsoleEffect, CpsContinuationId)>,
     functions: &DeclaredFunctions,
 ) -> CpsReprCraneliftResult<()> {
     let missing_block = builder.create_block();
@@ -2134,9 +2168,48 @@ fn lower_selected_handler_return<M: Module>(
     }
 
     builder.switch_to_block(missing_block);
-    let value = builder.ins().iconst(types::I64, 0);
-    builder.ins().return_(&[value]);
+    if let Some((kind, resume)) = host_fallback {
+        lower_host_console_perform(
+            module_backend,
+            builder,
+            function,
+            kind,
+            payload,
+            resume,
+            functions,
+        )?;
+    } else {
+        let value = builder.ins().iconst(types::I64, 0);
+        builder.ins().return_(&[value]);
+    }
     builder.seal_block(missing_block);
+    Ok(())
+}
+
+fn lower_host_console_perform<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    kind: HostConsoleEffect,
+    payload: ir::Value,
+    resume: CpsContinuationId,
+    functions: &DeclaredFunctions,
+) -> CpsReprCraneliftResult<()> {
+    let helper = match kind {
+        HostConsoleEffect::Print => "yulang_cps_console_print_i64",
+        HostConsoleEffect::Println => "yulang_cps_console_println_i64",
+    };
+    let _ = call_i64_helper(module_backend, builder, helper, &[payload])?;
+    let unit = builder.ins().iconst(types::I64, 0);
+    let value = call_continuation_with_values(
+        module_backend,
+        builder,
+        function,
+        resume,
+        &[unit],
+        functions,
+    )?;
+    builder.ins().return_(&[value]);
     Ok(())
 }
 
@@ -2171,10 +2244,22 @@ fn call_continuation<M: Module>(
     args: &[CpsValueId],
     functions: &DeclaredFunctions,
 ) -> CpsReprCraneliftResult<ir::Value> {
+    let args = read_values(builder, function, args)?;
+    call_continuation_with_values(module_backend, builder, function, target, &args, functions)
+}
+
+fn call_continuation_with_values<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    target: CpsContinuationId,
+    args: &[ir::Value],
+    functions: &DeclaredFunctions,
+) -> CpsReprCraneliftResult<ir::Value> {
     let callee = continuation_func_ref(module_backend, builder, function, target, functions)?;
     let env = continuation_environment_argument(module_backend, builder, function, target)?;
     let mut call_args = vec![env];
-    call_args.extend(read_values(builder, function, args)?);
+    call_args.extend_from_slice(args);
     let call = builder.ins().call(callee, &call_args);
     let results = builder.inst_results(call);
     if results.len() != 1 {
@@ -3152,19 +3237,23 @@ fn effect_segment_matches_allowed(allowed: &typed_ir::Name, effect: &typed_ir::N
             .is_some_and(|base| base == allowed.0)
 }
 
-fn handler_candidates_for_effect(
-    function: &CpsReprAbiFunction,
-    registry: &HandlerRegistry,
-    effect: &typed_ir::Path,
-) -> CpsReprCraneliftResult<Vec<HandlerCandidate>> {
-    let candidates = registry.candidates_for_effect(effect);
-    if candidates.is_empty() {
-        Err(CpsReprCraneliftError::UnsupportedTerminator {
-            function: function.name.clone(),
-            kind: "perform without handler entry",
-        })
-    } else {
-        Ok(candidates)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HostConsoleEffect {
+    Print,
+    Println,
+}
+
+fn host_console_effect_kind(effect: &typed_ir::Path) -> Option<HostConsoleEffect> {
+    let [std, console_module, console_act, operation] = effect.segments.as_slice() else {
+        return None;
+    };
+    if std.0 != "std" || console_module.0 != "console" || console_act.0 != "console" {
+        return None;
+    }
+    match operation.0.as_str() {
+        "print" => Some(HostConsoleEffect::Print),
+        "println" => Some(HostConsoleEffect::Println),
+        _ => None,
     }
 }
 
@@ -3296,6 +3385,12 @@ fn lower_primitive<M: Module>(
             "yulang_cps_list_view_raw_i64",
             &[args[0]],
         )?,
+        typed_ir::PrimitiveOp::IntToString => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_int_to_string_i64",
+            &[args[0]],
+        )?,
         _ => {
             return Err(CpsReprCraneliftError::UnsupportedPrimitive {
                 function: function.name.clone(),
@@ -3406,6 +3501,7 @@ fn validate_scalar_function(
         if require_scalar_entry_return
             && continuation.id == function.entry
             && continuation.return_lane != CpsReprAbiLane::ScalarI64
+            && continuation.return_lane != CpsReprAbiLane::RuntimeValuePtr
             && continuation.return_lane != CpsReprAbiLane::ThunkPtr
             && continuation.return_lane != CpsReprAbiLane::OpaqueI64
         {
@@ -3497,7 +3593,8 @@ fn validate_primitive(
         | typed_ir::PrimitiveOp::ListIndex
         | typed_ir::PrimitiveOp::ListIndexRangeRaw
         | typed_ir::PrimitiveOp::ListSpliceRaw
-        | typed_ir::PrimitiveOp::ListViewRaw => Ok(()),
+        | typed_ir::PrimitiveOp::ListViewRaw
+        | typed_ir::PrimitiveOp::IntToString => Ok(()),
         _ => Err(CpsReprCraneliftError::UnsupportedPrimitive {
             function: function.name.clone(),
             op,
@@ -3696,6 +3793,7 @@ enum NativeCpsI64HeapValue {
     Tuple(Box<[i64]>),
     Variant { tag: i64, value: Option<i64> },
     List(Vec<i64>),
+    String(Box<str>),
 }
 
 /// write27-d d1: tag where a `NativeCpsI64HandlerFrame` came from so
@@ -4316,6 +4414,7 @@ fn describe_native_i64_value(value: i64) -> String {
             describe_native_i64_value(*payload)
         ),
         NativeCpsI64HeapValue::List(items) => format!("ptr({value}:list len={})", items.len()),
+        NativeCpsI64HeapValue::String(text) => text.to_string(),
     }
 }
 
@@ -4638,6 +4737,20 @@ extern "C" fn yulang_cps_print_i64(value: i64) {
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn yulang_cps_console_print_i64(value: i64) -> i64 {
+    print!("{}", describe_native_i64_value(value));
+    let mut stdout = std::io::stdout();
+    let _ = std::io::Write::flush(&mut stdout);
+    0
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_console_println_i64(value: i64) -> i64 {
+    println!("{}", describe_native_i64_value(value));
+    0
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_empty_i64() -> i64 {
     let result = native_cps_i64_heap(NativeCpsI64HeapValue::List(Vec::new()));
     if jit_trace_enabled() {
@@ -4794,6 +4907,13 @@ extern "C" fn yulang_cps_list_view_raw_i64(value: i64) -> i64 {
             result
         }
     }
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_int_to_string_i64(value: i64) -> i64 {
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(
+        value.to_string().into_boxed_str(),
+    ))
 }
 
 #[unsafe(no_mangle)]
@@ -6636,6 +6756,59 @@ mod tests {
     }
 
     #[test]
+    fn jit_runs_unhandled_host_console_print_and_resumes() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(0),
+                                literal: CpsLiteral::Int("42".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(1),
+                                op: typed_ir::PrimitiveOp::IntToString,
+                                args: vec![CpsValueId(0)],
+                            },
+                        ],
+                        terminator: CpsTerminator::Perform {
+                            effect: console_effect_path("print"),
+                            payload: CpsValueId(1),
+                            resume: CpsContinuationId(1),
+                            handler: crate::cps_ir::CpsHandlerId(0),
+                            blocked: None,
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(2)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(3),
+                            literal: CpsLiteral::Int("7".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(3)),
+                    },
+                ],
+            }],
+        }));
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![7]);
+    }
+
+    #[test]
     fn jit_runs_runtime_module_through_cps_pipeline() {
         let expr = apply(
             apply(
@@ -6648,6 +6821,31 @@ mod tests {
             .expect("compiled runtime module through CPS repr");
 
         assert_eq!(jit.run_roots_i64().expect("ran"), vec![42]);
+    }
+
+    #[test]
+    fn jit_runs_int_to_string_runtime_value_root() {
+        let expr = apply(
+            primitive(typed_ir::PrimitiveOp::IntToString),
+            unknown_lit(typed_ir::Lit::Int("42".to_string())),
+        );
+        let mut jit = compile_runtime_module_to_cps_repr_jit(&module_with_root(expr))
+            .expect("compiled runtime module through CPS repr");
+        let roots = jit.run_roots_i64().expect("ran");
+
+        assert_eq!(roots.len(), 1);
+        assert_eq!(describe_native_i64_value(roots[0]), "42");
+    }
+
+    fn console_effect_path(operation: &str) -> typed_ir::Path {
+        typed_ir::Path {
+            segments: vec![
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("console".to_string()),
+                typed_ir::Name("console".to_string()),
+                typed_ir::Name(operation.to_string()),
+            ],
+        }
     }
 
     fn pure_add_abi() -> CpsReprAbiModule {

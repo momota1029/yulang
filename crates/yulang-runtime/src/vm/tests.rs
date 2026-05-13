@@ -1434,7 +1434,25 @@ listen prog ""
 
     #[test]
     fn vm_keeps_parameter_return_effect_hygienic_across_sub() {
-        let results = eval_source_with_std(
+        let (direct_results, direct_stdout) = eval_source_with_std_host(
+            r#"use std::*
+use std::flow::*
+
+our f() = return 0
+our g h = sub:
+    f()
+    return 1
+
+sub:
+    my b = g f
+    println b.show
+    2
+"#,
+        );
+        assert_eq!(direct_stdout, "0\n");
+        assert_eq!(direct_results, vec![TestValue::Int("2".to_string())]);
+
+        let (callback_results, callback_stdout) = eval_source_with_std_host(
             r#"use std::flow::*
 
 our f() = return 0
@@ -1442,16 +1460,15 @@ our g h = sub:
     h()
     return 1
 
-my a = sub:
+sub:
     my b = g f
     println b.show
     2
-
-a
 "#,
         );
 
-        assert_eq!(results, vec![TestValue::Int("0".to_string())]);
+        assert_eq!(callback_stdout, "");
+        assert_eq!(callback_results, vec![TestValue::Int("0".to_string())]);
     }
 
     #[test]

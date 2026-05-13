@@ -188,6 +188,16 @@ or out of here into the user-facing table once they stabilize.
       through globally numbered handler ids and the dynamic handler stack.
 - [x] CPS lowering carries `AddId` blocked guards into `Perform` in the
       CPS/CPS-repr interpreter paths.
+- [x] CPS lowering resolves `AddId(Var(id))` through the enclosing
+      `LocalPushId` guard scope, including handler-body lowering paths used by
+      callback hygiene boundaries.
+- [x] CPS repr Cranelift can lower `IntToString` to a prototype string handle,
+      so small `.show`-style scalar string conversions can pass through the
+      CPS repr executable path.
+- [x] CPS repr Cranelift handles unhandled host `console.print` / `println`
+      operations by printing the payload and resuming with unit. This covers
+      callback-return hygiene examples that print an intermediate value before
+      returning a scalar root.
 - [x] CPS/CPS-repr interpreters keep `AddId` effect boundaries on thunk
       values, activate boundary guards during thunk force, and use those
       guards while resolving `Perform`.
@@ -248,6 +258,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] Closure-application caller-rest through `EffectfulApply` can route an
       effectful operation through a callback and still run the caller's
       post-call continuation under the temporary `ResumeWithHandler` handler.
+- [x] Source-level callback return hygiene is covered in the CPS repr scalar
+      path: direct `f()` inside an inner `sub` is captured there, while
+      callback `h()` escapes to the caller's `sub`.
 - [ ] General closures and heap value lanes are not complete.
 - [ ] Non-scalar CPS return values can flow through the prototype as opaque
       `i64` heap pointers, but generated CPS executables do not yet print them

@@ -1074,11 +1074,21 @@ fn terminator_return_lane(
                     .unwrap_or(CpsReprAbiLane::Unknown),
             ),
         CpsTerminator::Perform {
-            effect, handler, ..
-        } => handler_arm_for_effect(function, *handler, effect)
-            .and_then(|arm| continuation_returns.get(&arm.entry))
-            .copied()
-            .unwrap_or(CpsReprAbiLane::Unknown),
+            effect,
+            handler,
+            resume,
+            ..
+        } => {
+            let handler_return = handler_arm_for_effect(function, *handler, effect)
+                .and_then(|arm| continuation_returns.get(&arm.entry))
+                .copied();
+            handler_return
+                .or_else(|| {
+                    host_console_effect_kind(effect)
+                        .and_then(|_| continuation_returns.get(resume).copied())
+                })
+                .unwrap_or(CpsReprAbiLane::Unknown)
+        }
         CpsTerminator::EffectfulCall { resume, .. }
         | CpsTerminator::EffectfulApply { resume, .. }
         | CpsTerminator::EffectfulForce { resume, .. } => continuation_returns
@@ -1142,6 +1152,26 @@ fn handler_arm_for_effect<'a>(
         .arms
         .iter()
         .find(|arm| effect_matches(&arm.effect, effect))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HostConsoleEffect {
+    Print,
+    Println,
+}
+
+fn host_console_effect_kind(effect: &typed_ir::Path) -> Option<HostConsoleEffect> {
+    let [std, console_module, console_act, operation] = effect.segments.as_slice() else {
+        return None;
+    };
+    if std.0 != "std" || console_module.0 != "console" || console_act.0 != "console" {
+        return None;
+    }
+    match operation.0.as_str() {
+        "print" => Some(HostConsoleEffect::Print),
+        "println" => Some(HostConsoleEffect::Println),
+        _ => None,
+    }
 }
 
 fn handler_arm_for_effect_in_module<'a>(

@@ -230,4 +230,83 @@ mod tests {
     fn compares_literal_source_through_scalar_paths() {
         compare_source_i64_with_options("41", SourceOptions::default()).expect("native compare");
     }
+
+    #[test]
+    fn compares_direct_nullary_return_call_through_cps_repr() {
+        compare_source_cps_repr_with_std(
+            r#"use std::flow::*
+
+our f() = return 0
+
+our g h = sub:
+    f()
+    return 1
+
+sub:
+    my b = g f
+    2
+"#,
+        )
+        .expect("CPS repr native compare");
+    }
+
+    #[test]
+    fn compares_callback_return_hygiene_through_cps_repr() {
+        compare_source_cps_repr_with_std(
+            r#"use std::flow::*
+
+our f() = return 0
+
+our g h = sub:
+    h()
+    return 1
+
+sub:
+    my b = g f
+    2
+"#,
+        )
+        .expect("CPS repr native compare");
+    }
+
+    fn compare_source_cps_repr_with_std(source: &str) -> Result<(), String> {
+        let source = source.to_string();
+        run_with_large_stack(move || {
+            let repo_root = repo_root();
+            let module = runtime_module_from_virtual_source_with_options(
+                &source,
+                Some(repo_root),
+                source_options_with_std(),
+            )
+            .map_err(|error| error.to_string())?;
+            yulang_native::compare_cps_repr_cranelift_i64(&module)
+                .map_err(|error| error.to_string())
+        })
+    }
+
+    fn source_options_with_std() -> SourceOptions {
+        let repo_root = repo_root();
+        SourceOptions {
+            std_root: Some(repo_root.join("lib/std")),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        }
+    }
+
+    fn repo_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    fn run_with_large_stack<T, F>(f: F) -> T
+    where
+        T: Send + 'static,
+        F: FnOnce() -> T + Send + 'static,
+    {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(f)
+            .expect("spawned large-stack test thread")
+            .join()
+            .expect("large-stack test thread finished")
+    }
 }

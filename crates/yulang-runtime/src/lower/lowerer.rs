@@ -642,19 +642,6 @@ impl Lowerer<'_> {
                     }
                 };
                 let actual_arg_ty = arg.ty.clone();
-                let direct_nullary_boundary_effect =
-                    if direct_nullary_function_call_needs_hygiene_boundary(
-                        apply_target.as_ref(),
-                        &actual_arg_ty,
-                        callee_is_effect_operation,
-                        locals,
-                        &self.env,
-                        &self.primitive_paths.unit_type(),
-                    ) {
-                        self.current_function_boundary.map(|id| (id, empty_row()))
-                    } else {
-                        None
-                    };
                 if matches!(
                     callee.ty,
                     RuntimeType::Unknown
@@ -817,16 +804,12 @@ impl Lowerer<'_> {
                     ) => result_ty,
                     _ => final_fun_parts.ret,
                 };
-                let boundary_allowed = callee_boundary_effect
-                    .map(|allowed| {
-                        (
-                            callee_boundary.as_ref().map(|boundary| boundary.id),
-                            allowed,
-                        )
-                    })
-                    .or_else(|| {
-                        direct_nullary_boundary_effect.map(|(id, allowed)| (Some(id), allowed))
-                    });
+                let boundary_allowed = callee_boundary_effect.map(|allowed| {
+                    (
+                        callee_boundary.as_ref().map(|boundary| boundary.id),
+                        allowed,
+                    )
+                });
                 let boundary_ret_effect = boundary_allowed
                     .as_ref()
                     .and_then(|_| apply_evidence_ret_effect(evidence.as_ref()));
@@ -2602,35 +2585,6 @@ fn is_runtime_irrelevant_value_substitution(ty: &typed_ir::Type) -> bool {
 
 fn runtime_type_is_irrelevant_unit_value(ty: &RuntimeType) -> bool {
     matches!(ty, RuntimeType::Core(typed_ir::Type::Tuple(items)) if items.is_empty())
-}
-
-fn direct_nullary_function_call_needs_hygiene_boundary(
-    callee: Option<&typed_ir::Path>,
-    arg_ty: &RuntimeType,
-    callee_is_effect_operation: bool,
-    locals: &HashMap<typed_ir::Path, RuntimeType>,
-    env: &HashMap<typed_ir::Path, RuntimeType>,
-    unit_ty: &typed_ir::Type,
-) -> bool {
-    if callee_is_effect_operation
-        || !(runtime_type_is_irrelevant_unit_value(arg_ty)
-            || runtime_core_type(value_hir_type(arg_ty)) == *unit_ty)
-    {
-        return false;
-    }
-    let Some(path) = callee else {
-        return false;
-    };
-    env.contains_key(path)
-        && !locals.contains_key(path)
-        && path.segments.len() == 1
-        && !is_synthetic_operator_path(path)
-}
-
-fn is_synthetic_operator_path(path: &typed_ir::Path) -> bool {
-    path.segments
-        .iter()
-        .any(|segment| segment.0.starts_with("#op:"))
 }
 
 fn hir_type_contains_unknown(ty: &RuntimeType) -> bool {

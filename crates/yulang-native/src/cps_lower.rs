@@ -1180,6 +1180,7 @@ struct FunctionLowerer<'a> {
     current: ContinuationBuilder,
     locals: HashMap<typed_ir::Path, CpsValueId>,
     local_exprs: HashMap<typed_ir::Path, runtime::Expr>,
+    effect_guards: HashMap<runtime::EffectIdVar, CpsValueId>,
     resumptions: HashSet<typed_ir::Path>,
     inline_stack: HashSet<typed_ir::Path>,
     active_handler: Option<ActiveHandlerContext>,
@@ -1241,6 +1242,7 @@ impl<'a> FunctionLowerer<'a> {
             current: ContinuationBuilder::new(CpsContinuationId(0), param_values.clone()),
             locals,
             local_exprs: HashMap::new(),
+            effect_guards: HashMap::new(),
             resumptions: HashSet::new(),
             inline_stack: HashSet::new(),
             active_handler: None,
@@ -1478,7 +1480,10 @@ impl<'a> FunctionLowerer<'a> {
                 self.current
                     .stmts
                     .push(CpsStmt::FreshGuard { dest, var: *id });
-                self.lower_expr(body)
+                let previous = self.effect_guards.insert(*id, dest);
+                let result = self.lower_expr(body);
+                restore_effect_guard(&mut self.effect_guards, *id, previous);
+                result
             }
             runtime::ExprKind::AddId {
                 id,
@@ -1522,9 +1527,14 @@ impl<'a> FunctionLowerer<'a> {
                 self.current.stmts.push(CpsStmt::PeekGuard { dest });
                 Ok(dest)
             }
-            runtime::EffectIdRef::Var(_) => Err(CpsLowerError::UnsupportedExpr {
-                kind: "effect id variable",
-            }),
+            runtime::EffectIdRef::Var(var) => {
+                self.effect_guards
+                    .get(&var)
+                    .copied()
+                    .ok_or(CpsLowerError::UnsupportedExpr {
+                        kind: "effect id variable outside local push scope",
+                    })
+            }
         }
     }
 
@@ -2812,7 +2822,10 @@ impl<'a> FunctionLowerer<'a> {
             self.current
                 .stmts
                 .push(CpsStmt::FreshGuard { dest, var: *id });
-            return self.lower_handled_body(body, expected_effects, handler, value_cont);
+            let previous = self.effect_guards.insert(*id, dest);
+            let result = self.lower_handled_body(body, expected_effects, handler, value_cont);
+            restore_effect_guard(&mut self.effect_guards, *id, previous);
+            return result;
         }
 
         if let Some(expr) = handle_body_execution_inner(body) {
@@ -4425,6 +4438,21 @@ impl<'a> FunctionLowerer<'a> {
     }
 }
 
+fn restore_effect_guard(
+    guards: &mut HashMap<runtime::EffectIdVar, CpsValueId>,
+    id: runtime::EffectIdVar,
+    previous: Option<CpsValueId>,
+) {
+    match previous {
+        Some(previous) => {
+            guards.insert(id, previous);
+        }
+        None => {
+            guards.remove(&id);
+        }
+    }
+}
+
 fn effect_matches(expected: &typed_ir::Path, actual: &typed_ir::Path) -> bool {
     actual == expected
         || (!expected.segments.is_empty()
@@ -5688,6 +5716,51 @@ mod tests {
     }
 
     #[test]
+    fn lowers_add_id_var_to_enclosing_local_push_guard() {
+        let module = module_with_root(local_push_id(
+            0,
+            local_push_id(
+                1,
+                add_id(
+                    runtime::EffectIdRef::Var(runtime::EffectIdVar(0)),
+                    typed_ir::Type::Never,
+                    thunk(unknown_lit(typed_ir::Lit::Int("7".to_string()))),
+                ),
+            ),
+        ));
+        let lowered = lower_cps_module(&module).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        let fresh_guards: HashMap<_, _> = lowered.roots[0]
+            .continuations
+            .iter()
+            .flat_map(|continuation| continuation.stmts.iter())
+            .filter_map(|stmt| match stmt {
+                CpsStmt::FreshGuard { dest, var } => Some((*var, *dest)),
+                _ => None,
+            })
+            .collect();
+        let outer_guard = *fresh_guards
+            .get(&runtime::EffectIdVar(0))
+            .expect("outer fresh guard");
+        let inner_guard = *fresh_guards
+            .get(&runtime::EffectIdVar(1))
+            .expect("inner fresh guard");
+        assert_ne!(outer_guard, inner_guard);
+        assert!(
+            lowered.roots[0]
+                .continuations
+                .iter()
+                .flat_map(|continuation| continuation.stmts.iter())
+                .any(|stmt| matches!(stmt, CpsStmt::AddThunkBoundary { guard: found, .. } if *found == outer_guard))
+        );
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("7".to_string())]
+        );
+    }
+
+    #[test]
     fn lowers_add_id_blocked_effect_to_perform_blocked_guard() {
         let body = add_id(
             runtime::EffectIdRef::Peek,
@@ -5725,6 +5798,43 @@ mod tests {
         );
         let guarded_thunk = add_id_with_active(
             runtime::EffectIdRef::Peek,
+            typed_ir::Type::Never,
+            true,
+            thunk(perform),
+        );
+        let inner = handle_once(
+            "choose",
+            "_x",
+            "_k",
+            bind_here(guarded_thunk),
+            unknown_lit(typed_ir::Lit::Int("10".to_string())),
+        );
+        let body = local_push_id(0, inner);
+        let root = handle_once(
+            "choose",
+            "_x",
+            "_k",
+            body,
+            unknown_lit(typed_ir::Lit::Int("20".to_string())),
+        );
+        let lowered = lower_cps_module(&module_with_root(root)).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert!(matches!(
+            eval_cps_module(&lowered),
+            Err(crate::cps_eval::CpsEvalError::MissingHandler { .. })
+        ));
+        assert!(eval_cps_repr_module(&lower_cps_repr_module(&lowered)).is_err());
+    }
+
+    #[test]
+    fn active_add_id_var_blocks_inner_handler_during_callback_force() {
+        let perform = apply(
+            effect_op("choose"),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+        );
+        let guarded_thunk = add_id_with_active(
+            runtime::EffectIdRef::Var(runtime::EffectIdVar(0)),
             typed_ir::Type::Never,
             true,
             thunk(perform),

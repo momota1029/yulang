@@ -263,6 +263,9 @@ runtime/core IR
     `LocalPushId` / `PeekId` / `FindId` は CPS guard stmt へ lowering する。
     `AddId` は allowed effect から blocked guard を判断し、CPS `Perform` へ
     blocked id を伝播するところまで追加済み。
+    `EffectIdRef::Var` は enclosing `LocalPushId` の guard 値へ解決する。
+    handler body 専用 lowering でも同じ scope map を使うため、`g h` のような
+    callback force 境界で `h()` 由来の effect boundary を落とさない。
   - CPS repr evaluator は guard id を偽値に潰さず、handler frame ごとの
     guard stack snapshot を resumption / thunk に保持する。`Perform` は
     blocked id が handler frame の snapshot に含まれる場合、その frame を
@@ -338,6 +341,16 @@ runtime/core IR
     追加した。
   - 完了: queue を使わない DFS once kernel と、`fold` / `sub` を使わない finite
     list choice を scalar root の VM/JIT compare に足した。
+  - 完了: `sub` / `return` の callback hygiene は source-level CPS repr compare に
+    足した。`g` 内の direct `f()` は内側 `sub` で捕まり、callback `h()` は外側
+    `sub` へ抜ける。
+  - 完了: CPS repr Cranelift は `IntToString` を prototype string handle へ
+    lower し、`1.show` のような scalar-to-string root を executable path で
+    表示できる。
+  - 完了: CPS repr Cranelift の unhandled host console effect fallback を追加した。
+    `console.print` / `println` は payload を出力して unit で resume する。これで
+    `println b.show` を含む direct/callback `sub` hygiene 例も native CPS repr exe
+    で動く。
   - 完了: `each_head(xs): [choice] int` のように effectful thunk を返す
     inlinable な source-defined helper は、caller の active handler scope で
     inline され、`lower_inline_direct_apply` が返した thunk を direct call site で
