@@ -12,6 +12,7 @@ pub enum Event {
 pub trait EventSink {
     fn start(&mut self, kind: SyntaxKind);
     fn lex(&mut self, lex: &Lex);
+    fn trivia(&mut self, _trivia: &Trivia) {}
     fn push(&mut self, kind: SyntaxKind, text: &str) {
         self.lex(&Lex::new(TriviaInfo::None, kind, text, Trivia::empty()))
     }
@@ -43,6 +44,8 @@ impl EventSink for VecSink {
         self.events.push(Event::Lex(lex.kind));
         self.lexs.push(lex.clone());
     }
+
+    fn trivia(&mut self, _trivia: &Trivia) {}
 
     fn finish(&mut self) {
         self.events.push(Event::Finish);
@@ -94,27 +97,31 @@ impl EventSink for GreenSink {
     fn lex(&mut self, lex: &Lex) {
         self.builder
             .token(YulangLanguage::kind_to_raw(lex.kind), lex.text.as_ref());
-        for trivia in lex.trailing_trivia.parts() {
-            match trivia.kind {
+        self.trivia(&lex.trailing_trivia);
+    }
+
+    fn trivia(&mut self, trivia: &Trivia) {
+        for part in trivia.parts() {
+            match part.kind {
                 TriviaKind::BlockCommentStart => {
                     self.builder
                         .start_node(YulangLanguage::kind_to_raw(SyntaxKind::BlockComment));
                     self.builder.token(
                         YulangLanguage::kind_to_raw(SyntaxKind::BlockCommentStart),
-                        trivia.text.as_ref(),
+                        part.text.as_ref(),
                     );
                 }
                 TriviaKind::BlockCommentEnd => {
                     self.builder.token(
                         YulangLanguage::kind_to_raw(SyntaxKind::BlockCommentEnd),
-                        trivia.text.as_ref(),
+                        part.text.as_ref(),
                     );
                     self.builder.finish_node();
                 }
                 _ => {
                     self.builder.token(
-                        YulangLanguage::kind_to_raw(trivia.kind.into()),
-                        trivia.text.as_ref(),
+                        YulangLanguage::kind_to_raw(part.kind.into()),
+                        part.text.as_ref(),
                     );
                 }
             }

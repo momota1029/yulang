@@ -13,6 +13,7 @@ pub mod typ;
 
 use chasa::back::Front;
 use chasa::input::SeqInput;
+use lex::{SyntaxKind, TriviaInfo};
 
 pub trait EventInput: SeqInput<Item = char, Seq: AsRef<str>> + Front {}
 
@@ -34,7 +35,6 @@ pub fn parse_module_to_green_with_ops(source: &str, ops: crate::op::OpTable) -> 
     use reborrow_generic::Reborrow as _;
 
     use crate::context::{Env, State};
-    use crate::lex::{SyntaxKind, TriviaInfo};
     use crate::scan::trivia::scan_trivia;
     use crate::sink::{EventSink as _, GreenSink};
     use crate::stmt::parse_statement;
@@ -50,10 +50,11 @@ pub fn parse_module_to_green_with_ops(source: &str, ops: crate::op::OpTable) -> 
         let env = Env::new(&mut state, ops, 0, HashSet::new());
         let mut i = base_in.set_env(env);
 
-        let leading = i
+        let leading_trivia = i
             .run(scan_trivia)
-            .map(|t| t.info())
-            .unwrap_or(TriviaInfo::None);
+            .unwrap_or_else(crate::lex::Trivia::empty);
+        let leading = leading_trivia.info();
+        i.env.state.sink.trivia(&leading_trivia);
         let mut info = leading;
         loop {
             match parse_statement(info, i.rb()) {
@@ -71,4 +72,46 @@ pub fn parse_module_to_green_with_ops(source: &str, ops: crate::op::OpTable) -> 
 
     state.sink.finish(); // Root
     state.sink.finish_green()
+}
+
+#[cfg(test)]
+mod tests {
+    use rowan::{NodeOrToken, SyntaxNode};
+
+    use crate::sink::YulangLanguage;
+
+    use super::*;
+
+    #[test]
+    fn parse_module_keeps_leading_line_comment_in_cst() {
+        let source = "// note\nmy value = 1\n";
+        let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
+        let tokens = root
+            .descendants_with_tokens()
+            .filter_map(NodeOrToken::into_token)
+            .map(|token| {
+                (
+                    token.kind(),
+                    token.text().to_string(),
+                    usize::from(token.text_range().start()),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert!(tokens.contains(&(SyntaxKind::LineComment, "// note".to_string(), 0)));
+        assert!(tokens.contains(&(SyntaxKind::My, "my".to_string(), 8)));
+    }
+
+    #[test]
+    fn parse_module_keeps_leading_block_comment_in_cst() {
+        let source = "/* note */\nmy value = 1\n";
+        let root = SyntaxNode::<YulangLanguage>::new_root(parse_module_to_green(source));
+        let my = root
+            .descendants_with_tokens()
+            .filter_map(NodeOrToken::into_token)
+            .find(|token| token.kind() == SyntaxKind::My)
+            .expect("my token");
+
+        assert_eq!(usize::from(my.text_range().start()), source.find("my").unwrap());
+    }
 }

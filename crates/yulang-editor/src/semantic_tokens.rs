@@ -57,11 +57,6 @@ pub fn compute_with_op_table_and_highlights(
     let root = SyntaxNode::<YulangLanguage>::new_root(green);
     let line_starts = line_starts(source);
 
-    // parse_module_to_green consumes leading trivia (comments/whitespace at the
-    // start of the file) before building the rowan tree, so rowan's byte offsets
-    // are all shifted by that amount. Add it back to get true source positions.
-    let lead = leading_trivia_len(source);
-
     let mut raw: Vec<(u32, u32, u32, u32)> = Vec::new(); // (line, col, len, type)
     raw.extend(lexical_tokens(source, &line_starts));
 
@@ -73,7 +68,7 @@ pub fn compute_with_op_table_and_highlights(
 
         let kind = token.kind();
         let text = token.text();
-        let start = usize::from(token.text_range().start()) + lead;
+        let start = usize::from(token.text_range().start());
 
         let classified = match kind {
             SyntaxKind::Number => Some((start, text.len(), NUMBER)),
@@ -117,7 +112,7 @@ pub fn compute_with_op_table_and_highlights(
             SyntaxKind::ColonColon => Some((start, text.len(), DELIMITER)),
             SyntaxKind::Equal => Some((start, text.len(), DELIMITER)),
             SyntaxKind::DotField => {
-                // ".field" — highlight just the name after the dot (start already includes lead).
+                // ".field" — highlight just the name after the dot.
                 let name_start = start + 1;
                 let name_len = text.len().saturating_sub(1);
                 if name_len == 0 {
@@ -637,42 +632,6 @@ fn is_first_ident(
         .is_some_and(|first| first == *token)
 }
 
-// ── trivia offset ────────────────────────────────────────────────────────────
-
-/// Byte length of leading trivia (whitespace + `//` comments) that
-/// `parse_module_to_green` consumes before building the rowan tree.
-fn leading_trivia_len(source: &str) -> usize {
-    let b = source.as_bytes();
-    let mut pos = 0;
-    loop {
-        // skip whitespace
-        while pos < b.len() && matches!(b[pos], b' ' | b'\t' | b'\r' | b'\n') {
-            pos += 1;
-        }
-        // skip `//` line comment
-        if pos + 1 < b.len() && b[pos] == b'/' && b[pos + 1] == b'/' {
-            while pos < b.len() && b[pos] != b'\n' {
-                pos += 1;
-            }
-            continue;
-        }
-        // skip `/*` block comment
-        if pos + 1 < b.len() && b[pos] == b'/' && b[pos + 1] == b'*' {
-            pos += 2;
-            while pos + 1 < b.len() {
-                if b[pos] == b'*' && b[pos + 1] == b'/' {
-                    pos += 2;
-                    break;
-                }
-                pos += 1;
-            }
-            continue;
-        }
-        break;
-    }
-    pos
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -683,13 +642,12 @@ mod tests {
     fn dump_tokens(source: &str) {
         let green = yulang_parser::parse_module_to_green(source);
         let root = SyntaxNode::<YulangLanguage>::new_root(green);
-        let lead = leading_trivia_len(source);
         for not in root.descendants_with_tokens() {
             let t = match not {
                 NodeOrToken::Token(t) => t,
                 NodeOrToken::Node(_) => continue,
             };
-            let start = usize::from(t.text_range().start()) + lead;
+            let start = usize::from(t.text_range().start());
             let parent = t
                 .parent()
                 .map(|p| format!("{:?}", p.kind()))
@@ -968,6 +926,17 @@ mod tests {
     }
 
     #[test]
+    fn leading_comment_does_not_shift_parser_token_positions() {
+        let source = "// note\nmy answer = \"ok\"";
+        let tokens = decode_tokens(&compute(source));
+
+        assert!(tokens.contains(&(0, 0, 7, COMMENT)));
+        assert!(tokens.contains(&(1, 0, 2, KEYWORD)));
+        assert!(tokens.contains(&(1, 10, 1, DELIMITER)));
+        assert!(tokens.contains(&(1, 12, 4, STRING)));
+    }
+
+    #[test]
     fn colon_and_path_separator_are_delimiters() {
         let tokens = compute("my result = std::int::add: 1");
         let chunks: Vec<&[u32]> = tokens.chunks(5).collect();
@@ -1011,6 +980,23 @@ mod tests {
     fn debug_return_tree() {
         eprintln!("--- if x == 5: return x tree ---");
         dump_nodes("if x == 5: return x");
+    }
+
+    fn decode_tokens(encoded: &[u32]) -> Vec<(u32, u32, u32, u32)> {
+        let mut line = 0;
+        let mut col = 0;
+        encoded
+            .chunks_exact(5)
+            .map(|chunk| {
+                line += chunk[0];
+                if chunk[0] == 0 {
+                    col += chunk[1];
+                } else {
+                    col = chunk[1];
+                }
+                (line, col, chunk[2], chunk[3])
+            })
+            .collect()
     }
 }
 

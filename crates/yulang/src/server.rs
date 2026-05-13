@@ -162,55 +162,12 @@ fn range_contains_position(range: Range, position: Position) -> bool {
         && (position.line, position.character) <= (range.end.line, range.end.character)
 }
 
-fn byte_range_with_offset_to_lsp(
-    line_starts: &[usize],
-    span: rowan::TextRange,
-    offset: usize,
-) -> Range {
-    let start = usize::from(span.start()) + offset;
-    let end = usize::from(span.end()) + offset;
-    Range {
-        start: byte_to_position(line_starts, start),
-        end: byte_to_position(line_starts, end),
-    }
-}
-
-fn leading_trivia_len(text: &str) -> usize {
-    let bytes = text.as_bytes();
-    let mut pos = 0;
-    loop {
-        while pos < bytes.len() && matches!(bytes[pos], b' ' | b'\t' | b'\r' | b'\n') {
-            pos += 1;
-        }
-        if pos + 1 < bytes.len() && bytes[pos] == b'/' && bytes[pos + 1] == b'/' {
-            while pos < bytes.len() && bytes[pos] != b'\n' {
-                pos += 1;
-            }
-            continue;
-        }
-        if pos + 1 < bytes.len() && bytes[pos] == b'/' && bytes[pos + 1] == b'*' {
-            pos += 2;
-            while pos + 1 < bytes.len() {
-                if bytes[pos] == b'*' && bytes[pos + 1] == b'/' {
-                    pos += 2;
-                    break;
-                }
-                pos += 1;
-            }
-            continue;
-        }
-        break;
-    }
-    pos
-}
-
 fn document_symbols(source: &str) -> Vec<DocumentSymbol> {
     let green = yulang_parser::parse_module_to_green(source);
     let root = SyntaxNode::new_root(green);
     let line_starts = line_starts(source);
-    let leading = leading_trivia_len(source);
     root.children()
-        .filter_map(|node| document_symbol_for_node(&node, &line_starts, leading))
+        .filter_map(|node| document_symbol_for_node(&node, &line_starts))
         .collect()
 }
 
@@ -228,7 +185,6 @@ struct HoverTarget {
 fn hover_target_at(source: &str, position: Position) -> Option<HoverTarget> {
     let line_starts = line_starts(source);
     let _offset = position_to_byte(&line_starts, position)?;
-    let leading = leading_trivia_len(source);
     let green = yulang_parser::parse_module_to_green(source);
     let root = SyntaxNode::new_root(green);
 
@@ -238,7 +194,7 @@ fn hover_target_at(source: &str, position: Position) -> Option<HoverTarget> {
         .filter(|token| is_hover_name_token(token) || token.kind() == SyntaxKind::ColonColon)
         .map(|token| {
             let syntax_range = token.text_range();
-            let range = byte_range_with_offset_to_lsp(&line_starts, syntax_range, leading);
+            let range = byte_range_to_lsp(&line_starts, syntax_range);
             (token, range, syntax_range)
         })
         .collect::<Vec<_>>();
@@ -461,7 +417,6 @@ fn hover_for_source(
 fn document_symbol_for_node(
     node: &SyntaxNode,
     line_starts: &[usize],
-    leading: usize,
 ) -> Option<DocumentSymbol> {
     let spec = symbol_spec(node)?;
     let name_token = symbol_name_token(node, spec.name_kind);
@@ -469,9 +424,9 @@ fn document_symbol_for_node(
         .as_ref()
         .map(|token| token.text().to_string())
         .or_else(|| spec.fallback_name)?;
-    let range = byte_range_with_offset_to_lsp(line_starts, node.text_range(), leading);
+    let range = byte_range_to_lsp(line_starts, node.text_range());
     let selection_range = name_token
-        .map(|token| byte_range_with_offset_to_lsp(line_starts, token.text_range(), leading))
+        .map(|token| byte_range_to_lsp(line_starts, token.text_range()))
         .unwrap_or(range);
     #[allow(deprecated)]
     let symbol = DocumentSymbol {
@@ -895,6 +850,63 @@ mod tests {
             .expect("value symbol");
         assert_eq!(value.selection_range.start.line, 2);
         assert_eq!(value.selection_range.start.character, 3);
+    }
+
+    #[test]
+    fn hover_accounts_for_leading_comments_without_offset_patch() {
+        let source = "// comment\n\nmy value = 1\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            SourceOptions {
+                std_root: None,
+                implicit_prelude: false,
+                search_paths: Vec::new(),
+            },
+            Position {
+                line: 2,
+                character: 3,
+            },
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("value: int"));
+    }
+
+    #[test]
+    fn hover_accounts_for_leading_comments_with_implicit_prelude() {
+        let source = "// comment\n\nmy value = 1\nmy a = each [1, 2, 3]\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            std_source_options(),
+            Position {
+                line: 2,
+                character: 3,
+            },
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("value: int"));
+
+        let hover = hover_for_source(
+            source,
+            None,
+            std_source_options(),
+            Position {
+                line: 3,
+                character: 7,
+            },
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("each:"));
     }
 
     #[test]
