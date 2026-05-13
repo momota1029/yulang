@@ -1112,6 +1112,51 @@ mod tests {
         assert!(!content.value.contains("range"));
     }
 
+    #[test]
+    fn hover_resolves_implicit_prelude_each_reference() {
+        let source = "my a = each [1, 2, 3]\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            std_source_options(),
+            position_of(source, "each").expect("each position"),
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("each:"));
+        assert!(content.value.contains("Fold<"));
+        assert!(content.value.contains("std::undet::undet"));
+    }
+
+    #[test]
+    fn hover_resolves_implicit_prelude_guard_colon_reference() {
+        let source = "my a = each [1, 2, 3]\nguard: a > 1\n";
+        let hover = hover_for_source(
+            source,
+            None,
+            std_source_options(),
+            position_of(source, "guard").expect("guard position"),
+        )
+        .expect("hover");
+        let HoverContents::Markup(content) = hover.contents else {
+            panic!("hover should use markdown");
+        };
+        assert!(content.value.contains("guard: bool"));
+        assert!(content.value.contains("std::undet::undet"));
+    }
+
+    fn std_source_options() -> SourceOptions {
+        SourceOptions {
+            std_root: resolve_or_install_std_root(None, None)
+                .expect("stdlib root resolution")
+                .or_else(|| Some(PathBuf::from("crates/yulang-sources/std"))),
+            implicit_prelude: true,
+            search_paths: Vec::new(),
+        }
+    }
+
     fn position_of(source: &str, needle: &str) -> Option<Position> {
         let offset = source.find(needle)?;
         Some(byte_to_position(&line_starts(source), offset))
