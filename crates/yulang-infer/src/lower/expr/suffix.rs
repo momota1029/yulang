@@ -52,7 +52,16 @@ pub(super) fn apply_synthetic_field_selection(
 ) -> TypedExpr {
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
-    push_deferred_selection(state, acc, node, name, tv, eff, false, Some(node.text_range()))
+    push_deferred_selection(
+        state,
+        acc,
+        node,
+        name,
+        tv,
+        eff,
+        false,
+        Some(node.text_range()),
+    )
 }
 
 fn apply_field_suffix(state: &mut LowerState, acc: TypedExpr, suffix: &SyntaxNode) -> TypedExpr {
@@ -339,6 +348,7 @@ fn push_deferred_selection(
     source_span: Option<rowan::TextRange>,
 ) -> TypedExpr {
     let owner = state.current_owner;
+    let recv_tv = acc.tv;
     if let Some(owner) = owner {
         state.infer.increment_pending_selection(owner);
     }
@@ -362,7 +372,7 @@ fn push_deferred_selection(
             structural_record_allowed,
         });
     if let Some(span) = source_span {
-        state.record_selection_span(span, tv);
+        state.record_selection_span(span, recv_tv, tv);
     }
     TypedExpr {
         tv,

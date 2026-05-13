@@ -47,7 +47,7 @@ pub struct LowerState {
     /// source 上の未解決/後解決参照 span。
     pub ref_spans: HashMap<RefId, rowan::TextRange>,
     /// source 上の field / method selection span。
-    pub selection_spans: Vec<(rowan::TextRange, TypeVar)>,
+    pub selection_spans: Vec<(rowan::TextRange, TypeVar, TypeVar)>,
     record_source_spans: bool,
     source_span_offset: usize,
     /// lambda parameter def ごとの pattern local binder 群。
@@ -732,9 +732,14 @@ impl LowerState {
         }
     }
 
-    pub fn record_selection_span(&mut self, span: rowan::TextRange, result_tv: TypeVar) {
+    pub fn record_selection_span(
+        &mut self,
+        span: rowan::TextRange,
+        recv_tv: TypeVar,
+        result_tv: TypeVar,
+    ) {
         if let Some(span) = self.recorded_source_span(span) {
-            self.selection_spans.push((span, result_tv));
+            self.selection_spans.push((span, recv_tv, result_tv));
         }
     }
 

@@ -8,9 +8,9 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 use yulang_editor::semantic_tokens;
 use yulang_infer::simplify::compact::{compact_type_var, compact_type_vars_in_order};
 use yulang_infer::{
-    DefId, LowerState, Name as InferName, Path as InferPath, collect_compact_results_for_paths,
-    collect_surface_diagnostics, format_coalesced_scheme, lower_virtual_source_with_options,
-    surface_diagnostic::SurfaceDiagnostic,
+    DefId, LowerState, Name as InferName, Path as InferPath, TypeVar,
+    collect_compact_results_for_paths, collect_surface_diagnostics, format_coalesced_scheme,
+    lower_virtual_source_with_options, surface_diagnostic::SurfaceDiagnostic,
 };
 use yulang_parser::lex::SyntaxKind;
 use yulang_parser::sink::YulangLanguage;
@@ -273,6 +273,10 @@ fn hover_type_from_lower_state(
         return None;
     }
 
+    if let Some((recv_tv, result_tv)) = resolve_hover_target_selection_tvs(state, target) {
+        return hover_type_for_selection(state, &target.name, recv_tv, result_tv);
+    }
+
     if let Some(def) = resolve_hover_target_source_def(state, target) {
         return hover_type_for_def(state, def);
     }
@@ -282,6 +286,19 @@ fn hover_type_from_lower_state(
     }
 
     None
+}
+
+fn resolve_hover_target_selection_tvs(
+    state: &LowerState,
+    target: &HoverTarget,
+) -> Option<(TypeVar, TypeVar)> {
+    state
+        .selection_spans
+        .iter()
+        .rev()
+        .find_map(|(span, recv_tv, result_tv)| {
+            span_contains_range(*span, target.syntax_range).then_some((*recv_tv, *result_tv))
+        })
 }
 
 fn resolve_hover_target_source_def(state: &LowerState, target: &HoverTarget) -> Option<DefId> {
@@ -294,13 +311,6 @@ fn resolve_hover_target_source_def(state: &LowerState, target: &HoverTarget) -> 
             state.ref_spans.iter().find_map(|(ref_id, span)| {
                 span_contains_range(*span, target.syntax_range)
                     .then(|| state.ctx.refs.get(*ref_id))
-                    .flatten()
-            })
-        })
-        .or_else(|| {
-            state.selection_spans.iter().rev().find_map(|(span, tv)| {
-                span_contains_range(*span, target.syntax_range)
-                    .then(|| state.resolved_selection_def(*tv))
                     .flatten()
             })
         })
@@ -349,6 +359,33 @@ fn hover_type_for_def(state: &mut LowerState, def: DefId) -> Option<(String, Str
     let name = state.def_name(def)?.0.clone();
     let scheme = compact_hover_scheme(state, def)?;
     Some((name, format_coalesced_scheme(&scheme)))
+}
+
+fn hover_type_for_selection(
+    state: &mut LowerState,
+    name: &str,
+    recv_tv: TypeVar,
+    result_tv: TypeVar,
+) -> Option<(String, String)> {
+    state.finalize_compact_results();
+    let direct = compact_type_var(&state.infer, result_tv);
+    let scheme = if compact_scheme_has_union_surface(&direct) {
+        let mut source_defs = state.def_spans.keys().copied().collect::<Vec<_>>();
+        source_defs.sort_by_key(|def| def.0);
+        let mut roots = source_defs
+            .into_iter()
+            .filter_map(|def| state.def_tvs.get(&def).copied())
+            .collect::<Vec<_>>();
+        roots.push(recv_tv);
+        roots.push(result_tv);
+        compact_type_vars_in_order(&state.infer, &roots)
+            .into_iter()
+            .last()
+            .unwrap_or(direct)
+    } else {
+        direct
+    };
+    Some((name.to_string(), format_coalesced_scheme(&scheme)))
 }
 
 fn compact_hover_scheme(
@@ -1233,7 +1270,9 @@ mod tests {
             panic!("hover should use markdown");
         };
         assert!(content.value.contains("once:"));
-        assert!(content.value.contains("std::undet::undet"));
+        assert!(content.value.contains("std::opt::opt"));
+        assert!(!content.value.contains("α & β"));
+        assert!(!content.value.contains("-> ["));
     }
 
     #[test]
