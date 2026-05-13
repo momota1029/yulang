@@ -925,6 +925,7 @@ fn function_has_effect_flow(function: &CpsReprAbiFunction) -> bool {
                             // (the thunk body) that the scalar path cannot
                             // discover from a single Cranelift block.
                             | CpsStmt::MakeThunk { .. }
+                            | CpsStmt::AddThunkBoundary { .. }
                             | CpsStmt::ForceThunk { .. }
                     )
                 })
@@ -1088,6 +1089,7 @@ fn capture_handler_envs_for_stmt<M: Module>(
     if !matches!(
         stmt,
         CpsStmt::MakeThunk { .. }
+            | CpsStmt::AddThunkBoundary { .. }
             | CpsStmt::MakeClosure { .. }
             | CpsStmt::MakeRecursiveClosure { .. }
             | CpsStmt::ForceThunk { .. }
@@ -1183,6 +1185,10 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
         }
         CpsStmt::MakeThunk { dest, entry } => {
             let value = make_thunk(module_backend, builder, function, *entry, functions)?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::AddThunkBoundary { dest, thunk, .. } => {
+            let value = read_value(builder, function, *thunk)?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::MakeClosure { dest, entry } => {
@@ -1471,6 +1477,7 @@ fn stmt_dest(stmt: &CpsStmt) -> Option<CpsValueId> {
         | CpsStmt::ApplyClosure { dest, .. }
         | CpsStmt::CloneContinuation { dest, .. }
         | CpsStmt::MakeThunk { dest, .. }
+        | CpsStmt::AddThunkBoundary { dest, .. }
         | CpsStmt::MakeClosure { dest, .. }
         | CpsStmt::MakeRecursiveClosure { dest, .. }
         | CpsStmt::ForceThunk { dest, .. }
@@ -2764,6 +2771,10 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let value = make_thunk(module_backend, builder, function, *entry, functions)?;
             builder.def_var(variable(*dest), value);
         }
+        CpsStmt::AddThunkBoundary { dest, thunk, .. } => {
+            let value = read_value(builder, function, *thunk)?;
+            builder.def_var(variable(*dest), value);
+        }
         CpsStmt::MakeClosure { dest, entry } => {
             let value = make_closure(module_backend, builder, function, *entry, functions)?;
             builder.def_var(variable(*dest), value);
@@ -3216,6 +3227,7 @@ fn validate_scalar_function(
                 | CpsStmt::PeekGuard { .. }
                 | CpsStmt::FindGuard { .. } => {}
                 CpsStmt::MakeThunk { .. }
+                | CpsStmt::AddThunkBoundary { .. }
                 | CpsStmt::MakeClosure { .. }
                 | CpsStmt::MakeRecursiveClosure { .. }
                 | CpsStmt::ForceThunk { .. } => {}
@@ -3419,6 +3431,7 @@ fn function_value_ids(function: &CpsReprAbiFunction) -> Vec<CpsValueId> {
                 | CpsStmt::PeekGuard { dest }
                 | CpsStmt::FindGuard { dest, .. }
                 | CpsStmt::MakeThunk { dest, .. }
+                | CpsStmt::AddThunkBoundary { dest, .. }
                 | CpsStmt::MakeClosure { dest, .. }
                 | CpsStmt::MakeRecursiveClosure { dest, .. }
                 | CpsStmt::ForceThunk { dest, .. }

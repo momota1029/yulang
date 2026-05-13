@@ -741,7 +741,9 @@ fn analyze_function_abi_lanes(
                     CpsStmt::FreshGuard { .. }
                     | CpsStmt::PeekGuard { .. }
                     | CpsStmt::FindGuard { .. } => CpsReprAbiLane::ScalarI64,
-                    CpsStmt::MakeThunk { .. } => CpsReprAbiLane::ThunkPtr,
+                    CpsStmt::MakeThunk { .. } | CpsStmt::AddThunkBoundary { .. } => {
+                        CpsReprAbiLane::ThunkPtr
+                    }
                     CpsStmt::MakeClosure { .. } | CpsStmt::MakeRecursiveClosure { .. } => {
                         CpsReprAbiLane::ThunkPtr
                     }
@@ -912,6 +914,7 @@ fn analyze_function_values(function: &CpsReprFunction) -> CpsReprFunctionValueAn
                     | CpsStmt::PeekGuard { .. }
                     | CpsStmt::FindGuard { .. }
                     | CpsStmt::MakeThunk { .. }
+                    | CpsStmt::AddThunkBoundary { .. }
                     | CpsStmt::MakeClosure { .. }
                     | CpsStmt::MakeRecursiveClosure { .. }
                     | CpsStmt::Tuple { .. }
@@ -1259,6 +1262,92 @@ fn values_with_handler_env(
     values
 }
 
+fn add_thunk_boundary_repr(
+    value: CpsReprRuntimeValue,
+    guard_id: u64,
+    allowed: typed_ir::Type,
+    active: bool,
+) -> CpsReprRuntimeValue {
+    let CpsReprRuntimeValue::Thunk(mut thunk) = value else {
+        return value;
+    };
+    thunk.blocked.push(CpsReprBlockedEffect {
+        guard_id,
+        allowed,
+        active,
+    });
+    CpsReprRuntimeValue::Thunk(thunk)
+}
+
+fn active_blocked_for_thunk_repr(
+    current: &[CpsReprBlockedEffect],
+    thunk: &CpsReprThunk,
+) -> Vec<CpsReprBlockedEffect> {
+    let mut active = current.to_vec();
+    active.extend(
+        thunk
+            .blocked
+            .iter()
+            .filter(|blocked| blocked.active)
+            .cloned(),
+    );
+    active
+}
+
+fn active_blocked_id_repr(effect: &typed_ir::Path, active: &[CpsReprBlockedEffect]) -> Option<u64> {
+    active
+        .iter()
+        .rev()
+        .find(|blocked| !effect_allowed_by_type_repr(&blocked.allowed, effect))
+        .map(|blocked| blocked.guard_id)
+}
+
+fn effect_allowed_by_type_repr(allowed: &typed_ir::Type, effect: &typed_ir::Path) -> bool {
+    match allowed {
+        typed_ir::Type::Any => true,
+        typed_ir::Type::Never => false,
+        typed_ir::Type::Named { path, .. } => effect_path_matches_allowed_repr(path, effect),
+        typed_ir::Type::Row { items, tail } => {
+            items
+                .iter()
+                .any(|item| effect_allowed_by_type_repr(item, effect))
+                || matches!(tail.as_ref(), typed_ir::Type::Any)
+        }
+        _ => false,
+    }
+}
+
+fn effect_path_matches_allowed_repr(allowed: &typed_ir::Path, effect: &typed_ir::Path) -> bool {
+    if effect.segments.starts_with(&allowed.segments) {
+        return true;
+    }
+    if allowed.segments.len() > 1
+        && effect.segments.len() == allowed.segments.len()
+        && effect.segments[..effect.segments.len() - 1]
+            == allowed.segments[..allowed.segments.len() - 1]
+        && effect_segment_matches_allowed_repr(
+            &allowed.segments[allowed.segments.len() - 1],
+            &effect.segments[effect.segments.len() - 1],
+        )
+    {
+        return true;
+    }
+    effect
+        .segments
+        .iter()
+        .enumerate()
+        .skip(1)
+        .any(|(index, _)| effect.segments[index..].starts_with(&allowed.segments))
+}
+
+fn effect_segment_matches_allowed_repr(allowed: &typed_ir::Name, effect: &typed_ir::Name) -> bool {
+    allowed == effect
+        || effect
+            .0
+            .strip_suffix("#effect")
+            .is_some_and(|base| base == allowed.0)
+}
+
 fn effect_matches(expected: &typed_ir::Path, actual: &typed_ir::Path) -> bool {
     actual == expected
         || (!expected.segments.is_empty()
@@ -1299,6 +1388,7 @@ fn stmt_dest(stmt: &CpsStmt) -> Option<CpsValueId> {
         | CpsStmt::PeekGuard { dest }
         | CpsStmt::FindGuard { dest, .. }
         | CpsStmt::MakeThunk { dest, .. }
+        | CpsStmt::AddThunkBoundary { dest, .. }
         | CpsStmt::MakeClosure { dest, .. }
         | CpsStmt::MakeRecursiveClosure { dest, .. }
         | CpsStmt::ForceThunk { dest, .. }
@@ -1359,6 +1449,7 @@ fn eval_function(
         Vec::new(),
         Vec::new(),
         Vec::new(),
+        Vec::new(),
         0,
     )
 }
@@ -1370,6 +1461,7 @@ fn eval_function_with_context(
     active_handlers: Vec<CpsReprHandlerFrame>,
     guard_stack: Vec<CpsReprGuardEntry>,
     return_frames: Vec<CpsReprReturnFrame>,
+    active_blocked: Vec<CpsReprBlockedEffect>,
     initial_frame_count: usize,
 ) -> CpsReprEvalResult<CpsReprRuntimeValue> {
     if function.params.len() != args.len() {
@@ -1388,6 +1480,7 @@ fn eval_function_with_context(
         active_handlers,
         guard_stack,
         return_frames,
+        active_blocked,
         initial_frame_count,
     )
 }
@@ -1404,6 +1497,7 @@ fn eval_continuations(
     active_handlers: Vec<CpsReprHandlerFrame>,
     guard_stack: Vec<CpsReprGuardEntry>,
     return_frames: Vec<CpsReprReturnFrame>,
+    active_blocked: Vec<CpsReprBlockedEffect>,
     initial_frame_count: usize,
 ) -> CpsReprEvalResult<CpsReprRuntimeValue> {
     let current_eval_id = fresh_repr_eval_id();
@@ -1416,6 +1510,7 @@ fn eval_continuations(
         into_inherited_repr(active_handlers),
         guard_stack,
         return_frames,
+        active_blocked,
         initial_frame_count,
         current_eval_id,
     )
@@ -1499,6 +1594,7 @@ fn resume_continuation(
     active_handlers: Vec<CpsReprHandlerFrame>,
     guard_stack: Vec<CpsReprGuardEntry>,
     return_frames: Vec<CpsReprReturnFrame>,
+    active_blocked: Vec<CpsReprBlockedEffect>,
     initial_frame_count: usize,
     current_eval_id: CpsReprEvalId,
 ) -> CpsReprEvalResult<CpsReprRuntimeValue> {
@@ -1506,6 +1602,7 @@ fn resume_continuation(
     let mut guard_stack = guard_stack;
     let mut active_handlers = active_handlers;
     let mut return_frames = return_frames;
+    let active_blocked = active_blocked;
     let mut next_guard_id = guard_stack
         .iter()
         .map(|entry| entry.id)
@@ -1613,8 +1710,25 @@ fn resume_continuation(
                             values: values.clone(),
                             handlers: active_handlers.clone(),
                             guard_stack: guard_stack.clone(),
+                            blocked: Vec::new(),
                         }),
                     );
+                }
+                CpsStmt::AddThunkBoundary {
+                    dest,
+                    thunk,
+                    guard,
+                    allowed,
+                    active,
+                } => {
+                    let guard = read_effect_id(function, &values, *guard)?;
+                    let value = add_thunk_boundary_repr(
+                        read_value(function, &values, *thunk)?,
+                        guard,
+                        allowed.clone(),
+                        *active,
+                    );
+                    values.insert(*dest, value);
                 }
                 CpsStmt::MakeClosure { dest, entry } => {
                     values.insert(
@@ -1649,12 +1763,12 @@ fn resume_continuation(
                                 let handlers = if !active_handlers.is_empty() {
                                     active_handlers.clone()
                                 } else {
-                                    thunk.handlers
+                                    thunk.handlers.clone()
                                 };
                                 let guards = if !guard_stack.is_empty() {
                                     guard_stack.clone()
                                 } else {
-                                    thunk.guard_stack
+                                    thunk.guard_stack.clone()
                                 };
                                 let owner = function_by_name_repr(module, &thunk.owner_function)?;
                                 let inherited = return_frames.len();
@@ -1663,10 +1777,11 @@ fn resume_continuation(
                                     owner,
                                     thunk.entry,
                                     Vec::new(),
-                                    thunk.values,
+                                    thunk.values.clone(),
                                     handlers,
                                     guards,
                                     return_frames.clone(),
+                                    active_blocked_for_thunk_repr(&active_blocked, &thunk),
                                     inherited,
                                 )?;
                                 if matches!(result, CpsReprRuntimeValue::ScopeReturn { .. }) {
@@ -1836,6 +1951,7 @@ fn resume_continuation(
                         active_handlers.clone(),
                         guard_stack.clone(),
                         return_frames.clone(),
+                        active_blocked.clone(),
                         inherited,
                     )?;
                     if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
@@ -1862,6 +1978,7 @@ fn resume_continuation(
                         active_handlers.clone(),
                         guard_stack.clone(),
                         return_frames.clone(),
+                        active_blocked.clone(),
                         inherited,
                     )?;
                     if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
@@ -1901,6 +2018,7 @@ fn resume_continuation(
                         resumed_handlers,
                         resumption.guard_stack.clone(),
                         adjusted_frames,
+                        resumption.active_blocked.clone(),
                         0,
                     )?;
                     if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
@@ -1954,6 +2072,7 @@ fn resume_continuation(
                         inner_handlers,
                         resumption.guard_stack.clone(),
                         resumption.return_frames.clone(),
+                        resumption.active_blocked.clone(),
                         0,
                     )?;
                     if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
@@ -1995,6 +2114,7 @@ fn resume_continuation(
                             top_frame.active_handlers.clone(),
                             top_frame.guard_stack.clone(),
                             return_frames.clone(),
+                            top_frame.active_blocked.clone(),
                             return_frames.len(),
                             top_frame.owner_eval_id,
                         );
@@ -2031,7 +2151,8 @@ fn resume_continuation(
                 let payload = read_plain_value(function, &values, *payload)?;
                 let blocked = blocked
                     .map(|blocked| read_effect_id(function, &values, blocked))
-                    .transpose()?;
+                    .transpose()?
+                    .or_else(|| active_blocked_id_repr(effect, &active_blocked));
                 let handler_stack =
                     handler_stack_with_static(&active_handlers, *handler, &guard_stack);
                 let (handler_arm, frame, handler_body_stack, handler_owner) =
@@ -2062,6 +2183,7 @@ fn resume_continuation(
                     values: values.clone(),
                     handlers: handler_stack.clone(),
                     guard_stack: guard_stack.clone(),
+                    active_blocked: active_blocked.clone(),
                     return_frames: return_frames.clone(),
                     handled_anchor,
                 });
@@ -2074,6 +2196,7 @@ fn resume_continuation(
                     handler_body_stack,
                     guard_stack.clone(),
                     Vec::new(),
+                    active_blocked.clone(),
                     0,
                 )?;
                 if !frame_in_active {
@@ -2156,6 +2279,7 @@ fn resume_continuation(
                     values: Rc::new(values.clone()),
                     active_handlers: active_handlers.clone(),
                     guard_stack: guard_stack.clone(),
+                    active_blocked: active_blocked.clone(),
                     owner_initial_frame_count: initial_frame_count,
                     owner_eval_id: current_eval_id,
                 };
@@ -2168,6 +2292,7 @@ fn resume_continuation(
                     active_handlers.clone(),
                     guard_stack.clone(),
                     new_frames,
+                    active_blocked.clone(),
                     pre_push_count,
                 );
             }
@@ -2182,6 +2307,7 @@ fn resume_continuation(
                             values: Rc::new(values.clone()),
                             active_handlers: active_handlers.clone(),
                             guard_stack: guard_stack.clone(),
+                            active_blocked: active_blocked.clone(),
                             owner_initial_frame_count: initial_frame_count,
                             owner_eval_id: current_eval_id,
                         };
@@ -2207,6 +2333,7 @@ fn resume_continuation(
                             handlers,
                             guards,
                             new_frames,
+                            active_blocked_for_thunk_repr(&active_blocked, &thunk),
                             pre_push_count,
                         );
                     }
@@ -2230,6 +2357,7 @@ fn resume_continuation(
                     values: Rc::new(values.clone()),
                     active_handlers: active_handlers.clone(),
                     guard_stack: guard_stack.clone(),
+                    active_blocked: active_blocked.clone(),
                     owner_initial_frame_count: initial_frame_count,
                     owner_eval_id: current_eval_id,
                 };
@@ -2253,6 +2381,7 @@ fn resume_continuation(
                             active_handlers.clone(),
                             guard_stack.clone(),
                             new_frames,
+                            active_blocked.clone(),
                             pre_push_count,
                         );
                     }
@@ -2281,6 +2410,7 @@ fn resume_continuation(
                             resumed_handlers,
                             resumption.guard_stack.clone(),
                             combined_frames,
+                            resumption.active_blocked.clone(),
                             0,
                         );
                     }
@@ -2399,6 +2529,7 @@ fn continue_return_frames_repr(
         combined,
         frame.guard_stack.clone(),
         rest.to_vec(),
+        frame.active_blocked.clone(),
         owner_initial,
         frame.owner_eval_id,
     )
@@ -2480,6 +2611,7 @@ fn try_route_scope_return_through_return_frames_repr(
             post_handlers,
             frame.guard_stack.clone(),
             rest_frames,
+            frame.active_blocked.clone(),
             owner_initial,
             frame.owner_eval_id,
         )?;
@@ -2681,6 +2813,7 @@ struct CpsReprResumption {
     values: HashMap<CpsValueId, CpsReprRuntimeValue>,
     handlers: Vec<CpsReprHandlerFrame>,
     guard_stack: Vec<CpsReprGuardEntry>,
+    active_blocked: Vec<CpsReprBlockedEffect>,
     /// write26: stack of suspended caller continuations captured at
     /// `Perform` time. Mirrors `CpsResumption::return_frames`.
     return_frames: Vec<CpsReprReturnFrame>,
@@ -2696,6 +2829,14 @@ struct CpsReprThunk {
     values: HashMap<CpsValueId, CpsReprRuntimeValue>,
     handlers: Vec<CpsReprHandlerFrame>,
     guard_stack: Vec<CpsReprGuardEntry>,
+    blocked: Vec<CpsReprBlockedEffect>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsReprBlockedEffect {
+    guard_id: u64,
+    allowed: typed_ir::Type,
+    active: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2737,6 +2878,7 @@ struct CpsReprReturnFrame {
     values: Rc<HashMap<CpsValueId, CpsReprRuntimeValue>>,
     active_handlers: Vec<CpsReprHandlerFrame>,
     guard_stack: Vec<CpsReprGuardEntry>,
+    active_blocked: Vec<CpsReprBlockedEffect>,
     owner_initial_frame_count: usize,
     owner_eval_id: CpsReprEvalId,
 }

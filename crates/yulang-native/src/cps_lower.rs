@@ -1480,7 +1480,24 @@ impl<'a> FunctionLowerer<'a> {
                     .push(CpsStmt::FreshGuard { dest, var: *id });
                 self.lower_expr(body)
             }
-            runtime::ExprKind::AddId { thunk, .. } => self.lower_expr(thunk),
+            runtime::ExprKind::AddId {
+                id,
+                allowed,
+                active,
+                thunk,
+            } => {
+                let thunk = self.lower_expr(thunk)?;
+                let guard = self.lower_effect_id_ref(*id)?;
+                let dest = self.fresh_value();
+                self.current.stmts.push(CpsStmt::AddThunkBoundary {
+                    dest,
+                    thunk,
+                    guard,
+                    allowed: allowed.clone(),
+                    active: *active,
+                });
+                Ok(dest)
+            }
             runtime::ExprKind::Coerce { expr, .. } | runtime::ExprKind::Pack { expr, .. } => {
                 self.lower_expr(expr)
             }
@@ -5045,20 +5062,43 @@ fn effect_path_matches_allowed(allowed: &typed_ir::Path, effect: &typed_ir::Path
     if effect.segments.starts_with(&allowed.segments) {
         return true;
     }
-    allowed.segments.split_last().is_some_and(|(_, namespace)| {
-        !namespace.is_empty() && effect.segments.starts_with(namespace)
-    })
+    if allowed.segments.len() > 1
+        && effect.segments.len() == allowed.segments.len()
+        && effect.segments[..effect.segments.len() - 1]
+            == allowed.segments[..allowed.segments.len() - 1]
+        && effect_segment_matches_allowed(
+            &allowed.segments[allowed.segments.len() - 1],
+            &effect.segments[effect.segments.len() - 1],
+        )
+    {
+        return true;
+    }
+    effect
+        .segments
+        .iter()
+        .enumerate()
+        .skip(1)
+        .any(|(index, _)| effect.segments[index..].starts_with(&allowed.segments))
+}
+
+fn effect_segment_matches_allowed(allowed: &typed_ir::Name, effect: &typed_ir::Name) -> bool {
+    allowed == effect
+        || effect
+            .0
+            .strip_suffix("#effect")
+            .is_some_and(|base| base == allowed.0)
 }
 
 fn handle_body_execution_inner(expr: &runtime::Expr) -> Option<&runtime::Expr> {
     // VM handle evaluation runs a thunk-valued body inside the handler boundary.
-    // Treat only the whole BindHere* -> AddId* -> Thunk wrapper as that
-    // execution marker.
+    // Treat only the whole BindHere* -> Thunk wrapper as that execution
+    // marker. AddId is a real effect boundary; stripping it here would hide
+    // the guard from effect_apply_nested and let local handlers recapture a
+    // callback effect.
     let mut current = expr;
     loop {
         match &current.kind {
             runtime::ExprKind::BindHere { expr }
-            | runtime::ExprKind::AddId { thunk: expr, .. }
             | runtime::ExprKind::Coerce { expr, .. }
             | runtime::ExprKind::Pack { expr, .. } => current = expr,
             _ => break,
@@ -5255,6 +5295,7 @@ fn path_name(path: &typed_ir::Path) -> String {
 #[cfg(test)]
 mod tests {
     use crate::cps_eval::eval_cps_module;
+    use crate::cps_repr::{eval_cps_repr_module, lower_cps_repr_module};
     use crate::cps_validate::validate_cps_module;
 
     use super::*;
@@ -5511,10 +5552,20 @@ mod tests {
         allowed: typed_ir::Type,
         thunk: runtime::Expr,
     ) -> runtime::Expr {
+        add_id_with_active(id, allowed, false, thunk)
+    }
+
+    fn add_id_with_active(
+        id: runtime::EffectIdRef,
+        allowed: typed_ir::Type,
+        active: bool,
+        thunk: runtime::Expr,
+    ) -> runtime::Expr {
         runtime::Expr::typed(
             runtime::ExprKind::AddId {
                 id,
                 allowed,
+                active,
                 thunk: Box::new(thunk),
             },
             runtime::Type::unknown(),
@@ -5667,6 +5718,86 @@ mod tests {
     }
 
     #[test]
+    fn active_add_id_blocks_inner_handler_during_thunk_force() {
+        let perform = apply(
+            effect_op("choose"),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+        );
+        let guarded_thunk = add_id_with_active(
+            runtime::EffectIdRef::Peek,
+            typed_ir::Type::Never,
+            true,
+            thunk(perform),
+        );
+        let inner = handle_once(
+            "choose",
+            "_x",
+            "_k",
+            bind_here(guarded_thunk),
+            unknown_lit(typed_ir::Lit::Int("10".to_string())),
+        );
+        let body = local_push_id(0, inner);
+        let root = handle_once(
+            "choose",
+            "_x",
+            "_k",
+            body,
+            unknown_lit(typed_ir::Lit::Int("20".to_string())),
+        );
+        let lowered = lower_cps_module(&module_with_root(root)).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert!(matches!(
+            eval_cps_module(&lowered),
+            Err(crate::cps_eval::CpsEvalError::MissingHandler { .. })
+        ));
+        assert!(eval_cps_repr_module(&lower_cps_repr_module(&lowered)).is_err());
+    }
+
+    #[test]
+    fn active_add_id_allows_matching_effect_for_inner_handler() {
+        let perform = apply(
+            effect_op("choose"),
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+        );
+        let guarded_thunk = add_id_with_active(
+            runtime::EffectIdRef::Peek,
+            typed_ir::Type::Named {
+                path: typed_ir::Path::from_name(typed_ir::Name("choose".to_string())),
+                args: Vec::new(),
+            },
+            true,
+            thunk(perform),
+        );
+        let inner = handle_once(
+            "choose",
+            "_x",
+            "_k",
+            bind_here(guarded_thunk),
+            unknown_lit(typed_ir::Lit::Int("10".to_string())),
+        );
+        let body = local_push_id(0, inner);
+        let root = handle_once(
+            "choose",
+            "_x",
+            "_k",
+            body,
+            unknown_lit(typed_ir::Lit::Int("20".to_string())),
+        );
+        let lowered = lower_cps_module(&module_with_root(root)).expect("lowered");
+
+        validate_cps_module(&lowered).expect("valid CPS");
+        assert_eq!(
+            eval_cps_module(&lowered).expect("evaluated"),
+            vec![runtime::VmValue::Int("10".to_string())]
+        );
+        assert_eq!(
+            eval_cps_repr_module(&lower_cps_repr_module(&lowered)).expect("repr evaluated"),
+            vec![runtime::VmValue::Int("10".to_string())]
+        );
+    }
+
+    #[test]
     fn skips_unreachable_non_function_binding() {
         let module = runtime::Module {
             path: typed_ir::Path::default(),
@@ -5793,25 +5924,32 @@ mod tests {
                     dest: CpsValueId(0),
                     literal: CpsLiteral::Int("41".to_string()),
                 },
-                CpsStmt::DirectCall {
+                // Unknown parameter expectations are forced before direct
+                // calls. ForceThunk is a no-op for plain values and keeps
+                // thunk-producing helpers on the same path.
+                CpsStmt::ForceThunk {
                     dest: CpsValueId(1),
+                    thunk: CpsValueId(0),
+                },
+                CpsStmt::DirectCall {
+                    dest: CpsValueId(2),
                     target: "inc".to_string(),
-                    args: vec![CpsValueId(0)],
+                    args: vec![CpsValueId(1)],
                 },
                 // force_if_non_thunk_demand always emits a ForceThunk after
                 // a direct call whose static result type is non-Thunk; it's
                 // a runtime no-op on plain values but covers callees that
                 // wrap their result in MakeThunk (e.g. effectful helpers).
                 CpsStmt::ForceThunk {
-                    dest: CpsValueId(2),
-                    thunk: CpsValueId(1),
+                    dest: CpsValueId(3),
+                    thunk: CpsValueId(2),
                 },
                 // lower_root also forces the final return value when the
                 // root expression's type is non-Thunk, so the body's already-
                 // forced direct-call result gets one more (no-op) force.
                 CpsStmt::ForceThunk {
-                    dest: CpsValueId(3),
-                    thunk: CpsValueId(2),
+                    dest: CpsValueId(4),
+                    thunk: CpsValueId(3),
                 },
             ]
         );

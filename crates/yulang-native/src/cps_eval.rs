@@ -462,6 +462,7 @@ fn eval_function(
         Vec::new(),
         Vec::new(),
         Vec::new(),
+        Vec::new(),
         0,
     )
 }
@@ -473,6 +474,7 @@ fn eval_function_with_context(
     active_handlers: Vec<CpsHandlerFrame>,
     guard_stack: Vec<CpsGuardEntry>,
     return_frames: Vec<CpsReturnFrame>,
+    active_blocked: Vec<CpsBlockedEffect>,
     initial_frame_count: usize,
 ) -> CpsEvalResult<CpsRuntimeValue> {
     if function.params.len() != args.len() {
@@ -493,6 +495,7 @@ fn eval_function_with_context(
         active_handlers,
         guard_stack,
         return_frames,
+        active_blocked,
         initial_frame_count,
     )
 }
@@ -511,6 +514,7 @@ fn eval_continuations(
     active_handlers: Vec<CpsHandlerFrame>,
     guard_stack: Vec<CpsGuardEntry>,
     return_frames: Vec<CpsReturnFrame>,
+    active_blocked: Vec<CpsBlockedEffect>,
     initial_frame_count: usize,
 ) -> CpsEvalResult<CpsRuntimeValue> {
     let current_eval_id = fresh_eval_id();
@@ -523,6 +527,7 @@ fn eval_continuations(
         into_inherited(active_handlers),
         guard_stack,
         return_frames,
+        active_blocked,
         initial_frame_count,
         current_eval_id,
     )
@@ -543,6 +548,7 @@ fn resume_continuation(
     active_handlers: Vec<CpsHandlerFrame>,
     guard_stack: Vec<CpsGuardEntry>,
     return_frames: Vec<CpsReturnFrame>,
+    active_blocked: Vec<CpsBlockedEffect>,
     initial_frame_count: usize,
     current_eval_id: CpsEvalId,
 ) -> CpsEvalResult<CpsRuntimeValue> {
@@ -552,6 +558,7 @@ fn resume_continuation(
     let mut guard_stack = guard_stack;
     let mut active_handlers = active_handlers;
     let mut return_frames = return_frames;
+    let active_blocked = active_blocked;
     let initial_frame_count = initial_frame_count;
     let current_eval_id = current_eval_id;
     let mut next_guard_id = guard_stack
@@ -667,8 +674,25 @@ fn resume_continuation(
                             values: Rc::new(thunk_values),
                             handlers: Rc::new(active_handlers.clone()),
                             guard_stack: Rc::new(guard_stack.clone()),
+                            blocked: Rc::new(Vec::new()),
                         })),
                     );
+                }
+                CpsStmt::AddThunkBoundary {
+                    dest,
+                    thunk,
+                    guard,
+                    allowed,
+                    active,
+                } => {
+                    let guard = read_effect_id(function, &values, *guard)?;
+                    let value = add_thunk_boundary(
+                        read_value(function, &values, *thunk)?,
+                        guard,
+                        allowed.clone(),
+                        *active,
+                    );
+                    write_value(&mut values, *dest, value);
                 }
                 CpsStmt::MakeClosure { dest, entry } => {
                     let closure_values = values.clone();
@@ -733,6 +757,7 @@ fn resume_continuation(
                                     handlers,
                                     guards,
                                     return_frames.clone(),
+                                    active_blocked_for_thunk(&active_blocked, &thunk),
                                     inherited,
                                 )?;
                                 if matches!(result, CpsRuntimeValue::ScopeReturn { .. }) {
@@ -911,6 +936,7 @@ fn resume_continuation(
                         active_handlers.clone(),
                         guard_stack.clone(),
                         return_frames.clone(),
+                        active_blocked.clone(),
                         inherited,
                     )?;
                     dispatch_scope_return!('cont, result, dest);
@@ -965,6 +991,7 @@ fn resume_continuation(
                                 active_handlers.clone(),
                                 guard_stack.clone(),
                                 return_frames.clone(),
+                                active_blocked.clone(),
                                 inherited,
                             )?
                         }
@@ -1008,6 +1035,7 @@ fn resume_continuation(
                                 resumed_handlers,
                                 resumption.guard_stack.as_ref().clone(),
                                 adjusted_frames,
+                                resumption.active_blocked.as_ref().clone(),
                                 0,
                             )?
                         }
@@ -1066,6 +1094,7 @@ fn resume_continuation(
                         resumed_handlers,
                         resumption.guard_stack.as_ref().clone(),
                         adjusted_frames,
+                        resumption.active_blocked.as_ref().clone(),
                         0,
                     )?;
                     dispatch_scope_return!('cont, result, dest);
@@ -1188,6 +1217,7 @@ fn resume_continuation(
                         inner_handlers,
                         resumption.guard_stack.as_ref().clone(),
                         adjusted_frames,
+                        resumption.active_blocked.as_ref().clone(),
                         0,
                     )?;
                     dispatch_scope_return!('cont, result, dest);
@@ -1279,6 +1309,7 @@ fn resume_continuation(
                             top_frame.active_handlers.clone(),
                             top_frame.guard_stack.clone(),
                             return_frames.clone(),
+                            top_frame.active_blocked.clone(),
                             return_frames.len(),
                             top_frame.owner_eval_id,
                         );
@@ -1335,7 +1366,8 @@ fn resume_continuation(
                 let payload = read_plain_value(function, &values, *payload)?;
                 let blocked = blocked
                     .map(|blocked| read_effect_id(function, &values, blocked))
-                    .transpose()?;
+                    .transpose()?
+                    .or_else(|| active_blocked_id(effect, &active_blocked));
                 let handler_stack =
                     handler_stack_with_static(&active_handlers, *handler, &guard_stack);
                 let (handler_arm, frame, handler_body_stack, handler_owner) =
@@ -1384,6 +1416,7 @@ fn resume_continuation(
                     values: Rc::new(values.clone()),
                     handlers: Rc::new(handler_stack.clone()),
                     guard_stack: Rc::new(guard_stack.clone()),
+                    active_blocked: Rc::new(active_blocked.clone()),
                     return_frames: Rc::new(return_frames.clone()),
                     handled_anchor,
                 }));
@@ -1402,6 +1435,7 @@ fn resume_continuation(
                     handler_body_stack,
                     guard_stack.clone(),
                     Vec::new(),
+                    active_blocked.clone(),
                     0,
                 )?;
                 if !frame_in_active {
@@ -1492,6 +1526,7 @@ fn resume_continuation(
                     values: Rc::new(values.clone()),
                     active_handlers: active_handlers.clone(),
                     guard_stack: guard_stack.clone(),
+                    active_blocked: active_blocked.clone(),
                     owner_initial_frame_count: initial_frame_count,
                     owner_eval_id: current_eval_id,
                 };
@@ -1504,6 +1539,7 @@ fn resume_continuation(
                     active_handlers.clone(),
                     guard_stack.clone(),
                     new_frames,
+                    active_blocked.clone(),
                     pre_push_count,
                 );
             }
@@ -1521,6 +1557,7 @@ fn resume_continuation(
                             values: Rc::new(values.clone()),
                             active_handlers: active_handlers.clone(),
                             guard_stack: guard_stack.clone(),
+                            active_blocked: active_blocked.clone(),
                             owner_initial_frame_count: initial_frame_count,
                             owner_eval_id: current_eval_id,
                         };
@@ -1546,6 +1583,7 @@ fn resume_continuation(
                             handlers,
                             guards,
                             new_frames,
+                            active_blocked_for_thunk(&active_blocked, &thunk_rc),
                             pre_push_count,
                         );
                     }
@@ -1592,6 +1630,7 @@ fn resume_continuation(
                     values: Rc::new(values.clone()),
                     active_handlers: active_handlers.clone(),
                     guard_stack: guard_stack.clone(),
+                    active_blocked: active_blocked.clone(),
                     owner_initial_frame_count: initial_frame_count,
                     owner_eval_id: current_eval_id,
                 };
@@ -1618,6 +1657,7 @@ fn resume_continuation(
                             active_handlers.clone(),
                             guard_stack.clone(),
                             new_frames,
+                            active_blocked.clone(),
                             pre_push_count,
                         );
                     }
@@ -1671,6 +1711,7 @@ fn resume_continuation(
                             resumed_handlers,
                             resumption.guard_stack.as_ref().clone(),
                             combined_frames,
+                            resumption.active_blocked.as_ref().clone(),
                             0,
                         );
                     }
@@ -1750,6 +1791,7 @@ fn force_returned_thunk_before_frame_consumption(
             top_frame.active_handlers.clone(),
             top_frame.guard_stack.clone(),
             return_frames.clone(),
+            active_blocked_for_thunk(&top_frame.active_blocked, &thunk),
             initial_frame_count,
             // Restore the eval id of the would-be ForceThunk context so the
             // body's ScopeReturn resolves at the installer's eval.
@@ -2005,6 +2047,7 @@ fn continue_return_frames(
         combined,
         frame.guard_stack.clone(),
         rest.to_vec(),
+        frame.active_blocked.clone(),
         owner_initial,
         frame.owner_eval_id,
     )
@@ -2154,6 +2197,7 @@ fn try_route_scope_return_through_return_frames(
             post_handlers,
             frame.guard_stack.clone(),
             rest_frames,
+            frame.active_blocked.clone(),
             owner_initial,
             frame.owner_eval_id,
         )?;
@@ -2311,6 +2355,100 @@ fn values_with_handler_env(
         write_value(&mut values, *id, value.clone());
     }
     values
+}
+
+fn add_thunk_boundary(
+    value: CpsRuntimeValue,
+    guard_id: u64,
+    allowed: typed_ir::Type,
+    active: bool,
+) -> CpsRuntimeValue {
+    let CpsRuntimeValue::Thunk(thunk) = value else {
+        return value;
+    };
+    let mut blocked = thunk.blocked.as_ref().clone();
+    blocked.push(CpsBlockedEffect {
+        guard_id,
+        allowed,
+        active,
+    });
+    CpsRuntimeValue::Thunk(Rc::new(CpsThunk {
+        owner_function: thunk.owner_function.clone(),
+        entry: thunk.entry,
+        values: thunk.values.clone(),
+        handlers: thunk.handlers.clone(),
+        guard_stack: thunk.guard_stack.clone(),
+        blocked: Rc::new(blocked),
+    }))
+}
+
+fn active_blocked_for_thunk(
+    current: &[CpsBlockedEffect],
+    thunk: &CpsThunk,
+) -> Vec<CpsBlockedEffect> {
+    let mut active = current.to_vec();
+    active.extend(
+        thunk
+            .blocked
+            .iter()
+            .filter(|blocked| blocked.active)
+            .cloned(),
+    );
+    active
+}
+
+fn active_blocked_id(effect: &typed_ir::Path, active: &[CpsBlockedEffect]) -> Option<u64> {
+    active
+        .iter()
+        .rev()
+        .find(|blocked| !effect_allowed_by_type(&blocked.allowed, effect))
+        .map(|blocked| blocked.guard_id)
+}
+
+fn effect_allowed_by_type(allowed: &typed_ir::Type, effect: &typed_ir::Path) -> bool {
+    match allowed {
+        typed_ir::Type::Any => true,
+        typed_ir::Type::Never => false,
+        typed_ir::Type::Named { path, .. } => effect_path_matches_allowed(path, effect),
+        typed_ir::Type::Row { items, tail } => {
+            items
+                .iter()
+                .any(|item| effect_allowed_by_type(item, effect))
+                || matches!(tail.as_ref(), typed_ir::Type::Any)
+        }
+        _ => false,
+    }
+}
+
+fn effect_path_matches_allowed(allowed: &typed_ir::Path, effect: &typed_ir::Path) -> bool {
+    if effect.segments.starts_with(&allowed.segments) {
+        return true;
+    }
+    if allowed.segments.len() > 1
+        && effect.segments.len() == allowed.segments.len()
+        && effect.segments[..effect.segments.len() - 1]
+            == allowed.segments[..allowed.segments.len() - 1]
+        && effect_segment_matches_allowed(
+            &allowed.segments[allowed.segments.len() - 1],
+            &effect.segments[effect.segments.len() - 1],
+        )
+    {
+        return true;
+    }
+    effect
+        .segments
+        .iter()
+        .enumerate()
+        .skip(1)
+        .any(|(index, _)| effect.segments[index..].starts_with(&allowed.segments))
+}
+
+fn effect_segment_matches_allowed(allowed: &typed_ir::Name, effect: &typed_ir::Name) -> bool {
+    allowed == effect
+        || effect
+            .0
+            .strip_suffix("#effect")
+            .is_some_and(|base| base == allowed.0)
 }
 
 fn effect_matches(expected: &typed_ir::Path, actual: &typed_ir::Path) -> bool {
@@ -2525,6 +2663,7 @@ struct CpsResumption {
     values: Rc<Vec<Option<CpsRuntimeValue>>>,
     handlers: Rc<Vec<CpsHandlerFrame>>,
     guard_stack: Rc<Vec<CpsGuardEntry>>,
+    active_blocked: Rc<Vec<CpsBlockedEffect>>,
     /// Stack of return frames representing caller continuations that were
     /// suspended waiting for this resumption. When the resumption is resumed,
     /// its local continuation runs first; if it returns normally the frames
@@ -2553,6 +2692,7 @@ struct CpsReturnFrame {
     /// non-inherited) when the frame is re-entered via `continue_return_frames`.
     active_handlers: Vec<CpsHandlerFrame>,
     guard_stack: Vec<CpsGuardEntry>,
+    active_blocked: Vec<CpsBlockedEffect>,
     /// Threshold for the owner eval's `initial_frame_count` — i.e. how
     /// many of *its* return_frames were inherited from above when this
     /// frame was pushed. Restored when the owner is re-entered via
@@ -2574,6 +2714,14 @@ struct CpsThunk {
     values: Rc<Vec<Option<CpsRuntimeValue>>>,
     handlers: Rc<Vec<CpsHandlerFrame>>,
     guard_stack: Rc<Vec<CpsGuardEntry>>,
+    blocked: Rc<Vec<CpsBlockedEffect>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsBlockedEffect {
+    guard_id: u64,
+    allowed: typed_ir::Type,
+    active: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

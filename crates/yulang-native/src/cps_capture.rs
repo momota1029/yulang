@@ -117,6 +117,7 @@ fn stmt_def(stmt: &CpsStmt) -> Option<CpsValueId> {
         | CpsStmt::PeekGuard { dest }
         | CpsStmt::FindGuard { dest, .. }
         | CpsStmt::MakeThunk { dest, .. }
+        | CpsStmt::AddThunkBoundary { dest, .. }
         | CpsStmt::MakeClosure { dest, .. }
         | CpsStmt::MakeRecursiveClosure { dest, .. }
         | CpsStmt::ForceThunk { dest, .. }
@@ -160,6 +161,10 @@ fn continuation_uses(
                         .flatten()
                         .copied(),
                 );
+            }
+            CpsStmt::AddThunkBoundary { thunk, guard, .. } => {
+                uses.insert(*thunk);
+                uses.insert(*guard);
             }
             CpsStmt::MakeClosure { entry, .. } => {
                 uses.extend(

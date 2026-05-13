@@ -173,6 +173,12 @@ or out of here into the user-facing table once they stabilize.
       through globally numbered handler ids and the dynamic handler stack.
 - [x] CPS lowering carries `AddId` blocked guards into `Perform` in the
       CPS/CPS-repr interpreter paths.
+- [x] CPS/CPS-repr interpreters keep `AddId` effect boundaries on thunk
+      values, activate boundary guards during thunk force, and use those
+      guards while resolving `Perform`.
+- [ ] CPS repr Cranelift still treats `AddId` thunk-boundary wrappers as
+      transparent values; full runtime active-boundary dispatch is still
+      limited to the CPS/CPS-repr interpreter paths.
 - [x] Mutable reference edit/update runs through effect-aware CPS and the
       Cranelift CPS repr scalar path with VM comparison.
 - [x] A minimal `once`-style branch handler can resume the first branch from

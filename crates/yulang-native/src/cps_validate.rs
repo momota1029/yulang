@@ -149,6 +149,7 @@ fn function_defined_values(function: &CpsFunction) -> HashSet<CpsValueId> {
                 | CpsStmt::PeekGuard { dest }
                 | CpsStmt::FindGuard { dest, .. }
                 | CpsStmt::MakeThunk { dest, .. }
+                | CpsStmt::AddThunkBoundary { dest, .. }
                 | CpsStmt::MakeClosure { dest, .. }
                 | CpsStmt::MakeRecursiveClosure { dest, .. }
                 | CpsStmt::ForceThunk { dest, .. }
@@ -201,6 +202,13 @@ fn validate_continuation(
             }
             CpsStmt::MakeThunk { dest, entry } => {
                 require_continuation(function, continuation_ids, *entry)?;
+                values.insert(*dest);
+            }
+            CpsStmt::AddThunkBoundary {
+                dest, thunk, guard, ..
+            } => {
+                require_value(function, &values, *thunk)?;
+                require_value(function, &values, *guard)?;
                 values.insert(*dest);
             }
             CpsStmt::MakeClosure { dest, entry } => {

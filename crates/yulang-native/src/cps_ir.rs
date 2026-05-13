@@ -52,6 +52,13 @@ pub enum CpsStmt {
         dest: CpsValueId,
         entry: CpsContinuationId,
     },
+    AddThunkBoundary {
+        dest: CpsValueId,
+        thunk: CpsValueId,
+        guard: CpsValueId,
+        allowed: typed_ir::Type,
+        active: bool,
+    },
     MakeClosure {
         dest: CpsValueId,
         entry: CpsContinuationId,
