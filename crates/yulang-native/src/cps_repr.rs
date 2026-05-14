@@ -63,6 +63,7 @@ pub enum CpsReprAbiLane {
     ScalarI64,
     NativeFloat,
     RuntimeValuePtr,
+    ClosurePtr,
     ThunkPtr,
     ResumptionPtr,
     OpaqueI64,
@@ -748,7 +749,7 @@ fn analyze_function_abi_lanes(
                         CpsReprAbiLane::ThunkPtr
                     }
                     CpsStmt::MakeClosure { .. } | CpsStmt::MakeRecursiveClosure { .. } => {
-                        CpsReprAbiLane::ThunkPtr
+                        CpsReprAbiLane::ClosurePtr
                     }
                     CpsStmt::Tuple { .. }
                     | CpsStmt::Record { .. }

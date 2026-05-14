@@ -262,4 +262,47 @@ mod tests {
         );
         assert_eq!(handler_cont.return_lane, CpsReprAbiLane::ScalarI64);
     }
+
+    #[test]
+    fn lowers_closure_values_to_closure_pointer_lane() {
+        let repr = lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::MakeClosure {
+                            dest: CpsValueId(0),
+                            entry: CpsContinuationId(1),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(0)),
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(1)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(1)),
+                    },
+                ],
+            }],
+        });
+
+        let abi = lower_cps_repr_abi_module(&repr);
+        let root_cont = abi.roots[0]
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == CpsContinuationId(0))
+            .expect("root continuation");
+
+        assert_eq!(root_cont.return_lane, CpsReprAbiLane::ClosurePtr);
+    }
 }

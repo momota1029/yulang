@@ -45,6 +45,8 @@ Cranelift backend を作る。
   pointer を保持する regression を追加済み。
 - CPS repr closure / continuation env は 4 slot 固定 helper から外れ、
   `*_many(ptr, len)` helper で larger effect-flow closure env を運べる。
+- CPS repr ABI lane に `ClosurePtr` を追加し、closure pointer と
+  `RuntimeValuePtr` / `ThunkPtr` の境界を明示した。
 
 近い形:
 

@@ -99,7 +99,7 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 ### 3. CPS Closure / Partial Application
 
 - [x] CPS repr closure env slot limit を現在の small fixed helper から広げる。
-- [ ] closure pointer と runtime value pointer の境界を明示する。
+- [x] closure pointer と runtime value pointer の境界を明示する。
 - [ ] top-level partial application wrapper と CPS closure creation を揃える。
 - [ ] higher-order std functions を CPS repr path で VM と比較する。
 

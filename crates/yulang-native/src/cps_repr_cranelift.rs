@@ -3428,6 +3428,7 @@ fn validate_scalar_function(
             && continuation.id == function.entry
             && return_lane != CpsReprAbiLane::ScalarI64
             && return_lane != CpsReprAbiLane::RuntimeValuePtr
+            && return_lane != CpsReprAbiLane::ClosurePtr
             && return_lane != CpsReprAbiLane::ThunkPtr
             && return_lane != CpsReprAbiLane::OpaqueI64
         {
@@ -3442,6 +3443,7 @@ fn validate_scalar_function(
                 CpsReprAbiLane::NativeFloat
                     if !has_effect_flow && !continuation_has_internal_call(continuation) => {}
                 CpsReprAbiLane::RuntimeValuePtr
+                | CpsReprAbiLane::ClosurePtr
                 | CpsReprAbiLane::ThunkPtr
                 | CpsReprAbiLane::ResumptionPtr
                 | CpsReprAbiLane::OpaqueI64
@@ -3480,6 +3482,7 @@ fn validate_value_lane(
         CpsReprAbiLane::ScalarI64
         | CpsReprAbiLane::NativeFloat
         | CpsReprAbiLane::RuntimeValuePtr
+        | CpsReprAbiLane::ClosurePtr
         | CpsReprAbiLane::ThunkPtr
         | CpsReprAbiLane::ResumptionPtr
         | CpsReprAbiLane::OpaqueI64
@@ -3500,6 +3503,7 @@ fn validate_environment_lane(
     match lane {
         CpsReprAbiLane::ScalarI64
         | CpsReprAbiLane::RuntimeValuePtr
+        | CpsReprAbiLane::ClosurePtr
         | CpsReprAbiLane::ThunkPtr
         | CpsReprAbiLane::ResumptionPtr
         | CpsReprAbiLane::OpaqueI64
@@ -3690,6 +3694,7 @@ fn lane_type(lane: CpsReprAbiLane) -> ir::Type {
         CpsReprAbiLane::NativeFloat => types::F64,
         CpsReprAbiLane::ScalarI64
         | CpsReprAbiLane::RuntimeValuePtr
+        | CpsReprAbiLane::ClosurePtr
         | CpsReprAbiLane::ThunkPtr
         | CpsReprAbiLane::ResumptionPtr
         | CpsReprAbiLane::OpaqueI64
@@ -3899,9 +3904,10 @@ fn stmt_result_lane(stmt: &CpsStmt) -> CpsReprAbiLane {
         | CpsStmt::FindGuard { .. }
         | CpsStmt::VariantTagEq { .. } => CpsReprAbiLane::ScalarI64,
         CpsStmt::MakeThunk { .. } | CpsStmt::AddThunkBoundary { .. } => CpsReprAbiLane::ThunkPtr,
-        CpsStmt::MakeClosure { .. }
-        | CpsStmt::MakeRecursiveClosure { .. }
-        | CpsStmt::Tuple { .. }
+        CpsStmt::MakeClosure { .. } | CpsStmt::MakeRecursiveClosure { .. } => {
+            CpsReprAbiLane::ClosurePtr
+        }
+        CpsStmt::Tuple { .. }
         | CpsStmt::Record { .. }
         | CpsStmt::Variant { .. }
         | CpsStmt::Select { .. }
