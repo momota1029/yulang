@@ -144,8 +144,11 @@ or out of here into the user-facing table once they stabilize.
 - [x] Non-escaping closure allocation, closure environment loads, and indirect
       closure calls work in the value backend when the closure is allocated and
       called inside the compiled subset.
-- [ ] Escaping closure values are not supported as ordinary runtime values in
-      the value backend.
+- [x] Closure values are represented as opaque runtime handles in the value
+      backend, so indirect closure calls can cross branch/jump block params.
+- [ ] Closure values can be called after flowing through the value backend, but
+      they are not yet printable `VmValue` roots or ordinary structural
+      runtime values inside tuples/lists/records.
 - [ ] Generic runtime value layout is still backed by `VmValue`; compact native
       representations are not finalized.
 

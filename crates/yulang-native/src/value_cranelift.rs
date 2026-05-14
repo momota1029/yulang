@@ -23,14 +23,15 @@ use crate::native_runtime::{
     NATIVE_PRIMITIVE_INT_SUB, NATIVE_PRIMITIVE_INT_TO_HEX, NATIVE_PRIMITIVE_INT_TO_STRING,
     NATIVE_PRIMITIVE_INT_TO_UPPER_HEX, NATIVE_PRIMITIVE_STRING_EQ, NATIVE_PRIMITIVE_STRING_INDEX,
     NATIVE_PRIMITIVE_STRING_LEN, NativeRuntimeContext, yulang_native_bool_and,
-    yulang_native_bool_is_true, yulang_native_concat_string, yulang_native_list_empty,
-    yulang_native_list_index, yulang_native_list_index_range, yulang_native_list_index_range_raw,
-    yulang_native_list_len, yulang_native_list_merge, yulang_native_list_singleton,
-    yulang_native_list_splice, yulang_native_list_splice_raw, yulang_native_list_view_raw,
-    yulang_native_make_bool, yulang_native_make_float, yulang_native_make_int,
-    yulang_native_make_string, yulang_native_make_unit, yulang_native_primitive_binary,
-    yulang_native_primitive_unary, yulang_native_record_empty, yulang_native_record_insert,
-    yulang_native_record_select, yulang_native_record_without_field,
+    yulang_native_bool_is_true, yulang_native_closure_env_get, yulang_native_closure_new,
+    yulang_native_closure_push_env, yulang_native_closure_target_id, yulang_native_concat_string,
+    yulang_native_list_empty, yulang_native_list_index, yulang_native_list_index_range,
+    yulang_native_list_index_range_raw, yulang_native_list_len, yulang_native_list_merge,
+    yulang_native_list_singleton, yulang_native_list_splice, yulang_native_list_splice_raw,
+    yulang_native_list_view_raw, yulang_native_make_bool, yulang_native_make_float,
+    yulang_native_make_int, yulang_native_make_string, yulang_native_make_unit,
+    yulang_native_primitive_binary, yulang_native_primitive_unary, yulang_native_record_empty,
+    yulang_native_record_insert, yulang_native_record_select, yulang_native_record_without_field,
     yulang_native_string_index_range, yulang_native_string_index_range_raw,
     yulang_native_string_splice, yulang_native_string_splice_raw, yulang_native_tuple_empty,
     yulang_native_tuple_get, yulang_native_tuple_push, yulang_native_value_eq,
@@ -210,6 +211,22 @@ pub fn compile_value_abi_module(
         yulang_native_make_unit as *const u8,
     );
     builder.symbol(
+        "yulang_native_closure_new",
+        yulang_native_closure_new as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_closure_push_env",
+        yulang_native_closure_push_env as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_closure_target_id",
+        yulang_native_closure_target_id as *const u8,
+    );
+    builder.symbol(
+        "yulang_native_closure_env_get",
+        yulang_native_closure_env_get as *const u8,
+    );
+    builder.symbol(
         "yulang_native_concat_string",
         yulang_native_concat_string as *const u8,
     );
@@ -329,7 +346,7 @@ pub fn compile_value_abi_module(
             .roots
             .iter()
             .map(|root| {
-                functions.get(&root.name).copied().ok_or_else(|| {
+                functions.id(&root.name).ok_or_else(|| {
                     NativeValueCraneliftError::UnsupportedFunction {
                         function: root.name.clone(),
                         reason: "root was not declared",
@@ -459,30 +476,75 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
     Ok(())
 }
 
+#[derive(Clone)]
+struct ValueFunctions {
+    ids: HashMap<String, FuncId>,
+    closure_targets: Vec<ValueClosureTarget>,
+}
+
+#[derive(Clone)]
+struct ValueClosureTarget {
+    name: String,
+    id: FuncId,
+    target_id: i64,
+    environment_slots: usize,
+    params: usize,
+}
+
+impl ValueFunctions {
+    fn id(&self, name: &str) -> Option<FuncId> {
+        self.ids.get(name).copied()
+    }
+
+    fn target_id(&self, name: &str) -> Option<i64> {
+        self.closure_targets
+            .iter()
+            .find(|target| target.name == name)
+            .map(|target| target.target_id)
+    }
+
+    fn call_candidates(&self, arity: usize) -> impl Iterator<Item = &ValueClosureTarget> {
+        self.closure_targets
+            .iter()
+            .filter(move |target| target.params == arity)
+    }
+}
+
 fn declare_functions<M: Module>(
     module_backend: &mut M,
     module: &NativeAbiModule,
-) -> NativeValueCraneliftResult<HashMap<String, FuncId>> {
-    let mut functions = HashMap::new();
-    for function in module.functions.iter().chain(&module.roots) {
+) -> NativeValueCraneliftResult<ValueFunctions> {
+    let mut ids = HashMap::new();
+    let mut closure_targets = Vec::new();
+    for (index, function) in module.functions.iter().chain(&module.roots).enumerate() {
         let sig = value_function_signature(module_backend, function);
         let id = module_backend
             .declare_function(&function.name, Linkage::Export, &sig)
             .map_err(cranelift_error)?;
-        functions.insert(function.name.clone(), id);
+        ids.insert(function.name.clone(), id);
+        closure_targets.push(ValueClosureTarget {
+            name: function.name.clone(),
+            id,
+            target_id: index as i64,
+            environment_slots: function.environment_slots,
+            params: function.params.len(),
+        });
     }
-    Ok(functions)
+    Ok(ValueFunctions {
+        ids,
+        closure_targets,
+    })
 }
 
 fn define_functions<M: Module, L: ValueLiteralStore>(
     module_backend: &mut M,
     module: &NativeAbiModule,
-    functions: &HashMap<String, FuncId>,
+    functions: &ValueFunctions,
     helpers: &ValueHelpers,
     literals: &mut L,
 ) -> NativeValueCraneliftResult<()> {
     for function in module.functions.iter().chain(&module.roots) {
-        let id = functions.get(&function.name).copied().ok_or_else(|| {
+        let id = functions.id(&function.name).ok_or_else(|| {
             NativeValueCraneliftError::UnsupportedFunction {
                 function: function.name.clone(),
                 reason: "function was not declared",
@@ -519,6 +581,10 @@ struct ValueHelpers {
     concat_string: FuncId,
     primitive_unary: FuncId,
     primitive_binary: FuncId,
+    closure_new: FuncId,
+    closure_push_env: FuncId,
+    closure_target_id: FuncId,
+    closure_env_get: FuncId,
     list_empty: FuncId,
     list_singleton: FuncId,
     list_merge: FuncId,
@@ -558,6 +624,10 @@ fn declare_helpers<M: Module>(module_backend: &mut M) -> NativeValueCraneliftRes
         concat_string: declare_concat_string(module_backend)?,
         primitive_unary: declare_primitive_unary(module_backend)?,
         primitive_binary: declare_primitive_binary(module_backend)?,
+        closure_new: declare_closure_new(module_backend)?,
+        closure_push_env: declare_closure_push_env(module_backend)?,
+        closure_target_id: declare_closure_target_id(module_backend)?,
+        closure_env_get: declare_closure_env_get(module_backend)?,
         list_empty: declare_list_empty(module_backend)?,
         list_singleton: declare_list_singleton(module_backend)?,
         list_merge: declare_list_merge(module_backend)?,
@@ -994,6 +1064,51 @@ fn declare_primitive_binary<M: Module>(
         .map_err(cranelift_error)
 }
 
+fn declare_closure_new<M: Module>(module_backend: &mut M) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_closure_new", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_closure_push_env<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_closure_push_env", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_closure_target_id<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_closure_target_id", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
+fn declare_closure_env_get<M: Module>(
+    module_backend: &mut M,
+) -> NativeValueCraneliftResult<FuncId> {
+    let mut sig = module_backend.make_signature();
+    sig.params.push(AbiParam::new(types::I64));
+    sig.params.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(types::I64));
+    module_backend
+        .declare_function("yulang_native_closure_env_get", Linkage::Import, &sig)
+        .map_err(cranelift_error)
+}
+
 fn value_function_signature<M: Module>(
     module_backend: &M,
     function: &NativeAbiFunction,
@@ -1012,7 +1127,7 @@ fn lower_value_function<M: Module, L: ValueLiteralStore>(
     module_backend: &mut M,
     ctx: &mut cranelift_codegen::Context,
     function: &NativeAbiFunction,
-    functions: &HashMap<String, FuncId>,
+    functions: &ValueFunctions,
     helpers: &ValueHelpers,
     literals: &mut L,
 ) -> NativeValueCraneliftResult<()> {
@@ -1021,7 +1136,6 @@ fn lower_value_function<M: Module, L: ValueLiteralStore>(
     let blocks = create_value_blocks(&mut builder, function);
     declare_value_variables(&mut builder, function);
     let params = bind_value_function_params(&mut builder, function, &blocks)?;
-    let mut closures = HashMap::<ValueId, ValueClosureAllocation>::new();
 
     for block in &function.blocks {
         let clif_block = value_block_ref(function, &blocks, block.id)?;
@@ -1038,7 +1152,6 @@ fn lower_value_function<M: Module, L: ValueLiteralStore>(
                 helpers,
                 params.context,
                 &params.environment,
-                &mut closures,
                 &values,
                 literals,
             )?;
@@ -1050,7 +1163,6 @@ fn lower_value_function<M: Module, L: ValueLiteralStore>(
             function,
             helpers,
             &blocks,
-            &closures,
             &values,
             &block.terminator,
         )?;
@@ -1159,12 +1271,6 @@ struct ValueFunctionParams {
     environment: Vec<ir::Value>,
 }
 
-#[derive(Clone)]
-struct ValueClosureAllocation {
-    target: String,
-    environment: Vec<ValueId>,
-}
-
 fn block_defined_values(
     function: &NativeAbiFunction,
     block: &NativeAbiBlock,
@@ -1187,18 +1293,17 @@ fn lower_value_terminator<M: Module>(
     function: &NativeAbiFunction,
     helpers: &ValueHelpers,
     blocks: &HashMap<BlockId, ir::Block>,
-    closures: &HashMap<ValueId, ValueClosureAllocation>,
     values: &HashMap<ValueId, ()>,
     terminator: &NativeTerminator,
 ) -> NativeValueCraneliftResult<()> {
     match terminator {
         NativeTerminator::Return(value) => {
-            let value = read_value(builder, function, closures, values, *value)?;
+            let value = read_value(builder, function, values, *value)?;
             builder.ins().return_(&[value]);
         }
         NativeTerminator::Jump { target, args } => {
             let target = value_block_ref(function, blocks, *target)?;
-            let args = read_block_args(builder, function, closures, values, args)?;
+            let args = read_block_args(builder, function, values, args)?;
             builder.ins().jump(target, &args);
         }
         NativeTerminator::Branch {
@@ -1206,7 +1311,7 @@ fn lower_value_terminator<M: Module>(
             then_block,
             else_block,
         } => {
-            let cond = read_value(builder, function, closures, values, *cond)?;
+            let cond = read_value(builder, function, values, *cond)?;
             let cond = lower_value_bool_condition(module_backend, builder, helpers, cond)?;
             let then_block = value_block_ref(function, blocks, *then_block)?;
             let else_block = value_block_ref(function, blocks, *else_block)?;
@@ -1249,11 +1354,10 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
     builder: &mut FunctionBuilder<'_>,
     function: &NativeAbiFunction,
     stmt: &NativeAbiStmt,
-    functions: &HashMap<String, FuncId>,
+    functions: &ValueFunctions,
     helpers: &ValueHelpers,
     context: ir::Value,
     environment: &[ir::Value],
-    closures: &mut HashMap<ValueId, ValueClosureAllocation>,
     defined: &HashMap<ValueId, ()>,
     literals: &mut L,
 ) -> NativeValueCraneliftResult<ValueId> {
@@ -1347,7 +1451,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             op: yulang_typed_ir::PrimitiveOp::StringConcat,
             args,
         } => {
-            let args = read_values(builder, function, closures, defined, args)?;
+            let args = read_values(builder, function, defined, args)?;
             let callee = module_backend.declare_func_in_func(helpers.concat_string, builder.func);
             let call = builder.ins().call(callee, &[context, args[0], args[1]]);
             let results = builder.inst_results(call);
@@ -1371,7 +1475,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
                     kind: "list empty arity",
                 });
             }
-            read_values(builder, function, closures, defined, args)?;
+            read_values(builder, function, defined, args)?;
             let callee = module_backend.declare_func_in_func(helpers.list_empty, builder.func);
             let call = builder.ins().call(callee, &[context]);
             let results = builder.inst_results(call);
@@ -1389,7 +1493,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             op: yulang_typed_ir::PrimitiveOp::ListSingleton,
             args,
         } => {
-            let args = read_values(builder, function, closures, defined, args)?;
+            let args = read_values(builder, function, defined, args)?;
             let callee = module_backend.declare_func_in_func(helpers.list_singleton, builder.func);
             let call = builder.ins().call(callee, &[context, args[0]]);
             let results = builder.inst_results(call);
@@ -1407,7 +1511,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             op: yulang_typed_ir::PrimitiveOp::ListMerge,
             args,
         } => {
-            let args = read_values(builder, function, closures, defined, args)?;
+            let args = read_values(builder, function, defined, args)?;
             let callee = module_backend.declare_func_in_func(helpers.list_merge, builder.func);
             let call = builder.ins().call(callee, &[context, args[0], args[1]]);
             let results = builder.inst_results(call);
@@ -1425,7 +1529,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             op: yulang_typed_ir::PrimitiveOp::ListLen,
             args,
         } => {
-            let args = read_values(builder, function, closures, defined, args)?;
+            let args = read_values(builder, function, defined, args)?;
             let callee = module_backend.declare_func_in_func(helpers.list_len, builder.func);
             let call = builder.ins().call(callee, &[context, args[0]]);
             let results = builder.inst_results(call);
@@ -1443,7 +1547,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             op: yulang_typed_ir::PrimitiveOp::ListIndex,
             args,
         } => {
-            let args = read_values(builder, function, closures, defined, args)?;
+            let args = read_values(builder, function, defined, args)?;
             let callee = module_backend.declare_func_in_func(helpers.list_index, builder.func);
             let call = builder.ins().call(callee, &[context, args[0], args[1]]);
             let results = builder.inst_results(call);
@@ -1461,7 +1565,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             op: yulang_typed_ir::PrimitiveOp::ListIndexRange,
             args,
         } => {
-            let args = read_values(builder, function, closures, defined, args)?;
+            let args = read_values(builder, function, defined, args)?;
             let callee =
                 module_backend.declare_func_in_func(helpers.list_index_range, builder.func);
             let call = builder.ins().call(callee, &[context, args[0], args[1]]);
@@ -1480,7 +1584,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             op: yulang_typed_ir::PrimitiveOp::ListIndexRangeRaw,
             args,
         } => {
-            let args = read_values(builder, function, closures, defined, args)?;
+            let args = read_values(builder, function, defined, args)?;
             let callee =
                 module_backend.declare_func_in_func(helpers.list_index_range_raw, builder.func);
             let call = builder
@@ -1500,7 +1604,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             if value_runtime_helper(*op, helpers).is_some() =>
         {
             let (helper, helper_name) = value_runtime_helper(*op, helpers).expect("checked");
-            let args = read_values(builder, function, closures, defined, args)?;
+            let args = read_values(builder, function, defined, args)?;
             let mut call_args = Vec::with_capacity(args.len() + 1);
             call_args.push(context);
             call_args.extend(args);
@@ -1517,7 +1621,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
                     kind: "primitive unary arity",
                 });
             };
-            let arg = read_values(builder, function, closures, defined, &[*arg])?;
+            let arg = read_values(builder, function, defined, &[*arg])?;
             let op_code = builder
                 .ins()
                 .iconst(types::I64, primitive_unary_code(*op).expect("checked"));
@@ -1534,7 +1638,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
                     kind: "primitive binary arity",
                 });
             };
-            let args = read_values(builder, function, closures, defined, &[*left, *right])?;
+            let args = read_values(builder, function, defined, &[*left, *right])?;
             let op_code = builder
                 .ins()
                 .iconst(types::I64, primitive_binary_code(*op).expect("checked"));
@@ -1552,7 +1656,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             kind: "primitive",
         }),
         NativeAbiStmt::DirectCall { dest, target, args } => {
-            let id = functions.get(target).copied().ok_or_else(|| {
+            let id = functions.id(target).ok_or_else(|| {
                 NativeValueCraneliftError::UnsupportedFunction {
                     function: target.clone(),
                     reason: "target was not declared",
@@ -1560,7 +1664,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             })?;
             let callee = module_backend.declare_func_in_func(id, builder.func);
             let mut call_args = vec![context];
-            call_args.extend(read_values(builder, function, closures, defined, args)?);
+            call_args.extend(read_values(builder, function, defined, args)?);
             let call = builder.ins().call(callee, &call_args);
             let results = builder.inst_results(call);
             if results.len() != 1 {
@@ -1576,7 +1680,7 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             let callee = module_backend.declare_func_in_func(helpers.tuple_empty, builder.func);
             let call = builder.ins().call(callee, &[context]);
             let mut tuple = single_call_result(builder, call, "yulang_native_tuple_empty")?;
-            for item in read_values(builder, function, closures, defined, items)? {
+            for item in read_values(builder, function, defined, items)? {
                 let callee = module_backend.declare_func_in_func(helpers.tuple_push, builder.func);
                 let call = builder.ins().call(callee, &[context, tuple, item]);
                 tuple = single_call_result(builder, call, "yulang_native_tuple_push")?;
@@ -1784,44 +1888,122 @@ fn lower_value_stmt<M: Module, L: ValueLiteralStore>(
             target,
             environment,
         } => {
-            closures.insert(
-                *dest,
-                ValueClosureAllocation {
-                    target: target.clone(),
-                    environment: environment.clone(),
-                },
-            );
+            let target_id = functions.target_id(target).ok_or_else(|| {
+                NativeValueCraneliftError::UnsupportedFunction {
+                    function: target.clone(),
+                    reason: "closure target was not declared",
+                }
+            })?;
+            let target_id = builder.ins().iconst(types::I64, target_id);
+            let callee = module_backend.declare_func_in_func(helpers.closure_new, builder.func);
+            let call = builder.ins().call(callee, &[context, target_id]);
+            let mut closure = single_call_result(builder, call, "yulang_native_closure_new")?;
+            for value in read_values(builder, function, defined, environment)? {
+                let callee =
+                    module_backend.declare_func_in_func(helpers.closure_push_env, builder.func);
+                let call = builder.ins().call(callee, &[closure, value]);
+                closure = single_call_result(builder, call, "yulang_native_closure_push_env")?;
+            }
+            builder.def_var(variable(*dest), closure);
             Ok(*dest)
         }
         NativeAbiStmt::IndirectClosureCall { dest, callee, args } => {
-            let closure = closures.get(callee).cloned().ok_or_else(|| {
-                NativeValueCraneliftError::UnsupportedStmt {
-                    function: function.name.clone(),
-                    kind: "indirect closure call without local allocation",
-                }
-            })?;
-            let id = functions.get(&closure.target).copied().ok_or_else(|| {
-                NativeValueCraneliftError::UnsupportedFunction {
-                    function: closure.target.clone(),
-                    reason: "target was not declared",
-                }
-            })?;
-            let callee = module_backend.declare_func_in_func(id, builder.func);
-            let mut call_args = vec![context];
-            call_args.extend(read_values(
+            let closure = read_value(builder, function, defined, *callee)?;
+            let result = lower_indirect_closure_call(
+                module_backend,
                 builder,
                 function,
-                closures,
+                functions,
+                helpers,
+                context,
+                closure,
+                args,
                 defined,
-                &closure.environment,
-            )?);
-            call_args.extend(read_values(builder, function, closures, defined, args)?);
-            let call = builder.ins().call(callee, &call_args);
-            let result = single_call_result(builder, call, &closure.target)?;
+            )?;
             builder.def_var(variable(*dest), result);
             Ok(*dest)
         }
     }
+}
+
+fn lower_indirect_closure_call<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &NativeAbiFunction,
+    functions: &ValueFunctions,
+    helpers: &ValueHelpers,
+    context: ir::Value,
+    closure: ir::Value,
+    args: &[ValueId],
+    defined: &HashMap<ValueId, ()>,
+) -> NativeValueCraneliftResult<ir::Value> {
+    let target_helper =
+        module_backend.declare_func_in_func(helpers.closure_target_id, builder.func);
+    let target_call = builder.ins().call(target_helper, &[closure]);
+    let target_id = single_call_result(builder, target_call, "yulang_native_closure_target_id")?;
+    let args = read_values(builder, function, defined, args)?;
+    let candidates = functions
+        .call_candidates(args.len())
+        .cloned()
+        .collect::<Vec<_>>();
+    if candidates.is_empty() {
+        return Err(NativeValueCraneliftError::UnsupportedStmt {
+            function: function.name.clone(),
+            kind: "indirect closure call arity",
+        });
+    }
+
+    let miss_block = builder.create_block();
+    let merge_block = builder.create_block();
+    builder.append_block_param(merge_block, types::I64);
+
+    for (index, target) in candidates.iter().enumerate() {
+        let call_block = builder.create_block();
+        let next_block = if index + 1 == candidates.len() {
+            miss_block
+        } else {
+            builder.create_block()
+        };
+        let matches =
+            builder
+                .ins()
+                .icmp_imm(ir::condcodes::IntCC::Equal, target_id, target.target_id);
+        builder
+            .ins()
+            .brif(matches, call_block, &[], next_block, &[]);
+
+        builder.switch_to_block(call_block);
+        let callee = module_backend.declare_func_in_func(target.id, builder.func);
+        let mut call_args = Vec::with_capacity(1 + target.environment_slots + args.len());
+        call_args.push(context);
+        for slot in 0..target.environment_slots {
+            let slot = builder.ins().iconst(types::I64, slot as i64);
+            let helper = module_backend.declare_func_in_func(helpers.closure_env_get, builder.func);
+            let call = builder.ins().call(helper, &[closure, slot]);
+            call_args.push(single_call_result(
+                builder,
+                call,
+                "yulang_native_closure_env_get",
+            )?);
+        }
+        call_args.extend(args.iter().copied());
+        let call = builder.ins().call(callee, &call_args);
+        let result = single_call_result(builder, call, &target.name)?;
+        builder
+            .ins()
+            .jump(merge_block, &[ir::BlockArg::Value(result)]);
+
+        builder.switch_to_block(next_block);
+    }
+
+    builder.switch_to_block(miss_block);
+    let null = builder.ins().iconst(types::I64, 0);
+    builder
+        .ins()
+        .jump(merge_block, &[ir::BlockArg::Value(null)]);
+
+    builder.switch_to_block(merge_block);
+    Ok(builder.block_params(merge_block)[0])
 }
 
 fn single_call_result(
@@ -1842,29 +2024,21 @@ fn single_call_result(
 fn read_values(
     builder: &mut FunctionBuilder<'_>,
     function: &NativeAbiFunction,
-    closures: &HashMap<ValueId, ValueClosureAllocation>,
     defined: &HashMap<ValueId, ()>,
     values: &[ValueId],
 ) -> NativeValueCraneliftResult<Vec<ir::Value>> {
     values
         .iter()
-        .map(|value| read_value(builder, function, closures, defined, *value))
+        .map(|value| read_value(builder, function, defined, *value))
         .collect()
 }
 
 fn read_value(
     builder: &mut FunctionBuilder<'_>,
     function: &NativeAbiFunction,
-    closures: &HashMap<ValueId, ValueClosureAllocation>,
     defined: &HashMap<ValueId, ()>,
     value: ValueId,
 ) -> NativeValueCraneliftResult<ir::Value> {
-    if closures.contains_key(&value) {
-        return Err(NativeValueCraneliftError::UnsupportedStmt {
-            function: function.name.clone(),
-            kind: "closure value as runtime value",
-        });
-    }
     if !defined.contains_key(&value) {
         return Err(NativeValueCraneliftError::MissingValue {
             function: function.name.clone(),
@@ -1877,11 +2051,10 @@ fn read_value(
 fn read_block_args(
     builder: &mut FunctionBuilder<'_>,
     function: &NativeAbiFunction,
-    closures: &HashMap<ValueId, ValueClosureAllocation>,
     defined: &HashMap<ValueId, ()>,
     values: &[ValueId],
 ) -> NativeValueCraneliftResult<Vec<ir::BlockArg>> {
-    Ok(read_values(builder, function, closures, defined, values)?
+    Ok(read_values(builder, function, defined, values)?
         .into_iter()
         .map(ir::BlockArg::Value)
         .collect())
@@ -2149,6 +2322,104 @@ mod tests {
     }
 
     #[test]
+    fn jit_runs_closure_call_with_environment() {
+        let mut module = compile_value_abi_module(&NativeAbiModule {
+            functions: vec![add_capture_function()],
+            roots: vec![NativeAbiFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                environment_slots: 0,
+                blocks: vec![NativeAbiBlock {
+                    id: BlockId(0),
+                    params: Vec::new(),
+                    stmts: vec![
+                        NativeAbiStmt::Literal {
+                            dest: ValueId(0),
+                            literal: NativeLiteral::Int("10".to_string()),
+                        },
+                        NativeAbiStmt::Literal {
+                            dest: ValueId(1),
+                            literal: NativeLiteral::Int("32".to_string()),
+                        },
+                        NativeAbiStmt::AllocateClosure {
+                            dest: ValueId(2),
+                            target: "add_capture".to_string(),
+                            environment: vec![ValueId(0)],
+                        },
+                        NativeAbiStmt::IndirectClosureCall {
+                            dest: ValueId(3),
+                            callee: ValueId(2),
+                            args: vec![ValueId(1)],
+                        },
+                    ],
+                    terminator: NativeTerminator::Return(ValueId(3)),
+                }],
+            }],
+        })
+        .expect("compiled");
+
+        assert_eq!(
+            module.run_roots().expect("ran"),
+            vec![runtime::VmValue::Int("42".to_string())]
+        );
+    }
+
+    #[test]
+    fn jit_passes_closure_values_through_block_params() {
+        let mut module = compile_value_abi_module(&NativeAbiModule {
+            functions: vec![add_capture_function()],
+            roots: vec![NativeAbiFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                environment_slots: 0,
+                blocks: vec![
+                    NativeAbiBlock {
+                        id: BlockId(0),
+                        params: Vec::new(),
+                        stmts: vec![
+                            NativeAbiStmt::Literal {
+                                dest: ValueId(0),
+                                literal: NativeLiteral::Int("10".to_string()),
+                            },
+                            NativeAbiStmt::AllocateClosure {
+                                dest: ValueId(1),
+                                target: "add_capture".to_string(),
+                                environment: vec![ValueId(0)],
+                            },
+                        ],
+                        terminator: NativeTerminator::Jump {
+                            target: BlockId(1),
+                            args: vec![ValueId(1)],
+                        },
+                    },
+                    NativeAbiBlock {
+                        id: BlockId(1),
+                        params: vec![ValueId(2)],
+                        stmts: vec![
+                            NativeAbiStmt::Literal {
+                                dest: ValueId(3),
+                                literal: NativeLiteral::Int("32".to_string()),
+                            },
+                            NativeAbiStmt::IndirectClosureCall {
+                                dest: ValueId(4),
+                                callee: ValueId(2),
+                                args: vec![ValueId(3)],
+                            },
+                        ],
+                        terminator: NativeTerminator::Return(ValueId(4)),
+                    },
+                ],
+            }],
+        })
+        .expect("compiled");
+
+        assert_eq!(
+            module.run_roots().expect("ran"),
+            vec![runtime::VmValue::Int("42".to_string())]
+        );
+    }
+
+    #[test]
     fn jit_runs_list_literal_root() {
         let mut module = compile_value_abi_module(&NativeAbiModule {
             functions: Vec::new(),
@@ -2397,5 +2668,29 @@ mod tests {
             },
         ]);
         stmts
+    }
+
+    fn add_capture_function() -> NativeAbiFunction {
+        NativeAbiFunction {
+            name: "add_capture".to_string(),
+            params: vec![ValueId(1)],
+            environment_slots: 1,
+            blocks: vec![NativeAbiBlock {
+                id: BlockId(0),
+                params: vec![ValueId(1)],
+                stmts: vec![
+                    NativeAbiStmt::LoadEnv {
+                        dest: ValueId(0),
+                        slot: 0,
+                    },
+                    NativeAbiStmt::Primitive {
+                        dest: ValueId(2),
+                        op: yulang_typed_ir::PrimitiveOp::IntAdd,
+                        args: vec![ValueId(0), ValueId(1)],
+                    },
+                ],
+                terminator: NativeTerminator::Return(ValueId(2)),
+            }],
+        }
     }
 }

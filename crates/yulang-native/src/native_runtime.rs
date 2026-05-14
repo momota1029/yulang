@@ -46,6 +46,12 @@ pub const NATIVE_PRIMITIVE_STRING_EQ: i64 = 121;
 #[derive(Default)]
 pub struct NativeRuntimeContext {
     values: Vec<Box<runtime::VmValue>>,
+    closures: Vec<Box<NativeRuntimeClosure>>,
+}
+
+pub struct NativeRuntimeClosure {
+    target: i64,
+    environment: Vec<*mut runtime::VmValue>,
 }
 
 impl NativeRuntimeContext {
@@ -58,6 +64,17 @@ impl NativeRuntimeContext {
         self.values
             .last_mut()
             .map(|value| value.as_mut() as *mut runtime::VmValue)
+            .unwrap_or(std::ptr::null_mut())
+    }
+
+    pub fn alloc_closure(&mut self, target: i64) -> *mut NativeRuntimeClosure {
+        self.closures.push(Box::new(NativeRuntimeClosure {
+            target,
+            environment: Vec::new(),
+        }));
+        self.closures
+            .last_mut()
+            .map(|closure| closure.as_mut() as *mut NativeRuntimeClosure)
             .unwrap_or(std::ptr::null_mut())
     }
 
@@ -129,6 +146,35 @@ pub fn bool_and(
 
 pub fn make_unit(context: &mut NativeRuntimeContext) -> *mut runtime::VmValue {
     context.alloc(runtime::VmValue::Unit)
+}
+
+pub fn closure_new(context: &mut NativeRuntimeContext, target: i64) -> *mut NativeRuntimeClosure {
+    context.alloc_closure(target)
+}
+
+pub fn closure_push_env(
+    closure: *mut NativeRuntimeClosure,
+    value: *mut runtime::VmValue,
+) -> Option<*mut NativeRuntimeClosure> {
+    let closure = unsafe { closure.as_mut()? };
+    if value.is_null() {
+        return None;
+    }
+    closure.environment.push(value);
+    Some(closure as *mut NativeRuntimeClosure)
+}
+
+pub fn closure_target_id(closure: *mut NativeRuntimeClosure) -> Option<i64> {
+    let closure = unsafe { closure.as_ref()? };
+    Some(closure.target)
+}
+
+pub fn closure_env_get(
+    closure: *mut NativeRuntimeClosure,
+    slot: usize,
+) -> Option<*mut runtime::VmValue> {
+    let closure = unsafe { closure.as_ref()? };
+    closure.environment.get(slot).copied()
 }
 
 pub fn concat_string(
@@ -744,6 +790,38 @@ pub extern "C" fn yulang_native_make_unit(
         return std::ptr::null_mut();
     };
     make_unit(context)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_closure_new(
+    context: *mut NativeRuntimeContext,
+    target: i64,
+) -> *mut NativeRuntimeClosure {
+    let Some(context) = (unsafe { context.as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    closure_new(context, target)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_closure_push_env(
+    closure: *mut NativeRuntimeClosure,
+    value: *mut runtime::VmValue,
+) -> *mut NativeRuntimeClosure {
+    closure_push_env(closure, value).unwrap_or(std::ptr::null_mut())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_closure_target_id(closure: *mut NativeRuntimeClosure) -> i64 {
+    closure_target_id(closure).unwrap_or(-1)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_native_closure_env_get(
+    closure: *mut NativeRuntimeClosure,
+    slot: usize,
+) -> *mut runtime::VmValue {
+    closure_env_get(closure, slot).unwrap_or(std::ptr::null_mut())
 }
 
 #[unsafe(no_mangle)]
