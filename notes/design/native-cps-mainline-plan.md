@@ -106,6 +106,8 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 ### 4. General Thunk Invocation
 
 - [ ] thunk value を保存・返却・複数箇所で force できる lane にする。
+  - [x] CPS repr Cranelift の thunk capture env は 4 slot 固定 helper から外れ、
+        larger env を `yulang_cps_make_thunk_i64_many(ptr, len)` で運べる。
 - [ ] `AddId` / `BindHere` / hidden evidence boundary を thunk pointer に保持する。
 - [ ] force 時に handler / guard stack を正しく re-enter する。
 - [ ] direct thunk callback inline の暫定経路を、汎用 thunk invocation に置き換える。

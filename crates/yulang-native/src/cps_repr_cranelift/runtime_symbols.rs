@@ -74,6 +74,7 @@ pub(super) fn register_cps_runtime_symbols(builder: &mut JITBuilder) {
         yulang_cps_make_thunk_i64_2,
         yulang_cps_make_thunk_i64_3,
         yulang_cps_make_thunk_i64_4,
+        yulang_cps_make_thunk_i64_many,
         yulang_cps_force_thunk_i64,
         yulang_cps_make_closure_i64_0,
         yulang_cps_make_closure_i64_1,

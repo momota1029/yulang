@@ -2019,12 +2019,6 @@ fn make_thunk<M: Module>(
             kind: "thunk entry arity",
         });
     }
-    if thunk_continuation.environment.len() > 4 {
-        return Err(CpsReprCraneliftError::UnsupportedStmt {
-            function: function.name.clone(),
-            kind: "thunk environment larger than four slots",
-        });
-    }
 
     let func_ref = continuation_func_ref(module_backend, builder, function, entry, functions)?;
     let code = builder.ins().func_addr(types::I64, func_ref);
@@ -2033,13 +2027,22 @@ fn make_thunk<M: Module>(
         validate_environment_lane(function, slot.value, slot.lane)?;
         args.push(read_value(builder, function, slot.value)?);
     }
+    if thunk_continuation.environment.len() > 4 {
+        let (env_ptr, env_len) = stack_i64_slice(builder, &args[1..])?;
+        return call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_make_thunk_i64_many",
+            &[code, env_ptr, env_len],
+        );
+    }
     let helper_name = match thunk_continuation.environment.len() {
         0 => "yulang_cps_make_thunk_i64_0",
         1 => "yulang_cps_make_thunk_i64_1",
         2 => "yulang_cps_make_thunk_i64_2",
         3 => "yulang_cps_make_thunk_i64_3",
         4 => "yulang_cps_make_thunk_i64_4",
-        _ => unreachable!("environment length checked above"),
+        _ => unreachable!("large environment returned above"),
     };
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
@@ -7242,6 +7245,11 @@ extern "C" fn yulang_cps_make_thunk_i64_4(code: usize, a: i64, b: i64, c: i64, d
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn yulang_cps_make_thunk_i64_many(code: usize, ptr: *const i64, len: i64) -> usize {
+    make_native_i64_thunk(code, unsafe { native_i64_slice(ptr, len) })
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
     let mut value = value;
     loop {
@@ -7618,6 +7626,96 @@ mod tests {
 
         assert_eq!(roots.len(), 1);
         assert_eq!(describe_native_i64_value(roots[0]), "3.5");
+    }
+
+    #[test]
+    fn jit_forces_thunk_with_many_environment_slots() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(0),
+                                literal: CpsLiteral::Int("1".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(1),
+                                literal: CpsLiteral::Int("2".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(2),
+                                literal: CpsLiteral::Int("3".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(3),
+                                literal: CpsLiteral::Int("4".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(4),
+                                literal: CpsLiteral::Int("5".to_string()),
+                            },
+                            CpsStmt::MakeThunk {
+                                dest: CpsValueId(5),
+                                entry: CpsContinuationId(1),
+                            },
+                            CpsStmt::ForceThunk {
+                                dest: CpsValueId(6),
+                                thunk: CpsValueId(5),
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(6)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: Vec::new(),
+                        captures: vec![
+                            CpsValueId(0),
+                            CpsValueId(1),
+                            CpsValueId(2),
+                            CpsValueId(3),
+                            CpsValueId(4),
+                        ],
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(7),
+                                op: typed_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(0), CpsValueId(1)],
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(8),
+                                op: typed_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(7), CpsValueId(2)],
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(9),
+                                op: typed_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(8), CpsValueId(3)],
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(10),
+                                op: typed_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(9), CpsValueId(4)],
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(10)),
+                    },
+                ],
+            }],
+        }));
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![15]);
     }
 
     #[test]

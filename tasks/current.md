@@ -45,6 +45,8 @@ Cranelift backend を作る。
   pointer を保持する regression を追加済み。
 - CPS repr closure / continuation env は 4 slot 固定 helper から外れ、
   `*_many(ptr, len)` helper で larger effect-flow closure env を運べる。
+- CPS repr thunk env も 4 slot 固定 helper から外れ、
+  `yulang_cps_make_thunk_i64_many(ptr, len)` で larger thunk capture を運べる。
 - CPS repr ABI lane に `ClosurePtr` を追加し、closure pointer と
   `RuntimeValuePtr` / `ThunkPtr` の境界を明示した。
 - top-level function の partial application は CPS closure として生成し、
@@ -147,6 +149,9 @@ CPS repr Cranelift の source 回帰を広げる。
   なった。次は handler candidate と captured env をより ABI 明示的な構造へ寄せる。
 - 保存・返却される thunk value はまだ扱わず、direct thunk callback subset の
   境界を明文化する。
+- CPS repr Cranelift の手書き IR では 5 slot 以上の thunk capture env を
+  force できる。残る問題は、source の `sub` を list などの構造値へ入れた時に
+  scope-return routing が VM と一致しない点。
 - value backend と CPS repr backend の fallback policy を、握りつぶしではなく
   structured unsupported reason で選べる形へ寄せる。
 

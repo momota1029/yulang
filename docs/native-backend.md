@@ -272,6 +272,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] Effect-flow closure / continuation environments are no longer limited to
       four slots in the CPS repr Cranelift path; larger environments are copied
       through `*_many(ptr, len)` runtime helpers.
+- [x] CPS repr Cranelift thunk environments are no longer limited to four
+      slots; larger thunk captures are copied through
+      `yulang_cps_make_thunk_i64_many(ptr, len)`.
 - [x] CPS repr ABI has a dedicated `ClosurePtr` lane, keeping closure pointers
       distinct from `RuntimeValuePtr`, `ThunkPtr`, and resumption pointers.
 - [x] Top-level function partial application lowers to CPS closure creation in
