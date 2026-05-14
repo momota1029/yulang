@@ -11,6 +11,7 @@ pub mod abi_format;
 pub mod abi_lane;
 pub mod abi_subset;
 pub mod abi_validate;
+pub mod backend_selection;
 pub mod closure;
 pub mod compare;
 pub mod control_ir;
@@ -42,6 +43,10 @@ pub use abi_lane::{
 };
 pub use abi_subset::{NativeAbiSubsetError, validate_cranelift_prototype_subset};
 pub use abi_validate::{NativeAbiValidateError, validate_abi_module};
+pub use backend_selection::{
+    NativeBackendPlan, NativeBackendReason, NativeBackendReasonKind, NativeBackendSelection,
+    NativeRootBackend, NativeRootLabel, select_native_backends,
+};
 pub use closure::{
     NativeClosureAbi, NativeClosureBlock, NativeClosureCapture, NativeClosureCodeRef,
     NativeClosureEnvRef, NativeClosureEnvironment, NativeClosureFunction, NativeClosureModule,

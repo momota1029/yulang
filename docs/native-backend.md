@@ -31,7 +31,7 @@ The native backend is exposed under the `yulang native` subcommand. The
 
 | Command                                              | Purpose                                                                 |
 | ---------------------------------------------------- | ----------------------------------------------------------------------- |
-| `yulang native <path>` (or `--kind run`)             | Compile and run the file natively. Prefers the value backend, falls back to the CPS representation backend for explicitly unsupported cases. |
+| `yulang native <path>` (or `--kind run`)             | Compile and run the file natively. Uses the value backend for effect-free fast-path roots and selects the CPS representation backend when effect / handler / thunk-boundary control is present. |
 | `yulang native --kind run-value-exe <path>`          | Force the value backend; useful when debugging value-backend coverage.  |
 | `yulang native --kind run-cps-repr-exe <path>`       | Force the CPS representation backend; useful when debugging CPS lowering. |
 | `yulang native --kind run-exe <path>`                | Build and run a scalar native executable.                               |

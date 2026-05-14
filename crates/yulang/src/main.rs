@@ -1260,6 +1260,26 @@ fn write_native_executable_or_exit(module: &runtime::Module, path: &Path) {
 }
 
 fn write_native_run_executable_or_exit(module: &runtime::Module, path: &Path) {
+    match yulang_native::select_native_backends(module).module_backend() {
+        yulang_native::NativeBackendSelection::CpsMainline { reason } => {
+            eprintln!("native-run: selected CPS repr backend: {reason}");
+            if let Err(cps_error) =
+                write_native_cps_repr_executable(module, path, "native-run(cps)")
+            {
+                eprintln!("failed to compile native-run executable");
+                eprintln!("  selection: {reason}");
+                eprintln!("  CPS repr backend: {cps_error}");
+                process::exit(1);
+            }
+            return;
+        }
+        yulang_native::NativeBackendSelection::Unsupported { reason } => {
+            eprintln!("native-run: unsupported native backend selection: {reason}");
+            process::exit(1);
+        }
+        yulang_native::NativeBackendSelection::ValueFastPath => {}
+    }
+
     match write_native_value_executable(module, path, "native-run(value)") {
         Ok(()) => {}
         Err(value_error) => {

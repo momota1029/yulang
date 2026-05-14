@@ -84,10 +84,10 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 
 ### 1. Backend Selection Boundary
 
-- [ ] backend selection を `native-run` CLI から分離する。
-- [ ] root ごとに `ValueFastPath` / `CpsMainline` / `Unsupported(reason)` を返す。
-- [ ] fallback message は選択理由を表示できるようにする。
-- [ ] effectful root は CPS repr を選ぶ regression を追加する。
+- [x] backend selection を `native-run` CLI から分離する。
+- [x] root ごとに `ValueFastPath` / `CpsMainline` / `Unsupported(reason)` を返す。
+- [x] fallback message は選択理由を表示できるようにする。
+- [x] effectful root は CPS repr を選ぶ regression を追加する。
 
 ### 2. CPS Runtime Value Lane
 

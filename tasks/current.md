@@ -34,6 +34,10 @@ Cranelift backend を作る。
 - まず `notes/design/native-cps-mainline-plan.md` の milestone に沿って、
   backend selection 境界、CPS `RuntimeValuePtr` lane、汎用 thunk / closure /
   resumption value の順に進める。
+- `select_native_backends` は runtime module から root ごとに
+  `ValueFastPath` / `CpsMainline` / `Unsupported(reason)` を返す。
+  `native-run` は effect / handler / thunk boundary を含む root を CPS repr
+  executable path へ直接送る。
 
 近い形:
 
