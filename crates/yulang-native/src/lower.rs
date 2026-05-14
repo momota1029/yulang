@@ -140,7 +140,13 @@ fn lower_binding(
         });
     }
     if let runtime::ExprKind::PrimitiveOp(op) = binding.body.kind {
-        return lower_primitive_binding(&binding.name, op);
+        let mut lowered = lower_primitive_binding(&binding.name, op)?;
+        if let Some(info) = functions.get(&binding.name) {
+            lowered
+                .generated
+                .extend(partial_application_functions(info));
+        }
+        return Ok(lowered);
     }
     let (params, body) = collect_lambda_params(&binding.body);
     let mut lowered = FunctionLowerer::new(path_name(&binding.name), functions, params.clone())
@@ -159,6 +165,11 @@ fn lower_binding(
             FunctionLowerer::new(target, functions, callable_params).lower_root(&callable_body)?;
         lowered.generated.push(direct.function);
         lowered.generated.extend(direct.generated);
+    }
+    if let Some(info) = functions.get(&binding.name) {
+        lowered
+            .generated
+            .extend(partial_application_functions(info));
     }
     Ok(lowered)
 }
@@ -188,6 +199,7 @@ fn binding_function_info(binding: &runtime::Binding) -> FunctionInfo {
         let arity = primitive_arity(op);
         return FunctionInfo {
             direct_targets: HashMap::from([(arity, name.clone())]),
+            partial_targets: partial_target_names(&name, arity),
             name,
             arity,
         };
@@ -200,9 +212,54 @@ fn binding_function_info(binding: &runtime::Binding) -> FunctionInfo {
     }
     FunctionInfo {
         direct_targets,
+        partial_targets: partial_target_names(&name, arity),
         name,
         arity,
     }
+}
+
+fn partial_target_names(name: &str, arity: usize) -> HashMap<usize, String> {
+    (0..arity)
+        .map(|prefix_len| (prefix_len, format!("{name}#partial{prefix_len}")))
+        .collect()
+}
+
+fn partial_application_functions(info: &FunctionInfo) -> Vec<NativeFunction> {
+    (0..info.arity)
+        .filter_map(|prefix_len| partial_application_function(info, prefix_len))
+        .collect()
+}
+
+fn partial_application_function(info: &FunctionInfo, prefix_len: usize) -> Option<NativeFunction> {
+    let name = info.partial_targets.get(&prefix_len)?.clone();
+    let captures = (0..prefix_len).map(ValueId).collect::<Vec<_>>();
+    let params = (0..=prefix_len).map(ValueId).collect::<Vec<_>>();
+    let dest = ValueId(prefix_len + 1);
+    let prefix_args = (0..=prefix_len).map(ValueId).collect::<Vec<_>>();
+    let stmt = if prefix_len + 1 == info.arity {
+        NativeStmt::DirectCall {
+            dest,
+            target: info.direct_targets.get(&info.arity)?.clone(),
+            args: prefix_args,
+        }
+    } else {
+        NativeStmt::MakeClosure {
+            dest,
+            target: info.partial_targets.get(&(prefix_len + 1))?.clone(),
+            captures: prefix_args,
+        }
+    };
+    Some(NativeFunction {
+        name,
+        captures,
+        params: params.clone(),
+        blocks: vec![NativeBlock {
+            id: BlockId(0),
+            params,
+            stmts: vec![stmt],
+            terminator: NativeTerminator::Return(dest),
+        }],
+    })
 }
 
 fn lower_primitive_binding(
@@ -240,6 +297,7 @@ struct LoweredFunction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FunctionInfo {
     direct_targets: HashMap<usize, String>,
+    partial_targets: HashMap<usize, String>,
     name: String,
     arity: usize,
 }
@@ -398,6 +456,19 @@ impl<'a> FunctionLowerer<'a> {
             runtime::ExprKind::Var(path) => {
                 if let Some(value) = self.locals.get(path).copied() {
                     return Ok(value);
+                }
+                if let Some(target) = self
+                    .functions
+                    .get(path)
+                    .and_then(|info| info.partial_targets.get(&0))
+                {
+                    let dest = self.fresh_value();
+                    self.current.stmts.push(NativeStmt::MakeClosure {
+                        dest,
+                        target: target.clone(),
+                        captures: Vec::new(),
+                    });
+                    return Ok(dest);
                 }
                 if let Some(target) = self
                     .functions
@@ -1553,7 +1624,7 @@ fn direct_apply<'expr>(
         return Ok(None);
     };
     let Some(target_name) = target.direct_targets.get(&args.len()) else {
-        if target.arity == 0 && !args.is_empty() {
+        if args.len() < target.arity || target.arity == 0 && !args.is_empty() {
             return Ok(None);
         }
         return Err(NativeLowerError::CallArityMismatch {
@@ -2036,8 +2107,8 @@ mod tests {
         let module = module_with_binding_and_root(inc, root);
         let lowered = lower_module(&module).expect("lowered");
 
-        assert_eq!(lowered.functions.len(), 1);
         assert_eq!(lowered.functions[0].name, "inc");
+        assert_eq!(lowered.functions[1].name, "inc#partial0");
         assert_eq!(lowered.functions[0].params, vec![ValueId(0)]);
         assert_eq!(
             lowered.roots[0].blocks[0].stmts,
@@ -2160,7 +2231,8 @@ mod tests {
             vec![
                 "add_after_let",
                 "add_after_let#lambda0",
-                "add_after_let#direct2"
+                "add_after_let#direct2",
+                "add_after_let#partial0"
             ]
         );
         assert_eq!(
@@ -2178,6 +2250,76 @@ mod tests {
                     dest: ValueId(2),
                     target: "add_after_let#direct2".to_string(),
                     args: vec![ValueId(0), ValueId(1)],
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn lowers_partial_top_level_call_as_closure_chain() {
+        let add = binding(
+            "add",
+            lambda(
+                "x",
+                lambda(
+                    "y",
+                    apply(
+                        apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("x")),
+                        var("y"),
+                    ),
+                ),
+            ),
+        );
+        let root = block(
+            vec![runtime::Stmt::Let {
+                pattern: bind_pattern("f"),
+                value: apply(
+                    var("add"),
+                    unknown_lit(typed_ir::Lit::Int("40".to_string())),
+                ),
+            }],
+            apply(var("f"), unknown_lit(typed_ir::Lit::Int("2".to_string()))),
+        );
+        let module = module_with_binding_and_root(add, root);
+        let lowered = lower_module(&module).expect("lowered");
+
+        assert!(
+            lowered
+                .functions
+                .iter()
+                .any(|function| function.name == "add#partial0")
+        );
+        assert!(
+            lowered
+                .functions
+                .iter()
+                .any(|function| function.name == "add#partial1")
+        );
+        assert_eq!(
+            lowered.roots[0].blocks[0].stmts,
+            vec![
+                NativeStmt::MakeClosure {
+                    dest: ValueId(0),
+                    target: "add#partial0".to_string(),
+                    captures: Vec::new(),
+                },
+                NativeStmt::Literal {
+                    dest: ValueId(1),
+                    literal: NativeLiteral::Int("40".to_string()),
+                },
+                NativeStmt::ClosureCall {
+                    dest: ValueId(2),
+                    callee: ValueId(0),
+                    args: vec![ValueId(1)],
+                },
+                NativeStmt::Literal {
+                    dest: ValueId(3),
+                    literal: NativeLiteral::Int("2".to_string()),
+                },
+                NativeStmt::ClosureCall {
+                    dest: ValueId(4),
+                    callee: ValueId(2),
+                    args: vec![ValueId(3)],
                 },
             ]
         );
@@ -2206,8 +2348,13 @@ mod tests {
         let module = module_with_bindings_and_root(vec![inc, twice], root);
         let lowered = lower_module(&module).expect("lowered");
 
-        assert_eq!(lowered.functions.len(), 2);
-        assert_eq!(lowered.functions[0].name, "inc");
-        assert_eq!(lowered.functions[1].name, "twice");
+        assert_eq!(
+            lowered
+                .functions
+                .iter()
+                .map(|function| function.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["inc", "inc#partial0", "twice", "twice#partial0"]
+        );
     }
 }

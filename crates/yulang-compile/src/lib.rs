@@ -256,6 +256,18 @@ f 2
     }
 
     #[test]
+    fn runs_partial_top_level_function_through_value_lane() {
+        assert_source_value_with_std(
+            r#"
+my add x y = x + y
+my f = add 40
+f 2
+"#,
+        )
+        .expect("value lane native eval");
+    }
+
+    #[test]
     fn compares_direct_nullary_return_call_through_cps_repr() {
         compare_source_cps_repr_with_std(
             r#"use std::flow::*

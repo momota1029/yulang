@@ -152,6 +152,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] Source-level value-backend executable tests cover a branch-selected
       captured closure flowing through a zero-arity binding and then being
       applied indirectly.
+- [x] Top-level function partial application lowers to generated closure
+      wrappers in the value backend and is covered by a source-level executable
+      test.
 - [ ] Closure values can be called after flowing through the value backend, but
       they are not yet printable roots or ordinary structural runtime values
       inside tuples/lists/records.

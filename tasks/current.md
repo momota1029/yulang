@@ -198,6 +198,9 @@ runtime/core IR
     source 側の `my f = if true { \x -> x + base } else { \x -> x }; f 2`
     も、0 引数 binding を closure-producing callee として評価してから
     indirect closure call する形で `--native-run-value-exe` まで確認済み。
+    さらに top-level 関数の部分適用は `#partialN` wrapper を生成し、bare
+    function value を `#partial0` の closure handle として扱う。`my add x y =
+    x + y; my f = add 40; f 2` は source から value-lane executable まで確認済み。
     ただし closure を printable `VmValue` root として返す形や、tuple/list/record
     内の普通の構造値として扱う形はまだ未対応。
   - value-lane Cranelift は guarded pattern match も扱う。pattern match 後に
