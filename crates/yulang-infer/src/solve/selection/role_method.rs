@@ -136,6 +136,13 @@ impl Infer {
                 unresolved.push(call);
                 continue;
             };
+            if !call.cast_coercion
+                && role_method_value_arg_count(&info)
+                    .is_some_and(|arity| call.arg_tvs.len() < arity)
+            {
+                unresolved.push(call);
+                continue;
+            }
             let resolution = if call.cast_coercion {
                 self.resolve_cast_method_def(call.recv_tv, call.result_tv)
                     .map(|def| RoleMethodResolution::Selected {
@@ -641,5 +648,16 @@ fn sig_var_name(sig: &crate::lower::signature::SigType) -> Option<String> {
     match sig {
         crate::lower::signature::SigType::Var(var) => Some(var.name.clone()),
         _ => None,
+    }
+}
+
+fn role_method_value_arg_count(info: &RoleMethodInfo) -> Option<usize> {
+    info.sig.as_ref().map(count_sig_value_args)
+}
+
+fn count_sig_value_args(sig: &crate::lower::signature::SigType) -> usize {
+    match sig {
+        crate::lower::signature::SigType::Fun { ret, .. } => 1 + count_sig_value_args(ret),
+        _ => 0,
     }
 }

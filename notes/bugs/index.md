@@ -13,14 +13,6 @@
   `reference/control-flow.md` の labelled loop の典型ユースケース
   （ネスト loop で見つけたら抜けつつ集計）が書けない。
 
-### Stdlib `.method` 解決系
-
-- [`list_fold_method_inference_failure.yu`](list_fold_method_inference_failure.yu)
-  — `[1, 2, 3].fold 0 (\acc x -> acc + x)` が「expected function」で落ちる。
-  `impl Fold (list 'a)` で `our xs.fold z f = fold_impl xs z f` が定義
-  されているのに、callback `f` の型が curried 関数として固まらない。
-  `reference/std/list.md` の代表的な fold 例がそのまま動かない。
-
 ## 解決済み（2026-05-14 時点で再現せず）
 
 - [`var_effect_leak_with_wildcards.yu`](var_effect_leak_with_wildcards.yu) —
@@ -60,6 +52,9 @@
   現在は `[0] 4` を返す。
 - [`branch_merge_cast_missing.yu`](branch_merge_cast_missing.yu) — 分岐合流位置で
   暗黙 cast boundary が使われる。現在は `({raw = 7}, {raw = 0})` を返す。
+- [`list_fold_method_inference_failure.yu`](list_fold_method_inference_failure.yu)
+  — `[1, 2, 3].fold 0 (\acc x -> acc + x)` が callback を curried 関数として
+  扱う。現在は `[0] 6` を返す。
 - [`record_alias_default_mix.yu`](record_alias_default_mix.yu) —
   record pattern で「alias + default」(`host: h = "..."`) と「default only」
   (`port = 80`) を同じ pattern に混ぜても通る。`f {}` のように optional

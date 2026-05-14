@@ -689,6 +689,13 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
     }
 
     #[test]
+    fn vm_runs_source_list_fold_method_with_curried_callback() {
+        let results = eval_source_with_std("[1, 2, 3].fold 0 (\\acc x -> acc + x)\n");
+
+        assert_eq!(results, vec![TestValue::Int("6".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_cast_declarations() {
         let results = eval_source_with_std(
             "struct user_id { raw: int }\n\
