@@ -1,5 +1,31 @@
 use super::*;
 
+const MAX_INFER_SUBSTITUTION_DEPTH: usize = 128;
+
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct TypeSubstitutionInferOptions {
+    include_function_effects: bool,
+    prefer_non_never: bool,
+    skip_empty_effect_residual: bool,
+}
+
+impl TypeSubstitutionInferOptions {
+    fn prefer_non_never() -> Self {
+        Self {
+            prefer_non_never: true,
+            ..Self::default()
+        }
+    }
+
+    fn prefer_non_never_skip_empty_effects() -> Self {
+        Self {
+            prefer_non_never: true,
+            skip_empty_effect_residual: true,
+            ..Self::default()
+        }
+    }
+}
+
 pub(crate) fn infer_type_substitutions(
     template: &typed_ir::Type,
     actual: &typed_ir::Type,
@@ -11,10 +37,8 @@ pub(crate) fn infer_type_substitutions(
         actual,
         params,
         substitutions,
-        128,
-        false,
-        false,
-        false,
+        MAX_INFER_SUBSTITUTION_DEPTH,
+        TypeSubstitutionInferOptions::default(),
     );
 }
 
@@ -29,10 +53,8 @@ pub(crate) fn infer_type_substitutions_prefer_non_never(
         actual,
         params,
         substitutions,
-        128,
-        false,
-        true,
-        false,
+        MAX_INFER_SUBSTITUTION_DEPTH,
+        TypeSubstitutionInferOptions::prefer_non_never(),
     );
 }
 
@@ -47,10 +69,8 @@ pub(crate) fn infer_type_substitutions_prefer_non_never_skip_empty_effects(
         actual,
         params,
         substitutions,
-        128,
-        false,
-        true,
-        true,
+        MAX_INFER_SUBSTITUTION_DEPTH,
+        TypeSubstitutionInferOptions::prefer_non_never_skip_empty_effects(),
     );
 }
 
@@ -2425,16 +2445,19 @@ pub(super) fn infer_type_substitutions_inner(
     params: &BTreeSet<typed_ir::TypeVar>,
     substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     depth: usize,
-    include_function_effects: bool,
-    prefer_non_never: bool,
-    skip_empty_effect_residual: bool,
+    options: TypeSubstitutionInferOptions,
 ) {
     if depth == 0 {
         return;
     }
     match (template, actual) {
         (typed_ir::Type::Var(var), actual) if params.contains(var) => {
-            insert_substitution(substitutions, var.clone(), actual.clone(), prefer_non_never);
+            insert_substitution(
+                substitutions,
+                var.clone(),
+                actual.clone(),
+                options.prefer_non_never,
+            );
         }
         (
             typed_ir::Type::Named { path, args },
@@ -2450,9 +2473,7 @@ pub(super) fn infer_type_substitutions_inner(
                     params,
                     substitutions,
                     depth - 1,
-                    include_function_effects,
-                    prefer_non_never,
-                    skip_empty_effect_residual,
+                    options,
                 );
             }
         }
@@ -2476,20 +2497,16 @@ pub(super) fn infer_type_substitutions_inner(
                 params,
                 substitutions,
                 depth - 1,
-                include_function_effects,
-                prefer_non_never,
-                skip_empty_effect_residual,
+                options,
             );
-            if include_function_effects {
+            if options.include_function_effects {
                 infer_type_substitutions_inner(
                     param_effect,
                     actual_param_effect,
                     params,
                     substitutions,
                     depth - 1,
-                    include_function_effects,
-                    prefer_non_never,
-                    skip_empty_effect_residual,
+                    options,
                 );
                 infer_type_substitutions_inner(
                     ret_effect,
@@ -2497,9 +2514,7 @@ pub(super) fn infer_type_substitutions_inner(
                     params,
                     substitutions,
                     depth - 1,
-                    include_function_effects,
-                    prefer_non_never,
-                    skip_empty_effect_residual,
+                    options,
                 );
             }
             infer_type_substitutions_inner(
@@ -2508,9 +2523,7 @@ pub(super) fn infer_type_substitutions_inner(
                 params,
                 substitutions,
                 depth - 1,
-                include_function_effects,
-                prefer_non_never,
-                skip_empty_effect_residual,
+                options,
             );
         }
         (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
@@ -2523,9 +2536,7 @@ pub(super) fn infer_type_substitutions_inner(
                     params,
                     substitutions,
                     depth - 1,
-                    include_function_effects,
-                    prefer_non_never,
-                    skip_empty_effect_residual,
+                    options,
                 );
             }
         }
@@ -2537,9 +2548,7 @@ pub(super) fn infer_type_substitutions_inner(
                     params,
                     substitutions,
                     depth - 1,
-                    include_function_effects,
-                    prefer_non_never,
-                    skip_empty_effect_residual,
+                    options,
                 );
             }
         }
@@ -2556,9 +2565,7 @@ pub(super) fn infer_type_substitutions_inner(
                         params,
                         substitutions,
                         depth - 1,
-                        include_function_effects,
-                        prefer_non_never,
-                        skip_empty_effect_residual,
+                        options,
                     );
                 }
             }
@@ -2578,9 +2585,7 @@ pub(super) fn infer_type_substitutions_inner(
                 params,
                 substitutions,
                 depth - 1,
-                include_function_effects,
-                prefer_non_never,
-                skip_empty_effect_residual,
+                options,
             );
         }
         (typed_ir::Type::Row { items, tail }, actual) => {
@@ -2592,9 +2597,7 @@ pub(super) fn infer_type_substitutions_inner(
                 params,
                 substitutions,
                 depth - 1,
-                include_function_effects,
-                prefer_non_never,
-                skip_empty_effect_residual,
+                options,
             );
         }
         (typed_ir::Type::Variant(variant), typed_ir::Type::Variant(actual_variant)) => {
@@ -2615,25 +2618,14 @@ pub(super) fn infer_type_substitutions_inner(
                             params,
                             substitutions,
                             depth - 1,
-                            include_function_effects,
-                            prefer_non_never,
-                            skip_empty_effect_residual,
+                            options,
                         );
                     }
                 }
             }
         }
         (typed_ir::Type::Recursive { body, .. }, actual) => {
-            infer_type_substitutions_inner(
-                body,
-                actual,
-                params,
-                substitutions,
-                depth - 1,
-                include_function_effects,
-                prefer_non_never,
-                skip_empty_effect_residual,
-            );
+            infer_type_substitutions_inner(body, actual, params, substitutions, depth - 1, options);
         }
         (template, typed_ir::Type::Recursive { body, .. }) => {
             infer_type_substitutions_inner(
@@ -2642,9 +2634,7 @@ pub(super) fn infer_type_substitutions_inner(
                 params,
                 substitutions,
                 depth - 1,
-                include_function_effects,
-                prefer_non_never,
-                skip_empty_effect_residual,
+                options,
             );
         }
         _ => {}
@@ -2659,9 +2649,7 @@ pub(super) fn infer_effect_row_substitutions(
     params: &BTreeSet<typed_ir::TypeVar>,
     substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     depth: usize,
-    include_function_effects: bool,
-    prefer_non_never: bool,
-    skip_empty_effect_residual: bool,
+    options: TypeSubstitutionInferOptions,
 ) {
     let mut matched_actual = vec![false; actual_items.len()];
     let mut row_vars = Vec::new();
@@ -2682,9 +2670,7 @@ pub(super) fn infer_effect_row_substitutions(
                         params,
                         substitutions,
                         depth,
-                        include_function_effects,
-                        prefer_non_never,
-                        skip_empty_effect_residual,
+                        options,
                     );
                     matched_actual[index] = true;
                     break;
@@ -2701,11 +2687,16 @@ pub(super) fn infer_effect_row_substitutions(
     let residual = effect_row_from_items_and_tail(residual_items, actual_tail.clone());
 
     for var in row_vars {
-        if !(skip_empty_effect_residual && effect_is_empty(&residual)) {
-            insert_substitution(substitutions, var, residual.clone(), prefer_non_never);
+        if !(options.skip_empty_effect_residual && effect_is_empty(&residual)) {
+            insert_substitution(
+                substitutions,
+                var,
+                residual.clone(),
+                options.prefer_non_never,
+            );
         }
     }
-    if skip_empty_effect_residual && effect_is_empty(&residual) {
+    if options.skip_empty_effect_residual && effect_is_empty(&residual) {
         return;
     }
     infer_type_substitutions_inner(
@@ -2714,9 +2705,7 @@ pub(super) fn infer_effect_row_substitutions(
         params,
         substitutions,
         depth,
-        include_function_effects,
-        prefer_non_never,
-        skip_empty_effect_residual,
+        options,
     );
 }
 
@@ -2754,22 +2743,11 @@ pub(super) fn infer_type_arg_substitutions(
     params: &BTreeSet<typed_ir::TypeVar>,
     substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     depth: usize,
-    include_function_effects: bool,
-    prefer_non_never: bool,
-    skip_empty_effect_residual: bool,
+    options: TypeSubstitutionInferOptions,
 ) {
     match (template, actual) {
         (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Type(actual)) => {
-            infer_type_substitutions_inner(
-                template,
-                actual,
-                params,
-                substitutions,
-                depth,
-                include_function_effects,
-                prefer_non_never,
-                skip_empty_effect_residual,
-            );
+            infer_type_substitutions_inner(template, actual, params, substitutions, depth, options);
         }
         (typed_ir::TypeArg::Type(template), typed_ir::TypeArg::Bounds(actual)) => {
             if let Some(actual) = tir_evidence_bound(actual) {
@@ -2779,9 +2757,7 @@ pub(super) fn infer_type_arg_substitutions(
                     params,
                     substitutions,
                     depth,
-                    include_function_effects,
-                    prefer_non_never,
-                    skip_empty_effect_residual,
+                    options,
                 );
             }
         }
@@ -2793,9 +2769,7 @@ pub(super) fn infer_type_arg_substitutions(
                     params,
                     substitutions,
                     depth,
-                    include_function_effects,
-                    prefer_non_never,
-                    skip_empty_effect_residual,
+                    options,
                 );
             }
         }
@@ -2809,9 +2783,7 @@ pub(super) fn infer_type_arg_substitutions(
                     params,
                     substitutions,
                     depth,
-                    include_function_effects,
-                    prefer_non_never,
-                    skip_empty_effect_residual,
+                    options,
                 );
             }
         }
