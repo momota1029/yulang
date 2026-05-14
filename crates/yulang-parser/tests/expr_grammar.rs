@@ -1800,6 +1800,46 @@ fn expr_string_lit_interp() {
 }
 
 #[test]
+fn expr_string_lit_interp_with_leading_space() {
+    let got = parse_expression("\"%{ x }\"");
+    assert!(got.iter().any(|line| line == "        Ident \"x\""));
+    assert!(
+        got.iter()
+            .any(|line| line == "      StringInterpCloseBrace \"}\"")
+    );
+}
+
+#[test]
+fn expr_string_lit_interp_statement_block() {
+    let got = parse_expression("\"%{my x = 41; x + 1}\"");
+    assert!(got.iter().any(|line| line == "        (BraceGroup"));
+    assert!(got.iter().any(|line| line == "          (Binding"));
+    assert!(got.iter().any(|line| line == "              My \"my\""));
+    assert!(got.iter().any(|line| line == "          (Separator"));
+    assert!(got.iter().any(|line| line == "          (Expr"));
+    assert!(
+        got.iter()
+            .any(|line| line == "      StringInterpCloseBrace \"}\"")
+    );
+    assert!(
+        !got.iter()
+            .any(|line| line.contains("StringText \"x = 41; x + 1}\""))
+    );
+}
+
+#[test]
+fn expr_string_lit_interp_braced_block() {
+    let got = parse_expression("\"%{ { my x = 41; x + 1 } }\"");
+    assert!(got.iter().any(|line| line == "        (BraceGroup"));
+    assert!(got.iter().any(|line| line == "          BraceL \"{\""));
+    assert!(got.iter().any(|line| line == "          (Binding"));
+    assert!(
+        got.iter()
+            .any(|line| line == "      StringInterpCloseBrace \"}\"")
+    );
+}
+
+#[test]
 fn expr_string_lit_heredoc() {
     let got = parse_expression("\"\"\"hello\"\"\"");
     let expected = vec![

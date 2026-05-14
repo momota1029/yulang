@@ -128,6 +128,27 @@ pub(crate) fn parse_brace_stmt_block<I: EventInput, S: EventSink>(
     }
 }
 
+pub(crate) fn parse_virtual_brace_stmt_block_until_close<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading_info: TriviaInfo,
+) -> Option<Lex> {
+    i.env.state.sink.start(SyntaxKind::BraceGroup);
+
+    let mut machine = BraceStmtBlockMachine;
+    let base_indent = i.env.indent;
+    let out = machine.parse_stop_list(i.rb(), leading_info, base_indent)?;
+    let close = match out {
+        Either::Right(close) => close,
+        Either::Left(_) => {
+            emit_missing_invalid(i.rb());
+            i.env.state.sink.finish();
+            return None;
+        }
+    };
+    i.env.state.sink.finish();
+    Some(close)
+}
+
 pub(crate) fn parse_indent_stmt_block<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     block_indent: usize,

@@ -11,6 +11,8 @@ use crate::sink::EventSink;
 use crate::string::scan::{StrNud, StringMode, scan_string_nud};
 
 use crate::expr::parse_expr_bp;
+use crate::scan::trivia::scan_trivia;
+use crate::stmt::{parse_virtual_brace_stmt_block_until_close, peek_stmt_lex};
 
 pub(crate) fn parse_string_lit<I: EventInput, S: EventSink>(
     i: In<I, S>,
@@ -56,16 +58,11 @@ pub fn parse_string<I: EventInput, S: EventSink>(
                     .state
                     .sink
                     .push(SyntaxKind::StringInterpOpenBrace, text.as_ref());
-                let mut j = i.rb();
-                j.env.stop.insert(SyntaxKind::BraceR);
-                let mut stop_lex = match parse_expr_bp(None, TriviaInfo::None, j)? {
-                    Ok(Either::Right(stop)) if stop.kind == SyntaxKind::BraceR => stop,
-                    Err(led) if led.lex.kind == SyntaxKind::BraceR => led.lex,
-                    _ => {
-                        i.env.state.sink.finish();
-                        continue;
-                    }
-                };
+                let leading_info = i
+                    .run(scan_trivia)
+                    .map(|trivia| trivia.info())
+                    .unwrap_or(TriviaInfo::None);
+                let mut stop_lex = parse_string_interp_body(i.rb(), leading_info)?;
                 let trailing_text: String = stop_lex
                     .trailing_trivia
                     .parts()
@@ -120,4 +117,53 @@ pub fn parse_string<I: EventInput, S: EventSink>(
             }
         }
     }
+}
+
+fn parse_string_interp_body<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    leading_info: TriviaInfo,
+) -> Option<Lex> {
+    if peek_stmt_lex(leading_info, i.rb())
+        .is_some_and(|lex| string_interp_starts_stmt_block(lex.kind))
+    {
+        i.env.state.sink.start(SyntaxKind::Expr);
+        let close = parse_virtual_brace_stmt_block_until_close(i.rb(), leading_info)?;
+        i.env.state.sink.finish();
+        return Some(close);
+    }
+
+    let mut j = i.rb();
+    j.env.stop.insert(SyntaxKind::BraceR);
+    match parse_expr_bp(None, leading_info, j)? {
+        Ok(Either::Right(stop)) if stop.kind == SyntaxKind::BraceR => Some(stop),
+        Err(led) if led.lex.kind == SyntaxKind::BraceR => Some(led.lex),
+        _ => None,
+    }
+}
+
+fn string_interp_starts_stmt_block(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::My
+            | SyntaxKind::Our
+            | SyntaxKind::Pub
+            | SyntaxKind::Use
+            | SyntaxKind::Mod
+            | SyntaxKind::Type
+            | SyntaxKind::Struct
+            | SyntaxKind::Enum
+            | SyntaxKind::Error
+            | SyntaxKind::Role
+            | SyntaxKind::Impl
+            | SyntaxKind::Cast
+            | SyntaxKind::Act
+            | SyntaxKind::For
+            | SyntaxKind::Lazy
+            | SyntaxKind::Prefix
+            | SyntaxKind::Infix
+            | SyntaxKind::Suffix
+            | SyntaxKind::Nullfix
+            | SyntaxKind::Where
+            | SyntaxKind::DocComment
+    )
 }
