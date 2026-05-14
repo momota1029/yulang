@@ -14,7 +14,16 @@ impl Infer {
         name: &Name,
     ) -> Option<DefId> {
         let mut seen = HashSet::new();
-        self.resolve_ref_selection_def_inner(recv_tv, name, &mut seen)
+        self.resolve_ref_selection_def_inner(recv_tv, name, &mut seen, true)
+    }
+
+    pub(in crate::solve::selection) fn resolve_ref_selection_def_precise(
+        &self,
+        recv_tv: TypeVar,
+        name: &Name,
+    ) -> Option<DefId> {
+        let mut seen = HashSet::new();
+        self.resolve_ref_selection_def_inner(recv_tv, name, &mut seen, false)
     }
 
     fn resolve_ref_selection_def_inner(
@@ -22,34 +31,44 @@ impl Infer {
         recv_tv: TypeVar,
         name: &Name,
         seen: &mut HashSet<TypeVar>,
+        allow_global_unique: bool,
     ) -> Option<DefId> {
         if !seen.insert(recv_tv) {
             return None;
         }
 
         for lower in self.lower_refs_of(recv_tv) {
-            if let Some(def) = self.resolve_ref_selection_def_from_pos(lower, name, seen) {
+            if let Some(def) =
+                self.resolve_ref_selection_def_from_pos(lower, name, seen, allow_global_unique)
+            {
                 return Some(def);
             }
         }
 
         for instance in self.compact_lower_instances_of(recv_tv) {
-            if let Some(def) =
-                self.resolve_ref_selection_def_from_compact_instance(&instance, name, seen)
-            {
+            if let Some(def) = self.resolve_ref_selection_def_from_compact_instance(
+                &instance,
+                name,
+                seen,
+                allow_global_unique,
+            ) {
                 return Some(def);
             }
         }
 
         if let Some(concrete) = super::concrete_tv_repr(self, recv_tv, true) {
-            if let Some(def) =
-                self.resolve_ref_selection_def_from_compact_type(&concrete, &[], name, seen)
-            {
+            if let Some(def) = self.resolve_ref_selection_def_from_compact_type(
+                &concrete,
+                &[],
+                name,
+                seen,
+                allow_global_unique,
+            ) {
                 return Some(def);
             }
         }
 
-        if self.recv_has_ref_type_lower(recv_tv, &mut HashSet::new()) {
+        if allow_global_unique && self.recv_has_ref_type_lower(recv_tv, &mut HashSet::new()) {
             self.unique_ref_type_method_named(name)
         } else {
             None
@@ -74,12 +93,14 @@ impl Infer {
         instance: &OwnedSchemeInstance,
         name: &Name,
         seen: &mut HashSet<TypeVar>,
+        allow_global_unique: bool,
     ) -> Option<DefId> {
         self.resolve_ref_selection_def_from_compact_type(
             &instance.scheme.compact.cty.lower,
             instance.subst.as_slice(),
             name,
             seen,
+            allow_global_unique,
         )
     }
 
@@ -89,6 +110,7 @@ impl Infer {
         subst: &[(TypeVar, TypeVar)],
         name: &Name,
         seen: &mut HashSet<TypeVar>,
+        allow_global_unique: bool,
     ) -> Option<DefId> {
         for con in &ty.cons {
             if self.is_ref_type_path(&con.path) && con.args.len() >= 2 {
@@ -112,7 +134,9 @@ impl Infer {
         }
         for tv in &ty.vars {
             let mapped = lookup_small_subst(subst, *tv);
-            if let Some(def) = self.resolve_ref_selection_def_inner(mapped, name, seen) {
+            if let Some(def) =
+                self.resolve_ref_selection_def_inner(mapped, name, seen, allow_global_unique)
+            {
                 return Some(def);
             }
         }
@@ -148,17 +172,23 @@ impl Infer {
         pos: crate::ids::PosId,
         name: &Name,
         seen: &mut HashSet<TypeVar>,
+        allow_global_unique: bool,
     ) -> Option<DefId> {
         match self.arena.get_pos(pos) {
             Pos::Con(path, args) if self.is_ref_type_path(&path) && args.len() >= 2 => {
                 self.resolve_ref_inner_selection_def_from_pos(args[1].0, name, seen)
             }
             Pos::Var(inner) | Pos::Raw(inner) => {
-                self.resolve_ref_selection_def_inner(inner, name, seen)
+                self.resolve_ref_selection_def_inner(inner, name, seen, allow_global_unique)
             }
             Pos::Union(left, right) => merge_unique_ref_selection_def(
-                self.resolve_ref_selection_def_from_pos(left, name, &mut seen.clone()),
-                self.resolve_ref_selection_def_from_pos(right, name, seen),
+                self.resolve_ref_selection_def_from_pos(
+                    left,
+                    name,
+                    &mut seen.clone(),
+                    allow_global_unique,
+                ),
+                self.resolve_ref_selection_def_from_pos(right, name, seen, allow_global_unique),
             ),
             _ => None,
         }

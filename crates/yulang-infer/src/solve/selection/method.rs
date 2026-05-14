@@ -86,7 +86,7 @@ impl Infer {
         }
 
         if ref_projection_preferred {
-            if let Some(def) = self.resolve_ref_selection_def(recv_tv, &selection.name) {
+            if let Some(def) = self.resolve_ref_selection_def_precise(recv_tv, &selection.name) {
                 if self.resolve_method_def_selection(recv_tv, selection, def) {
                     return true;
                 }
