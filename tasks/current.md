@@ -41,6 +41,8 @@ Cranelift backend を作る。
 - CPS repr Cranelift は `RuntimeValuePtr` を root return と handler /
   resumption payload に通せる。string / list / record / variant payload の
   小さい handler 境界は VM / CPS eval と合わせて regression 済み。
+- `Continue` / `Branch` / `DirectCall` / `ApplyClosure` も runtime value
+  pointer を保持する regression を追加済み。
 
 近い形:
 

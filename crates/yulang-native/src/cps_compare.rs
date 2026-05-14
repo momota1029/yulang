@@ -604,6 +604,43 @@ mod tests {
     }
 
     #[test]
+    fn carries_runtime_values_through_cps_repr_control_edges() {
+        let branch = module_with_root(if_expr(
+            unknown_lit(typed_ir::Lit::Bool(true)),
+            list_expr(vec![1, 2]),
+            list_expr(vec![3]),
+        ));
+        compare_cps_module(&branch).expect("branch CPS matches VM");
+        assert_eq!(
+            cps_cranelift_display_roots(&branch),
+            vec!["[1, 2]".to_string()]
+        );
+
+        let direct_call = module_with_bindings_and_root(
+            vec![binding("make", lambda("u", list_expr(vec![4, 5])))],
+            apply(var("make"), unknown_lit(typed_ir::Lit::Unit)),
+        );
+        compare_cps_module(&direct_call).expect("direct call CPS matches VM");
+        assert_eq!(
+            cps_cranelift_display_roots(&direct_call),
+            vec!["[4, 5]".to_string()]
+        );
+
+        let closure_apply = module_with_root(block(
+            vec![runtime::Stmt::Let {
+                pattern: bind_pattern("f"),
+                value: lambda("u", list_expr(vec![6, 7])),
+            }],
+            apply(var("f"), unknown_lit(typed_ir::Lit::Unit)),
+        ));
+        compare_cps_module(&closure_apply).expect("closure apply CPS matches VM");
+        assert_eq!(
+            cps_cranelift_display_roots(&closure_apply),
+            vec!["[6, 7]".to_string()]
+        );
+    }
+
+    #[test]
     fn compares_if_with_vm_and_native_control() {
         let expr = if_expr(
             apply(
