@@ -50,9 +50,7 @@ pub fn parse_module_to_green_with_ops(source: &str, ops: crate::op::OpTable) -> 
         let env = Env::new(&mut state, ops, 0, HashSet::new());
         let mut i = base_in.set_env(env);
 
-        let leading_trivia = i
-            .run(scan_trivia)
-            .unwrap_or_else(crate::lex::Trivia::empty);
+        let leading_trivia = i.run(scan_trivia).unwrap_or_else(crate::lex::Trivia::empty);
         let leading = leading_trivia.info();
         i.env.state.sink.trivia(&leading_trivia);
         let mut info = leading;
@@ -112,6 +110,9 @@ mod tests {
             .find(|token| token.kind() == SyntaxKind::My)
             .expect("my token");
 
-        assert_eq!(usize::from(my.text_range().start()), source.find("my").unwrap());
+        assert_eq!(
+            usize::from(my.text_range().start()),
+            source.find("my").unwrap()
+        );
     }
 }
