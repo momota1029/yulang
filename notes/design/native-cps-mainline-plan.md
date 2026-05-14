@@ -100,7 +100,7 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 
 - [x] CPS repr closure env slot limit を現在の small fixed helper から広げる。
 - [x] closure pointer と runtime value pointer の境界を明示する。
-- [ ] top-level partial application wrapper と CPS closure creation を揃える。
+- [x] top-level partial application wrapper と CPS closure creation を揃える。
 - [ ] higher-order std functions を CPS repr path で VM と比較する。
 
 ### 4. General Thunk Invocation

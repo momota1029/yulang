@@ -1314,6 +1314,10 @@ impl<'a> FunctionLowerer<'a> {
             return Ok(dest);
         }
 
+        if let Some((target_path, info, args)) = partial_direct_apply_path(expr, self.functions)? {
+            return self.lower_partial_direct_apply(target_path, info, args);
+        }
+
         if let Some((target_path, info, args)) = direct_apply_path(expr, self.functions)? {
             let target = info.name.clone();
             let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
@@ -1754,6 +1758,72 @@ impl<'a> FunctionLowerer<'a> {
         // ApplyClosure (e.g. once_mono1's MakeThunk + Return) does not leak
         // into a consumer that needs a plain value (`(each ...).once`).
         Ok(self.force_if_non_thunk_demand(dest, &expr.ty))
+    }
+
+    fn lower_partial_direct_apply(
+        &mut self,
+        target_path: &typed_ir::Path,
+        info: &FunctionInfo,
+        args: Vec<&runtime::Expr>,
+    ) -> CpsLowerResult<CpsValueId> {
+        let info_params = info.params.clone();
+        let lowered_args = args
+            .into_iter()
+            .enumerate()
+            .map(|(idx, arg)| {
+                let expected = info_params
+                    .get(idx)
+                    .cloned()
+                    .unwrap_or_else(runtime::Type::unknown);
+                let lowered = if matches!(expected, runtime::Type::Thunk { .. }) {
+                    self.lower_expr_as_thunk_value(arg)?
+                } else {
+                    self.lower_expr(arg)?
+                };
+                Ok(self.force_if_non_thunk_demand(lowered, &expected))
+            })
+            .collect::<CpsLowerResult<Vec<_>>>()?;
+        self.emit_partial_direct_closure(target_path, info, lowered_args)
+    }
+
+    fn emit_partial_direct_closure(
+        &mut self,
+        target_path: &typed_ir::Path,
+        info: &FunctionInfo,
+        captured_args: Vec<CpsValueId>,
+    ) -> CpsLowerResult<CpsValueId> {
+        let entry = self.fresh_continuation();
+        let dest = self.fresh_value();
+        let param_value = self.fresh_value();
+        let saved_current = std::mem::replace(
+            &mut self.current,
+            ContinuationBuilder::new(entry, vec![param_value]),
+        );
+        let mut call_args = captured_args;
+        call_args.push(param_value);
+        let result = if call_args.len() == info.arity {
+            let result = self.fresh_value();
+            self.current.stmts.push(CpsStmt::DirectCall {
+                dest: result,
+                target: info.name.clone(),
+                args: call_args,
+            });
+            if matches!(info.ret, runtime::Type::Thunk { .. })
+                || self.target_may_perform_when_called(target_path)
+            {
+                self.mark_active_handlers_external_call();
+            }
+            result
+        } else {
+            self.emit_partial_direct_closure(target_path, info, call_args)?
+        };
+        self.terminate(CpsTerminator::Return(result));
+        self.finish_current();
+        self.current = saved_current;
+        self.current
+            .stmts
+            .push(CpsStmt::MakeClosure { dest, entry });
+        Ok(dest)
     }
 
     /// Lower a positional call argument. If the callee's first formal
@@ -5253,12 +5323,50 @@ fn direct_apply_path<'expr, 'functions>(
     if args.is_empty() {
         return Ok(None);
     }
-    if args.len() != target.arity {
+    if args.len() < target.arity {
+        return Ok(None);
+    }
+    if args.len() > target.arity {
         return Err(CpsLowerError::CallArityMismatch {
             target: target.name.clone(),
             expected: target.arity,
             actual: args.len(),
         });
+    }
+    args.reverse();
+    Ok(Some((path, target, args)))
+}
+
+fn partial_direct_apply_path<'expr, 'functions>(
+    expr: &'expr runtime::Expr,
+    functions: &'functions HashMap<typed_ir::Path, FunctionInfo>,
+) -> CpsLowerResult<
+    Option<(
+        &'expr typed_ir::Path,
+        &'functions FunctionInfo,
+        Vec<&'expr runtime::Expr>,
+    )>,
+> {
+    let mut args = Vec::new();
+    let mut current = expr;
+    loop {
+        current = transparent_effect_expr(current);
+        match &current.kind {
+            runtime::ExprKind::Apply { callee, arg, .. } => {
+                args.push(arg.as_ref());
+                current = callee;
+            }
+            _ => break,
+        }
+    }
+    let runtime::ExprKind::Var(path) = &current.kind else {
+        return Ok(None);
+    };
+    let Some(target) = functions.get(path) else {
+        return Ok(None);
+    };
+    if args.is_empty() || args.len() >= target.arity {
+        return Ok(None);
     }
     args.reverse();
     Ok(Some((path, target, args)))

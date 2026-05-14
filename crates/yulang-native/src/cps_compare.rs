@@ -702,6 +702,31 @@ mod tests {
     }
 
     #[test]
+    fn applies_partial_top_level_function_through_cps_repr() {
+        let add = binding(
+            "add",
+            lambda(
+                "x",
+                lambda(
+                    "y",
+                    apply(
+                        apply(primitive(typed_ir::PrimitiveOp::IntAdd), var("x")),
+                        var("y"),
+                    ),
+                ),
+            ),
+        );
+        let root = apply(
+            apply(var("add"), unknown_lit(typed_ir::Lit::Int("1".to_string()))),
+            unknown_lit(typed_ir::Lit::Int("41".to_string())),
+        );
+        let module = module_with_bindings_and_root(vec![add], root);
+
+        compare_cps_module(&module).expect("partial function CPS matches VM");
+        assert_eq!(cps_cranelift_display_roots(&module), vec!["42".to_string()]);
+    }
+
+    #[test]
     fn compares_if_with_vm_and_native_control() {
         let expr = if_expr(
             apply(

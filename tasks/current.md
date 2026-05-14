@@ -47,6 +47,8 @@ Cranelift backend を作る。
   `*_many(ptr, len)` helper で larger effect-flow closure env を運べる。
 - CPS repr ABI lane に `ClosurePtr` を追加し、closure pointer と
   `RuntimeValuePtr` / `ThunkPtr` の境界を明示した。
+- top-level function の partial application は CPS closure として生成し、
+  残りの引数が揃った時点で direct call へ戻る。
 
 近い形:
 

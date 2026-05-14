@@ -274,6 +274,8 @@ or out of here into the user-facing table once they stabilize.
       through `*_many(ptr, len)` runtime helpers.
 - [x] CPS repr ABI has a dedicated `ClosurePtr` lane, keeping closure pointers
       distinct from `RuntimeValuePtr`, `ThunkPtr`, and resumption pointers.
+- [x] Top-level function partial application lowers to CPS closure creation in
+      the CPS repr path and is covered by VM / CPS / Cranelift comparison.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
 - [x] Effectful thunks returned across an inlinable source-defined function
