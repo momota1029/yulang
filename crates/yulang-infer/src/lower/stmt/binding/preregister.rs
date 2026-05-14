@@ -190,9 +190,41 @@ fn preregister_pat_names(
     is_module_private: bool,
 ) {
     match node.kind() {
-        SyntaxKind::Pattern | SyntaxKind::PatOr | SyntaxKind::PatAs | SyntaxKind::PatParenGroup => {
+        SyntaxKind::PatField => {
             for child in node.children() {
-                preregister_pat_names(state, &child, is_pub, is_module_private);
+                if child.kind() != SyntaxKind::Expr {
+                    preregister_pat_names(state, &child, is_pub, is_module_private);
+                }
+            }
+            let has_nested_pat = node.children().any(|child| {
+                matches!(
+                    child.kind(),
+                    SyntaxKind::Pattern | SyntaxKind::PatOr | SyntaxKind::PatAs
+                )
+            });
+            if !has_nested_pat
+                && let Some((name, span)) = node
+                    .children_with_tokens()
+                    .filter_map(|it| it.into_token())
+                    .find(|t| t.kind() == SyntaxKind::Ident)
+                    .map(|t| (Name(t.text().to_string()), t.text_range()))
+            {
+                preregister_pat_name(state, name, span, is_pub, is_module_private);
+            }
+        }
+        SyntaxKind::Pattern
+        | SyntaxKind::PatOr
+        | SyntaxKind::PatAs
+        | SyntaxKind::PatParenGroup
+        | SyntaxKind::PatList
+        | SyntaxKind::PatRecord
+        | SyntaxKind::PatSpread
+        | SyntaxKind::ApplyML
+        | SyntaxKind::ApplyC => {
+            for child in node.children() {
+                if child.kind() != SyntaxKind::Expr {
+                    preregister_pat_names(state, &child, is_pub, is_module_private);
+                }
             }
             let direct = node
                 .children_with_tokens()
@@ -204,30 +236,40 @@ fn preregister_pat_names(
                     _ => None,
                 });
             if let Some((name, span)) = direct {
-                let def = state.fresh_def();
-                let tv = state.fresh_tv();
-                state.register_def_tv(def, tv);
-                state.mark_let_bound_def(def);
-                if let Some(owner) = state.current_owner {
-                    state.register_def_owner(def, owner);
-                }
-                state.register_def_name(def, name.clone());
-                state.register_def_span(def, span);
-                if is_pub {
-                    state.insert_value(state.ctx.current_module, name, def);
-                } else if is_module_private {
-                    state.insert_value_with_visibility(
-                        state.ctx.current_module,
-                        name,
-                        def,
-                        ModuleVisibility::My,
-                    );
-                } else {
-                    state.ctx.bind_local(name, def);
-                }
+                preregister_pat_name(state, name, span, is_pub, is_module_private);
             }
         }
         _ => {}
+    }
+}
+
+fn preregister_pat_name(
+    state: &mut LowerState,
+    name: Name,
+    span: TextRange,
+    is_pub: bool,
+    is_module_private: bool,
+) {
+    let def = state.fresh_def();
+    let tv = state.fresh_tv();
+    state.register_def_tv(def, tv);
+    state.mark_let_bound_def(def);
+    if let Some(owner) = state.current_owner {
+        state.register_def_owner(def, owner);
+    }
+    state.register_def_name(def, name.clone());
+    state.register_def_span(def, span);
+    if is_pub {
+        state.insert_value(state.ctx.current_module, name, def);
+    } else if is_module_private {
+        state.insert_value_with_visibility(
+            state.ctx.current_module,
+            name,
+            def,
+            ModuleVisibility::My,
+        );
+    } else {
+        state.ctx.bind_local(name, def);
     }
 }
 
@@ -252,9 +294,41 @@ fn token_span(node: &SyntaxNode, kind: SyntaxKind) -> Option<TextRange> {
 
 fn preregister_pat_names_as_module_values(state: &mut LowerState, node: &SyntaxNode) {
     match node.kind() {
-        SyntaxKind::Pattern | SyntaxKind::PatOr | SyntaxKind::PatAs | SyntaxKind::PatParenGroup => {
+        SyntaxKind::PatField => {
             for child in node.children() {
-                preregister_pat_names_as_module_values(state, &child);
+                if child.kind() != SyntaxKind::Expr {
+                    preregister_pat_names_as_module_values(state, &child);
+                }
+            }
+            let has_nested_pat = node.children().any(|child| {
+                matches!(
+                    child.kind(),
+                    SyntaxKind::Pattern | SyntaxKind::PatOr | SyntaxKind::PatAs
+                )
+            });
+            if !has_nested_pat
+                && let Some((name, span)) = node
+                    .children_with_tokens()
+                    .filter_map(|it| it.into_token())
+                    .find(|t| t.kind() == SyntaxKind::Ident)
+                    .map(|t| (Name(t.text().to_string()), t.text_range()))
+            {
+                preregister_pat_name_as_module_value(state, name, span);
+            }
+        }
+        SyntaxKind::Pattern
+        | SyntaxKind::PatOr
+        | SyntaxKind::PatAs
+        | SyntaxKind::PatParenGroup
+        | SyntaxKind::PatList
+        | SyntaxKind::PatRecord
+        | SyntaxKind::PatSpread
+        | SyntaxKind::ApplyML
+        | SyntaxKind::ApplyC => {
+            for child in node.children() {
+                if child.kind() != SyntaxKind::Expr {
+                    preregister_pat_names_as_module_values(state, &child);
+                }
             }
             let direct = node
                 .children_with_tokens()
@@ -266,15 +340,19 @@ fn preregister_pat_names_as_module_values(state: &mut LowerState, node: &SyntaxN
                     _ => None,
                 });
             if let Some((name, span)) = direct {
-                let def = state.fresh_def();
-                let tv = state.fresh_tv();
-                state.register_def_tv(def, tv);
-                state.mark_let_bound_def(def);
-                state.register_def_name(def, name.clone());
-                state.register_def_span(def, span);
-                state.insert_value(state.ctx.current_module, name, def);
+                preregister_pat_name_as_module_value(state, name, span);
             }
         }
         _ => {}
     }
+}
+
+fn preregister_pat_name_as_module_value(state: &mut LowerState, name: Name, span: TextRange) {
+    let def = state.fresh_def();
+    let tv = state.fresh_tv();
+    state.register_def_tv(def, tv);
+    state.mark_let_bound_def(def);
+    state.register_def_name(def, name.clone());
+    state.register_def_span(def, span);
+    state.insert_value(state.ctx.current_module, name, def);
 }

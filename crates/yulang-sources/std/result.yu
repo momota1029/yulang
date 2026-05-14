@@ -2,6 +2,11 @@ pub enum result 'ok 'err:
     ok 'ok
     err 'err
 
+type result 'ok 'err with:
+    our r.map f = std::result::map r f
+    our r.and_then f = std::result::and_then r f
+    our r.unwrap_or fallback = std::result::unwrap_or r fallback
+
 pub map(r: result 'ok 'err, f: 'ok -> 'next): result 'next 'err = case r:
     result::ok value -> result::ok (f value)
     result::err err -> result::err err

@@ -6,11 +6,6 @@
 
 ### Pattern / binding 系
 
-- [`my_destructuring_unbound.yu`](my_destructuring_unbound.yu) —
-  `my (a, b) = (1, 2)` / `my { x, ..rest } = rec` / `my [first, ..rest] = xs`
-  のような destructuring binding が、pattern 内の名前を後続 scope に bind
-  しない（unbound / undefined）。case の pattern や関数引数 pattern は通る。
-  `reference/patterns.md` の「`my` のパターン」節がそのまま動かない。
 - [`record_alias_default_mix.yu`](record_alias_default_mix.yu) —
   record pattern で「alias + default」(`host: h = "..."`) と「default only」
   (`port = 80`) を同じ pattern に混ぜると `expected (), got int` の型エラー。
@@ -40,13 +35,6 @@
 
 ### Operator / cast 系
 
-- [`lazy_operator_thunk_in_tuple.yu`](lazy_operator_thunk_in_tuple.yu) —
-  lazy infix operator の結果を tuple 要素の位置に置くと、force されずに
-  `<thunk>` のまま漏れる。`(true or false)` 単独や bare `true or false` は
-  通常通り `true` を返すのに、`(true or false, true or false)` だと
-  `(<thunk>, <thunk>)`。tuple constructor の lower path で thunk が force
-  されない疑い。`reference/operators.md` の lazy 仕組みの自然な使い方が
-  壊れる。
 - [`branch_merge_cast_missing.yu`](branch_merge_cast_missing.yu) —
   `if b: id else: 0` のような分岐合流位置で、両方向の `cast` impl が
   登録されていても暗黙 cast が挿入されず branch result type mismatch に
@@ -56,28 +44,11 @@
 
 ### Stdlib `.method` 解決系
 
-- [`list_filter_method_missing.yu`](list_filter_method_missing.yu) —
-  `[1, 2, 3].filter (\x -> x > 0)` が `no field or method named `.filter` 
-  could be resolved` で落ちる。stdlib (`lib/std/list.yu` および
-  `crates/yulang-sources/std/list.yu`) の `type list 'a with:` ブロックには
-  `xs.filter pred = std::list::filter xs pred` が入っているが、`.map` と同じ
-  経路を通らず resolution が失敗する。
-- [`list_methods_undocumented_missing.yu`](list_methods_undocumented_missing.yu)
-  — `xs.first` / `xs.rev` / `xs.sort` が `reference/std/list.md` の早見表に
-  記載されているのに、stdlib の `type list 'a with:` ブロックに登録されて
-  おらず `no field or method` で落ちる（free function 形 `std::list::*` は
-  存在）。`.last` だけ登録されているので非対称も気になる。
 - [`list_fold_method_inference_failure.yu`](list_fold_method_inference_failure.yu)
   — `[1, 2, 3].fold 0 (\acc x -> acc + x)` が「expected function」で落ちる。
   `impl Fold (list 'a)` で `our xs.fold z f = fold_impl xs z f` が定義
   されているのに、callback `f` の型が curried 関数として固まらない。
   `reference/std/list.md` の代表的な fold 例がそのまま動かない。
-- [`result_methods_undocumented_missing.yu`](result_methods_undocumented_missing.yu)
-  — `(ok 21).map (...)` / `(ok 1).and_then (...)` / `(ok 1).unwrap_or 0` の
-  どれも resolve できない。`lib/std/result.yu` には free function として
-  定義されているが、`type result 'ok 'err with:` ブロック自体が無く
-  companion method が登録されていない。`reference/std/result.md` の
-  「コンビネータ」節がまるごと動かない。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 
@@ -89,8 +60,23 @@
   destructuring pattern (`\(x, y) -> ...`, `\{ name } -> ...`) を書くと、
   body で名前が unbound になっていた。現在は通る。binding 形 `my f (x, y)`
   も同じく通る。
+- [`my_destructuring_unbound.yu`](my_destructuring_unbound.yu) —
+  `my (a, b) = (1, 2)` / `my { x, ..rest } = rec` / `my [first, ..rest] = xs`
+  のような top-level destructuring binding が、runtime export でも後続 scope
+  から参照できる。現在は通る。
 - [`list_map_method_unresolved.yu`](list_map_method_unresolved.yu) — list の
   companion method `.map` だけが解決できなかった。現在は通る。
+- [`list_filter_method_missing.yu`](list_filter_method_missing.yu) — list の
+  companion method `.filter` が解決できなかった。現在は通る。
+- [`list_methods_undocumented_missing.yu`](list_methods_undocumented_missing.yu)
+  — docs にある `xs.first` / `xs.rev` / `xs.sort` が stdlib companion method
+  として登録されていなかった。現在は通る。
+- [`result_methods_undocumented_missing.yu`](result_methods_undocumented_missing.yu)
+  — result の `.map` / `.and_then` / `.unwrap_or` が companion method として
+  登録されていなかった。現在は通る。
+- [`lazy_operator_thunk_in_tuple.yu`](lazy_operator_thunk_in_tuple.yu) —
+  lazy infix operator の結果を tuple 要素の位置に置いても、現在は
+  `<thunk>` が漏れずに `true` として評価される。
 - [`pattern_binding_vs_variant.yu`](pattern_binding_vs_variant.yu) —
   pattern binding 名が in-scope の variant constructor と一致すると、
   binding ではなく nested variant pattern として解釈されていた。現在は

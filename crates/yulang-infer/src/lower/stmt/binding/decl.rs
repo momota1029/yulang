@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use yulang_parser::lex::SyntaxKind;
 
-use crate::ast::expr::{PatKind, TypedExpr, TypedPat, TypedStmt};
+use crate::ast::expr::{ExprKind, PatKind, TypedExpr, TypedMatchArm, TypedPat, TypedStmt};
 use crate::ids::TypeVar;
 use crate::lower::{LowerState, SyntaxNode};
 
@@ -49,7 +49,7 @@ pub(crate) fn lower_binding_with_type_scope(
 
         let owner = match &bind_pat.kind {
             PatKind::UnresolvedName(name) => state.ctx.resolve_value(name),
-            PatKind::As(_, def) => Some(*def),
+            PatKind::As(inner, def) if matches!(inner.kind, PatKind::Wild) => Some(*def),
             _ => None,
         };
         if let Some(owner) = owner {
@@ -134,8 +134,110 @@ pub(crate) fn lower_binding_with_type_scope(
             body_span,
             self_used,
         );
+        if owner.is_none() && state.current_owner.is_none() {
+            insert_destructured_binding_principal_bodies(state, &bind_pat, &body_expr);
+        }
         Some(TypedStmt::Let(bind_pat, body_expr))
     })
+}
+
+fn insert_destructured_binding_principal_bodies(
+    state: &mut LowerState,
+    bind_pat: &TypedPat,
+    body_expr: &TypedExpr,
+) {
+    if matches!(bind_pat.kind, PatKind::UnresolvedName(_)) {
+        return;
+    }
+
+    let mut defs = Vec::new();
+    collect_destructured_binding_defs(state, bind_pat, &mut defs);
+    for def in defs {
+        let Some(&tv) = state.def_tvs.get(&def) else {
+            continue;
+        };
+        let value = TypedExpr {
+            tv,
+            eff: state.fresh_exact_pure_eff_tv(),
+            kind: ExprKind::Var(def),
+        };
+        let body = TypedExpr {
+            tv,
+            eff: body_expr.eff,
+            kind: ExprKind::Match(
+                Box::new(body_expr.clone()),
+                vec![TypedMatchArm {
+                    pat: bind_pat.clone(),
+                    guard: None,
+                    body: value,
+                }],
+            ),
+        };
+        state.insert_principal_body(def, body);
+    }
+}
+
+fn collect_destructured_binding_defs(
+    state: &LowerState,
+    pat: &TypedPat,
+    out: &mut Vec<crate::ids::DefId>,
+) {
+    match &pat.kind {
+        PatKind::UnresolvedName(name) => {
+            if let Some(def) = state.ctx.resolve_bound_value(name)
+                && !out.contains(&def)
+            {
+                out.push(def);
+            }
+        }
+        PatKind::As(inner, def) => {
+            collect_destructured_binding_defs(state, inner, out);
+            if !out.contains(def) {
+                out.push(*def);
+            }
+        }
+        PatKind::Tuple(items) | PatKind::PolyVariant(_, items) => {
+            for item in items {
+                collect_destructured_binding_defs(state, item, out);
+            }
+        }
+        PatKind::List {
+            prefix,
+            spread,
+            suffix,
+        } => {
+            for item in prefix {
+                collect_destructured_binding_defs(state, item, out);
+            }
+            if let Some(spread) = spread {
+                collect_destructured_binding_defs(state, spread, out);
+            }
+            for item in suffix {
+                collect_destructured_binding_defs(state, item, out);
+            }
+        }
+        PatKind::Record { spread, fields } => {
+            for field in fields {
+                collect_destructured_binding_defs(state, &field.pat, out);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    crate::ast::expr::RecordPatSpread::Head(pat)
+                    | crate::ast::expr::RecordPatSpread::Tail(pat) => {
+                        collect_destructured_binding_defs(state, pat, out);
+                    }
+                }
+            }
+        }
+        PatKind::Con(_, Some(payload)) => {
+            collect_destructured_binding_defs(state, payload, out);
+        }
+        PatKind::Or(lhs, rhs) => {
+            collect_destructured_binding_defs(state, lhs, out);
+            collect_destructured_binding_defs(state, rhs, out);
+        }
+        PatKind::Wild | PatKind::Lit(_) | PatKind::Con(_, None) => {}
+    }
 }
 
 fn lower_dotted_method_binding(

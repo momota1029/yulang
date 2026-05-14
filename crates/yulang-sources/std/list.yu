@@ -10,8 +10,12 @@ enum list_view 'a = empty | leaf 'a | node(list 'a, list 'a)
 type list 'a with:
     our xs.append ys = std::list::append xs ys
     our xs.map f = std::list::map xs f
+    our xs.filter pred = std::list::filter xs pred
     our xs.splice r ys = std::list::splice xs r ys
+    our xs.first = std::list::first xs
     our xs.last = std::list::last xs
+    our xs.rev = std::list::rev xs
+    our xs.sort = std::list::sort xs
     our &xs.push x = &xs = $xs.append [x]
 
 impl Index (list 'a) int:

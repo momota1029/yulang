@@ -30,7 +30,7 @@ pub(crate) fn lower_type_decl(state: &mut LowerState, node: &SyntaxNode) {
             .types
             .contains_key(&name)
         {
-            let saved = state.ctx.enter_module(name);
+            let saved = state.ctx.enter_or_create_module(name);
             state.mark_companion_module(state.ctx.current_module);
             lower_type_with_bindings(state, node, &type_path, &type_param_names);
             state.ctx.leave_module(saved);

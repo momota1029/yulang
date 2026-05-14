@@ -892,6 +892,58 @@ fn resolves_unqualified_prelude_variant_pattern_from_source_loader() {
 }
 
 #[test]
+fn exports_top_level_destructuring_bindings_as_principal_bodies() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "my (a, b) = (1, 2)\n\
+             my { x, ..rec_rest } = { x: 3, y: 4 }\n\
+             my [first, ..list_rest] = [10, 20, 30]\n\
+             a + b + x + first\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let program = crate::export_core_program(&mut lowered.state);
+        let binding_names = program
+            .program
+            .bindings
+            .iter()
+            .map(|binding| binding.name.clone())
+            .collect::<Vec<_>>();
+
+        for name in ["a", "b", "x", "first"] {
+            assert!(
+                binding_names
+                    .iter()
+                    .any(|path| path == &CorePath::from_name(CoreName(name.to_string()))),
+                "missing exported destructuring binding {name}; got {binding_names:?}"
+            );
+        }
+
+        let scoped_bindings = lowered
+            .state
+            .ctx
+            .collect_all_binding_paths()
+            .into_iter()
+            .collect::<Vec<_>>();
+        for name in ["rec_rest", "list_rest"] {
+            assert!(
+                scoped_bindings.iter().any(|(path, def)| path.segments
+                    == [crate::symbols::Name(name.to_string())]
+                    && lowered.state.principal_bodies.contains_key(def)),
+                "missing scoped destructuring binding body {name}; got {scoped_bindings:?}"
+            );
+        }
+    });
+}
+
+#[test]
 fn lowers_list_index_from_implicit_prelude() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -3264,7 +3316,10 @@ fn lowers_std_opt_and_result_unqualified_through_implicit_prelude() {
                just x -> ok x\n\
              my recovered: int = case converted:\n\
                err _ -> 0\n\
-               ok x -> x\n",
+               ok x -> x\n\
+             my mapped: result int str = converted.map (\\x -> x + 1)\n\
+             my chained: result int str = converted.and_then (\\x -> ok (x + 1))\n\
+             my unwrapped: int = converted.unwrap_or 0\n",
             Some(repo_root),
             SourceOptions {
                 std_root: Some(std_root),
@@ -3281,6 +3336,15 @@ fn lowers_std_opt_and_result_unqualified_through_implicit_prelude() {
             "std::result::result<int, std::str::str>"
         );
         assert_eq!(rendered_type(&rendered, "recovered"), "int");
+        assert_eq!(
+            rendered_type(&rendered, "mapped"),
+            "std::result::result<int, std::str::str>"
+        );
+        assert_eq!(
+            rendered_type(&rendered, "chained"),
+            "std::result::result<int, std::str::str>"
+        );
+        assert_eq!(rendered_type(&rendered, "unwrapped"), "int");
     });
 }
 
@@ -3385,12 +3449,16 @@ fn lowers_std_list_helpers_through_implicit_prelude() {
             "my take_is_empty(xs: list int) = is_empty xs\n\
              my take_uncons(xs: list int) = uncons xs\n\
              my take_first(xs: list int) = first xs\n\
+             my take_first_method(xs: list int) = xs.first\n\
              my take_last(xs: list int) = xs.last\n\
              my take_rev(xs: list int) = rev xs\n\
+             my take_rev_method(xs: list int) = xs.rev\n\
+             my take_sort_method(xs: list int) = xs.sort\n\
              my take_index(xs: list int) = xs.index 0\n\
              my take_index_bracket(xs: list int) = xs[0]\n\
              my take_map(xs: list int, f: int -> int) = map xs f\n\
              my take_filter(xs: list int, pred: int -> bool) = filter xs pred\n\
+             my take_filter_method(xs: list int, pred: int -> bool) = xs.filter pred\n\
              my take_fold(xs: list int, z: int, f: int -> int -> int) = fold xs z f\n\
              my append_self(xs: list int) = append xs xs\n\
              my append_method_self(xs: list int) = xs.append xs\n\
@@ -3416,11 +3484,23 @@ fn lowers_std_list_helpers_through_implicit_prelude() {
             "std::list::list<int> -> std::opt::opt<int>"
         );
         assert_eq!(
+            rendered_type(&rendered, "take_first_method"),
+            "std::list::list<int> -> std::opt::opt<int>"
+        );
+        assert_eq!(
             rendered_type(&rendered, "take_last"),
             "std::list::list<int> -> std::opt::opt<int>"
         );
         assert_eq!(
             rendered_type(&rendered, "take_rev"),
+            "std::list::list<int> -> std::list::list<int>"
+        );
+        assert_eq!(
+            rendered_type(&rendered, "take_rev_method"),
+            "std::list::list<int> -> std::list::list<int>"
+        );
+        assert_eq!(
+            rendered_type(&rendered, "take_sort_method"),
             "std::list::list<int> -> std::list::list<int>"
         );
         assert_eq!(
@@ -3433,10 +3513,14 @@ fn lowers_std_list_helpers_through_implicit_prelude() {
         );
         assert_eq!(
             rendered_type(&rendered, "take_map"),
-            "std::list::list<int> -> (int -> int) -> std::list::list<int | α>"
+            "std::list::list<int> -> (int -> int) -> std::list::list<int>"
         );
         assert_eq!(
             rendered_type(&rendered, "take_filter"),
+            "std::list::list<int> -> (int -> bool) -> std::list::list<int>"
+        );
+        assert_eq!(
+            rendered_type(&rendered, "take_filter_method"),
             "std::list::list<int> -> (int -> bool) -> std::list::list<int>"
         );
         assert_eq!(

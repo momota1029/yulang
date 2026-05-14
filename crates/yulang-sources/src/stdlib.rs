@@ -192,10 +192,25 @@ mod tests {
     }
 
     #[test]
-    fn embedded_list_exposes_map_companion_method() {
+    fn embedded_list_exposes_common_companion_methods() {
         let list_source = embedded_std_source("list.yu");
 
         assert!(list_source.contains("our xs.map f = std::list::map xs f"));
+        assert!(list_source.contains("our xs.filter pred = std::list::filter xs pred"));
+        assert!(list_source.contains("our xs.first = std::list::first xs"));
+        assert!(list_source.contains("our xs.rev = std::list::rev xs"));
+        assert!(list_source.contains("our xs.sort = std::list::sort xs"));
+    }
+
+    #[test]
+    fn embedded_result_exposes_common_companion_methods() {
+        let result_source = embedded_std_source("result.yu");
+
+        assert!(result_source.contains("our r.map f = std::result::map r f"));
+        assert!(result_source.contains("our r.and_then f = std::result::and_then r f"));
+        assert!(
+            result_source.contains("our r.unwrap_or fallback = std::result::unwrap_or r fallback")
+        );
     }
 
     fn embedded_std_source(name: &str) -> &'static str {
