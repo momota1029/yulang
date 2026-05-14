@@ -370,6 +370,9 @@ runtime/core IR
   - 完了: CPS repr Cranelift は record construction / field selection を
     prototype heap value として扱える。`({ answer: 42, other: 10 }).answer` は
     native CPS repr exe で確認済み。
+  - 完了: CPS repr Cranelift の prototype heap value 表示を `ptr(...len=...)`
+    ではなく Yulang 値に近い形へ寄せた。`(1, [2, 3], { answer: 42 })` は
+    native CPS repr exe で同じ形に表示される。
   - 完了: CPS repr Cranelift の unhandled host console effect fallback を追加した。
     `console.print` / `println` は payload を出力して unit で resume する。これで
     `println b.show` を含む direct/callback `sub` hygiene 例も native CPS repr exe

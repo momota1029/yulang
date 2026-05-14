@@ -275,9 +275,9 @@ or out of here into the user-facing table once they stabilize.
       path: direct `f()` inside an inner `sub` is captured there, while
       callback `h()` escapes to the caller's `sub`.
 - [ ] General closures and heap value lanes are not complete.
-- [ ] Non-scalar CPS return values can flow through the prototype as opaque
-      `i64` heap pointers, but generated CPS executables do not yet print them
-      as Yulang values.
+- [x] Non-scalar CPS return values that use the prototype tuple / list /
+      record / variant / string heap handles print as Yulang-like values in
+      generated CPS executables.
 - [ ] This path is still a prototype, not the default full-language runtime.
 
 ### Cache and package/build status

@@ -4644,6 +4644,13 @@ fn native_cps_i64_string_from_raw(ptr: *const u8, len: i64) -> Option<String> {
 }
 
 fn describe_native_i64_value(value: i64) -> String {
+    describe_native_i64_value_with_depth(value, 0)
+}
+
+fn describe_native_i64_value_with_depth(value: i64, depth: usize) -> String {
+    if depth > 32 {
+        return "...".to_string();
+    }
     let resumption_id = NATIVE_CPS_I64_RESUMPTIONS.with(|resumptions| {
         if resumptions.borrow().contains(&(value as usize)) {
             Some(unsafe { (*(value as *const NativeCpsI64Resumption)).debug_id })
@@ -4662,22 +4669,47 @@ fn describe_native_i64_value(value: i64) -> String {
 
     let heap = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     match heap {
-        NativeCpsI64HeapValue::Tuple(items) => format!("ptr({value}:tuple len={})", items.len()),
-        NativeCpsI64HeapValue::Record(fields) => {
-            format!("ptr({value}:record len={})", fields.len())
+        NativeCpsI64HeapValue::Tuple(items) => {
+            let items = items
+                .iter()
+                .map(|item| describe_native_i64_value_with_depth(*item, depth + 1))
+                .collect::<Vec<_>>();
+            match items.as_slice() {
+                [] => "()".to_string(),
+                [single] => format!("({single},)"),
+                _ => format!("({})", items.join(", ")),
+            }
         }
+        NativeCpsI64HeapValue::Record(fields) => format!(
+            "{{ {} }}",
+            fields
+                .iter()
+                .map(|(name, value)| format!(
+                    "{name}: {}",
+                    describe_native_i64_value_with_depth(*value, depth + 1)
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         NativeCpsI64HeapValue::Variant { tag, value: None } => {
-            format!("ptr({value}:variant {} none)", native_i64_tag_name(*tag))
+            format!(":{}", native_i64_tag_name(*tag))
         }
         NativeCpsI64HeapValue::Variant {
             tag,
             value: Some(payload),
         } => format!(
-            "ptr({value}:variant {} payload={})",
+            ":{} {}",
             native_i64_tag_name(*tag),
-            describe_native_i64_value(*payload)
+            describe_native_i64_value_with_depth(*payload, depth + 1)
         ),
-        NativeCpsI64HeapValue::List(items) => format!("ptr({value}:list len={})", items.len()),
+        NativeCpsI64HeapValue::List(items) => format!(
+            "[{}]",
+            items
+                .iter()
+                .map(|item| describe_native_i64_value_with_depth(*item, depth + 1))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         NativeCpsI64HeapValue::String(text) => text.to_string(),
     }
 }
@@ -7567,6 +7599,27 @@ mod tests {
     }
 
     #[test]
+    fn jit_displays_nested_heap_values_as_yulang_values() {
+        let expr = tuple(vec![
+            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+            list_expr(vec![2, 3]),
+            record(vec![(
+                "answer",
+                unknown_lit(typed_ir::Lit::Int("42".to_string())),
+            )]),
+        ]);
+        let mut jit = compile_runtime_module_to_cps_repr_jit(&module_with_root(expr))
+            .expect("compiled runtime module");
+        let roots = jit.run_roots_i64().expect("ran");
+
+        assert_eq!(roots.len(), 1);
+        assert_eq!(
+            describe_native_i64_value(roots[0]),
+            "(1, [2, 3], { answer: 42 })"
+        );
+    }
+
+    #[test]
     fn jit_runs_string_primitives_runtime_value_roots() {
         let cases = vec![
             (
@@ -8340,6 +8393,22 @@ mod tests {
 
     fn tuple(items: Vec<runtime::Expr>) -> runtime::Expr {
         runtime::Expr::typed(runtime::ExprKind::Tuple(items), runtime::Type::unknown())
+    }
+
+    fn record(fields: Vec<(&str, runtime::Expr)>) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Record {
+                fields: fields
+                    .into_iter()
+                    .map(|(name, value)| runtime::RecordExprField {
+                        name: typed_ir::Name(name.to_string()),
+                        value,
+                    })
+                    .collect(),
+                spread: None,
+            },
+            runtime::Type::unknown(),
+        )
     }
 
     fn variant(tag: &str, value: Option<runtime::Expr>) -> runtime::Expr {
