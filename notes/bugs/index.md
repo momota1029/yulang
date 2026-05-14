@@ -17,11 +17,6 @@
   固められず推論失敗する。`[state int]` で specialize しても通らない。
   `reference/effects.md` の `act ref_update 'a:` 例の handler 化が事実上
   書けない。
-- [`handler_recursive_extra_arg_runtime.yu`](handler_recursive_extra_arg_runtime.yu)
-  — handler arm 内で `listen(k (), log + o + "\n")` のように handler を
-  再帰呼び出ししつつ追加引数を渡すと、runtime で
-  `UnsupportedEffectIdVar(0)` panic で死ぬ。`examples/10_effect_handler.yu`
-  がそのまま動かない。1 引数の `listen(k ())` は通る。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 
@@ -80,6 +75,9 @@
 - [`error_display_from_chain_missing.yu`](error_display_from_chain_missing.yu)
   — `error io_err: fs from fs_err` のような from variant を持つ error 宣言でも
   `impl Display io_err` が生成され、from payload の `Display` に委譲する。
+- [`handler_recursive_extra_arg_runtime.yu`](handler_recursive_extra_arg_runtime.yu)
+  — handler arm 内で `listen(k (), log + o + "\n")` のように handler を
+  再帰呼び出ししつつ追加引数を渡すケースが、現在は `((), "hi\n")` を返す。
 - [`my_record_spread_rest_inference.yu`](my_record_spread_rest_inference.yu)
   — `my { x, y, ..rest } = expr` の `rest` が record 全体として bind され、
   後段の使用や extra field access も通る。

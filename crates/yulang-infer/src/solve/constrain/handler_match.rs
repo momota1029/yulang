@@ -140,9 +140,6 @@ impl Infer {
         let Pos::Atom(pos_atom) = self.arena.get_pos(item) else {
             return None;
         };
-        if !pos_atom.args.is_empty() {
-            return None;
-        }
         handled.iter().copied().find(|handled| {
             self.shift_keep_captures_neg(keep, *handled)
                 && matches!(

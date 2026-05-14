@@ -1635,6 +1635,29 @@ listen prog ""
     }
 
     #[test]
+    fn vm_keeps_handler_boundary_id_across_curried_result_function() {
+        let results = eval_source_with_std(
+            r#"pub act out:
+  pub say: str -> ()
+
+our listen(x: [out] 'a, log: str): ('a, str) = catch x:
+    out::say o, k -> listen(k (), log + o + "\n")
+    v -> (v, log)
+
+listen (out::say "hi") ""
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Unit,
+                TestValue::String("hi\n".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_for_loop_last_examples() {
         let results = eval_source_with_std(FOR_LOOP_LAST_SOURCE);
 

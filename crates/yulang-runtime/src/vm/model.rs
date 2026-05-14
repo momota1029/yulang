@@ -49,6 +49,7 @@ pub struct VmClosure {
     pub(super) body: Expr,
     pub(super) ret: Type,
     pub(super) env: Env,
+    pub(super) guard_stack: GuardStack,
     pub(super) self_name: Option<typed_ir::Path>,
 }
 

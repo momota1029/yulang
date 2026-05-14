@@ -58,6 +58,20 @@ impl<T: Clone> PersistentVector<T> {
         }
         None
     }
+
+    fn items_oldest(&self) -> Vec<T> {
+        let mut chunks = Vec::new();
+        let mut cursor = self.tail.as_ref();
+        while let Some(chunk) = cursor {
+            chunks.push(chunk.clone());
+            cursor = chunk.parent.as_ref();
+        }
+        let mut out = Vec::with_capacity(self.len);
+        for chunk in chunks.into_iter().rev() {
+            out.extend(chunk.items.iter().cloned());
+        }
+        out
+    }
 }
 
 impl GuardStack {
@@ -82,6 +96,20 @@ impl GuardStack {
                 .find(|entry| entry.var == var)
                 .map(|entry| entry.id)
         })
+    }
+
+    pub(super) fn overlay_newer(&self, newer: &Self) -> Self {
+        newer
+            .0
+            .items_oldest()
+            .into_iter()
+            .fold(self.clone(), |stack, entry| {
+                if stack.find_var(entry.var).is_some() {
+                    stack
+                } else {
+                    stack.push(entry)
+                }
+            })
     }
 }
 

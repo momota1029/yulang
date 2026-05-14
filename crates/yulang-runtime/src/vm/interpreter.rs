@@ -78,6 +78,7 @@ impl<'m> VmInterpreter<'m> {
                     body: (**body).clone(),
                     ret,
                     env: env.clone(),
+                    guard_stack: self.guard_stack.clone(),
                     self_name: None,
                 }))))
             }
@@ -413,7 +414,18 @@ impl<'m> VmInterpreter<'m> {
                     env.insert(self_name.clone(), VmValue::Closure(callee.clone()));
                 }
                 env.insert(typed_ir::Path::from_name(callee.param.clone()), arg);
+                let parent_guard_stack = self.guard_stack.clone();
+                self.guard_stack = parent_guard_stack.overlay_newer(&callee.guard_stack);
                 let result = self.eval_expr(&callee.body, &env)?;
+                self.guard_stack = parent_guard_stack.clone();
+                if let VmResult::Request(request) = result {
+                    return Ok(VmResult::Request(push_frame(
+                        request,
+                        Frame::LocalPushId {
+                            parent: parent_guard_stack,
+                        },
+                    )));
+                }
                 Ok(wrap_result_for_type(result, &callee.ret))
             }
             VmValue::Resume(resume) => self.resume(resume.continuation.clone(), arg),
