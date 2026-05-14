@@ -2727,7 +2727,7 @@ pub(crate) fn same_effect_head(left: &typed_ir::Type, right: &typed_ir::Type) ->
             typed_ir::Type::Named {
                 path: actual_path, ..
             },
-        ) => path == actual_path,
+        ) => effect_paths_match(path, actual_path),
         _ => false,
     }
 }
@@ -3331,6 +3331,35 @@ mod tests {
     }
 
     #[test]
+    fn closed_projection_treats_child_effect_as_matching_parent_row_item() {
+        let residual = tv("residual");
+        let template = typed_ir::Type::Row {
+            items: vec![path_type(["#loop_label"])],
+            tail: Box::new(typed_ir::Type::Var(residual.clone())),
+        };
+        let actual = typed_ir::Type::Row {
+            items: vec![path_type(["#loop_label", "last"]), named("state")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let params = BTreeSet::from([residual.clone()]);
+        let mut substitutions = BTreeMap::new();
+        let mut conflicts = BTreeSet::new();
+
+        project_closed_substitutions_from_type(
+            &template,
+            &actual,
+            &params,
+            &mut substitutions,
+            &mut conflicts,
+            true,
+            64,
+        );
+
+        assert!(conflicts.is_empty(), "{conflicts:?}");
+        assert_eq!(substitutions.get(&residual), Some(&named("state")));
+    }
+
+    #[test]
     fn closed_projection_does_not_solve_principal_var_union_from_closed_actual() {
         let left = tv("left");
         let right = tv("right");
@@ -3408,6 +3437,18 @@ mod tests {
         typed_ir::Type::Named {
             path: typed_ir::Path::from_name(typed_ir::Name(name.to_string())),
             args,
+        }
+    }
+
+    fn path_type<const N: usize>(segments: [&str; N]) -> typed_ir::Type {
+        typed_ir::Type::Named {
+            path: typed_ir::Path::new(
+                segments
+                    .into_iter()
+                    .map(|segment| typed_ir::Name(segment.to_string()))
+                    .collect(),
+            ),
+            args: Vec::new(),
         }
     }
 

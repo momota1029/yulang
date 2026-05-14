@@ -1557,6 +1557,25 @@ g f
     }
 
     #[test]
+    fn vm_runs_labelled_for_last_with_ref_update_in_nested_loop() {
+        let results = eval_source_with_std(
+            r#"{
+    my $hits = 0
+    for 'outer x in 0..:
+        for y in 0..:
+            if y == 3: last 'outer
+            else:
+                &hits = $hits + 1
+                ()
+    $hits
+}
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("3".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_for_range_with_unit_body() {
         let results = eval_source_with_std("for x in 0..3: ()\n");
 

@@ -4,15 +4,6 @@
 
 ## 現在の未解決
 
-### Effect / handler 系
-
-- [`labelled_for_var_effect_collision.yu`](labelled_for_var_effect_collision.yu)
-  — labelled for loop 内で `&hits = $hits + 1` のような var update を
-  混ぜると、外側 loop の `last 'outer` の effect row が壊れる
-  (`expected [...; &hits#var; ..never]`, `got [...::last; ...; ..never]`)。
-  `reference/control-flow.md` の labelled loop の典型ユースケース
-  （ネスト loop で見つけたら抜けつつ集計）が書けない。
-
 ## 解決済み（2026-05-14 時点で再現せず）
 
 - [`var_effect_leak_with_wildcards.yu`](var_effect_leak_with_wildcards.yu) —
@@ -44,6 +35,10 @@
   pattern binding 名が in-scope の variant constructor と一致すると、
   binding ではなく nested variant pattern として解釈されていた。現在は
   binding として通る (`result::err err -> ...` が動く)。
+- [`labelled_for_var_effect_collision.yu`](labelled_for_var_effect_collision.yu)
+  — labelled for loop 内で `&hits = $hits + 1` のような var update を
+  混ぜると、外側 loop の `last 'outer` の effect row が壊れていた。現在は
+  nested loop で `last 'outer` しつつ集計できる。
 - [`enum_curried_payload_unresolved.yu`](enum_curried_payload_unresolved.yu)
   — 複数 payload variant を `tree::node value left right` のように分解しても、
   それぞれの payload 名が単独 bind される。現在は `[0] 3` を返す。

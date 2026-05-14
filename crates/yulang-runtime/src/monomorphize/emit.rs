@@ -2726,9 +2726,16 @@ fn effect_paths_match(left: &typed_ir::Path, right: &typed_ir::Path) -> bool {
 }
 
 fn qualified_prefix_effect_paths_match(parent: &typed_ir::Path, child: &typed_ir::Path) -> bool {
-    parent.segments.len() > 1
+    effect_path_can_match_child_prefix(parent)
         && child.segments.len() > parent.segments.len()
         && child.segments.starts_with(parent.segments.as_slice())
+}
+
+fn effect_path_can_match_child_prefix(path: &typed_ir::Path) -> bool {
+    path.segments.len() > 1
+        || path.segments.first().is_some_and(|name| {
+            name.0.starts_with('#') || name.0.starts_with('&') && name.0.contains('#')
+        })
 }
 
 fn bind_here_result_type(
