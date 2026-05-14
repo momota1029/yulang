@@ -3,7 +3,7 @@ use super::cast::{
     render_cast_impl_args,
 };
 use super::*;
-use crate::types::{EffectAtom, Pos};
+use crate::types::{EffectAtom, Neg, Pos};
 
 #[derive(Debug, Clone)]
 pub struct ErrorThrowVariant {

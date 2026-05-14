@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::types::Pos;
+use crate::types::{Neg, Pos};
 
 /// `cast(x: A): B = body` を標準 `Cast A` impl として lowering する。
 ///
