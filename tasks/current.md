@@ -49,6 +49,8 @@ Cranelift backend を作る。
   `RuntimeValuePtr` / `ThunkPtr` の境界を明示した。
 - top-level function の partial application は CPS closure として生成し、
   残りの引数が揃った時点で direct call へ戻る。
+- forced CPS repr executable path で std `list.map` / `filter` / `fold` の
+  小さい source program を確認済み。
 
 近い形:
 
