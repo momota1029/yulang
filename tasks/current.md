@@ -170,6 +170,10 @@ CPS repr Cranelift の source 回帰を広げる。
   installed escape へ到達済みのときも retained return-frame chain を続行し、
   CPS repr / Cranelift の `ApplyClosure` は resumption pointer を
   closure-like callable として扱う。
+- callback-return hygiene の observable source regression を forced CPS repr
+  executable path に追加した。inner `sub` 内の直呼び `f()` は inner handler に
+  捕まり outer root が `2` まで進む一方、thunk callback 経由の `h()` は inner
+  handler を越えて outer `sub` から `0` を返す。
 - value backend と CPS repr backend の fallback policy を、握りつぶしではなく
   structured unsupported reason で選べる形へ寄せる。
 

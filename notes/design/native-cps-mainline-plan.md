@@ -136,7 +136,9 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
         CPS repr eval / Cranelift runtime で一致する。
   - [x] `(each [1, 2, 3] + each [10, 20]).once` が VM / CPS eval /
         CPS repr eval / Cranelift runtime で `just 11` を返す。
-- [ ] shallow handler + delimiter frame + guard stack の source regression を native executable path に増やす。
+- [x] shallow handler + delimiter frame + guard stack の source regression を native executable path に増やす。
+  - [x] Direct `f()` inside an inner `sub` returns through the inner handler and leaves the caller root at `2`.
+  - [x] Callback `h()` crossing the thunk boundary skips the inner handler and returns from the caller root as `0`.
 
 ### 6. CLI And Release Surface
 

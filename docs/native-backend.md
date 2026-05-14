@@ -338,6 +338,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] Source-level callback return hygiene is covered in the CPS repr scalar
       path: direct `f()` inside an inner `sub` is captured there, while
       callback `h()` escapes to the caller's `sub`.
+- [x] The same callback hygiene split is covered by executable-path source
+      regressions with observable roots: direct `f()` leaves the outer root at
+      `2`, while callback `h()` returns from the outer `sub` as `0`.
 - [x] String, list, record, and variant payloads can cross a small source-shaped
       handler / resumption boundary in the CPS repr Cranelift path and print as
       Yulang-like values.
