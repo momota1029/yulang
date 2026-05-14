@@ -1333,6 +1333,29 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
     }
 
     #[test]
+    fn vm_runs_source_effectful_role_method_caught_directly() {
+        let results = eval_source_with_std(
+            r#"act log:
+    pub put: str -> ()
+
+role Speak 'a:
+    our a.speak: [log] ()
+
+impl Speak int:
+    our n.speak = log::put n.show
+
+my run() = catch (5).speak:
+    log::put _, k -> k ()
+    v -> v
+
+run()
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
     fn vm_runs_source_error_wrap_catches_direct_from_source() {
         let results = eval_source_with_std(
             r#"error fs_err:

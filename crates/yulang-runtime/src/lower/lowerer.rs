@@ -1233,6 +1233,8 @@ impl Lowerer<'_> {
                 let resume_effect = body_effect_before
                     .as_ref()
                     .map(|effect| handler_body_residual(effect, &handled));
+                let body =
+                    thunk_handler_body_if_needed(body, body_effect_before.as_ref(), &handled);
                 let body_value_ty = runtime_core_type(value_hir_type(&body.ty));
                 let arms = arms
                     .into_iter()
@@ -2461,6 +2463,21 @@ fn canonicalize_handled_effects(
     };
     let body_paths = effect_paths(&project_runtime_effect(body_effect_before));
     replace_unqualified_effect_paths(handled, &body_paths)
+}
+
+fn thunk_handler_body_if_needed(
+    body: Expr,
+    body_effect_before: Option<&typed_ir::Type>,
+    handled: &typed_ir::Type,
+) -> Expr {
+    if effect_paths(handled).is_empty() || matches!(body.ty, RuntimeType::Thunk { .. }) {
+        return body;
+    }
+    let effect = match body_effect_before {
+        Some(effect) => merge_effect_rows(project_runtime_effect(effect), handled.clone()),
+        None => handled.clone(),
+    };
+    attach_expr_effect(body, project_runtime_effect(&effect))
 }
 
 fn replace_unqualified_effect_paths(
