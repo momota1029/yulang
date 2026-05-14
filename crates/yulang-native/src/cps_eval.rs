@@ -1276,14 +1276,13 @@ fn resume_continuation(
                 // looking for `H_sub.escape_owner=each`. Now we run in
                 // `frame.owner_function=each`, so the strict eval-id
                 // check (write22) succeeds.
-                if let CpsRuntimeValue::Thunk(_) = &v {
+                if let CpsRuntimeValue::Thunk(thunk) = &v {
                     let top_index = return_frames.len() - 1;
                     let top_frame = &return_frames[top_index];
                     if return_frame_immediately_forces_param(module, top_frame)?
                         && top_index >= initial_frame_count
                     {
                         let top_frame = top_frame.clone();
-                        let top_owner = function_by_name(module, &top_frame.owner_function)?;
                         trace_cps(
                             "PreForceResumeTopFrame",
                             format!(
@@ -1294,25 +1293,17 @@ fn resume_continuation(
                                 return_frames.len(),
                             ),
                         );
-                        // Resume the top frame's continuation in its owner
-                        // context. Pass `return_frames.clone()` (the FULL
-                        // chain, top frame retained) and use the full
-                        // length as `initial_frame_count` so any Return
-                        // inside this resumed eval that doesn't push new
-                        // frames just bubbles the value back up.
-                        return resume_continuation(
+                        let forced = force_returned_thunk_before_frame_consumption(
                             module,
-                            top_owner,
-                            top_frame.continuation,
-                            vec![v],
-                            top_frame.values.as_ref().clone(),
-                            top_frame.active_handlers.clone(),
-                            top_frame.guard_stack.clone(),
+                            thunk.clone(),
+                            &top_frame,
                             return_frames.clone(),
-                            top_frame.active_blocked.clone(),
-                            return_frames.len(),
-                            top_frame.owner_eval_id,
-                        );
+                            initial_frame_count,
+                        )?;
+                        if matches!(forced, CpsRuntimeValue::ScopeReturn { .. }) {
+                            return Ok(forced);
+                        }
+                        return continue_return_frames(module, forced, &return_frames, &[]);
                     }
                 }
                 // write23: pass the FULL return_frames (not just own_frames)

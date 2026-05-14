@@ -378,6 +378,18 @@ my t = sub:
         .expect("CPS repr native display");
     }
 
+    #[test]
+    fn runs_undet_list_each_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+(each [1, 2, 3]).list
+"#,
+            vec!["[1, 2, 3]"],
+        )
+        .expect("CPS repr native display");
+    }
+
     fn compare_source_cps_repr_with_std(source: &str) -> Result<(), String> {
         let source = source.to_string();
         run_with_large_stack(move || {

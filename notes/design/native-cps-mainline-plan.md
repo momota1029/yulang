@@ -116,6 +116,9 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
         `sub` の結果を list へ埋める source regression で VM と揃えた。
   - [x] 再帰 handler wrapper は call site で inline しない。`branch().list`
         のような全解収集 wrapper は、CPS 関数として残して resumption 経路へ渡す。
+  - [x] `each [1, 2, 3] .list` の false branch は、Return(Thunk) の
+        pre-force で thunk body を先に実行し、その結果を retained return-frame
+        chain へ戻す。CPS eval / CPS repr eval / Cranelift runtime が同じ形で通る。
 
 ### 5. Handler / Resumption Heap Values
 

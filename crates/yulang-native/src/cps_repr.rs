@@ -2131,27 +2131,24 @@ fn resume_continuation(
                     return Ok(v);
                 }
                 // write26 port of write25 pre-force v2.
-                if let CpsReprRuntimeValue::Thunk(_) = &v {
+                if let CpsReprRuntimeValue::Thunk(thunk) = &v {
                     let top_index = return_frames.len() - 1;
                     let top_frame = &return_frames[top_index];
                     if return_frame_immediately_forces_param_repr(module, top_frame)?
                         && top_index >= initial_frame_count
                     {
                         let top_frame = top_frame.clone();
-                        let top_owner = function_by_name_repr(module, &top_frame.owner_function)?;
-                        return resume_continuation(
+                        let forced = force_returned_thunk_before_frame_consumption_repr(
                             module,
-                            top_owner,
-                            top_frame.continuation,
-                            vec![v],
-                            top_frame.values.as_ref().clone(),
-                            top_frame.active_handlers.clone(),
-                            top_frame.guard_stack.clone(),
+                            thunk.clone(),
+                            &top_frame,
                             return_frames.clone(),
-                            top_frame.active_blocked.clone(),
-                            return_frames.len(),
-                            top_frame.owner_eval_id,
-                        );
+                            initial_frame_count,
+                        )?;
+                        if matches!(forced, CpsReprRuntimeValue::ScopeReturn { .. }) {
+                            return Ok(forced);
+                        }
+                        return continue_return_frames_repr(module, forced, &return_frames, &[]);
                     }
                 }
                 return continue_return_frames_repr(module, v, &return_frames, &[]);
@@ -2600,6 +2597,38 @@ fn return_frame_immediately_forces_param_repr(
         continuation.stmts.first(),
         Some(CpsStmt::ForceThunk { thunk, .. }) if *thunk == first_param
     ))
+}
+
+fn force_returned_thunk_before_frame_consumption_repr(
+    module: &CpsReprModule,
+    mut thunk: CpsReprThunk,
+    top_frame: &CpsReprReturnFrame,
+    return_frames: Vec<CpsReprReturnFrame>,
+    initial_frame_count: usize,
+) -> CpsReprEvalResult<CpsReprRuntimeValue> {
+    loop {
+        let owner = function_by_name_repr(module, &thunk.owner_function)?;
+        let result = resume_continuation(
+            module,
+            owner,
+            thunk.entry,
+            Vec::new(),
+            thunk.values.clone(),
+            top_frame.active_handlers.clone(),
+            top_frame.guard_stack.clone(),
+            return_frames.clone(),
+            active_blocked_for_thunk_repr(&top_frame.active_blocked, &thunk),
+            initial_frame_count,
+            top_frame.owner_eval_id,
+        )?;
+        match result {
+            CpsReprRuntimeValue::Thunk(next) => {
+                thunk = next;
+                continue;
+            }
+            other => return Ok(other),
+        }
+    }
 }
 
 /// write26 port of `cps_eval::try_route_scope_return_through_return_frames`.

@@ -157,9 +157,12 @@ CPS repr Cranelift の source 回帰を広げる。
 - 再帰 handler wrapper は direct call site で inline しない。`std::undet.list`
   のように handler arm 内で同じ wrapper を再帰呼び出しする関数は、CPS 関数として
   残してから return-frame / resumption 経路で扱う。
-- `branch().list` と `(each [1, 2, 3]).logic` は forced CPS repr executable
-  path で通る。残: `(each [1, 2, 3]).list` は native で `[1, 0]` になり、
-  fold callback resumption の false branch が VM とまだ一致しない。
+- `branch().list`、`(each [1, 2, 3]).logic`、`(each [1, 2, 3]).list`
+  は forced CPS repr executable path で通る。`each.list` の false branch は
+  CPS eval / CPS repr eval の時点で `[[1, ()]]` に漏れていたが、Return(Thunk)
+  の pre-force が top continuation を直接再開せず、retained return frame を
+  消費する前に thunk body を force してから return-frame chain へ戻すようにした。
+  これで fold callback の `()` は残りの fold へ流れ、末尾の `reject()` に届く。
 - value backend と CPS repr backend の fallback policy を、握りつぶしではなく
   structured unsupported reason で選べる形へ寄せる。
 

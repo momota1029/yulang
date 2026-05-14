@@ -7219,29 +7219,33 @@ extern "C" fn yulang_cps_top_return_frame_pre_force_i64() -> i64 {
 ///   - `yulang_cps_top_return_frame_pre_force_i64() != 0`.
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_pre_force_top_frame_i64(value: i64) -> i64 {
-    // Clone the env into a temporary box so we can borrow_mut other
-    // thread-locals safely. The env pointer must outlive the
-    // continuation call.
-    let (cont, env) = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+    let saved_eval_ctx = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow());
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
         let frames = frames.borrow();
         let top = frames.last().expect("pre-force called with no frame");
         // Restore the top frame's owner context. The frame is RETAINED
         // (we don't pop it) so the body's effects can capture it.
         NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = top.handlers.clone());
         NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = top.guards.clone());
-        let retained_len = frames.len();
         NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
             *ctx.borrow_mut() = NativeCpsI64EvalContext {
                 current_eval_id: top.owner_eval_id,
-                // Set initial = retained_len so the body's plain Return
-                // (with no new frames pushed) skips frame consumption.
-                initial_frame_count: retained_len,
+                // Keep the caller eval's barrier. The thunk body runs before
+                // the top frame is consumed, so effects can capture the frame
+                // and a plain return can still flow through the retained
+                // caller chain.
+                initial_frame_count: saved_eval_ctx.initial_frame_count,
             };
         });
-        (top.continuation, top.env.clone())
     });
-    let cont: NativeCpsI64Continuation = unsafe { std::mem::transmute(cont) };
-    cont(env.as_ptr(), value)
+    let forced = yulang_cps_force_thunk_i64(value as usize);
+    if yulang_cps_abort_active_i64() != 0 {
+        return yulang_cps_abort_value_i64();
+    }
+    if yulang_cps_scope_return_active_i64() != 0 {
+        return yulang_cps_route_scope_return_i64(forced);
+    }
+    yulang_cps_continue_return_frame_i64(forced)
 }
 
 /// write27-b: JIT-side analogue of cps_eval's Return terminator. Use

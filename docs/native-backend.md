@@ -313,8 +313,11 @@ or out of here into the user-facing table once they stabilize.
       so simple all-solution nondeterminism such as `branch().list` can lower
       and run through the CPS repr executable path instead of recursively
       expanding the wrapper at compile time.
-- [ ] Full DFS `std::undet.list` over `each [1, 2, 3]` still has a native
-      mismatch in the fold callback false-branch resumption path.
+- [x] Full DFS `std::undet.list` over `each [1, 2, 3]` runs through the
+      CPS repr executable path. Returned thunks are forced before consuming
+      the immediate-force return frame, so the false branch resumes through
+      the enclosing fold and reaches the trailing `reject()` instead of
+      leaking `()` into `.list`.
 - [x] `ResumeWithHandler` restores captured return frames in the Cranelift CPS
       repr path, so direct-call caller-rest continuations can run under the
       temporary handler installed around `k true`.
