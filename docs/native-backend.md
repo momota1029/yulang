@@ -194,6 +194,17 @@ or out of here into the user-facing table once they stabilize.
 - [x] CPS repr Cranelift can lower `IntToString` to a prototype string handle,
       so small `.show`-style scalar string conversions can pass through the
       CPS repr executable path.
+- [x] CPS repr Cranelift can lower `IntToHex`, `IntToUpperHex`, and
+      `BoolToString` to the same prototype string handle.
+- [x] CPS repr Cranelift can lower native `f64` float literals, arithmetic,
+      comparisons, plain-value `ForceThunk`, and `FloatToString` for scalar
+      and small effectful-console paths.
+- [x] CPS repr Cranelift can lower string literals and a small raw string
+      primitive set (`concat`, equality, length, index, raw range, raw splice)
+      to the same prototype string handle.
+- [x] CPS repr Cranelift can normalize `range` values for list/string range
+      index and splice primitives, including source forms such as
+      `("aあ🙂z").index (1..<3)`.
 - [x] CPS repr Cranelift handles unhandled host `console.print` / `println`
       operations by printing the payload and resuming with unit. This covers
       callback-return hygiene examples that print an intermediate value before

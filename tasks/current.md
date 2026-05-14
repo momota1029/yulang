@@ -347,6 +347,26 @@ runtime/core IR
   - 完了: CPS repr Cranelift は `IntToString` を prototype string handle へ
     lower し、`1.show` のような scalar-to-string root を executable path で
     表示できる。
+  - 完了: CPS repr Cranelift は `IntToHex` / `IntToUpperHex` / `BoolToString`
+    も同じ prototype string handle へ lower できる。
+  - 完了: CPS repr Cranelift は `NativeFloat` lane を `f64` として扱い、
+    float literal / arithmetic / comparison / `FloatToString` を非 capture の
+    scalar path で実行できる。
+  - 完了: CPS repr Cranelift は plain value に挟まる `ForceThunk` で
+    `NativeFloat` lane を i64 force helper へ落とさず、そのまま f64 として
+    次の primitive / direct call へ渡す。source の
+    `(1.5 + 2.0).show` / `(5.0 - 2.0).show` / float equality console 出力は
+    native CPS repr exe で確認済み。
+  - 完了: CPS repr Cranelift は string literal と raw string primitive の小さい核
+    (`StringConcat` / `StringEq` / `StringLen` / `StringIndex` /
+    `StringIndexRangeRaw` / `StringSpliceRaw`) を prototype string handle へ
+    lower できる。`println "hello"` / `println ("yu" + "lang")` は
+    native CPS repr exe で確認済み。
+  - 完了: CPS repr Cranelift は `range::within` / `bound` variant を読んで、
+    `ListIndexRange` / `ListSplice` / `StringIndexRange` / `StringSplice` を
+    raw helper と同じ prototype heap value 上で実行できる。
+    `("aあ🙂z").index (1..<3)` と `([1, 2, 3, 4].index (1..<3)).len` は
+    native CPS repr exe で確認済み。
   - 完了: CPS repr Cranelift の unhandled host console effect fallback を追加した。
     `console.print` / `println` は payload を出力して unit で resume する。これで
     `println b.show` を含む direct/callback `sub` hygiene 例も native CPS repr exe

@@ -76,6 +76,9 @@ impl CpsReprAbiLane {
             (left, right) if left == right => left,
             (Self::Unknown, known) | (known, Self::Unknown) => known,
             (Self::Conflict, _) | (_, Self::Conflict) => Self::Conflict,
+            (Self::NativeFloat, Self::OpaqueI64) | (Self::OpaqueI64, Self::NativeFloat) => {
+                Self::NativeFloat
+            }
             (Self::NativeFloat, _) | (_, Self::NativeFloat) => Self::Conflict,
             (Self::OpaqueI64, _) | (_, Self::OpaqueI64) => Self::OpaqueI64,
             _ => Self::OpaqueI64,

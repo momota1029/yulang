@@ -589,8 +589,16 @@ pub fn compile_cps_repr_abi_module(
         yulang_cps_list_index_range_raw_i64 as *const u8,
     );
     builder.symbol(
+        "yulang_cps_list_index_range_i64",
+        yulang_cps_list_index_range_i64 as *const u8,
+    );
+    builder.symbol(
         "yulang_cps_list_splice_raw_i64",
         yulang_cps_list_splice_raw_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_list_splice_i64",
+        yulang_cps_list_splice_i64 as *const u8,
     );
     builder.symbol(
         "yulang_cps_list_view_raw_i64",
@@ -599,6 +607,58 @@ pub fn compile_cps_repr_abi_module(
     builder.symbol(
         "yulang_cps_int_to_string_i64",
         yulang_cps_int_to_string_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_int_to_hex_i64",
+        yulang_cps_int_to_hex_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_int_to_upper_hex_i64",
+        yulang_cps_int_to_upper_hex_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_bool_to_string_i64",
+        yulang_cps_bool_to_string_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_float_to_string_f64",
+        yulang_cps_float_to_string_f64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_string_literal_i64",
+        yulang_cps_string_literal_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_string_concat_i64",
+        yulang_cps_string_concat_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_string_eq_i64",
+        yulang_cps_string_eq_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_string_len_i64",
+        yulang_cps_string_len_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_string_index_i64",
+        yulang_cps_string_index_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_string_index_range_raw_i64",
+        yulang_cps_string_index_range_raw_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_string_index_range_i64",
+        yulang_cps_string_index_range_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_string_splice_raw_i64",
+        yulang_cps_string_splice_raw_i64 as *const u8,
+    );
+    builder.symbol(
+        "yulang_cps_string_splice_i64",
+        yulang_cps_string_splice_i64 as *const u8,
     );
     builder.symbol(
         "yulang_cps_console_print_i64",
@@ -700,16 +760,28 @@ fn declare_functions<M: Module>(
 ) -> CpsReprCraneliftResult<DeclaredFunctions> {
     let mut functions = HashMap::new();
     let mut continuations = HashMap::new();
+    let mut function_returns = HashMap::new();
+    let mut function_params = HashMap::new();
     for function in module.functions.iter().chain(&module.roots) {
         let sig = function_signature(module_backend, function);
         let id = module_backend
             .declare_function(&function.name, Linkage::Export, &sig)
             .map_err(cranelift_error)?;
         functions.insert(function.name.clone(), id);
+        function_returns.insert(
+            function.name.clone(),
+            continuation(function, function.entry)
+                .map(|entry| effective_continuation_return_lane(function, entry))
+                .unwrap_or(CpsReprAbiLane::Unknown),
+        );
+        function_params.insert(
+            function.name.clone(),
+            effective_function_param_lanes(function),
+        );
         if function_has_effect_flow(function) {
             for continuation in &function.continuations {
                 let name = continuation_symbol(function, continuation.id);
-                let sig = continuation_signature(module_backend, continuation);
+                let sig = continuation_signature(module_backend, function, continuation);
                 let id = module_backend
                     .declare_function(&name, Linkage::Local, &sig)
                     .map_err(cranelift_error)?;
@@ -720,6 +792,8 @@ fn declare_functions<M: Module>(
     Ok(DeclaredFunctions {
         functions,
         continuations,
+        function_returns,
+        function_params,
     })
 }
 
@@ -772,6 +846,8 @@ fn define_functions<M: Module, L: CpsLiteralStore>(
 struct DeclaredFunctions {
     functions: HashMap<String, FuncId>,
     continuations: HashMap<(String, CpsContinuationId), FuncId>,
+    function_returns: HashMap<String, CpsReprAbiLane>,
+    function_params: HashMap<String, Vec<CpsReprAbiLane>>,
 }
 
 #[derive(Debug, Clone)]
@@ -785,6 +861,11 @@ struct HandlerCandidate {
 struct HandlerRegistry {
     candidates: Vec<(typed_ir::Path, HandlerCandidate)>,
     effects: Vec<typed_ir::Path>,
+}
+
+#[derive(Debug, Default)]
+struct LocalValueCache {
+    native_float: HashMap<CpsValueId, ir::Value>,
 }
 
 impl HandlerRegistry {
@@ -890,7 +971,7 @@ fn define_effectful_function<M: Module, L: CpsLiteralStore>(
                 continuation: continuation.id,
             })?;
         let mut ctx = module_backend.make_context();
-        ctx.func.signature = continuation_signature(module_backend, continuation);
+        ctx.func.signature = continuation_signature(module_backend, function, continuation);
         lower_continuation_function(
             module_backend,
             &mut ctx,
@@ -1007,6 +1088,7 @@ fn function_has_effect_flow(function: &CpsReprAbiFunction) -> bool {
 
 fn continuation_signature<M: Module>(
     module_backend: &M,
+    function: &CpsReprAbiFunction,
     continuation: &CpsReprAbiContinuation,
 ) -> ir::Signature {
     let mut sig = module_backend.make_signature();
@@ -1015,9 +1097,11 @@ fn continuation_signature<M: Module>(
         continuation
             .params
             .iter()
-            .map(|_| AbiParam::new(types::I64)),
+            .map(|param| AbiParam::new(lane_type(effective_value_lane(function, param.value)))),
     );
-    sig.returns.push(AbiParam::new(types::I64));
+    sig.returns.push(AbiParam::new(lane_type(
+        effective_continuation_return_lane(function, continuation),
+    )));
     sig
 }
 
@@ -1078,6 +1162,7 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
     builder.append_block_params_for_function_params(block);
     builder.switch_to_block(block);
     declare_variables(&mut builder, function);
+    let mut values = LocalValueCache::default();
 
     let params = builder.block_params(block).to_vec();
     let Some(env_ptr) = params.first().copied() else {
@@ -1088,7 +1173,13 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
     };
     bind_environment_slots(&mut builder, function, continuation, env_ptr)?;
     for (param, value) in continuation.params.iter().zip(params.iter().skip(1)) {
-        builder.def_var(variable(param.value), *value);
+        define_value_as_lane(
+            &mut builder,
+            &mut values,
+            param.value,
+            effective_value_lane(function, param.value),
+            *value,
+        );
     }
 
     let mut defined_values = continuation
@@ -1113,6 +1204,7 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
             functions,
             handlers,
             literals,
+            &mut values,
         )?;
         if let Some(dest) = stmt_dest(stmt) {
             defined_values.insert(dest);
@@ -1125,6 +1217,7 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
         continuation,
         functions,
         handlers,
+        &mut values,
     )?;
     builder.seal_all_blocks();
     builder.finalize();
@@ -1233,11 +1326,12 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
     functions: &DeclaredFunctions,
     handlers: &HandlerRegistry,
     literals: &mut L,
+    values: &mut LocalValueCache,
 ) -> CpsReprCraneliftResult<()> {
     match stmt {
         CpsStmt::Literal { dest, literal } => {
-            let value = lower_literal(builder, function, literal)?;
-            builder.def_var(variable(*dest), value);
+            let value = lower_literal(module_backend, builder, function, literal, literals)?;
+            define_value_as_lane(builder, values, *dest, literal_lane(literal), value);
         }
         CpsStmt::FreshGuard { dest, .. } => {
             let value =
@@ -1298,6 +1392,17 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::ForceThunk { dest, thunk } => {
+            if force_thunk_passes_native_float(function, values, *thunk) {
+                let value = read_value_as_lane(
+                    builder,
+                    function,
+                    values,
+                    *thunk,
+                    CpsReprAbiLane::NativeFloat,
+                )?;
+                define_value_as_lane(builder, values, *dest, CpsReprAbiLane::NativeFloat, value);
+                return Ok(());
+            }
             let helper = declare_import(
                 module_backend,
                 builder,
@@ -1313,7 +1418,8 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
             return_if_abort_active(module_backend, builder)?;
-            return_if_scope_return_active(module_backend, builder, result)?;
+            let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
+            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::Tuple { dest, items } => {
@@ -1377,9 +1483,9 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::Primitive { dest, op, args } => {
-            let args = read_values(builder, function, args)?;
+            let args = read_primitive_args(builder, function, values, *op, args)?;
             let value = lower_primitive(module_backend, builder, function, *op, &args)?;
-            builder.def_var(variable(*dest), value);
+            define_value_as_lane(builder, values, *dest, primitive_result_lane(*op), value);
         }
         CpsStmt::DirectCall { dest, target, args } => {
             let id = functions.functions.get(target).copied().ok_or_else(|| {
@@ -1388,7 +1494,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                 }
             })?;
             let callee = module_backend.declare_func_in_func(id, builder.func);
-            let args = read_values(builder, function, args)?;
+            let args = read_call_args(builder, function, values, args, target, functions)?;
             // write27-d d5: fresh eval context for the sync call.
             let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
             let call = builder.ins().call(callee, &args);
@@ -1402,8 +1508,14 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
             return_if_abort_active(module_backend, builder)?;
-            return_if_scope_return_active(module_backend, builder, result)?;
-            builder.def_var(variable(*dest), result);
+            let result_lane = functions
+                .function_returns
+                .get(target)
+                .copied()
+                .unwrap_or(CpsReprAbiLane::Unknown);
+            let scope_fallback = scope_return_fallback_for_lane(builder, result_lane, result);
+            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
+            define_value_as_lane(builder, values, *dest, result_lane, result);
         }
         CpsStmt::ApplyClosure { dest, closure, arg } => {
             let closure = read_value(builder, function, *closure)?;
@@ -1446,7 +1558,8 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
             return_if_abort_active(module_backend, builder)?;
-            return_if_scope_return_active(module_backend, builder, result)?;
+            let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
+            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::ResumeWithHandler {
@@ -1474,7 +1587,8 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
             return_if_abort_active(module_backend, builder)?;
-            return_if_scope_return_active(module_backend, builder, result)?;
+            let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
+            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::InstallHandler {
@@ -1588,6 +1702,7 @@ fn lower_effect_terminator<M: Module>(
     continuation: &CpsReprAbiContinuation,
     functions: &DeclaredFunctions,
     handlers: &HandlerRegistry,
+    _values: &mut LocalValueCache,
 ) -> CpsReprCraneliftResult<()> {
     match &continuation.terminator {
         CpsTerminator::Return(value) => {
@@ -2496,6 +2611,19 @@ fn call_i64_helper<M: Module>(
     Ok(builder.inst_results(call)[0])
 }
 
+fn call_helper<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    name: &str,
+    params: &[ir::Type],
+    ret: ir::Type,
+    args: &[ir::Value],
+) -> CpsReprCraneliftResult<ir::Value> {
+    let helper = declare_import(module_backend, builder, name, params, ret)?;
+    let call = builder.ins().call(helper, args);
+    Ok(builder.inst_results(call)[0])
+}
+
 /// Emit an abort-active check after an internal call. If the runtime abort
 /// slot is set, the current Cranelift function returns the abort value
 /// immediately, mirroring CpsRuntimeValue::Aborted propagation in the CPS
@@ -2613,6 +2741,27 @@ fn return_if_scope_return_active<M: Module>(
     builder.switch_to_block(cont_block);
     builder.seal_block(cont_block);
     Ok(())
+}
+
+fn scope_return_fallback_value(
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    value: CpsValueId,
+    fallback: ir::Value,
+) -> ir::Value {
+    let lane = value_lane(function, value).unwrap_or(CpsReprAbiLane::Unknown);
+    scope_return_fallback_for_lane(builder, lane, fallback)
+}
+
+fn scope_return_fallback_for_lane(
+    builder: &mut FunctionBuilder<'_>,
+    lane: CpsReprAbiLane,
+    fallback: ir::Value,
+) -> ir::Value {
+    match lane {
+        CpsReprAbiLane::NativeFloat => builder.ins().iconst(types::I64, 0),
+        _ => fallback,
+    }
 }
 
 fn make_env<M: Module>(
@@ -2796,9 +2945,15 @@ fn function_signature<M: Module>(
     function: &CpsReprAbiFunction,
 ) -> ir::Signature {
     let mut sig = module_backend.make_signature();
-    sig.params
-        .extend(function.params.iter().map(|_| AbiParam::new(types::I64)));
-    sig.returns.push(AbiParam::new(types::I64));
+    sig.params.extend(
+        effective_function_param_lanes(function)
+            .into_iter()
+            .map(|lane| AbiParam::new(lane_type(lane))),
+    );
+    let return_lane = continuation(function, function.entry)
+        .map(|entry| effective_continuation_return_lane(function, entry))
+        .unwrap_or(CpsReprAbiLane::Unknown);
+    sig.returns.push(AbiParam::new(lane_type(return_lane)));
     sig
 }
 
@@ -2813,12 +2968,13 @@ fn lower_function<M: Module, L: CpsLiteralStore>(
     let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
     let blocks = create_blocks(&mut builder, function);
     declare_variables(&mut builder, function);
-    bind_function_params(&mut builder, function, &blocks)?;
+    let mut values = LocalValueCache::default();
+    bind_function_params(&mut builder, function, &blocks, &mut values)?;
 
     for continuation in &function.continuations {
         let block = continuation_block(function, &blocks, continuation.id)?;
         builder.switch_to_block(block);
-        bind_continuation_params(&mut builder, function, continuation, block)?;
+        bind_continuation_params(&mut builder, function, continuation, block, &mut values)?;
         for stmt in &continuation.stmts {
             lower_stmt(
                 module_backend,
@@ -2827,9 +2983,17 @@ fn lower_function<M: Module, L: CpsLiteralStore>(
                 stmt,
                 functions,
                 literals,
+                &mut values,
             )?;
         }
-        lower_terminator(&mut builder, function, &blocks, &continuation.terminator)?;
+        lower_terminator(
+            &mut builder,
+            function,
+            &blocks,
+            continuation,
+            &continuation.terminator,
+            &mut values,
+        )?;
     }
     builder.seal_all_blocks();
     builder.finalize();
@@ -2846,8 +3010,11 @@ fn create_blocks(
         .map(|continuation| {
             let block = builder.create_block();
             if continuation.id != function.entry {
-                for _ in &continuation.params {
-                    builder.append_block_param(block, types::I64);
+                for param in &continuation.params {
+                    builder.append_block_param(
+                        block,
+                        lane_type(effective_value_lane(function, param.value)),
+                    );
                 }
             }
             (continuation.id, block)
@@ -2858,6 +3025,10 @@ fn create_blocks(
 fn declare_variables(builder: &mut FunctionBuilder<'_>, function: &CpsReprAbiFunction) {
     for value in function_value_ids(function) {
         builder.declare_var(variable(value), types::I64);
+        builder.declare_var(
+            variable_for_lane(value, CpsReprAbiLane::NativeFloat),
+            types::F64,
+        );
     }
 }
 
@@ -2865,6 +3036,7 @@ fn bind_function_params(
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     blocks: &HashMap<CpsContinuationId, ir::Block>,
+    values: &mut LocalValueCache,
 ) -> CpsReprCraneliftResult<()> {
     let entry = continuation_block(function, blocks, function.entry)?;
     builder.append_block_params_for_function_params(entry);
@@ -2890,9 +3062,10 @@ fn bind_function_params(
         .zip(&entry_continuation.params)
         .zip(params)
     {
-        builder.def_var(variable(function_param.value), value);
+        let lane = effective_value_lane(function, continuation_param.value);
+        define_value_as_lane(builder, values, function_param.value, lane, value);
         if continuation_param.value != function_param.value {
-            builder.def_var(variable(continuation_param.value), value);
+            define_value_as_lane(builder, values, continuation_param.value, lane, value);
         }
     }
     Ok(())
@@ -2903,13 +3076,20 @@ fn bind_continuation_params(
     function: &CpsReprAbiFunction,
     continuation: &CpsReprAbiContinuation,
     block: ir::Block,
+    values: &mut LocalValueCache,
 ) -> CpsReprCraneliftResult<()> {
     if continuation.id == function.entry {
         return Ok(());
     }
     let params = builder.block_params(block).to_vec();
     for (param, value) in continuation.params.iter().zip(params) {
-        builder.def_var(variable(param.value), value);
+        define_value_as_lane(
+            builder,
+            values,
+            param.value,
+            effective_value_lane(function, param.value),
+            value,
+        );
     }
     Ok(())
 }
@@ -2921,11 +3101,12 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
     stmt: &CpsStmt,
     functions: &DeclaredFunctions,
     literals: &mut L,
+    values: &mut LocalValueCache,
 ) -> CpsReprCraneliftResult<()> {
     match stmt {
         CpsStmt::Literal { dest, literal } => {
-            let value = lower_literal(builder, function, literal)?;
-            builder.def_var(variable(*dest), value);
+            let value = lower_literal(module_backend, builder, function, literal, literals)?;
+            define_value_as_lane(builder, values, *dest, literal_lane(literal), value);
         }
         CpsStmt::FreshGuard { dest, .. } => {
             let value =
@@ -2970,6 +3151,17 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::ForceThunk { dest, thunk } => {
+            if force_thunk_passes_native_float(function, values, *thunk) {
+                let value = read_value_as_lane(
+                    builder,
+                    function,
+                    values,
+                    *thunk,
+                    CpsReprAbiLane::NativeFloat,
+                )?;
+                define_value_as_lane(builder, values, *dest, CpsReprAbiLane::NativeFloat, value);
+                return Ok(());
+            }
             let helper = declare_import(
                 module_backend,
                 builder,
@@ -2985,7 +3177,8 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
             return_if_abort_active(module_backend, builder)?;
-            return_if_scope_return_active(module_backend, builder, result)?;
+            let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
+            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::Tuple { dest, items } => {
@@ -3049,9 +3242,9 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::Primitive { dest, op, args } => {
-            let args = read_values(builder, function, args)?;
+            let args = read_primitive_args(builder, function, values, *op, args)?;
             let value = lower_primitive(module_backend, builder, function, *op, &args)?;
-            builder.def_var(variable(*dest), value);
+            define_value_as_lane(builder, values, *dest, primitive_result_lane(*op), value);
         }
         CpsStmt::DirectCall { dest, target, args } => {
             let id = functions.functions.get(target).copied().ok_or_else(|| {
@@ -3060,7 +3253,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                 }
             })?;
             let callee = module_backend.declare_func_in_func(id, builder.func);
-            let args = read_values(builder, function, args)?;
+            let args = read_call_args(builder, function, values, args, target, functions)?;
             // write27-d d5: fresh eval context for the sync call.
             let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
             let call = builder.ins().call(callee, &args);
@@ -3074,8 +3267,14 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
             return_if_abort_active(module_backend, builder)?;
-            return_if_scope_return_active(module_backend, builder, result)?;
-            builder.def_var(variable(*dest), result);
+            let result_lane = functions
+                .function_returns
+                .get(target)
+                .copied()
+                .unwrap_or(CpsReprAbiLane::Unknown);
+            let scope_fallback = scope_return_fallback_for_lane(builder, result_lane, result);
+            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
+            define_value_as_lane(builder, values, *dest, result_lane, result);
         }
         CpsStmt::ApplyClosure { dest, closure, arg } => {
             let closure = read_value(builder, function, *closure)?;
@@ -3130,16 +3329,25 @@ fn lower_terminator(
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     blocks: &HashMap<CpsContinuationId, ir::Block>,
+    continuation: &CpsReprAbiContinuation,
     terminator: &CpsTerminator,
+    values: &LocalValueCache,
 ) -> CpsReprCraneliftResult<()> {
     match terminator {
         CpsTerminator::Return(value) => {
-            let value = read_value(builder, function, *value)?;
+            let value = read_value_as_lane(
+                builder,
+                function,
+                values,
+                *value,
+                effective_continuation_return_lane(function, continuation),
+            )?;
             builder.ins().return_(&[value]);
         }
         CpsTerminator::Continue { target, args } => {
+            let target_continuation = lookup_continuation(function, *target)?;
             let target = continuation_block(function, blocks, *target)?;
-            let args = read_block_args(builder, function, args)?;
+            let args = read_block_args(builder, function, values, target_continuation, args)?;
             builder.ins().jump(target, &args);
         }
         CpsTerminator::Branch {
@@ -3274,10 +3482,12 @@ fn handler_mask(
     Ok(mask)
 }
 
-fn lower_literal(
+fn lower_literal<M: Module, L: CpsLiteralStore>(
+    module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     literal: &CpsLiteral,
+    literals: &mut L,
 ) -> CpsReprCraneliftResult<ir::Value> {
     match literal {
         CpsLiteral::Int(value) => {
@@ -3292,11 +3502,24 @@ fn lower_literal(
         }
         CpsLiteral::Bool(value) => Ok(builder.ins().iconst(types::I64, i64::from(*value))),
         CpsLiteral::Unit => Ok(builder.ins().iconst(types::I64, 0)),
-        CpsLiteral::Float(_) | CpsLiteral::String(_) => {
-            Err(CpsReprCraneliftError::UnsupportedLiteral {
-                function: function.name.clone(),
-                literal: literal.clone(),
-            })
+        CpsLiteral::Float(value) => {
+            let value =
+                value
+                    .parse::<f64>()
+                    .map_err(|_| CpsReprCraneliftError::UnsupportedLiteral {
+                        function: function.name.clone(),
+                        literal: literal.clone(),
+                    })?;
+            Ok(builder.ins().f64const(value))
+        }
+        CpsLiteral::String(value) => {
+            let (ptr, len) = literals.literal_bytes(module_backend, builder, value.as_bytes())?;
+            call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_string_literal_i64",
+                &[ptr, len],
+            )
         }
     }
 }
@@ -3304,7 +3527,7 @@ fn lower_literal(
 fn lower_primitive<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
-    function: &CpsReprAbiFunction,
+    _function: &CpsReprAbiFunction,
     op: typed_ir::PrimitiveOp,
     args: &[ir::Value],
 ) -> CpsReprCraneliftResult<ir::Value> {
@@ -3340,6 +3563,23 @@ fn lower_primitive<M: Module>(
             ir::condcodes::IntCC::SignedGreaterThanOrEqual,
             args,
         ),
+        typed_ir::PrimitiveOp::FloatAdd => builder.ins().fadd(args[0], args[1]),
+        typed_ir::PrimitiveOp::FloatSub => builder.ins().fsub(args[0], args[1]),
+        typed_ir::PrimitiveOp::FloatMul => builder.ins().fmul(args[0], args[1]),
+        typed_ir::PrimitiveOp::FloatDiv => builder.ins().fdiv(args[0], args[1]),
+        typed_ir::PrimitiveOp::FloatEq => float_cmp(builder, ir::condcodes::FloatCC::Equal, args),
+        typed_ir::PrimitiveOp::FloatLt => {
+            float_cmp(builder, ir::condcodes::FloatCC::LessThan, args)
+        }
+        typed_ir::PrimitiveOp::FloatLe => {
+            float_cmp(builder, ir::condcodes::FloatCC::LessThanOrEqual, args)
+        }
+        typed_ir::PrimitiveOp::FloatGt => {
+            float_cmp(builder, ir::condcodes::FloatCC::GreaterThan, args)
+        }
+        typed_ir::PrimitiveOp::FloatGe => {
+            float_cmp(builder, ir::condcodes::FloatCC::GreaterThanOrEqual, args)
+        }
         typed_ir::PrimitiveOp::ListEmpty => {
             call_i64_helper(module_backend, builder, "yulang_cps_list_empty_i64", &[])?
         }
@@ -3373,11 +3613,23 @@ fn lower_primitive<M: Module>(
             "yulang_cps_list_index_range_raw_i64",
             &[args[0], args[1], args[2]],
         )?,
+        typed_ir::PrimitiveOp::ListIndexRange => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_list_index_range_i64",
+            &[args[0], args[1]],
+        )?,
         typed_ir::PrimitiveOp::ListSpliceRaw => call_i64_helper(
             module_backend,
             builder,
             "yulang_cps_list_splice_raw_i64",
             &[args[0], args[1], args[2], args[3]],
+        )?,
+        typed_ir::PrimitiveOp::ListSplice => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_list_splice_i64",
+            &[args[0], args[1], args[2]],
         )?,
         typed_ir::PrimitiveOp::ListViewRaw => call_i64_helper(
             module_backend,
@@ -3391,12 +3643,80 @@ fn lower_primitive<M: Module>(
             "yulang_cps_int_to_string_i64",
             &[args[0]],
         )?,
-        _ => {
-            return Err(CpsReprCraneliftError::UnsupportedPrimitive {
-                function: function.name.clone(),
-                op,
-            });
-        }
+        typed_ir::PrimitiveOp::IntToHex => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_int_to_hex_i64",
+            &[args[0]],
+        )?,
+        typed_ir::PrimitiveOp::IntToUpperHex => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_int_to_upper_hex_i64",
+            &[args[0]],
+        )?,
+        typed_ir::PrimitiveOp::BoolToString => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_bool_to_string_i64",
+            &[args[0]],
+        )?,
+        typed_ir::PrimitiveOp::FloatToString => call_helper(
+            module_backend,
+            builder,
+            "yulang_cps_float_to_string_f64",
+            &[types::F64],
+            types::I64,
+            &[args[0]],
+        )?,
+        typed_ir::PrimitiveOp::StringConcat => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_string_concat_i64",
+            &[args[0], args[1]],
+        )?,
+        typed_ir::PrimitiveOp::StringEq => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_string_eq_i64",
+            &[args[0], args[1]],
+        )?,
+        typed_ir::PrimitiveOp::StringLen => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_string_len_i64",
+            &[args[0]],
+        )?,
+        typed_ir::PrimitiveOp::StringIndex => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_string_index_i64",
+            &[args[0], args[1]],
+        )?,
+        typed_ir::PrimitiveOp::StringIndexRangeRaw => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_string_index_range_raw_i64",
+            &[args[0], args[1], args[2]],
+        )?,
+        typed_ir::PrimitiveOp::StringIndexRange => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_string_index_range_i64",
+            &[args[0], args[1]],
+        )?,
+        typed_ir::PrimitiveOp::StringSpliceRaw => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_string_splice_raw_i64",
+            &[args[0], args[1], args[2], args[3]],
+        )?,
+        typed_ir::PrimitiveOp::StringSplice => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_string_splice_i64",
+            &[args[0], args[1], args[2]],
+        )?,
     };
     Ok(value)
 }
@@ -3407,6 +3727,15 @@ fn int_cmp(
     args: &[ir::Value],
 ) -> ir::Value {
     let cmp = builder.ins().icmp(code, args[0], args[1]);
+    builder.ins().uextend(types::I64, cmp)
+}
+
+fn float_cmp(
+    builder: &mut FunctionBuilder<'_>,
+    code: ir::condcodes::FloatCC,
+    args: &[ir::Value],
+) -> ir::Value {
+    let cmp = builder.ins().fcmp(code, args[0], args[1]);
     builder.ins().uextend(types::I64, cmp)
 }
 
@@ -3429,6 +3758,7 @@ fn validate_scalar_function(
         validate_value_lane(function, param)?;
     }
     for continuation in &function.continuations {
+        let return_lane = effective_continuation_return_lane(function, continuation);
         if !has_effect_flow && !continuation.environment.is_empty() {
             return Err(CpsReprCraneliftError::UnsupportedFunction {
                 function: function.name.clone(),
@@ -3450,13 +3780,11 @@ fn validate_scalar_function(
         for stmt in &continuation.stmts {
             match stmt {
                 CpsStmt::Literal { literal, .. } => match literal {
-                    CpsLiteral::Int(_) | CpsLiteral::Bool(_) | CpsLiteral::Unit => {}
-                    CpsLiteral::Float(_) | CpsLiteral::String(_) => {
-                        return Err(CpsReprCraneliftError::UnsupportedLiteral {
-                            function: function.name.clone(),
-                            literal: literal.clone(),
-                        });
-                    }
+                    CpsLiteral::Int(_)
+                    | CpsLiteral::Float(_)
+                    | CpsLiteral::Bool(_)
+                    | CpsLiteral::Unit
+                    | CpsLiteral::String(_) => {}
                 },
                 CpsStmt::FreshGuard { .. }
                 | CpsStmt::PeekGuard { .. }
@@ -3500,19 +3828,21 @@ fn validate_scalar_function(
         }
         if require_scalar_entry_return
             && continuation.id == function.entry
-            && continuation.return_lane != CpsReprAbiLane::ScalarI64
-            && continuation.return_lane != CpsReprAbiLane::RuntimeValuePtr
-            && continuation.return_lane != CpsReprAbiLane::ThunkPtr
-            && continuation.return_lane != CpsReprAbiLane::OpaqueI64
+            && return_lane != CpsReprAbiLane::ScalarI64
+            && return_lane != CpsReprAbiLane::RuntimeValuePtr
+            && return_lane != CpsReprAbiLane::ThunkPtr
+            && return_lane != CpsReprAbiLane::OpaqueI64
         {
             return Err(CpsReprCraneliftError::UnsupportedReturnLane {
                 function: function.name.clone(),
                 continuation: continuation.id,
-                lane: continuation.return_lane,
+                lane: return_lane,
             });
         }
-        if continuation.return_lane != CpsReprAbiLane::ScalarI64 {
-            match continuation.return_lane {
+        if return_lane != CpsReprAbiLane::ScalarI64 {
+            match return_lane {
+                CpsReprAbiLane::NativeFloat
+                    if !has_effect_flow && !continuation_has_internal_call(continuation) => {}
                 CpsReprAbiLane::RuntimeValuePtr
                 | CpsReprAbiLane::ThunkPtr
                 | CpsReprAbiLane::ResumptionPtr
@@ -3531,12 +3861,26 @@ fn validate_scalar_function(
     Ok(())
 }
 
+fn continuation_has_internal_call(continuation: &CpsReprAbiContinuation) -> bool {
+    continuation.stmts.iter().any(|stmt| {
+        matches!(
+            stmt,
+            CpsStmt::DirectCall { .. }
+                | CpsStmt::ApplyClosure { .. }
+                | CpsStmt::ForceThunk { .. }
+                | CpsStmt::Resume { .. }
+                | CpsStmt::ResumeWithHandler { .. }
+        )
+    })
+}
+
 fn validate_value_lane(
     function: &CpsReprAbiFunction,
     value: &CpsReprAbiValue,
 ) -> CpsReprCraneliftResult<()> {
     match value.lane {
         CpsReprAbiLane::ScalarI64
+        | CpsReprAbiLane::NativeFloat
         | CpsReprAbiLane::RuntimeValuePtr
         | CpsReprAbiLane::ThunkPtr
         | CpsReprAbiLane::ResumptionPtr
@@ -3571,7 +3915,7 @@ fn validate_environment_lane(
 }
 
 fn validate_primitive(
-    function: &CpsReprAbiFunction,
+    _function: &CpsReprAbiFunction,
     op: typed_ir::PrimitiveOp,
 ) -> CpsReprCraneliftResult<()> {
     match op {
@@ -3586,19 +3930,38 @@ fn validate_primitive(
         | typed_ir::PrimitiveOp::IntLe
         | typed_ir::PrimitiveOp::IntGt
         | typed_ir::PrimitiveOp::IntGe
+        | typed_ir::PrimitiveOp::FloatAdd
+        | typed_ir::PrimitiveOp::FloatSub
+        | typed_ir::PrimitiveOp::FloatMul
+        | typed_ir::PrimitiveOp::FloatDiv
+        | typed_ir::PrimitiveOp::FloatEq
+        | typed_ir::PrimitiveOp::FloatLt
+        | typed_ir::PrimitiveOp::FloatLe
+        | typed_ir::PrimitiveOp::FloatGt
+        | typed_ir::PrimitiveOp::FloatGe
         | typed_ir::PrimitiveOp::ListEmpty
         | typed_ir::PrimitiveOp::ListSingleton
         | typed_ir::PrimitiveOp::ListMerge
         | typed_ir::PrimitiveOp::ListLen
         | typed_ir::PrimitiveOp::ListIndex
         | typed_ir::PrimitiveOp::ListIndexRangeRaw
+        | typed_ir::PrimitiveOp::ListIndexRange
         | typed_ir::PrimitiveOp::ListSpliceRaw
+        | typed_ir::PrimitiveOp::ListSplice
         | typed_ir::PrimitiveOp::ListViewRaw
-        | typed_ir::PrimitiveOp::IntToString => Ok(()),
-        _ => Err(CpsReprCraneliftError::UnsupportedPrimitive {
-            function: function.name.clone(),
-            op,
-        }),
+        | typed_ir::PrimitiveOp::IntToString
+        | typed_ir::PrimitiveOp::IntToHex
+        | typed_ir::PrimitiveOp::IntToUpperHex
+        | typed_ir::PrimitiveOp::BoolToString
+        | typed_ir::PrimitiveOp::FloatToString
+        | typed_ir::PrimitiveOp::StringConcat
+        | typed_ir::PrimitiveOp::StringEq
+        | typed_ir::PrimitiveOp::StringLen
+        | typed_ir::PrimitiveOp::StringIndex
+        | typed_ir::PrimitiveOp::StringIndexRangeRaw
+        | typed_ir::PrimitiveOp::StringIndexRange
+        | typed_ir::PrimitiveOp::StringSpliceRaw
+        | typed_ir::PrimitiveOp::StringSplice => Ok(()),
     }
 }
 
@@ -3611,6 +3974,60 @@ fn read_values(
         .iter()
         .map(|value| read_value(builder, function, *value))
         .collect()
+}
+
+fn read_values_as_lanes(
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    local_values: &LocalValueCache,
+    values: &[CpsValueId],
+    lanes: impl IntoIterator<Item = CpsReprAbiLane>,
+) -> CpsReprCraneliftResult<Vec<ir::Value>> {
+    values
+        .iter()
+        .zip(lanes)
+        .map(|(value, lane)| read_value_as_lane(builder, function, local_values, *value, lane))
+        .collect()
+}
+
+fn read_primitive_args(
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    local_values: &LocalValueCache,
+    op: typed_ir::PrimitiveOp,
+    values: &[CpsValueId],
+) -> CpsReprCraneliftResult<Vec<ir::Value>> {
+    let lanes = primitive_arg_lanes(op);
+    values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let lane = lanes
+                .and_then(|lanes| lanes.get(index).copied())
+                .unwrap_or(CpsReprAbiLane::ScalarI64);
+            read_value_as_lane(builder, function, local_values, *value, lane)
+        })
+        .collect()
+}
+
+fn read_call_args(
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    local_values: &LocalValueCache,
+    values: &[CpsValueId],
+    target: &str,
+    functions: &DeclaredFunctions,
+) -> CpsReprCraneliftResult<Vec<ir::Value>> {
+    if let Some(lanes) = functions.function_params.get(target) {
+        return read_values_as_lanes(
+            builder,
+            function,
+            local_values,
+            values,
+            lanes.iter().copied(),
+        );
+    }
+    read_values(builder, function, values)
 }
 
 fn read_value(
@@ -3627,15 +4044,82 @@ fn read_value(
     Ok(builder.use_var(variable(value)))
 }
 
+fn read_value_as_lane(
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    local_values: &LocalValueCache,
+    value: CpsValueId,
+    lane: CpsReprAbiLane,
+) -> CpsReprCraneliftResult<ir::Value> {
+    if !function_value_ids(function).contains(&value) {
+        return Err(CpsReprCraneliftError::MissingValue {
+            function: function.name.clone(),
+            value,
+        });
+    }
+    if lane == CpsReprAbiLane::NativeFloat
+        && let Some(value) = local_values.native_float.get(&value).copied()
+    {
+        return Ok(value);
+    }
+    Ok(builder.use_var(variable_for_lane(value, lane)))
+}
+
+fn define_value_as_lane(
+    builder: &mut FunctionBuilder<'_>,
+    local_values: &mut LocalValueCache,
+    value: CpsValueId,
+    lane: CpsReprAbiLane,
+    ir_value: ir::Value,
+) {
+    if lane == CpsReprAbiLane::NativeFloat {
+        local_values.native_float.insert(value, ir_value);
+    }
+    builder.def_var(variable_for_lane(value, lane), ir_value);
+}
+
+fn force_thunk_passes_native_float(
+    function: &CpsReprAbiFunction,
+    local_values: &LocalValueCache,
+    value: CpsValueId,
+) -> bool {
+    effective_value_lane(function, value) == CpsReprAbiLane::NativeFloat
+        || local_values.native_float.contains_key(&value)
+}
+
+fn lane_type(lane: CpsReprAbiLane) -> ir::Type {
+    match lane {
+        CpsReprAbiLane::NativeFloat => types::F64,
+        CpsReprAbiLane::ScalarI64
+        | CpsReprAbiLane::RuntimeValuePtr
+        | CpsReprAbiLane::ThunkPtr
+        | CpsReprAbiLane::ResumptionPtr
+        | CpsReprAbiLane::OpaqueI64
+        | CpsReprAbiLane::Conflict
+        | CpsReprAbiLane::Unknown => types::I64,
+    }
+}
+
 fn read_block_args(
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
+    local_values: &LocalValueCache,
+    target: &CpsReprAbiContinuation,
     values: &[CpsValueId],
 ) -> CpsReprCraneliftResult<Vec<ir::BlockArg>> {
-    Ok(read_values(builder, function, values)?
-        .into_iter()
-        .map(ir::BlockArg::Value)
-        .collect())
+    Ok(read_values_as_lanes(
+        builder,
+        function,
+        local_values,
+        values,
+        target
+            .params
+            .iter()
+            .map(|param| effective_value_lane(function, param.value)),
+    )?
+    .into_iter()
+    .map(ir::BlockArg::Value)
+    .collect())
 }
 
 fn continuation_block(
@@ -3720,12 +4204,209 @@ fn value_lane(function: &CpsReprAbiFunction, value: CpsValueId) -> Option<CpsRep
                 return Some(slot.lane);
             }
         }
+        for stmt in &continuation.stmts {
+            if stmt_dest(stmt) == Some(value) {
+                return Some(stmt_result_lane(stmt));
+            }
+        }
     }
     None
 }
 
+fn effective_value_lane(function: &CpsReprAbiFunction, value: CpsValueId) -> CpsReprAbiLane {
+    match value_lane(function, value) {
+        Some(CpsReprAbiLane::Unknown) | None => {
+            inferred_value_lane(function, value).unwrap_or(CpsReprAbiLane::Unknown)
+        }
+        Some(CpsReprAbiLane::OpaqueI64) => {
+            inferred_value_lane(function, value).unwrap_or(CpsReprAbiLane::OpaqueI64)
+        }
+        Some(lane) => lane,
+    }
+}
+
+fn inferred_value_lane(function: &CpsReprAbiFunction, value: CpsValueId) -> Option<CpsReprAbiLane> {
+    let mut lane = None;
+    for continuation in &function.continuations {
+        if matches!(&continuation.terminator, CpsTerminator::Return(returned) if *returned == value)
+            && continuation.return_lane != CpsReprAbiLane::Unknown
+        {
+            merge_inferred_lane(&mut lane, continuation.return_lane);
+        }
+        for stmt in &continuation.stmts {
+            if stmt_dest(stmt) == Some(value) {
+                merge_inferred_lane(&mut lane, stmt_result_lane(stmt));
+            }
+            if let CpsStmt::Primitive { op, args, .. } = stmt
+                && let Some(arg_lanes) = primitive_arg_lanes(*op)
+            {
+                for (arg, arg_lane) in args.iter().zip(arg_lanes.iter().copied()) {
+                    if *arg == value {
+                        merge_inferred_lane(&mut lane, arg_lane);
+                    }
+                }
+            }
+        }
+    }
+    lane
+}
+
+fn effective_continuation_return_lane(
+    function: &CpsReprAbiFunction,
+    continuation: &CpsReprAbiContinuation,
+) -> CpsReprAbiLane {
+    if continuation.return_lane != CpsReprAbiLane::Unknown {
+        return continuation.return_lane;
+    }
+    match &continuation.terminator {
+        CpsTerminator::Return(value) => effective_value_lane(function, *value),
+        _ => CpsReprAbiLane::Unknown,
+    }
+}
+
+fn effective_function_param_lanes(function: &CpsReprAbiFunction) -> Vec<CpsReprAbiLane> {
+    let entry = continuation(function, function.entry).ok();
+    function
+        .params
+        .iter()
+        .enumerate()
+        .map(|(index, param)| {
+            entry
+                .and_then(|entry| entry.params.get(index))
+                .map(|entry_param| effective_value_lane(function, entry_param.value))
+                .filter(|lane| *lane != CpsReprAbiLane::Unknown)
+                .unwrap_or_else(|| effective_value_lane(function, param.value))
+        })
+        .collect()
+}
+
+fn merge_inferred_lane(slot: &mut Option<CpsReprAbiLane>, lane: CpsReprAbiLane) {
+    if lane == CpsReprAbiLane::Unknown {
+        return;
+    }
+    *slot = Some(match *slot {
+        None | Some(CpsReprAbiLane::Unknown) => lane,
+        Some(existing) if existing == lane => existing,
+        Some(CpsReprAbiLane::NativeFloat) => CpsReprAbiLane::NativeFloat,
+        Some(_) if lane == CpsReprAbiLane::NativeFloat => CpsReprAbiLane::NativeFloat,
+        Some(existing) => existing,
+    });
+}
+
+fn stmt_result_lane(stmt: &CpsStmt) -> CpsReprAbiLane {
+    match stmt {
+        CpsStmt::Literal { literal, .. } => literal_lane(literal),
+        CpsStmt::FreshGuard { .. }
+        | CpsStmt::PeekGuard { .. }
+        | CpsStmt::FindGuard { .. }
+        | CpsStmt::VariantTagEq { .. } => CpsReprAbiLane::ScalarI64,
+        CpsStmt::MakeThunk { .. } | CpsStmt::AddThunkBoundary { .. } => CpsReprAbiLane::ThunkPtr,
+        CpsStmt::MakeClosure { .. }
+        | CpsStmt::MakeRecursiveClosure { .. }
+        | CpsStmt::Tuple { .. }
+        | CpsStmt::Record { .. }
+        | CpsStmt::Variant { .. }
+        | CpsStmt::Select { .. }
+        | CpsStmt::TupleGet { .. }
+        | CpsStmt::VariantPayload { .. }
+        | CpsStmt::ForceThunk { .. }
+        | CpsStmt::DirectCall { .. }
+        | CpsStmt::ApplyClosure { .. }
+        | CpsStmt::CloneContinuation { .. }
+        | CpsStmt::Resume { .. }
+        | CpsStmt::ResumeWithHandler { .. } => CpsReprAbiLane::Unknown,
+        CpsStmt::Primitive { op, .. } => primitive_result_lane(*op),
+        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {
+            CpsReprAbiLane::Unknown
+        }
+    }
+}
+
+fn literal_lane(literal: &CpsLiteral) -> CpsReprAbiLane {
+    match literal {
+        CpsLiteral::Int(_) | CpsLiteral::Bool(_) | CpsLiteral::Unit => CpsReprAbiLane::ScalarI64,
+        CpsLiteral::Float(_) => CpsReprAbiLane::NativeFloat,
+        CpsLiteral::String(_) => CpsReprAbiLane::RuntimeValuePtr,
+    }
+}
+
+fn primitive_arg_lanes(op: typed_ir::PrimitiveOp) -> Option<&'static [CpsReprAbiLane]> {
+    const FLOAT_UNARY: &[CpsReprAbiLane] = &[CpsReprAbiLane::NativeFloat];
+    const FLOAT_BINARY: &[CpsReprAbiLane] =
+        &[CpsReprAbiLane::NativeFloat, CpsReprAbiLane::NativeFloat];
+    match op {
+        typed_ir::PrimitiveOp::FloatToString => Some(FLOAT_UNARY),
+        typed_ir::PrimitiveOp::FloatAdd
+        | typed_ir::PrimitiveOp::FloatSub
+        | typed_ir::PrimitiveOp::FloatMul
+        | typed_ir::PrimitiveOp::FloatDiv
+        | typed_ir::PrimitiveOp::FloatEq
+        | typed_ir::PrimitiveOp::FloatLt
+        | typed_ir::PrimitiveOp::FloatLe
+        | typed_ir::PrimitiveOp::FloatGt
+        | typed_ir::PrimitiveOp::FloatGe => Some(FLOAT_BINARY),
+        _ => None,
+    }
+}
+
+fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
+    match op {
+        typed_ir::PrimitiveOp::BoolNot
+        | typed_ir::PrimitiveOp::BoolEq
+        | typed_ir::PrimitiveOp::IntEq
+        | typed_ir::PrimitiveOp::IntLt
+        | typed_ir::PrimitiveOp::IntLe
+        | typed_ir::PrimitiveOp::IntGt
+        | typed_ir::PrimitiveOp::IntGe
+        | typed_ir::PrimitiveOp::IntAdd
+        | typed_ir::PrimitiveOp::IntSub
+        | typed_ir::PrimitiveOp::IntMul
+        | typed_ir::PrimitiveOp::IntDiv
+        | typed_ir::PrimitiveOp::ListLen
+        | typed_ir::PrimitiveOp::StringLen
+        | typed_ir::PrimitiveOp::FloatEq
+        | typed_ir::PrimitiveOp::FloatLt
+        | typed_ir::PrimitiveOp::FloatLe
+        | typed_ir::PrimitiveOp::FloatGt
+        | typed_ir::PrimitiveOp::FloatGe
+        | typed_ir::PrimitiveOp::StringEq => CpsReprAbiLane::ScalarI64,
+        typed_ir::PrimitiveOp::FloatAdd
+        | typed_ir::PrimitiveOp::FloatSub
+        | typed_ir::PrimitiveOp::FloatMul
+        | typed_ir::PrimitiveOp::FloatDiv => CpsReprAbiLane::NativeFloat,
+        typed_ir::PrimitiveOp::ListEmpty
+        | typed_ir::PrimitiveOp::ListSingleton
+        | typed_ir::PrimitiveOp::ListMerge
+        | typed_ir::PrimitiveOp::ListIndexRange
+        | typed_ir::PrimitiveOp::ListSplice
+        | typed_ir::PrimitiveOp::ListIndexRangeRaw
+        | typed_ir::PrimitiveOp::ListSpliceRaw
+        | typed_ir::PrimitiveOp::ListViewRaw
+        | typed_ir::PrimitiveOp::StringIndex
+        | typed_ir::PrimitiveOp::StringIndexRange
+        | typed_ir::PrimitiveOp::StringSplice
+        | typed_ir::PrimitiveOp::StringIndexRangeRaw
+        | typed_ir::PrimitiveOp::StringSpliceRaw
+        | typed_ir::PrimitiveOp::StringConcat
+        | typed_ir::PrimitiveOp::IntToString
+        | typed_ir::PrimitiveOp::IntToHex
+        | typed_ir::PrimitiveOp::IntToUpperHex
+        | typed_ir::PrimitiveOp::FloatToString
+        | typed_ir::PrimitiveOp::BoolToString => CpsReprAbiLane::RuntimeValuePtr,
+        typed_ir::PrimitiveOp::ListIndex => CpsReprAbiLane::Unknown,
+    }
+}
+
 fn variable(value: CpsValueId) -> Variable {
-    Variable::from_u32(value.0 as u32)
+    variable_for_lane(value, CpsReprAbiLane::ScalarI64)
+}
+
+fn variable_for_lane(value: CpsValueId, lane: CpsReprAbiLane) -> Variable {
+    let slot = match lane {
+        CpsReprAbiLane::NativeFloat => 1,
+        _ => 0,
+    };
+    Variable::from_u32((value.0 as u32) * 2 + slot)
 }
 
 fn cranelift_error(error: impl fmt::Display) -> CpsReprCraneliftError {
@@ -4834,6 +5515,18 @@ extern "C" fn yulang_cps_list_index_range_raw_i64(value: i64, start: i64, end: i
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn yulang_cps_list_index_range_i64(value: i64, range: i64) -> i64 {
+    let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
+    let NativeCpsI64HeapValue::List(items) = value else {
+        return yulang_cps_list_empty_i64();
+    };
+    let Some((start, end)) = native_cps_i64_normalized_int_range(range, items.len()) else {
+        return yulang_cps_list_empty_i64();
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::List(items[start..end].to_vec()))
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_list_splice_raw_i64(value: i64, start: i64, end: i64, insert: i64) -> i64 {
     let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     let insert = unsafe { &*(insert as *const NativeCpsI64HeapValue) };
@@ -4850,6 +5543,24 @@ extern "C" fn yulang_cps_list_splice_raw_i64(value: i64, start: i64, end: i64, i
     if start > end || end > items.len() {
         return yulang_cps_list_empty_i64();
     }
+    let mut result = Vec::with_capacity(items.len() - (end - start) + insert.len());
+    result.extend_from_slice(&items[..start]);
+    result.extend(insert.iter().copied());
+    result.extend_from_slice(&items[end..]);
+    native_cps_i64_heap(NativeCpsI64HeapValue::List(result))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_list_splice_i64(value: i64, range: i64, insert: i64) -> i64 {
+    let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
+    let insert = unsafe { &*(insert as *const NativeCpsI64HeapValue) };
+    let (NativeCpsI64HeapValue::List(items), NativeCpsI64HeapValue::List(insert)) = (value, insert)
+    else {
+        return yulang_cps_list_empty_i64();
+    };
+    let Some((start, end)) = native_cps_i64_normalized_int_range(range, items.len()) else {
+        return yulang_cps_list_empty_i64();
+    };
     let mut result = Vec::with_capacity(items.len() - (end - start) + insert.len());
     result.extend_from_slice(&items[..start]);
     result.extend(insert.iter().copied());
@@ -4914,6 +5625,271 @@ extern "C" fn yulang_cps_int_to_string_i64(value: i64) -> i64 {
     native_cps_i64_heap(NativeCpsI64HeapValue::String(
         value.to_string().into_boxed_str(),
     ))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_int_to_hex_i64(value: i64) -> i64 {
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(
+        format!("{value:x}").into_boxed_str(),
+    ))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_int_to_upper_hex_i64(value: i64) -> i64 {
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(
+        format!("{value:X}").into_boxed_str(),
+    ))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_bool_to_string_i64(value: i64) -> i64 {
+    let text = if value == 0 { "false" } else { "true" };
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(text.into()))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_float_to_string_f64(value: f64) -> i64 {
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(
+        native_cps_format_float(value).into_boxed_str(),
+    ))
+}
+
+fn native_cps_format_float(value: f64) -> String {
+    let mut rendered = value.to_string();
+    if !rendered.contains('.') && !rendered.contains('e') && !rendered.contains('E') {
+        rendered.push_str(".0");
+    }
+    rendered
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_string_literal_i64(ptr: *const u8, len: i64) -> i64 {
+    let Some(text) = native_cps_i64_string_from_bytes(ptr, len) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(text.into_boxed_str()))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_string_concat_i64(left: i64, right: i64) -> i64 {
+    let Some(left) = native_cps_i64_string_text(left) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Some(right) = native_cps_i64_string_text(right) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let mut text = String::with_capacity(left.len() + right.len());
+    text.push_str(left);
+    text.push_str(right);
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(text.into_boxed_str()))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_string_eq_i64(left: i64, right: i64) -> i64 {
+    let Some(left) = native_cps_i64_string_text(left) else {
+        return 0;
+    };
+    let Some(right) = native_cps_i64_string_text(right) else {
+        return 0;
+    };
+    i64::from(left == right)
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_string_len_i64(value: i64) -> i64 {
+    native_cps_i64_string_text(value)
+        .map(|text| text.chars().count() as i64)
+        .unwrap_or(0)
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_string_index_i64(value: i64, index: i64) -> i64 {
+    let Some(text) = native_cps_i64_string_text(value) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Ok(index) = usize::try_from(index) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Some(ch) = text.chars().nth(index) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(
+        ch.to_string().into_boxed_str(),
+    ))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_string_index_range_raw_i64(value: i64, start: i64, end: i64) -> i64 {
+    let Some(text) = native_cps_i64_string_text(value) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Some(slice) = native_cps_i64_string_slice(text, start, end) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(
+        slice.to_string().into_boxed_str(),
+    ))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_string_index_range_i64(value: i64, range: i64) -> i64 {
+    let Some(text) = native_cps_i64_string_text(value) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Some((start, end)) = native_cps_i64_normalized_int_range(range, text.chars().count())
+    else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Some(slice) = native_cps_i64_string_slice(text, start as i64, end as i64) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(
+        slice.to_string().into_boxed_str(),
+    ))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_string_splice_raw_i64(
+    value: i64,
+    start: i64,
+    end: i64,
+    insert: i64,
+) -> i64 {
+    let Some(text) = native_cps_i64_string_text(value) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Some(insert) = native_cps_i64_string_text(insert) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Some((start, end)) = native_cps_i64_string_byte_range(text, start, end) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let mut result = String::with_capacity(text.len() - (end - start) + insert.len());
+    result.push_str(&text[..start]);
+    result.push_str(insert);
+    result.push_str(&text[end..]);
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(result.into_boxed_str()))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_string_splice_i64(value: i64, range: i64, insert: i64) -> i64 {
+    let Some(text) = native_cps_i64_string_text(value) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Some(insert) = native_cps_i64_string_text(insert) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Some((start, end)) = native_cps_i64_normalized_int_range(range, text.chars().count())
+    else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let Some((start, end)) = native_cps_i64_string_byte_range(text, start as i64, end as i64)
+    else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::String("".into()));
+    };
+    let mut result = String::with_capacity(text.len() - (end - start) + insert.len());
+    result.push_str(&text[..start]);
+    result.push_str(insert);
+    result.push_str(&text[end..]);
+    native_cps_i64_heap(NativeCpsI64HeapValue::String(result.into_boxed_str()))
+}
+
+fn native_cps_i64_string_from_bytes(ptr: *const u8, len: i64) -> Option<String> {
+    if ptr.is_null() || len < 0 {
+        return None;
+    }
+    let len = usize::try_from(len).ok()?;
+    let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
+    std::str::from_utf8(bytes).ok().map(str::to_string)
+}
+
+fn native_cps_i64_string_text(value: i64) -> Option<&'static str> {
+    let is_heap = NATIVE_CPS_I64_HEAP_VALUES.with(|values| values.borrow().contains(&value));
+    if !is_heap {
+        return None;
+    }
+    let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
+    match value {
+        NativeCpsI64HeapValue::String(text) => Some(text.as_ref()),
+        _ => None,
+    }
+}
+
+fn native_cps_i64_string_slice(text: &str, start: i64, end: i64) -> Option<&str> {
+    let (start, end) = native_cps_i64_string_byte_range(text, start, end)?;
+    Some(&text[start..end])
+}
+
+fn native_cps_i64_string_byte_range(text: &str, start: i64, end: i64) -> Option<(usize, usize)> {
+    let start = usize::try_from(start).ok()?;
+    let end = usize::try_from(end).ok()?;
+    if start > end || end > text.chars().count() {
+        return None;
+    }
+    let start = native_cps_i64_string_char_boundary(text, start)?;
+    let end = native_cps_i64_string_char_boundary(text, end)?;
+    Some((start, end))
+}
+
+fn native_cps_i64_string_char_boundary(text: &str, index: usize) -> Option<usize> {
+    if index == text.chars().count() {
+        return Some(text.len());
+    }
+    text.char_indices().nth(index).map(|(byte, _)| byte)
+}
+
+fn native_cps_i64_normalized_int_range(value: i64, len: usize) -> Option<(usize, usize)> {
+    let value = native_cps_i64_heap_value(value)?;
+    let NativeCpsI64HeapValue::Variant {
+        tag,
+        value: Some(payload),
+    } = value
+    else {
+        return None;
+    };
+    if *tag != tag_hash(&typed_ir::Name("within".to_string())) {
+        return None;
+    }
+    let NativeCpsI64HeapValue::Tuple(items) = native_cps_i64_heap_value(*payload)? else {
+        return None;
+    };
+    let [start, end] = items.as_ref() else {
+        return None;
+    };
+    let start = native_cps_i64_normalized_start_bound(*start)?;
+    let end = native_cps_i64_normalized_end_bound(*end, len)?;
+    (start <= end && end <= len).then_some((start, end))
+}
+
+fn native_cps_i64_normalized_start_bound(value: i64) -> Option<usize> {
+    let NativeCpsI64HeapValue::Variant { tag, value } = native_cps_i64_heap_value(value)? else {
+        return None;
+    };
+    let tag = native_i64_tag_name(*tag);
+    match tag.as_str() {
+        "unbounded" => Some(0),
+        "included" => usize::try_from(value.as_ref().copied()?).ok(),
+        "excluded" => usize::try_from(value.as_ref().copied()? + 1).ok(),
+        _ => None,
+    }
+}
+
+fn native_cps_i64_normalized_end_bound(value: i64, len: usize) -> Option<usize> {
+    let NativeCpsI64HeapValue::Variant { tag, value } = native_cps_i64_heap_value(value)? else {
+        return None;
+    };
+    let tag = native_i64_tag_name(*tag);
+    match tag.as_str() {
+        "unbounded" => Some(len),
+        "included" => usize::try_from(value.as_ref().copied()? + 1).ok(),
+        "excluded" => usize::try_from(value.as_ref().copied()?).ok(),
+        _ => None,
+    }
+}
+
+fn native_cps_i64_heap_value(value: i64) -> Option<&'static NativeCpsI64HeapValue> {
+    let is_heap = NATIVE_CPS_I64_HEAP_VALUES.with(|values| values.borrow().contains(&value));
+    is_heap.then(|| unsafe { &*(value as *const NativeCpsI64HeapValue) })
 }
 
 #[unsafe(no_mangle)]
@@ -6837,6 +7813,288 @@ mod tests {
         assert_eq!(describe_native_i64_value(roots[0]), "42");
     }
 
+    #[test]
+    fn jit_runs_string_literal_runtime_value_root() {
+        let mut jit = compile_runtime_module_to_cps_repr_jit(&module_with_root(unknown_lit(
+            typed_ir::Lit::String("aあ🙂z".to_string()),
+        )))
+        .expect("compiled runtime module through CPS repr");
+        let roots = jit.run_roots_i64().expect("ran");
+
+        assert_eq!(roots.len(), 1);
+        assert_eq!(describe_native_i64_value(roots[0]), "aあ🙂z");
+    }
+
+    #[test]
+    fn jit_keeps_native_float_through_plain_force_thunk() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Float("1.5".to_string()),
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(1),
+                            thunk: CpsValueId(0),
+                        },
+                        CpsStmt::Literal {
+                            dest: CpsValueId(2),
+                            literal: CpsLiteral::Float("2.0".to_string()),
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(3),
+                            thunk: CpsValueId(2),
+                        },
+                        CpsStmt::Primitive {
+                            dest: CpsValueId(4),
+                            op: typed_ir::PrimitiveOp::FloatAdd,
+                            args: vec![CpsValueId(1), CpsValueId(3)],
+                        },
+                        CpsStmt::ForceThunk {
+                            dest: CpsValueId(5),
+                            thunk: CpsValueId(4),
+                        },
+                        CpsStmt::Primitive {
+                            dest: CpsValueId(6),
+                            op: typed_ir::PrimitiveOp::FloatToString,
+                            args: vec![CpsValueId(5)],
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(6)),
+                }],
+            }],
+        }));
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+        let roots = jit.run_roots_i64().expect("ran");
+
+        assert_eq!(roots.len(), 1);
+        assert_eq!(describe_native_i64_value(roots[0]), "3.5");
+    }
+
+    #[test]
+    fn jit_runs_string_primitives_runtime_value_roots() {
+        let cases = vec![
+            (
+                apply(
+                    apply(
+                        primitive(typed_ir::PrimitiveOp::StringConcat),
+                        unknown_lit(typed_ir::Lit::String("yu".to_string())),
+                    ),
+                    unknown_lit(typed_ir::Lit::String("lang".to_string())),
+                ),
+                "yulang",
+            ),
+            (
+                apply(
+                    primitive(typed_ir::PrimitiveOp::StringLen),
+                    unknown_lit(typed_ir::Lit::String("aあ🙂".to_string())),
+                ),
+                "3",
+            ),
+            (
+                apply(
+                    apply(
+                        primitive(typed_ir::PrimitiveOp::StringIndex),
+                        unknown_lit(typed_ir::Lit::String("aあ🙂".to_string())),
+                    ),
+                    unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                ),
+                "あ",
+            ),
+            (
+                apply(
+                    apply(
+                        primitive(typed_ir::PrimitiveOp::StringIndexRange),
+                        unknown_lit(typed_ir::Lit::String("aあ🙂z".to_string())),
+                    ),
+                    range_expr(1, 3),
+                ),
+                "あ🙂",
+            ),
+            (
+                apply(
+                    apply(
+                        apply(
+                            primitive(typed_ir::PrimitiveOp::StringSplice),
+                            unknown_lit(typed_ir::Lit::String("abcz".to_string())),
+                        ),
+                        range_expr(1, 3),
+                    ),
+                    unknown_lit(typed_ir::Lit::String("XY".to_string())),
+                ),
+                "aXYz",
+            ),
+            (
+                apply(
+                    apply(
+                        apply(
+                            primitive(typed_ir::PrimitiveOp::StringIndexRangeRaw),
+                            unknown_lit(typed_ir::Lit::String("aあ🙂z".to_string())),
+                        ),
+                        unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                    ),
+                    unknown_lit(typed_ir::Lit::Int("3".to_string())),
+                ),
+                "あ🙂",
+            ),
+            (
+                apply(
+                    apply(
+                        apply(
+                            apply(
+                                primitive(typed_ir::PrimitiveOp::StringSpliceRaw),
+                                unknown_lit(typed_ir::Lit::String("abcz".to_string())),
+                            ),
+                            unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                        ),
+                        unknown_lit(typed_ir::Lit::Int("3".to_string())),
+                    ),
+                    unknown_lit(typed_ir::Lit::String("XY".to_string())),
+                ),
+                "aXYz",
+            ),
+            (
+                apply(
+                    apply(
+                        primitive(typed_ir::PrimitiveOp::StringEq),
+                        unknown_lit(typed_ir::Lit::String("ok".to_string())),
+                    ),
+                    unknown_lit(typed_ir::Lit::String("ok".to_string())),
+                ),
+                "1",
+            ),
+            (
+                apply(
+                    primitive(typed_ir::PrimitiveOp::IntToHex),
+                    unknown_lit(typed_ir::Lit::Int("255".to_string())),
+                ),
+                "ff",
+            ),
+            (
+                apply(
+                    primitive(typed_ir::PrimitiveOp::IntToUpperHex),
+                    unknown_lit(typed_ir::Lit::Int("255".to_string())),
+                ),
+                "FF",
+            ),
+            (
+                apply(
+                    primitive(typed_ir::PrimitiveOp::BoolToString),
+                    unknown_lit(typed_ir::Lit::Bool(true)),
+                ),
+                "true",
+            ),
+            (
+                apply(
+                    primitive(typed_ir::PrimitiveOp::FloatToString),
+                    primitive_call(
+                        typed_ir::PrimitiveOp::FloatAdd,
+                        vec![
+                            unknown_lit(typed_ir::Lit::Float("1.5".to_string())),
+                            unknown_lit(typed_ir::Lit::Float("2.0".to_string())),
+                        ],
+                    ),
+                ),
+                "3.5",
+            ),
+            (
+                apply(
+                    primitive(typed_ir::PrimitiveOp::FloatToString),
+                    primitive_call(
+                        typed_ir::PrimitiveOp::FloatSub,
+                        vec![
+                            unknown_lit(typed_ir::Lit::Float("5.0".to_string())),
+                            unknown_lit(typed_ir::Lit::Float("2.0".to_string())),
+                        ],
+                    ),
+                ),
+                "3.0",
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::FloatEq,
+                    vec![
+                        unknown_lit(typed_ir::Lit::Float("1.5".to_string())),
+                        unknown_lit(typed_ir::Lit::Float("1.5".to_string())),
+                    ],
+                ),
+                "1",
+            ),
+        ];
+
+        for (expr, expected) in cases {
+            let mut jit = compile_runtime_module_to_cps_repr_jit(&module_with_root(expr))
+                .expect("compiled runtime module");
+            let roots = jit.run_roots_i64().expect("ran");
+            assert_eq!(roots.len(), 1);
+            assert_eq!(describe_native_i64_value(roots[0]), expected);
+        }
+    }
+
+    #[test]
+    fn jit_runs_list_range_primitives_runtime_value_roots() {
+        let sliced = apply(
+            apply(
+                primitive(typed_ir::PrimitiveOp::ListIndexRange),
+                list_expr(vec![1, 2, 3, 4]),
+            ),
+            range_expr(1, 3),
+        );
+        let spliced = apply(
+            apply(
+                apply(
+                    primitive(typed_ir::PrimitiveOp::ListSplice),
+                    list_expr(vec![1, 2, 3, 4]),
+                ),
+                range_expr(1, 3),
+            ),
+            list_expr(vec![8, 9]),
+        );
+        let cases = vec![
+            (
+                apply(primitive(typed_ir::PrimitiveOp::ListLen), sliced.clone()),
+                "2",
+            ),
+            (
+                apply(
+                    apply(primitive(typed_ir::PrimitiveOp::ListIndex), sliced),
+                    unknown_lit(typed_ir::Lit::Int("0".to_string())),
+                ),
+                "2",
+            ),
+            (
+                apply(primitive(typed_ir::PrimitiveOp::ListLen), spliced.clone()),
+                "4",
+            ),
+            (
+                apply(
+                    apply(primitive(typed_ir::PrimitiveOp::ListIndex), spliced),
+                    unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                ),
+                "8",
+            ),
+        ];
+
+        for (expr, expected) in cases {
+            let mut jit = compile_runtime_module_to_cps_repr_jit(&module_with_root(expr))
+                .expect("compiled runtime module");
+            let roots = jit.run_roots_i64().expect("ran");
+            assert_eq!(roots.len(), 1);
+            assert_eq!(describe_native_i64_value(roots[0]), expected);
+        }
+    }
+
     fn console_effect_path(operation: &str) -> typed_ir::Path {
         typed_ir::Path {
             segments: vec![
@@ -7352,6 +8610,59 @@ mod tests {
                 arg: Box::new(arg),
                 evidence: None,
                 instantiation: None,
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn primitive_call(op: typed_ir::PrimitiveOp, args: Vec<runtime::Expr>) -> runtime::Expr {
+        args.into_iter()
+            .fold(primitive(op), |callee, arg| apply(callee, arg))
+    }
+
+    fn list_expr(items: Vec<i64>) -> runtime::Expr {
+        items
+            .into_iter()
+            .map(|item| {
+                primitive_call(
+                    typed_ir::PrimitiveOp::ListSingleton,
+                    vec![unknown_lit(typed_ir::Lit::Int(item.to_string()))],
+                )
+            })
+            .fold(
+                primitive_call(
+                    typed_ir::PrimitiveOp::ListEmpty,
+                    vec![unknown_lit(typed_ir::Lit::Unit)],
+                ),
+                |acc, item| primitive_call(typed_ir::PrimitiveOp::ListMerge, vec![acc, item]),
+            )
+    }
+
+    fn range_expr(start: i64, end: i64) -> runtime::Expr {
+        variant(
+            "within",
+            Some(tuple(vec![
+                variant(
+                    "included",
+                    Some(unknown_lit(typed_ir::Lit::Int(start.to_string()))),
+                ),
+                variant(
+                    "excluded",
+                    Some(unknown_lit(typed_ir::Lit::Int(end.to_string()))),
+                ),
+            ])),
+        )
+    }
+
+    fn tuple(items: Vec<runtime::Expr>) -> runtime::Expr {
+        runtime::Expr::typed(runtime::ExprKind::Tuple(items), runtime::Type::unknown())
+    }
+
+    fn variant(tag: &str, value: Option<runtime::Expr>) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Variant {
+                tag: typed_ir::Name(tag.to_string()),
+                value: value.map(Box::new),
             },
             runtime::Type::unknown(),
         )
