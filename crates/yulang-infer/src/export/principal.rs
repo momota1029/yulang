@@ -1,7 +1,4 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
-use std::time::Duration;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use std::time::Instant;
 
 use yulang_typed_ir as typed_ir;
 
@@ -17,6 +14,7 @@ use super::names::{export_path, path_key};
 use super::paths::{collect_canonical_binding_paths, complete_referenced_binding_closure};
 use super::roles::canonical_runtime_export_def;
 use super::spine::collect_apply_spine;
+use super::timing::{ExportClock, format_core_path_for_export_timing};
 use super::types::{
     collect_core_type_vars, export_coalesced_type_bounds_for_tv, export_compact_type_bounds,
     export_frozen_scheme, export_frozen_scheme_body_type_vars, export_relevant_type_bounds_for_tv,
@@ -30,35 +28,6 @@ use crate::lower::LowerState;
 use crate::simplify::compact::compact_type_var;
 use crate::simplify::cooccur::coalesce_by_co_occurrence;
 use crate::symbols::Path;
-
-struct ExportClock {
-    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    instant: Option<Instant>,
-}
-
-impl ExportClock {
-    fn now(enabled: bool) -> Self {
-        Self {
-            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-            instant: enabled.then(Instant::now),
-        }
-    }
-
-    fn elapsed(&self) -> Duration {
-        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-        {
-            return self
-                .instant
-                .map(|instant| instant.elapsed())
-                .unwrap_or_default();
-        }
-
-        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-        {
-            Duration::ZERO
-        }
-    }
-}
 
 pub fn export_core_program(state: &mut LowerState) -> typed_ir::CoreProgram {
     let export_timing = std::env::var_os("YULANG_EXPORT_TIMING").is_some();
@@ -901,17 +870,6 @@ fn export_bindings_for_paths(
         );
     }
     bindings
-}
-
-fn format_core_path_for_export_timing(path: &typed_ir::Path) -> String {
-    if path.segments.is_empty() {
-        return "<root>".to_string();
-    }
-    path.segments
-        .iter()
-        .map(|segment| segment.0.as_str())
-        .collect::<Vec<_>>()
-        .join("::")
 }
 
 fn dedup_bindings_by_runtime_path(bindings: &mut Vec<typed_ir::PrincipalBinding>) {

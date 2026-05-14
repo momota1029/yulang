@@ -1,7 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::time::Duration;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use std::time::Instant;
 
 use yulang_typed_ir as typed_ir;
 
@@ -15,35 +12,7 @@ use super::evidence::ExpectedEdgeEvidence;
 use super::expr::ExprExportProfile;
 use super::names::export_path;
 use super::principal::export_principal_binding;
-
-struct PathExportClock {
-    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-    instant: Option<Instant>,
-}
-
-impl PathExportClock {
-    fn now(enabled: bool) -> Self {
-        Self {
-            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-            instant: enabled.then(Instant::now),
-        }
-    }
-
-    fn elapsed(&self) -> Duration {
-        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-        {
-            return self
-                .instant
-                .map(|instant| instant.elapsed())
-                .unwrap_or_default();
-        }
-
-        #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-        {
-            Duration::ZERO
-        }
-    }
-}
+use super::timing::{ExportClock, format_core_path_for_export_timing};
 
 pub(crate) fn collect_canonical_binding_paths(state: &LowerState) -> HashMap<DefId, Path> {
     let mut canonical = state.ctx.canonical_value_paths();
@@ -99,7 +68,7 @@ pub(crate) fn complete_referenced_binding_closure(
             let Some((source_path, def)) = all_paths.get(&path).cloned() else {
                 continue;
             };
-            let started = PathExportClock::now(export_timing);
+            let started = ExportClock::now(export_timing);
             let mut expr_profile = export_timing.then(ExprExportProfile::default);
             let Some(binding) = export_principal_binding(
                 state,
@@ -158,17 +127,6 @@ pub(crate) fn complete_referenced_binding_closure(
             }
         }
     }
-}
-
-fn format_core_path_for_export_timing(path: &typed_ir::Path) -> String {
-    if path.segments.is_empty() {
-        return "<root>".to_string();
-    }
-    path.segments
-        .iter()
-        .map(|segment| segment.0.as_str())
-        .collect::<Vec<_>>()
-        .join("::")
 }
 
 fn choose_preferred_binding_path(current: &mut Path, candidate: Path) {
