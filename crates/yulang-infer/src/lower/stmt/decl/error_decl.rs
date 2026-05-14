@@ -113,6 +113,7 @@ pub(crate) fn lower_error_decl(state: &mut LowerState, node: &SyntaxNode) {
         visibility,
     );
     state.ctx.leave_module(saved_module);
+    crate::lower::role::lower_synthetic_error_display(state, &error_sig, throw_variants.clone());
     crate::lower::role::lower_synthetic_error_throw(state, &error_sig, throw_variants);
 }
 

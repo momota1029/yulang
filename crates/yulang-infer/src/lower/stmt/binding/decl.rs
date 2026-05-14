@@ -6,6 +6,7 @@ use yulang_parser::lex::SyntaxKind;
 use crate::ast::expr::{ExprKind, PatKind, TypedExpr, TypedMatchArm, TypedPat, TypedStmt};
 use crate::ids::TypeVar;
 use crate::lower::{LowerState, SyntaxNode};
+use crate::symbols::Path;
 
 use super::super::GlobalExtensionMethodHeader;
 use super::HeaderArg;
@@ -126,6 +127,7 @@ pub(crate) fn lower_binding_with_type_scope(
                 state.mark_recursive_binding(owner);
             }
         }
+        insert_top_level_record_alias_principal_body(state, &bind_pat, &body_expr);
         super::super::connect_let_pattern(
             state,
             &bind_pat,
@@ -153,6 +155,9 @@ fn insert_destructured_binding_principal_bodies(
     let mut defs = Vec::new();
     collect_destructured_binding_defs(state, bind_pat, &mut defs);
     for def in defs {
+        if state.principal_bodies.contains_key(&def) {
+            continue;
+        }
         let Some(&tv) = state.def_tvs.get(&def) else {
             continue;
         };
@@ -174,6 +179,34 @@ fn insert_destructured_binding_principal_bodies(
             ),
         };
         state.insert_principal_body(def, body);
+    }
+}
+
+fn insert_top_level_record_alias_principal_body(
+    state: &mut LowerState,
+    bind_pat: &TypedPat,
+    body_expr: &TypedExpr,
+) {
+    let PatKind::As(inner, def) = &bind_pat.kind else {
+        return;
+    };
+    if matches!(inner.kind, PatKind::Record { .. }) {
+        let path = Path {
+            segments: Vec::new(),
+        };
+        let copied = crate::lower::stmt::act::transform_copied_principal_body_with_subst(
+            state,
+            body_expr,
+            &HashMap::new(),
+            &[],
+            &path,
+            &[],
+            &path,
+            &[],
+        )
+        .body;
+        state.register_def_tv(*def, copied.tv);
+        state.insert_principal_body(*def, copied);
     }
 }
 

@@ -6,8 +6,8 @@ mod regular;
 
 pub(crate) use cast::{lower_cast_decl, lower_synthetic_variant_cast};
 pub(crate) use error::{
-    ErrorThrowVariant, ErrorUpSource, expand_error_up_sources, lower_synthetic_error_throw,
-    lower_synthetic_error_up, lower_synthetic_error_wrap,
+    ErrorThrowVariant, ErrorUpSource, expand_error_up_sources, lower_synthetic_error_display,
+    lower_synthetic_error_throw, lower_synthetic_error_up, lower_synthetic_error_wrap,
 };
 
 pub(crate) fn lower_impl_decl(state: &mut LowerState, node: &SyntaxNode) {

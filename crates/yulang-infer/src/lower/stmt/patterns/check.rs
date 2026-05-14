@@ -3,7 +3,7 @@ use crate::profile::ProfileClock as Instant;
 use rowan::TextRange;
 use yulang_parser::lex::SyntaxKind;
 
-use crate::ast::expr::{PatKind, TypedPat};
+use crate::ast::expr::{PatKind, RecordPatField, RecordPatSpread, TypedPat};
 use crate::diagnostic::{ConstraintCause, ConstraintReason};
 use crate::ids::{DefId, TypeVar};
 use crate::lower::builtin_types::builtin_source_type_path;
@@ -123,54 +123,13 @@ pub(crate) fn connect_pat_shape_and_locals(
         }
         PatKind::Record { spread, fields } => {
             let branch_start = Instant::now();
-            let has_default = fields.iter().any(|field| field.default.is_some());
-            let pos_fields = fields
-                .iter()
-                .map(|field| {
-                    if field.default.is_some() {
-                        RecordField::optional(field.name.clone(), Pos::Var(field.pat.tv))
-                    } else {
-                        RecordField::required(field.name.clone(), Pos::Var(field.pat.tv))
-                    }
-                })
-                .collect::<Vec<_>>();
-            if !has_default {
-                state
-                    .infer
-                    .constrain(state.pos_record(pos_fields), Neg::Var(pat.tv));
-            }
-            state.infer.constrain(
-                Pos::Var(pat.tv),
-                state.neg_record(
-                    fields
-                        .iter()
-                        .map(|field| {
-                            if field.default.is_some() {
-                                RecordField::optional(field.name.clone(), Neg::Var(field.pat.tv))
-                            } else {
-                                RecordField::required(field.name.clone(), Neg::Var(field.pat.tv))
-                            }
-                        })
-                        .collect(),
-                ),
+            connect_record_pat_shape_and_locals(
+                state,
+                pat.tv,
+                spread.as_ref(),
+                fields,
+                ambient_eff_tv,
             );
-            for field in fields {
-                if let Some(default) = &field.default {
-                    state
-                        .infer
-                        .constrain(Pos::Var(default.tv), Neg::Var(field.pat.tv));
-                    state
-                        .infer
-                        .constrain(Pos::Var(field.pat.tv), Neg::Var(default.tv));
-                    state
-                        .infer
-                        .constrain(Pos::Var(default.eff), Neg::Var(ambient_eff_tv));
-                }
-                connect_pat_shape_and_locals(state, &field.pat, ambient_eff_tv);
-            }
-            if let Some(spread_pat) = spread.as_ref().map(super::record_pat_spread_pat) {
-                connect_pat_shape_and_locals(state, spread_pat, ambient_eff_tv);
-            }
             state.lower_detail.connect_pat_record += branch_start.elapsed();
         }
         PatKind::PolyVariant(name, payloads) => {
@@ -227,13 +186,23 @@ pub(crate) fn connect_pat_shape_and_locals(
         }
         PatKind::As(inner, def) => {
             let branch_start = Instant::now();
-            state.infer.constrain(Pos::Var(inner.tv), Neg::Var(pat.tv));
-            state.infer.constrain(Pos::Var(pat.tv), Neg::Var(inner.tv));
-            if let Some(&def_tv) = state.def_tvs.get(def) {
+            if let PatKind::Record {
+                spread: None,
+                fields,
+            } = &inner.kind
+            {
+                connect_record_pat_shape_and_locals(state, pat.tv, None, fields, ambient_eff_tv);
+            } else {
+                state.infer.constrain(Pos::Var(inner.tv), Neg::Var(pat.tv));
+                state.infer.constrain(Pos::Var(pat.tv), Neg::Var(inner.tv));
+                connect_pat_shape_and_locals(state, inner, ambient_eff_tv);
+            }
+            let has_direct_record_alias_body = matches!(inner.kind, PatKind::Record { .. })
+                && state.principal_bodies.contains_key(def);
+            if !has_direct_record_alias_body && let Some(&def_tv) = state.def_tvs.get(def) {
                 state.infer.constrain(Pos::Var(def_tv), Neg::Var(pat.tv));
                 state.infer.constrain(Pos::Var(pat.tv), Neg::Var(def_tv));
             }
-            connect_pat_shape_and_locals(state, inner, ambient_eff_tv);
             state.lower_detail.connect_pat_alias += branch_start.elapsed();
         }
         PatKind::Or(lhs, rhs) => {
@@ -258,6 +227,63 @@ pub(crate) fn connect_pat_shape_and_locals(
         PatKind::Wild => {}
     }
     state.lower_detail.connect_pat_shape_and_locals += start.elapsed();
+}
+
+fn connect_record_pat_shape_and_locals(
+    state: &mut LowerState,
+    pat_tv: TypeVar,
+    spread: Option<&RecordPatSpread>,
+    fields: &[RecordPatField],
+    ambient_eff_tv: TypeVar,
+) {
+    let has_default = fields.iter().any(|field| field.default.is_some());
+    let pos_fields = fields
+        .iter()
+        .map(|field| {
+            if field.default.is_some() {
+                RecordField::optional(field.name.clone(), Pos::Var(field.pat.tv))
+            } else {
+                RecordField::required(field.name.clone(), Pos::Var(field.pat.tv))
+            }
+        })
+        .collect::<Vec<_>>();
+    if !has_default {
+        state
+            .infer
+            .constrain(state.pos_record(pos_fields), Neg::Var(pat_tv));
+    }
+    state.infer.constrain(
+        Pos::Var(pat_tv),
+        state.neg_record(
+            fields
+                .iter()
+                .map(|field| {
+                    if field.default.is_some() {
+                        RecordField::optional(field.name.clone(), Neg::Var(field.pat.tv))
+                    } else {
+                        RecordField::required(field.name.clone(), Neg::Var(field.pat.tv))
+                    }
+                })
+                .collect(),
+        ),
+    );
+    for field in fields {
+        if let Some(default) = &field.default {
+            state
+                .infer
+                .constrain(Pos::Var(default.tv), Neg::Var(field.pat.tv));
+            state
+                .infer
+                .constrain(Pos::Var(field.pat.tv), Neg::Var(default.tv));
+            state
+                .infer
+                .constrain(Pos::Var(default.eff), Neg::Var(ambient_eff_tv));
+        }
+        connect_pat_shape_and_locals(state, &field.pat, ambient_eff_tv);
+    }
+    if let Some(spread_pat) = spread.map(super::record_pat_spread_pat) {
+        connect_pat_shape_and_locals(state, spread_pat, ambient_eff_tv);
+    }
 }
 
 fn constrain_enum_variant_pattern_shape(

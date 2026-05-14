@@ -98,6 +98,9 @@ fn type_error_message(error: &TypeError) -> String {
         TypeErrorKind::MissingRecordField { name } => {
             format!("missing required record field `{name}`")
         }
+        TypeErrorKind::UnknownRecordField { name } => {
+            format!("unknown record field `{name}`")
+        }
         TypeErrorKind::ExpectedShape { expected } => match expected {
             ExpectedShape::Function => "expected function".to_string(),
             ExpectedShape::Tuple => "expected tuple".to_string(),

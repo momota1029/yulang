@@ -4,36 +4,7 @@
 
 ## 現在の未解決
 
-### Effect / handler 系
-
-- [`handler_arm_guard_no_fallthrough.yu`](handler_arm_guard_no_fallthrough.yu)
-  — handler arm の `if` guard が偽になったとき、次の arm に fall-through
-  せず effect が unhandled として外に漏れる。`case` の guard は次 arm に
-  進むので、handler 側の dispatch が同じ意味を持っていない。
-
-### Error 系
-
-- [`error_display_impl_missing.yu`](error_display_impl_missing.yu) —
-  `error E:` 宣言が約束する `impl Display E` が自動生成されていない。
-  `errors.md` の生成リスト 5 つ（enum / act / Throw / Display / wrap・up）の
-  うち Display だけ抜けている。`e.show` を呼ぶと「no impl for Display<E>」。
-  `wrap` レシピの `err e -> e.show` 行がそのまま動かない。
-
-### Pattern / binding 系
-
-- [`my_record_spread_rest_inference.yu`](my_record_spread_rest_inference.yu)
-  — `my { x, y, ..rest } = expr` で `rest` を後段で使うと型推論が失敗する。
-  仕様上 `..rest` は record 全体を指す（field の引き算ではない）。case
-  経路は同じ pattern で通るので、`my` 経路だけ rest の row 解決が抜けて
-  いる疑い。`my_destructuring_unbound`（resolved）の親戚。
-
-### Struct / 型システム系
-
-- [`struct_literal_extra_field_silent.yu`](struct_literal_extra_field_silent.yu)
-  — nominal な struct のリテラルに、宣言にない extra field を書いても無警告
-  で通り、runtime には extra field が乗ったまま残る。`point { x: 3, y: 4,
-  z: 5 }` が `{x = 3, y = 4, z = 5}` を返す（`p.z` は型レベルで弾かれる）。
-  値表現と型表現が乖離する。
+なし。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 
@@ -46,10 +17,7 @@
   body で名前が unbound になっていた。現在は通る。
 - [`my_destructuring_unbound.yu`](my_destructuring_unbound.yu) —
   `my (a, b) = (1, 2)` / `my { x, ..rest } = rec` / `my [first, ..rest] = xs`
-  の destructuring binding が、現在は通る。ただし record の rest spread に
-  ついては
-  [`my_record_spread_rest_inference.yu`](my_record_spread_rest_inference.yu)
-  で別の症状が残っている。
+  の destructuring binding が、現在は通る。
 - [`list_map_method_unresolved.yu`](list_map_method_unresolved.yu) — list の
   companion method `.map` が解決できなかった。現在は通る。
 - [`list_filter_method_missing.yu`](list_filter_method_missing.yu) — list の
@@ -88,9 +56,16 @@
   — `for` body 内の `E::wrap` が `fail` を正しく捕まえる。
 - [`wrap_does_not_traverse_from_chain.yu`](wrap_does_not_traverse_from_chain.yu)
   — `E::wrap` が `from` 連鎖の narrower error を直接捕まえる。
-  なお wrap 自体は直ったが、error 値の `e.show` は別 bug
-  ([`error_display_impl_missing.yu`](error_display_impl_missing.yu)) で
-  残っている。
+- [`handler_arm_guard_no_fallthrough.yu`](handler_arm_guard_no_fallthrough.yu)
+  — handler arm の `if` guard が偽のとき、次の arm に fall-through する。
+- [`error_display_impl_missing.yu`](error_display_impl_missing.yu) —
+  `error E:` 宣言から `impl Display E` が自動生成され、`e.show` が通る。
+- [`my_record_spread_rest_inference.yu`](my_record_spread_rest_inference.yu)
+  — `my { x, y, ..rest } = expr` の `rest` が record 全体として bind され、
+  後段の使用や extra field access も通る。
+- [`struct_literal_extra_field_silent.yu`](struct_literal_extra_field_silent.yu)
+  — nominal struct constructor の record literal に宣言外 field を書くと
+  `unknown record field` として弾く。
 
 ## docs に反映済み（2026-05-14）
 

@@ -728,9 +728,14 @@ impl<'m> VmInterpreter<'m> {
         {
             return Ok(VmResult::Request(request));
         }
-        let Some(arm) = arms.iter().find(|arm| arm.effect == request.effect) else {
+        let Some((arm_index, arm)) = arms
+            .iter()
+            .enumerate()
+            .find(|(_, arm)| arm.effect == request.effect)
+        else {
             return Ok(VmResult::Request(request));
         };
+        let remaining_arms = arms[arm_index + 1..].to_vec();
         let outer = request.continuation.clone().outside_handle(id);
         let mut arm_env = env.clone();
         self.bind_pattern(&arm.payload, request.payload.clone(), &mut arm_env)?;
@@ -749,8 +754,9 @@ impl<'m> VmInterpreter<'m> {
                     request,
                     outer,
                     id,
-                    arms.to_vec(),
+                    remaining_arms,
                     env.clone(),
+                    handler_guard_stack.clone(),
                     arm_env,
                     arm.body.clone(),
                     expected_ty.clone(),
@@ -762,7 +768,7 @@ impl<'m> VmInterpreter<'m> {
                         request,
                         outer,
                         handler_guard_stack: handler_guard_stack.clone(),
-                        arms: arms.to_vec(),
+                        arms: remaining_arms,
                         env: env.clone(),
                         arm_env,
                         body: arm.body.clone(),
@@ -780,9 +786,10 @@ impl<'m> VmInterpreter<'m> {
         guard: VmValue,
         request: VmRequest,
         outer: VmContinuation,
-        _id: u64,
-        _arms: Vec<HandleArm>,
-        _env: Env,
+        id: u64,
+        arms: Vec<HandleArm>,
+        env: Env,
+        handler_guard_stack: GuardStack,
         arm_env: Env,
         body: Expr,
         expected_ty: Type,
@@ -792,7 +799,9 @@ impl<'m> VmInterpreter<'m> {
                 let result = self.eval_expr(&body, &arm_env)?;
                 self.continue_handle_result_for_type(result, outer, &expected_ty)
             }
-            VmValue::Bool(false) => Ok(VmResult::Request(request)),
+            VmValue::Bool(false) => {
+                self.handle_request(request, id, &arms, &env, &handler_guard_stack, &expected_ty)
+            }
             other => Err(VmError::ExpectedBool(other)),
         }
     }
@@ -904,7 +913,7 @@ impl<'m> VmInterpreter<'m> {
                 id,
                 request,
                 outer,
-                handler_guard_stack: _,
+                handler_guard_stack,
                 arms,
                 env,
                 arm_env,
@@ -917,6 +926,7 @@ impl<'m> VmInterpreter<'m> {
                 id,
                 arms,
                 env,
+                handler_guard_stack,
                 arm_env,
                 body,
                 expected_ty,

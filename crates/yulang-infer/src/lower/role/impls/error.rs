@@ -1,10 +1,12 @@
 use super::*;
 use crate::types::EffectAtom;
 
+mod display;
 mod throw;
 mod up;
 mod wrap;
 
+pub(crate) use display::lower_synthetic_error_display;
 pub(crate) use throw::lower_synthetic_error_throw;
 pub(crate) use up::lower_synthetic_error_up;
 pub(crate) use wrap::lower_synthetic_error_wrap;

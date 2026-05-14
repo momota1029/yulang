@@ -125,6 +125,9 @@ pub enum TypeErrorKind {
     MissingRecordField {
         name: String,
     },
+    UnknownRecordField {
+        name: String,
+    },
     ExpectedShape {
         expected: ExpectedShape,
     },

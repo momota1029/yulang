@@ -4986,6 +4986,9 @@ fn infer_error_headline(state: &InferLowerState, error: &InferTypeError) -> Stri
         InferTypeErrorKind::MissingRecordField { name } => {
             infer_missing_record_field_message(&state.infer.arena.get_pos(error.pos), name)
         }
+        InferTypeErrorKind::UnknownRecordField { name } => {
+            format!("unknown record field `{name}`")
+        }
         InferTypeErrorKind::ExpectedShape { expected } => match expected {
             InferExpectedShape::Function => "expected function".to_string(),
             InferExpectedShape::Tuple => "expected tuple".to_string(),

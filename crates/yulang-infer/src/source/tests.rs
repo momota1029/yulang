@@ -2601,6 +2601,33 @@ fn lowers_ref_field_projection_as_child_ref_update() {
 }
 
 #[test]
+fn rejects_extra_field_in_struct_literal() {
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            "struct point { x: int, y: int }\npoint { x: 3, y: 4, z: 5 }\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let errors = lowered.state.infer.type_errors();
+
+        assert!(
+            errors.iter().any(|error| matches!(
+                &error.kind,
+                crate::diagnostic::TypeErrorKind::UnknownRecordField { name } if name == "z"
+            )),
+            "struct constructor should reject extra literal field, got {errors:?}",
+        );
+    });
+}
+
+#[test]
 fn ref_methods_shadow_synthetic_ref_field_projection() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

@@ -679,6 +679,16 @@ button: :disabled
     }
 
     #[test]
+    fn vm_runs_source_my_record_spread_alias_as_whole_record() {
+        let results = eval_source_with_std(
+            "my { x, y, ..rest } = { x: 1, y: 2, a: \"a\", b: \"b\" }\n\
+rest.a\n",
+        );
+
+        assert_eq!(results, vec![TestValue::String("a".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_curried_variant_payload_pattern() {
         let results = eval_source_with_std(
             "enum tree 'a = leaf | node 'a (tree 'a) (tree 'a)\n\
@@ -1449,6 +1459,20 @@ $hits
     }
 
     #[test]
+    fn vm_runs_source_error_display_default_impl() {
+        let results = eval_source_with_std(
+            r#"error my_err:
+    boom str
+
+my e: my_err = my_err::boom "x"
+e.show
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::String("boom".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_effect_handler_return_example() {
         let results = eval_source_with_std(
             r#"pub act out:
@@ -1481,6 +1505,24 @@ catch out::say "hi":
             results,
             vec![TestValue::String("handled:hi".to_string()), TestValue::Unit,]
         );
+    }
+
+    #[test]
+    fn vm_runs_source_handler_guard_falls_through_to_next_arm() {
+        let results = eval_source_with_std(
+            r#"act log:
+    pub put: int -> ()
+
+my run(a: [log] 'r): 'r = catch a:
+    log::put n, k if n > 0 -> run (k ())
+    log::put _, k -> run (k ())
+    v -> v
+
+run: log::put -1
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Unit]);
     }
 
     #[test]

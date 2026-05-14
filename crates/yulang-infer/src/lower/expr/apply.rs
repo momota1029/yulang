@@ -3,7 +3,8 @@ use std::sync::OnceLock;
 
 use crate::ast::expr::{ExprKind, Lit, TypedExpr};
 use crate::diagnostic::{
-    ConstraintCause, ExpectedAdapterEdgeKind, ExpectedEdgeKind, TypeOrigin, TypeOriginKind,
+    ConstraintCause, ExpectedAdapterEdgeKind, ExpectedEdgeKind, TypeErrorKind, TypeOrigin,
+    TypeOriginKind,
 };
 use crate::ids::TypeVar;
 use crate::lower::{FunctionSigEffectHint, LowerState};
@@ -111,6 +112,7 @@ pub(crate) fn make_app_with_cause(
         ExpectedEdgeKind::ApplicationCallee,
         cause.clone(),
     );
+    report_extra_struct_literal_fields(state, &func, &arg);
     let (arg, arg_edge_id) = state.implicit_cast_boundary(
         arg,
         expected_arg_tv,
@@ -195,6 +197,38 @@ pub(crate) fn make_app_with_cause(
     };
     register_role_method_call_spine(state, &result);
     result
+}
+
+fn report_extra_struct_literal_fields(state: &LowerState, func: &TypedExpr, arg: &TypedExpr) {
+    let ExprKind::Var(def) = &func.kind else {
+        return;
+    };
+    let Some(field_set) = state
+        .infer
+        .type_field_sets
+        .values()
+        .find(|field_set| field_set.constructor == *def)
+    else {
+        return;
+    };
+    let ExprKind::Record { fields, .. } = &arg.kind else {
+        return;
+    };
+    let allowed = field_set
+        .fields
+        .iter()
+        .map(|field| &field.name)
+        .collect::<HashSet<_>>();
+    for (name, _) in fields {
+        if !allowed.contains(name) {
+            state.infer.report_synthetic_type_error(
+                TypeErrorKind::UnknownRecordField {
+                    name: name.0.clone(),
+                },
+                format!("struct constructor {}", def.0),
+            );
+        }
+    }
 }
 
 fn thunk_boundary_keep_for_call(
