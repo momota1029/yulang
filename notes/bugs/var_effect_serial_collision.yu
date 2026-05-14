@@ -1,0 +1,72 @@
+-- bug: 同じ scope で `my $a = ...` と `my $b = ...` を順に開いて使うと、
+--      行（effect row）の整合が取れず application 型エラーになる
+--
+-- 期待:
+--   var 参照（`my $name = ...` で開く handled var effect）は scope-local
+--   で、互いに独立。`a` の handler と `b` の handler は同じブロックに
+--   並べて書ける、と読める。tour.md の「局所的な参照」やクックブックの
+--   「ループで集計する」と同じ要領で、複数の var を順に使えるはず。
+--
+--     my $a = 0
+--     for _ in 0..<3:
+--         &a = $a + 1
+--
+--     my $b = 0
+--     for _ in 0..<3:
+--         &b = $b + 1
+--
+--     ($a, $b)
+--
+--   は `(3, 3)` を返すと読める。
+--
+-- 実際:
+--   error: function application type mismatch: expected [&a#var; ..never],
+--   got [&b#var; ..never]
+--
+--   2 つ目の var (`$b`) を開いた時点で、外側 scope の effect row 推論が
+--   壊れる。`&a` を期待した文脈に `&b` が来てしまっているような診断。
+--
+-- 切り分け:
+--
+--   var を 1 個だけ:
+--     my $a = 0
+--     for _ in 0..<3:
+--         &a = $a + 1
+--     $a
+--   → 通る ✓
+--
+--   var を 2 個並べる（for を使わない）:
+--     my $a = 0
+--     my $b = 0
+--     &a = 1
+--     &b = 2
+--     ($a, $b)
+--   → 通る ✓ ((1, 2))
+--
+--   `for` body を絡めたときだけ再現する。1 つ目の `my $a` で
+--   開いた `&a#var` effect が外側に広がり、2 つ目の `for` body の effect
+--   row（`&b#var` のみを期待）と合流できない、という症状。
+--
+-- 影響:
+--   - 「複数の集計値を 1 つの block で順に作る」というよくある書き方が
+--     できない。例えば「min と max を同時に追う」「カウンタを 2 つ持つ」
+--     のような local mutability 利用が壊れる。
+--   - 実用上、`my (a, b) = { my $a = ...; ...; my $b = ...; ...; ($a, $b) }`
+--     のような block scope 化や、関数に切り出す workaround が要る。
+--
+-- メモ:
+--   `my $a = ...` で開いた var handler が、後続の同じ scope の式まで
+--   effect row に乗ったまま閉じきっていない、または 2 つ目の handler を
+--   開いた時点で row 順序が逆になる、のどちらか。
+--   `labelled_for_var_effect_collision`（resolved）と兄弟で、var handler
+--   の scope 境界が複数立つときの row 解決に問題が残っている。
+
+my $a = 0
+for _ in 0..<3:
+    &a = $a + 1
+
+my $b = 0
+for _ in 0..<3:
+    &b = $b + 1
+
+($a, $b)

@@ -2,9 +2,35 @@
 
 「素直に書いたら動きそうなのに、実装上詰まった」snippet の履歴。
 
-## 現在の未解決
+## 現在の未解決（2026-05-14 round-4 で発見）
 
-なし。
+### Effect / handler 系
+
+- [`var_effect_serial_collision.yu`](var_effect_serial_collision.yu) —
+  同じ scope で `my $a = ...; for ...; my $b = ...; for ...` のように 2 つ
+  の var を順に開いて使うと、2 つ目の `for` body の effect row が
+  `expected [&a#var; ..never], got [&b#var; ..never]` の application
+  mismatch になる。`for` を絡めない `&a = 1; &b = 2` は通る。`labelled
+  _for_var_effect_collision`（resolved）と兄弟。
+- [`typed_effect_handler_inference.yu`](typed_effect_handler_inference.yu)
+  — 型引数を持つ effect (`act state 'a:`) の handler が、`'a` を具体型に
+  固められず推論失敗する。`[state int]` で specialize しても通らない。
+  `reference/effects.md` の `act ref_update 'a:` 例の handler 化が事実上
+  書けない。
+- [`handler_recursive_extra_arg_runtime.yu`](handler_recursive_extra_arg_runtime.yu)
+  — handler arm 内で `listen(k (), log + o + "\n")` のように handler を
+  再帰呼び出ししつつ追加引数を渡すと、runtime で
+  `UnsupportedEffectIdVar(0)` panic で死ぬ。`examples/10_effect_handler.yu`
+  がそのまま動かない。1 引数の `listen(k ())` は通る。
+
+### Error 系
+
+- [`error_display_from_chain_missing.yu`](error_display_from_chain_missing.yu)
+  — `error io_err: fs from fs_err` のような from variant を持つ error
+  宣言で、`impl Display io_err` が自動生成されていない（`error my_err:
+  boom str` の単純宣言には生成される）。`io_err` 値の `.show` を呼ぶと
+  `Display::show` operation が unhandled で漏れる。`wrap` レシピの
+  `err e -> e.show` がそのまま動かない。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 

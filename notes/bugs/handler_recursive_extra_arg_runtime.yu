@@ -1,0 +1,69 @@
+-- bug: handler arm の中で「自身を再帰呼び出し + 追加引数」する書き方が
+--      runtime で `UnsupportedEffectIdVar` panic を起こす
+--
+-- 期待:
+--   `examples/10_effect_handler.yu` がリポジトリに置かれていて、これは
+--   docs / cookbook の handler 再帰パターンの代表例:
+--
+--     pub act out:
+--         pub say: str -> ()
+--
+--     our listen(x: [_] _, log: str): (_, str) = catch x:
+--         out::say o, k -> listen(k (), log + o + "\n")
+--         v -> (v, log)
+--
+--     listen add_and_say() ""
+--
+--   handler arm の `listen(k (), log + o + "\n")` は、handler を巻き直し
+--   ながら追加で `log` 引数を更新して持ち回る形。普通の shallow handler
+--   再帰の自然な拡張で、log を accumulator として渡している。
+--
+-- 実際:
+--   failed to evaluate runtime IR: UnsupportedEffectIdVar(0)
+--
+--   型推論は通り、runtime lowering の段で `UnsupportedEffectIdVar` の
+--   invariant にぶつかって死ぬ。effect operation で resume する場面で、
+--   handler 再帰の追加引数経路が runtime に対応していない疑い。
+--
+-- 切り分け:
+--
+--   handler 再帰 + 1 引数（k() のみ）:
+--     our listen(x: [out] 'a): 'a = catch x:
+--         out::say _, k -> listen(k ())
+--         v -> v
+--     listen: out::say "hi"
+--   → 通る ✓
+--
+--   handler 再帰 + 追加引数（k() と log）:
+--     our listen(x: [out] 'a, log: str): ('a, str) = catch x:
+--         out::say o, k -> listen(k (), log + o + "\n")
+--         v -> (v, log)
+--   → runtime panic ✗
+--
+--   wildcard `[_] _` でも具体型 `[out] 'a` でも結果同じ。signature の
+--   問題ではない。
+--
+-- 影響:
+--   - examples/10_effect_handler.yu がそのまま動かない（リポジトリの公開
+--     例が runtime で死ぬ）。
+--   - handler が状態を持ち回るパターン（accumulator 引数で結果を集めて
+--     いく書き方）が runtime で潰される。同じ意味は `my $log = []` の
+--     ref で書けるが、effect-only 設計を貫きたい場面で逃げ道がない。
+--   - 型推論を通過してから runtime で死ぬので、診断の手掛かりが
+--     `UnsupportedEffectIdVar(0)` の数字だけで原因特定が難しい。
+--
+-- メモ:
+--   resume `k()` を呼んで戻った後、handler 再帰呼び出しに追加引数を
+--   足すと、effect id を持ち回る lowering で「accumulator 経路の effect
+--   id 解決」が抜けている可能性。
+--   shallow handler の再帰自体は通る（1 引数バージョン）ので、追加引数の
+--   evidence 引き渡しが原因。
+
+pub act out:
+    pub say: str -> ()
+
+our listen(x: [out] 'a, log: str): ('a, str) = catch x:
+    out::say o, k -> listen(k (), log + o + "\n")
+    v -> (v, log)
+
+listen (out::say "hi") ""

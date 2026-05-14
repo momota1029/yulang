@@ -1,0 +1,75 @@
+-- bug: 型引数を持つ effect (`act state 'a:`) の handler が、`'a` を具体型に
+--      固められず推論失敗する
+--
+-- 期待:
+--   `web/docs/ja/reference/effects.md` には:
+--
+--     act ref_update 'a:
+--         our update: 'a -> never
+--
+--     Rows can therefore contain entries such as `ref_update int`.
+--
+--   と documented。型引数付き effect は宣言できて、`[state int]` のように
+--   row に specialize して入る。handler 側で具体型に固定された operation を
+--   受ければ、`'a` は推論で固まるはず。
+--
+--     act state 'a:
+--         pub get: () -> 'a
+--
+--     my run(action: [state int] 'r): 'r = catch action:
+--         state::get(), k -> run (k 100)
+--         v -> v
+--
+--     run: state::get()
+--
+--   `[state int]` で specialize、`run (k 100)` で int を返してるので、'a は
+--   int に固まる、と読める。
+--
+-- 実際:
+--   error: could not determine the type of expression #0. This usually
+--   means a name, field, method, or operator could not be resolved.
+--
+--   typed effect の handler 経路で `'a` の決定に必要な情報が伝わらない。
+--   さらに、複数 operation を持たせて呼び出し側で結果型を annotate しても
+--   症状は変わらない:
+--
+--     my result: int = run:
+--         my x = state::get()
+--         state::put 5
+--         x + 1
+--   → cannot infer all runtime types needed for `run`. Add a type annotation
+--     that fixes the remaining type variables: 'a, 'a, 'a, 'a, 'a, 'a, 'a, 'a.
+--
+-- 切り分け:
+--
+--   型引数なし effect (`act log: pub put: str -> ()`) の handler は通る ✓
+--   typed effect の handler signature を `[state int] int` のようにより具体
+--   化しても通らない。
+--
+--   `state::get()` 単独を expression として書く（catch の外）と、`'a` は
+--   未確定のまま type error。これは仕様内（呼び出し側で型を決めるしかない）。
+--   問題は handler の中でも 'a が固まらないこと。
+--
+-- 影響:
+--   - typed effect が事実上書けない。`state 'a` のような汎用な可変状態
+--     interface、`reader 'env` のような環境提供、`writer 'log` のような
+--     蓄積、いずれも書けず、毎回 effect を type-erase した形に書き直す
+--     必要がある。
+--   - effects.md の `act ref_update 'a:` の例自体は宣言できるが、その
+--     handler を書く段で詰まる。
+--
+-- メモ:
+--   handler 引数の effect row `[state int]` を解析して、operation の
+--   payload / 戻り値の型を `int` に specialize する step が、role / dispatch
+--   の段階で行われていない疑い。`state::get(), k -> ...` の dispatch で
+--   `k` の引数型が `'a` のままで、`run (k 100)` の `100: int` から逆向きに
+--   solve できていない。
+
+act state 'a:
+    pub get: () -> 'a
+
+my run(action: [state int] 'r): 'r = catch action:
+    state::get(), k -> run (k 100)
+    v -> v
+
+run: state::get()

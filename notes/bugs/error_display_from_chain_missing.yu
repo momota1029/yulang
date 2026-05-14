@@ -1,0 +1,71 @@
+-- bug: `error E: foo from inner_err` のような from variant を持つ error 宣言で、
+--      `impl Display E` が自動生成されていない（単純宣言には生成される）
+--
+-- 期待:
+--   `web/docs/ja/reference/errors.md` の宣言節は、`error E: ...` がまとめて
+--   生成するものとして `impl Display E` を挙げている。`from` 変種を含む
+--   `error io_err: fs from fs_err` でも同じく `impl Display io_err` が
+--   立つはず。
+--
+-- 実際:
+--   error fs_err:
+--       not_found str          -- 単純宣言
+--   error io_err:
+--       fs from fs_err          -- from variant 持ち
+--
+--   my e: io_err = io_err::fs (fs_err::not_found "x")
+--   case e:
+--       io_err::fs inner -> inner.show     -- → "not_found"  ✓ (inner: fs_err)
+--
+--   一方で:
+--   case (err e: result _ io_err):
+--       err e -> e.show                     -- → request Display::show fs ...
+--                                              blocked=None  ✗
+--
+--   `e: io_err` の `.show` を呼ぼうとすると、Display impl が無いため
+--   `Display::show` operation の request が unhandled で外に漏れる。
+--   `inner: fs_err` 経由なら fs_err の Display impl で動く。
+--
+-- 切り分け:
+--
+--   error my_err: boom str            -- simple
+--     値.show                           → 通る ✓
+--     (`error_display_impl_missing` (resolved) で fix されたパス)
+--
+--   error io_err: fs from fs_err      -- with `from`
+--     io_err 値.show                    → 落ちる ✗
+--     case 経由で fs_err に分解.show    → 通る ✓
+--
+--   `from` 変種を含む error の Display 自動生成だけ抜けている。
+--
+--   この症状は `wrap` を使う典型コードを直撃する:
+--
+--     my res = io_err::wrap: thunk_throwing_fs_err
+--     case res:
+--         ok t -> t
+--         err e -> "err: " + e.show     -- ← ここで漏れる
+--
+-- 影響:
+--   - `from` ベースのエラー集約（`error io_err: fs from fs_err; parse from
+--     parse_err`）の代表的な使い方—wrap で result に閉じて err 側を文字列化
+--     する—がそのまま動かない。errors.md の `wrap` レシピが書いた通り
+--     動かない。
+--   - 手書き Display impl で回避できるが、`from` variant ごとに inner.show
+--     に委譲する boilerplate が要るので sugar の旨味が大きく削がれる。
+--
+-- メモ:
+--   error 宣言の lower で `impl Display E: our e.show = case e: variant payload
+--   -> payload.show` を合成する pass が、単純 variant については生成して
+--   いるが `from` variant では生成していない疑い。生成側で `from` 変種の
+--   payload は `inner.show` に委譲する arm を組めばよさそう。
+--   関連: 解決済み `error_display_impl_missing.yu`、`wrap_does_not_traverse_from_chain.yu`
+--   （wrap 自体は解決、`e.show` 部分はこの bug が原因で落ち続ける）。
+
+error fs_err:
+    not_found str
+
+error io_err:
+    fs from fs_err
+
+my e: io_err = io_err::fs (fs_err::not_found "x")
+e.show
