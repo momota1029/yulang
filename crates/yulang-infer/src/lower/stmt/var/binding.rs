@@ -368,6 +368,41 @@ fn materialize_var_act_helpers(
         return;
     };
     super::super::materialize_synthetic_act(state, spec, source);
+    register_var_act_arg_non_generic(state, spec, source);
+}
+
+fn register_var_act_arg_non_generic(
+    state: &mut LowerState,
+    spec: &super::super::SyntheticActSpec,
+    source: &super::super::SyntheticActSource,
+) {
+    let arg_tvs = spec
+        .args
+        .iter()
+        .flat_map(|&(pos, neg)| [pos, neg])
+        .collect::<Vec<_>>();
+    if arg_tvs.is_empty() {
+        return;
+    }
+    for name in &source.selected_template_items {
+        let path = crate::symbols::Path {
+            segments: vec![spec.name.clone(), name.clone()],
+        };
+        if let Some(def) = state.ctx.resolve_path_value(&path) {
+            for tv in &arg_tvs {
+                state.infer.add_non_generic_var(def, *tv);
+            }
+            if let Some(pos_sig) = state.effect_op_pos_sigs.get(&def).copied() {
+                let non_generic = state.infer.non_generic_vars_of(def);
+                let frozen = crate::scheme::freeze_pos_scheme_with_non_generic(
+                    &state.infer,
+                    pos_sig,
+                    &non_generic,
+                );
+                state.infer.store_frozen_scheme(def, frozen);
+            }
+        }
+    }
 }
 
 fn std_var_synthetic_act_source(selected_names: Vec<Name>) -> super::super::SyntheticActSource {

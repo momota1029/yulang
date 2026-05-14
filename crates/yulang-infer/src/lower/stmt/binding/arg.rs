@@ -18,6 +18,7 @@ pub(crate) struct ArgPatInfo {
     pub(crate) pat: Option<TypedPat>,
     pub(crate) local_bindings: Vec<(Name, DefId)>,
     pub(crate) ann: Option<LoweredPatAnn>,
+    pub(crate) ann_non_generic_tvs: Vec<crate::ids::TypeVar>,
     pub(crate) unit_arg: bool,
 }
 
@@ -51,6 +52,7 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
                 pat: None,
                 local_bindings: Vec::new(),
                 ann: None,
+                ann_non_generic_tvs: Vec::new(),
                 unit_arg: true,
             }
         }
@@ -82,6 +84,9 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
             }
             if let Some(read_eff_tv) = read_eff_tv {
                 state.register_def_eff_tv(def, read_eff_tv);
+                if let Some(ann) = ann.as_ref().filter(|ann| !ann.non_generic_tvs.is_empty()) {
+                    configure_read_effect_from_ann(state, read_eff_tv, ann);
+                }
             }
             let (pat, local_bindings) =
                 if let Some(name) = header_arg_direct_binding_name(&param_pat) {
@@ -124,6 +129,10 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
                 read_eff_tv,
                 pat,
                 local_bindings,
+                ann_non_generic_tvs: ann
+                    .as_ref()
+                    .map(|ann| ann.non_generic_tvs.clone())
+                    .unwrap_or_default(),
                 ann,
                 unit_arg: false,
             }
@@ -141,6 +150,7 @@ pub(crate) fn make_arg_pat_info(state: &mut LowerState, header_arg: HeaderArg) -
                 pat: None,
                 local_bindings: Vec::new(),
                 ann: None,
+                ann_non_generic_tvs: Vec::new(),
                 unit_arg: true,
             }
         }

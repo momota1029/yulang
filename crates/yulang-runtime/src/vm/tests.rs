@@ -1543,6 +1543,23 @@ run: log::put -1
     }
 
     #[test]
+    fn vm_runs_source_typed_effect_handler_annotation() {
+        let results = eval_source_with_std(
+            r#"act state 'a:
+    pub get: () -> 'a
+
+my run(action: [state int] 'r): 'r = catch action:
+    state::get(), k -> run (k 100)
+    v -> v
+
+run: state::get()
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("100".to_string())]);
+    }
+
+    #[test]
     fn vm_hides_unannotated_higher_order_callback_effect_from_local_handler() {
         let results = eval_source_with_std(
             r#"act undet:
@@ -1855,6 +1872,30 @@ run: log::put "x"
             vec![TestValue::List(vec![
                 TestValue::Int("1".to_string()),
                 TestValue::Int("2".to_string()),
+                TestValue::Int("3".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
+    fn vm_runs_source_sequential_for_loops_with_local_vars() {
+        let results = eval_source_with_std(
+            r#"my $a = 0
+for _ in 0..<3:
+    &a = $a + 1
+
+my $b = 0
+for _ in 0..<3:
+    &b = $b + 1
+
+($a, $b)
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::Int("3".to_string()),
                 TestValue::Int("3".to_string()),
             ])]
         );

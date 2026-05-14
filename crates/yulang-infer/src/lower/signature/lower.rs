@@ -573,13 +573,12 @@ pub fn lower_sig_effect_arg(
         let tv = sig_var(state, vars, var);
         return (tv, tv);
     }
-    let pos_tv = fresh_sig_annotation_tv(state, sig.span(), "effect argument");
-    let neg_tv = fresh_sig_annotation_tv(state, sig.span(), "effect argument");
+    let tv = fresh_sig_annotation_tv(state, sig.span(), "effect argument");
     let pos = lower_pure_sig_type(state, sig, vars);
     let neg = lower_pure_sig_neg_type(state, sig, vars);
-    state.infer.constrain(pos, Neg::Var(pos_tv));
-    state.infer.constrain(Pos::Var(neg_tv), neg);
-    (pos_tv, neg_tv)
+    state.infer.constrain(pos, Neg::Var(tv));
+    state.infer.constrain(Pos::Var(tv), neg);
+    (tv, tv)
 }
 
 pub(super) fn scoped_sig_prim_var(

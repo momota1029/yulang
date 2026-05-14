@@ -2547,7 +2547,14 @@ impl PrincipalUnifier {
         collect_core_type_vars(&plan.principal_callee, &mut required_vars);
         required_vars.extend(extra_required_vars.iter().cloned());
         let effect_only_vars = binding_effect_only_vars(original);
-        substitutions.retain(|var, ty| !(effect_only_vars.contains(var) && effect_is_empty(ty)));
+        substitutions.retain(|var, _| !effect_only_vars.contains(var));
+        if let Some((_, _, original_ret_effect)) =
+            core_fun_spine_parts_exact(&original.scheme.body, args.len())
+        {
+            let mut original_ret_effect_vars = BTreeSet::new();
+            collect_core_type_vars(&original_ret_effect, &mut original_ret_effect_vars);
+            substitutions.retain(|var, _| !original_ret_effect_vars.contains(var));
+        }
         if debug_principal_unify_enabled() {
             eprintln!(
                 "principal-unify runtime-required {} vars={:?}",
@@ -2585,6 +2592,9 @@ impl PrincipalUnifier {
                     return None;
                 }
             };
+        let mut ret_effect_vars = BTreeSet::new();
+        collect_core_type_vars(&ret_effect, &mut ret_effect_vars);
+        substitutions.retain(|var, _| !ret_effect_vars.contains(var));
         for (index, (arg, (param, param_effect))) in args.iter().zip(&params).enumerate() {
             let (actual, actual_effect) = runtime_value_and_effect(&arg.ty);
             debug_principal_unify_runtime_projection(
@@ -2616,6 +2626,7 @@ impl PrincipalUnifier {
                     false,
                     64,
                 );
+                substitutions.retain(|var, _| !ret_effect_vars.contains(var));
             }
             project_closed_substitutions_from_type(
                 param,
@@ -2712,7 +2723,8 @@ impl PrincipalUnifier {
             &mut substitutions,
             &mut conflicts,
         );
-        if let Some(info) = handler_binding_info(original)
+        if ret_effect_has_unfilled_required_var(&ret_effect, &required_vars, &substitutions)
+            && let Some(info) = handler_binding_info(original)
             && let Some(active_residual_effect) = self.active_handler_residual_effect(&info)
         {
             debug_principal_unify_runtime_projection(
@@ -3497,6 +3509,21 @@ fn block_tail_expr(expr: &Expr) -> &Expr {
     current
 }
 
+fn ret_effect_has_unfilled_required_var(
+    ret_effect: &typed_ir::Type,
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) -> bool {
+    let mut ret_effect_vars = BTreeSet::new();
+    collect_core_type_vars(ret_effect, &mut ret_effect_vars);
+    ret_effect_vars.into_iter().any(|var| {
+        required_vars.contains(&var)
+            && substitutions
+                .get(&var)
+                .is_none_or(|ty| matches!(ty, typed_ir::Type::Unknown | typed_ir::Type::Any))
+    })
+}
+
 fn plan_substitution_map(
     plan: &typed_ir::PrincipalElaborationPlan,
 ) -> BTreeMap<typed_ir::TypeVar, typed_ir::Type> {
@@ -3617,6 +3644,37 @@ fn remove_specialized_generic_originals(
             || binding.name.segments.len() != 1
             || !root_specializations.contains_key(&binding.name)
     });
+    close_specialized_nested_effect_only_originals(module, root_specializations);
+}
+
+fn close_specialized_nested_effect_only_originals(
+    module: &mut Module,
+    root_specializations: &HashMap<typed_ir::Path, Vec<typed_ir::Path>>,
+) {
+    for binding in &mut module.bindings {
+        if binding.type_params.is_empty()
+            || binding.name.segments.len() == 1
+            || !root_specializations.contains_key(&binding.name)
+        {
+            continue;
+        }
+        let effect_only_vars = binding_effect_only_vars(binding);
+        if !binding
+            .type_params
+            .iter()
+            .all(|var| effect_only_vars.contains(var))
+        {
+            continue;
+        }
+        let substitutions = binding
+            .type_params
+            .iter()
+            .cloned()
+            .map(|var| (var, typed_ir::Type::Never))
+            .collect::<BTreeMap<_, _>>();
+        *binding = substitute_binding(binding.clone(), &substitutions);
+        binding.type_params.clear();
+    }
 }
 
 fn handler_specialization_originals(

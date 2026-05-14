@@ -1432,11 +1432,86 @@ fn project_substitutions_from_candidates(
                 })
                 .map(|(_, ty)| ty),
         );
+        if let Some(lower) = effect_residual_candidate_from_upper_bounds(&lower, &candidates) {
+            insert_exact_projected_substitution(substitutions, conflicts, var, lower);
+            continue;
+        }
         if let (CandidateTypeChoice::One(lower), CandidateTypeChoice::One(upper)) = (lower, upper)
             && lower == upper
         {
             insert_exact_projected_substitution(substitutions, conflicts, var, lower);
         }
+    }
+}
+
+fn effect_residual_candidate_from_upper_bounds(
+    lower: &CandidateTypeChoice,
+    candidates: &[(typed_ir::PrincipalCandidateRelation, typed_ir::Type)],
+) -> Option<typed_ir::Type> {
+    let CandidateTypeChoice::One(lower) = lower else {
+        return None;
+    };
+    let lower_atoms = effect_candidate_atoms(lower)?;
+    if lower_atoms.is_empty() {
+        return None;
+    }
+    if !lower_atoms.iter().any(is_synthetic_var_effect_atom) {
+        return None;
+    }
+
+    let mut saw_concrete_upper = false;
+    for (relation, upper) in candidates {
+        if !matches!(relation, typed_ir::PrincipalCandidateRelation::Upper) {
+            continue;
+        }
+        if matches!(upper, typed_ir::Type::Unknown | typed_ir::Type::Any) {
+            continue;
+        }
+        saw_concrete_upper = true;
+        let upper_atoms = effect_candidate_atoms(upper)?;
+        if !lower_atoms
+            .iter()
+            .all(|atom| upper_atoms.iter().any(|upper_atom| upper_atom == atom))
+        {
+            return None;
+        }
+    }
+
+    saw_concrete_upper.then(|| lower.clone())
+}
+
+fn is_synthetic_var_effect_atom(ty: &typed_ir::Type) -> bool {
+    matches!(ty, typed_ir::Type::Named { path, .. } if is_synthetic_var_effect_path(path))
+}
+
+fn effect_candidate_atoms(ty: &typed_ir::Type) -> Option<Vec<typed_ir::Type>> {
+    let mut atoms = Vec::new();
+    collect_effect_candidate_atoms(ty, &mut atoms).then_some(atoms)
+}
+
+fn collect_effect_candidate_atoms(ty: &typed_ir::Type, out: &mut Vec<typed_ir::Type>) -> bool {
+    match ty {
+        typed_ir::Type::Named { path, args } => {
+            let atom = normalize_projected_effect_atom_shape(path.clone(), args.clone());
+            if !principal_plan_substitution_type_usable(&atom, false) {
+                return false;
+            }
+            if !out.iter().any(|existing| existing == &atom) {
+                out.push(atom);
+            }
+            true
+        }
+        typed_ir::Type::Row { items, tail } => {
+            items
+                .iter()
+                .all(|item| collect_effect_candidate_atoms(item, out))
+                && collect_effect_candidate_atoms(tail, out)
+        }
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => items
+            .iter()
+            .all(|item| collect_effect_candidate_atoms(item, out)),
+        typed_ir::Type::Never | typed_ir::Type::Unknown => true,
+        _ => false,
     }
 }
 

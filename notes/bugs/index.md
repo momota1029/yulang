@@ -1,25 +1,19 @@
-# notes/bugs index (2026-05-14 更新)
+# notes/bugs index (2026-05-15 更新)
 
 「素直に書いたら動きそうなのに、実装上詰まった」snippet の履歴。
 
-## 現在の未解決（2026-05-14 round-4 で発見）
+## 現在の未解決
 
-### Effect / handler 系
-
-- [`var_effect_serial_collision.yu`](var_effect_serial_collision.yu) —
-  同じ scope で `my $a = ...; for ...; my $b = ...; for ...` のように 2 つ
-  の var を順に開いて使うと、2 つ目の `for` body の effect row が
-  `expected [&a#var; ..never], got [&b#var; ..never]` の application
-  mismatch になる。`for` を絡めない `&a = 1; &b = 2` は通る。`labelled
-  _for_var_effect_collision`（resolved）と兄弟。
-- [`typed_effect_handler_inference.yu`](typed_effect_handler_inference.yu)
-  — 型引数を持つ effect (`act state 'a:`) の handler が、`'a` を具体型に
-  固められず推論失敗する。`[state int]` で specialize しても通らない。
-  `reference/effects.md` の `act ref_update 'a:` 例の handler 化が事実上
-  書けない。
+現時点なし。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 
+- [`var_effect_serial_collision.yu`](var_effect_serial_collision.yu) —
+  同じ scope で `my $a = ...; for ...; my $b = ...; for ...` と var を順に
+  開くケースが、現在は `(3, 3)` を返す。
+- [`typed_effect_handler_inference.yu`](typed_effect_handler_inference.yu)
+  — 型引数を持つ effect (`act state 'a:`) の handler が、`[state int]`
+  から `int` に specialize されて現在は通る。
 - [`var_effect_leak_with_wildcards.yu`](var_effect_leak_with_wildcards.yu) —
   handler 関数の型注釈に `_` を混ぜると、`my $x = ...` で開いた局所 ref の
   `&x::get` effect が `catch` の scope を抜けて program 最外まで漏れていた。

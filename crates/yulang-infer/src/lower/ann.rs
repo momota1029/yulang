@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+
 use rowan::TextRange;
 use yulang_parser::lex::SyntaxKind;
 
 use super::{LowerState, SyntaxNode};
 use crate::diagnostic::{ConstraintCause, ConstraintReason, TypeOrigin, TypeOriginKind};
+use crate::lower::signature::{SigRow, SigType, SigVar};
+use crate::scheme::{collect_neg_free_vars, collect_pos_free_vars};
 use crate::symbols::{Name, Path};
 use crate::types::{EffectAtom, Neg, Pos};
 
@@ -10,12 +14,17 @@ use crate::types::{EffectAtom, Neg, Pos};
 pub struct LoweredPatAnn {
     pub eff: Option<LoweredEffAnn>,
     pub span: TextRange,
+    pub non_generic_tvs: Vec<crate::ids::TypeVar>,
 }
 
 #[derive(Debug, Clone)]
 pub enum LoweredEffAnn {
     Opaque,
-    Row { lower: Pos, upper: Neg },
+    Row {
+        lower: Pos,
+        upper: Neg,
+        non_generic_tvs: Vec<crate::ids::TypeVar>,
+    },
 }
 
 pub(crate) fn pat_type_ann_node(pat: &SyntaxNode) -> Option<SyntaxNode> {
@@ -49,9 +58,14 @@ pub fn lower_pat_ann(state: &mut LowerState, pat: &SyntaxNode) -> Option<Lowered
         }
         Some(_) => None,
     };
+    let non_generic_tvs = eff
+        .as_ref()
+        .map(effect_ann_non_generic_tvs)
+        .unwrap_or_default();
     Some(LoweredPatAnn {
         eff,
         span: ann.text_range(),
+        non_generic_tvs,
     })
 }
 
@@ -62,7 +76,7 @@ pub fn configure_arg_effect_from_ann(
 ) {
     match ann.and_then(|ann| ann.eff.clone()) {
         None | Some(LoweredEffAnn::Opaque) => {}
-        Some(LoweredEffAnn::Row { lower, upper }) => {
+        Some(LoweredEffAnn::Row { lower, upper, .. }) => {
             let cause = ann
                 .map(|ann| ConstraintCause {
                     span: Some(ann.span),
@@ -116,6 +130,13 @@ fn lower_effect_ann(state: &mut LowerState, type_expr: &SyntaxNode) -> Option<Lo
         return Some(LoweredEffAnn::Opaque);
     }
 
+    if let Some(sig) = super::signature::parse_sig_type_expr(type_expr)
+        && let Some(row) = sig_effect_row(sig)
+        && sig_row_has_effect_args(&row)
+    {
+        return Some(lower_sig_effect_ann(state, type_expr, row));
+    }
+
     let mut items = Vec::new();
     let mut tail = None;
     let mut seen_separator = false;
@@ -152,7 +173,11 @@ fn lower_effect_ann(state: &mut LowerState, type_expr: &SyntaxNode) -> Option<Lo
                 .collect(),
             state.infer.alloc_neg(Neg::Var(tail_tv)),
         );
-        return Some(LoweredEffAnn::Row { lower, upper });
+        return Some(LoweredEffAnn::Row {
+            lower,
+            upper,
+            non_generic_tvs: Vec::new(),
+        });
     }
 
     let lower_tail = match tail {
@@ -183,6 +208,7 @@ fn lower_effect_ann(state: &mut LowerState, type_expr: &SyntaxNode) -> Option<Lo
                 .collect(),
             state.infer.alloc_neg(upper_tail),
         ),
+        non_generic_tvs: Vec::new(),
     })
 }
 
@@ -209,6 +235,64 @@ fn annotation_tv(state: &LowerState, node: &SyntaxNode) -> crate::ids::TypeVar {
         kind: TypeOriginKind::Annotation,
         label: Some(node.text().to_string()),
     })
+}
+
+fn sig_effect_row(sig: SigType) -> Option<SigRow> {
+    match sig {
+        SigType::EffectPrefixed { eff, .. } => Some(eff),
+        SigType::Row { row, .. } => Some(row),
+        _ => None,
+    }
+}
+
+fn sig_row_has_effect_args(row: &SigRow) -> bool {
+    row.items.iter().any(sig_type_is_effect_apply)
+}
+
+fn sig_type_is_effect_apply(sig: &SigType) -> bool {
+    matches!(sig, SigType::Apply { .. })
+}
+
+fn effect_ann_non_generic_tvs(eff: &LoweredEffAnn) -> Vec<crate::ids::TypeVar> {
+    match eff {
+        LoweredEffAnn::Opaque => Vec::new(),
+        LoweredEffAnn::Row {
+            non_generic_tvs, ..
+        } => non_generic_tvs.clone(),
+    }
+}
+
+fn lower_sig_effect_ann(
+    state: &mut LowerState,
+    type_expr: &SyntaxNode,
+    mut row: SigRow,
+) -> LoweredEffAnn {
+    if row.tail.is_none() && !row.items.is_empty() {
+        row.tail = Some(SigVar {
+            name: "_".to_string(),
+            span: type_expr.text_range(),
+        });
+    }
+
+    let mut vars = HashMap::new();
+    let lower_id = super::signature::lower_sig_row_pos_id(state, &row, &mut vars);
+    let upper_id = super::signature::lower_sig_row_neg_id(state, &row, &mut vars);
+    let lower = { state.infer.arena.get_pos(lower_id).clone() };
+    let upper = { state.infer.arena.get_neg(upper_id).clone() };
+    let sig_var_tvs = vars
+        .values()
+        .copied()
+        .collect::<std::collections::HashSet<_>>();
+    let mut non_generic_tvs = collect_pos_free_vars(&state.infer, lower_id);
+    non_generic_tvs.extend(collect_neg_free_vars(&state.infer, upper_id));
+    non_generic_tvs.retain(|tv| !sig_var_tvs.contains(tv));
+    non_generic_tvs.sort_by_key(|tv| tv.0);
+    non_generic_tvs.dedup();
+    LoweredEffAnn::Row {
+        lower,
+        upper,
+        non_generic_tvs,
+    }
 }
 
 fn lower_effect_atom(state: &LowerState, node: &SyntaxNode) -> Option<EffectAtom> {

@@ -122,6 +122,7 @@ fn lower_synthetic_error_display_body(
             }),
             local_bindings: vec![(arg_name, arg_def)],
             ann: None,
+            ann_non_generic_tvs: Vec::new(),
             unit_arg: false,
         }],
     );

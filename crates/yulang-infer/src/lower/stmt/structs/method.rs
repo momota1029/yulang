@@ -139,6 +139,7 @@ pub(crate) fn lower_struct_with_binding(
         }),
         local_bindings: vec![(recv_name, recv_def)],
         ann: None,
+        ann_non_generic_tvs: Vec::new(),
         unit_arg: false,
     });
     all_arg_pats.extend(arg_pats);

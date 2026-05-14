@@ -254,6 +254,13 @@ fn apply_principal_substitutions_from_parts(
     }
 
     infer_requirement_substitutions(&mut unifier, requirements);
+    infer_source_bound_substitutions(
+        infer,
+        &mut unifier,
+        params,
+        base_bounds_cache.as_deref_mut(),
+        cache,
+    );
     let t = CompletePrincipalClock::now(profile.is_some());
     if !unifier.covers_params() {
         if let Some(arg_ty) = export_monomorphic_type_for_tv_cached(
@@ -307,6 +314,40 @@ fn infer_requirement_substitutions(
             }
         }
     }
+}
+
+fn infer_source_bound_substitutions(
+    infer: &Infer,
+    unifier: &mut PrincipalSubstitutionUnifier<'_>,
+    params: &BTreeSet<typed_ir::TypeVar>,
+    mut base_bounds_cache: Option<&mut HashMap<TypeVar, typed_ir::TypeBounds>>,
+    cache: &mut CompletePrincipalCache,
+) {
+    for param in params {
+        let Some(tv) = source_type_var_from_exported(param) else {
+            continue;
+        };
+        if let Some(ty) = export_monomorphic_type_for_tv_cached(
+            infer,
+            tv,
+            base_bounds_cache.as_deref_mut(),
+            cache,
+        )
+        .filter(source_bound_substitution_type_usable)
+        {
+            unifier.bind(param, &ty, false);
+        }
+    }
+}
+
+fn source_bound_substitution_type_usable(ty: &typed_ir::Type) -> bool {
+    !matches!(ty, typed_ir::Type::Row { .. } | typed_ir::Type::Never)
+        && substitution_type_usable(ty, false)
+}
+
+fn source_type_var_from_exported(var: &typed_ir::TypeVar) -> Option<TypeVar> {
+    let raw = var.0.strip_prefix('t')?;
+    raw.parse::<u32>().ok().map(TypeVar)
 }
 
 fn infer_bounds_substitutions(

@@ -25,6 +25,12 @@ pub(crate) fn preconstrain_recursive_binding_header_shape(
                 .chain(arg_pat.read_eff_tv)
         })
         .collect::<HashSet<_>>();
+    for tv in arg_pats
+        .iter()
+        .flat_map(|arg_pat| arg_pat.ann_non_generic_tvs.iter().copied())
+    {
+        state.infer.add_non_generic_var(owner, tv);
+    }
 
     let mut ret_tv = state.fresh_tv();
     let mut ret_eff = state.fresh_tv();

@@ -572,6 +572,7 @@ fn lower_impl_receiver_member(
             }),
             local_bindings: vec![(recv_name.clone(), recv_def)],
             ann: None,
+            ann_non_generic_tvs: Vec::new(),
             unit_arg: false,
         });
         all_arg_pats.extend(arg_pats);

@@ -378,6 +378,7 @@ fn lower_role_method_default_body(
                     }),
                     local_bindings: vec![(recv_name, recv_def)],
                     ann: None,
+                    ann_non_generic_tvs: Vec::new(),
                     unit_arg: false,
                 },
             );

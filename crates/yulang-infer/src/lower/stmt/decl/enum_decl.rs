@@ -350,6 +350,7 @@ fn synthetic_enum_payload_constructor_body(
             }),
             local_bindings: vec![(arg_name, arg_def)],
             ann: None,
+            ann_non_generic_tvs: Vec::new(),
             unit_arg: false,
         });
     }

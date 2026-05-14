@@ -89,6 +89,7 @@ fn lower_synthetic_error_up_body(
             }),
             local_bindings: vec![(action_name, action_def)],
             ann: None,
+            ann_non_generic_tvs: Vec::new(),
             unit_arg: false,
         }],
     );
