@@ -7880,6 +7880,64 @@ mod tests {
     }
 
     #[test]
+    fn jit_forces_thunk_selected_from_record() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::MakeThunk {
+                                dest: CpsValueId(0),
+                                entry: CpsContinuationId(1),
+                            },
+                            CpsStmt::Record {
+                                dest: CpsValueId(1),
+                                fields: vec![crate::cps_ir::CpsRecordField {
+                                    name: typed_ir::Name("run".to_string()),
+                                    value: CpsValueId(0),
+                                }],
+                            },
+                            CpsStmt::Select {
+                                dest: CpsValueId(2),
+                                base: CpsValueId(1),
+                                field: typed_ir::Name("run".to_string()),
+                            },
+                            CpsStmt::ForceThunk {
+                                dest: CpsValueId(3),
+                                thunk: CpsValueId(2),
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(3)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(4),
+                            literal: CpsLiteral::Int("42".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(4)),
+                    },
+                ],
+            }],
+        }));
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![42]);
+    }
+
+    #[test]
     fn jit_displays_nested_heap_values_as_yulang_values() {
         let expr = tuple(vec![
             unknown_lit(typed_ir::Lit::Int("1".to_string())),

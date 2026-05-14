@@ -284,6 +284,8 @@ or out of here into the user-facing table once they stabilize.
       the forced CPS repr executable path.
 - [x] A source-level closure value can be stored in a record, selected back out,
       and called through the forced CPS repr executable path.
+- [x] A CPS-level thunk pointer can be stored in a record, selected back out,
+      and forced through the Cranelift CPS repr path.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
 - [x] Effectful thunks returned across an inlinable source-defined function

@@ -178,6 +178,10 @@ CPS repr Cranelift の source 回帰を広げる。
   regression を forced CPS repr executable path に追加した。CPS repr の
   `RuntimeValuePtr` record と `ClosurePtr` call 境界が同じ observable path に
   乗る。
+- CPS-level thunk pointer を record に保存し、field select で取り出してから
+  `ForceThunk` する Cranelift regression を追加した。source-level first-class
+  thunk はまだ型/lowering 境界が残るが、native value lane 側の保存・選択・force
+  の入口はできた。
 - native CLI の現状は `docs/native-backend.md` の Public CLI に集約済み。
   `yulang native` は value backend を優先し、effect / handler /
   thunk-boundary control が見えた root は CPS repr backend を選ぶ。
