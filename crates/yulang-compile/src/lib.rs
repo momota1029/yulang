@@ -268,6 +268,39 @@ f 2
     }
 
     #[test]
+    fn runs_list_map_through_value_lane() {
+        assert_source_value_text_with_std(
+            r#"
+[1, 2, 3].map (\x -> x + 1)
+"#,
+            "[[2, 3, 4]]",
+        )
+        .expect("value lane native eval");
+    }
+
+    #[test]
+    fn runs_list_filter_through_value_lane() {
+        assert_source_value_text_with_std(
+            r#"
+[1, 2, 3].filter (\x -> x < 3)
+"#,
+            "[[1, 2]]",
+        )
+        .expect("value lane native eval");
+    }
+
+    #[test]
+    fn runs_list_fold_through_value_lane() {
+        assert_source_value_text_with_std(
+            r#"
+[1, 2, 3].fold 0 (\acc x -> acc + x)
+"#,
+            "[6]",
+        )
+        .expect("value lane native eval");
+    }
+
+    #[test]
     fn compares_direct_nullary_return_call_through_cps_repr() {
         compare_source_cps_repr_with_std(
             r#"use std::flow::*
@@ -321,15 +354,55 @@ sub:
     }
 
     fn assert_source_value_with_std(source: &str) -> Result<(), String> {
+        assert_source_value_text_with_std(source, "[42]")
+    }
+
+    fn assert_source_value_text_with_std(
+        source: &str,
+        expected: &'static str,
+    ) -> Result<(), String> {
         let source = source.to_string();
         run_with_large_stack(move || {
             let values = eval_source_value_lane_with_options(&source, source_options_with_std())
                 .map_err(|error| error.to_string())?;
-            if values != vec![yulang_runtime::VmValue::Int("42".to_string())] {
-                return Err(format!("unexpected value-lane result: {values:?}"));
+            let actual = format_values(&values);
+            if actual != expected {
+                return Err(format!("unexpected value-lane result: {actual}"));
             }
             Ok(())
         })
+    }
+
+    fn format_values(values: &[yulang_runtime::VmValue]) -> String {
+        format!(
+            "[{}]",
+            values
+                .iter()
+                .map(format_value)
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+
+    fn format_value(value: &yulang_runtime::VmValue) -> String {
+        match value {
+            yulang_runtime::VmValue::Int(value) | yulang_runtime::VmValue::Float(value) => {
+                value.clone()
+            }
+            yulang_runtime::VmValue::String(value) => format!("{:?}", value.to_flat_string()),
+            yulang_runtime::VmValue::Bool(value) => value.to_string(),
+            yulang_runtime::VmValue::Unit => "()".to_string(),
+            yulang_runtime::VmValue::List(items) => format!(
+                "[{}]",
+                items
+                    .to_vec()
+                    .iter()
+                    .map(|item| format_value(item))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            other => format!("{other:?}"),
+        }
     }
 
     fn source_options_with_std() -> SourceOptions {

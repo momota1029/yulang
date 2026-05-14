@@ -1275,12 +1275,16 @@ fn lower_value_function<M: Module, L: ValueLiteralStore>(
     let blocks = create_value_blocks(&mut builder, function);
     declare_value_variables(&mut builder, function);
     let params = bind_value_function_params(&mut builder, function, &blocks)?;
+    let block_start_values = function_block_start_values(function);
 
     for block in &function.blocks {
         let clif_block = value_block_ref(function, &blocks, block.id)?;
         builder.switch_to_block(clif_block);
         bind_value_block_params(&mut builder, function, block, clif_block)?;
-        let mut values = block_defined_values(function, block);
+        let mut values = block_start_values
+            .get(&block.id)
+            .cloned()
+            .unwrap_or_else(HashMap::new);
         for stmt in &block.stmts {
             let dest = lower_value_stmt(
                 module_backend,
@@ -1410,20 +1414,81 @@ struct ValueFunctionParams {
     environment: Vec<ir::Value>,
 }
 
-fn block_defined_values(
+fn function_block_start_values(
     function: &NativeAbiFunction,
-    block: &NativeAbiBlock,
-) -> HashMap<ValueId, ()> {
-    let mut values = HashMap::new();
-    if function
+) -> HashMap<BlockId, HashMap<ValueId, ()>> {
+    let mut start = function
         .blocks
-        .first()
-        .is_some_and(|entry| entry.id == block.id)
-    {
-        values.extend(function.params.iter().copied().map(|param| (param, ())));
+        .iter()
+        .map(|block| {
+            (
+                block.id,
+                block
+                    .params
+                    .iter()
+                    .copied()
+                    .map(|param| (param, ()))
+                    .collect::<HashMap<_, _>>(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    if let Some(entry) = function.blocks.first() {
+        start
+            .entry(entry.id)
+            .or_default()
+            .extend(function.params.iter().copied().map(|param| (param, ())));
     }
-    values.extend(block.params.iter().copied().map(|param| (param, ())));
-    values
+
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for block in &function.blocks {
+            let mut out = start.get(&block.id).cloned().unwrap_or_default();
+            for stmt in &block.stmts {
+                out.insert(stmt_dest(stmt), ());
+            }
+            for successor in terminator_successors(&block.terminator) {
+                let entry = start.entry(successor).or_default();
+                let old_len = entry.len();
+                entry.extend(out.keys().copied().map(|value| (value, ())));
+                changed |= entry.len() != old_len;
+            }
+        }
+    }
+    start
+}
+
+fn stmt_dest(stmt: &NativeAbiStmt) -> ValueId {
+    match stmt {
+        NativeAbiStmt::Literal { dest, .. }
+        | NativeAbiStmt::Primitive { dest, .. }
+        | NativeAbiStmt::DirectCall { dest, .. }
+        | NativeAbiStmt::Tuple { dest, .. }
+        | NativeAbiStmt::Record { dest, .. }
+        | NativeAbiStmt::RecordWithoutFields { dest, .. }
+        | NativeAbiStmt::Variant { dest, .. }
+        | NativeAbiStmt::Select { dest, .. }
+        | NativeAbiStmt::TupleGet { dest, .. }
+        | NativeAbiStmt::VariantTagEq { dest, .. }
+        | NativeAbiStmt::VariantPayload { dest, .. }
+        | NativeAbiStmt::ValueEq { dest, .. }
+        | NativeAbiStmt::BoolAnd { dest, .. }
+        | NativeAbiStmt::LoadEnv { dest, .. }
+        | NativeAbiStmt::AllocateClosure { dest, .. }
+        | NativeAbiStmt::IndirectClosureCall { dest, .. } => *dest,
+    }
+}
+
+fn terminator_successors(terminator: &NativeTerminator) -> Vec<BlockId> {
+    match terminator {
+        NativeTerminator::Return(_) => Vec::new(),
+        NativeTerminator::Jump { target, .. } => vec![*target],
+        NativeTerminator::Branch {
+            then_block,
+            else_block,
+            ..
+        } => vec![*then_block, *else_block],
+    }
 }
 
 fn lower_value_terminator<M: Module>(

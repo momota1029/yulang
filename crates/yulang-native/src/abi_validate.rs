@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use crate::abi::{NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
@@ -117,8 +117,13 @@ fn validate_function(function: &NativeAbiFunction) -> NativeAbiValidateResult<()
         }
     }
     let entry = function.blocks.first().map(|block| block.id);
+    let block_start_values = function_block_start_values(function);
     for block in &function.blocks {
-        validate_block(function, block, &blocks, Some(block.id) == entry)?;
+        let values = block_start_values
+            .get(&block.id)
+            .cloned()
+            .unwrap_or_default();
+        validate_block(function, block, &blocks, Some(block.id) == entry, values)?;
     }
     Ok(())
 }
@@ -128,24 +133,16 @@ fn validate_block(
     block: &NativeAbiBlock,
     blocks: &HashSet<BlockId>,
     is_entry: bool,
+    mut values: HashSet<ValueId>,
 ) -> NativeAbiValidateResult<()> {
-    let mut values = HashSet::new();
-    for param in &function.params {
-        if !values.insert(*param) {
-            return Err(NativeAbiValidateError::DuplicateBlockParam {
-                function: function.name.clone(),
-                block: block.id,
-                value: *param,
-            });
-        }
-    }
     let block_params = if is_entry && block.params.starts_with(&function.params) {
         &block.params[function.params.len()..]
     } else {
         block.params.as_slice()
     };
+    let mut seen_params = function.params.iter().copied().collect::<HashSet<_>>();
     for param in block_params {
-        if !values.insert(*param) {
+        if !seen_params.insert(*param) {
             return Err(NativeAbiValidateError::DuplicateBlockParam {
                 function: function.name.clone(),
                 block: block.id,
@@ -165,6 +162,43 @@ fn validate_block(
         }
     }
     validate_terminator(function, block, blocks, &values)
+}
+
+fn function_block_start_values(function: &NativeAbiFunction) -> HashMap<BlockId, HashSet<ValueId>> {
+    let mut start = function
+        .blocks
+        .iter()
+        .map(|block| {
+            (
+                block.id,
+                block.params.iter().copied().collect::<HashSet<_>>(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    if let Some(entry) = function.blocks.first() {
+        start
+            .entry(entry.id)
+            .or_default()
+            .extend(function.params.iter().copied());
+    }
+
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for block in &function.blocks {
+            let mut out = start.get(&block.id).cloned().unwrap_or_default();
+            for stmt in &block.stmts {
+                out.insert(stmt_dest(stmt));
+            }
+            for successor in terminator_successors(&block.terminator) {
+                let entry = start.entry(successor).or_default();
+                let old_len = entry.len();
+                entry.extend(out.iter().copied());
+                changed |= entry.len() != old_len;
+            }
+        }
+    }
+    start
 }
 
 fn validate_stmt_uses(
@@ -263,6 +297,18 @@ fn validate_terminator(
             require_block(function, *then_block, blocks)?;
             require_block(function, *else_block, blocks)
         }
+    }
+}
+
+fn terminator_successors(terminator: &NativeTerminator) -> Vec<BlockId> {
+    match terminator {
+        NativeTerminator::Return(_) => Vec::new(),
+        NativeTerminator::Jump { target, .. } => vec![*target],
+        NativeTerminator::Branch {
+            then_block,
+            else_block,
+            ..
+        } => vec![*then_block, *else_block],
     }
 }
 

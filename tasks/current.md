@@ -201,6 +201,10 @@ runtime/core IR
     さらに top-level 関数の部分適用は `#partialN` wrapper を生成し、bare
     function value を `#partial0` の closure handle として扱う。`my add x y =
     x + y; my f = add 40; f 2` は source から value-lane executable まで確認済み。
+    ABI validate / value-lane Cranelift の定義済み値解析は、function params と
+    predecessor block で定義された値を後続 block の開始時点へ伝播するようにした。
+    これにより std の `list.map` / `list.filter` / `list.fold` が source から
+    `--native-run-value-exe` まで通る。
     ただし closure を printable `VmValue` root として返す形や、tuple/list/record
     内の普通の構造値として扱う形はまだ未対応。
   - value-lane Cranelift は guarded pattern match も扱う。pattern match 後に

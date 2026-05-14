@@ -155,6 +155,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] Top-level function partial application lowers to generated closure
       wrappers in the value backend and is covered by a source-level executable
       test.
+- [x] Value-backend codegen and ABI validation carry values defined in
+      dominating predecessor blocks, so std `list.map`, `list.filter`, and
+      `list.fold` source programs now run through the value executable path.
 - [ ] Closure values can be called after flowing through the value backend, but
       they are not yet printable roots or ordinary structural runtime values
       inside tuples/lists/records.
