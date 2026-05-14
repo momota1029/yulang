@@ -14,9 +14,13 @@ This page is split into two parts:
 
 For overall language status across all stages, see
 [docs/status.md](status.md). For deeper design notes see
-`notes/design/native-backend-plan.md` and
-`notes/design/cps-effect-lowering-plan.md`. The handler hygiene evidence
-used by VM and native effect dispatch is summarized in
+`notes/design/native-backend-plan.md`,
+`notes/design/cps-effect-lowering-plan.md`, and
+`notes/design/native-cps-mainline-plan.md`. The current implementation
+direction is to make the CPS representation backend the native mainline for
+effectful programs while keeping the value backend as an effect-free fast path
+and boxed `VmValue` helper source. The handler hygiene evidence used by VM and
+native effect dispatch is summarized in
 [docs/hidden-effect-evidence.ja.md](hidden-effect-evidence.ja.md).
 
 ## Public CLI

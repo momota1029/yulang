@@ -1,0 +1,148 @@
+# Native CPS Mainline Plan
+
+Yulang の native backend は、effect-free な値計算だけを速くする段階から、
+effect / handler を含む普通の Yulang program を native で動かす段階へ進める。
+
+結論として、native 実行の本線は CPS representation backend に寄せる。
+value backend は捨てず、effect-free fast path と runtime value helper の供給元として使う。
+
+## Why CPS Repr Is The Mainline
+
+Yulang の中核は effect / handler / thunk hygiene / resumption を含む。
+これらは direct-style value backend へ後付けするより、CPS repr の control frame と
+continuation model に載せる方が自然。
+
+既に CPS repr 側にあるもの:
+
+- `Perform` / `Resume` / `ResumeWithHandler`
+- shallow handler の resumption capture
+- handler stack / guard stack snapshot
+- thunk boundary hygiene の scalar prototype
+- source-level `sub` / `return` と小さい algebraic effect regression
+
+value backend 側にあるもの:
+
+- boxed `VmValue` helper
+- string / list / tuple / record / variant construction
+- list range / splice / view
+- closure handle と indirect closure call
+- top-level partial application wrapper
+- std `list.map` / `filter` / `fold` の effect-free executable path
+
+次の native 完全化では、この 2 つを競合させない。
+CPS repr は control semantics を担当し、value backend の helper は heap value ABI として再利用する。
+
+## Execution Policy
+
+`--native-run` の長期方針:
+
+1. effectful root / thunk hygiene が関わる root は CPS repr backend を選ぶ。
+2. effect-free で value backend が確実に扱える root は value backend を fast path として使ってよい。
+3. unsupported は無言 fallback ではなく、structured reason を持つ。
+4. VM は当面 oracle として残し、regression は `VM == native` を基本にする。
+
+短期的には、既存 CLI の fallback 挙動を急に壊さない。
+まず backend 選択の判定と理由を内部 API に切り出す。
+
+## Target Architecture
+
+```text
+runtime/core IR
+  -> effect-aware CPS IR
+  -> CPS repr IR
+  -> CPS repr ABI lanes
+  -> Cranelift/native runtime
+
+value backend helpers
+  -> boxed VmValue construction
+  -> list/string/record/variant helper symbols
+  -> closure handle helpers
+```
+
+CPS repr ABI lane は、少なくとも次を明示的に扱う。
+
+- scalar int / bool / unit
+- native float
+- runtime value pointer
+- closure pointer
+- thunk pointer
+- resumption pointer
+- opaque i64 for transitional internal values
+
+最終的には scalar-only prototype を縮小し、`RuntimeValuePtr` を普通の lane として扱う。
+
+## Invariants
+
+- effectful control は direct-style value backend へ後付けしない。
+- `handler_match` / hidden effect evidence は型表示に出さず、runtime では delimiter / guard / handler frame として扱う。
+- shallow handler の resumption は handler frame 自身を含まない。
+- thunk / resumption / closure の captured frame は native 側でも構造共有を基本にする。
+- value backend helper は `VmValue` 互換の意味を保つ。CPS repr 専用の別 semantics を作らない。
+- unsupported 判定は、関数名・module 名の文字列特例ではなく、IR node / lane / value kind から出す。
+
+## Milestones
+
+### 1. Backend Selection Boundary
+
+- [ ] backend selection を `native-run` CLI から分離する。
+- [ ] root ごとに `ValueFastPath` / `CpsMainline` / `Unsupported(reason)` を返す。
+- [ ] fallback message は選択理由を表示できるようにする。
+- [ ] effectful root は CPS repr を選ぶ regression を追加する。
+
+### 2. CPS Runtime Value Lane
+
+- [ ] CPS repr ABI に `RuntimeValuePtr` を first-class lane として通す。
+- [ ] `Continue` / `Branch` / `DirectCall` / `ApplyClosure` が runtime value pointer を壊さず運べるようにする。
+- [ ] value backend の boxed helper symbols を CPS repr Cranelift から呼ぶ。
+- [ ] string/list/record/variant root を CPS repr executable path で VM と比較する。
+
+### 3. CPS Closure / Partial Application
+
+- [ ] CPS repr closure env slot limit を現在の small fixed helper から広げる。
+- [ ] closure pointer と runtime value pointer の境界を明示する。
+- [ ] top-level partial application wrapper と CPS closure creation を揃える。
+- [ ] higher-order std functions を CPS repr path で VM と比較する。
+
+### 4. General Thunk Invocation
+
+- [ ] thunk value を保存・返却・複数箇所で force できる lane にする。
+- [ ] `AddId` / `BindHere` / hidden evidence boundary を thunk pointer に保持する。
+- [ ] force 時に handler / guard stack を正しく re-enter する。
+- [ ] direct thunk callback inline の暫定経路を、汎用 thunk invocation に置き換える。
+
+### 5. Handler / Resumption Heap Values
+
+- [ ] resumption pointer を closure-like callable value として扱う。
+- [ ] `EffectfulApply` の closure/resumption dynamic dispatch を runtime value lane と統合する。
+- [ ] multi-shot resumption capture が runtime value payload を含んでも VM と一致するようにする。
+- [ ] shallow handler + delimiter frame + guard stack の source regression を native executable path に増やす。
+
+### 6. CLI And Release Surface
+
+- [ ] `--native-run` の backend 選択を docs に明記する。
+- [ ] `--native-run-value-exe` は debugging fast path として残す。
+- [ ] CPS repr executable path を primary native effect path として説明する。
+- [ ] playground/deploy 側の native option も同じ選択規則に揃える。
+
+## Near-Term Work Queue
+
+1. backend selection API を作る。
+2. CPS repr ABI の `RuntimeValuePtr` を root return / direct call return で通す。
+3. CPS repr Cranelift から value helper の最小集合を呼ぶ。
+4. `sub` / `return` + string/list payload の source regression を VM 比較する。
+5. thunk value を unsupported から structured pending に分け、汎用 invocation の入口を作る。
+
+## Done Definition
+
+「native で動く」と呼ぶ最初の基準:
+
+- effect-free std-heavy programs は value backend か CPS repr で動く。
+- `sub` / `return` / simple algebraic effect / shallow handler は native executable path で動く。
+- string/list/record/variant payload が effect boundary を越えても VM と一致する。
+- unsupported は root ごとに理由を出し、VM fallback するか失敗するかが明示されている。
+
+完全化の基準:
+
+- direct-style VM と native CPS repr の observable result が、通常の source programs で一致する。
+- handler hygiene regression が native path の通常 regression suite に入っている。
+- generic thunk / closure / resumption value が tuple/list/record/variant payload として安全に運べる。

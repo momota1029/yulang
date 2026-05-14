@@ -19,7 +19,16 @@ Cranelift backend を作る。
 - `notes/design/native-backend-plan.md`
 - `notes/design/cps-effect-lowering-plan.md`
 - `notes/design/native-value-abi-plan.md`
+- `notes/design/native-cps-mainline-plan.md`
 - `notes/design/source-realm-band-plan.md`
+
+方針転換:
+
+- native 実行の本線は CPS representation backend に寄せる。
+- value backend は effect-free fast path と boxed `VmValue` helper の供給元として扱う。
+- まず `notes/design/native-cps-mainline-plan.md` の milestone に沿って、
+  backend selection 境界、CPS `RuntimeValuePtr` lane、汎用 thunk / closure /
+  resumption value の順に進める。
 
 近い形:
 
