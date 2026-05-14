@@ -7,6 +7,7 @@ pub(crate) fn lower_synthetic_error_wrap(
     state: &mut LowerState,
     error_sig: &SigType,
     variants: &[ErrorThrowVariant],
+    sources: &[ErrorUpSource],
     visibility: crate::symbols::Visibility,
 ) {
     if variants.is_empty() {
@@ -29,6 +30,9 @@ pub(crate) fn lower_synthetic_error_wrap(
 
     let mut scope_names = Vec::new();
     collect_cast_sig_vars(error_sig, &mut scope_names);
+    for source in sources {
+        collect_cast_sig_vars(&source.source_sig, &mut scope_names);
+    }
     let impl_scope = fresh_type_scope(state, &scope_names);
     state.with_owner(wrap_def, |state| {
         lower_synthetic_error_wrap_body(
@@ -37,6 +41,7 @@ pub(crate) fn lower_synthetic_error_wrap(
             wrap_tv,
             error_sig,
             variants,
+            sources,
             result_ok_def,
             result_err_def,
             &impl_scope,
@@ -50,6 +55,7 @@ fn lower_synthetic_error_wrap_body(
     wrap_tv: TypeVar,
     error_sig: &SigType,
     variants: &[ErrorThrowVariant],
+    sources: &[ErrorUpSource],
     result_ok_def: crate::ids::DefId,
     result_err_def: crate::ids::DefId,
     impl_scope: &HashMap<String, TypeVar>,
@@ -65,7 +71,9 @@ fn lower_synthetic_error_wrap_body(
 
     let result_tv = state.fresh_tv();
     let result_eff = state.fresh_tv();
-    constrain_error_wrap_effect(state, action_eff, result_eff, error_sig, impl_scope);
+    constrain_error_wrap_effect(
+        state, action_eff, result_eff, error_sig, sources, impl_scope,
+    );
     constrain_error_wrap_result(state, result_tv, error_sig, impl_scope);
 
     let comp = TypedExpr {
@@ -87,6 +95,17 @@ fn lower_synthetic_error_wrap_body(
             )
         })
         .collect::<Vec<_>>();
+    arms.extend(sources.iter().flat_map(|source| {
+        synthetic_error_wrap_source_effect_arms(
+            state,
+            source,
+            result_tv,
+            result_eff,
+            result_err_def,
+            wrap_def,
+            impl_scope,
+        )
+    }));
     arms.push(synthetic_error_wrap_value_arm(
         state,
         action_tv,
@@ -183,6 +202,68 @@ fn synthetic_error_wrap_value_arm(
     }
 }
 
+fn synthetic_error_wrap_source_effect_arms(
+    state: &mut LowerState,
+    source: &ErrorUpSource,
+    result_tv: TypeVar,
+    result_eff: TypeVar,
+    result_err_def: crate::ids::DefId,
+    wrap_def: crate::ids::DefId,
+    impl_scope: &HashMap<String, TypeVar>,
+) -> Vec<TypedCatchArm> {
+    let Some(source_path) = nominal_sig_effect_path(state, &source.source_sig) else {
+        return Vec::new();
+    };
+    let variants = state
+        .error_throw_variants
+        .get(&source_path)
+        .cloned()
+        .unwrap_or_default();
+    variants
+        .iter()
+        .filter_map(|variant| {
+            synthetic_error_wrap_lifted_effect_arm(
+                state,
+                variant,
+                source,
+                result_tv,
+                result_eff,
+                result_err_def,
+                wrap_def,
+                impl_scope,
+            )
+        })
+        .collect()
+}
+
+fn synthetic_error_wrap_lifted_effect_arm(
+    state: &mut LowerState,
+    source_variant: &ErrorThrowVariant,
+    source: &ErrorUpSource,
+    result_tv: TypeVar,
+    result_eff: TypeVar,
+    result_err_def: crate::ids::DefId,
+    wrap_def: crate::ids::DefId,
+    impl_scope: &HashMap<String, TypeVar>,
+) -> Option<TypedCatchArm> {
+    let op_path = effect_operation_surface_path(state, source_variant.operation_def)?;
+    let (pat, source_error_value) =
+        source_error_value_expr(state, source_variant, wrap_def, impl_scope);
+    let mut constructors = source.payload_constructor_defs.clone();
+    constructors.push(source.target_constructor_def);
+    let error_value = apply_error_constructors(state, source_error_value, &constructors);
+    Some(synthetic_error_wrap_arm_from_value(
+        state,
+        op_path,
+        pat,
+        error_value,
+        result_tv,
+        result_eff,
+        result_err_def,
+        wrap_def,
+    ))
+}
+
 fn synthetic_error_wrap_effect_arm(
     state: &mut LowerState,
     variant: &ErrorThrowVariant,
@@ -193,12 +274,31 @@ fn synthetic_error_wrap_effect_arm(
     impl_scope: &HashMap<String, TypeVar>,
 ) -> Option<TypedCatchArm> {
     let op_path = effect_operation_surface_path(state, variant.operation_def)?;
-    let (pat, error_value) = if let Some(payload_sig) = &variant.payload_sig {
+    let (pat, error_value) = source_error_value_expr(state, variant, wrap_def, impl_scope);
+    Some(synthetic_error_wrap_arm_from_value(
+        state,
+        op_path,
+        pat,
+        error_value,
+        result_tv,
+        result_eff,
+        result_err_def,
+        wrap_def,
+    ))
+}
+
+fn source_error_value_expr(
+    state: &mut LowerState,
+    variant: &ErrorThrowVariant,
+    owner_def: crate::ids::DefId,
+    impl_scope: &HashMap<String, TypeVar>,
+) -> (TypedPat, TypedExpr) {
+    if let Some(payload_sig) = &variant.payload_sig {
         let payload_def = state.fresh_def();
         let payload_tv = state.fresh_tv();
         state.register_def_tv(payload_def, payload_tv);
         state.register_def_name(payload_def, Name("payload".to_string()));
-        state.register_def_owner(payload_def, wrap_def);
+        state.register_def_owner(payload_def, owner_def);
         constrain_cast_arg_source(state, payload_tv, payload_sig, impl_scope);
         let pat = TypedPat {
             tv: payload_tv,
@@ -229,8 +329,19 @@ fn synthetic_error_wrap_effect_arm(
             },
             crate::lower::expr::resolve_bound_def_expr(state, variant.constructor_def),
         )
-    };
+    }
+}
 
+fn synthetic_error_wrap_arm_from_value(
+    state: &mut LowerState,
+    op_path: Path,
+    pat: TypedPat,
+    error_value: TypedExpr,
+    result_tv: TypeVar,
+    result_eff: TypeVar,
+    result_err_def: crate::ids::DefId,
+    wrap_def: crate::ids::DefId,
+) -> TypedCatchArm {
     let err = crate::lower::expr::resolve_bound_def_expr(state, result_err_def);
     let body = crate::lower::expr::make_app(state, err, error_value);
     let body = state
@@ -254,7 +365,7 @@ fn synthetic_error_wrap_effect_arm(
     state.mark_continuation_def(k);
     state.register_def_owner(k, wrap_def);
 
-    Some(TypedCatchArm {
+    TypedCatchArm {
         tv: state.fresh_tv(),
         guard: None,
         kind: CatchArmKind::Effect {
@@ -263,7 +374,19 @@ fn synthetic_error_wrap_effect_arm(
             k,
             body,
         },
-    })
+    }
+}
+
+fn apply_error_constructors(
+    state: &mut LowerState,
+    mut value: TypedExpr,
+    constructors: &[crate::ids::DefId],
+) -> TypedExpr {
+    for constructor_def in constructors {
+        let constructor = crate::lower::expr::resolve_bound_def_expr(state, *constructor_def);
+        value = crate::lower::expr::make_app(state, constructor, value);
+    }
+    value
 }
 
 fn constrain_error_wrap_effect(
@@ -271,18 +394,28 @@ fn constrain_error_wrap_effect(
     action_eff: TypeVar,
     result_eff: TypeVar,
     error_sig: &SigType,
+    sources: &[ErrorUpSource],
     impl_scope: &HashMap<String, TypeVar>,
 ) {
-    let Some(atom) = effect_atom_from_sig(state, error_sig, impl_scope) else {
+    let Some(target_atom) = effect_atom_from_sig(state, error_sig, impl_scope) else {
         return;
     };
+    let mut action_atoms = vec![target_atom];
+    action_atoms.extend(
+        sources
+            .iter()
+            .filter_map(|source| effect_atom_from_sig(state, &source.source_sig, impl_scope)),
+    );
     state.infer.constrain(
-        state.pos_row(vec![Pos::Atom(atom.clone())], Pos::Bot),
+        state.pos_row(
+            action_atoms.iter().cloned().map(Pos::Atom).collect(),
+            Pos::Bot,
+        ),
         Neg::Var(action_eff),
     );
     state.infer.constrain(
         Pos::Var(action_eff),
-        state.neg_row(vec![Neg::Atom(atom)], Neg::Top),
+        state.neg_row(action_atoms.into_iter().map(Neg::Atom).collect(), Neg::Top),
     );
     state
         .infer

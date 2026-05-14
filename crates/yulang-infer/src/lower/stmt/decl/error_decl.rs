@@ -86,6 +86,8 @@ pub(crate) fn lower_error_decl(state: &mut LowerState, node: &SyntaxNode) {
             up_sources.push(ErrorUpSource {
                 source_sig,
                 target_operation_def: operation_def,
+                target_constructor_def: constructor_def,
+                payload_constructor_defs: Vec::new(),
             });
         }
     }
@@ -93,8 +95,23 @@ pub(crate) fn lower_error_decl(state: &mut LowerState, node: &SyntaxNode) {
         .error_throw_variants
         .insert(effect_path.clone(), throw_variants.clone());
     let error_sig = error_type_sig(&effect_path, &act_type_param_names(node), node.text_range());
-    crate::lower::role::lower_synthetic_error_wrap(state, &error_sig, &throw_variants, visibility);
-    crate::lower::role::lower_synthetic_error_up(state, &error_sig, &up_sources, visibility);
+    let expanded_up_sources = crate::lower::role::expand_error_up_sources(state, &up_sources);
+    state
+        .error_up_sources
+        .insert(effect_path.clone(), expanded_up_sources.clone());
+    crate::lower::role::lower_synthetic_error_wrap(
+        state,
+        &error_sig,
+        &throw_variants,
+        &expanded_up_sources,
+        visibility,
+    );
+    crate::lower::role::lower_synthetic_error_up(
+        state,
+        &error_sig,
+        &expanded_up_sources,
+        visibility,
+    );
     state.ctx.leave_module(saved_module);
     crate::lower::role::lower_synthetic_error_throw(state, &error_sig, throw_variants);
 }

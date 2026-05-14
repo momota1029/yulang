@@ -1333,6 +1333,78 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
     }
 
     #[test]
+    fn vm_runs_source_error_wrap_catches_direct_from_source() {
+        let results = eval_source_with_std(
+            r#"error fs_err:
+    not_found str
+
+error io_err:
+    fs from fs_err
+
+my read_or_throw path =
+    case path:
+        "/ok" -> "data"
+        _ -> fail fs_err::not_found path
+
+io_err::wrap: read_or_throw "/missing"
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Variant {
+                tag: "err".to_string(),
+                value: Some(Box::new(TestValue::Variant {
+                    tag: "fs".to_string(),
+                    value: Some(Box::new(TestValue::Variant {
+                        tag: "not_found".to_string(),
+                        value: Some(Box::new(TestValue::String("/missing".to_string()))),
+                    })),
+                })),
+            }]
+        );
+    }
+
+    #[test]
+    fn vm_runs_source_error_wrap_catches_transitive_from_source() {
+        let results = eval_source_with_std(
+            r#"error fs_err:
+    not_found str
+
+error io_err:
+    fs from fs_err
+
+error app_err:
+    io from io_err
+
+my read_or_throw path =
+    case path:
+        "/ok" -> "data"
+        _ -> fail fs_err::not_found path
+
+app_err::wrap: read_or_throw "/missing"
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Variant {
+                tag: "err".to_string(),
+                value: Some(Box::new(TestValue::Variant {
+                    tag: "io".to_string(),
+                    value: Some(Box::new(TestValue::Variant {
+                        tag: "fs".to_string(),
+                        value: Some(Box::new(TestValue::Variant {
+                            tag: "not_found".to_string(),
+                            value: Some(Box::new(TestValue::String("/missing".to_string()))),
+                        })),
+                    })),
+                })),
+            }]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_effect_handler_return_example() {
         let results = eval_source_with_std(
             r#"pub act out:

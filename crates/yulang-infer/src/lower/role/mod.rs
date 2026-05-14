@@ -35,9 +35,9 @@ mod subst;
 
 pub(super) use decl::lower_role_decl;
 pub(super) use impls::{
-    ErrorThrowVariant, ErrorUpSource, lower_attached_impl_decl, lower_cast_decl, lower_impl_decl,
-    lower_synthetic_error_throw, lower_synthetic_error_up, lower_synthetic_error_wrap,
-    lower_synthetic_variant_cast,
+    ErrorThrowVariant, ErrorUpSource, expand_error_up_sources, lower_attached_impl_decl,
+    lower_cast_decl, lower_impl_decl, lower_synthetic_error_throw, lower_synthetic_error_up,
+    lower_synthetic_error_wrap, lower_synthetic_variant_cast,
 };
 pub(super) use runtime::{export_runtime_path, export_runtime_sig_row, export_runtime_sig_type};
 

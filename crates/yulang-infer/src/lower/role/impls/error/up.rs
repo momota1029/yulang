@@ -170,14 +170,7 @@ fn synthetic_error_up_effect_arms(
     variants
         .iter()
         .filter_map(|variant| {
-            synthetic_error_up_effect_arm(
-                state,
-                variant,
-                source.target_operation_def,
-                result_tv,
-                result_eff,
-                up_def,
-            )
+            synthetic_error_up_effect_arm(state, variant, source, result_tv, result_eff, up_def)
         })
         .collect()
 }
@@ -185,7 +178,7 @@ fn synthetic_error_up_effect_arms(
 fn synthetic_error_up_effect_arm(
     state: &mut LowerState,
     source_variant: &ErrorThrowVariant,
-    target_operation_def: crate::ids::DefId,
+    source: &ErrorUpSource,
     result_tv: TypeVar,
     result_eff: TypeVar,
     up_def: crate::ids::DefId,
@@ -227,8 +220,10 @@ fn synthetic_error_up_effect_arm(
         )
     };
 
-    let target_op = crate::lower::expr::resolve_bound_def_expr(state, target_operation_def);
-    let body = crate::lower::expr::make_app(state, target_op, source_error_value);
+    let target_op = crate::lower::expr::resolve_bound_def_expr(state, source.target_operation_def);
+    let payload =
+        apply_error_constructors(state, source_error_value, &source.payload_constructor_defs);
+    let body = crate::lower::expr::make_app(state, target_op, payload);
     let body = state
         .implicit_cast_boundary_with_effects(
             body,
@@ -260,6 +255,18 @@ fn synthetic_error_up_effect_arm(
             body,
         },
     })
+}
+
+fn apply_error_constructors(
+    state: &mut LowerState,
+    mut value: TypedExpr,
+    constructors: &[crate::ids::DefId],
+) -> TypedExpr {
+    for constructor_def in constructors {
+        let constructor = crate::lower::expr::resolve_bound_def_expr(state, *constructor_def);
+        value = crate::lower::expr::make_app(state, constructor, value);
+    }
+    value
 }
 
 fn constrain_error_up_effect(
