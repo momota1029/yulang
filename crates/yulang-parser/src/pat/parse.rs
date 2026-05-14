@@ -16,7 +16,7 @@ pub fn parse_pattern<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,
     i: In<I, S>,
 ) -> Option<Either<TriviaInfo, Lex>> {
-    Some(parse_pattern_bp(Prec::Lowest, leading_info, i)?.unwrap())
+    parse_pattern_bp(Prec::Lowest, leading_info, i).map(finish_top_pattern_result)
 }
 
 fn parse_pattern_bp<I: EventInput, S: EventSink>(
@@ -32,7 +32,13 @@ pub fn parse_pattern_from_nud<I: EventInput, S: EventSink>(
     i: In<I, S>,
     nud: Token<PatNudTag>,
 ) -> Option<Either<TriviaInfo, Lex>> {
-    Some(parse_pattern_from_nud_bp(Prec::Lowest, i, nud)?.unwrap())
+    parse_pattern_from_nud_bp(Prec::Lowest, i, nud).map(finish_top_pattern_result)
+}
+
+fn finish_top_pattern_result(
+    result: Result<Either<TriviaInfo, Lex>, Token<PatLedTag>>,
+) -> Either<TriviaInfo, Lex> {
+    result.expect("top-level pattern parsing must not return an infix operator")
 }
 
 fn parse_pattern_from_nud_bp<I: EventInput, S: EventSink>(
