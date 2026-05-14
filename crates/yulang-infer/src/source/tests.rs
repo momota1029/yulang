@@ -3582,7 +3582,7 @@ fn lowers_case_over_nominal_list_view_with_apply_in_body() {
 
         assert_eq!(
             crate::display::format::format_coalesced_scheme(&scheme),
-            "std::list::list<α> -> (β & γ) -> (β -> [δ] α -> [δ] γ) -> [δ] β | γ"
+            "std::list::list<α> -> β -> (β -> [γ] α -> [γ] β) -> [γ] β"
         );
     });
 }

@@ -104,6 +104,7 @@ fn lower_ref_set_assignment(
     let tv = state.fresh_tv();
     let eff = state.fresh_tv();
     let ref_eff = state.fresh_tv();
+    prefer_reference_field_projections(state, &reference);
     constrain_ref_set_assignment(state, tv, eff, ref_eff, &reference, &value, value_span);
     TypedExpr {
         tv,
@@ -151,6 +152,104 @@ fn constrain_ref_set_assignment(
         Pos::Con(crate::std_ref_paths::standard_ref_type_path(), ref_args),
         Neg::Var(reference.tv),
     );
+}
+
+fn prefer_reference_field_projections(state: &mut LowerState, expr: &TypedExpr) {
+    match &expr.kind {
+        ExprKind::Select { recv, name } => {
+            let _ = name;
+            prefer_reference_field_projections(state, recv);
+            state.infer.prefer_ref_projection_for_selection(expr.tv);
+        }
+        ExprKind::App { callee, arg, .. } => {
+            prefer_reference_field_projections(state, callee);
+            prefer_reference_field_projections(state, arg);
+        }
+        ExprKind::Tuple(items) => {
+            for item in items {
+                prefer_reference_field_projections(state, item);
+            }
+        }
+        ExprKind::Record { fields, spread } => {
+            for (_, value) in fields {
+                prefer_reference_field_projections(state, value);
+            }
+            if let Some(spread) = spread {
+                match spread {
+                    crate::ast::expr::RecordSpread::Head(expr)
+                    | crate::ast::expr::RecordSpread::Tail(expr) => {
+                        prefer_reference_field_projections(state, expr);
+                    }
+                }
+            }
+        }
+        ExprKind::Coerce { expr, .. }
+        | ExprKind::BindHere(expr)
+        | ExprKind::PackForall(_, expr) => {
+            prefer_reference_field_projections(state, expr);
+        }
+        ExprKind::Match(scrutinee, arms) => {
+            prefer_reference_field_projections(state, scrutinee);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    prefer_reference_field_projections(state, guard);
+                }
+                prefer_reference_field_projections(state, &arm.body);
+            }
+        }
+        ExprKind::Catch(body, arms) => {
+            prefer_reference_field_projections(state, body);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    prefer_reference_field_projections(state, guard);
+                }
+                match &arm.kind {
+                    crate::ast::expr::CatchArmKind::Effect { body, .. }
+                    | crate::ast::expr::CatchArmKind::Value(_, body) => {
+                        prefer_reference_field_projections(state, body);
+                    }
+                }
+            }
+        }
+        ExprKind::Block(block) => {
+            for stmt in &block.stmts {
+                match stmt {
+                    crate::ast::expr::TypedStmt::Let(_, value)
+                    | crate::ast::expr::TypedStmt::Expr(value) => {
+                        prefer_reference_field_projections(state, value);
+                    }
+                    crate::ast::expr::TypedStmt::Module(_, body) => {
+                        for stmt in &body.stmts {
+                            if let crate::ast::expr::TypedStmt::Expr(value)
+                            | crate::ast::expr::TypedStmt::Let(_, value) = stmt
+                            {
+                                prefer_reference_field_projections(state, value);
+                            }
+                        }
+                        if let Some(tail) = &body.tail {
+                            prefer_reference_field_projections(state, tail);
+                        }
+                    }
+                }
+            }
+            if let Some(tail) = &block.tail {
+                prefer_reference_field_projections(state, tail);
+            }
+        }
+        ExprKind::RefSet { reference, value } => {
+            prefer_reference_field_projections(state, reference);
+            prefer_reference_field_projections(state, value);
+        }
+        ExprKind::Lam(_, body) => {
+            prefer_reference_field_projections(state, body);
+        }
+        ExprKind::PolyVariant(_, args, _) => {
+            for arg in args {
+                prefer_reference_field_projections(state, arg);
+            }
+        }
+        ExprKind::Lit(_) | ExprKind::PrimitiveOp(_) | ExprKind::Var(_) | ExprKind::Ref(_) => {}
+    }
 }
 
 fn invariant_ref_args(

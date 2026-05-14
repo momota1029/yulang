@@ -156,6 +156,8 @@ pub(super) fn can_widen_runtime_value(actual: &typed_ir::Type, expected: &typed_
         ) if actual_args.is_empty() && expected_args.is_empty() => {
             typed_ir::can_widen_named_paths(actual_path, expected_path)
         }
+        (typed_ir::Type::Record(_), typed_ir::Type::Named { .. })
+        | (typed_ir::Type::Named { .. }, typed_ir::Type::Record(_)) => true,
         _ => false,
     }
 }

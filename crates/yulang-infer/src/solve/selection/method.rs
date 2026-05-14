@@ -41,6 +41,12 @@ impl Infer {
         }
     }
 
+    pub(crate) fn prefer_ref_projection_for_selection(&self, result_tv: TypeVar) {
+        self.ref_projection_preferred_selections
+            .borrow_mut()
+            .insert(result_tv);
+    }
+
     pub(crate) fn resolve_deferred_selections_for(&self, recv_tv: TypeVar) {
         let Some(selections) = self.deferred_selections.borrow().get(&recv_tv).cloned() else {
             return;
@@ -48,78 +54,9 @@ impl Infer {
 
         let mut unresolved = Vec::new();
         for selection in selections {
-            if let Some(def) = self.resolve_selection_def(recv_tv, &selection.name) {
-                if self.resolve_method_def_selection(recv_tv, &selection, def) {
-                    continue;
-                }
-            }
-
-            if !self.role_methods.contains_key(&selection.name)
-                && let Some(def) = self.unique_type_method_named(&selection.name)
-            {
-                if self.resolve_method_def_selection(recv_tv, &selection, def) {
-                    continue;
-                }
-            }
-
-            if let Some(def) = self.resolve_ref_selection_def(recv_tv, &selection.name) {
-                if self.resolve_method_def_selection(recv_tv, &selection, def) {
-                    continue;
-                }
-            }
-
-            if let Some(projection) =
-                self.resolve_ref_field_projection_info(recv_tv, &selection.name)
-            {
-                if self.resolve_ref_field_projection_selection(recv_tv, &selection, projection) {
-                    continue;
-                }
-            }
-
-            if let Some(info) = self.role_methods.get(&selection.name).cloned() {
-                if self.resolve_deferred_selection(recv_tv, &selection, &info) {
-                    continue;
-                }
-            }
-
-            match self.resolve_effect_method_info_from(
-                selection.module,
-                selection.recv_eff,
-                &selection.name,
-            ) {
-                EffectMethodResolution::Unique(info) => {
-                    if self.resolve_effect_method_selection(recv_tv, &selection, &info) {
-                        continue;
-                    }
-                }
-                EffectMethodResolution::Ambiguous(candidates) => {
-                    self.report_ambiguous_effect_method(
-                        &selection.name,
-                        &candidates,
-                        selection.result_tv,
-                    );
-                    if let Some(owner) = selection.owner {
-                        self.decrement_pending_selection(owner);
-                    }
-                    continue;
-                }
-                EffectMethodResolution::None => {}
-            }
-
-            if let Some(info) = super::extension::resolve_extension_method_info_from(
-                self,
-                selection.module,
-                &selection.name,
-            ) {
-                if self.resolve_extension_method_selection(recv_tv, &selection, &info) {
-                    continue;
-                }
-            }
-
-            if self.resolve_structural_record_selection(recv_tv, &selection) {
+            if self.try_resolve_deferred_selection_for_recv(recv_tv, &selection) {
                 continue;
             }
-
             unresolved.push(selection);
         }
 
@@ -130,6 +67,119 @@ impl Infer {
                 .borrow_mut()
                 .insert(recv_tv, unresolved);
         }
+    }
+
+    fn try_resolve_deferred_selection_for_recv(
+        &self,
+        recv_tv: TypeVar,
+        selection: &DeferredSelection,
+    ) -> bool {
+        let ref_projection_preferred = self
+            .ref_projection_preferred_selections
+            .borrow()
+            .contains(&selection.result_tv);
+        if self
+            .resolved_ref_field_projection(selection.result_tv)
+            .is_some()
+        {
+            return true;
+        }
+
+        if ref_projection_preferred {
+            if let Some(def) = self.resolve_ref_selection_def(recv_tv, &selection.name) {
+                if self.resolve_method_def_selection(recv_tv, selection, def) {
+                    return true;
+                }
+            }
+            if let Some(projection) =
+                self.resolve_ref_field_projection_info(recv_tv, &selection.name)
+                && self.resolve_ref_field_projection_selection(recv_tv, selection, projection, true)
+            {
+                return true;
+            }
+            if let Some(projection) = self.unique_ref_field_projection_named(&selection.name)
+                && self.resolve_ref_field_projection_selection(recv_tv, selection, projection, true)
+            {
+                return true;
+            }
+        }
+
+        match self.resolve_effect_method_info_from(
+            selection.module,
+            selection.recv_eff,
+            &selection.name,
+        ) {
+            EffectMethodResolution::Unique(info) => {
+                if self.resolve_effect_method_selection(recv_tv, selection, &info) {
+                    return true;
+                }
+            }
+            EffectMethodResolution::Ambiguous(candidates) => {
+                self.report_ambiguous_effect_method(
+                    &selection.name,
+                    &candidates,
+                    selection.result_tv,
+                );
+                if let Some(owner) = selection.owner {
+                    self.decrement_pending_selection(owner);
+                }
+                return true;
+            }
+            EffectMethodResolution::None => {}
+        }
+
+        if let Some(def) = self.resolve_ref_selection_def(recv_tv, &selection.name) {
+            if self.resolve_method_def_selection(recv_tv, selection, def) {
+                return true;
+            }
+        }
+
+        if let Some(def) = self.resolve_selection_def(recv_tv, &selection.name) {
+            if ref_projection_preferred
+                && let Some(type_path) = self.type_field_owner(def)
+                && let Some(projection) =
+                    self.ref_field_projection_for_type(&type_path, &selection.name)
+                && projection.field.def == def
+                && self.resolve_ref_field_projection_selection(recv_tv, selection, projection, true)
+            {
+                return true;
+            }
+            if self.resolve_method_def_selection(recv_tv, selection, def) {
+                return true;
+            }
+        }
+
+        if !self.role_methods.contains_key(&selection.name)
+            && let Some(def) = self.unique_type_method_named(&selection.name)
+        {
+            if self.resolve_method_def_selection(recv_tv, selection, def) {
+                return true;
+            }
+        }
+
+        if let Some(projection) = self.resolve_ref_field_projection_info(recv_tv, &selection.name) {
+            if self.resolve_ref_field_projection_selection(recv_tv, selection, projection, true) {
+                return true;
+            }
+        }
+
+        if let Some(info) = self.role_methods.get(&selection.name).cloned() {
+            if self.resolve_deferred_selection(recv_tv, selection, &info) {
+                return true;
+            }
+        }
+
+        if let Some(info) = super::extension::resolve_extension_method_info_from(
+            self,
+            selection.module,
+            &selection.name,
+        ) {
+            if self.resolve_extension_method_selection(recv_tv, selection, &info) {
+                return true;
+            }
+        }
+
+        self.resolve_structural_record_selection(recv_tv, selection)
     }
 
     fn resolve_final_structural_record_selections_for(&self, recv_tv: TypeVar) {
@@ -363,6 +413,7 @@ impl Infer {
         recv_tv: TypeVar,
         selection: &DeferredSelection,
         projection: RefFieldProjection,
+        decrement_owner: bool,
     ) -> bool {
         if self
             .resolved_ref_field_projections
@@ -374,6 +425,9 @@ impl Infer {
         self.resolved_ref_field_projections
             .borrow_mut()
             .insert(selection.result_tv, projection.clone());
+        self.resolved_selections
+            .borrow_mut()
+            .remove(&selection.result_tv);
 
         let eff_tv = fresh_type_var();
         let inner_tv = fresh_type_var();
@@ -438,7 +492,9 @@ impl Infer {
             for field in &projection.fields {
                 self.add_edge(owner, field.def);
             }
-            self.decrement_pending_selection(owner);
+            if decrement_owner {
+                self.decrement_pending_selection(owner);
+            }
         }
         true
     }
@@ -1022,6 +1078,19 @@ impl Infer {
             fields: field_set.fields.clone(),
             constructor: field_set.constructor,
         })
+    }
+
+    fn unique_ref_field_projection_named(&self, name: &Name) -> Option<RefFieldProjection> {
+        let mut found = None;
+        for type_path in self.type_fields.keys() {
+            let Some(projection) = self.ref_field_projection_for_type(type_path, name) else {
+                continue;
+            };
+            if found.replace(projection).is_some() {
+                return None;
+            }
+        }
+        found
     }
 
     fn resolve_selection_def_from_neg(

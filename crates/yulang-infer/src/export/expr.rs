@@ -606,13 +606,20 @@ impl<'a> ExprExporter<'a> {
         let old_name = typed_ir::Name(format!("__ref_field_old_t{}", expr.tv.0));
         let resume_name = typed_ir::Name(format!("__ref_field_resume_t{}", expr.tv.0));
         let new_field_name = typed_ir::Name(format!("__ref_field_new_t{}", expr.tv.0));
+        let parent_value_ty = typed_ir::Type::Named {
+            path: export_path(&projection.type_path),
+            args: Vec::new(),
+        };
 
         let get_body = apply_expr(
             typed_ir::Expr::Var(self.path_for_def(projection.field.def)),
-            apply_unit(apply_expr(
-                typed_ir::Expr::Var(ref_get_path(self.state)),
-                local_var(&parent_name),
-            )),
+            representation_coerce_expr(
+                apply_unit(apply_expr(
+                    typed_ir::Expr::Var(ref_get_path(self.state)),
+                    local_var(&parent_name),
+                )),
+                parent_value_ty.clone(),
+            ),
         );
 
         let update_body = typed_ir::Expr::Handle {
@@ -932,7 +939,11 @@ impl<'a> ExprExporter<'a> {
         old_name: &typed_ir::Name,
         target_value: typed_ir::Expr,
     ) -> typed_ir::Expr {
-        let old = local_var(old_name);
+        let parent_value_ty = typed_ir::Type::Named {
+            path: export_path(&projection.type_path),
+            args: Vec::new(),
+        };
+        let old = representation_coerce_expr(local_var(old_name), parent_value_ty);
         let mut fields = Vec::new();
         for field in &projection.fields {
             let selected_old_field = apply_expr(
@@ -964,7 +975,11 @@ impl<'a> ExprExporter<'a> {
         target_name: &Name,
         old_name: &typed_ir::Name,
     ) -> typed_ir::Expr {
-        let old = local_var(old_name);
+        let parent_value_ty = typed_ir::Type::Named {
+            path: export_path(&projection.type_path),
+            args: Vec::new(),
+        };
+        let old = representation_coerce_expr(local_var(old_name), parent_value_ty);
         let field = projection
             .fields
             .iter()
@@ -1623,6 +1638,17 @@ fn apply_expr(callee: typed_ir::Expr, arg: typed_ir::Expr) -> typed_ir::Expr {
         callee: Box::new(callee),
         arg: Box::new(arg),
         evidence: None,
+    }
+}
+
+fn representation_coerce_expr(expr: typed_ir::Expr, ty: typed_ir::Type) -> typed_ir::Expr {
+    typed_ir::Expr::Coerce {
+        expr: Box::new(expr),
+        evidence: Some(typed_ir::CoerceEvidence {
+            source_edge: None,
+            actual: typed_ir::TypeBounds::exact(ty.clone()),
+            expected: typed_ir::TypeBounds::exact(ty),
+        }),
     }
 }
 

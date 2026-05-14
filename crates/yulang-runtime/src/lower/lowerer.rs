@@ -871,16 +871,18 @@ impl Lowerer<'_> {
                     locals,
                     TypeSource::Expected,
                 )?;
-                let then_branch = self.lower_expr(
-                    *then_branch,
-                    Some(&result_hir_ty),
-                    locals,
+                let then_branch =
+                    self.lower_expr(*then_branch, None, locals, TypeSource::JoinEvidence)?;
+                let then_branch = self.prepare_lowered_expr_for_expected(
+                    then_branch,
+                    &result_hir_ty,
                     TypeSource::JoinEvidence,
                 )?;
-                let else_branch = self.lower_expr(
-                    *else_branch,
-                    Some(&result_hir_ty),
-                    locals,
+                let else_branch =
+                    self.lower_expr(*else_branch, None, locals, TypeSource::JoinEvidence)?;
+                let else_branch = self.prepare_lowered_expr_for_expected(
+                    else_branch,
+                    &result_hir_ty,
                     TypeSource::JoinEvidence,
                 )?;
                 let evidence = evidence.map(|_| JoinEvidence {
@@ -1094,8 +1096,13 @@ impl Lowerer<'_> {
                             .transpose()?;
                         let body = self.lower_expr(
                             arm.body,
-                            Some(&result_hir_ty),
+                            None,
                             &mut arm_locals,
+                            TypeSource::JoinEvidence,
+                        )?;
+                        let body = self.prepare_lowered_expr_for_expected(
+                            body,
+                            &result_hir_ty,
                             TypeSource::JoinEvidence,
                         )?;
                         Ok(MatchArm {
@@ -2302,6 +2309,104 @@ impl Lowerer<'_> {
         }
         callee.ty = substituted_ty;
         Some(TypeInstantiation { target, args })
+    }
+
+    fn prepare_lowered_expr_for_expected(
+        &mut self,
+        expr: Expr,
+        expected: &RuntimeType,
+        source: TypeSource,
+    ) -> RuntimeResult<Expr> {
+        if hir_type_contains_unknown(expected) {
+            return Ok(expr);
+        }
+        let expected_core = match value_hir_type(expected) {
+            RuntimeType::Core(ty) => Some(ty.clone()),
+            _ => None,
+        };
+        let actual_core = match value_hir_type(&expr.ty) {
+            RuntimeType::Core(ty) => Some(ty.clone()),
+            _ => None,
+        };
+        if let (Some(actual_core), Some(expected_core)) = (actual_core, expected_core) {
+            if let Some(cast) = self.implicit_cast_method_path(&actual_core, &expected_core) {
+                let (arg, _) = force_value_expr_profiled(expr, &mut self.runtime_adapter_profile);
+                let callee_ty = self.env.get(&cast).cloned().unwrap_or_else(|| {
+                    RuntimeType::fun(
+                        RuntimeType::core(actual_core.clone()),
+                        RuntimeType::core(expected_core.clone()),
+                    )
+                });
+                let callee = Expr::typed(ExprKind::Var(cast), callee_ty);
+                return Ok(Expr::typed(
+                    ExprKind::Apply {
+                        callee: Box::new(callee),
+                        arg: Box::new(arg),
+                        evidence: None,
+                        instantiation: None,
+                    },
+                    expected.clone(),
+                ));
+            }
+            if needs_runtime_coercion(&expected_core, &actual_core) {
+                let (expr, _) = force_value_expr_profiled(expr, &mut self.runtime_adapter_profile);
+                return Ok(Expr::typed(
+                    ExprKind::Coerce {
+                        from: actual_core.clone(),
+                        to: expected_core.clone(),
+                        expr: Box::new(expr),
+                    },
+                    expected.clone(),
+                ));
+            }
+        }
+        prepare_expr_for_expected_with_adapter_source_profiled(
+            expr,
+            expected,
+            source,
+            &mut self.runtime_adapter_profile,
+            self.current_runtime_adapter_source.clone(),
+        )
+    }
+
+    fn implicit_cast_method_path(
+        &self,
+        actual: &typed_ir::Type,
+        expected: &typed_ir::Type,
+    ) -> Option<typed_ir::Path> {
+        self.graph
+            .role_impls
+            .iter()
+            .filter(|role_impl| {
+                role_impl
+                    .role
+                    .segments
+                    .last()
+                    .is_some_and(|name| name.0 == "Cast")
+            })
+            .find_map(|role_impl| {
+                let input = role_impl.inputs.first()?;
+                let input = choose_bounds_type(input, BoundsChoice::ValidationEvidence)?;
+                if !core_types_compatible(&input, actual) || !core_types_compatible(actual, &input)
+                {
+                    return None;
+                }
+                let target = role_impl
+                    .associated_types
+                    .iter()
+                    .find(|associated| associated.name.0 == "to")?;
+                let target = choose_bounds_type(&target.value, BoundsChoice::ValidationEvidence)?;
+                if !core_types_compatible(&target, expected)
+                    || !core_types_compatible(expected, &target)
+                {
+                    return None;
+                }
+                role_impl
+                    .members
+                    .iter()
+                    .find(|member| member.name.0 == "cast")
+                    .map(|member| member.value.clone())
+            })
     }
 }
 
