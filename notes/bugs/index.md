@@ -23,15 +23,6 @@
   `UnsupportedEffectIdVar(0)` panic で死ぬ。`examples/10_effect_handler.yu`
   がそのまま動かない。1 引数の `listen(k ())` は通る。
 
-### Error 系
-
-- [`error_display_from_chain_missing.yu`](error_display_from_chain_missing.yu)
-  — `error io_err: fs from fs_err` のような from variant を持つ error
-  宣言で、`impl Display io_err` が自動生成されていない（`error my_err:
-  boom str` の単純宣言には生成される）。`io_err` 値の `.show` を呼ぶと
-  `Display::show` operation が unhandled で漏れる。`wrap` レシピの
-  `err e -> e.show` がそのまま動かない。
-
 ## 解決済み（2026-05-14 時点で再現せず）
 
 - [`var_effect_leak_with_wildcards.yu`](var_effect_leak_with_wildcards.yu) —
@@ -86,6 +77,9 @@
   — handler arm の `if` guard が偽のとき、次の arm に fall-through する。
 - [`error_display_impl_missing.yu`](error_display_impl_missing.yu) —
   `error E:` 宣言から `impl Display E` が自動生成され、`e.show` が通る。
+- [`error_display_from_chain_missing.yu`](error_display_from_chain_missing.yu)
+  — `error io_err: fs from fs_err` のような from variant を持つ error 宣言でも
+  `impl Display io_err` が生成され、from payload の `Display` に委譲する。
 - [`my_record_spread_rest_inference.yu`](my_record_spread_rest_inference.yu)
   — `my { x, y, ..rest } = expr` の `rest` が record 全体として bind され、
   後段の使用や extra field access も通る。

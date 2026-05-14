@@ -75,14 +75,16 @@ pub(crate) fn lower_error_decl(state: &mut LowerState, node: &SyntaxNode) {
         let Some(constructor_def) = state.same_path_value_def_for_effect_op(operation_def) else {
             continue;
         };
+        let display_delegate_sig = enum_variant_has_from_marker(&variant)
+            .then(|| payload_sig.clone())
+            .flatten();
         throw_variants.push(ErrorThrowVariant {
             payload_sig: payload_sig.clone(),
+            display_delegate_sig: display_delegate_sig.clone(),
             constructor_def,
             operation_def,
         });
-        if enum_variant_has_from_marker(&variant)
-            && let Some(source_sig) = payload_sig
-        {
+        if let Some(source_sig) = display_delegate_sig {
             up_sources.push(ErrorUpSource {
                 source_sig,
                 target_operation_def: operation_def,

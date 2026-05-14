@@ -14,6 +14,7 @@ pub(crate) use wrap::lower_synthetic_error_wrap;
 #[derive(Debug, Clone)]
 pub struct ErrorThrowVariant {
     pub(crate) payload_sig: Option<SigType>,
+    pub(crate) display_delegate_sig: Option<SigType>,
     pub(crate) constructor_def: crate::ids::DefId,
     pub(crate) operation_def: crate::ids::DefId,
 }

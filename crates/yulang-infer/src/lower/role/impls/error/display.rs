@@ -165,15 +165,33 @@ fn synthetic_error_display_arm(
     let pat_tv = state.fresh_tv();
     let ctor_ref =
         crate::lower::stmt::resolve_pattern_constructor_ref(state, variant.constructor_def);
-    let pat = if variant.payload_sig.is_some() {
+    state.ctx.push_local();
+    let payload_expr = if variant.payload_sig.is_some() {
+        let payload_name = Name("inner".to_string());
+        let payload_def = state.fresh_def();
         let payload_tv = state.fresh_tv();
+        state.register_def_tv(payload_def, payload_tv);
+        if let Some(owner) = state.current_owner {
+            state.register_def_owner(payload_def, owner);
+        }
+        state.register_def_name(payload_def, payload_name.clone());
+        state.ctx.bind_local(payload_name.clone(), payload_def);
+        Some(TypedExpr {
+            tv: payload_tv,
+            eff: state.fresh_exact_pure_eff_tv(),
+            kind: ExprKind::Var(payload_def),
+        })
+    } else {
+        None
+    };
+    let pat = if let Some(payload) = &payload_expr {
         TypedPat {
             tv: pat_tv,
             kind: PatKind::Con(
                 ctor_ref,
                 Some(Box::new(TypedPat {
-                    tv: payload_tv,
-                    kind: PatKind::Wild,
+                    tv: payload.tv,
+                    kind: PatKind::UnresolvedName(Name("inner".to_string())),
                 })),
             ),
         }
@@ -191,7 +209,13 @@ fn synthetic_error_display_arm(
     state
         .infer
         .constrain(Pos::Var(pat.tv), Neg::Var(scrutinee_tv));
-    let body = string_lit_expr(state, variant_display_text(state, variant));
+    let body = if variant.display_delegate_sig.is_some() {
+        payload_expr
+            .map(|payload| payload_display_expr(state, payload, variant))
+            .unwrap_or_else(|| string_lit_expr(state, variant_display_text(state, variant)))
+    } else {
+        string_lit_expr(state, variant_display_text(state, variant))
+    };
     let body = state
         .implicit_cast_boundary_with_effects(
             body,
@@ -202,11 +226,51 @@ fn synthetic_error_display_arm(
             true,
         )
         .0;
+    state.ctx.pop_local();
 
     TypedMatchArm {
         pat,
         guard: None,
         body,
+    }
+}
+
+fn payload_display_expr(
+    state: &mut LowerState,
+    payload: TypedExpr,
+    variant: &ErrorThrowVariant,
+) -> TypedExpr {
+    let tv = state.fresh_tv();
+    let eff = state.fresh_tv();
+    if let Some(owner) = state.current_owner {
+        state.infer.increment_pending_selection(owner);
+    }
+    state
+        .infer
+        .deferred_selections
+        .borrow_mut()
+        .entry(payload.tv)
+        .or_default()
+        .push(crate::solve::DeferredSelection {
+            name: Name("show".to_string()),
+            module: state.ctx.current_module,
+            recv_eff: payload.eff,
+            result_tv: tv,
+            result_eff: eff,
+            owner: state.current_owner,
+            cause: ConstraintCause {
+                span: variant.display_delegate_sig.as_ref().map(SigType::span),
+                reason: ConstraintReason::FieldSelection,
+            },
+            structural_record_allowed: false,
+        });
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::Select {
+            recv: Box::new(payload),
+            name: Name("show".to_string()),
+        },
     }
 }
 

@@ -1473,6 +1473,23 @@ e.show
     }
 
     #[test]
+    fn vm_runs_source_error_display_from_variant_delegates_to_payload() {
+        let results = eval_source_with_std(
+            r#"error fs_err:
+    not_found str
+
+error io_err:
+    fs from fs_err
+
+my e: io_err = io_err::fs (fs_err::not_found "x")
+e.show
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::String("not_found".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_effect_handler_return_example() {
         let results = eval_source_with_std(
             r#"pub act out:
