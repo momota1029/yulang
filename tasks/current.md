@@ -43,6 +43,8 @@ Cranelift backend を作る。
   小さい handler 境界は VM / CPS eval と合わせて regression 済み。
 - `Continue` / `Branch` / `DirectCall` / `ApplyClosure` も runtime value
   pointer を保持する regression を追加済み。
+- CPS repr closure / continuation env は 4 slot 固定 helper から外れ、
+  `*_many(ptr, len)` helper で larger effect-flow closure env を運べる。
 
 近い形:
 

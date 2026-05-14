@@ -2062,13 +2062,6 @@ fn make_closure<M: Module>(
             kind: "closure entry arity",
         });
     }
-    if closure_continuation.environment.len() > 4 {
-        return Err(CpsReprCraneliftError::UnsupportedStmt {
-            function: function.name.clone(),
-            kind: "closure environment larger than four slots",
-        });
-    }
-
     let func_ref = continuation_func_ref(module_backend, builder, function, entry, functions)?;
     let code = builder.ins().func_addr(types::I64, func_ref);
     let mut args = vec![code];
@@ -2076,13 +2069,22 @@ fn make_closure<M: Module>(
         validate_environment_lane(function, slot.value, slot.lane)?;
         args.push(read_value(builder, function, slot.value)?);
     }
+    if closure_continuation.environment.len() > 4 {
+        let (env_ptr, env_len) = stack_i64_slice(builder, &args[1..])?;
+        return call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_make_closure_i64_many",
+            &[code, env_ptr, env_len],
+        );
+    }
     let helper_name = match closure_continuation.environment.len() {
         0 => "yulang_cps_make_closure_i64_0",
         1 => "yulang_cps_make_closure_i64_1",
         2 => "yulang_cps_make_closure_i64_2",
         3 => "yulang_cps_make_closure_i64_3",
         4 => "yulang_cps_make_closure_i64_4",
-        _ => unreachable!("environment length checked above"),
+        _ => unreachable!("large environment returned above"),
     };
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
@@ -2106,13 +2108,6 @@ fn make_recursive_closure<M: Module>(
             kind: "recursive closure entry arity",
         });
     }
-    if closure_continuation.environment.len() > 4 {
-        return Err(CpsReprCraneliftError::UnsupportedStmt {
-            function: function.name.clone(),
-            kind: "recursive closure environment larger than four slots",
-        });
-    }
-
     let func_ref = continuation_func_ref(module_backend, builder, function, entry, functions)?;
     let code = builder.ins().func_addr(types::I64, func_ref);
     let mut args = vec![code];
@@ -2129,6 +2124,16 @@ fn make_recursive_closure<M: Module>(
     let Some(self_slot) = self_slot else {
         return make_closure(module_backend, builder, function, entry, functions);
     };
+    if closure_continuation.environment.len() > 4 {
+        let self_slot_value = builder.ins().iconst(types::I64, self_slot as i64);
+        let (env_ptr, env_len) = stack_i64_slice(builder, &args[1..])?;
+        return call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_make_recursive_closure_i64_many",
+            &[code, self_slot_value, env_ptr, env_len],
+        );
+    }
     let self_slot = builder.ins().iconst(types::I64, self_slot as i64);
     args.insert(1, self_slot);
     let helper_name = match closure_continuation.environment.len() {
@@ -2137,7 +2142,7 @@ fn make_recursive_closure<M: Module>(
         2 => "yulang_cps_make_recursive_closure_i64_2",
         3 => "yulang_cps_make_recursive_closure_i64_3",
         4 => "yulang_cps_make_recursive_closure_i64_4",
-        _ => unreachable!("environment length checked above"),
+        _ => unreachable!("large environment returned above"),
     };
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
@@ -2169,6 +2174,26 @@ fn call_helper<M: Module>(
     let helper = declare_import(module_backend, builder, name, params, ret)?;
     let call = builder.ins().call(helper, args);
     Ok(builder.inst_results(call)[0])
+}
+
+fn stack_i64_slice(
+    builder: &mut FunctionBuilder<'_>,
+    args: &[ir::Value],
+) -> CpsReprCraneliftResult<(ir::Value, ir::Value)> {
+    let byte_size = u32::try_from(args.len().saturating_mul(8)).map_err(|_| {
+        CpsReprCraneliftError::Cranelift("CPS repr stack slice is too large".to_string())
+    })?;
+    let slot = builder.create_sized_stack_slot(ir::StackSlotData::new(
+        ir::StackSlotKind::ExplicitSlot,
+        byte_size,
+        3,
+    ));
+    for (index, arg) in args.iter().copied().enumerate() {
+        builder.ins().stack_store(arg, slot, (index * 8) as i32);
+    }
+    let ptr = builder.ins().stack_addr(types::I64, slot, 0);
+    let len = builder.ins().iconst(types::I64, args.len() as i64);
+    Ok((ptr, len))
 }
 
 /// Emit an abort-active check after an internal call. If the runtime abort
@@ -2314,21 +2339,25 @@ fn scope_return_fallback_for_lane(
 fn make_env<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
-    function: &CpsReprAbiFunction,
+    _function: &CpsReprAbiFunction,
     args: &[ir::Value],
 ) -> CpsReprCraneliftResult<ir::Value> {
+    if args.len() > 4 {
+        let (env_ptr, env_len) = stack_i64_slice(builder, args)?;
+        return call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_make_env_i64_many",
+            &[env_ptr, env_len],
+        );
+    }
     let helper_name = match args.len() {
         0 => "yulang_cps_make_env_i64_0",
         1 => "yulang_cps_make_env_i64_1",
         2 => "yulang_cps_make_env_i64_2",
         3 => "yulang_cps_make_env_i64_3",
         4 => "yulang_cps_make_env_i64_4",
-        _ => {
-            return Err(CpsReprCraneliftError::UnsupportedTerminator {
-                function: function.name.clone(),
-                kind: "continuation environment larger than four slots",
-            });
-        }
+        _ => unreachable!("large environment returned above"),
     };
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
@@ -3342,12 +3371,6 @@ fn validate_scalar_function(
             return Err(CpsReprCraneliftError::UnsupportedFunction {
                 function: function.name.clone(),
                 reason: "continuation environment",
-            });
-        }
-        if has_effect_flow && continuation.environment.len() > 4 {
-            return Err(CpsReprCraneliftError::UnsupportedFunction {
-                function: function.name.clone(),
-                reason: "continuation environment larger than four slots",
             });
         }
         for slot in &continuation.environment {
@@ -4606,6 +4629,19 @@ fn make_native_i64_env(env: Vec<i64>) -> *const i64 {
     Box::leak(env.into_boxed_slice()).as_ptr()
 }
 
+unsafe fn native_i64_slice(ptr: *const i64, len: i64) -> Vec<i64> {
+    let Ok(len) = usize::try_from(len) else {
+        return Vec::new();
+    };
+    if len == 0 {
+        return Vec::new();
+    }
+    if ptr.is_null() {
+        return Vec::new();
+    }
+    unsafe { std::slice::from_raw_parts(ptr, len) }.to_vec()
+}
+
 fn native_cps_i64_heap(value: NativeCpsI64HeapValue) -> i64 {
     let pointer = Box::into_raw(Box::new(value)) as i64;
     NATIVE_CPS_I64_HEAP_VALUES.with(|values| {
@@ -4799,6 +4835,11 @@ extern "C" fn yulang_cps_make_env_i64_4(a: i64, b: i64, c: i64, d: i64) -> *cons
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn yulang_cps_make_env_i64_many(ptr: *const i64, len: i64) -> *const i64 {
+    make_native_i64_env(unsafe { native_i64_slice(ptr, len) })
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_closure_i64_0(code: usize) -> usize {
     make_native_i64_closure(code, Vec::new())
 }
@@ -4821,6 +4862,11 @@ extern "C" fn yulang_cps_make_closure_i64_3(code: usize, a: i64, b: i64, c: i64)
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_make_closure_i64_4(code: usize, a: i64, b: i64, c: i64, d: i64) -> usize {
     make_native_i64_closure(code, vec![a, b, c, d])
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_make_closure_i64_many(code: usize, ptr: *const i64, len: i64) -> usize {
+    make_native_i64_closure(code, unsafe { native_i64_slice(ptr, len) })
 }
 
 #[unsafe(no_mangle)]
@@ -4868,6 +4914,18 @@ extern "C" fn yulang_cps_make_recursive_closure_i64_4(
     d: i64,
 ) -> usize {
     make_native_i64_recursive_closure(code, self_slot as usize, vec![a, b, c, d])
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_make_recursive_closure_i64_many(
+    code: usize,
+    self_slot: i64,
+    ptr: *const i64,
+    len: i64,
+) -> usize {
+    make_native_i64_recursive_closure(code, self_slot as usize, unsafe {
+        native_i64_slice(ptr, len)
+    })
 }
 
 #[unsafe(no_mangle)]

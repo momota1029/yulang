@@ -269,6 +269,9 @@ or out of here into the user-facing table once they stabilize.
       through the Cranelift CPS repr scalar path for scalar observable roots.
 - [x] First-class lambda values can be created and applied through the
       Cranelift CPS repr scalar path for pure higher-order calls.
+- [x] Effect-flow closure / continuation environments are no longer limited to
+      four slots in the CPS repr Cranelift path; larger environments are copied
+      through `*_many(ptr, len)` runtime helpers.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
 - [x] Effectful thunks returned across an inlinable source-defined function

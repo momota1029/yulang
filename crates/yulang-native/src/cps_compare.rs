@@ -373,14 +373,18 @@ mod tests {
     }
 
     fn list_expr(items: Vec<i64>) -> runtime::Expr {
+        list_of_exprs(
+            items
+                .into_iter()
+                .map(|item| unknown_lit(typed_ir::Lit::Int(item.to_string())))
+                .collect(),
+        )
+    }
+
+    fn list_of_exprs(items: Vec<runtime::Expr>) -> runtime::Expr {
         items
             .into_iter()
-            .map(|item| {
-                primitive_call(
-                    typed_ir::PrimitiveOp::ListSingleton,
-                    vec![unknown_lit(typed_ir::Lit::Int(item.to_string()))],
-                )
-            })
+            .map(|item| primitive_call(typed_ir::PrimitiveOp::ListSingleton, vec![item]))
             .fold(
                 primitive_call(
                     typed_ir::PrimitiveOp::ListEmpty,
@@ -637,6 +641,63 @@ mod tests {
         assert_eq!(
             cps_cranelift_display_roots(&closure_apply),
             vec!["[6, 7]".to_string()]
+        );
+    }
+
+    #[test]
+    fn carries_large_closure_environment_through_cps_repr() {
+        let closure_apply = module_with_root(block(
+            vec![
+                runtime::Stmt::Let {
+                    pattern: bind_pattern("a"),
+                    value: unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                },
+                runtime::Stmt::Let {
+                    pattern: bind_pattern("b"),
+                    value: unknown_lit(typed_ir::Lit::Int("2".to_string())),
+                },
+                runtime::Stmt::Let {
+                    pattern: bind_pattern("c"),
+                    value: unknown_lit(typed_ir::Lit::Int("3".to_string())),
+                },
+                runtime::Stmt::Let {
+                    pattern: bind_pattern("d"),
+                    value: unknown_lit(typed_ir::Lit::Int("4".to_string())),
+                },
+                runtime::Stmt::Let {
+                    pattern: bind_pattern("e"),
+                    value: unknown_lit(typed_ir::Lit::Int("5".to_string())),
+                },
+                runtime::Stmt::Let {
+                    pattern: bind_pattern("f"),
+                    value: lambda(
+                        "u",
+                        handle_once(
+                            "choose",
+                            "x",
+                            "k",
+                            handled_body(apply(
+                                effect_op("choose"),
+                                list_of_exprs(vec![
+                                    var("a"),
+                                    var("b"),
+                                    var("c"),
+                                    var("d"),
+                                    var("e"),
+                                ]),
+                            )),
+                            apply(var("k"), var("x")),
+                        ),
+                    ),
+                },
+            ],
+            apply(var("f"), unknown_lit(typed_ir::Lit::Unit)),
+        ));
+
+        compare_cps_module(&closure_apply).expect("large closure env CPS matches VM");
+        assert_eq!(
+            cps_cranelift_display_roots(&closure_apply),
+            vec!["[1, 2, 3, 4, 5]".to_string()]
         );
     }
 
