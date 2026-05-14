@@ -662,6 +662,23 @@ button: :disabled
     }
 
     #[test]
+    fn vm_runs_source_record_alias_and_default_only_mix() {
+        let results = eval_source_with_std(
+            "my f config = case config: { host: h = \"localhost\", port = 80 } -> h + \":\" + port.show\n\
+(f { host: \"x\", port: 8080 }, f { port: 22 }, f {})\n",
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::Tuple(vec![
+                TestValue::String("x:8080".to_string()),
+                TestValue::String("localhost:22".to_string()),
+                TestValue::String("localhost:80".to_string()),
+            ])]
+        );
+    }
+
+    #[test]
     fn vm_runs_source_cast_declarations() {
         let results = eval_source_with_std(
             "struct user_id { raw: int }\n\

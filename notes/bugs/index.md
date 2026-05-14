@@ -6,11 +6,6 @@
 
 ### Pattern / binding 系
 
-- [`record_alias_default_mix.yu`](record_alias_default_mix.yu) —
-  record pattern で「alias + default」(`host: h = "..."`) と「default only」
-  (`port = 80`) を同じ pattern に混ぜると `expected (), got int` の型エラー。
-  単独はそれぞれ通る。`reference/patterns.md` の「別名とデフォルト」例が
-  動かない。
 - [`enum_curried_payload_unresolved.yu`](enum_curried_payload_unresolved.yu)
   — `enum tree 'a: leaf, node 'a (tree 'a) (tree 'a)` のような複数 payload
   variant を、pattern 側で `tree::node value left right` と分解すると
@@ -81,6 +76,11 @@
   pattern binding 名が in-scope の variant constructor と一致すると、
   binding ではなく nested variant pattern として解釈されていた。現在は
   binding として通る (`result::err err -> ...` が動く)。
+- [`record_alias_default_mix.yu`](record_alias_default_mix.yu) —
+  record pattern で「alias + default」(`host: h = "..."`) と「default only」
+  (`port = 80`) を同じ pattern に混ぜても通る。`f {}` のように optional
+  field が呼び出し側で省略された場合も、default / role bounds 由来の型が
+  runtime specialization に残る。
 
 ## 仕様だけど docs 側で補足が欲しいもの
 

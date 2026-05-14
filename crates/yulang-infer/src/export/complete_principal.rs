@@ -706,7 +706,7 @@ fn source_range(range: Option<rowan::TextRange>) -> Option<typed_ir::SourceRange
 
 fn apply_principal_substitutions_from_parts(
     infer: &Infer,
-    _requirements: &[typed_ir::RoleRequirement],
+    requirements: &[typed_ir::RoleRequirement],
     param: &typed_ir::Type,
     ret: &typed_ir::Type,
     params: &BTreeSet<typed_ir::TypeVar>,
@@ -729,6 +729,7 @@ fn apply_principal_substitutions_from_parts(
         profile.substitution_slots += t.elapsed();
     }
 
+    infer_requirement_substitutions(&mut unifier, requirements);
     let t = CompletePrincipalClock::now(profile.is_some());
     if !unifier.covers_params() {
         if let Some(arg_ty) = export_monomorphic_type_for_tv_cached(
@@ -766,6 +767,51 @@ fn apply_principal_substitutions_from_parts(
         profile.substitution_emit += t.elapsed();
     }
     substitutions
+}
+
+fn infer_requirement_substitutions(
+    unifier: &mut PrincipalSubstitutionUnifier<'_>,
+    requirements: &[typed_ir::RoleRequirement],
+) {
+    for requirement in requirements {
+        for arg in &requirement.args {
+            match arg {
+                typed_ir::RoleRequirementArg::Input(bounds)
+                | typed_ir::RoleRequirementArg::Associated { bounds, .. } => {
+                    infer_bounds_substitutions(unifier, bounds);
+                }
+            }
+        }
+    }
+}
+
+fn infer_bounds_substitutions(
+    unifier: &mut PrincipalSubstitutionUnifier<'_>,
+    bounds: &typed_ir::TypeBounds,
+) {
+    let (Some(lower), Some(upper)) = (bounds.lower.as_deref(), bounds.upper.as_deref()) else {
+        return;
+    };
+    infer_direct_concrete_bound_substitution(unifier, upper, lower);
+    infer_direct_concrete_bound_substitution(unifier, lower, upper);
+    unifier.infer_value(upper, lower);
+    unifier.infer_value(lower, upper);
+}
+
+fn infer_direct_concrete_bound_substitution(
+    unifier: &mut PrincipalSubstitutionUnifier<'_>,
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+) {
+    let typed_ir::Type::Var(var) = template else {
+        return;
+    };
+    if !unifier.params.contains(var) {
+        return;
+    }
+    if let Some(actual) = primary_structural_or_concrete_type_not_equal(actual, template) {
+        unifier.bind(var, actual, false);
+    }
 }
 
 fn complete_substitutions_from_candidates_and_irrelevant_ret(
@@ -1018,7 +1064,7 @@ pub(super) fn residual_apply_principal_scheme_cached(
 
 fn apply_principal_substitutions_from_monomorphic_tvs(
     infer: &Infer,
-    _requirements: &[typed_ir::RoleRequirement],
+    requirements: &[typed_ir::RoleRequirement],
     param: &typed_ir::Type,
     ret: &typed_ir::Type,
     params: &BTreeSet<typed_ir::TypeVar>,
@@ -1030,11 +1076,16 @@ fn apply_principal_substitutions_from_monomorphic_tvs(
         return Vec::new();
     }
     let mut unifier = PrincipalSubstitutionUnifier::new(params);
-    if let Some(arg_ty) = export_monomorphic_type_for_tv_cached(infer, arg_tv, None, cache) {
-        unifier.infer_value(param, &arg_ty);
-    }
-    if let Some(result_ty) = export_monomorphic_type_for_tv_cached(infer, result_tv, None, cache) {
-        unifier.infer_value(ret, &result_ty);
+    infer_requirement_substitutions(&mut unifier, requirements);
+    if !unifier.covers_params() {
+        if let Some(arg_ty) = export_monomorphic_type_for_tv_cached(infer, arg_tv, None, cache) {
+            unifier.infer_value(param, &arg_ty);
+        }
+        if let Some(result_ty) =
+            export_monomorphic_type_for_tv_cached(infer, result_tv, None, cache)
+        {
+            unifier.infer_value(ret, &result_ty);
+        }
     }
     unifier
         .into_substitutions()
@@ -2590,6 +2641,28 @@ mod tests {
         unifier.infer_value(&typed_ir::Type::Var(tv("t")), &named("bool"));
 
         assert!(unifier.into_substitutions().next().is_none());
+    }
+
+    #[test]
+    fn requirement_bounds_bind_upper_param_to_lower_type() {
+        let mut unifier = one_param_unifier();
+        let requirements = vec![typed_ir::RoleRequirement {
+            role: typed_ir::Path::from_name(typed_ir::Name("Display".to_string())),
+            args: vec![typed_ir::RoleRequirementArg::Input(typed_ir::TypeBounds {
+                lower: Some(Box::new(typed_ir::Type::Union(vec![
+                    typed_ir::Type::Var(tv("t")),
+                    named("int"),
+                ]))),
+                upper: Some(Box::new(typed_ir::Type::Var(tv("t")))),
+            })],
+        }];
+
+        infer_requirement_substitutions(&mut unifier, &requirements);
+
+        assert_eq!(
+            unifier.into_substitutions().collect::<Vec<_>>(),
+            vec![(tv("t"), named("int"))]
+        );
     }
 
     #[test]
