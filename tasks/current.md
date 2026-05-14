@@ -38,6 +38,9 @@ Cranelift backend を作る。
   `ValueFastPath` / `CpsMainline` / `Unsupported(reason)` を返す。
   `native-run` は effect / handler / thunk boundary を含む root を CPS repr
   executable path へ直接送る。
+- CPS repr Cranelift は `RuntimeValuePtr` を root return と handler /
+  resumption payload に通せる。string / list / record / variant payload の
+  小さい handler 境界は VM / CPS eval と合わせて regression 済み。
 
 近い形:
 

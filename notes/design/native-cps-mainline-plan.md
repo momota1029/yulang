@@ -91,10 +91,10 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 
 ### 2. CPS Runtime Value Lane
 
-- [ ] CPS repr ABI に `RuntimeValuePtr` を first-class lane として通す。
+- [x] CPS repr ABI に `RuntimeValuePtr` を first-class lane として通す。
 - [ ] `Continue` / `Branch` / `DirectCall` / `ApplyClosure` が runtime value pointer を壊さず運べるようにする。
-- [ ] value backend の boxed helper symbols を CPS repr Cranelift から呼ぶ。
-- [ ] string/list/record/variant root を CPS repr executable path で VM と比較する。
+- [x] value backend 相当の boxed helper symbols を CPS repr Cranelift から呼ぶ。
+- [x] string/list/record/variant root を CPS repr executable path で VM と比較する。
 
 ### 3. CPS Closure / Partial Application
 

@@ -85,7 +85,7 @@ checklist, see *Detailed progress* below.
 | --------------------------------------------------- | :----: |
 | Scalar (`i64`-shaped) executable result             |   ✅   |
 | Value executable result (printed as a Yulang value) |   ✅   |
-| Non-scalar CPS executable result                    |   ❌   |
+| Non-scalar CPS executable result                    |   ✅   |
 
 When a program falls outside this subset, `yulang native` prints
 `native-run: value backend unsupported, using CPS repr: ...` and either
@@ -301,6 +301,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] Source-level callback return hygiene is covered in the CPS repr scalar
       path: direct `f()` inside an inner `sub` is captured there, while
       callback `h()` escapes to the caller's `sub`.
+- [x] String, list, record, and variant payloads can cross a small source-shaped
+      handler / resumption boundary in the CPS repr Cranelift path and print as
+      Yulang-like values.
 - [ ] General closures and heap value lanes are not complete.
 - [x] Non-scalar CPS return values that use the prototype tuple / list /
       record / variant / string heap handles print as Yulang-like values in

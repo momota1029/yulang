@@ -367,6 +367,55 @@ mod tests {
         }
     }
 
+    fn primitive_call(op: typed_ir::PrimitiveOp, args: Vec<runtime::Expr>) -> runtime::Expr {
+        args.into_iter()
+            .fold(primitive(op), |callee, arg| apply(callee, arg))
+    }
+
+    fn list_expr(items: Vec<i64>) -> runtime::Expr {
+        items
+            .into_iter()
+            .map(|item| {
+                primitive_call(
+                    typed_ir::PrimitiveOp::ListSingleton,
+                    vec![unknown_lit(typed_ir::Lit::Int(item.to_string()))],
+                )
+            })
+            .fold(
+                primitive_call(
+                    typed_ir::PrimitiveOp::ListEmpty,
+                    vec![unknown_lit(typed_ir::Lit::Unit)],
+                ),
+                |acc, item| primitive_call(typed_ir::PrimitiveOp::ListMerge, vec![acc, item]),
+            )
+    }
+
+    fn record(fields: Vec<(&str, runtime::Expr)>) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Record {
+                fields: fields
+                    .into_iter()
+                    .map(|(name, value)| runtime::RecordExprField {
+                        name: typed_ir::Name(name.to_string()),
+                        value,
+                    })
+                    .collect(),
+                spread: None,
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn variant(tag: &str, value: Option<runtime::Expr>) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Variant {
+                tag: typed_ir::Name(tag.to_string()),
+                value: value.map(Box::new),
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
     fn compare_all(module: &runtime::Module) {
         compare_module(module).expect("native control matches VM");
         compare_cps_module(module).expect("CPS matches VM");
@@ -374,6 +423,12 @@ mod tests {
 
     fn compare_cps_cranelift_i64(module: &runtime::Module) {
         compare_cps_repr_cranelift_i64(module).expect("CPS repr Cranelift matches VM");
+    }
+
+    fn cps_cranelift_display_roots(module: &runtime::Module) -> Vec<String> {
+        let mut jit =
+            compile_runtime_module_to_cps_repr_jit(module).expect("compiled CPS repr Cranelift");
+        jit.run_roots_display().expect("ran CPS repr Cranelift")
     }
 
     #[test]
@@ -506,6 +561,46 @@ mod tests {
             handled_body(body),
             arm_body,
         )));
+    }
+
+    #[test]
+    fn compares_non_scalar_effect_payloads_with_cps_repr_cranelift() {
+        let cases = vec![
+            (
+                unknown_lit(typed_ir::Lit::String("ok".to_string())),
+                "ok".to_string(),
+            ),
+            (list_expr(vec![1, 2, 3]), "[1, 2, 3]".to_string()),
+            (
+                record(vec![(
+                    "answer",
+                    unknown_lit(typed_ir::Lit::Int("42".to_string())),
+                )]),
+                "{ answer: 42 }".to_string(),
+            ),
+            (
+                variant(
+                    "just",
+                    Some(unknown_lit(typed_ir::Lit::Int("7".to_string()))),
+                ),
+                ":just 7".to_string(),
+            ),
+        ];
+
+        for (payload, expected) in cases {
+            let body = apply(effect_op("choose"), payload);
+            let arm_body = apply(var("k"), var("x"));
+            let module = module_with_root(handle_once(
+                "choose",
+                "x",
+                "k",
+                handled_body(body),
+                arm_body,
+            ));
+
+            compare_cps_module(&module).expect("CPS matches VM");
+            assert_eq!(cps_cranelift_display_roots(&module), vec![expected]);
+        }
     }
 
     #[test]

@@ -168,6 +168,11 @@ impl CpsReprJitModule {
         &self.cranelift_ir
     }
 
+    pub fn run_roots_display(&mut self) -> CpsReprCraneliftResult<Vec<String>> {
+        self.run_roots_i64()
+            .map(|roots| roots.into_iter().map(describe_cps_repr_i64_value).collect())
+    }
+
     pub fn run_roots_i64(&mut self) -> CpsReprCraneliftResult<Vec<i64>> {
         self.module
             .finalize_definitions()
@@ -4641,6 +4646,10 @@ fn native_cps_i64_string_from_raw(ptr: *const u8, len: i64) -> Option<String> {
     let len = usize::try_from(len).ok()?;
     let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
     std::str::from_utf8(bytes).ok().map(str::to_string)
+}
+
+pub fn describe_cps_repr_i64_value(value: i64) -> String {
+    describe_native_i64_value(value)
 }
 
 fn describe_native_i64_value(value: i64) -> String {
