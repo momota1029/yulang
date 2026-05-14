@@ -2,6 +2,57 @@
 
 型推論結果を外部表現に変換する export サブシステムは、段階的な拡張を重ねてきたもので、5200行超の principal.rs と complete_principal.rs に相互依存と構造的な重複が蓄積している。特に「完全な」型推論キャッシュとのバランスをとるため、ほぼ同じロジックが複数の場所に分散している。以下は最も悪い匂いのスポット。
 
+## 2026-05-14 構造調査メモ: `principal.rs` ↔ `complete_principal.rs`
+
+結論として、この 2 ファイルは完全な兄弟実装ではない。`principal.rs` は export の
+public entrypoint と binding/root/graph の orchestration、`complete_principal.rs` は
+apply/coerce evidence と principal substitution を補完する solver に近い。
+一方でファイル名と置き場所が曖昧で、`complete_principal.rs` が evidence 収集、
+apply-site substitution、derived edge、runtime usable 判定、型 traversal helper を
+全部抱えているため、「並走」に見える状態になっている。
+
+依存方向はおおむね次の通り。
+
+- `principal.rs` → `complete_principal.rs`: expected edge evidence の収集・変換元型、
+  `CompletePrincipalCache` を使う。
+- `principal.rs` → `expr.rs`: binding body / root expr export を委譲する。
+- `expr.rs` → `complete_principal.rs`: apply/coerce evidence、residual scheme、
+  principal elaboration plan 用の補完を呼ぶ。
+- `paths.rs` → `principal.rs`: referenced binding closure の中で
+  `export_principal_binding` を呼ぶ。
+- `complete_principal.rs` → `types.rs` / `names.rs`: type bounds export と path export
+  だけに依存し、`principal.rs` には依存していない。
+
+したがって、いきなり `principal.rs` と `complete_principal.rs` を統合するより、
+`complete_principal.rs` を責務別に割る方が安全。
+
+推奨する分割順:
+
+1. `complete_principal.rs` から evidence 収集系を `export/evidence.rs` へ分離する。
+   対象は `ExpectedEdgeEvidence` / `ExpectedAdapterEdgeEvidence` /
+   `HandlerMatchEvidence` / `DerivedExpectedEdgeEvidence` と
+   `collect_*_evidence` / `derive_*_edge` 群。
+2. apply-site principal 補完を `export/apply_principal.rs` へ分離する。
+   対象は `CompleteApplyPrincipalEvidence`、`CompletePrincipalCache`、
+   `ApplySlotBounds`、`complete_apply_principal_evidence_*`、
+   `residual_apply_principal_scheme_cached`、`PrincipalSubstitutionUnifier` と
+   candidate/substitution helper 群。
+3. `principal.rs` 側の runtime scheme refinement と
+   `complete_principal.rs` 側の `runtime_usable` / `type_has_unknown` / `type_has_vars`
+   系を `export/type_props.rs` のような typed-ir utility に寄せる。
+   ここは似た traversal が複数あり、今後の回帰原因になりやすい。
+4. `principal.rs` と `paths.rs` に重複している timing/profile 出力を
+   `export/timing.rs` へ出す。これは挙動に触れずにできる小さめの整理。
+5. 最後に `export_principal_binding` と referenced closure の循環気味の関係を
+   `export/bindings.rs` へ寄せ、`principal.rs` は
+   `export_core_program` / `export_principal_module` などの entrypoint だけにする。
+
+この順なら、public API を動かさずに 5000 行級の 2 ファイルを
+「entrypoint」「evidence」「apply principal solver」「typed-ir property」
+へ分けられる。最初に触るなら 1 か 4 が低リスク。大きく削るなら 1+2 を
+同じブランチでやるのが効果的だが、`expr.rs` の apply evidence 呼び出しが
+ホットパスなので cache の受け渡しは変えない方がよい。
+
 ---
 
 ## 1. principal.rs と complete_principal.rs の明らかな並列構造
@@ -595,4 +646,3 @@ fn collect_export_target_defs(
 pending ベクタの insert/pop の順番（DFS vs BFS）が呼び出し元で制御されている。extend_* 関数側で pending を push することで、invariant が分散。
 
 **所感**: 深さ優先・幅優先のどちらが想定か不明。もっと explicit にするといいかも。
-
