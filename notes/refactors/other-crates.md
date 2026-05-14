@@ -44,6 +44,11 @@ pub fn compile_cps_repr_abi_module(
 
 **所感**: ファイル自体が責務を持ちすぎており、「型バリアント毎の Cranelift 生成」「記号テーブル構築」「実行ロジック」が混在してます。記号群は macro か別ファイルへ抽出するかもね。
 
+**対応メモ (2026-05-14)**: JIT runtime symbol 登録は
+`cps_repr_cranelift/runtime_symbols.rs` へ分離済み。`compile_cps_repr_abi_module`
+の入口から機械的な `builder.symbol(...)` 列は外れた。Cranelift lowering 本体の
+巨大 match 群はまだ残っている。
+
 ---
 
 ## 2. cps_repr_cranelift.rs: 348 行の効果マッチ分散
@@ -415,4 +420,3 @@ pub fn compute_with_op_table_and_highlights(
 ### 効果系とスカラー系の二重実装
 - `lower_effect_stmt` / `lower_stmt`、`lower_effect_terminator` / `lower_terminator` が cps_repr_cranelift に両存
 - ポリモルフィズムで統一化できる匂いが濃い。
-
