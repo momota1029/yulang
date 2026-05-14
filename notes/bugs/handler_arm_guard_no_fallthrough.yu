@@ -1,0 +1,67 @@
+-- bug: handler arm の `if` guard が偽になったとき、次 arm に fall-through
+--      せず effect が unhandled として外に漏れる
+--
+-- 期待:
+--   `case` の arm guard と同じく、handler arm の guard も「マッチしたが
+--   guard 失敗 → 次の arm を試す」が自然な挙動。
+--
+--     catch action:
+--         log::put n, k if n > 0 -> run (k ())   -- 正の値だけ通す
+--         log::put _, k -> run (k ())             -- それ以外も全部受ける
+--         v -> v
+--
+--   `log::put -1` を発火すると最初の arm で guard 失敗 → 2 番目の arm が
+--   `_` で受けて handler が完結する、と読める。
+--
+-- 実際:
+--   run: log::put -1
+--   → request log::put -1 blocked=Some(0)
+--
+--   最初の arm で guard 失敗した時点で「この operation はマッチしなかった」
+--   扱いになり、2 番目の arm を試さずに effect が外に漏れる。`blocked=Some(0)`
+--   は arm 0 で止まったことを示している。
+--
+-- 切り分け:
+--
+--   log::put 5 (guard 成立) → `()` 通る ✓
+--   log::put -1 (guard 失敗) → 漏れる ✗
+--
+--   `case` 文での同等パターンは fall-through する:
+--     case n:
+--         x if x > 0 -> "pos"
+--         _ -> "other"
+--   → `n = -1` で `"other"` を返す ✓
+--
+--   handler arm だけが、guard 失敗時に次 arm へ進む経路を持っていない。
+--
+-- 影響:
+--   - 「same operation で payload に応じて処理を分ける」という、handler の
+--     極めて自然な使い方が動かない。
+--   - guard 失敗時に static error にもならず、無警告で runtime に effect
+--     unhandled request として外に漏れる。
+--   - workaround は arm body 内で `if` 分岐を書くこと:
+--
+--       log::put n, k ->
+--           if n > 0:
+--               run (k ())
+--           else:
+--               run (k ())
+--
+--     これだと書ける、けど `case` 風の宣言的な書き方ができない。
+--
+-- メモ:
+--   handler dispatch の lower で arm を try する経路が、operation 名で
+--   一致した時点で arm を確定し、guard 失敗を「マッチしなかった」ではなく
+--   「マッチしたが body に進めない」として処理している疑い。
+--   `case` の arm dispatch と同じ「guard fail → 次 arm」の流れに合わせる
+--   修正が必要。
+
+act log:
+    pub put: int -> ()
+
+my run(a: [log] 'r): 'r = catch a:
+    log::put n, k if n > 0 -> run (k ())
+    log::put _, k -> run (k ())
+    v -> v
+
+run: log::put -1

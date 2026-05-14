@@ -1,0 +1,54 @@
+-- bug: nominal な struct のリテラルに、宣言にない extra field を書いても
+--      無警告で通り、runtime には extra field が乗ったまま残る
+--
+-- 期待:
+--   `web/docs/ja/reference/structs.md` の冒頭:
+--
+--     struct point { x: int, y: int }
+--
+--     `struct` は nominal な record type である。
+--
+--   と documented。nominal なら宣言で固定された field 集合が型の identity
+--   になるので、`point { x: 3, y: 4, z: 5 }` のような extra field は
+--   「`z` という field は point に存在しない」として弾かれるべき。
+--
+-- 実際:
+--   struct point { x: int, y: int }
+--   point { x: 3, y: 4, z: 5 }
+--   → [0] {x = 3, y = 4, z = 5}
+--
+--   diagnostic は出ず、`z = 5` を含む値がそのまま返る。型注釈で
+--   `my p: point = point { x: 3, y: 4, z: 5 }` と書いても同じく通って、
+--   表示は `{x = 3, y = 4, z = 5}`。
+--
+--   後段で `p.z` を参照すると「no field or method named `.z`」になるので、
+--   型レベルでは `z` が無い扱い。値表現と型表現が乖離している。
+--
+-- 切り分け:
+--
+--   point { x: 3 }                  → ✓ 正しく「missing field y」エラー
+--   point { x: 3, y: 4 }            → ✓
+--   point { x: 3, y: 4, z: 5 }      → ✗ 通ってしまう
+--   typed: my p: point = ...{...,z:5} → ✗ 同じく通る、表示には z が残る
+--   後段 p.z                          → ✓ 「no field」 (型は point として整合)
+--
+--   anonymous record 同士の subtyping (`{x, y, z} <: {x, y}`) のルールが
+--   nominal struct literal の field 検査にも漏れて適用されている疑い。
+--
+-- 影響:
+--   - struct の nominal 性が破れる。typo した field name が無警告で
+--     ペイロードに乗ってしまい、後段で「型は OK だけど値の中身が変」と
+--     なる。
+--   - `point` を生成して保存する場面で、生成側が extra field を持ち込んで
+--     も気付けない。後で別の API に渡したとき初めて違和感が出る。
+--   - 型と値の乖離は、後段の memory 表現や serialize / deserialize 系の
+--     処理で扱いが難しくなる。
+--
+-- メモ:
+--   struct literal の lower で「宣言にある field だけ受け、extra は弾く」
+--   検査を入れる必要がある。anonymous record の場合の `{x: 1, y: 2, z: 3}`
+--   は仕様通り通せばいいので、struct 名指定 (`point { ... }`) のときだけ
+--   field 集合を厳密にする。
+
+struct point { x: int, y: int }
+point { x: 3, y: 4, z: 5 }

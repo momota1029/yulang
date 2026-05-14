@@ -1,0 +1,72 @@
+-- bug: `error E:` 宣言が約束する `impl Display E` が自動生成されない
+--
+-- 期待:
+--   `web/docs/ja/reference/errors.md` の宣言節:
+--
+--     pub error fs_err:
+--         not_found path
+--         denied path
+--         invalid_path str
+--
+--     この一行で次のものがまとめて生成される。
+--     - `pub enum fs_err`
+--     - `pub act fs_err`
+--     - `impl Throw fs_err`
+--     - `impl Display fs_err` — 既定の文字列化（手書きの impl で上書き可能）
+--     - `fs_err::wrap` / `fs_err::up`
+--
+--   と documented。なので:
+--
+--     error my_err: boom str
+--     my e: my_err = my_err::boom "x"
+--     e.show
+--
+--   は既定の Display impl で何かしらの文字列を返すはず。
+--
+-- 実際:
+--   error my_err:
+--       boom str
+--   my e: my_err = my_err::boom "x"
+--   e.show
+--   → type error: no impl for std::prelude::Display<my_err>
+--
+--   `Display E` impl が立っていないため、`e.show` が解決できない。
+--
+-- 切り分け:
+--
+--   `fail` / `e.throw` (Throw 由来) → 動く ✓
+--   `fs_err::wrap` / `fs_err::up` → 動く ✓ (前 bug 修正済み)
+--   `e.show` (Display 由来) → 落ちる ✗
+--
+--   error 宣言から自動生成される 5 つのうち、Display impl だけ立っていない。
+--   ユーザが `impl Display my_err: our e.show = ...` と手書きすれば動く。
+--
+--   関連症状: `e.show` が必要な場面で error 値が動かない。例えば:
+--
+--     case io_err::wrap: thunk:
+--         ok t -> t
+--         err e -> e.show          -- ← ここで詰まる
+--
+--   `errors.md` / `cookbook.md` の `wrap` レシピがそのまま動かない。
+--
+-- 影響:
+--   - error 値を文字列化したいすべての場面で詰まる。errors.md の
+--     `case fs_err::wrap: ...: ok text -> use text; err e -> e.show` 例が
+--     動かない（wrap 自体は直ったが、その先の `e.show` で落ちる）。
+--   - error 宣言の sugar が「全部生成」と謳いながら 1 つ抜けているので、
+--     ユーザは「動かない理由が docs から読めない」状態になる。
+--   - workaround は手書き Display impl だが、error 1 つごとに variant 列挙
+--     を case で分岐する boilerplate が要るので、sugar の旨味が大きく削がれる。
+--
+-- メモ:
+--   error 宣言の lower で `impl Display E: our e.show = case e: ... | ... ` を
+--   合成して登録する pass が抜けている疑い。Throw / wrap / up は出ているので、
+--   companion 生成のリストから Display だけ漏れた印象。
+--   なお bare の enum (`enum k: foo str | bar int`) には Display 自動生成は
+--   documented されていないので、enum 側の `e.show` は出ないままで仕様。
+
+error my_err:
+    boom str
+
+my e: my_err = my_err::boom "x"
+e.show

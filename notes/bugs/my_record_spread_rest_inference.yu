@@ -1,0 +1,51 @@
+-- bug: `my { x, y, ..rest } = expr` の `rest` の型推論が通らない
+--
+-- 期待:
+--   `web/docs/ja/reference/patterns.md` の record spread:
+--
+--     case rec:
+--         { x, .._ } -> x
+--         { ..tail, y } -> y
+--
+--   と同じ spread を `my` の destructuring に書ける、と patterns.md は
+--   約束している。`my { x, y, ..rest } = { x: 1, y: 2, a: "a", b: "b" }`
+--   なら `rest = { a: "a", b: "b" }` に bind されるはず。
+--
+-- 実際:
+--   my { x, y, ..rest } = { x: 1, y: 2, a: "a", b: "b" }
+--   (x, y, rest)
+--   → error: cannot infer all runtime types needed for `rest`. Add a type
+--      annotation that fixes the remaining type variables: 'a, 'a.
+--      Source: binding type parameters.
+--
+--   `rest` の型変数が残ったまま固まらず、runtime 用の specialization に
+--   落とせない。
+--
+-- 切り分け:
+--
+--   my { x, y } = { x: 1, y: 2 }                → 通る ✓
+--   my (a, b) = (1, 2)                            → 通る ✓
+--   case rec: { x, y, ..rest } -> rest            → 通る ✓ (case の中なら spread OK)
+--   my { x, y, ..rest } = ...                     → 落ちる ✗
+--
+--   case や関数引数 pattern の spread は通る。`my pat = expr` 形だけ rest の
+--   row inference が固められない。
+--
+--   解決済み bug `my_destructuring_unbound.yu` の親戚で、`my` の lowering が
+--   spread 形だけ取り残されている。tuple や rest なし record は前回 fix
+--   されたが、record の `..rest` だけ残った。
+--
+-- 影響:
+--   - patterns.md の `my pat = expr` の record spread 例がそのまま動かない。
+--   - 「他の field は触らずに残し、必要な field だけ取り出す」というよくある
+--     パターンが書けず、case で展開する手間が要る。
+--
+-- メモ:
+--   `my` の lowering で record spread が rest の row 制約を立てているが、
+--   その制約が後段の specialization まで伝播していない、または rest の row
+--   variable が closed されないまま終わっている疑い。
+--   case や関数引数では同じ pattern が通るので、共通の pattern 解析を
+--   `my` 経路にも繋げれば直りそう。
+
+my { x, y, ..rest } = { x: 1, y: 2, a: "a", b: "b" }
+(x, y, rest)
