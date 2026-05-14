@@ -1,0 +1,76 @@
+-- bug: `E::wrap` が `from` で連結された narrower error を直接捕まえない
+--
+-- 期待:
+--   `web/docs/ja/reference/errors.md` の `wrap` 節:
+--
+--     `E::wrap` は、引数 thunk が起こす対応 error effect を捕まえて
+--     `result _ E` を返す。`E` に `from` エントリがある場合、`wrap` は
+--     リンクされた narrower error も同時に捕まえ、生成された `Cast` impl
+--     経由で wrap する。
+--
+--   と documented。つまり:
+--
+--     error fs_err: not_found str
+--     error io_err: fs from fs_err
+--
+--     io_err::wrap: thunk_that_throws_fs_err
+--
+--   は、fs_err を io_err::fs にラップして `result _ io_err` を返すはず。
+--
+-- 実際:
+--   io_err::wrap: read_or_throw "/missing"
+--   → error: argument type mismatch in call to `io_err::wrap`:
+--      expected [io_err; ..never], got [fs_err; ..never]
+--
+--   io_err::wrap が「[io_err]」しか受けず、`[fs_err]` を持つ thunk を渡す
+--   とそのまま型エラー。narrower error を一緒に捕まえる経路が立っていない。
+--
+-- 切り分け:
+--
+--   io_err::up: read_or_throw path  → 中で正常 path もある thunk なら通る
+--                                      （`my read = case ...: ok -> "data";
+--                                       _ -> fail fs_err::not_found path` の
+--                                       ように `up` で持ち上げる必要がある）
+--   io_err::wrap: read_or_throw path → 落ちる
+--   2 段 from（fs_err → io_err → app_err）の app_err::wrap も同じく落ちる
+--
+--   `io_err::up` で narrower を持ち上げてから `io_err::wrap` する 2 ステップ
+--   の workaround は通る:
+--
+--     my collect path =
+--         io_err::up:
+--             read_or_throw path
+--     io_err::wrap: collect "/x"
+--
+--   `cookbook.md` の `read_and_parse` 例も内部で `io_err::up` を使うから動く
+--   が、docs が約束する「wrap だけで narrower を一緒に捕まえる」最短形は
+--   動かない。
+--
+-- 影響:
+--   - errors.md の `wrap` 節がそのまま動かない。読者は「wrap = narrower 込み
+--     で一気に値化」と読むが、実際は「`up` で持ち上げてから wrap」の 2 段
+--     書きが必要。
+--   - 多段 from（fs_err → io_err → app_err）でも、各層を `up` で順に持ち上
+--     げる必要があり、エラー集約の旨味が薄れる。
+--
+-- メモ:
+--   wrap が生成されるとき、companion から `Cast narrower -> E` を辿って
+--   narrower 用の handler arm も組み立てる、という生成が抜けている疑い。
+--   `io_err::up` の方は narrower 用の `from` arm を持っているので動く。
+--   `wrap` の lower がそれを持ってこれていない。
+
+error fs_err:
+    not_found str
+
+error io_err:
+    fs from fs_err
+
+my read_or_throw path =
+    case path:
+        "/ok" -> "data"
+        _     -> fail fs_err::not_found path
+
+my res = io_err::wrap: read_or_throw "/missing"
+case res:
+    ok text -> "ok: " + text
+    err e -> "err: " + e.show

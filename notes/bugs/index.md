@@ -2,7 +2,39 @@
 
 「素直に書いたら動きそうなのに、実装上詰まった」snippet の履歴。
 
-## 現在の未解決
+## 現在の未解決（2026-05-14 組み合わせ攻撃ラウンド）
+
+### Effect / handler 系
+
+- [`catch_role_method_thunk_invariant.yu`](catch_role_method_thunk_invariant.yu)
+  — role method 経由で effect を発火する thunk を `catch` で受けると、
+  runtime lowering で `effectful handler body must be a thunk` の invariant
+  違反になる。`(5).speak` のような role method 直呼びを catch する形で再現。
+  handler-in-handler（`run1: run2: ev2::b()`）でも同じ panic が出る。
+  型推論は通って runtime で落ちるので原因特定が難しい。
+
+### Error 系
+
+- [`wrap_inside_for_body_leaks_fail.yu`](wrap_inside_for_body_leaks_fail.yu)
+  — `for` body の中で `E::wrap` した thunk が `fail` を起こすと、wrap が
+  捕まえずに最外まで unhandled request として漏れる。for 外の同じ wrap は
+  正常。`labelled_for_var_effect_collision`（resolved）と兄弟で、for body 内
+  に複数 effect handler が積まれた時の row 順序問題に見える。
+- [`wrap_does_not_traverse_from_chain.yu`](wrap_does_not_traverse_from_chain.yu)
+  — `E::wrap` が `from` で連結された narrower error を直接捕まえない。
+  `error io_err: fs from fs_err` を宣言しても、`io_err::wrap:
+  thunk_that_throws_fs_err` は型エラー。`io_err::up` で持ち上げてから
+  `io_err::wrap` する 2 段書きが必要。`reference/errors.md` の `wrap` 節は
+  「`from` エントリがある場合 narrower error も同時に捕まえる」と明記して
+  いる。
+
+### Parser / lexer 系
+
+- [`string_interp_block_invades.yu`](string_interp_block_invades.yu) —
+  文字列補間 `%{...}` の中で `;` で文を区切ったり `{ ... }` ブロックを置く
+  と、parser が `%{...}` の閉じ位置を見失って残りが文字列に侵食される
+  （無警告）。`"name = %{my x = 41; x + 1}"` が `"name = x = 41; x + 1}"`
+  になる。ラムダで包んで起動する workaround は通る。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 

@@ -1,0 +1,70 @@
+-- bug: `for` body の中で `E::wrap` した thunk が `fail` を起こすと、wrap が
+--      捕まえずに最外の handler request まで漏れる
+--
+-- 期待:
+--   `error fail_err: bad str` を宣言し、for body の中で:
+--
+--     for x in [1, 2, 3, 4]:
+--         my res = fail_err::wrap:
+--             if x == 3: fail fail_err::bad x.show
+--             else: x
+--         case res:
+--             ok n -> &hits = $hits + n
+--             err _ -> ()
+--
+--   と書いたら、x == 3 の時だけ `wrap` が `result::err` で受け、それ以外は
+--   `result::ok x`。`hits = 1 + 2 + 4 = 7` になるはず。
+--
+-- 実際:
+--   [0] request fail_err::bad#effect "3" blocked=Some(2)
+--
+--   `wrap` が捕まえずに `fail` の effect が for body から外へ漏れ、program
+--   最外まで unhandled request として届く。`blocked=Some(2)` は for の途中
+--   step で止まったことを示している様子。
+--
+-- 切り分け:
+--
+--   for の外で同じ wrap:
+--     my x = 2
+--     my res = fail_err::wrap:
+--         if x == 2: fail fail_err::bad x.show
+--         else: x
+--   → `err bad "2"`  ✓ (wrap 単独は正常)
+--
+--   for + wrap で fail を起こさない経路:
+--     for x in [1, 2, 3]:
+--         my res = fail_err::wrap:
+--             x         -- 常に ok
+--         res
+--   → `()` (for は () を返す、これは想定通り)
+--
+--   for body 内で wrap した thunk が fail を起こすときだけ、wrap の handler
+--   が機能しない。
+--
+-- 影響:
+--   - 「リストを回しながら、各要素ごとに失敗しうる処理を `wrap` で値化して
+--     集計する」という最も自然な使い方が壊れる。
+--   - 失敗が外に漏れるが diagnostic は出ない。runtime request を見て初めて
+--     気付く。
+--   - workaround は今のところ不明。`for` の代わりに再帰的な fold で書き直す
+--     と回避できる可能性。
+--
+-- メモ:
+--   `for` の body lower で「for_in」effect の handler scope が wrap の thunk
+--   と入れ子になる。その入れ子順序で wrap の `catch` arm が外側 for_in に
+--   隠されてしまい、`fail` (= `e.throw` operation) を捕まえそびれている疑い。
+--   `labelled_for_var_effect_collision.yu` (resolved) と兄弟で、for body
+--   内に複数 effect handler が積まれた時の row 順序問題に見える。
+
+error fail_err:
+    bad str
+
+my $hits = 0
+for x in [1, 2, 3, 4]:
+    my res = fail_err::wrap:
+        if x == 3: fail fail_err::bad x.show
+        else: x
+    case res:
+        ok n -> &hits = $hits + n
+        err _ -> ()
+$hits

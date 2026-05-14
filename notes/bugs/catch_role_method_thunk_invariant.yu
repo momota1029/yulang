@@ -1,0 +1,93 @@
+-- bug: role method 経由で発火する effect を `catch` で受けると、runtime
+--      lowering で「effectful handler body must be a thunk」の invariant
+--      違反になる
+--
+-- 期待:
+--   `web/docs/ja/reference/structs.md` で role が `our a.method: T` の形を
+--   持つこと、`reference/effects.md` で operation を `catch` で受けることが
+--   別々に documented。両者を組み合わせた:
+--
+--     role Speak 'a:
+--         our a.speak: [log] ()
+--
+--     impl Speak int:
+--         our n.speak = log::put n.show
+--
+--     catch (5).speak:
+--         log::put _, k -> k ()
+--         v -> v
+--
+--   は普通に通るはず。`(5).speak` は `[log] ()` 計算で、catch がそれを処理
+--   して effect row を空にする。
+--
+-- 実際:
+--   error: runtime invariant failed after runtime lowering at
+--   binding run/lambda: effectful handler body must be a thunk
+--
+--   型推論段までは通っている様子。runtime lowering が role method 由来の
+--   thunk を組み立てる箇所で、handler body を thunk 化し損ねている。
+--
+-- 切り分け:
+--
+--   関数経由（同じ effect、role なし）:
+--     my speak n = log::put n.show
+--     catch speak 5: ...               → 通る
+--
+--   role 経由:
+--     impl Speak int: our n.speak = log::put n.show
+--     catch (5).speak: ...             → runtime invariant failed
+--
+--   role method を呼び出すだけ（catch なし）:
+--     my f() = (5).speak                → 通る (型は付く)
+--
+--   role method を直接 expression として渡し、catch する組み合わせだけが
+--   壊れる。
+--
+--   handler-in-handler でも同じ panic が出る:
+--     my run1 (action: [ev1] 'r): 'r = catch action:
+--         ev1::a(), k -> run1 (k 7)
+--         v -> v
+--     my run2 (action: [ev2; ev1] 'r): 'r = catch action:
+--         ev2::b(), k ->
+--             my v = ev1::a()
+--             run2 (k (v + 1))
+--         v -> v
+--     run1: run2: ev2::b()
+--   → 同じ「effectful handler body must be a thunk」
+--
+--   どちらも「内側に effectful な何かが入る handler の body」を thunk として
+--   切り出す段で同じ invariant に当たる。catch action 経路の thunk 化が
+--   特定の構造（role method、handler 内 operation 呼び出し）で抜ける疑い。
+--
+-- 影響:
+--   - 「role method を介して effect を発火 → catch する」が破綻するので、
+--     role を effect の interface として使う設計（"observable" / "loggable"
+--     系）が組めない。effect-bearing role method は docs に書かれている
+--     のに使えない。
+--   - handler-in-handler も同じ panic に当たるので、effects.md の典型例
+--     （`run1 ∘ run2` で effect を順に剥がす）を素直に書くと runtime で
+--     落ちる。
+--   - 型推論を通過してから runtime panic で死ぬので、原因特定が難しい。
+--     diagnostic の "binding run/lambda/..." が手掛かり。
+--
+-- メモ:
+--   handler arm の body を thunk 化する pass が、receiver 経由で呼ばれる
+--   effect operation や、handler 内で再帰的に呼ぶ effect を見落としている。
+--   `catch action: op, k -> body` の lower で `body` 全体を thunk にして
+--   evidence を持たせるところ、role method の dispatch insertion 後の式に
+--   対して thunk 化が走らないように見える。
+
+act log:
+    pub put: str -> ()
+
+role Speak 'a:
+    our a.speak: [log] ()
+
+impl Speak int:
+    our n.speak = log::put n.show
+
+my run() = catch (5).speak:
+    log::put _, k -> k ()
+    v -> v
+
+run()
