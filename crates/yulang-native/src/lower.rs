@@ -1553,6 +1553,9 @@ fn direct_apply<'expr>(
         return Ok(None);
     };
     let Some(target_name) = target.direct_targets.get(&args.len()) else {
+        if target.arity == 0 && !args.is_empty() {
+            return Ok(None);
+        }
         return Err(NativeLowerError::CallArityMismatch {
             target: target.name.clone(),
             expected: target.arity,
@@ -2072,6 +2075,48 @@ mod tests {
                 expected: 1,
                 actual: 2,
             }
+        );
+    }
+
+    #[test]
+    fn lowers_zero_arity_binding_apply_as_closure_call() {
+        let choose = binding(
+            "choose",
+            if_expr(
+                unknown_lit(typed_ir::Lit::Bool(true)),
+                lambda("x", var("x")),
+                lambda("x", var("x")),
+            ),
+        );
+        let root = apply(
+            var("choose"),
+            unknown_lit(typed_ir::Lit::Int("42".to_string())),
+        );
+        let module = module_with_binding_and_root(choose, root);
+        let lowered = lower_module(&module).expect("lowered");
+
+        assert_eq!(
+            lowered.roots[0].blocks[0].stmts,
+            vec![
+                NativeStmt::DirectCall {
+                    dest: ValueId(0),
+                    target: "choose".to_string(),
+                    args: Vec::new(),
+                },
+                NativeStmt::Literal {
+                    dest: ValueId(1),
+                    literal: NativeLiteral::Int("42".to_string()),
+                },
+                NativeStmt::ClosureCall {
+                    dest: ValueId(2),
+                    callee: ValueId(0),
+                    args: vec![ValueId(1)],
+                },
+            ]
+        );
+        assert_eq!(
+            lowered.roots[0].blocks[0].terminator,
+            NativeTerminator::Return(ValueId(2))
         );
     }
 

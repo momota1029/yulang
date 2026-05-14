@@ -149,6 +149,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] Value-backend representation analysis propagates closure handles through
       branch/jump block params and rejects closure roots or closure handles
       embedded in tuple/list/record/variant `VmValue` helpers before codegen.
+- [x] Source-level value-backend executable tests cover a branch-selected
+      captured closure flowing through a zero-arity binding and then being
+      applied indirectly.
 - [ ] Closure values can be called after flowing through the value backend, but
       they are not yet printable roots or ordinary structural runtime values
       inside tuples/lists/records.

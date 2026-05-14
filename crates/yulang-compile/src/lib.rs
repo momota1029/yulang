@@ -244,6 +244,18 @@ case {ok: true, n: 41}:
     }
 
     #[test]
+    fn runs_branch_selected_closure_through_value_lane() {
+        assert_source_value_with_std(
+            r#"
+my base = 40
+my f = if true { \x -> x + base } else { \x -> x }
+f 2
+"#,
+        )
+        .expect("value lane native eval");
+    }
+
+    #[test]
     fn compares_direct_nullary_return_call_through_cps_repr() {
         compare_source_cps_repr_with_std(
             r#"use std::flow::*
