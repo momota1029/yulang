@@ -78,6 +78,13 @@ impl NativeRuntimeContext {
             .unwrap_or(std::ptr::null_mut())
     }
 
+    pub fn is_closure_handle(&self, value: *mut runtime::VmValue) -> bool {
+        let ptr = value.cast::<NativeRuntimeClosure>() as *const NativeRuntimeClosure;
+        self.closures
+            .iter()
+            .any(|closure| std::ptr::eq(closure.as_ref(), ptr))
+    }
+
     pub fn clone_value(&self, value: *mut runtime::VmValue) -> Option<runtime::VmValue> {
         if value.is_null() {
             return None;

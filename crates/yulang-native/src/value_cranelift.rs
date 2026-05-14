@@ -144,6 +144,12 @@ impl NativeValueJitModule {
                         "native value root returned null".to_string(),
                     ));
                 }
+                if context.is_closure_handle(value) {
+                    return Err(NativeValueCraneliftError::UnsupportedStmt {
+                        function: "native value root".to_string(),
+                        kind: "closure root value",
+                    });
+                }
                 Ok(unsafe { (*value).clone() })
             })
             .collect()
@@ -2416,6 +2422,43 @@ mod tests {
         assert_eq!(
             module.run_roots().expect("ran"),
             vec![runtime::VmValue::Int("42".to_string())]
+        );
+    }
+
+    #[test]
+    fn jit_rejects_closure_root_value_without_dereferencing_it_as_vm_value() {
+        let mut module = compile_value_abi_module(&NativeAbiModule {
+            functions: vec![add_capture_function()],
+            roots: vec![NativeAbiFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                environment_slots: 0,
+                blocks: vec![NativeAbiBlock {
+                    id: BlockId(0),
+                    params: Vec::new(),
+                    stmts: vec![
+                        NativeAbiStmt::Literal {
+                            dest: ValueId(0),
+                            literal: NativeLiteral::Int("10".to_string()),
+                        },
+                        NativeAbiStmt::AllocateClosure {
+                            dest: ValueId(1),
+                            target: "add_capture".to_string(),
+                            environment: vec![ValueId(0)],
+                        },
+                    ],
+                    terminator: NativeTerminator::Return(ValueId(1)),
+                }],
+            }],
+        })
+        .expect("compiled");
+
+        let error = module
+            .run_roots()
+            .expect_err("closure roots stay unsupported");
+        assert!(
+            error.to_string().contains("closure root value statements"),
+            "{error}"
         );
     }
 
