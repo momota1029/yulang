@@ -796,6 +796,24 @@ my err: io_err = fs_err::not_found \"x\"\n",
 }
 
 #[test]
+fn branch_join_uses_implicit_cast_boundary() {
+    let mut state = parse_and_lower(
+        "role Cast 'from:\n  type to\n  our from.cast: to\n\n\
+struct user_id { raw: int }\n\
+cast(x: user_id): int = x.raw\n\
+cast(x: int): user_id = user_id { raw: x }\n\n\
+my id: user_id = 7\n\
+my pick (b: bool) =\n    if b: id\n    else: 0\n",
+    );
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.is_empty(),
+        "branch join should use the first branch type as the implicit cast target, got {errors:?}",
+    );
+}
+
+#[test]
 fn catch_records_handler_adapter_edges() {
     let mut state = parse_and_lower(
         "pub act out:\n  pub say: str -> ()\n\ncatch out::say \"hi\":\n    out::say msg, k -> k ()\n",
@@ -2708,7 +2726,7 @@ fn source_record_field_selection_final_fallback_introduces_record_requirement() 
 }
 
 #[test]
-fn source_unannotated_method_selection_reports_receiver_specificity() {
+fn source_unannotated_unique_method_selection_constrains_receiver() {
     run_with_large_stack(|| {
         let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let std_root = repo_root.join("lib/std");
@@ -2731,9 +2749,47 @@ fn source_unannotated_method_selection_reports_receiver_specificity() {
 
         let diagnostics = collect_surface_diagnostics(&lowered.state);
         assert!(
-            diagnostics.iter().any(|diagnostic| diagnostic.message
-                == "could not resolve `.norm2` because the receiver type is not specific enough to choose a method; add a receiver type annotation"),
-            "unannotated nominal method selection should report the receiver specificity issue, got {diagnostics:?}",
+            diagnostics.is_empty(),
+            "unannotated unique nominal method selection should constrain the receiver from the selected method signature, got {diagnostics:?}",
+        );
+        assert!(
+            lowered.state.infer.deferred_selections.borrow().is_empty(),
+            "unannotated unique nominal method selection should not remain deferred",
+        );
+    });
+}
+
+#[test]
+fn source_default_record_arg_before_method_receiver_constrains_receiver() {
+    run_with_large_stack(|| {
+        let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let lowered = lower_virtual_source_with_options(
+            concat!(
+                "struct my_point { x: int, y: int } with:\n",
+                "    our p.move dx dy = my_point { x: p.x + dx, y: p.y + dy }\n",
+                "\n",
+                "my translate { dx = 0, dy = 0 } point = point.move dx dy\n",
+                "\n",
+                "(translate { dx: 3 } (my_point { x: 1, y: 1 })).x\n",
+            ),
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .expect("source should lower");
+
+        let diagnostics = collect_surface_diagnostics(&lowered.state);
+        assert!(
+            diagnostics.is_empty(),
+            "default record argument should not prevent a later receiver from using a unique nominal method, got {diagnostics:?}",
+        );
+        assert!(
+            lowered.state.infer.deferred_selections.borrow().is_empty(),
+            "default record argument method selection should not remain deferred",
         );
     });
 }

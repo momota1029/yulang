@@ -32,6 +32,7 @@ pub(super) fn lower_case(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr
         .filter(|c| c.kind() == SyntaxKind::CaseBlock)
         .flat_map(|b| collect_child_arms(&b, SyntaxKind::CaseArm))
         .collect();
+    let mut first_branch = true;
     let arms: Vec<crate::ast::expr::TypedMatchArm> = arm_nodes
         .into_iter()
         .filter_map(|arm| {
@@ -84,6 +85,10 @@ pub(super) fn lower_case(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr
             state
                 .infer
                 .constrain(Pos::Var(pat.tv), Neg::Var(scrutinee.tv));
+            if first_branch {
+                state.infer.constrain(Pos::Var(tv), Neg::Var(body.tv));
+                first_branch = false;
+            }
             body = state
                 .implicit_cast_boundary_with_effects(
                     body,
@@ -148,6 +153,9 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
             span: Some(arm.text_range()),
             reason: ConstraintReason::IfBranch,
         };
+        if arms.is_empty() {
+            state.infer.constrain(Pos::Var(tv), Neg::Var(body.tv));
+        }
         body = state
             .implicit_cast_boundary_with_effects(
                 body,
@@ -182,6 +190,9 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
             span: Some(arm.text_range()),
             reason: ConstraintReason::IfBranch,
         };
+        if arms.is_empty() {
+            state.infer.constrain(Pos::Var(tv), Neg::Var(body.tv));
+        }
         body = state
             .implicit_cast_boundary_with_effects(
                 body,
@@ -212,6 +223,9 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
             span: Some(node.text_range()),
             reason: ConstraintReason::IfBranch,
         };
+        if arms.is_empty() {
+            state.infer.constrain(Pos::Var(tv), Neg::Var(body.tv));
+        }
         body = state
             .implicit_cast_boundary_with_effects(
                 body,

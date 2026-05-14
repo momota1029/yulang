@@ -57,8 +57,41 @@ fn pattern_has_poly_variant_colon(node: &SyntaxNode) -> bool {
 }
 
 fn pattern_payload_node(node: &SyntaxNode) -> Option<SyntaxNode> {
+    pattern_payload_nodes(node).into_iter().next()
+}
+
+fn pattern_payload_nodes(node: &SyntaxNode) -> Vec<SyntaxNode> {
     node.children()
-        .find(|c| matches!(c.kind(), SyntaxKind::ApplyML | SyntaxKind::ApplyC))
+        .filter(|c| matches!(c.kind(), SyntaxKind::ApplyML | SyntaxKind::ApplyC))
+        .collect()
+}
+
+fn lower_constructor_payload(
+    state: &mut LowerState,
+    payloads: Vec<SyntaxNode>,
+) -> Option<Box<TypedPat>> {
+    match payloads.len() {
+        0 => None,
+        1 => payloads.into_iter().next().map(|inner_node| {
+            Box::new(lower_pat_with_context(
+                state,
+                &inner_node,
+                PatContext::ConstructorPayload,
+            ))
+        }),
+        _ => {
+            let items = payloads
+                .iter()
+                .map(|inner_node| {
+                    lower_pat_with_context(state, inner_node, PatContext::ConstructorPayload)
+                })
+                .collect();
+            Some(Box::new(TypedPat {
+                tv: state.fresh_tv(),
+                kind: PatKind::Tuple(items),
+            }))
+        }
+    }
 }
 
 fn lower_ctor_or_name_pat(
@@ -80,15 +113,15 @@ fn lower_ctor_or_name_pat(
     }
 
     if let Some(path) = super::pattern_ctor_path(node) {
-        let payload = pattern_payload_node(node);
+        let payloads = pattern_payload_nodes(node);
         if pattern_has_poly_variant_colon(node) {
             return PatKind::PolyVariant(
                 path.segments
                     .last()
                     .cloned()
                     .unwrap_or_else(|| Name(String::new())),
-                payload
-                    .into_iter()
+                payloads
+                    .iter()
                     .map(|inner_node| lower_pat(state, &inner_node))
                     .collect(),
             );
@@ -96,36 +129,12 @@ fn lower_ctor_or_name_pat(
         if let Some(def) = super::enum_variant_def_for_pattern(state, &path) {
             if state.enum_variant_tags.contains_key(&def) {
                 let ref_id = super::resolve_pattern_constructor_ref(state, def);
-                return PatKind::Con(
-                    ref_id,
-                    payload
-                        .into_iter()
-                        .map(|inner_node| {
-                            Box::new(lower_pat_with_context(
-                                state,
-                                &inner_node,
-                                PatContext::ConstructorPayload,
-                            ))
-                        })
-                        .next(),
-                );
+                return PatKind::Con(ref_id, lower_constructor_payload(state, payloads));
             }
         }
         if let Some(def) = super::struct_constructor_def_for_pattern(state, &path) {
             let ref_id = super::resolve_pattern_constructor_ref(state, def);
-            return PatKind::Con(
-                ref_id,
-                payload
-                    .into_iter()
-                    .map(|inner_node| {
-                        Box::new(lower_pat_with_context(
-                            state,
-                            &inner_node,
-                            PatContext::ConstructorPayload,
-                        ))
-                    })
-                    .next(),
-            );
+            return PatKind::Con(ref_id, lower_constructor_payload(state, payloads));
         }
     }
 

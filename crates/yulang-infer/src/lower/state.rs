@@ -9,7 +9,7 @@ use crate::diagnostic::{
 use crate::ids::{DefId, NegId, PosId, RefId, TypeVar, fresh_def_id, fresh_ref_id, fresh_type_var};
 use crate::lower::builtin_types::{PrimitivePathTable, PrimitiveValueFamily};
 use crate::lower::ctx::LowerCtx;
-use crate::solve::{CastMethodResolution, DeferredRoleMethodCall, DeferredSelection, Infer};
+use crate::solve::{CastMethodResolution, Infer};
 use crate::symbols::{ModuleId, Name, Path, Visibility};
 use crate::types::{Neg, Pos};
 
@@ -446,9 +446,22 @@ impl LowerState {
         cause: ConstraintCause,
         preserve_boundary_on_unresolved: bool,
     ) -> (TypedExpr, ExpectedEdgeId) {
-        let cast_name = Name("cast".to_string());
         match self.infer.resolve_cast_method(expr.tv, expected_tv) {
-            CastMethodResolution::Concrete(_) => {}
+            CastMethodResolution::Concrete(_) => {
+                if let Some((actual_eff, expected_eff)) = effect_constraint {
+                    self.infer
+                        .constrain(Pos::Var(actual_eff), Neg::Var(expected_eff));
+                    return (
+                        expected_boundary_expr(expr, expected_tv, expected_eff, edge_id),
+                        edge_id,
+                    );
+                }
+                let eff = expr.eff;
+                return (
+                    expected_boundary_expr(expr, expected_tv, eff, edge_id),
+                    edge_id,
+                );
+            }
             CastMethodResolution::Missing { role, args } => {
                 self.infer.report_synthetic_type_error(
                     crate::diagnostic::TypeErrorKind::MissingImpl { role, args },
@@ -522,51 +535,6 @@ impl LowerState {
                 return (expr, edge_id);
             }
         }
-
-        let result_eff = self.fresh_tv();
-        let owner = self.current_owner;
-        if let Some(owner) = owner {
-            self.infer.increment_pending_selection(owner);
-        }
-        self.infer
-            .deferred_selections
-            .borrow_mut()
-            .entry(expr.tv)
-            .or_default()
-            .push(DeferredSelection {
-                name: cast_name.clone(),
-                module: self.ctx.current_module,
-                recv_eff: expr.eff,
-                result_tv: expected_tv,
-                result_eff,
-                owner,
-                cause,
-                structural_record_allowed: false,
-            });
-        self.infer
-            .push_deferred_role_method_call(DeferredRoleMethodCall {
-                name: cast_name.clone(),
-                role_path: None,
-                cast_coercion: true,
-                recv_tv: expr.tv,
-                arg_tvs: Vec::new(),
-                result_tv: expected_tv,
-            });
-        if let Some((_, expected_eff)) = effect_constraint {
-            self.infer
-                .constrain(Pos::Var(result_eff), Neg::Var(expected_eff));
-        }
-        (
-            TypedExpr {
-                tv: expected_tv,
-                eff: result_eff,
-                kind: ExprKind::Select {
-                    recv: Box::new(expr),
-                    name: cast_name,
-                },
-            },
-            edge_id,
-        )
     }
 
     pub fn expect_value_and_effect(

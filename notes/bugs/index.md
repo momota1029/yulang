@@ -4,21 +4,6 @@
 
 ## 現在の未解決
 
-### Pattern / binding 系
-
-- [`enum_curried_payload_unresolved.yu`](enum_curried_payload_unresolved.yu)
-  — `enum tree 'a: leaf, node 'a (tree 'a) (tree 'a)` のような複数 payload
-  variant を、pattern 側で `tree::node value left right` と分解すると
-  `value` だけが 3-tuple を受け、`left` / `right` の単独 bind が立たない。
-  `reference/patterns.md` の `tree::node value left right` がそのまま
-  動かない（tuple payload 形 `node (...)` への書き換えが必要）。
-- [`default_arg_method_recv_unresolved.yu`](default_arg_method_recv_unresolved.yu)
-  — `my translate { dx = 0, dy = 0 } point = point.move dx dy` で
-  `point.move` の receiver type が固まらず `could not resolve `.move`` で
-  落ちる。default 持ち record pattern が引数列の頭にあると、後続引数の
-  型推論が止まる傾向。`reference/patterns.md` の「関数引数のパターン」
-  例が動かない。
-
 ### Effect / handler 系
 
 - [`labelled_for_var_effect_collision.yu`](labelled_for_var_effect_collision.yu)
@@ -27,15 +12,6 @@
   (`expected [...; &hits#var; ..never]`, `got [...::last; ...; ..never]`)。
   `reference/control-flow.md` の labelled loop の典型ユースケース
   （ネスト loop で見つけたら抜けつつ集計）が書けない。
-
-### Operator / cast 系
-
-- [`branch_merge_cast_missing.yu`](branch_merge_cast_missing.yu) —
-  `if b: id else: 0` のような分岐合流位置で、両方向の `cast` impl が
-  登録されていても暗黙 cast が挿入されず branch result type mismatch に
-  なる。`reference/casts.md` の「cast が挿入される場所」リストに「分岐の
-  合流」が挙がっているのに動かない。binding ascription / 関数引数 / from
-  variant の cast は通る。
 
 ### Stdlib `.method` 解決系
 
@@ -76,6 +52,14 @@
   pattern binding 名が in-scope の variant constructor と一致すると、
   binding ではなく nested variant pattern として解釈されていた。現在は
   binding として通る (`result::err err -> ...` が動く)。
+- [`enum_curried_payload_unresolved.yu`](enum_curried_payload_unresolved.yu)
+  — 複数 payload variant を `tree::node value left right` のように分解しても、
+  それぞれの payload 名が単独 bind される。現在は `[0] 3` を返す。
+- [`default_arg_method_recv_unresolved.yu`](default_arg_method_recv_unresolved.yu)
+  — default 持ち record pattern の後続引数で `.move` の receiver が固まる。
+  現在は `[0] 4` を返す。
+- [`branch_merge_cast_missing.yu`](branch_merge_cast_missing.yu) — 分岐合流位置で
+  暗黙 cast boundary が使われる。現在は `({raw = 7}, {raw = 0})` を返す。
 - [`record_alias_default_mix.yu`](record_alias_default_mix.yu) —
   record pattern で「alias + default」(`host: h = "..."`) と「default only」
   (`port = 80`) を同じ pattern に混ぜても通る。`f {}` のように optional

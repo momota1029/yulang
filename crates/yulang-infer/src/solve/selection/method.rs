@@ -54,6 +54,14 @@ impl Infer {
                 }
             }
 
+            if !self.role_methods.contains_key(&selection.name)
+                && let Some(def) = self.unique_type_method_named(&selection.name)
+            {
+                if self.resolve_method_def_selection(recv_tv, &selection, def) {
+                    continue;
+                }
+            }
+
             if let Some(def) = self.resolve_ref_selection_def(recv_tv, &selection.name) {
                 if self.resolve_method_def_selection(recv_tv, &selection, def) {
                     continue;
@@ -199,6 +207,21 @@ impl Infer {
                     selection_info_is_accessible_from(module, info.module, info.visibility)
                 })
             })
+    }
+
+    fn unique_type_method_named(&self, name: &Name) -> Option<DefId> {
+        let mut found = None;
+        for methods in self.type_methods.values() {
+            let Some(&def) = methods.get(name) else {
+                continue;
+            };
+            match found {
+                Some(existing) if existing != def => return None,
+                Some(_) => {}
+                None => found = Some(def),
+            }
+        }
+        found
     }
 
     fn selection_receiver_has_known_non_record_lower(

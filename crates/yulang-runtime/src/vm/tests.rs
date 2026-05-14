@@ -679,6 +679,16 @@ button: :disabled
     }
 
     #[test]
+    fn vm_runs_source_curried_variant_payload_pattern() {
+        let results = eval_source_with_std(
+            "enum tree 'a = leaf | node 'a (tree 'a) (tree 'a)\n\
+case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n",
+        );
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_cast_declarations() {
         let results = eval_source_with_std(
             "struct user_id { raw: int }\n\
