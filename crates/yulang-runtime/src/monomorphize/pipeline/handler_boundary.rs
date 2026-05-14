@@ -467,71 +467,61 @@ fn effect_row_from_paths(paths: Vec<typed_ir::Path>) -> typed_ir::Type {
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ConsumedEffectFilter {
+    Remove,
+    Select,
+}
+
 fn remove_consumed_effects(effect: &typed_ir::Type, consumed: &[typed_ir::Path]) -> typed_ir::Type {
-    match effect {
-        typed_ir::Type::Named { path, .. }
-            if consumed
-                .iter()
-                .any(|consumed| effect_paths_match(consumed, path)) =>
-        {
-            typed_ir::Type::Never
-        }
-        typed_ir::Type::Row { items, tail } => {
-            let items = items
-                .iter()
-                .map(|item| remove_consumed_effects(item, consumed))
-                .filter(|item| !effect_is_empty(item))
-                .collect();
-            let tail = remove_consumed_effects(tail, consumed);
-            effect_row(items, tail)
-        }
-        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => effect_row(
-            items
-                .iter()
-                .map(|item| remove_consumed_effects(item, consumed))
-                .filter(|item| !effect_is_empty(item))
-                .collect(),
-            typed_ir::Type::Never,
-        ),
-        typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
-            var: var.clone(),
-            body: Box::new(remove_consumed_effects(body, consumed)),
-        },
-        other => other.clone(),
-    }
+    filter_consumed_effects(effect, consumed, ConsumedEffectFilter::Remove)
 }
 
 fn select_consumed_effects(effect: &typed_ir::Type, consumed: &[typed_ir::Path]) -> typed_ir::Type {
+    filter_consumed_effects(effect, consumed, ConsumedEffectFilter::Select)
+}
+
+fn filter_consumed_effects(
+    effect: &typed_ir::Type,
+    consumed: &[typed_ir::Path],
+    mode: ConsumedEffectFilter,
+) -> typed_ir::Type {
     match effect {
         typed_ir::Type::Named { path, .. }
             if consumed
                 .iter()
                 .any(|consumed| effect_paths_match(consumed, path)) =>
         {
-            effect.clone()
+            match mode {
+                ConsumedEffectFilter::Remove => typed_ir::Type::Never,
+                ConsumedEffectFilter::Select => effect.clone(),
+            }
         }
         typed_ir::Type::Row { items, tail } => {
             let items = items
                 .iter()
-                .map(|item| select_consumed_effects(item, consumed))
+                .map(|item| filter_consumed_effects(item, consumed, mode))
                 .filter(|item| !effect_is_empty(item))
                 .collect();
-            let tail = select_consumed_effects(tail, consumed);
+            let tail = filter_consumed_effects(tail, consumed, mode);
             effect_row(items, tail)
         }
         typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => effect_row(
             items
                 .iter()
-                .map(|item| select_consumed_effects(item, consumed))
+                .map(|item| filter_consumed_effects(item, consumed, mode))
                 .filter(|item| !effect_is_empty(item))
                 .collect(),
             typed_ir::Type::Never,
         ),
         typed_ir::Type::Recursive { var, body } => typed_ir::Type::Recursive {
             var: var.clone(),
-            body: Box::new(select_consumed_effects(body, consumed)),
+            body: Box::new(filter_consumed_effects(body, consumed, mode)),
         },
-        _ => typed_ir::Type::Never,
+        other => match mode {
+            ConsumedEffectFilter::Remove => other.clone(),
+            ConsumedEffectFilter::Select => typed_ir::Type::Never,
+        },
     }
 }
 
