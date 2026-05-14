@@ -1189,10 +1189,10 @@ fn resume_continuation(
                         .filter(|f| f.prompt == pushed_prompt)
                         .cloned()
                         .collect::<Vec<_>>();
-                    // For frame injection, we still use the OLD inject helper
-                    // (append RWH frame to each captured frame's handlers,
-                    // since RWH frame is innermost in the merged stack).
-                    let adjusted_frames = inject_extra_handlers_legacy(
+                    // Frame continuations use the same rebased stack: append
+                    // the RWH frame as the innermost handler for every captured
+                    // return frame.
+                    let adjusted_frames = append_resume_with_handler_frames(
                         resumption.return_frames.as_ref(),
                         &pushed_extra,
                     );
@@ -1921,11 +1921,12 @@ fn merge_resumption_handlers(
     merged
 }
 
-/// Legacy inject helper kept for `ResumeWithHandler` (rebased semantics):
-/// the just-installed RWH frame is appended to each captured frame's
-/// handler stack as the innermost handler. Different from
-/// `merge_extras_into_frames` which preserves captured innermost.
-fn inject_extra_handlers_legacy(
+/// Apply `ResumeWithHandler`'s rebased handler stack to captured return frames.
+///
+/// The just-installed RWH frame is appended to each captured frame's handler
+/// stack as the innermost handler. This intentionally differs from
+/// `merge_extras_into_frames`, which preserves the captured innermost handler.
+fn append_resume_with_handler_frames(
     frames: &[CpsReturnFrame],
     extra: &[CpsHandlerFrame],
 ) -> Vec<CpsReturnFrame> {
