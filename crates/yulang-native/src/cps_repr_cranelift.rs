@@ -12,7 +12,7 @@ use yulang_runtime as runtime;
 use yulang_typed_ir as typed_ir;
 
 use crate::cps_ir::{
-    CpsContinuationId, CpsHandlerId, CpsLiteral, CpsStmt, CpsTerminator, CpsValueId,
+    CpsContinuationId, CpsHandlerId, CpsLiteral, CpsRecordField, CpsStmt, CpsTerminator, CpsValueId,
 };
 use crate::cps_lower::{CpsLowerError, lower_cps_module};
 use crate::cps_repr::CpsReprAbiLane;
@@ -959,11 +959,21 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let value = make_tuple_value(module_backend, builder, &items)?;
             builder.def_var(variable(*dest), value);
         }
-        CpsStmt::Record { .. } | CpsStmt::Select { .. } => {
-            return Err(CpsReprCraneliftError::UnsupportedStmt {
-                function: function.name.clone(),
-                kind: "record structural value",
-            });
+        CpsStmt::Record { dest, fields } => {
+            let value = make_record_value(module_backend, builder, function, fields, literals)?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::Select { dest, base, field } => {
+            let base = read_value(builder, function, *base)?;
+            let (field_ptr, field_len) =
+                literals.literal_bytes(module_backend, builder, field.0.as_bytes())?;
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_record_select_i64",
+                &[base, field_ptr, field_len],
+            )?;
+            builder.def_var(variable(*dest), value);
         }
         CpsStmt::Variant { dest, tag, value } => {
             let value = value
@@ -2344,6 +2354,28 @@ fn make_tuple_value<M: Module>(
     call_i64_helper(module_backend, builder, helper_name, args)
 }
 
+fn make_record_value<M: Module, L: CpsLiteralStore>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    fields: &[CpsRecordField],
+    literals: &mut L,
+) -> CpsReprCraneliftResult<ir::Value> {
+    let mut record = call_i64_helper(module_backend, builder, "yulang_cps_record_empty_i64", &[])?;
+    for field in fields {
+        let value = read_value(builder, function, field.value)?;
+        let (field_ptr, field_len) =
+            literals.literal_bytes(module_backend, builder, field.name.0.as_bytes())?;
+        record = call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_record_insert_i64",
+            &[record, field_ptr, field_len, value],
+        )?;
+    }
+    Ok(record)
+}
+
 fn tag_hash(tag: &typed_ir::Name) -> i64 {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in tag.0.as_bytes() {
@@ -2718,11 +2750,21 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let value = make_tuple_value(module_backend, builder, &items)?;
             builder.def_var(variable(*dest), value);
         }
-        CpsStmt::Record { .. } | CpsStmt::Select { .. } => {
-            return Err(CpsReprCraneliftError::UnsupportedStmt {
-                function: function.name.clone(),
-                kind: "record structural value",
-            });
+        CpsStmt::Record { dest, fields } => {
+            let value = make_record_value(module_backend, builder, function, fields, literals)?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::Select { dest, base, field } => {
+            let base = read_value(builder, function, *base)?;
+            let (field_ptr, field_len) =
+                literals.literal_bytes(module_backend, builder, field.0.as_bytes())?;
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_record_select_i64",
+                &[base, field_ptr, field_len],
+            )?;
+            builder.def_var(variable(*dest), value);
         }
         CpsStmt::Variant { dest, tag, value } => {
             let value = value
@@ -3328,16 +3370,12 @@ fn validate_scalar_function(
                 | CpsStmt::ForceThunk { .. } => {}
                 CpsStmt::Primitive { op, .. } => validate_primitive(function, *op)?,
                 CpsStmt::Tuple { .. }
+                | CpsStmt::Record { .. }
                 | CpsStmt::Variant { .. }
+                | CpsStmt::Select { .. }
                 | CpsStmt::TupleGet { .. }
                 | CpsStmt::VariantTagEq { .. }
                 | CpsStmt::VariantPayload { .. } => {}
-                CpsStmt::Record { .. } | CpsStmt::Select { .. } => {
-                    return Err(CpsReprCraneliftError::UnsupportedStmt {
-                        function: function.name.clone(),
-                        kind: "record structural value",
-                    });
-                }
                 CpsStmt::DirectCall { .. }
                 | CpsStmt::ApplyClosure { .. }
                 | CpsStmt::CloneContinuation { .. } => {}
@@ -4004,6 +4042,7 @@ struct NativeCpsI64Closure {
 
 enum NativeCpsI64HeapValue {
     Tuple(Box<[i64]>),
+    Record(Vec<(Box<str>, i64)>),
     Variant { tag: i64, value: Option<i64> },
     List(Vec<i64>),
     String(Box<str>),
@@ -4595,6 +4634,15 @@ fn native_i64_tag_name(tag: i64) -> String {
     })
 }
 
+fn native_cps_i64_string_from_raw(ptr: *const u8, len: i64) -> Option<String> {
+    if ptr.is_null() || len < 0 {
+        return None;
+    }
+    let len = usize::try_from(len).ok()?;
+    let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
+    std::str::from_utf8(bytes).ok().map(str::to_string)
+}
+
 fn describe_native_i64_value(value: i64) -> String {
     let resumption_id = NATIVE_CPS_I64_RESUMPTIONS.with(|resumptions| {
         if resumptions.borrow().contains(&(value as usize)) {
@@ -4615,6 +4663,9 @@ fn describe_native_i64_value(value: i64) -> String {
     let heap = unsafe { &*(value as *const NativeCpsI64HeapValue) };
     match heap {
         NativeCpsI64HeapValue::Tuple(items) => format!("ptr({value}:tuple len={})", items.len()),
+        NativeCpsI64HeapValue::Record(fields) => {
+            format!("ptr({value}:record len={})", fields.len())
+        }
         NativeCpsI64HeapValue::Variant { tag, value: None } => {
             format!("ptr({value}:variant {} none)", native_i64_tag_name(*tag))
         }
@@ -4854,6 +4905,56 @@ extern "C" fn yulang_cps_tuple_get_i64(value: i64, index: i64) -> i64 {
         return 0;
     };
     items.get(index as usize).copied().unwrap_or(0)
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_record_empty_i64() -> i64 {
+    native_cps_i64_heap(NativeCpsI64HeapValue::Record(Vec::new()))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_record_insert_i64(
+    record: i64,
+    field_ptr: *const u8,
+    field_len: i64,
+    value: i64,
+) -> i64 {
+    let Some(field) = native_cps_i64_string_from_raw(field_ptr, field_len) else {
+        return record;
+    };
+    let record = unsafe { &*(record as *const NativeCpsI64HeapValue) };
+    let NativeCpsI64HeapValue::Record(fields) = record else {
+        return yulang_cps_record_empty_i64();
+    };
+    let mut fields = fields.clone();
+    if let Some((_, slot)) = fields
+        .iter_mut()
+        .find(|(existing, _)| existing.as_ref() == field.as_str())
+    {
+        *slot = value;
+    } else {
+        fields.push((field.into_boxed_str(), value));
+    }
+    native_cps_i64_heap(NativeCpsI64HeapValue::Record(fields))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_record_select_i64(
+    record: i64,
+    field_ptr: *const u8,
+    field_len: i64,
+) -> i64 {
+    let Some(field) = native_cps_i64_string_from_raw(field_ptr, field_len) else {
+        return 0;
+    };
+    let record = unsafe { &*(record as *const NativeCpsI64HeapValue) };
+    let NativeCpsI64HeapValue::Record(fields) = record else {
+        return 0;
+    };
+    fields
+        .iter()
+        .find_map(|(name, value)| (name.as_ref() == field.as_str()).then_some(*value))
+        .unwrap_or(0)
 }
 
 #[unsafe(no_mangle)]
@@ -7412,6 +7513,57 @@ mod tests {
 
         assert_eq!(roots.len(), 1);
         assert_eq!(describe_native_i64_value(roots[0]), "3.5");
+    }
+
+    #[test]
+    fn jit_runs_record_construct_and_select() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("10".to_string()),
+                        },
+                        CpsStmt::Literal {
+                            dest: CpsValueId(1),
+                            literal: CpsLiteral::Int("42".to_string()),
+                        },
+                        CpsStmt::Record {
+                            dest: CpsValueId(2),
+                            fields: vec![
+                                CpsRecordField {
+                                    name: typed_ir::Name("a".to_string()),
+                                    value: CpsValueId(0),
+                                },
+                                CpsRecordField {
+                                    name: typed_ir::Name("answer".to_string()),
+                                    value: CpsValueId(1),
+                                },
+                            ],
+                        },
+                        CpsStmt::Select {
+                            dest: CpsValueId(3),
+                            base: CpsValueId(2),
+                            field: typed_ir::Name("answer".to_string()),
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(3)),
+                }],
+            }],
+        }));
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![42]);
     }
 
     #[test]

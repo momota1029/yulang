@@ -367,6 +367,9 @@ runtime/core IR
     raw helper と同じ prototype heap value 上で実行できる。
     `("aあ🙂z").index (1..<3)` と `([1, 2, 3, 4].index (1..<3)).len` は
     native CPS repr exe で確認済み。
+  - 完了: CPS repr Cranelift は record construction / field selection を
+    prototype heap value として扱える。`({ answer: 42, other: 10 }).answer` は
+    native CPS repr exe で確認済み。
   - 完了: CPS repr Cranelift の unhandled host console effect fallback を追加した。
     `console.print` / `println` は payload を出力して unit で resume する。これで
     `println b.show` を含む direct/callback `sub` hygiene 例も native CPS repr exe

@@ -161,6 +161,8 @@ or out of here into the user-facing table once they stabilize.
 - [x] `sub`/`return`-style control has a small CPS repr regression path.
 - [x] Tuple, record, variant, and record selection can be lowered and evaluated
       in the CPS/CPS-repr interpreters.
+- [x] CPS repr Cranelift can build small records as prototype heap values and
+      select fields from them.
 - [x] CPS/CPS-repr interpreters reuse the native-control primitive evaluator
       for ordinary `VmValue` primitives, so string/list range, splice, view,
       equality, and conversion semantics stay aligned with the value backend.
