@@ -174,6 +174,10 @@ CPS repr Cranelift の source 回帰を広げる。
   executable path に追加した。inner `sub` 内の直呼び `f()` は inner handler に
   捕まり outer root が `2` まで進む一方、thunk callback 経由の `h()` は inner
   handler を越えて outer `sub` から `0` を返す。
+- native CLI の現状は `docs/native-backend.md` の Public CLI に集約済み。
+  `yulang native` は value backend を優先し、effect / handler /
+  thunk-boundary control が見えた root は CPS repr backend を選ぶ。
+  `run-value-exe` / `run-cps-repr-exe` は debugging 用の強制 path として残す。
 - value backend と CPS repr backend の fallback policy を、握りつぶしではなく
   structured unsupported reason で選べる形へ寄せる。
 

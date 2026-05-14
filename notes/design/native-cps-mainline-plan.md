@@ -142,9 +142,9 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 
 ### 6. CLI And Release Surface
 
-- [ ] `--native-run` の backend 選択を docs に明記する。
-- [ ] `--native-run-value-exe` は debugging fast path として残す。
-- [ ] CPS repr executable path を primary native effect path として説明する。
+- [x] `--native-run` の backend 選択を docs に明記する。
+- [x] `--native-run-value-exe` は debugging fast path として残す。
+- [x] CPS repr executable path を primary native effect path として説明する。
 - [ ] playground/deploy 側の native option も同じ選択規則に揃える。
 
 ## Near-Term Work Queue
