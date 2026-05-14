@@ -1,0 +1,49 @@
+-- bug: record pattern で「alias + default」と「default-only」を同じ pattern
+--      に混ぜると、型エラー「expected (), got int」が出る
+--
+-- 期待:
+--   `web/docs/ja/reference/patterns.md` の「別名とデフォルト」節:
+--
+--     case config:
+--         { host: h = "localhost", port = 80 } -> h + ":" + port.show
+--
+--   `host: h = "localhost"` は「field `host` を `h` に bind、ない場合は
+--   default `"localhost"`」。`port = 80` は「field `port`、ない場合は
+--   default `80`」。両方とも独立に動くと documented。
+--
+-- 実際:
+--   error: expected type type mismatch: expected (), got int
+--
+--   diagnostic は位置情報が薄いが、混在 record pattern を組み立てる段で
+--   default 値の型が () に縮退している様子。
+--
+-- 切り分け:
+--
+--   { port = 80 }                            → 通る (default のみ)
+--   { host: h }                              → 通る (alias のみ)
+--   { host: h = "localhost" }                → 通る (alias + default 1 つ)
+--   { host: h = "localhost", port = 80 }     → 落ちる (混在)
+--
+--   alias + default の field と、alias なし default の field を **同じ**
+--   record pattern に並べたときだけ起きる。順序を入れ替えても落ちる
+--   （`{ port = 80, host: h = "localhost" }` でも同じ）。
+--
+-- 影響:
+--   - patterns.md の「別名とデフォルト」のサンプルがそのまま動かない。
+--   - 「いくつかの field は別名に bind したい、いくつかは default だけ
+--     欲しい」というよくある混合 record pattern が書けない。
+--   - 同じ機能を持つ書き方（同名で受ける `{ host = "...", port = 80 }`）
+--     には逃げられるけど、alias を必要とする場面（pattern と body で名前を
+--     ずらしたい場面）が破綻する。
+--
+-- メモ:
+--   diagnostic の「expected (), got int」は、pattern の lower 段で default
+--   式の型が field 型ではなく `()` と統合されたものとぶつかっている形。
+--   `host: h = "..."` を扱う path と `port = 80` を扱う path で、後続の
+--   field の default に渡す `expected_ty` を `()` にしてしまっている疑い。
+
+my f config =
+    case config:
+        { host: h = "localhost", port = 80 } -> h + ":" + port.show
+
+(f { host: "x", port: 8080 }, f { port: 22 }, f {})

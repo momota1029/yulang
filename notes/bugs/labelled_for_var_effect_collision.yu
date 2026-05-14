@@ -1,0 +1,73 @@
+-- bug: labelled for loop の body で `&x = $x + 1` のような var update を
+--      呼ぶと、外側 loop の `last 'outer` の effect row が壊れる
+--
+-- 期待:
+--   `web/docs/ja/reference/control-flow.md` の labelled loop:
+--
+--     for 'outer x in 0..:
+--         for y in 0..:
+--             if y == 3: last 'outer
+--             else: ()
+--
+--   は label `'outer` を内側 loop から `last` で抜ける書き方。これに
+--   外側 loop で `&hits = $hits + 1` のような var update を一緒にやりたい、
+--   というのは自然。例:
+--
+--     my $hits = 0
+--     for 'outer x in 0..:
+--         for y in 0..:
+--             if y == 3: last 'outer
+--             else:
+--                 &hits = $hits + 1
+--                 ()
+--     $hits
+--
+-- 実際:
+--   error: argument type mismatch in call to
+--   `#loop_label:outer##with0::for_in`:
+--     expected [#loop_label:outer##with0; std::flow::loop; &hits#var; ..never],
+--     got      [#loop_label:outer##with0::last; #loop_label:outer##with0;
+--               std::flow::loop; ..never]
+--
+--   外側 `for_in` が期待する effect row には `&hits#var` が乗っているのに、
+--   body 側は `outer##with0::last` を余分に積んでいて、`&hits` を消費する
+--   handler との順序整合が取れていない。
+--
+-- 切り分け:
+--
+--   var なし純粋 labelled loop:
+--     for 'outer x in 0..:
+--         for y in 0..:
+--             if y == 3: last 'outer
+--             else: ()
+--   → 通る
+--
+--   var ありで `last` を抜くと:
+--     for 'outer x in 0..3:
+--         for y in 0..3:
+--             if true: ()
+--             else: &hits = $hits + 1
+--   → これも通る（`last 'outer` が無ければ衝突しない）
+--
+--   `last 'outer` と `&x` を同じ body に置くと壊れる。
+--
+-- 影響:
+--   - control-flow.md の labelled loop の自然な使い方（外側で集計 / 早期脱出）が
+--     書けない。
+--   - 「ネストした loop で見つけたら抜ける」+「途中で集計する」は探索系の
+--     典型。これが書けないと labelled loop の実用例が大幅に削られる。
+--
+-- メモ:
+--   既知の `var_effect_leak_with_wildcards.yu`（解決済み）と同じく、wildcard /
+--   row tail の合流で var effect の位置がずれる症状の親戚に見える。labelled
+--   `last` が独自 effect として別 row に立つときの、内側 catch hierarchy と
+--   var handler のレイヤ順が逆になっている疑い。
+
+my $hits = 0
+for 'outer x in 0..:
+    for y in 0..:
+        if y == 3: last 'outer
+        else:
+            &hits = $hits + 1
+            ()
+$hits

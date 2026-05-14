@@ -1,0 +1,51 @@
+-- bug: default record pattern を持つ第一引数のあとに別の引数 `point` を取り、
+--      その `point` のメソッド `.move` を呼ぶと、receiver type が決まらない
+--
+-- 期待:
+--   `web/docs/ja/reference/patterns.md` の「関数引数のパターン」節:
+--
+--     my translate { dx = 0, dy = 0 } point = point.move dx dy
+--
+--   point に `.move dx dy` を呼ぶ method を持たせて、translate を呼べる。
+--   point 側に `with: our p.move dx dy = ...` を入れておけば、`.move` は
+--   companion 経由で解決される。
+--
+-- 実際:
+--   error: could not resolve `.move` because the receiver type is not
+--   specific enough to choose a method; add a receiver type annotation
+--     at 5:46
+--
+--   `point` の型が固まらないので companion lookup ができない、という形の
+--   失敗。docs の例文には型注釈が無いのに、推論が通らない。
+--
+-- 切り分け:
+--
+--   `my translate (point: my_point) { dx = 0, dy = 0 } = point.move dx dy`
+--   のように引数順を入れ替え、recv に型注釈を与えれば通る。
+--
+--   default 持ち record pattern が引数列の頭に来ると、後続の引数の型推論が
+--   止まる傾向がある。`{ dx = 0, dy = 0 }` の lower 段で生成される型が、
+--   後続引数 `point` の型まで `α & {dx?: int, dy?: int}` のような形に
+--   引きずられている疑い。
+--
+-- 影響:
+--   - patterns.md の「関数引数のパターン」の例がそのまま動かない。
+--   - 「optional record args + 続けて value」の signature を「型注釈なしで」
+--     書けない。docs は「推論が埋める」スタイルなので、ここだけ explicit な
+--     receiver 注釈を要求するのは一貫性を欠く。
+--
+-- メモ:
+--   diagnostic の「receiver type is not specific enough」は dot resolution が
+--   上限制約しか持っていないことを示すので、optional record pattern の
+--   field default が後続引数の type variable に subtype edge を加えてしまい、
+--   receiver の concretization を阻んでいる、という構図に見える。
+--
+--   point 側の型を明示すれば回避できるので、現実的には docs の例に注釈を
+--   足す対応も可能だが、本来は推論で通るべき形。
+
+struct my_point { x: int, y: int } with:
+    our p.move dx dy = my_point { x: p.x + dx, y: p.y + dy }
+
+my translate { dx = 0, dy = 0 } point = point.move dx dy
+
+(translate { dx: 3 } (my_point { x: 1, y: 1 })).x

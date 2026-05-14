@@ -1,0 +1,61 @@
+-- bug: docs で約束されている list の `.first` / `.rev` / `.sort` が
+--      stdlib の `type list 'a with:` ブロックに登録されていない
+--
+-- 期待:
+--   `web/docs/ja/reference/std/list.md` の「変換」「先頭・末尾の取得」「早見
+--   表」セクションで:
+--
+--     xs.rev                 // 元の逆順
+--     xs.sort                // 昇順 (Ord 'a を要求)
+--     xs.first               // opt::just first
+--     xs.last                // opt::just last
+--     xs.filter (\x -> ...)  // 条件で残す
+--
+--   が公開 method として並んでいる。
+--
+-- 実際:
+--   [10, 20, 30].sort        → error: no field or method named `.sort`
+--   [10, 20, 30].rev         → error: no field or method named `.rev`
+--   [10, 20, 30].first       → error: no field or method named `.first`
+--
+--   `xs : list int` のように型を明示しても結果は同じ。
+--
+-- 切り分け:
+--
+--   `lib/std/list.yu` の `type list 'a with:` ブロック中の宣言は:
+--     our xs.append ys
+--     our xs.map f
+--     our xs.filter pred       (← `.filter` は登録済みでも resolution NG;
+--                                  `list_filter_method_missing.yu` 参照)
+--     our xs.splice r ys
+--     our xs.last
+--     our &xs.push x
+--   のみ。`.first` / `.rev` / `.sort` の line がない。
+--
+--   free function 経路では取れる:
+--     std::list::first [10, 20, 30]   → just 10
+--     std::list::rev [10, 20, 30]     → [30, 20, 10]
+--     std::list::sort [3, 1, 4]       → [1, 3, 4]
+--
+-- 影響:
+--   - std/list.md の「早見表」が嘘になっている。代表的な list method の半分
+--     近くが method 形では書けない。
+--   - 同じ章で `xs.first.is_just` のような chain も書けない（`.first` 自体が
+--     resolve しない）。
+--   - 一方で `xs.last` は登録されているので、`.last` だけ通って `.first` は
+--     通らない、という非対称も読み手が驚きやすい。
+--
+-- メモ:
+--   stdlib 側に method 行を 3 つ足すだけで直るはず:
+--
+--     our xs.first = std::list::first xs
+--     our xs.rev = std::list::rev xs
+--     our xs.sort = std::list::sort xs
+--
+--   `.sort` は body 内で `xs.sort` に Ord 制約を渡す形で型注釈が必要なら
+--   注釈を足す。
+--   ただし `.filter` は同じ pattern で追加されているのに resolution path
+--   側で失敗するので、追加だけで動くか再確認が必要
+--   （`list_filter_method_missing.yu` の状況と要 cross-check）。
+
+[10, 20, 30].sort

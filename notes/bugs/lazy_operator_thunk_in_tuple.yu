@@ -1,0 +1,63 @@
+-- bug: lazy infix operator の結果を tuple 要素に置くと、force されずに
+--      thunk のまま漏れてくる
+--
+-- 期待:
+--   `web/docs/ja/reference/operators.md` の「Lazy 演算子」節:
+--
+--     pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b ->
+--         if a():
+--             true
+--         else:
+--             b()
+--
+--   両側の operand が thunk として body に渡る、しかし呼び出し側では
+--   `a or b` のように普通に書け、結果は値として戻る、と documented。
+--
+--   `(true orelse false, true orelse false)` のような tuple 構築でも、
+--   各 element は普通の値として現れるはず。
+--
+-- 実際:
+--   pub lazy infix(orelse) 1.0.0 1.0.0 = \a -> \b ->
+--       if a():
+--           true
+--       else:
+--           b()
+--
+--   true orelse false                     → true                ✓
+--   (true orelse false)                   → true                ✓
+--   (true orelse false, true orelse false) → (<thunk>, <thunk>) ✗
+--
+--   tuple の要素位置で lazy operator の結果が thunk のまま漏れる。`<thunk>`
+--   は print 出力で見える内部表現。
+--
+-- 切り分け:
+--
+--   prelude の `or` でも同じ症状が出る:
+--     (true or false, true or false)        → 同じく <thunk>
+--   non-lazy operator (例: `+`) を tuple に置いても問題なし:
+--     (1 + 2, 3 + 4)                        → (3, 7)
+--   lazy operator を tuple 1 要素にすると:
+--     (true orelse false,)                  → 形によっては通る／<thunk>
+--     [true orelse false]                   → list でも要確認
+--
+-- 影響:
+--   - lazy operator の結果を tuple に並べる、よくある形が壊れる。
+--   - 「2 つの check を `or` で繋いで結果を tuple で持つ」のような自然な
+--     書き方ができない。
+--   - print の `<thunk>` 表記から「中身が見えない」状態のまま続行される
+--     ので、後続が thunk を value として扱おうとしてさらに分かりにくい
+--     失敗を起こす可能性がある。
+--
+-- メモ:
+--   tuple constructor が引数を value として要求する箇所で、lazy operator の
+--   `() -> value` 形が「force しないまま受け取る」経路に乗っている疑い。
+--   通常の application context では force が走るので、tuple element-list
+--   専用の lower path で thunk のまま渡す分岐がある可能性が高い。
+
+pub lazy infix(orelse) 1.0.0 1.0.0 = \a -> \b ->
+    if a():
+        true
+    else:
+        b()
+
+(true orelse false, true orelse false)

@@ -1,0 +1,58 @@
+-- bug: docs で約束されている result の `.map` / `.and_then` / `.unwrap_or`
+--      が stdlib の `result` companion に method として登録されていない
+--
+-- 期待:
+--   `web/docs/ja/reference/std/result.md` の「コンビネータ」と「早見表」:
+--
+--     (ok 21).map (\x -> x * 2)              // ok 42
+--     (ok 1).and_then (\x -> ok (x + 1))     // ok 2
+--     (err "stop").and_then (\x -> ok x)     // err "stop"
+--     (ok 1).unwrap_or 0                      // 1
+--     (err "boom").unwrap_or 0                // 0
+--
+--   が公開 method として並んでいる。
+--
+-- 実際:
+--   (ok 21).map (\x -> x * 2)
+--   → error: could not resolve `.map` because the receiver type is not
+--     specific enough to choose a method; add a receiver type annotation
+--     （list の `.map` と ambiguous）
+--   (ok 1).and_then (\_ -> err "stop")
+--   → error: no field or method named `.and_then` could be resolved
+--   (ok 1).unwrap_or 0
+--   → error: no field or method named `.unwrap_or` could be resolved
+--
+-- 切り分け:
+--
+--   `lib/std/result.yu` を覗くと、`pub enum result 'ok 'err` の後に:
+--     pub map(r, f) = ...
+--     pub and_then(r, f) = ...
+--     pub unwrap_or(r, fallback) = ...
+--   のように **free function としては定義されている** が、
+--     type result 'ok 'err with:
+--         our r.map f = ...
+--         our r.and_then f = ...
+--         our r.unwrap_or fb = ...
+--   のような companion method の登録 (`with:` ブロック) が存在しない。
+--
+--   free function 経路では取れる:
+--     std::result::map (ok 21) (\x -> x * 2)         → ok 42
+--     std::result::unwrap_or (ok 1) 0                → 1
+--
+-- 影響:
+--   - std/result.md の「コンビネータ」セクションが嘘になる。代表的な
+--     `(ok x).map` チェインが書けない。
+--   - `.map` だけは list 側の `xs.map` と混同されて ambiguous エラーが先に
+--     出る。result 側に `.map` が登録されれば、`(ok 21)` の receiver 型が
+--     result に固まって ambiguity も解消される（はず）。
+--   - errors.md の `case fs_err::wrap: ...: result::ok ... -> ...` は
+--     パターン match 経由で書けるので影響は局所的だが、`(fs_err::wrap: ...)
+--     .map (...)` のような流暢な chain 書きはできない。
+--
+-- メモ:
+--   stdlib 側に `type result 'ok 'err with:` ブロックを追加して 3 行入れる
+--   だけで直るはず。`opt` / `list` の方の missing method 群とまとめて
+--   chase すると効率がいい
+--   （`list_methods_undocumented_missing.yu` 参照）。
+
+(ok 21).map (\x -> x * 2)

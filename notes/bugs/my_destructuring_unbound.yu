@@ -1,0 +1,50 @@
+-- bug: `my pat = expr` の destructuring binding で、pattern が導入する
+--      名前が body から見えない（unbound / undefined）
+--
+-- 期待:
+--   `web/docs/ja/reference/patterns.md` の「`my` のパターン」節:
+--
+--     my (a, b) = (1, 2)
+--     my { x, y } = some_point
+--     my [first, ..rest] = some_list
+--
+--   は反駁不能パターンとして「`a` `b` `x` `y` `first` `rest` を後続の
+--   scope に bind する」と documented。
+--
+-- 実際:
+--   my (a, b) = (1, 2)        → error: unbound variable a
+--   my { x, ..rest } = rec    → error: undefined name `rest`
+--   my [first, ..rest] = xs   → error: undefined name `rest`
+--
+--   pattern 自体の構文は parser を通り、destructure もされている様子だが、
+--   その下で導入されるはずの名前が name resolution に登録されない。
+--
+-- 切り分け:
+--
+--   my (a, b) = (1, 2); a              → 落ちる
+--   my [first, ..rest] = [10, 20]; first → 落ちる
+--   my { x, ..rest } = { x: 1, y: 2 } ; x → 落ちる
+--
+--   case xs: [first, ..rest] -> ...     → 通る (case の pattern は OK)
+--   my f (x, y) = x + y                 → 通る (関数引数 pattern は OK)
+--   \(x, y) -> x + y                    → 通る (lambda 引数 pattern も OK)
+--
+--   つまり「`my pat = e`」の binding 形だけが壊れている。case の同じ
+--   pattern や、関数引数として書いた同じ pattern は正しく名前を入れる。
+--
+-- 影響:
+--   - patterns.md の「`my` のパターン」節がまるごと動かない。
+--   - tuple や record を「let で受けて分解する」素直な書き方ができず、
+--     毎回 case で展開する必要がある。
+--   - `my (a, b) = pair` のような最も基本的な分割代入が動かない、という
+--     初心者がすぐ詰まる場所。docs 冒頭の cheat-sheet にも `my (a, b) = (1, 2)`
+--     が書いてある。
+--
+-- メモ:
+--   関数引数 pattern と lambda 引数 pattern が動く（同じ pattern でも別経路で
+--   lower される）ことから、`my pat = e` 専用の lower step だけ pattern の
+--   `introduce` を呼んでいない疑い。`my <name> = e` 形と `my <pat> = e` 形が
+--   別経路に分岐している場所で、後者だけ name registration を抜かしている。
+
+my (a, b) = (1, 2)
+a + b

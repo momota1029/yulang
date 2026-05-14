@@ -1,0 +1,65 @@
+-- bug: 複数 payload を持つ enum variant `ctor 'a 'b 'c` を curried payload
+--      として書くと、value 側は通るが pattern side で意味がずれる
+--
+-- 期待:
+--   `web/docs/ja/reference/patterns.md` の「enum パターン」節:
+--
+--     enum tree 'a:
+--         leaf
+--         node 'a (tree 'a) (tree 'a)
+--
+--     case t:
+--         tree::leaf -> 0
+--         tree::node value left right -> value + sum left + sum right
+--
+--   3 つの payload を順に並べた variant `node` を、pattern 側でも同じく
+--   `tree::node value left right` と分解できる、と documented。
+--
+-- 実際:
+--   tree::node value left right -> value + sum left + sum right
+--   → type error: result type mismatch in call to `+`:
+--      expected int, got ('a, tree<'a>, tree<'a>)
+--
+--   diagnostic から、`sum left` の戻り値が int ではなく `('a, tree 'a, tree 'a)`
+--   の 3-tuple に推論されている。`tree::node value left right` という
+--   pattern が、`value` `left` `right` の 3 つの bind ではなく、`value` だけが
+--   payload tuple `(value, left, right)` を受け取る（あるいは `node` が
+--   1 引数 variant として扱われ、その引数を更に 3-tuple として
+--   destructure する）形になっている疑い。
+--
+-- 切り分け:
+--
+--   declaration:
+--     `enum tree 'a: leaf | node 'a (tree 'a) (tree 'a)`
+--     と
+--     `enum tree 'a: leaf, node 'a (tree 'a) (tree 'a)`
+--   どちらの記法でも同じ症状。
+--
+--   `enum expr = num int | add (expr, expr) | mul (expr, expr)` のように
+--   payload を tuple で書く形は完全に通る (cookbook の例)。
+--   curried 複数 payload `node 'a (tree 'a) (tree 'a)` の方が壊れている。
+--
+-- 影響:
+--   - patterns.md の `tree::node value left right` パターンがそのまま
+--     動かない。
+--   - 「複数引数 variant」を docs の通り `node 'a (tree 'a) (tree 'a)` 形で
+--     書くと、value 側 (構築) と pattern 側 (分解) で要素数が一致しない。
+--   - workaround として `node (('a, tree 'a, tree 'a))` のような tuple
+--     payload に書き換える必要がある。
+--
+-- メモ:
+--   docs (patterns.md) は curried multi-payload variant を前提に書かれている
+--   ので、parser/lower 側がこれを「1 引数 + tuple」に縮退させているのか、
+--   それとも書き方の正解が `node ('a, tree 'a, tree 'a)` のような tuple 必須
+--   なのか、仕様確認が必要。後者であれば patterns.md の例文を直すべき。
+
+enum tree 'a:
+    leaf
+    node 'a (tree 'a) (tree 'a)
+
+my sum t =
+    case t:
+        tree::leaf -> 0
+        tree::node value left right -> value + sum left + sum right
+
+sum (tree::node 1 (tree::node 2 tree::leaf tree::leaf) tree::leaf)

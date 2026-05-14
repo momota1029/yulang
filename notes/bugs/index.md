@@ -1,36 +1,159 @@
-# notes/bugs index (2026-05-13)
+# notes/bugs index (2026-05-14 更新)
 
 「素直に書いたら動きそうなのに、実装上詰まった」snippet の履歴。
 
 ## 現在の未解決
 
-なし。
+### Pattern / binding 系
 
-## 解決済み
+- [`my_destructuring_unbound.yu`](my_destructuring_unbound.yu) —
+  `my (a, b) = (1, 2)` / `my { x, ..rest } = rec` / `my [first, ..rest] = xs`
+  のような destructuring binding が、pattern 内の名前を後続 scope に bind
+  しない（unbound / undefined）。case の pattern や関数引数 pattern は通る。
+  `reference/patterns.md` の「`my` のパターン」節がそのまま動かない。
+- [`record_alias_default_mix.yu`](record_alias_default_mix.yu) —
+  record pattern で「alias + default」(`host: h = "..."`) と「default only」
+  (`port = 80`) を同じ pattern に混ぜると `expected (), got int` の型エラー。
+  単独はそれぞれ通る。`reference/patterns.md` の「別名とデフォルト」例が
+  動かない。
+- [`enum_curried_payload_unresolved.yu`](enum_curried_payload_unresolved.yu)
+  — `enum tree 'a: leaf, node 'a (tree 'a) (tree 'a)` のような複数 payload
+  variant を、pattern 側で `tree::node value left right` と分解すると
+  `value` だけが 3-tuple を受け、`left` / `right` の単独 bind が立たない。
+  `reference/patterns.md` の `tree::node value left right` がそのまま
+  動かない（tuple payload 形 `node (...)` への書き換えが必要）。
+- [`default_arg_method_recv_unresolved.yu`](default_arg_method_recv_unresolved.yu)
+  — `my translate { dx = 0, dy = 0 } point = point.move dx dy` で
+  `point.move` の receiver type が固まらず `could not resolve `.move`` で
+  落ちる。default 持ち record pattern が引数列の頭にあると、後続引数の
+  型推論が止まる傾向。`reference/patterns.md` の「関数引数のパターン」
+  例が動かない。
+
+### Effect / handler 系
+
+- [`labelled_for_var_effect_collision.yu`](labelled_for_var_effect_collision.yu)
+  — labelled for loop 内で `&hits = $hits + 1` のような var update を
+  混ぜると、外側 loop の `last 'outer` の effect row が壊れる
+  (`expected [...; &hits#var; ..never]`, `got [...::last; ...; ..never]`)。
+  `reference/control-flow.md` の labelled loop の典型ユースケース
+  （ネスト loop で見つけたら抜けつつ集計）が書けない。
+
+### Operator / cast 系
+
+- [`lazy_operator_thunk_in_tuple.yu`](lazy_operator_thunk_in_tuple.yu) —
+  lazy infix operator の結果を tuple 要素の位置に置くと、force されずに
+  `<thunk>` のまま漏れる。`(true or false)` 単独や bare `true or false` は
+  通常通り `true` を返すのに、`(true or false, true or false)` だと
+  `(<thunk>, <thunk>)`。tuple constructor の lower path で thunk が force
+  されない疑い。`reference/operators.md` の lazy 仕組みの自然な使い方が
+  壊れる。
+- [`branch_merge_cast_missing.yu`](branch_merge_cast_missing.yu) —
+  `if b: id else: 0` のような分岐合流位置で、両方向の `cast` impl が
+  登録されていても暗黙 cast が挿入されず branch result type mismatch に
+  なる。`reference/casts.md` の「cast が挿入される場所」リストに「分岐の
+  合流」が挙がっているのに動かない。binding ascription / 関数引数 / from
+  variant の cast は通る。
+
+### Stdlib `.method` 解決系
+
+- [`list_filter_method_missing.yu`](list_filter_method_missing.yu) —
+  `[1, 2, 3].filter (\x -> x > 0)` が `no field or method named `.filter` 
+  could be resolved` で落ちる。stdlib (`lib/std/list.yu` および
+  `crates/yulang-sources/std/list.yu`) の `type list 'a with:` ブロックには
+  `xs.filter pred = std::list::filter xs pred` が入っているが、`.map` と同じ
+  経路を通らず resolution が失敗する。
+- [`list_methods_undocumented_missing.yu`](list_methods_undocumented_missing.yu)
+  — `xs.first` / `xs.rev` / `xs.sort` が `reference/std/list.md` の早見表に
+  記載されているのに、stdlib の `type list 'a with:` ブロックに登録されて
+  おらず `no field or method` で落ちる（free function 形 `std::list::*` は
+  存在）。`.last` だけ登録されているので非対称も気になる。
+- [`list_fold_method_inference_failure.yu`](list_fold_method_inference_failure.yu)
+  — `[1, 2, 3].fold 0 (\acc x -> acc + x)` が「expected function」で落ちる。
+  `impl Fold (list 'a)` で `our xs.fold z f = fold_impl xs z f` が定義
+  されているのに、callback `f` の型が curried 関数として固まらない。
+  `reference/std/list.md` の代表的な fold 例がそのまま動かない。
+- [`result_methods_undocumented_missing.yu`](result_methods_undocumented_missing.yu)
+  — `(ok 21).map (...)` / `(ok 1).and_then (...)` / `(ok 1).unwrap_or 0` の
+  どれも resolve できない。`lib/std/result.yu` には free function として
+  定義されているが、`type result 'ok 'err with:` ブロック自体が無く
+  companion method が登録されていない。`reference/std/result.md` の
+  「コンビネータ」節がまるごと動かない。
+
+## 解決済み（2026-05-14 時点で再現せず）
 
 - [`var_effect_leak_with_wildcards.yu`](var_effect_leak_with_wildcards.yu) —
   handler 関数の型注釈に `_` を混ぜると、`my $x = ...` で開いた局所 ref の
-  `&x::get` effect が `catch` の scope を抜けて program 最外まで漏れる。
-  `web/docs/ja/guide/cookbook.md` の handler レシピが `((), [])` の代わりに
-  `request &entries#764::get () blocked=None` を返す。action の値型と return
-  型を両方とも具体的に書けば回避できる。
+  `&x::get` effect が `catch` の scope を抜けて program 最外まで漏れていた。
+  現在は `((), [])` を正しく返す。
 - [`lambda_pattern_unbound.yu`](lambda_pattern_unbound.yu) — lambda 引数に
   destructuring pattern (`\(x, y) -> ...`, `\{ name } -> ...`) を書くと、
-  body で名前が unbound になる。binding 形 `my f (x, y) = ...` は同じ
-  pattern で通る。`reference/functions.md` / `reference/patterns.md` の例が
-  動かない。
+  body で名前が unbound になっていた。現在は通る。binding 形 `my f (x, y)`
+  も同じく通る。
 - [`list_map_method_unresolved.yu`](list_map_method_unresolved.yu) — list の
-  companion method `.map` だけが解決できず "no field or method named `.map`
-  could be resolved" で落ちる。同じブロックの `.append` / `.splice` / `.last`
-  は通る。`idioms.md` の `xs.map ... .filter ... .len` チェイン例が動かない。
-- [`pattern_binding_vs_variant.yu`](pattern_binding_vs_variant.yu) — pattern
-  binding 名が in-scope の variant constructor と一致すると、binding ではなく
-  nested variant pattern として解釈される。`result::err err -> ...`、
-  `just just -> ...`、`ok ok -> ...` などが全滅。errors.md の `wrap` レシピが
-  そのまま動かない。`local_name_vs_nullfix` の pattern 位置版。
+  companion method `.map` だけが解決できなかった。現在は通る。
+- [`pattern_binding_vs_variant.yu`](pattern_binding_vs_variant.yu) —
+  pattern binding 名が in-scope の variant constructor と一致すると、
+  binding ではなく nested variant pattern として解釈されていた。現在は
+  binding として通る (`result::err err -> ...` が動く)。
+
+## 仕様だけど docs 側で補足が欲しいもの
+
+実装は意図通りで、bug ではない。docs に書き足すと初学者の事故が減る。
+
+- **enum variant の短い名前は `use enum::*` 必須**（Rust と同じ、混ざらない
+  ためのデザイン）。`reference/patterns.md` の「`tag x` | 短い名前で書く
+  enum variant（曖昧でないとき）」表記は誤読を招くので、「`use enum::*` の
+  後でのみ短名で書ける」と明記したい。さらに、pattern 位置で use なしの
+  `red` と書くと variant マッチではなく **fresh binding** として silently
+  通るので、
+  ```yulang
+  enum color = red | green | blue
+  case c:
+      red -> "r"      -- ← `red` は fresh 変数。すべての値にマッチして
+                       --    `green` / `blue` arm が unreachable
+      green -> "g"
+      blue -> "b"
+  ```
+  のような書き間違いが起こりやすい。pitfalls.md / patterns.md に
+  「short-name variant pattern には use が必要」と一節入れたい。
+- **inline type ascription は `as` を使う**（`:` は colon application との
+  衝突回避のため）。
+  ```yulang
+  ([] as list int)
+  ```
+  は通る。`reference/types.md` / `reference/casts.md` のどちらにも `as`
+  キーワードでの inline ascription が明記されていない。casts.md は
+  「`cast(x: A): B` 関数定義」と「expected-type 境界での暗黙挿入」までで、
+  ユーザが「型を一回明示してから渡したい」場面で `as` に辿り着く誘導が
+  ない。`reference/types.md` の Type variable 節か、`reference/casts.md`
+  の頭に「inline ascription は `(e as T)`」を入れたい。
+
+## docs と挙動の小さな乖離（snippet 化していない）
+
+- **`--infer` フラグが現存しない**: `cheat-sheet.md` / `pitfalls.md` /
+  `reference/functions.md` に
+  `cargo run -q -p yulang -- --infer examples/showcase.yu` の例が残って
+  いるが、現在の CLI には `--infer` オプションがない。`yulang check
+  examples/showcase.yu` が代替。
+- **install.md の `cargo run` 例が subcommand 抜け**:
+  `cargo run -p yulang -- path/to/file.yu` と書かれているが、現在は
+  subcommand が必須。`cargo run -p yulang -- run path/to/file.yu` か
+  `cargo run -p yulang -- check path/to/file.yu` に直したい。
+- **`std::ops::add` という path は存在しない**: `reference/operators.md` の
+  「演算子を関数として呼ぶ」節で `std::ops::add 1 2` を「明示形」として
+  紹介しているが、`std::ops` には `+` operator 定義しかなく、`add` という
+  free function はない。実体名は `std::int::add` か role method `x.add y`。
+  例文を `std::int::add 1 2` か `(1).add 2` に直すか、`std::ops::add` を
+  reexport で用意するかどちらか。
+- **`0..10` は閉区間**: `cheat-sheet.md` の `for x in 0..10: println x.show`
+  例を読んだ初学者は半開区間を想定しがちだが、`0..10` は 0..=10 の 11 要素
+  （半開は `0..<10`）。`reference/types.md` には明記されているので仕様。
+  cheat-sheet 側に一言補足があると親切。
 
 ## 確認方法
 
 ```bash
-RUSTC_WRAPPER= cargo run -q -p yulang -- --run notes/bugs/<file>.yu
+yulang run notes/bugs/<file>.yu
+# または
+cargo run -q -p yulang -- run notes/bugs/<file>.yu
 ```

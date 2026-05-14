@@ -1,0 +1,65 @@
+-- bug: 分岐 (`if` / `case`) の合流位置で、定義された `cast` impl が暗黙
+--      挿入されず branch result type mismatch になる
+--
+-- 期待:
+--   `web/docs/ja/reference/casts.md` の「cast が挿入される場所」節:
+--
+--     - binding や引数の型注釈
+--     - 関数の引数
+--     - 分岐の合流（2 つの arm が同じ型に揃う必要がある場所）  ← ここ
+--     - effect arm の結果型
+--
+--   と documented。`Cast user_id -> int` と `Cast int -> user_id` の両方を
+--   定義したうえで:
+--
+--     my id: user_id = 7
+--     my pick (b: bool) =
+--         if b: id        -- user_id
+--         else: 0          -- int
+--
+--   を書いたら、cast 経由でどちらかの型に合流できるはず。
+--
+-- 実際:
+--   error: branch result type mismatch: expected int, got user_id
+--
+--   どちらの方向の cast も登録されているのに、`if` の合流で cast が挿入され
+--   ず単純に「型が違う」と弾かれる。
+--
+-- 切り分け:
+--
+--   binding ascription:
+--     my x: int = id           → 通る (cast 挿入される)
+--     my x: user_id = 0        → 通る
+--   関数引数:
+--     my use_int(n: int) = n + 1; use_int id   → 通る
+--   if 合流:
+--     if b: id else: 0          → 落ちる (mismatch)
+--   case 合流:
+--     case n: 0 -> id; _ -> 0  → 同じく落ちる
+--
+--   docs に挙がっている 4 つの場所のうち「分岐の合流」だけが動かない。
+--
+-- 影響:
+--   - casts.md が約束している主要な cast 挿入点が 1 つ欠ける。
+--   - `if` / `case` で「片方は wrapped、もう片方は raw」を返したい newtype
+--     ベースの設計が、branch ごとに自分で `cast` を挿入する手間を要する。
+--   - 通常 `pick` のような関数の戻り型を annotate すれば回避できる
+--     （`my pick(b: bool): int = if b: id else: 0`）が、annotation なしでは
+--     ambiguous で潰されてしまう。
+--
+-- メモ:
+--   合流位置で expected type が立っていない（branch 自体の合流先が free
+--   variable のまま）ので「期待型が一意でない場面では cast を挿入しない」
+--   現在のポリシーが効いている可能性。docs はもう少し条件を狭めて書くか、
+--   合流側で expected type を見つける推論を入れるかの判断。
+
+struct user_id { raw: int }
+cast(x: user_id): int = x.raw
+cast(x: int): user_id = user_id { raw: x }
+
+my id: user_id = 7
+my pick (b: bool) =
+    if b: id
+    else: 0
+
+(pick true, pick false)

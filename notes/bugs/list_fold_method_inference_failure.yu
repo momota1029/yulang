@@ -1,0 +1,51 @@
+-- bug: `xs.fold z f` の method 形が、callback `f` の型を関数として固められ
+--      ずに推論失敗する
+--
+-- 期待:
+--   `web/docs/ja/reference/std/list.md` の「反復」と「早見表」:
+--
+--     xs.fold 0 (\acc x -> acc + x)        // sum
+--     xs.fold : `list 'a -> 'b -> ('b -> 'a -> 'b) -> 'b`
+--
+--   stdlib の `impl Fold (list 'a)` には:
+--
+--     our xs.fold z f = fold_impl xs z f
+--
+--   が定義されており、`fold_impl` は `f z x` で curried 適用するので、`f` は
+--   `'b -> 'a -> 'b` の curried 関数を期待する。`\acc x -> acc + x` は
+--   `\acc -> \x -> acc + x` と同じ curried 形のはずで、そのまま渡せる。
+--
+-- 実際:
+--   [1, 2, 3].fold 0 (\acc x -> acc + x)
+--   → type error: expected function
+--      while checking: int <: ?[?] -> [?] ?
+--      from edge: ApplicationResult
+--
+--   `f` の位置に裸の `int` が来ているように推論されている。callback として
+--   渡した lambda の戻り値型 `int` が、`f` 自体の型に直結してしまっている
+--   ようなエラー。
+--
+-- 切り分け:
+--
+--   std::list::fold [1, 2, 3] 0 (\acc x -> acc + x)
+--                                                 → 通る (free function 形)
+--   xs.fold 0 (\(acc: int) (x: int) -> acc + x)   → 同じエラー
+--   xs.fold 0 (\acc -> \x -> acc + x)             → 同じエラー
+--
+--   curried explicit 形にしても同じ。`xs.fold 0 (...)` の dispatch 経路で、
+--   callback 型の curried 階数を読み違えている疑い。
+--
+-- 影響:
+--   - std/list.md の代表的な fold 例 `xs.fold 0 (\acc x -> acc + x)` がそのまま
+--     動かない。
+--   - `Fold` role 経由で書かれた generic な fold ベースの helper も同じ症状に
+--     当たりやすい。method 経路を諦めて `std::list::fold xs z f` の free
+--     function 形に書き換える必要がある。
+--
+-- メモ:
+--   `impl Fold (list 'a): our xs.fold z f = fold_impl xs z f` の signature
+--   が role 側の `fold: 'b -> ('b -> 'a -> 'b) -> 'b` とどう合流しているかが
+--   鍵。impl method の引数 ascription を明示しない currentstdlib では、`f`
+--   の curried 階数が role signature 由来で固まらず、推論時に不足する説。
+
+[1, 2, 3].fold 0 (\acc x -> acc + x)
