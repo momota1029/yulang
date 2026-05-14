@@ -1506,7 +1506,8 @@ mod tests {
     use yulang_parser::sink::YulangLanguage;
 
     use super::super::evidence::{
-        collect_derived_expected_edge_evidence, collect_expected_adapter_edge_evidence,
+        DerivedExpectedEdgeKind, collect_derived_expected_edge_evidence,
+        collect_expected_adapter_edge_evidence, complete_expected_edge_evidence,
     };
     use crate::diagnostic::{ExpectedAdapterEdgeKind, ExpectedEdgeKind};
     use crate::{LowerState, diagnostic, lower_root};

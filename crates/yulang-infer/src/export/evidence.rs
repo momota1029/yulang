@@ -318,7 +318,10 @@ fn complete_expected_adapter_edge_evidence(
 }
 
 #[cfg(test)]
-fn complete_expected_edge_evidence(infer: &Infer, edge: &ExpectedEdge) -> ExpectedEdgeEvidence {
+pub(super) fn complete_expected_edge_evidence(
+    infer: &Infer,
+    edge: &ExpectedEdge,
+) -> ExpectedEdgeEvidence {
     let mut cache = HashMap::new();
     complete_expected_edge_evidence_cached(infer, edge, &mut cache)
 }
