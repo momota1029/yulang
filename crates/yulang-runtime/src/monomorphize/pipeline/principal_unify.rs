@@ -1243,11 +1243,13 @@ impl PrincipalUnifier {
             .into_iter()
             .map(|stmt| match stmt {
                 Stmt::Let { pattern, value } => {
-                    let value_context = pattern_value_context(&pattern).or_else(|| {
-                        pattern_bind_name(&pattern)
-                            .and_then(|name| local_use_contexts.get(name))
-                            .cloned()
-                    });
+                    let value_context = pattern_value_context(&pattern)
+                        .or_else(|| {
+                            pattern_bind_name(&pattern)
+                                .and_then(|name| local_use_contexts.get(name))
+                                .cloned()
+                        })
+                        .or_else(|| self.local_var_ref_binding_context(&pattern));
                     let value = self.rewrite_expr(value, value_context);
                     let pattern = self.rewrite_pattern_defaults(pattern);
                     self.record_local_value_type(&pattern, &value.ty);
@@ -1255,9 +1257,7 @@ impl PrincipalUnifier {
                 }
                 Stmt::Expr(expr) => Stmt::Expr(self.rewrite_expr(expr, None)),
                 Stmt::Module { def, body } => {
-                    let body_context = self
-                        .monomorphic_binding_type(&def)
-                        .map(|ty| typed_ir::TypeBounds::exact(runtime_core_type(&ty)));
+                    let body_context = self.module_stmt_body_context(&def, &local_use_contexts);
                     let body = self.rewrite_expr(body, body_context);
                     Stmt::Module { def, body }
                 }
@@ -1269,6 +1269,46 @@ impl PrincipalUnifier {
             ty,
             kind: ExprKind::Block { stmts, tail },
         }
+    }
+
+    fn local_var_ref_binding_context(&self, pattern: &Pattern) -> Option<typed_ir::TypeBounds> {
+        let Pattern::Bind { name, ty } = pattern else {
+            return None;
+        };
+        let raw = name.0.strip_prefix('&')?;
+        let init_name = typed_ir::Name(format!("#{raw}"));
+        let init_ty = self.local_value_type(&typed_ir::Path::from_name(init_name))?;
+        let init_ty = runtime_core_type(&init_ty);
+        if !closed_slot_type_usable(&init_ty, false) {
+            return None;
+        }
+        let RuntimeType::Core(typed_ir::Type::Named { path, args }) = ty else {
+            return None;
+        };
+        if !is_std_var_ref_path(path) || args.len() != 2 {
+            return None;
+        }
+        let mut args = args.clone();
+        args[1] = typed_ir::TypeArg::Type(init_ty);
+        Some(typed_ir::TypeBounds::exact(typed_ir::Type::Named {
+            path: path.clone(),
+            args,
+        }))
+    }
+
+    fn module_stmt_body_context(
+        &self,
+        def: &typed_ir::Path,
+        local_use_contexts: &BTreeMap<typed_ir::Name, typed_ir::TypeBounds>,
+    ) -> Option<typed_ir::TypeBounds> {
+        self.monomorphic_binding_type(def)
+            .map(|ty| typed_ir::TypeBounds::exact(runtime_core_type(&ty)))
+            .or_else(|| {
+                let [name] = def.segments.as_slice() else {
+                    return None;
+                };
+                local_use_contexts.get(name).cloned()
+            })
     }
 
     fn rewrite_block_module_stmt_types(&self, stmts: Vec<Stmt>) -> Vec<Stmt> {
@@ -2414,9 +2454,6 @@ impl PrincipalUnifier {
         spine: &PrincipalUnifyApplySpine<'_>,
         final_ty: &RuntimeType,
     ) -> Option<Expr> {
-        if spine.target.segments.len() != 1 {
-            return None;
-        }
         let original = self.generic_binding(spine.target)?;
         if spine.args.len() != core_fun_arity(&original.scheme.body) {
             return None;
@@ -8260,6 +8297,31 @@ fn merge_projected_value_type_precision(
             Some(typed_ir::Type::Tuple(items))
         }
         (
+            typed_ir::Type::Row {
+                items: existing_items,
+                tail: existing_tail,
+            },
+            typed_ir::Type::Row {
+                items: incoming_items,
+                tail: incoming_tail,
+            },
+        ) if existing_items.len() == incoming_items.len() => {
+            let items = existing_items
+                .iter()
+                .zip(incoming_items)
+                .map(|(existing, incoming)| {
+                    merge_projected_effect_type_precision(existing, incoming)
+                })
+                .collect::<Option<Vec<_>>>()?;
+            Some(typed_ir::Type::Row {
+                items,
+                tail: Box::new(merge_projected_effect_type_precision(
+                    existing_tail,
+                    incoming_tail,
+                )?),
+            })
+        }
+        (
             typed_ir::Type::Fun {
                 param: existing_param,
                 param_effect: existing_param_effect,
@@ -8291,6 +8353,45 @@ fn merge_projected_value_type_precision(
             )?),
         }),
         _ => None,
+    }
+}
+
+fn merge_projected_effect_type_precision(
+    existing: &typed_ir::Type,
+    incoming: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    match (existing, incoming) {
+        (
+            typed_ir::Type::Named {
+                path: existing_path,
+                args: existing_args,
+            },
+            typed_ir::Type::Named {
+                path: incoming_path,
+                args: incoming_args,
+            },
+        ) if existing_path == incoming_path
+            && existing_args.is_empty()
+            && !incoming_args.is_empty() =>
+        {
+            Some(incoming.clone())
+        }
+        (
+            typed_ir::Type::Named {
+                path: existing_path,
+                args: existing_args,
+            },
+            typed_ir::Type::Named {
+                path: incoming_path,
+                args: incoming_args,
+            },
+        ) if existing_path == incoming_path
+            && !existing_args.is_empty()
+            && incoming_args.is_empty() =>
+        {
+            Some(existing.clone())
+        }
+        _ => merge_projected_value_type_precision(existing, incoming),
     }
 }
 

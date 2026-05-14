@@ -3,6 +3,7 @@ use crate::profile::ProfileClock as Instant;
 use yulang_parser::lex::SyntaxKind;
 
 use crate::ast::expr::{ExprKind, PatKind, TypedBlock, TypedExpr, TypedPat, TypedStmt};
+use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
 use crate::ids::{DefId, TypeVar};
 use crate::lower::{LowerState, SyntaxNode};
 use crate::symbols::Name;
@@ -220,6 +221,15 @@ fn lower_var_ref_binding(
     });
     state.infer.constrain(Pos::Var(body.tv), Neg::Var(tv));
     state.infer.constrain(Pos::Var(tv), Neg::Var(body.tv));
+    state.expect_value(
+        body.tv,
+        tv,
+        ExpectedEdgeKind::Annotation,
+        ConstraintCause {
+            span: None,
+            reason: ConstraintReason::BindingBody,
+        },
+    );
     constrain_var_ref_binding_to_init(state, tv, binding, act);
     Some(TypedStmt::Let(
         TypedPat {
@@ -245,10 +255,19 @@ fn constrain_var_ref_binding_to_init(
     };
     let eff_tv = state.fresh_tv();
     constrain_var_ref_effect_row_to_act(state, eff_tv, act);
-    let ref_args = invariant_ref_args(state, &[(eff_tv, eff_tv), (init_tv, init_tv)]);
     state.infer.constrain(
-        Pos::Con(crate::std_ref_paths::standard_ref_type_path(), ref_args),
+        Pos::Con(
+            crate::std_ref_paths::standard_ref_type_path(),
+            invariant_ref_args(state, &[(eff_tv, eff_tv), (init_tv, init_tv)]),
+        ),
         Neg::Var(ref_tv),
+    );
+    state.infer.constrain(
+        Pos::Var(ref_tv),
+        Neg::Con(
+            crate::std_ref_paths::standard_ref_type_path(),
+            invariant_ref_args(state, &[(eff_tv, eff_tv), (init_tv, init_tv)]),
+        ),
     );
 }
 
