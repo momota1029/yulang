@@ -7,6 +7,7 @@
 //! monomorphization.
 
 mod apply_principal;
+mod bindings;
 mod evidence;
 pub mod expr;
 pub mod names;
