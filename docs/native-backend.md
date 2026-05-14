@@ -73,7 +73,7 @@ checklist, see *Detailed progress* below.
 | --------------------------------------------------- | ---------------------- | :----: |
 | Small source-defined algebraic effects              | CPS repr               |   ✅   |
 | Multi-shot resumption (scalar)                      | CPS repr               |   ✅   |
-| `std::undet` `.once` first solution over a finite list | CPS repr            |   ✅   |
+| `std::undet` `.once` / `.list` / `.logic` over finite-list choices | CPS repr |   ✅   |
 | Mutable reference edit / update through effects     | CPS repr (scalar)      |   ✅   |
 | Effectful thunks across function boundaries         | CPS repr (scalar)      |   △   |
 | `std::junction` effectful boolean conditions        | CPS repr               |   ✅   |
@@ -318,6 +318,17 @@ or out of here into the user-facing table once they stabilize.
       the immediate-force return frame, so the false branch resumes through
       the enclosing fold and reaches the trailing `reject()` instead of
       leaking `()` into `.list`.
+- [x] Nested finite-list nondeterminism such as
+      `(each [1, 2, 3] + each [10, 20]).list` runs through CPS eval,
+      CPS repr eval, and the Cranelift CPS repr executable path.
+- [x] `std::undet.logic` over nested finite-list choices runs through CPS eval,
+      CPS repr eval, and the Cranelift CPS repr executable path. The CPS repr
+      evaluator and Cranelift helper now treat resumption pointers as
+      closure-like callable values for `ApplyClosure`, which keeps queued
+      multi-shot continuations usable after `std::list::uncons`.
+- [x] `std::undet.once` over nested finite-list choices returns the first
+      solution through CPS eval, CPS repr eval, and the Cranelift CPS repr
+      executable path.
 - [x] `ResumeWithHandler` restores captured return frames in the Cranelift CPS
       repr path, so direct-call caller-rest continuations can run under the
       temporary handler installed around `k true`.

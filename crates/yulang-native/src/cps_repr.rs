@@ -1994,27 +1994,64 @@ fn resume_continuation(
                     dispatch_scope_return_repr!('cont, result, dest);
                 }
                 CpsStmt::ApplyClosure { dest, closure, arg } => {
-                    let closure = read_closure(function, &values, *closure)?;
-                    let arg = read_value(function, &values, *arg)?;
-                    let owner = function_by_name_repr(module, &closure.owner_function)?;
-                    let mut closure_values = closure.values.clone();
-                    if let Some(self_id) = closure.recursive_self {
-                        closure_values
-                            .insert(self_id, CpsReprRuntimeValue::Closure(closure.clone()));
-                    }
-                    let inherited = return_frames.len();
-                    let result = eval_continuations(
-                        module,
-                        owner,
-                        closure.entry,
-                        vec![arg],
-                        closure_values,
-                        active_handlers.clone(),
-                        guard_stack.clone(),
-                        return_frames.clone(),
-                        active_blocked.clone(),
-                        inherited,
-                    )?;
+                    let callable = read_value(function, &values, *closure)?;
+                    let result = match callable {
+                        CpsReprRuntimeValue::Closure(closure) => {
+                            let arg = read_value(function, &values, *arg)?;
+                            let owner = function_by_name_repr(module, &closure.owner_function)?;
+                            let mut closure_values = closure.values.clone();
+                            if let Some(self_id) = closure.recursive_self {
+                                closure_values
+                                    .insert(self_id, CpsReprRuntimeValue::Closure(closure.clone()));
+                            }
+                            let inherited = return_frames.len();
+                            eval_continuations(
+                                module,
+                                owner,
+                                closure.entry,
+                                vec![arg],
+                                closure_values,
+                                active_handlers.clone(),
+                                guard_stack.clone(),
+                                return_frames.clone(),
+                                active_blocked.clone(),
+                                inherited,
+                            )?
+                        }
+                        CpsReprRuntimeValue::Resumption(resumption) => {
+                            let arg = read_plain_value(function, &values, *arg)?;
+                            let owner = function_by_name_repr(module, &resumption.owner_function)?;
+                            let anchor = resumption.handled_anchor;
+                            let resumed_handlers = merge_resumption_handlers_repr(
+                                &resumption.handlers,
+                                &active_handlers,
+                                anchor,
+                            );
+                            let adjusted_frames = merge_extras_into_frames_repr(
+                                &resumption.return_frames,
+                                &active_handlers,
+                                anchor,
+                            );
+                            eval_continuations(
+                                module,
+                                owner,
+                                resumption.target,
+                                vec![CpsReprRuntimeValue::Plain(arg)],
+                                resumption.values.clone(),
+                                resumed_handlers,
+                                resumption.guard_stack.clone(),
+                                adjusted_frames,
+                                resumption.active_blocked.clone(),
+                                0,
+                            )?
+                        }
+                        _ => {
+                            return Err(CpsReprEvalError::ExpectedPlainValue {
+                                function: function.name.clone(),
+                                id: *closure,
+                            });
+                        }
+                    };
                     if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
                         return Ok(result);
                     }
@@ -2244,7 +2281,11 @@ fn resume_continuation(
                 if arm_already_reached_escape
                     && !matches!(result, CpsReprRuntimeValue::ScopeReturn { .. })
                 {
-                    return Ok(result);
+                    let mut frames = return_frames.clone();
+                    if frames.len() > frame.return_frame_threshold {
+                        frames.truncate(frame.return_frame_threshold);
+                    }
+                    return continue_return_frames_repr(module, result, &frames, &[]);
                 }
                 // write26: wrap arm body's natural Return as ScopeReturn so
                 // handle_scope_return_repr can route to H_sub.escape /
@@ -2814,20 +2855,6 @@ fn into_plain_value(
         function: function.name.clone(),
         id,
     })
-}
-
-fn read_closure(
-    function: &CpsReprFunction,
-    values: &HashMap<CpsValueId, CpsReprRuntimeValue>,
-    id: CpsValueId,
-) -> CpsReprEvalResult<CpsReprClosure> {
-    match read_value(function, values, id)? {
-        CpsReprRuntimeValue::Closure(closure) => Ok(closure),
-        _ => Err(CpsReprEvalError::ExpectedPlainValue {
-            function: function.name.clone(),
-            id,
-        }),
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

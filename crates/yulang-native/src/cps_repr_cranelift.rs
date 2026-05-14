@@ -5000,6 +5000,10 @@ extern "C" fn yulang_cps_make_recursive_closure_i64_many(
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_apply_closure_i64(value: usize, arg: i64) -> i64 {
+    let is_resumption = NATIVE_CPS_I64_RESUMPTIONS.with(|s| s.borrow().contains(&value));
+    if is_resumption {
+        return yulang_cps_resume_i64(value as *const NativeCpsI64Resumption, arg);
+    }
     // write27-e: Layer 2 calls a closure with the **caller**'s active
     // handlers and guards (eval_continuations(..., active_handlers,
     // guard_stack, ...) at cps_repr.rs:2247). The previous JIT impl
@@ -6415,10 +6419,20 @@ extern "C" fn yulang_cps_perform_finish_escaped_i64(value: i64) -> i64 {
             NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = snap);
         }
     });
-    NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| {
-        meta.borrow_mut().pop();
-    });
-    value
+    let meta = NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| meta.borrow_mut().pop());
+    if let Some(meta) = meta {
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+            let mut frames = frames.borrow_mut();
+            if frames.len() > meta.return_frame_threshold {
+                frames.truncate(meta.return_frame_threshold);
+            }
+        });
+    }
+    let frame_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
+    if frame_len == 0 {
+        return value;
+    }
+    yulang_cps_continue_return_frame_i64(value)
 }
 
 /// write27-c c3: if no ScopeReturn is active, wrap `value` as a

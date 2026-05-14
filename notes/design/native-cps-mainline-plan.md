@@ -119,12 +119,23 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
   - [x] `each [1, 2, 3] .list` の false branch は、Return(Thunk) の
         pre-force で thunk body を先に実行し、その結果を retained return-frame
         chain へ戻す。CPS eval / CPS repr eval / Cranelift runtime が同じ形で通る。
+  - [x] Handler arm entry が installed escape continuation へ到達済みの場合も、
+        arm result を値だけで返さず、handler install 時点より内側の frame を
+        切ってから retained return-frame chain を続行する。これで
+        `(each [1, 2, 3] + each [10, 20]).list` が VM と一致する。
 
 ### 5. Handler / Resumption Heap Values
 
-- [ ] resumption pointer を closure-like callable value として扱う。
-- [ ] `EffectfulApply` の closure/resumption dynamic dispatch を runtime value lane と統合する。
-- [ ] multi-shot resumption capture が runtime value payload を含んでも VM と一致するようにする。
+- [x] resumption pointer を closure-like callable value として扱う。
+  - [x] CPS eval / CPS repr eval / Cranelift runtime の `ApplyClosure` が
+        closure と resumption を動的 dispatch する。`std::undet.logic` の
+        queue から取り出した continuation を `k false` として呼ぶ path が通る。
+- [x] `EffectfulApply` の closure/resumption dynamic dispatch を runtime value lane と統合する。
+- [x] multi-shot resumption capture が runtime value payload を含んでも VM と一致するようにする。
+  - [x] `(each [1, 2, 3] + each [10, 20]).logic` が VM / CPS eval /
+        CPS repr eval / Cranelift runtime で一致する。
+  - [x] `(each [1, 2, 3] + each [10, 20]).once` が VM / CPS eval /
+        CPS repr eval / Cranelift runtime で `just 11` を返す。
 - [ ] shallow handler + delimiter frame + guard stack の source regression を native executable path に増やす。
 
 ### 6. CLI And Release Surface

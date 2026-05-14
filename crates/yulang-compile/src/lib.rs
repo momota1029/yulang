@@ -390,6 +390,42 @@ my t = sub:
         .expect("CPS repr native display");
     }
 
+    #[test]
+    fn runs_undet_list_nested_each_sum_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+(each [1, 2, 3] + each [10, 20]).list
+"#,
+            vec!["[11, 21, 12, 22, 13, 23]"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_undet_logic_nested_each_sum_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+(each [1, 2, 3] + each [10, 20]).logic
+"#,
+            vec!["[11, 12, 21, 13, 22, 23]"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_undet_once_nested_each_sum_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+(each [1, 2, 3] + each [10, 20]).once
+"#,
+            vec![":just 11"],
+        )
+        .expect("CPS repr native display");
+    }
+
     fn compare_source_cps_repr_with_std(source: &str) -> Result<(), String> {
         let source = source.to_string();
         run_with_large_stack(move || {
@@ -418,6 +454,28 @@ my t = sub:
                 source_options_with_std(),
             )
             .map_err(|error| error.to_string())?;
+            let cps_module =
+                yulang_native::lower_cps_module(&module).map_err(|error| error.to_string())?;
+            let cps_values =
+                yulang_native::eval_cps_module(&cps_module).map_err(|error| error.to_string())?;
+            let cps_actual: Vec<String> = cps_values.iter().map(format_native_i64_value).collect();
+            if cps_actual != expected {
+                return Err(format!(
+                    "unexpected CPS eval display result: {cps_actual:?}"
+                ));
+            }
+            let cps_repr_module = yulang_native::lower_cps_repr_module(&cps_module);
+            let cps_repr_values = yulang_native::eval_cps_repr_module(&cps_repr_module)
+                .map_err(|error| error.to_string())?;
+            let cps_repr_actual: Vec<String> = cps_repr_values
+                .iter()
+                .map(format_native_i64_value)
+                .collect();
+            if cps_repr_actual != expected {
+                return Err(format!(
+                    "unexpected CPS repr eval display result: {cps_repr_actual:?}"
+                ));
+            }
             let mut jit = yulang_native::compile_runtime_module_to_cps_repr_jit(&module)
                 .map_err(|error| error.to_string())?;
             let actual = jit.run_roots_display().map_err(|error| error.to_string())?;
@@ -477,6 +535,27 @@ my t = sub:
                     .join(", ")
             ),
             other => format!("{other:?}"),
+        }
+    }
+
+    fn format_native_i64_value(value: &yulang_runtime::VmValue) -> String {
+        match value {
+            yulang_runtime::VmValue::Bool(true) => "1".to_string(),
+            yulang_runtime::VmValue::Bool(false) => "0".to_string(),
+            yulang_runtime::VmValue::List(items) => format!(
+                "[{}]",
+                items
+                    .to_vec()
+                    .iter()
+                    .map(|item| format_native_i64_value(item))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            yulang_runtime::VmValue::Variant { tag, value } => match value {
+                Some(value) => format!(":{} {}", tag.0, format_native_i64_value(value.as_ref())),
+                None => format!(":{}", tag.0),
+            },
+            other => format_value(other),
         }
     }
 

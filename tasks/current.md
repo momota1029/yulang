@@ -163,6 +163,13 @@ CPS repr Cranelift の source 回帰を広げる。
   の pre-force が top continuation を直接再開せず、retained return frame を
   消費する前に thunk body を force してから return-frame chain へ戻すようにした。
   これで fold callback の `()` は残りの fold へ流れ、末尾の `reject()` に届く。
+- nested finite-list nondet も forced CPS repr executable path で通る。
+  `(each [1, 2, 3] + each [10, 20]).list` / `.logic` は VM / CPS eval /
+  CPS repr eval / Cranelift JIT で一致し、`.once` も VM / CPS eval /
+  CPS repr eval / Cranelift JIT で `just 11` を返す。handler arm が
+  installed escape へ到達済みのときも retained return-frame chain を続行し、
+  CPS repr / Cranelift の `ApplyClosure` は resumption pointer を
+  closure-like callable として扱う。
 - value backend と CPS repr backend の fallback policy を、握りつぶしではなく
   structured unsupported reason で選べる形へ寄せる。
 

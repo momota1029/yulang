@@ -1444,7 +1444,11 @@ fn resume_continuation(
                 if arm_already_reached_escape
                     && !matches!(result, CpsRuntimeValue::ScopeReturn { .. })
                 {
-                    return Ok(result);
+                    let mut frames = return_frames.clone();
+                    if frames.len() > frame.return_frame_threshold {
+                        frames.truncate(frame.return_frame_threshold);
+                    }
+                    return continue_return_frames(module, result, &frames, &[]);
                 }
                 // The arm body's natural Return becomes a non-local jump to
                 // the matching handler scope. Don't re-wrap if the arm itself
