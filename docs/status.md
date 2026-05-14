@@ -22,13 +22,13 @@ It complements two other documents:
 
 The columns trace a value through the pipeline:
 
-- **Parse** — accepted by the v7 parser.
+- **Parse** — accepted by `yulang-parser`.
 - **Infer** — accepted by the type inference engine and produces a principal
   type.
 - **VM Run** — runs on the interpreter (the semantic oracle for everything
   else).
 - **Playground** — exercised through the WebAssembly playground.
-- **Native** — runs through the native backend (`--native-run`); see
+- **Native** — runs through the native backend (`yulang native`); see
   [docs/native-backend.md](native-backend.md) for the detailed subset.
 - **Docs** — covered by the user-facing language overview.
 

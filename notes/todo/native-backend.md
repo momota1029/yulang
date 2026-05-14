@@ -10,7 +10,7 @@ CPS 風 lowering 経由で Cranelift にコンパイルする。
 近い作業:
 
 - README の `Native Backend Progress` と実装状態を常に合わせる。
-- `--native-run-value-exe` / `--native-value-exe` の成功範囲を regression にする。
+- `yulang native --kind run-value-exe` / `--kind value-exe` の成功範囲を regression にする。
 - value-lane Cranelift の未対応値を、小さい VM compare から順に埋める。
 - CPS repr Cranelift は effectful control の VM 差分を優先して潰す。
 - unsupported root は、panic ではなく構造化された native unsupported diagnostic にする。

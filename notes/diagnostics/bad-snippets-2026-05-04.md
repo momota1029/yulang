@@ -50,19 +50,27 @@ Previous output:
 failed to lower runtime IR: type mismatch while applying a function: expected bool -> bool, got int -> int
 ```
 
-Current output after the first cleanup:
+Output after the first cleanup:
 
 ```text
 error: function application type mismatch: expected bool -> bool, got int -> int
 ```
 
+Output as of 2026-05-14:
+
+```text
+error: callee type mismatch in call to `+`: expected bool, got int
+  at 2:3
+   2 | 1 + true
+     |   ^^^^^^
+```
+
 Notes:
 
-- This is still the most important first diagnostic target.
-- It no longer leaks the runtime lowering phase name.
-- It still does not explain that `+` / the right operand caused the mismatch.
-- A better target diagnostic would mention `+`, `int`, `bool`, and ideally point at
-  `true`.
+- ✅ No longer leaks the runtime lowering phase name.
+- ✅ Mentions the operator (`+`).
+- ✅ Has a source span and a code frame pointing at the offending expression.
+- The "Next improvement target" below has been met for this snippet.
 
 ## 4. Bad if branch
 
@@ -108,15 +116,18 @@ Notes:
 
 Start with `1 + true`.
 
-Minimal current regression:
+Minimal regression (still applies):
 
-- output contains `function application type mismatch`
-- output contains `int`
-- output contains `bool`
+- output mentions `int` and `bool`
 - output does not contain `failed to lower runtime IR`
 - output does not contain Rust debug type dumps such as `Named {`
 
-Next improvement target:
+Next improvement target — **met as of 2026-05-14**:
 
-- mention `+` or the selected operator/function
-- point to `true` or the application argument span
+- ✅ mentions `+` (or the selected operator/function)
+- ✅ points to `true` (or the application argument span) with a code frame
+
+Remaining diagnostic gaps from this survey:
+
+- snippets 1, 4, 5 still lack source spans / code frames.
+- snippet 1 still reports `at <unknown>` for top-level identifiers.

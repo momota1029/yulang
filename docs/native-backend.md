@@ -1,8 +1,8 @@
 # Yulang Native Backend
 
 Yulang has a native backend under active development. The interpreter
-(`--run`) is the semantic oracle: native paths are enabled only for the
-subset listed here and are validated by comparing their output to the VM.
+(`yulang run`) is the semantic oracle: native paths are enabled only for
+the subset listed here and are validated by comparing their output to the VM.
 
 This page is split into two parts:
 
@@ -25,17 +25,25 @@ native effect dispatch is summarized in
 
 ## Public CLI
 
-| Command                          | Purpose                                                                 |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| `--native-run <path>`            | Compile and run the file natively. Prefers the value backend, falls back to the CPS representation backend for explicitly unsupported cases. |
-| `--native-run-value-exe <path>`  | Force the value backend; useful when debugging value-backend coverage.  |
-| `--native-run-cps-repr-exe <path>` | Force the CPS representation backend; useful when debugging CPS lowering. |
-| `--native-compare-i64 <path>`    | Run the program through VM, native control IR, native ABI, and Cranelift scalar paths; report whether the scalar `i64` results agree. |
-| `--native-abi-lanes <path>`      | Print the native ABI value representation classification.               |
-| `--native-object <path>`         | Emit a native object file rather than running.                          |
-| `--native-exe <path>` / `--native-executable <path>` | Emit a native executable rather than running.       |
+The native backend is exposed under the `yulang native` subcommand. The
+`--kind` option selects what to produce/run; output paths can be set with
+`--out`.
 
-Default native artifacts are written under `target/yulang`.
+| Command                                              | Purpose                                                                 |
+| ---------------------------------------------------- | ----------------------------------------------------------------------- |
+| `yulang native <path>` (or `--kind run`)             | Compile and run the file natively. Prefers the value backend, falls back to the CPS representation backend for explicitly unsupported cases. |
+| `yulang native --kind run-value-exe <path>`          | Force the value backend; useful when debugging value-backend coverage.  |
+| `yulang native --kind run-cps-repr-exe <path>`       | Force the CPS representation backend; useful when debugging CPS lowering. |
+| `yulang native --kind run-exe <path>`                | Build and run a scalar native executable.                               |
+| `yulang native --kind object --out <path> <file>`    | Emit a native object file rather than running.                          |
+| `yulang native --kind exe --out <path> <file>`       | Emit a scalar native executable rather than running.                    |
+| `yulang native --kind value-exe --out <path> <file>` | Emit a value-backend native executable.                                 |
+| `yulang debug compare-i64 <path>`                    | Run the program through VM, native control IR, native ABI, and Cranelift scalar paths; report whether the scalar `i64` results agree. |
+| `yulang debug abi-lanes <path>`                      | Print the native ABI value representation classification.               |
+
+Default native artifacts are written under `target/yulang`. `--kind` accepts
+`object` / `exe` / `value-exe` / `run` / `run-exe` / `run-value-exe` /
+`run-cps-repr-exe`.
 
 ## User-facing support
 
@@ -79,10 +87,10 @@ checklist, see *Detailed progress* below.
 | Value executable result (printed as a Yulang value) |   ✅   |
 | Non-scalar CPS executable result                    |   ❌   |
 
-When a program falls outside this subset, `--native-run` prints
+When a program falls outside this subset, `yulang native` prints
 `native-run: value backend unsupported, using CPS repr: ...` and either
 succeeds through the CPS representation backend or fails with a
-diagnostic. The interpreter (`--run`) keeps the full language behavior.
+diagnostic. The interpreter (`yulang run`) keeps the full language behavior.
 
 ## Detailed progress
 
@@ -93,12 +101,12 @@ or out of here into the user-facing table once they stabilize.
 
 ### Public CLI status
 
-- [x] `--native-run` links and runs a native executable.
-- [x] `--native-run` prefers the value backend for ordinary values.
-- [x] `--native-run` falls back to the CPS representation backend only for
+- [x] `yulang native` (default `--kind run`) links and runs a native executable.
+- [x] `yulang native` prefers the value backend for ordinary values.
+- [x] `yulang native` falls back to the CPS representation backend only for
       explicit "unsupported by value backend" cases.
-- [x] `--native-run-value-exe` exposes the value backend directly for debugging.
-- [x] `--native-run-cps-repr-exe` exposes the CPS representation backend
+- [x] `yulang native --kind run-value-exe` exposes the value backend directly for debugging.
+- [x] `yulang native --kind run-cps-repr-exe` exposes the CPS representation backend
       directly for debugging.
 - [x] Default native artifacts are written under `target/yulang`.
 
