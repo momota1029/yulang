@@ -192,6 +192,9 @@ runtime/core IR
     `IndirectClosureCall` は handle から target id を読み、同じ arity の compiled
     function 群へ Cranelift 上で dispatch する。これにより closure value は
     block param / jump をまたいで indirect call できる。
+    ABI repr 解析も jump block param へ value repr を伝播するようになり、
+    closure root や tuple/list/record/variant の `VmValue` helper に closure handle
+    を渡す形は codegen 前に structured unsupported として止める。
     ただし closure を printable `VmValue` root として返す形や、tuple/list/record
     内の普通の構造値として扱う形はまだ未対応。
   - value-lane Cranelift は guarded pattern match も扱う。pattern match 後に

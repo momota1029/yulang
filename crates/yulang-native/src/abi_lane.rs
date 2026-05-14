@@ -127,19 +127,47 @@ fn classify_values(
     function: &NativeAbiFunction,
     analysis: &NativeAbiReprAnalysis,
 ) -> HashMap<ValueId, NativeAbiRepr> {
-    let mut values = HashMap::new();
-    for param in &function.params {
-        values.insert(*param, NativeAbiRepr::Unknown);
-    }
-    for block in &function.blocks {
-        for param in &block.params {
-            values.entry(*param).or_insert(NativeAbiRepr::Unknown);
+    let mut block_params = function
+        .blocks
+        .iter()
+        .flat_map(|block| {
+            block
+                .params
+                .iter()
+                .map(|param| (*param, NativeAbiRepr::Unknown))
+        })
+        .collect::<HashMap<_, _>>();
+    loop {
+        let mut values = HashMap::new();
+        for param in &function.params {
+            values.insert(*param, NativeAbiRepr::Unknown);
         }
-        for stmt in &block.stmts {
-            classify_stmt(stmt, &mut values, analysis);
+        for (param, repr) in &block_params {
+            values.insert(*param, repr.clone());
         }
+        let mut next_block_params = block_params.clone();
+        for block in &function.blocks {
+            for stmt in &block.stmts {
+                classify_stmt(stmt, &mut values, analysis);
+            }
+            if let NativeTerminator::Jump { target, args } = &block.terminator
+                && let Some(target_block) = function.blocks.iter().find(|block| block.id == *target)
+            {
+                for (param, arg) in target_block.params.iter().zip(args) {
+                    let incoming = values.get(arg).cloned().unwrap_or(NativeAbiRepr::Unknown);
+                    let current = next_block_params
+                        .get(param)
+                        .cloned()
+                        .unwrap_or(NativeAbiRepr::Unknown);
+                    next_block_params.insert(*param, merge_flow_repr(current, incoming));
+                }
+            }
+        }
+        if next_block_params == block_params {
+            return values;
+        }
+        block_params = next_block_params;
     }
-    values
 }
 
 fn classify_stmt(
@@ -318,6 +346,13 @@ fn merge_reprs(left: NativeAbiRepr, right: NativeAbiRepr) -> NativeAbiRepr {
         left
     } else {
         NativeAbiRepr::Unknown
+    }
+}
+
+fn merge_flow_repr(left: NativeAbiRepr, right: NativeAbiRepr) -> NativeAbiRepr {
+    match (left, right) {
+        (NativeAbiRepr::Unknown, known) | (known, NativeAbiRepr::Unknown) => known,
+        (left, right) => merge_reprs(left, right),
     }
 }
 
@@ -629,6 +664,50 @@ mod tests {
             Some(&NativeAbiRepr::List(Box::new(NativeAbiRepr::Int)))
         );
         assert_eq!(analysis.function_repr("root"), Some(&NativeAbiRepr::Int));
+    }
+
+    #[test]
+    fn propagates_repr_through_jump_block_params() {
+        let module = NativeAbiModule {
+            functions: Vec::new(),
+            roots: vec![NativeAbiFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                environment_slots: 0,
+                blocks: vec![
+                    NativeAbiBlock {
+                        id: BlockId(0),
+                        params: Vec::new(),
+                        stmts: vec![NativeAbiStmt::AllocateClosure {
+                            dest: ValueId(0),
+                            target: "callee".to_string(),
+                            environment: Vec::new(),
+                        }],
+                        terminator: NativeTerminator::Jump {
+                            target: BlockId(1),
+                            args: vec![ValueId(0)],
+                        },
+                    },
+                    NativeAbiBlock {
+                        id: BlockId(1),
+                        params: vec![ValueId(1)],
+                        stmts: Vec::new(),
+                        terminator: NativeTerminator::Return(ValueId(1)),
+                    },
+                ],
+            }],
+        };
+
+        let analysis = analyze_abi_reprs(&module);
+
+        assert_eq!(
+            analysis.value_repr("root", ValueId(1)),
+            Some(&NativeAbiRepr::ClosurePtr)
+        );
+        assert_eq!(
+            analysis.function_repr("root"),
+            Some(&NativeAbiRepr::ClosurePtr)
+        );
     }
 
     #[test]

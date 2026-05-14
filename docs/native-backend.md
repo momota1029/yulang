@@ -146,9 +146,12 @@ or out of here into the user-facing table once they stabilize.
       called inside the compiled subset.
 - [x] Closure values are represented as opaque runtime handles in the value
       backend, so indirect closure calls can cross branch/jump block params.
+- [x] Value-backend representation analysis propagates closure handles through
+      branch/jump block params and rejects closure roots or closure handles
+      embedded in tuple/list/record/variant `VmValue` helpers before codegen.
 - [ ] Closure values can be called after flowing through the value backend, but
-      they are not yet printable `VmValue` roots or ordinary structural
-      runtime values inside tuples/lists/records.
+      they are not yet printable roots or ordinary structural runtime values
+      inside tuples/lists/records.
 - [ ] Generic runtime value layout is still backed by `VmValue`; compact native
       representations are not finalized.
 

@@ -10,6 +10,7 @@ use cranelift_object::{ObjectBuilder, ObjectModule};
 use yulang_runtime as runtime;
 
 use crate::abi::{NativeAbiBlock, NativeAbiFunction, NativeAbiModule, NativeAbiStmt};
+use crate::abi_lane::{NativeAbiRepr, analyze_abi_reprs};
 use crate::abi_validate::{NativeAbiValidateError, validate_abi_module};
 use crate::control_ir::{BlockId, NativeLiteral, NativeTerminator, ValueId};
 use crate::native_runtime::{
@@ -181,6 +182,7 @@ pub fn compile_value_abi_module(
 ) -> NativeValueCraneliftResult<NativeValueJitModule> {
     validate_abi_module(module)?;
     validate_value_prototype_subset(module)?;
+    validate_value_runtime_value_uses(module)?;
 
     let mut builder =
         JITBuilder::new(cranelift_module::default_libcall_names()).map_err(cranelift_error)?;
@@ -369,6 +371,7 @@ pub fn compile_value_abi_module_to_object(
 ) -> NativeValueCraneliftResult<NativeValueObjectModule> {
     validate_abi_module(module)?;
     validate_value_prototype_subset(module)?;
+    validate_value_runtime_value_uses(module)?;
 
     let isa_builder = cranelift_native::builder().map_err(cranelift_error)?;
     let flags = settings::Flags::new(settings::builder());
@@ -480,6 +483,136 @@ fn validate_value_prototype_subset(module: &NativeAbiModule) -> NativeValueCrane
         }
     }
     Ok(())
+}
+
+fn validate_value_runtime_value_uses(module: &NativeAbiModule) -> NativeValueCraneliftResult<()> {
+    let analysis = analyze_abi_reprs(module);
+    for function in module.functions.iter().chain(&module.roots) {
+        let values = analysis.values.get(&function.name).ok_or_else(|| {
+            NativeValueCraneliftError::UnsupportedFunction {
+                function: function.name.clone(),
+                reason: "missing value representation analysis",
+            }
+        })?;
+        for block in &function.blocks {
+            for stmt in &block.stmts {
+                validate_stmt_runtime_value_uses(function, values, stmt)?;
+            }
+            if module.roots.iter().any(|root| root.name == function.name)
+                && let NativeTerminator::Return(value) = &block.terminator
+            {
+                let repr = values.get(value).unwrap_or(&NativeAbiRepr::Unknown);
+                if contains_closure_repr(repr) {
+                    return Err(NativeValueCraneliftError::UnsupportedStmt {
+                        function: function.name.clone(),
+                        kind: "closure root value",
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_stmt_runtime_value_uses(
+    function: &NativeAbiFunction,
+    values: &HashMap<ValueId, NativeAbiRepr>,
+    stmt: &NativeAbiStmt,
+) -> NativeValueCraneliftResult<()> {
+    match stmt {
+        NativeAbiStmt::Primitive { args, .. } => {
+            reject_closure_args(function, values, args, "closure primitive argument")
+        }
+        NativeAbiStmt::Tuple { items, .. } => {
+            reject_closure_args(function, values, items, "closure tuple item")
+        }
+        NativeAbiStmt::Record { base, fields, .. } => {
+            if let Some(base) = base {
+                reject_closure_args(function, values, &[*base], "closure record base")?;
+            }
+            reject_closure_args(
+                function,
+                values,
+                &fields.iter().map(|field| field.value).collect::<Vec<_>>(),
+                "closure record field",
+            )
+        }
+        NativeAbiStmt::RecordWithoutFields { base, .. } => {
+            reject_closure_args(function, values, &[*base], "closure record base")
+        }
+        NativeAbiStmt::Variant { value, .. } => value
+            .map(|value| reject_closure_args(function, values, &[value], "closure variant payload"))
+            .transpose()
+            .map(|_| ()),
+        NativeAbiStmt::Select { base, .. } => {
+            reject_closure_args(function, values, &[*base], "closure record select base")
+        }
+        NativeAbiStmt::TupleGet { tuple, .. } => {
+            reject_closure_args(function, values, &[*tuple], "closure tuple select base")
+        }
+        NativeAbiStmt::VariantTagEq { variant, .. } => {
+            reject_closure_args(function, values, &[*variant], "closure variant tag base")
+        }
+        NativeAbiStmt::VariantPayload { variant, .. } => reject_closure_args(
+            function,
+            values,
+            &[*variant],
+            "closure variant payload base",
+        ),
+        NativeAbiStmt::ValueEq { left, right, .. } => reject_closure_args(
+            function,
+            values,
+            &[*left, *right],
+            "closure equality operand",
+        ),
+        NativeAbiStmt::BoolAnd { left, right, .. } => {
+            reject_closure_args(function, values, &[*left, *right], "closure bool operand")
+        }
+        NativeAbiStmt::Literal { .. }
+        | NativeAbiStmt::DirectCall { .. }
+        | NativeAbiStmt::LoadEnv { .. }
+        | NativeAbiStmt::AllocateClosure { .. }
+        | NativeAbiStmt::IndirectClosureCall { .. } => Ok(()),
+    }
+}
+
+fn reject_closure_args(
+    function: &NativeAbiFunction,
+    values: &HashMap<ValueId, NativeAbiRepr>,
+    args: &[ValueId],
+    kind: &'static str,
+) -> NativeValueCraneliftResult<()> {
+    if args.iter().any(|arg| {
+        values
+            .get(arg)
+            .is_some_and(|repr| contains_closure_repr(repr))
+    }) {
+        return Err(NativeValueCraneliftError::UnsupportedStmt {
+            function: function.name.clone(),
+            kind,
+        });
+    }
+    Ok(())
+}
+
+fn contains_closure_repr(repr: &NativeAbiRepr) -> bool {
+    match repr {
+        NativeAbiRepr::ClosurePtr => true,
+        NativeAbiRepr::List(element) => contains_closure_repr(element),
+        NativeAbiRepr::Tuple(items) => items.iter().any(contains_closure_repr),
+        NativeAbiRepr::Record(fields) => fields
+            .iter()
+            .any(|field| contains_closure_repr(&field.value)),
+        NativeAbiRepr::Variant(cases) => cases
+            .iter()
+            .any(|case| case.value.as_ref().is_some_and(contains_closure_repr)),
+        NativeAbiRepr::Unit
+        | NativeAbiRepr::Bool
+        | NativeAbiRepr::Int
+        | NativeAbiRepr::Float
+        | NativeAbiRepr::RuntimeValuePtr(_)
+        | NativeAbiRepr::Unknown => false,
+    }
 }
 
 #[derive(Clone)]
@@ -2427,7 +2560,7 @@ mod tests {
 
     #[test]
     fn jit_rejects_closure_root_value_without_dereferencing_it_as_vm_value() {
-        let mut module = compile_value_abi_module(&NativeAbiModule {
+        let error = match compile_value_abi_module(&NativeAbiModule {
             functions: vec![add_capture_function()],
             roots: vec![NativeAbiFunction {
                 name: "root".to_string(),
@@ -2450,16 +2583,60 @@ mod tests {
                     terminator: NativeTerminator::Return(ValueId(1)),
                 }],
             }],
-        })
-        .expect("compiled");
-
-        let error = module
-            .run_roots()
-            .expect_err("closure roots stay unsupported");
+        }) {
+            Ok(_) => panic!("closure roots stay unsupported"),
+            Err(error) => error,
+        };
         assert!(
             error.to_string().contains("closure root value statements"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn jit_rejects_closure_values_inside_structural_vm_values() {
+        let error = match compile_value_abi_module(&NativeAbiModule {
+            functions: vec![add_capture_function()],
+            roots: vec![NativeAbiFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                environment_slots: 0,
+                blocks: vec![
+                    NativeAbiBlock {
+                        id: BlockId(0),
+                        params: Vec::new(),
+                        stmts: vec![
+                            NativeAbiStmt::Literal {
+                                dest: ValueId(0),
+                                literal: NativeLiteral::Int("10".to_string()),
+                            },
+                            NativeAbiStmt::AllocateClosure {
+                                dest: ValueId(1),
+                                target: "add_capture".to_string(),
+                                environment: vec![ValueId(0)],
+                            },
+                        ],
+                        terminator: NativeTerminator::Jump {
+                            target: BlockId(1),
+                            args: vec![ValueId(1)],
+                        },
+                    },
+                    NativeAbiBlock {
+                        id: BlockId(1),
+                        params: vec![ValueId(2)],
+                        stmts: vec![NativeAbiStmt::Tuple {
+                            dest: ValueId(3),
+                            items: vec![ValueId(2)],
+                        }],
+                        terminator: NativeTerminator::Return(ValueId(3)),
+                    },
+                ],
+            }],
+        }) {
+            Ok(_) => panic!("closure tuple items stay unsupported"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("closure tuple item"), "{error}");
     }
 
     #[test]
