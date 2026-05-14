@@ -140,13 +140,15 @@ my twice(x: 'a) =
 `where` 句は role 本体や impl 本体にも書ける。role 本体に書くと各 method に
 継承される。impl 本体に書くと、その impl 候補の前提条件になる。
 
-## 推論と `--infer`
+## 推論結果の表示
 
 ```bash
-cargo run -q -p yulang -- --infer examples/showcase.yu
+yulang check examples/showcase.yu
+# repo から動かす場合
+cargo run -q -p yulang -- check examples/showcase.yu
 ```
 
-`--infer` は public binding の推論型を表示する。出力には residual な型変数
+`check` は public binding の推論型を表示する。出力には residual な型変数
 （`α`、`β`、…）や role 制約（`Add<α> => ...`）が含まれることがある — これらは
 多相 binding では当たり前。
 

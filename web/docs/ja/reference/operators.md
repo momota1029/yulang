@@ -74,8 +74,13 @@ pub lazy infix(or) 1.0.0 1.0.0 = \a -> \b ->
 
 ```yulang
 1 + 2
-std::ops::add 1 2     // 明示形（あまり使わない）
+std::int::add 1 2     // 明示形（あまり使わない）
+(1).add 2             // role method 経由
 ```
+
+`+` 自体は `std::ops` の中で `\x -> \y -> x.add y` として定義されているので、
+underlying な `Add` role method `x.add y` を直接呼ぶ形が、operator を
+第一級参照する最も近い書き方になる。
 
 演算子の実装を第一級参照したいときに役立つ。
 

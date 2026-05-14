@@ -56,7 +56,7 @@ case value:
 ## Loops and early exit
 
 ```yulang
-for x in 0..10:
+for x in 0..10:        // 11 iterations: 0..10 is inclusive (use 0..<10 for half-open)
     println x.show
 
 for x in xs:
@@ -177,7 +177,9 @@ multi-line doc
 ## Print inferred types
 
 ```bash
-cargo run -q -p yulang -- --infer examples/showcase.yu
+yulang check examples/showcase.yu
+# or, when running from the repo
+cargo run -q -p yulang -- check examples/showcase.yu
 ```
 
 ## See also

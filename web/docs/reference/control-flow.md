@@ -43,7 +43,7 @@ An operation arm receives the operation payload and a continuation `k`. Calling
 ## `for`
 
 ```yulang
-for x in 0..10:
+for x in 0..10:        // 11 iterations: 0..10 is inclusive (0..<10 is half-open)
     println x.show
 ```
 

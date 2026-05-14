@@ -16,11 +16,11 @@ Clone the repository and use Cargo:
 git clone https://github.com/momota1029/yulang.git
 cd yulang
 cargo test
-cargo run -p yulang -- path/to/file.yu
+cargo run -p yulang -- run path/to/file.yu
 ```
 
-For local experimentation, `cargo run -p yulang -- path/to/file.yu` is the
-important command. The web deployment steps below are only needed when updating
+For local experimentation, `cargo run -p yulang -- run path/to/file.yu` is the
+important command (use `check` instead of `run` to print inferred types). The web deployment steps below are only needed when updating
 the hosted playground/docs site.
 
 ## Published CLI

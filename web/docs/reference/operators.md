@@ -79,8 +79,13 @@ call the underlying function by path:
 
 ```yulang
 1 + 2
-std::ops::add 1 2     // explicit form (less idiomatic)
+std::int::add 1 2     // explicit form (less idiomatic)
+(1).add 2             // role method form
 ```
+
+`+` itself is defined as `\x -> \y -> x.add y` in `std::ops`, so calling
+`x.add y` (the underlying `Add` role method) is the closest first-class form
+of the operator.
 
 This is mostly useful when you want a first-class reference to the operator
 implementation.

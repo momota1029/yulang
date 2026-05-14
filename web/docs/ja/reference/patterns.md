@@ -37,7 +37,7 @@ case n:
 | `[..init, last]` | 先頭側に spread を置いたリスト |
 | `just x`、`nil` | prelude が re-export している enum variant |
 | `opt::just x`、`opt::nil` | 修飾パスで書く enum variant |
-| `tag x` | 短い名前で書く enum variant（曖昧でないとき）|
+| `tag x` | 短い名前で書く enum variant（`use enum::*` の後でのみ）|
 
 ## ガード
 
@@ -103,11 +103,14 @@ case config:
 ```yulang
 case rec:
     { x, .._ }    -> x
-    { ..tail, y } -> y
+    { ..tail, y } -> y    -- `tail` には残りではなく **入力 record 全体** が入る
 ```
 
-`..name` で残りのフィールドをまとめて受ける。捨てたいときは `.._`。スプレッド
-は先頭にも末尾にも置ける。
+`..name` は **入力 record 全体** を bind する（レコードの引き算は型システム上
+十全には行えないので、`{ x, ..rest }` の `rest` から `x` を除く形は提供して
+いない）。スプレッドは先頭にも末尾にも置けるが、どちらでも `name` には field
+を列挙したものを含む全 field が入る。残りを「あること」として受け取りたい
+だけなら `.._`、bind したくないときに使う。
 
 ## リストパターン
 
@@ -135,7 +138,22 @@ case c:
 ```
 
 variant は enum の companion module に住んでいるので、通常は `color::red` の
-ように書く。`use color::*` の後は修飾なしの `red` でも書ける。
+ように書く。**修飾なしの `red` を使うには `use color::*` が必要** — `use`
+なしだと、式位置の `red` は name error になり、pattern 位置の `red` は
+silently に fresh binding（任意の値にマッチする `red` という変数）になる。
+後者は無警告で意味が変わるので注意:
+
+```yulang
+enum color = red | green | blue
+case c:
+    red -> "r"      -- ここの `red` は fresh 変数。すべての値にマッチして
+                    -- `green` / `blue` arm が unreachable になる。
+    green -> "g"
+    blue -> "b"
+```
+
+variant にマッチさせたいときは、`color::red` のように修飾するか、先に
+`use color::*` を書く。
 
 payload を持つ variant は、その payload を bind する。
 

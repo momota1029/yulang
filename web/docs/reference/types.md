@@ -92,6 +92,21 @@ my id(x: 'a): 'a = x
 
 Type inference fills in type variables automatically in most cases — annotations are only needed for clarity or for resolving ambiguity.
 
+## Inline ascription with `as`
+
+Binding ascription (`my x: T = e`) and argument ascription (`my f(x: T) = ...`)
+both use `:`. To ascribe a type to a sub-expression, use `as`:
+
+```yulang
+([] as list int)
+(nil as opt str)
+my n = (read_input() as int) + 1
+```
+
+Inline `:` is reserved for colon application (`f: x`), so an expression-level
+`(e : T)` would clash with that form. `as` is the form to reach for when you
+want to fix a polymorphic value's type without introducing a `my` binding.
+
 ## Function and computation types
 
 ```yulang

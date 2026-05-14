@@ -53,7 +53,7 @@ case value:
 ## ループと早期脱出
 
 ```yulang
-for x in 0..10:
+for x in 0..10:        // 11 回反復: 0..10 は閉区間 (半開は 0..<10)
     println x.show
 
 for x in xs:
@@ -174,7 +174,9 @@ use std::ops::* without (+), debug
 ## 推論結果を表示
 
 ```bash
-cargo run -q -p yulang -- --infer examples/showcase.yu
+yulang check examples/showcase.yu
+# repo から動かす場合
+cargo run -q -p yulang -- check examples/showcase.yu
 ```
 
 ## 関連ページ

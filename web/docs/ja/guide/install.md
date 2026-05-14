@@ -14,10 +14,10 @@ Yulang はまだ実験段階の言語です。まず触るだけなら Playgroun
 git clone https://github.com/momota1029/yulang.git
 cd yulang
 cargo test
-cargo run -p yulang -- path/to/file.yu
+cargo run -p yulang -- run path/to/file.yu
 ```
 
-ローカルで試す場合に重要なのは `cargo run -p yulang -- path/to/file.yu` です。
+ローカルで試す場合に重要なのは `cargo run -p yulang -- run path/to/file.yu` です（`run` の代わりに `check` を渡すと推論型を表示します）。
 下の web deploy は、hosted playground / docs を更新する場合だけ必要です。
 
 ## 公開 CLI

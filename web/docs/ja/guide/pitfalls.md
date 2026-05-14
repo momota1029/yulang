@@ -121,7 +121,7 @@ use my_ops::(+)
 
 ## おかしいときに見る場所
 
-- `--infer` は residual な制約や role を出すので、どこで止まっているかがだいたい見えます。
+- `yulang check path/to/file.yu` は residual な制約や role を出すので、どこで止まっているかがだいたい見えます。
 - 「推論が通らない」関数は、`Cast` が無い、effect tail が未確定、method selection が具体情報待ち、のどれかであることが多いです。
 
 ## 関連ページ

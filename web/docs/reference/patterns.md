@@ -38,7 +38,7 @@ case n:
 | `[..init, last]` | list with spread at head |
 | `just x`, `nil` | enum variants re-exported by the prelude |
 | `opt::just x`, `opt::nil` | enum variants by qualified path |
-| `tag x` | enum variant by short name (unambiguous case) |
+| `tag x` | enum variant by short name (after `use enum::*`) |
 
 ## Guards
 
@@ -104,11 +104,15 @@ case config:
 ```yulang
 case rec:
     { x, .._ }    -> x
-    { ..tail, y } -> y
+    { ..tail, y } -> y    -- `tail` binds the **whole** record, not the leftover
 ```
 
-Use `..name` to capture remaining fields into a residual record, or `.._` to
-ignore them. The spread can appear at the head or tail.
+`..name` binds the **entire** input record (record subtraction is not provided
+as a stable feature, since record difference is not fully expressible in the
+type system). The spread can appear at either side of the field list, but in
+both positions `name` ends up with every field from the input — including the
+ones listed by name. Use `.._` when you only need to assert "and any other
+fields", without binding them.
 
 ## List patterns
 
@@ -136,7 +140,22 @@ case c:
 ```
 
 Variants live in the enum's companion module, so the usual spelling is
-`color::red`. After `use color::*`, unqualified `red` also works.
+`color::red`. **Unqualified `red` requires `use color::*`** — without the
+`use`, plain `red` in expression position is a name error, and in pattern
+position it silently becomes a fresh binding (an unrelated variable named
+`red` that matches anything). The latter is dangerous:
+
+```yulang
+enum color = red | green | blue
+case c:
+    red -> "r"      -- `red` here is a fresh variable, matching every value;
+                    -- the `green` / `blue` arms below become unreachable.
+    green -> "g"
+    blue -> "b"
+```
+
+To pattern-match against the variant, either qualify (`color::red`) or import
+with `use color::*` first.
 
 Variants with payload bind the payload:
 

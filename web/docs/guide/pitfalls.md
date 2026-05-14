@@ -155,8 +155,8 @@ error.
 
 ## Where to look when things go wrong
 
-- The `--infer` output prints residual constraints and roles, which usually
-  tells you what got stuck.
+- `yulang check path/to/file.yu` prints residual constraints and roles, which
+  usually tells you what got stuck.
 - A function that "won't infer" often has a missing `Cast`, an unconstrained
   effect tail, or a method selection waiting for more concrete information.
 

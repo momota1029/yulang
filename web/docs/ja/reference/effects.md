@@ -33,6 +33,27 @@ our run_console(action: [console] 'a): 'a = catch action:
 
 handler は effect row から処理済み effect を取り除く。たとえば `action` が `[console; e] 'a` のような computation type を持つなら、`run_console action` は残りの effect だけを持ち、`'a` を返す。
 
+### handler は shallow
+
+Yulang の handler は **shallow** である。arm は一度だけ operation を受け取り、
+`k` で再開された計算は同じ handler に自動では包まれない。再開後に同じ
+effect を起こしても、handler は二度目に発火せず、effect はそのまま外側へ
+伝播する。
+
+operation を連続で受けたいときは、arm 側で continuation を再度 handler で
+包む書き方をする。
+
+```yulang
+our run_console(action: [console] 'a): 'a = catch action:
+    console::read(), k -> run_console (k "42")    -- ← run_console で巻き直す
+    console::println _, k -> run_console (k ())
+    v -> v
+```
+
+このリファレンスの handler 例の多くがこの自己再帰形なのはそのため。
+operation が 1 度しか起きない前提なら再帰を省ける。effect を繰り返し起こす
+任意の計算を扱うときは再帰が必須。
+
 ## Effect row
 
 ```yulang

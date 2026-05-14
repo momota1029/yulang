@@ -41,7 +41,7 @@ operation arm は operation の payload と continuation `k` を受け取る。`
 ## `for`
 
 ```yulang
-for x in 0..10:
+for x in 0..10:        // 11 回反復: 0..10 は閉区間 (半開は 0..<10)
     println x.show
 ```
 

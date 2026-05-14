@@ -86,6 +86,21 @@ my id(x: 'a): 'a = x
 
 多くの場合、型推論が type variable を埋める。注釈は曖昧さを減らしたり、公開 API を読みやすくしたりするために使う。
 
+## `as` による inline ascription
+
+binding ascription (`my x: T = e`) や引数 ascription (`my f(x: T) = ...`) は
+`:` を使うが、式の途中で部分式に型を当てたいときは `as` を使う。
+
+```yulang
+([] as list int)
+(nil as opt str)
+my n = (read_input() as int) + 1
+```
+
+inline の `:` は colon application (`f: x`) に予約されているので、式位置の
+`(e : T)` を許すと衝突する。多相値の型を `my` binding を立てずにその場で
+固定したいときは `as` を使う。
+
 ## 関数型と effectful computation
 
 ```yulang

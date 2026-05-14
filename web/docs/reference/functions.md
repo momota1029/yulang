@@ -143,13 +143,15 @@ requires `Add int`.
 constraint is inherited by every method. In an impl body, it becomes a
 prerequisite for that impl candidate.
 
-## Inference and `--infer`
+## Inference output
 
 ```bash
-cargo run -q -p yulang -- --infer examples/showcase.yu
+yulang check examples/showcase.yu
+# or, when running from the repo
+cargo run -q -p yulang -- check examples/showcase.yu
 ```
 
-`--infer` prints the inferred public types. The output may show residual
+`check` prints the inferred public types. The output may show residual
 type variables (`α`, `β`, …) and role constraints (`Add<α> => ...`); these
 are expected for polymorphic bindings.
 

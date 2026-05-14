@@ -39,6 +39,28 @@ The handler removes the handled effect from the row. Informally, if `action`
 has a computation type like `[console; e] 'a`, then `run_console action` keeps
 only the remaining effects and returns `'a`.
 
+### Handlers are shallow
+
+Yulang handlers are **shallow**: a handler arm catches one operation, but the
+computation resumed by `k` is not automatically wrapped in the same handler.
+If the resumed computation raises the same effect again, the handler does not
+fire a second time — the effect propagates outward.
+
+To handle a stream of operations, the handler arm must rewrap the
+continuation:
+
+```yulang
+our run_console(action: [console] 'a): 'a = catch action:
+    console::read(), k -> run_console (k "42")    -- ← rewrap with run_console
+    console::println _, k -> run_console (k ())
+    v -> v
+```
+
+Most handlers in this reference are written in this self-recursive form for
+that reason. If only a single operation is expected, the recursion can be
+omitted, but for an arbitrary computation that uses the effect repeatedly the
+recursion is required.
+
 ## Effect rows
 
 Effect rows appear in type signatures with `[...]`:

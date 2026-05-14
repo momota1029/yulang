@@ -92,74 +92,33 @@
   ([`error_display_impl_missing.yu`](error_display_impl_missing.yu)) で
   残っている。
 
-## 仕様だけど docs 側で補足が欲しいもの
+## docs に反映済み（2026-05-14）
 
-実装は意図通りで、bug ではない。docs に書き足すと初学者の事故が減る。
+仕様補足と事実訂正を `web/docs` に書き足した履歴。bug ではないが、初学者の
+事故を減らすため docs 側へ追記したもの。
 
-- **enum variant の短い名前は `use enum::*` 必須**（Rust と同じ、混ざらない
-  ためのデザイン）。`reference/patterns.md` の「`tag x` | 短い名前で書く
-  enum variant（曖昧でないとき）」表記は誤読を招くので、「`use enum::*` の
-  後でのみ短名で書ける」と明記したい。さらに、pattern 位置で use なしの
-  `red` と書くと variant マッチではなく **fresh binding** として silently
-  通るので、
-  ```yulang
-  enum color = red | green | blue
-  case c:
-      red -> "r"      -- ← `red` は fresh 変数。すべての値にマッチして
-                       --    `green` / `blue` arm が unreachable
-      green -> "g"
-      blue -> "b"
-  ```
-  のような書き間違いが起こりやすい。pitfalls.md / patterns.md に
-  「short-name variant pattern には use が必要」と一節入れたい。
-- **inline type ascription は `as` を使う**（`:` は colon application との
-  衝突回避のため）。
-  ```yulang
-  ([] as list int)
-  ```
-  は通る。`reference/types.md` / `reference/casts.md` のどちらにも `as`
-  キーワードでの inline ascription が明記されていない。casts.md は
-  「`cast(x: A): B` 関数定義」と「expected-type 境界での暗黙挿入」までで、
-  ユーザが「型を一回明示してから渡したい」場面で `as` に辿り着く誘導が
-  ない。`reference/types.md` の Type variable 節か、`reference/casts.md`
-  の頭に「inline ascription は `(e as T)`」を入れたい。
-- **record の `..rest` は全体を指す** — 「rest = 列挙した field を除いた残り」
-  ではなく、`{ x, y, ..rest } -> rest` の `rest` は元の record 全部
-  （x, y も含む）を指す。レコードの引き算が型システム上十全には行えない
-  ので、引き算を提供しない設計。`reference/patterns.md` の record spread
-  例には「`..tail` には残りの field がまとめて入る」とあるが、現在の挙動と
-  揃えて「全体が入る」と書き直すと誤解が減る。
-- **handler は shallow** — `catch action: op, k -> body` の body 内で k が
-  返した先で再度同じ effect が起きると、handler は **自動的には適用されない**。
-  再帰的に handler を巻き直す必要がある:
-  ```yulang
-  my run(a: [eff] 'r): 'r = catch a:
-      eff::op _, k -> run (k ())   -- ← run で巻く
-      v -> v
-  ```
-  tour.md / cookbook.md の例（`run_console (k "42")` のような再帰呼び）が
-  この前提で書かれているが、shallow handler だと一言断ってあると、
-  「なぜ再帰呼びが要るか」が読み手に伝わる。`reference/effects.md` か
-  type-theory.md に追記したい。
-
-## docs と挙動の小さな乖離（snippet 化していない）
-
-- **`--infer` フラグが現存しない**: `cheat-sheet.md` / `pitfalls.md` /
-  `reference/functions.md` に
-  `cargo run -q -p yulang -- --infer examples/showcase.yu` の例が残って
-  いるが、現在の CLI には `--infer` オプションがない。`yulang check
-  examples/showcase.yu` が代替。
-- **install.md の `cargo run` 例が subcommand 抜け**:
-  `cargo run -p yulang -- path/to/file.yu` と書かれているが、現在は
-  subcommand が必須。`cargo run -p yulang -- run path/to/file.yu` か
-  `cargo run -p yulang -- check path/to/file.yu` に直したい。
-- **`std::ops::add` という path は存在しない**: `reference/operators.md` の
-  「演算子を関数として呼ぶ」節で `std::ops::add 1 2` を「明示形」として
-  紹介しているが、`std::ops` には `+` operator 定義しかなく、`add` という
-  free function はない。実体名は `std::int::add` か role method `x.add y`。
-- **`0..10` は閉区間**: `cheat-sheet.md` の `for x in 0..10: println x.show`
-  例を読んだ初学者は半開区間を想定しがちだが、`0..10` は 0..=10 の 11 要素
-  （半開は `0..<10`）。`reference/types.md` には明記されているので仕様。
+- **enum variant の短い名前は `use enum::*` 必須** — `reference/patterns.md`
+  の表行と enum 節に追記。pattern 位置で use なしの `red` が silently に
+  fresh binding になる注意も入れた。
+- **inline type ascription は `as` を使う** — `reference/types.md` の Type
+  variable 節の後に「`as` による inline ascription」節を追加。
+- **record の `..rest` は全体を指す** — `reference/patterns.md` の Spread
+  節を「`..name` は入力 record 全体を bind する」と書き直し、引き算を提供
+  しない理由（型システム上十全には行えない）も添えた。
+- **handler は shallow** — `reference/effects.md` の handler 節に
+  「Handlers are shallow」サブセクションを追加。`run_console (k "42")` の
+  ような自己再帰形で書く理由を明示。
+- **`--infer` フラグ → `check` subcommand** — `cheat-sheet.md` /
+  `guide/pitfalls.md` / `reference/functions.md` の旧コマンド例を
+  `yulang check ...` に統一。
+- **install.md の `cargo run` 例に subcommand 追加** — `cargo run -p yulang
+  -- run path/to/file.yu` に修正、`check` の使い方も併記。
+- **`std::ops::add` → `std::int::add` / `(1).add 2`** —
+  `reference/operators.md` の「Calling an operator like a function」節を、
+  存在しない path の代わりに role method 経由で書く形に修正。
+- **`0..10` は閉区間** — `guide/cheat-sheet.md` と
+  `reference/control-flow.md` の `for x in 0..10:` 例に「11 回反復、半開は
+  `0..<10`」のコメントを足した。
 
 ## 確認方法
 
