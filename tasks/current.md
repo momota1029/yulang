@@ -154,6 +154,12 @@ CPS repr Cranelift の source 回帰を広げる。
 - source の `sub` を list などの構造値へ入れた時の二重 escape routing は修正済み。
   handler arm entry がすでに installed escape continuation へ進む場合、CPS /
   CPS repr / Cranelift は arm result を二度目の ScopeReturn として包まない。
+- 再帰 handler wrapper は direct call site で inline しない。`std::undet.list`
+  のように handler arm 内で同じ wrapper を再帰呼び出しする関数は、CPS 関数として
+  残してから return-frame / resumption 経路で扱う。
+- `branch().list` と `(each [1, 2, 3]).logic` は forced CPS repr executable
+  path で通る。残: `(each [1, 2, 3]).list` は native で `[1, 0]` になり、
+  fold callback resumption の false branch が VM とまだ一致しない。
 - value backend と CPS repr backend の fallback policy を、握りつぶしではなく
   structured unsupported reason で選べる形へ寄せる。
 

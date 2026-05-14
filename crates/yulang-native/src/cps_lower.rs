@@ -975,6 +975,9 @@ fn inline_thunk_handler_apply(
         return None;
     }
     let binding = bindings.get(target)?;
+    if binding_has_self_direct_call(target, &binding.body, functions) {
+        return None;
+    }
     let (params, body) = collect_lambda_params(&binding.body);
     if params.len() != 1 {
         return None;

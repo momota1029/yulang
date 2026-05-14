@@ -309,6 +309,12 @@ or out of here into the user-facing table once they stabilize.
       thread-local abort signal in the Cranelift runtime, so a
       `sub::return` inside a `fold` callback skips the surrounding
       `reject()` and reaches the handler scope.
+- [x] Recursive handler wrappers are not direct-call inlined in CPS lowering,
+      so simple all-solution nondeterminism such as `branch().list` can lower
+      and run through the CPS repr executable path instead of recursively
+      expanding the wrapper at compile time.
+- [ ] Full DFS `std::undet.list` over `each [1, 2, 3]` still has a native
+      mismatch in the fold callback false-branch resumption path.
 - [x] `ResumeWithHandler` restores captured return frames in the Cranelift CPS
       repr path, so direct-call caller-rest continuations can run under the
       temporary handler installed around `k true`.

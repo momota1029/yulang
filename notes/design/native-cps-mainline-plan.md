@@ -114,6 +114,8 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
   - [x] Handler arm entry が installed escape continuation へ直接進む source
         lowering 形では、arm result を二度目の `ScopeReturn` として包まない。
         `sub` の結果を list へ埋める source regression で VM と揃えた。
+  - [x] 再帰 handler wrapper は call site で inline しない。`branch().list`
+        のような全解収集 wrapper は、CPS 関数として残して resumption 経路へ渡す。
 
 ### 5. Handler / Resumption Heap Values
 
