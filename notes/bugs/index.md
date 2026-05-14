@@ -22,9 +22,10 @@
 ### Pattern / binding 系
 
 - [`my_record_spread_rest_inference.yu`](my_record_spread_rest_inference.yu)
-  — `my { x, y, ..rest } = expr` の `rest` の型推論が失敗する。`my (a, b)` や
-  rest なし record は通るので、record spread `..rest` を含む `my` 経路だけ
-  残っている。`my_destructuring_unbound`（resolved）の親戚。
+  — `my { x, y, ..rest } = expr` で `rest` を後段で使うと型推論が失敗する。
+  仕様上 `..rest` は record 全体を指す（field の引き算ではない）。case
+  経路は同じ pattern で通るので、`my` 経路だけ rest の row 解決が抜けて
+  いる疑い。`my_destructuring_unbound`（resolved）の親戚。
 
 ### Struct / 型システム系
 
@@ -122,6 +123,12 @@
   ユーザが「型を一回明示してから渡したい」場面で `as` に辿り着く誘導が
   ない。`reference/types.md` の Type variable 節か、`reference/casts.md`
   の頭に「inline ascription は `(e as T)`」を入れたい。
+- **record の `..rest` は全体を指す** — 「rest = 列挙した field を除いた残り」
+  ではなく、`{ x, y, ..rest } -> rest` の `rest` は元の record 全部
+  （x, y も含む）を指す。レコードの引き算が型システム上十全には行えない
+  ので、引き算を提供しない設計。`reference/patterns.md` の record spread
+  例には「`..tail` には残りの field がまとめて入る」とあるが、現在の挙動と
+  揃えて「全体が入る」と書き直すと誤解が減る。
 - **handler は shallow** — `catch action: op, k -> body` の body 内で k が
   返した先で再度同じ effect が起きると、handler は **自動的には適用されない**。
   再帰的に handler を巻き直す必要がある:
