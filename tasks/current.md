@@ -197,8 +197,8 @@ runtime/core IR
   - value-lane Cranelift は guarded pattern match も扱う。pattern match 後に
     pattern locals を bind した guard block を挟み、false guard は次 arm へ
     fallthrough する。bool literal guard と pattern-bound bool guard は
-    JIT / object 生成で確認済み。guard 内で closure wrapper を引く std 演算子は
-    既存の closure 未対応によりまだ unsupported。
+    JIT / object 生成で確認済み。guard 内で `n < 50` / `n + 1` のように std
+    演算子 wrapper を引く source も value-lane Cranelift で確認済み。
   - record pattern shorthand は infer lowering で pattern node と guard/body が
     同じ local definition を共有する。`{flag, width}` は関数引数 pattern と
     guarded case arm の両方で確認済みで、value-lane Cranelift の guarded

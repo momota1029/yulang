@@ -232,6 +232,18 @@ mod tests {
     }
 
     #[test]
+    fn runs_guarded_record_match_with_std_operator_through_value_lane() {
+        assert_source_value_with_std(
+            r#"
+case {ok: true, n: 41}:
+    {ok, n} if n < 50 -> n + 1
+    _ -> 0
+"#,
+        )
+        .expect("value lane native eval");
+    }
+
+    #[test]
     fn compares_direct_nullary_return_call_through_cps_repr() {
         compare_source_cps_repr_with_std(
             r#"use std::flow::*
@@ -281,6 +293,18 @@ sub:
             .map_err(|error| error.to_string())?;
             yulang_native::compare_cps_repr_cranelift_i64(&module)
                 .map_err(|error| error.to_string())
+        })
+    }
+
+    fn assert_source_value_with_std(source: &str) -> Result<(), String> {
+        let source = source.to_string();
+        run_with_large_stack(move || {
+            let values = eval_source_value_lane_with_options(&source, source_options_with_std())
+                .map_err(|error| error.to_string())?;
+            if values != vec![yulang_runtime::VmValue::Int("42".to_string())] {
+                return Err(format!("unexpected value-lane result: {values:?}"));
+            }
+            Ok(())
         })
     }
 
