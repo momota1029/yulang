@@ -188,6 +188,10 @@ pub(super) enum Frame {
     LocalPushId {
         parent: GuardStack,
     },
+    BlockedEffects {
+        blocked: Vec<BlockedEffect>,
+        active: bool,
+    },
     Coerce {
         to: typed_ir::Type,
     },

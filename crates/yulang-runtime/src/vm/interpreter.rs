@@ -5,7 +5,6 @@ pub(super) struct VmInterpreter<'m> {
     bindings: HashMap<typed_ir::Path, usize>,
     next_guard_id: u64,
     guard_stack: GuardStack,
-    active_blocked_effects: Vec<BlockedEffect>,
     eval_depth: usize,
     profile: VmProfile,
 }
@@ -22,7 +21,6 @@ impl<'m> VmInterpreter<'m> {
                 .collect(),
             next_guard_id: 0,
             guard_stack: GuardStack::default(),
-            active_blocked_effects: Vec::new(),
             eval_depth: 0,
             profile: VmProfile::default(),
         }
@@ -39,8 +37,12 @@ impl<'m> VmInterpreter<'m> {
             .get(index)
             .ok_or(VmError::MissingRootExpr(index))?;
         let result = self.eval_expr(expr, &Env::new())?;
-        match result {
+        let result = match result {
             VmResult::Value(VmValue::Thunk(thunk)) => self.bind_here(VmValue::Thunk(thunk)),
+            other => Ok(other),
+        }?;
+        match result {
+            VmResult::Request(request) => self.propagate_request(request),
             other => Ok(other),
         }
     }
@@ -308,32 +310,28 @@ impl<'m> VmInterpreter<'m> {
             return Ok(VmResult::Value(value));
         };
         let parent = self.guard_stack.clone();
-        let active_len = self.active_blocked_effects.len();
         self.guard_stack = thunk.guard_stack.clone();
-        self.active_blocked_effects.extend(
-            thunk
-                .blocked
-                .iter()
-                .filter(|blocked| blocked.active)
-                .cloned(),
-        );
         match &thunk.body {
             ThunkBody::Value(value) => {
                 self.guard_stack = parent;
-                self.active_blocked_effects.truncate(active_len);
                 Ok(VmResult::Value(value.clone()))
             }
             ThunkBody::Expr(expr) => {
                 let result = match self.eval_expr(expr, &thunk.env)? {
-                    VmResult::Value(VmValue::Thunk(next)) => self.bind_here(VmValue::Thunk(next)),
-                    VmResult::Request(request) => Ok(VmResult::Request(push_frame(
-                        mark_request(request, &thunk),
-                        Frame::BindHere,
-                    ))),
+                    VmResult::Value(VmValue::Thunk(next)) => {
+                        match self.bind_here(VmValue::Thunk(next))? {
+                            VmResult::Request(request) => Ok(VmResult::Request(
+                                push_thunk_boundary_frame(request, &thunk),
+                            )),
+                            other => Ok(other),
+                        }
+                    }
+                    VmResult::Request(request) => {
+                        Ok(VmResult::Request(push_thunk_expr_frames(request, &thunk)))
+                    }
                     other => Ok(other),
                 };
                 self.guard_stack = parent;
-                self.active_blocked_effects.truncate(active_len);
                 result
             }
             ThunkBody::Emit { effect, payload } => {
@@ -343,11 +341,10 @@ impl<'m> VmInterpreter<'m> {
                     continuation: VmContinuation::new(self.guard_stack.clone()),
                     blocked_id: None,
                 };
-                let request =
-                    mark_request_with_active_blocked(request, &self.active_blocked_effects);
-                let result = Ok(VmResult::Request(mark_request(request, &thunk)));
+                let result = Ok(VmResult::Request(push_thunk_boundary_frame(
+                    request, &thunk,
+                )));
                 self.guard_stack = parent;
-                self.active_blocked_effects.truncate(active_len);
                 result
             }
         }
@@ -690,7 +687,7 @@ impl<'m> VmInterpreter<'m> {
                         expected_ty: expected_ty.clone(),
                     },
                 );
-                self.handle_request(request, id, arms, env, &handler_guard_stack, expected_ty)
+                self.propagate_request(request)
             }
         }
     }
@@ -928,6 +925,7 @@ impl<'m> VmInterpreter<'m> {
                 continuation.guard_stack = parent;
                 Ok(VmResult::Value(value))
             }
+            Frame::BlockedEffects { .. } => Ok(VmResult::Value(value)),
             Frame::Coerce { to } => Ok(VmResult::Value(cast_value(value, &to))),
             Frame::WrapThunkResult { expected_ty } => {
                 Ok(VmResult::Value(wrap_value_for_type(value, &expected_ty)))
@@ -999,12 +997,22 @@ impl<'m> VmInterpreter<'m> {
     ) -> Result<VmResult, VmError> {
         let end = before.min(request.continuation.frames.len());
         let frames = request.continuation.frames.get(..end).unwrap_or(&[]);
-        let Some(index) = frames
-            .iter()
-            .rposition(|frame| matches!(frame, Frame::Handle { .. }))
-        else {
+        let Some(index) = frames.iter().rposition(|frame| {
+            matches!(frame, Frame::Handle { .. } | Frame::BlockedEffects { .. })
+        }) else {
             return Ok(VmResult::Request(request));
         };
+        if let Frame::BlockedEffects { blocked, active } = &frames[index] {
+            let (blocked, active) = (blocked.clone(), *active);
+            let mut request = request;
+            request.continuation.frames.remove(index);
+            let request = if active {
+                mark_request_with_active_blocked(request, &blocked)
+            } else {
+                mark_request_with_blocked(request, &blocked)
+            };
+            return self.propagate_request(request);
+        }
         let Frame::Handle {
             id,
             arms,
@@ -1061,6 +1069,24 @@ fn make_recursive_local_value(pattern: &Pattern, value: VmValue) -> VmValue {
     let mut closure = (*closure).clone();
     closure.self_name = Some(typed_ir::Path::from_name(name));
     VmValue::Closure(Rc::new(closure))
+}
+
+fn push_thunk_expr_frames(request: VmRequest, thunk: &VmThunk) -> VmRequest {
+    let request = push_frame(request, Frame::BindHere);
+    push_thunk_boundary_frame(request, thunk)
+}
+
+fn push_thunk_boundary_frame(request: VmRequest, thunk: &VmThunk) -> VmRequest {
+    if thunk.blocked.is_empty() {
+        return request;
+    }
+    push_frame(
+        request,
+        Frame::BlockedEffects {
+            blocked: thunk.blocked.clone(),
+            active: thunk.blocked.iter().any(|blocked| blocked.active),
+        },
+    )
 }
 
 fn closure_param_forces_thunk_arg(param_ty: &Type) -> bool {

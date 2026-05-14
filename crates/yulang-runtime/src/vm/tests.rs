@@ -1428,6 +1428,27 @@ app_err::wrap: read_or_throw "/missing"
     }
 
     #[test]
+    fn vm_runs_source_error_wrap_inside_for_body() {
+        let results = eval_source_with_std(
+            r#"error fail_err:
+    bad str
+
+my $hits = 0
+for x in [1, 2, 3, 4]:
+    my res = fail_err::wrap:
+        if x == 3: fail fail_err::bad x.show
+        else: x
+    case res:
+        ok n -> &hits = $hits + n
+        err _ -> ()
+$hits
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("7".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_effect_handler_return_example() {
         let results = eval_source_with_std(
             r#"pub act out:

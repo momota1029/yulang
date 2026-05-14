@@ -85,8 +85,16 @@ impl GuardStack {
     }
 }
 
-pub(super) fn mark_request(mut request: VmRequest, thunk: &VmThunk) -> VmRequest {
-    for blocked in &thunk.blocked {
+#[cfg_attr(not(test), allow(dead_code))]
+pub(super) fn mark_request(request: VmRequest, thunk: &VmThunk) -> VmRequest {
+    mark_request_with_blocked(request, &thunk.blocked)
+}
+
+pub(super) fn mark_request_with_blocked(
+    mut request: VmRequest,
+    blocked_effects: &[BlockedEffect],
+) -> VmRequest {
+    for blocked in blocked_effects {
         if effect_is_allowed(&blocked.allowed, &request.effect) {
             continue;
         }
