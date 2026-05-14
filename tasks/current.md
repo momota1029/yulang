@@ -150,8 +150,10 @@ CPS repr Cranelift の source 回帰を広げる。
 - 保存・返却される thunk value はまだ扱わず、direct thunk callback subset の
   境界を明文化する。
 - CPS repr Cranelift の手書き IR では 5 slot 以上の thunk capture env を
-  force できる。残る問題は、source の `sub` を list などの構造値へ入れた時に
-  scope-return routing が VM と一致しない点。
+  force できる。
+- source の `sub` を list などの構造値へ入れた時の二重 escape routing は修正済み。
+  handler arm entry がすでに installed escape continuation へ進む場合、CPS /
+  CPS repr / Cranelift は arm result を二度目の ScopeReturn として包まない。
 - value backend と CPS repr backend の fallback policy を、握りつぶしではなく
   structured unsupported reason で選べる形へ寄せる。
 

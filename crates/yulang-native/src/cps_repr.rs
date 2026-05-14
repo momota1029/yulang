@@ -2238,6 +2238,17 @@ fn resume_continuation(
                     // arm's result is the value of *this* eval frame.
                     return Ok(result);
                 }
+                let arm_already_reached_escape = handler_arm_continues_to_installed_escape_repr(
+                    function,
+                    frame.handler,
+                    handler_arm.entry,
+                    frame_escape,
+                );
+                if arm_already_reached_escape
+                    && !matches!(result, CpsReprRuntimeValue::ScopeReturn { .. })
+                {
+                    return Ok(result);
+                }
                 // write26: wrap arm body's natural Return as ScopeReturn so
                 // handle_scope_return_repr can route to H_sub.escape /
                 // walk-based propagation.
@@ -2666,6 +2677,42 @@ fn continuation_by_id(
             function: function.name.clone(),
             id,
         })
+}
+
+fn handler_arm_continues_to_installed_escape_repr(
+    function: &CpsReprFunction,
+    handler: CpsHandlerId,
+    entry: CpsContinuationId,
+    escape: CpsContinuationId,
+) -> bool {
+    let Some(arm_entry) = function
+        .continuations
+        .iter()
+        .find(|continuation| continuation.id == entry)
+    else {
+        return false;
+    };
+    let arm_uninstalls_handler = arm_entry
+        .stmts
+        .iter()
+        .any(|stmt| matches!(stmt, CpsStmt::UninstallHandler { handler: id } if *id == handler));
+    let continues_to_escape = matches!(
+        &arm_entry.terminator,
+        CpsTerminator::Continue { target, .. } if *target == escape
+    );
+    let escape_is_installed_for_handler = function.continuations.iter().any(|continuation| {
+        continuation.stmts.iter().any(|stmt| {
+            matches!(
+                stmt,
+                CpsStmt::InstallHandler {
+                    handler: id,
+                    escape: installed_escape,
+                    ..
+                } if *id == handler && *installed_escape == escape
+            )
+        })
+    });
+    arm_uninstalls_handler && continues_to_escape && escape_is_installed_for_handler
 }
 
 fn continuation_by_id_opt(

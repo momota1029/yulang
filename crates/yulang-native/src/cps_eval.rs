@@ -1444,6 +1444,17 @@ fn resume_continuation(
                     // the value of *this* eval frame.
                     return Ok(result);
                 }
+                let arm_already_reached_escape = handler_arm_continues_to_installed_escape(
+                    function,
+                    frame.handler,
+                    handler_arm.entry,
+                    frame_escape,
+                );
+                if arm_already_reached_escape
+                    && !matches!(result, CpsRuntimeValue::ScopeReturn { .. })
+                {
+                    return Ok(result);
+                }
                 // The arm body's natural Return becomes a non-local jump to
                 // the matching handler scope. Don't re-wrap if the arm itself
                 // emitted a ScopeReturn (it might be targeting an outer scope).
@@ -2230,6 +2241,42 @@ fn continuation_by_id(
             function: function.name.clone(),
             id,
         })
+}
+
+fn handler_arm_continues_to_installed_escape(
+    function: &CpsFunction,
+    handler: CpsHandlerId,
+    entry: CpsContinuationId,
+    escape: CpsContinuationId,
+) -> bool {
+    let Some(arm_entry) = function
+        .continuations
+        .iter()
+        .find(|continuation| continuation.id == entry)
+    else {
+        return false;
+    };
+    let arm_uninstalls_handler = arm_entry
+        .stmts
+        .iter()
+        .any(|stmt| matches!(stmt, CpsStmt::UninstallHandler { handler: id } if *id == handler));
+    let continues_to_escape = matches!(
+        &arm_entry.terminator,
+        CpsTerminator::Continue { target, .. } if *target == escape
+    );
+    let escape_is_installed_for_handler = function.continuations.iter().any(|continuation| {
+        continuation.stmts.iter().any(|stmt| {
+            matches!(
+                stmt,
+                CpsStmt::InstallHandler {
+                    handler: id,
+                    escape: installed_escape,
+                    ..
+                } if *id == handler && *installed_escape == escape
+            )
+        })
+    });
+    arm_uninstalls_handler && continues_to_escape && escape_is_installed_for_handler
 }
 
 fn handler_arm_for_stack<'a>(

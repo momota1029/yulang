@@ -338,6 +338,22 @@ sub:
         .expect("CPS repr native compare");
     }
 
+    #[test]
+    fn runs_sub_return_binding_in_list_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::flow::*
+
+my t = sub:
+    return 7
+    0
+
+[t, t]
+"#,
+            vec!["[7, 7]"],
+        )
+        .expect("CPS repr native display");
+    }
+
     fn compare_source_cps_repr_with_std(source: &str) -> Result<(), String> {
         let source = source.to_string();
         run_with_large_stack(move || {
@@ -350,6 +366,29 @@ sub:
             .map_err(|error| error.to_string())?;
             yulang_native::compare_cps_repr_cranelift_i64(&module)
                 .map_err(|error| error.to_string())
+        })
+    }
+
+    fn assert_source_cps_repr_display_with_std(
+        source: &str,
+        expected: Vec<&'static str>,
+    ) -> Result<(), String> {
+        let source = source.to_string();
+        run_with_large_stack(move || {
+            let repo_root = repo_root();
+            let module = runtime_module_from_virtual_source_with_options(
+                &source,
+                Some(repo_root),
+                source_options_with_std(),
+            )
+            .map_err(|error| error.to_string())?;
+            let mut jit = yulang_native::compile_runtime_module_to_cps_repr_jit(&module)
+                .map_err(|error| error.to_string())?;
+            let actual = jit.run_roots_display().map_err(|error| error.to_string())?;
+            if actual != expected {
+                return Err(format!("unexpected CPS repr display result: {actual:?}"));
+            }
+            Ok(())
         })
     }
 

@@ -1613,6 +1613,40 @@ fn check_resume_continuation_shape(
     Ok(())
 }
 
+fn handler_arm_continues_to_installed_escape(
+    function: &CpsReprAbiFunction,
+    handler: CpsHandlerId,
+    entry: CpsContinuationId,
+) -> bool {
+    let Some(arm_entry) = function
+        .continuations
+        .iter()
+        .find(|continuation| continuation.id == entry)
+    else {
+        return false;
+    };
+    let arm_uninstalls_handler = arm_entry
+        .stmts
+        .iter()
+        .any(|stmt| matches!(stmt, CpsStmt::UninstallHandler { handler: id } if *id == handler));
+    let CpsTerminator::Continue { target: escape, .. } = &arm_entry.terminator else {
+        return false;
+    };
+    let escape_is_installed_for_handler = function.continuations.iter().any(|continuation| {
+        continuation.stmts.iter().any(|stmt| {
+            matches!(
+                stmt,
+                CpsStmt::InstallHandler {
+                    handler: id,
+                    escape: installed_escape,
+                    ..
+                } if *id == handler && installed_escape == escape
+            )
+        })
+    });
+    arm_uninstalls_handler && escape_is_installed_for_handler
+}
+
 /// write27-b: mirror of `return_frame_immediately_forces_param` in
 /// cps_eval/cps_repr. Returns true when the continuation's first stmt
 /// is `ForceThunk` on its first param. Used to fire pre-force v2 in
@@ -1794,11 +1828,19 @@ fn lower_selected_handler_return<M: Module>(
             "yulang_cps_selected_handler_env_or_i64",
             &[entry, fallback_env],
         )?;
-        // write27-d d5: arm body runs in a fresh eval context (matches
-        // Layer 1/2 where each `eval_continuations` invocation gets a
-        // fresh CpsEvalId with initial=current frame count). Save +
-        // restore around the call so post-arm route walks the caller
-        // context.
+        // Handler arm bodies are evaluated with an empty return-frame stack in
+        // cps_eval/cps_repr. Keeping the perform-site frames here would let
+        // the arm's natural return continue the caller rest before
+        // `perform_finish_i64` wraps the arm result.
+        let _ = call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_enter_handler_arm_i64",
+            &[],
+        )?;
+        // write27-d d5: arm body runs in a fresh eval context. The return
+        // frame helper above makes `initial_frame_count` observe zero, matching
+        // Layer 1/2's local `eval_continuations(..., return_frames = [])`.
         let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
         let call = builder
             .ins()
@@ -1812,6 +1854,23 @@ fn lower_selected_handler_return<M: Module>(
         }
         let result = results[0];
         restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
+        let _ = call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_exit_handler_arm_i64",
+            &[],
+        )?;
+        if handler_arm_continues_to_installed_escape(function, candidate.handler, candidate.entry) {
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_perform_finish_escaped_i64",
+                &[result],
+            )?;
+            builder.ins().return_(&[value]);
+            builder.switch_to_block(next_block);
+            continue;
+        }
         // write27-c c3/c4: Perform-arm post-call routing via the
         // combined `perform_finish_i64` helper. It restores the outer
         // handler stack, wraps the arm result as a ScopeReturn when
@@ -4284,6 +4343,8 @@ thread_local! {
     // continue_return_frames helper.
     static NATIVE_CPS_I64_RETURN_FRAMES: RefCell<Vec<NativeCpsI64ReturnFrame>> =
         const { RefCell::new(Vec::new()) };
+    static NATIVE_CPS_I64_HANDLER_ARM_RETURN_FRAME_SNAPSHOTS: RefCell<Vec<Vec<NativeCpsI64ReturnFrame>>> =
+        const { RefCell::new(Vec::new()) };
     // write27-a: per-eval context (current eval id + initial frame
     // count). Threaded explicitly in cps_eval/cps_repr; here we use
     // a thread-local because adding hidden params to every JIT
@@ -6347,6 +6408,19 @@ extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
     routed
 }
 
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_perform_finish_escaped_i64(value: i64) -> i64 {
+    NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
+        if let Some(snap) = snaps.borrow_mut().pop() {
+            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = snap);
+        }
+    });
+    NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| {
+        meta.borrow_mut().pop();
+    });
+    value
+}
+
 /// write27-c c3: if no ScopeReturn is active, wrap `value` as a
 /// ScopeReturn targeting the most-recently-selected handler's escape.
 /// If the selected handler is synthetic (no real escape), this is a
@@ -6911,6 +6985,24 @@ extern "C" fn yulang_cps_set_eval_context_i64(eval_id: i64, initial_frame_count:
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_return_frame_len_i64() -> i64 {
     NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len() as i64)
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_enter_handler_arm_i64() -> i64 {
+    let saved =
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| std::mem::take(&mut *frames.borrow_mut()));
+    NATIVE_CPS_I64_HANDLER_ARM_RETURN_FRAME_SNAPSHOTS.with(|snapshots| {
+        snapshots.borrow_mut().push(saved);
+    });
+    0
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_exit_handler_arm_i64() -> i64 {
+    let saved = NATIVE_CPS_I64_HANDLER_ARM_RETURN_FRAME_SNAPSHOTS
+        .with(|snapshots| snapshots.borrow_mut().pop().unwrap_or_default());
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| *frames.borrow_mut() = saved);
+    0
 }
 
 fn push_native_i64_return_frame_with_env(

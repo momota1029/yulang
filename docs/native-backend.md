@@ -287,6 +287,11 @@ or out of here into the user-facing table once they stabilize.
       boundary now carry the caller's active handler frame: a non-recursive
       helper such as `each_head(xs): [choice] int` is inlined and the implicit
       thunk is forced inside the caller's handler scope.
+- [x] Handler arms that already continue to their installed escape
+      continuation are no longer wrapped as a second scope return in the CPS,
+      CPS repr, or Cranelift paths. This keeps `sub` results embedded in
+      structural values such as lists from applying the post-catch continuation
+      twice.
 - [x] Recursive helpers such as `each_list(xs): [choice] int` route effects
       to the caller's handler through the runtime handler stack. CPS lowering
       emits `InstallHandler` / `UninstallHandler` around handler scopes; the

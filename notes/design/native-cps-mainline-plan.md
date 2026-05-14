@@ -111,6 +111,9 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 - [ ] `AddId` / `BindHere` / hidden evidence boundary を thunk pointer に保持する。
 - [ ] force 時に handler / guard stack を正しく re-enter する。
 - [ ] direct thunk callback inline の暫定経路を、汎用 thunk invocation に置き換える。
+  - [x] Handler arm entry が installed escape continuation へ直接進む source
+        lowering 形では、arm result を二度目の `ScopeReturn` として包まない。
+        `sub` の結果を list へ埋める source regression で VM と揃えた。
 
 ### 5. Handler / Resumption Heap Values
 
