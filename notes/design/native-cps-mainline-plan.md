@@ -102,6 +102,8 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 - [x] closure pointer と runtime value pointer の境界を明示する。
 - [x] top-level partial application wrapper と CPS closure creation を揃える。
 - [x] higher-order std functions を CPS repr path で VM と比較する。
+- [x] source-level closure value を record に保存し、select してから呼ぶ path を
+      forced CPS repr executable regression に入れる。
 
 ### 4. General Thunk Invocation
 

@@ -66,6 +66,7 @@ checklist, see *Detailed progress* below.
 | Literal / list / record / variant / tuple pattern matching | value backend    |   △    |
 | Lambdas / first-class function values (pure)        | CPS repr (prototype)   |   △   |
 | Closures with captured state                        | CPS repr (prototype)   |   △   |
+| Closure values selected from records and then called | CPS repr (prototype)  |   △   |
 
 #### Effects
 
@@ -281,6 +282,8 @@ or out of here into the user-facing table once they stabilize.
       the CPS repr path and is covered by VM / CPS / Cranelift comparison.
 - [x] Small std higher-order list programs (`map`, `filter`, `fold`) run through
       the forced CPS repr executable path.
+- [x] A source-level closure value can be stored in a record, selected back out,
+      and called through the forced CPS repr executable path.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
 - [x] Effectful thunks returned across an inlinable source-defined function

@@ -384,6 +384,12 @@ fn cps_repr_value_to_vm(value: CpsReprRuntimeValue) -> Option<runtime::VmValue> 
                 .map(cps_repr_value_to_vm)
                 .collect::<Option<Vec<_>>>()?,
         )),
+        CpsReprRuntimeValue::Record(fields) => Some(runtime::VmValue::Record(
+            fields
+                .into_iter()
+                .map(|(name, value)| Some((name, cps_repr_value_to_vm(value)?)))
+                .collect::<Option<BTreeMap<_, _>>>()?,
+        )),
         CpsReprRuntimeValue::Variant { tag, value } => Some(runtime::VmValue::Variant {
             tag,
             value: match value {
@@ -1868,13 +1874,10 @@ fn resume_continuation(
                     for field in fields {
                         record.insert(
                             field.name.clone(),
-                            read_plain_value(function, &values, field.value)?,
+                            read_value(function, &values, field.value)?,
                         );
                     }
-                    values.insert(
-                        *dest,
-                        CpsReprRuntimeValue::Plain(runtime::VmValue::Record(record)),
-                    );
+                    values.insert(*dest, CpsReprRuntimeValue::Record(record));
                 }
                 CpsStmt::Variant { dest, tag, value } => {
                     let value = value
@@ -1890,23 +1893,30 @@ fn resume_continuation(
                     );
                 }
                 CpsStmt::Select { dest, base, field } => {
-                    let value = match read_plain_value(function, &values, *base)? {
-                        runtime::VmValue::Record(fields) => {
-                            fields.get(field).cloned().ok_or_else(|| {
-                                CpsReprEvalError::MissingRecordField {
-                                    function: function.name.clone(),
-                                    field: field.clone(),
-                                }
-                            })?
-                        }
+                    let value = match read_value(function, &values, *base)? {
+                        CpsReprRuntimeValue::Record(fields) => fields
+                            .get(field)
+                            .cloned()
+                            .ok_or_else(|| CpsReprEvalError::MissingRecordField {
+                                function: function.name.clone(),
+                                field: field.clone(),
+                            })?,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Record(fields)) => fields
+                            .get(field)
+                            .cloned()
+                            .map(CpsReprRuntimeValue::Plain)
+                            .ok_or_else(|| CpsReprEvalError::MissingRecordField {
+                                function: function.name.clone(),
+                                field: field.clone(),
+                            })?,
                         value => {
                             return Err(CpsReprEvalError::ExpectedRecord {
                                 function: function.name.clone(),
-                                value,
+                                value: into_plain_value(function, *base, value)?,
                             });
                         }
                     };
-                    values.insert(*dest, CpsReprRuntimeValue::Plain(value));
+                    values.insert(*dest, value);
                 }
                 CpsStmt::TupleGet { dest, tuple, index } => {
                     let value = match read_value(function, &values, *tuple)? {
@@ -2869,6 +2879,7 @@ enum CpsReprRuntimeValue {
     /// queue and `(k, queue)` tuple pattern.
     List(Rc<Vec<CpsReprRuntimeValue>>),
     Tuple(Vec<CpsReprRuntimeValue>),
+    Record(BTreeMap<typed_ir::Name, CpsReprRuntimeValue>),
     Variant {
         tag: typed_ir::Name,
         value: Option<Box<CpsReprRuntimeValue>>,

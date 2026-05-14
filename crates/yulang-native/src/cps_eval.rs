@@ -62,6 +62,14 @@ fn summarize_cps_value(value: &CpsRuntimeValue) -> String {
                 .join(", ");
             format!("Tuple([{preview}])")
         }
+        CpsRuntimeValue::Record(fields) => {
+            let preview = fields
+                .iter()
+                .map(|(name, value)| format!("{}: {}", name.0, summarize_cps_value(value)))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("Record({{{preview}}})")
+        }
         CpsRuntimeValue::Variant { tag, value } => match value {
             Some(value) => format!("Variant({}, {})", tag.0, summarize_cps_value(value)),
             None => format!("Variant({})", tag.0),
@@ -422,6 +430,12 @@ fn cps_value_to_vm(value: CpsRuntimeValue) -> Option<runtime::VmValue> {
                 .map(cps_value_to_vm)
                 .collect::<Option<Vec<_>>>()?,
         )),
+        CpsRuntimeValue::Record(fields) => Some(runtime::VmValue::Record(
+            fields
+                .into_iter()
+                .map(|(name, value)| Some((name, cps_value_to_vm(value)?)))
+                .collect::<Option<BTreeMap<_, _>>>()?,
+        )),
         CpsRuntimeValue::Variant { tag, value } => Some(runtime::VmValue::Variant {
             tag,
             value: match value {
@@ -781,14 +795,10 @@ fn resume_continuation(
                     for field in fields {
                         record.insert(
                             field.name.clone(),
-                            read_plain_value(function, &values, field.value)?,
+                            read_value(function, &values, field.value)?,
                         );
                     }
-                    write_value(
-                        &mut values,
-                        *dest,
-                        CpsRuntimeValue::Plain(runtime::VmValue::Record(record)),
-                    );
+                    write_value(&mut values, *dest, CpsRuntimeValue::Record(record));
                 }
                 CpsStmt::Variant { dest, tag, value } => {
                     let value = value
@@ -805,8 +815,8 @@ fn resume_continuation(
                     );
                 }
                 CpsStmt::Select { dest, base, field } => {
-                    let value = match read_plain_value(function, &values, *base)? {
-                        runtime::VmValue::Record(fields) => {
+                    let value = match read_value(function, &values, *base)? {
+                        CpsRuntimeValue::Record(fields) => {
                             fields.get(field).cloned().ok_or_else(|| {
                                 CpsEvalError::MissingRecordField {
                                     function: function.name.clone(),
@@ -814,14 +824,22 @@ fn resume_continuation(
                                 }
                             })?
                         }
+                        CpsRuntimeValue::Plain(runtime::VmValue::Record(fields)) => fields
+                            .get(field)
+                            .cloned()
+                            .map(CpsRuntimeValue::Plain)
+                            .ok_or_else(|| CpsEvalError::MissingRecordField {
+                                function: function.name.clone(),
+                                field: field.clone(),
+                            })?,
                         value => {
                             return Err(CpsEvalError::ExpectedRecord {
                                 function: function.name.clone(),
-                                value,
+                                value: into_plain_value(function, *base, value)?,
                             });
                         }
                     };
-                    write_value(&mut values, *dest, CpsRuntimeValue::Plain(value));
+                    write_value(&mut values, *dest, value);
                 }
                 CpsStmt::TupleGet { dest, tuple, index } => {
                     let value = match read_value(function, &values, *tuple)? {
@@ -2618,6 +2636,7 @@ enum CpsRuntimeValue {
     /// pattern, which a `VmValue::List`/`Tuple` cannot represent.
     List(Rc<Vec<CpsRuntimeValue>>),
     Tuple(Vec<CpsRuntimeValue>),
+    Record(BTreeMap<typed_ir::Name, CpsRuntimeValue>),
     Variant {
         tag: typed_ir::Name,
         value: Option<Box<CpsRuntimeValue>>,
