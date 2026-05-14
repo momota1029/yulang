@@ -24,11 +24,12 @@ use crate::std_ref_paths::{
 };
 use crate::symbols::{Name, Path};
 
-use super::complete_principal::{
-    ApplySlotBounds, CompletePrincipalCache, CompletePrincipalStepProfile, ExpectedEdgeEvidence,
+use super::apply_principal::{
+    ApplySlotBounds, CompletePrincipalCache, CompletePrincipalStepProfile,
     complete_apply_principal_evidence_from_slot_bounds_cached_profiled,
     complete_coerce_principal_evidence, residual_apply_principal_scheme_cached,
 };
+use super::evidence::ExpectedEdgeEvidence;
 use super::names::{export_name, export_path};
 use super::paths::collect_canonical_binding_paths;
 use super::roles::canonical_runtime_export_def;

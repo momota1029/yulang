@@ -6,16 +6,18 @@
 //! rediscover from syntax.  It should not perform VM-oriented thunk repair or
 //! monomorphization.
 
-mod complete_principal;
+mod apply_principal;
+mod evidence;
 pub mod expr;
 pub mod names;
 pub(crate) mod paths;
 pub mod principal;
 mod roles;
 mod spine;
+mod type_props;
 pub mod types;
 
-pub use complete_principal::{
+pub use evidence::{
     DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, EdgePolarity,
     ExpectedAdapterEdgeEvidence, ExpectedEdgeEvidence, collect_derived_expected_edge_evidence,
     collect_expected_adapter_edge_evidence, collect_expected_edge_evidence,

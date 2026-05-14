@@ -5,10 +5,12 @@ use std::time::Instant;
 
 use yulang_typed_ir as typed_ir;
 
-use super::complete_principal::{
-    CompletePrincipalCache, ExpectedEdgeEvidence, collect_expected_adapter_edge_evidence,
-    collect_expected_edge_evidence, collect_handler_match_evidence,
-    derive_all_expected_edge_evidence,
+use super::apply_principal::CompletePrincipalCache;
+use super::evidence::{
+    DerivedExpectedEdgeEvidence, DerivedExpectedEdgeKind, EdgePathSegment, EdgePolarity,
+    ExpectedAdapterEdgeEvidence, ExpectedEdgeEvidence, HandlerMatchEvidence,
+    collect_expected_adapter_edge_evidence, collect_expected_edge_evidence,
+    collect_handler_match_evidence, derive_all_expected_edge_evidence,
 };
 use super::expr::{ExprExportProfile, ExprExporter, collect_expr_export_type_vars};
 use super::names::{export_path, path_key};
@@ -236,9 +238,7 @@ fn export_debug_principal_evidence_enabled() -> bool {
         || std::env::var_os("YULANG_VERBOSE_IR").is_some()
 }
 
-fn export_expected_edge_evidence(
-    evidence: super::complete_principal::ExpectedEdgeEvidence,
-) -> typed_ir::ExpectedEdgeEvidence {
+fn export_expected_edge_evidence(evidence: ExpectedEdgeEvidence) -> typed_ir::ExpectedEdgeEvidence {
     typed_ir::ExpectedEdgeEvidence {
         id: evidence.id.0,
         kind: export_expected_edge_kind(evidence.kind),
@@ -253,9 +253,7 @@ fn export_expected_edge_evidence(
     }
 }
 
-fn export_handler_match_evidence(
-    evidence: super::complete_principal::HandlerMatchEvidence,
-) -> typed_ir::HandlerMatchEvidence {
+fn export_handler_match_evidence(evidence: HandlerMatchEvidence) -> typed_ir::HandlerMatchEvidence {
     typed_ir::HandlerMatchEvidence {
         id: evidence.id,
         source_range: evidence.source_range,
@@ -270,7 +268,7 @@ fn export_handler_match_evidence(
 }
 
 fn export_derived_expected_edge_evidence(
-    evidence: super::complete_principal::DerivedExpectedEdgeEvidence,
+    evidence: DerivedExpectedEdgeEvidence,
 ) -> typed_ir::DerivedExpectedEdgeEvidence {
     typed_ir::DerivedExpectedEdgeEvidence {
         parent: evidence.parent.0,
@@ -287,66 +285,42 @@ fn export_derived_expected_edge_evidence(
 }
 
 fn export_derived_expected_edge_kind(
-    kind: super::complete_principal::DerivedExpectedEdgeKind,
+    kind: DerivedExpectedEdgeKind,
 ) -> typed_ir::DerivedExpectedEdgeKind {
     match kind {
-        super::complete_principal::DerivedExpectedEdgeKind::RecordField => {
-            typed_ir::DerivedExpectedEdgeKind::RecordField
-        }
-        super::complete_principal::DerivedExpectedEdgeKind::TupleItem => {
-            typed_ir::DerivedExpectedEdgeKind::TupleItem
-        }
-        super::complete_principal::DerivedExpectedEdgeKind::VariantPayload => {
+        DerivedExpectedEdgeKind::RecordField => typed_ir::DerivedExpectedEdgeKind::RecordField,
+        DerivedExpectedEdgeKind::TupleItem => typed_ir::DerivedExpectedEdgeKind::TupleItem,
+        DerivedExpectedEdgeKind::VariantPayload => {
             typed_ir::DerivedExpectedEdgeKind::VariantPayload
         }
-        super::complete_principal::DerivedExpectedEdgeKind::FunctionParam => {
-            typed_ir::DerivedExpectedEdgeKind::FunctionParam
-        }
-        super::complete_principal::DerivedExpectedEdgeKind::FunctionReturn => {
+        DerivedExpectedEdgeKind::FunctionParam => typed_ir::DerivedExpectedEdgeKind::FunctionParam,
+        DerivedExpectedEdgeKind::FunctionReturn => {
             typed_ir::DerivedExpectedEdgeKind::FunctionReturn
         }
     }
 }
 
-fn export_edge_polarity(
-    polarity: super::complete_principal::EdgePolarity,
-) -> typed_ir::EdgePolarity {
+fn export_edge_polarity(polarity: EdgePolarity) -> typed_ir::EdgePolarity {
     match polarity {
-        super::complete_principal::EdgePolarity::Covariant => typed_ir::EdgePolarity::Covariant,
-        super::complete_principal::EdgePolarity::Contravariant => {
-            typed_ir::EdgePolarity::Contravariant
-        }
-        super::complete_principal::EdgePolarity::Invariant => typed_ir::EdgePolarity::Invariant,
+        EdgePolarity::Covariant => typed_ir::EdgePolarity::Covariant,
+        EdgePolarity::Contravariant => typed_ir::EdgePolarity::Contravariant,
+        EdgePolarity::Invariant => typed_ir::EdgePolarity::Invariant,
     }
 }
 
-fn export_edge_path_segment(
-    segment: super::complete_principal::EdgePathSegment,
-) -> typed_ir::EdgePathSegment {
+fn export_edge_path_segment(segment: EdgePathSegment) -> typed_ir::EdgePathSegment {
     match segment {
-        super::complete_principal::EdgePathSegment::Field(name) => {
-            typed_ir::EdgePathSegment::Field(name)
-        }
-        super::complete_principal::EdgePathSegment::TupleIndex(index) => {
-            typed_ir::EdgePathSegment::TupleIndex(index)
-        }
-        super::complete_principal::EdgePathSegment::VariantCase(name) => {
-            typed_ir::EdgePathSegment::VariantCase(name)
-        }
-        super::complete_principal::EdgePathSegment::PayloadIndex(index) => {
-            typed_ir::EdgePathSegment::PayloadIndex(index)
-        }
-        super::complete_principal::EdgePathSegment::FunctionParam => {
-            typed_ir::EdgePathSegment::FunctionParam
-        }
-        super::complete_principal::EdgePathSegment::FunctionReturn => {
-            typed_ir::EdgePathSegment::FunctionReturn
-        }
+        EdgePathSegment::Field(name) => typed_ir::EdgePathSegment::Field(name),
+        EdgePathSegment::TupleIndex(index) => typed_ir::EdgePathSegment::TupleIndex(index),
+        EdgePathSegment::VariantCase(name) => typed_ir::EdgePathSegment::VariantCase(name),
+        EdgePathSegment::PayloadIndex(index) => typed_ir::EdgePathSegment::PayloadIndex(index),
+        EdgePathSegment::FunctionParam => typed_ir::EdgePathSegment::FunctionParam,
+        EdgePathSegment::FunctionReturn => typed_ir::EdgePathSegment::FunctionReturn,
     }
 }
 
 fn export_expected_adapter_edge_evidence(
-    evidence: super::complete_principal::ExpectedAdapterEdgeEvidence,
+    evidence: ExpectedAdapterEdgeEvidence,
 ) -> typed_ir::ExpectedAdapterEdgeEvidence {
     typed_ir::ExpectedAdapterEdgeEvidence {
         id: evidence.id.0,

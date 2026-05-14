@@ -10,7 +10,8 @@ use crate::ids::{DefId, TypeVar};
 use crate::lower::LowerState;
 use crate::symbols::Path;
 
-use super::complete_principal::{CompletePrincipalCache, ExpectedEdgeEvidence};
+use super::apply_principal::CompletePrincipalCache;
+use super::evidence::ExpectedEdgeEvidence;
 use super::expr::ExprExportProfile;
 use super::names::export_path;
 use super::principal::export_principal_binding;
