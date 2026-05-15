@@ -143,15 +143,18 @@ CPS repr Cranelift の source 回帰を広げる。
 焦点:
 
 - native backend の残穴は `notes/design/native-remaining-failure-matrix.md` で追う。
-  今は N1/N2、つまり型変換後 thunk value の structural coverage と
-  保存後 callback hygiene を優先する。
+  N1/N2/N3/N7/N8/N10 は source regression または structured unsupported として
+  固まった。今の主残穴は N9、つまり open-range `for` の local `last` を
+  native CPS repr で loop boundary へ正しく戻すこと。
 - mutable ref 以外の user-defined state/effect wrapper は、VM 比較へ足す候補として
   N2 の stored callback hygiene と一緒に扱う。
 - std `undet.once` / `.list` / `.logic` は finite list の forced CPS repr
   executable path で VM と一致する。次は同じ handler / resumption 経路を
   named structural value や stored thunk path の回帰へ広げる。
 - effectful callback の handler frame は関数境界をまたいで選択できるように
-  なった。次は handler candidate と captured env をより ABI 明示的な構造へ寄せる。
+  なった。次は current-handler `ScopeReturn` を interpreter と同じ「eval loop
+  jump」として扱うか、同等の scoped short-circuit を continuation boundary で
+  消費する。
 - CPS repr Cranelift の手書き IR では 5 slot 以上の thunk capture env を
   force できる。
 - source の `sub` を list などの構造値へ入れた時の二重 escape routing は修正済み。
