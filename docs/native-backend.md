@@ -287,8 +287,8 @@ or out of here into the user-facing table once they stabilize.
 - [x] A CPS-level thunk pointer can be stored in a record, selected back out,
       and forced through the Cranelift CPS repr path.
 - [x] A CPS-level closure pointer can be stored in a list, indexed back out,
-      and called through the Cranelift CPS repr path when the call result is
-      consumed under a scalar demand.
+      and called through the Cranelift CPS repr path; the opaque/unknown call
+      result can now be returned from a root.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
 - [x] Effectful thunks returned across an inlinable source-defined function

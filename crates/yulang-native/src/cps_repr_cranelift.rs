@@ -3493,6 +3493,7 @@ fn validate_scalar_function(
             && return_lane != CpsReprAbiLane::ClosurePtr
             && return_lane != CpsReprAbiLane::ThunkPtr
             && return_lane != CpsReprAbiLane::OpaqueI64
+            && return_lane != CpsReprAbiLane::Unknown
         {
             return Err(CpsReprCraneliftError::UnsupportedReturnLane {
                 function: function.name.clone(),
@@ -7580,8 +7581,8 @@ mod tests {
 
         assert!(matches!(
             error,
-            CpsReprCraneliftError::UnsupportedReturnLane {
-                lane: CpsReprAbiLane::Unknown,
+            CpsReprCraneliftError::UnsupportedTerminator {
+                kind: "perform without handler entry",
                 ..
             }
         ));
@@ -7980,17 +7981,8 @@ mod tests {
                                 closure: CpsValueId(3),
                                 arg: CpsValueId(4),
                             },
-                            CpsStmt::Literal {
-                                dest: CpsValueId(9),
-                                literal: CpsLiteral::Int("0".to_string()),
-                            },
-                            CpsStmt::Primitive {
-                                dest: CpsValueId(10),
-                                op: typed_ir::PrimitiveOp::IntAdd,
-                                args: vec![CpsValueId(5), CpsValueId(9)],
-                            },
                         ],
-                        terminator: CpsTerminator::Return(CpsValueId(10)),
+                        terminator: CpsTerminator::Return(CpsValueId(5)),
                     },
                     CpsContinuation {
                         id: CpsContinuationId(1),

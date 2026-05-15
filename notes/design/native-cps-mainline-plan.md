@@ -106,8 +106,9 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
       forced CPS repr executable regression に入れる。
 - [x] CPS-level closure pointer を list に保存し、index してから呼ぶ Cranelift
       regression を入れる。
-  - [ ] Indexed / selected closure call の返り値を unknown lane のまま root へ返す
-        path を整理する。今の回帰では scalar demand に通して lane を確定させている。
+  - [x] Indexed / selected closure call の返り値を unknown lane のまま root へ返す
+        path を通す。CPS repr の `Unknown` lane は root でも transitional opaque i64
+        として扱う。
 
 ### 4. General Thunk Invocation
 
