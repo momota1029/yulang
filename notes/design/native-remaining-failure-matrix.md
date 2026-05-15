@@ -26,6 +26,8 @@
 | N9 | Open-range `for` `last` result | Fixed: `examples/03_for_last.yu` and `notes/bugs/native_open_range_for_last_returns_payload.yu` return `5` under forced/default CPS repr. | Scoped abort now keeps local handler-arm values inside the recursive range/fold chain, then consumes the short-circuit at the loop boundary so the following expression runs. | Keep this as a regression when changing `ScopeReturn`, return-frame thresholds, or abort routing. | `runs_open_range_for_loop_last_through_cps_repr` covers the source shape. |
 | N10 | Heap values returned from handler/resumption chains | Fixed: recursive handler/resumption flow now returns `(9, "3\n6\n")` on forced CPS repr. | ScopeReturn now updates stale thunk payloads after force, and duplicate selected handler env entries are read newest-first. | Keep the source regression when changing handler env capture, `force_thunk_i64`, or ScopeReturn routing. | `runs_recursive_effect_handler_tuple_result_through_cps_repr` covers the source shape. |
 | N11 | Open-range nondet `.once` principal elaboration | Fixed: `examples/06_undet_once.yu` runs on VM and default/forced CPS repr native with `:just (3, 4, 5)`. | Full apply-spine principal plans now win over stale complete single-apply evidence, and open-only `unit` substitutions are not treated as concrete support. | Keep this as a regression when changing principal elaboration plan selection or exported substitution normalization. | `runs_undet_once_open_range_guard_through_cps_repr` covers the source shape. |
+| N12 | Nested mutable ref update through indexed refs | Scalar local refs now agree with VM: distinct local ref handlers are keyed by the handler's scoped consumed effect, not by the arm name alone. | Indexed list assignment still returns the old list under forced CPS repr (`[2, 3, 4]` instead of `[2, 6, 4]`). The remaining gap is nested `std::var::ref_update` routing: the inner handler escape drops or fails to propagate the outer ref's resumed state. | Continue from the runtime stack trace around `std::list::&impl#index.update_effect`: preserve outer `ResumeWithHandler` state across the inner `ref_update` handler escape without keeping unrelated inner handler frames. | A small source program with `my $xs = [2, 3, 4]; &xs[1] = 6; $xs` returns `[2, 6, 4]` on forced CPS repr and `examples/showcase.yu` root 1 matches VM. |
+| N13 | Combined finite nondet + junction + method result | Standalone finite nondet `.list`, open-range `.once`, and junction examples agree with VM. | `examples/showcase.yu` root 3 still returns `5` rather than `just 18`; this is the remaining combined path involving junction conditions, finite `each`, record construction, attached method call, and `.once`. | After N12, isolate whether the value is lost in `std::undet::once` queue/resumption routing or in the `point::norm2` direct call through the nondet handler. | `examples/showcase.yu` root 3 matches VM as `just 18` under forced CPS repr. |
 
 ## Immediate Order
 
@@ -38,7 +40,11 @@
 5. Re-run N10 whenever changing selected handler env or ScopeReturn force propagation.
 6. Keep N11 around principal elaboration changes; it prevents stale partial
    apply evidence from specializing open operator arguments to `unit`.
-7. Leave N4/N6 as documented prototype / packaging work unless they block release.
+7. Work N12 before treating mutable refs as broad native coverage; scalar refs
+   are covered, indexed / nested update effects are not.
+8. Work N13 after N12 because `showcase` currently mixes both remaining
+   source-shaped gaps.
+9. Leave N4/N6 as documented prototype / packaging work unless they block release.
 
 ## What Counts As Native Complete For This Pass
 

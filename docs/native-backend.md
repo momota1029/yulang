@@ -192,7 +192,8 @@ checklist, see *Detailed progress* below.
 | Non-scalar values returned through recursive handler / resumption chains | effects | ✅ |
 | `std::undet` `.once` over open-range guarded search | effects | ✅ |
 | `std::undet` `.once` / `.list` / `.logic` over finite-list choices | effects |   ✅   |
-| Mutable reference edit / update through effects     | effects (scalar)      |   ✅   |
+| Mutable reference edit / update through effects     | effects (scalar refs) |   ✅   |
+| Indexed mutable reference update (`&xs[i] = value`) | effects               |   △   |
 | Effectful thunks across function boundaries         | effects (scalar)      |   △   |
 | Stored callback values selected from lists          | effects (prototype)   |   △   |
 | `std::junction` effectful boolean conditions        | effects               |   ✅   |

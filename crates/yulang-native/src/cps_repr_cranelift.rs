@@ -491,6 +491,23 @@ impl HandlerRegistry {
         Ok(mask)
     }
 
+    fn handler_consumes_mask(
+        &self,
+        function: &CpsReprAbiFunction,
+        handler: CpsHandlerId,
+    ) -> CpsReprCraneliftResult<i64> {
+        let mut mask = 0_i64;
+        for candidate in self
+            .candidates
+            .iter()
+            .filter(|(_, candidate)| candidate.handler == handler)
+            .map(|(effect, _)| effect)
+        {
+            mask |= self.effect_mask(function, candidate)?;
+        }
+        Ok(mask)
+    }
+
     fn allowed_mask(
         &self,
         function: &CpsReprAbiFunction,
@@ -1405,15 +1422,22 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                 module_backend,
                 builder,
                 "yulang_cps_resume_with_handler_i64",
-                &[types::I64, types::I64, types::I64],
+                &[types::I64, types::I64, types::I64, types::I64],
                 types::I64,
             )?;
             let resumption = read_value(builder, function, *resumption)?;
             let arg = read_value(builder, function, *arg)?;
-            let handler = builder.ins().iconst(types::I64, handler.0 as i64);
+            let handler_id = *handler;
+            let handler = builder.ins().iconst(types::I64, handler_id.0 as i64);
+            let consumes_mask = builder.ins().iconst(
+                types::I64,
+                handlers.handler_consumes_mask(function, handler_id)?,
+            );
             // write27-d d5: fresh eval context for the sync resume-with-handler.
             let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
-            let call = builder.ins().call(helper, &[resumption, arg, handler]);
+            let call = builder
+                .ins()
+                .call(helper, &[resumption, arg, handler, consumes_mask]);
             let results = builder.inst_results(call);
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
@@ -1454,8 +1478,13 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                 )?;
                 let inherited = builder.ins().iconst(types::I64, 0);
                 let handler_id = builder.ins().iconst(types::I64, handler.0 as i64);
+                let consumes_mask = builder.ins().iconst(
+                    types::I64,
+                    handlers.handler_consumes_mask(function, *handler)?,
+                );
                 let mut args = vec![
                     handler_id,
+                    consumes_mask,
                     escape_ptr,
                     threshold,
                     prompt,
@@ -1477,11 +1506,15 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                 let _ = call_i64_helper(module_backend, builder, helper_name, &args)?;
             } else {
                 let handler_id = builder.ins().iconst(types::I64, handler.0 as i64);
+                let consumes_mask = builder.ins().iconst(
+                    types::I64,
+                    handlers.handler_consumes_mask(function, *handler)?,
+                );
                 let _ = call_i64_helper(
                     module_backend,
                     builder,
                     "yulang_cps_install_handler_i64",
-                    &[handler_id],
+                    &[handler_id, consumes_mask],
                 )?;
             }
         }
@@ -1602,7 +1635,6 @@ fn lower_effect_terminator<M: Module>(
                 )?;
                 return Ok(());
             }
-            let allowed_mask = handler_mask(function, &candidates)?;
             let resumption = make_resumption(
                 module_backend,
                 builder,
@@ -1618,7 +1650,6 @@ fn lower_effect_terminator<M: Module>(
                 handler.0 as i64
             };
             let fallback = builder.ins().iconst(types::I64, fallback_handler);
-            let allowed_mask = builder.ins().iconst(types::I64, allowed_mask);
             let static_blocked = blocked
                 .map(|blocked| read_value(builder, function, blocked))
                 .transpose()?
@@ -1642,7 +1673,7 @@ fn lower_effect_terminator<M: Module>(
                 module_backend,
                 builder,
                 "yulang_cps_select_handler_i64",
-                &[fallback, allowed_mask, blocked],
+                &[fallback, effect_mask, blocked],
             )?;
             // write27-d d2: now that select_handler has recorded the
             // matched real handler's meta, write it back into the
@@ -3319,11 +3350,12 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
         CpsStmt::InstallHandler { handler, envs, .. } => {
             capture_handler_envs(module_backend, builder, function, *handler, envs)?;
             let handler = builder.ins().iconst(types::I64, handler.0 as i64);
+            let consumes_mask = builder.ins().iconst(types::I64, -1);
             let _ = call_i64_helper(
                 module_backend,
                 builder,
                 "yulang_cps_install_handler_i64",
-                &[handler],
+                &[handler, consumes_mask],
             )?;
         }
         CpsStmt::UninstallHandler { handler } => {
@@ -3539,23 +3571,6 @@ fn host_console_effect_kind(effect: &typed_ir::Path) -> Option<HostConsoleEffect
         "println" => Some(HostConsoleEffect::Println),
         _ => None,
     }
-}
-
-fn handler_mask(
-    function: &CpsReprAbiFunction,
-    candidates: &[HandlerCandidate],
-) -> CpsReprCraneliftResult<i64> {
-    let mut mask = 0_i64;
-    for candidate in candidates {
-        if candidate.handler.0 >= 62 {
-            return Err(CpsReprCraneliftError::UnsupportedFunction {
-                function: function.name.clone(),
-                reason: "handler id outside scalar handler mask",
-            });
-        }
-        mask |= 1_i64 << candidate.handler.0;
-    }
-    Ok(mask)
 }
 
 fn lower_literal<M: Module, L: CpsLiteralStore>(
@@ -4586,6 +4601,7 @@ enum NativeCpsI64HandlerFrameOrigin {
 #[derive(Clone)]
 struct NativeCpsI64HandlerFrame {
     handler: i64,
+    consumes_mask: i64,
     guard_stack: Box<[i64]>,
     envs: Vec<NativeCpsI64HandlerEnv>,
     /// write27-c c2: dynamic prompt identity. Distinguishes frame
@@ -4872,12 +4888,16 @@ fn current_native_i64_guard_stack() -> Vec<i64> {
     NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow().clone())
 }
 
-fn current_native_i64_handler_stack_with_fallback(fallback: i64) -> Vec<NativeCpsI64HandlerFrame> {
+fn current_native_i64_handler_stack_with_fallback(
+    fallback: i64,
+    effect_mask: i64,
+) -> Vec<NativeCpsI64HandlerFrame> {
     NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
         let stack = stack.borrow();
         if stack.is_empty() && fallback >= 0 {
             vec![NativeCpsI64HandlerFrame {
                 handler: fallback,
+                consumes_mask: effect_mask,
                 guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
                 envs: Vec::new(),
                 prompt: 0,
@@ -4904,6 +4924,7 @@ fn take_pending_native_i64_handler_frames() -> Vec<NativeCpsI64HandlerFrame> {
         } else {
             frames.push(NativeCpsI64HandlerFrame {
                 handler,
+                consumes_mask: -1,
                 guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
                 envs: vec![env],
                 prompt: 0,
@@ -5008,7 +5029,7 @@ fn make_native_i64_resumption(
     // `yulang_cps_set_resumption_anchor_from_selected_i64` once
     // `select_handler` has decided which real handler was matched.
     let return_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
-    let handlers = current_native_i64_handler_stack_with_fallback(fallback_handler);
+    let handlers = current_native_i64_handler_stack_with_fallback(fallback_handler, -1);
     let debug_id = next_native_i64_resumption_debug_id();
     let ptr = Box::into_raw(Box::new(NativeCpsI64Resumption {
         code,
@@ -6294,11 +6315,13 @@ extern "C" fn yulang_cps_resume_with_handler_i64(
     resumption: *const NativeCpsI64Resumption,
     arg: i64,
     handler: i64,
+    consumes_mask: i64,
 ) -> i64 {
     let resumption = unsafe { &*resumption };
     let mut handlers = resumption.handlers.to_vec();
     let resume_handler = NativeCpsI64HandlerFrame {
         handler,
+        consumes_mask,
         guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
         envs: take_pending_native_i64_handler_envs(handler),
         prompt: 0,
@@ -6790,10 +6813,10 @@ extern "C" fn yulang_cps_is_resumption_i64(value: i64) -> i64 {
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_select_handler_i64(
     fallback_handler: i64,
-    allowed_mask: i64,
+    effect_mask: i64,
     blocked: i64,
 ) -> i64 {
-    let stack = current_native_i64_handler_stack_with_fallback(fallback_handler);
+    let stack = current_native_i64_handler_stack_with_fallback(fallback_handler, effect_mask);
     // write27-d d6: two-pass search to dodge JIT-only `PendingEnv`
     // placeholders. `take_pending_native_i64_handler_frames` builds
     // these from capture envs without a real prompt/escape; they
@@ -6805,7 +6828,7 @@ extern "C" fn yulang_cps_select_handler_i64(
         !matches!(origin, NativeCpsI64HandlerFrameOrigin::PendingEnv)
     };
     let frame_allowed = |frame: &NativeCpsI64HandlerFrame| {
-        let allowed = (allowed_mask & (1_i64 << frame.handler)) != 0;
+        let allowed = (frame.consumes_mask & effect_mask) != 0;
         if !allowed {
             return false;
         }
@@ -7255,10 +7278,11 @@ extern "C" fn yulang_cps_capture_handler_env_i64(handler: i64, entry: i64, env: 
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn yulang_cps_install_handler_i64(handler: i64) -> i64 {
+extern "C" fn yulang_cps_install_handler_i64(handler: i64, consumes_mask: i64) -> i64 {
     let envs = take_pending_native_i64_handler_envs(handler);
     let frame = NativeCpsI64HandlerFrame {
         handler,
+        consumes_mask,
         guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
         envs,
         prompt: 0,
@@ -7310,6 +7334,7 @@ extern "C" fn yulang_cps_fresh_prompt_i64() -> i64 {
 
 fn install_native_i64_handler_full(
     handler: i64,
+    consumes_mask: i64,
     escape_continuation: i64,
     return_frame_threshold: i64,
     prompt: i64,
@@ -7321,6 +7346,7 @@ fn install_native_i64_handler_full(
     let trace_envs = jit_trace_enabled().then(|| format_handler_envs(&envs));
     let frame = NativeCpsI64HandlerFrame {
         handler,
+        consumes_mask,
         guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
         envs,
         prompt: prompt as u64,
@@ -7350,6 +7376,7 @@ fn install_native_i64_handler_full(
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_full_i64_0(
     handler: i64,
+    consumes_mask: i64,
     escape_continuation: i64,
     return_frame_threshold: i64,
     prompt: i64,
@@ -7358,6 +7385,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_0(
 ) -> i64 {
     install_native_i64_handler_full(
         handler,
+        consumes_mask,
         escape_continuation,
         return_frame_threshold,
         prompt,
@@ -7371,6 +7399,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_0(
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_full_i64_1(
     handler: i64,
+    consumes_mask: i64,
     escape_continuation: i64,
     return_frame_threshold: i64,
     prompt: i64,
@@ -7380,6 +7409,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_1(
 ) -> i64 {
     install_native_i64_handler_full(
         handler,
+        consumes_mask,
         escape_continuation,
         return_frame_threshold,
         prompt,
@@ -7393,6 +7423,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_1(
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_full_i64_2(
     handler: i64,
+    consumes_mask: i64,
     escape_continuation: i64,
     return_frame_threshold: i64,
     prompt: i64,
@@ -7403,6 +7434,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_2(
 ) -> i64 {
     install_native_i64_handler_full(
         handler,
+        consumes_mask,
         escape_continuation,
         return_frame_threshold,
         prompt,
@@ -7416,6 +7448,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_2(
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_full_i64_3(
     handler: i64,
+    consumes_mask: i64,
     escape_continuation: i64,
     return_frame_threshold: i64,
     prompt: i64,
@@ -7427,6 +7460,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_3(
 ) -> i64 {
     install_native_i64_handler_full(
         handler,
+        consumes_mask,
         escape_continuation,
         return_frame_threshold,
         prompt,
@@ -7440,6 +7474,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_3(
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_install_handler_full_i64_4(
     handler: i64,
+    consumes_mask: i64,
     escape_continuation: i64,
     return_frame_threshold: i64,
     prompt: i64,
@@ -7452,6 +7487,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_4(
 ) -> i64 {
     install_native_i64_handler_full(
         handler,
+        consumes_mask,
         escape_continuation,
         return_frame_threshold,
         prompt,

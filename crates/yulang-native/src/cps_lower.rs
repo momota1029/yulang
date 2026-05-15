@@ -247,14 +247,15 @@ fn collect_expr_direct_calls_inner(
     out: &mut Vec<typed_ir::Path>,
     visiting_values: &mut HashSet<typed_ir::Path>,
 ) {
-    if let Some((body, arms)) = inline_thunk_handler_apply(expr, functions, bindings) {
+    if let Some((body, arms, consumes)) = inline_thunk_handler_apply(expr, functions, bindings) {
         collect_expr_direct_calls_inner(&body, functions, bindings, out, visiting_values);
         let used_effects = collect_expr_performed_effects(&body);
         for arm in &arms {
+            let scoped_effects = scoped_handler_effects(&consumes, &arm.effect);
             if !is_value_handler_arm(arm)
                 && !used_effects
                     .iter()
-                    .any(|effect| effect_matches(&arm.effect, effect))
+                    .any(|effect| scoped_effects.iter().any(|scoped| effect_matches(scoped, effect)))
             {
                 continue;
             }
@@ -1083,7 +1084,7 @@ fn inline_thunk_handler_apply(
     expr: &runtime::Expr,
     functions: &HashMap<typed_ir::Path, FunctionInfo>,
     bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
-) -> Option<(runtime::Expr, Vec<runtime::HandleArm>)> {
+) -> Option<(runtime::Expr, Vec<runtime::HandleArm>, Vec<typed_ir::Path>)> {
     let (target, _, args) = direct_apply_path(expr, functions).ok()??;
     if args.len() != 1 {
         return None;
@@ -1096,7 +1097,7 @@ fn inline_thunk_handler_apply(
     if params.len() != 1 {
         return None;
     }
-    let (handled_body, arms) = handler_wrapper_handle(body)?;
+    let (handled_body, arms, handler) = handler_wrapper_handle(body)?;
     let handled_body = handle_body_execution_inner(handled_body).unwrap_or(handled_body);
     let handled_body = transparent_expr(handled_body);
     let runtime::ExprKind::Var(body_var) = &handled_body.kind else {
@@ -1105,7 +1106,7 @@ fn inline_thunk_handler_apply(
     if body_var != &typed_ir::Path::from_name(params[0].clone()) {
         return None;
     }
-    Some((args[0].clone(), arms.to_vec()))
+    Some((args[0].clone(), arms.to_vec(), handler.consumes.clone()))
 }
 
 fn transparent_expr(expr: &runtime::Expr) -> &runtime::Expr {
@@ -1391,9 +1392,10 @@ impl<'a> FunctionLowerer<'a> {
     }
 
     fn lower_expr(&mut self, expr: &runtime::Expr) -> CpsLowerResult<CpsValueId> {
-        if let Some((body, arms)) = inline_thunk_handler_apply(expr, self.functions, self.bindings)
+        if let Some((body, arms, consumes)) =
+            inline_thunk_handler_apply(expr, self.functions, self.bindings)
         {
-            return self.lower_handle(&body, &arms);
+            return self.lower_handle(&body, &arms, &consumes);
         }
         if let Some(value) = self.lower_local_expr_apply(expr)? {
             return Ok(value);
@@ -1593,7 +1595,12 @@ impl<'a> FunctionLowerer<'a> {
                     self.lower_match(expr)
                 }
             }
-            runtime::ExprKind::Handle { body, arms, .. } => self.lower_handle(body, arms),
+            runtime::ExprKind::Handle {
+                body,
+                arms,
+                handler,
+                ..
+            } => self.lower_handle(body, arms, &handler.consumes),
             runtime::ExprKind::BindHere { expr } => self.lower_bind_here(expr),
             runtime::ExprKind::Thunk { expr, .. } => self.lower_thunk(expr),
             runtime::ExprKind::LocalPushId { id, body } => {
@@ -2678,6 +2685,7 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         body: &runtime::Expr,
         arms: &[runtime::HandleArm],
+        consumes: &[typed_ir::Path],
     ) -> CpsLowerResult<CpsValueId> {
         let mut value_arms = arms
             .iter()
@@ -2727,7 +2735,7 @@ impl<'a> FunctionLowerer<'a> {
         let result = self.fresh_value();
         let effects = effect_arms
             .iter()
-            .map(|arm| arm.effect.clone())
+            .flat_map(|arm| scoped_handler_effects(consumes, &arm.effect))
             .collect::<Vec<_>>();
 
         let saved_active_handler = self.active_handler.clone();
@@ -2754,16 +2762,18 @@ impl<'a> FunctionLowerer<'a> {
         let used_effects = self.performed_effects_for_handler(handler);
         let body_made_external_call = self.handlers_with_external_calls.contains(&handler);
         let mut handler_entries = Vec::with_capacity(effect_arms.len());
-        for arm in &effect_arms {
-            let directly_used = used_effects.iter().any(|effect| {
-                effect_matches(&arm.effect, effect) || effect_matches(effect, &arm.effect)
-            });
-            // Materialize all handler arms when the body forwards effects through
-            // an effectful direct call (e.g. recursive helper returning [eff] T):
-            // the callee performs effects with handler = dynamic_handler_id() so
-            // performed_effects_for_handler cannot see them statically.
-            if directly_used || body_made_external_call {
-                handler_entries.push((arm.effect.clone(), self.fresh_continuation()));
+        for (arm_index, arm) in effect_arms.iter().enumerate() {
+            for effect in scoped_handler_effects(consumes, &arm.effect) {
+                let directly_used = used_effects.iter().any(|used| {
+                    effect_matches(&effect, used) || effect_matches(used, &effect)
+                });
+                // Materialize all handler arms when the body forwards effects through
+                // an effectful direct call (e.g. recursive helper returning [eff] T):
+                // the callee performs effects with handler = dynamic_handler_id() so
+                // performed_effects_for_handler cannot see them statically.
+                if directly_used || body_made_external_call {
+                    handler_entries.push((effect, self.fresh_continuation(), arm_index));
+                }
             }
         }
         if !handler_entries.is_empty() {
@@ -2771,7 +2781,7 @@ impl<'a> FunctionLowerer<'a> {
                 id: handler,
                 arms: handler_entries
                     .iter()
-                    .map(|(effect, entry)| CpsHandlerArm {
+                    .map(|(effect, entry, _)| CpsHandlerArm {
                         effect: effect.clone(),
                         entry: *entry,
                     })
@@ -2794,15 +2804,8 @@ impl<'a> FunctionLowerer<'a> {
         });
         self.finish_current();
 
-        for (effect, handler_cont) in handler_entries {
-            let Some(arm) = effect_arms
-                .iter()
-                .find(|arm| effect_matches(&arm.effect, &effect))
-            else {
-                return Err(CpsLowerError::UnsupportedExpr {
-                    kind: "handler effect mismatch",
-                });
-            };
+        for (_effect, handler_cont, arm_index) in handler_entries {
+            let arm = effect_arms[arm_index];
             let Some(resume) = &arm.resume else {
                 return Err(CpsLowerError::UnsupportedExpr {
                     kind: "handler without resume",
@@ -4773,7 +4776,13 @@ impl<'a> FunctionLowerer<'a> {
             .map(|arg| self.lower_expr(arg))
             .collect::<CpsLowerResult<Vec<_>>>()?;
         let arg = self.lower_expr(resume_arg)?;
-        let envs = self.handler_reentry_envs(handler, &wrapper.arms, &state_params, &state_args);
+        let envs = self.handler_reentry_envs(
+            handler,
+            &wrapper.arms,
+            &wrapper.consumes,
+            &state_params,
+            &state_args,
+        );
         let dest = self.fresh_value();
         Ok(Some(HandlerReentry {
             dest,
@@ -4799,6 +4808,7 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         handler: CpsHandlerId,
         arms: &[runtime::HandleArm],
+        consumes: &[typed_ir::Path],
         state_params: &[&typed_ir::Name],
         state_args: &[CpsValueId],
     ) -> Vec<CpsHandlerEnv> {
@@ -4822,15 +4832,20 @@ impl<'a> FunctionLowerer<'a> {
             if values.is_empty() {
                 continue;
             }
-            let Some(entry) = handler
-                .arms
-                .iter()
-                .find(|candidate| effect_matches(&candidate.effect, &arm.effect))
-                .map(|arm| arm.entry)
-            else {
-                continue;
-            };
-            envs.push(CpsHandlerEnv { entry, values });
+            for effect in scoped_handler_effects(consumes, &arm.effect) {
+                let Some(entry) = handler
+                    .arms
+                    .iter()
+                    .find(|candidate| effect_matches(&candidate.effect, &effect))
+                    .map(|arm| arm.entry)
+                else {
+                    continue;
+                };
+                envs.push(CpsHandlerEnv {
+                    entry,
+                    values: values.clone(),
+                });
+            }
         }
         envs
     }
@@ -4992,6 +5007,50 @@ fn effect_matches(expected: &typed_ir::Path, actual: &typed_ir::Path) -> bool {
         || (expected.segments.len() == 1 && actual.segments.last() == expected.segments.first())
 }
 
+fn scoped_handler_effects(
+    consumes: &[typed_ir::Path],
+    effect: &typed_ir::Path,
+) -> Vec<typed_ir::Path> {
+    if effect.segments.is_empty()
+        || consumes.is_empty()
+        || !consumes.iter().any(is_local_ref_effect_scope)
+    {
+        return vec![effect.clone()];
+    }
+
+    let mut scoped = Vec::new();
+    for consume in consumes {
+        let effect_already_scoped = effect_matches(consume, effect)
+            || (!consume.segments.is_empty() && effect.segments.starts_with(&consume.segments));
+        let effect_names_consumed_effect = effect.segments.len() == 1
+            && consume.segments.last() == effect.segments.first();
+        let path = if effect_already_scoped {
+            effect.clone()
+        } else if effect_names_consumed_effect {
+            consume.clone()
+        } else {
+            typed_ir::Path {
+                segments: consume
+                    .segments
+                    .iter()
+                    .chain(effect.segments.iter())
+                    .cloned()
+                    .collect(),
+            }
+        };
+        if !scoped.iter().any(|existing| existing == &path) {
+            scoped.push(path);
+        }
+    }
+    scoped
+}
+
+fn is_local_ref_effect_scope(path: &typed_ir::Path) -> bool {
+    path.segments
+        .first()
+        .is_some_and(|segment| segment.0.starts_with('&'))
+}
+
 fn is_inline_argument(expr: &runtime::Expr) -> bool {
     match &expr.kind {
         runtime::ExprKind::Lambda { .. }
@@ -5032,6 +5091,7 @@ fn callable_expr_is_thunk_wrapped(expr: &runtime::Expr) -> bool {
 struct HandlerWrapperInfo {
     params: Vec<typed_ir::Name>,
     arms: Vec<runtime::HandleArm>,
+    consumes: Vec<typed_ir::Path>,
 }
 
 struct HandlerReentry {
@@ -5044,7 +5104,7 @@ struct HandlerReentry {
 fn handler_wrapper_info(binding: &runtime::Binding) -> Option<HandlerWrapperInfo> {
     let (params, body) = collect_lambda_params(&binding.body);
     let handled_param = params.last()?;
-    let (handled_body, arms) = handler_wrapper_handle(body)?;
+    let (handled_body, arms, handler) = handler_wrapper_handle(body)?;
     let handled_body = handle_body_execution_inner(handled_body).unwrap_or(handled_body);
     let handled_body = transparent_expr(handled_body);
     let runtime::ExprKind::Var(body_var) = &handled_body.kind else {
@@ -5056,10 +5116,13 @@ fn handler_wrapper_info(binding: &runtime::Binding) -> Option<HandlerWrapperInfo
     Some(HandlerWrapperInfo {
         params,
         arms: arms.to_vec(),
+        consumes: handler.consumes.clone(),
     })
 }
 
-fn handler_wrapper_handle(expr: &runtime::Expr) -> Option<(&runtime::Expr, &[runtime::HandleArm])> {
+fn handler_wrapper_handle(
+    expr: &runtime::Expr,
+) -> Option<(&runtime::Expr, &[runtime::HandleArm], &runtime::HandleEffect)> {
     let mut current = expr;
     loop {
         match &current.kind {
@@ -5071,7 +5134,12 @@ fn handler_wrapper_handle(expr: &runtime::Expr) -> Option<(&runtime::Expr, &[run
             | runtime::ExprKind::Thunk { expr: thunk, .. } => {
                 current = thunk;
             }
-            runtime::ExprKind::Handle { body, arms, .. } => return Some((body, arms)),
+            runtime::ExprKind::Handle {
+                body,
+                arms,
+                handler,
+                ..
+            } => return Some((body, arms, handler)),
             _ => return None,
         }
     }
