@@ -147,6 +147,25 @@ This also shows why a plain global abort is too blunt: the value `0` is the
 handler-arm result used to stop the loop body, not the enclosing block result
 `5`.
 
+The interpreter / CPS repr evaluator has one more important distinction:
+`handle_scope_return_repr` does not call the matched current handler escape as
+a nested Rust function and then return normally. For a real local jump it
+mutates the eval loop state instead:
+
+```text
+current = target
+args = [value]
+continue eval loop
+```
+
+The native JIT helper currently calls the escape continuation through a raw
+function pointer and returns that result to the caller. That works for several
+non-local return cases, but for open-range `last` it lets the surrounding
+range/fold call chain continue after the local escape value. The eventual fix
+needs either a proper native analogue of the eval-loop jump, or a scoped
+short-circuit that survives that helper call until the correct continuation
+boundary consumes it.
+
 ## Verification
 
 Minimum checks:
