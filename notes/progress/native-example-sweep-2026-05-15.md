@@ -12,6 +12,7 @@ timeout 20s bash -lc 'RUSTC_WRAPPER= cargo run -q -p yulang -- native <example>'
 | --- | --- | --- |
 | `examples/01_struct_with.yu` | default CPS repr (`closure value`) | `25` |
 | `examples/02_refs.yu` | default CPS repr (`thunk boundary`) | `(22, 22)` |
+| `examples/03_for_last.yu` | default CPS repr (`closure value`) | `5` |
 | `examples/04_sub_return.yu` | default CPS repr (`closure value`) | `5` |
 | `examples/05_undet_all.yu` | default CPS repr (`closure value`) | `[5, 6, 7, 6, 7, 8, 7, 8, 9]` |
 | `examples/07_junction.yu` | default CPS repr (`closure value`) | `1` |
