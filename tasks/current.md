@@ -190,6 +190,10 @@ CPS repr Cranelift の source 回帰を広げる。
   handler-arm value の `0` が root になる。これは
   `notes/bugs/native_open_range_for_last_returns_payload.yu` と N9 に分離した。
   実装修正は `notes/design/native-scoped-abort-plan.md` の scoped abort に寄せる。
+  2026-05-15 の実験で current-handler route の abort 条件を広げると timeout は
+  止まるが root が `0` になることを確認した。したがって残りは handler selection
+  ではなく、local handler arm value を loop boundary で消費して後続 continuation
+  (`5`) へ戻す jump/scoped short-circuit の実装。
 - `examples/10_effect_handler.yu` は forced CPS repr executable path で
   `(9, "3\n6\n")` 相当を返すようになった。ScopeReturn の stale thunk payload
   を force 後の値に更新し、duplicate selected handler env は newest-first に読んだ。
