@@ -285,6 +285,34 @@ mod tests {
         runtime::Expr::typed(runtime::ExprKind::Var(path(name)), runtime::Type::unknown())
     }
 
+    fn primitive(op: typed_ir::PrimitiveOp) -> runtime::Expr {
+        runtime::Expr::typed(runtime::ExprKind::PrimitiveOp(op), runtime::Type::unknown())
+    }
+
+    fn apply(callee: runtime::Expr, arg: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Apply {
+                callee: Box::new(callee),
+                arg: Box::new(arg),
+                evidence: None,
+                instantiation: None,
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn identity_lambda() -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Lambda {
+                param: typed_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(var("x")),
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
     #[test]
     fn selects_value_fast_path_for_pure_root() {
         let plan = select_native_backends(&module_with_root(lit_int("42")));
@@ -343,15 +371,7 @@ mod tests {
 
     #[test]
     fn selects_cps_mainline_for_closure_value_root() {
-        let expr = runtime::Expr::typed(
-            runtime::ExprKind::Lambda {
-                param: typed_ir::Name("x".to_string()),
-                param_effect_annotation: None,
-                param_function_allowed_effects: None,
-                body: Box::new(var("x")),
-            },
-            runtime::Type::unknown(),
-        );
+        let expr = identity_lambda();
         let plan = select_native_backends(&module_with_root(expr));
 
         assert_eq!(
@@ -371,19 +391,30 @@ mod tests {
             runtime::ExprKind::Record {
                 fields: vec![runtime::RecordExprField {
                     name: typed_ir::Name("f".to_string()),
-                    value: runtime::Expr::typed(
-                        runtime::ExprKind::Lambda {
-                            param: typed_ir::Name("x".to_string()),
-                            param_effect_annotation: None,
-                            param_function_allowed_effects: None,
-                            body: Box::new(var("x")),
-                        },
-                        runtime::Type::unknown(),
-                    ),
+                    value: identity_lambda(),
                 }],
                 spread: None,
             },
             runtime::Type::unknown(),
+        );
+        let plan = select_native_backends(&module_with_root(expr));
+
+        assert_eq!(
+            plan.module_backend(),
+            NativeBackendSelection::CpsMainline {
+                reason: NativeBackendReason {
+                    root: NativeRootLabel::Expr(0),
+                    kind: NativeBackendReasonKind::ClosureValue,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn selects_cps_mainline_for_closure_value_inside_list_primitive() {
+        let expr = apply(
+            primitive(typed_ir::PrimitiveOp::ListSingleton),
+            identity_lambda(),
         );
         let plan = select_native_backends(&module_with_root(expr));
 

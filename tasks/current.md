@@ -227,6 +227,11 @@ CPS repr Cranelift の source 回帰を広げる。
 - backend selection は closure value を `closure value` reason として CPS repr
   backend へ回すようにした。direct closure root と record-contained closure root は
   value backend の失敗 fallback を待たずに、IR node ベースの selection で分岐する。
+- list-construction primitive payload 内の closure value も同じ `closure value`
+  reason で CPS repr backend へ回す regression を追加した。
+- boundary 付き thunk pointer を variant payload に保存し、payload projection 後に
+  force しても active boundary が handler selection に残る Cranelift regression を
+  追加した。
 - playground は VM interpreter only として UI / native docs に明記した。
   native backend selection は今のところ CLI surface として扱う。
 

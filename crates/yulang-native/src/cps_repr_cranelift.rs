@@ -7541,6 +7541,15 @@ mod tests {
     }
 
     #[test]
+    fn jit_uses_active_thunk_boundary_after_variant_payload() {
+        let abi =
+            active_thunk_boundary_abi(typed_ir::Type::Never, ThunkBoundaryStorage::VariantPayload);
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![20]);
+    }
+
+    #[test]
     fn jit_keeps_allowed_thunk_boundary_visible_to_inner_handler() {
         let choose = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
         let abi = active_thunk_boundary_abi(
@@ -8631,6 +8640,7 @@ mod tests {
         Direct,
         ListIndex,
         RecordSelect,
+        VariantPayload,
     }
 
     fn active_thunk_boundary_abi(
@@ -8694,6 +8704,20 @@ mod tests {
                         dest: CpsValueId(16),
                         base: CpsValueId(14),
                         field: typed_ir::Name("callback".to_string()),
+                    },
+                ]);
+                CpsValueId(16)
+            }
+            ThunkBoundaryStorage::VariantPayload => {
+                root_stmts.extend([
+                    CpsStmt::Variant {
+                        dest: CpsValueId(14),
+                        tag: typed_ir::Name("some".to_string()),
+                        value: Some(CpsValueId(2)),
+                    },
+                    CpsStmt::VariantPayload {
+                        dest: CpsValueId(16),
+                        variant: CpsValueId(14),
                     },
                 ]);
                 CpsValueId(16)

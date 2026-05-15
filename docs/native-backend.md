@@ -112,6 +112,9 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] Closure-value roots and closure values embedded in records are selected
       for the CPS representation backend with a structured `closure value`
       reason before the value backend is tried.
+- [x] Closure values embedded in list-construction primitive payloads are also
+      selected for the CPS representation backend with the same structured
+      reason.
 - [x] The web playground is explicitly marked as VM-interpreter-only; native
       backend selection is a CLI surface for now.
 - [x] `yulang native --kind run-value-exe` exposes the value backend directly for debugging.
@@ -170,8 +173,8 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] Thunks and resumptions carry handler-stack and guard-stack snapshots in
       the scalar prototype.
 - [x] Thunk boundary masks stay attached to thunk pointers through direct force,
-      list index, and record field selection, so hidden callback effects still
-      skip blocked inner handlers.
+      list index, record field selection, and variant payload projection, so
+      hidden callback effects still skip blocked inner handlers.
 - [x] `ResumeWithHandler` can rebase captured return frames under a freshly
       installed handler.
 - [x] Prototype heap handles cover strings, tuples, lists, records, variants,
