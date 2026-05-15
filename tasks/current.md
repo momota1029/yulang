@@ -73,7 +73,9 @@ Cranelift backend を作る。
   capture を target parameter に張り替えられる場合は `DirectCall` に戻し、
   known closure の `EffectfulApply` terminator は `EffectfulCall` か
   pure primitive + resume `Continue` に戻し、
-  small pure direct callee を caller に展開し、到達不能 continuation を削る。
+  small pure direct callee を caller に展開し、total primitive stmt /
+  structural projection まで含めて dead pure value statement を削り、到達不能
+  continuation を削る。
   small single-use one-shot continuation の tail inline と dead pure value statement
   の削除も入った。profile /
   `YULANG_CPS_OPT_TRACE` も出せる。inline 後に同じ reify をもう一度走らせるので、

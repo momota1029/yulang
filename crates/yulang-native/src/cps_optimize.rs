@@ -1483,8 +1483,40 @@ fn stmt_is_pure(stmt: &CpsStmt) -> bool {
             | CpsStmt::Record { .. }
             | CpsStmt::RecordWithoutFields { .. }
             | CpsStmt::Variant { .. }
+            | CpsStmt::Select { .. }
+            | CpsStmt::SelectWithDefault { .. }
             | CpsStmt::RecordHasField { .. }
+            | CpsStmt::TupleGet { .. }
             | CpsStmt::VariantTagEq { .. }
+            | CpsStmt::Primitive {
+                op: typed_ir::PrimitiveOp::BoolNot
+                    | typed_ir::PrimitiveOp::BoolEq
+                    | typed_ir::PrimitiveOp::IntAdd
+                    | typed_ir::PrimitiveOp::IntSub
+                    | typed_ir::PrimitiveOp::IntMul
+                    | typed_ir::PrimitiveOp::IntEq
+                    | typed_ir::PrimitiveOp::IntLt
+                    | typed_ir::PrimitiveOp::IntLe
+                    | typed_ir::PrimitiveOp::IntGt
+                    | typed_ir::PrimitiveOp::IntGe
+                    | typed_ir::PrimitiveOp::IntToString
+                    | typed_ir::PrimitiveOp::IntToHex
+                    | typed_ir::PrimitiveOp::IntToUpperHex
+                    | typed_ir::PrimitiveOp::FloatAdd
+                    | typed_ir::PrimitiveOp::FloatSub
+                    | typed_ir::PrimitiveOp::FloatMul
+                    | typed_ir::PrimitiveOp::FloatEq
+                    | typed_ir::PrimitiveOp::FloatLt
+                    | typed_ir::PrimitiveOp::FloatLe
+                    | typed_ir::PrimitiveOp::FloatGt
+                    | typed_ir::PrimitiveOp::FloatGe
+                    | typed_ir::PrimitiveOp::FloatToString
+                    | typed_ir::PrimitiveOp::BoolToString
+                    | typed_ir::PrimitiveOp::StringConcat
+                    | typed_ir::PrimitiveOp::StringLen
+                    | typed_ir::PrimitiveOp::StringEq,
+                ..
+            }
     )
 }
 
@@ -3195,6 +3227,62 @@ mod tests {
             }]
         );
         assert_eq!(optimized.profile.removed_dead_pure_statements, 2);
+    }
+
+    #[test]
+    fn removes_dead_total_primitives_and_structural_projections() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("1".to_string()),
+                        },
+                        CpsStmt::Literal {
+                            dest: CpsValueId(1),
+                            literal: CpsLiteral::Int("2".to_string()),
+                        },
+                        CpsStmt::Primitive {
+                            dest: CpsValueId(2),
+                            op: typed_ir::PrimitiveOp::IntAdd,
+                            args: vec![CpsValueId(0), CpsValueId(1)],
+                        },
+                        CpsStmt::Tuple {
+                            dest: CpsValueId(3),
+                            items: vec![CpsValueId(0), CpsValueId(1)],
+                        },
+                        CpsStmt::TupleGet {
+                            dest: CpsValueId(4),
+                            tuple: CpsValueId(3),
+                            index: 1,
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(0)),
+                }],
+            }],
+        }));
+
+        let optimized = optimize_cps_repr_abi_module(&abi);
+        let entry = &optimized.module.roots[0].continuations[0];
+
+        assert_eq!(
+            entry.stmts,
+            vec![CpsStmt::Literal {
+                dest: CpsValueId(0),
+                literal: CpsLiteral::Int("1".to_string()),
+            }]
+        );
+        assert_eq!(optimized.profile.removed_dead_pure_statements, 4);
     }
 
     #[test]

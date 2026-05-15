@@ -198,6 +198,7 @@ inlines small pure direct callees including structural value helpers, inlines
 small single-use one-shot
 continuations, rewrites effectful-call terminators to pure callees back into
 direct calls plus local continuation jumps, removes dead pure value statements,
+including total primitive statements and structural projections,
 then prunes unreachable continuations. The simplification pipeline runs to a
 small bounded fixpoint so newly exposed administrative calls are cleaned up in
 the same optimization entrypoint. It also profiles

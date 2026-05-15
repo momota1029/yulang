@@ -74,9 +74,10 @@ known closure `EffectfulApply` terminators back into effectful direct calls or
 pure primitive resumes, inline small pure direct callees including structural
 value helpers, inline small single-use one-shot continuations, rewrite effectful-call
 terminators to pure callees back into direct calls plus local continuation
-jumps, remove dead pure value statements, and prune continuations that are no
-longer reachable from function entries, handler arms, thunks, closures, or
-terminator targets. The simplification pipeline runs to a small bounded
+jumps, remove dead pure value statements including total primitive statements
+and structural projections, and prune continuations that are no longer
+reachable from function entries, handler arms, thunks, closures, or terminator
+targets. The simplification pipeline runs to a small bounded
 fixpoint so newly exposed administrative calls are cleaned up in the same
 optimization entrypoint. The stage also profiles direct-style / SSA island
 candidates and exposes
@@ -250,7 +251,8 @@ current backend boundaries visible, but detailed regression history lives in
       structural value helpers, inlines
       small single-use one-shot continuations, rewrites effectful calls to pure
       callees into direct calls plus local continuation jumps, removes dead pure
-      value statements, prunes unreachable continuations, and records
+      value statements including total primitive statements and structural
+      projections, prunes unreachable continuations, and records
       direct-style / SSA island candidate counts so later thunk/handler passes
       do not fork between artifact kinds.
 - [x] The first direct-style island codegen step lowers pure successor
