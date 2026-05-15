@@ -69,8 +69,9 @@ Cranelift backend を作る。
   forwarding continuation と `Return(param)` continuation を潰し、構造上 primitive
   wrapper と分かる direct call を `Primitive` stmt に戻し、同じ continuation 内で
   作った partial-application closure の `ApplyClosure` を `DirectCall` に戻し、
-  到達不能 continuation を削る。small single-use one-shot continuation の tail
-  inline と dead pure value statement の削除も入った。profile /
+  small pure direct callee を caller に展開し、到達不能 continuation を削る。
+  small single-use one-shot continuation の tail inline と dead pure value statement
+  の削除も入った。profile /
   `YULANG_CPS_OPT_TRACE` も出せる。inline 後に同じ reify をもう一度走らせるので、
   continuation 境界を挟んだ partial application も inline で局所化した後に潰せる。
   direct-style / SSA island 候補数も profile に出る。artifact kind ごとに pass が
@@ -82,6 +83,9 @@ Cranelift backend を作る。
 - effectful continuation function 内から pure callee function を `DirectCall` する
   場合は、eval context 切替 / abort-result routing / scope-return check を挟まず
   普通の Cranelift call として lower する。
+- `EffectfulCall` terminator でも callee が pure function と分かる場合は、CPS
+  optimizer で `DirectCall` stmt + resume continuation への `Continue` に戻す。
+  これで return-frame push と callee eval-context switch の経路に入らない。
 
 近い形:
 

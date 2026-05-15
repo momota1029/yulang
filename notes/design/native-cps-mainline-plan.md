@@ -48,13 +48,15 @@ path name.
 
 The implementation has an explicit `cps_optimize` boundary between CPS repr ABI
 lowering and Cranelift codegen. It currently rewrites explicit calls through
-empty forwarding continuations, folds empty return continuations, reifies direct
-calls to structural primitive wrappers, reifies local partial-application
-closure calls back into direct calls, prunes unreachable continuations, inlines
-small single-use one-shot continuations, removes dead pure value statements, and
-records a profile including direct-style / SSA island candidate counts, while
-both JIT and object codegen go through the same entrypoint so future passes
-cannot accidentally diverge by artifact kind.
+empty forwarding continuations, folds empty return continuations, rewrites
+effectful calls to pure callees back into direct calls plus local continuation
+jumps, reifies direct calls to structural primitive wrappers, reifies local
+partial-application closure calls back into direct calls, inlines small pure
+direct callees, prunes unreachable continuations, inlines small single-use
+one-shot continuations, removes dead pure value statements, and records a
+profile including direct-style / SSA island candidate counts, while both JIT and
+object codegen go through the same entrypoint so future passes cannot
+accidentally diverge by artifact kind.
 
 The next larger optimization target is direct-style / SSA island extraction.
 `notes/design/native-direct-style-islands.md` records the intended boundary:

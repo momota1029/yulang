@@ -8200,6 +8200,23 @@ mod tests {
     }
 
     #[test]
+    fn jit_rewrites_effectful_call_to_pure_callee_before_codegen() {
+        let abi = effectful_call_to_pure_callee_abi();
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![42]);
+        assert_eq!(jit.optimization_profile().rewritten_pure_effectful_calls, 1);
+        let entry_ir = jit
+            .cranelift_ir()
+            .iter()
+            .find(|ir| ir.contains(";; cps-repr continuation root::CpsContinuationId(0)"))
+            .expect("entry continuation ir");
+        assert!(!entry_ir.contains("yulang_cps_return_frame_len_i64"));
+        assert!(!entry_ir.contains("yulang_cps_fresh_eval_id_i64"));
+        assert!(!entry_ir.contains("yulang_cps_set_eval_context_i64"));
+    }
+
+    #[test]
     fn jit_runs_perform_with_tail_resume_handler() {
         let abi = tail_resume_effect_abi();
         let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
@@ -9336,18 +9353,31 @@ mod tests {
                 params: vec![CpsValueId(0), CpsValueId(1)],
                 entry: CpsContinuationId(0),
                 handlers: Vec::new(),
-                continuations: vec![CpsContinuation {
-                    id: CpsContinuationId(0),
-                    params: vec![CpsValueId(0), CpsValueId(1)],
-                    captures: Vec::new(),
-                    shot_kind: CpsShotKind::OneShot,
-                    stmts: vec![CpsStmt::Primitive {
-                        dest: CpsValueId(2),
-                        op: typed_ir::PrimitiveOp::IntAdd,
-                        args: vec![CpsValueId(0), CpsValueId(1)],
-                    }],
-                    terminator: CpsTerminator::Return(CpsValueId(2)),
-                }],
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: vec![CpsValueId(0), CpsValueId(1)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Primitive {
+                            dest: CpsValueId(2),
+                            op: typed_ir::PrimitiveOp::IntAdd,
+                            args: vec![CpsValueId(0), CpsValueId(1)],
+                        }],
+                        terminator: CpsTerminator::Continue {
+                            target: CpsContinuationId(1),
+                            args: vec![CpsValueId(2)],
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(5)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(5)),
+                    },
+                ],
             }],
             roots: vec![CpsFunction {
                 name: "root".to_string(),
@@ -9385,6 +9415,94 @@ mod tests {
                     },
                     CpsContinuation {
                         id: CpsContinuationId(1),
+                        params: vec![CpsValueId(6), CpsValueId(7)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(6)),
+                    },
+                ],
+            }],
+        }))
+    }
+
+    fn effectful_call_to_pure_callee_abi() -> CpsReprAbiModule {
+        let effect = typed_ir::Path::from_name(typed_ir::Name("unused".to_string()));
+        lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: vec![CpsFunction {
+                name: "add".to_string(),
+                params: vec![CpsValueId(0), CpsValueId(1)],
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: vec![CpsValueId(0), CpsValueId(1)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Primitive {
+                            dest: CpsValueId(2),
+                            op: typed_ir::PrimitiveOp::IntAdd,
+                            args: vec![CpsValueId(0), CpsValueId(1)],
+                        }],
+                        terminator: CpsTerminator::Continue {
+                            target: CpsContinuationId(1),
+                            args: vec![CpsValueId(2)],
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(8)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(8)),
+                    },
+                ],
+            }],
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: vec![crate::cps_ir::CpsHandler {
+                    id: crate::cps_ir::CpsHandlerId(0),
+                    arms: vec![crate::cps_ir::CpsHandlerArm {
+                        effect,
+                        entry: CpsContinuationId(2),
+                    }],
+                }],
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(3),
+                                literal: CpsLiteral::Int("40".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(4),
+                                literal: CpsLiteral::Int("2".to_string()),
+                            },
+                        ],
+                        terminator: CpsTerminator::EffectfulCall {
+                            target: "add".to_string(),
+                            args: vec![CpsValueId(3), CpsValueId(4)],
+                            resume: CpsContinuationId(1),
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(5)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(5)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(2),
                         params: vec![CpsValueId(6), CpsValueId(7)],
                         captures: Vec::new(),
                         shot_kind: CpsShotKind::OneShot,
