@@ -104,7 +104,7 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 - [x] higher-order std functions を CPS repr path で VM と比較する。
 - [x] source-level closure value を record に保存し、select してから呼ぶ path を
       forced CPS repr executable regression に入れる。
-  - [x] scalar environment を capture した closure も同じ record path で確認する。
+  - [x] scalar / string environment を capture した closure も同じ record path で確認する。
 - [x] CPS-level closure pointer を list に保存し、index してから呼ぶ Cranelift
       regression を入れる。
   - [x] Indexed / selected closure call の返り値を unknown lane のまま root へ返す
@@ -112,7 +112,7 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
         として扱う。
   - [x] source-level closure value を list に保存し、`std::list::index_raw` で
         取り出してから呼ぶ forced CPS repr executable regression を入れる。
-  - [x] scalar environment を capture した closure も同じ list index path で確認する。
+  - [x] scalar / string environment を capture した closure も同じ list index path で確認する。
   - [x] lazy operator の結果を tuple value position に置く regression を入れる。
         tuple 内部でも short-circuit operand thunk が可視値として漏れないことを
         forced CPS repr executable path で確認する。

@@ -420,6 +420,19 @@ r.call 2
     }
 
     #[test]
+    fn runs_string_captured_closure_from_record_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"my s = "x"
+my f: str -> str = \x -> x + s
+my r = {call: f}
+r.call "hi"
+"#,
+            vec!["hix"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_closure_from_indexed_list_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"my f: int -> int = \x -> x + 1
@@ -440,6 +453,19 @@ my fs = [f]
 ((std::list::index_raw fs) 0) 2
 "#,
             vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_string_captured_closure_from_indexed_list_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"my s = "x"
+my f: str -> str = \x -> x + s
+my fs = [f]
+((std::list::index_raw fs) 0) "hi"
+"#,
+            vec!["hix"],
         )
         .expect("CPS repr native display");
     }
@@ -642,6 +668,7 @@ my fs = [f]
         match value {
             yulang_runtime::VmValue::Bool(true) => "1".to_string(),
             yulang_runtime::VmValue::Bool(false) => "0".to_string(),
+            yulang_runtime::VmValue::String(value) => value.to_flat_string(),
             yulang_runtime::VmValue::Tuple(items) => format!(
                 "({})",
                 items
