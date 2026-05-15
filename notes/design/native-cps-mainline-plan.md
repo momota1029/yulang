@@ -106,6 +106,8 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
       forced CPS repr executable regression に入れる。
 - [x] CPS-level closure pointer を list に保存し、index してから呼ぶ Cranelift
       regression を入れる。
+  - [ ] Indexed / selected closure call の返り値を unknown lane のまま root へ返す
+        path を整理する。今の回帰では scalar demand に通して lane を確定させている。
 
 ### 4. General Thunk Invocation
 
@@ -114,6 +116,9 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
         larger env を `yulang_cps_make_thunk_i64_many(ptr, len)` で運べる。
   - [x] CPS-level thunk pointer を record に保存し、select してから force する
         Cranelift regression を入れる。
+  - [ ] source-level first-class thunk を素直に取り出す表層型 / lowering 経路を作る。
+        lazy operator で値だけを返す形は表層で thunk として残らず、注釈しても
+        `int <: () -> int` になってしまう。
 - [ ] `AddId` / `BindHere` / hidden evidence boundary を thunk pointer に保持する。
 - [ ] force 時に handler / guard stack を正しく re-enter する。
 - [ ] direct thunk callback inline の暫定経路を、汎用 thunk invocation に置き換える。
