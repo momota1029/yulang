@@ -83,55 +83,8 @@ use std::undet::*
 
 ## 現在の未解決（2026-05-15 round-5）
 
-### Effect / handler 系
-
-- [`role_method_in_for_body_pattern.yu`](role_method_in_for_body_pattern.yu)
-  — `for p in pairs:` の body 内で `case p: (n, just s) -> ... s.len ...` の
-  ように nested pattern + role method (`.len`) を呼ぶと、`Len::len` が
-  unhandled として外まで漏れる。同じ case を for の外で書くと通る。
-  `wrap_inside_for_body_leaks_fail`（resolved）と兄弟で、`for` body 内に
-  role-dispatch effect が積まれた時の row 解決に問題が残っている疑い。
-- [`handler_fn_missing_join_evidence.yu`](handler_fn_missing_join_evidence.yu)
-  — `my f comp = catch comp: ...` を annotation なしで書くと
-  `missing join evidence for handle` で死ぬ。annotation 付きなら通る
-  （cookbook の `cb06_log_handler.yu` 形）。「handler を関数に切り出す」
-  最初の一歩が internal-meaning なエラーで止まる。
-
-### Error 系
-
-- [`wrap_does_not_traverse_from_chain.yu`](wrap_does_not_traverse_from_chain.yu)
-  — wrap 自体は narrower error を `from` 経由で同時捕捉できるようになった
-  が、`case res: err e -> e.show` の経路で `Display::show` operation が
-  unhandled として漏れる。`error_display_impl_missing` /
-  `error_display_from_chain_missing` の direct value `.show` は通るのに、
-  `wrap` 経由で result に閉じた後の `e.show` だけ通らない。`fs_err` simple /
-  `io_err` from-chain どちらでも同じ症状。
-
-### Control flow / 推論系
-
-- [`if_no_else_branch_type_mismatch.yu`](if_no_else_branch_type_mismatch.yu)
-  — `if true: 1` のような else 省略形が `branch result type mismatch:
-  expected int, got unit` で弾かれる。reference の control-flow.md には
-  「`if` without `else` uses `()` as the false branch」とあるが、実装は
-  両 branch を unify しようとして落ちる。VM / native 同症（infer 段の問題）。
-- [`nested_for_return_effect_mismatch.yu`](nested_for_return_effect_mismatch.yu)
-  — nested `for` の内側から `return` すると `expected [std::flow::loop],
-  got [std::flow::sub<...>]` で落ちる。labelled outer + `return` と
-  `last 'outer` を同居させると `missing join evidence for match` に変わる。
-  flat な (1段) `for` + `return` は通るので、二段目の loop effect と
-  sub effect の合流が課題に見える。VM / native 同症。
-
-### Stdlib / 表示系 (Display / Debug)
-
-- [`debug_role_missing_for_composite_types.yu`](debug_role_missing_for_composite_types.yu)
-  — compose 型 (list / opt / result / tuple / record) のデバッグ表示の
-  手段が無い。設計判断 (2026-05-15) では `.show` は「見せられる型」、
-  `.debug` は「見せられないけどデバッグする型」で、compose 型は `.debug`
-  側。2026-05-16 に stdlib へ `Debug` role と primitive / list / opt /
-  result / tuple(2..5) の `.debug` を追加済み。2026-05-16 に native
-  effects の root pretty-print も `.debug` 投影へ寄せ、record / long
-  tuple は host-side debug fallback で表示できる。reference の strings.md の
-  `[1, 2, 3].show` 例は `.debug` 側へ移動済み。
+round-5 の非 native snippet は 2026-05-16 時点で全て再現しない。新しい
+非 native regression が出たらここへ戻す。
 
 ## 現在の未解決（2026-05-15 round-6 / `yulang run --native` との差分）
 
@@ -144,9 +97,46 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   — handler arm の `if` guard と labelled `for` の bare effect operation
   (`#loop_label:outer##with0::...`) が CPS lowering 未対応で
   `failed to compile native effects object` で止まる。VM では通る。
+- [`native_sub_for_return_int_value_garbled.yu`](native_sub_for_return_int_value_garbled.yu)
+  — `sub:` の中で `for` body から `return` すると、native の return path が
+  int 値を破損する。`--print-roots` で `"1"` (quoted) に出るだけでなく、
+  後段の `1 + r` が `974717633` のような garbage を返すので値 lane も壊れて
+  いる。VM は `[0] 1` / `[0] 2`。sub 単独 / for 単独 / return 単独は揃うので、
+  組み合わせ経路の問題。resolved `nested_for_return_effect_mismatch.yu` は
+  infer 側の解消で、runtime 値 lane の整合は別件として残っていた。
+- [`native_handler_result_debug_value_garbled.yu`](native_handler_result_debug_value_garbled.yu)
+  — `act console: read + println` の両 operation を declare し、両 arm を持つ
+  handler の戻り値 `r` に対して `.debug` を呼ぶと、native は壊れた string
+  lane を返す。`println r.debug` の行だけ silent に飲み込まれ、`println
+  "literal"` は同じ scope で動く。`--print-roots` で root として `r` を出すと
+  両方 `()` なので、後段で `r.debug` を string として取り出す経路だけが壊れ
+  ている。`act` 名や operation 名を変えると再現しないので、prelude
+  `println` との overload と handler 戻り値 lane の取り合いに見える。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 
+- [`if_no_else_branch_type_mismatch.yu`](if_no_else_branch_type_mismatch.yu)
+  — 2026-05-16 に `else` なし `if` を statement-like に下げるようにした。
+  then branch は効果のために実行されるが値は捨てられ、式全体は `()` を返す。
+  `if true: 1` は VM で `()` として通る。明示的な `else: ()` は通常の branch
+  join のままなので、非 unit branch との不一致は従来通り型エラー。
+- [`nested_for_return_effect_mismatch.yu`](nested_for_return_effect_mismatch.yu)
+  — 2026-05-16 に runtime lowering / validate 側の thunk effect 検査を調整し、
+  apply evidence 由来の residual effect を過剰に弾かないようにした。
+  `sub:` 内の nested `for` から `return` する形は VM で `[0] 1`。
+- [`role_method_in_for_body_pattern.yu`](role_method_in_for_body_pattern.yu)
+  — 2026-05-16 時点で VM `--print-roots` が `[0] 4` を返し、再現せず。
+- [`handler_fn_missing_join_evidence.yu`](handler_fn_missing_join_evidence.yu)
+  — 2026-05-16 時点で VM `--print-roots` が `[0] ["a"]` を返し、再現せず。
+- [`wrap_does_not_traverse_from_chain.yu`](wrap_does_not_traverse_from_chain.yu)
+  — 2026-05-16 時点で VM `--print-roots` が `[0] "err: not_found"` を返し、
+  再現せず。
+- [`debug_role_missing_for_composite_types.yu`](debug_role_missing_for_composite_types.yu)
+  — 2026-05-16 に stdlib へ `Debug` role と primitive / list / opt /
+  result / tuple / record の `.debug` を追加済み。native effects の root
+  pretty-print も `.debug` 投影へ寄せ、record / long tuple は host-side
+  debug fallback で表示できる。残る小差は record の field separator
+  (VM `{x = 1, y = 2}` / native `{x: 1, y: 2}`) のみ。
 - [`native_handler_result_value_collapse.yu`](native_handler_result_value_collapse.yu)
   — 2026-05-16 WIP で native effects の blocked-effect boundary dispatch を
   inactive marker で peel できるようにし、`ResumeWithHandler` sibling env を
@@ -160,10 +150,11 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 - [`native_float_collapses_to_zero.yu`](native_float_collapses_to_zero.yu)
   — 2026-05-16 WIP で native float lane を runtime value container へ
   入れる時に boxed float へ変換し、float primitive 側へ戻す時に unbox
-  するようにした。`3.14` と `[2.0]` が native で値を保つ。
+  するようにした。`3.14` と `[2.0]` が native で値を保つ。実機 (`yulang run
+  --native --print-roots`) でも VM と同じ `3.14`。
 - [`native_serial_var_double_count.yu`](native_serial_var_double_count.yu)
-  — 2026-05-16 WIP 時点で再現せず。`notes/bugs/native_serial_var_double_count.yu`
-  は native `--print-roots` で `(11, 21)`。
+  — 2026-05-16 WIP 時点で再現せず。native `--print-roots` で VM と同じ
+  `(11, 21)`。
 
 - [`handler_arm_tuple_payload_pattern.yu`](handler_arm_tuple_payload_pattern.yu)
   — act operation の payload が tuple のとき、handler arm で `op (s, n), k

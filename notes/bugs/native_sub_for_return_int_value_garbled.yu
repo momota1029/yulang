@@ -1,0 +1,68 @@
+-- bug (native): `sub:` の中で `for` body から `return` すると、native の
+--      return path が int 値を破損する。`--print-roots` 出力では `"1"`
+--      (quoted) で出るので display 経由の差に見えるが、後段で `1 + r`
+--      のように加算すると `974717633` のような garbage 値が返るので、
+--      実体としても値 lane が壊れている。
+--
+-- 期待:
+--   `sub: for x in 0..2: if x == 1: return x else: () 99` は int `1` を返す。
+--   VM (`yulang run --interpreter`) と native (`yulang run --native`) で
+--   同じ値・同じ型 (`int`) に揃う。
+--
+-- 実際:
+--
+--   ☆ `--print-roots` 表示が違う (quoted string lane に流れている):
+--
+--     sub:
+--         for x in 0..2:
+--             if x == 1: return x
+--             else: ()
+--         99
+--     → VM     `[0] 1`        (int)
+--     → native `"1"`           (quoted)
+--
+--   ☆ 値そのものが壊れている (後段で使うと garbage が伝播):
+--
+--     my r = sub:
+--         for x in 0..2:
+--             if x == 1: return x
+--             else: ()
+--         99
+--     1 + r
+--     → VM     `[0] 2`
+--     → native `974717633`     (boxed pointer の low bits のような garbage)
+--
+-- 切り分け:
+--
+--   sub: return 1; 0                                              → 両方 `1`
+--   1                                                              → 両方 `1`
+--   0 + 1                                                          → 両方 `1`
+--   sub: for x in 0..2: if x == 1: return x else: () 99             → 食い違い (上記)
+--   sub: nested for: ... return (x + y) ...                       → 同じく食い違い
+--
+--   = `sub` 単独 / `for` 単独 / `return` 単独は OK。
+--     `sub` の中で `for` body から `return` する path だけ壊れる。
+--
+-- 影響:
+--   - 「nested loop の中で早期 return」という reference (control-flow.md
+--     の `sub:` 節) 通りの書き方が、native で値破損につながる。
+--   - 表示だけの差ではないので、後段で `r` を加算 / 比較 / list へ入れる
+--     などの操作が全て狂う。
+--
+-- 関連:
+--   - resolved `nested_for_return_effect_mismatch.yu` で infer 段は通る
+--     ようになったが、runtime 値 lane の整合が取れていない。infer side の
+--     修正と native lane の修正が片方しか入っていない可能性。
+--   - sub なしの `for x in ...: return x` 単独は VM が runtime で
+--     `blocked`、native が CPS lowering 段で
+--     `perform without handler entry terminators in root_0 yet` で reject。
+--     これも合わせて見ると、`return` の handler entry が native の
+--     low-level lane で取り回せていない疑い。
+
+-- 個別の確認用 (native で int 1 が壊れる)
+my r = sub:
+    for x in 0..2:
+        if x == 1: return x
+        else: ()
+    99
+1 + r

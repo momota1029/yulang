@@ -1,0 +1,67 @@
+-- bug (native): `act console:` で `read: () -> str` と `println: str -> ()`
+--      の両方を declare し、両 arm を持つ handler の戻り値 `r` に対して
+--      `.debug` を呼ぶと、native は壊れた string lane を返す。後段で
+--      `println r.debug` / `println s` / `s.len` を呼ぶと、その print
+--      行だけ silent に飲み込まれる。VM は正しく `()` を出力する。
+--
+-- 期待:
+--   handler の戻り値 (`r : ()`) の `.debug` は string `"()"` を返し、
+--   `println r.debug` で `()` が両 backend で出る。
+--
+-- 実際:
+--
+--   ☆ 同 source の VM 出力:
+--     ()
+--     after
+--
+--   ☆ 同 source の native 出力:
+--     after                     ← `println r.debug` の行だけ消える
+--
+--   `my s: str = r.debug; println s.len.debug; println s` も同様に silent。
+--   string method dispatch まで含めて全部 silent。`println "literal"` は
+--   同じ scope で動くので、println 自体は OK。
+--
+-- 切り分け:
+--
+--   ef14  act console: only println          + 1 arm + r.debug  → 両方 OK
+--   ef15  act console: read + println        + 2 arm + r.debug  → native silent
+--   ef22  act mycon  : read + println        + 2 arm + r.debug  → 両方 OK
+--   ef23  act console: read + write          + 2 arm + r.debug  → 両方 OK
+--   ef28  ef15 と同じ source で root として `r` を `--print-roots`
+--         → 両方とも `()`
+--
+--   つまり、必要条件は:
+--     - `act` 名が `console`
+--     - operation 名 が `println` (もしくは prelude `println` と衝突する名前)
+--     - `read: () -> str` も同じ act に declare
+--     - handler が両 arm を持つ
+--     - handler の戻り値 `r` の `.debug` を後段で string として使う
+--
+-- メモ:
+--   - `--print-roots` で root として `r` を直接出すと両方とも `()`。
+--     root pretty-print 経路 は OK。
+--   - 後段で `r.debug` を取り出して string として使う経路だけ壊れる。
+--   - `Debug::debug` の resolution / boxing が、`act console::println` の
+--     overload と handler の戻り値 lane の取り合いで干渉している疑い。
+--   - VM では prelude `println` が呼ばれて正しい出力。native では string lane
+--     が壊れているので、stdout までデータが届かない。
+--
+-- 影響:
+--   - reference (effects.md) の console handler 例 (`act console: read +
+--     println` + self-recursive shallow handler) を素直に書いて、結果を
+--     debug 表示しようとすると、native だけ silent に詰まる。
+--   - silent termination で error message なし。原因に到達するまでが長い。
+
+-- 個別の確認用 (native で stdout から `()` が消える)
+act console:
+    our read:    () -> str
+    our println: str -> ()
+
+my run_console(a: [console] 'r): 'r = catch a:
+    console::read (), k -> run_console (k "42")
+    console::println _, k -> run_console (k ())
+    v -> v
+
+my r = run_console: console::println "hello"
+println r.debug
+println "after"
