@@ -221,8 +221,6 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] Non-scalar CPS return values that use prototype heap handles print as
       Yulang-like values in generated CPS executables, including the covered
       recursive handler/resumption tuple result.
-- [ ] Open-range `for` with local `last` still needs scoped abort routing to
-      stop the recursive fold and then continue at the loop expression boundary.
 - [x] Non-scalar values returned through recursive handler/resumption chains
       now keep the forced result and nested handler env, covering
       `examples/10_effect_handler.yu`.

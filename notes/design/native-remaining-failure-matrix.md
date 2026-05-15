@@ -32,7 +32,8 @@
    runtime IR form appears.
 2. Keep N3/N5 on structured backend selection and CLI fallback behavior.
 3. Keep N7 out of the forced value lane until structural binding parity is implemented there.
-4. Fix N9 before claiming open-range `last` control parity.
+4. Keep N9 as a regression when changing scoped abort / return-frame threshold
+   routing.
 5. Re-run N10 whenever changing selected handler env or ScopeReturn force propagation.
 6. Leave N4/N6 as documented prototype / packaging work unless they block release.
 
