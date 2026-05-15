@@ -8,9 +8,9 @@ This page is split into two parts:
 
 - A **user-facing support table** describing what currently runs natively
   from Yulang source, organized by what you can try.
-- A **detailed progress log** describing the current state of the value
-  backend, the CPS representation backend, and the surrounding cache /
-  package layout.
+- A **detailed status** section describing the current state of the value
+  backend, the CPS representation backend, and the surrounding cache / package
+  layout without keeping every historical regression in this public document.
 
 For overall language status across all stages, see
 [docs/status.md](status.md). For deeper design notes see
@@ -99,10 +99,9 @@ pipeline.
 
 ## Detailed progress
 
-The remainder of this page is the implementation-side checklist that
-previously lived in the README. It is intentionally fine-grained; new
-items move from the user-facing table above into here as they ship,
-or out of here into the user-facing table once they stabilize.
+The remainder of this page is an implementation-side status table. It keeps the
+current backend boundaries visible, but detailed regression history lives in
+`tasks/current.md` and `notes/progress/`.
 
 ### Public CLI status
 
@@ -122,271 +121,86 @@ or out of here into the user-facing table once they stabilize.
 
 ### Value backend status
 
-- [x] Source-to-runtime lowering can feed the value backend.
-- [x] Native value object generation works.
-- [x] Generated executables can print native value results, including boxed
-      scalar values, raw list views, record spread expressions, and basic
-      list/string range and splice results.
-- [x] `int`, `float`, `bool`, `unit`, and `str` literals are represented as
-      opaque runtime values.
-- [x] Basic numeric and boolean primitives run through runtime helper symbols:
-      `+`, `-`, `*`, `/`, comparisons, equality, and `not`.
-- [x] Basic conversion/string primitives are wired through helpers:
-      integer/float/bool to string, string equality, string length, and
-      string index/range/splice.
+- [x] Source-to-runtime lowering can feed the value backend, and native value
+      object/executable generation works.
+- [x] Generated executables can print boxed runtime values, including scalar
+      values, strings, lists, tuples, records, variants, raw views, and basic
+      range/splice results.
+- [x] Scalar literals and common numeric/boolean/string primitives run through
+      runtime helper symbols.
 - [x] Local `my` bindings and top-level non-function bindings can be evaluated
       by the value backend.
-- [x] String concatenation works.
-- [x] List literals, list merge, list length, list index, raw view, range
-      index, and splice work.
-- [x] Native-control eval, native ABI eval, and value-backend Cranelift share
-      a VM comparison harness for boxed `VmValue` roots. This covers
-      non-scalar regressions such as string/list range and splice primitives,
-      record selection, record spread expressions, and list spread pattern
-      bindings.
-- [x] String range index and splice work.
+- [x] List literals, list merge, length, index, raw view, range index, and
+      splice work.
 - [x] Tuple, record, record field selection, record spread expressions, and
       variant construction work.
-- [x] Value-backend branch/jump lowering works for effect-free `if` and the
-      current pattern-match subset.
-- [x] Variant tag tests, variant payload binding, and tuple payload binding
-      work in value-backend pattern matching.
-- [x] Literal pattern tests work in value-backend pattern matching through
-      boxed runtime value equality.
-- [x] List pattern length tests, prefix/spread/suffix bindings, and refutable
-      list item tests work in the value backend.
-- [x] Record pattern field tests and bindings work in the value backend,
-      including shorthand fields such as `{ok, n}`.
-- [x] Record-spread patterns bind the remaining record fields in the VM,
-      native-control eval, ABI eval, and value backend.
-- [x] Guarded pattern matching works when the guard expression stays inside
-      the existing value-backend expression subset.
+- [x] Effect-free `if` and the current pattern-match subset work through
+      branch/jump lowering.
+- [x] Literal, tuple, variant, list, record, and record-spread pattern tests are
+      covered in the value backend when their guards stay inside the
+      value-backend expression subset.
+- [x] Native-control eval, native ABI eval, and value-backend Cranelift share a
+      VM comparison harness for boxed `VmValue` roots.
+- [x] Non-escaping closure allocation, closure environment loads, indirect
+      closure calls, partial application wrappers, and branch-carried closure
+      handles work in the current value-backend subset.
+- [x] Small std higher-order list programs (`map`, `filter`, `fold`) run through
+      the value executable path when they stay inside the supported value subset.
 - [ ] General multi-block control flow outside the current branch/jump subset
       is not supported in the value backend.
-- [x] Non-escaping closure allocation, closure environment loads, and indirect
-      closure calls work in the value backend when the closure is allocated and
-      called inside the compiled subset.
-- [x] Closure values are represented as opaque runtime handles in the value
-      backend, so indirect closure calls can cross branch/jump block params.
-- [x] Value-backend representation analysis propagates closure handles through
-      branch/jump block params and rejects closure roots or closure handles
-      embedded in tuple/list/record/variant `VmValue` helpers before codegen.
-- [x] Source-level value-backend executable tests cover a branch-selected
-      captured closure flowing through a zero-arity binding and then being
-      applied indirectly.
-- [x] Top-level function partial application lowers to generated closure
-      wrappers in the value backend and is covered by a source-level executable
-      test.
-- [x] Value-backend codegen and ABI validation carry values defined in
-      dominating predecessor blocks, so std `list.map`, `list.filter`, and
-      `list.fold` source programs now run through the value executable path.
 - [ ] Closure values can be called after flowing through the value backend, but
-      they are not yet printable roots or ordinary structural runtime values
-      inside tuples/lists/records.
+      printable closure roots and closures embedded as ordinary structural
+      runtime values still route to the CPS representation backend.
 - [ ] Generic runtime value layout is still backed by `VmValue`; compact native
       representations are not finalized.
 
 ### CPS representation backend status
 
-- [x] Pure scalar CPS programs can be compiled with Cranelift.
-- [x] Small source-defined algebraic effects can be lowered through CPS.
-- [x] Multi-shot resumption prototypes work for scalar programs.
-- [x] Simple handler arms, value arms, primitive calls, direct calls, and
-      conditional control are covered by regression tests.
-- [x] `case` guards with scalar pattern bindings and pure scalar comparisons
-      lower through the CPS repr Cranelift path.
-- [x] `sub`/`return`-style control has a small CPS repr regression path.
-- [x] Tuple, record, variant, and record selection can be lowered and evaluated
-      in the CPS/CPS-repr interpreters.
-- [x] CPS repr Cranelift can build small records as prototype heap values and
-      select fields from them.
-- [x] CPS/CPS-repr interpreters reuse the native-control primitive evaluator
-      for ordinary `VmValue` primitives, so string/list range, splice, view,
-      equality, and conversion semantics stay aligned with the value backend.
-- [x] Handler entry continuations receive captured environments in the
-      Cranelift CPS repr path.
-- [x] Lazy branch conditions that flow through thunk-valued continuation params
-      are forced before the Cranelift branch condition is tested.
-- [x] CPS repr Cranelift has a small thunk trampoline helper for `ThunkPtr`
-      values used by lazy conditions and root wrappers.
-- [x] CPS/CPS-repr interpreters can rebase a captured continuation under a
-      freshly installed handler.
-- [x] CPS repr evaluator carries handler-frame guard snapshots and skips a
-      blocked handler frame when resolving `Perform`.
-- [x] `LocalPushId`, `PeekId`, and `FindId` have native CPS guard statements in
-      the CPS/CPS-repr interpreter paths.
-- [x] CPS repr Cranelift has scalar guard-stack helper symbols for
-      `FreshGuard`, `PeekGuard`, and `FindGuard`.
-- [x] CPS repr Cranelift resumptions and thunks carry handler-stack and
-      guard-stack snapshots in the scalar prototype.
-- [x] CPS repr Cranelift thunks snapshot handler arm environments for handler
-      frames whose captures are available at thunk creation time.
-- [x] CPS repr Cranelift can rebase a resumption with `ResumeWithHandler` and
-      skip a blocked handler frame for scalar handler tests.
-- [x] CPS repr Cranelift can select handler arms across function boundaries
-      through globally numbered handler ids and the dynamic handler stack.
-- [x] CPS lowering carries `AddId` blocked guards into `Perform` in the
-      CPS/CPS-repr interpreter paths.
-- [x] CPS lowering resolves `AddId(Var(id))` through the enclosing
-      `LocalPushId` guard scope, including handler-body lowering paths used by
-      callback hygiene boundaries.
-- [x] CPS repr Cranelift can lower `IntToString` to a prototype string handle,
-      so small `.show`-style scalar string conversions can pass through the
-      CPS repr executable path.
-- [x] CPS repr Cranelift can lower `IntToHex`, `IntToUpperHex`, and
-      `BoolToString` to the same prototype string handle.
-- [x] CPS repr Cranelift can lower native `f64` float literals, arithmetic,
-      comparisons, plain-value `ForceThunk`, and `FloatToString` for scalar
-      and small effectful-console paths.
-- [x] CPS repr Cranelift can lower string literals and a small raw string
-      primitive set (`concat`, equality, length, index, raw range, raw splice)
-      to the same prototype string handle.
-- [x] CPS repr Cranelift can normalize `range` values for list/string range
-      index and splice primitives, including source forms such as
-      `("aあ🙂z").index (1..<3)`.
-- [x] CPS repr Cranelift handles unhandled host `console.print` / `println`
-      operations by printing the payload and resuming with unit. This covers
-      callback-return hygiene examples that print an intermediate value before
-      returning a scalar root.
-- [x] CPS/CPS-repr interpreters keep `AddId` effect boundaries on thunk
-      values, activate boundary guards during thunk force, and use those
-      guards while resolving `Perform`.
-- [x] CPS repr Cranelift stores active thunk-boundary guard masks on thunk
-      pointers, activates them while forcing thunks, and combines them with
-      static `Perform.blocked` guards during handler selection.
-- [x] Mutable reference edit/update runs through effect-aware CPS and the
-      Cranelift CPS repr scalar path with VM comparison.
-- [x] A minimal `once`-style branch handler can resume the first branch from
-      tail and boolean-match condition effect operations in the Cranelift CPS
-      repr scalar path.
-- [x] A DFS `once` kernel with local `choice::branch` / `choice::reject` can
-      try `k true`, handle rejection, resume `k false`, and match the VM in the
-      Cranelift CPS repr scalar path.
-- [x] A finite-list nondeterministic choice can use `std::list::uncons` without
-      `fold` / `sub` and return a scalar through the Cranelift CPS repr path.
-- [x] `std::undet` `.once` over a finite list compiles and runs through the
-      CPS repr object/executable path for scalar roots.
-- [x] `std::undet` `.once` can return `opt::just v` through the Cranelift CPS
-      repr scalar path and an outer `case` can unwrap the scalar payload.
-- [x] `std::undet` `.once` can skip an initially rejected finite-list choice
-      and agree with the VM for the first accepted scalar result.
-- [x] `std::undet` `.once` handles all-rejected finite lists and nested
-      finite-list choices through the Cranelift CPS repr scalar path.
-- [x] `std::junction::junction { true }`, explicit `case junction { ... }`,
-      and `if all [1, 2, 3] < any [2, 3, 4]` run through the Cranelift CPS
-      repr scalar path.
-- [x] Finite-list `for` loops, including `last` / `next` loop control, run
-      through the Cranelift CPS repr scalar path for scalar observable roots.
-- [x] First-class lambda values can be created and applied through the
-      Cranelift CPS repr scalar path for pure higher-order calls.
-- [x] Effect-flow closure / continuation environments are no longer limited to
-      four slots in the CPS repr Cranelift path; larger environments are copied
-      through `*_many(ptr, len)` runtime helpers.
-- [x] CPS repr Cranelift thunk environments are no longer limited to four
-      slots; larger thunk captures are copied through
-      `yulang_cps_make_thunk_i64_many(ptr, len)`.
-- [x] CPS repr ABI has a dedicated `ClosurePtr` lane, keeping closure pointers
-      distinct from `RuntimeValuePtr`, `ThunkPtr`, and resumption pointers.
-- [x] Top-level function partial application lowers to CPS closure creation in
-      the CPS repr path and is covered by VM / CPS / Cranelift comparison.
-- [x] Small std higher-order list programs (`map`, `filter`, `fold`) run through
-      the forced CPS repr executable path.
-- [x] A source-level closure value can be stored in a record, selected back out,
-      and called through the forced CPS repr executable path, including closures
-      with captured scalar and string environments.
-- [x] A CPS-level thunk pointer can be stored in a record, selected back out,
-      and forced through the Cranelift CPS repr path.
-- [x] A CPS-level thunk pointer can be stored in a list, indexed back out, and
-      forced more than once through the Cranelift CPS repr path. Indexed thunks
-      can return scalar or string heap values.
-- [x] A type-converted runtime `ExprKind::Thunk` can be stored in a list, indexed
-      back out, forced with `BindHere`, and run through CPS lowering and the
-      Cranelift CPS repr path.
-- [x] A thunk boundary carried by a list-stored thunk remains active after
-      indexing and force, so hidden callback effects still skip blocked inner
-      handlers.
-- [x] The same thunk-boundary preservation is covered after storing the thunk in
-      a record and selecting it through a field before force.
-- [x] A CPS-level closure pointer can be stored in a list, indexed back out,
-      and called through the Cranelift CPS repr path; the opaque/unknown call
-      result can now be returned from a root.
-- [x] A source-level closure value can be stored in a list, selected with
-      `std::list::index_raw`, and called through the forced CPS repr executable
-      path, including closures with captured scalar and string environments.
-- [x] Lazy operator results in tuple value positions are covered by the forced
-      CPS repr executable path, so short-circuit operands do not leak as visible
-      thunk values there.
-- [x] Lazy operator results in list value positions are covered by the forced
-      CPS repr executable path; values selected with `std::list::index_raw` are
-      displayed as plain Yulang values rather than visible thunk handles.
-- [ ] General thunk values are only partially represented; thunk roots can be
-      forced only while they stay in the scalar CPS repr subset.
-- [x] Effectful thunks returned across an inlinable source-defined function
-      boundary now carry the caller's active handler frame: a non-recursive
-      helper such as `each_head(xs): [choice] int` is inlined and the implicit
-      thunk is forced inside the caller's handler scope.
-- [x] Handler arms that already continue to their installed escape
-      continuation are no longer wrapped as a second scope return in the CPS,
-      CPS repr, or Cranelift paths. This keeps `sub` results embedded in
-      structural values such as lists from applying the post-catch continuation
-      twice.
-- [x] Recursive helpers such as `each_list(xs): [choice] int` route effects
-      to the caller's handler through the runtime handler stack. CPS lowering
-      emits `InstallHandler` / `UninstallHandler` around handler scopes; the
-      CPS evaluators thread `active_handlers` through `DirectCall` /
-      `ApplyClosure` / `ForceThunk`; Cranelift backs the new stmts with
-      thread-local install/uninstall helpers that share the existing
-      handler-stack runtime.
-- [x] Single-argument top-level function values can be passed through a
-      higher-order helper and return an effectful thunk through the Cranelift
-      CPS repr scalar path.
-- [x] `std::undet.each` runs through CPS eval, CPS repr eval, and the
-      Cranelift JIT against a local DFS once helper. Handler-arm
-      non-local returns propagate through every internal call site as
-      `CpsRuntimeValue::Aborted` in the evaluators and as a scoped
-      thread-local abort signal in the Cranelift runtime, so a
-      `sub::return` inside a `fold` callback skips the surrounding
-      `reject()` and reaches the handler scope.
-- [x] Recursive handler wrappers are not direct-call inlined in CPS lowering,
-      so simple all-solution nondeterminism such as `branch().list` can lower
-      and run through the CPS repr executable path instead of recursively
-      expanding the wrapper at compile time.
-- [x] Full DFS `std::undet.list` over `each [1, 2, 3]` runs through the
-      CPS repr executable path. Returned thunks are forced before consuming
-      the immediate-force return frame, so the false branch resumes through
-      the enclosing fold and reaches the trailing `reject()` instead of
-      leaking `()` into `.list`.
-- [x] Nested finite-list nondeterminism such as
-      `(each [1, 2, 3] + each [10, 20]).list` runs through CPS eval,
-      CPS repr eval, and the Cranelift CPS repr executable path.
-- [x] `std::undet.logic` over nested finite-list choices runs through CPS eval,
-      CPS repr eval, and the Cranelift CPS repr executable path. The CPS repr
-      evaluator and Cranelift helper now treat resumption pointers as
-      closure-like callable values for `ApplyClosure`, which keeps queued
-      multi-shot continuations usable after `std::list::uncons`.
-- [x] `std::undet.once` over nested finite-list choices returns the first
-      solution through CPS eval, CPS repr eval, and the Cranelift CPS repr
+- [x] Pure scalar CPS programs, primitive calls, direct calls, conditionals,
+      `case` guards, and `sub` / `return`-style control can compile and run
+      through the Cranelift CPS representation path.
+- [x] Small source-defined algebraic effects and multi-shot resumptions work in
+      the CPS/CPS-repr interpreters and in the scalar Cranelift prototype.
+- [x] Handler entry continuations receive captured environments, and handler
+      arms are selected through a dynamic handler stack that crosses function
+      boundaries.
+- [x] Handler-frame guard snapshots, `LocalPushId` / `PeekId` / `FindId`, and
+      `AddId` blocked-effect boundaries are represented in CPS and honored by
+      handler selection.
+- [x] Thunks and resumptions carry handler-stack and guard-stack snapshots in
+      the scalar prototype.
+- [x] Thunk boundary masks stay attached to thunk pointers through direct force,
+      list index, and record field selection, so hidden callback effects still
+      skip blocked inner handlers.
+- [x] `ResumeWithHandler` can rebase captured return frames under a freshly
+      installed handler.
+- [x] Prototype heap handles cover strings, tuples, lists, records, variants,
+      closure pointers, thunk pointers, and resumption pointers in the CPS repr
+      path.
+- [x] String/list/range primitives, conversions, and small host console effects
+      are handled through shared runtime helpers or CPS repr helper symbols.
+- [x] First-class lambdas, captured closures, partial applications, and closures
+      selected from records/lists can be created and called through the CPS repr
       executable path.
-- [x] `ResumeWithHandler` restores captured return frames in the Cranelift CPS
-      repr path, so direct-call caller-rest continuations can run under the
-      temporary handler installed around `k true`.
-- [x] Closure-application caller-rest through `EffectfulApply` can route an
-      effectful operation through a callback and still run the caller's
-      post-call continuation under the temporary `ResumeWithHandler` handler.
-- [x] Source-level callback return hygiene is covered in the CPS repr scalar
-      path: direct `f()` inside an inner `sub` is captured there, while
-      callback `h()` escapes to the caller's `sub`.
-- [x] The same callback hygiene split is covered by executable-path source
-      regressions with observable roots: direct `f()` leaves the outer root at
-      `2`, while callback `h()` returns from the outer `sub` as `0`.
-- [x] String, list, record, and variant payloads can cross a small source-shaped
-      handler / resumption boundary in the CPS repr Cranelift path and print as
-      Yulang-like values.
-- [ ] General closures and heap value lanes are not complete.
-- [x] Non-scalar CPS return values that use the prototype tuple / list /
-      record / variant / string heap handles print as Yulang-like values in
-      generated CPS executables.
-- [ ] This path is still a prototype, not the default full-language runtime.
+- [x] Type-converted thunk values can be stored in lists, indexed back out,
+      forced with `BindHere`, and run through CPS lowering and Cranelift.
+- [x] Lazy operator results in tuple/list value positions are covered by the
+      forced CPS repr executable path without leaking visible thunk handles.
+- [x] `std::junction`, finite-list `for` loops with `last` / `next`, mutable
+      reference update, and `std::undet` `.once` / `.list` / `.logic` over
+      finite-list choices run through the CPS repr executable path for covered
+      observable roots.
+- [x] Callback return hygiene is covered by source regressions: direct `f()`
+      inside an inner `sub` is captured there, while callback `h()` escapes to
+      the caller's `sub`.
+- [x] Non-scalar CPS return values that use prototype heap handles print as
+      Yulang-like values in generated CPS executables.
+- [ ] General returned/stored effectful thunks still need more source-shaped
+      coverage outside the current scalar/prototype subset.
+- [ ] General closures and heap value lanes are still prototype
+      representations, not finalized native runtime layout.
+- [ ] The CPS representation backend is the effectful native mainline, but it is
+      not yet a complete replacement for the VM.
 
 ### Cache and package/build status
 
