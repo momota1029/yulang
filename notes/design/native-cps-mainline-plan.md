@@ -49,7 +49,8 @@ path name.
 The implementation has an explicit `cps_optimize` boundary between CPS repr ABI
 lowering and Cranelift codegen. It currently rewrites explicit calls through
 empty forwarding continuations, folds empty return continuations, reifies direct
-calls to structural primitive wrappers, prunes unreachable continuations, inlines
+calls to structural primitive wrappers, reifies local partial-application
+closure calls back into direct calls, prunes unreachable continuations, inlines
 small single-use one-shot continuations, removes dead pure value statements, and
 records a profile, while both JIT and object codegen go through the same
 entrypoint so future passes cannot accidentally diverge by artifact kind.
