@@ -481,6 +481,17 @@ my fs = [f]
     }
 
     #[test]
+    fn runs_lazy_operator_results_in_indexed_list_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"my xs = [true or false, false or true]
+(std::list::index_raw xs) 1
+"#,
+            vec!["1"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_simple_undet_list_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::undet::*

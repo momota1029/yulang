@@ -109,9 +109,11 @@ dynamic handler frame / guard stack / finite nondet など) は
 2. CPS repr Cranelift の source 回帰を広げる。
    `let` / `if` / primitive / direct call / simple handler / value arm を
    VM と比較しながら固定する。
-   - 残: lazy operator / thunk 引数インラインの境界を設計メモへ切り出す。
-     現在は CPS scalar prototype のために、thunk 引数を持つ direct call を
-     呼び出し地点で展開している。保存・返却される thunk value はまだ扱わない。
+   - 現状: lazy operator / thunk 引数インラインの境界は
+     `notes/design/native-cps-mainline-plan.md` と
+     `notes/design/native-remaining-failure-matrix.md` へ切り出した。
+     保存・選択・force される thunk value は CPS-level / 型変換後 runtime IR
+     で通り始めている。
    - 残: 条件式の scalar regression は一旦区切りにし、value ABI
      か fallback policy へ進む。
 3. value ABI を広げる。
@@ -140,15 +142,16 @@ CPS repr Cranelift の source 回帰を広げる。
 
 焦点:
 
-- mutable ref 以外の user-defined state/effect wrapper を VM 比較へ足す。
-- std `undet.once` は finite list の object/executable compile path まで通った。
-  ただし実行値はまだ VM と一致しない。次は function-returned effectful thunk
-  が caller handler frame を持てるようにしてから、`each` / `fold_impl` /
-  `sub::sub` をまたぐ thunk force と dynamic handler stack の意味論を VM と揃える。
+- native backend の残穴は `notes/design/native-remaining-failure-matrix.md` で追う。
+  今は N1/N2、つまり型変換後 thunk value の structural coverage と
+  保存後 callback hygiene を優先する。
+- mutable ref 以外の user-defined state/effect wrapper は、VM 比較へ足す候補として
+  N2 の stored callback hygiene と一緒に扱う。
+- std `undet.once` / `.list` / `.logic` は finite list の forced CPS repr
+  executable path で VM と一致する。次は同じ handler / resumption 経路を
+  named structural value や stored thunk path の回帰へ広げる。
 - effectful callback の handler frame は関数境界をまたいで選択できるように
   なった。次は handler candidate と captured env をより ABI 明示的な構造へ寄せる。
-- 保存・返却される thunk value はまだ扱わず、direct thunk callback subset の
-  境界を明文化する。
 - CPS repr Cranelift の手書き IR では 5 slot 以上の thunk capture env を
   force できる。
 - source の `sub` を list などの構造値へ入れた時の二重 escape routing は修正済み。
@@ -207,6 +210,10 @@ CPS repr Cranelift の source 回帰を広げる。
 - lazy operator の結果を tuple value position に置く source regression を
   forced CPS repr executable path に追加した。tuple 内部でも thunk が可視値として
   漏れず、native i64 表示 helper も tuple payload を再帰的に整形する。
+- lazy operator の結果を list value position に置き、`std::list::index_raw` で
+  取り出す source regression を forced CPS repr executable path に追加した。
+  型変換後 thunk adapter が list payload に残っても、index 後の表示では
+  plain bool value として VM と一致する。
 - native CLI の現状は `docs/native-backend.md` の Public CLI に集約済み。
   `yulang native` は value backend を優先し、effect / handler /
   thunk-boundary control が見えた root は CPS repr backend を選ぶ。

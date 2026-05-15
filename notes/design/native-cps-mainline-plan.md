@@ -119,7 +119,7 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 
 ### 4. General Thunk Invocation
 
-- [ ] thunk value を保存・返却・複数箇所で force できる lane にする。
+- [ ] thunk value を型変換後 IR / CPS repr lane として保存・返却・複数箇所で force できるようにする。
   - [x] CPS repr Cranelift の thunk capture env は 4 slot 固定 helper から外れ、
         larger env を `yulang_cps_make_thunk_i64_many(ptr, len)` で運べる。
   - [x] CPS-level thunk pointer を record に保存し、select してから force する
@@ -129,9 +129,14 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
   - [x] indexed thunk が string heap value を返す Cranelift regression を入れる。
   - [x] 型変換後 runtime IR の `ExprKind::Thunk` を list に保存し、index 後
         `BindHere` で force する Cranelift regression を入れる。
-  - [ ] source-level first-class thunk を素直に取り出す表層型 / lowering 経路を作る。
-        lazy operator で値だけを返す形は表層で thunk として残らず、注釈しても
-        `int <: () -> int` になってしまう。
+  - [x] source-level lazy operator の結果を tuple value position に置いても、
+        型変換後 thunk adapter が可視値として漏れないことを forced CPS repr
+        executable path で確認する。
+  - [x] source-level lazy operator の結果を list value position に置き、
+        `std::list::index_raw` 後も plain value として読めることを forced CPS repr
+        executable path で確認する。
+  - [ ] source-level first-class thunk 構文を増やすのではなく、型変換後 IR で
+        現れる thunk adapter の structural coverage を増やす。
 - [ ] `AddId` / `BindHere` / hidden evidence boundary を thunk pointer に保持する。
   - [x] CPS-level list に保存した boundary 付き thunk を index して force しても、
         active boundary が handler selection に残る Cranelift regression を入れる。
@@ -175,11 +180,16 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 
 ## Near-Term Work Queue
 
-1. backend selection API を作る。
-2. CPS repr ABI の `RuntimeValuePtr` を root return / direct call return で通す。
-3. CPS repr Cranelift から value helper の最小集合を呼ぶ。
-4. `sub` / `return` + string/list payload の source regression を VM 比較する。
-5. thunk value を unsupported から structured pending に分け、汎用 invocation の入口を作る。
+詳細な残穴は `notes/design/native-remaining-failure-matrix.md` で追う。
+
+1. N1: lazy / thunk adapter が tuple/list/record/variant の structural value position
+   を通っても可視 thunk として漏れないことを source regression で固定する。
+2. N2: 保存・選択された callback thunk が local handler を越えて outer handler /
+   guard stack へ戻る hygiene regression を足す。
+3. N3/N5: value backend unsupported reason から CPS repr fallback / playground
+   surface までを同じ structured selection policy に揃える。
+4. N4/N6: compact native heap layout と artifact cache は semantic completion 後の
+   package/cache 作業として分離する。
 
 ## Done Definition
 

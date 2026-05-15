@@ -305,6 +305,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] Lazy operator results in tuple value positions are covered by the forced
       CPS repr executable path, so short-circuit operands do not leak as visible
       thunk values there.
+- [x] Lazy operator results in list value positions are covered by the forced
+      CPS repr executable path; values selected with `std::list::index_raw` are
+      displayed as plain Yulang values rather than visible thunk handles.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
 - [x] Effectful thunks returned across an inlinable source-defined function
