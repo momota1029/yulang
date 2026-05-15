@@ -2340,6 +2340,7 @@ fn subst_handler_envs(
         .map(|env| CpsHandlerEnv {
             entry: env.entry,
             values: subst_values(env.values, substitution),
+            targets: subst_values(env.targets, substitution),
         })
         .collect()
 }

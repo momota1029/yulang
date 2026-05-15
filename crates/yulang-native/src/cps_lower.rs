@@ -253,9 +253,11 @@ fn collect_expr_direct_calls_inner(
         for arm in &arms {
             let scoped_effects = scoped_handler_effects(&consumes, &arm.effect);
             if !is_value_handler_arm(arm)
-                && !used_effects
-                    .iter()
-                    .any(|effect| scoped_effects.iter().any(|scoped| effect_matches(scoped, effect)))
+                && !used_effects.iter().any(|effect| {
+                    scoped_effects
+                        .iter()
+                        .any(|scoped| effect_matches(scoped, effect))
+                })
             {
                 continue;
             }
@@ -1297,6 +1299,7 @@ struct FunctionLowerer<'a> {
     handlers_with_external_calls: HashSet<CpsHandlerId>,
     current: ContinuationBuilder,
     locals: HashMap<typed_ir::Path, CpsValueId>,
+    function_param_values: HashMap<typed_ir::Path, CpsValueId>,
     local_exprs: HashMap<typed_ir::Path, runtime::Expr>,
     effect_guards: HashMap<runtime::EffectIdVar, CpsValueId>,
     resumptions: HashSet<typed_ir::Path>,
@@ -1340,10 +1343,13 @@ impl<'a> FunctionLowerer<'a> {
         let mut next_value = 0;
         let mut param_values = Vec::with_capacity(params.len());
         let mut locals = HashMap::new();
+        let mut function_param_values = HashMap::new();
         for param in params {
             let value = CpsValueId(next_value);
             next_value += 1;
-            locals.insert(typed_ir::Path::from_name(param), value);
+            let path = typed_ir::Path::from_name(param);
+            locals.insert(path.clone(), value);
+            function_param_values.insert(path, value);
             param_values.push(value);
         }
         Self {
@@ -1359,6 +1365,7 @@ impl<'a> FunctionLowerer<'a> {
             handlers_with_external_calls: HashSet::new(),
             current: ContinuationBuilder::new(CpsContinuationId(0), param_values.clone()),
             locals,
+            function_param_values,
             local_exprs: HashMap::new(),
             effect_guards: HashMap::new(),
             resumptions: HashSet::new(),
@@ -1482,9 +1489,7 @@ impl<'a> FunctionLowerer<'a> {
             // their surface result is plain: wrapper functions often force an
             // inner thunk before returning, so `info.ret` alone can hide that
             // the call performs under the caller's active handler.
-            if (self.higher_order_helper && info_returns_thunk)
-                || (target_may_perform && (info_returns_thunk || self.active_handler.is_some()))
-            {
+            if (self.higher_order_helper && info_returns_thunk) || target_may_perform {
                 self.mark_active_handlers_external_call();
                 let post_cont = self.fresh_continuation();
                 let result = self.fresh_value();
@@ -2183,9 +2188,11 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CpsLowerResult<CpsValueId> {
         let saved_locals = self.locals.clone();
         let saved_local_exprs = self.local_exprs.clone();
+        let mut last_expr_value = None;
         for (index, stmt) in stmts.iter().enumerate() {
             match stmt {
                 runtime::Stmt::Let { pattern, value } => {
+                    last_expr_value = None;
                     if unused_pure_let(
                         pattern,
                         value,
@@ -2206,7 +2213,24 @@ impl<'a> FunctionLowerer<'a> {
                     self.bind_pattern(pattern, value)?;
                 }
                 runtime::Stmt::Expr(expr) => {
-                    self.lower_expr(expr)?;
+                    if !stmts[index + 1..].is_empty() || tail.is_some() {
+                        if let runtime::ExprKind::BindHere { expr: inner } = &expr.kind {
+                            let thunk = self.lower_expr(inner)?;
+                            let post_cont = self.fresh_continuation();
+                            let ignored = self.fresh_value();
+                            self.terminate(CpsTerminator::EffectfulForce {
+                                thunk,
+                                resume: post_cont,
+                            });
+                            self.finish_current();
+                            self.current = ContinuationBuilder::new(post_cont, vec![ignored]);
+                            let value = self.lower_block(&stmts[index + 1..], tail)?;
+                            self.locals = saved_locals;
+                            self.local_exprs = saved_local_exprs;
+                            return Ok(value);
+                        }
+                    }
+                    last_expr_value = Some(self.lower_expr(expr)?);
                 }
                 runtime::Stmt::Module { .. } => {
                     self.locals = saved_locals;
@@ -2218,14 +2242,17 @@ impl<'a> FunctionLowerer<'a> {
         }
         let value = match tail {
             Some(tail) => self.lower_expr(tail)?,
-            None => {
-                let value = self.fresh_value();
-                self.current.stmts.push(CpsStmt::Literal {
-                    dest: value,
-                    literal: CpsLiteral::Unit,
-                });
-                value
-            }
+            None => match last_expr_value {
+                Some(value) => value,
+                None => {
+                    let value = self.fresh_value();
+                    self.current.stmts.push(CpsStmt::Literal {
+                        dest: value,
+                        literal: CpsLiteral::Unit,
+                    });
+                    value
+                }
+            },
         };
         self.locals = saved_locals;
         self.local_exprs = saved_local_exprs;
@@ -2764,9 +2791,9 @@ impl<'a> FunctionLowerer<'a> {
         let mut handler_entries = Vec::with_capacity(effect_arms.len());
         for (arm_index, arm) in effect_arms.iter().enumerate() {
             for effect in scoped_handler_effects(consumes, &arm.effect) {
-                let directly_used = used_effects.iter().any(|used| {
-                    effect_matches(&effect, used) || effect_matches(used, &effect)
-                });
+                let directly_used = used_effects
+                    .iter()
+                    .any(|used| effect_matches(&effect, used) || effect_matches(used, &effect));
                 // Materialize all handler arms when the body forwards effects through
                 // an effectful direct call (e.g. recursive helper returning [eff] T):
                 // the callee performs effects with handler = dynamic_handler_id() so
@@ -3862,6 +3889,27 @@ impl<'a> FunctionLowerer<'a> {
                     self.bind_pattern(pattern, value)?;
                 }
                 runtime::Stmt::Expr(expr) => {
+                    if !stmts[index + 1..].is_empty() || tail.is_some() {
+                        if let runtime::ExprKind::BindHere { expr: inner } = &expr.kind {
+                            let thunk = self.lower_expr(inner)?;
+                            let post_cont = self.fresh_continuation();
+                            let ignored = self.fresh_value();
+                            self.terminate(CpsTerminator::EffectfulForce {
+                                thunk,
+                                resume: post_cont,
+                            });
+                            self.finish_current();
+                            self.current = ContinuationBuilder::new(post_cont, vec![ignored]);
+                            return self.lower_handled_block(
+                                &stmts[index + 1..],
+                                tail,
+                                expected_effects,
+                                handler,
+                                value_cont,
+                            );
+                        }
+                    }
+
                     if let Some(request) = effect_apply_nested(expr) {
                         let (routed_effects, routed_handler) =
                             self.effect_context_for_request(&request, expected_effects, handler);
@@ -3890,7 +3938,7 @@ impl<'a> FunctionLowerer<'a> {
                     }
 
                     let is_direct_call = direct_apply(expr, self.functions)?.is_some();
-                    let value = self.lower_expr(expr)?;
+                    let mut value = self.lower_expr(expr)?;
                     // A non-tail block expression that calls another function
                     // (or has a Thunk static type) may be returning a Thunk
                     // that wraps effectful work. The runtime FunctionInfo
@@ -3902,6 +3950,11 @@ impl<'a> FunctionLowerer<'a> {
                         self.current
                             .stmts
                             .push(CpsStmt::ForceThunk { dest, thunk: value });
+                        value = dest;
+                    }
+                    if stmts[index + 1..].is_empty() && tail.is_none() {
+                        self.finish_handled_value(value, value_cont);
+                        return Ok(default_expected_effect(expected_effects));
                     }
                 }
                 runtime::Stmt::Module { .. } => {
@@ -4832,6 +4885,19 @@ impl<'a> FunctionLowerer<'a> {
             if values.is_empty() {
                 continue;
             }
+            let targets = state_params
+                .iter()
+                .zip(state_args.iter().copied())
+                .filter_map(|(param, value)| {
+                    let path = typed_ir::Path::from_name((*param).clone());
+                    expr_uses_path(&arm.body, &path).then(|| {
+                        self.function_param_values
+                            .get(&path)
+                            .copied()
+                            .unwrap_or(value)
+                    })
+                })
+                .collect::<Vec<_>>();
             for effect in scoped_handler_effects(consumes, &arm.effect) {
                 let Some(entry) = handler
                     .arms
@@ -4844,6 +4910,7 @@ impl<'a> FunctionLowerer<'a> {
                 envs.push(CpsHandlerEnv {
                     entry,
                     values: values.clone(),
+                    targets: targets.clone(),
                 });
             }
         }
@@ -4973,12 +5040,47 @@ impl<'a> FunctionLowerer<'a> {
             .terminator
             .take()
             .expect("CPS lowerer finished an unterminated continuation");
+        let id = self.current.id;
+        let params = std::mem::take(&mut self.current.params);
+        let captures = std::mem::take(&mut self.current.captures);
+        let stmts = std::mem::take(&mut self.current.stmts);
+        self.finish_continuation(id, params, captures, stmts, terminator);
+    }
+
+    fn finish_continuation(
+        &mut self,
+        id: CpsContinuationId,
+        params: Vec<CpsValueId>,
+        captures: Vec<CpsValueId>,
+        mut stmts: Vec<CpsStmt>,
+        terminator: CpsTerminator,
+    ) {
+        if let Some(force_index) = first_known_thunk_force_with_rest(&stmts) {
+            let rest = stmts.split_off(force_index + 1);
+            let force = stmts
+                .pop()
+                .expect("force_index points at a ForceThunk statement");
+            let CpsStmt::ForceThunk { dest, thunk } = force else {
+                unreachable!("force_index points at a ForceThunk statement")
+            };
+            let resume = self.fresh_continuation();
+            self.continuations.push(CpsContinuation {
+                id,
+                params,
+                captures,
+                shot_kind: CpsShotKind::MultiShot,
+                stmts,
+                terminator: CpsTerminator::EffectfulForce { thunk, resume },
+            });
+            self.finish_continuation(resume, vec![dest], Vec::new(), rest, terminator);
+            return;
+        }
         self.continuations.push(CpsContinuation {
-            id: self.current.id,
-            params: std::mem::take(&mut self.current.params),
-            captures: std::mem::take(&mut self.current.captures),
+            id,
+            params,
+            captures,
             shot_kind: CpsShotKind::MultiShot,
-            stmts: std::mem::take(&mut self.current.stmts),
+            stmts,
             terminator,
         });
     }
@@ -5022,8 +5124,8 @@ fn scoped_handler_effects(
     for consume in consumes {
         let effect_already_scoped = effect_matches(consume, effect)
             || (!consume.segments.is_empty() && effect.segments.starts_with(&consume.segments));
-        let effect_names_consumed_effect = effect.segments.len() == 1
-            && consume.segments.last() == effect.segments.first();
+        let effect_names_consumed_effect =
+            effect.segments.len() == 1 && consume.segments.last() == effect.segments.first();
         let path = if effect_already_scoped {
             effect.clone()
         } else if effect_names_consumed_effect {
@@ -5122,7 +5224,11 @@ fn handler_wrapper_info(binding: &runtime::Binding) -> Option<HandlerWrapperInfo
 
 fn handler_wrapper_handle(
     expr: &runtime::Expr,
-) -> Option<(&runtime::Expr, &[runtime::HandleArm], &runtime::HandleEffect)> {
+) -> Option<(
+    &runtime::Expr,
+    &[runtime::HandleArm],
+    &runtime::HandleEffect,
+)> {
     let mut current = expr;
     loop {
         match &current.kind {
@@ -5523,6 +5629,31 @@ impl ContinuationBuilder {
             terminator: None,
         }
     }
+}
+
+fn first_known_thunk_force_with_rest(stmts: &[CpsStmt]) -> Option<usize> {
+    let mut known_thunks = HashSet::new();
+    for (index, stmt) in stmts.iter().enumerate() {
+        match stmt {
+            CpsStmt::MakeThunk { dest, .. }
+            | CpsStmt::MakeRecursiveClosure { dest, .. }
+            | CpsStmt::AddThunkBoundary { dest, .. } => {
+                if matches!(
+                    stmt,
+                    CpsStmt::MakeThunk { .. } | CpsStmt::AddThunkBoundary { .. }
+                ) {
+                    known_thunks.insert(*dest);
+                }
+            }
+            CpsStmt::ForceThunk { thunk, .. }
+                if index + 1 < stmts.len() && known_thunks.contains(thunk) =>
+            {
+                return Some(index);
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn collect_lambda_params(expr: &runtime::Expr) -> (Vec<typed_ir::Name>, &runtime::Expr) {

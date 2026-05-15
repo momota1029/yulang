@@ -192,11 +192,12 @@ checklist, see *Detailed progress* below.
 | Non-scalar values returned through recursive handler / resumption chains | effects | ✅ |
 | `std::undet` `.once` over open-range guarded search | effects | ✅ |
 | `std::undet` `.once` / `.list` / `.logic` over finite-list choices | effects |   ✅   |
-| Mutable reference edit / update through effects     | effects (scalar refs) |   ✅   |
-| Indexed mutable reference update (`&xs[i] = value`) | effects               |   △   |
+| Mutable reference edit / update through effects     | effects               |   ✅   |
+| Indexed mutable reference update (`&xs[i] = value`) | effects               |   ✅   |
 | Effectful thunks across function boundaries         | effects (scalar)      |   △   |
 | Stored callback values selected from lists          | effects (prototype)   |   △   |
 | `std::junction` effectful boolean conditions        | effects               |   ✅   |
+| Combined `std::junction` + finite nondet + post-result method call | effects | ✅ |
 | Finite-list `for` loops with `last` / `next` control | effects (scalar)      |   ✅   |
 | `sub` / `return` through finite-list and open-range `for` | effects (scalar) | ✅ |
 | Open-range `for` with local `last` result value      | effects               |   ✅   |
@@ -321,7 +322,9 @@ current backend boundaries visible, but detailed regression history lives in
       list index, record field selection, and variant payload projection, so
       hidden callback effects still skip blocked inner handlers.
 - [x] `ResumeWithHandler` can rebase captured return frames under a freshly
-      installed handler.
+      installed handler, and the Cranelift path keeps resume-site sibling
+      handler environments visible when restored return-frame snapshots resume
+      mutable refs.
 - [x] Prototype heap handles cover strings, tuples, lists, records, variants,
       closure pointers, thunk pointers, and resumption pointers in the effects
       path.
@@ -352,6 +355,9 @@ current backend boundaries visible, but detailed regression history lives in
       reference update, `std::undet` `.once` over open-range guarded search,
       and `.once` / `.list` / `.logic` over finite-list choices run through
       the effects executable path for covered observable roots.
+- [x] Combined `std::junction` boolean conditions, finite `std::undet.each`,
+      and post-result record method calls run through `.once` on the effects
+      executable path.
 - [x] `sub` / `return` can escape through finite-list and open-range `for`
       chains on the effects executable path for the covered return-shaped
       roots.

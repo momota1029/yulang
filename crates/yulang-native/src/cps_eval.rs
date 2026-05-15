@@ -84,6 +84,7 @@ fn summarize_cps_value(value: &CpsRuntimeValue) -> String {
             target,
             summarize_cps_value(value),
         ),
+        CpsRuntimeValue::Aborted(value) => format!("Aborted({})", summarize_cps_value(value)),
     }
 }
 
@@ -267,9 +268,16 @@ pub fn eval_cps_module(module: &CpsModule) -> CpsEvalResult<Vec<runtime::VmValue
                     target: *target,
                 });
             }
-            into_plain_value(root, CpsValueId(usize::MAX), value)
+            into_plain_value(root, CpsValueId(usize::MAX), unwrap_aborted(value))
         })
         .collect()
+}
+
+fn unwrap_aborted(value: CpsRuntimeValue) -> CpsRuntimeValue {
+    match value {
+        CpsRuntimeValue::Aborted(inner) => unwrap_aborted(*inner),
+        other => other,
+    }
 }
 
 /// Outcome of inspecting a value returned by an internal call (DirectCall,
@@ -419,6 +427,7 @@ fn cps_value_from_vm(value: runtime::VmValue) -> CpsRuntimeValue {
 fn cps_value_to_vm(value: CpsRuntimeValue) -> Option<runtime::VmValue> {
     match value {
         CpsRuntimeValue::Plain(value) => Some(value),
+        CpsRuntimeValue::Aborted(inner) => cps_value_to_vm(*inner),
         // ScopeReturn must never appear here — callers either resolve it via
         // `handle_scope_return` at every internal call boundary, or fail at
         // root with EscapedScopeReturn. Returning None lets `into_plain_value`
@@ -583,6 +592,9 @@ fn resume_continuation(
     // Loop labels are hygienic across macros; pass the label explicitly.
     macro_rules! dispatch_scope_return {
         ($cont:lifetime, $result:expr, $dest:expr) => {{
+            if matches!($result, CpsRuntimeValue::Aborted(_)) {
+                return Ok($result);
+            }
             match handle_scope_return(
                 $result,
                 &mut active_handlers,
@@ -1535,6 +1547,7 @@ fn resume_continuation(
                     frame_escape,
                 );
                 if arm_already_reached_escape
+                    && frame.install_eval_id == current_eval_id
                     && !matches!(result, CpsRuntimeValue::ScopeReturn { .. })
                 {
                     let mut frames = return_frames.clone();
@@ -2102,7 +2115,9 @@ fn continue_return_frames(
     if frames.is_empty() {
         return Ok(value);
     }
-    if matches!(value, CpsRuntimeValue::ScopeReturn { .. }) {
+    if matches!(value, CpsRuntimeValue::ScopeReturn { .. })
+        || matches!(value, CpsRuntimeValue::Aborted(_))
+    {
         // A ScopeReturn from the inner eval should not have additional
         // frame continuations applied — propagate it untouched so the
         // caller's `dispatch_scope_return` can match the right prompt.
@@ -2164,8 +2179,7 @@ fn continue_return_frames(
 /// install scope of the handler is exactly that captured frame's owner
 /// eval.
 ///
-/// Walk innermost-first across `return_frames[initial_frame_count..]`
-/// (inherited prefix is not ours to consume). For each frame, check
+/// Walk innermost-first across the whole return-frame snapshot. For each frame, check
 /// whether its saved `active_handlers` has a handler matching
 /// `(prompt, install_eval_id == frame.owner_eval_id)` AND
 /// `escape_owner_function == frame.owner_function`. If found, restore
@@ -2200,7 +2214,7 @@ fn try_route_scope_return_through_return_frames(
         // target) rely on call-stack propagation.
         return Ok(None);
     }
-    if return_frames.len() <= initial_frame_count {
+    if return_frames.is_empty() {
         return Ok(None);
     }
     trace_cps(
@@ -2213,7 +2227,7 @@ fn try_route_scope_return_through_return_frames(
             initial_frame_count,
         ),
     );
-    for frame_index in (initial_frame_count..return_frames.len()).rev() {
+    for frame_index in (0..return_frames.len()).rev() {
         let frame = &return_frames[frame_index];
         let frame_eval_id = frame.owner_eval_id;
         let frame_owner = &frame.owner_function;
@@ -2301,6 +2315,9 @@ fn try_route_scope_return_through_return_frames(
             owner_initial,
             frame.owner_eval_id,
         )?;
+        if frame_index < initial_frame_count {
+            return Ok(Some(CpsRuntimeValue::Aborted(Box::new(result))));
+        }
         return Ok(Some(result));
     }
     Ok(None)
@@ -2468,8 +2485,9 @@ fn capture_handler_envs(
     envs.iter()
         .map(|env| {
             let mut values_by_id = Vec::new();
-            for value in &env.values {
-                values_by_id.push((*value, read_value(function, values, *value)?));
+            for (index, value) in env.values.iter().enumerate() {
+                let target = env.targets.get(index).copied().unwrap_or(*value);
+                values_by_id.push((target, read_value(function, values, *value)?));
             }
             Ok(CpsEvaluatedHandlerEnv {
                 entry: env.entry,
@@ -2588,11 +2606,7 @@ fn effect_segment_matches_allowed(allowed: &typed_ir::Name, effect: &typed_ir::N
 }
 
 fn effect_matches(expected: &typed_ir::Path, actual: &typed_ir::Path) -> bool {
-    actual == expected
-        || (!expected.segments.is_empty()
-            && actual.segments.len() == expected.segments.len() + 1
-            && actual.segments.starts_with(&expected.segments))
-        || (expected.segments.len() == 1 && actual.segments.last() == expected.segments.first())
+    effect_path_matches_allowed(expected, actual)
 }
 
 fn assign_continuation_args(
@@ -2716,6 +2730,9 @@ enum CpsRuntimeValue {
         tag: typed_ir::Name,
         value: Option<Box<CpsRuntimeValue>>,
     },
+    /// A routed non-local result that must keep bubbling through live host
+    /// calls without executing their remaining continuation code.
+    Aborted(Box<CpsRuntimeValue>),
     /// Non-local return carrying a value to a specific handler-installed scope.
     /// Generated when a `Perform`'s arm body completes; propagates through call
     /// sites until the matching prompt is found in `active_handlers`. A frame

@@ -244,6 +244,19 @@ CPS repr Cranelift の source 回帰を広げる。
   installed escape へ到達済みのときも retained return-frame chain を続行し、
   CPS repr / Cranelift の `ApplyClosure` は resumption pointer を
   closure-like callable として扱う。
+- N13 (`all/any` + finite `each` + record method + `.once`) は Cranelift JIT
+  でも `:just 18` で VM / CPS eval / CPS repr eval と一致するようになった。
+  原因は JIT の thread-local return frame stack が、thunk 内で未処理の
+  `ScopeReturn` を外へ伝播する時に caller の frame snapshot を戻していなかった
+  ことと、scoped abort が handler install threshold ちょうどでも即 return
+  扱いになっていたこと。`force_thunk_i64` は routing 済み stack は残し、
+  未処理の `ScopeReturn` / abort では caller snapshot を復元し、普通の値では
+  thunk 内で作られた frame だけ落とす。scoped abort は `frame_len > threshold`
+  の間だけ外へ伝播し、threshold に戻ったら解除して再開する。
+- indexed ref update の N12 regression も同時に確認した。`ResumeWithHandler`
+  で追加された sibling handler / env を restored return-frame snapshot に
+  合流させ、`my $xs = [2, 3, 4]; &xs[1] = 6; $xs` が Cranelift JIT でも
+  `[2, 6, 4]` を返す。
 - callback-return hygiene の observable source regression を forced CPS repr
   executable path に追加した。inner `sub` 内の直呼び `f()` は inner handler に
   捕まり outer root が `2` まで進む一方、thunk callback 経由の `h()` は inner

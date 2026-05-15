@@ -23,11 +23,14 @@ timeout 20s bash -lc 'RUSTC_WRAPPER= cargo run -q -p yulang -- native <example>'
 | `examples/11_attached_impl.yu` | default CPS repr (`closure value`) | `(10, 0)` |
 | `examples/12_cast.yu` | default CPS repr (`closure value`) | `7` |
 | `examples/13_console.yu` | default CPS repr (`thunk boundary`) | `hello from Yulang`, `0`, `3` |
-| `examples/showcase.yu` | default CPS repr (`closure value`) | `7`, `[2, 3, 4]`, `5`, `5` |
+| `examples/showcase.yu` | default CPS repr (`closure value`) | `7`, `[2, 6, 4]`, `5`, `5` |
 
 ## Known Failing Or Mis-Matching
 
 No example in the current sweep is known to fail on the default native CLI.
+The reduced N13 regression is also fixed: combined `std::junction`
+comparison, finite `each`, record method call, and `.once` returns `:just 18`
+under VM / CPS eval / CPS repr eval / CPS repr JIT.
 
 ## Smoke Checks Added Around This Sweep
 
@@ -36,6 +39,7 @@ No example in the current sweep is known to fail on the default native CLI.
 - `runs_open_range_for_loop_last_through_cps_repr`
 - `runs_recursive_effect_handler_tuple_result_through_cps_repr`
 - `runs_undet_once_open_range_guard_through_cps_repr`
+- `runs_junction_method_undet_once_through_cps_repr`
 
 These distinguish the fixed finite/open-range `return` escape, finite-list
 `last`, and open-range local `last` behavior. The recursive handler tuple
@@ -43,3 +47,7 @@ regression keeps N10 covered after the stale thunk payload and oldest-first
 handler env bugs were fixed. The open-range `.once` regression keeps the
 principal elaboration path from reusing stale single-apply `unit`
 substitutions when the full apply spine still has only open candidates.
+The N13 regression keeps the JIT thunk-force frame protocol covered. The fix
+restores caller return frames when unresolved `ScopeReturn` / abort values
+propagate out of a forced thunk, while keeping routed stacks intact and clearing
+scoped abort exactly at the handler install threshold.

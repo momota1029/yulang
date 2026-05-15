@@ -858,6 +858,43 @@ x + rest.y
         .expect("CPS repr native display");
     }
 
+    #[test]
+    fn runs_indexed_ref_update_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"
+{
+    my $xs = [2, 3, 4]
+    &xs[1] = 6
+    $xs
+}
+"#,
+            vec!["[2, 6, 4]"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_junction_method_undet_once_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+struct point { x: int, y: int } with:
+    our p.norm2: int = p.x * p.x + p.y * p.y
+
+({
+    my y = if all [1, 2, 3] < any [2, 3, 4]:
+        each [3, 4, 5]
+    else:
+        2
+
+    point { x: 3, y: y } .norm2
+}).once
+"#,
+            vec![":just 18"],
+        )
+        .expect("CPS repr native display");
+    }
+
     fn compare_source_cps_repr_with_std(source: &str) -> Result<(), String> {
         let source = source.to_string();
         run_with_large_stack(move || {

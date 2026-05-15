@@ -175,7 +175,12 @@ pub struct CpsRecordField {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CpsHandlerEnv {
     pub entry: CpsContinuationId,
+    /// Value ids read at the install / reentry site.
     pub values: Vec<CpsValueId>,
+    /// Value ids written into the handler arm's captured environment.
+    /// Empty means `targets == values`, which keeps ordinary same-function
+    /// handler installs compact.
+    pub targets: Vec<CpsValueId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

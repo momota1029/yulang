@@ -90,6 +90,7 @@ fn fill_resume_handler_envs(function: &mut CpsFunction) {
                                     .then(|| CpsHandlerEnv {
                                         entry: *entry,
                                         values: captures.clone(),
+                                        targets: Vec::new(),
                                     })
                             })
                             .collect();

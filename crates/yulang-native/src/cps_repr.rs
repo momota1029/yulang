@@ -1283,8 +1283,9 @@ fn capture_handler_envs(
     envs.iter()
         .map(|env| {
             let mut values_by_id = Vec::new();
-            for value in &env.values {
-                values_by_id.push((*value, read_value(function, values, *value)?));
+            for (index, value) in env.values.iter().enumerate() {
+                let target = env.targets.get(index).copied().unwrap_or(*value);
+                values_by_id.push((target, read_value(function, values, *value)?));
             }
             Ok(CpsReprEvaluatedHandlerEnv {
                 entry: env.entry,
@@ -1395,11 +1396,7 @@ fn effect_segment_matches_allowed_repr(allowed: &typed_ir::Name, effect: &typed_
 }
 
 fn effect_matches(expected: &typed_ir::Path, actual: &typed_ir::Path) -> bool {
-    actual == expected
-        || (!expected.segments.is_empty()
-            && actual.segments.len() == expected.segments.len() + 1
-            && actual.segments.starts_with(&expected.segments))
-        || (expected.segments.len() == 1 && actual.segments.last() == expected.segments.first())
+    effect_path_matches_allowed_repr(expected, actual)
 }
 
 fn abi_lane(values: &HashMap<CpsValueId, CpsReprAbiLane>, value: CpsValueId) -> CpsReprAbiLane {
@@ -1532,6 +1529,33 @@ fn eval_function_with_context(
         active_blocked,
         initial_frame_count,
     )
+}
+
+fn trace_repr_enabled() -> bool {
+    std::env::var_os("YULANG_CPS_REPR_TRACE_FRAMES").is_some()
+}
+
+fn trace_repr(label: &str, message: impl std::fmt::Display) {
+    if trace_repr_enabled() {
+        eprintln!("[cps-repr-trace] {label}: {message}");
+    }
+}
+
+fn summarize_repr_handler_stack(stack: &[CpsReprHandlerFrame]) -> String {
+    let items = stack
+        .iter()
+        .map(|frame| {
+            format!(
+                "(p={},inh={},eval={},owner={},thr={})",
+                frame.prompt.0,
+                if frame.inherited { "T" } else { "F" },
+                frame.install_eval_id.0,
+                frame.escape_owner_function,
+                frame.return_frame_threshold
+            )
+        })
+        .collect::<Vec<_>>();
+    format!("[{}]", items.join(","))
 }
 
 /// write26: entry point that issues a fresh `CpsReprEvalId`. Mirrors
@@ -1851,8 +1875,9 @@ fn resume_continuation(
                     escape,
                 } => {
                     let envs = capture_handler_envs(function, &values, envs)?;
+                    let prompt = fresh_repr_prompt();
                     active_handlers.push(CpsReprHandlerFrame {
-                        prompt: fresh_repr_prompt(),
+                        prompt,
                         handler: *handler,
                         guard_stack: guard_stack.clone(),
                         envs,
@@ -1862,6 +1887,20 @@ fn resume_continuation(
                         inherited: false,
                         install_eval_id: current_eval_id,
                     });
+                    trace_repr(
+                        "InstallHandler",
+                        format!(
+                            "fn={} eval={} cont={:?} handler={:?} prompt={} escape={:?} threshold={} handlers.now={}",
+                            function.name,
+                            current_eval_id.0,
+                            continuation.id,
+                            handler,
+                            prompt.0,
+                            escape,
+                            return_frames.len(),
+                            active_handlers.len()
+                        ),
+                    );
                 }
                 CpsStmt::UninstallHandler { handler } => {
                     if let Some(pos) = active_handlers
@@ -2227,6 +2266,27 @@ fn resume_continuation(
                         stack.push(owned);
                         stack
                     };
+                    let pushed_extra = active_handlers
+                        .iter()
+                        .filter(|frame| frame.prompt == pushed_prompt)
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    let adjusted_frames = append_resume_with_handler_frames_repr(
+                        &resumption.return_frames,
+                        &pushed_extra,
+                    );
+                    trace_repr(
+                        "ResumeHandlerMerge",
+                        format!(
+                            "site=ResumeWithHandler(rebased) fn={} eval={} pushed_prompt={} captured={} pushed_extra={} inner={}",
+                            function.name,
+                            current_eval_id.0,
+                            pushed_prompt.0,
+                            summarize_repr_handler_stack(&resumption.handlers),
+                            summarize_repr_handler_stack(&pushed_extra),
+                            summarize_repr_handler_stack(&inner_handlers)
+                        ),
+                    );
                     let result = eval_continuations(
                         module,
                         owner,
@@ -2235,7 +2295,7 @@ fn resume_continuation(
                         resumption.values.clone(),
                         inner_handlers,
                         resumption.guard_stack.clone(),
-                        resumption.return_frames.clone(),
+                        adjusted_frames,
                         resumption.active_blocked.clone(),
                         0,
                     )?;
@@ -2257,6 +2317,16 @@ fn resume_continuation(
         match &continuation.terminator {
             CpsTerminator::Return(value) => {
                 let v = read_value(function, &values, *value)?;
+                trace_repr(
+                    "Return",
+                    format!(
+                        "fn={} cont={:?} return_frames.len={} initial={}",
+                        function.name,
+                        continuation.id,
+                        return_frames.len(),
+                        initial_frame_count
+                    ),
+                );
                 if return_frames.len() <= initial_frame_count {
                     return Ok(v);
                 }
@@ -2310,6 +2380,19 @@ fn resume_continuation(
                 blocked,
             } => {
                 let payload = read_plain_value(function, &values, *payload)?;
+                trace_repr(
+                    "Perform",
+                    format!(
+                        "fn={} eval={} cont={:?} effect={:?} return_frames.len={} initial={} active_handlers={}",
+                        function.name,
+                        current_eval_id.0,
+                        continuation.id,
+                        effect,
+                        return_frames.len(),
+                        initial_frame_count,
+                        summarize_repr_handler_stack(&active_handlers)
+                    ),
+                );
                 let blocked = blocked
                     .map(|blocked| read_effect_id(function, &values, blocked))
                     .transpose()?
@@ -2318,6 +2401,19 @@ fn resume_continuation(
                     handler_stack_with_static(&active_handlers, *handler, &guard_stack);
                 let (handler_arm, frame, handler_body_stack, handler_owner) =
                     handler_arm_for_stack(module, function, &handler_stack, effect, blocked)?;
+                trace_repr(
+                    "PerformHandlerSearch",
+                    format!(
+                        "fn={} eval={} effect={:?} stack={} matched_prompt={} matched_install_eval={} matched_owner={}",
+                        function.name,
+                        current_eval_id.0,
+                        effect,
+                        summarize_repr_handler_stack(&handler_stack),
+                        frame.prompt.0,
+                        frame.install_eval_id.0,
+                        frame.escape_owner_function
+                    ),
+                );
                 let handler_values =
                     values_with_handler_env(HashMap::new(), frame, handler_arm.entry);
                 let frame_prompt = frame.prompt;
@@ -2372,6 +2468,7 @@ fn resume_continuation(
                     frame_escape,
                 );
                 if arm_already_reached_escape
+                    && frame.install_eval_id == current_eval_id
                     && !matches!(result, CpsReprRuntimeValue::ScopeReturn { .. })
                 {
                     let mut frames = return_frames.clone();
@@ -2655,6 +2752,31 @@ fn merge_resumption_handlers_repr(
     merged
 }
 
+fn append_resume_with_handler_frames_repr(
+    frames: &[CpsReprReturnFrame],
+    extra: &[CpsReprHandlerFrame],
+) -> Vec<CpsReprReturnFrame> {
+    if extra.is_empty() {
+        return frames.to_vec();
+    }
+    frames
+        .iter()
+        .map(|frame| {
+            let mut adjusted = frame.clone();
+            for handler in extra {
+                if !adjusted
+                    .active_handlers
+                    .iter()
+                    .any(|existing| existing.prompt == handler.prompt)
+                {
+                    adjusted.active_handlers.push(handler.clone());
+                }
+            }
+            adjusted
+        })
+        .collect()
+}
+
 /// write26 port of `cps_eval::merge_extras_into_frames`.
 fn merge_extras_into_frames_repr(
     frames: &[CpsReprReturnFrame],
@@ -2785,10 +2907,10 @@ fn try_route_scope_return_through_return_frames_repr(
     if target == REPR_EXIT_RWH_TARGET {
         return Ok(None);
     }
-    if return_frames.len() <= initial_frame_count {
+    if return_frames.is_empty() {
         return Ok(None);
     }
-    for frame_index in (initial_frame_count..return_frames.len()).rev() {
+    for frame_index in (0..return_frames.len()).rev() {
         let frame = &return_frames[frame_index];
         let frame_eval_id = frame.owner_eval_id;
         let frame_owner = &frame.owner_function;
@@ -2823,6 +2945,9 @@ fn try_route_scope_return_through_return_frames_repr(
             owner_initial,
             frame.owner_eval_id,
         )?;
+        if frame_index < initial_frame_count {
+            return Ok(Some(CpsReprRuntimeValue::Aborted(Box::new(result))));
+        }
         return Ok(Some(result));
     }
     Ok(None)
