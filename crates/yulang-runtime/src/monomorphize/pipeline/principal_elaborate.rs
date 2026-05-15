@@ -331,6 +331,9 @@ pub(super) fn principal_elaboration_plan_for_expr(
     if let Some(plan) = spine_plan.as_ref().filter(|plan| plan.complete) {
         return Some(plan.clone());
     }
+    if spine_plan.is_some() {
+        return spine_plan;
+    }
     if let Some(plan) = spine.evidences_by_arg.iter().find_map(|evidence| {
         let evidence = evidence.as_ref().copied()?;
         let plan = evidence.principal_elaboration.as_ref()?;

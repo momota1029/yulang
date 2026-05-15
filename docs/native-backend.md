@@ -206,9 +206,9 @@ current backend boundaries visible, but detailed regression history lives in
       through the default native CLI by routing to CPS repr with a structured
       `structural pattern binding` reason.
 - [x] `std::junction`, finite-list `for` loops with `last` / `next`, mutable
-      reference update, and `std::undet` `.once` / `.list` / `.logic` over
-      finite-list choices run through the CPS repr executable path for covered
-      observable roots.
+      reference update, `std::undet` `.once` over open-range guarded search,
+      and `.once` / `.list` / `.logic` over finite-list choices run through
+      the CPS repr executable path for covered observable roots.
 - [x] `sub` / `return` can escape through finite-list and open-range `for`
       chains on the CPS repr executable path for the covered return-shaped
       roots.

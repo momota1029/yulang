@@ -424,6 +424,9 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
     let mut conflicts = BTreeSet::new();
     for substitution in &plan.substitutions {
         let allow_never = never_usable_vars.contains(&substitution.var);
+        if projected_unit_substitution_is_only_open_default(substitution, substitution_candidates) {
+            continue;
+        }
         if !principal_plan_substitution_type_usable(&substitution.ty, allow_never) {
             continue;
         }
@@ -524,6 +527,29 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
         conflicts,
         substitution_candidates,
     )
+}
+
+fn projected_unit_substitution_is_only_open_default(
+    substitution: &typed_ir::TypeSubstitution,
+    substitution_candidates: &[typed_ir::PrincipalSubstitutionCandidate],
+) -> bool {
+    if !matches!(substitution.ty, typed_ir::Type::Tuple(ref items) if items.is_empty()) {
+        return false;
+    }
+    let mut has_candidate = false;
+    for candidate in substitution_candidates
+        .iter()
+        .filter(|candidate| candidate.var == substitution.var)
+    {
+        has_candidate = true;
+        if !matches!(
+            candidate.ty,
+            typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_)
+        ) {
+            return false;
+        }
+    }
+    has_candidate
 }
 
 fn principal_plan_result_self_closed_type(

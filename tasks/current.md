@@ -143,9 +143,9 @@ CPS repr Cranelift の source 回帰を広げる。
 焦点:
 
 - native backend の残穴は `notes/design/native-remaining-failure-matrix.md` で追う。
-  N1/N2/N3/N7/N8/N9/N10 は source regression または structured unsupported として
-  固まった。残りは N4/N6 の prototype / packaging 境界と、N2 周辺のより広い
-  source-shaped effectful thunk coverage。
+  N1/N2/N3/N7/N8/N9/N10/N11 は source regression または structured
+  unsupported として固まった。残りは N4/N6 の prototype / packaging 境界と、
+  N2 周辺のより広い source-shaped effectful thunk coverage。
 - mutable ref 以外の user-defined state/effect wrapper は、VM 比較へ足す候補として
   N2 の stored callback hygiene と一緒に扱う。
 - std `undet.once` / `.list` / `.logic` は finite list の forced CPS repr

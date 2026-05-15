@@ -74,9 +74,12 @@ use std::undet::*
 現時点の判断:
 
 - snippet 5件の表面だけを通す patch は作れる。
-- ただし `std::undet.each` 既存回帰を壊すので、今の WIP は commit しない方がよい。
-- 次は `range.fold` callback の effect var が `Never` に潰れる経路を先に潰してから、
-  5 snippet の regression test を戻すのが安全。
+- `std::undet.each` / `.once` の既存回帰は 2026-05-15 に修正済み。
+  full apply-spine の principal plan がある場合は、内側の単一 apply evidence
+  由来の古い `unit` substitution で上書きしない。候補が open だけの
+  `unit` substitution も concrete な根拠として扱わない。
+- 次は round-5 snippet の regression test を戻して、同じ principal
+  elaboration 経路で壊れないか確認する。
 
 ## 現在の未解決（2026-05-15 round-5）
 

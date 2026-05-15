@@ -15,6 +15,7 @@ timeout 20s bash -lc 'RUSTC_WRAPPER= cargo run -q -p yulang -- native <example>'
 | `examples/03_for_last.yu` | default CPS repr (`closure value`) | `5` |
 | `examples/04_sub_return.yu` | default CPS repr (`closure value`) | `5` |
 | `examples/05_undet_all.yu` | default CPS repr (`closure value`) | `[5, 6, 7, 6, 7, 8, 7, 8, 9]` |
+| `examples/06_undet_once.yu` | default CPS repr (`closure value`) | `:just (3, 4, 5)` |
 | `examples/07_junction.yu` | default CPS repr (`closure value`) | `1` |
 | `examples/08_types.yu` | default CPS repr (`closure value`) | `42` |
 | `examples/09_optional_record_args.yu` | default CPS repr (`closure value`) | `6`, `2`, `12`, `12` |
@@ -26,9 +27,7 @@ timeout 20s bash -lc 'RUSTC_WRAPPER= cargo run -q -p yulang -- native <example>'
 
 ## Known Failing Or Mis-Matching
 
-| Example | Current behavior | Tracking |
-| --- | --- | --- |
-| `examples/06_undet_once.yu` | fails before native with `expected (), got int` | `notes/bugs/index.md` frontend/runtime note |
+No example in the current sweep is known to fail on the default native CLI.
 
 ## Smoke Checks Added Around This Sweep
 
@@ -36,8 +35,11 @@ timeout 20s bash -lc 'RUSTC_WRAPPER= cargo run -q -p yulang -- native <example>'
 - `runs_finite_for_loop_last_through_cps_repr`
 - `runs_open_range_for_loop_last_through_cps_repr`
 - `runs_recursive_effect_handler_tuple_result_through_cps_repr`
+- `runs_undet_once_open_range_guard_through_cps_repr`
 
 These distinguish the fixed finite/open-range `return` escape, finite-list
 `last`, and open-range local `last` behavior. The recursive handler tuple
 regression keeps N10 covered after the stale thunk payload and oldest-first
-handler env bugs were fixed.
+handler env bugs were fixed. The open-range `.once` regression keeps the
+principal elaboration path from reusing stale single-apply `unit`
+substitutions when the full apply spine still has only open candidates.

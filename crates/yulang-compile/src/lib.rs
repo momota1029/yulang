@@ -828,6 +828,22 @@ x + rest.y
         .expect("CPS repr native display");
     }
 
+    #[test]
+    fn runs_undet_once_open_range_guard_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+({
+    my a = each 1..
+    guard: a == 3
+    a
+}).once
+"#,
+            vec![":just 3"],
+        )
+        .expect("CPS repr native display");
+    }
+
     fn compare_source_cps_repr_with_std(source: &str) -> Result<(), String> {
         let source = source.to_string();
         run_with_large_stack(move || {

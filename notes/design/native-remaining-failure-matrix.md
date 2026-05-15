@@ -25,6 +25,7 @@
 | N8 | Handler escape through fold / for | Outer `sub` catches a callback `return` thrown inside `for`; CPS repr Cranelift now short-circuits the skipped force/apply chain instead of letting it overwrite the caught result. | Fixed for finite-list `for` return and `examples/04_sub_return.yu`; covered by `runs_for_loop_return_escape_through_cps_repr`. | Keep this as a regression when changing handler-arm return routing. | `notes/bugs/native_for_loop_escape_keeps_running.yu` and `examples/04_sub_return.yu` match VM on forced CPS repr. |
 | N9 | Open-range `for` `last` result | Fixed: `examples/03_for_last.yu` and `notes/bugs/native_open_range_for_last_returns_payload.yu` return `5` under forced/default CPS repr. | Scoped abort now keeps local handler-arm values inside the recursive range/fold chain, then consumes the short-circuit at the loop boundary so the following expression runs. | Keep this as a regression when changing `ScopeReturn`, return-frame thresholds, or abort routing. | `runs_open_range_for_loop_last_through_cps_repr` covers the source shape. |
 | N10 | Heap values returned from handler/resumption chains | Fixed: recursive handler/resumption flow now returns `(9, "3\n6\n")` on forced CPS repr. | ScopeReturn now updates stale thunk payloads after force, and duplicate selected handler env entries are read newest-first. | Keep the source regression when changing handler env capture, `force_thunk_i64`, or ScopeReturn routing. | `runs_recursive_effect_handler_tuple_result_through_cps_repr` covers the source shape. |
+| N11 | Open-range nondet `.once` principal elaboration | Fixed: `examples/06_undet_once.yu` runs on VM and default/forced CPS repr native with `:just (3, 4, 5)`. | Full apply-spine principal plans now win over stale complete single-apply evidence, and open-only `unit` substitutions are not treated as concrete support. | Keep this as a regression when changing principal elaboration plan selection or exported substitution normalization. | `runs_undet_once_open_range_guard_through_cps_repr` covers the source shape. |
 
 ## Immediate Order
 
@@ -35,7 +36,9 @@
 4. Keep N9 as a regression when changing scoped abort / return-frame threshold
    routing.
 5. Re-run N10 whenever changing selected handler env or ScopeReturn force propagation.
-6. Leave N4/N6 as documented prototype / packaging work unless they block release.
+6. Keep N11 around principal elaboration changes; it prevents stale partial
+   apply evidence from specializing open operator arguments to `unit`.
+7. Leave N4/N6 as documented prototype / packaging work unless they block release.
 
 ## What Counts As Native Complete For This Pass
 
