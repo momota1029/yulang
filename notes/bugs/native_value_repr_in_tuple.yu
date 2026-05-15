@@ -46,6 +46,16 @@
 --   bool / unit / string の高レベル lane に戻る前に `printf("%lld", ...)` 系
 --   へ落ちている疑い。format を VM 側に揃えるか、せめて quote / true/false
 --   のような「値の種類が分かる」最小限の差分だけでも揃えたい。
+--
+-- 補足 (2026-05-15 設計判断):
+--   ここで報告している bool / unit / string / variant の root 表示崩れは、
+--   本質的には「root pretty-print が `.show` でも `.debug` でもない第三の
+--   経路になっている」ことに由来する。Yulang は `.show` (Display, 見せられ
+--   る型) と `.debug` (Debug, デバッグ用) を分ける方針 で、compose 型
+--   (tuple / list / record / variant) は本来 `.debug` 側。
+--   stdlib に `Debug` role を導入して root pretty-print も `.debug` 経由に
+--   揃えれば、bool / unit / string / variant の repr 問題は自然に解消する
+--   見込み。see: `debug_role_missing_for_composite_types.yu`
 
 -- 個別の確認用 (どれを実行しても native と VM で見た目が違う)
 (true, 1, "s", ())

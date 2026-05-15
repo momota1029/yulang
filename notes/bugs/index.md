@@ -121,15 +121,16 @@ use std::undet::*
   flat な (1段) `for` + `return` は通るので、二段目の loop effect と
   sub effect の合流が課題に見える。VM / native 同症。
 
-### Stdlib / Display 系
+### Stdlib / 表示系 (Display / Debug)
 
-- [`show_display_impl_missing_for_composite_types.yu`](show_display_impl_missing_for_composite_types.yu)
-  — `.show` (= `Display::show`) が compose 型 (list / opt / result /
-  tuple / record) で動かない。`[1, 2, 3].show` は `no impl for
-  Display<list<int>>` で infer エラー、`(1, 2).show` は runtime で
-  `request Display::show (1, 2) blocked`。reference の strings.md には
-  `[1, 2, 3].show → "[1, 2, 3]"` の例があるが、`Display<list<T>>` 等の
-  generic forwarding impl が registry に未登録。VM / native 同症。
+- [`debug_role_missing_for_composite_types.yu`](debug_role_missing_for_composite_types.yu)
+  — compose 型 (list / opt / result / tuple / record) のデバッグ表示の
+  手段が無い。設計判断 (2026-05-15) では `.show` は「見せられる型」、
+  `.debug` は「見せられないけどデバッグする型」で、compose 型は `.debug`
+  側。しかし `Debug` role / `.debug` operation が stdlib にまだ存在せず、
+  代替として `.show` を試すと infer エラー (`Display<list<int>>` 等) か
+  runtime blocked。reference の strings.md の `[1, 2, 3].show` 例も `.debug`
+  側へ移すべき。VM / native 同症。
 
 ## 現在の未解決（2026-05-15 round-6 / `yulang run --native` との差分）
 
@@ -142,7 +143,10 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   bool / unit / string が tuple / list / record の中で正しく表示されない。
   `(true, 1, "s", ())` が VM `(true, 1, "s", ())` / native `(1, 1, s, 0)`。
   variant も `:just hello` のように tag に `:` が付き、payload string が
-  unquoted。format-only か repr 潰しか境界が曖昧。
+  unquoted。format-only か repr 潰しか境界が曖昧。本質的には root pretty-print
+  が `.show` でも `.debug` でもない第三の経路になっていることに由来し、
+  `Debug` role 導入で自然に解消する見込み (→
+  `debug_role_missing_for_composite_types.yu`)。
 - [`native_float_collapses_to_zero.yu`](native_float_collapses_to_zero.yu)
   — float 値が native でほぼ常に `0` に潰れる。`3.14` が `0`、`1.0 + 2.0`
   が `0`、`[1.0, 2.0, 3.0]` が `[0, 0, 0]`。`1.5 < 2.5` は `true` (bool 表示
