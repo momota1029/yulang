@@ -13,7 +13,9 @@ use crate::cps_ir::{
     CpsContinuationId, CpsHandlerEnv, CpsRecordField, CpsShotKind, CpsStmt, CpsTerminator,
     CpsValueId,
 };
-use crate::cps_repr_abi::{CpsReprAbiContinuation, CpsReprAbiFunction, CpsReprAbiModule};
+use crate::cps_repr_abi::{
+    CpsReprAbiContinuation, CpsReprAbiFunction, CpsReprAbiModule, CpsReprAbiValue,
+};
 use yulang_typed_ir as typed_ir;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +37,7 @@ pub struct CpsOptimizationProfile {
     pub rewritten_pure_effectful_calls: usize,
     pub reified_primitive_calls: usize,
     pub reified_partial_closure_calls: usize,
+    pub reified_known_closure_parameter_calls: usize,
     pub inlined_pure_direct_calls: usize,
     pub inlined_continuation_calls: usize,
     pub removed_unreachable_continuations: usize,
@@ -67,9 +70,11 @@ fn run_simplification_round(output: &mut CpsOptimizationOutput) -> bool {
     rewrite_pure_effectful_calls(output);
     reify_direct_primitive_calls(output);
     reify_local_partial_closure_calls(output);
+    reify_known_closure_parameter_calls(output);
     inline_pure_direct_calls(output);
     inline_single_use_continuation_calls(output);
     reify_local_partial_closure_calls(output);
+    reify_known_closure_parameter_calls(output);
     prune_unreachable_continuations(output);
     eliminate_dead_pure_statements(output);
     prune_unreachable_continuations(output);
@@ -168,12 +173,37 @@ fn reify_local_partial_closure_calls(output: &mut CpsOptimizationOutput) {
         if wrappers.is_empty() {
             continue;
         }
+        let resumable = scalar_resume_continuations(function);
+        let mut next_value = next_function_value_id(function);
         for continuation in &mut function.continuations {
             output.profile.reified_partial_closure_calls +=
-                reify_local_partial_closure_calls_in_continuation(continuation, &wrappers);
+                reify_local_partial_closure_calls_in_continuation(
+                    continuation,
+                    &wrappers,
+                    &resumable,
+                    &mut next_value,
+                );
         }
     }
     output.profile.changed |= output.profile.reified_partial_closure_calls > 0;
+}
+
+fn reify_known_closure_parameter_calls(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        let wrappers = partial_closure_wrappers(function);
+        if wrappers.is_empty() {
+            continue;
+        }
+        output.profile.reified_known_closure_parameter_calls +=
+            reify_known_closure_parameter_calls_in_function(function, &wrappers);
+    }
+    output.profile.changed |= output.profile.reified_known_closure_parameter_calls > 0;
 }
 
 fn inline_pure_direct_calls(output: &mut CpsOptimizationOutput) {
@@ -267,7 +297,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         return;
     }
     eprintln!(
-        "[CPS-OPT] functions={} roots={} continuations={} handlers={} statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
+        "[CPS-OPT] functions={} roots={} continuations={} handlers={} statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
         profile.functions,
         profile.roots,
         profile.continuations,
@@ -279,6 +309,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.rewritten_pure_effectful_calls,
         profile.reified_primitive_calls,
         profile.reified_partial_closure_calls,
+        profile.reified_known_closure_parameter_calls,
         profile.inlined_pure_direct_calls,
         profile.inlined_continuation_calls,
         profile.removed_unreachable_continuations,
@@ -424,14 +455,7 @@ fn rewrite_pure_effectful_calls_in_function(
     function: &mut CpsReprAbiFunction,
     pure_functions: &HashSet<String>,
 ) -> usize {
-    let resumable = function
-        .continuations
-        .iter()
-        .filter(|continuation| {
-            continuation.environment.is_empty() && continuation.params.len() == 1
-        })
-        .map(|continuation| continuation.id)
-        .collect::<HashSet<_>>();
+    let resumable = scalar_resume_continuations(function);
     let mut next_value = next_function_value_id(function);
     let mut count = 0;
 
@@ -462,6 +486,17 @@ fn rewrite_pure_effectful_calls_in_function(
     }
 
     count
+}
+
+fn scalar_resume_continuations(function: &CpsReprAbiFunction) -> HashSet<CpsContinuationId> {
+    function
+        .continuations
+        .iter()
+        .filter(|continuation| {
+            continuation.environment.is_empty() && continuation.params.len() == 1
+        })
+        .map(|continuation| continuation.id)
+        .collect()
 }
 
 fn partial_closure_wrappers(
@@ -528,8 +563,57 @@ fn partial_closure_call_shape(
 fn reify_local_partial_closure_calls_in_continuation(
     continuation: &mut CpsReprAbiContinuation,
     wrappers: &HashMap<CpsContinuationId, PartialClosureWrapper>,
+    resumable: &HashSet<CpsContinuationId>,
+    next_value: &mut CpsValueId,
 ) -> usize {
-    let mut closures = HashMap::new();
+    reify_partial_closure_calls_in_continuation(
+        continuation,
+        wrappers,
+        &HashMap::new(),
+        resumable,
+        next_value,
+    )
+}
+
+fn reify_known_closure_parameter_calls_in_function(
+    function: &mut CpsReprAbiFunction,
+    wrappers: &HashMap<CpsContinuationId, PartialClosureWrapper>,
+) -> usize {
+    let closure_values = local_closure_values(function, wrappers);
+    if closure_values.is_empty() {
+        return 0;
+    }
+    let parameter_wrappers = known_closure_parameter_wrappers(function, &closure_values);
+    if parameter_wrappers.is_empty() {
+        return 0;
+    }
+
+    let resumable = scalar_resume_continuations(function);
+    let mut next_value = next_function_value_id(function);
+    let mut count = 0;
+    for continuation in &mut function.continuations {
+        let Some(initial_closures) = parameter_wrappers.get(&continuation.id) else {
+            continue;
+        };
+        count += reify_partial_closure_calls_in_continuation(
+            continuation,
+            wrappers,
+            initial_closures,
+            &resumable,
+            &mut next_value,
+        );
+    }
+    count
+}
+
+fn reify_partial_closure_calls_in_continuation(
+    continuation: &mut CpsReprAbiContinuation,
+    wrappers: &HashMap<CpsContinuationId, PartialClosureWrapper>,
+    initial_closures: &HashMap<CpsValueId, PartialClosureWrapper>,
+    resumable: &HashSet<CpsContinuationId>,
+    next_value: &mut CpsValueId,
+) -> usize {
+    let mut closures = initial_closures.clone();
     let mut count = 0;
     for stmt in &mut continuation.stmts {
         match stmt {
@@ -553,13 +637,207 @@ fn reify_local_partial_closure_calls_in_continuation(
             _ => {}
         }
     }
+    count += reify_partial_closure_terminator(
+        &mut continuation.stmts,
+        &mut continuation.terminator,
+        &closures,
+        resumable,
+        next_value,
+    );
     count
+}
+
+fn reify_partial_closure_terminator(
+    stmts: &mut Vec<CpsStmt>,
+    terminator: &mut CpsTerminator,
+    closures: &HashMap<CpsValueId, PartialClosureWrapper>,
+    resumable: &HashSet<CpsContinuationId>,
+    next_value: &mut CpsValueId,
+) -> usize {
+    let (closure, arg, resume) = match terminator {
+        CpsTerminator::EffectfulApply {
+            closure,
+            arg,
+            resume,
+        } => (*closure, *arg, *resume),
+        _ => return 0,
+    };
+    let Some(wrapper) = closures.get(&closure) else {
+        return 0;
+    };
+    let mut args = wrapper.captured.clone();
+    args.push(arg);
+    match &wrapper.call {
+        PartialClosureCall::Direct { target } => {
+            *terminator = CpsTerminator::EffectfulCall {
+                target: target.clone(),
+                args,
+                resume,
+            };
+            1
+        }
+        PartialClosureCall::Primitive { op } if resumable.contains(&resume) => {
+            let dest = *next_value;
+            next_value.0 += 1;
+            stmts.push(CpsStmt::Primitive {
+                dest,
+                op: *op,
+                args,
+            });
+            *terminator = CpsTerminator::Continue {
+                target: resume,
+                args: vec![dest],
+            };
+            1
+        }
+        PartialClosureCall::Primitive { .. } => 0,
+    }
+}
+
+fn local_closure_values(
+    function: &CpsReprAbiFunction,
+    wrappers: &HashMap<CpsContinuationId, PartialClosureWrapper>,
+) -> HashMap<CpsValueId, PartialClosureWrapper> {
+    let mut closures = HashMap::new();
+    for continuation in &function.continuations {
+        for stmt in &continuation.stmts {
+            match stmt {
+                CpsStmt::MakeClosure { dest, entry } => {
+                    let Some(wrapper) = wrappers.get(entry) else {
+                        continue;
+                    };
+                    closures.insert(*dest, wrapper.clone());
+                }
+                CpsStmt::MakeRecursiveClosure { dest, .. } => {
+                    closures.remove(dest);
+                }
+                _ => {}
+            }
+        }
+    }
+    closures
+}
+
+fn known_closure_parameter_wrappers(
+    function: &CpsReprAbiFunction,
+    closure_values: &HashMap<CpsValueId, PartialClosureWrapper>,
+) -> HashMap<CpsContinuationId, HashMap<CpsValueId, PartialClosureWrapper>> {
+    let continuations = function
+        .continuations
+        .iter()
+        .map(|continuation| (continuation.id, continuation))
+        .collect::<HashMap<_, _>>();
+    let references = continuation_references(function);
+    let protected = protected_continuations(function);
+    let mut candidates: HashMap<CpsContinuationId, Vec<KnownClosureParameterCandidate>> =
+        HashMap::new();
+    let mut blocked = HashSet::new();
+
+    for continuation in &function.continuations {
+        let CpsTerminator::Continue { target, args } = &continuation.terminator else {
+            continue;
+        };
+        if protected.contains(target) {
+            continue;
+        }
+        let Some(target_continuation) = continuations.get(target) else {
+            continue;
+        };
+        let Some(reference) = references.get(target) else {
+            continue;
+        };
+        if reference.total != reference.continue_calls
+            || args.len() != target_continuation.params.len()
+        {
+            blocked.insert(*target);
+            continue;
+        }
+
+        let slots = candidates.entry(*target).or_insert_with(|| {
+            vec![KnownClosureParameterCandidate::Unseen; target_continuation.params.len()]
+        });
+        for (index, arg) in args.iter().enumerate() {
+            let adapted = closure_values
+                .get(arg)
+                .and_then(|wrapper| wrapper.rebase_for_continue(args, &target_continuation.params));
+            slots[index].merge(adapted);
+        }
+    }
+
+    blocked.into_iter().for_each(|target| {
+        candidates.remove(&target);
+    });
+
+    candidates
+        .into_iter()
+        .filter_map(|(target, slots)| {
+            let continuation = continuations.get(&target)?;
+            let known = continuation
+                .params
+                .iter()
+                .zip(slots)
+                .filter_map(|(param, slot)| match slot {
+                    KnownClosureParameterCandidate::Known(wrapper) => Some((param.value, wrapper)),
+                    KnownClosureParameterCandidate::Unseen
+                    | KnownClosureParameterCandidate::Conflict => None,
+                })
+                .collect::<HashMap<_, _>>();
+            (!known.is_empty()).then_some((target, known))
+        })
+        .collect()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum KnownClosureParameterCandidate {
+    Unseen,
+    Known(PartialClosureWrapper),
+    Conflict,
+}
+
+impl KnownClosureParameterCandidate {
+    fn merge(&mut self, wrapper: Option<PartialClosureWrapper>) {
+        let Some(wrapper) = wrapper else {
+            *self = Self::Conflict;
+            return;
+        };
+        match self {
+            Self::Unseen => *self = Self::Known(wrapper),
+            Self::Known(current) if *current == wrapper => {}
+            Self::Known(_) | Self::Conflict => *self = Self::Conflict,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PartialClosureWrapper {
     call: PartialClosureCall,
     captured: Vec<CpsValueId>,
+}
+
+impl PartialClosureWrapper {
+    fn rebase_for_continue(
+        &self,
+        supplied_args: &[CpsValueId],
+        target_params: &[CpsReprAbiValue],
+    ) -> Option<Self> {
+        if supplied_args.len() != target_params.len() {
+            return None;
+        }
+        let captured = self
+            .captured
+            .iter()
+            .map(|captured| {
+                supplied_args
+                    .iter()
+                    .position(|arg| arg == captured)
+                    .map(|index| target_params[index].value)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(Self {
+            call: self.call.clone(),
+            captured,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1822,6 +2100,8 @@ impl CpsOptimizationProfile {
             || self.rewritten_pure_effectful_calls > before.rewritten_pure_effectful_calls
             || self.reified_primitive_calls > before.reified_primitive_calls
             || self.reified_partial_closure_calls > before.reified_partial_closure_calls
+            || self.reified_known_closure_parameter_calls
+                > before.reified_known_closure_parameter_calls
             || self.inlined_pure_direct_calls > before.inlined_pure_direct_calls
             || self.inlined_continuation_calls > before.inlined_continuation_calls
             || self.removed_unreachable_continuations > before.removed_unreachable_continuations
@@ -1863,6 +2143,7 @@ impl CpsOptimizationProfile {
             rewritten_pure_effectful_calls: 0,
             reified_primitive_calls: 0,
             reified_partial_closure_calls: 0,
+            reified_known_closure_parameter_calls: 0,
             inlined_pure_direct_calls: 0,
             inlined_continuation_calls: 0,
             removed_unreachable_continuations: 0,
@@ -1894,12 +2175,13 @@ mod tests {
         assert_eq!(optimized.profile.roots, 1);
         assert_eq!(optimized.profile.continuations, 1);
         assert_eq!(optimized.profile.statements, 1);
-        assert_eq!(optimized.profile.passes_run, 11);
+        assert_eq!(optimized.profile.passes_run, 13);
         assert_eq!(optimized.profile.forwarded_continuation_calls, 0);
         assert_eq!(optimized.profile.returned_continuation_calls, 0);
         assert_eq!(optimized.profile.rewritten_pure_effectful_calls, 0);
         assert_eq!(optimized.profile.reified_primitive_calls, 0);
         assert_eq!(optimized.profile.reified_partial_closure_calls, 0);
+        assert_eq!(optimized.profile.reified_known_closure_parameter_calls, 0);
         assert_eq!(optimized.profile.inlined_pure_direct_calls, 0);
         assert_eq!(optimized.profile.inlined_continuation_calls, 0);
         assert_eq!(optimized.profile.removed_unreachable_continuations, 0);
@@ -2581,6 +2863,292 @@ mod tests {
         assert_eq!(optimized.profile.removed_dead_pure_statements, 1);
         assert_eq!(optimized.profile.direct_style_islands, 2);
         assert_eq!(optimized.profile.direct_style_continuations, 2);
+    }
+
+    #[test]
+    fn reifies_uncaptured_closure_apply_through_continuation_parameter() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::MakeClosure {
+                                dest: CpsValueId(0),
+                                entry: CpsContinuationId(1),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(1),
+                                literal: CpsLiteral::Int("7".to_string()),
+                            },
+                        ],
+                        terminator: CpsTerminator::Continue {
+                            target: CpsContinuationId(2),
+                            args: vec![CpsValueId(0), CpsValueId(1)],
+                        },
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(2)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Primitive {
+                            dest: CpsValueId(3),
+                            op: typed_ir::PrimitiveOp::IntToString,
+                            args: vec![CpsValueId(2)],
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(3)),
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: vec![CpsValueId(4), CpsValueId(5)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::ApplyClosure {
+                            dest: CpsValueId(6),
+                            closure: CpsValueId(4),
+                            arg: CpsValueId(5),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(6)),
+                    },
+                ],
+            }],
+        }));
+
+        let optimized = optimize_cps_repr_abi_module(&abi);
+        let root = &optimized.module.roots[0];
+        let entry = root
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == CpsContinuationId(0))
+            .unwrap();
+
+        assert!(root.continuations.iter().all(|continuation| {
+            continuation
+                .stmts
+                .iter()
+                .all(|stmt| !matches!(stmt, CpsStmt::ApplyClosure { .. }))
+        }));
+        assert!(entry.stmts.iter().any(|stmt| {
+            matches!(
+                stmt,
+                CpsStmt::Primitive {
+                    op: typed_ir::PrimitiveOp::IntToString,
+                    args,
+                    ..
+                } if args == &vec![CpsValueId(1)]
+            )
+        }));
+        assert_eq!(entry.terminator, CpsTerminator::Return(CpsValueId(6)));
+        assert_eq!(optimized.profile.reified_partial_closure_calls, 0);
+        assert_eq!(optimized.profile.reified_known_closure_parameter_calls, 1);
+        assert_eq!(optimized.profile.inlined_continuation_calls, 1);
+        assert_eq!(optimized.profile.removed_unreachable_continuations, 2);
+        assert_eq!(optimized.profile.removed_dead_pure_statements, 1);
+    }
+
+    #[test]
+    fn reifies_captured_closure_apply_when_captures_are_continuation_parameters() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: vec![CpsFunction {
+                name: "add".to_string(),
+                params: vec![CpsValueId(0), CpsValueId(1)],
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: vec![CpsValueId(0), CpsValueId(1)],
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::MultiShot,
+                    stmts: vec![CpsStmt::Primitive {
+                        dest: CpsValueId(2),
+                        op: typed_ir::PrimitiveOp::IntAdd,
+                        args: vec![CpsValueId(0), CpsValueId(1)],
+                    }],
+                    terminator: CpsTerminator::Return(CpsValueId(2)),
+                }],
+            }],
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(0),
+                                literal: CpsLiteral::Int("40".to_string()),
+                            },
+                            CpsStmt::MakeClosure {
+                                dest: CpsValueId(1),
+                                entry: CpsContinuationId(1),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(2),
+                                literal: CpsLiteral::Int("2".to_string()),
+                            },
+                        ],
+                        terminator: CpsTerminator::Continue {
+                            target: CpsContinuationId(2),
+                            args: vec![CpsValueId(1), CpsValueId(0), CpsValueId(2)],
+                        },
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(4)],
+                        captures: vec![CpsValueId(0)],
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::DirectCall {
+                            dest: CpsValueId(5),
+                            target: "add".to_string(),
+                            args: vec![CpsValueId(0), CpsValueId(4)],
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(5)),
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: vec![CpsValueId(6), CpsValueId(7), CpsValueId(8)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::ApplyClosure {
+                            dest: CpsValueId(9),
+                            closure: CpsValueId(6),
+                            arg: CpsValueId(8),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(9)),
+                    },
+                ],
+            }],
+        }));
+
+        let optimized = optimize_cps_repr_abi_module(&abi);
+        let root = &optimized.module.roots[0];
+        let entry = root
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == CpsContinuationId(0))
+            .unwrap();
+
+        assert!(root.continuations.iter().all(|continuation| {
+            continuation
+                .stmts
+                .iter()
+                .all(|stmt| !matches!(stmt, CpsStmt::ApplyClosure { .. }))
+        }));
+        assert!(entry.stmts.iter().any(|stmt| {
+            matches!(
+                stmt,
+                CpsStmt::Primitive {
+                    op: typed_ir::PrimitiveOp::IntAdd,
+                    args,
+                    ..
+                } if args == &vec![CpsValueId(0), CpsValueId(2)]
+            )
+        }));
+        assert_eq!(entry.terminator, CpsTerminator::Return(CpsValueId(9)));
+        assert_eq!(optimized.profile.reified_partial_closure_calls, 0);
+        assert_eq!(optimized.profile.reified_known_closure_parameter_calls, 1);
+        assert_eq!(optimized.profile.inlined_continuation_calls, 1);
+        assert_eq!(optimized.profile.removed_unreachable_continuations, 2);
+        assert_eq!(optimized.profile.removed_dead_pure_statements, 1);
+    }
+
+    #[test]
+    fn reifies_local_effectful_apply_to_known_primitive_closure() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::MakeClosure {
+                                dest: CpsValueId(0),
+                                entry: CpsContinuationId(1),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(1),
+                                literal: CpsLiteral::Int("7".to_string()),
+                            },
+                        ],
+                        terminator: CpsTerminator::EffectfulApply {
+                            closure: CpsValueId(0),
+                            arg: CpsValueId(1),
+                            resume: CpsContinuationId(2),
+                        },
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(2)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Primitive {
+                            dest: CpsValueId(3),
+                            op: typed_ir::PrimitiveOp::IntToString,
+                            args: vec![CpsValueId(2)],
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(3)),
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: vec![CpsValueId(4)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(4)),
+                    },
+                ],
+            }],
+        }));
+
+        let optimized = optimize_cps_repr_abi_module(&abi);
+        let root = &optimized.module.roots[0];
+        let entry = root
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == CpsContinuationId(0))
+            .unwrap();
+
+        assert!(root.continuations.iter().all(|continuation| {
+            !matches!(
+                continuation.terminator,
+                CpsTerminator::EffectfulApply { .. }
+            )
+        }));
+        assert!(entry.stmts.iter().any(|stmt| {
+            matches!(
+                stmt,
+                CpsStmt::Primitive {
+                    op: typed_ir::PrimitiveOp::IntToString,
+                    args,
+                    ..
+                } if args == &vec![CpsValueId(1)]
+            )
+        }));
+        assert!(matches!(entry.terminator, CpsTerminator::Return(_)));
+        assert_eq!(optimized.profile.reified_partial_closure_calls, 1);
+        assert_eq!(optimized.profile.removed_unreachable_continuations, 2);
+        assert_eq!(optimized.profile.removed_dead_pure_statements, 1);
     }
 
     #[test]

@@ -68,8 +68,11 @@ and Cranelift codegen. The first real passes rewrite explicit calls to empty
 forwarding continuations, fold empty `Return(param)` continuations into the
 caller, reify direct calls to structural primitive wrappers back into primitive
 statements, reify local partial-application closure calls back into direct
-calls, inline small pure direct callees including structural value helpers,
-inline small single-use one-shot continuations, rewrite effectful-call
+calls, reify known partial-application closures passed through continuation
+parameters when their captures can be rebased to target parameters, rewrite
+known closure `EffectfulApply` terminators back into effectful direct calls or
+pure primitive resumes, inline small pure direct callees including structural
+value helpers, inline small single-use one-shot continuations, rewrite effectful-call
 terminators to pure callees back into direct calls plus local continuation
 jumps, remove dead pure value statements, and prune continuations that are no
 longer reachable from function entries, handler arms, thunks, closures, or
@@ -238,9 +241,13 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] CPS repr ABI modules pass through a shared optimization entrypoint before
       both JIT and object Cranelift codegen. It currently rewrites explicit
       calls to empty forwarding continuations, folds empty return continuations,
-      reifies direct calls to structural primitive wrappers, inlines small
-      local partial-application closure calls back into direct calls, inlines
-      small pure direct callees including structural value helpers, inlines
+      reifies direct calls to structural primitive wrappers, reifies local
+      partial-application closure calls back into direct calls, reifies known
+      partial-application closures passed through continuation parameters when
+      their captures can be rebased to target parameters, rewrites known
+      closure `EffectfulApply` terminators back into effectful direct calls or
+      pure primitive resumes, inlines small pure direct callees including
+      structural value helpers, inlines
       small single-use one-shot continuations, rewrites effectful calls to pure
       callees into direct calls plus local continuation jumps, removes dead pure
       value statements, prunes unreachable continuations, and records

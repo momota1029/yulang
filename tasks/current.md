@@ -69,6 +69,10 @@ Cranelift backend を作る。
   forwarding continuation と `Return(param)` continuation を潰し、構造上 primitive
   wrapper と分かる direct call を `Primitive` stmt に戻し、同じ continuation 内で
   作った partial-application closure の `ApplyClosure` を `DirectCall` に戻し、
+  continuation parameter 経由で渡った known partial-application closure も、
+  capture を target parameter に張り替えられる場合は `DirectCall` に戻し、
+  known closure の `EffectfulApply` terminator は `EffectfulCall` か
+  pure primitive + resume `Continue` に戻し、
   small pure direct callee を caller に展開し、到達不能 continuation を削る。
   small single-use one-shot continuation の tail inline と dead pure value statement
   の削除も入った。profile /
