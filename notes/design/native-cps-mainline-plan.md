@@ -46,6 +46,11 @@ shape, the optimizer should either still recognize the same IR/evidence pattern
 or simply stop applying that optimization, not miscompile by following a stale
 path name.
 
+The implementation has an explicit `cps_optimize` boundary between CPS repr ABI
+lowering and Cranelift codegen. It currently preserves the module exactly and
+records a profile, but both JIT and object codegen go through the same entrypoint
+so future passes cannot accidentally diverge by artifact kind.
+
 ## Execution Policy
 
 `--native-run` の長期方針:

@@ -59,6 +59,12 @@ The main optimization targets are:
 - lowering optimized CPS continuations to Cranelift blocks and block
   parameters.
 
+There is now an explicit CPS optimization stage between CPS repr ABI lowering
+and Cranelift codegen. The current pass is an identity boundary with a profile
+and `YULANG_CPS_OPT_TRACE` debug output; it exists so JIT and object generation
+share the same optimization entrypoint before individual CPS simplification
+passes are added.
+
 The value backend remains useful as an effect-free fast path, a boxed value
 helper source, and a debugging path. It is not the plan for implementing the
 entire Yulang language. The full-feature path should flow through CPS
@@ -209,6 +215,10 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] Pure scalar CPS programs, primitive calls, direct calls, conditionals,
       `case` guards, and `sub` / `return`-style control can compile and run
       through the Cranelift CPS representation path.
+- [x] CPS repr ABI modules pass through a shared optimization entrypoint before
+      both JIT and object Cranelift codegen. The first pass is an identity
+      boundary with profiling so later continuation/thunk/handler passes do
+      not fork between artifact kinds.
 - [x] Small source-defined algebraic effects and multi-shot resumptions work in
       the CPS/CPS-repr interpreters and in the scalar Cranelift prototype.
 - [x] Handler entry continuations receive captured environments, and handler

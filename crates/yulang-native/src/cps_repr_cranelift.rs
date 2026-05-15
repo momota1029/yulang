@@ -15,6 +15,7 @@ use crate::cps_ir::{
     CpsContinuationId, CpsHandlerId, CpsLiteral, CpsRecordField, CpsStmt, CpsTerminator, CpsValueId,
 };
 use crate::cps_lower::{CpsLowerError, lower_cps_module};
+use crate::cps_optimize::{CpsOptimizationProfile, optimize_cps_repr_abi_module};
 use crate::cps_repr::CpsReprAbiLane;
 use crate::cps_repr_abi::{
     CpsReprAbiContinuation, CpsReprAbiFunction, CpsReprAbiModule, CpsReprAbiValue,
@@ -160,12 +161,17 @@ pub struct CpsReprJitModule {
     module: JITModule,
     roots: Vec<FuncId>,
     cranelift_ir: Vec<String>,
+    optimization_profile: CpsOptimizationProfile,
     _strings: Vec<Box<str>>,
 }
 
 impl CpsReprJitModule {
     pub fn cranelift_ir(&self) -> &[String] {
         &self.cranelift_ir
+    }
+
+    pub fn optimization_profile(&self) -> CpsOptimizationProfile {
+        self.optimization_profile
     }
 
     pub fn run_roots_display(&mut self) -> CpsReprCraneliftResult<Vec<String>> {
@@ -193,6 +199,7 @@ impl CpsReprJitModule {
 pub struct CpsReprObjectModule {
     bytes: Vec<u8>,
     roots: Vec<String>,
+    optimization_profile: CpsOptimizationProfile,
 }
 
 impl CpsReprObjectModule {
@@ -204,6 +211,10 @@ impl CpsReprObjectModule {
         &self.roots
     }
 
+    pub fn optimization_profile(&self) -> CpsOptimizationProfile {
+        self.optimization_profile
+    }
+
     pub fn into_bytes(self) -> Vec<u8> {
         self.bytes
     }
@@ -212,6 +223,8 @@ impl CpsReprObjectModule {
 pub fn compile_cps_repr_abi_module(
     module: &CpsReprAbiModule,
 ) -> CpsReprCraneliftResult<CpsReprJitModule> {
+    let optimized = optimize_cps_repr_abi_module(module);
+    let module = &optimized.module;
     validate_scalar_subset(module)?;
 
     let mut builder =
@@ -239,6 +252,7 @@ pub fn compile_cps_repr_abi_module(
         module: jit,
         roots,
         cranelift_ir,
+        optimization_profile: optimized.profile,
         _strings: strings,
     })
 }
@@ -246,6 +260,8 @@ pub fn compile_cps_repr_abi_module(
 pub fn compile_cps_repr_abi_module_to_object(
     module: &CpsReprAbiModule,
 ) -> CpsReprCraneliftResult<CpsReprObjectModule> {
+    let optimized = optimize_cps_repr_abi_module(module);
+    let module = &optimized.module;
     validate_scalar_subset(module)?;
 
     let isa_builder = cranelift_native::builder().map_err(cranelift_error)?;
@@ -268,7 +284,11 @@ pub fn compile_cps_repr_abi_module_to_object(
         .collect::<Vec<_>>();
     let product = object.finish();
     let bytes = product.emit().map_err(cranelift_error)?;
-    Ok(CpsReprObjectModule { bytes, roots })
+    Ok(CpsReprObjectModule {
+        bytes,
+        roots,
+        optimization_profile: optimized.profile,
+    })
 }
 
 pub fn compile_runtime_module_to_cps_repr_jit(

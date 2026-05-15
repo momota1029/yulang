@@ -22,6 +22,7 @@ pub mod cps_env;
 pub mod cps_eval;
 pub mod cps_ir;
 pub mod cps_lower;
+pub mod cps_optimize;
 pub mod cps_repr;
 pub mod cps_repr_abi;
 pub mod cps_repr_cranelift;
@@ -79,6 +80,9 @@ pub use cps_ir::{
     CpsValueId,
 };
 pub use cps_lower::{CpsLowerError, CpsLowerResult, lower_cps_module};
+pub use cps_optimize::{
+    CpsOptimizationOutput, CpsOptimizationProfile, optimize_cps_repr_abi_module,
+};
 pub use cps_repr::{
     CpsReprAbiAnalysis, CpsReprAbiLane, CpsReprContinuation, CpsReprEnvironmentSlot,
     CpsReprEvalError, CpsReprFunction, CpsReprFunctionAbiAnalysis, CpsReprFunctionValueAnalysis,
