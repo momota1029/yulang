@@ -238,6 +238,11 @@ CPS repr Cranelift の source 回帰を広げる。
 - record default pattern は CPS IR の `SelectWithDefault` で表し、field presence が
   必要な pattern test には `RecordHasField` を使う。match guard と list spread
   expression も source regression として固定した。
+- examples sweep で `03_for_last.yu` / `04_sub_return.yu` の forced CPS repr が
+  VM と合わないことを確認した。有限 list の再現は
+  `notes/bugs/native_for_loop_escape_keeps_running.yu` に切り出し済み。外側
+  `sub` handler は `return 2` を捕まえているが、その後の内側 fold/for chain が
+  normal fallback `0` を返し続けて root を上書きする。
 - top-level destructuring `my` は runtime IR が各名前ごとの `case` binding に
   分解され、native 側だけ再帰/クラッシュすることを
   `notes/bugs/native_top_level_destructure_binding_recurses.yu` に切り出した。

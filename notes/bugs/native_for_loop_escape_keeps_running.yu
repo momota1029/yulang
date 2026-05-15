@@ -1,0 +1,22 @@
+// Native CPS repr currently keeps evaluating the inner fold/for continuation
+// after an outer handler catches `return`.
+//
+// VM:
+//   yulang run notes/bugs/native_for_loop_escape_keeps_running.yu
+//   => [0] 2
+//
+// Native CPS repr, as of 2026-05-15:
+//   yulang native --kind run-cps-repr-exe notes/bugs/native_for_loop_escape_keeps_running.yu
+//   => 0
+//
+// A trace shows the outer `sub` handler catches `return 2`, but the current
+// force/apply chain then continues through the loop/fold path and overwrites
+// the root result with the normal fallback value.
+
+use std::flow::*
+
+sub:
+    for x in [1, 2, 3]:
+        if x == 2: return x
+        else: ()
+    0
