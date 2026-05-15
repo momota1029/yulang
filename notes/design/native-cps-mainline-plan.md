@@ -111,6 +111,9 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
         として扱う。
   - [x] source-level closure value を list に保存し、`std::list::index_raw` で
         取り出してから呼ぶ forced CPS repr executable regression を入れる。
+  - [x] lazy operator の結果を tuple value position に置く regression を入れる。
+        tuple 内部でも short-circuit operand thunk が可視値として漏れないことを
+        forced CPS repr executable path で確認する。
 
 ### 4. General Thunk Invocation
 

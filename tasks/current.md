@@ -190,6 +190,9 @@ CPS repr Cranelift の source 回帰を広げる。
   から呼ぶ forced CPS repr executable regression を追加した。direct call chain が
   over-applied の時は、その式全体を direct-call lowering で処理せず、通常の
   `Apply` lowering に戻して callee 側を先に評価する。
+- lazy operator の結果を tuple value position に置く source regression を
+  forced CPS repr executable path に追加した。tuple 内部でも thunk が可視値として
+  漏れず、native i64 表示 helper も tuple payload を再帰的に整形する。
 - native CLI の現状は `docs/native-backend.md` の Public CLI に集約済み。
   `yulang native` は value backend を優先し、effect / handler /
   thunk-boundary control が見えた root は CPS repr backend を選ぶ。

@@ -1,5 +1,5 @@
--- bug: lazy infix operator の結果を tuple 要素に置くと、force されずに
---      thunk のまま漏れてくる
+-- fixed regression: lazy infix operator の結果を tuple 要素に置いても、
+--      force された値として見える
 --
 -- 期待:
 --   `web/docs/ja/reference/operators.md` の「Lazy 演算子」節:
@@ -16,7 +16,7 @@
 --   `(true orelse false, true orelse false)` のような tuple 構築でも、
 --   各 element は普通の値として現れるはず。
 --
--- 実際:
+-- 以前の実際:
 --   pub lazy infix(orelse) 1.0.0 1.0.0 = \a -> \b ->
 --       if a():
 --           true
@@ -27,8 +27,8 @@
 --   (true orelse false)                   → true                ✓
 --   (true orelse false, true orelse false) → (<thunk>, <thunk>) ✗
 --
---   tuple の要素位置で lazy operator の結果が thunk のまま漏れる。`<thunk>`
---   は print 出力で見える内部表現。
+--   tuple の要素位置で lazy operator の結果が thunk のまま漏れていた。`<thunk>`
+--   は print 出力で見える内部表現だった。
 --
 -- 切り分け:
 --

@@ -292,6 +292,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] A source-level closure value can be stored in a list, selected with
       `std::list::index_raw`, and called through the forced CPS repr executable
       path.
+- [x] Lazy operator results in tuple value positions are covered by the forced
+      CPS repr executable path, so short-circuit operands do not leak as visible
+      thunk values there.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
 - [x] Effectful thunks returned across an inlinable source-defined function
