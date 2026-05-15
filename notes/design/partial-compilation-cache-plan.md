@@ -114,6 +114,8 @@ Required fields:
   - source hash;
   - source origin;
 - dependency unit hashes;
+- tracked ambient dependency fingerprints:
+  - cast environments consulted during inference;
 - relevant feature flags / environment knobs;
 - parser/operator table format version;
 - core IR format version.
@@ -210,6 +212,34 @@ Required fields:
 
 The typed surface must use unit-local ids and import through the namespace
 surface maps.
+
+#### Cast dependency tracking
+
+User-defined casts are ambient inference inputs, but they should not make every
+compiled unit depend on every cast.
+
+The cache rule is:
+
+```text
+only file SCCs that consult cast lookup record a cast dependency
+```
+
+Inference must therefore access cast candidates through a dependency-recording
+lookup boundary.  This includes ordinary expected-type cast insertion and any
+future secondary query that asks whether a cast overlaps a type.  A direct read
+of the cast table inside inference would bypass cache invalidation and is not
+allowed by design.
+
+The first implementation can record one coarse fingerprint for the currently
+available cast registry.  Later implementations may narrow this to the cast
+groups, modules, realms, or individual candidates that were actually queried.
+The artifact format should leave room for a list of fingerprints rather than a
+single scalar.
+
+Named cast imports remain compatible with this plan.  A future import syntax
+can restrict which cast groups are visible, and anonymous casts can belong to a
+default `cast` group.  The cache still records the fingerprints of the cast
+environment that was actually consulted by the file SCC.
 
 ### Runtime Surface
 
@@ -400,6 +430,7 @@ Invalidate a unit if any of these differ:
 - source hash or source length;
 - module path;
 - dependency unit hash;
+- tracked ambient cast fingerprints recorded by the unit;
 - std/prelude implicit import behavior;
 - public syntax exports.
 

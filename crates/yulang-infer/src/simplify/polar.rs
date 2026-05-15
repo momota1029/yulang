@@ -20,11 +20,11 @@ pub(crate) fn apply_polar_variable_removal(
         if protected_vars.contains(&var) {
             continue;
         }
-        if super::cooccur::is_effectively_recursive(var, rec_vars) {
-            continue;
-        }
         match (analysis.positive.get(&var), analysis.negative.get(&var)) {
-            (Some(_), None) | (None, Some(_)) => {
+            (Some(_), None) => {
+                subst.insert(var, None);
+            }
+            (None, Some(_)) if !super::cooccur::is_effectively_recursive(var, rec_vars) => {
                 subst.insert(var, None);
             }
             _ => {}
