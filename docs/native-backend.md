@@ -63,7 +63,7 @@ checklist, see *Detailed progress* below.
 | List literals, list merge, length, index, raw view  | value backend          |   ✅   |
 | Tuple, record, variant, record field selection      | value backend          |   ✅   |
 | Record spread expressions                           | value backend          |   ✅   |
-| Literal / list / record / variant / tuple pattern matching | value backend    |   △    |
+| Literal / list / record / variant / tuple pattern matching | value backend / CPS repr | △ |
 | Lambdas / first-class function values (pure)        | CPS repr (prototype)   |   △   |
 | Closures with captured state                        | CPS repr (prototype)   |   △   |
 | Closure values selected from records and then called | CPS repr (prototype)  |   △   |
@@ -194,6 +194,9 @@ current backend boundaries visible, but detailed regression history lives in
       forced CPS repr executable path without leaking visible thunk handles.
 - [x] Lazy operator results in record fields and variant payloads are covered by
       the same forced CPS repr executable path.
+- [x] CPS repr lowering covers tuple, list, list-spread, record, and variant
+      payload pattern tests in `case` arms for the source-shaped regression
+      path.
 - [x] `std::junction`, finite-list `for` loops with `last` / `next`, mutable
       reference update, and `std::undet` `.once` / `.list` / `.logic` over
       finite-list choices run through the CPS repr executable path for covered
@@ -205,6 +208,8 @@ current backend boundaries visible, but detailed regression history lives in
       Yulang-like values in generated CPS executables.
 - [ ] General returned/stored effectful thunks still need more source-shaped
       coverage outside the current scalar/prototype subset.
+- [ ] Top-level destructuring `my` bindings currently have a native-only
+      recursion/crash note; direct `case` structural patterns are covered.
 - [ ] General closures and heap value lanes are still prototype
       representations, not finalized native runtime layout.
 - [ ] The CPS representation backend is the effectful native mainline, but it is

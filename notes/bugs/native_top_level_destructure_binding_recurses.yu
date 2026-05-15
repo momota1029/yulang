@@ -1,0 +1,25 @@
+// Native backend bug note: top-level destructuring lowers to per-name bindings
+// whose arm bodies reuse the same source names.
+//
+// VM:
+//   yulang run notes/bugs/native_top_level_destructure_binding_recurses.yu
+//   => [0] 42
+//
+// Native CPS repr, observed 2026-05-15:
+//   yulang native --kind run-cps-repr-exe notes/bugs/native_top_level_destructure_binding_recurses.yu
+//   => stack overflow
+//
+// Native value lane, observed 2026-05-15:
+//   yulang native --kind run-value-exe notes/bugs/native_top_level_destructure_binding_recurses.yu
+//   => SIGSEGV
+//
+// The runtime IR shape is roughly:
+//   x = case [20, 22]: [x, y] -> x
+//   y = case [20, 22]: [x, y] -> y
+//
+// That is valid for the VM because arm-local pattern bindings shadow the
+// top-level binding. Native lowering currently lets this shape recurse through
+// global binding lookup in at least one path.
+
+my [x, y] = [20, 22]
+x + y

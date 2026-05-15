@@ -536,6 +536,54 @@ r.ok
     }
 
     #[test]
+    fn runs_list_pattern_match_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"case [20, 22]:
+    [x, y] -> x + y
+    _ -> 0
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_list_spread_pattern_match_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"case [1, 2, 3, 4]:
+    [head, ..middle, tail] -> head + ((std::list::index_raw middle) 0) + tail
+    _ -> 0
+"#,
+            vec!["7"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_record_pattern_match_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"case {x: 20, y: 22}:
+    {x, y} -> x + y
+    _ -> 0
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_variant_payload_pattern_match_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"case just (20, 22):
+    just (x, y) -> x + y
+    nil -> 0
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_simple_undet_list_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::undet::*

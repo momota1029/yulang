@@ -2302,19 +2302,58 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 Ok(true)
             }
-            runtime::Pattern::Variant { tag, .. } => {
+            runtime::Pattern::Tuple { items, .. } => {
+                self.lower_tuple_pattern_test(value, items, 0, then_cont, else_cont)
+            }
+            runtime::Pattern::List {
+                prefix,
+                spread,
+                suffix,
+                ..
+            } => self.lower_list_pattern_test(
+                value,
+                prefix,
+                spread.as_deref(),
+                suffix,
+                then_cont,
+                else_cont,
+            ),
+            runtime::Pattern::Record { fields, spread, .. } => {
+                self.lower_record_pattern_test(value, fields, spread.as_ref(), then_cont, else_cont)
+            }
+            runtime::Pattern::Variant {
+                tag,
+                value: payload,
+                ..
+            } => {
                 let cond = self.fresh_value();
                 self.current.stmts.push(CpsStmt::VariantTagEq {
                     dest: cond,
                     variant: value,
                     tag: tag.clone(),
                 });
+                let matched_cont = if payload.is_some() {
+                    self.fresh_continuation()
+                } else {
+                    then_cont
+                };
                 self.terminate(CpsTerminator::Branch {
                     cond,
-                    then_cont,
+                    then_cont: matched_cont,
                     else_cont,
                 });
-                Ok(true)
+                if let Some(payload) = payload {
+                    self.finish_current();
+                    self.current = ContinuationBuilder::new(matched_cont, Vec::new());
+                    let payload_value = self.fresh_value();
+                    self.current.stmts.push(CpsStmt::VariantPayload {
+                        dest: payload_value,
+                        variant: value,
+                    });
+                    self.lower_pattern_test(payload_value, payload, then_cont, else_cont)
+                } else {
+                    Ok(true)
+                }
             }
             runtime::Pattern::Or { left, right, .. } => {
                 let right_cont = self.fresh_continuation();
@@ -2327,6 +2366,140 @@ impl<'a> FunctionLowerer<'a> {
                 kind: "match pattern",
             }),
         }
+    }
+
+    fn lower_tuple_pattern_test(
+        &mut self,
+        value: CpsValueId,
+        items: &[runtime::Pattern],
+        index: usize,
+        then_cont: CpsContinuationId,
+        else_cont: CpsContinuationId,
+    ) -> CpsLowerResult<bool> {
+        let Some(item) = items.get(index) else {
+            self.terminate(CpsTerminator::Continue {
+                target: then_cont,
+                args: Vec::new(),
+            });
+            return Ok(true);
+        };
+        let next_cont = self.fresh_continuation();
+        let item_value = self.fresh_value();
+        self.current.stmts.push(CpsStmt::TupleGet {
+            dest: item_value,
+            tuple: value,
+            index,
+        });
+        self.lower_pattern_test(item_value, item, next_cont, else_cont)?;
+        self.finish_current();
+        self.current = ContinuationBuilder::new(next_cont, Vec::new());
+        self.lower_tuple_pattern_test(value, items, index + 1, then_cont, else_cont)
+    }
+
+    fn lower_list_pattern_test(
+        &mut self,
+        value: CpsValueId,
+        prefix: &[runtime::Pattern],
+        spread: Option<&runtime::Pattern>,
+        suffix: &[runtime::Pattern],
+        then_cont: CpsContinuationId,
+        else_cont: CpsContinuationId,
+    ) -> CpsLowerResult<bool> {
+        let len = self.emit_primitive(typed_ir::PrimitiveOp::ListLen, vec![value]);
+        let required = self.emit_int_literal((prefix.len() + suffix.len()) as i64);
+        let op = if spread.is_some() {
+            typed_ir::PrimitiveOp::IntGe
+        } else {
+            typed_ir::PrimitiveOp::IntEq
+        };
+        let len_cond = self.emit_primitive(op, vec![len, required]);
+        let items_cont = self.fresh_continuation();
+        self.terminate(CpsTerminator::Branch {
+            cond: len_cond,
+            then_cont: items_cont,
+            else_cont,
+        });
+        self.finish_current();
+        self.current = ContinuationBuilder::new(items_cont, Vec::new());
+
+        let mut tests = Vec::new();
+        for (index, item) in prefix.iter().enumerate() {
+            let index = self.emit_int_literal(index as i64);
+            let item_value =
+                self.emit_primitive(typed_ir::PrimitiveOp::ListIndex, vec![value, index]);
+            tests.push((item_value, item));
+        }
+        if let Some(spread) = spread {
+            let len = self.emit_primitive(typed_ir::PrimitiveOp::ListLen, vec![value]);
+            let start = self.emit_int_literal(prefix.len() as i64);
+            let suffix_len = self.emit_int_literal(suffix.len() as i64);
+            let end = self.emit_primitive(typed_ir::PrimitiveOp::IntSub, vec![len, suffix_len]);
+            let slice = self.emit_primitive(
+                typed_ir::PrimitiveOp::ListIndexRangeRaw,
+                vec![value, start, end],
+            );
+            tests.push((slice, spread));
+        }
+        for (offset, item) in suffix.iter().enumerate() {
+            let len = self.emit_primitive(typed_ir::PrimitiveOp::ListLen, vec![value]);
+            let suffix_len = self.emit_int_literal(suffix.len() as i64);
+            let suffix_start =
+                self.emit_primitive(typed_ir::PrimitiveOp::IntSub, vec![len, suffix_len]);
+            let offset = self.emit_int_literal(offset as i64);
+            let index =
+                self.emit_primitive(typed_ir::PrimitiveOp::IntAdd, vec![suffix_start, offset]);
+            let item_value =
+                self.emit_primitive(typed_ir::PrimitiveOp::ListIndex, vec![value, index]);
+            tests.push((item_value, item));
+        }
+        self.lower_extracted_pattern_tests(tests, 0, then_cont, else_cont)
+    }
+
+    fn lower_record_pattern_test(
+        &mut self,
+        value: CpsValueId,
+        fields: &[runtime::RecordPatternField],
+        spread: Option<&runtime::RecordSpreadPattern>,
+        then_cont: CpsContinuationId,
+        else_cont: CpsContinuationId,
+    ) -> CpsLowerResult<bool> {
+        if spread.is_some() {
+            return Err(CpsLowerError::UnsupportedPattern {
+                kind: "record spread",
+            });
+        }
+        let mut tests = Vec::new();
+        for field in fields {
+            let field_value = self.fresh_value();
+            self.current.stmts.push(CpsStmt::Select {
+                dest: field_value,
+                base: value,
+                field: field.name.clone(),
+            });
+            tests.push((field_value, &field.pattern));
+        }
+        self.lower_extracted_pattern_tests(tests, 0, then_cont, else_cont)
+    }
+
+    fn lower_extracted_pattern_tests(
+        &mut self,
+        tests: Vec<(CpsValueId, &runtime::Pattern)>,
+        index: usize,
+        then_cont: CpsContinuationId,
+        else_cont: CpsContinuationId,
+    ) -> CpsLowerResult<bool> {
+        let Some((value, pattern)) = tests.get(index).copied() else {
+            self.terminate(CpsTerminator::Continue {
+                target: then_cont,
+                args: Vec::new(),
+            });
+            return Ok(true);
+        };
+        let next_cont = self.fresh_continuation();
+        self.lower_pattern_test(value, pattern, next_cont, else_cont)?;
+        self.finish_current();
+        self.current = ContinuationBuilder::new(next_cont, Vec::new());
+        self.lower_extracted_pattern_tests(tests, index + 1, then_cont, else_cont)
     }
 
     fn lower_handle(
@@ -4027,11 +4200,14 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 Ok(())
             }
-            runtime::Pattern::List { .. } => {
-                Err(CpsLowerError::UnsupportedPattern { kind: "list" })
-            }
-            runtime::Pattern::Record { .. } => {
-                Err(CpsLowerError::UnsupportedPattern { kind: "record" })
+            runtime::Pattern::List {
+                prefix,
+                spread,
+                suffix,
+                ..
+            } => self.bind_list_pattern(prefix, spread.as_deref(), suffix, value),
+            runtime::Pattern::Record { fields, spread, .. } => {
+                self.bind_record_pattern(fields, spread.as_ref(), value)
             }
             runtime::Pattern::Variant {
                 value: Some(payload),
@@ -4053,6 +4229,93 @@ impl<'a> FunctionLowerer<'a> {
                 Ok(())
             }
         }
+    }
+
+    fn bind_list_pattern(
+        &mut self,
+        prefix: &[runtime::Pattern],
+        spread: Option<&runtime::Pattern>,
+        suffix: &[runtime::Pattern],
+        value: CpsValueId,
+    ) -> CpsLowerResult<()> {
+        let len = if spread.is_some() || !suffix.is_empty() {
+            Some(self.emit_primitive(typed_ir::PrimitiveOp::ListLen, vec![value]))
+        } else {
+            None
+        };
+        for (index, item) in prefix.iter().enumerate() {
+            let index = self.emit_int_literal(index as i64);
+            let item_value =
+                self.emit_primitive(typed_ir::PrimitiveOp::ListIndex, vec![value, index]);
+            self.bind_pattern(item, item_value)?;
+        }
+        if let Some(spread) = spread {
+            let start = self.emit_int_literal(prefix.len() as i64);
+            let suffix_len = self.emit_int_literal(suffix.len() as i64);
+            let end = self.emit_primitive(
+                typed_ir::PrimitiveOp::IntSub,
+                vec![len.expect("list spread requires len"), suffix_len],
+            );
+            let slice = self.emit_primitive(
+                typed_ir::PrimitiveOp::ListIndexRangeRaw,
+                vec![value, start, end],
+            );
+            self.bind_pattern(spread, slice)?;
+        }
+        for (offset, item) in suffix.iter().enumerate() {
+            let suffix_len = self.emit_int_literal(suffix.len() as i64);
+            let suffix_start = self.emit_primitive(
+                typed_ir::PrimitiveOp::IntSub,
+                vec![len.expect("list suffix requires len"), suffix_len],
+            );
+            let offset = self.emit_int_literal(offset as i64);
+            let index =
+                self.emit_primitive(typed_ir::PrimitiveOp::IntAdd, vec![suffix_start, offset]);
+            let item_value =
+                self.emit_primitive(typed_ir::PrimitiveOp::ListIndex, vec![value, index]);
+            self.bind_pattern(item, item_value)?;
+        }
+        Ok(())
+    }
+
+    fn bind_record_pattern(
+        &mut self,
+        fields: &[runtime::RecordPatternField],
+        spread: Option<&runtime::RecordSpreadPattern>,
+        value: CpsValueId,
+    ) -> CpsLowerResult<()> {
+        if spread.is_some() {
+            return Err(CpsLowerError::UnsupportedPattern {
+                kind: "record spread",
+            });
+        }
+        for field in fields {
+            let field_value = self.fresh_value();
+            self.current.stmts.push(CpsStmt::Select {
+                dest: field_value,
+                base: value,
+                field: field.name.clone(),
+            });
+            self.bind_pattern(&field.pattern, field_value)?;
+        }
+        Ok(())
+    }
+
+    fn emit_int_literal(&mut self, value: i64) -> CpsValueId {
+        let dest = self.fresh_value();
+        self.current.stmts.push(CpsStmt::Literal {
+            dest,
+            literal: CpsLiteral::Int(value.to_string()),
+        });
+        dest
+    }
+
+    fn emit_primitive(&mut self, op: typed_ir::PrimitiveOp, args: Vec<CpsValueId>) -> CpsValueId {
+        let dest = self.fresh_value();
+        self.current
+            .stmts
+            .push(CpsStmt::Primitive { dest, op, args });
+        dest
     }
 
     fn fresh_value(&mut self) -> CpsValueId {

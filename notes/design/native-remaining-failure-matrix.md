@@ -21,13 +21,15 @@
 | N4 | General heap value lane | CPS repr can print tuple/list/record/variant/string prototype heap values. | Runtime still uses boxed `VmValue`-like handles in several paths; compact native layout is not complete. | Treat compact layout as post-mainline optimization; keep current handles documented as prototype heap value lane. | No user-visible native feature is blocked by the prototype lane; docs clearly mark layout as internal/prototype. |
 | N5 | Fallback / playground surface | CLI default selection is documented; value backend falls back to CPS repr for explicit unsupported cases. The web playground is marked as VM-interpreter-only. | If a future playground native mode is added, it must reuse CLI selection policy rather than inventing a separate fallback rule. | Keep native execution on CLI until a wasm/native execution story exists. | Playground native mode uses the same selection policy as `yulang native` or documents that it is VM-only. |
 | N6 | Package / artifact workflow | Native artifacts default to `target/yulang`; object/exe modes exist. | Compiled-unit cache, realm lock, and install/build workflow are still planned. | Keep outside semantic-completion milestone; track under package/cache work. | Native semantic milestone can ship without cache/install; release docs mark cache as future work. |
+| N7 | Top-level destructuring bindings | Direct `case` structural patterns now run through CPS repr for tuple/list/list-spread/record/variant payload cases. | Top-level `my [x, y] = ...` lowers to per-name `case` bindings whose arm-local names shadow the same top-level names; VM handles this, but native value/CPS repr currently recurse or crash. | Fix native global binding lookup or the runtime IR binding shape so arm-local destructuring names cannot resolve back to the top-level binding being defined. | `notes/bugs/native_top_level_destructure_binding_recurses.yu` returns `42` on VM, value native, and CPS repr native. |
 
 ## Immediate Order
 
 1. Treat N1/N2 as covered for this semantic pass unless a new source-shaped
    runtime IR form appears.
 2. Keep N3/N5 on structured backend selection and CLI fallback behavior.
-3. Leave N4/N6 as documented prototype / packaging work unless they block release.
+3. Fix N7 before claiming source-level structural binding parity.
+4. Leave N4/N6 as documented prototype / packaging work unless they block release.
 
 ## What Counts As Native Complete For This Pass
 

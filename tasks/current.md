@@ -226,6 +226,15 @@ CPS repr Cranelift の source 回帰を広げる。
 - lazy operator の結果を record field / variant payload position に置く source
   regression も forced CPS repr executable path に追加した。N1 の structural
   coverage は tuple / list / record / variant までそろった。
+- CPS repr lowering に source-shaped `case` の tuple / list / list-spread /
+  record / variant payload pattern test を追加した。arm-local bind も同じ
+  構造パターンから直接落とすので、value backend だけに偏っていた structural
+  pattern subset を CPS repr mainline 側にも寄せた。
+- top-level destructuring `my` は runtime IR が各名前ごとの `case` binding に
+  分解され、native 側だけ再帰/クラッシュすることを
+  `notes/bugs/native_top_level_destructure_binding_recurses.yu` に切り出した。
+  direct `case` pattern は通るため、これは frontend/runtime IR の binding
+  shadowing 形状と native global lookup の接続バグとして追う。
 - native CLI の現状は `docs/native-backend.md` の Public CLI に集約済み。
   `yulang native` は value backend を優先し、effect / handler /
   thunk-boundary control が見えた root は CPS repr backend を選ぶ。
