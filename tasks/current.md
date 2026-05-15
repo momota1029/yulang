@@ -186,6 +186,10 @@ CPS repr Cranelift の source 回帰を広げる。
   non-local `sub`/`return` escape と同じ abort 規則に寄せすぎると
   handler-arm value の `0` が root になる。これは
   `notes/bugs/native_open_range_for_last_returns_payload.yu` と N9 に分離した。
+- `examples/10_effect_handler.yu` は forced CPS repr executable path で
+  raw pointer 風の整数を返す。直接 tuple/string heap value は表示できるので、
+  recursive handler/resumption return path の heap lane が崩れている可能性が高い。
+  `notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu` と N10 に分離した。
 - closure value を record に保存し、field select で取り出してから呼ぶ source
   regression を forced CPS repr executable path に追加した。CPS repr の
   `RuntimeValuePtr` record と `ClosurePtr` call 境界が同じ observable path に

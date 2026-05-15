@@ -1,0 +1,30 @@
+// Native CPS repr currently returns a raw pointer-looking scalar for this
+// handler-produced tuple result.
+//
+// VM:
+//   yulang run notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu
+//   => [0] (9, "3\n6\n")
+//
+// Native CPS repr, as of 2026-05-15:
+//   yulang native --kind run-cps-repr-exe notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu
+//   => <raw pointer-looking integer>
+//
+// A direct tuple `(9, "3\n6\n")` is printable on the same backend, so the
+// gap is likely in the handler/resumption return path for heap values rather
+// than the tuple/string heap constructors themselves.
+
+pub act out:
+    pub say: str -> ()
+
+our add_and_say() =
+    my a = 1 + 2
+    out::say a.show
+    my b = a + 3
+    out::say b.show
+    a + b
+
+our listen(x: [_] _, log: str): (_, str) = catch x:
+    out::say o, k -> listen(k (), log + o + "\n")
+    v -> (v, log)
+
+listen add_and_say() ""

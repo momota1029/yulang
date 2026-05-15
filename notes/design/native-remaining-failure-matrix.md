@@ -24,6 +24,7 @@
 | N7 | Top-level destructuring bindings | Direct `case` structural patterns run through CPS repr for tuple/list/list-spread/record/record-spread/record-default/guarded/variant payload cases. Top-level list and record-spread destructuring now return `42` on the default native CLI by routing to CPS repr with `structural pattern binding`. | Forced value-backend execution still crashes on the nullary binding shape. | Either fix value-backend nullary structural binding lowering or keep it outside the default route until value backend parity work. | `notes/bugs/native_top_level_destructure_binding_recurses.yu` returns `42` on VM, default native, and forced CPS repr; forced value backend is tracked as the remaining value-lane gap. |
 | N8 | Handler escape through fold / for | Outer `sub` catches a callback `return` thrown inside `for`; CPS repr Cranelift now short-circuits the skipped force/apply chain instead of letting it overwrite the caught result. | Fixed for finite-list `for` return and `examples/04_sub_return.yu`; covered by `runs_for_loop_return_escape_through_cps_repr`. | Keep this as a regression when changing handler-arm return routing. | `notes/bugs/native_for_loop_escape_keeps_running.yu` and `examples/04_sub_return.yu` match VM on forced CPS repr. |
 | N9 | Open-range `for` `last` result | `examples/03_for_last.yu` still times out under forced CPS repr, while VM returns `[0] 5`. | The local `last` handler needs to stop the loop body without becoming a non-local `sub`/`return` escape. Too much abort returns the handler-arm value `0`; too little abort keeps the open range stepping. | Distinguish handler arms that should complete the enclosing loop expression from arms that have already reached an installed non-local escape. | `notes/bugs/native_open_range_for_last_returns_payload.yu` and `examples/03_for_last.yu` match VM on forced CPS repr. |
+| N10 | Heap values returned from handler/resumption chains | Direct tuple/string heap values print on forced CPS repr, but `examples/10_effect_handler.yu` returns a raw pointer-looking integer. | The tuple `(9, "3\n6\n")` is produced through recursive handler/resumption flow, so some return lane likely treats a heap pointer as scalar or loses heap registration across the handler finish path. | Trace the handler result lane from `listen(k (), ...)` through `perform_finish` / return-frame continuation and make the heap pointer lane explicit. | `notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu` and `examples/10_effect_handler.yu` match VM on forced CPS repr. |
 
 ## Immediate Order
 
@@ -32,7 +33,8 @@
 2. Keep N3/N5 on structured backend selection and CLI fallback behavior.
 3. Keep N7's forced value-lane crash out of the default route; fix it before claiming value-backend structural binding parity.
 4. Fix N9 before claiming open-range `last` control parity.
-5. Leave N4/N6 as documented prototype / packaging work unless they block release.
+5. Fix N10 before claiming non-scalar handler result parity.
+6. Leave N4/N6 as documented prototype / packaging work unless they block release.
 
 ## What Counts As Native Complete For This Pass
 
