@@ -1,0 +1,59 @@
+-- bug: `for` body の中で `case` 分岐し、その arm の右辺で role method
+--      （ここでは `s.len`）を呼ぶと、role method の operation が unhandled
+--      として外まで漏れる
+--
+-- 期待:
+--   list of `(int, opt str)` を for で回し、`just s` のときだけ `s.len` を
+--   集計に足す、というのは普通に書ける形:
+--
+--     my pairs = [(1, just "a"), (2, nil)]
+--     my $sum = 0
+--     for p in pairs:
+--         case p:
+--             (n, just s) -> &sum = $sum + n + s.len
+--             (n, nil) -> &sum = $sum + n
+--     $sum
+--
+--   `s.len` は str の `Len` impl 経由で int を返すはず。
+--
+-- 実際:
+--   [0] request std::prelude::Len::len "a" blocked=Some(0)
+--
+--   `s.len` の dispatch が role method として解決されず、`Len::len`
+--   operation の request が外まで漏れる。`blocked=Some(0)` は for body の
+--   evaluator stack 内で止まったことを示す様子。
+--
+-- 切り分け:
+--
+--   for を外して同じ case を直接書くと通る:
+--     my p = (1, just "ab")
+--     case p:
+--         (n, just s) -> n + s.len
+--         (n, nil) -> n
+--   → 3  ✓
+--
+--   for body 内 + case + role method の 3 つが揃ったときだけ漏れる。
+--
+--   `wrap_inside_for_body_leaks_fail.yu` (resolved) と兄弟で、`for` body 内
+--   に handler / role-dispatch effect が積まれた時の row 解決に問題が残っ
+--   ている疑い。今度は role method 経路。
+--
+-- 影響:
+--   - 「list を for で回しながら、各要素の中身に応じて role method (`.len`,
+--     `.show` 等) を呼ぶ」基本的な集計パターンが書けない。
+--   - 役割は型 inference で決定済みのはずだが、runtime で operation が
+--     外に漏れる形で失敗するので、ユーザは「型は通ったのに runtime で死ぬ」
+--     と感じる。
+--
+-- メモ:
+--   `for` body lower で role-dispatch effect が `for_in` handler row へ
+--   注入されないように見える。`s.len` の dispatch row が、case arm body の
+--   thunk 化で外側へ追い出される経路があるかも。
+
+my pairs = [(1, just "a"), (2, nil)]
+my $sum = 0
+for p in pairs:
+    case p:
+        (n, just s) -> &sum = $sum + n + s.len
+        (n, nil) -> &sum = $sum + n
+$sum

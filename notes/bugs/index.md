@@ -2,9 +2,36 @@
 
 「素直に書いたら動きそうなのに、実装上詰まった」snippet の履歴。
 
-## 現在の未解決
+## 現在の未解決（2026-05-15 round-5）
 
-現時点なし。
+### Effect / handler 系
+
+- [`role_method_in_for_body_pattern.yu`](role_method_in_for_body_pattern.yu)
+  — `for p in pairs:` の body 内で `case p: (n, just s) -> ... s.len ...` の
+  ように nested pattern + role method (`.len`) を呼ぶと、`Len::len` が
+  unhandled として外まで漏れる。同じ case を for の外で書くと通る。
+  `wrap_inside_for_body_leaks_fail`（resolved）と兄弟で、`for` body 内に
+  role-dispatch effect が積まれた時の row 解決に問題が残っている疑い。
+- [`handler_arm_tuple_payload_pattern.yu`](handler_arm_tuple_payload_pattern.yu)
+  — act operation の payload が tuple のとき、handler arm で `op (s, n), k
+  -> ...` のように個別 bind すると `cannot match a tuple pattern against ?`。
+  単一名 `op pair, k -> ...` は通るので、tuple pattern を payload position
+  で受ける lower 段が抜けている。
+- [`handler_fn_missing_join_evidence.yu`](handler_fn_missing_join_evidence.yu)
+  — `my f comp = catch comp: ...` を annotation なしで書くと
+  `missing join evidence for handle` で死ぬ。annotation 付きなら通る
+  （cookbook の `cb06_log_handler.yu` 形）。「handler を関数に切り出す」
+  最初の一歩が internal-meaning なエラーで止まる。
+
+### Error 系
+
+- [`wrap_does_not_traverse_from_chain.yu`](wrap_does_not_traverse_from_chain.yu)
+  — wrap 自体は narrower error を `from` 経由で同時捕捉できるようになった
+  が、`case res: err e -> e.show` の経路で `Display::show` operation が
+  unhandled として漏れる。`error_display_impl_missing` /
+  `error_display_from_chain_missing` の direct value `.show` は通るのに、
+  `wrap` 経由で result に閉じた後の `e.show` だけ通らない。`fs_err` simple /
+  `io_err` from-chain どちらでも同じ症状。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 

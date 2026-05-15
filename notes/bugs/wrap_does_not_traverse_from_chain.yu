@@ -1,4 +1,14 @@
--- bug: `E::wrap` が `from` で連結された narrower error を直接捕まえない
+-- bug: `E::wrap` の結果 `result _ E` の `err e -> e.show` で Display::show
+--      operation が unhandled として漏れる
+--
+-- 2026-05-14 update: wrap 自体（narrower error を `from` 経由で同時捕捉）は
+-- 修正された。一方で `case res: err e -> e.show` の経路はまだ動かず、
+-- `Display::show` request が外まで漏れる。`error_display_impl_missing` /
+-- `error_display_from_chain_missing` の direct value `.show` は通るのに、
+-- `wrap` 経由で result に閉じた後の `e.show` だけ通らない。`fs_err` simple /
+-- `io_err` from-chain どちらでも同じ症状。
+--
+-- 以下、元の wrap-narrower-bug 記述は履歴として残す。
 --
 -- 期待:
 --   `web/docs/ja/reference/errors.md` の `wrap` 節:
@@ -70,7 +80,9 @@ my read_or_throw path =
         "/ok" -> "data"
         _     -> fail fs_err::not_found path
 
-my res = io_err::wrap: read_or_throw "/missing"
+my res: result str io_err = io_err::wrap: read_or_throw "/missing"
 case res:
     ok text -> "ok: " + text
     err e -> "err: " + e.show
+-- → request std::prelude::Display::show fs not_found "/missing" blocked=None
+-- (e: io_err の direct .show は通る: see error_display_from_chain_missing.yu)

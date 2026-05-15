@@ -1,0 +1,64 @@
+-- bug: act operation の payload が tuple のとき、handler arm で tuple を
+--      個別の名前 (s, n) で分解する pattern が「cannot match a tuple
+--      pattern against ?」で落ちる
+--
+-- 期待:
+--   act operation を tuple 引数で宣言できる:
+--
+--     act ev:
+--         pub send: (str, int) -> ()
+--
+--   bare apply は `ev::send ("x", 42)` と書く。catch arm は payload に
+--   pattern を当てられるので:
+--
+--     catch action:
+--         ev::send (s, n), k -> ...   -- s: str, n: int
+--         v -> v
+--
+--   と書ける、と読める。
+--
+-- 実際:
+--   error: cannot match a tuple pattern against ?
+--
+--   tuple pattern `(s, n)` を handler arm の payload position に書いた瞬間、
+--   payload の型が `?` のままで tuple match に進めない。
+--
+-- 切り分け:
+--
+--   handler arm の payload を単一名で受ける:
+--     ev::send pair, k -> run (k ())
+--   → 通る ✓ (pair: (str, int))
+--
+--   handler arm の payload を tuple pattern で個別 bind する:
+--     ev::send (s, n), k -> run (k ())
+--   → 落ちる ✗
+--
+--   handler arm の outer comma 区切り (`, k`) と payload tuple `(s, n)` の
+--   parse / lower が同じ `,` を二重に使うので、構文か lower 段で衝突して
+--   いる疑い。実際 act の operation declaration は `(str, int) -> ()` の
+--   tuple 引数として通り、bare apply も `ev::send ("x", 42)` で通っている。
+--   handler arm 側だけ tuple pattern を payload として読めない。
+--
+-- 影響:
+--   - effect operation の payload を「複数の意味のある値」として宣言したい
+--     ときに、handler 側で個別 bind ができず、毎回 `pair, k -> case pair:
+--     (s, n) -> ...` の 2 段書きが必要。
+--   - cookbook / effects.md の handler 例は「op payload, k -> ...」の素直な
+--     bind を前提に書かれているので、tuple payload の operation では同じ
+--     パターンが書けない。
+--
+-- メモ:
+--   handler arm parser が `op pat, k ->` の `pat` を「単一識別子 / 単純
+--   pattern」前提で読み、`pat` の中の `,` で arm separator と取り違える
+--   可能性。`op (s, n), k ->` のように parens で明示的に囲っても落ちる
+--   なら、parse は通るが lower / type binding step で payload を tuple に
+--   分解する経路が無い、ということになる。
+
+act ev:
+    pub send: (str, int) -> ()
+
+my run(action: [ev] 'a): 'a = catch action:
+    ev::send (s, n), k -> run (k ())
+    v -> v
+
+run: ev::send ("x", 42)

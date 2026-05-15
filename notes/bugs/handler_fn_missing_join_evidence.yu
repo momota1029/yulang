@@ -1,0 +1,77 @@
+-- bug: `my f comp = catch comp: ...` のように関数本体内で `catch` を使う
+--      時、annotation なしだと「missing join evidence for handle」で死ぬ
+--
+-- 期待:
+--   handler を関数化したい場面はよくある（再利用、test 用差し替え）。
+--   simplest 形は:
+--
+--     my collect_logs comp =
+--         my $entries = []
+--         catch comp:
+--             log::put msg, k ->
+--                 &entries = $entries + [msg]
+--                 k ()
+--             v -> v
+--         $entries
+--
+--     collect_logs: log::put "a"
+--
+--   `comp` の型は `[log] 'a` 程度に推論され、戻り値は `list str` に固まる、
+--   と読める。
+--
+-- 実際:
+--   error: missing join evidence for handle
+--
+--   関数化 + annotation なしで上記を書くと、infer/runtime lower の境界で
+--   handle に対応する join evidence が立たない、として落ちる。
+--
+-- 切り分け:
+--
+--   関数を annotation 付きで書く:
+--     my collect_logs(comp: [log] 'a): ('a, list str) =
+--         ...
+--   → 通る ✓ (cookbook の `cb06_log_handler.yu` と同じ形)
+--
+--   bare に catch を書く（関数化しない）:
+--     my $entries = []
+--     catch (log::put "a"):
+--         log::put msg, k ->
+--             &entries = $entries + [msg]
+--             k ()
+--         v -> v
+--     $entries
+--   → これも `cannot infer all runtime types needed for #entries` で落ちる
+--     ことがある（空 list の type 不確定）。
+--
+-- 影響:
+--   - 「handler を関数として切り出す」基本パターンが annotation 必須に
+--     なる。`my f comp = catch comp: ...` を素直に書くと止まる。
+--   - cookbook / effects.md の handler 例は基本的に annotation 付きなので
+--     表面上は動くが、「自分の handler を書きたい」初学者は最初に詰まる。
+--   - エラー文 `missing join evidence for handle` は internal な言葉で、
+--     原因（annotation 不足）が読み手に伝わりにくい。
+--
+-- メモ:
+--   handle の join evidence は、handler arm の戻り値型と value arm の
+--   戻り値型を合わせる subtyping edge から立つはず。関数化された body の
+--   type variable が free のままだと evidence の解決元が無い。
+--   annotation で具体的な戻り型 / effect row を書くと、evidence の解決
+--   候補が立って通る。
+--   修正方向としては (a) 推論側で handle の evidence を free 変数のまま
+--   resolve する経路を許す / (b) diagnostic を「handler arm の戻り型 /
+--   関数の戻り型を annotate してください」と user-facing に直す。
+
+act log:
+    pub put: str -> ()
+
+my collect_logs comp =
+    my $entries = []
+    catch comp:
+        log::put msg, k ->
+            &entries = $entries + [msg]
+            k ()
+        v -> v
+    $entries
+
+collect_logs:
+    log::put "a"
