@@ -75,6 +75,7 @@ checklist, see *Detailed progress* below.
 | Small source-defined algebraic effects              | CPS repr               |   ✅   |
 | Multi-shot resumption (scalar)                      | CPS repr               |   ✅   |
 | Non-scalar values returned through recursive handler / resumption chains | CPS repr | ✅ |
+| `std::undet` `.once` over open-range guarded search | CPS repr | ✅ |
 | `std::undet` `.once` / `.list` / `.logic` over finite-list choices | CPS repr |   ✅   |
 | Mutable reference edit / update through effects     | CPS repr (scalar)      |   ✅   |
 | Effectful thunks across function boundaries         | CPS repr (scalar)      |   △   |
