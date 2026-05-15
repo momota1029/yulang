@@ -572,6 +572,20 @@ my fs = [f]
     }
 
     #[test]
+    fn runs_captured_closure_from_tuple_pattern_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"my base = 40
+my f: int -> int = \x -> x + base
+my pair = (f, 2)
+case pair:
+    (call, x) -> call x
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_string_captured_closure_from_indexed_list_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"my s = "x"

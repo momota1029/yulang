@@ -105,6 +105,22 @@ Cranelift backend を作る。
   露出した returner / forwarding continuation も後続 round で消せる。
 - small pure direct callee inline は scalar primitive だけでなく、tuple / record /
   variant / select 系の structural value helper も展開できる。
+- pure direct callee が引数をそのまま返す identity wrapper の場合でも、
+  現時点では call を消さない。試験的に alias 化したところ finite `for` /
+  `last` の native JIT が `5` ではなく `0` を返したため、scope-return
+  boundary evidence なしの copy propagation は禁止する方針を
+  `notes/design/native-direct-style-islands.md` に明記した。
+- captured closure を tuple に入れ、tuple pattern で取り出して呼ぶ source
+  regression を effects executable path に追加した。
+- `ScopeReturn` routing の prompt-only 化は却下した。finite list `for` /
+  `last` だけを見ると直ったように見えるが、nondet list / logic で外側
+  handler を過捕捉して結果が一段余分に包まれる。current stack は
+  `(prompt, current eval)`、return-frame walk は `(prompt, owner eval)` の
+  ままにする。
+- finite list `for` / `last` が native JIT で `0` に落ちる件は未解決。
+  `ScopeReturn` slot が root まで伝播して fallback value として残るので、
+  handler stack の探索条件ではなく、selected handler meta / loop-control
+  escape の対応を追う必要がある。
 
 近い形:
 

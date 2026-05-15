@@ -42,6 +42,7 @@ pub struct CpsOptimizationProfile {
     pub reified_partial_closure_calls: usize,
     pub reified_known_closure_parameter_calls: usize,
     pub removed_unused_continuation_params: usize,
+    pub folded_structural_projections: usize,
     pub inlined_pure_direct_calls: usize,
     pub inlined_continuation_calls: usize,
     pub removed_unreachable_continuations: usize,
@@ -78,6 +79,7 @@ fn run_simplification_round(output: &mut CpsOptimizationOutput) -> bool {
     reify_local_partial_closure_calls(output);
     reify_known_closure_parameter_calls(output);
     remove_unused_continuation_params(output);
+    fold_structural_projections(output);
     inline_pure_direct_calls(output);
     inline_single_use_continuation_calls(output);
     reify_local_partial_closure_calls(output);
@@ -250,6 +252,22 @@ fn remove_unused_continuation_params(output: &mut CpsOptimizationOutput) {
     output.profile.changed |= output.profile.removed_unused_continuation_params > 0;
 }
 
+fn fold_structural_projections(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        for continuation in &mut function.continuations {
+            output.profile.folded_structural_projections +=
+                fold_structural_projections_in_continuation(continuation);
+        }
+    }
+    output.profile.changed |= output.profile.folded_structural_projections > 0;
+}
+
 fn inline_pure_direct_calls(output: &mut CpsOptimizationOutput) {
     output.profile.passes_run += 1;
     let candidates = pure_direct_inline_candidates(&output.module);
@@ -412,7 +430,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         return;
     }
     eprintln!(
-        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
+        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} folded_structural_projections={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
         profile.functions,
         profile.roots,
         profile.continuations,
@@ -429,6 +447,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.reified_partial_closure_calls,
         profile.reified_known_closure_parameter_calls,
         profile.removed_unused_continuation_params,
+        profile.folded_structural_projections,
         profile.inlined_pure_direct_calls,
         profile.inlined_continuation_calls,
         profile.removed_unreachable_continuations,
@@ -1250,6 +1269,94 @@ fn continuation_value_ids(
         .map(|value| value.value)
         .chain(continuation.environment.iter().map(|slot| slot.value))
         .chain(continuation.stmts.iter().filter_map(stmt_dest))
+}
+
+fn fold_structural_projections_in_continuation(continuation: &mut CpsReprAbiContinuation) -> usize {
+    let mut aliases = HashMap::<CpsValueId, CpsValueId>::new();
+    let mut tuples = HashMap::<CpsValueId, Vec<CpsValueId>>::new();
+    let mut scalar_values = HashSet::<CpsValueId>::new();
+    let mut stmts = Vec::with_capacity(continuation.stmts.len());
+    let mut count = 0;
+
+    for stmt in continuation.stmts.drain(..) {
+        let stmt = substitute_stmt_values(stmt, &aliases);
+        match stmt {
+            CpsStmt::Tuple { dest, items } => {
+                tuples.insert(dest, items.clone());
+                stmts.push(CpsStmt::Tuple { dest, items });
+            }
+            CpsStmt::TupleGet { dest, tuple, index } => {
+                if let Some(items) = tuples.get(&tuple) {
+                    if let Some(value) = items.get(index).copied() {
+                        let value = resolve_alias(value, &aliases);
+                        if scalar_values.contains(&value) {
+                            aliases.insert(dest, value);
+                            scalar_values.insert(dest);
+                            count += 1;
+                            continue;
+                        }
+                    }
+                }
+                tuples.remove(&dest);
+                stmts.push(CpsStmt::TupleGet { dest, tuple, index });
+            }
+            stmt => {
+                if let Some(dest) = stmt_dest(&stmt) {
+                    tuples.remove(&dest);
+                    if stmt_produces_scalar_value(&stmt) {
+                        scalar_values.insert(dest);
+                    }
+                }
+                stmts.push(stmt);
+            }
+        }
+    }
+
+    continuation.terminator =
+        substitute_terminator_values(continuation.terminator.clone(), &aliases);
+    continuation.stmts = stmts;
+    count
+}
+
+fn stmt_produces_scalar_value(stmt: &CpsStmt) -> bool {
+    matches!(
+        stmt,
+        CpsStmt::Literal { .. }
+            | CpsStmt::RecordHasField { .. }
+            | CpsStmt::VariantTagEq { .. }
+            | CpsStmt::Primitive {
+                op: typed_ir::PrimitiveOp::BoolNot
+                    | typed_ir::PrimitiveOp::BoolEq
+                    | typed_ir::PrimitiveOp::IntAdd
+                    | typed_ir::PrimitiveOp::IntSub
+                    | typed_ir::PrimitiveOp::IntMul
+                    | typed_ir::PrimitiveOp::IntEq
+                    | typed_ir::PrimitiveOp::IntLt
+                    | typed_ir::PrimitiveOp::IntLe
+                    | typed_ir::PrimitiveOp::IntGt
+                    | typed_ir::PrimitiveOp::IntGe
+                    | typed_ir::PrimitiveOp::FloatAdd
+                    | typed_ir::PrimitiveOp::FloatSub
+                    | typed_ir::PrimitiveOp::FloatMul
+                    | typed_ir::PrimitiveOp::FloatEq
+                    | typed_ir::PrimitiveOp::FloatLt
+                    | typed_ir::PrimitiveOp::FloatLe
+                    | typed_ir::PrimitiveOp::FloatGt
+                    | typed_ir::PrimitiveOp::FloatGe,
+                ..
+            }
+    )
+}
+
+fn resolve_alias(mut value: CpsValueId, aliases: &HashMap<CpsValueId, CpsValueId>) -> CpsValueId {
+    let mut seen = HashSet::new();
+    while let Some(next) = aliases.get(&value).copied() {
+        if !seen.insert(value) {
+            break;
+        }
+        value = next;
+    }
+    value
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2307,6 +2414,7 @@ impl CpsOptimizationProfile {
             || self.reified_known_closure_parameter_calls
                 > before.reified_known_closure_parameter_calls
             || self.removed_unused_continuation_params > before.removed_unused_continuation_params
+            || self.folded_structural_projections > before.folded_structural_projections
             || self.inlined_pure_direct_calls > before.inlined_pure_direct_calls
             || self.inlined_continuation_calls > before.inlined_continuation_calls
             || self.removed_unreachable_continuations > before.removed_unreachable_continuations
@@ -2353,6 +2461,7 @@ impl CpsOptimizationProfile {
             reified_partial_closure_calls: 0,
             reified_known_closure_parameter_calls: 0,
             removed_unused_continuation_params: 0,
+            folded_structural_projections: 0,
             inlined_pure_direct_calls: 0,
             inlined_continuation_calls: 0,
             removed_unreachable_continuations: 0,
@@ -2386,7 +2495,7 @@ mod tests {
         assert_eq!(optimized.profile.optimized_continuations, 1);
         assert_eq!(optimized.profile.statements, 1);
         assert_eq!(optimized.profile.optimized_statements, 1);
-        assert_eq!(optimized.profile.passes_run, 16);
+        assert_eq!(optimized.profile.passes_run, 17);
         assert_eq!(optimized.profile.forwarded_continuation_calls, 0);
         assert_eq!(optimized.profile.returned_continuation_calls, 0);
         assert_eq!(optimized.profile.folded_constant_branches, 0);
@@ -2395,6 +2504,7 @@ mod tests {
         assert_eq!(optimized.profile.reified_partial_closure_calls, 0);
         assert_eq!(optimized.profile.reified_known_closure_parameter_calls, 0);
         assert_eq!(optimized.profile.removed_unused_continuation_params, 0);
+        assert_eq!(optimized.profile.folded_structural_projections, 0);
         assert_eq!(optimized.profile.inlined_pure_direct_calls, 0);
         assert_eq!(optimized.profile.inlined_continuation_calls, 0);
         assert_eq!(optimized.profile.removed_unreachable_continuations, 0);
@@ -3463,7 +3573,61 @@ mod tests {
                 literal: CpsLiteral::Int("1".to_string()),
             }]
         );
-        assert_eq!(optimized.profile.removed_dead_pure_statements, 4);
+        assert_eq!(optimized.profile.folded_structural_projections, 1);
+        assert_eq!(optimized.profile.removed_dead_pure_statements, 3);
+    }
+
+    #[test]
+    fn folds_tuple_get_from_local_tuple() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![crate::cps_ir::CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: Vec::new(),
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![
+                        CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("1".to_string()),
+                        },
+                        CpsStmt::Literal {
+                            dest: CpsValueId(1),
+                            literal: CpsLiteral::Int("2".to_string()),
+                        },
+                        CpsStmt::Tuple {
+                            dest: CpsValueId(2),
+                            items: vec![CpsValueId(0), CpsValueId(1)],
+                        },
+                        CpsStmt::TupleGet {
+                            dest: CpsValueId(3),
+                            tuple: CpsValueId(2),
+                            index: 1,
+                        },
+                    ],
+                    terminator: CpsTerminator::Return(CpsValueId(3)),
+                }],
+            }],
+        }));
+
+        let optimized = optimize_cps_repr_abi_module(&abi);
+        let entry = &optimized.module.roots[0].continuations[0];
+
+        assert_eq!(
+            entry.stmts,
+            vec![CpsStmt::Literal {
+                dest: CpsValueId(1),
+                literal: CpsLiteral::Int("2".to_string()),
+            }]
+        );
+        assert_eq!(entry.terminator, CpsTerminator::Return(CpsValueId(1)));
+        assert_eq!(optimized.profile.folded_structural_projections, 1);
+        assert_eq!(optimized.profile.removed_dead_pure_statements, 2);
     }
 
     #[test]

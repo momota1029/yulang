@@ -181,7 +181,7 @@ checklist, see *Detailed progress* below.
 | Literal / list / record / variant / tuple pattern matching, including guards, defaults, and list / record spread patterns | pure-subset backend / effects | △ |
 | Lambdas / first-class function values (pure)        | effects (prototype)   |   △   |
 | Closures with captured state                        | effects (prototype)   |   △   |
-| Closure values selected from records and then called | effects (prototype)  |   △   |
+| Closure values selected from records, tuples, and lists and then called | effects (prototype) | △ |
 
 #### Effects
 
@@ -329,6 +329,8 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] First-class lambdas, captured closures, partial applications, and closures
       selected from records/lists can be created and called through the effects
       executable path.
+- [x] Captured closures stored in tuple values can be recovered through tuple
+      patterns and called through the effects executable path.
 - [x] Callback values can be stored in lists, recovered with `std::list::index_raw`,
       and called without losing local handler hygiene on the forced effects path.
 - [x] Type-converted thunk values can be stored in lists, indexed back out,

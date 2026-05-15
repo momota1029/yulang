@@ -111,6 +111,31 @@ A continuation is a candidate when:
 The analysis should be structural. It must not depend on std module paths,
 function names, or fixture names.
 
+## Calls That Look Like Identity
+
+Do not erase a `DirectCall` merely because the callee currently lowers to
+`return param`.
+
+That transformation looks like ordinary copy propagation, but it is not
+generally semantics-preserving in Yulang. A direct call can still establish the
+function/control boundary used by prompt-targeted `return`, `last`, and related
+scope-return routing. A quick experiment on 2026-05-15 removed identity-shaped
+direct calls in the CPS optimizer and immediately broke the finite `for` /
+`last` source regression: the interpreter returned `5`, while native returned
+`0`.
+
+The safe version needs boundary evidence:
+
+- the callee must be proven not to introduce a scope-return target;
+- the call site must not be inside a region where `return` / loop-control
+  routing depends on that target;
+- the result value can then be propagated as an SSA alias inside the same
+  direct-style island.
+
+Until that evidence exists, keep identity-shaped calls as calls. Inline only
+callees whose returned value is produced by a local pure statement under the
+existing conservative inliner.
+
 ## Island shape
 
 An island is a connected continuation subgraph:
