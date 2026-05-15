@@ -113,6 +113,7 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
                         let neg_sig = state.infer.arena.get_neg(op_use.neg_sig);
                         let (
                             Pos::Fun {
+                                arg: op_arg_neg,
                                 ret_eff: op_ret_eff_pos,
                                 ret: op_ret_pos,
                                 ..
@@ -128,6 +129,7 @@ pub(super) fn lower_catch(state: &mut LowerState, node: &SyntaxNode) -> TypedExp
                             unreachable!("effect operation signatures must be functions");
                         };
                         state.infer.constrain(op_arg_pos, Neg::Var(pat.tv));
+                        state.infer.constrain(Pos::Var(pat.tv), op_arg_neg);
                         state.infer.constrain(op_ret_eff_pos, Neg::Var(op_call_eff));
                         state.infer.constrain(Pos::Var(op_call_eff), op_ret_eff_neg);
                         state.infer.constrain(op_ret_pos, Neg::Var(resume_tv));

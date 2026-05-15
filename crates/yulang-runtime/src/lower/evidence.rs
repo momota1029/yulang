@@ -8,12 +8,51 @@ pub(super) fn infer_handle_payload_type(
     body: &typed_ir::Expr,
     result_ty: &typed_ir::Type,
 ) -> Option<typed_ir::Type> {
-    let name = single_bound_name(pattern)?;
-    guard
-        .and_then(|guard| {
-            infer_local_expected_type(primitive_paths, &name, guard, &primitive_paths.bool_type())
-        })
-        .or_else(|| infer_local_expected_type(primitive_paths, &name, body, result_ty))
+    infer_handle_payload_pattern_type(primitive_paths, pattern, guard, body, result_ty)
+}
+
+fn infer_handle_payload_pattern_type(
+    primitive_paths: &RuntimePrimitivePathTable,
+    pattern: &typed_ir::Pattern,
+    guard: Option<&typed_ir::Expr>,
+    body: &typed_ir::Expr,
+    result_ty: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    match pattern {
+        typed_ir::Pattern::Bind(name) => guard
+            .and_then(|guard| {
+                infer_local_expected_type(
+                    primitive_paths,
+                    name,
+                    guard,
+                    &primitive_paths.bool_type(),
+                )
+            })
+            .or_else(|| infer_local_expected_type(primitive_paths, name, body, result_ty)),
+        typed_ir::Pattern::As { pattern, name } => guard
+            .and_then(|guard| {
+                infer_local_expected_type(
+                    primitive_paths,
+                    name,
+                    guard,
+                    &primitive_paths.bool_type(),
+                )
+            })
+            .or_else(|| infer_local_expected_type(primitive_paths, name, body, result_ty))
+            .or_else(|| {
+                infer_handle_payload_pattern_type(primitive_paths, pattern, guard, body, result_ty)
+            }),
+        typed_ir::Pattern::Tuple(items) => Some(typed_ir::Type::Tuple(
+            items
+                .iter()
+                .map(|item| {
+                    infer_handle_payload_pattern_type(primitive_paths, item, guard, body, result_ty)
+                        .unwrap_or(typed_ir::Type::Any)
+                })
+                .collect(),
+        )),
+        _ => None,
+    }
 }
 
 pub(super) fn single_bound_name(pattern: &typed_ir::Pattern) -> Option<typed_ir::Name> {

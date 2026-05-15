@@ -1504,6 +1504,20 @@ catch out::say "hi":
     }
 
     #[test]
+    fn vm_runs_source_handler_tuple_payload_pattern() {
+        let results = eval_source_with_std(
+            r#"act ev:
+    pub send: (str, int) -> ()
+
+catch ev::send ("x", 42):
+    ev::send (s, n), _ -> s + std::int::to_string n
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::String("x42".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_source_effect_handler_return_and_resume_example() {
         let results = eval_source_with_std(
             r#"pub act out:
