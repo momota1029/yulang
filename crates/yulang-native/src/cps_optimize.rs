@@ -27,6 +27,7 @@ pub struct CpsOptimizationProfile {
     pub statements: usize,
     pub passes_run: usize,
     pub forwarded_continuation_calls: usize,
+    pub returned_continuation_calls: usize,
     pub removed_unreachable_continuations: usize,
     pub changed: bool,
 }
@@ -38,6 +39,7 @@ pub fn optimize_cps_repr_abi_module(module: &CpsReprAbiModule) -> CpsOptimizatio
     };
 
     rewrite_forwarding_continuation_calls(&mut output);
+    rewrite_returning_continuation_calls(&mut output);
     prune_unreachable_continuations(&mut output);
     maybe_trace_profile(&output.profile);
     output
@@ -63,6 +65,26 @@ fn rewrite_forwarding_continuation_calls(output: &mut CpsOptimizationOutput) {
     output.profile.changed = output.profile.forwarded_continuation_calls > 0;
 }
 
+fn rewrite_returning_continuation_calls(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        let returners = returning_continuations(function);
+        if returners.is_empty() {
+            continue;
+        }
+        for continuation in &mut function.continuations {
+            output.profile.returned_continuation_calls +=
+                rewrite_terminator_returners(&mut continuation.terminator, &returners);
+        }
+    }
+    output.profile.changed |= output.profile.returned_continuation_calls > 0;
+}
+
 fn prune_unreachable_continuations(output: &mut CpsOptimizationOutput) {
     output.profile.passes_run += 1;
     for function in output
@@ -86,7 +108,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         return;
     }
     eprintln!(
-        "[CPS-OPT] functions={} roots={} continuations={} handlers={} statements={} passes={} forwarded_continuation_calls={} removed_unreachable_continuations={} changed={}",
+        "[CPS-OPT] functions={} roots={} continuations={} handlers={} statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} removed_unreachable_continuations={} changed={}",
         profile.functions,
         profile.roots,
         profile.continuations,
@@ -94,6 +116,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.statements,
         profile.passes_run,
         profile.forwarded_continuation_calls,
+        profile.returned_continuation_calls,
         profile.removed_unreachable_continuations,
         profile.changed
     );
@@ -243,6 +266,28 @@ fn forwarding_continuations(
     forwarders
 }
 
+fn returning_continuations(
+    function: &CpsReprAbiFunction,
+) -> HashMap<CpsContinuationId, ReturningContinuation> {
+    let mut returners = HashMap::new();
+    for continuation in &function.continuations {
+        if !continuation.stmts.is_empty() || !continuation.environment.is_empty() {
+            continue;
+        }
+        let CpsTerminator::Return(value) = continuation.terminator else {
+            continue;
+        };
+        if let Some(param_index) = continuation
+            .params
+            .iter()
+            .position(|param| param.value == value)
+        {
+            returners.insert(continuation.id, ReturningContinuation { param_index });
+        }
+    }
+    returners
+}
+
 fn rewrite_terminator_forwarders(
     terminator: &mut CpsTerminator,
     forwarders: &HashMap<CpsContinuationId, ForwardingContinuation>,
@@ -271,6 +316,23 @@ fn rewrite_terminator_forwarders(
         }
         CpsTerminator::Return(_) => 0,
     }
+}
+
+fn rewrite_terminator_returners(
+    terminator: &mut CpsTerminator,
+    returners: &HashMap<CpsContinuationId, ReturningContinuation>,
+) -> usize {
+    let CpsTerminator::Continue { target, args } = terminator else {
+        return 0;
+    };
+    let Some(returner) = returners.get(target) else {
+        return 0;
+    };
+    let Some(value) = args.get(returner.param_index).copied() else {
+        return 0;
+    };
+    *terminator = CpsTerminator::Return(value);
+    1
 }
 
 fn rewrite_continuation_call(
@@ -315,6 +377,11 @@ struct ForwardingContinuation {
     params: Vec<CpsValueId>,
     target: CpsContinuationId,
     args: Vec<CpsValueId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ReturningContinuation {
+    param_index: usize,
 }
 
 impl ForwardingContinuation {
@@ -366,6 +433,7 @@ impl CpsOptimizationProfile {
             statements,
             passes_run: 0,
             forwarded_continuation_calls: 0,
+            returned_continuation_calls: 0,
             removed_unreachable_continuations: 0,
             changed: false,
         }
@@ -392,8 +460,9 @@ mod tests {
         assert_eq!(optimized.profile.roots, 1);
         assert_eq!(optimized.profile.continuations, 1);
         assert_eq!(optimized.profile.statements, 1);
-        assert_eq!(optimized.profile.passes_run, 2);
+        assert_eq!(optimized.profile.passes_run, 3);
         assert_eq!(optimized.profile.forwarded_continuation_calls, 0);
+        assert_eq!(optimized.profile.returned_continuation_calls, 0);
         assert_eq!(optimized.profile.removed_unreachable_continuations, 0);
         assert!(!optimized.profile.changed);
     }
@@ -448,14 +517,54 @@ mod tests {
         let optimized = optimize_cps_repr_abi_module(&abi);
         let entry = &optimized.module.roots[0].continuations[0];
 
-        assert_eq!(
-            entry.terminator,
-            CpsTerminator::Continue {
-                target: CpsContinuationId(2),
-                args: vec![CpsValueId(0)],
-            }
-        );
+        assert_eq!(entry.terminator, CpsTerminator::Return(CpsValueId(0)));
         assert_eq!(optimized.profile.forwarded_continuation_calls, 1);
+        assert_eq!(optimized.profile.returned_continuation_calls, 2);
+        assert_eq!(optimized.profile.removed_unreachable_continuations, 2);
+        assert!(optimized.profile.changed);
+    }
+
+    #[test]
+    fn rewrites_empty_returning_continuation_calls() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("42".to_string()),
+                        }],
+                        terminator: CpsTerminator::Continue {
+                            target: CpsContinuationId(1),
+                            args: vec![CpsValueId(0)],
+                        },
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(1)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(1)),
+                    },
+                ],
+            }],
+        }));
+
+        let optimized = optimize_cps_repr_abi_module(&abi);
+        let entry = &optimized.module.roots[0].continuations[0];
+
+        assert_eq!(entry.terminator, CpsTerminator::Return(CpsValueId(0)));
+        assert_eq!(optimized.profile.returned_continuation_calls, 1);
         assert_eq!(optimized.profile.removed_unreachable_continuations, 1);
         assert!(optimized.profile.changed);
     }
