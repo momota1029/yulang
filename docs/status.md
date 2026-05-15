@@ -65,8 +65,8 @@ The columns trace a value through the pipeline:
 | Feature                              | Parse | Infer | VM Run | Playground | Native | Docs |
 | ------------------------------------ | :---: | :---: | :----: | :--------: | :----: | :--: |
 | `sub:` / `return` early exit         |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
-| `for` / `last` / `next` / `redo`     |  ✅   |  ✅   |   ✅   |     ✅     |   ❌   |  ✅  |
-| Multi-block `if` / `else`            |  ✅   |  ✅   |   ✅   |     ✅     |   ❌   |  ✅  |
+| `for` / `last` / `next` / `redo`     |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
+| Multi-block `if` / `else`            |  ✅   |  ✅   |   ✅   |     ✅     |   ✅   |  ✅  |
 | References (`my $x`, `$x`, `&x =`)   |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 
 ### Effects
@@ -85,7 +85,7 @@ The columns trace a value through the pipeline:
 | Feature                              | Parse | Infer | VM Run | Playground | Native | Docs |
 | ------------------------------------ | :---: | :---: | :----: | :--------: | :----: | :--: |
 | `lib/std` prelude (numeric, list, str) | ✅  |  ✅   |   ✅   |     ✅     |   △    |  △   |
-| `console::*` host effects            |  ✅   |  ✅   |   ✅   |     △      |   ❌   |  △   |
+| `console::*` host effects            |  ✅   |  ✅   |   ✅   |     △      |   △    |  △   |
 | `std::fs` filesystem                 |  ✅   |  ✅   |   △    |     ❌     |   ❌   |  ⚠️  |
 | `error E:` sugar + `Throw` / `fail`  |  ✅   |  ✅   |   ✅   |     ✅     |   ❌   |  ✅  |
 | `E::wrap` / `from` aggregation / `E::up` | ✅ | △ |   △    |     △      |   ❌   |  ✅  |
