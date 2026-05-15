@@ -188,8 +188,9 @@ covers algebraic handlers, nondeterministic finite-list choices, `sub` /
 loop control for the documented regression set. CPS repr ABI modules now pass
 through a shared optimization entrypoint before both JIT and object codegen;
 the first pass rewrites explicit calls through empty forwarding continuations
-and empty return continuations, reifies direct calls to structural primitive
-wrappers, reifies local partial-application closure calls back to direct calls,
+and empty return continuations, folds literal boolean branches, reifies direct
+calls to structural primitive wrappers, reifies local partial-application
+closure calls back to direct calls,
 reifies known partial-application closures passed through continuation
 parameters when their captures can be rebased to target parameters,
 rewrites known closure `EffectfulApply` terminators back into effectful direct

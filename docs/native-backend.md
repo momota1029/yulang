@@ -66,15 +66,17 @@ The main optimization targets are:
 There is now an explicit CPS optimization stage between CPS repr ABI lowering
 and Cranelift codegen. The first real passes rewrite explicit calls to empty
 forwarding continuations, fold empty `Return(param)` continuations into the
-caller, reify direct calls to structural primitive wrappers back into primitive
-statements, reify local partial-application closure calls back into direct
-calls, reify known partial-application closures passed through continuation
+caller, fold literal boolean branches, reify direct calls to structural
+primitive wrappers back into primitive statements, reify local
+partial-application closure calls back into direct calls, reify known
+partial-application closures passed through continuation
 parameters when their captures can be rebased to target parameters, rewrite
 known closure `EffectfulApply` terminators back into effectful direct calls or
 pure primitive resumes, remove unused continuation parameters and their
 matching continuation-call arguments, inline small pure direct callees
-including structural value helpers, inline small single-use one-shot continuations, rewrite effectful-call
-terminators to pure callees back into direct calls plus local continuation
+including structural value helpers, inline small single-use one-shot
+continuations, rewrite effectful-call terminators to pure callees back into
+direct calls plus local continuation
 jumps, remove dead pure value statements including total primitive statements
 and structural projections, and prune continuations that are no longer
 reachable from function entries, handler arms, thunks, closures, or terminator
@@ -243,8 +245,9 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] CPS repr ABI modules pass through a shared optimization entrypoint before
       both JIT and object Cranelift codegen. It currently rewrites explicit
       calls to empty forwarding continuations, folds empty return continuations,
-      reifies direct calls to structural primitive wrappers, reifies local
-      partial-application closure calls back into direct calls, reifies known
+      folds literal boolean branches, reifies direct calls to structural
+      primitive wrappers, reifies local partial-application closure calls back
+      into direct calls, reifies known
       partial-application closures passed through continuation parameters when
       their captures can be rebased to target parameters, rewrites known
       closure `EffectfulApply` terminators back into effectful direct calls or

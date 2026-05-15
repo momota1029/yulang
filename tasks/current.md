@@ -67,7 +67,8 @@ Cranelift backend を作る。
 - CPS repr ABI lowering と Cranelift JIT/object codegen の間に
   `cps_optimize` entrypoint を挟んだ。現時点では explicit call site から空の
   forwarding continuation と `Return(param)` continuation を潰し、構造上 primitive
-  wrapper と分かる direct call を `Primitive` stmt に戻し、同じ continuation 内で
+  wrapper と分かる direct call を `Primitive` stmt に戻し、literal bool branch を
+  fold し、同じ continuation 内で
   作った partial-application closure の `ApplyClosure` を `DirectCall` に戻し、
   continuation parameter 経由で渡った known partial-application closure も、
   capture を target parameter に張り替えられる場合は `DirectCall` に戻し、
