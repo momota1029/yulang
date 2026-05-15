@@ -241,37 +241,51 @@ const docLinks: Record<
 const examples: Example[] = [
     {
         label: { ja: "ツアー", en: "Tour" },
-        source: `// A compact tour: data, methods, local mutation, sub, and effects.
+        source: `// === A compact tour of Yulang ===
 
+// methods sit next to the type they extend
 struct point { x: int, y: int } with:
-    our p.norm2: int = p.x * p.x + p.y * p.y
+    our p.norm2 = p.x * p.x + p.y * p.y
 
-my score { base = 1, bonus = base + 1 } = base + bonus
+point { x: 3, y: 4 } .norm2
 
-score { base: 3 }
-
+// nondeterministic search: every Pythagorean triple under 15
 {
-    my $xs = [
-        2
-        3
-        4
-    ]
-    &xs[1] = 6
-    $xs
-}
+    my a = each 1..15
+    my b = each a..15
+    my c = each b..15
+    guard: a * a + b * b == c * c
+    (a, b, c)
+}.list
 
-sub:
-    for x in 0..: if x == 5: return x
-    0
+// junction lifts a comparison over many choices at once
+if all [1, 2, 3] < any [3, 4, 5]:
+    "every left dominated"
+else:
+    "no"
 
-{
-    my y = if all [1, 2, 3] < any [2, 3, 4]:
-        each [3, 4, 5]
-    else:
-        2
+// symbol variants: ad-hoc tagged choices, matched right inline
+my render option = case option:
+    :ok msg -> "[ok] " + msg
+    :err code -> "[err " + code.show + "]"
+    :pending -> "..."
 
-    point { x: 3, y: y } .norm2
-}.once
+[render(:ok "hello"), render(:err 404), render :pending]
+
+// a user-defined effect: \`coin\` calls the continuation TWICE,
+// so one run explores every branch.
+act flip:
+    our coin: () -> bool
+
+our all_paths(action: [flip] _) = catch action:
+    flip::coin(), k -> all_paths(k true) + all_paths(k false)
+    v -> [v]
+
+all_paths:
+    my a = if flip::coin(): 1 else: 0
+    my b = if flip::coin(): 10 else: 0
+    my c = if flip::coin(): 100 else: 0
+    a + b + c
 `,
     },
     {
