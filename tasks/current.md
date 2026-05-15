@@ -63,9 +63,9 @@ Cranelift backend を作る。
 - forced CPS repr executable path で std `list.map` / `filter` / `fold` の
   小さい source program を確認済み。
 - CPS repr ABI lowering と Cranelift JIT/object codegen の間に
-  `cps_optimize` entrypoint を挟んだ。現時点では identity boundary と profile /
-  `YULANG_CPS_OPT_TRACE` だけだが、artifact kind ごとに pass が分岐しない入口を
-  先に固定した。
+  `cps_optimize` entrypoint を挟んだ。現時点では explicit call site から空の
+  forwarding continuation を潰し、profile / `YULANG_CPS_OPT_TRACE` を出せる。
+  artifact kind ごとに pass が分岐しない入口を先に固定した。
 
 近い形:
 

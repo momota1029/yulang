@@ -187,8 +187,8 @@ covers algebraic handlers, nondeterministic finite-list choices, `sub` /
 `return`, open-range guarded `.once` search, and finite/open-range `for`
 loop control for the documented regression set. CPS repr ABI modules now pass
 through a shared optimization entrypoint before both JIT and object codegen;
-the first pass is an identity boundary with profiling, ready for later
-continuation/thunk/handler simplification.
+the first pass rewrites explicit calls through empty forwarding continuations
+and records profiling data for later thunk/handler simplification.
 
 Run the test suites:
 
