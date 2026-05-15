@@ -6147,8 +6147,21 @@ fn format_handler_stack(stack: &[NativeCpsI64HandlerFrame]) -> String {
 /// to verify anchor merge actually modified each frame's
 /// `active_handlers`.
 fn format_return_frames(frames: &[NativeCpsI64ReturnFrame]) -> String {
+    const EDGE_FRAMES: usize = 4;
     let mut s = String::from("[");
+    let mut wrote = 0usize;
     for (i, frame) in frames.iter().enumerate() {
+        if frames.len() > EDGE_FRAMES * 2 && i == EDGE_FRAMES {
+            if wrote > 0 {
+                s.push_str(", ");
+            }
+            s.push_str(&format!("... {} more ...", frames.len() - EDGE_FRAMES * 2));
+            wrote += 1;
+            continue;
+        }
+        if frames.len() > EDGE_FRAMES * 2 && i >= EDGE_FRAMES && i < frames.len() - EDGE_FRAMES {
+            continue;
+        }
         if i > 0 {
             s.push_str(", ");
         }
@@ -6160,6 +6173,7 @@ fn format_return_frames(frames: &[NativeCpsI64ReturnFrame]) -> String {
             frame.owner_initial_frame_count,
             format_handler_stack(&frame.handlers),
         ));
+        wrote += 1;
     }
     s.push(']');
     s
