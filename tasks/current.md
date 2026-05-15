@@ -223,6 +223,9 @@ CPS repr Cranelift の source 回帰を広げる。
   取り出す source regression を forced CPS repr executable path に追加した。
   型変換後 thunk adapter が list payload に残っても、index 後の表示では
   plain bool value として VM と一致する。
+- lazy operator の結果を record field / variant payload position に置く source
+  regression も forced CPS repr executable path に追加した。N1 の structural
+  coverage は tuple / list / record / variant までそろった。
 - native CLI の現状は `docs/native-backend.md` の Public CLI に集約済み。
   `yulang native` は value backend を優先し、effect / handler /
   thunk-boundary control が見えた root は CPS repr backend を選ぶ。

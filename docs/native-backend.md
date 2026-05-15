@@ -192,6 +192,8 @@ current backend boundaries visible, but detailed regression history lives in
       forced with `BindHere`, and run through CPS lowering and Cranelift.
 - [x] Lazy operator results in tuple/list value positions are covered by the
       forced CPS repr executable path without leaking visible thunk handles.
+- [x] Lazy operator results in record fields and variant payloads are covered by
+      the same forced CPS repr executable path.
 - [x] `std::junction`, finite-list `for` loops with `last` / `next`, mutable
       reference update, and `std::undet` `.once` / `.list` / `.logic` over
       finite-list choices run through the CPS repr executable path for covered

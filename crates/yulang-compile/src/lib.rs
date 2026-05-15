@@ -513,6 +513,29 @@ my fs = [f]
     }
 
     #[test]
+    fn runs_lazy_operator_result_in_record_field_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"my r = {ok: true or false}
+r.ok
+"#,
+            vec!["1"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_lazy_operator_result_in_variant_payload_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"case just (true or false):
+    just value -> value
+    nil -> false
+"#,
+            vec!["1"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_simple_undet_list_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::undet::*

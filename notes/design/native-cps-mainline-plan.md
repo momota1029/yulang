@@ -135,6 +135,9 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
   - [x] source-level lazy operator の結果を list value position に置き、
         `std::list::index_raw` 後も plain value として読めることを forced CPS repr
         executable path で確認する。
+  - [x] source-level lazy operator の結果を record field / variant payload position
+        に置いても plain value として読めることを forced CPS repr executable path
+        で確認する。
   - [ ] source-level first-class thunk 構文を増やすのではなく、型変換後 IR で
         現れる thunk adapter の structural coverage を増やす。
 - [ ] `AddId` / `BindHere` / hidden evidence boundary を thunk pointer に保持する。
@@ -185,13 +188,11 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 
 詳細な残穴は `notes/design/native-remaining-failure-matrix.md` で追う。
 
-1. N1: lazy / thunk adapter が tuple/list/record/variant の structural value position
-   を通っても可視 thunk として漏れないことを source regression で固定する。
-2. N2: 保存・選択された callback thunk が local handler を越えて outer handler /
-   guard stack へ戻る hygiene regression を足す。
-3. N3/N5: value backend unsupported reason から CPS repr fallback / playground
+1. N1/N2: closed for the current semantic pass. Add more cases only when a new
+   source-shaped runtime IR form appears.
+2. N3/N5: value backend unsupported reason から CPS repr fallback / playground
    surface までを同じ structured selection policy に揃える。
-4. N4/N6: compact native heap layout と artifact cache は semantic completion 後の
+3. N4/N6: compact native heap layout と artifact cache は semantic completion 後の
    package/cache 作業として分離する。
 
 ## Done Definition
