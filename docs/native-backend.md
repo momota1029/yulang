@@ -16,7 +16,9 @@ For overall language status across all stages, see
 [docs/status.md](status.md). For deeper design notes see
 `notes/design/native-backend-plan.md`,
 `notes/design/cps-effect-lowering-plan.md`, and
-`notes/design/native-cps-mainline-plan.md`. The current implementation
+`notes/design/native-cps-mainline-plan.md`. The direct-style / SSA island
+optimization direction is recorded in
+`notes/design/native-direct-style-islands.md`. The current implementation
 direction is to make the CPS representation backend the native mainline for
 effectful programs while keeping the value backend as an effect-free fast path
 and boxed `VmValue` helper source. The handler hygiene evidence used by VM and
@@ -51,6 +53,8 @@ The main optimization targets are:
 - static removal of handler and delimiter frames when effect evidence proves
   they cannot catch anything;
 - stack / SSA lowering for non-escaping thunks, closures, and continuations;
+- direct-style / SSA island extraction for local CPS continuation subgraphs
+  that contain no dynamic effect/control boundary;
 - specialization of frequently used higher-order control patterns when the
   call-site type, effect, and handler evidence make them concrete. Standard
   library forms such as loops, folds, nondeterminism helpers, and handler
@@ -67,9 +71,10 @@ statements, reify local partial-application closure calls back into direct
 calls, inline small single-use one-shot continuations, remove dead pure value
 statements, and prune continuations that are no longer reachable from function
 entries, handler arms, thunks, closures, or terminator targets. The stage also
-exposes a profile plus `YULANG_CPS_OPT_TRACE` debug output. JIT and object
-generation share this entrypoint so individual CPS simplification passes do not
-fork by artifact kind.
+profiles direct-style / SSA island candidates and exposes
+`YULANG_CPS_OPT_TRACE` debug output. JIT and object generation share this
+entrypoint so individual CPS simplification passes do not fork by artifact
+kind.
 
 The value backend remains useful as an effect-free fast path, a boxed value
 helper source, and a debugging path. It is not the plan for implementing the
@@ -227,8 +232,9 @@ current backend boundaries visible, but detailed regression history lives in
       reifies direct calls to structural primitive wrappers, inlines small
       local partial-application closure calls back into direct calls, inlines
       small single-use one-shot continuations, removes dead pure value
-      statements, prunes unreachable continuations, and records a profile so
-      later thunk/handler passes do not fork between artifact kinds.
+      statements, prunes unreachable continuations, and records direct-style /
+      SSA island candidate counts so later thunk/handler passes do not fork
+      between artifact kinds.
 - [x] Small source-defined algebraic effects and multi-shot resumptions work in
       the CPS/CPS-repr interpreters and in the scalar Cranelift prototype.
 - [x] Handler entry continuations receive captured environments, and handler

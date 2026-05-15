@@ -52,8 +52,17 @@ empty forwarding continuations, folds empty return continuations, reifies direct
 calls to structural primitive wrappers, reifies local partial-application
 closure calls back into direct calls, prunes unreachable continuations, inlines
 small single-use one-shot continuations, removes dead pure value statements, and
-records a profile, while both JIT and object codegen go through the same
-entrypoint so future passes cannot accidentally diverge by artifact kind.
+records a profile including direct-style / SSA island candidate counts, while
+both JIT and object codegen go through the same entrypoint so future passes
+cannot accidentally diverge by artifact kind.
+
+The next larger optimization target is direct-style / SSA island extraction.
+`notes/design/native-direct-style-islands.md` records the intended boundary:
+keep CPS as the semantic representation for handlers, resumptions, thunk
+hygiene, and local returns, but lower proven effect-free local continuation
+subgraphs as Cranelift blocks with block parameters. Partial applications and
+ordinary closures can then be scalar-replaced while they do not escape, and
+materialized back into CPS closure values only at an island boundary.
 
 ## Execution Policy
 

@@ -191,8 +191,9 @@ the first pass rewrites explicit calls through empty forwarding continuations
 and empty return continuations, reifies direct calls to structural primitive
 wrappers, reifies local partial-application closure calls back to direct calls,
 inlines small single-use one-shot continuations, removes dead pure value
-statements, then prunes unreachable continuations while recording profiling
-data for later thunk/handler simplification.
+statements, then prunes unreachable continuations. It also profiles
+direct-style / SSA island candidates so later codegen can lower pure local
+continuation subgraphs as Cranelift blocks instead of CPS control calls.
 
 Run the test suites:
 

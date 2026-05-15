@@ -25,6 +25,7 @@ Cranelift backend を作る。
 - `notes/design/cps-effect-lowering-plan.md`
 - `notes/design/native-value-abi-plan.md`
 - `notes/design/native-cps-mainline-plan.md`
+- `notes/design/native-direct-style-islands.md`
 - `notes/design/source-realm-band-plan.md`
 
 方針:
@@ -36,6 +37,7 @@ Cranelift backend を作る。
 - 最適化の中心は known continuation の direct jump 化、administrative
   continuation / thunk の除去、effect evidence による handler / delimiter
   frame の静的消去、非 escape closure / continuation / thunk の stack / SSA 化、
+  pure な CPS continuation subgraph の direct-style / SSA island 化、
   call-site の型 / effect / handler evidence が具体化した高階制御 pattern の
   specialization とする。std の loop / fold / nondet helper / handler wrapper は
   代表的な hot path だが、optimizer は std module path や関数名に依存しない。
@@ -69,8 +71,10 @@ Cranelift backend を作る。
   作った partial-application closure の `ApplyClosure` を `DirectCall` に戻し、
   到達不能 continuation を削る。small single-use one-shot continuation の tail
   inline と dead pure value statement の削除も入った。profile /
-  `YULANG_CPS_OPT_TRACE` も出せる。artifact kind ごとに pass が分岐しない入口を
-  先に固定した。
+  `YULANG_CPS_OPT_TRACE` も出せる。inline 後に同じ reify をもう一度走らせるので、
+  continuation 境界を挟んだ partial application も inline で局所化した後に潰せる。
+  direct-style / SSA island 候補数も profile に出る。artifact kind ごとに pass が
+  分岐しない入口を先に固定した。
 
 近い形:
 
