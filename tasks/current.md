@@ -188,9 +188,9 @@ CPS repr Cranelift の source 回帰を広げる。
   `notes/bugs/native_open_range_for_last_returns_payload.yu` と N9 に分離した。
   実装修正は `notes/design/native-scoped-abort-plan.md` の scoped abort に寄せる。
 - `examples/10_effect_handler.yu` は forced CPS repr executable path で
-  root value に `thunk@0x...` handle を返す。直接 tuple/string heap value は表示
-  できるので、recursive handler/resumption return path が force 後の tuple ではなく
-  thunk handle を残している可能性が高い。
+  root value の `thunk@0x...` leak は解消し、`(9, "6\n")` まで進んだ。まだ
+  expected の `(9, "3\n6\n")` から最初の recursive log segment が落ちるので、
+  次は nested `listen(k (), ...)` の handler env/log propagation を見る。
   `notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu` と N10 に分離した。
 - closure value を record に保存し、field select で取り出してから呼ぶ source
   regression を forced CPS repr executable path に追加した。CPS repr の

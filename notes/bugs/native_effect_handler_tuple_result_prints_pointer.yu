@@ -1,17 +1,18 @@
-// Native CPS repr currently returns a thunk pointer for this handler-produced
-// tuple result.
+// Native CPS repr currently returns this handler-produced tuple result with
+// the first recursive log segment missing.
 //
 // VM:
 //   yulang run notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu
 //   => [0] (9, "3\n6\n")
 //
-// Native CPS repr, as of 2026-05-15 after pointer-kind display was added:
+// Native CPS repr, as of 2026-05-15 after ScopeReturn thunk payloads are
+// updated through force:
 //   yulang native --kind run-cps-repr-exe notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu
-//   => thunk@0x...
+//   => (9, "6\n")
 //
 // A direct tuple `(9, "3\n6\n")` is printable on the same backend, so the
-// gap is likely in the handler/resumption return path leaving a forced thunk
-// handle as the root value rather than installing the handler-produced tuple.
+// remaining gap is likely in recursive handler/resumption env propagation
+// rather than the tuple/string heap constructors themselves.
 
 pub act out:
     pub say: str -> ()

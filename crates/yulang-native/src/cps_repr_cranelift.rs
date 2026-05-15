@@ -7678,6 +7678,12 @@ extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
             }
         });
         NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow_mut() = saved_eval_ctx);
+        NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            if slot.active && slot.value == value as i64 {
+                slot.value = result;
+            }
+        });
         value = result as usize;
     }
 }
