@@ -23,6 +23,45 @@ and boxed `VmValue` helper source. The handler hygiene evidence used by VM and
 native effect dispatch is summarized in
 [docs/hidden-effect-evidence.ja.md](hidden-effect-evidence.ja.md).
 
+## Native Direction
+
+Yulang's full native path is planned around **optimized CPS first, then native
+code generation**.
+
+```text
+Yulang source
+  -> runtime IR
+  -> effect-aware CPS IR
+  -> CPS optimization
+  -> Cranelift codegen
+       -> JIT
+       -> object / executable
+```
+
+The CPS representation is not meant to stay as a slow interpreter-shaped
+runtime. It is the IR where Yulang's full control features become explicit:
+handlers, resumptions, thunk boundaries, local returns, loop control, and
+hidden effect hygiene. Once those are explicit, the native backend can optimize
+them before producing JIT code or an executable.
+
+The main optimization targets are:
+
+- direct jumps for known continuations instead of indirect continuation calls;
+- removal of administrative `force` / `return` / `continue` chains;
+- static removal of handler and delimiter frames when effect evidence proves
+  they cannot catch anything;
+- stack / SSA lowering for non-escaping thunks, closures, and continuations;
+- specialization of standard higher-order control such as `for_in`, `fold`,
+  `once`, `list`, and handler wrappers;
+- lowering optimized CPS continuations to Cranelift blocks and block
+  parameters.
+
+The value backend remains useful as an effect-free fast path, a boxed value
+helper source, and a debugging path. It is not the plan for implementing the
+entire Yulang language. The full-feature path should flow through CPS
+optimization and then share the same optimized codegen route for JIT and
+object / executable output.
+
 ## Public CLI
 
 The native backend is exposed under the `yulang native` subcommand. The

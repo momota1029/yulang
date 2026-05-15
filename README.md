@@ -77,12 +77,13 @@ For a longer guided tour:
   backend. It is the right place to check before depending on a feature.
 - **Native backend** — [docs/native-backend.md](docs/native-backend.md)
   describes the native pipeline: which programs run natively today, the
-  CLI commands, and the value / CPS representation status in detail. The CPS
-  representation path now covers effect hygiene regressions, finite
-  nondeterminism, open-range guarded `.once` search, `sub` / `return`
-  through loop-shaped standard-library control, recursive handler tuple
-  results, and first-class closures / stored callbacks selected from records
-  or lists. The default CLI also routes known
+  CLI commands, and the value / CPS representation status in detail. The
+  native direction is optimized CPS first, then shared Cranelift codegen for
+  JIT and object / executable output. The CPS representation path now covers
+  effect hygiene regressions, finite nondeterminism, open-range guarded
+  `.once` search, `sub` / `return` through loop-shaped standard-library
+  control, recursive handler tuple results, and first-class closures / stored
+  callbacks selected from records or lists. The default CLI also routes known
   structural-binding shapes away from the value backend instead of producing a
   crashing executable.
 - **Language server** — `yulang server` provides hover, document symbols,

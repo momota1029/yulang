@@ -30,6 +30,13 @@ Cranelift backend を作る。
 方針:
 
 - native 実行の本線は CPS representation backend に寄せる。
+- フル機能の native 化は、CPS を遅い実行方式として固定するのではなく、
+  effect-aware CPS IR を最適化してから Cranelift の JIT / object / executable
+  へ落とす形に寄せる。
+- 最適化の中心は known continuation の direct jump 化、administrative
+  continuation / thunk の除去、effect evidence による handler / delimiter
+  frame の静的消去、非 escape closure / continuation / thunk の stack / SSA 化、
+  std 高階制御 (`for_in`, `fold`, `once`, `list`) の specialization とする。
 - value backend は effect-free fast path と boxed `VmValue` helper の供給元として扱う。
 - まず `notes/design/native-cps-mainline-plan.md` の milestone に沿って、
   backend selection 境界、CPS `RuntimeValuePtr` lane、汎用 thunk / closure /
