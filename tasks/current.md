@@ -64,10 +64,11 @@ Cranelift backend を作る。
   小さい source program を確認済み。
 - CPS repr ABI lowering と Cranelift JIT/object codegen の間に
   `cps_optimize` entrypoint を挟んだ。現時点では explicit call site から空の
-  forwarding continuation と `Return(param)` continuation を潰し、到達不能
-  continuation を削る。small single-use one-shot continuation の tail inline と
-  dead pure value statement の削除も入った。profile / `YULANG_CPS_OPT_TRACE` も
-  出せる。artifact kind ごとに pass が分岐しない入口を先に固定した。
+  forwarding continuation と `Return(param)` continuation を潰し、構造上 primitive
+  wrapper と分かる direct call を `Primitive` stmt に戻し、到達不能 continuation を
+  削る。small single-use one-shot continuation の tail inline と dead pure value
+  statement の削除も入った。profile / `YULANG_CPS_OPT_TRACE` も出せる。artifact
+  kind ごとに pass が分岐しない入口を先に固定した。
 
 近い形:
 
