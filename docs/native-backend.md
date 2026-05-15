@@ -289,6 +289,9 @@ or out of here into the user-facing table once they stabilize.
       and forced through the Cranelift CPS repr path.
 - [x] A CPS-level thunk pointer can be stored in a list, indexed back out, and
       forced more than once through the Cranelift CPS repr path.
+- [x] A thunk boundary carried by a list-stored thunk remains active after
+      indexing and force, so hidden callback effects still skip blocked inner
+      handlers.
 - [x] A CPS-level closure pointer can be stored in a list, indexed back out,
       and called through the Cranelift CPS repr path; the opaque/unknown call
       result can now be returned from a root.

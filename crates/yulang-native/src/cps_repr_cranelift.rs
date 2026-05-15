@@ -7517,7 +7517,15 @@ mod tests {
 
     #[test]
     fn jit_uses_active_thunk_boundary_when_selecting_handler() {
-        let abi = active_thunk_boundary_abi(typed_ir::Type::Never);
+        let abi = active_thunk_boundary_abi(typed_ir::Type::Never, ThunkBoundaryStorage::Direct);
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![20]);
+    }
+
+    #[test]
+    fn jit_uses_active_thunk_boundary_after_list_index() {
+        let abi = active_thunk_boundary_abi(typed_ir::Type::Never, ThunkBoundaryStorage::ListIndex);
         let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
 
         assert_eq!(jit.run_roots_i64().expect("ran"), vec![20]);
@@ -7526,10 +7534,13 @@ mod tests {
     #[test]
     fn jit_keeps_allowed_thunk_boundary_visible_to_inner_handler() {
         let choose = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
-        let abi = active_thunk_boundary_abi(typed_ir::Type::Named {
-            path: choose,
-            args: Vec::new(),
-        });
+        let abi = active_thunk_boundary_abi(
+            typed_ir::Type::Named {
+                path: choose,
+                args: Vec::new(),
+            },
+            ThunkBoundaryStorage::Direct,
+        );
         let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
 
         assert_eq!(jit.run_roots_i64().expect("ran"), vec![10]);
@@ -8524,8 +8535,72 @@ mod tests {
         }))
     }
 
-    fn active_thunk_boundary_abi(allowed: typed_ir::Type) -> CpsReprAbiModule {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum ThunkBoundaryStorage {
+        Direct,
+        ListIndex,
+    }
+
+    fn active_thunk_boundary_abi(
+        allowed: typed_ir::Type,
+        storage: ThunkBoundaryStorage,
+    ) -> CpsReprAbiModule {
         let choose = typed_ir::Path::from_name(typed_ir::Name("choose".to_string()));
+        let mut root_stmts = vec![
+            CpsStmt::InstallHandler {
+                handler: crate::cps_ir::CpsHandlerId(0),
+                envs: Vec::new(),
+                escape: CpsContinuationId(5),
+            },
+            CpsStmt::FreshGuard {
+                dest: CpsValueId(0),
+                var: yulang_runtime::EffectIdVar(0),
+            },
+            CpsStmt::MakeThunk {
+                dest: CpsValueId(1),
+                entry: CpsContinuationId(1),
+            },
+            CpsStmt::AddThunkBoundary {
+                dest: CpsValueId(2),
+                thunk: CpsValueId(1),
+                guard: CpsValueId(0),
+                allowed,
+                active: true,
+            },
+        ];
+        let thunk = match storage {
+            ThunkBoundaryStorage::Direct => CpsValueId(2),
+            ThunkBoundaryStorage::ListIndex => {
+                root_stmts.extend([
+                    CpsStmt::Primitive {
+                        dest: CpsValueId(14),
+                        op: typed_ir::PrimitiveOp::ListSingleton,
+                        args: vec![CpsValueId(2)],
+                    },
+                    CpsStmt::Literal {
+                        dest: CpsValueId(15),
+                        literal: CpsLiteral::Int("0".to_string()),
+                    },
+                    CpsStmt::Primitive {
+                        dest: CpsValueId(16),
+                        op: typed_ir::PrimitiveOp::ListIndex,
+                        args: vec![CpsValueId(14), CpsValueId(15)],
+                    },
+                ]);
+                CpsValueId(16)
+            }
+        };
+        root_stmts.extend([
+            CpsStmt::InstallHandler {
+                handler: crate::cps_ir::CpsHandlerId(1),
+                envs: Vec::new(),
+                escape: CpsContinuationId(6),
+            },
+            CpsStmt::ForceThunk {
+                dest: CpsValueId(3),
+                thunk,
+            },
+        ]);
         lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
             functions: Vec::new(),
             roots: vec![CpsFunction {
@@ -8554,37 +8629,7 @@ mod tests {
                         params: Vec::new(),
                         captures: Vec::new(),
                         shot_kind: CpsShotKind::MultiShot,
-                        stmts: vec![
-                            CpsStmt::InstallHandler {
-                                handler: crate::cps_ir::CpsHandlerId(0),
-                                envs: Vec::new(),
-                                escape: CpsContinuationId(5),
-                            },
-                            CpsStmt::FreshGuard {
-                                dest: CpsValueId(0),
-                                var: yulang_runtime::EffectIdVar(0),
-                            },
-                            CpsStmt::MakeThunk {
-                                dest: CpsValueId(1),
-                                entry: CpsContinuationId(1),
-                            },
-                            CpsStmt::AddThunkBoundary {
-                                dest: CpsValueId(2),
-                                thunk: CpsValueId(1),
-                                guard: CpsValueId(0),
-                                allowed,
-                                active: true,
-                            },
-                            CpsStmt::InstallHandler {
-                                handler: crate::cps_ir::CpsHandlerId(1),
-                                envs: Vec::new(),
-                                escape: CpsContinuationId(6),
-                            },
-                            CpsStmt::ForceThunk {
-                                dest: CpsValueId(3),
-                                thunk: CpsValueId(2),
-                            },
-                        ],
+                        stmts: root_stmts,
                         terminator: CpsTerminator::Return(CpsValueId(3)),
                     },
                     CpsContinuation {
