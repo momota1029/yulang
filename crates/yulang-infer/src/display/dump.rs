@@ -344,11 +344,12 @@ fn format_coalesced_scheme_with_role_constraints(
     scheme: &CompactTypeScheme,
     constraints: &[CompactRoleConstraint],
 ) -> String {
-    let mut namer = VarNamer::default();
-    let body = display_format::format_coalesced_scheme(scheme);
+    let mut namer = display_format::VarNamer::default();
+    let body_type = display_format::compact_scheme_to_type(scheme);
+    let body = display_format::format_type_with_namer(&body_type, &mut namer);
     let rendered_constraints = constraints
         .iter()
-        .map(|constraint| format_role_constraint(infer, constraint, &mut namer))
+        .map(|constraint| format_role_constraint_with_display_namer(infer, constraint, &mut namer))
         .fold(Vec::<String>::new(), |mut out, item| {
             if !out.contains(&item) {
                 out.push(item);
@@ -360,6 +361,33 @@ fn format_coalesced_scheme_with_role_constraints(
     } else {
         format!("{} => {}", rendered_constraints.join(", "), body)
     }
+}
+
+fn format_role_constraint_with_display_namer(
+    infer: &Infer,
+    constraint: &CompactRoleConstraint,
+    namer: &mut display_format::VarNamer,
+) -> String {
+    let arg_infos = infer.role_arg_infos_of(&constraint.role);
+    let args = constraint
+        .args
+        .iter()
+        .enumerate()
+        .map(|(index, arg)| {
+            let rendered =
+                display_format::format_compact_role_constraint_arg_with_namer(arg, namer);
+            let Some(info) = arg_infos.get(index) else {
+                return rendered;
+            };
+            if info.name.is_empty() || info.is_input {
+                rendered
+            } else {
+                format!("{} = {}", info.name, rendered)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{}<{}>", role_path_string(&constraint.role), args)
 }
 
 fn format_frozen_scheme_with_role_constraints(
@@ -611,25 +639,6 @@ fn has_non_var_shape(ty: &CompactType) -> bool {
         || !ty.rows.is_empty()
 }
 
-fn format_role_constraint(
-    infer: &Infer,
-    constraint: &CompactRoleConstraint,
-    namer: &mut VarNamer,
-) -> String {
-    if constraint.args.is_empty() {
-        return role_path_string(&constraint.role);
-    }
-    let arg_infos = infer.role_arg_infos_of(&constraint.role);
-    let args = constraint
-        .args
-        .iter()
-        .enumerate()
-        .map(|(index, arg)| format_role_constraint_arg_with_info(arg_infos.get(index), arg, namer))
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!("{}<{}>", role_path_string(&constraint.role), args)
-}
-
 fn format_raw_role_constraint(
     infer: &Infer,
     constraint: &RoleConstraint,
@@ -653,18 +662,6 @@ fn format_raw_role_constraint(
         .collect::<Vec<_>>()
         .join(", ");
     format!("{}<{}>", role_path_string(&constraint.role), args)
-}
-
-fn format_role_constraint_arg_with_info(
-    info: Option<&crate::solve::RoleArgInfo>,
-    arg: &CompactBounds,
-    namer: &mut VarNamer,
-) -> String {
-    let rendered = format_role_constraint_arg(arg, namer);
-    match info {
-        Some(info) if !info.is_input => format!("{} = {}", info.name, rendered),
-        _ => rendered,
-    }
 }
 
 fn format_raw_bound_id(infer: &Infer, pos: PosId, neg: NegId, namer: &mut VarNamer) -> String {
@@ -1335,10 +1332,13 @@ mod tests {
     use crate::fresh_type_var;
     use crate::lower::stmt::{finish_lowering, lower_root, lower_root_in_module};
     use crate::simplify::compact::{
-        CompactBounds, CompactFun, CompactRecord, CompactType, CompactTypeScheme,
+        CompactBounds, CompactCon, CompactFun, CompactRecord, CompactRow, CompactType,
+        CompactTypeScheme,
     };
+    use crate::simplify::cooccur::CompactRoleConstraint;
+    use crate::solve::Infer;
     use crate::types::RecordField;
-    use crate::{LowerState, Name};
+    use crate::{LowerState, Name, Path};
     use crate::{Name as TirName, Path as TirPath};
     use rowan::SyntaxNode;
     use yulang_parser::sink::YulangLanguage;
@@ -1781,6 +1781,102 @@ mod tests {
             .expect("shallow should be rendered");
 
         assert_eq!(shallow.1, "(unit -> [undet; β] α) -> [undet; β] α");
+    }
+
+    #[test]
+    fn format_coalesced_scheme_with_role_constraints_shares_var_names_with_body() {
+        let a = fresh_type_var();
+        let b = fresh_type_var();
+        let e = fresh_type_var();
+        let flip = Path {
+            segments: vec![Name("flip".to_string())],
+        };
+        let list = Path {
+            segments: vec![
+                Name("std".to_string()),
+                Name("list".to_string()),
+                Name("list".to_string()),
+            ],
+        };
+        let add = Path {
+            segments: vec![Name("Add".to_string())],
+        };
+        let list_a = CompactType {
+            cons: vec![CompactCon {
+                path: list,
+                args: vec![CompactBounds {
+                    self_var: None,
+                    lower: CompactType {
+                        vars: HashSet::from([a]),
+                        ..CompactType::default()
+                    },
+                    upper: CompactType {
+                        vars: HashSet::from([a]),
+                        ..CompactType::default()
+                    },
+                }],
+            }],
+            ..CompactType::default()
+        };
+        let scheme = CompactTypeScheme {
+            cty: CompactBounds {
+                self_var: None,
+                lower: CompactType {
+                    funs: vec![CompactFun {
+                        arg: CompactType {
+                            vars: HashSet::from([a]),
+                            ..CompactType::default()
+                        },
+                        arg_eff: CompactType {
+                            rows: vec![CompactRow {
+                                items: vec![CompactType {
+                                    prims: HashSet::from([flip]),
+                                    ..CompactType::default()
+                                }],
+                                tail: Box::new(CompactType {
+                                    vars: HashSet::from([e]),
+                                    ..CompactType::default()
+                                }),
+                            }],
+                            ..CompactType::default()
+                        },
+                        ret_eff: CompactType {
+                            vars: HashSet::from([e]),
+                            ..CompactType::default()
+                        },
+                        ret: {
+                            let mut ret = list_a.clone();
+                            ret.vars.insert(b);
+                            ret
+                        },
+                    }],
+                    ..CompactType::default()
+                },
+                upper: CompactType::default(),
+            },
+            rec_vars: Default::default(),
+        };
+        let constraints = vec![CompactRoleConstraint {
+            role: add,
+            args: vec![CompactBounds {
+                self_var: None,
+                lower: {
+                    let mut lower = list_a;
+                    lower.vars.insert(b);
+                    lower
+                },
+                upper: CompactType {
+                    vars: HashSet::from([b]),
+                    ..CompactType::default()
+                },
+            }],
+        }];
+        let infer = Infer::new();
+
+        assert_eq!(
+            super::format_coalesced_scheme_with_role_constraints(&infer, &scheme, &constraints),
+            "Add<std::list::list<α> | β> => α [flip; γ] -> [γ] β | std::list::list<α>"
+        );
     }
 
     #[test]

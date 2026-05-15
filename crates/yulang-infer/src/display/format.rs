@@ -62,7 +62,11 @@ pub fn compact_side_to_type(
 
 pub fn format_type(ty: &Type) -> String {
     let mut namer = VarNamer::default();
-    format_type_inner(ty, &mut namer, false)
+    format_type_with_namer(ty, &mut namer)
+}
+
+pub(crate) fn format_type_with_namer(ty: &Type, namer: &mut VarNamer) -> String {
+    format_type_inner(ty, namer, false)
 }
 
 pub fn format_coalesced_scheme(scheme: &CompactTypeScheme) -> String {
@@ -70,7 +74,7 @@ pub fn format_coalesced_scheme(scheme: &CompactTypeScheme) -> String {
 }
 
 #[derive(Default)]
-struct VarNamer {
+pub(crate) struct VarNamer {
     names: HashMap<u32, String>,
     next: usize,
 }
@@ -1712,6 +1716,22 @@ fn format_compact_bounds(bounds: &CompactBounds, namer: &mut VarNamer) -> String
     }
 }
 
+pub(crate) fn format_compact_role_constraint_arg_with_namer(
+    arg: &CompactBounds,
+    namer: &mut VarNamer,
+) -> String {
+    if let Some(rendered) = format_compact_bounds_with_center(arg, namer) {
+        return rendered;
+    }
+    match (is_empty_compact(&arg.lower), is_empty_compact(&arg.upper)) {
+        (true, true) => "_".to_string(),
+        (false, true) => format_compact_type(&arg.lower, namer, false),
+        (true, false) => format_compact_type_with_join(&arg.upper, namer, false, " & "),
+        (false, false) if arg.lower == arg.upper => format_compact_type(&arg.lower, namer, false),
+        (false, false) => format_compact_interval_arg(&arg.lower, &arg.upper, namer),
+    }
+}
+
 fn format_compact_bounds_with_center(
     bounds: &CompactBounds,
     namer: &mut VarNamer,
@@ -1833,6 +1853,85 @@ fn format_compact_type_with_join(
     } else {
         joined
     }
+}
+
+fn format_compact_interval_arg(
+    lower: &CompactType,
+    upper: &CompactType,
+    namer: &mut VarNamer,
+) -> String {
+    let mut lower_parts = format_compact_type_parts(lower, namer);
+    let upper_parts = format_compact_type_parts(upper, namer);
+    if lower_parts.is_empty() {
+        return upper_parts.join(" & ");
+    }
+    if upper_parts.is_empty() {
+        return lower_parts.join(" | ");
+    }
+
+    let shared = lower_parts
+        .iter()
+        .rposition(|part| upper_parts.iter().any(|upper| upper == part));
+    if let Some(index) = shared {
+        let shared_part = lower_parts.remove(index);
+        let mut intersection = vec![shared_part.clone()];
+        intersection.extend(upper_parts.into_iter().filter(|part| part != &shared_part));
+        let intersection = if intersection.len() == 1 {
+            shared_part
+        } else {
+            format!("{} & {}", shared_part, intersection[1..].join(" & "))
+        };
+        if lower_parts.is_empty() {
+            intersection
+        } else {
+            format!("{} | {}", lower_parts.join(" | "), intersection)
+        }
+    } else {
+        format!("{} <: {}", lower_parts.join(" | "), upper_parts.join(" & "))
+    }
+}
+
+fn format_compact_type_parts(ty: &CompactType, namer: &mut VarNamer) -> Vec<String> {
+    let mut parts = Vec::new();
+
+    let mut vars = ty.vars.iter().copied().collect::<Vec<_>>();
+    vars.sort_by_key(|tv| tv.0);
+    parts.extend(vars.into_iter().map(|tv| namer.name(tv.0)));
+
+    let mut prims = ty.prims.iter().cloned().collect::<Vec<_>>();
+    prims.sort_by(|a, b| path_string(a).cmp(&path_string(b)));
+    parts.extend(prims.into_iter().map(|path| path_string(&path)));
+
+    let mut cons = ty.cons.clone();
+    cons.sort_by(|a, b| path_string(&a.path).cmp(&path_string(&b.path)));
+    parts.extend(cons.into_iter().map(|con| format_compact_con(&con, namer)));
+
+    parts.extend(ty.funs.iter().map(|fun| format_compact_fun(fun, namer)));
+    parts.extend(
+        ty.records
+            .iter()
+            .map(|record| format_compact_record(record, namer)),
+    );
+    parts.extend(
+        ty.record_spreads
+            .iter()
+            .map(|spread| format_compact_record_spread(spread, namer)),
+    );
+    parts.extend(
+        ty.variants
+            .iter()
+            .map(|variant| format_compact_variant(variant, namer)),
+    );
+    parts.extend(ty.tuples.iter().map(|tuple| {
+        let items = tuple
+            .iter()
+            .map(|item| format_compact_type(item, namer, false))
+            .collect::<Vec<_>>();
+        format!("({})", items.join(", "))
+    }));
+    parts.extend(ty.rows.iter().map(|row| format_compact_row(row, namer)));
+
+    parts
 }
 
 fn format_compact_con(con: &CompactCon, namer: &mut VarNamer) -> String {

@@ -4615,7 +4615,7 @@ fn unannotated_second_header_arg_stays_value_arg_after_effectful_first_arg() {
         let rendered = render_compact_results(&mut lowered.state);
         assert_eq!(
             rendered_type(&rendered, "listen"),
-            "Add<std::str::str | α> => α [out; δ] -> β -> [δ] γ | (α, β | std::str::str)"
+            "Add<std::str::str | β> => α [out; δ] -> β -> [δ] γ | (α, β | std::str::str)"
         );
     });
 }
