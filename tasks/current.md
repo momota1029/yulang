@@ -197,6 +197,10 @@ CPS repr Cranelift の source 回帰を広げる。
   active boundary が handler selection に残る Cranelift regression を追加した。
   hidden callback effect が blocked inner handler を越える native 側の衛生性を
   構造値越しに固定する。
+- boundary 付き thunk pointer を record に保存し、field select 後に force しても
+  active boundary が handler selection に残る Cranelift regression を追加した。
+  source selection を巻き込まない CPS-level structural storage として N2 を一段
+  狭める。
 - CPS-level closure pointer を list に保存し、`ListIndex` で取り出してから
   `ApplyClosure` する Cranelift regression を追加した。indexed closure call の
   返り値は `Unknown` lane のまま root へ返せるようにした。CPS repr の

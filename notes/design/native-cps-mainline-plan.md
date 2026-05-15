@@ -140,6 +140,9 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 - [ ] `AddId` / `BindHere` / hidden evidence boundary を thunk pointer に保持する。
   - [x] CPS-level list に保存した boundary 付き thunk を index して force しても、
         active boundary が handler selection に残る Cranelift regression を入れる。
+  - [x] CPS-level record に保存した boundary 付き thunk を field select して
+        force しても、active boundary が handler selection に残る Cranelift
+        regression を入れる。
 - [ ] force 時に handler / guard stack を正しく re-enter する。
 - [ ] direct thunk callback inline の暫定経路を、汎用 thunk invocation に置き換える。
   - [x] Handler arm entry が installed escape continuation へ直接進む source

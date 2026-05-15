@@ -296,6 +296,8 @@ or out of here into the user-facing table once they stabilize.
 - [x] A thunk boundary carried by a list-stored thunk remains active after
       indexing and force, so hidden callback effects still skip blocked inner
       handlers.
+- [x] The same thunk-boundary preservation is covered after storing the thunk in
+      a record and selecting it through a field before force.
 - [x] A CPS-level closure pointer can be stored in a list, indexed back out,
       and called through the Cranelift CPS repr path; the opaque/unknown call
       result can now be returned from a root.
