@@ -6165,6 +6165,14 @@ fn format_return_frames(frames: &[NativeCpsI64ReturnFrame]) -> String {
     s
 }
 
+fn format_handler_envs(envs: &[NativeCpsI64HandlerEnv]) -> String {
+    let parts = envs
+        .iter()
+        .map(|env| format!("{}={}", env.entry, describe_native_i64_value(env.env)))
+        .collect::<Vec<_>>();
+    format!("[{}]", parts.join(", "))
+}
+
 fn append_distinct_return_frames(
     out: &mut Vec<NativeCpsI64ReturnFrame>,
     frames: impl IntoIterator<Item = NativeCpsI64ReturnFrame>,
@@ -6505,7 +6513,7 @@ extern "C" fn yulang_cps_select_handler_i64(
         });
         if jit_trace_enabled() {
             eprintln!(
-                "[JIT-CPS] perform_select: handler={} prompt={} install_eval={} synthetic={} threshold={} idx={} origin={:?}",
+                "[JIT-CPS] perform_select: handler={} prompt={} install_eval={} synthetic={} threshold={} idx={} origin={:?} envs={}",
                 frame.handler,
                 frame.prompt,
                 frame.install_eval_id,
@@ -6513,6 +6521,7 @@ extern "C" fn yulang_cps_select_handler_i64(
                 frame.return_frame_threshold,
                 index,
                 frame.origin,
+                format_handler_envs(&frame.envs),
             );
         }
         return frame.handler;
@@ -6949,7 +6958,7 @@ fn install_native_i64_handler_full(
     escape_env: Vec<i64>,
 ) {
     let envs = take_pending_native_i64_handler_envs(handler);
-    let env_len = escape_env.len();
+    let trace_envs = jit_trace_enabled().then(|| format_handler_envs(&envs));
     let frame = NativeCpsI64HandlerFrame {
         handler,
         guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
@@ -6967,13 +6976,13 @@ fn install_native_i64_handler_full(
     });
     if jit_trace_enabled() {
         eprintln!(
-            "[JIT-CPS] install_handler_full: handler={} prompt={} install_eval={} threshold={} escape={:#x} env_len={}",
+            "[JIT-CPS] install_handler_full: handler={} prompt={} install_eval={} threshold={} escape={:#x} envs={}",
             handler,
             prompt,
             install_eval_id,
             return_frame_threshold,
             escape_continuation as usize,
-            env_len
+            trace_envs.as_deref().unwrap_or("[]")
         );
     }
 }
@@ -7560,13 +7569,23 @@ extern "C" fn yulang_cps_return_i64(value: i64) -> i64 {
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_selected_handler_env_or_i64(entry: i64, fallback: i64) -> i64 {
-    NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| {
+    let value = NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| {
         envs.borrow()
             .iter()
+            .rev()
             .find(|env| env.entry == entry)
             .map(|env| env.env)
             .unwrap_or(fallback)
-    })
+    });
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] selected_handler_env: entry={} fallback={} value={}",
+            entry,
+            describe_native_i64_value(fallback),
+            describe_native_i64_value(value)
+        );
+    }
+    value
 }
 
 #[unsafe(no_mangle)]

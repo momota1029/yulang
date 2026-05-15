@@ -1,18 +1,15 @@
-// Native CPS repr currently returns this handler-produced tuple result with
-// the first recursive log segment missing.
+// Regression note for native CPS repr handler-produced tuple results.
 //
 // VM:
 //   yulang run notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu
 //   => [0] (9, "3\n6\n")
 //
-// Native CPS repr, as of 2026-05-15 after ScopeReturn thunk payloads are
-// updated through force:
+// Native CPS repr, fixed on 2026-05-15:
 //   yulang native --kind run-cps-repr-exe notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu
-//   => (9, "6\n")
+//   => (9, "3\n6\n")
 //
-// A direct tuple `(9, "3\n6\n")` is printable on the same backend, so the
-// remaining gap is likely in recursive handler/resumption env propagation
-// rather than the tuple/string heap constructors themselves.
+// The native bug had two parts: ScopeReturn kept a stale thunk handle after
+// forcing, and duplicate handler env entries were read oldest-first.
 
 pub act out:
     pub say: str -> ()

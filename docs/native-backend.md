@@ -220,10 +220,9 @@ current backend boundaries visible, but detailed regression history lives in
       through the recursive handler/resumption gap below.
 - [ ] Open-range `for` with local `last` still needs scoped abort routing to
       stop the recursive fold and then continue at the loop expression boundary.
-- [ ] Non-scalar values returned through recursive handler/resumption chains
-      no longer leak a raw thunk handle, but nested handler env propagation
-      still drops the first log segment in `examples/10_effect_handler.yu`; see
-      `notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu`.
+- [x] Non-scalar values returned through recursive handler/resumption chains
+      now keep the forced result and nested handler env, covering
+      `examples/10_effect_handler.yu`.
 - [ ] General returned/stored effectful thunks still need more source-shaped
       coverage outside the current scalar/prototype subset.
 - [ ] Forced value-backend execution still has a nullary-binding crash for the

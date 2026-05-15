@@ -449,6 +449,30 @@ sub:
     }
 
     #[test]
+    fn runs_recursive_effect_handler_tuple_result_through_cps_repr() {
+        assert_source_cps_repr_jit_display_with_std(
+            r#"pub act out:
+    pub say: str -> ()
+
+our add_and_say() =
+    my a = 1 + 2
+    out::say a.show
+    my b = a + 3
+    out::say b.show
+    a + b
+
+our listen(x: [_] _, log: str): (_, str) = catch x:
+    out::say o, k -> listen(k (), log + o + "\n")
+    v -> (v, log)
+
+listen add_and_say() ""
+"#,
+            vec!["(9, 3\n6\n)"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_closure_from_record_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"my f: int -> int = \x -> x + 1
