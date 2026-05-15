@@ -82,7 +82,7 @@ checklist, see *Detailed progress* below.
 | `std::junction` effectful boolean conditions        | CPS repr               |   ✅   |
 | Finite-list `for` loops with `last` / `next` control | CPS repr (scalar)      |   ✅   |
 | `sub` / `return` through finite-list and open-range `for` | CPS repr (scalar) | ✅ |
-| Open-range `for` with local `last` result value      | CPS repr               |   △   |
+| Open-range `for` with local `last` result value      | CPS repr               |   ✅   |
 
 #### Output
 
@@ -212,6 +212,9 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] `sub` / `return` can escape through finite-list and open-range `for`
       chains on the CPS repr executable path for the covered return-shaped
       roots.
+- [x] Open-range `for` with local `last` consumes the loop-control arm at the
+      loop boundary and continues with the following expression on the CPS
+      repr executable path.
 - [x] Callback return hygiene is covered by source regressions: direct `f()`
       inside an inner `sub` is captured there, while callback `h()` escapes to
       the caller's `sub`.

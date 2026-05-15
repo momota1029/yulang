@@ -184,16 +184,11 @@ CPS repr Cranelift の source 回帰を広げる。
   Cranelift でも VM と一致する。handler arm が installed escape に到達済みの
   経路では、`perform_finish_escaped` が skipped force/apply chain へ abort
   signal を残すようにした。
-- open-range `for` の `last` は forced CPS repr executable path でまだ timeout
-  する。local `last` handler は loop body を止める必要があるが、
-  non-local `sub`/`return` escape と同じ abort 規則に寄せすぎると
-  handler-arm value の `0` が root になる。これは
-  `notes/bugs/native_open_range_for_last_returns_payload.yu` と N9 に分離した。
-  実装修正は `notes/design/native-scoped-abort-plan.md` の scoped abort に寄せる。
-  2026-05-15 の実験で current-handler route の abort 条件を広げると timeout は
-  止まるが root が `0` になることを確認した。したがって残りは handler selection
-  ではなく、local handler arm value を loop boundary で消費して後続 continuation
-  (`5`) へ戻す jump/scoped short-circuit の実装。
+- open-range `for` の `last` は forced/default CPS repr executable path で VM と
+  一致するようになった。local handler arm value の `0` は scoped abort として
+  recursive range/fold chain 内では返し続け、return-frame threshold の外側で
+  consume して後続 continuation (`5`) へ戻す。
+  `runs_open_range_for_loop_last_through_cps_repr` で regression 化した。
 - `examples/10_effect_handler.yu` は forced CPS repr executable path で
   `(9, "3\n6\n")` 相当を返すようになった。ScopeReturn の stale thunk payload
   を force 後の値に更新し、duplicate selected handler env は newest-first に読んだ。

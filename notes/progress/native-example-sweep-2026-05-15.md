@@ -27,16 +27,16 @@ timeout 20s bash -lc 'RUSTC_WRAPPER= cargo run -q -p yulang -- native <example>'
 
 | Example | Current behavior | Tracking |
 | --- | --- | --- |
-| `examples/03_for_last.yu` | forced/default CPS repr times out on open-range `for` with local `last` | `notes/bugs/native_open_range_for_last_returns_payload.yu`, N9 |
 | `examples/06_undet_once.yu` | fails before native with `expected (), got int` | `notes/bugs/index.md` frontend/runtime note |
 
 ## Smoke Checks Added Around This Sweep
 
 - `runs_for_loop_return_escape_through_cps_repr`
 - `runs_finite_for_loop_last_through_cps_repr`
+- `runs_open_range_for_loop_last_through_cps_repr`
 - `runs_recursive_effect_handler_tuple_result_through_cps_repr`
 
-These distinguish the fixed finite/open-range `return` escape and finite-list
-`last` behavior from the remaining open-range local `last` problem. The
-recursive handler tuple regression keeps N10 covered after the stale thunk
-payload and oldest-first handler env bugs were fixed.
+These distinguish the fixed finite/open-range `return` escape, finite-list
+`last`, and open-range local `last` behavior. The recursive handler tuple
+regression keeps N10 covered after the stale thunk payload and oldest-first
+handler env bugs were fixed.

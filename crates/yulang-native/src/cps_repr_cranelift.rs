@@ -954,7 +954,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let results = builder.inst_results(call);
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            return_if_abort_active(module_backend, builder)?;
+            let result = abort_result_or_return(module_backend, builder, result)?;
             let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
             return_if_scope_return_active(module_backend, builder, scope_fallback)?;
             builder.def_var(variable(*dest), result);
@@ -1096,7 +1096,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             }
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            return_if_abort_active(module_backend, builder)?;
+            let result = abort_result_or_return(module_backend, builder, result)?;
             let result_lane = functions
                 .function_returns
                 .get(target)
@@ -1118,7 +1118,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                 &[closure, arg],
             )?;
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            return_if_abort_active(module_backend, builder)?;
+            let value = abort_result_or_return(module_backend, builder, value)?;
             return_if_scope_return_active(module_backend, builder, value)?;
             builder.def_var(variable(*dest), value);
         }
@@ -1146,7 +1146,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let results = builder.inst_results(call);
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            return_if_abort_active(module_backend, builder)?;
+            let result = abort_result_or_return(module_backend, builder, result)?;
             let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
             return_if_scope_return_active(module_backend, builder, scope_fallback)?;
             builder.def_var(variable(*dest), result);
@@ -1175,7 +1175,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let results = builder.inst_results(call);
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            return_if_abort_active(module_backend, builder)?;
+            let result = abort_result_or_return(module_backend, builder, result)?;
             let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
             return_if_scope_return_active(module_backend, builder, scope_fallback)?;
             builder.def_var(variable(*dest), result);
@@ -2035,7 +2035,7 @@ fn call_continuation_with_values<M: Module>(
         });
     }
     let result = results[0];
-    return_if_abort_active(module_backend, builder)?;
+    let result = abort_result_or_return(module_backend, builder, result)?;
     return_if_scope_return_active(module_backend, builder, result)?;
     Ok(result)
 }
@@ -2297,30 +2297,43 @@ fn stack_i64_slice(
     Ok((ptr, len))
 }
 
-/// Emit an abort-active check after an internal call. If the runtime abort
-/// slot is set, the current Cranelift function returns the abort value
-/// immediately, mirroring CpsRuntimeValue::Aborted propagation in the CPS
-/// evaluator. The caller continues lowering after this point as if no abort
-/// happened.
-fn return_if_abort_active<M: Module>(
+fn abort_result_or_return<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
-) -> CpsReprCraneliftResult<()> {
-    let active = call_i64_helper(module_backend, builder, "yulang_cps_abort_active_i64", &[])?;
-    let abort_block = builder.create_block();
-    let cont_block = builder.create_block();
+    value: ir::Value,
+) -> CpsReprCraneliftResult<ir::Value> {
+    let mode = call_i64_helper(module_backend, builder, "yulang_cps_abort_mode_i64", &[])?;
+    let no_abort = builder.create_block();
+    let abort = builder.create_block();
+    builder.append_block_param(no_abort, types::I64);
     builder
         .ins()
-        .brif(active, abort_block, &[], cont_block, &[]);
+        .brif(mode, abort, &[], no_abort, &[ir::BlockArg::Value(value)]);
 
-    builder.switch_to_block(abort_block);
-    builder.seal_block(abort_block);
-    let value = call_i64_helper(module_backend, builder, "yulang_cps_abort_value_i64", &[])?;
-    builder.ins().return_(&[value]);
+    builder.switch_to_block(abort);
+    builder.seal_block(abort);
+    let abort_value = call_i64_helper(module_backend, builder, "yulang_cps_abort_value_i64", &[])?;
+    let consume = builder.ins().icmp_imm(ir::condcodes::IntCC::Equal, mode, 2);
+    let consume_block = builder.create_block();
+    let return_block = builder.create_block();
+    builder
+        .ins()
+        .brif(consume, consume_block, &[], return_block, &[]);
 
-    builder.switch_to_block(cont_block);
-    builder.seal_block(cont_block);
-    Ok(())
+    builder.switch_to_block(return_block);
+    builder.seal_block(return_block);
+    builder.ins().return_(&[abort_value]);
+
+    builder.switch_to_block(consume_block);
+    builder.seal_block(consume_block);
+    let _ = call_i64_helper(module_backend, builder, "yulang_cps_clear_abort_i64", &[])?;
+    builder
+        .ins()
+        .jump(no_abort, &[ir::BlockArg::Value(abort_value)]);
+
+    builder.switch_to_block(no_abort);
+    builder.seal_block(no_abort);
+    Ok(builder.block_params(no_abort)[0])
 }
 
 /// write27-d d5: enter a fresh eval context for a synchronous internal
@@ -2901,7 +2914,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let results = builder.inst_results(call);
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            return_if_abort_active(module_backend, builder)?;
+            let result = abort_result_or_return(module_backend, builder, result)?;
             let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
             return_if_scope_return_active(module_backend, builder, scope_fallback)?;
             builder.def_var(variable(*dest), result);
@@ -3043,7 +3056,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             }
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            return_if_abort_active(module_backend, builder)?;
+            let result = abort_result_or_return(module_backend, builder, result)?;
             let result_lane = functions
                 .function_returns
                 .get(target)
@@ -3065,7 +3078,7 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
                 &[closure, arg],
             )?;
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            return_if_abort_active(module_backend, builder)?;
+            let value = abort_result_or_return(module_backend, builder, value)?;
             return_if_scope_return_active(module_backend, builder, value)?;
             builder.def_var(variable(*dest), value);
         }
@@ -4344,17 +4357,22 @@ enum NativeCpsI64Abort {
     #[default]
     None,
     Global(i64),
+    Scoped {
+        value: i64,
+        return_frame_threshold: usize,
+    },
 }
 
 impl NativeCpsI64Abort {
     fn is_active(self) -> bool {
-        matches!(self, NativeCpsI64Abort::Global(_))
+        !matches!(self, NativeCpsI64Abort::None)
     }
 
     fn value_or_zero(self) -> i64 {
         match self {
             NativeCpsI64Abort::None => 0,
             NativeCpsI64Abort::Global(value) => value,
+            NativeCpsI64Abort::Scoped { value, .. } => value,
         }
     }
 }
@@ -6837,9 +6855,16 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         // when the dynamic handler was restored from a captured return frame.
         // Keep the same short-circuit signal used by the frame-walk path so
         // skipped native callers do not continue with their normal fallback.
-        if current_initial > 0 && frame.return_frame_threshold == 0 {
-            NATIVE_CPS_I64_ABORT
-                .with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(result));
+        if current_initial > 0 {
+            let abort = if frame.return_frame_threshold == 0 {
+                NativeCpsI64Abort::Global(result)
+            } else {
+                NativeCpsI64Abort::Scoped {
+                    value: result,
+                    return_frame_threshold: frame.return_frame_threshold,
+                }
+            };
+            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = abort);
         }
         return result;
     }
@@ -6909,8 +6934,15 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         // call stack still needs a short-circuit signal until the next real
         // handler boundary re-wraps the value.
         if current_initial > 0 {
-            NATIVE_CPS_I64_ABORT
-                .with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(result));
+            let abort = if handler.return_frame_threshold == 0 {
+                NativeCpsI64Abort::Global(result)
+            } else {
+                NativeCpsI64Abort::Scoped {
+                    value: result,
+                    return_frame_threshold: handler.return_frame_threshold,
+                }
+            };
+            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = abort);
         }
         return result;
     }
@@ -7164,6 +7196,42 @@ extern "C" fn yulang_cps_abort_active_i64() -> i64 {
             );
         }
         i64::from(active)
+    })
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_abort_should_return_i64() -> i64 {
+    i64::from(yulang_cps_abort_mode_i64() == 1)
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_abort_mode_i64() -> i64 {
+    NATIVE_CPS_I64_ABORT.with(|slot| {
+        let abort = *slot.borrow();
+        let frame_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
+        let mode = match abort {
+            NativeCpsI64Abort::None => 0,
+            NativeCpsI64Abort::Global(_) => 1,
+            NativeCpsI64Abort::Scoped {
+                return_frame_threshold,
+                ..
+            } => {
+                if frame_len >= return_frame_threshold {
+                    1
+                } else {
+                    2
+                }
+            }
+        };
+        if jit_trace_enabled() && mode != 0 {
+            eprintln!(
+                "[JIT-CPS] abort_mode: mode={} frame_len={} value={}",
+                mode,
+                frame_len,
+                describe_native_i64_value(abort.value_or_zero())
+            );
+        }
+        mode
     })
 }
 
@@ -7543,6 +7611,17 @@ extern "C" fn yulang_cps_pre_force_top_frame_i64(value: i64) -> i64 {
         });
     });
     let forced = yulang_cps_force_thunk_i64(value as usize);
+    match yulang_cps_abort_mode_i64() {
+        1 => {
+            return yulang_cps_abort_value_i64();
+        }
+        2 => {
+            let value = yulang_cps_abort_value_i64();
+            yulang_cps_clear_abort_i64();
+            return value;
+        }
+        _ => {}
+    }
     if yulang_cps_abort_active_i64() != 0 {
         return yulang_cps_abort_value_i64();
     }

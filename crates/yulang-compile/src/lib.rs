@@ -468,6 +468,23 @@ sub:
     }
 
     #[test]
+    fn runs_open_range_for_loop_last_through_cps_repr() {
+        assert_source_cps_repr_jit_display_with_std(
+            r#"use std::flow::*
+
+{
+    for x in 0..:
+        if x == 5: last
+        else: ()
+    5
+}
+"#,
+            vec!["5"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_recursive_effect_handler_tuple_result_through_cps_repr() {
         assert_source_cps_repr_jit_display_with_std(
             r#"pub act out:

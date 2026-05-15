@@ -1,23 +1,22 @@
-// Native CPS repr currently does not complete open-range `for` with local
-// `last`.
+// Native CPS repr used to loop forever on open-range `for` with local `last`.
 //
 // VM:
 //   yulang run notes/bugs/native_open_range_for_last_returns_payload.yu
 //   => [0] 5
 //
-// Native CPS repr, as of 2026-05-15:
+// Native CPS repr, fixed on 2026-05-15:
 //   yulang native --kind run-cps-repr-exe notes/bugs/native_open_range_for_last_returns_payload.yu
-//   => timeout
+//   => 5
 //
 // The local `last` handler needs to stop the loop body without turning into a
 // non-local `sub`/`return` escape. If Cranelift aborts too aggressively it
 // returns the handler-arm value `0`; if it does not abort enough, the open
 // range keeps stepping forever.
 //
-// A widened current-handler abort experiment confirmed both sides: it stops
-// the timeout, but the executable prints `0` instead of continuing after the
-// loop to `5`. The remaining fix needs a scoped short-circuit, not a wider
-// global abort.
+// A widened current-handler abort experiment confirmed both sides: it stopped
+// the timeout, but printed `0` instead of continuing after the loop to `5`.
+// The fix is a scoped short-circuit: keep returning the local arm value inside
+// the range/fold chain, then consume it at the loop boundary.
 
 use std::flow::*
 

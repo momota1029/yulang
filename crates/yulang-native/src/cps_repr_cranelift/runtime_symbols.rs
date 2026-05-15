@@ -47,6 +47,8 @@ pub(super) fn register_cps_runtime_symbols(builder: &mut JITBuilder) {
         yulang_cps_effectful_apply_resumption_i64_4,
         yulang_cps_abort_i64,
         yulang_cps_abort_active_i64,
+        yulang_cps_abort_should_return_i64,
+        yulang_cps_abort_mode_i64,
         yulang_cps_abort_value_i64,
         yulang_cps_clear_abort_i64,
         yulang_cps_scope_return_i64,

@@ -180,7 +180,10 @@ YU
 
 Native execution is a prototype with an explicit subset; see
 [docs/native-backend.md](docs/native-backend.md) for the supported
-programs and the CLI reference.
+programs and the CLI reference. The CPS representation backend currently
+covers algebraic handlers, nondeterministic finite-list choices, `sub` /
+`return`, and finite/open-range `for` loop control for the documented
+regression set.
 
 Run the test suites:
 
