@@ -761,7 +761,9 @@ fn analyze_function_abi_lanes(
                     | CpsStmt::Record { .. }
                     | CpsStmt::RecordWithoutFields { .. }
                     | CpsStmt::Variant { .. }
-                    | CpsStmt::Select { .. } => CpsReprAbiLane::RuntimeValuePtr,
+                    | CpsStmt::Select { .. }
+                    | CpsStmt::SelectWithDefault { .. } => CpsReprAbiLane::RuntimeValuePtr,
+                    CpsStmt::RecordHasField { .. } => CpsReprAbiLane::ScalarI64,
                     CpsStmt::TupleGet { .. } | CpsStmt::VariantPayload { .. } => {
                         CpsReprAbiLane::Unknown
                     }
@@ -933,6 +935,8 @@ fn analyze_function_values(function: &CpsReprFunction) -> CpsReprFunctionValueAn
                     | CpsStmt::RecordWithoutFields { .. }
                     | CpsStmt::Variant { .. }
                     | CpsStmt::Select { .. }
+                    | CpsStmt::SelectWithDefault { .. }
+                    | CpsStmt::RecordHasField { .. }
                     | CpsStmt::TupleGet { .. }
                     | CpsStmt::VariantTagEq { .. }
                     | CpsStmt::VariantPayload { .. }
@@ -1439,6 +1443,8 @@ fn stmt_dest(stmt: &CpsStmt) -> Option<CpsValueId> {
         | CpsStmt::RecordWithoutFields { dest, .. }
         | CpsStmt::Variant { dest, .. }
         | CpsStmt::Select { dest, .. }
+        | CpsStmt::SelectWithDefault { dest, .. }
+        | CpsStmt::RecordHasField { dest, .. }
         | CpsStmt::TupleGet { dest, .. }
         | CpsStmt::VariantTagEq { dest, .. }
         | CpsStmt::VariantPayload { dest, .. }
@@ -1975,6 +1981,46 @@ fn resume_continuation(
                         other => other,
                     };
                     values.insert(*dest, value);
+                }
+                CpsStmt::SelectWithDefault {
+                    dest,
+                    base,
+                    field,
+                    default,
+                } => {
+                    let default = read_value(function, &values, *default)?;
+                    let value = match read_value(function, &values, *base)? {
+                        CpsReprRuntimeValue::Record(fields) => fields.get(field).cloned(),
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Record(fields)) => {
+                            fields.get(field).cloned().map(CpsReprRuntimeValue::Plain)
+                        }
+                        value => {
+                            return Err(CpsReprEvalError::ExpectedRecord {
+                                function: function.name.clone(),
+                                value: into_plain_value(function, *base, value)?,
+                            });
+                        }
+                    }
+                    .unwrap_or(default);
+                    values.insert(*dest, value);
+                }
+                CpsStmt::RecordHasField { dest, base, field } => {
+                    let has_field = match read_value(function, &values, *base)? {
+                        CpsReprRuntimeValue::Record(fields) => fields.contains_key(field),
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Record(fields)) => {
+                            fields.contains_key(field)
+                        }
+                        value => {
+                            return Err(CpsReprEvalError::ExpectedRecord {
+                                function: function.name.clone(),
+                                value: into_plain_value(function, *base, value)?,
+                            });
+                        }
+                    };
+                    values.insert(
+                        *dest,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Bool(has_field)),
+                    );
                 }
                 CpsStmt::VariantTagEq { dest, variant, tag } => {
                     let matches = match read_value(function, &values, *variant)? {

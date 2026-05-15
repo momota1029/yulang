@@ -2585,21 +2585,72 @@ impl<'a> FunctionLowerer<'a> {
         then_cont: CpsContinuationId,
         else_cont: CpsContinuationId,
     ) -> CpsLowerResult<bool> {
-        let mut tests = Vec::new();
-        for field in fields {
-            let field_value = self.fresh_value();
+        let fields_done = self.fresh_continuation();
+        self.lower_record_field_pattern_tests(value, fields, 0, fields_done, else_cont)?;
+        self.finish_current();
+        self.current = ContinuationBuilder::new(fields_done, Vec::new());
+        if let Some(spread) = record_spread_pattern(spread) {
+            let rest = self.emit_record_without_fields(value, fields);
+            self.lower_pattern_test(rest, spread, then_cont, else_cont)
+        } else {
+            self.terminate(CpsTerminator::Continue {
+                target: then_cont,
+                args: Vec::new(),
+            });
+            Ok(true)
+        }
+    }
+
+    fn lower_record_field_pattern_tests(
+        &mut self,
+        value: CpsValueId,
+        fields: &[runtime::RecordPatternField],
+        index: usize,
+        then_cont: CpsContinuationId,
+        else_cont: CpsContinuationId,
+    ) -> CpsLowerResult<bool> {
+        let Some(field) = fields.get(index) else {
+            self.terminate(CpsTerminator::Continue {
+                target: then_cont,
+                args: Vec::new(),
+            });
+            return Ok(true);
+        };
+        let field_value = self.fresh_value();
+        if let Some(default) = &field.default {
+            let default = self.lower_expr(default)?;
+            self.current.stmts.push(CpsStmt::SelectWithDefault {
+                dest: field_value,
+                base: value,
+                field: field.name.clone(),
+                default,
+            });
+        } else {
+            let present = self.fresh_value();
+            let present_cont = self.fresh_continuation();
+            self.current.stmts.push(CpsStmt::RecordHasField {
+                dest: present,
+                base: value,
+                field: field.name.clone(),
+            });
+            self.terminate(CpsTerminator::Branch {
+                cond: present,
+                then_cont: present_cont,
+                else_cont,
+            });
+            self.finish_current();
+            self.current = ContinuationBuilder::new(present_cont, Vec::new());
             self.current.stmts.push(CpsStmt::Select {
                 dest: field_value,
                 base: value,
                 field: field.name.clone(),
             });
-            tests.push((field_value, &field.pattern));
         }
-        if let Some(spread) = record_spread_pattern(spread) {
-            let rest = self.emit_record_without_fields(value, fields);
-            tests.push((rest, spread));
-        }
-        self.lower_extracted_pattern_tests(tests, 0, then_cont, else_cont)
+        let next_cont = self.fresh_continuation();
+        self.lower_pattern_test(field_value, &field.pattern, next_cont, else_cont)?;
+        self.finish_current();
+        self.current = ContinuationBuilder::new(next_cont, Vec::new());
+        self.lower_record_field_pattern_tests(value, fields, index + 1, then_cont, else_cont)
     }
 
     fn lower_extracted_pattern_tests(
@@ -4407,11 +4458,21 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CpsLowerResult<()> {
         for field in fields {
             let field_value = self.fresh_value();
-            self.current.stmts.push(CpsStmt::Select {
-                dest: field_value,
-                base: value,
-                field: field.name.clone(),
-            });
+            if let Some(default) = &field.default {
+                let default = self.lower_expr(default)?;
+                self.current.stmts.push(CpsStmt::SelectWithDefault {
+                    dest: field_value,
+                    base: value,
+                    field: field.name.clone(),
+                    default,
+                });
+            } else {
+                self.current.stmts.push(CpsStmt::Select {
+                    dest: field_value,
+                    base: value,
+                    field: field.name.clone(),
+                });
+            }
             self.bind_pattern(&field.pattern, field_value)?;
         }
         if let Some(spread) = record_spread_pattern(spread) {

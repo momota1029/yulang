@@ -897,6 +897,47 @@ fn resume_continuation(
                     };
                     write_value(&mut values, *dest, value);
                 }
+                CpsStmt::SelectWithDefault {
+                    dest,
+                    base,
+                    field,
+                    default,
+                } => {
+                    let default = read_value(function, &values, *default)?;
+                    let value = match read_value(function, &values, *base)? {
+                        CpsRuntimeValue::Record(fields) => fields.get(field).cloned(),
+                        CpsRuntimeValue::Plain(runtime::VmValue::Record(fields)) => {
+                            fields.get(field).cloned().map(CpsRuntimeValue::Plain)
+                        }
+                        value => {
+                            return Err(CpsEvalError::ExpectedRecord {
+                                function: function.name.clone(),
+                                value: into_plain_value(function, *base, value)?,
+                            });
+                        }
+                    }
+                    .unwrap_or(default);
+                    write_value(&mut values, *dest, value);
+                }
+                CpsStmt::RecordHasField { dest, base, field } => {
+                    let has_field = match read_value(function, &values, *base)? {
+                        CpsRuntimeValue::Record(fields) => fields.contains_key(field),
+                        CpsRuntimeValue::Plain(runtime::VmValue::Record(fields)) => {
+                            fields.contains_key(field)
+                        }
+                        value => {
+                            return Err(CpsEvalError::ExpectedRecord {
+                                function: function.name.clone(),
+                                value: into_plain_value(function, *base, value)?,
+                            });
+                        }
+                    };
+                    write_value(
+                        &mut values,
+                        *dest,
+                        CpsRuntimeValue::Plain(runtime::VmValue::Bool(has_field)),
+                    );
+                }
                 CpsStmt::VariantTagEq { dest, variant, tag } => {
                     let matches = match read_value(function, &values, *variant)? {
                         CpsRuntimeValue::Variant { tag: actual, .. } => actual == *tag,

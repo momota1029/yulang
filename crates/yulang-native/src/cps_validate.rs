@@ -158,6 +158,8 @@ fn function_defined_values(function: &CpsFunction) -> HashSet<CpsValueId> {
                 | CpsStmt::RecordWithoutFields { dest, .. }
                 | CpsStmt::Variant { dest, .. }
                 | CpsStmt::Select { dest, .. }
+                | CpsStmt::SelectWithDefault { dest, .. }
+                | CpsStmt::RecordHasField { dest, .. }
                 | CpsStmt::TupleGet { dest, .. }
                 | CpsStmt::VariantTagEq { dest, .. }
                 | CpsStmt::VariantPayload { dest, .. }
@@ -250,6 +252,20 @@ fn validate_continuation(
                 values.insert(*dest);
             }
             CpsStmt::Select { dest, base, .. } => {
+                require_value(function, &values, *base)?;
+                values.insert(*dest);
+            }
+            CpsStmt::SelectWithDefault {
+                dest,
+                base,
+                default,
+                ..
+            } => {
+                require_value(function, &values, *base)?;
+                require_value(function, &values, *default)?;
+                values.insert(*dest);
+            }
+            CpsStmt::RecordHasField { dest, base, .. } => {
                 require_value(function, &values, *base)?;
                 values.insert(*dest);
             }

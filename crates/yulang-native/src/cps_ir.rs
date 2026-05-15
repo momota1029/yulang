@@ -95,6 +95,17 @@ pub enum CpsStmt {
         base: CpsValueId,
         field: typed_ir::Name,
     },
+    SelectWithDefault {
+        dest: CpsValueId,
+        base: CpsValueId,
+        field: typed_ir::Name,
+        default: CpsValueId,
+    },
+    RecordHasField {
+        dest: CpsValueId,
+        base: CpsValueId,
+        field: typed_ir::Name,
+    },
     TupleGet {
         dest: CpsValueId,
         tuple: CpsValueId,

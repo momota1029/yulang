@@ -607,6 +607,40 @@ r.x + r.y
     }
 
     #[test]
+    fn runs_list_spread_expr_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"[1, ..[2, 3], 4]
+"#,
+            vec!["[1, 2, 3, 4]"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_record_default_pattern_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"case {y: 22}:
+    {x = 20, y} -> x + y
+    _ -> 0
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_match_guard_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"case [1, 2]:
+    [1, x] if x == 2 -> 42
+    _ -> 0
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_top_level_record_spread_destructure_binding_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"my {x, ..rest} = {x: 20, y: 22}

@@ -992,6 +992,36 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             )?;
             builder.def_var(variable(*dest), value);
         }
+        CpsStmt::SelectWithDefault {
+            dest,
+            base,
+            field,
+            default,
+        } => {
+            let base = read_value(builder, function, *base)?;
+            let default = read_value(builder, function, *default)?;
+            let (field_ptr, field_len) =
+                literals.literal_bytes(module_backend, builder, field.0.as_bytes())?;
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_record_select_or_default_i64",
+                &[base, field_ptr, field_len, default],
+            )?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::RecordHasField { dest, base, field } => {
+            let base = read_value(builder, function, *base)?;
+            let (field_ptr, field_len) =
+                literals.literal_bytes(module_backend, builder, field.0.as_bytes())?;
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_record_has_field_i64",
+                &[base, field_ptr, field_len],
+            )?;
+            builder.def_var(variable(*dest), value);
+        }
         CpsStmt::Variant { dest, tag, value } => {
             let value = value
                 .map(|value| read_value(builder, function, value))
@@ -1235,6 +1265,8 @@ fn stmt_dest(stmt: &CpsStmt) -> Option<CpsValueId> {
         | CpsStmt::RecordWithoutFields { dest, .. }
         | CpsStmt::Variant { dest, .. }
         | CpsStmt::Select { dest, .. }
+        | CpsStmt::SelectWithDefault { dest, .. }
+        | CpsStmt::RecordHasField { dest, .. }
         | CpsStmt::TupleGet { dest, .. }
         | CpsStmt::VariantTagEq { dest, .. }
         | CpsStmt::VariantPayload { dest, .. }
@@ -2907,6 +2939,36 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             )?;
             builder.def_var(variable(*dest), value);
         }
+        CpsStmt::SelectWithDefault {
+            dest,
+            base,
+            field,
+            default,
+        } => {
+            let base = read_value(builder, function, *base)?;
+            let default = read_value(builder, function, *default)?;
+            let (field_ptr, field_len) =
+                literals.literal_bytes(module_backend, builder, field.0.as_bytes())?;
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_record_select_or_default_i64",
+                &[base, field_ptr, field_len, default],
+            )?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::RecordHasField { dest, base, field } => {
+            let base = read_value(builder, function, *base)?;
+            let (field_ptr, field_len) =
+                literals.literal_bytes(module_backend, builder, field.0.as_bytes())?;
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_record_has_field_i64",
+                &[base, field_ptr, field_len],
+            )?;
+            builder.def_var(variable(*dest), value);
+        }
         CpsStmt::Variant { dest, tag, value } => {
             let value = value
                 .map(|value| read_value(builder, function, value))
@@ -3509,6 +3571,8 @@ fn validate_scalar_function(
                 | CpsStmt::RecordWithoutFields { .. }
                 | CpsStmt::Variant { .. }
                 | CpsStmt::Select { .. }
+                | CpsStmt::SelectWithDefault { .. }
+                | CpsStmt::RecordHasField { .. }
                 | CpsStmt::TupleGet { .. }
                 | CpsStmt::VariantTagEq { .. }
                 | CpsStmt::VariantPayload { .. } => {}
@@ -3873,6 +3937,8 @@ fn function_value_ids(function: &CpsReprAbiFunction) -> Vec<CpsValueId> {
                 | CpsStmt::RecordWithoutFields { dest, .. }
                 | CpsStmt::Variant { dest, .. }
                 | CpsStmt::Select { dest, .. }
+                | CpsStmt::SelectWithDefault { dest, .. }
+                | CpsStmt::RecordHasField { dest, .. }
                 | CpsStmt::TupleGet { dest, .. }
                 | CpsStmt::VariantTagEq { dest, .. }
                 | CpsStmt::VariantPayload { dest, .. }
@@ -4012,7 +4078,8 @@ fn stmt_result_lane(stmt: &CpsStmt) -> CpsReprAbiLane {
         CpsStmt::FreshGuard { .. }
         | CpsStmt::PeekGuard { .. }
         | CpsStmt::FindGuard { .. }
-        | CpsStmt::VariantTagEq { .. } => CpsReprAbiLane::ScalarI64,
+        | CpsStmt::VariantTagEq { .. }
+        | CpsStmt::RecordHasField { .. } => CpsReprAbiLane::ScalarI64,
         CpsStmt::MakeThunk { .. } | CpsStmt::AddThunkBoundary { .. } => CpsReprAbiLane::ThunkPtr,
         CpsStmt::MakeClosure { .. } | CpsStmt::MakeRecursiveClosure { .. } => {
             CpsReprAbiLane::ClosurePtr
@@ -4022,6 +4089,7 @@ fn stmt_result_lane(stmt: &CpsStmt) -> CpsReprAbiLane {
         | CpsStmt::RecordWithoutFields { .. }
         | CpsStmt::Variant { .. }
         | CpsStmt::Select { .. }
+        | CpsStmt::SelectWithDefault { .. }
         | CpsStmt::TupleGet { .. }
         | CpsStmt::VariantPayload { .. }
         | CpsStmt::ForceThunk { .. }
@@ -5187,6 +5255,44 @@ extern "C" fn yulang_cps_record_select_i64(
         .iter()
         .find_map(|(name, value)| (name.as_ref() == field.as_str()).then_some(*value))
         .unwrap_or(0)
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_record_select_or_default_i64(
+    record: i64,
+    field_ptr: *const u8,
+    field_len: i64,
+    default: i64,
+) -> i64 {
+    let Some(field) = native_cps_i64_string_from_raw(field_ptr, field_len) else {
+        return default;
+    };
+    let record = unsafe { &*(record as *const NativeCpsI64HeapValue) };
+    let NativeCpsI64HeapValue::Record(fields) = record else {
+        return default;
+    };
+    fields
+        .iter()
+        .find_map(|(name, value)| (name.as_ref() == field.as_str()).then_some(*value))
+        .unwrap_or(default)
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_record_has_field_i64(
+    record: i64,
+    field_ptr: *const u8,
+    field_len: i64,
+) -> i64 {
+    let Some(field) = native_cps_i64_string_from_raw(field_ptr, field_len) else {
+        return 0;
+    };
+    let record = unsafe { &*(record as *const NativeCpsI64HeapValue) };
+    let NativeCpsI64HeapValue::Record(fields) = record else {
+        return 0;
+    };
+    fields
+        .iter()
+        .any(|(name, _)| name.as_ref() == field.as_str()) as i64
 }
 
 #[unsafe(no_mangle)]

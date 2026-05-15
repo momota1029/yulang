@@ -235,6 +235,9 @@ CPS repr Cranelift の source 回帰を広げる。
   pattern 規則と同じ位置で処理する。
 - record spread expression も CPS repr path へ入れた。CPS IR の `Record` は
   optional base record を持ち、base をコピーしてから明示 field を上書きする。
+- record default pattern は CPS IR の `SelectWithDefault` で表し、field presence が
+  必要な pattern test には `RecordHasField` を使う。match guard と list spread
+  expression も source regression として固定した。
 - top-level destructuring `my` は runtime IR が各名前ごとの `case` binding に
   分解され、native 側だけ再帰/クラッシュすることを
   `notes/bugs/native_top_level_destructure_binding_recurses.yu` に切り出した。
