@@ -4335,6 +4335,30 @@ struct NativeCpsI64ScopeReturn {
     value: i64,
 }
 
+/// Legacy non-local short-circuit slot used by paths that have not yet moved
+/// to prompt-targeted `ScopeReturn`. Keeping the shape explicit makes the next
+/// scoped-abort step local to this type instead of spreading more
+/// `Option<i64>` checks through the JIT helpers.
+#[derive(Debug, Clone, Copy, Default)]
+enum NativeCpsI64Abort {
+    #[default]
+    None,
+    Global(i64),
+}
+
+impl NativeCpsI64Abort {
+    fn is_active(self) -> bool {
+        matches!(self, NativeCpsI64Abort::Global(_))
+    }
+
+    fn value_or_zero(self) -> i64 {
+        match self {
+            NativeCpsI64Abort::None => 0,
+            NativeCpsI64Abort::Global(value) => value,
+        }
+    }
+}
+
 /// write27-a/b: suspended caller continuation captured at
 /// `EffectfulCall / EffectfulApply / EffectfulForce`. Mirrors
 /// `CpsReturnFrame` from cps_eval/cps_repr but with raw function-
@@ -4444,7 +4468,8 @@ thread_local! {
     static NATIVE_CPS_I64_NEXT_RETURN_FRAME_DEBUG_ID: RefCell<u64> = const { RefCell::new(1) };
     static NATIVE_CPS_I64_PENDING_HANDLER_ENVS: RefCell<Vec<(i64, NativeCpsI64HandlerEnv)>> = const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_SELECTED_HANDLER_ENVS: RefCell<Vec<NativeCpsI64HandlerEnv>> = const { RefCell::new(Vec::new()) };
-    static NATIVE_CPS_I64_ABORT: RefCell<Option<i64>> = const { RefCell::new(None) };
+    static NATIVE_CPS_I64_ABORT: RefCell<NativeCpsI64Abort> =
+        const { RefCell::new(NativeCpsI64Abort::None) };
     // write27-a: ScopeReturn slot. Mirrors `cps_eval`/`cps_repr`'s
     // ScopeReturn variant. Set by the new `yulang_cps_scope_return_i64`
     // helper (called by Perform codegen once it migrates) and read by
@@ -4524,7 +4549,7 @@ fn reset_native_i64_cps_state() {
     NATIVE_CPS_I64_NEXT_RETURN_FRAME_DEBUG_ID.with(|next| *next.borrow_mut() = 1);
     NATIVE_CPS_I64_PENDING_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
     NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
-    NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = None);
+    NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::None);
     NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
         *slot.borrow_mut() = NativeCpsI64ScopeReturn::default();
     });
@@ -6616,7 +6641,7 @@ extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
     let already_active = NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().active);
     if is_real && !already_active {
         let meta = meta.as_ref().expect("is_real implies meta");
-        NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = None);
+        NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::None);
         NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
             *slot.borrow_mut() = NativeCpsI64ScopeReturn {
                 active: true,
@@ -6647,9 +6672,10 @@ extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
     let routed = yulang_cps_route_scope_return_i64(value);
     // 4. legacy abort fallback (synthetic handler / no SR path).
     if !is_real {
-        let abort_already = NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().is_some());
+        let abort_already = NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().is_active());
         if !abort_already {
-            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(routed));
+            NATIVE_CPS_I64_ABORT
+                .with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(routed));
         }
     }
     routed
@@ -6678,14 +6704,14 @@ extern "C" fn yulang_cps_perform_finish_escaped_i64(value: i64) -> i64 {
         let current_initial =
             NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
         if abort_outer_eval && current_initial > 0 {
-            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(value));
+            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(value));
         }
         return value;
     }
     let result = yulang_cps_continue_return_frame_i64(value);
     let current_initial = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
     if abort_outer_eval && current_initial > 0 {
-        NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(result));
+        NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(result));
     }
     result
 }
@@ -6812,7 +6838,8 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         // Keep the same short-circuit signal used by the frame-walk path so
         // skipped native callers do not continue with their normal fallback.
         if current_initial > 0 && frame.return_frame_threshold == 0 {
-            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(result));
+            NATIVE_CPS_I64_ABORT
+                .with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(result));
         }
         return result;
     }
@@ -6882,7 +6909,8 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         // call stack still needs a short-circuit signal until the next real
         // handler boundary re-wraps the value.
         if current_initial > 0 {
-            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(result));
+            NATIVE_CPS_I64_ABORT
+                .with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(result));
         }
         return result;
     }
@@ -7119,7 +7147,7 @@ extern "C" fn yulang_cps_install_handler_full_i64_4(
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_abort_i64(value: i64) -> i64 {
     NATIVE_CPS_I64_ABORT.with(|slot| {
-        *slot.borrow_mut() = Some(value);
+        *slot.borrow_mut() = NativeCpsI64Abort::Global(value);
     });
     value
 }
@@ -7128,27 +7156,26 @@ extern "C" fn yulang_cps_abort_i64(value: i64) -> i64 {
 extern "C" fn yulang_cps_abort_active_i64() -> i64 {
     NATIVE_CPS_I64_ABORT.with(|slot| {
         let value = *slot.borrow();
-        if jit_trace_enabled()
-            && let Some(value) = value
-        {
+        let active = value.is_active();
+        if jit_trace_enabled() && active {
             eprintln!(
                 "[JIT-CPS] abort_active: value={}",
-                describe_native_i64_value(value)
+                describe_native_i64_value(value.value_or_zero())
             );
         }
-        i64::from(value.is_some())
+        i64::from(active)
     })
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_abort_value_i64() -> i64 {
-    NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().unwrap_or(0))
+    NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().value_or_zero())
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_clear_abort_i64() -> i64 {
     NATIVE_CPS_I64_ABORT.with(|slot| {
-        *slot.borrow_mut() = None;
+        *slot.borrow_mut() = NativeCpsI64Abort::None;
     });
     0
 }
