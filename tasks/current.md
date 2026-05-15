@@ -177,7 +177,7 @@ CPS repr Cranelift の source 回帰を広げる。
 - closure value を record に保存し、field select で取り出してから呼ぶ source
   regression を forced CPS repr executable path に追加した。CPS repr の
   `RuntimeValuePtr` record と `ClosurePtr` call 境界が同じ observable path に
-  乗る。
+  乗る。scalar environment を capture した closure も同じ path で通る。
 - CPS-level thunk pointer を record に保存し、field select で取り出してから
   `ForceThunk` する Cranelift regression を追加した。source-level first-class
   thunk はまだ型/lowering 境界が残るが、native value lane 側の保存・選択・force
@@ -189,7 +189,8 @@ CPS repr Cranelift の source 回帰を広げる。
 - source-level closure value を list に保存し、`std::list::index_raw` で取り出して
   から呼ぶ forced CPS repr executable regression を追加した。direct call chain が
   over-applied の時は、その式全体を direct-call lowering で処理せず、通常の
-  `Apply` lowering に戻して callee 側を先に評価する。
+  `Apply` lowering に戻して callee 側を先に評価する。scalar environment を
+  capture した closure も list index 後に呼べる。
 - lazy operator の結果を tuple value position に置く source regression を
   forced CPS repr executable path に追加した。tuple 内部でも thunk が可視値として
   漏れず、native i64 表示 helper も tuple payload を再帰的に整形する。

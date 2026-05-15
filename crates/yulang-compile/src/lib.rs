@@ -407,11 +407,37 @@ r.call 41
     }
 
     #[test]
+    fn runs_captured_closure_from_record_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"my base = 40
+my f: int -> int = \x -> x + base
+my r = {call: f}
+r.call 2
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_closure_from_indexed_list_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"my f: int -> int = \x -> x + 1
 my fs = [f]
 ((std::list::index_raw fs) 0) 41
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_captured_closure_from_indexed_list_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"my base = 40
+my f: int -> int = \x -> x + base
+my fs = [f]
+((std::list::index_raw fs) 0) 2
 "#,
             vec!["42"],
         )

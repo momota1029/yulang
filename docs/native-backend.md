@@ -283,7 +283,8 @@ or out of here into the user-facing table once they stabilize.
 - [x] Small std higher-order list programs (`map`, `filter`, `fold`) run through
       the forced CPS repr executable path.
 - [x] A source-level closure value can be stored in a record, selected back out,
-      and called through the forced CPS repr executable path.
+      and called through the forced CPS repr executable path, including closures
+      with captured scalar environments.
 - [x] A CPS-level thunk pointer can be stored in a record, selected back out,
       and forced through the Cranelift CPS repr path.
 - [x] A CPS-level closure pointer can be stored in a list, indexed back out,
@@ -291,7 +292,7 @@ or out of here into the user-facing table once they stabilize.
       result can now be returned from a root.
 - [x] A source-level closure value can be stored in a list, selected with
       `std::list::index_raw`, and called through the forced CPS repr executable
-      path.
+      path, including closures with captured scalar environments.
 - [x] Lazy operator results in tuple value positions are covered by the forced
       CPS repr executable path, so short-circuit operands do not leak as visible
       thunk values there.
