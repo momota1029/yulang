@@ -123,6 +123,7 @@ fn stmt_def(stmt: &CpsStmt) -> Option<CpsValueId> {
         | CpsStmt::ForceThunk { dest, .. }
         | CpsStmt::Tuple { dest, .. }
         | CpsStmt::Record { dest, .. }
+        | CpsStmt::RecordWithoutFields { dest, .. }
         | CpsStmt::Variant { dest, .. }
         | CpsStmt::Select { dest, .. }
         | CpsStmt::TupleGet { dest, .. }
@@ -193,6 +194,9 @@ fn continuation_uses(
             }
             CpsStmt::Record { fields, .. } => {
                 uses.extend(fields.iter().map(|field| field.value));
+            }
+            CpsStmt::RecordWithoutFields { base, .. } => {
+                uses.insert(*base);
             }
             CpsStmt::Variant { value, .. } => {
                 uses.extend(value.iter().copied());

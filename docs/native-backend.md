@@ -63,7 +63,7 @@ checklist, see *Detailed progress* below.
 | List literals, list merge, length, index, raw view  | value backend          |   ✅   |
 | Tuple, record, variant, record field selection      | value backend          |   ✅   |
 | Record spread expressions                           | value backend          |   ✅   |
-| Literal / list / record / variant / tuple pattern matching | value backend / CPS repr | △ |
+| Literal / list / record / variant / tuple pattern matching, including list and record spread patterns | value backend / CPS repr | △ |
 | Lambdas / first-class function values (pure)        | CPS repr (prototype)   |   △   |
 | Closures with captured state                        | CPS repr (prototype)   |   △   |
 | Closure values selected from records and then called | CPS repr (prototype)  |   △   |
@@ -194,12 +194,13 @@ current backend boundaries visible, but detailed regression history lives in
       forced CPS repr executable path without leaking visible thunk handles.
 - [x] Lazy operator results in record fields and variant payloads are covered by
       the same forced CPS repr executable path.
-- [x] CPS repr lowering covers tuple, list, list-spread, record, and variant
-      payload pattern tests in `case` arms for the source-shaped regression
-      path.
+- [x] CPS repr lowering covers tuple, list, list-spread, record,
+      record-spread, and variant payload pattern tests in `case` arms for the
+      source-shaped regression path.
 - [x] Top-level destructuring `my` bindings that lower to self-shadowing
-      structural `case` bindings run through the default native CLI by routing
-      to CPS repr with a structured `structural pattern binding` reason.
+      structural `case` bindings, including record-spread rest bindings, run
+      through the default native CLI by routing to CPS repr with a structured
+      `structural pattern binding` reason.
 - [x] `std::junction`, finite-list `for` loops with `last` / `next`, mutable
       reference update, and `std::undet` `.once` / `.list` / `.logic` over
       finite-list choices run through the CPS repr executable path for covered

@@ -583,6 +583,29 @@ x + y
     }
 
     #[test]
+    fn runs_record_spread_pattern_match_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"case {x: 20, y: 22, label: "kept"}:
+    {x, ..rest} -> rest.y
+    _ -> 0
+"#,
+            vec!["22"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_top_level_record_spread_destructure_binding_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"my {x, ..rest} = {x: 20, y: 22}
+x + rest.y
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_variant_payload_pattern_match_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"case just (20, 22):

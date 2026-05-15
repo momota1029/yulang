@@ -79,6 +79,11 @@ pub enum CpsStmt {
         dest: CpsValueId,
         fields: Vec<CpsRecordField>,
     },
+    RecordWithoutFields {
+        dest: CpsValueId,
+        base: CpsValueId,
+        fields: Vec<typed_ir::Name>,
+    },
     Variant {
         dest: CpsValueId,
         tag: typed_ir::Name,

@@ -2476,6 +2476,9 @@ impl<'a> FunctionLowerer<'a> {
                 self.current = ContinuationBuilder::new(right_cont, Vec::new());
                 self.lower_pattern_test(value, right, then_cont, else_cont)
             }
+            runtime::Pattern::As { pattern, .. } => {
+                self.lower_pattern_test(value, pattern, then_cont, else_cont)
+            }
             _ => Err(CpsLowerError::UnsupportedPattern {
                 kind: "match pattern",
             }),
@@ -2577,11 +2580,6 @@ impl<'a> FunctionLowerer<'a> {
         then_cont: CpsContinuationId,
         else_cont: CpsContinuationId,
     ) -> CpsLowerResult<bool> {
-        if spread.is_some() {
-            return Err(CpsLowerError::UnsupportedPattern {
-                kind: "record spread",
-            });
-        }
         let mut tests = Vec::new();
         for field in fields {
             let field_value = self.fresh_value();
@@ -2591,6 +2589,10 @@ impl<'a> FunctionLowerer<'a> {
                 field: field.name.clone(),
             });
             tests.push((field_value, &field.pattern));
+        }
+        if let Some(spread) = record_spread_pattern(spread) {
+            let rest = self.emit_record_without_fields(value, fields);
+            tests.push((rest, spread));
         }
         self.lower_extracted_pattern_tests(tests, 0, then_cont, else_cont)
     }
@@ -4398,11 +4400,6 @@ impl<'a> FunctionLowerer<'a> {
         spread: Option<&runtime::RecordSpreadPattern>,
         value: CpsValueId,
     ) -> CpsLowerResult<()> {
-        if spread.is_some() {
-            return Err(CpsLowerError::UnsupportedPattern {
-                kind: "record spread",
-            });
-        }
         for field in fields {
             let field_value = self.fresh_value();
             self.current.stmts.push(CpsStmt::Select {
@@ -4412,7 +4409,25 @@ impl<'a> FunctionLowerer<'a> {
             });
             self.bind_pattern(&field.pattern, field_value)?;
         }
+        if let Some(spread) = record_spread_pattern(spread) {
+            let rest = self.emit_record_without_fields(value, fields);
+            self.bind_pattern(spread, rest)?;
+        }
         Ok(())
+    }
+
+    fn emit_record_without_fields(
+        &mut self,
+        value: CpsValueId,
+        fields: &[runtime::RecordPatternField],
+    ) -> CpsValueId {
+        let dest = self.fresh_value();
+        self.current.stmts.push(CpsStmt::RecordWithoutFields {
+            dest,
+            base: value,
+            fields: fields.iter().map(|field| field.name.clone()).collect(),
+        });
+        dest
     }
 
     fn emit_int_literal(&mut self, value: i64) -> CpsValueId {
@@ -5306,6 +5321,16 @@ fn matches_any_effect(expected: &[typed_ir::Path], actual: &typed_ir::Path) -> b
     expected
         .iter()
         .any(|expected| effect_matches(expected, actual))
+}
+
+fn record_spread_pattern(
+    spread: Option<&runtime::RecordSpreadPattern>,
+) -> Option<&runtime::Pattern> {
+    match spread {
+        Some(runtime::RecordSpreadPattern::Head(pattern))
+        | Some(runtime::RecordSpreadPattern::Tail(pattern)) => Some(pattern),
+        None => None,
+    }
 }
 
 fn handled_effects_compatible(

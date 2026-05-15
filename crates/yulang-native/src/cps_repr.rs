@@ -759,6 +759,7 @@ fn analyze_function_abi_lanes(
                     }
                     CpsStmt::Tuple { .. }
                     | CpsStmt::Record { .. }
+                    | CpsStmt::RecordWithoutFields { .. }
                     | CpsStmt::Variant { .. }
                     | CpsStmt::Select { .. } => CpsReprAbiLane::RuntimeValuePtr,
                     CpsStmt::TupleGet { .. } | CpsStmt::VariantPayload { .. } => {
@@ -929,6 +930,7 @@ fn analyze_function_values(function: &CpsReprFunction) -> CpsReprFunctionValueAn
                     | CpsStmt::MakeRecursiveClosure { .. }
                     | CpsStmt::Tuple { .. }
                     | CpsStmt::Record { .. }
+                    | CpsStmt::RecordWithoutFields { .. }
                     | CpsStmt::Variant { .. }
                     | CpsStmt::Select { .. }
                     | CpsStmt::TupleGet { .. }
@@ -1434,6 +1436,7 @@ fn stmt_dest(stmt: &CpsStmt) -> Option<CpsValueId> {
         | CpsStmt::ForceThunk { dest, .. }
         | CpsStmt::Tuple { dest, .. }
         | CpsStmt::Record { dest, .. }
+        | CpsStmt::RecordWithoutFields { dest, .. }
         | CpsStmt::Variant { dest, .. }
         | CpsStmt::Select { dest, .. }
         | CpsStmt::TupleGet { dest, .. }
@@ -1876,6 +1879,25 @@ fn resume_continuation(
                             field.name.clone(),
                             read_value(function, &values, field.value)?,
                         );
+                    }
+                    values.insert(*dest, CpsReprRuntimeValue::Record(record));
+                }
+                CpsStmt::RecordWithoutFields { dest, base, fields } => {
+                    let mut record = match read_value(function, &values, *base)? {
+                        CpsReprRuntimeValue::Record(fields) => fields,
+                        CpsReprRuntimeValue::Plain(runtime::VmValue::Record(fields)) => fields
+                            .into_iter()
+                            .map(|(name, value)| (name, CpsReprRuntimeValue::Plain(value)))
+                            .collect(),
+                        value => {
+                            return Err(CpsReprEvalError::ExpectedRecord {
+                                function: function.name.clone(),
+                                value: into_plain_value(function, *base, value)?,
+                            });
+                        }
+                    };
+                    for field in fields {
+                        record.remove(field);
                     }
                     values.insert(*dest, CpsReprRuntimeValue::Record(record));
                 }

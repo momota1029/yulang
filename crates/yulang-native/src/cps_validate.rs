@@ -155,6 +155,7 @@ fn function_defined_values(function: &CpsFunction) -> HashSet<CpsValueId> {
                 | CpsStmt::ForceThunk { dest, .. }
                 | CpsStmt::Tuple { dest, .. }
                 | CpsStmt::Record { dest, .. }
+                | CpsStmt::RecordWithoutFields { dest, .. }
                 | CpsStmt::Variant { dest, .. }
                 | CpsStmt::Select { dest, .. }
                 | CpsStmt::TupleGet { dest, .. }
@@ -233,6 +234,10 @@ fn validate_continuation(
                 for field in fields {
                     require_value(function, &values, field.value)?;
                 }
+                values.insert(*dest);
+            }
+            CpsStmt::RecordWithoutFields { dest, base, .. } => {
+                require_value(function, &values, *base)?;
                 values.insert(*dest);
             }
             CpsStmt::Variant { dest, value, .. } => {

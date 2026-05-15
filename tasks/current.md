@@ -227,9 +227,12 @@ CPS repr Cranelift の source 回帰を広げる。
   regression も forced CPS repr executable path に追加した。N1 の structural
   coverage は tuple / list / record / variant までそろった。
 - CPS repr lowering に source-shaped `case` の tuple / list / list-spread /
-  record / variant payload pattern test を追加した。arm-local bind も同じ
-  構造パターンから直接落とすので、value backend だけに偏っていた structural
-  pattern subset を CPS repr mainline 側にも寄せた。
+  record / record-spread / variant payload pattern test を追加した。arm-local bind
+  も同じ構造パターンから直接落とすので、value backend だけに偏っていた
+  structural pattern subset を CPS repr mainline 側にも寄せた。
+- top-level `my {x, ..rest} = ...` も CPS repr path で通る。record rest は
+  CPS IR の `RecordWithoutFields` として明示し、value backend の record-spread
+  pattern 規則と同じ位置で処理する。
 - top-level destructuring `my` は runtime IR が各名前ごとの `case` binding に
   分解され、native 側だけ再帰/クラッシュすることを
   `notes/bugs/native_top_level_destructure_binding_recurses.yu` に切り出した。

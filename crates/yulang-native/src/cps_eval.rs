@@ -800,6 +800,25 @@ fn resume_continuation(
                     }
                     write_value(&mut values, *dest, CpsRuntimeValue::Record(record));
                 }
+                CpsStmt::RecordWithoutFields { dest, base, fields } => {
+                    let mut record = match read_value(function, &values, *base)? {
+                        CpsRuntimeValue::Record(fields) => fields,
+                        CpsRuntimeValue::Plain(runtime::VmValue::Record(fields)) => fields
+                            .into_iter()
+                            .map(|(name, value)| (name, CpsRuntimeValue::Plain(value)))
+                            .collect(),
+                        value => {
+                            return Err(CpsEvalError::ExpectedRecord {
+                                function: function.name.clone(),
+                                value: into_plain_value(function, *base, value)?,
+                            });
+                        }
+                    };
+                    for field in fields {
+                        record.remove(field);
+                    }
+                    write_value(&mut values, *dest, CpsRuntimeValue::Record(record));
+                }
                 CpsStmt::Variant { dest, tag, value } => {
                     let value = value
                         .map(|id| read_value(function, &values, id))
