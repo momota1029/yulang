@@ -366,6 +366,10 @@ CPS repr Cranelift の source 回帰を広げる。
 
 parser combinators を Yulang 側から使える capability として実装する。
 
+設計参照:
+
+- `notes/design/parser-dsl-desugar.md` — `rule { ... }` / `~"..."` の desugar 方針（lower3 で展開、`~"abc": () -> [parse] ()`）
+
 直近 TODO:
 
 - public parser result と error type を定義する。
@@ -391,6 +395,7 @@ host capabilities、特に filesystem behavior を安定させる。
 設計参照:
 
 - `notes/design/error-handling-plan.md`
+- `notes/design/std-fs.md` — std::fs 最小設計（open/close を露出せず、path + byte range で毎回読み書き。path はバイト列）
 
 現在の実装:
 
@@ -432,7 +437,6 @@ host capabilities、特に filesystem behavior を安定させる。
 - parser/lowering の特例削減を続ける。
   - 残る本丸は primitive family table を persistent compiled-unit artifact metadata から渡すこと。std source へ専用 metadata を足す方向にはしない。
   - これまでの完了済み撤去項目は `tasks/done/2026-05-14-host-filesystem-history.md` に退避。
-- path を `str` のままにするか、`path` type にするか決める。
 - text read/write が落ち着いた後に、最初の directory API を決める。
 - browser examples を作る前に playground capability policy を決める。
 
