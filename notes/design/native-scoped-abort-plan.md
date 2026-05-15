@@ -118,6 +118,35 @@ collapsing nondeterministic resumption enumeration. Nondet handlers still need
 retained return-frame chains, so tests for `.list`, `.logic`, and `.once` must
 remain in the verification set.
 
+## 2026-05-15 Trace Note
+
+`notes/bugs/native_open_range_for_last_returns_payload.yu` reaches the local
+`last` handler. The relevant filtered trace shape is:
+
+```text
+install_handler_full: handler=7 prompt=24 install_eval=208 threshold=7 ...
+perform_select: handler=7 prompt=24 install_eval=208 ... threshold=7
+scope_return_set (perform_finish): prompt=24 ... value=0 current_eval=208 initial=7
+route_scope_return: prompt=24 current_eval=208 initial=7 action=current_handler value=0
+```
+
+After that, execution installs the next `handler=5` / `handler=7` pair for the
+next range step:
+
+```text
+install_handler_full: handler=5 prompt=26 install_eval=238 threshold=8 ...
+install_handler_full: handler=7 prompt=28 install_eval=243 threshold=8 ...
+...
+```
+
+So the missing piece is not handler selection. The selected handler returns the
+local arm value, but no scoped short-circuit survives long enough to stop the
+recursive range/fold chain and resume at the loop expression boundary.
+
+This also shows why a plain global abort is too blunt: the value `0` is the
+handler-arm result used to stop the loop body, not the enclosing block result
+`5`.
+
 ## Verification
 
 Minimum checks:
