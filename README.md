@@ -196,7 +196,8 @@ direct-style / SSA island candidates so later codegen can lower pure local
 continuation subgraphs as Cranelift blocks instead of CPS control calls. The
 first codegen step lowers pure successor continuations inside effectful
 continuation functions as local blocks, while preserving effectful return-frame
-routing at island exits.
+routing at island exits. Calls from those islands to pure callee functions use
+plain Cranelift calls instead of the heavier effectful eval-context protocol.
 
 Run the test suites:
 

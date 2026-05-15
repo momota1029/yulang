@@ -319,12 +319,15 @@ fn declare_functions<M: Module>(
     let mut continuations = HashMap::new();
     let mut function_returns = HashMap::new();
     let mut function_params = HashMap::new();
+    let mut function_effect_flow = HashMap::new();
     for function in module.functions.iter().chain(&module.roots) {
         let sig = function_signature(module_backend, function);
         let id = module_backend
             .declare_function(&function.name, Linkage::Export, &sig)
             .map_err(cranelift_error)?;
         functions.insert(function.name.clone(), id);
+        let has_effect_flow = function_has_effect_flow(function);
+        function_effect_flow.insert(function.name.clone(), has_effect_flow);
         function_returns.insert(
             function.name.clone(),
             continuation(function, function.entry)
@@ -335,7 +338,7 @@ fn declare_functions<M: Module>(
             function.name.clone(),
             effective_function_param_lanes(function),
         );
-        if function_has_effect_flow(function) {
+        if has_effect_flow {
             for continuation in &function.continuations {
                 let name = continuation_symbol(function, continuation.id);
                 let sig = continuation_signature(module_backend, function, continuation);
@@ -351,6 +354,7 @@ fn declare_functions<M: Module>(
         continuations,
         function_returns,
         function_params,
+        function_effect_flow,
     })
 }
 
@@ -405,6 +409,7 @@ struct DeclaredFunctions {
     continuations: HashMap<(String, CpsContinuationId), FuncId>,
     function_returns: HashMap<String, CpsReprAbiLane>,
     function_params: HashMap<String, Vec<CpsReprAbiLane>>,
+    function_effect_flow: HashMap<String, bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -1332,34 +1337,16 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             define_value_as_lane(builder, values, *dest, primitive_result_lane(*op), value);
         }
         CpsStmt::DirectCall { dest, target, args } => {
-            let id = functions.functions.get(target).copied().ok_or_else(|| {
-                CpsReprCraneliftError::MissingFunction {
-                    name: target.clone(),
-                }
-            })?;
-            let callee = module_backend.declare_func_in_func(id, builder.func);
-            let args = read_call_args(builder, function, values, args, target, functions)?;
-            // write27-d d5: fresh eval context for the sync call.
-            let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
-            let call = builder.ins().call(callee, &args);
-            let results = builder.inst_results(call);
-            if results.len() != 1 {
-                return Err(CpsReprCraneliftError::InvalidReturnArity {
-                    function: target.clone(),
-                    arity: results.len(),
-                });
-            }
-            let result = results[0];
-            restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            let result = abort_result_or_return(module_backend, builder, result)?;
-            let result_lane = functions
-                .function_returns
-                .get(target)
-                .copied()
-                .unwrap_or(CpsReprAbiLane::Unknown);
-            let scope_fallback = scope_return_fallback_for_lane(builder, result_lane, result);
-            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
-            define_value_as_lane(builder, values, *dest, result_lane, result);
+            lower_direct_call_stmt(
+                module_backend,
+                builder,
+                function,
+                functions,
+                values,
+                *dest,
+                target,
+                args,
+            )?;
         }
         CpsStmt::ApplyClosure { dest, closure, arg } => {
             let closure = read_value(builder, function, *closure)?;
@@ -3292,34 +3279,16 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             define_value_as_lane(builder, values, *dest, primitive_result_lane(*op), value);
         }
         CpsStmt::DirectCall { dest, target, args } => {
-            let id = functions.functions.get(target).copied().ok_or_else(|| {
-                CpsReprCraneliftError::MissingFunction {
-                    name: target.clone(),
-                }
-            })?;
-            let callee = module_backend.declare_func_in_func(id, builder.func);
-            let args = read_call_args(builder, function, values, args, target, functions)?;
-            // write27-d d5: fresh eval context for the sync call.
-            let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
-            let call = builder.ins().call(callee, &args);
-            let results = builder.inst_results(call);
-            if results.len() != 1 {
-                return Err(CpsReprCraneliftError::InvalidReturnArity {
-                    function: target.clone(),
-                    arity: results.len(),
-                });
-            }
-            let result = results[0];
-            restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            let result = abort_result_or_return(module_backend, builder, result)?;
-            let result_lane = functions
-                .function_returns
-                .get(target)
-                .copied()
-                .unwrap_or(CpsReprAbiLane::Unknown);
-            let scope_fallback = scope_return_fallback_for_lane(builder, result_lane, result);
-            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
-            define_value_as_lane(builder, values, *dest, result_lane, result);
+            lower_direct_call_stmt(
+                module_backend,
+                builder,
+                function,
+                functions,
+                values,
+                *dest,
+                target,
+                args,
+            )?;
         }
         CpsStmt::ApplyClosure { dest, closure, arg } => {
             let closure = read_value(builder, function, *closure)?;
@@ -3433,6 +3402,68 @@ fn lower_terminator(
             });
         }
     }
+    Ok(())
+}
+
+fn lower_direct_call_stmt<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    functions: &DeclaredFunctions,
+    values: &mut LocalValueCache,
+    dest: CpsValueId,
+    target: &str,
+    args: &[CpsValueId],
+) -> CpsReprCraneliftResult<()> {
+    let id = functions.functions.get(target).copied().ok_or_else(|| {
+        CpsReprCraneliftError::MissingFunction {
+            name: target.to_string(),
+        }
+    })?;
+    let callee = module_backend.declare_func_in_func(id, builder.func);
+    let args = read_call_args(builder, function, values, args, target, functions)?;
+    let result_lane = functions
+        .function_returns
+        .get(target)
+        .copied()
+        .unwrap_or(CpsReprAbiLane::Unknown);
+
+    if !functions
+        .function_effect_flow
+        .get(target)
+        .copied()
+        .unwrap_or(true)
+    {
+        let call = builder.ins().call(callee, &args);
+        let results = builder.inst_results(call);
+        if results.len() != 1 {
+            return Err(CpsReprCraneliftError::InvalidReturnArity {
+                function: target.to_string(),
+                arity: results.len(),
+            });
+        }
+        define_value_as_lane(builder, values, dest, result_lane, results[0]);
+        return Ok(());
+    }
+
+    // Effectful callees may route local returns through the eval context, so
+    // they keep the heavier call protocol. Pure callees use the plain call
+    // path above and can be optimized like ordinary SSA calls.
+    let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
+    let call = builder.ins().call(callee, &args);
+    let results = builder.inst_results(call);
+    if results.len() != 1 {
+        return Err(CpsReprCraneliftError::InvalidReturnArity {
+            function: target.to_string(),
+            arity: results.len(),
+        });
+    }
+    let result = results[0];
+    restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
+    let result = abort_result_or_return(module_backend, builder, result)?;
+    let scope_fallback = scope_return_fallback_for_lane(builder, result_lane, result);
+    return_if_scope_return_active(module_backend, builder, scope_fallback)?;
+    define_value_as_lane(builder, values, dest, result_lane, result);
     Ok(())
 }
 
@@ -8152,6 +8183,23 @@ mod tests {
     }
 
     #[test]
+    fn jit_calls_pure_callee_from_effectful_island_without_eval_context() {
+        let abi = effectful_function_with_pure_direct_call_abi();
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![42]);
+        let entry_ir = jit
+            .cranelift_ir()
+            .iter()
+            .find(|ir| ir.contains(";; cps-repr continuation root::CpsContinuationId(0)"))
+            .expect("entry continuation ir");
+        assert!(entry_ir.contains("call fn"));
+        assert!(!entry_ir.contains("yulang_cps_fresh_eval_id_i64"));
+        assert!(!entry_ir.contains("yulang_cps_set_eval_context_i64"));
+        assert!(!entry_ir.contains("yulang_cps_scope_return_active_i64"));
+    }
+
+    #[test]
     fn jit_runs_perform_with_tail_resume_handler() {
         let abi = tail_resume_effect_abi();
         let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
@@ -9274,6 +9322,74 @@ mod tests {
                         shot_kind: CpsShotKind::OneShot,
                         stmts: Vec::new(),
                         terminator: CpsTerminator::Return(CpsValueId(3)),
+                    },
+                ],
+            }],
+        }))
+    }
+
+    fn effectful_function_with_pure_direct_call_abi() -> CpsReprAbiModule {
+        let effect = typed_ir::Path::from_name(typed_ir::Name("unused".to_string()));
+        lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: vec![CpsFunction {
+                name: "add".to_string(),
+                params: vec![CpsValueId(0), CpsValueId(1)],
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![CpsContinuation {
+                    id: CpsContinuationId(0),
+                    params: vec![CpsValueId(0), CpsValueId(1)],
+                    captures: Vec::new(),
+                    shot_kind: CpsShotKind::OneShot,
+                    stmts: vec![CpsStmt::Primitive {
+                        dest: CpsValueId(2),
+                        op: typed_ir::PrimitiveOp::IntAdd,
+                        args: vec![CpsValueId(0), CpsValueId(1)],
+                    }],
+                    terminator: CpsTerminator::Return(CpsValueId(2)),
+                }],
+            }],
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: vec![crate::cps_ir::CpsHandler {
+                    id: crate::cps_ir::CpsHandlerId(0),
+                    arms: vec![crate::cps_ir::CpsHandlerArm {
+                        effect,
+                        entry: CpsContinuationId(1),
+                    }],
+                }],
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(3),
+                                literal: CpsLiteral::Int("40".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(4),
+                                literal: CpsLiteral::Int("2".to_string()),
+                            },
+                            CpsStmt::DirectCall {
+                                dest: CpsValueId(5),
+                                target: "add".to_string(),
+                                args: vec![CpsValueId(3), CpsValueId(4)],
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(5)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(6), CpsValueId(7)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(6)),
                     },
                 ],
             }],

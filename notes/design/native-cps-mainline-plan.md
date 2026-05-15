@@ -67,6 +67,9 @@ The first codegen step lowers pure successor continuations inside effectful
 continuation functions as local Cranelift blocks; this removes local
 continuation calls without erasing effectful return-frame routing at island
 exits.
+Direct calls from those islands to pure callee functions use the same plain
+call shape as effect-free functions, so they do not pay eval-context switching
+or scope-return checks.
 
 ## Execution Policy
 

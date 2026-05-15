@@ -77,7 +77,8 @@ entrypoint so individual CPS simplification passes do not fork by artifact
 kind. The first island codegen step is also in place: effectful continuation
 functions can absorb pure successor continuations as Cranelift blocks, avoiding
 local continuation function calls while keeping effectful return routing at
-island exits.
+island exits. Direct calls from those islands to pure callee functions now use
+plain Cranelift calls rather than the effectful eval-context protocol.
 
 The value backend remains useful as an effect-free fast path, a boxed value
 helper source, and a debugging path. It is not the plan for implementing the
@@ -241,6 +242,8 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] The first direct-style island codegen step lowers pure successor
       continuations inside effectful continuation functions as Cranelift blocks
       instead of local continuation calls.
+- [x] Direct calls to pure callee functions use a plain call path even when the
+      caller is an effectful CPS continuation function.
 - [x] Small source-defined algebraic effects and multi-shot resumptions work in
       the CPS/CPS-repr interpreters and in the scalar Cranelift prototype.
 - [x] Handler entry continuations receive captured environments, and handler

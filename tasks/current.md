@@ -79,6 +79,9 @@ Cranelift backend を作る。
   continuation を同じ Cranelift 関数内の block として吸う最初の direct-style island
   codegen を入れた。`Continue` / `Branch` は block jump に戻し、island exit の
   `Return` は従来の `yulang_cps_return_i64` routing を保つ。
+- effectful continuation function 内から pure callee function を `DirectCall` する
+  場合は、eval context 切替 / abort-result routing / scope-return check を挟まず
+  普通の Cranelift call として lower する。
 
 近い形:
 
