@@ -62,7 +62,8 @@ The main optimization targets are:
 There is now an explicit CPS optimization stage between CPS repr ABI lowering
 and Cranelift codegen. The first real passes rewrite explicit calls to empty
 forwarding continuations, fold empty `Return(param)` continuations into the
-caller, and prune continuations that are no longer reachable from function
+caller, inline small single-use one-shot continuations, remove dead pure value
+statements, and prune continuations that are no longer reachable from function
 entries, handler arms, thunks, closures, or terminator targets. The stage also
 exposes a profile plus `YULANG_CPS_OPT_TRACE` debug output. JIT and object
 generation share this entrypoint so individual CPS simplification passes do not
@@ -221,8 +222,9 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] CPS repr ABI modules pass through a shared optimization entrypoint before
       both JIT and object Cranelift codegen. It currently rewrites explicit
       calls to empty forwarding continuations, folds empty return continuations,
-      prunes unreachable continuations, and records a profile so later
-      thunk/handler passes do not fork between artifact kinds.
+      inlines small single-use one-shot continuations, removes dead pure value
+      statements, prunes unreachable continuations, and records a profile so
+      later thunk/handler passes do not fork between artifact kinds.
 - [x] Small source-defined algebraic effects and multi-shot resumptions work in
       the CPS/CPS-repr interpreters and in the scalar Cranelift prototype.
 - [x] Handler entry continuations receive captured environments, and handler
