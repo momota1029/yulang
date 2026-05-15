@@ -224,6 +224,9 @@ CPS repr Cranelift の source 回帰を広げる。
   `run-value-exe` / `run-cps-repr-exe` は debugging 用の強制 path として残す。
 - value backend と CPS repr backend の fallback policy を、握りつぶしではなく
   structured unsupported reason で選べる形へ寄せる。
+- backend selection は closure value を `closure value` reason として CPS repr
+  backend へ回すようにした。direct closure root と record-contained closure root は
+  value backend の失敗 fallback を待たずに、IR node ベースの selection で分岐する。
 
 ## 重要な制約
 

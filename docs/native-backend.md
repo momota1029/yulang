@@ -106,6 +106,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] `yulang native` prefers the value backend for ordinary values.
 - [x] `yulang native` falls back to the CPS representation backend only for
       explicit "unsupported by value backend" cases.
+- [x] Closure-value roots and closure values embedded in records are selected
+      for the CPS representation backend with a structured `closure value`
+      reason before the value backend is tried.
 - [x] `yulang native --kind run-value-exe` exposes the value backend directly for debugging.
 - [x] `yulang native --kind run-cps-repr-exe` exposes the CPS representation backend
       directly for debugging.

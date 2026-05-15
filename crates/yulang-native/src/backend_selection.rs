@@ -76,6 +76,7 @@ pub enum NativeBackendReasonKind {
     Handler,
     Thunk,
     ThunkBoundary,
+    ClosureValue,
     EffectIdScope,
     EffectIdRead,
 }
@@ -87,6 +88,7 @@ impl fmt::Display for NativeBackendReasonKind {
             NativeBackendReasonKind::Handler => "effect handler",
             NativeBackendReasonKind::Thunk => "thunk",
             NativeBackendReasonKind::ThunkBoundary => "thunk boundary",
+            NativeBackendReasonKind::ClosureValue => "closure value",
             NativeBackendReasonKind::EffectIdScope => "effect id scope",
             NativeBackendReasonKind::EffectIdRead => "effect id read",
         };
@@ -170,9 +172,7 @@ fn first_cps_reason_expr(
             }
         }
         runtime::ExprKind::PrimitiveOp(_) | runtime::ExprKind::Lit(_) => None,
-        runtime::ExprKind::Lambda { body, .. } => {
-            first_cps_reason_expr(body, bindings, seen_bindings)
-        }
+        runtime::ExprKind::Lambda { .. } => Some(NativeBackendReasonKind::ClosureValue),
         runtime::ExprKind::Apply { callee, arg, .. } => {
             first_cps_reason_expr(callee, bindings, seen_bindings)
                 .or_else(|| first_cps_reason_expr(arg, bindings, seen_bindings))
@@ -336,6 +336,63 @@ mod tests {
                 reason: NativeBackendReason {
                     root: NativeRootLabel::Expr(0),
                     kind: NativeBackendReasonKind::Handler,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn selects_cps_mainline_for_closure_value_root() {
+        let expr = runtime::Expr::typed(
+            runtime::ExprKind::Lambda {
+                param: typed_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(var("x")),
+            },
+            runtime::Type::unknown(),
+        );
+        let plan = select_native_backends(&module_with_root(expr));
+
+        assert_eq!(
+            plan.module_backend(),
+            NativeBackendSelection::CpsMainline {
+                reason: NativeBackendReason {
+                    root: NativeRootLabel::Expr(0),
+                    kind: NativeBackendReasonKind::ClosureValue,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn selects_cps_mainline_for_closure_value_inside_record() {
+        let expr = runtime::Expr::typed(
+            runtime::ExprKind::Record {
+                fields: vec![runtime::RecordExprField {
+                    name: typed_ir::Name("f".to_string()),
+                    value: runtime::Expr::typed(
+                        runtime::ExprKind::Lambda {
+                            param: typed_ir::Name("x".to_string()),
+                            param_effect_annotation: None,
+                            param_function_allowed_effects: None,
+                            body: Box::new(var("x")),
+                        },
+                        runtime::Type::unknown(),
+                    ),
+                }],
+                spread: None,
+            },
+            runtime::Type::unknown(),
+        );
+        let plan = select_native_backends(&module_with_root(expr));
+
+        assert_eq!(
+            plan.module_backend(),
+            NativeBackendSelection::CpsMainline {
+                reason: NativeBackendReason {
+                    root: NativeRootLabel::Expr(0),
+                    kind: NativeBackendReasonKind::ClosureValue,
                 },
             }
         );
