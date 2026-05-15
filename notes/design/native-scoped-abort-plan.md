@@ -166,6 +166,34 @@ needs either a proper native analogue of the eval-loop jump, or a scoped
 short-circuit that survives that helper call until the correct continuation
 boundary consumes it.
 
+An experiment widened the current-handler route to set the legacy abort slot
+for any inner eval frame:
+
+```text
+if current_initial > 0 {
+    Abort = value
+}
+```
+
+That changed the forced CPS repr executable from timeout to:
+
+```text
+0
+```
+
+The filtered trace then showed the other half of the bug:
+
+```text
+route_scope_return: prompt=24 current_eval=208 initial=7 action=current_handler value=0
+return_i64: value=0 frame_len=7 initial=7 action=noop
+abort_active: value=0
+```
+
+So a plain abort slot can stop the range recursion, but it preserves the local
+handler-arm value as the whole program result. The correct operation has to
+consume the short-circuit at the loop/handler boundary and then run the
+continuation after the loop, producing `5`.
+
 ## Verification
 
 Minimum checks:

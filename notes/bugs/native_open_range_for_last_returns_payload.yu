@@ -13,6 +13,11 @@
 // non-local `sub`/`return` escape. If Cranelift aborts too aggressively it
 // returns the handler-arm value `0`; if it does not abort enough, the open
 // range keeps stepping forever.
+//
+// A widened current-handler abort experiment confirmed both sides: it stops
+// the timeout, but the executable prints `0` instead of continuing after the
+// loop to `5`. The remaining fix needs a scoped short-circuit, not a wider
+// global abort.
 
 use std::flow::*
 
