@@ -73,6 +73,7 @@ Cranelift backend を作る。
   capture を target parameter に張り替えられる場合は `DirectCall` に戻し、
   known closure の `EffectfulApply` terminator は `EffectfulCall` か
   pure primitive + resume `Continue` に戻し、
+  unused continuation parameter と対応する continuation-call argument を削り、
   small pure direct callee を caller に展開し、total primitive stmt /
   structural projection まで含めて dead pure value statement を削り、到達不能
   continuation を削る。

@@ -38,6 +38,7 @@ pub struct CpsOptimizationProfile {
     pub reified_primitive_calls: usize,
     pub reified_partial_closure_calls: usize,
     pub reified_known_closure_parameter_calls: usize,
+    pub removed_unused_continuation_params: usize,
     pub inlined_pure_direct_calls: usize,
     pub inlined_continuation_calls: usize,
     pub removed_unreachable_continuations: usize,
@@ -71,10 +72,12 @@ fn run_simplification_round(output: &mut CpsOptimizationOutput) -> bool {
     reify_direct_primitive_calls(output);
     reify_local_partial_closure_calls(output);
     reify_known_closure_parameter_calls(output);
+    remove_unused_continuation_params(output);
     inline_pure_direct_calls(output);
     inline_single_use_continuation_calls(output);
     reify_local_partial_closure_calls(output);
     reify_known_closure_parameter_calls(output);
+    remove_unused_continuation_params(output);
     prune_unreachable_continuations(output);
     eliminate_dead_pure_statements(output);
     prune_unreachable_continuations(output);
@@ -206,6 +209,20 @@ fn reify_known_closure_parameter_calls(output: &mut CpsOptimizationOutput) {
     output.profile.changed |= output.profile.reified_known_closure_parameter_calls > 0;
 }
 
+fn remove_unused_continuation_params(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        output.profile.removed_unused_continuation_params +=
+            remove_unused_continuation_params_in_function(function);
+    }
+    output.profile.changed |= output.profile.removed_unused_continuation_params > 0;
+}
+
 fn inline_pure_direct_calls(output: &mut CpsOptimizationOutput) {
     output.profile.passes_run += 1;
     let candidates = pure_direct_inline_candidates(&output.module);
@@ -222,6 +239,77 @@ fn inline_pure_direct_calls(output: &mut CpsOptimizationOutput) {
             inline_pure_direct_calls_in_function(function, &candidates);
     }
     output.profile.changed |= output.profile.inlined_pure_direct_calls > 0;
+}
+
+fn remove_unused_continuation_params_in_function(function: &mut CpsReprAbiFunction) -> usize {
+    let unused_slots = unused_continuation_param_slots(function);
+    if unused_slots.is_empty() {
+        return 0;
+    }
+
+    let mut removed = 0;
+    for continuation in &mut function.continuations {
+        if let Some(slots) = unused_slots.get(&continuation.id) {
+            removed += remove_indexed_items(&mut continuation.params, slots);
+        }
+        if let CpsTerminator::Continue { target, args } = &mut continuation.terminator {
+            if let Some(slots) = unused_slots.get(target) {
+                remove_indexed_items(args, slots);
+            }
+        }
+    }
+    removed
+}
+
+fn unused_continuation_param_slots(
+    function: &CpsReprAbiFunction,
+) -> HashMap<CpsContinuationId, HashSet<usize>> {
+    let references = continuation_references(function);
+    let protected = protected_continuations(function);
+    let used_values = function_used_values(function);
+
+    function
+        .continuations
+        .iter()
+        .filter(|continuation| !protected.contains(&continuation.id))
+        .filter(|continuation| {
+            references
+                .get(&continuation.id)
+                .is_some_and(|reference| reference.total == reference.continue_calls)
+        })
+        .filter_map(|continuation| {
+            let slots = continuation
+                .params
+                .iter()
+                .enumerate()
+                .filter_map(|(index, param)| (!used_values.contains(&param.value)).then_some(index))
+                .collect::<HashSet<_>>();
+            (!slots.is_empty()).then_some((continuation.id, slots))
+        })
+        .collect()
+}
+
+fn function_used_values(function: &CpsReprAbiFunction) -> HashSet<CpsValueId> {
+    let mut used = HashSet::new();
+    for continuation in &function.continuations {
+        used.extend(continuation.environment.iter().map(|slot| slot.value));
+        for stmt in &continuation.stmts {
+            used.extend(stmt_operands(stmt));
+        }
+        used.extend(terminator_values(&continuation.terminator));
+    }
+    used
+}
+
+fn remove_indexed_items<T>(items: &mut Vec<T>, slots: &HashSet<usize>) -> usize {
+    let before = items.len();
+    let mut index = 0;
+    items.retain(|_| {
+        let keep = !slots.contains(&index);
+        index += 1;
+        keep
+    });
+    before - items.len()
 }
 
 fn inline_single_use_continuation_calls(output: &mut CpsOptimizationOutput) {
@@ -297,7 +385,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         return;
     }
     eprintln!(
-        "[CPS-OPT] functions={} roots={} continuations={} handlers={} statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
+        "[CPS-OPT] functions={} roots={} continuations={} handlers={} statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
         profile.functions,
         profile.roots,
         profile.continuations,
@@ -310,6 +398,7 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.reified_primitive_calls,
         profile.reified_partial_closure_calls,
         profile.reified_known_closure_parameter_calls,
+        profile.removed_unused_continuation_params,
         profile.inlined_pure_direct_calls,
         profile.inlined_continuation_calls,
         profile.removed_unreachable_continuations,
@@ -2134,6 +2223,7 @@ impl CpsOptimizationProfile {
             || self.reified_partial_closure_calls > before.reified_partial_closure_calls
             || self.reified_known_closure_parameter_calls
                 > before.reified_known_closure_parameter_calls
+            || self.removed_unused_continuation_params > before.removed_unused_continuation_params
             || self.inlined_pure_direct_calls > before.inlined_pure_direct_calls
             || self.inlined_continuation_calls > before.inlined_continuation_calls
             || self.removed_unreachable_continuations > before.removed_unreachable_continuations
@@ -2176,6 +2266,7 @@ impl CpsOptimizationProfile {
             reified_primitive_calls: 0,
             reified_partial_closure_calls: 0,
             reified_known_closure_parameter_calls: 0,
+            removed_unused_continuation_params: 0,
             inlined_pure_direct_calls: 0,
             inlined_continuation_calls: 0,
             removed_unreachable_continuations: 0,
@@ -2207,13 +2298,14 @@ mod tests {
         assert_eq!(optimized.profile.roots, 1);
         assert_eq!(optimized.profile.continuations, 1);
         assert_eq!(optimized.profile.statements, 1);
-        assert_eq!(optimized.profile.passes_run, 13);
+        assert_eq!(optimized.profile.passes_run, 15);
         assert_eq!(optimized.profile.forwarded_continuation_calls, 0);
         assert_eq!(optimized.profile.returned_continuation_calls, 0);
         assert_eq!(optimized.profile.rewritten_pure_effectful_calls, 0);
         assert_eq!(optimized.profile.reified_primitive_calls, 0);
         assert_eq!(optimized.profile.reified_partial_closure_calls, 0);
         assert_eq!(optimized.profile.reified_known_closure_parameter_calls, 0);
+        assert_eq!(optimized.profile.removed_unused_continuation_params, 0);
         assert_eq!(optimized.profile.inlined_pure_direct_calls, 0);
         assert_eq!(optimized.profile.inlined_continuation_calls, 0);
         assert_eq!(optimized.profile.removed_unreachable_continuations, 0);
@@ -3283,6 +3375,117 @@ mod tests {
             }]
         );
         assert_eq!(optimized.profile.removed_dead_pure_statements, 4);
+    }
+
+    #[test]
+    fn removes_unused_multi_use_continuation_parameters() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(0),
+                                literal: CpsLiteral::Int("1".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(1),
+                                literal: CpsLiteral::Bool(true),
+                            },
+                        ],
+                        terminator: CpsTerminator::Branch {
+                            cond: CpsValueId(1),
+                            then_cont: CpsContinuationId(1),
+                            else_cont: CpsContinuationId(2),
+                        },
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(2),
+                            literal: CpsLiteral::Int("2".to_string()),
+                        }],
+                        terminator: CpsTerminator::Continue {
+                            target: CpsContinuationId(3),
+                            args: vec![CpsValueId(0), CpsValueId(2)],
+                        },
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(3),
+                            literal: CpsLiteral::Int("3".to_string()),
+                        }],
+                        terminator: CpsTerminator::Continue {
+                            target: CpsContinuationId(3),
+                            args: vec![CpsValueId(0), CpsValueId(3)],
+                        },
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(3),
+                        params: vec![CpsValueId(4), CpsValueId(5)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(6),
+                                literal: CpsLiteral::Int("0".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(7),
+                                op: typed_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(5), CpsValueId(6)],
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(7)),
+                    },
+                ],
+            }],
+        }));
+
+        let optimized = optimize_cps_repr_abi_module(&abi);
+        let root = &optimized.module.roots[0];
+        let join = root
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == CpsContinuationId(3))
+            .unwrap();
+
+        assert_eq!(
+            join.params
+                .iter()
+                .map(|param| param.value)
+                .collect::<Vec<_>>(),
+            vec![CpsValueId(5)]
+        );
+        for source in [CpsContinuationId(1), CpsContinuationId(2)] {
+            let continuation = root
+                .continuations
+                .iter()
+                .find(|continuation| continuation.id == source)
+                .unwrap();
+            assert!(matches!(
+                &continuation.terminator,
+                CpsTerminator::Continue { args, .. } if args.len() == 1
+            ));
+        }
+        assert_eq!(optimized.profile.removed_unused_continuation_params, 1);
+        assert_eq!(optimized.profile.removed_dead_pure_statements, 1);
     }
 
     #[test]

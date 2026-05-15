@@ -194,6 +194,8 @@ reifies known partial-application closures passed through continuation
 parameters when their captures can be rebased to target parameters,
 rewrites known closure `EffectfulApply` terminators back into effectful direct
 calls or pure primitive resumes,
+removes unused continuation parameters and their matching continuation-call
+arguments,
 inlines small pure direct callees including structural value helpers, inlines
 small single-use one-shot
 continuations, rewrites effectful-call terminators to pure callees back into

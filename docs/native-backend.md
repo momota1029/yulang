@@ -71,8 +71,9 @@ statements, reify local partial-application closure calls back into direct
 calls, reify known partial-application closures passed through continuation
 parameters when their captures can be rebased to target parameters, rewrite
 known closure `EffectfulApply` terminators back into effectful direct calls or
-pure primitive resumes, inline small pure direct callees including structural
-value helpers, inline small single-use one-shot continuations, rewrite effectful-call
+pure primitive resumes, remove unused continuation parameters and their
+matching continuation-call arguments, inline small pure direct callees
+including structural value helpers, inline small single-use one-shot continuations, rewrite effectful-call
 terminators to pure callees back into direct calls plus local continuation
 jumps, remove dead pure value statements including total primitive statements
 and structural projections, and prune continuations that are no longer
@@ -247,7 +248,8 @@ current backend boundaries visible, but detailed regression history lives in
       partial-application closures passed through continuation parameters when
       their captures can be rebased to target parameters, rewrites known
       closure `EffectfulApply` terminators back into effectful direct calls or
-      pure primitive resumes, inlines small pure direct callees including
+      pure primitive resumes, removes unused continuation parameters and their
+      matching continuation-call arguments, inlines small pure direct callees including
       structural value helpers, inlines
       small single-use one-shot continuations, rewrites effectful calls to pure
       callees into direct calls plus local continuation jumps, removes dead pure
