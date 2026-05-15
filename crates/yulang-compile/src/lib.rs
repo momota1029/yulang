@@ -301,6 +301,25 @@ f 2
     }
 
     #[test]
+    fn rejects_top_level_destructure_shape_through_value_lane() {
+        let text = run_with_large_stack(move || {
+            eval_source_value_lane_with_options(
+                r#"
+my [x, y] = [20, 22]
+x + y
+"#,
+                source_options_with_std(),
+            )
+            .expect_err("value lane rejects structural pattern binding")
+            .to_string()
+        });
+        assert!(
+            text.contains("top-level structural pattern binding"),
+            "unexpected error: {text}"
+        );
+    }
+
+    #[test]
     fn compares_direct_nullary_return_call_through_cps_repr() {
         compare_source_cps_repr_with_std(
             r#"use std::flow::*

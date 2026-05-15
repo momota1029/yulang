@@ -14,9 +14,9 @@
 //   => routes to CPS repr with `structural pattern binding`
 //   => 42
 //
-// Native value lane, observed 2026-05-15:
+// Native value lane, as of 2026-05-15:
 //   yulang native --kind run-value-exe notes/bugs/native_top_level_destructure_binding_recurses.yu
-//   => SIGSEGV
+//   => unsupported: top-level structural pattern binding
 //
 // The runtime IR shape is roughly:
 //   x = case [20, 22]: [x, y] -> x
@@ -25,8 +25,8 @@
 // That is valid for the VM because arm-local pattern bindings shadow the
 // top-level binding. CPS direct-call reachability now avoids recursively
 // expanding value bindings through this self-shadowing shape, and backend
-// selection routes the default native path to CPS repr while the value lane
-// still has its own nullary-binding crash.
+// selection routes the default native path to CPS repr. Forced value-lane
+// lowering now rejects this shape instead of generating a crashing executable.
 
 my [x, y] = [20, 22]
 x + y

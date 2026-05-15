@@ -225,8 +225,9 @@ current backend boundaries visible, but detailed regression history lives in
       `examples/10_effect_handler.yu`.
 - [ ] General returned/stored effectful thunks still need more source-shaped
       coverage outside the current scalar/prototype subset.
-- [ ] Forced value-backend execution still has a nullary-binding crash for the
-      same top-level destructuring shape; the default native CLI avoids it.
+- [x] Forced value-backend execution rejects the top-level destructuring
+      shape as unsupported instead of generating a crashing executable; the
+      default native CLI routes it to CPS repr.
 - [ ] General closures and heap value lanes are still prototype
       representations, not finalized native runtime layout.
 - [ ] The CPS representation backend is the effectful native mainline, but it is

@@ -148,6 +148,12 @@ fn lower_binding(
         }
         return Ok(lowered);
     }
+    if expr_pattern_binds_path(&binding.body, &binding.name) {
+        return Err(NativeLowerError::UnsupportedBinding {
+            path: binding.name.clone(),
+            reason: "top-level structural pattern binding",
+        });
+    }
     let (params, body) = collect_lambda_params(&binding.body);
     let mut lowered = FunctionLowerer::new(path_name(&binding.name), functions, params.clone())
         .lower_root(body)?;
@@ -1562,6 +1568,127 @@ fn pattern_bind_names(pattern: &runtime::Pattern) -> Vec<typed_ir::Name> {
             names
         }
         runtime::Pattern::Wildcard { .. } | runtime::Pattern::Lit { .. } => Vec::new(),
+    }
+}
+
+fn expr_pattern_binds_path(expr: &runtime::Expr, path: &typed_ir::Path) -> bool {
+    match &expr.kind {
+        runtime::ExprKind::Match {
+            scrutinee, arms, ..
+        } => {
+            expr_pattern_binds_path(scrutinee, path)
+                || arms.iter().any(|arm| {
+                    pattern_binds_path(&arm.pattern, path)
+                        || arm
+                            .guard
+                            .as_ref()
+                            .is_some_and(|guard| expr_pattern_binds_path(guard, path))
+                        || expr_pattern_binds_path(&arm.body, path)
+                })
+        }
+        runtime::ExprKind::Lambda { body, .. } => expr_pattern_binds_path(body, path),
+        runtime::ExprKind::Apply { callee, arg, .. } => {
+            expr_pattern_binds_path(callee, path) || expr_pattern_binds_path(arg, path)
+        }
+        runtime::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_pattern_binds_path(cond, path)
+                || expr_pattern_binds_path(then_branch, path)
+                || expr_pattern_binds_path(else_branch, path)
+        }
+        runtime::ExprKind::Block { stmts, tail } => {
+            stmts.iter().any(|stmt| match stmt {
+                runtime::Stmt::Let { pattern, value } => {
+                    pattern_binds_path(pattern, path) || expr_pattern_binds_path(value, path)
+                }
+                runtime::Stmt::Expr(expr) | runtime::Stmt::Module { body: expr, .. } => {
+                    expr_pattern_binds_path(expr, path)
+                }
+            }) || tail
+                .as_deref()
+                .is_some_and(|tail| expr_pattern_binds_path(tail, path))
+        }
+        runtime::ExprKind::Tuple(items) => {
+            items.iter().any(|item| expr_pattern_binds_path(item, path))
+        }
+        runtime::ExprKind::Record { fields, spread } => {
+            fields
+                .iter()
+                .any(|field| expr_pattern_binds_path(&field.value, path))
+                || spread.as_ref().is_some_and(|spread| match spread {
+                    runtime::RecordSpreadExpr::Head(expr)
+                    | runtime::RecordSpreadExpr::Tail(expr) => expr_pattern_binds_path(expr, path),
+                })
+        }
+        runtime::ExprKind::Variant { value, .. } => value
+            .as_deref()
+            .is_some_and(|value| expr_pattern_binds_path(value, path)),
+        runtime::ExprKind::Select { base, .. } => expr_pattern_binds_path(base, path),
+        runtime::ExprKind::Handle { body, arms, .. } => {
+            expr_pattern_binds_path(body, path)
+                || arms.iter().any(|arm| {
+                    pattern_binds_path(&arm.payload, path)
+                        || arm
+                            .guard
+                            .as_ref()
+                            .is_some_and(|guard| expr_pattern_binds_path(guard, path))
+                        || expr_pattern_binds_path(&arm.body, path)
+                })
+        }
+        runtime::ExprKind::BindHere { expr }
+        | runtime::ExprKind::Thunk { expr, .. }
+        | runtime::ExprKind::Coerce { expr, .. }
+        | runtime::ExprKind::Pack { expr, .. }
+        | runtime::ExprKind::LocalPushId { body: expr, .. }
+        | runtime::ExprKind::AddId { thunk: expr, .. } => expr_pattern_binds_path(expr, path),
+        runtime::ExprKind::Var(_)
+        | runtime::ExprKind::Lit(_)
+        | runtime::ExprKind::PrimitiveOp(_)
+        | runtime::ExprKind::EffectOp(_)
+        | runtime::ExprKind::PeekId
+        | runtime::ExprKind::FindId { .. } => false,
+    }
+}
+
+fn pattern_binds_path(pattern: &runtime::Pattern, path: &typed_ir::Path) -> bool {
+    match pattern {
+        runtime::Pattern::Bind { name, .. } => typed_ir::Path::from_name(name.clone()) == *path,
+        runtime::Pattern::Tuple { items, .. } => {
+            items.iter().any(|item| pattern_binds_path(item, path))
+        }
+        runtime::Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            prefix.iter().any(|item| pattern_binds_path(item, path))
+                || spread
+                    .as_deref()
+                    .is_some_and(|spread| pattern_binds_path(spread, path))
+                || suffix.iter().any(|item| pattern_binds_path(item, path))
+        }
+        runtime::Pattern::Record { fields, spread, .. } => {
+            fields
+                .iter()
+                .any(|field| pattern_binds_path(&field.pattern, path))
+                || record_spread_pattern(spread.as_ref())
+                    .is_some_and(|spread| pattern_binds_path(spread, path))
+        }
+        runtime::Pattern::Variant { value, .. } => value
+            .as_deref()
+            .is_some_and(|value| pattern_binds_path(value, path)),
+        runtime::Pattern::Or { left, right, .. } => {
+            pattern_binds_path(left, path) || pattern_binds_path(right, path)
+        }
+        runtime::Pattern::As { pattern, name, .. } => {
+            typed_ir::Path::from_name(name.clone()) == *path || pattern_binds_path(pattern, path)
+        }
+        runtime::Pattern::Wildcard { .. } | runtime::Pattern::Lit { .. } => false,
     }
 }
 
