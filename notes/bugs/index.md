@@ -2,6 +2,82 @@
 
 「素直に書いたら動きそうなのに、実装上詰まった」snippet の履歴。
 
+## 作業中メモ（2026-05-15 round-5 / 未コミット WIP）
+
+round-5 の 5 snippet は、手元 WIP ではいったん全て期待出力まで到達した。
+
+```text
+role_method_in_for_body_pattern.yu                 -> [0] 4
+handler_fn_missing_join_evidence.yu                -> [0] ["a"]
+record_field_value_selection_selector_shape.yu     -> [0] true
+callback_list_index_raw_type_stuck.yu              -> [0] 0
+wrap_does_not_traverse_from_chain.yu               -> [0] "err: not_found"
+```
+
+ただし、この WIP は既存 VM 回帰を壊すので、まだ解決済みに移さない。
+
+```bash
+RUSTC_WRAPPER= cargo test -q -p yulang-runtime vm_
+```
+
+で `vm_runs_std_undet_once_and_sub_return_roots` が落ちる。最小化すると
+`std::undet.each` / `.once` 内の `std::range::fold` callback が絡む。
+
+```yulang
+use std::undet::*
+
+({
+    my a = each 1..
+    my b = each 1..
+    my c = each 1..
+
+    guard: a <= b
+    guard: b <= c
+    guard: a * a + b * b == c * c
+
+    (a, b, c)
+}).once
+```
+
+現在の WIP では `principal_unify` 後に `a` / `b` / `c` が一度 `int` まで
+固まるが、その後の role method selection で receiver が `Tuple([])` /
+`unit` 側へ崩れ、`expected (), got int` になる。直接の失敗点は
+`std::range::fold_from` / `fold_ints` の callback effect projection と、
+そこから先の role receiver projection の食い違いに見える。
+
+手元で試した方向:
+
+- `handler_fn_missing_join_evidence` は、`handle` の join evidence が無い時だけ
+  arm から消費 effect を読み、body が未精密な local value なら thunk expected
+  を与えると通る。ただし広げすぎると `undet.each` の body value を `unit`
+  に潰す。
+- `callback_list_index_raw_type_stuck` は、list element へ function value を
+  入れる時に effectful callback の境界を保持すれば通る。ただし local function
+  value を wrapper 化する範囲を広げると `range.fold` の callback shape に
+  干渉する。
+- `principal_unify` / `types/substitution.rs` では function の `param_effect` /
+  `ret_effect` を value precision ではなく effect precision で merge する必要が
+  ある。片側だけ直すと `Never` が勝って `std::range::fold` の effect var が潰れる。
+
+次に見る場所:
+
+- `crates/yulang-runtime/src/monomorphize/pipeline/principal_unify.rs`
+  - `project_closed_value_substitutions_from_type`
+  - `project_closed_substitutions_from_type`
+  - role impl candidate の receiver projection
+- `crates/yulang-runtime/src/types/substitution.rs`
+  - `merge_projected_type_precision` の function effect slots
+- `crates/yulang-runtime/src/lower/lowerer.rs`
+  - `Handle` lowering の missing join evidence fallback
+  - local callback value の effect boundary preservation
+
+現時点の判断:
+
+- snippet 5件の表面だけを通す patch は作れる。
+- ただし `std::undet.each` 既存回帰を壊すので、今の WIP は commit しない方がよい。
+- 次は `range.fold` callback の effect var が `Never` に潰れる経路を先に潰してから、
+  5 snippet の regression test を戻すのが安全。
+
 ## 現在の未解決（2026-05-15 round-5）
 
 ### Effect / handler 系
@@ -12,16 +88,25 @@
   unhandled として外まで漏れる。同じ case を for の外で書くと通る。
   `wrap_inside_for_body_leaks_fail`（resolved）と兄弟で、`for` body 内に
   role-dispatch effect が積まれた時の row 解決に問題が残っている疑い。
-- [`handler_arm_tuple_payload_pattern.yu`](handler_arm_tuple_payload_pattern.yu)
-  — act operation の payload が tuple のとき、handler arm で `op (s, n), k
-  -> ...` のように個別 bind すると `cannot match a tuple pattern against ?`。
-  単一名 `op pair, k -> ...` は通るので、tuple pattern を payload position
-  で受ける lower 段が抜けている。
 - [`handler_fn_missing_join_evidence.yu`](handler_fn_missing_join_evidence.yu)
   — `my f comp = catch comp: ...` を annotation なしで書くと
   `missing join evidence for handle` で死ぬ。annotation 付きなら通る
   （cookbook の `cb06_log_handler.yu` 形）。「handler を関数に切り出す」
   最初の一歩が internal-meaning なエラーで止まる。
+
+### Frontend / native source-shape 系
+
+- [`record_field_value_selection_selector_shape.yu`](record_field_value_selection_selector_shape.yu)
+  — native source regression を足そうとした時、`my r: {ok: bool} = ...; r.ok`
+  が field value selection ではなく `:ok Record(...)` のような
+  selector-shaped な値/適用として出た。`my r = {run: h}; r.run()` も
+  `{run: _}` を `()` に適用しようとして落ちるため、record の value field
+  selection と method-like call の lowering shape が混ざっている疑い。
+- [`callback_list_index_raw_type_stuck.yu`](callback_list_index_raw_type_stuck.yu)
+  — `my hs = [h]; ((std::list::index_raw hs) 0)()` のように callback/function
+  value を list に入れて取り出すと、`index_raw` の element type `a` が
+  runtime type として固まらない。CPS 直書きでは list-stored thunk hygiene を
+  試せるが、source-shaped regression はこの型の詰まりで塞がっている。
 
 ### Error 系
 
@@ -35,6 +120,11 @@
 
 ## 解決済み（2026-05-14 時点で再現せず）
 
+- [`handler_arm_tuple_payload_pattern.yu`](handler_arm_tuple_payload_pattern.yu)
+  — act operation の payload が tuple のとき、handler arm で `op (s, n), k
+  -> ...` のように個別 bind すると `cannot match a tuple pattern against ?`
+  で落ちていた。現在は payload pattern の構造から runtime payload 型を作り、
+  `s` / `n` を個別 bind できる。
 - [`var_effect_serial_collision.yu`](var_effect_serial_collision.yu) —
   同じ scope で `my $a = ...; for ...; my $b = ...; for ...` と var を順に
   開くケースが、現在は `(3, 3)` を返す。
