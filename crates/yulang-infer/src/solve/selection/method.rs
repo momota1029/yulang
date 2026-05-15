@@ -149,6 +149,10 @@ impl Infer {
             }
         }
 
+        if self.resolve_structural_record_selection(recv_tv, selection) {
+            return true;
+        }
+
         if !self.role_methods.contains_key(&selection.name)
             && let Some(def) = self.unique_type_method_named(&selection.name)
         {

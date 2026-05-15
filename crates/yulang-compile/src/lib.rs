@@ -379,6 +379,27 @@ sub:
     }
 
     #[test]
+    fn runs_indexed_callback_return_hygiene_result_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::flow::*
+
+our f() = return 0
+
+our g h = sub:
+    my hs = [h]
+    ((std::list::index_raw hs) 0)()
+    return 1
+
+sub:
+    my b = g f
+    2
+"#,
+            vec!["0"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_sub_return_binding_in_list_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::flow::*

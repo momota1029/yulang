@@ -874,20 +874,30 @@ impl PrincipalUnifier {
                     &scrutinee.ty,
                 )));
                 let arm_context = Some(typed_ir::TypeBounds::exact(evidence.result.clone()));
+                let scrutinee = self.rewrite_expr(*scrutinee, scrutinee_context);
+                let scrutinee_ty = scrutinee.ty.clone();
                 ExprKind::Match {
-                    scrutinee: Box::new(self.rewrite_expr(*scrutinee, scrutinee_context)),
+                    scrutinee: Box::new(scrutinee),
                     arms: arms
                         .into_iter()
-                        .map(|arm| MatchArm {
-                            pattern: self.rewrite_pattern_defaults(arm.pattern),
-                            guard: arm.guard.map(|guard| self.rewrite_expr(guard, None)),
-                            body: {
+                        .map(|arm| {
+                            let pattern = self.rewrite_pattern_defaults(arm.pattern);
+                            self.local_value_contexts.push(BTreeMap::new());
+                            self.record_local_value_type_with_expected(&pattern, &scrutinee_ty);
+                            let guard = arm.guard.map(|guard| self.rewrite_expr(guard, None));
+                            let body = {
                                 let body_context = self
                                     .expr_is_nullary_generic_var(&arm.body)
                                     .then(|| arm_context.clone())
                                     .flatten();
                                 self.rewrite_expr(arm.body, body_context)
-                            },
+                            };
+                            self.local_value_contexts.pop();
+                            MatchArm {
+                                pattern,
+                                guard,
+                                body,
+                            }
                         })
                         .collect(),
                     evidence,
@@ -914,12 +924,26 @@ impl PrincipalUnifier {
                     body: Box::new(body),
                     arms: arms
                         .into_iter()
-                        .map(|arm| HandleArm {
-                            effect: arm.effect,
-                            payload: self.rewrite_pattern_defaults(arm.payload),
-                            resume: arm.resume,
-                            guard: arm.guard.map(|guard| self.rewrite_expr(guard, None)),
-                            body: self.rewrite_expr(arm.body, arm_context.clone()),
+                        .map(|arm| {
+                            let payload = self.rewrite_pattern_defaults(arm.payload);
+                            self.local_value_contexts.push(BTreeMap::new());
+                            self.record_local_value_type(&payload);
+                            if let Some(resume) = &arm.resume {
+                                self.insert_local_value_type(
+                                    resume.name.clone(),
+                                    resume.ty.clone(),
+                                );
+                            }
+                            let guard = arm.guard.map(|guard| self.rewrite_expr(guard, None));
+                            let body = self.rewrite_expr(arm.body, arm_context.clone());
+                            self.local_value_contexts.pop();
+                            HandleArm {
+                                effect: arm.effect,
+                                payload,
+                                resume: arm.resume,
+                                guard,
+                                body,
+                            }
                         })
                         .collect(),
                     evidence,
@@ -1068,15 +1092,92 @@ impl PrincipalUnifier {
             .find_map(|scope| scope.get(name).cloned())
     }
 
-    fn record_local_value_type(&mut self, pattern: &Pattern, ty: &RuntimeType) {
-        let Some(name) = pattern_bind_name(pattern) else {
-            return;
-        };
+    fn record_local_value_type(&mut self, pattern: &Pattern) {
+        let expected = pattern_runtime_type(pattern).clone();
+        self.record_local_value_type_with_expected(pattern, &expected);
+    }
+
+    fn record_local_value_type_with_expected(&mut self, pattern: &Pattern, expected: &RuntimeType) {
+        match pattern {
+            Pattern::Bind { name, ty } => {
+                self.insert_local_value_type(
+                    name.clone(),
+                    pattern_local_runtime_type(ty, expected),
+                );
+            }
+            Pattern::Tuple { items, ty } => {
+                for (index, item) in items.iter().enumerate() {
+                    let item_expected = tuple_pattern_item_runtime_type(expected, ty, index)
+                        .unwrap_or_else(|| pattern_runtime_type(item).clone());
+                    self.record_local_value_type_with_expected(item, &item_expected);
+                }
+            }
+            Pattern::List {
+                prefix,
+                spread,
+                suffix,
+                ty,
+            } => {
+                let item_expected = list_pattern_item_runtime_type(expected, ty);
+                for item in prefix {
+                    let expected = item_expected
+                        .as_ref()
+                        .unwrap_or_else(|| pattern_runtime_type(item));
+                    self.record_local_value_type_with_expected(item, expected);
+                }
+                if let Some(spread) = spread {
+                    self.record_local_value_type_with_expected(spread, expected);
+                }
+                for item in suffix {
+                    let expected = item_expected
+                        .as_ref()
+                        .unwrap_or_else(|| pattern_runtime_type(item));
+                    self.record_local_value_type_with_expected(item, expected);
+                }
+            }
+            Pattern::Record { fields, spread, ty } => {
+                for field in fields {
+                    let field_expected =
+                        record_pattern_field_runtime_type(expected, ty, &field.name)
+                            .unwrap_or_else(|| pattern_runtime_type(&field.pattern).clone());
+                    self.record_local_value_type_with_expected(&field.pattern, &field_expected);
+                }
+                match spread {
+                    Some(RecordSpreadPattern::Head(pattern))
+                    | Some(RecordSpreadPattern::Tail(pattern)) => {
+                        self.record_local_value_type_with_expected(pattern, expected);
+                    }
+                    None => {}
+                }
+            }
+            Pattern::Variant { tag, value, ty } => {
+                if let Some(value) = value {
+                    let value_expected = variant_pattern_payload_runtime_type(expected, ty, tag)
+                        .unwrap_or_else(|| pattern_runtime_type(value).clone());
+                    self.record_local_value_type_with_expected(value, &value_expected);
+                }
+            }
+            Pattern::Or { left, right, .. } => {
+                self.record_local_value_type_with_expected(left, expected);
+                self.record_local_value_type_with_expected(right, expected);
+            }
+            Pattern::As { pattern, name, ty } => {
+                self.record_local_value_type_with_expected(pattern, expected);
+                self.insert_local_value_type(
+                    name.clone(),
+                    pattern_local_runtime_type(ty, expected),
+                );
+            }
+            Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
+        }
+    }
+
+    fn insert_local_value_type(&mut self, name: typed_ir::Name, ty: RuntimeType) {
         let Some(scope) = self.local_value_contexts.last_mut() else {
             return;
         };
-        debug_principal_unify_local_value(name, ty);
-        scope.insert(name.clone(), ty.clone());
+        debug_principal_unify_local_value(&name, &ty);
+        scope.insert(name, ty);
     }
 
     fn push_local_value_type(&mut self, name: typed_ir::Name, ty: Option<RuntimeType>) {
@@ -1094,7 +1195,7 @@ impl PrincipalUnifier {
                 let value_context = pattern_value_context(&pattern);
                 let value = self.rewrite_expr(value, value_context);
                 let pattern = self.rewrite_pattern_defaults(pattern);
-                self.record_local_value_type(&pattern, &value.ty);
+                self.record_local_value_type(&pattern);
                 Stmt::Let { pattern, value }
             }
             Stmt::Expr(expr) => Stmt::Expr(self.rewrite_expr(expr, None)),
@@ -1253,7 +1354,7 @@ impl PrincipalUnifier {
                         .or_else(|| self.local_var_ref_binding_context(&pattern));
                     let value = self.rewrite_expr(value, value_context);
                     let pattern = self.rewrite_pattern_defaults(pattern);
-                    self.record_local_value_type(&pattern, &value.ty);
+                    self.record_local_value_type(&pattern);
                     Stmt::Let { pattern, value }
                 }
                 Stmt::Expr(expr) => Stmt::Expr(self.rewrite_expr(expr, None)),
@@ -2571,6 +2672,12 @@ impl PrincipalUnifier {
         }
         let before = substitutions.len();
         let mut conflicts = BTreeSet::new();
+        self.project_unary_container_item_from_first_arg(
+            &original.scheme.body,
+            args,
+            &required_vars,
+            &mut substitutions,
+        );
         project_container_callback_item_from_args(
             &original.scheme.body,
             args,
@@ -2605,6 +2712,12 @@ impl PrincipalUnifier {
                 param_effect,
                 &actual_effect,
             );
+            project_unary_container_item_from_param_actual(
+                param,
+                &actual,
+                &required_vars,
+                &mut substitutions,
+            );
             if let Some(plan_arg) = plan.args.iter().find(|plan_arg| plan_arg.index == index) {
                 project_principal_arg_slot_substitutions(
                     param,
@@ -2617,6 +2730,10 @@ impl PrincipalUnifier {
             if let Some(evidence) = evidences.get(index).copied().flatten()
                 && let Some(expected_arg) = evidence.expected_arg.as_ref()
             {
+                let retained_ret_effect_substitutions = ret_effect_vars
+                    .iter()
+                    .filter_map(|var| substitutions.get(var).map(|ty| (var.clone(), ty.clone())))
+                    .collect::<BTreeMap<_, _>>();
                 project_closed_substitutions_from_type_bounds(
                     param,
                     expected_arg,
@@ -2627,6 +2744,7 @@ impl PrincipalUnifier {
                     64,
                 );
                 substitutions.retain(|var, _| !ret_effect_vars.contains(var));
+                substitutions.extend(retained_ret_effect_substitutions);
             }
             project_closed_substitutions_from_type(
                 param,
@@ -2832,6 +2950,51 @@ impl PrincipalUnifier {
         }
         debug_principal_unify_normalized_plan(&normalized);
         Some(normalized)
+    }
+
+    fn project_unary_container_item_from_first_arg(
+        &self,
+        principal: &typed_ir::Type,
+        args: &[&Expr],
+        required_vars: &BTreeSet<typed_ir::TypeVar>,
+        substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    ) {
+        let Some(first_arg) = args.first() else {
+            return;
+        };
+        let Some((params, _ret, _ret_effect)) = core_fun_spine_parts_exact(principal, args.len())
+        else {
+            return;
+        };
+        let Some((container_param, _container_effect)) = params.first() else {
+            return;
+        };
+        let Some(var) = unary_container_item_var(container_param) else {
+            return;
+        };
+        if !required_vars.contains(&var) {
+            return;
+        }
+        let item = self
+            .local_container_item_type(first_arg)
+            .or_else(|| unary_container_item_type(&first_arg.ty));
+        let Some(item) = item else {
+            return;
+        };
+        insert_projected_container_item_substitution(substitutions, var, item);
+    }
+
+    fn local_container_item_type(&self, expr: &Expr) -> Option<typed_ir::Type> {
+        match &expr.kind {
+            ExprKind::Var(path) => self
+                .local_value_type(path)
+                .as_ref()
+                .and_then(unary_container_item_type),
+            ExprKind::Coerce { expr, .. } | ExprKind::BindHere { expr } => {
+                self.local_container_item_type(expr)
+            }
+            _ => None,
+        }
     }
 
     fn complete_runtime_effect_plan_from_role_impls(
@@ -3307,8 +3470,40 @@ fn project_container_callback_item_from_args(
     }
 }
 
+fn unary_container_item_var(ty: &typed_ir::Type) -> Option<typed_ir::TypeVar> {
+    let typed_ir::Type::Named { args, .. } = ty else {
+        return None;
+    };
+    let [arg] = args.as_slice() else {
+        return None;
+    };
+    type_arg_var(arg)
+}
+
+fn type_arg_var(arg: &typed_ir::TypeArg) -> Option<typed_ir::TypeVar> {
+    match arg {
+        typed_ir::TypeArg::Type(typed_ir::Type::Var(var)) => Some(var.clone()),
+        typed_ir::TypeArg::Bounds(bounds) => match (&bounds.lower, &bounds.upper) {
+            (Some(lower), Some(upper)) if lower == upper => match lower.as_ref() {
+                typed_ir::Type::Var(var) => Some(var.clone()),
+                _ => None,
+            },
+            (Some(bound), None) | (None, Some(bound)) => match bound.as_ref() {
+                typed_ir::Type::Var(var) => Some(var.clone()),
+                _ => None,
+            },
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 fn unary_container_item_type(ty: &RuntimeType) -> Option<typed_ir::Type> {
-    let typed_ir::Type::Named { args, .. } = runtime_core_type(ty) else {
+    unary_container_item_type_from_core(&runtime_core_type(ty))
+}
+
+fn unary_container_item_type_from_core(ty: &typed_ir::Type) -> Option<typed_ir::Type> {
+    let typed_ir::Type::Named { args, .. } = ty else {
         return None;
     };
     let [arg] = args.as_slice() else {
@@ -3317,10 +3512,60 @@ fn unary_container_item_type(ty: &RuntimeType) -> Option<typed_ir::Type> {
     type_arg_closed_type(arg)
 }
 
+fn project_unary_container_item_from_param_actual(
+    param: &typed_ir::Type,
+    actual: &typed_ir::Type,
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) {
+    let Some(var) = unary_container_item_var(param) else {
+        return;
+    };
+    if !required_vars.contains(&var) {
+        return;
+    }
+    let Some(item) = unary_container_item_type_from_core(actual) else {
+        return;
+    };
+    insert_projected_container_item_substitution(substitutions, var, item);
+}
+
+fn insert_projected_container_item_substitution(
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    var: typed_ir::TypeVar,
+    item: typed_ir::Type,
+) {
+    match substitutions.get(&var) {
+        Some(existing) if existing == &item => {}
+        Some(existing) if type_is_open_or_default_unit(existing) => {
+            substitutions.insert(var, item);
+        }
+        Some(existing) => {
+            if let Some(merged) = merge_projected_value_type_precision(existing, &item) {
+                substitutions.insert(var, merged);
+            }
+        }
+        None => {
+            substitutions.insert(var, item);
+        }
+    }
+}
+
 fn type_arg_closed_type(arg: &typed_ir::TypeArg) -> Option<typed_ir::Type> {
     match arg {
-        typed_ir::TypeArg::Type(ty) if closed_slot_type_usable(ty, false) => Some(ty.clone()),
-        typed_ir::TypeArg::Bounds(bounds) => closed_type_from_bounds(Some(bounds)),
+        typed_ir::TypeArg::Type(ty)
+            if closed_slot_type_usable(ty, false) || function_runtime_slot_usable(ty) =>
+        {
+            Some(ty.clone())
+        }
+        typed_ir::TypeArg::Bounds(bounds) => closed_type_from_bounds(Some(bounds)).or_else(|| {
+            bounds
+                .lower
+                .as_deref()
+                .or(bounds.upper.as_deref())
+                .filter(|ty| function_runtime_slot_usable(ty))
+                .cloned()
+        }),
         _ => None,
     }
 }
@@ -4556,6 +4801,146 @@ fn pattern_runtime_type(pattern: &Pattern) -> &RuntimeType {
     }
 }
 
+fn pattern_local_runtime_type(pattern_ty: &RuntimeType, expected: &RuntimeType) -> RuntimeType {
+    if !runtime_type_shape_usable(pattern_ty) && runtime_type_shape_usable(expected) {
+        expected.clone()
+    } else {
+        pattern_ty.clone()
+    }
+}
+
+fn tuple_pattern_item_runtime_type(
+    expected: &RuntimeType,
+    pattern_ty: &RuntimeType,
+    index: usize,
+) -> Option<RuntimeType> {
+    runtime_tuple_items(expected)
+        .or_else(|| runtime_tuple_items(pattern_ty))
+        .and_then(|items| items.get(index).cloned())
+        .map(RuntimeType::core)
+}
+
+fn runtime_tuple_items(ty: &RuntimeType) -> Option<&[typed_ir::Type]> {
+    match ty {
+        RuntimeType::Core(typed_ir::Type::Tuple(items)) => Some(items),
+        RuntimeType::Unknown
+        | RuntimeType::Core(_)
+        | RuntimeType::Fun { .. }
+        | RuntimeType::Thunk { .. } => None,
+    }
+}
+
+fn list_pattern_item_runtime_type(
+    expected: &RuntimeType,
+    pattern_ty: &RuntimeType,
+) -> Option<RuntimeType> {
+    runtime_named_single_type_arg(expected)
+        .or_else(|| runtime_named_single_type_arg(pattern_ty))
+        .map(RuntimeType::core)
+}
+
+fn record_pattern_field_runtime_type(
+    expected: &RuntimeType,
+    pattern_ty: &RuntimeType,
+    name: &typed_ir::Name,
+) -> Option<RuntimeType> {
+    runtime_record_field_type(expected, name)
+        .or_else(|| runtime_record_field_type(pattern_ty, name))
+        .map(RuntimeType::core)
+}
+
+fn runtime_record_field_type(ty: &RuntimeType, name: &typed_ir::Name) -> Option<typed_ir::Type> {
+    match ty {
+        RuntimeType::Core(typed_ir::Type::Record(record)) => record
+            .fields
+            .iter()
+            .find(|field| field.name == *name)
+            .map(|field| field.value.clone()),
+        RuntimeType::Unknown
+        | RuntimeType::Core(_)
+        | RuntimeType::Fun { .. }
+        | RuntimeType::Thunk { .. } => None,
+    }
+}
+
+fn variant_pattern_payload_runtime_type(
+    expected: &RuntimeType,
+    pattern_ty: &RuntimeType,
+    tag: &typed_ir::Name,
+) -> Option<RuntimeType> {
+    runtime_variant_payload_type(expected, tag)
+        .or_else(|| runtime_variant_payload_type(pattern_ty, tag))
+        .map(RuntimeType::core)
+}
+
+fn runtime_variant_payload_type(ty: &RuntimeType, tag: &typed_ir::Name) -> Option<typed_ir::Type> {
+    match ty {
+        RuntimeType::Core(typed_ir::Type::Variant(variant)) => variant
+            .cases
+            .iter()
+            .find(|case| case.name == *tag)
+            .and_then(|case| variant_case_payload_type(&case.payloads)),
+        RuntimeType::Core(typed_ir::Type::Named { args, .. }) => {
+            named_variant_payload_from_type_args(tag, args)
+        }
+        RuntimeType::Unknown
+        | RuntimeType::Core(_)
+        | RuntimeType::Fun { .. }
+        | RuntimeType::Thunk { .. } => None,
+    }
+}
+
+fn variant_case_payload_type(payloads: &[typed_ir::Type]) -> Option<typed_ir::Type> {
+    match payloads {
+        [] => None,
+        [payload] => Some(payload.clone()),
+        payloads => Some(typed_ir::Type::Tuple(payloads.to_vec())),
+    }
+}
+
+fn named_variant_payload_from_type_args(
+    tag: &typed_ir::Name,
+    args: &[typed_ir::TypeArg],
+) -> Option<typed_ir::Type> {
+    if args.len() == 2 {
+        match tag.0.as_str() {
+            "ok" => return type_arg_core(&args[0]),
+            "err" => return type_arg_core(&args[1]),
+            _ => {}
+        }
+    }
+    runtime_single_type_arg(args)
+}
+
+fn runtime_named_single_type_arg(ty: &RuntimeType) -> Option<typed_ir::Type> {
+    match ty {
+        RuntimeType::Core(typed_ir::Type::Named { args, .. }) => runtime_single_type_arg(args),
+        RuntimeType::Unknown
+        | RuntimeType::Core(_)
+        | RuntimeType::Fun { .. }
+        | RuntimeType::Thunk { .. } => None,
+    }
+}
+
+fn runtime_single_type_arg(args: &[typed_ir::TypeArg]) -> Option<typed_ir::Type> {
+    let [arg] = args else {
+        return None;
+    };
+    type_arg_core(arg)
+}
+
+fn type_arg_core(arg: &typed_ir::TypeArg) -> Option<typed_ir::Type> {
+    match arg {
+        typed_ir::TypeArg::Type(ty) => Some(ty.clone()),
+        typed_ir::TypeArg::Bounds(bounds) => match (&bounds.lower, &bounds.upper) {
+            (Some(lower), Some(upper)) if lower == upper => Some((**lower).clone()),
+            (Some(lower), None) => Some((**lower).clone()),
+            (None, Some(upper)) => Some((**upper).clone()),
+            _ => None,
+        },
+    }
+}
+
 fn principal_rewrite_type_from_kind(fallback: RuntimeType, kind: &ExprKind) -> RuntimeType {
     match kind {
         ExprKind::Tuple(items) => RuntimeType::core(typed_ir::Type::Tuple(
@@ -4665,12 +5050,14 @@ fn fill_plan_runtime_slots_from_principal(
     for arg in &mut plan.args {
         if arg.expected_runtime.is_none()
             && let Some(param) = params.get(arg.index)
-            && closed_slot_type_usable(param, false)
+            && (closed_slot_type_usable(param, false) || function_runtime_slot_usable(param))
         {
             arg.expected_runtime = Some(param.clone());
         }
     }
-    if plan.result.expected_runtime.is_none() && closed_slot_type_usable(&ret, false) {
+    if plan.result.expected_runtime.is_none()
+        && (closed_slot_type_usable(&ret, false) || function_runtime_slot_usable(&ret))
+    {
         plan.result.expected_runtime = Some(ret);
     }
 }
@@ -4934,6 +5321,9 @@ fn substitution_is_complete_for_var(
             typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_)
         ) && !core_type_has_vars(ty);
     }
+    if function_runtime_slot_usable(ty) {
+        return true;
+    }
     if matches!(
         ty,
         typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_)
@@ -4942,6 +5332,28 @@ fn substitution_is_complete_for_var(
         return false;
     }
     !core_type_contains_unknown(ty)
+}
+
+fn function_runtime_slot_usable(ty: &typed_ir::Type) -> bool {
+    let mut current = ty;
+    let mut has_function_spine = false;
+    while let typed_ir::Type::Fun {
+        param,
+        param_effect,
+        ret_effect,
+        ret,
+    } = current
+    {
+        has_function_spine = true;
+        if core_type_has_vars(param)
+            || core_type_has_vars(param_effect)
+            || core_type_has_vars(ret_effect)
+        {
+            return false;
+        }
+        current = ret;
+    }
+    has_function_spine && !core_type_has_vars(current)
 }
 
 fn binding_substitutions_are_only_top(
@@ -7278,6 +7690,12 @@ pub(super) fn closed_slot_type_usable(ty: &typed_ir::Type, allow_never: bool) ->
 
 fn principal_unify_role_impls(module: &Module) -> HashMap<typed_ir::Name, Vec<Binding>> {
     let mut out: HashMap<typed_ir::Name, Vec<Binding>> = HashMap::new();
+    let bindings_by_path = module
+        .bindings
+        .iter()
+        .map(|binding| (binding.name.clone(), binding))
+        .collect::<HashMap<_, _>>();
+    let mut inserted = HashSet::new();
     for binding in &module.bindings {
         if !is_impl_method_path(&binding.name) {
             continue;
@@ -7285,7 +7703,21 @@ fn principal_unify_role_impls(module: &Module) -> HashMap<typed_ir::Name, Vec<Bi
         let Some(method) = binding.name.segments.last() else {
             continue;
         };
+        inserted.insert(binding.name.clone());
         out.entry(method.clone()).or_default().push(binding.clone());
+    }
+    for role_impl in &module.role_impls {
+        for member in &role_impl.members {
+            if !inserted.insert(member.value.clone()) {
+                continue;
+            }
+            let Some(binding) = bindings_by_path.get(&member.value) else {
+                continue;
+            };
+            out.entry(member.name.clone())
+                .or_default()
+                .push((*binding).clone());
+        }
     }
     for candidates in out.values_mut() {
         candidates.sort_by_key(|candidate| canonical_path(&candidate.name));
@@ -8160,11 +8592,11 @@ pub(super) fn merge_projected_value_type_precision(
                 existing_param,
                 incoming_param,
             )?),
-            param_effect: Box::new(merge_projected_value_type_precision(
+            param_effect: Box::new(merge_projected_effect_type_precision(
                 existing_param_effect,
                 incoming_param_effect,
             )?),
-            ret_effect: Box::new(merge_projected_value_type_precision(
+            ret_effect: Box::new(merge_projected_effect_type_precision(
                 existing_ret_effect,
                 incoming_ret_effect,
             )?),
@@ -8182,6 +8614,8 @@ fn merge_projected_effect_type_precision(
     incoming: &typed_ir::Type,
 ) -> Option<typed_ir::Type> {
     match (existing, incoming) {
+        (typed_ir::Type::Never, incoming) => Some(incoming.clone()),
+        (existing, typed_ir::Type::Never) => Some(existing.clone()),
         (
             typed_ir::Type::Named {
                 path: existing_path,

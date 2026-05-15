@@ -211,6 +211,11 @@ CPS repr Cranelift の source 回帰を広げる。
   `Apply` lowering に戻して callee 側を先に評価する。scalar environment を
   capture した closure も list index 後に呼べる。string capture も同じ path で
   通る。
+- source-level callback value を list に保存し、`std::list::index_raw` で取り出して
+  から呼んでも return hygiene が保たれる regression を追加した。local parameter
+  boundary wrapper は、callback の返した thunk を先に force せず、境界付き thunk を
+  作ってから force 側へ渡す。これで stored callback 経由の `return` は inner `sub`
+  を越え、caller 側の `sub` へ届く。
 - lazy operator の結果を tuple value position に置く source regression を
   forced CPS repr executable path に追加した。tuple 内部でも thunk が可視値として
   漏れず、native i64 表示 helper も tuple payload を再帰的に整形する。

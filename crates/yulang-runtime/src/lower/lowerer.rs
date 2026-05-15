@@ -136,15 +136,24 @@ impl Lowerer<'_> {
                     };
                 let expr = Expr::typed(kind, ty);
                 if local_ty.is_some()
-                    && matches!(expr.ty, RuntimeType::Thunk { .. })
-                    && let Some(boundary) = self.local_param_boundaries.get(&path)
-                    && boundary.applies_to_thunk_var
+                    && let Some(boundary) = self.local_param_boundaries.get(&path).cloned()
                 {
-                    return Ok(add_boundary_id(
-                        expr,
-                        EffectIdRef::Var(boundary.id),
-                        boundary.effect.clone(),
-                    ));
+                    if matches!(expr.ty, RuntimeType::Thunk { .. }) && boundary.applies_to_thunk_var
+                    {
+                        return Ok(add_boundary_id(
+                            expr,
+                            EffectIdRef::Var(boundary.id),
+                            boundary.effect.clone(),
+                        ));
+                    }
+                    if let Some(protected) = self.protect_local_function_value(
+                        path.clone(),
+                        expr.clone(),
+                        &boundary,
+                        expected,
+                    ) {
+                        return Ok(protected);
+                    }
                 }
                 Ok(expr)
             }
@@ -1212,7 +1221,16 @@ impl Lowerer<'_> {
                 arms,
                 evidence,
             } => {
-                let result_hint = self.join_result_type(evidence.as_ref(), expected, "handle")?;
+                let (result_hint, missing_join_evidence) =
+                    match self.join_result_type(evidence.as_ref(), expected, "handle") {
+                        Ok(result) => (result, false),
+                        Err(RuntimeError::MissingJoinEvidence { node: "handle" }) => (
+                            self.visible_handle_result_type(&arms)
+                                .unwrap_or(typed_ir::Type::Unknown),
+                            true,
+                        ),
+                        Err(error) => return Err(error),
+                    };
                 let result_ty =
                     if expected.is_none() && core_type_is_imprecise_runtime_slot(&result_hint) {
                         self.visible_handle_result_type(&arms)
@@ -1220,8 +1238,18 @@ impl Lowerer<'_> {
                     } else {
                         result_hint
                     };
+                let body_expected = (missing_join_evidence
+                    && handle_body_is_imprecise_local_value(&body, locals))
+                .then(|| {
+                    self.handler_consumes_from_core_arms(&arms, &result_ty, None)
+                        .map(|effect| {
+                            RuntimeType::thunk(effect, RuntimeType::core(result_ty.clone()))
+                        })
+                })
+                .flatten();
                 self.handler_body_depth += 1;
-                let body_result = self.lower_expr(*body, None, locals, TypeSource::Expected);
+                let body_result =
+                    self.lower_expr(*body, body_expected.as_ref(), locals, TypeSource::Expected);
                 self.handler_body_depth -= 1;
                 let body = body_result?;
                 let body_effect_before =
@@ -2185,6 +2213,105 @@ impl Lowerer<'_> {
         )
     }
 
+    fn protect_local_function_value(
+        &mut self,
+        path: typed_ir::Path,
+        expr: Expr,
+        boundary: &LocalParamBoundary,
+        expected: Option<&RuntimeType>,
+    ) -> Option<Expr> {
+        if apply_callee_expected(expected) {
+            return None;
+        }
+        if self
+            .current_runtime_adapter_source
+            .as_ref()
+            .is_some_and(|source| source.apply_target.is_some())
+        {
+            return None;
+        }
+        let (callee, parts, wrap_in_thunk) = match &expr.ty {
+            RuntimeType::Thunk { effect, value } => {
+                let parts = function_parts(value).ok()?;
+                let callee = Expr::typed(
+                    ExprKind::BindHere {
+                        expr: Box::new(Expr::typed(ExprKind::Var(path), expr.ty.clone())),
+                    },
+                    value.as_ref().clone(),
+                );
+                (callee, parts, Some(effect.clone()))
+            }
+            RuntimeType::Fun { .. } | RuntimeType::Unknown | RuntimeType::Core(_) => return None,
+        };
+        let arg_name = typed_ir::Name(format!("local_boundary_arg_{}", self.next_effect_id_var));
+        let arg_path = typed_ir::Path::from_name(arg_name.clone());
+        let arg = Expr::typed(ExprKind::Var(arg_path), parts.param.clone());
+        if !function_return_can_cross_handler_boundary(&parts.ret) {
+            return None;
+        }
+        let apply = Expr::typed(
+            ExprKind::Apply {
+                callee: Box::new(callee),
+                arg: Box::new(arg),
+                evidence: None,
+                instantiation: None,
+            },
+            parts.ret.clone(),
+        );
+        let thunk = match parts.ret {
+            RuntimeType::Thunk { effect, value } => {
+                let forced = Expr::typed(
+                    ExprKind::BindHere {
+                        expr: Box::new(apply),
+                    },
+                    value.as_ref().clone(),
+                );
+                Expr::typed(
+                    ExprKind::Thunk {
+                        effect: effect.clone(),
+                        value: value.as_ref().clone(),
+                        expr: Box::new(forced),
+                    },
+                    RuntimeType::thunk(effect.clone(), value.as_ref().clone()),
+                )
+            }
+            value => Expr::typed(
+                ExprKind::Thunk {
+                    effect: typed_ir::Type::Unknown,
+                    value: value.clone(),
+                    expr: Box::new(apply),
+                },
+                RuntimeType::thunk(typed_ir::Type::Unknown, value),
+            ),
+        };
+        let protected = add_boundary_id(
+            thunk,
+            EffectIdRef::Var(boundary.id),
+            boundary.effect.clone(),
+        );
+        let lambda_ty = RuntimeType::fun(parts.param, protected.ty.clone());
+        let lambda = Expr::typed(
+            ExprKind::Lambda {
+                param: arg_name,
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(protected.clone()),
+            },
+            lambda_ty.clone(),
+        );
+        match wrap_in_thunk {
+            Some(effect) => Some(Expr::typed(
+                ExprKind::Thunk {
+                    effect: effect.clone(),
+                    value: lambda_ty.clone(),
+                    expr: Box::new(lambda),
+                },
+                RuntimeType::thunk(effect, lambda_ty),
+            )),
+            None => Some(lambda),
+        }
+    }
+
     pub(super) fn normalize_expected_hir_type(&self, ty: RuntimeType) -> RuntimeType {
         match ty {
             RuntimeType::Core(core @ typed_ir::Type::Fun { .. }) => {
@@ -2864,6 +2991,47 @@ fn restore_local_param_boundary(
         None => {
             boundaries.remove(&local);
         }
+    }
+}
+
+fn apply_callee_expected(expected: Option<&RuntimeType>) -> bool {
+    match expected {
+        Some(RuntimeType::Fun { .. } | RuntimeType::Core(typed_ir::Type::Fun { .. })) => true,
+        Some(RuntimeType::Thunk { value, .. }) => apply_callee_expected(Some(value)),
+        Some(RuntimeType::Unknown | RuntimeType::Core(_)) | None => false,
+    }
+}
+
+fn handle_body_is_imprecise_local_value(
+    body: &typed_ir::Expr,
+    locals: &HashMap<typed_ir::Path, RuntimeType>,
+) -> bool {
+    match body {
+        typed_ir::Expr::Var(path) => locals
+            .get(path)
+            .is_none_or(runtime_type_is_imprecise_runtime_slot),
+        typed_ir::Expr::BindHere { expr } | typed_ir::Expr::Coerce { expr, .. } => {
+            handle_body_is_imprecise_local_value(expr, locals)
+        }
+        _ => false,
+    }
+}
+
+fn function_return_can_cross_handler_boundary(ret: &RuntimeType) -> bool {
+    match ret {
+        RuntimeType::Thunk { effect, value } => {
+            should_thunk_effect(effect) || function_return_can_cross_handler_boundary(value)
+        }
+        RuntimeType::Fun { ret, .. } => function_return_can_cross_handler_boundary(ret),
+        RuntimeType::Core(typed_ir::Type::Fun {
+            ret, ret_effect, ..
+        }) => {
+            should_thunk_effect(ret_effect)
+                || function_return_can_cross_handler_boundary(&RuntimeType::core(
+                    ret.as_ref().clone(),
+                ))
+        }
+        RuntimeType::Unknown | RuntimeType::Core(_) => false,
     }
 }
 

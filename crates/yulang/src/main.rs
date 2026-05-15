@@ -2,6 +2,7 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::fs;
+#[cfg(not(windows))]
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -14,6 +15,7 @@ use chasa::error::LatestSink;
 use chasa::input::{In, Input as _, IsCut};
 use either::Either;
 use im::HashSet;
+#[cfg(not(windows))]
 use pprof::ProfilerGuardBuilder;
 use reborrow_generic::Reborrow as _;
 use rowan::SyntaxNode;
@@ -54,6 +56,12 @@ use yulang_sources::{
 use yulang_typed_ir as typed_ir;
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
+
+#[cfg(not(windows))]
+type CpuProfileGuard = pprof::ProfilerGuard<'static>;
+
+#[cfg(windows)]
+struct CpuProfileGuard;
 
 fn main() {
     let options = parse_args();
@@ -436,10 +444,16 @@ fn run(options: &CliOptions) {
     }
 }
 
-fn start_cpu_profile(options: &CliOptions) -> Option<pprof::ProfilerGuard<'static>> {
+fn start_cpu_profile(options: &CliOptions) -> Option<CpuProfileGuard> {
     let Some(_) = options.profile_flamegraph else {
         return None;
     };
+    #[cfg(windows)]
+    {
+        eprintln!("--profile-flamegraph is not supported on Windows builds");
+        process::exit(2)
+    }
+    #[cfg(not(windows))]
     match ProfilerGuardBuilder::default()
         .frequency(1000)
         .blocklist(&["libc", "libgcc", "pthread", "vdso"])
@@ -453,29 +467,37 @@ fn start_cpu_profile(options: &CliOptions) -> Option<pprof::ProfilerGuard<'stati
     }
 }
 
-fn finish_cpu_profile(guard: Option<pprof::ProfilerGuard<'static>>, options: &CliOptions) {
+fn finish_cpu_profile(guard: Option<CpuProfileGuard>, options: &CliOptions) {
     let (Some(guard), Some(path)) = (guard, options.profile_flamegraph.as_deref()) else {
         return;
     };
-    let report = match guard.report().build() {
-        Ok(report) => report,
-        Err(err) => {
-            eprintln!("failed to build profile report: {err}");
-            process::exit(1);
-        }
-    };
-    let file = match File::create(path) {
-        Ok(file) => file,
-        Err(err) => {
-            eprintln!("failed to create flamegraph output {path}: {err}");
-            process::exit(1);
-        }
-    };
-    if let Err(err) = report.flamegraph(file) {
-        eprintln!("failed to write flamegraph {path}: {err}");
-        process::exit(1);
+    #[cfg(windows)]
+    {
+        let _ = (guard, path);
+        return;
     }
-    eprintln!("wrote flamegraph: {path}");
+    #[cfg(not(windows))]
+    {
+        let report = match guard.report().build() {
+            Ok(report) => report,
+            Err(err) => {
+                eprintln!("failed to build profile report: {err}");
+                process::exit(1);
+            }
+        };
+        let file = match File::create(path) {
+            Ok(file) => file,
+            Err(err) => {
+                eprintln!("failed to create flamegraph output {path}: {err}");
+                process::exit(1);
+            }
+        };
+        if let Err(err) = report.flamegraph(file) {
+            eprintln!("failed to write flamegraph {path}: {err}");
+            process::exit(1);
+        }
+        eprintln!("wrote flamegraph: {path}");
+    }
 }
 
 // ── CST 表示 ─────────────────────────────────────────────────────────────────

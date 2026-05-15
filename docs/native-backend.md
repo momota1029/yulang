@@ -77,6 +77,7 @@ checklist, see *Detailed progress* below.
 | `std::undet` `.once` / `.list` / `.logic` over finite-list choices | CPS repr |   ✅   |
 | Mutable reference edit / update through effects     | CPS repr (scalar)      |   ✅   |
 | Effectful thunks across function boundaries         | CPS repr (scalar)      |   △   |
+| Stored callback values selected from lists          | CPS repr (prototype)   |   △   |
 | `std::junction` effectful boolean conditions        | CPS repr               |   ✅   |
 | Finite-list `for` loops with `last` / `next` control | CPS repr (scalar)      |   ✅   |
 
@@ -185,6 +186,8 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] First-class lambdas, captured closures, partial applications, and closures
       selected from records/lists can be created and called through the CPS repr
       executable path.
+- [x] Callback values can be stored in lists, recovered with `std::list::index_raw`,
+      and called without losing local handler hygiene on the forced CPS repr path.
 - [x] Type-converted thunk values can be stored in lists, indexed back out,
       forced with `BindHere`, and run through CPS lowering and Cranelift.
 - [x] Lazy operator results in tuple/list value positions are covered by the

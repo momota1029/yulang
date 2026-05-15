@@ -1,0 +1,21 @@
+-- resolved: record field value selection stays a value selection.
+--
+-- Expected:
+--   `r.ok` selects the `ok` field and returns `true`.
+--
+-- Old actual seen while adding a native source regression:
+--   forced CPS repr display returned a selector-shaped value/application:
+--
+--     :ok Record({Name("ok"): Bool(true)})
+--
+--   instead of the field value. A related callback-field case,
+--   `my r = {run: h}; r.run()`, failed with:
+--
+--     function application type mismatch: expected (), got {run: _}
+--
+-- Memo:
+--   Method-like calls such as `my r = {call: f}; r.call 41` still work.
+--   The source-shaped native path now returns the selected field value.
+
+my r: {ok: bool} = {ok: true or false}
+r.ok

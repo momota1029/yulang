@@ -1735,6 +1735,107 @@ sub:
     }
 
     #[test]
+    fn vm_keeps_indexed_callback_return_effect_hygienic_across_sub() {
+        let results = eval_source_with_std(
+            r#"use std::flow::*
+
+our f() = return 0
+
+our g h = sub:
+    my hs = [h]
+    ((std::list::index_raw hs) 0)()
+    return 1
+
+sub:
+    my b = g f
+    2
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("0".to_string())]);
+    }
+
+    #[test]
+    fn vm_runs_handler_function_without_join_evidence() {
+        let results = eval_source_with_std(
+            r#"act log:
+    pub put: str -> ()
+
+my collect_logs comp =
+    my $entries = []
+    catch comp:
+        log::put msg, k ->
+            &entries = $entries + [msg]
+            k ()
+        v -> v
+    $entries
+
+collect_logs:
+    log::put "a"
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::List(vec![TestValue::String("a".to_string())])]
+        );
+    }
+
+    #[test]
+    fn vm_resolves_role_method_in_for_body_pattern_arm() {
+        let results = eval_source_with_std(
+            r#"my pairs = [(1, just "a"), (2, nil)]
+my $sum = 0
+for p in pairs:
+    case p:
+        (n, just s) -> &sum = $sum + n + s.len
+        (n, nil) -> &sum = $sum + n
+$sum
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("4".to_string())]);
+    }
+
+    #[test]
+    fn vm_prefers_record_field_selection_over_same_named_variant_constructor() {
+        let results = eval_source_with_std(
+            r#"my r: {ok: bool} = {ok: true or false}
+r.ok
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Bool(true)]);
+    }
+
+    #[test]
+    fn vm_resolves_display_for_error_from_wrapped_result_chain() {
+        let results = eval_source_with_std(
+            r#"error fs_err:
+    not_found str
+
+error io_err:
+    fs from fs_err
+
+my read_or_throw path =
+    case path:
+        "/ok" -> "data"
+        _ -> fail fs_err::not_found path
+
+my res: result str io_err = io_err::wrap: read_or_throw "/missing"
+case res:
+    ok text -> "ok: " + text
+    err e -> "err: " + e.show
+"#,
+        );
+
+        assert_eq!(
+            results,
+            vec![TestValue::String("err: not_found".to_string())]
+        );
+    }
+
+    #[test]
     fn vm_keeps_parameter_loop_last_hygienic_across_for() {
         let module = runtime_module_with_std(
             r#"use std::flow::loop::*

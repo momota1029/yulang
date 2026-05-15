@@ -1,0 +1,32 @@
+-- resolved: callback/function values stored in a list keep return hygiene.
+--
+-- Expected:
+--   `h` is `f`, so the `return 0` thrown by `f` should escape the outer
+--   `sub` and the whole program should return 0.
+--
+-- Old actual seen while adding a native source regression:
+--   native/source lowering could not infer the element type for
+--   `std::list::index_raw`:
+--
+--     cannot infer all runtime types needed for std::list::index_raw.
+--     Add a type annotation that fixes the remaining type variable: a.
+--     Source: binding type parameters.
+--
+-- Memo:
+--   This now runs through the forced CPS repr executable path and returns 0.
+--   The important native-side rule is that the callback wrapper must create a
+--   thunk first and attach the local boundary to that thunk, rather than letting
+--   lowering force the returned thunk before the boundary is recorded.
+
+use std::flow::*
+
+our f() = return 0
+
+our g h = sub:
+    my hs = [h]
+    ((std::list::index_raw hs) 0)()
+    return 1
+
+sub:
+    my b = g f
+    2

@@ -4644,6 +4644,16 @@ extern "C" fn yulang_cps_add_thunk_boundary_i64(
     }
     let thunk = unsafe { &*(value as *const NativeCpsI64Thunk) };
     let mut active_blocked = thunk.active_blocked.to_vec();
+    if jit_trace_enabled() {
+        eprintln!(
+            "[JIT-CPS] add_thunk_boundary: thunk={:#x} guard={} allowed_mask={} active={} existing={}",
+            value,
+            guard_id,
+            allowed_mask,
+            active,
+            thunk.active_blocked.len(),
+        );
+    }
     active_blocked.push(NativeCpsI64BlockedEffect {
         guard_id,
         allowed_mask,
@@ -5920,7 +5930,7 @@ fn format_handler_stack(stack: &[NativeCpsI64HandlerFrame]) -> String {
             s.push_str(", ");
         }
         s.push_str(&format!(
-            "h{}(p={},ev={},{:?},inh={})",
+            "h{}(p={},ev={},{:?},inh={},guards={:?})",
             frame.handler,
             frame.prompt,
             if frame.install_eval_id == NATIVE_CPS_I64_SYNTHETIC_EVAL_ID {
@@ -5930,6 +5940,7 @@ fn format_handler_stack(stack: &[NativeCpsI64HandlerFrame]) -> String {
             },
             frame.origin,
             frame.inherited,
+            frame.guard_stack,
         ));
     }
     s.push(']');
@@ -6317,13 +6328,25 @@ extern "C" fn yulang_cps_select_handler_i64(
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_active_blocked_guard_i64(effect_mask: i64) -> i64 {
     NATIVE_CPS_I64_ACTIVE_BLOCKED.with(|stack| {
-        stack
-            .borrow()
+        let stack = stack.borrow();
+        let selected = stack
             .iter()
             .rev()
             .find(|blocked| blocked.active && (blocked.allowed_mask & effect_mask) == 0)
             .map(|blocked| blocked.guard_id)
-            .unwrap_or(-1)
+            .unwrap_or(-1);
+        if jit_trace_enabled() {
+            eprintln!(
+                "[JIT-CPS] active_blocked: effect_mask={} selected={} stack={:?}",
+                effect_mask,
+                selected,
+                stack
+                    .iter()
+                    .map(|entry| (entry.guard_id, entry.allowed_mask, entry.active))
+                    .collect::<Vec<_>>()
+            );
+        }
+        selected
     })
 }
 

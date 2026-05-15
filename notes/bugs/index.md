@@ -94,20 +94,6 @@ use std::undet::*
   （cookbook の `cb06_log_handler.yu` 形）。「handler を関数に切り出す」
   最初の一歩が internal-meaning なエラーで止まる。
 
-### Frontend / native source-shape 系
-
-- [`record_field_value_selection_selector_shape.yu`](record_field_value_selection_selector_shape.yu)
-  — native source regression を足そうとした時、`my r: {ok: bool} = ...; r.ok`
-  が field value selection ではなく `:ok Record(...)` のような
-  selector-shaped な値/適用として出た。`my r = {run: h}; r.run()` も
-  `{run: _}` を `()` に適用しようとして落ちるため、record の value field
-  selection と method-like call の lowering shape が混ざっている疑い。
-- [`callback_list_index_raw_type_stuck.yu`](callback_list_index_raw_type_stuck.yu)
-  — `my hs = [h]; ((std::list::index_raw hs) 0)()` のように callback/function
-  value を list に入れて取り出すと、`index_raw` の element type `a` が
-  runtime type として固まらない。CPS 直書きでは list-stored thunk hygiene を
-  試せるが、source-shaped regression はこの型の詰まりで塞がっている。
-
 ### Error 系
 
 - [`wrap_does_not_traverse_from_chain.yu`](wrap_does_not_traverse_from_chain.yu)
@@ -125,6 +111,17 @@ use std::undet::*
   -> ...` のように個別 bind すると `cannot match a tuple pattern against ?`
   で落ちていた。現在は payload pattern の構造から runtime payload 型を作り、
   `s` / `n` を個別 bind できる。
+- [`record_field_value_selection_selector_shape.yu`](record_field_value_selection_selector_shape.yu)
+  — native source regression を足そうとした時、`my r: {ok: bool} = ...; r.ok`
+  が field value selection ではなく `:ok Record(...)` のような
+  selector-shaped な値/適用として出ていた。現在は record field value
+  selection が native CPS repr path でも plain value として返る。
+- [`callback_list_index_raw_type_stuck.yu`](callback_list_index_raw_type_stuck.yu)
+  — `my hs = [h]; ((std::list::index_raw hs) 0)()` のように callback/function
+  value を list に入れて取り出すと、`index_raw` の element type `a` が
+  runtime type として固まらず、型が固まった後も native 側では inner `sub`
+  に捕まっていた。現在は source-shaped forced CPS repr path で VM と同じ
+  `0` を返す。
 - [`var_effect_serial_collision.yu`](var_effect_serial_collision.yu) —
   同じ scope で `my $a = ...; for ...; my $b = ...; for ...` と var を順に
   開くケースが、現在は `(3, 3)` を返す。

@@ -1054,17 +1054,29 @@ fn merge_projected_type_precision(
                 existing_param,
                 incoming_param,
             )?),
-            param_effect: Box::new(merge_projected_type_precision(
+            param_effect: Box::new(merge_projected_effect_precision(
                 existing_param_effect,
                 incoming_param_effect,
             )?),
-            ret_effect: Box::new(merge_projected_type_precision(
+            ret_effect: Box::new(merge_projected_effect_precision(
                 existing_ret_effect,
                 incoming_ret_effect,
             )?),
             ret: Box::new(merge_projected_type_precision(existing_ret, incoming_ret)?),
         }),
         _ => None,
+    }
+}
+
+fn merge_projected_effect_precision(
+    existing: &typed_ir::Type,
+    incoming: &typed_ir::Type,
+) -> Option<typed_ir::Type> {
+    match (existing, incoming) {
+        (typed_ir::Type::Never, incoming) => Some(incoming.clone()),
+        (existing, typed_ir::Type::Never) => Some(existing.clone()),
+        _ => merge_projected_effect_rows(existing, incoming)
+            .or_else(|| merge_projected_type_precision(existing, incoming)),
     }
 }
 
@@ -2482,6 +2494,9 @@ fn collapse_single_bound_type_arg(arg: typed_ir::TypeArg) -> typed_ir::TypeArg {
 }
 
 fn principal_plan_substitution_type_usable(ty: &typed_ir::Type, allow_never: bool) -> bool {
+    if principal_plan_function_slot_usable(ty, allow_never) {
+        return true;
+    }
     !matches!(
         ty,
         typed_ir::Type::Unknown | typed_ir::Type::Any | typed_ir::Type::Var(_)
@@ -2489,6 +2504,34 @@ fn principal_plan_substitution_type_usable(ty: &typed_ir::Type, allow_never: boo
         && !type_has_vars(ty)
         && !type_has_any(ty)
         && (allow_never || !core_type_contains_unknown(ty))
+}
+
+fn principal_plan_function_slot_usable(ty: &typed_ir::Type, allow_never: bool) -> bool {
+    let mut current = ty;
+    let mut has_function_spine = false;
+    while let typed_ir::Type::Fun {
+        param,
+        param_effect,
+        ret_effect,
+        ret,
+    } = current
+    {
+        has_function_spine = true;
+        if type_has_vars(param)
+            || type_has_vars(param_effect)
+            || type_has_vars(ret_effect)
+            || type_has_any(param)
+            || type_has_any(param_effect)
+            || type_has_any(ret_effect)
+        {
+            return false;
+        }
+        current = ret;
+    }
+    has_function_spine
+        && !type_has_vars(current)
+        && !type_has_any(current)
+        && (allow_never || !matches!(current, typed_ir::Type::Never))
 }
 
 pub(crate) fn substitute_join_evidence(
