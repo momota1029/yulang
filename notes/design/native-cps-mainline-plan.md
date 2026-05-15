@@ -104,6 +104,8 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
 - [x] higher-order std functions を CPS repr path で VM と比較する。
 - [x] source-level closure value を record に保存し、select してから呼ぶ path を
       forced CPS repr executable regression に入れる。
+- [x] CPS-level closure pointer を list に保存し、index してから呼ぶ Cranelift
+      regression を入れる。
 
 ### 4. General Thunk Invocation
 

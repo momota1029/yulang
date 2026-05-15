@@ -7938,6 +7938,87 @@ mod tests {
     }
 
     #[test]
+    fn jit_calls_closure_indexed_from_list() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::MakeClosure {
+                                dest: CpsValueId(0),
+                                entry: CpsContinuationId(1),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(1),
+                                op: typed_ir::PrimitiveOp::ListSingleton,
+                                args: vec![CpsValueId(0)],
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(2),
+                                literal: CpsLiteral::Int("0".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(3),
+                                op: typed_ir::PrimitiveOp::ListIndex,
+                                args: vec![CpsValueId(1), CpsValueId(2)],
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(4),
+                                literal: CpsLiteral::Int("41".to_string()),
+                            },
+                            CpsStmt::ApplyClosure {
+                                dest: CpsValueId(5),
+                                closure: CpsValueId(3),
+                                arg: CpsValueId(4),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(9),
+                                literal: CpsLiteral::Int("0".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(10),
+                                op: typed_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(5), CpsValueId(9)],
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(10)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(6)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(7),
+                                literal: CpsLiteral::Int("1".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(8),
+                                op: typed_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(6), CpsValueId(7)],
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(8)),
+                    },
+                ],
+            }],
+        }));
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![42]);
+    }
+
+    #[test]
     fn jit_displays_nested_heap_values_as_yulang_values() {
         let expr = tuple(vec![
             unknown_lit(typed_ir::Lit::Int("1".to_string())),
