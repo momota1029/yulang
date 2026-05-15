@@ -75,6 +75,10 @@ Cranelift backend を作る。
   continuation 境界を挟んだ partial application も inline で局所化した後に潰せる。
   direct-style / SSA island 候補数も profile に出る。artifact kind ごとに pass が
   分岐しない入口を先に固定した。
+- CPS repr Cranelift の effectful continuation function lowering で、pure successor
+  continuation を同じ Cranelift 関数内の block として吸う最初の direct-style island
+  codegen を入れた。`Continue` / `Branch` は block jump に戻し、island exit の
+  `Return` は従来の `yulang_cps_return_i64` routing を保つ。
 
 近い形:
 

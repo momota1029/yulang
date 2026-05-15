@@ -193,7 +193,10 @@ wrappers, reifies local partial-application closure calls back to direct calls,
 inlines small single-use one-shot continuations, removes dead pure value
 statements, then prunes unreachable continuations. It also profiles
 direct-style / SSA island candidates so later codegen can lower pure local
-continuation subgraphs as Cranelift blocks instead of CPS control calls.
+continuation subgraphs as Cranelift blocks instead of CPS control calls. The
+first codegen step lowers pure successor continuations inside effectful
+continuation functions as local blocks, while preserving effectful return-frame
+routing at island exits.
 
 Run the test suites:
 

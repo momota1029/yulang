@@ -414,7 +414,7 @@ struct HandlerCandidate {
     entry: CpsContinuationId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct HandlerRegistry {
     candidates: Vec<(typed_ir::Path, HandlerCandidate)>,
     effects: Vec<typed_ir::Path>,
@@ -713,6 +713,19 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
     handlers: &HandlerRegistry,
     literals: &mut L,
 ) -> CpsReprCraneliftResult<()> {
+    let direct_island = direct_style_island_from(function, continuation.id);
+    if direct_island.len() > 1 {
+        return lower_direct_style_continuation_island(
+            module_backend,
+            ctx,
+            function,
+            continuation,
+            functions,
+            literals,
+            &direct_island,
+        );
+    }
+
     let mut builder_context = FunctionBuilderContext::new();
     let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
     let block = builder.create_block();
@@ -779,6 +792,228 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
     builder.seal_all_blocks();
     builder.finalize();
     Ok(())
+}
+
+fn lower_direct_style_continuation_island<M: Module, L: CpsLiteralStore>(
+    module_backend: &mut M,
+    ctx: &mut cranelift_codegen::Context,
+    function: &CpsReprAbiFunction,
+    entry_continuation: &CpsReprAbiContinuation,
+    functions: &DeclaredFunctions,
+    literals: &mut L,
+    island: &HashSet<CpsContinuationId>,
+) -> CpsReprCraneliftResult<()> {
+    let mut builder_context = FunctionBuilderContext::new();
+    let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
+    let blocks =
+        create_direct_style_island_blocks(&mut builder, function, entry_continuation, island);
+    declare_variables(&mut builder, function);
+    let mut values = LocalValueCache::default();
+
+    let entry_block = continuation_block(function, &blocks, entry_continuation.id)?;
+    builder.append_block_params_for_function_params(entry_block);
+    builder.switch_to_block(entry_block);
+    let params = builder.block_params(entry_block).to_vec();
+    for (param, value) in entry_continuation.params.iter().zip(params.iter().skip(1)) {
+        define_value_as_lane(
+            &mut builder,
+            &mut values,
+            param.value,
+            effective_value_lane(function, param.value),
+            *value,
+        );
+    }
+
+    for continuation in function
+        .continuations
+        .iter()
+        .filter(|continuation| island.contains(&continuation.id))
+    {
+        let block = continuation_block(function, &blocks, continuation.id)?;
+        builder.switch_to_block(block);
+        if continuation.id != entry_continuation.id {
+            bind_continuation_params(&mut builder, function, continuation, block, &mut values)?;
+        }
+        for stmt in &continuation.stmts {
+            lower_stmt(
+                module_backend,
+                &mut builder,
+                function,
+                stmt,
+                functions,
+                literals,
+                &mut values,
+            )?;
+        }
+        lower_direct_style_island_terminator(
+            module_backend,
+            &mut builder,
+            function,
+            &blocks,
+            continuation,
+            &continuation.terminator,
+            functions,
+            &mut values,
+            island,
+        )?;
+    }
+
+    builder.seal_all_blocks();
+    builder.finalize();
+    Ok(())
+}
+
+fn create_direct_style_island_blocks(
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    entry_continuation: &CpsReprAbiContinuation,
+    island: &HashSet<CpsContinuationId>,
+) -> HashMap<CpsContinuationId, ir::Block> {
+    function
+        .continuations
+        .iter()
+        .filter(|continuation| island.contains(&continuation.id))
+        .map(|continuation| {
+            let block = builder.create_block();
+            if continuation.id != entry_continuation.id {
+                for param in &continuation.params {
+                    builder.append_block_param(
+                        block,
+                        lane_type(effective_value_lane(function, param.value)),
+                    );
+                }
+            }
+            (continuation.id, block)
+        })
+        .collect()
+}
+
+fn lower_direct_style_island_terminator<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    blocks: &HashMap<CpsContinuationId, ir::Block>,
+    continuation: &CpsReprAbiContinuation,
+    terminator: &CpsTerminator,
+    functions: &DeclaredFunctions,
+    values: &mut LocalValueCache,
+    island: &HashSet<CpsContinuationId>,
+) -> CpsReprCraneliftResult<()> {
+    match terminator {
+        CpsTerminator::Continue { target, args } if island.contains(target) => {
+            let target_continuation = lookup_continuation(function, *target)?;
+            let target = continuation_block(function, blocks, *target)?;
+            let args = read_block_args(builder, function, values, target_continuation, args)?;
+            builder.ins().jump(target, &args);
+            Ok(())
+        }
+        CpsTerminator::Branch {
+            cond,
+            then_cont,
+            else_cont,
+        } if island.contains(then_cont) && island.contains(else_cont) => {
+            let cond = read_value(builder, function, *cond)?;
+            let cond = builder
+                .ins()
+                .icmp_imm(ir::condcodes::IntCC::NotEqual, cond, 0);
+            let then_cont = continuation_block(function, blocks, *then_cont)?;
+            let else_cont = continuation_block(function, blocks, *else_cont)?;
+            builder.ins().brif(cond, then_cont, &[], else_cont, &[]);
+            Ok(())
+        }
+        _ => lower_effect_terminator(
+            module_backend,
+            builder,
+            function,
+            continuation,
+            functions,
+            &HandlerRegistry::default(),
+            values,
+        ),
+    }
+}
+
+fn direct_style_island_from(
+    function: &CpsReprAbiFunction,
+    start: CpsContinuationId,
+) -> HashSet<CpsContinuationId> {
+    let candidates = function
+        .continuations
+        .iter()
+        .filter(|continuation| direct_style_codegen_candidate(continuation))
+        .map(|continuation| continuation.id)
+        .collect::<HashSet<_>>();
+    if !candidates.contains(&start) {
+        return HashSet::new();
+    }
+
+    let continuations = function
+        .continuations
+        .iter()
+        .map(|continuation| (continuation.id, continuation))
+        .collect::<HashMap<_, _>>();
+    let mut island = HashSet::new();
+    let mut work = vec![start];
+    island.insert(start);
+
+    while let Some(id) = work.pop() {
+        let Some(continuation) = continuations.get(&id) else {
+            continue;
+        };
+        for successor in direct_style_codegen_successors(&continuation.terminator) {
+            if candidates.contains(&successor) && island.insert(successor) {
+                work.push(successor);
+            }
+        }
+    }
+
+    island
+}
+
+fn direct_style_codegen_candidate(continuation: &CpsReprAbiContinuation) -> bool {
+    continuation.environment.is_empty()
+        && continuation.stmts.iter().all(direct_style_codegen_stmt)
+        && matches!(
+            continuation.terminator,
+            CpsTerminator::Return(_)
+                | CpsTerminator::Continue { .. }
+                | CpsTerminator::Branch { .. }
+        )
+}
+
+fn direct_style_codegen_stmt(stmt: &CpsStmt) -> bool {
+    matches!(
+        stmt,
+        CpsStmt::Literal { .. }
+            | CpsStmt::Tuple { .. }
+            | CpsStmt::Record { .. }
+            | CpsStmt::RecordWithoutFields { .. }
+            | CpsStmt::Variant { .. }
+            | CpsStmt::Select { .. }
+            | CpsStmt::SelectWithDefault { .. }
+            | CpsStmt::RecordHasField { .. }
+            | CpsStmt::TupleGet { .. }
+            | CpsStmt::VariantTagEq { .. }
+            | CpsStmt::VariantPayload { .. }
+            | CpsStmt::Primitive { .. }
+            | CpsStmt::DirectCall { .. }
+    )
+}
+
+fn direct_style_codegen_successors(terminator: &CpsTerminator) -> Vec<CpsContinuationId> {
+    match terminator {
+        CpsTerminator::Continue { target, .. } => vec![*target],
+        CpsTerminator::Branch {
+            then_cont,
+            else_cont,
+            ..
+        } => vec![*then_cont, *else_cont],
+        CpsTerminator::Return(_)
+        | CpsTerminator::Perform { .. }
+        | CpsTerminator::EffectfulCall { .. }
+        | CpsTerminator::EffectfulApply { .. }
+        | CpsTerminator::EffectfulForce { .. } => Vec::new(),
+    }
 }
 
 fn bind_environment_slots(
@@ -7888,6 +8123,35 @@ mod tests {
     }
 
     #[test]
+    fn jit_lowers_pure_effectful_continuation_successor_as_block() {
+        let abi = effectful_function_with_pure_continue_abi();
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![42]);
+        let entry_ir = jit
+            .cranelift_ir()
+            .iter()
+            .find(|ir| ir.contains(";; cps-repr continuation root::CpsContinuationId(0)"))
+            .expect("entry continuation ir");
+        assert!(!entry_ir.contains("root$k1"));
+    }
+
+    #[test]
+    fn jit_lowers_pure_effectful_branch_successors_as_blocks() {
+        let abi = effectful_function_with_pure_branch_abi();
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+
+        assert_eq!(jit.run_roots_i64().expect("ran"), vec![42]);
+        let entry_ir = jit
+            .cranelift_ir()
+            .iter()
+            .find(|ir| ir.contains(";; cps-repr continuation root::CpsContinuationId(0)"))
+            .expect("entry continuation ir");
+        assert!(!entry_ir.contains("root$k1"));
+        assert!(!entry_ir.contains("root$k2"));
+    }
+
+    #[test]
     fn jit_runs_perform_with_tail_resume_handler() {
         let abi = tail_resume_effect_abi();
         let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
@@ -8878,6 +9142,134 @@ mod tests {
                     CpsContinuation {
                         id: CpsContinuationId(1),
                         params: vec![CpsValueId(3)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(3)),
+                    },
+                ],
+            }],
+        }))
+    }
+
+    fn effectful_function_with_pure_continue_abi() -> CpsReprAbiModule {
+        let effect = typed_ir::Path::from_name(typed_ir::Name("unused".to_string()));
+        lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: vec![crate::cps_ir::CpsHandler {
+                    id: crate::cps_ir::CpsHandlerId(0),
+                    arms: vec![crate::cps_ir::CpsHandlerArm {
+                        effect,
+                        entry: CpsContinuationId(2),
+                    }],
+                }],
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::Literal {
+                                dest: CpsValueId(0),
+                                literal: CpsLiteral::Int("40".to_string()),
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(1),
+                                literal: CpsLiteral::Int("2".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(2),
+                                op: typed_ir::PrimitiveOp::IntAdd,
+                                args: vec![CpsValueId(0), CpsValueId(1)],
+                            },
+                        ],
+                        terminator: CpsTerminator::Continue {
+                            target: CpsContinuationId(1),
+                            args: vec![CpsValueId(2)],
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(3)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(3)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: vec![CpsValueId(4), CpsValueId(5)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(4)),
+                    },
+                ],
+            }],
+        }))
+    }
+
+    fn effectful_function_with_pure_branch_abi() -> CpsReprAbiModule {
+        let effect = typed_ir::Path::from_name(typed_ir::Name("unused".to_string()));
+        lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: vec![crate::cps_ir::CpsHandler {
+                    id: crate::cps_ir::CpsHandlerId(0),
+                    arms: vec![crate::cps_ir::CpsHandlerArm {
+                        effect,
+                        entry: CpsContinuationId(3),
+                    }],
+                }],
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Bool(true),
+                        }],
+                        terminator: CpsTerminator::Branch {
+                            cond: CpsValueId(0),
+                            then_cont: CpsContinuationId(1),
+                            else_cont: CpsContinuationId(2),
+                        },
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(1),
+                            literal: CpsLiteral::Int("42".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(1)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(2),
+                            literal: CpsLiteral::Int("0".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(2)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(3),
+                        params: vec![CpsValueId(3), CpsValueId(4)],
                         captures: Vec::new(),
                         shot_kind: CpsShotKind::OneShot,
                         stmts: Vec::new(),

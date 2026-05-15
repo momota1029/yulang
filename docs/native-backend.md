@@ -74,7 +74,10 @@ entries, handler arms, thunks, closures, or terminator targets. The stage also
 profiles direct-style / SSA island candidates and exposes
 `YULANG_CPS_OPT_TRACE` debug output. JIT and object generation share this
 entrypoint so individual CPS simplification passes do not fork by artifact
-kind.
+kind. The first island codegen step is also in place: effectful continuation
+functions can absorb pure successor continuations as Cranelift blocks, avoiding
+local continuation function calls while keeping effectful return routing at
+island exits.
 
 The value backend remains useful as an effect-free fast path, a boxed value
 helper source, and a debugging path. It is not the plan for implementing the
@@ -235,6 +238,9 @@ current backend boundaries visible, but detailed regression history lives in
       statements, prunes unreachable continuations, and records direct-style /
       SSA island candidate counts so later thunk/handler passes do not fork
       between artifact kinds.
+- [x] The first direct-style island codegen step lowers pure successor
+      continuations inside effectful continuation functions as Cranelift blocks
+      instead of local continuation calls.
 - [x] Small source-defined algebraic effects and multi-shot resumptions work in
       the CPS/CPS-repr interpreters and in the scalar Cranelift prototype.
 - [x] Handler entry continuations receive captured environments, and handler

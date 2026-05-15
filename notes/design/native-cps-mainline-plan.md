@@ -63,6 +63,10 @@ hygiene, and local returns, but lower proven effect-free local continuation
 subgraphs as Cranelift blocks with block parameters. Partial applications and
 ordinary closures can then be scalar-replaced while they do not escape, and
 materialized back into CPS closure values only at an island boundary.
+The first codegen step lowers pure successor continuations inside effectful
+continuation functions as local Cranelift blocks; this removes local
+continuation calls without erasing effectful return-frame routing at island
+exits.
 
 ## Execution Policy
 
