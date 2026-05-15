@@ -432,6 +432,23 @@ sub:
     }
 
     #[test]
+    fn runs_finite_for_loop_last_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::flow::*
+
+{
+    for x in [0, 1, 2, 3, 4, 5, 6]:
+        if x == 5: last
+        else: ()
+    5
+}
+"#,
+            vec!["5"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_closure_from_record_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"my f: int -> int = \x -> x + 1
