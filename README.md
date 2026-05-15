@@ -77,7 +77,9 @@ For a longer guided tour:
   backend. It is the right place to check before depending on a feature.
 - **Native backend** — [docs/native-backend.md](docs/native-backend.md)
   describes the native pipeline: which programs run natively today, the
-  CLI commands, and the value / CPS representation status in detail.
+  CLI commands, and the value / CPS representation status in detail. The CPS
+  representation path now covers effect hygiene regressions, finite
+  nondeterminism, and first-class closures selected from records or lists.
 - **Language server** — `yulang server` provides hover, document symbols,
   semantic tokens, and diagnostics. Error reporting is now source-based enough
   for day-to-day exploration, including LSP `relatedInformation` for many type

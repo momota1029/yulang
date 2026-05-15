@@ -183,11 +183,13 @@ CPS repr Cranelift の source 回帰を広げる。
   thunk はまだ型/lowering 境界が残るが、native value lane 側の保存・選択・force
   の入口はできた。
 - CPS-level closure pointer を list に保存し、`ListIndex` で取り出してから
-  `ApplyClosure` する Cranelift regression を追加した。source-level list index
-  は direct-call arity 側に別制限が残るが、native heap list 自体は callable
-  pointer を保持できる。indexed closure call の返り値は `Unknown` lane のまま
-  root へ返せるようにした。CPS repr の `Unknown` は transitional opaque i64 として
-  root でも扱う。
+  `ApplyClosure` する Cranelift regression を追加した。indexed closure call の
+  返り値は `Unknown` lane のまま root へ返せるようにした。CPS repr の
+  `Unknown` は transitional opaque i64 として root でも扱う。
+- source-level closure value を list に保存し、`std::list::index_raw` で取り出して
+  から呼ぶ forced CPS repr executable regression を追加した。direct call chain が
+  over-applied の時は、その式全体を direct-call lowering で処理せず、通常の
+  `Apply` lowering に戻して callee 側を先に評価する。
 - native CLI の現状は `docs/native-backend.md` の Public CLI に集約済み。
   `yulang native` は value backend を優先し、effect / handler /
   thunk-boundary control が見えた root は CPS repr backend を選ぶ。

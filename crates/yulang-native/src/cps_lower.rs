@@ -5330,11 +5330,7 @@ fn direct_apply_path<'expr, 'functions>(
         return Ok(None);
     }
     if args.len() > target.arity {
-        return Err(CpsLowerError::CallArityMismatch {
-            target: target.name.clone(),
-            expected: target.arity,
-            actual: args.len(),
-        });
+        return Ok(None);
     }
     args.reverse();
     Ok(Some((path, target, args)))
@@ -6587,21 +6583,20 @@ mod tests {
     }
 
     #[test]
-    fn rejects_direct_call_arity_mismatch() {
-        let inc = binding("inc", lambda("x", var("x")));
+    fn lowers_overapplied_direct_call_as_apply_to_result() {
+        let make_id = binding("make_id", lambda("x", lambda("y", var("y"))));
         let root = apply(
-            apply(var("inc"), unknown_lit(typed_ir::Lit::Int("1".to_string()))),
+            apply(
+                var("make_id"),
+                unknown_lit(typed_ir::Lit::Int("1".to_string())),
+            ),
             unknown_lit(typed_ir::Lit::Int("2".to_string())),
         );
-        let module = module_with_bindings_and_root(vec![inc], root);
+        let module = module_with_bindings_and_root(vec![make_id], root);
 
         assert_eq!(
-            lower_cps_module(&module).expect_err("arity mismatch"),
-            CpsLowerError::CallArityMismatch {
-                target: "inc".to_string(),
-                expected: 1,
-                actual: 2,
-            }
+            eval_cps_module(&lower_cps_module(&module).expect("lowered")).expect("evaluated"),
+            vec![runtime::VmValue::Int("2".to_string())]
         );
     }
 }

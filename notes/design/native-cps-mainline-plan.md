@@ -109,6 +109,8 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
   - [x] Indexed / selected closure call の返り値を unknown lane のまま root へ返す
         path を通す。CPS repr の `Unknown` lane は root でも transitional opaque i64
         として扱う。
+  - [x] source-level closure value を list に保存し、`std::list::index_raw` で
+        取り出してから呼ぶ forced CPS repr executable regression を入れる。
 
 ### 4. General Thunk Invocation
 

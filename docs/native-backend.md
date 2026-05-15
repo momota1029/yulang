@@ -289,6 +289,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] A CPS-level closure pointer can be stored in a list, indexed back out,
       and called through the Cranelift CPS repr path; the opaque/unknown call
       result can now be returned from a root.
+- [x] A source-level closure value can be stored in a list, selected with
+      `std::list::index_raw`, and called through the forced CPS repr executable
+      path.
 - [ ] General thunk values are only partially represented; thunk roots can be
       forced only while they stay in the scalar CPS repr subset.
 - [x] Effectful thunks returned across an inlinable source-defined function
