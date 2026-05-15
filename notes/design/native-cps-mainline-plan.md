@@ -32,6 +32,20 @@ value backend 側にあるもの:
 次の native 完全化では、この 2 つを競合させない。
 CPS repr は control semantics を担当し、value backend の helper は heap value ABI として再利用する。
 
+## Optimization Policy
+
+CPS optimization must be driven by IR shape, call-site type/effect evidence,
+handler evidence, and escape information. It must not key correctness or
+optimization eligibility on std module paths, function names, or today's std
+implementation layout.
+
+Standard-library programs such as list folds, loops, and nondeterminism helpers
+are important hot paths and regression sources, but they should get faster
+because they instantiate general higher-order control patterns. If std changes
+shape, the optimizer should either still recognize the same IR/evidence pattern
+or simply stop applying that optimization, not miscompile by following a stale
+path name.
+
 ## Execution Policy
 
 `--native-run` の長期方針:

@@ -36,7 +36,9 @@ Cranelift backend を作る。
 - 最適化の中心は known continuation の direct jump 化、administrative
   continuation / thunk の除去、effect evidence による handler / delimiter
   frame の静的消去、非 escape closure / continuation / thunk の stack / SSA 化、
-  std 高階制御 (`for_in`, `fold`, `once`, `list`) の specialization とする。
+  call-site の型 / effect / handler evidence が具体化した高階制御 pattern の
+  specialization とする。std の loop / fold / nondet helper / handler wrapper は
+  代表的な hot path だが、optimizer は std module path や関数名に依存しない。
 - value backend は effect-free fast path と boxed `VmValue` helper の供給元として扱う。
 - まず `notes/design/native-cps-mainline-plan.md` の milestone に沿って、
   backend selection 境界、CPS `RuntimeValuePtr` lane、汎用 thunk / closure /

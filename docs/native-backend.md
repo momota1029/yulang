@@ -51,8 +51,11 @@ The main optimization targets are:
 - static removal of handler and delimiter frames when effect evidence proves
   they cannot catch anything;
 - stack / SSA lowering for non-escaping thunks, closures, and continuations;
-- specialization of standard higher-order control such as `for_in`, `fold`,
-  `once`, `list`, and handler wrappers;
+- specialization of frequently used higher-order control patterns when the
+  call-site type, effect, and handler evidence make them concrete. Standard
+  library forms such as loops, folds, nondeterminism helpers, and handler
+  wrappers should benefit from this, but the optimizer must not depend on
+  specific std module paths or function names;
 - lowering optimized CPS continuations to Cranelift blocks and block
   parameters.
 
