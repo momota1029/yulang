@@ -1,0 +1,70 @@
+-- bug (native): handler を抜けた値が `yulang run --native` で 0 / 空に
+--      潰れる。VM では list / string / tuple として正しく出る
+--
+-- 期待:
+--   handler 経由で list を返す `collect_logs comp` 系の関数や、tuple で
+--   `(値, 集めた log)` を返す pattern は、VM と native で同じ値を返すべき。
+--
+-- 実際 (notes/bugs/ の 既存 snippet を VM / native で比較):
+--
+--   handler_fn_missing_join_evidence.yu (VM では `["a"]`):
+--     yulang run --interpreter → [0] ["a"]
+--     yulang run --native      → 0
+--
+--   handler_recursive_extra_arg_runtime.yu (VM では `((), "hi\n")`):
+--     yulang run --interpreter → [0] ((), "hi\n")
+--     yulang run --native      → (0, )
+--
+--   handler_arm_tuple_payload_pattern.yu (VM では `()`):
+--     yulang run --interpreter → [0] ()
+--     yulang run --native      → 0
+--
+--   catch_role_method_thunk_invariant.yu (VM では `()`):
+--     yulang run --interpreter → [0] ()
+--     yulang run --native      → 0
+--
+-- 切り分け:
+--
+--   handler が単に `()` を返すだけのケース (`catch_role_method_thunk_invariant`、
+--   `handler_arm_tuple_payload_pattern`) は、`native_value_repr_in_tuple.yu`
+--   の「unit が 0 で表示される」と同根の可能性。
+--
+--   しかし `handler_fn_missing_join_evidence.yu` の VM 結果 `["a"]` が
+--   native で `0` になるのは print format の問題ではなく、戻り値そのものを
+--   失っている。`handler_recursive_extra_arg_runtime.yu` の native 結果
+--   `(0, )` は tuple の string slot が消えて closing `)` も中途半端。
+--
+--   handler の resume / value arm を抜けた後、effects backend の戻り値 lane
+--   が「list / string」を runtime value pointer として運べていない疑い。
+--
+-- 影響:
+--   - cookbook の `run_into_strings` パターン（`(result, $entries)` の
+--     tuple を返す handler）が native では事実上動かない。集めた log や
+--     拾った値が消える。
+--   - VM では「handler を関数化して再利用する」が動くが、native で同じ
+--     関数を呼ぶと値が潰れる。VM/native cross-check に致命的な穴になる。
+--
+-- メモ:
+--   `native_effect_handler_tuple_result_prints_pointer.yu`（既存）の
+--   `thunk@0xaddr` 表示も同じ家系で、handler 戻り値の boxed lane が
+--   保持できていない。runtime value pointer を root return / handler arm
+--   result に通せた regression は入っているはずだが、function 化された
+--   handler / 多段 handler 経由の戻りには届いていない様子。
+
+-- 最小再現: handler を関数化して list を返す
+act log:
+    pub put: str -> ()
+
+my collect_logs(comp: [log] 'a): list str =
+    my $entries = []
+    catch comp:
+        log::put msg, k ->
+            &entries = $entries + [msg]
+            k ()
+        v -> v
+    $entries
+
+collect_logs:
+    log::put "a"
+-- VM:     [0] ["a"]
+-- native: 0

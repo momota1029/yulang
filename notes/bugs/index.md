@@ -107,6 +107,36 @@ use std::undet::*
   `wrap` 経由で result に閉じた後の `e.show` だけ通らない。`fs_err` simple /
   `io_err` from-chain どちらでも同じ症状。
 
+## 現在の未解決（2026-05-15 round-6 / `yulang run --native` との差分）
+
+VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
+食い違うものを集める。既存の `native_*.yu` snippet と並べる。
+
+### 表示 / 値の repr 系
+
+- [`native_value_repr_in_tuple.yu`](native_value_repr_in_tuple.yu) —
+  bool / unit / string が tuple / list / record の中で正しく表示されない。
+  `(true, 1, "s", ())` が VM `(true, 1, "s", ())` / native `(1, 1, s, 0)`。
+  variant も `:just hello` のように tag に `:` が付き、payload string が
+  unquoted。format-only か repr 潰しか境界が曖昧。
+- [`native_handler_result_value_collapse.yu`](native_handler_result_value_collapse.yu)
+  — handler を関数化して list / tuple を返すと、native 側で値が `0` /
+  空 tuple に潰れる。`["a"]` が `0`、`((), "hi\n")` が `(0, )`。VM では
+  普通に出る。`native_effect_handler_tuple_result_prints_pointer.yu`
+  （既存）と同じ家系。
+
+### CPS lowering 未対応 / 値違い
+
+- [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu)
+  — handler arm の `if` guard と labelled `for` の bare effect operation
+  (`#loop_label:outer##with0::...`) が CPS lowering 未対応で
+  `failed to compile native effects object` で止まる。VM では通る。
+- [`native_serial_var_double_count.yu`](native_serial_var_double_count.yu)
+  — `examples/02_refs.yu` がそのまま native で `(11, 21)` ではなく
+  `(22, 22)` を返す。`my $x; my $y; &x = ...; &y = ...; ($x, $y)` の var
+  serial 経路で、tuple element が両方とも同じ slot を引いてさらに二重に
+  進んでいるような値。
+
 ## 解決済み（2026-05-14 時点で再現せず）
 
 - [`handler_arm_tuple_payload_pattern.yu`](handler_arm_tuple_payload_pattern.yu)

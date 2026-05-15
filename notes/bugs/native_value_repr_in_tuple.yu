@@ -1,0 +1,51 @@
+-- bug (native): tuple / list / record の中の bool / unit / string の表示が
+--      `yulang run --native` で VM と揃わない。bool / unit は `1` / `0` と
+--      i64 表現のまま出て、string は quote が消える
+--
+-- 期待:
+--   `yulang run --interpreter` (= VM) と `yulang run --native` で、同じ
+--   source の root 値の表示は揃うはず。少なくとも値判別ができる程度には
+--   形を保つ。
+--
+-- 実際:
+--   true                    → VM "true"             / native "1"
+--   ()                      → VM "()"               / native "0"
+--   "hi"                    → VM '"hi"'             / native "hi"
+--   ["x", "y"]              → VM '["x", "y"]'       / native "[x, y]"
+--   { name: "alice", age: 30 }
+--                            → VM '{age = 30, name = "alice"}'
+--                            / native '{ name: alice, age: 30 }'
+--   (true, 1, "s", ())      → VM '(true, 1, "s", ())'
+--                            / native "(1, 1, s, 0)"
+--   just "hello"            → VM 'just "hello"'    / native ":just hello"
+--   [just 1, nil, just 2]   → VM '[just 1, nil, just 2]'
+--                            / native "[:just 1, :nil, :just 2]"
+--
+-- 切り分け:
+--
+--   - bool は単独 `true` でも `1`、tuple の中でも `1`。print path で bool が
+--     i64 lane のまま fallback している。
+--   - unit も同様に `0`。
+--   - string は単独 / list / tuple のいずれでも quote が出ない。string と
+--     identifier-like 値の区別がつかない（`(1, 1, s, 0)` の `s` は string
+--     リテラル）。
+--   - variant は VM が `just "hello"` 形だが native は `:just hello`。tag に
+--     `:` がつき、payload の string も unquoted。
+--   - record は field 区切りが VM `=` / native `:`。VM は field 名でソート、
+--     native は宣言順。
+--
+-- 影響:
+--   - native の表示出力をそのまま test の oracle にできない。VM 出力との
+--     比較で、format diff と意味 diff の見分けが難しい。
+--   - playground / docs example で「同じ source なのに見た目が違う」と
+--     ユーザに見える。bool / string / variant の判別がつかないのは特に痛い。
+--
+-- メモ:
+--   value-lane backend では `VmValue` の Display impl がそのまま動くが、
+--   effects backend では i64 / boxed 値ごとに print helper が分岐していて、
+--   bool / unit / string の高レベル lane に戻る前に `printf("%lld", ...)` 系
+--   へ落ちている疑い。format を VM 側に揃えるか、せめて quote / true/false
+--   のような「値の種類が分かる」最小限の差分だけでも揃えたい。
+
+-- 個別の確認用 (どれを実行しても native と VM で見た目が違う)
+(true, 1, "s", ())

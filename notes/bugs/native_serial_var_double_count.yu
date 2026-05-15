@@ -1,0 +1,62 @@
+-- bug (native): 同じ scope で `my $x = ...; my $y = ...` と 2 つの var を
+--      開いて順に書き込み、`($x, $y)` を返すと、native は両方の slot に
+--      最後の write 値を二重計上したような値 `(22, 22)` を返す
+--
+-- 期待:
+--   `examples/02_refs.yu` がリポジトリの公開例:
+--
+--     {
+--         my $x = 10
+--         my $y = 20
+--
+--         &x = $x + 1
+--         &y = $y + 1
+--
+--         ($x, $y)
+--     }
+--
+--   は `(11, 21)` を返すと文字通り読める。VM もそれを返す。
+--
+-- 実際:
+--   yulang run --interpreter examples/02_refs.yu  → [0] (11, 21)
+--   yulang run --native      examples/02_refs.yu  → (22, 22)
+--
+--   `(11, 21)` ではなく `(22, 22)`。両方の tuple slot が同じ値で、しかも
+--   それは `21` （= 20 + 1）の倍。`x` 側の write `&x = $x + 1` も `y` の
+--   slot に流れて、合算された後の値が両方に入っているように見える。
+--
+-- 切り分け:
+--
+--   examples/02_refs.yu はそのまま native で `(22, 22)` になる。値の
+--   shape (`(int, int)`) は維持されているので、`native_value_repr_in_tuple`
+--   の format-only な話とは別。
+--
+--   `var_effect_serial_collision.yu` (VM bug、resolved) の親戚で、`for` 抜き
+--   var serial の native 経路に独立した bug が残っている。
+--
+-- 影響:
+--   - 「local mutability で複数の値を持ち回す」基本パターンが native で
+--     破綻する。02_refs.yu はリポジトリの公開例なので、初学者が `--native`
+--     で試して最初に踏む。
+--   - VM では正しい値が出るのに native だけ違う、という cross-check 価値の
+--     ある bug。
+--
+-- メモ:
+--   `my $x = ...` で開いた scoped var handler の slot を、2 個目の `my $y`
+--   が上書きしてしまっている疑い。tuple `($x, $y)` の読み取りで、両方の
+--   read が同じ slot を引いて同じ値が出る、と整合する。
+--   それでも両方が `22` なのは謎で、`21` ではなく `22 = 21 + 1` まで
+--   進んでいるので、tuple 構築のときに更にもう一段書き込みが起きている
+--   可能性。
+
+{
+    my $x = 10
+    my $y = 20
+
+    &x = $x + 1
+    &y = $y + 1
+
+    ($x, $y)
+}
+-- VM:     (11, 21)
+-- native: (22, 22)
