@@ -221,7 +221,7 @@ current backend boundaries visible, but detailed regression history lives in
 - [ ] Open-range `for` with local `last` still needs scoped abort routing to
       stop the recursive fold and then continue at the loop expression boundary.
 - [ ] Non-scalar values returned through recursive handler/resumption chains
-      can still leak a raw pointer-looking value; see
+      can still leak a displayed `thunk@0x...` handle; see
       `notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu`.
 - [ ] General returned/stored effectful thunks still need more source-shaped
       coverage outside the current scalar/prototype subset.

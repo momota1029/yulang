@@ -4430,6 +4430,7 @@ thread_local! {
     static NATIVE_CPS_I64_HEAP_VALUES: RefCell<HashSet<i64>> = RefCell::new(HashSet::new());
     static NATIVE_CPS_I64_TAG_NAMES: RefCell<HashMap<i64, Box<str>>> = RefCell::new(HashMap::new());
     static NATIVE_CPS_I64_THUNKS: RefCell<HashSet<usize>> = RefCell::new(HashSet::new());
+    static NATIVE_CPS_I64_CLOSURES: RefCell<HashSet<usize>> = RefCell::new(HashSet::new());
     /// write27-d d4: pointers known to be `NativeCpsI64Resumption`,
     /// inserted at `make_native_i64_resumption` time. EffectfulApply
     /// codegen queries this set at runtime to dispatch between the
@@ -4513,6 +4514,8 @@ struct NativeCpsI64SelectedHandlerMeta {
 fn reset_native_i64_cps_state() {
     NATIVE_CPS_I64_HEAP_VALUES.with(|values| values.borrow_mut().clear());
     NATIVE_CPS_I64_TAG_NAMES.with(|names| names.borrow_mut().clear());
+    NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow_mut().clear());
+    NATIVE_CPS_I64_CLOSURES.with(|closures| closures.borrow_mut().clear());
     NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow_mut().clear());
     NATIVE_CPS_I64_GUARD_STACK.with(|stack| stack.borrow_mut().clear());
     NATIVE_CPS_I64_ACTIVE_BLOCKED.with(|stack| stack.borrow_mut().clear());
@@ -4792,12 +4795,16 @@ fn make_native_i64_closure(code: usize, env: Vec<i64>) -> usize {
     let code = unsafe { std::mem::transmute::<usize, NativeCpsI64ClosureEntry>(code) };
     let mut handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
     handlers.extend(take_pending_native_i64_handler_frames());
-    Box::into_raw(Box::new(NativeCpsI64Closure {
+    let ptr = Box::into_raw(Box::new(NativeCpsI64Closure {
         code,
         env: env.into_boxed_slice(),
         handlers: handlers.into_boxed_slice(),
         guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
-    })) as usize
+    })) as usize;
+    NATIVE_CPS_I64_CLOSURES.with(|closures| {
+        closures.borrow_mut().insert(ptr);
+    });
+    ptr
 }
 
 fn make_native_i64_recursive_closure(code: usize, self_slot: usize, mut env: Vec<i64>) -> usize {
@@ -4819,6 +4826,9 @@ fn make_native_i64_recursive_closure(code: usize, self_slot: usize, mut env: Vec
         (*closure).handlers = handlers.into_boxed_slice();
         (*closure).guard_stack = current_native_i64_guard_stack().into_boxed_slice();
     }
+    NATIVE_CPS_I64_CLOSURES.with(|closures| {
+        closures.borrow_mut().insert(ptr);
+    });
     ptr
 }
 
@@ -4902,6 +4912,17 @@ fn describe_native_i64_value_with_depth(value: i64, depth: usize) -> String {
     });
     if let Some(id) = resumption_id {
         return format!("resumption#{id}@{value:#x}");
+    }
+
+    let is_thunk = NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&(value as usize)));
+    if is_thunk {
+        return format!("thunk@{value:#x}");
+    }
+
+    let is_closure =
+        NATIVE_CPS_I64_CLOSURES.with(|closures| closures.borrow().contains(&(value as usize)));
+    if is_closure {
+        return format!("closure@{value:#x}");
     }
 
     let is_heap = NATIVE_CPS_I64_HEAP_VALUES.with(|values| values.borrow().contains(&value));
