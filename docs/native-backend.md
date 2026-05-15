@@ -216,8 +216,8 @@ current backend boundaries visible, but detailed regression history lives in
       inside an inner `sub` is captured there, while callback `h()` escapes to
       the caller's `sub`.
 - [x] Non-scalar CPS return values that use prototype heap handles print as
-      Yulang-like values in generated CPS executables when they do not escape
-      through the recursive handler/resumption gap below.
+      Yulang-like values in generated CPS executables, including the covered
+      recursive handler/resumption tuple result.
 - [ ] Open-range `for` with local `last` still needs scoped abort routing to
       stop the recursive fold and then continue at the loop expression boundary.
 - [x] Non-scalar values returned through recursive handler/resumption chains
