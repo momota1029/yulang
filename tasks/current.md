@@ -227,6 +227,8 @@ CPS repr Cranelift の source 回帰を広げる。
 - backend selection は closure value を `closure value` reason として CPS repr
   backend へ回すようにした。direct closure root と record-contained closure root は
   value backend の失敗 fallback を待たずに、IR node ベースの selection で分岐する。
+- playground は VM interpreter only として UI / native docs に明記した。
+  native backend selection は今のところ CLI surface として扱う。
 
 ## 重要な制約
 

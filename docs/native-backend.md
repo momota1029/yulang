@@ -93,6 +93,10 @@ When a program falls outside this subset, `yulang native` prints
 succeeds through the CPS representation backend or fails with a
 diagnostic. The interpreter (`yulang run`) keeps the full language behavior.
 
+The web playground currently runs the VM interpreter only. It does not expose
+native backend selection; use `yulang native` locally when checking the native
+pipeline.
+
 ## Detailed progress
 
 The remainder of this page is the implementation-side checklist that
@@ -109,6 +113,8 @@ or out of here into the user-facing table once they stabilize.
 - [x] Closure-value roots and closure values embedded in records are selected
       for the CPS representation backend with a structured `closure value`
       reason before the value backend is tried.
+- [x] The web playground is explicitly marked as VM-interpreter-only; native
+      backend selection is a CLI surface for now.
 - [x] `yulang native --kind run-value-exe` exposes the value backend directly for debugging.
 - [x] `yulang native --kind run-cps-repr-exe` exposes the CPS representation backend
       directly for debugging.
