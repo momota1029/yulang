@@ -1,0 +1,46 @@
+-- bug (native): float の値が `yulang run --native` でほぼ常に `0` に潰れる。
+-- `yulang run --interpreter` (VM) では正しい値が出る。比較 (`1.5 < 2.5` →
+-- true) は通るので演算 path は動いているが、表示直前で `0` に落ちている疑い。
+--
+-- 期待:
+--   VM と native で同じ source の float 値の表示が揃う。少なくとも値が
+--   判別できる程度には形を保つ。
+--
+-- 実際:
+--   3.14                     → VM "3.14"           / native "0"
+--   0.5                      → VM "0.5"            / native "0"
+--   1.0                      → VM "1"              / native "0"
+--   1.0 + 2.0                → VM "3.0"            / native "0"
+--   2.0 * 3.0                → VM "6.0"            / native "0"
+--   [1.0, 2.0, 3.0]          → VM "[1, 2, 3]"      / native "[0, 0, 0]"
+--   (1.0, 2.0)               → VM "(1, 2)"         / native "(0, 0)"
+--   { x: 1.0, y: 2.0 }       → VM "{x = 1, y = 2}" / native "{ x: 0, y: 0 }"
+--   just 3.14                → VM "just 3.14"      / native ":just 0"
+--
+--   1.5 < 2.5                → VM "true" / native "1"
+--     -- これは「bool が i64 で出る」家系 (`native_value_repr_in_tuple.yu`)
+--     -- であり、比較自体は走っている。float 値が実行中は保持されている
+--     -- ことの傍証。
+--
+-- 切り分け:
+--   - 比較は正しく動くので、float 値が実行中に保持されている可能性は高い。
+--     表示直前 (display path / value lane) で float lane が抜け落ち、
+--     `i64 0` に潰れている疑い。
+--   - 入れ物 (tuple / list / record / variant) を変えても全要素が 0 になる
+--     ので、コンテキスト依存ではなく float lane 全体の問題に見える。
+--   - `native_value_repr_in_tuple.yu` の bool / unit / string は、表示
+--     フォーマットは崩れるが値そのもの (`1`/`0`/`s`) は保持されている。
+--     float は値そのものが消える点で症状が一段重い。
+--
+-- 影響:
+--   - native で float を使う source プログラムは事実上動かない。
+--   - VM/native cross-check の試験対象から float 系が落ちる。
+--
+-- 関連:
+--   - `native_value_repr_in_tuple.yu` (bool / unit / string / variant の
+--     display 崩れ)
+--   - 単項マイナス float リテラル `-2.5` は VM / native とも型エラーで
+--     書けない（`-` が int → int → int に解決される）。こちらは別件。
+
+-- 個別の確認用 (VM `3.14` / native `0`)
+3.14

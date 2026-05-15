@@ -107,6 +107,30 @@ use std::undet::*
   `wrap` 経由で result に閉じた後の `e.show` だけ通らない。`fs_err` simple /
   `io_err` from-chain どちらでも同じ症状。
 
+### Control flow / 推論系
+
+- [`if_no_else_branch_type_mismatch.yu`](if_no_else_branch_type_mismatch.yu)
+  — `if true: 1` のような else 省略形が `branch result type mismatch:
+  expected int, got unit` で弾かれる。reference の control-flow.md には
+  「`if` without `else` uses `()` as the false branch」とあるが、実装は
+  両 branch を unify しようとして落ちる。VM / native 同症（infer 段の問題）。
+- [`nested_for_return_effect_mismatch.yu`](nested_for_return_effect_mismatch.yu)
+  — nested `for` の内側から `return` すると `expected [std::flow::loop],
+  got [std::flow::sub<...>]` で落ちる。labelled outer + `return` と
+  `last 'outer` を同居させると `missing join evidence for match` に変わる。
+  flat な (1段) `for` + `return` は通るので、二段目の loop effect と
+  sub effect の合流が課題に見える。VM / native 同症。
+
+### Stdlib / Display 系
+
+- [`show_display_impl_missing_for_composite_types.yu`](show_display_impl_missing_for_composite_types.yu)
+  — `.show` (= `Display::show`) が compose 型 (list / opt / result /
+  tuple / record) で動かない。`[1, 2, 3].show` は `no impl for
+  Display<list<int>>` で infer エラー、`(1, 2).show` は runtime で
+  `request Display::show (1, 2) blocked`。reference の strings.md には
+  `[1, 2, 3].show → "[1, 2, 3]"` の例があるが、`Display<list<T>>` 等の
+  generic forwarding impl が registry に未登録。VM / native 同症。
+
 ## 現在の未解決（2026-05-15 round-6 / `yulang run --native` との差分）
 
 VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
@@ -119,6 +143,13 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   `(true, 1, "s", ())` が VM `(true, 1, "s", ())` / native `(1, 1, s, 0)`。
   variant も `:just hello` のように tag に `:` が付き、payload string が
   unquoted。format-only か repr 潰しか境界が曖昧。
+- [`native_float_collapses_to_zero.yu`](native_float_collapses_to_zero.yu)
+  — float 値が native でほぼ常に `0` に潰れる。`3.14` が `0`、`1.0 + 2.0`
+  が `0`、`[1.0, 2.0, 3.0]` が `[0, 0, 0]`。`1.5 < 2.5` は `true` (bool 表示
+  崩れで `1` になるが値は正しい) なので演算は走っており、display 直前で
+  float lane が抜け落ちている疑い。`native_value_repr_in_tuple.yu` の
+  bool / unit / string は format だけ崩れて値は残るのに対し、float は値
+  そのものが消える。
 - [`native_handler_result_value_collapse.yu`](native_handler_result_value_collapse.yu)
   — handler を関数化して list / tuple を返すと、native 側で値が `0` /
   空 tuple に潰れる。`["a"]` が `0`、`((), "hi\n")` が `(0, )`。VM では

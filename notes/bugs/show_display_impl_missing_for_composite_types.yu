@@ -1,0 +1,64 @@
+-- bug: `.show` (= `Display::show`) が compose 型 (list / opt / result /
+--      tuple / record) に対して動かない。reference (`strings.md`) には
+--      `[1, 2, 3].show → "[1, 2, 3]" (when an impl for the element exists)`
+--      の例があるが、実装は infer 段で reject するか、runtime で role
+--      dispatch が解決できず `blocked` になる。
+--
+-- 期待:
+--   element / payload に `Display` impl があれば、`Display<list<T>>` /
+--   `Display<opt<T>>` / `Display<result T E>` / `Display<tuple ...>` /
+--   `Display<record ...>` の generic forwarding impl で `.show` が動く。
+--   string interpolation `"%{xs}"` も同じ経路。
+--
+-- 実際 (VM / native 同症):
+--
+--   ☆ infer 段で type error (element / payload 型が concrete に固まる場合):
+--
+--     [1, 2, 3].show       → no impl for Display<list<int>>
+--     [true, false].show   → no impl for Display<list<bool>>
+--     ["a", "b"].show      → no impl for Display<list<str>>
+--     [[1], [2]].show      → no impl for Display<list<list<int>>>
+--     (just 1).show        → no impl for Display<opt<int>>
+--     (just "x").show      → no impl for Display<opt<str>>
+--
+--   ☆ runtime で `request Display::show ... blocked=None`
+--     (= role dispatch handler 不在):
+--
+--     (1, 2).show          → request Display::show (1, 2) blocked
+--     (1, "a").show        → request Display::show (1, "a") blocked
+--     { x: 1, y: 2 }.show  → request Display::show {x = 1, y = 2} blocked
+--     nil.show             → request Display::show nil blocked
+--     (ok 1 as result int str).show
+--                          → request Display::show ok 1 blocked
+--
+--   ☆ 動く primitive (参考):
+--
+--     1.show               → "1"
+--     true.show            → "true"
+--     "text".show          → "text"
+--     3.14.show            → "3.14"   (※ VM。native は別 bug で float 0 化)
+--
+-- 切り分け:
+--   - infer エラー組は、element / payload 型が concrete に固まるケース。
+--     `Display<list<T>>` / `Display<opt<T>>` の generic forwarding impl が
+--     registry に登録されていない。
+--   - runtime blocked 組は、anonymous product (tuple / record) と
+--     payload 型が固まらない constructor 単独 (`nil` / `ok ...`)。infer は
+--     `Display` role op の dispatch を runtime に遅延するが、どの impl にも
+--     当たらない。
+--   - VM (`yulang run --interpreter`) と native (`yulang run --native`) で
+--     全く同じ症状。registry 側の問題なので backend 共通。
+--   - 既存 resolved snippet `list_methods_undocumented_missing.yu` /
+--     `result_methods_undocumented_missing.yu` と同じ家系
+--     （reference にあるが registry に無い）。
+--
+-- 影響:
+--   - reference の `[1, 2, 3].show` の例がそのまま動かない。
+--   - string interpolation `"%{xs}"` で compose 型を含めた瞬間に
+--     型エラーまたは runtime ハング。debug print の最初の一歩で詰まる。
+--   - infer 組と runtime 組で症状が違うので、ユーザは「型が固まる場合は
+--     コンパイル時に弾かれ、固まらない場合はハングする」という直感
+--     に反する挙動に遭遇する。
+
+-- 個別の確認用 (VM / native とも同じ type error)
+[1, 2, 3].show

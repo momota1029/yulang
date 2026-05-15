@@ -1,0 +1,45 @@
+-- bug (infer): `if cond: body` (else 節なし) が、body の型が `()` でないと
+--      `branch result type mismatch: expected X, got unit` で弾かれる。
+--      `web/docs/reference/control-flow.md` には
+--      「`if` without `else` uses `()` as the false branch」と書かれているが、
+--      実装は両 branch を unify しようとして落ちる。
+--
+-- 期待:
+--   reference の通り、`if true: 1` のような書き方が通る。型は body の型と
+--   `()` の合流（あるいは `int | ()` のような union/optional）として推論
+--   される。
+--
+-- 実際 (VM / native 同症):
+--
+--   if true: ()              → `()`                          (通る)
+--   if true: 1               → branch result type mismatch:
+--                              expected int, got unit        (型エラー)
+--   if true: "x"             → branch result type mismatch:
+--                              expected std::str::str, got unit
+--   if true: 1 else: ()      → 同じ branch result type mismatch
+--
+-- 切り分け:
+--   - VM (`yulang run --interpreter`) と native (`yulang run --native`) で
+--     全く同じメッセージなので、infer (型推論) 段の問題。lowering より前。
+--   - body 自体が `()` 型なら通る（false branch の暗黙 `()` と合流するので
+--     当然）。
+--   - 明示的に `else: ()` を書いても同じく弾かれるので、これは
+--     「else を省略したからだけ」ではなく「branch の片方が `()`、もう片方が
+--     非 unit のときに unify できない」という現象。
+--
+-- 影響:
+--   - reference の例がそのまま書けない。初学者にとって「reference を
+--     信じて書いたら型エラー」となる。
+--   - 「副作用のために if を使う」（戻り値を捨てる）形が書きづらい。
+--     現状は body 側を `do_something(); ()` のように `()` で締める workaround
+--     が必要。
+--
+-- 方向案 (どちらに倒すかは設計判断):
+--   - 実装を reference に合わせる: `if cond: body` (no else) は
+--     `body | ()` を返す。あるいは `body` の値を捨てて `()` を返す
+--     (semicolon-like statement semantics)。
+--   - reference を実装に合わせる: 「`if` without `else` は body も `()` 型に
+--     なければならない」と書き、上の節を修正する。
+
+-- 個別の確認用 (この一行で `expected int, got unit` で落ちる)
+if true: 1
