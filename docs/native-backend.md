@@ -209,11 +209,20 @@ current backend boundaries visible, but detailed regression history lives in
       reference update, and `std::undet` `.once` / `.list` / `.logic` over
       finite-list choices run through the CPS repr executable path for covered
       observable roots.
+- [x] `sub` / `return` can escape through finite-list and open-range `for`
+      chains on the CPS repr executable path for the covered return-shaped
+      roots.
 - [x] Callback return hygiene is covered by source regressions: direct `f()`
       inside an inner `sub` is captured there, while callback `h()` escapes to
       the caller's `sub`.
 - [x] Non-scalar CPS return values that use prototype heap handles print as
-      Yulang-like values in generated CPS executables.
+      Yulang-like values in generated CPS executables when they do not escape
+      through the recursive handler/resumption gap below.
+- [ ] Open-range `for` with local `last` still needs scoped abort routing to
+      stop the recursive fold and then continue at the loop expression boundary.
+- [ ] Non-scalar values returned through recursive handler/resumption chains
+      can still leak a raw pointer-looking value; see
+      `notes/bugs/native_effect_handler_tuple_result_prints_pointer.yu`.
 - [ ] General returned/stored effectful thunks still need more source-shaped
       coverage outside the current scalar/prototype subset.
 - [ ] Forced value-backend execution still has a nullary-binding crash for the
