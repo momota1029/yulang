@@ -2050,11 +2050,14 @@ impl<'a> FunctionLowerer<'a> {
         fields: &[runtime::RecordExprField],
         spread: &Option<runtime::RecordSpreadExpr>,
     ) -> CpsLowerResult<CpsValueId> {
-        if spread.is_some() {
-            return Err(CpsLowerError::UnsupportedExpr {
-                kind: "record spread",
-            });
-        }
+        let base = spread
+            .as_ref()
+            .map(|spread| match spread {
+                runtime::RecordSpreadExpr::Head(expr) | runtime::RecordSpreadExpr::Tail(expr) => {
+                    self.lower_expr(expr)
+                }
+            })
+            .transpose()?;
         let fields = fields
             .iter()
             .map(|field| {
@@ -2065,7 +2068,9 @@ impl<'a> FunctionLowerer<'a> {
             })
             .collect::<CpsLowerResult<Vec<_>>>()?;
         let dest = self.fresh_value();
-        self.current.stmts.push(CpsStmt::Record { dest, fields });
+        self.current
+            .stmts
+            .push(CpsStmt::Record { dest, base, fields });
         Ok(dest)
     }
 

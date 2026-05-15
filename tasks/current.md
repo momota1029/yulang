@@ -233,6 +233,8 @@ CPS repr Cranelift の source 回帰を広げる。
 - top-level `my {x, ..rest} = ...` も CPS repr path で通る。record rest は
   CPS IR の `RecordWithoutFields` として明示し、value backend の record-spread
   pattern 規則と同じ位置で処理する。
+- record spread expression も CPS repr path へ入れた。CPS IR の `Record` は
+  optional base record を持ち、base をコピーしてから明示 field を上書きする。
 - top-level destructuring `my` は runtime IR が各名前ごとの `case` binding に
   分解され、native 側だけ再帰/クラッシュすることを
   `notes/bugs/native_top_level_destructure_binding_recurses.yu` に切り出した。

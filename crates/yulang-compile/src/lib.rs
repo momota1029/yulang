@@ -595,6 +595,18 @@ x + y
     }
 
     #[test]
+    fn runs_record_spread_expr_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"my base = {x: 20}
+my r = {..base, y: 22}
+r.x + r.y
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_top_level_record_spread_destructure_binding_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"my {x, ..rest} = {x: 20, y: 22}

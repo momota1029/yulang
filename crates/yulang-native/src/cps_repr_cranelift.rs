@@ -964,8 +964,9 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let value = make_tuple_value(module_backend, builder, &items)?;
             builder.def_var(variable(*dest), value);
         }
-        CpsStmt::Record { dest, fields } => {
-            let value = make_record_value(module_backend, builder, function, fields, literals)?;
+        CpsStmt::Record { dest, base, fields } => {
+            let value =
+                make_record_value(module_backend, builder, function, *base, fields, literals)?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::RecordWithoutFields { dest, base, fields } => {
@@ -2460,10 +2461,14 @@ fn make_record_value<M: Module, L: CpsLiteralStore>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
+    base: Option<CpsValueId>,
     fields: &[CpsRecordField],
     literals: &mut L,
 ) -> CpsReprCraneliftResult<ir::Value> {
-    let mut record = call_i64_helper(module_backend, builder, "yulang_cps_record_empty_i64", &[])?;
+    let mut record = match base {
+        Some(base) => read_value(builder, function, base)?,
+        None => call_i64_helper(module_backend, builder, "yulang_cps_record_empty_i64", &[])?,
+    };
     for field in fields {
         let value = read_value(builder, function, field.value)?;
         let (field_ptr, field_len) =
@@ -2874,8 +2879,9 @@ fn lower_stmt<M: Module, L: CpsLiteralStore>(
             let value = make_tuple_value(module_backend, builder, &items)?;
             builder.def_var(variable(*dest), value);
         }
-        CpsStmt::Record { dest, fields } => {
-            let value = make_record_value(module_backend, builder, function, fields, literals)?;
+        CpsStmt::Record { dest, base, fields } => {
+            let value =
+                make_record_value(module_backend, builder, function, *base, fields, literals)?;
             builder.def_var(variable(*dest), value);
         }
         CpsStmt::RecordWithoutFields { dest, base, fields } => {
@@ -7969,6 +7975,7 @@ mod tests {
                         },
                         CpsStmt::Record {
                             dest: CpsValueId(2),
+                            base: None,
                             fields: vec![
                                 CpsRecordField {
                                     name: typed_ir::Name("a".to_string()),
@@ -8017,6 +8024,7 @@ mod tests {
                             },
                             CpsStmt::Record {
                                 dest: CpsValueId(1),
+                                base: None,
                                 fields: vec![crate::cps_ir::CpsRecordField {
                                     name: typed_ir::Name("run".to_string()),
                                     value: CpsValueId(0),
@@ -8781,6 +8789,7 @@ mod tests {
                 root_stmts.extend([
                     CpsStmt::Record {
                         dest: CpsValueId(14),
+                        base: None,
                         fields: vec![CpsRecordField {
                             name: typed_ir::Name("callback".to_string()),
                             value: CpsValueId(2),

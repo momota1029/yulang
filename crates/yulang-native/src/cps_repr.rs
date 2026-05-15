@@ -1872,8 +1872,23 @@ fn resume_continuation(
                         .collect::<CpsReprEvalResult<Vec<_>>>()?;
                     values.insert(*dest, CpsReprRuntimeValue::Tuple(items));
                 }
-                CpsStmt::Record { dest, fields } => {
-                    let mut record = BTreeMap::new();
+                CpsStmt::Record { dest, base, fields } => {
+                    let mut record = match base {
+                        Some(base) => match read_value(function, &values, *base)? {
+                            CpsReprRuntimeValue::Record(fields) => fields,
+                            CpsReprRuntimeValue::Plain(runtime::VmValue::Record(fields)) => fields
+                                .into_iter()
+                                .map(|(name, value)| (name, CpsReprRuntimeValue::Plain(value)))
+                                .collect(),
+                            value => {
+                                return Err(CpsReprEvalError::ExpectedRecord {
+                                    function: function.name.clone(),
+                                    value: into_plain_value(function, *base, value)?,
+                                });
+                            }
+                        },
+                        None => BTreeMap::new(),
+                    };
                     for field in fields {
                         record.insert(
                             field.name.clone(),

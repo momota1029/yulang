@@ -192,7 +192,8 @@ fn continuation_uses(
             CpsStmt::Tuple { items, .. } => {
                 uses.extend(items.iter().copied());
             }
-            CpsStmt::Record { fields, .. } => {
+            CpsStmt::Record { base, fields, .. } => {
+                uses.extend(base.iter().copied());
                 uses.extend(fields.iter().map(|field| field.value));
             }
             CpsStmt::RecordWithoutFields { base, .. } => {

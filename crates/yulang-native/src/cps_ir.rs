@@ -77,6 +77,7 @@ pub enum CpsStmt {
     },
     Record {
         dest: CpsValueId,
+        base: Option<CpsValueId>,
         fields: Vec<CpsRecordField>,
     },
     RecordWithoutFields {

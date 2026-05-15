@@ -230,7 +230,10 @@ fn validate_continuation(
                 }
                 values.insert(*dest);
             }
-            CpsStmt::Record { dest, fields } => {
+            CpsStmt::Record { dest, base, fields } => {
+                if let Some(base) = base {
+                    require_value(function, &values, *base)?;
+                }
                 for field in fields {
                     require_value(function, &values, field.value)?;
                 }
