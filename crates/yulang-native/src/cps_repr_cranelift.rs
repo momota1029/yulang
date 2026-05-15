@@ -8174,6 +8174,26 @@ mod tests {
     }
 
     #[test]
+    fn jit_forces_runtime_thunk_indexed_from_list() {
+        let thunk_list = primitive_call(
+            typed_ir::PrimitiveOp::ListSingleton,
+            vec![thunk(unknown_lit(typed_ir::Lit::String(
+                "runtime-thunk".to_string(),
+            )))],
+        );
+        let indexed = primitive_call(
+            typed_ir::PrimitiveOp::ListIndex,
+            vec![thunk_list, unknown_lit(typed_ir::Lit::Int("0".to_string()))],
+        );
+        let mut jit = compile_runtime_module_to_cps_repr_jit(&module_with_root(bind_here(indexed)))
+            .expect("compiled runtime module");
+        let roots = jit.run_roots_i64().expect("ran");
+
+        assert_eq!(roots.len(), 1);
+        assert_eq!(describe_native_i64_value(roots[0]), "runtime-thunk");
+    }
+
+    #[test]
     fn jit_runs_string_primitives_runtime_value_roots() {
         let cases = vec![
             (
@@ -8935,6 +8955,26 @@ mod tests {
                 arg: Box::new(arg),
                 evidence: None,
                 instantiation: None,
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn thunk(expr: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::Thunk {
+                effect: typed_ir::Type::Unknown,
+                value: runtime::Type::unknown(),
+                expr: Box::new(expr),
+            },
+            runtime::Type::unknown(),
+        )
+    }
+
+    fn bind_here(expr: runtime::Expr) -> runtime::Expr {
+        runtime::Expr::typed(
+            runtime::ExprKind::BindHere {
+                expr: Box::new(expr),
             },
             runtime::Type::unknown(),
         )

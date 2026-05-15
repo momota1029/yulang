@@ -290,6 +290,9 @@ or out of here into the user-facing table once they stabilize.
 - [x] A CPS-level thunk pointer can be stored in a list, indexed back out, and
       forced more than once through the Cranelift CPS repr path. Indexed thunks
       can return scalar or string heap values.
+- [x] A type-converted runtime `ExprKind::Thunk` can be stored in a list, indexed
+      back out, forced with `BindHere`, and run through CPS lowering and the
+      Cranelift CPS repr path.
 - [x] A thunk boundary carried by a list-stored thunk remains active after
       indexing and force, so hidden callback effects still skip blocked inner
       handlers.

@@ -186,6 +186,10 @@ CPS repr Cranelift の source 回帰を広げる。
   `ForceThunk` する Cranelift regression を追加した。`ListIndex` の `Unknown`
   lane からでも force 側で thunk pointer として扱える。indexed thunk が string
   heap value を返す path も固定した。
+- 型変換後 runtime IR の `ExprKind::Thunk` を list に保存し、`ListIndex` で
+  取り出してから `BindHere` で force する Cranelift regression を追加した。
+  source surface ではなく、`ValueToThunk` adapter 後の構文を native が読む path を
+  固定する。
 - boundary 付き thunk pointer を list に保存し、`ListIndex` 後に force しても
   active boundary が handler selection に残る Cranelift regression を追加した。
   hidden callback effect が blocked inner handler を越える native 側の衛生性を
