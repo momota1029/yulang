@@ -1,16 +1,16 @@
 # Yulang Examples
 
-These examples are small executable programs for the current implementation.
+この directory には、現在の実装で動かせる小さな Yulang program を置いています。
 
-Japanese: [README.ja.md](README.ja.md)
+English: [README.md](README.md)
 
-Start with `showcase.yu` for a broad tour:
+まず広く眺めるなら `showcase.yu` が入口です。
 
 ```bash
 yulang run examples/showcase.yu
 ```
 
-Useful smaller examples:
+個別の feature を見るなら、次の example が読みやすいです。
 
 ```bash
 yulang run examples/01_struct_with.yu
@@ -21,13 +21,14 @@ yulang run examples/11_attached_impl.yu
 yulang run examples/12_cast.yu
 ```
 
-Use `check` to type-check a file and print inferred public types:
+型検査と public type の確認には `check` を使います。
 
 ```bash
 yulang check examples/01_struct_with.yu
 ```
 
-From a repository checkout, the same commands can be run through Cargo:
+repository checkout から直接実行する場合は、同じ command を `cargo run` 経由で
+呼べます。
 
 ```bash
 cargo run -q -p yulang -- run examples/showcase.yu

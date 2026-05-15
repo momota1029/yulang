@@ -1,47 +1,62 @@
 # Yulang
 
-Yulang is an experimental programming language that tries to make algebraic
-effects and handlers the ordinary control mechanism of the language, without
-making the surface feel like a special-purpose effect calculus.
+Yulang is an experimental programming language that makes algebraic effects
+and handlers feel like ordinary control flow.
 
-The language looks like a small, expression-oriented scripting language: it
-has receiver-oriented method syntax, compact block/application notation,
-structs, enums, roles, user-defined operators, loops, early return, and
-references. The unusual part is that features that would usually be built
-into the core language are mostly expressed through effects, handlers,
-roles, and standard library code.
+The surface looks like a small expression-oriented scripting language: it has
+method syntax, compact block notation, structs, enums, roles, user-defined
+operators, loops, early return, and references. The unusual part is that many
+features usually fixed in the core language are expressed through effects,
+handlers, roles, and standard-library code.
 
-Under the hood, Yulang integrates algebraic effects and handlers into a
-Simple-Sub-style subtyping inference engine. Effect rows are represented and
-solved in the same constraint system as value types, role constraints, and
-subtyping, so handlers can remove consumed effects while the remaining
-effects still flow through inferred types.
+Yulang is alpha-stage research software. The interpreter, playground, standard
+library, and language server are usable enough to try real examples, but syntax,
+type display, effect semantics, native lowering, and library APIs may still
+change.
 
-The implementation is still changing quickly. The repository is public so
-the current compiler, standard library, tests, and WebAssembly playground
-can be read together, not because the language is stable.
+Japanese: [README.ja.md](README.ja.md)
 
-Yulang is currently best read as an alpha-stage research language. The
-interpreter, playground, standard library, and language server are usable
-enough to try real examples, but syntax, type display, effect semantics,
-native lowering, and library APIs may still move.
+## Try It
 
-The current language server reports parse/lowering/type errors with source
-ranges, and many type errors include related locations such as the literal,
-annotation, application argument, or inferred origin that contributed to the
-mismatch. The diagnostics are intended to make experimentation practical, but
-they are not yet a complete UX contract.
-
-## Playground
-
-The browser playground runs the current WebAssembly build and shows both
-evaluated results and inferred public types:
+The fastest way to try Yulang is the browser playground:
 
 <https://yulang.momota.pw>
 
-The playground uses the same in-progress WebAssembly pipeline as the repository.
-It may briefly show an empty page while the bundle and standard-library state
-load; this is a loading-state limitation, not part of the language semantics.
+To use the CLI locally, install the binary and the embedded standard library:
+
+```bash
+cargo install yulang
+yulang install std
+```
+
+Run a file with the interpreter:
+
+```bash
+yulang run examples/06_undet_once.yu
+```
+
+Check a file and print inferred public types:
+
+```bash
+yulang check examples/08_types.yu
+```
+
+Try the native backend:
+
+```bash
+yulang run --native examples/06_undet_once.yu
+```
+
+The standard library is normally installed to
+`~/.yulang/lib/yulang-0.1.0/std`. `yulang run`, `yulang check`, and
+`yulang server` can also install the embedded standard library automatically
+on first use when neither `YULANG_STD` nor a nearby `lib/std` is available.
+
+To use a different standard-library checkout:
+
+```bash
+export YULANG_STD=/path/to/yulang/lib/std
+```
 
 ## A First Look
 
@@ -57,172 +72,87 @@ else:
     0
 ```
 
-The condition `all [1, 2, 3] < any [2, 3, 4]` is not a special syntactic
-form. `all` and `any` are ordinary library functions that produce
-nondeterministic values; the lowering inserts `junction::junction` so the
-condition becomes a real `bool` for the surrounding `if`. Mutable state,
-early return, loops, and effectful conditions are handled by the same kind
-of mechanism — typed effects plus a small library, surfaced through
-familiar notation.
+The condition `all [1, 2, 3] < any [2, 3, 4]` is not special syntax.
+`all` and `any` are ordinary library functions that produce nondeterministic
+values. Lowering inserts `junction::junction` so the surrounding `if` receives
+a real `bool`.
 
-For a longer guided tour:
+Mutable state, early return, loops, and effectful conditions use the same
+basic idea: familiar notation on the surface, typed effects and small library
+abstractions underneath.
 
-- [docs/language/overview.md](docs/language/overview.md) — English overview.
-- [docs/language/overview.ja.md](docs/language/overview.ja.md) — Japanese overview.
+## Where To Read Next
 
-## Where to Read Next
+- [docs/language/overview.md](docs/language/overview.md):
+  the main language overview.
+- [docs/language/overview.ja.md](docs/language/overview.ja.md):
+  Japanese language overview.
+- [docs/status.md](docs/status.md):
+  support status across parser, inference, interpreter, playground, and native
+  backend.
+- [docs/native-backend.md](docs/native-backend.md):
+  native backend support, CLI notes, and current limits.
+- [web/docs/reference/type-theory.md](web/docs/reference/type-theory.md):
+  public reference for effect rows, handler hygiene, and hidden handler
+  evidence.
+- [docs/hidden-effect-evidence.ja.md](docs/hidden-effect-evidence.ja.md):
+  implementation notes for hidden effect evidence.
+- [examples/](examples):
+  runnable Yulang examples.
+- [lib/std/](lib/std):
+  the standard library written in Yulang.
 
-- **What works where** — [docs/status.md](docs/status.md) tracks each
-  feature across parser, inference, the interpreter, the playground, and the native
-  backend. It is the right place to check before depending on a feature.
-- **Native backend** — [docs/native-backend.md](docs/native-backend.md)
-  describes the native pipeline: which programs run natively today, the
-  CLI commands, and the pure-subset / effects backend status in detail. The
-  native direction is optimized CPS first, then shared Cranelift codegen for
-  JIT and object / executable output. The effects path now covers
-  effect hygiene regressions, finite nondeterminism, open-range guarded
-  `.once` search, `sub` / `return` through loop-shaped standard-library
-  control, recursive handler tuple results, and first-class closures / stored
-  callbacks selected from records or lists. The default CLI also routes known
-  structural-binding shapes away from the pure-subset backend instead of producing a
-  crashing executable.
-- **Language server** — `yulang server` provides hover, document symbols,
-  semantic tokens, and diagnostics. Error reporting is now source-based enough
-  for day-to-day exploration, including LSP `relatedInformation` for many type
-  errors, but not every diagnostic has perfect provenance yet.
-- **Type inference theory** — [web/docs/reference/type-theory.md](web/docs/reference/type-theory.md)
-  and [web/docs/ja/reference/type-theory.md](web/docs/ja/reference/type-theory.md)
-  introduce effect rows, handler hygiene, and hidden handler evidence from
-  the public reference side. Implementation details live in
-  [docs/hidden-effect-evidence.ja.md](docs/hidden-effect-evidence.ja.md).
-- **Examples** — [`examples/`](examples) holds runnable Yulang programs
-  exercising specific features. `examples/showcase.yu` is a broader tour.
-- **Standard library** — [`lib/std/`](lib/std) is the in-progress standard
-  library written in Yulang.
+Good first examples:
 
-Useful examples to try when evaluating the current implementation:
+- `examples/showcase.yu`: broad syntax and library tour.
+- `examples/06_undet_once.yu`: nondeterminism through library effects.
+- `examples/10_effect_handler.yu`: algebraic effect handlers.
+- `examples/04_sub_return.yu`: local early return through `sub:`.
+- `examples/11_attached_impl.yu`: attached role implementations.
 
-- `examples/showcase.yu` — broad syntax and library tour.
-- `examples/06_undet_once.yu` — nondeterminism through library effects.
-- `examples/10_effect_handler.yu` — algebraic effect handlers.
-- `examples/04_sub_return.yu` — local early return through `sub:`.
-- `examples/11_attached_impl.yu` — attached role implementations.
+## Language Server
 
-## Quick Start
-
-Install the CLI and embedded standard library:
-
-```bash
-cargo install yulang
-yulang install std
-```
-
-Run a file on the interpreter (the semantic oracle for everything else):
-
-```bash
-yulang run examples/06_undet_once.yu
-```
-
-Run the same entrypoint through the native effects backend:
-
-```bash
-yulang run --native examples/06_undet_once.yu
-```
-
-Print inferred public types:
-
-```bash
-yulang check examples/08_types.yu
-```
-
-The standard library is installed to
-`~/.yulang/lib/yulang-0.1.0/std`. `yulang run`, `yulang check`, and
-`yulang server` can also install this embedded standard library automatically
-on first use if neither `YULANG_STD` nor a nearby `lib/std` is available.
-The legacy `yulang-ls` binary is now a deprecated stub that delegates to
-`yulang server`.
-
-Start the language server directly:
+Start the language server with:
 
 ```bash
 yulang server
 ```
 
-Zed support lives in [`yulang-zed/`](yulang-zed). The extension is not published
-through the Zed extension registry yet; install it as a dev extension from Zed
-and select the `yulang-zed` directory. When a `yulang` binary is available in
-the worktree environment or in `~/.cargo/bin`, the extension starts
-`yulang server` automatically.
-
-The language server currently supports:
+Current language-server support includes:
 
 - hover for inferred values, locals, methods, and many type references;
-- semantic tokens and document symbols;
-- diagnostics for parser/lowering/type errors;
-- `relatedInformation` on many type errors, for example pointing from an
-  application error back to the literal or annotation that supplied a type.
+- semantic tokens;
+- document symbols;
+- parser, lowering, and type diagnostics;
+- `relatedInformation` on many type errors.
 
-Known LSP limits:
+Zed support lives in [yulang-zed/](yulang-zed). The extension is not published
+through the Zed extension registry yet; install it as a dev extension and
+select the `yulang-zed` directory. When a `yulang` binary is available in the
+worktree environment or in `~/.cargo/bin`, the extension starts
+`yulang server` automatically.
 
-- diagnostic wording is still compiler-oriented in places;
-- some related locations are approximate when inference keeps only a broad
-  application or adapter span;
-- hidden handler evidence is intentionally not shown in normal hover/type
-  display, even when it distinguishes two internal principal schemes.
+The old `yulang-ls` binary is a deprecated stub that delegates to
+`yulang server`.
 
-To use a different standard library checkout:
+## Native Backend
 
-```bash
-export YULANG_STD=/path/to/yulang/lib/std
-```
-
-Run an inline program:
+Native execution is a prototype with an explicit subset. The normal
+user-facing entrypoint is:
 
 ```bash
-yulang run <<'YU'
-use std::undet::*
-
-(each [1, 2, 3] + each [4, 5, 6]).once
-YU
+yulang run --native path/to/file.yu
 ```
 
-Native execution is a prototype with an explicit subset. The normal user-facing
-entrypoint is `yulang run --native`; `yulang native` remains available for
-artifact generation and forced backend debugging. See
-[docs/native-backend.md](docs/native-backend.md) for the supported
-programs and the CLI reference. The effects backend currently
-covers algebraic handlers, nondeterministic finite-list choices, `sub` /
-`return`, open-range guarded `.once` search, and finite/open-range `for`
-loop control for the documented regression set. CPS ABI modules now pass
-through a shared optimization entrypoint before both JIT and object codegen;
-the first pass rewrites explicit calls through empty forwarding continuations
-and empty return continuations, folds literal boolean branches, reifies direct
-calls to structural primitive wrappers, reifies local partial-application
-closure calls back to direct calls,
-reifies known partial-application closures passed through continuation
-parameters when their captures can be rebased to target parameters,
-rewrites known closure `EffectfulApply` terminators back into effectful direct
-calls or pure primitive resumes,
-removes unused continuation parameters and their matching continuation-call
-arguments,
-inlines small pure direct callees including structural value helpers, inlines
-small single-use one-shot
-continuations, rewrites effectful-call terminators to pure callees back into
-direct calls plus local continuation jumps, removes dead pure value statements,
-including total primitive statements and structural projections,
-then prunes unreachable continuations. The simplification pipeline runs to a
-small bounded fixpoint so newly exposed administrative calls are cleaned up in
-the same optimization entrypoint. It also profiles
-direct-style / SSA island candidates so later codegen can lower pure local
-continuation subgraphs as Cranelift blocks instead of CPS control calls. The
-first codegen step lowers pure successor continuations inside effectful
-continuation functions as local blocks, while preserving effectful return-frame
-routing at island exits. Calls from those islands to pure callee functions use
-plain Cranelift calls instead of the heavier effectful eval-context protocol.
-Use `bench/native_cps_opt_trace.sh --repeat 3` to run the current native
-comparison suite with `YULANG_CPS_OPT_TRACE` enabled for effects paths.
+`yulang native` remains available for artifact generation and backend
+debugging. The interpreter is still the semantic reference; the native backend
+is catching up feature by feature. See
+[docs/native-backend.md](docs/native-backend.md) for the supported programs,
+CLI details, and known limits.
 
-Run the test suites:
+## Development
+
+Run representative Rust test suites:
 
 ```bash
 cargo test -p yulang-runtime -p yulang-infer --lib
@@ -236,22 +166,36 @@ npm ci
 npm run build
 ```
 
+Run an inline Yulang program:
+
+```bash
+yulang run <<'YU'
+use std::undet::*
+
+(each [1, 2, 3] + each [4, 5, 6]).once
+YU
+```
+
 ## Repository Layout
 
+- `crates/yulang`: CLI.
 - `crates/yulang-parser`: parser and syntax tree support.
-- `crates/yulang-sources`: source-set collection, realms, compilation units, and syntax artifacts.
+- `crates/yulang-sources`: source sets, realms, compilation units, and syntax artifacts.
 - `crates/yulang-typed-ir`: typed intermediate representation and principal-type evidence.
 - `crates/yulang-infer`: type inference and principal-type export.
 - `crates/yulang-runtime`: runtime IR, monomorphization, and interpreter.
+- `crates/yulang-native`: native backend.
 - `crates/yulang-wasm`: WebAssembly API used by the playground.
 - `examples`: executable examples for the current language implementation.
 - `lib/std`: standard library written in Yulang.
 - `web/playground`: Vite-based browser playground.
+- `web/docs`: reference documentation.
+- `notes`: bug, refactor, and progress notes.
 
 ## Status
 
-Yulang is pre-release research software. Syntax, type output, runtime IR,
-the interpreter, and the standard library may change without compatibility
+Yulang is pre-release research software. Syntax, type output, runtime IR, the
+interpreter, and the standard library may change without compatibility
 promises. [docs/status.md](docs/status.md) describes the current support
 matrix; broader limitations are noted there and in
 [docs/native-backend.md](docs/native-backend.md).
