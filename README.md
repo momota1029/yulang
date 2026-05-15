@@ -73,18 +73,18 @@ For a longer guided tour:
 ## Where to Read Next
 
 - **What works where** — [docs/status.md](docs/status.md) tracks each
-  feature across parser, inference, the VM, the playground, and the native
+  feature across parser, inference, the interpreter, the playground, and the native
   backend. It is the right place to check before depending on a feature.
 - **Native backend** — [docs/native-backend.md](docs/native-backend.md)
   describes the native pipeline: which programs run natively today, the
-  CLI commands, and the value / CPS representation status in detail. The
+  CLI commands, and the pure-subset / effects backend status in detail. The
   native direction is optimized CPS first, then shared Cranelift codegen for
-  JIT and object / executable output. The CPS representation path now covers
+  JIT and object / executable output. The effects path now covers
   effect hygiene regressions, finite nondeterminism, open-range guarded
   `.once` search, `sub` / `return` through loop-shaped standard-library
   control, recursive handler tuple results, and first-class closures / stored
   callbacks selected from records or lists. The default CLI also routes known
-  structural-binding shapes away from the value backend instead of producing a
+  structural-binding shapes away from the pure-subset backend instead of producing a
   crashing executable.
 - **Language server** — `yulang server` provides hover, document symbols,
   semantic tokens, and diagnostics. Error reporting is now source-based enough
@@ -182,10 +182,10 @@ YU
 
 Native execution is a prototype with an explicit subset; see
 [docs/native-backend.md](docs/native-backend.md) for the supported
-programs and the CLI reference. The CPS representation backend currently
+programs and the CLI reference. The effects backend currently
 covers algebraic handlers, nondeterministic finite-list choices, `sub` /
 `return`, open-range guarded `.once` search, and finite/open-range `for`
-loop control for the documented regression set. CPS repr ABI modules now pass
+loop control for the documented regression set. CPS ABI modules now pass
 through a shared optimization entrypoint before both JIT and object codegen;
 the first pass rewrites explicit calls through empty forwarding continuations
 and empty return continuations, folds literal boolean branches, reifies direct
@@ -212,7 +212,7 @@ continuation functions as local blocks, while preserving effectful return-frame
 routing at island exits. Calls from those islands to pure callee functions use
 plain Cranelift calls instead of the heavier effectful eval-context protocol.
 Use `bench/native_cps_opt_trace.sh --repeat 3` to run the current native
-comparison suite with `YULANG_CPS_OPT_TRACE` enabled for CPS paths.
+comparison suite with `YULANG_CPS_OPT_TRACE` enabled for effects paths.
 
 Run the test suites:
 

@@ -30,7 +30,7 @@ Cranelift backend を作る。
 
 方針:
 
-- native 実行の本線は CPS representation backend に寄せる。
+- native 実行の本線は effects backend（内部実装は CPS representation）に寄せる。
 - フル機能の native 化は、CPS を遅い実行方式として固定するのではなく、
   effect-aware CPS IR を最適化してから Cranelift の JIT / object / executable
   へ落とす形に寄せる。
@@ -41,13 +41,14 @@ Cranelift backend を作る。
   call-site の型 / effect / handler evidence が具体化した高階制御 pattern の
   specialization とする。std の loop / fold / nondet helper / handler wrapper は
   代表的な hot path だが、optimizer は std module path や関数名に依存しない。
-- value backend は effect-free fast path と boxed `VmValue` helper の供給元として扱う。
+- pure-subset backend は effect-free speed-checking path と boxed `VmValue`
+  helper の供給元として扱う。
 - まず `notes/design/native-cps-mainline-plan.md` の milestone に沿って、
   backend selection 境界、CPS `RuntimeValuePtr` lane、汎用 thunk / closure /
   resumption value の順に進める。
 - `select_native_backends` は runtime module から root ごとに
   `ValueFastPath` / `CpsMainline` / `Unsupported(reason)` を返す。
-  `native-run` は effect / handler / thunk boundary を含む root を CPS repr
+  `native-run` は effect / handler / thunk boundary を含む root を effects
   executable path へ直接送る。
 - CPS repr Cranelift は `RuntimeValuePtr` を root return と handler /
   resumption payload に通せる。string / list / record / variant payload の
@@ -79,8 +80,8 @@ Cranelift backend を作る。
   structural projection まで含めて dead pure value statement を削り、到達不能
   continuation を削る。
   `CpsOptimizationProfile` には最適化後の continuation / statement 数も出し、
-  `bench/native_cps_opt_trace.sh` で VM / value exe / CPS repr exe / default
-  native の小さい比較と `YULANG_CPS_OPT_TRACE` をまとめて見られるようにした。
+  `bench/native_cps_opt_trace.sh` で interpreter / pure-subset exe / effects exe /
+  default native の小さい比較と `YULANG_CPS_OPT_TRACE` をまとめて見られるようにした。
   small single-use one-shot continuation の tail inline と dead pure value statement
   の削除も入った。profile /
   `YULANG_CPS_OPT_TRACE` も出せる。inline 後に同じ reify をもう一度走らせるので、
@@ -293,10 +294,10 @@ CPS repr Cranelift の source 回帰を広げる。
   coverage は tuple / list / record / variant までそろった。
 - CPS repr lowering に source-shaped `case` の tuple / list / list-spread /
   record / record-spread / variant payload pattern test を追加した。arm-local bind
-  も同じ構造パターンから直接落とすので、value backend だけに偏っていた
+  も同じ構造パターンから直接落とすので、pure-subset backend だけに偏っていた
   structural pattern subset を CPS repr mainline 側にも寄せた。
 - top-level `my {x, ..rest} = ...` も CPS repr path で通る。record rest は
-  CPS IR の `RecordWithoutFields` として明示し、value backend の record-spread
+  CPS IR の `RecordWithoutFields` として明示し、pure-subset backend の record-spread
   pattern 規則と同じ位置で処理する。
 - record spread expression も CPS repr path へ入れた。CPS IR の `Record` は
   optional base record を持ち、base をコピーしてから明示 field を上書きする。
@@ -321,20 +322,20 @@ CPS repr Cranelift の source 回帰を広げる。
   top-level structural pattern binding を unsupported として返し、crashing
   executable を生成しないようにした。
 - native CLI の現状は `docs/native-backend.md` の Public CLI に集約済み。
-  `yulang native` は value backend を優先し、effect / handler /
-  thunk-boundary control が見えた root は CPS repr backend を選ぶ。
-  `run-value-exe` / `run-cps-repr-exe` は debugging 用の強制 path として残す。
-- value backend と CPS repr backend の fallback policy を、握りつぶしではなく
+  `yulang native` は pure-subset backend を優先し、effect / handler /
+  thunk-boundary control が見えた root は effects backend を選ぶ。
+  `run-pure-exe` / `run-effects-exe` は debugging 用の強制 path として残す。
+- pure-subset backend と effects backend の fallback policy を、握りつぶしではなく
   structured unsupported reason で選べる形へ寄せる。
-- backend selection は closure value を `closure value` reason として CPS repr
+- backend selection は closure value を `closure value` reason として effects
   backend へ回すようにした。direct closure root と record-contained closure root は
-  value backend の失敗 fallback を待たずに、IR node ベースの selection で分岐する。
+  pure-subset backend の失敗 fallback を待たずに、IR node ベースの selection で分岐する。
 - list-construction primitive payload 内の closure value も同じ `closure value`
-  reason で CPS repr backend へ回す regression を追加した。
+  reason で effects backend へ回す regression を追加した。
 - boundary 付き thunk pointer を variant payload に保存し、payload projection 後に
   force しても active boundary が handler selection に残る Cranelift regression を
   追加した。
-- playground は VM interpreter only として UI / native docs に明記した。
+- playground は interpreter only として UI / native docs に明記した。
   native backend selection は今のところ CLI surface として扱う。
 
 ## 重要な制約

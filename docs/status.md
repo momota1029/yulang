@@ -13,9 +13,9 @@ It complements two other documents:
 ## Legend
 
 | Symbol | Meaning |
-| :----: | :------ |
+| :---------: | :------ |
 | ✅ | Works on this stage and is exercised by tests. |
-| △ | Partially works. Subset is supported, edges may differ from the VM oracle. |
+| △ | Partially works. Subset is supported, edges may differ from the interpreter oracle. |
 | ❌ | Not supported on this stage yet. |
 | ⚠️ | Parses or compiles, but the behavior or contract is not finalized. |
 | `–` | Not applicable to this stage. |
@@ -25,7 +25,7 @@ The columns trace a value through the pipeline:
 - **Parse** — accepted by `yulang-parser`.
 - **Infer** — accepted by the type inference engine and produces a principal
   type.
-- **VM Run** — runs on the interpreter (the semantic oracle for everything
+- **Interpreter** — runs on the interpreter (the semantic oracle for everything
   else).
 - **Playground** — exercised through the WebAssembly playground.
 - **Native** — runs through the native backend (`yulang native`); see
@@ -36,8 +36,8 @@ The columns trace a value through the pipeline:
 
 ### Core expressions and bindings
 
-| Feature                              | Parse | Infer | VM Run | Playground | Native | Docs |
-| ------------------------------------ | :---: | :---: | :----: | :--------: | :----: | :--: |
+| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `int` / `float` / `bool` / `unit` / `str` literals | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | String concatenation                 |  ✅   |  ✅   |   ✅   |     ✅     |   ✅   |  ✅  |
 | Tuples, records, lists               |  ✅   |  ✅   |   ✅   |     ✅     |   ✅   |  ✅  |
@@ -49,8 +49,8 @@ The columns trace a value through the pipeline:
 
 ### Types and dispatch
 
-| Feature                              | Parse | Infer | VM Run | Playground | Native | Docs |
-| ------------------------------------ | :---: | :---: | :----: | :--------: | :----: | :--: |
+| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | Simple-Sub style inference + subtyping | ✅ | ✅  |   –    |     –      |   –    |  ✅  |
 | `let` polymorphism (SCC based)       |  ✅   |  ✅   |   –    |     –      |   –    |  ✅  |
 | `struct` / `enum` declarations       |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
@@ -62,8 +62,8 @@ The columns trace a value through the pipeline:
 
 ### Control flow
 
-| Feature                              | Parse | Infer | VM Run | Playground | Native | Docs |
-| ------------------------------------ | :---: | :---: | :----: | :--------: | :----: | :--: |
+| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `sub:` / `return` early exit         |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | `for` / `last` / `next` / `redo`     |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | Multi-block `if` / `else`            |  ✅   |  ✅   |   ✅   |     ✅     |   ✅   |  ✅  |
@@ -71,8 +71,8 @@ The columns trace a value through the pipeline:
 
 ### Effects
 
-| Feature                              | Parse | Infer | VM Run | Playground | Native | Docs |
-| ------------------------------------ | :---: | :---: | :----: | :--------: | :----: | :--: |
+| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | Effect declarations and operations   |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | Algebraic handlers (`catch expr:`)   |  ✅   |  ✅   |   ✅   |     ✅     |   △    |  ✅  |
 | Effect row inference (residual rows) |  ✅   |  ✅   |   –    |     –      |   –    |  ✅  |
@@ -82,8 +82,8 @@ The columns trace a value through the pipeline:
 
 ### Library and host
 
-| Feature                              | Parse | Infer | VM Run | Playground | Native | Docs |
-| ------------------------------------ | :---: | :---: | :----: | :--------: | :----: | :--: |
+| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `lib/std` prelude (numeric, list, str) | ✅  |  ✅   |   ✅   |     ✅     |   △    |  △   |
 | `console::*` host effects            |  ✅   |  ✅   |   ✅   |     △      |   △    |  △   |
 | `std::fs` filesystem                 |  ✅   |  ✅   |   △    |     ❌     |   ❌   |  ⚠️  |
@@ -94,8 +94,8 @@ The columns trace a value through the pipeline:
 
 ### Research / preview surface
 
-| Feature                              | Parse | Infer | VM Run | Playground | Native | Docs |
-| ------------------------------------ | :---: | :---: | :----: | :--------: | :----: | :--: |
+| Feature                              | Parse | Infer | Interpreter | Playground | Native | Docs |
+| ------------------------------------ | :---: | :---: | :---------: | :--------: | :---------: | :--: |
 | `rule { … }` parser DSL              |  ✅   |  ⚠️   |   ❌   |     ❌     |   ❌   |  ⚠️  |
 | `~"..."` mark / capture syntax       |  ✅   |  ⚠️   |   ❌   |     ❌     |   ❌   |  ⚠️  |
 | Parser combinator surface API        |  ✅   |  ⚠️   |   △    |     △      |   ❌   |  ⚠️  |
@@ -103,7 +103,7 @@ The columns trace a value through the pipeline:
 ## Known limitations
 
 - The native backend is a prototype. It runs an explicit subset and uses the
-  VM as the semantic oracle. See
+  interpreter as the semantic oracle. See
   [docs/native-backend.md](native-backend.md) for the user-facing support
   table and detailed progress.
 - The error vocabulary (`error E:`, `Throw` role with associated `throws`

@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 YULANG_BIN="${YULANG_BIN:-"$ROOT/target/debug/yulang"}"
 REPEAT="${YULANG_NATIVE_BENCH_REPEAT:-1}"
 KEEP_TEMP=0
-MODES="${YULANG_NATIVE_BENCH_MODES:-vm,value-exe,cps-repr-exe,native}"
+MODES="${YULANG_NATIVE_BENCH_MODES:-interpreter,pure-exe,effects-exe,native}"
 
 usage() {
   cat <<'EOF'
@@ -14,7 +14,7 @@ usage: bench/native_cps_opt_trace.sh [--repeat N] [--modes LIST] [--keep-temp] [
 Runs small native/backend comparison probes and prints CPS optimization trace
 lines. LIST is a comma-separated set of:
 
-  vm,value-exe,cps-repr-exe,native
+  interpreter,pure-exe,effects-exe,native
 
 Environment:
 
@@ -111,14 +111,14 @@ run_mode() {
   local mode="$1"
   local path="$2"
   case "$mode" in
-    vm)
+    interpreter|vm)
       "$YULANG_BIN" run "$path"
       ;;
-    value-exe)
-      "$YULANG_BIN" native --kind run-value-exe "$path"
+    pure-exe|value-exe)
+      "$YULANG_BIN" native --kind run-pure-exe "$path"
       ;;
-    cps-repr-exe)
-      YULANG_CPS_OPT_TRACE=1 "$YULANG_BIN" native --kind run-cps-repr-exe "$path"
+    effects-exe|cps-repr-exe)
+      YULANG_CPS_OPT_TRACE=1 "$YULANG_BIN" native --kind run-effects-exe "$path"
       ;;
     native)
       YULANG_CPS_OPT_TRACE=1 "$YULANG_BIN" native "$path"
