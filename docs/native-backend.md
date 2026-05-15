@@ -68,12 +68,15 @@ and Cranelift codegen. The first real passes rewrite explicit calls to empty
 forwarding continuations, fold empty `Return(param)` continuations into the
 caller, reify direct calls to structural primitive wrappers back into primitive
 statements, reify local partial-application closure calls back into direct
-calls, inline small pure direct callees, inline small single-use one-shot
-continuations, rewrite effectful-call terminators to pure callees back into
-direct calls plus local continuation jumps, remove dead pure value statements,
-and prune continuations that are no longer reachable from function entries,
-handler arms, thunks, closures, or terminator targets. The stage also profiles
-direct-style / SSA island candidates and exposes
+calls, inline small pure direct callees including structural value helpers,
+inline small single-use one-shot continuations, rewrite effectful-call
+terminators to pure callees back into direct calls plus local continuation
+jumps, remove dead pure value statements, and prune continuations that are no
+longer reachable from function entries, handler arms, thunks, closures, or
+terminator targets. The simplification pipeline runs to a small bounded
+fixpoint so newly exposed administrative calls are cleaned up in the same
+optimization entrypoint. The stage also profiles direct-style / SSA island
+candidates and exposes
 `YULANG_CPS_OPT_TRACE` debug output. JIT and object generation share this
 entrypoint so individual CPS simplification passes do not fork by artifact
 kind. The first island codegen step is also in place: effectful continuation
@@ -237,11 +240,12 @@ current backend boundaries visible, but detailed regression history lives in
       calls to empty forwarding continuations, folds empty return continuations,
       reifies direct calls to structural primitive wrappers, inlines small
       local partial-application closure calls back into direct calls, inlines
-      small pure direct callees, inlines small single-use one-shot
-      continuations, rewrites effectful calls to pure callees into direct calls
-      plus local continuation jumps, removes dead pure value statements, prunes
-      unreachable continuations, and records direct-style / SSA island candidate
-      counts so later thunk/handler passes do not fork between artifact kinds.
+      small pure direct callees including structural value helpers, inlines
+      small single-use one-shot continuations, rewrites effectful calls to pure
+      callees into direct calls plus local continuation jumps, removes dead pure
+      value statements, prunes unreachable continuations, and records
+      direct-style / SSA island candidate counts so later thunk/handler passes
+      do not fork between artifact kinds.
 - [x] The first direct-style island codegen step lowers pure successor
       continuations inside effectful continuation functions as Cranelift blocks
       instead of local continuation calls.

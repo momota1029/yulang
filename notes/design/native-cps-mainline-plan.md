@@ -57,6 +57,11 @@ one-shot continuations, removes dead pure value statements, and records a
 profile including direct-style / SSA island candidate counts, while both JIT and
 object codegen go through the same entrypoint so future passes cannot
 accidentally diverge by artifact kind.
+The simplification sequence runs to a small bounded fixpoint, so exposing a
+direct call or returner in one pass lets the same optimization entrypoint remove
+the next layer without waiting for another compiler stage. Small pure direct
+callee inline now covers structural value helpers as well as scalar
+literal/primitive wrappers.
 
 The next larger optimization target is direct-style / SSA island extraction.
 `notes/design/native-direct-style-islands.md` records the intended boundary:

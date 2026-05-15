@@ -86,6 +86,11 @@ Cranelift backend を作る。
 - `EffectfulCall` terminator でも callee が pure function と分かる場合は、CPS
   optimizer で `DirectCall` stmt + resume continuation への `Continue` に戻す。
   これで return-frame push と callee eval-context switch の経路に入らない。
+- CPS optimizer の簡約列を small bounded fixpoint にした。`EffectfulCall` の巻き戻しで
+  露出した `DirectCall` を同じ entrypoint 内で pure callee inline し、その結果で
+  露出した returner / forwarding continuation も後続 round で消せる。
+- small pure direct callee inline は scalar primitive だけでなく、tuple / record /
+  variant / select 系の structural value helper も展開できる。
 
 近い形:
 

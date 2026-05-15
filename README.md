@@ -190,10 +190,13 @@ through a shared optimization entrypoint before both JIT and object codegen;
 the first pass rewrites explicit calls through empty forwarding continuations
 and empty return continuations, reifies direct calls to structural primitive
 wrappers, reifies local partial-application closure calls back to direct calls,
-inlines small pure direct callees, inlines small single-use one-shot
+inlines small pure direct callees including structural value helpers, inlines
+small single-use one-shot
 continuations, rewrites effectful-call terminators to pure callees back into
 direct calls plus local continuation jumps, removes dead pure value statements,
-then prunes unreachable continuations. It also profiles
+then prunes unreachable continuations. The simplification pipeline runs to a
+small bounded fixpoint so newly exposed administrative calls are cleaned up in
+the same optimization entrypoint. It also profiles
 direct-style / SSA island candidates so later codegen can lower pure local
 continuation subgraphs as Cranelift blocks instead of CPS control calls. The
 first codegen step lowers pure successor continuations inside effectful
