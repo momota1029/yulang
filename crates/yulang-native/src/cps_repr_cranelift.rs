@@ -2005,12 +2005,6 @@ fn continuation_environment_argument<M: Module>(
     if target.environment.is_empty() {
         return Ok(builder.ins().iconst(types::I64, 0));
     }
-    if target.environment.len() > 4 {
-        return Err(CpsReprCraneliftError::UnsupportedTerminator {
-            function: function.name.clone(),
-            kind: "continuation environment larger than four slots",
-        });
-    }
     let mut args = Vec::with_capacity(target.environment.len());
     for slot in &target.environment {
         validate_environment_lane(function, slot.value, slot.lane)?;
