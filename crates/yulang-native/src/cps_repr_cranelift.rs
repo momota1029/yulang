@@ -6619,7 +6619,9 @@ extern "C" fn yulang_cps_perform_finish_escaped_i64(value: i64) -> i64 {
         }
     });
     let meta = NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| meta.borrow_mut().pop());
+    let mut abort_outer_eval = false;
     if let Some(meta) = meta {
+        abort_outer_eval = meta.return_frame_threshold == 0;
         NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
             let mut frames = frames.borrow_mut();
             if frames.len() > meta.return_frame_threshold {
@@ -6629,9 +6631,19 @@ extern "C" fn yulang_cps_perform_finish_escaped_i64(value: i64) -> i64 {
     }
     let frame_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
     if frame_len == 0 {
+        let current_initial =
+            NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
+        if abort_outer_eval && current_initial > 0 {
+            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(value));
+        }
         return value;
     }
-    yulang_cps_continue_return_frame_i64(value)
+    let result = yulang_cps_continue_return_frame_i64(value);
+    let current_initial = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
+    if abort_outer_eval && current_initial > 0 {
+        NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(result));
+    }
+    result
 }
 
 /// write27-c c3: if no ScopeReturn is active, wrap `value` as a
@@ -6750,7 +6762,15 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         }
         let cont: NativeCpsI64Continuation =
             unsafe { std::mem::transmute(frame.escape_continuation) };
-        return cont(frame.escape_env.as_ptr(), value);
+        let result = cont(frame.escape_env.as_ptr(), value);
+        // A current-stack match can still jump out of an inner eval frame
+        // when the dynamic handler was restored from a captured return frame.
+        // Keep the same short-circuit signal used by the frame-walk path so
+        // skipped native callers do not continue with their normal fallback.
+        if current_initial > 0 && frame.return_frame_threshold == 0 {
+            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = Some(result));
+        }
+        return result;
     }
 
     // 2. Walk the return-frame stack from current_initial up to find a

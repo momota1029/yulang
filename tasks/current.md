@@ -177,6 +177,15 @@ CPS repr Cranelift の source 回帰を広げる。
   executable path に追加した。inner `sub` 内の直呼び `f()` は inner handler に
   捕まり outer root が `2` まで進む一方、thunk callback 経由の `h()` は inner
   handler を越えて outer `sub` から `0` を返す。
+- finite-list `for` の中で外側 `sub` へ `return` する経路は、CPS repr
+  Cranelift でも VM と一致する。handler arm が installed escape に到達済みの
+  経路では、`perform_finish_escaped` が skipped force/apply chain へ abort
+  signal を残すようにした。
+- open-range `for` の `last` は forced CPS repr executable path でまだ timeout
+  する。local `last` handler は loop body を止める必要があるが、
+  non-local `sub`/`return` escape と同じ abort 規則に寄せすぎると
+  handler-arm value の `0` が root になる。これは
+  `notes/bugs/native_open_range_for_last_returns_payload.yu` と N9 に分離した。
 - closure value を record に保存し、field select で取り出してから呼ぶ source
   regression を forced CPS repr executable path に追加した。CPS repr の
   `RuntimeValuePtr` record と `ClosurePtr` call 境界が同じ observable path に

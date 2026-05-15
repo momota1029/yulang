@@ -1,17 +1,16 @@
-// Native CPS repr currently keeps evaluating the inner fold/for continuation
-// after an outer handler catches `return`.
+// Regression for native CPS repr return escape through a for/fold chain.
+//
+// The old native CPS repr path kept evaluating the inner fold/for
+// continuation after an outer handler caught `return`, then overwrote the
+// root result with the normal fallback value.
 //
 // VM:
 //   yulang run notes/bugs/native_for_loop_escape_keeps_running.yu
 //   => [0] 2
 //
-// Native CPS repr, as of 2026-05-15:
+// Native CPS repr:
 //   yulang native --kind run-cps-repr-exe notes/bugs/native_for_loop_escape_keeps_running.yu
-//   => 0
-//
-// A trace shows the outer `sub` handler catches `return 2`, but the current
-// force/apply chain then continues through the loop/fold path and overwrites
-// the root result with the normal fallback value.
+//   => 2
 
 use std::flow::*
 

@@ -80,6 +80,8 @@ checklist, see *Detailed progress* below.
 | Stored callback values selected from lists          | CPS repr (prototype)   |   △   |
 | `std::junction` effectful boolean conditions        | CPS repr               |   ✅   |
 | Finite-list `for` loops with `last` / `next` control | CPS repr (scalar)      |   ✅   |
+| `sub` / `return` through finite-list and open-range `for` | CPS repr (scalar) | ✅ |
+| Open-range `for` with local `last` result value      | CPS repr               |   △   |
 
 #### Output
 
