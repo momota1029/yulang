@@ -31,6 +31,8 @@ Cranelift backend を作る。
 方針:
 
 - native 実行の本線は effects backend（内部実装は CPS representation）に寄せる。
+- user-facing な実行入口は `yulang run --native` とする。将来的に native が標準に
+  なったら、interpreter は `yulang run --interpreter` 側へ寄せる。
 - フル機能の native 化は、CPS を遅い実行方式として固定するのではなく、
   effect-aware CPS IR を最適化してから Cranelift の JIT / object / executable
   へ落とす形に寄せる。
@@ -48,8 +50,8 @@ Cranelift backend を作る。
   resumption value の順に進める。
 - `select_native_backends` は runtime module から root ごとに
   `ValueFastPath` / `CpsMainline` / `Unsupported(reason)` を返す。
-  `native-run` は effect / handler / thunk boundary を含む root を effects
-  executable path へ直接送る。
+  これは pure-subset coverage と構造化された unsupported reason を見るための
+  helper として残し、user-facing な native run は effects executable path を本線にする。
 - CPS repr Cranelift は `RuntimeValuePtr` を root return と handler /
   resumption payload に通せる。string / list / record / variant payload の
   小さい handler 境界は VM / CPS eval と合わせて regression 済み。
@@ -322,8 +324,8 @@ CPS repr Cranelift の source 回帰を広げる。
   top-level structural pattern binding を unsupported として返し、crashing
   executable を生成しないようにした。
 - native CLI の現状は `docs/native-backend.md` の Public CLI に集約済み。
-  `yulang native` は pure-subset backend を優先し、effect / handler /
-  thunk-boundary control が見えた root は effects backend を選ぶ。
+  user-facing には `yulang run --native` を effects backend へ直接送り、
+  `yulang native` は artifact generation / backend debugging 用として残す。
   `run-pure-exe` / `run-effects-exe` は debugging 用の強制 path として残す。
 - pure-subset backend と effects backend の fallback policy を、握りつぶしではなく
   structured unsupported reason で選べる形へ寄せる。

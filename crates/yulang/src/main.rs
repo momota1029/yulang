@@ -171,9 +171,9 @@ struct Cli {
 enum Cmd {
     /// Type-check and print principal types (no path = read stdin)
     Check { path: Option<String> },
-    /// Execute the program on the reference interpreter
+    /// Execute the program
     #[command(visible_alias = "interpret")]
-    Run { path: Option<String> },
+    Run(RunArgs),
     /// Native backend: compile and/or run
     Native(NativeArgs),
     /// Print intermediate representations
@@ -195,6 +195,26 @@ enum Cmd {
     },
     /// Start the Yulang language server
     Server,
+}
+
+#[derive(clap::Args)]
+struct RunArgs {
+    path: Option<String>,
+    /// Execute through the native effects backend
+    #[arg(long)]
+    native: bool,
+    /// Execute through the reference interpreter
+    #[arg(long)]
+    interpreter: bool,
+    /// Select the native backend; implies --native
+    #[arg(long, value_enum)]
+    native_backend: Option<RunNativeBackend>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq)]
+enum RunNativeBackend {
+    Effects,
+    Pure,
 }
 
 #[derive(clap::Subcommand)]
@@ -299,9 +319,25 @@ fn parse_args() -> CliOptions {
             opts.infer = true;
             opts.path = path;
         }
-        Cmd::Run { path } => {
-            opts.run_interpreter = true;
-            opts.path = path;
+        Cmd::Run(args) => {
+            if args.native && args.interpreter {
+                eprintln!("yulang run: --native and --interpreter cannot be used together");
+                process::exit(2);
+            }
+            opts.path = args.path;
+            let native_requested = args.native || args.native_backend.is_some();
+            if native_requested {
+                match args.native_backend.unwrap_or(RunNativeBackend::Effects) {
+                    RunNativeBackend::Effects => {
+                        opts.native_run_cps_repr_exe = Some(NativeOutput::Default);
+                    }
+                    RunNativeBackend::Pure => {
+                        opts.native_run_value_exe = Some(NativeOutput::Default);
+                    }
+                }
+            } else {
+                opts.run_interpreter = true;
+            }
         }
         Cmd::Native(NativeArgs { path, kind, out }) => {
             opts.path = path;
@@ -1286,45 +1322,10 @@ fn write_native_executable_or_exit(module: &runtime::Module, path: &Path) {
 }
 
 fn write_native_run_executable_or_exit(module: &runtime::Module, path: &Path) {
-    match yulang_native::select_native_backends(module).module_backend() {
-        yulang_native::NativeBackendSelection::CpsMainline { reason } => {
-            eprintln!("native-run: selected effects backend: {reason}");
-            if let Err(cps_error) =
-                write_native_cps_repr_executable(module, path, "native-run(cps)")
-            {
-                eprintln!("failed to compile native-run executable");
-                eprintln!("  selection: {reason}");
-                eprintln!("  effects backend: {cps_error}");
-                process::exit(1);
-            }
-            return;
-        }
-        yulang_native::NativeBackendSelection::Unsupported { reason } => {
-            eprintln!("native-run: unsupported native backend selection: {reason}");
-            process::exit(1);
-        }
-        yulang_native::NativeBackendSelection::ValueFastPath => {}
-    }
-
-    match write_native_value_executable(module, path, "native-run(value)") {
-        Ok(()) => {}
-        Err(value_error) => {
-            if !value_error.is_unsupported() {
-                eprintln!("{value_error}");
-                process::exit(1);
-            }
-            eprintln!(
-                "native-run: pure-subset backend unsupported, using effects backend: {value_error}"
-            );
-            if let Err(cps_error) =
-                write_native_cps_repr_executable(module, path, "native-run(cps)")
-            {
-                eprintln!("failed to compile native-run executable");
-                eprintln!("  pure-subset backend: {value_error}");
-                eprintln!("  effects backend: {cps_error}");
-                process::exit(1);
-            }
-        }
+    if let Err(cps_error) = write_native_cps_repr_executable(module, path, "native-run(effects)") {
+        eprintln!("failed to compile native-run executable");
+        eprintln!("  effects backend: {cps_error}");
+        process::exit(1);
     }
 }
 
@@ -1501,12 +1502,6 @@ fn command_failure_message(message: &str, output: &std::process::Output) -> Stri
 enum NativeValueExecutableError {
     Unsupported(String),
     Fatal(String),
-}
-
-impl NativeValueExecutableError {
-    fn is_unsupported(&self) -> bool {
-        matches!(self, Self::Unsupported(_))
-    }
 }
 
 impl std::fmt::Display for NativeValueExecutableError {

@@ -123,6 +123,12 @@ Run a file on the interpreter (the semantic oracle for everything else):
 yulang run examples/06_undet_once.yu
 ```
 
+Run the same entrypoint through the native effects backend:
+
+```bash
+yulang run --native examples/06_undet_once.yu
+```
+
 Print inferred public types:
 
 ```bash
@@ -180,7 +186,9 @@ use std::undet::*
 YU
 ```
 
-Native execution is a prototype with an explicit subset; see
+Native execution is a prototype with an explicit subset. The normal user-facing
+entrypoint is `yulang run --native`; `yulang native` remains available for
+artifact generation and forced backend debugging. See
 [docs/native-backend.md](docs/native-backend.md) for the supported
 programs and the CLI reference. The effects backend currently
 covers algebraic handlers, nondeterministic finite-list choices, `sub` /

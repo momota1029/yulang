@@ -101,13 +101,29 @@ and object / executable output.
 
 ## Public CLI
 
-The native backend is exposed under the `yulang native` subcommand. The
-`--kind` option selects what to produce/run; output paths can be set with
-`--out`.
+The normal execution entrypoint is `yulang run`. The interpreter remains the
+default today, but native execution is available from the same command:
+
+```bash
+yulang run program.yu
+yulang run --native program.yu
+yulang run --native --native-backend pure program.yu
+```
+
+`yulang run --native` uses the effects backend because it is the native path
+intended to grow toward full Yulang coverage. `--native-backend pure` forces the
+pure-subset backend for speed checks and backend debugging.
+
+The lower-level `yulang native` subcommand remains available for artifact
+generation and forced backend work. The `--kind` option selects what to
+produce/run; output paths can be set with `--out`.
 
 | Command                                              | Purpose                                                                 |
 | ---------------------------------------------------- | ----------------------------------------------------------------------- |
-| `yulang native <path>` (or `--kind run`)             | Compile and run the file natively. Uses the pure-subset backend for effect-free fast-path roots and selects the effects backend when effect / handler / thunk-boundary control is present. |
+| `yulang run <path>`                                  | Run the file on the reference interpreter.                              |
+| `yulang run --native <path>`                         | Compile and run the file through the native effects backend.            |
+| `yulang run --native --native-backend pure <path>`   | Compile and run through the pure-subset backend for speed checks.       |
+| `yulang native <path>` (or `--kind run`)             | Compile and run the file through the native effects backend.            |
 | `yulang native --kind run-pure-exe <path>`          | Force the pure-subset backend; useful when comparing the effect-free speed-checking path. |
 | `yulang native --kind run-effects-exe <path>`        | Force the effects backend; useful when debugging effect lowering. |
 | `yulang native --kind run-exe <path>`                | Build and run a scalar native executable.                               |
@@ -192,10 +208,9 @@ checklist, see *Detailed progress* below.
 | Value executable result (printed as a Yulang value) |   ✅   |
 | Non-scalar CPS executable result                    |   ✅   |
 
-When a program falls outside this subset, `yulang native` prints
-`native-run: pure-subset backend unsupported, using effects backend: ...` and
-either succeeds through the effects backend or fails with a
-diagnostic. The interpreter (`yulang run`) keeps the full language behavior.
+When a program falls outside the native effects subset, `yulang run --native`
+or `yulang native` fails with an effects-backend diagnostic. The interpreter
+(`yulang run`) keeps the full language behavior.
 
 The web playground currently runs the interpreter only. It does not expose
 native backend selection; use `yulang native` locally when checking the native
@@ -209,20 +224,20 @@ current backend boundaries visible, but detailed regression history lives in
 
 ### Public CLI status
 
-- [x] `yulang native` (default `--kind run`) links and runs a native executable.
-- [x] `yulang native` prefers the pure-subset backend for ordinary values.
-- [x] `yulang native` falls back to the effects backend only for
-      explicit "unsupported by pure-subset backend" cases.
-- [x] Closure-value roots and closure values embedded in records are selected
-      for the effects backend with a structured `closure value`
-      reason before the pure-subset backend is tried.
+- [x] `yulang run --native` links and runs a native executable through the
+      effects backend.
+- [x] `yulang native` (default `--kind run`) links and runs a native executable
+      through the effects backend.
+- [x] The pure-subset backend is opt-in through `--native-backend pure` or
+      `--kind run-pure-exe`.
+- [x] The backend-selection helper classifies closure-value roots and closure
+      values embedded in records with a structured `closure value` reason.
 - [x] Closure values embedded in list-construction primitive payloads are also
-      selected for the effects backend with the same structured
-      reason.
+      classified with the same structured reason.
 - [x] The web playground is explicitly marked as interpreter-only; native
       backend selection is a CLI surface for now.
 - [x] `yulang native --kind run-pure-exe` exposes the pure-subset backend directly
-      for debugging.
+      for speed checks and debugging.
 - [x] `yulang native --kind run-effects-exe` exposes the effects backend directly
       for debugging.
 - [x] Default native artifacts are written under `target/yulang`.

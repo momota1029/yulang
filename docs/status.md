@@ -28,7 +28,7 @@ The columns trace a value through the pipeline:
 - **Interpreter** — runs on the interpreter (the semantic oracle for everything
   else).
 - **Playground** — exercised through the WebAssembly playground.
-- **Native** — runs through the native backend (`yulang native`); see
+- **Native** — runs through the native backend (`yulang run --native`); see
   [docs/native-backend.md](native-backend.md) for the detailed subset.
 - **Docs** — covered by the user-facing language overview.
 
