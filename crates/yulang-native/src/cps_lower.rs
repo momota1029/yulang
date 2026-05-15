@@ -207,7 +207,14 @@ fn reachable_binding_paths(
         match root {
             runtime::Root::Expr(index) => {
                 if let Some(expr) = module.root_exprs.get(*index) {
-                    collect_expr_direct_calls(expr, functions, bindings, &mut stack);
+                    let mut visiting_values = HashSet::new();
+                    collect_expr_direct_calls_inner(
+                        expr,
+                        functions,
+                        bindings,
+                        &mut stack,
+                        &mut visiting_values,
+                    );
                 }
             }
             runtime::Root::Binding(path) => stack.push(path.clone()),
@@ -221,19 +228,27 @@ fn reachable_binding_paths(
         let Some(body) = binding_bodies.get(&path) else {
             continue;
         };
-        collect_expr_direct_calls(body, functions, bindings, &mut stack);
+        let mut visiting_values = HashSet::new();
+        collect_expr_direct_calls_inner(
+            body,
+            functions,
+            bindings,
+            &mut stack,
+            &mut visiting_values,
+        );
     }
     reachable
 }
 
-fn collect_expr_direct_calls(
+fn collect_expr_direct_calls_inner(
     expr: &runtime::Expr,
     functions: &HashMap<typed_ir::Path, FunctionInfo>,
     bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
     out: &mut Vec<typed_ir::Path>,
+    visiting_values: &mut HashSet<typed_ir::Path>,
 ) {
     if let Some((body, arms)) = inline_thunk_handler_apply(expr, functions, bindings) {
-        collect_expr_direct_calls(&body, functions, bindings, out);
+        collect_expr_direct_calls_inner(&body, functions, bindings, out, visiting_values);
         let used_effects = collect_expr_performed_effects(&body);
         for arm in &arms {
             if !is_value_handler_arm(arm)
@@ -243,11 +258,11 @@ fn collect_expr_direct_calls(
             {
                 continue;
             }
-            collect_pattern_direct_calls(&arm.payload, functions, bindings, out);
+            collect_pattern_direct_calls(&arm.payload, functions, bindings, out, visiting_values);
             if let Some(guard) = &arm.guard {
-                collect_expr_direct_calls(guard, functions, bindings, out);
+                collect_expr_direct_calls_inner(guard, functions, bindings, out, visiting_values);
             }
-            collect_expr_direct_calls(&arm.body, functions, bindings, out);
+            collect_expr_direct_calls_inner(&arm.body, functions, bindings, out, visiting_values);
         }
         return;
     }
@@ -270,7 +285,13 @@ fn collect_expr_direct_calls(
                 if binding_has_self_direct_call(&target, &binding.body, functions) {
                     out.push(target.clone());
                 } else {
-                    collect_expr_direct_calls(&binding.body, functions, bindings, out);
+                    collect_expr_direct_calls_inner(
+                        &binding.body,
+                        functions,
+                        bindings,
+                        out,
+                        visiting_values,
+                    );
                 }
             }
         } else {
@@ -279,11 +300,11 @@ fn collect_expr_direct_calls(
     }
     match &expr.kind {
         runtime::ExprKind::Lambda { body, .. } => {
-            collect_expr_direct_calls(body, functions, bindings, out);
+            collect_expr_direct_calls_inner(body, functions, bindings, out, visiting_values);
         }
         runtime::ExprKind::Apply { callee, arg, .. } => {
-            collect_expr_direct_calls(callee, functions, bindings, out);
-            collect_expr_direct_calls(arg, functions, bindings, out);
+            collect_expr_direct_calls_inner(callee, functions, bindings, out, visiting_values);
+            collect_expr_direct_calls_inner(arg, functions, bindings, out, visiting_values);
         }
         runtime::ExprKind::If {
             cond,
@@ -291,44 +312,74 @@ fn collect_expr_direct_calls(
             else_branch,
             ..
         } => {
-            collect_expr_direct_calls(cond, functions, bindings, out);
-            collect_expr_direct_calls(then_branch, functions, bindings, out);
-            collect_expr_direct_calls(else_branch, functions, bindings, out);
+            collect_expr_direct_calls_inner(cond, functions, bindings, out, visiting_values);
+            collect_expr_direct_calls_inner(then_branch, functions, bindings, out, visiting_values);
+            collect_expr_direct_calls_inner(else_branch, functions, bindings, out, visiting_values);
         }
         runtime::ExprKind::Tuple(items) => {
             for item in items {
-                collect_expr_direct_calls(item, functions, bindings, out);
+                collect_expr_direct_calls_inner(item, functions, bindings, out, visiting_values);
             }
         }
         runtime::ExprKind::Record { fields, spread } => {
             for field in fields {
-                collect_expr_direct_calls(&field.value, functions, bindings, out);
+                collect_expr_direct_calls_inner(
+                    &field.value,
+                    functions,
+                    bindings,
+                    out,
+                    visiting_values,
+                );
             }
             if let Some(spread) = spread {
                 match spread {
                     runtime::RecordSpreadExpr::Head(expr)
                     | runtime::RecordSpreadExpr::Tail(expr) => {
-                        collect_expr_direct_calls(expr, functions, bindings, out);
+                        collect_expr_direct_calls_inner(
+                            expr,
+                            functions,
+                            bindings,
+                            out,
+                            visiting_values,
+                        );
                     }
                 }
             }
         }
         runtime::ExprKind::Variant {
             value: Some(value), ..
-        } => collect_expr_direct_calls(value, functions, bindings, out),
+        } => collect_expr_direct_calls_inner(value, functions, bindings, out, visiting_values),
         runtime::ExprKind::Select { base, .. } => {
-            collect_expr_direct_calls(base, functions, bindings, out);
+            collect_expr_direct_calls_inner(base, functions, bindings, out, visiting_values);
         }
         runtime::ExprKind::Match {
             scrutinee, arms, ..
         } => {
-            collect_expr_direct_calls(scrutinee, functions, bindings, out);
+            collect_expr_direct_calls_inner(scrutinee, functions, bindings, out, visiting_values);
             for arm in arms {
                 if let Some(guard) = &arm.guard {
-                    collect_expr_direct_calls(guard, functions, bindings, out);
+                    collect_expr_direct_calls_inner(
+                        guard,
+                        functions,
+                        bindings,
+                        out,
+                        visiting_values,
+                    );
                 }
-                collect_expr_direct_calls(&arm.body, functions, bindings, out);
-                collect_pattern_direct_calls(&arm.pattern, functions, bindings, out);
+                collect_expr_direct_calls_inner(
+                    &arm.body,
+                    functions,
+                    bindings,
+                    out,
+                    visiting_values,
+                );
+                collect_pattern_direct_calls(
+                    &arm.pattern,
+                    functions,
+                    bindings,
+                    out,
+                    visiting_values,
+                );
             }
         }
         runtime::ExprKind::Block { stmts, tail } => {
@@ -345,29 +396,71 @@ fn collect_expr_direct_calls(
                         ) {
                             continue;
                         }
-                        collect_pattern_direct_calls(pattern, functions, bindings, out);
-                        collect_expr_direct_calls(value, functions, bindings, out);
+                        collect_pattern_direct_calls(
+                            pattern,
+                            functions,
+                            bindings,
+                            out,
+                            visiting_values,
+                        );
+                        collect_expr_direct_calls_inner(
+                            value,
+                            functions,
+                            bindings,
+                            out,
+                            visiting_values,
+                        );
                     }
                     runtime::Stmt::Expr(expr) => {
-                        collect_expr_direct_calls(expr, functions, bindings, out);
+                        collect_expr_direct_calls_inner(
+                            expr,
+                            functions,
+                            bindings,
+                            out,
+                            visiting_values,
+                        );
                     }
                     runtime::Stmt::Module { body, .. } => {
-                        collect_expr_direct_calls(body, functions, bindings, out);
+                        collect_expr_direct_calls_inner(
+                            body,
+                            functions,
+                            bindings,
+                            out,
+                            visiting_values,
+                        );
                     }
                 }
             }
             if let Some(tail) = tail {
-                collect_expr_direct_calls(tail, functions, bindings, out);
+                collect_expr_direct_calls_inner(tail, functions, bindings, out, visiting_values);
             }
         }
         runtime::ExprKind::Handle { body, arms, .. } => {
-            collect_expr_direct_calls(body, functions, bindings, out);
+            collect_expr_direct_calls_inner(body, functions, bindings, out, visiting_values);
             for arm in arms {
-                collect_pattern_direct_calls(&arm.payload, functions, bindings, out);
+                collect_pattern_direct_calls(
+                    &arm.payload,
+                    functions,
+                    bindings,
+                    out,
+                    visiting_values,
+                );
                 if let Some(guard) = &arm.guard {
-                    collect_expr_direct_calls(guard, functions, bindings, out);
+                    collect_expr_direct_calls_inner(
+                        guard,
+                        functions,
+                        bindings,
+                        out,
+                        visiting_values,
+                    );
                 }
-                collect_expr_direct_calls(&arm.body, functions, bindings, out);
+                collect_expr_direct_calls_inner(
+                    &arm.body,
+                    functions,
+                    bindings,
+                    out,
+                    visiting_values,
+                );
             }
         }
         runtime::ExprKind::BindHere { expr }
@@ -376,7 +469,7 @@ fn collect_expr_direct_calls(
         | runtime::ExprKind::AddId { thunk: expr, .. }
         | runtime::ExprKind::Coerce { expr, .. }
         | runtime::ExprKind::Pack { expr, .. } => {
-            collect_expr_direct_calls(expr, functions, bindings, out);
+            collect_expr_direct_calls_inner(expr, functions, bindings, out, visiting_values);
         }
         runtime::ExprKind::Var(path) => {
             if functions.contains_key(path) {
@@ -385,8 +478,10 @@ fn collect_expr_direct_calls(
             if let Some(binding) = bindings.get(path)
                 && let Some(body) = binding_value_body(binding)
                 && !matches!(&body.kind, runtime::ExprKind::Var(inner) if inner == path)
+                && visiting_values.insert(path.clone())
             {
-                collect_expr_direct_calls(body, functions, bindings, out);
+                collect_expr_direct_calls_inner(body, functions, bindings, out, visiting_values);
+                visiting_values.remove(path);
             }
         }
         runtime::ExprKind::EffectOp(_)
@@ -608,11 +703,12 @@ fn collect_pattern_direct_calls(
     functions: &HashMap<typed_ir::Path, FunctionInfo>,
     bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
     out: &mut Vec<typed_ir::Path>,
+    visiting_values: &mut HashSet<typed_ir::Path>,
 ) {
     match pattern {
         runtime::Pattern::Tuple { items, .. } => {
             for item in items {
-                collect_pattern_direct_calls(item, functions, bindings, out);
+                collect_pattern_direct_calls(item, functions, bindings, out, visiting_values);
             }
         }
         runtime::Pattern::List {
@@ -622,27 +718,45 @@ fn collect_pattern_direct_calls(
             ..
         } => {
             for item in prefix {
-                collect_pattern_direct_calls(item, functions, bindings, out);
+                collect_pattern_direct_calls(item, functions, bindings, out, visiting_values);
             }
             if let Some(spread) = spread {
-                collect_pattern_direct_calls(spread, functions, bindings, out);
+                collect_pattern_direct_calls(spread, functions, bindings, out, visiting_values);
             }
             for item in suffix {
-                collect_pattern_direct_calls(item, functions, bindings, out);
+                collect_pattern_direct_calls(item, functions, bindings, out, visiting_values);
             }
         }
         runtime::Pattern::Record { fields, spread, .. } => {
             for field in fields {
-                collect_pattern_direct_calls(&field.pattern, functions, bindings, out);
+                collect_pattern_direct_calls(
+                    &field.pattern,
+                    functions,
+                    bindings,
+                    out,
+                    visiting_values,
+                );
                 if let Some(default) = &field.default {
-                    collect_expr_direct_calls(default, functions, bindings, out);
+                    collect_expr_direct_calls_inner(
+                        default,
+                        functions,
+                        bindings,
+                        out,
+                        visiting_values,
+                    );
                 }
             }
             if let Some(spread) = spread {
                 match spread {
                     runtime::RecordSpreadPattern::Head(pattern)
                     | runtime::RecordSpreadPattern::Tail(pattern) => {
-                        collect_pattern_direct_calls(pattern, functions, bindings, out);
+                        collect_pattern_direct_calls(
+                            pattern,
+                            functions,
+                            bindings,
+                            out,
+                            visiting_values,
+                        );
                     }
                 }
             }
@@ -651,11 +765,11 @@ fn collect_pattern_direct_calls(
             value: Some(value), ..
         }
         | runtime::Pattern::As { pattern: value, .. } => {
-            collect_pattern_direct_calls(value, functions, bindings, out);
+            collect_pattern_direct_calls(value, functions, bindings, out, visiting_values);
         }
         runtime::Pattern::Or { left, right, .. } => {
-            collect_pattern_direct_calls(left, functions, bindings, out);
-            collect_pattern_direct_calls(right, functions, bindings, out);
+            collect_pattern_direct_calls(left, functions, bindings, out, visiting_values);
+            collect_pattern_direct_calls(right, functions, bindings, out, visiting_values);
         }
         runtime::Pattern::Wildcard { .. }
         | runtime::Pattern::Bind { .. }

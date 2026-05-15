@@ -235,6 +235,11 @@ CPS repr Cranelift の source 回帰を広げる。
   `notes/bugs/native_top_level_destructure_binding_recurses.yu` に切り出した。
   direct `case` pattern は通るため、これは frontend/runtime IR の binding
   shadowing 形状と native global lookup の接続バグとして追う。
+- CPS repr の direct-call reachability は value binding 展開に visited set を
+  持つようにした。これで `x = case ... [x, y] -> x` の arm-local `x` を
+  global `x` として無限展開しない。default `yulang native` は同じ形を
+  structured `structural pattern binding` reason で CPS repr に回すので、forced
+  value lane の nullary-binding crash を避けられる。
 - native CLI の現状は `docs/native-backend.md` の Public CLI に集約済み。
   `yulang native` は value backend を優先し、effect / handler /
   thunk-boundary control が見えた root は CPS repr backend を選ぶ。

@@ -5,9 +5,14 @@
 //   yulang run notes/bugs/native_top_level_destructure_binding_recurses.yu
 //   => [0] 42
 //
-// Native CPS repr, observed 2026-05-15:
+// Native CPS repr, fixed 2026-05-15:
 //   yulang native --kind run-cps-repr-exe notes/bugs/native_top_level_destructure_binding_recurses.yu
-//   => stack overflow
+//   => 42
+//
+// Default native, fixed 2026-05-15:
+//   yulang native notes/bugs/native_top_level_destructure_binding_recurses.yu
+//   => routes to CPS repr with `structural pattern binding`
+//   => 42
 //
 // Native value lane, observed 2026-05-15:
 //   yulang native --kind run-value-exe notes/bugs/native_top_level_destructure_binding_recurses.yu
@@ -18,8 +23,10 @@
 //   y = case [20, 22]: [x, y] -> y
 //
 // That is valid for the VM because arm-local pattern bindings shadow the
-// top-level binding. Native lowering currently lets this shape recurse through
-// global binding lookup in at least one path.
+// top-level binding. CPS direct-call reachability now avoids recursively
+// expanding value bindings through this self-shadowing shape, and backend
+// selection routes the default native path to CPS repr while the value lane
+// still has its own nullary-binding crash.
 
 my [x, y] = [20, 22]
 x + y

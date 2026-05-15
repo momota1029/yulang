@@ -77,6 +77,7 @@ pub enum NativeBackendReasonKind {
     Thunk,
     ThunkBoundary,
     ClosureValue,
+    StructuralPatternBinding,
     EffectIdScope,
     EffectIdRead,
 }
@@ -89,6 +90,7 @@ impl fmt::Display for NativeBackendReasonKind {
             NativeBackendReasonKind::Thunk => "thunk",
             NativeBackendReasonKind::ThunkBoundary => "thunk boundary",
             NativeBackendReasonKind::ClosureValue => "closure value",
+            NativeBackendReasonKind::StructuralPatternBinding => "structural pattern binding",
             NativeBackendReasonKind::EffectIdScope => "effect id scope",
             NativeBackendReasonKind::EffectIdRead => "effect id read",
         };
@@ -162,9 +164,13 @@ fn first_cps_reason_expr(
         }
         runtime::ExprKind::Var(path) => {
             if seen_bindings.insert(path.clone()) {
-                let reason = bindings
-                    .get(path)
-                    .and_then(|body| first_cps_reason_expr(body, bindings, seen_bindings));
+                let reason = bindings.get(path).and_then(|body| {
+                    if binding_body_shadows_path(path, body) {
+                        Some(NativeBackendReasonKind::StructuralPatternBinding)
+                    } else {
+                        first_cps_reason_expr(body, bindings, seen_bindings)
+                    }
+                });
                 seen_bindings.remove(path);
                 reason
             } else {
@@ -234,6 +240,60 @@ fn first_cps_reason_expr(
     }
 }
 
+fn binding_body_shadows_path(path: &typed_ir::Path, body: &runtime::Expr) -> bool {
+    match &body.kind {
+        runtime::ExprKind::Match { arms, .. } => arms
+            .iter()
+            .any(|arm| pattern_binds_path(&arm.pattern, path)),
+        runtime::ExprKind::Coerce { expr, .. } | runtime::ExprKind::Pack { expr, .. } => {
+            binding_body_shadows_path(path, expr)
+        }
+        _ => false,
+    }
+}
+
+fn pattern_binds_path(pattern: &runtime::Pattern, path: &typed_ir::Path) -> bool {
+    match pattern {
+        runtime::Pattern::Bind { name, .. } => typed_ir::Path::from_name(name.clone()) == *path,
+        runtime::Pattern::Tuple { items, .. } => {
+            items.iter().any(|item| pattern_binds_path(item, path))
+        }
+        runtime::Pattern::List {
+            prefix,
+            spread,
+            suffix,
+            ..
+        } => {
+            prefix.iter().any(|item| pattern_binds_path(item, path))
+                || spread
+                    .as_deref()
+                    .is_some_and(|spread| pattern_binds_path(spread, path))
+                || suffix.iter().any(|item| pattern_binds_path(item, path))
+        }
+        runtime::Pattern::Record { fields, spread, .. } => {
+            fields
+                .iter()
+                .any(|field| pattern_binds_path(&field.pattern, path))
+                || spread.as_ref().is_some_and(|spread| match spread {
+                    runtime::RecordSpreadPattern::Head(pattern)
+                    | runtime::RecordSpreadPattern::Tail(pattern) => {
+                        pattern_binds_path(pattern, path)
+                    }
+                })
+        }
+        runtime::Pattern::Variant {
+            value: Some(value), ..
+        }
+        | runtime::Pattern::As { pattern: value, .. } => pattern_binds_path(value, path),
+        runtime::Pattern::Or { left, right, .. } => {
+            pattern_binds_path(left, path) || pattern_binds_path(right, path)
+        }
+        runtime::Pattern::Wildcard { .. }
+        | runtime::Pattern::Lit { .. }
+        | runtime::Pattern::Variant { value: None, .. } => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -299,6 +359,22 @@ mod tests {
             },
             runtime::Type::unknown(),
         )
+    }
+
+    fn list_pattern(items: Vec<runtime::Pattern>) -> runtime::Pattern {
+        runtime::Pattern::List {
+            prefix: items,
+            spread: None,
+            suffix: Vec::new(),
+            ty: runtime::Type::unknown(),
+        }
+    }
+
+    fn bind_pattern(name: &str) -> runtime::Pattern {
+        runtime::Pattern::Bind {
+            name: typed_ir::Name(name.to_string()),
+            ty: runtime::Type::unknown(),
+        }
     }
 
     fn identity_lambda() -> runtime::Expr {
@@ -424,6 +500,35 @@ mod tests {
                 reason: NativeBackendReason {
                     root: NativeRootLabel::Expr(0),
                     kind: NativeBackendReasonKind::ClosureValue,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn selects_cps_mainline_for_self_shadowing_structural_binding() {
+        let body = runtime::Expr::typed(
+            runtime::ExprKind::Match {
+                scrutinee: Box::new(lit_int("0")),
+                arms: vec![runtime::MatchArm {
+                    pattern: list_pattern(vec![bind_pattern("x"), bind_pattern("y")]),
+                    guard: None,
+                    body: var("x"),
+                }],
+                evidence: runtime::JoinEvidence {
+                    result: typed_ir::Type::Unknown,
+                },
+            },
+            runtime::Type::unknown(),
+        );
+        let plan = select_native_backends(&module_with_binding("x", body, var("x")));
+
+        assert_eq!(
+            plan.module_backend(),
+            NativeBackendSelection::CpsMainline {
+                reason: NativeBackendReason {
+                    root: NativeRootLabel::Expr(0),
+                    kind: NativeBackendReasonKind::StructuralPatternBinding,
                 },
             }
         );

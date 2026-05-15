@@ -560,6 +560,17 @@ r.ok
     }
 
     #[test]
+    fn runs_top_level_list_destructure_binding_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"my [x, y] = [20, 22]
+x + y
+"#,
+            vec!["42"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_record_pattern_match_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"case {x: 20, y: 22}:

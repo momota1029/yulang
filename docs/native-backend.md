@@ -197,6 +197,9 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] CPS repr lowering covers tuple, list, list-spread, record, and variant
       payload pattern tests in `case` arms for the source-shaped regression
       path.
+- [x] Top-level destructuring `my` bindings that lower to self-shadowing
+      structural `case` bindings run through the default native CLI by routing
+      to CPS repr with a structured `structural pattern binding` reason.
 - [x] `std::junction`, finite-list `for` loops with `last` / `next`, mutable
       reference update, and `std::undet` `.once` / `.list` / `.logic` over
       finite-list choices run through the CPS repr executable path for covered
@@ -208,8 +211,8 @@ current backend boundaries visible, but detailed regression history lives in
       Yulang-like values in generated CPS executables.
 - [ ] General returned/stored effectful thunks still need more source-shaped
       coverage outside the current scalar/prototype subset.
-- [ ] Top-level destructuring `my` bindings currently have a native-only
-      recursion/crash note; direct `case` structural patterns are covered.
+- [ ] Forced value-backend execution still has a nullary-binding crash for the
+      same top-level destructuring shape; the default native CLI avoids it.
 - [ ] General closures and heap value lanes are still prototype
       representations, not finalized native runtime layout.
 - [ ] The CPS representation backend is the effectful native mainline, but it is
