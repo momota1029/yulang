@@ -211,6 +211,8 @@ first codegen step lowers pure successor continuations inside effectful
 continuation functions as local blocks, while preserving effectful return-frame
 routing at island exits. Calls from those islands to pure callee functions use
 plain Cranelift calls instead of the heavier effectful eval-context protocol.
+Use `bench/native_cps_opt_trace.sh --repeat 3` to run the current native
+comparison suite with `YULANG_CPS_OPT_TRACE` enabled for CPS paths.
 
 Run the test suites:
 

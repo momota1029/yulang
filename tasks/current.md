@@ -78,6 +78,9 @@ Cranelift backend を作る。
   small pure direct callee を caller に展開し、total primitive stmt /
   structural projection まで含めて dead pure value statement を削り、到達不能
   continuation を削る。
+  `CpsOptimizationProfile` には最適化後の continuation / statement 数も出し、
+  `bench/native_cps_opt_trace.sh` で VM / value exe / CPS repr exe / default
+  native の小さい比較と `YULANG_CPS_OPT_TRACE` をまとめて見られるようにした。
   small single-use one-shot continuation の tail inline と dead pure value statement
   の削除も入った。profile /
   `YULANG_CPS_OPT_TRACE` も出せる。inline 後に同じ reify をもう一度走らせるので、

@@ -120,6 +120,28 @@ Default native artifacts are written under `target/yulang`. `--kind` accepts
 `object` / `exe` / `value-exe` / `run` / `run-exe` / `run-value-exe` /
 `run-cps-repr-exe`.
 
+## Optimization Tracing
+
+Use `bench/native_cps_opt_trace.sh` to compare the VM, value executable, forced
+CPS representation executable, and default native path on a small suite:
+
+```bash
+bench/native_cps_opt_trace.sh --repeat 3
+```
+
+The script sets `YULANG_CPS_OPT_TRACE=1` for CPS paths and prints the optimizer
+profile line next to each run. The profile includes input and optimized
+continuation / statement counts, pass counters, direct-style island counts, and
+the observable output. The wall-clock timings include compile and link work; use
+them to spot large regressions, then add a narrower runtime benchmark if a case
+looks suspicious.
+
+You can focus on one path or custom files:
+
+```bash
+bench/native_cps_opt_trace.sh --modes cps-repr-exe,native examples/04_sub_return.yu
+```
+
 ## User-facing support
 
 ### What you can try natively today

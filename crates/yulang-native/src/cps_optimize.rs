@@ -31,6 +31,8 @@ pub struct CpsOptimizationProfile {
     pub continuations: usize,
     pub handlers: usize,
     pub statements: usize,
+    pub optimized_continuations: usize,
+    pub optimized_statements: usize,
     pub passes_run: usize,
     pub forwarded_continuation_calls: usize,
     pub returned_continuation_calls: usize,
@@ -60,6 +62,7 @@ pub fn optimize_cps_repr_abi_module(module: &CpsReprAbiModule) -> CpsOptimizatio
             break;
         }
     }
+    output.profile.record_optimized_size(&output.module);
     analyze_direct_style_islands(&mut output);
     maybe_trace_profile(&output.profile);
     output
@@ -409,12 +412,14 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         return;
     }
     eprintln!(
-        "[CPS-OPT] functions={} roots={} continuations={} handlers={} statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
+        "[CPS-OPT] functions={} roots={} continuations={} optimized_continuations={} handlers={} statements={} optimized_statements={} passes={} forwarded_continuation_calls={} returned_continuation_calls={} folded_constant_branches={} rewritten_pure_effectful_calls={} reified_primitive_calls={} reified_partial_closure_calls={} reified_known_closure_parameter_calls={} removed_unused_continuation_params={} inlined_pure_direct_calls={} inlined_continuation_calls={} removed_unreachable_continuations={} removed_dead_pure_statements={} direct_style_islands={} direct_style_continuations={} changed={}",
         profile.functions,
         profile.roots,
         profile.continuations,
+        profile.optimized_continuations,
         profile.handlers,
         profile.statements,
+        profile.optimized_statements,
         profile.passes_run,
         profile.forwarded_continuation_calls,
         profile.returned_continuation_calls,
@@ -2276,6 +2281,22 @@ impl ForwardingContinuation {
 }
 
 impl CpsOptimizationProfile {
+    fn record_optimized_size(&mut self, module: &CpsReprAbiModule) {
+        self.optimized_continuations = module
+            .functions
+            .iter()
+            .chain(&module.roots)
+            .map(|function| function.continuations.len())
+            .sum();
+        self.optimized_statements = module
+            .functions
+            .iter()
+            .chain(&module.roots)
+            .flat_map(|function| &function.continuations)
+            .map(|continuation| continuation.stmts.len())
+            .sum();
+    }
+
     fn has_more_changes_than(self, before: Self) -> bool {
         self.forwarded_continuation_calls > before.forwarded_continuation_calls
             || self.returned_continuation_calls > before.returned_continuation_calls
@@ -2321,6 +2342,8 @@ impl CpsOptimizationProfile {
             continuations,
             handlers,
             statements,
+            optimized_continuations: continuations,
+            optimized_statements: statements,
             passes_run: 0,
             forwarded_continuation_calls: 0,
             returned_continuation_calls: 0,
@@ -2360,7 +2383,9 @@ mod tests {
         assert_eq!(optimized.module, abi);
         assert_eq!(optimized.profile.roots, 1);
         assert_eq!(optimized.profile.continuations, 1);
+        assert_eq!(optimized.profile.optimized_continuations, 1);
         assert_eq!(optimized.profile.statements, 1);
+        assert_eq!(optimized.profile.optimized_statements, 1);
         assert_eq!(optimized.profile.passes_run, 16);
         assert_eq!(optimized.profile.forwarded_continuation_calls, 0);
         assert_eq!(optimized.profile.returned_continuation_calls, 0);
