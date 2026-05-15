@@ -15,7 +15,7 @@
 
 | ID | Area | Current status | Failure / uncertainty | Next action | Exit condition |
 | --- | --- | --- | --- | --- | --- |
-| N1 | Type-converted thunk values | CPS-level record/list storage, list index, multi-force, string return, runtime `ExprKind::Thunk` list/index/`BindHere`, and source lazy operator results in tuple/list positions are covered. | Source regression coverage still does not show lazy/thunk-like values through named structural positions such as record or variant payloads. | Add source regressions for lazy operator results in record/variant positions where the type-converted IR produces thunk adapters. | Source-level forced CPS repr executable tests cover tuple, list, and at least one named-field structural position without leaking visible thunk values. |
+| N1 | Type-converted thunk values | CPS-level record/list storage, list index, multi-force, string return, runtime `ExprKind::Thunk` list/index/`BindHere`, and source lazy operator results in tuple/list positions are covered. | Source regression coverage still does not show lazy/thunk-like values through named structural positions such as record or variant payloads; record value-field selection currently mixes in a separate source selection issue. | Add source regressions for lazy operator results in record/variant positions where the type-converted IR produces thunk adapters and source selection is unambiguous. | Source-level forced CPS repr executable tests cover tuple, list, and at least one named-field structural position without leaking visible thunk values. |
 | N2 | Thunk boundary hygiene after storage | CPS-level boundary thunk in list/index/force keeps active boundary and skips the blocked inner handler. Direct source callback hygiene is covered without structural storage. | Source-level callback storage still needs a clean type/selection shape before it can become a regression; returned effectful thunks may still miss caller handler / guard re-entry in less direct runtime IR shapes. | Add source-shaped or runtime-IR regression where a stored or returned callback thunk performs under an outer handler after crossing a local handler. | VM, CPS eval, CPS repr eval, and Cranelift JIT agree for stored and returned callback hygiene. |
 | N3 | Closure values in structural values | Source closures in records/lists can be selected and called, including scalar and string captures. | Value backend still rejects closure roots embedded in value-lane structural positions; CPS repr covers the intended path. | Keep value backend rejection explicit and route closure-bearing roots to CPS repr via structured unsupported reason. | `yulang native` chooses CPS repr for closure-bearing structural roots and reports the value-backend reason when debugging. |
 | N4 | General heap value lane | CPS repr can print tuple/list/record/variant/string prototype heap values. | Runtime still uses boxed `VmValue`-like handles in several paths; compact native layout is not complete. | Treat compact layout as post-mainline optimization; keep current handles documented as prototype heap value lane. | No user-visible native feature is blocked by the prototype lane; docs clearly mark layout as internal/prototype. |
@@ -24,9 +24,9 @@
 
 ## Immediate Order
 
-1. Close N1 with small source regressions.
-2. Close N2 with one stored callback hygiene regression.
-3. Make N3/N5 visible through structured selection diagnostics.
+1. Close N2 with one stored callback hygiene regression.
+2. Make N3/N5 visible through structured selection diagnostics.
+3. Close the named-position tail of N1 once record/variant source selection gives a clean regression shape.
 4. Leave N4/N6 as documented prototype / packaging work unless they block release.
 
 ## What Counts As Native Complete For This Pass
