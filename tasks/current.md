@@ -64,8 +64,9 @@ Cranelift backend を作る。
   小さい source program を確認済み。
 - CPS repr ABI lowering と Cranelift JIT/object codegen の間に
   `cps_optimize` entrypoint を挟んだ。現時点では explicit call site から空の
-  forwarding continuation を潰し、profile / `YULANG_CPS_OPT_TRACE` を出せる。
-  artifact kind ごとに pass が分岐しない入口を先に固定した。
+  forwarding continuation を潰し、到達不能 continuation を削る。profile /
+  `YULANG_CPS_OPT_TRACE` も出せる。artifact kind ごとに pass が分岐しない入口を
+  先に固定した。
 
 近い形:
 

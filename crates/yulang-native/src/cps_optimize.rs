@@ -7,10 +7,10 @@
 //! handler arm entries alone unless their call protocol is represented at the
 //! call site.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::cps_ir::{CpsContinuationId, CpsTerminator, CpsValueId};
-use crate::cps_repr_abi::CpsReprAbiModule;
+use crate::cps_ir::{CpsContinuationId, CpsStmt, CpsTerminator, CpsValueId};
+use crate::cps_repr_abi::{CpsReprAbiFunction, CpsReprAbiModule};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CpsOptimizationOutput {
@@ -27,6 +27,7 @@ pub struct CpsOptimizationProfile {
     pub statements: usize,
     pub passes_run: usize,
     pub forwarded_continuation_calls: usize,
+    pub removed_unreachable_continuations: usize,
     pub changed: bool,
 }
 
@@ -37,6 +38,7 @@ pub fn optimize_cps_repr_abi_module(module: &CpsReprAbiModule) -> CpsOptimizatio
     };
 
     rewrite_forwarding_continuation_calls(&mut output);
+    prune_unreachable_continuations(&mut output);
     maybe_trace_profile(&output.profile);
     output
 }
@@ -61,12 +63,30 @@ fn rewrite_forwarding_continuation_calls(output: &mut CpsOptimizationOutput) {
     output.profile.changed = output.profile.forwarded_continuation_calls > 0;
 }
 
+fn prune_unreachable_continuations(output: &mut CpsOptimizationOutput) {
+    output.profile.passes_run += 1;
+    for function in output
+        .module
+        .functions
+        .iter_mut()
+        .chain(&mut output.module.roots)
+    {
+        let reachable = reachable_continuations(function);
+        let before = function.continuations.len();
+        function
+            .continuations
+            .retain(|continuation| reachable.contains(&continuation.id));
+        output.profile.removed_unreachable_continuations += before - function.continuations.len();
+    }
+    output.profile.changed |= output.profile.removed_unreachable_continuations > 0;
+}
+
 fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
     if std::env::var_os("YULANG_CPS_OPT_TRACE").is_none() {
         return;
     }
     eprintln!(
-        "[CPS-OPT] functions={} roots={} continuations={} handlers={} statements={} passes={} forwarded_continuation_calls={} changed={}",
+        "[CPS-OPT] functions={} roots={} continuations={} handlers={} statements={} passes={} forwarded_continuation_calls={} removed_unreachable_continuations={} changed={}",
         profile.functions,
         profile.roots,
         profile.continuations,
@@ -74,12 +94,122 @@ fn maybe_trace_profile(profile: &CpsOptimizationProfile) {
         profile.statements,
         profile.passes_run,
         profile.forwarded_continuation_calls,
+        profile.removed_unreachable_continuations,
         profile.changed
     );
 }
 
+fn reachable_continuations(function: &CpsReprAbiFunction) -> HashSet<CpsContinuationId> {
+    let continuations = function
+        .continuations
+        .iter()
+        .map(|continuation| (continuation.id, continuation))
+        .collect::<HashMap<_, _>>();
+    let mut reachable = HashSet::new();
+    let mut work = VecDeque::new();
+
+    push_reachable(function.entry, &mut reachable, &mut work);
+    for handler in &function.handlers {
+        for arm in &handler.arms {
+            push_reachable(arm.entry, &mut reachable, &mut work);
+        }
+    }
+
+    while let Some(id) = work.pop_front() {
+        let Some(continuation) = continuations.get(&id) else {
+            continue;
+        };
+        for stmt in &continuation.stmts {
+            collect_stmt_continuations(stmt, &mut reachable, &mut work);
+        }
+        collect_terminator_continuations(&continuation.terminator, &mut reachable, &mut work);
+    }
+
+    reachable
+}
+
+fn push_reachable(
+    id: CpsContinuationId,
+    reachable: &mut HashSet<CpsContinuationId>,
+    work: &mut VecDeque<CpsContinuationId>,
+) {
+    if reachable.insert(id) {
+        work.push_back(id);
+    }
+}
+
+fn collect_stmt_continuations(
+    stmt: &CpsStmt,
+    reachable: &mut HashSet<CpsContinuationId>,
+    work: &mut VecDeque<CpsContinuationId>,
+) {
+    match stmt {
+        CpsStmt::MakeThunk { entry, .. }
+        | CpsStmt::MakeClosure { entry, .. }
+        | CpsStmt::MakeRecursiveClosure { entry, .. } => {
+            push_reachable(*entry, reachable, work);
+        }
+        CpsStmt::InstallHandler { escape, envs, .. } => {
+            push_reachable(*escape, reachable, work);
+            for env in envs {
+                push_reachable(env.entry, reachable, work);
+            }
+        }
+        CpsStmt::ResumeWithHandler { envs, .. } => {
+            for env in envs {
+                push_reachable(env.entry, reachable, work);
+            }
+        }
+        CpsStmt::Literal { .. }
+        | CpsStmt::FreshGuard { .. }
+        | CpsStmt::PeekGuard { .. }
+        | CpsStmt::FindGuard { .. }
+        | CpsStmt::AddThunkBoundary { .. }
+        | CpsStmt::ForceThunk { .. }
+        | CpsStmt::Tuple { .. }
+        | CpsStmt::Record { .. }
+        | CpsStmt::RecordWithoutFields { .. }
+        | CpsStmt::Variant { .. }
+        | CpsStmt::Select { .. }
+        | CpsStmt::SelectWithDefault { .. }
+        | CpsStmt::RecordHasField { .. }
+        | CpsStmt::TupleGet { .. }
+        | CpsStmt::VariantTagEq { .. }
+        | CpsStmt::VariantPayload { .. }
+        | CpsStmt::Primitive { .. }
+        | CpsStmt::DirectCall { .. }
+        | CpsStmt::ApplyClosure { .. }
+        | CpsStmt::CloneContinuation { .. }
+        | CpsStmt::Resume { .. }
+        | CpsStmt::UninstallHandler { .. } => {}
+    }
+}
+
+fn collect_terminator_continuations(
+    terminator: &CpsTerminator,
+    reachable: &mut HashSet<CpsContinuationId>,
+    work: &mut VecDeque<CpsContinuationId>,
+) {
+    match terminator {
+        CpsTerminator::Continue { target, .. } => push_reachable(*target, reachable, work),
+        CpsTerminator::Branch {
+            then_cont,
+            else_cont,
+            ..
+        } => {
+            push_reachable(*then_cont, reachable, work);
+            push_reachable(*else_cont, reachable, work);
+        }
+        CpsTerminator::Perform { resume, .. }
+        | CpsTerminator::EffectfulCall { resume, .. }
+        | CpsTerminator::EffectfulApply { resume, .. }
+        | CpsTerminator::EffectfulForce { resume, .. } => push_reachable(*resume, reachable, work),
+        CpsTerminator::Return(_) => {}
+    }
+}
+
 fn forwarding_continuations(
-    function: &crate::cps_repr_abi::CpsReprAbiFunction,
+    function: &CpsReprAbiFunction,
 ) -> HashMap<CpsContinuationId, ForwardingContinuation> {
     let mut forwarders = HashMap::new();
     for continuation in &function.continuations {
@@ -236,6 +366,7 @@ impl CpsOptimizationProfile {
             statements,
             passes_run: 0,
             forwarded_continuation_calls: 0,
+            removed_unreachable_continuations: 0,
             changed: false,
         }
     }
@@ -261,8 +392,9 @@ mod tests {
         assert_eq!(optimized.profile.roots, 1);
         assert_eq!(optimized.profile.continuations, 1);
         assert_eq!(optimized.profile.statements, 1);
-        assert_eq!(optimized.profile.passes_run, 1);
+        assert_eq!(optimized.profile.passes_run, 2);
         assert_eq!(optimized.profile.forwarded_continuation_calls, 0);
+        assert_eq!(optimized.profile.removed_unreachable_continuations, 0);
         assert!(!optimized.profile.changed);
     }
 
@@ -324,7 +456,67 @@ mod tests {
             }
         );
         assert_eq!(optimized.profile.forwarded_continuation_calls, 1);
+        assert_eq!(optimized.profile.removed_unreachable_continuations, 1);
         assert!(optimized.profile.changed);
+    }
+
+    #[test]
+    fn keeps_handler_arm_entries_when_pruning_unreachable_continuations() {
+        let effect = yulang_typed_ir::Path::from_name(yulang_typed_ir::Name("ask".to_string()));
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: vec![crate::cps_ir::CpsHandler {
+                    id: crate::cps_ir::CpsHandlerId(0),
+                    arms: vec![crate::cps_ir::CpsHandlerArm {
+                        effect,
+                        entry: CpsContinuationId(1),
+                    }],
+                }],
+                continuations: vec![
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(0),
+                            literal: CpsLiteral::Int("1".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(0)),
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: vec![CpsValueId(1), CpsValueId(2)],
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::MultiShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(1)),
+                    },
+                    crate::cps_ir::CpsContinuation {
+                        id: CpsContinuationId(2),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: Vec::new(),
+                        terminator: CpsTerminator::Return(CpsValueId(0)),
+                    },
+                ],
+            }],
+        }));
+
+        let optimized = optimize_cps_repr_abi_module(&abi);
+        let ids = optimized.module.roots[0]
+            .continuations
+            .iter()
+            .map(|continuation| continuation.id)
+            .collect::<Vec<_>>();
+
+        assert_eq!(ids, vec![CpsContinuationId(0), CpsContinuationId(1)]);
+        assert_eq!(optimized.profile.removed_unreachable_continuations, 1);
     }
 
     fn sample_abi_module() -> CpsReprAbiModule {
