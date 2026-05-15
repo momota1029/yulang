@@ -114,6 +114,10 @@ yulang run --native --native-backend pure program.yu
 intended to grow toward full Yulang coverage. `--native-backend pure` forces the
 pure-subset backend for speed checks and backend debugging.
 
+`run` executes every root expression but does not print root values by default.
+Only program output such as `print` / `println` goes to stdout. Add
+`--print-roots` when comparing or inspecting root expression values.
+
 The lower-level `yulang native` subcommand remains available for artifact
 generation and forced backend work. The `--kind` option selects what to
 produce/run; output paths can be set with `--out`.
@@ -123,6 +127,7 @@ produce/run; output paths can be set with `--out`.
 | `yulang run <path>`                                  | Run the file on the reference interpreter.                              |
 | `yulang run --native <path>`                         | Compile and run the file through the native effects backend.            |
 | `yulang run --native --native-backend pure <path>`   | Compile and run through the pure-subset backend for speed checks.       |
+| `yulang run --print-roots <path>`                    | Execute the program and print root expression values for inspection.    |
 | `yulang native <path>` (or `--kind run`)             | Compile and run the file through the native effects backend.            |
 | `yulang native --kind run-pure-exe <path>`          | Force the pure-subset backend; useful when comparing the effect-free speed-checking path. |
 | `yulang native --kind run-effects-exe <path>`        | Force the effects backend; useful when debugging effect lowering. |
@@ -316,6 +321,9 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] Handler-frame guard snapshots, `LocalPushId` / `PeekId` / `FindId`, and
       `AddId` blocked-effect boundaries are represented in CPS and honored by
       handler selection.
+- [x] Inactive `AddId` boundary markers peel older blockers during native
+      dispatch, so handler arms can temporarily re-expose local mutable-ref
+      effects without leaking unrelated callback effects.
 - [x] Thunks and resumptions carry handler-stack and guard-stack snapshots in
       the scalar prototype.
 - [x] Thunk boundary masks stay attached to thunk pointers through direct force,
@@ -370,6 +378,9 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] Non-scalar CPS return values that use prototype heap handles print as
       Yulang-like values in generated CPS executables, including the covered
       recursive handler/resumption tuple result.
+- [x] Native effects root pretty-print goes through the Debug projection for
+      runtime-shaped roots; strings, variants, records, tuples, lists, boxed
+      floats, literal bools, and literal units keep their visible value shape.
 - [x] Non-scalar values returned through recursive handler/resumption chains
       now keep the forced result and nested handler env, covering
       `examples/10_effect_handler.yu`.

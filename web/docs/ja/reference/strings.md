@@ -70,6 +70,16 @@ impl Display point:
 
 戻り値は `point::show p` / `p.show` の結果であり、文字列テンプレートの `%{p}` でフォーマットされる値でもある。
 
+## Debug と `.debug`
+
+```yulang
+[1, 2, 3].debug      // "[1, 2, 3]"
+(just "x").debug     // "just \"x\""
+(1, true).debug      // "(1, true)"
+```
+
+`.debug` は開発者向けの構造表示である。`Debug` role 経由で解決される。標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground では形ごとの impl を増やさずに調査できる。ユーザに見せる文字列には `.show` を使い、構造値を調べるときには `.debug` を使う。
+
 ## コメント
 
 ```yulang

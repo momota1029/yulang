@@ -5746,8 +5746,10 @@ fn effect_apply(expr: &runtime::Expr) -> Option<CpsEffectApply<'_>> {
         return None;
     };
     let callee = transparent_effect_expr(callee);
-    let runtime::ExprKind::EffectOp(effect) = &callee.kind else {
-        return None;
+    let effect = match &callee.kind {
+        runtime::ExprKind::EffectOp(effect) => effect,
+        runtime::ExprKind::Var(path) if debug_role_method_path(path) => path,
+        _ => return None,
     };
     Some(CpsEffectApply {
         effect: effect.clone(),
@@ -6092,6 +6094,13 @@ fn path_name(path: &typed_ir::Path) -> String {
         .map(|segment| segment.0.as_str())
         .collect::<Vec<_>>()
         .join("::")
+}
+
+fn debug_role_method_path(path: &typed_ir::Path) -> bool {
+    let [std, prelude, role, method] = path.segments.as_slice() else {
+        return false;
+    };
+    std.0 == "std" && prelude.0 == "prelude" && role.0 == "Debug" && method.0 == "debug"
 }
 
 #[cfg(test)]

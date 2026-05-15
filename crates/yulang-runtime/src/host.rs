@@ -54,7 +54,9 @@ pub fn eval_root_with_basic_host(
 }
 
 fn handle_host_request(request: &VmRequest, stdout: &mut String) -> Option<VmValue> {
-    handle_console_request(request, stdout).or_else(|| handle_fs_request(request))
+    handle_console_request(request, stdout)
+        .or_else(|| handle_debug_request(request))
+        .or_else(|| handle_fs_request(request))
 }
 
 fn handle_console_request(request: &VmRequest, stdout: &mut String) -> Option<VmValue> {
@@ -128,6 +130,19 @@ fn fs_effect_operation(path: &typed_ir::Path) -> Option<&str> {
     (std.0 == "std" && fs_module.0 == "fs" && fs_act.0 == "fs").then_some(operation.0.as_str())
 }
 
+fn handle_debug_request(request: &VmRequest) -> Option<VmValue> {
+    debug_effect_is(&request.effect)
+        .then(|| VmValue::String(host_debug_string(&request.payload).into()))
+}
+
+fn debug_effect_is(path: &typed_ir::Path) -> bool {
+    let [std, prelude, role, method] = path.segments.as_slice() else {
+        return false;
+    };
+
+    std.0 == "std" && prelude.0 == "prelude" && role.0 == "Debug" && method.0 == "debug"
+}
+
 fn host_path_string(value: &VmValue) -> Option<String> {
     match value {
         VmValue::String(value) => Some(value.to_flat_string()),
@@ -167,4 +182,56 @@ fn host_string(value: &VmValue) -> String {
         VmValue::Unit => "()".to_string(),
         _ => format!("{value:?}"),
     }
+}
+
+fn host_debug_string(value: &VmValue) -> String {
+    match value {
+        VmValue::Int(value) | VmValue::Float(value) => value.clone(),
+        VmValue::String(value) => format!("{:?}", value.to_flat_string()),
+        VmValue::Bool(value) => value.to_string(),
+        VmValue::Unit => "()".to_string(),
+        VmValue::List(items) => format!(
+            "[{}]",
+            items
+                .to_vec()
+                .iter()
+                .map(|item| host_debug_string(item.as_ref()))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        VmValue::Tuple(items) => format!(
+            "({})",
+            items
+                .iter()
+                .map(host_debug_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        VmValue::Record(fields) => format!(
+            "{{{}}}",
+            fields
+                .iter()
+                .map(|(name, value)| format!("{}: {}", name.0, host_debug_string(value)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        VmValue::Variant { tag, value } => match value {
+            Some(value) => format!("{} {}", tag.0, host_debug_string(value)),
+            None => tag.0.clone(),
+        },
+        VmValue::EffectOp(path) => format!("<effect-op {}>", host_format_path(path)),
+        VmValue::PrimitiveOp(_) => "<primitive>".to_string(),
+        VmValue::Resume(_) => "<resume>".to_string(),
+        VmValue::Closure(_) => "<closure>".to_string(),
+        VmValue::Thunk(_) => "<thunk>".to_string(),
+        VmValue::EffectId(id) => format!("<effect-id {id}>"),
+    }
+}
+
+fn host_format_path(path: &typed_ir::Path) -> String {
+    path.segments
+        .iter()
+        .map(|segment| segment.0.as_str())
+        .collect::<Vec<_>>()
+        .join("::")
 }

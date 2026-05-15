@@ -64,12 +64,11 @@ text.
 1.show              // "1"
 true.show           // "true"
 "text".show         // "text"
-[1, 2, 3].show      // "[1, 2, 3]" (when an impl for the element exists)
 ```
 
 `.show` is the canonical conversion to `str`. It resolves through the
-`Display` role: primitives, list, and types declared via `error E:` (which
-gets an auto-generated `Display`) all have impls available.
+`Display` role: primitives and types declared via `error E:` (which gets an
+auto-generated `Display`) have impls available.
 
 Define `Display` for a user type with the usual role machinery:
 
@@ -80,6 +79,22 @@ impl Display point:
 
 The result is what `point::show p` or `p.show` returns, and what `%{p}` in a
 string template formats.
+
+## Debug and `.debug`
+
+```yulang
+[1, 2, 3].debug      // "[1, 2, 3]"
+(just "x").debug     // "just \"x\""
+(1, true).debug      // "(1, true)"
+```
+
+`.debug` is the developer-facing rendering path. It resolves through the
+`Debug` role. The standard prelude provides `Debug` impls for primitives,
+`list`, `opt`, `result`, and common tuple arities when their payloads also
+implement `Debug`. The basic runtime host also renders structural fallbacks for
+records and longer tuples, so `yulang run` and the playground can inspect them
+without adding one impl per shape. Use `.show` for user-facing text and `.debug`
+for structural values while inspecting programs.
 
 ## Comments
 

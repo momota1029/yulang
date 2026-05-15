@@ -55,6 +55,9 @@ Use the `run` subcommand to execute a file:
 cargo run -q -p yulang -- run examples/01_struct_with.yu
 ```
 
+`run` prints only program output such as `print` and `println`. To inspect root
+expression values during experiments, pass `--print-roots`.
+
 Use the `check` subcommand to print inferred public bindings:
 
 ```bash

@@ -36,6 +36,8 @@ yulang run examples/06_undet_once.yu
 yulang check examples/08_types.yu
 ```
 
+`yulang run` が標準で出すのは `print` / `println` など program 自身の出力だけです。CLI で root 式の値を確認したいときは `yulang run --print-roots ...` を使います。
+
 language server も同じ binary に入っています。
 
 ```sh

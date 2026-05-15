@@ -39,6 +39,10 @@ yulang run examples/06_undet_once.yu
 yulang check examples/08_types.yu
 ```
 
+`yulang run` prints only program output such as `print` and `println`. Use
+`yulang run --print-roots ...` when you want to inspect root expression values
+from the CLI.
+
 The language server ships in the same binary:
 
 ```sh

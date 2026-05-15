@@ -103,6 +103,7 @@ struct CliOptions {
     native_run_exe: Option<NativeOutput>,
     native_run_value_exe: Option<NativeOutput>,
     native_run_cps_repr_exe: Option<NativeOutput>,
+    print_roots: bool,
     verbose_ir: bool,
     infer_phase_timings: bool,
     runtime_phase_timings: bool,
@@ -209,6 +210,9 @@ struct RunArgs {
     /// Select the native backend; implies --native
     #[arg(long, value_enum)]
     native_backend: Option<RunNativeBackend>,
+    /// Print root expression values after executing them
+    #[arg(long)]
+    print_roots: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq)]
@@ -232,6 +236,9 @@ struct NativeArgs {
     /// Output path for the artifact (defaults to target/yulang/bin/)
     #[arg(long, value_name = "PATH")]
     out: Option<String>,
+    /// Print root expression values from generated executable harnesses
+    #[arg(long)]
+    print_roots: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, PartialEq, Eq)]
@@ -298,6 +305,7 @@ fn parse_args() -> CliOptions {
         native_run_exe: None,
         native_run_value_exe: None,
         native_run_cps_repr_exe: None,
+        print_roots: false,
         verbose_ir: cli.verbose_ir,
         infer_phase_timings: cli.infer_phase_timings,
         runtime_phase_timings: cli.runtime_phase_timings,
@@ -325,6 +333,7 @@ fn parse_args() -> CliOptions {
                 process::exit(2);
             }
             opts.path = args.path;
+            opts.print_roots = args.print_roots;
             let native_requested = args.native || args.native_backend.is_some();
             if native_requested {
                 match args.native_backend.unwrap_or(RunNativeBackend::Effects) {
@@ -339,8 +348,14 @@ fn parse_args() -> CliOptions {
                 opts.run_interpreter = true;
             }
         }
-        Cmd::Native(NativeArgs { path, kind, out }) => {
+        Cmd::Native(NativeArgs {
+            path,
+            kind,
+            out,
+            print_roots,
+        }) => {
             opts.path = path;
+            opts.print_roots = print_roots;
             let output = match out {
                 Some(p) => NativeOutput::Path(p),
                 None => NativeOutput::Default,
@@ -907,8 +922,10 @@ fn run_infer_views(
                     Some(eval_duration),
                 );
             }
-            for (index, result) in results.iter().enumerate() {
-                println!("[{index}] {}", format_runtime_vm_result(result));
+            if options.print_roots {
+                for (index, result) in results.iter().enumerate() {
+                    println!("[{index}] {}", format_runtime_vm_result(result));
+                }
             }
         }
         if options.native_compare_i64 {
@@ -1014,7 +1031,7 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             let path = native_executable_output_path(path, options.path.as_deref());
-            write_native_executable_or_exit(&lowered.module, &path);
+            write_native_executable_or_exit(&lowered.module, &path, options.print_roots);
         }
         if let Some(path) = &options.native_value_exe {
             if options.infer
@@ -1038,7 +1055,7 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             let path = native_value_executable_output_path(path, options.path.as_deref());
-            write_native_value_executable_or_exit(&lowered.module, &path);
+            write_native_value_executable_or_exit(&lowered.module, &path, options.print_roots);
         }
         if let Some(path) = &options.native_run {
             if options.infer
@@ -1062,7 +1079,7 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             let path = native_run_executable_output_path(path, options.path.as_deref());
-            write_native_run_executable_or_exit(&lowered.module, &path);
+            write_native_run_executable_or_exit(&lowered.module, &path, options.print_roots);
             run_native_executable_or_exit(&path, "native-run");
         }
         if let Some(path) = &options.native_run_exe {
@@ -1087,7 +1104,7 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             let path = native_executable_output_path(path, options.path.as_deref());
-            write_native_executable_or_exit(&lowered.module, &path);
+            write_native_executable_or_exit(&lowered.module, &path, options.print_roots);
             run_native_executable_or_exit(&path, "native-run-exe");
         }
         if let Some(path) = &options.native_run_value_exe {
@@ -1112,7 +1129,7 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             let path = native_value_executable_output_path(path, options.path.as_deref());
-            write_native_value_executable_or_exit(&lowered.module, &path);
+            write_native_value_executable_or_exit(&lowered.module, &path, options.print_roots);
             run_native_executable_or_exit(&path, "native-run-pure-exe");
         }
         if let Some(path) = &options.native_run_cps_repr_exe {
@@ -1138,7 +1155,7 @@ fn run_infer_views(
                 &diagnostic_source,
             );
             let path = native_cps_repr_executable_output_path(path, options.path.as_deref());
-            write_native_cps_repr_executable_or_exit(&lowered.module, &path);
+            write_native_cps_repr_executable_or_exit(&lowered.module, &path, options.print_roots);
             run_native_executable_or_exit(&path, "native-run");
         }
         if options.infer_phase_timings && options.infer {
@@ -1259,7 +1276,7 @@ fn write_native_object_or_exit(module: &runtime::Module, path: &Path) {
     );
 }
 
-fn write_native_executable_or_exit(module: &runtime::Module, path: &Path) {
+fn write_native_executable_or_exit(module: &runtime::Module, path: &Path, print_roots: bool) {
     let (object, roots) = compile_native_object_or_exit(module);
     ensure_parent_dir_or_exit(path, "native executable");
     let temp_dir = native_link_temp_dir();
@@ -1283,7 +1300,7 @@ fn write_native_executable_or_exit(module: &runtime::Module, path: &Path) {
         cleanup();
         process::exit(1);
     }
-    let harness = native_executable_harness(&roots);
+    let harness = native_executable_harness(&roots, print_roots);
     if let Err(err) = fs::write(&harness_path, harness) {
         eprintln!(
             "failed to write native executable harness {}: {err}",
@@ -1318,19 +1335,21 @@ fn write_native_executable_or_exit(module: &runtime::Module, path: &Path) {
         process::exit(1);
     }
     cleanup();
-    println!("native-exe: wrote {}", path.display());
+    eprintln!("native-exe: wrote {}", path.display());
 }
 
-fn write_native_run_executable_or_exit(module: &runtime::Module, path: &Path) {
-    if let Err(cps_error) = write_native_cps_repr_executable(module, path, "native-run(effects)") {
+fn write_native_run_executable_or_exit(module: &runtime::Module, path: &Path, print_roots: bool) {
+    if let Err(cps_error) =
+        write_native_cps_repr_executable(module, path, "native-run(effects)", print_roots)
+    {
         eprintln!("failed to compile native-run executable");
         eprintln!("  effects backend: {cps_error}");
         process::exit(1);
     }
 }
 
-fn write_native_value_executable_or_exit(module: &runtime::Module, path: &Path) {
-    if let Err(err) = write_native_value_executable(module, path, "native-pure-exe") {
+fn write_native_value_executable_or_exit(module: &runtime::Module, path: &Path, print_roots: bool) {
+    if let Err(err) = write_native_value_executable(module, path, "native-pure-exe", print_roots) {
         eprintln!("{err}");
         process::exit(1);
     }
@@ -1340,6 +1359,7 @@ fn write_native_value_executable(
     module: &runtime::Module,
     path: &Path,
     label: &str,
+    print_roots: bool,
 ) -> Result<(), NativeValueExecutableError> {
     let object = compile_native_value_object(module)?;
     let support_library = build_native_runtime_staticlib_or_exit();
@@ -1364,7 +1384,7 @@ fn write_native_value_executable(
         cleanup();
         return Err(NativeValueExecutableError::Fatal(message));
     }
-    let harness = native_value_executable_harness(object.roots());
+    let harness = native_value_executable_harness(object.roots(), print_roots);
     if let Err(err) = fs::write(&harness_path, harness) {
         let message = format!(
             "failed to write native pure-subset executable harness {}: {err}",
@@ -1401,12 +1421,16 @@ fn write_native_value_executable(
         return Err(NativeValueExecutableError::Fatal(message));
     }
     cleanup();
-    println!("{label}: wrote {}", path.display());
+    eprintln!("{label}: wrote {}", path.display());
     Ok(())
 }
 
-fn write_native_cps_repr_executable_or_exit(module: &runtime::Module, path: &Path) {
-    if let Err(err) = write_native_cps_repr_executable(module, path, "native-run") {
+fn write_native_cps_repr_executable_or_exit(
+    module: &runtime::Module,
+    path: &Path,
+    print_roots: bool,
+) {
+    if let Err(err) = write_native_cps_repr_executable(module, path, "native-run", print_roots) {
         eprintln!("{err}");
         process::exit(1);
     }
@@ -1416,8 +1440,16 @@ fn write_native_cps_repr_executable(
     module: &runtime::Module,
     path: &Path,
     label: &str,
+    print_roots: bool,
 ) -> Result<(), String> {
-    let object = compile_native_cps_repr_object(module)?;
+    let display_module;
+    let compile_module = if print_roots {
+        display_module = native_root_display_module(module);
+        &display_module
+    } else {
+        module
+    };
+    let object = compile_native_cps_repr_object(compile_module)?;
     let support_library = build_native_runtime_staticlib_or_exit();
     ensure_parent_dir_or_exit(path, "native effects executable");
     let temp_dir = native_link_temp_dir();
@@ -1440,7 +1472,27 @@ fn write_native_cps_repr_executable(
         cleanup();
         return Err(message);
     }
-    let harness = native_cps_repr_executable_harness(object.roots());
+    let root_prints = native_root_print_entries_from_runtime(compile_module);
+    let roots = object
+        .roots()
+        .iter()
+        .enumerate()
+        .map(|(index, name)| NativeRootHarnessEntry {
+            name: name.clone(),
+            print: native_root_print_kind_from_cps_lane_and_runtime_type(
+                object
+                    .root_lanes()
+                    .get(index)
+                    .copied()
+                    .unwrap_or(yulang_native::CpsReprAbiLane::Unknown),
+                root_prints
+                    .get(index)
+                    .map(|root| root.print)
+                    .unwrap_or(NativeRootPrintKind::RuntimeValueI64),
+            ),
+        })
+        .collect::<Vec<_>>();
+    let harness = native_cps_repr_executable_harness(&roots, print_roots);
     if let Err(err) = fs::write(&harness_path, harness) {
         let message = format!(
             "failed to write native effects executable harness {}: {err}",
@@ -1481,7 +1533,7 @@ fn write_native_cps_repr_executable(
         return Err(message);
     }
     cleanup();
-    println!("{label}: wrote {}", path.display());
+    eprintln!("{label}: wrote {}", path.display());
     Ok(())
 }
 
@@ -1707,7 +1759,10 @@ fn file_modified(path: &Path) -> io::Result<SystemTime> {
 
 fn compile_native_object_or_exit(
     module: &runtime::Module,
-) -> (yulang_native::NativeObjectModule, Vec<String>) {
+) -> (
+    yulang_native::NativeObjectModule,
+    Vec<NativeRootHarnessEntry>,
+) {
     let native = match yulang_native::lower_module(module) {
         Ok(module) => module,
         Err(err) => {
@@ -1717,10 +1772,17 @@ fn compile_native_object_or_exit(
     };
     let closure = yulang_native::closure_convert_module(&native);
     let abi = yulang_native::lower_closure_module_to_abi(&closure);
+    let reprs = yulang_native::analyze_abi_reprs(&abi);
     let roots = abi
         .roots
         .iter()
-        .map(|root| root.name.clone())
+        .map(|root| NativeRootHarnessEntry {
+            name: root.name.clone(),
+            print: reprs
+                .function_repr(&root.name)
+                .map(native_root_print_kind_from_abi_repr)
+                .unwrap_or(NativeRootPrintKind::I64),
+        })
         .collect::<Vec<_>>();
     let object = match yulang_native::compile_abi_module_to_object(&abi) {
         Ok(object) => object,
@@ -1819,28 +1881,43 @@ fn workspace_root() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
 }
 
-fn native_executable_harness(roots: &[String]) -> String {
+fn native_executable_harness(roots: &[NativeRootHarnessEntry], print_roots: bool) -> String {
     let mut source = String::from("#include <stdio.h>\n#include <stdint.h>\n\n");
+    native_abi_executable_harness(roots, print_roots, &mut source);
+    source
+}
+
+fn native_abi_executable_harness(
+    roots: &[NativeRootHarnessEntry],
+    print_roots: bool,
+    source: &mut String,
+) {
     for root in roots {
-        if !is_c_identifier(root) {
-            eprintln!("native root symbol `{root}` cannot be called from the C harness");
+        let name = &root.name;
+        if !is_c_identifier(name) {
+            eprintln!("native root symbol `{name}` cannot be called from the C harness");
             process::exit(1);
         }
-        source.push_str("int64_t ");
-        source.push_str(root);
+        source.push_str(root.print.c_abi_return_type());
+        source.push(' ');
+        source.push_str(name);
         source.push_str("(void);\n");
     }
     source.push_str("\nint main(void) {\n");
     for root in roots {
-        source.push_str("    printf(\"%lld\\n\", (long long)");
-        source.push_str(root);
-        source.push_str("());\n");
+        let name = &root.name;
+        if print_roots {
+            root.print.push_c_print_call(source, name);
+        } else {
+            source.push_str("    (void)");
+            source.push_str(name);
+            source.push_str("();\n");
+        }
     }
     source.push_str("    return 0;\n}\n");
-    source
 }
 
-fn native_value_executable_harness(roots: &[String]) -> String {
+fn native_value_executable_harness(roots: &[String], print_roots: bool) -> String {
     let mut source = String::from(
         r#"#include <stdint.h>
 #include <stdio.h>
@@ -1862,34 +1939,325 @@ void yulang_native_print_value(void *value);
     }
     source.push_str("\nint main(void) {\n    void *context = yulang_native_context_new();\n");
     for root in roots {
-        source.push_str("    yulang_native_print_value(");
-        source.push_str(root);
-        source.push_str("(context));\n    putchar('\\n');\n    fflush(stdout);\n");
+        if print_roots {
+            source.push_str("    yulang_native_print_value(");
+            source.push_str(root);
+            source.push_str("(context));\n    putchar('\\n');\n    fflush(stdout);\n");
+        } else {
+            source.push_str("    (void)");
+            source.push_str(root);
+            source.push_str("(context);\n");
+        }
     }
     source.push_str("    yulang_native_context_free(context);\n    return 0;\n}\n");
     source
 }
 
-fn native_cps_repr_executable_harness(roots: &[String]) -> String {
+fn native_cps_repr_executable_harness(
+    roots: &[NativeRootHarnessEntry],
+    print_roots: bool,
+) -> String {
     let mut source = String::from("unsafe extern \"C\" {\n");
-    source.push_str("    fn yulang_cps_print_i64(value: i64);\n");
+    if print_roots {
+        source.push_str("    fn yulang_cps_print_i64(value: i64);\n");
+        if roots
+            .iter()
+            .any(|root| root.print == NativeRootPrintKind::Float)
+        {
+            source.push_str("    fn yulang_cps_float_to_string_f64(value: f64) -> i64;\n");
+        }
+    }
     for root in roots {
-        if !is_c_identifier(root) {
-            eprintln!("native effects root symbol `{root}` cannot be called from the Rust harness");
+        let name = &root.name;
+        if !is_c_identifier(name) {
+            eprintln!("native effects root symbol `{name}` cannot be called from the Rust harness");
             process::exit(1);
         }
         source.push_str("    fn ");
-        source.push_str(root);
-        source.push_str("() -> i64;\n");
+        source.push_str(name);
+        source.push_str("() -> ");
+        source.push_str(root.print.rust_abi_return_type());
+        source.push_str(";\n");
     }
     source.push_str("}\n\nfn main() {\n");
     for root in roots {
-        source.push_str("    unsafe { yulang_cps_print_i64(");
-        source.push_str(root);
-        source.push_str("()); }\n    println!();\n");
+        let name = &root.name;
+        if print_roots {
+            root.print.push_rust_print_call(&mut source, name);
+        } else {
+            source.push_str("    unsafe { let _ = ");
+            source.push_str(name);
+            source.push_str("(); }\n");
+        }
     }
     source.push_str("}\n");
     source
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct NativeRootHarnessEntry {
+    name: String,
+    print: NativeRootPrintKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NativeRootPrintKind {
+    I64,
+    Bool,
+    Unit,
+    Float,
+    RuntimeValueI64,
+}
+
+impl NativeRootPrintKind {
+    fn c_abi_return_type(self) -> &'static str {
+        match self {
+            NativeRootPrintKind::Float => "double",
+            NativeRootPrintKind::I64
+            | NativeRootPrintKind::Bool
+            | NativeRootPrintKind::Unit
+            | NativeRootPrintKind::RuntimeValueI64 => "int64_t",
+        }
+    }
+
+    fn rust_abi_return_type(self) -> &'static str {
+        match self {
+            NativeRootPrintKind::Float => "f64",
+            NativeRootPrintKind::I64
+            | NativeRootPrintKind::Bool
+            | NativeRootPrintKind::Unit
+            | NativeRootPrintKind::RuntimeValueI64 => "i64",
+        }
+    }
+
+    fn push_c_print_call(self, source: &mut String, name: &str) {
+        match self {
+            NativeRootPrintKind::I64 | NativeRootPrintKind::RuntimeValueI64 => {
+                source.push_str("    printf(\"%lld\\n\", (long long)");
+                source.push_str(name);
+                source.push_str("());\n");
+            }
+            NativeRootPrintKind::Bool => {
+                source.push_str("    printf(\"%s\\n\", ");
+                source.push_str(name);
+                source.push_str("() ? \"true\" : \"false\");\n");
+            }
+            NativeRootPrintKind::Unit => {
+                source.push_str("    (void)");
+                source.push_str(name);
+                source.push_str("();\n    puts(\"()\");\n");
+            }
+            NativeRootPrintKind::Float => {
+                source.push_str("    printf(\"%.17g\\n\", ");
+                source.push_str(name);
+                source.push_str("());\n");
+            }
+        }
+    }
+
+    fn push_rust_print_call(self, source: &mut String, name: &str) {
+        match self {
+            NativeRootPrintKind::I64 => {
+                source.push_str("    unsafe { println!(\"{}\", ");
+                source.push_str(name);
+                source.push_str("()); }\n");
+            }
+            NativeRootPrintKind::Bool => {
+                source.push_str("    unsafe { println!(\"{}\", ");
+                source.push_str(name);
+                source.push_str("() != 0); }\n");
+            }
+            NativeRootPrintKind::Unit => {
+                source.push_str("    unsafe { let _ = ");
+                source.push_str(name);
+                source.push_str("(); }\n    println!(\"()\");\n");
+            }
+            NativeRootPrintKind::Float => {
+                source.push_str("    unsafe { let text = yulang_cps_float_to_string_f64(");
+                source.push_str(name);
+                source.push_str("()); yulang_cps_print_i64(text); }\n    println!();\n");
+            }
+            NativeRootPrintKind::RuntimeValueI64 => {
+                source.push_str("    unsafe { yulang_cps_print_i64(");
+                source.push_str(name);
+                source.push_str("()); }\n    println!();\n");
+            }
+        }
+    }
+}
+
+fn native_root_print_kind_from_abi_repr(
+    repr: &yulang_native::NativeAbiRepr,
+) -> NativeRootPrintKind {
+    match repr {
+        yulang_native::NativeAbiRepr::Unit => NativeRootPrintKind::Unit,
+        yulang_native::NativeAbiRepr::Bool => NativeRootPrintKind::Bool,
+        yulang_native::NativeAbiRepr::Float => NativeRootPrintKind::Float,
+        yulang_native::NativeAbiRepr::Int => NativeRootPrintKind::I64,
+        yulang_native::NativeAbiRepr::List(_)
+        | yulang_native::NativeAbiRepr::Tuple(_)
+        | yulang_native::NativeAbiRepr::Record(_)
+        | yulang_native::NativeAbiRepr::Variant(_)
+        | yulang_native::NativeAbiRepr::RuntimeValuePtr(_)
+        | yulang_native::NativeAbiRepr::ClosurePtr
+        | yulang_native::NativeAbiRepr::Unknown => NativeRootPrintKind::RuntimeValueI64,
+    }
+}
+
+fn native_root_print_entries_from_runtime(module: &runtime::Module) -> Vec<NativeRootHarnessEntry> {
+    module
+        .root_exprs
+        .iter()
+        .enumerate()
+        .map(|(index, expr)| NativeRootHarnessEntry {
+            name: format!("root_{index}"),
+            print: native_root_print_kind_from_runtime_type(&expr.ty),
+        })
+        .collect()
+}
+
+fn native_root_print_kind_from_runtime_type(ty: &runtime::Type) -> NativeRootPrintKind {
+    match ty {
+        runtime::Type::Core(core) => native_root_print_kind_from_core_type(core),
+        runtime::Type::Thunk { .. } | runtime::Type::Fun { .. } | runtime::Type::Unknown => {
+            NativeRootPrintKind::RuntimeValueI64
+        }
+    }
+}
+
+fn native_root_print_kind_from_cps_lane_and_runtime_type(
+    lane: yulang_native::CpsReprAbiLane,
+    runtime_kind: NativeRootPrintKind,
+) -> NativeRootPrintKind {
+    match lane {
+        yulang_native::CpsReprAbiLane::NativeFloat => NativeRootPrintKind::Float,
+        yulang_native::CpsReprAbiLane::ScalarI64 => match runtime_kind {
+            NativeRootPrintKind::Bool => NativeRootPrintKind::Bool,
+            NativeRootPrintKind::Unit => NativeRootPrintKind::Unit,
+            NativeRootPrintKind::I64 => NativeRootPrintKind::I64,
+            NativeRootPrintKind::Float | NativeRootPrintKind::RuntimeValueI64 => {
+                NativeRootPrintKind::RuntimeValueI64
+            }
+        },
+        yulang_native::CpsReprAbiLane::RuntimeValuePtr
+        | yulang_native::CpsReprAbiLane::ClosurePtr
+        | yulang_native::CpsReprAbiLane::ThunkPtr
+        | yulang_native::CpsReprAbiLane::ResumptionPtr
+        | yulang_native::CpsReprAbiLane::OpaqueI64
+        | yulang_native::CpsReprAbiLane::Conflict
+        | yulang_native::CpsReprAbiLane::Unknown => NativeRootPrintKind::RuntimeValueI64,
+    }
+}
+
+fn native_root_print_kind_from_core_type(ty: &typed_ir::Type) -> NativeRootPrintKind {
+    let typed_ir::Type::Named { path, args } = ty else {
+        return NativeRootPrintKind::RuntimeValueI64;
+    };
+    if !args.is_empty() {
+        return NativeRootPrintKind::RuntimeValueI64;
+    }
+    match path.segments.last().map(|name| name.0.as_str()) {
+        Some("int") => NativeRootPrintKind::I64,
+        Some("bool") => NativeRootPrintKind::Bool,
+        Some("unit") => NativeRootPrintKind::Unit,
+        Some("float") => NativeRootPrintKind::Float,
+        _ => NativeRootPrintKind::RuntimeValueI64,
+    }
+}
+
+fn native_root_display_module(module: &runtime::Module) -> runtime::Module {
+    let mut display = module.clone();
+    display.root_exprs = display
+        .root_exprs
+        .into_iter()
+        .map(native_root_display_expr)
+        .collect();
+    display
+}
+
+fn native_root_display_expr(expr: runtime::Expr) -> runtime::Expr {
+    match native_root_print_kind_from_runtime_type(&expr.ty) {
+        NativeRootPrintKind::I64 => native_apply_unary_display_primitive(
+            typed_ir::PrimitiveOp::IntToString,
+            expr,
+            native_string_type(),
+        ),
+        NativeRootPrintKind::Bool => native_apply_unary_display_primitive(
+            typed_ir::PrimitiveOp::BoolToString,
+            expr,
+            native_string_type(),
+        ),
+        NativeRootPrintKind::Float => native_apply_unary_display_primitive(
+            typed_ir::PrimitiveOp::FloatToString,
+            expr,
+            native_string_type(),
+        ),
+        NativeRootPrintKind::Unit => runtime::Expr::typed(
+            runtime::ExprKind::Block {
+                stmts: vec![runtime::Stmt::Expr(expr)],
+                tail: Some(Box::new(runtime::Expr::typed(
+                    runtime::ExprKind::Lit(typed_ir::Lit::String("()".to_string())),
+                    runtime::Type::core(native_string_type()),
+                ))),
+            },
+            runtime::Type::core(native_string_type()),
+        ),
+        NativeRootPrintKind::RuntimeValueI64 => native_apply_debug_role(expr),
+    }
+}
+
+fn native_apply_debug_role(arg: runtime::Expr) -> runtime::Expr {
+    runtime::Expr::typed(
+        runtime::ExprKind::Apply {
+            callee: Box::new(runtime::Expr::typed(
+                runtime::ExprKind::Var(typed_ir::Path {
+                    segments: vec![
+                        typed_ir::Name("std".to_string()),
+                        typed_ir::Name("prelude".to_string()),
+                        typed_ir::Name("Debug".to_string()),
+                        typed_ir::Name("debug".to_string()),
+                    ],
+                }),
+                runtime::Type::unknown(),
+            )),
+            arg: Box::new(arg),
+            evidence: None,
+            instantiation: None,
+        },
+        runtime::Type::core(native_string_type()),
+    )
+}
+
+fn native_apply_unary_display_primitive(
+    op: typed_ir::PrimitiveOp,
+    arg: runtime::Expr,
+    ret: typed_ir::Type,
+) -> runtime::Expr {
+    runtime::Expr::typed(
+        runtime::ExprKind::Apply {
+            callee: Box::new(runtime::Expr::typed(
+                runtime::ExprKind::PrimitiveOp(op),
+                runtime::Type::unknown(),
+            )),
+            arg: Box::new(arg),
+            evidence: None,
+            instantiation: None,
+        },
+        runtime::Type::core(ret),
+    )
+}
+
+fn native_string_type() -> typed_ir::Type {
+    typed_ir::Type::Named {
+        path: typed_ir::Path {
+            segments: vec![
+                typed_ir::Name("std".to_string()),
+                typed_ir::Name("str".to_string()),
+                typed_ir::Name("str".to_string()),
+            ],
+        },
+        args: Vec::new(),
+    }
 }
 
 fn is_c_identifier(name: &str) -> bool {
@@ -5478,6 +5846,7 @@ mod tests {
             native_run_exe: None,
             native_run_value_exe: None,
             native_run_cps_repr_exe: None,
+            print_roots: false,
             verbose_ir: false,
             infer_phase_timings: false,
             runtime_phase_timings: false,
@@ -5526,6 +5895,70 @@ mod tests {
         assert!(run_executable.ends_with("target/yulang/bin/hello-native"));
         assert!(pure_executable.ends_with("target/yulang/bin/hello-pure"));
         assert!(effects_executable.ends_with("target/yulang/bin/hello-effects"));
+    }
+
+    #[test]
+    fn native_harnesses_discard_roots_by_default() {
+        let roots = vec![NativeRootHarnessEntry {
+            name: "root_0".to_string(),
+            print: NativeRootPrintKind::I64,
+        }];
+
+        let abi_harness = native_executable_harness(&roots, false);
+        assert!(abi_harness.contains("(void)root_0();"));
+        assert!(!abi_harness.contains("printf("));
+
+        let root_names = vec!["root_0".to_string()];
+        let value_harness = native_value_executable_harness(&root_names, false);
+        assert!(value_harness.contains("(void)root_0(context);"));
+        assert!(!value_harness.contains("yulang_native_print_value(root_0(context));"));
+
+        let cps_harness = native_cps_repr_executable_harness(&roots, false);
+        assert!(cps_harness.contains("let _ = root_0();"));
+        assert!(!cps_harness.contains("yulang_cps_print_i64"));
+    }
+
+    #[test]
+    fn native_harnesses_print_roots_when_requested() {
+        let roots = vec![NativeRootHarnessEntry {
+            name: "root_0".to_string(),
+            print: NativeRootPrintKind::I64,
+        }];
+
+        let abi_harness = native_executable_harness(&roots, true);
+        assert!(abi_harness.contains("printf(\"%lld\\n\", (long long)root_0());"));
+
+        let root_names = vec!["root_0".to_string()];
+        let value_harness = native_value_executable_harness(&root_names, true);
+        assert!(value_harness.contains("yulang_native_print_value(root_0(context));"));
+
+        let cps_harness = native_cps_repr_executable_harness(&roots, true);
+        assert!(cps_harness.contains("println!(\"{}\", root_0());"));
+    }
+
+    #[test]
+    fn native_effects_harness_prints_scalar_roots_by_kind() {
+        let roots = vec![
+            NativeRootHarnessEntry {
+                name: "root_0".to_string(),
+                print: NativeRootPrintKind::Float,
+            },
+            NativeRootHarnessEntry {
+                name: "root_1".to_string(),
+                print: NativeRootPrintKind::Unit,
+            },
+            NativeRootHarnessEntry {
+                name: "root_2".to_string(),
+                print: NativeRootPrintKind::Bool,
+            },
+        ];
+
+        let harness = native_cps_repr_executable_harness(&roots, true);
+        assert!(harness.contains("fn root_0() -> f64;"));
+        assert!(harness.contains("yulang_cps_float_to_string_f64(root_0())"));
+        assert!(harness.contains("let _ = root_1();"));
+        assert!(harness.contains("println!(\"()\");"));
+        assert!(harness.contains("println!(\"{}\", root_2() != 0);"));
     }
 
     #[test]

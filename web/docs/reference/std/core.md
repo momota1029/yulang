@@ -82,9 +82,9 @@ Common prelude roles include:
 - `Eq`, `Ord`
 - `Add`, `Sub`, `Mul`, `Div`
 - `Len`
-- `Display`
+- `Display`, `Debug`
 - `Cast`
 - `LowerHex`, `UpperHex`
 
-Operators such as `+`, `==`, `.len`, interpolation, and implicit casts resolve
-through these roles.
+Operators such as `+`, `==`, `.len`, `.show`, `.debug`, interpolation, and
+implicit casts resolve through these roles.

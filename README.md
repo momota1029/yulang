@@ -35,6 +35,10 @@ Run a file with the interpreter:
 yulang run examples/06_undet_once.yu
 ```
 
+`run` executes the program and only prints output produced by the program
+itself, such as `print` / `println`. To inspect root expression values while
+experimenting, add `--print-roots`.
+
 Check a file and print inferred public types:
 
 ```bash
@@ -169,7 +173,7 @@ npm run build
 Run an inline Yulang program:
 
 ```bash
-yulang run <<'YU'
+yulang run --print-roots <<'YU'
 use std::undet::*
 
 (each [1, 2, 3] + each [4, 5, 6]).once

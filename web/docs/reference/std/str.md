@@ -1,7 +1,7 @@
 # `std::str`
 
-Immutable strings with `Index`, `Len`, `Add` (concatenation), and `Display`
-support.
+Immutable strings with `Index`, `Len`, `Add` (concatenation), `Display`, and
+`Debug` support.
 
 ## Literals and concatenation
 
@@ -52,12 +52,24 @@ unchanged.
 1.show              // "1"
 true.show           // "true"
 (1.5).show          // "1.5"
-[1, 2, 3].show      // "[1, 2, 3]" via Display impl when present
 ```
 
 `.show` resolves through the `Display` role. Every primitive ships with a
 default `Display` impl; user types gain one through `error E:` (auto-generated)
 or by writing `impl Display T: our v.show = ...`.
+
+For structural developer-facing output, use `.debug`:
+
+```yulang
+[1, 2, 3].debug      // "[1, 2, 3]"
+(just "x").debug     // "just \"x\""
+```
+
+`.debug` resolves through the `Debug` role. The prelude provides impls for
+primitives, `list`, `opt`, `result`, and common tuple arities when their
+payloads also implement `Debug`. The basic runtime host also renders structural
+fallbacks for records and longer tuples, which is what `yulang run` and the
+playground use for inspection.
 
 ## Quick reference
 
@@ -69,6 +81,7 @@ or by writing `impl Display T: our v.show = ...`.
 | `s[r]` | `str -> range -> str` |
 | `s.splice r t` | `str -> range -> str -> str` |
 | `value.show` | `Display 'a => 'a -> str` |
+| `value.debug` | `Debug 'a => 'a -> str` |
 
 ## See also
 

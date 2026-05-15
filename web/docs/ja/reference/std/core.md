@@ -72,8 +72,8 @@ filesystem surface は意図的に最小限で、まだ最終形ではない。`
 - `Eq`, `Ord`
 - `Add`, `Sub`, `Mul`, `Div`
 - `Len`
-- `Display`
+- `Display`, `Debug`
 - `Cast`
 - `LowerHex`, `UpperHex`
 
-`+`、`==`、`.len`、文字列埋め込み、implicit cast などは、これらの role を通して解決される。
+`+`、`==`、`.len`、`.show`、`.debug`、文字列埋め込み、implicit cast などは、これらの role を通して解決される。

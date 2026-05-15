@@ -581,6 +581,39 @@ io_b::wrap: io_b::up: run()
     }
 
     #[test]
+    fn vm_runs_std_debug_role_for_composites() {
+        let (results, output) = eval_source_with_std_host(
+            r#"my ok_value: result int str = result::ok 1
+my err_value: result int str = result::err "bad"
+
+[1, 2, 3].debug
+(just 1).debug
+ok_value.debug
+err_value.debug
+(true, 1, "s", ()).debug
+[[1], [2, 3]].debug
+(1, 2, 3, 4, 5, 6).debug
+{ a: 1, b: "x", c: [true, false] }.debug
+"#,
+        );
+
+        assert!(output.is_empty());
+        assert_eq!(
+            results,
+            vec![
+                TestValue::String("[1, 2, 3]".to_string()),
+                TestValue::String("just 1".to_string()),
+                TestValue::String("ok 1".to_string()),
+                TestValue::String("err \"bad\"".to_string()),
+                TestValue::String("(true, 1, \"s\", ())".to_string()),
+                TestValue::String("[[1], [2, 3]]".to_string()),
+                TestValue::String("(1, 2, 3, 4, 5, 6)".to_string()),
+                TestValue::String("{a: 1, b: \"x\", c: [true, false]}".to_string()),
+            ]
+        );
+    }
+
+    #[test]
     fn vm_runs_symbol_variant_roots_through_case_function() {
         let results = eval_source_with_std(
             r#"my button option = case option:

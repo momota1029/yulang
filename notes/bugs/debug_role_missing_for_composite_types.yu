@@ -2,8 +2,7 @@
 --      手段が無い。reference (`strings.md`) には `[1, 2, 3].show → "[1, 2, 3]"`
 --      の例があるが、これは古い記述で、設計判断では compose 型は `.show`
 --      (= user-facing 表示) ではなく `.debug` (= developer-facing 表示) で
---      型が付くべき。しかし `.debug` (Debug role) 自体が stdlib にまだ
---      存在しない。
+--      型が付くべき。
 --
 -- 期待:
 --   stdlib に `Debug` role と `.debug` operation が存在し、compose 型
@@ -11,9 +10,11 @@
 --   impl が登録される。element / payload に `Debug` impl があれば、
 --   `[1, 2, 3].debug`、`(1, "a").debug`、`{ x: 1 }.debug` のように書ける。
 --
--- 実際:
---   - `Debug` role / `.debug` method は未実装。
---   - 代替として `.show` を試すと、compose 型では落ちる:
+-- 現状 (2026-05-16):
+--   - `Debug` role / `.debug` method は stdlib に追加済み。
+--   - primitive / list / opt / result / tuple(2..5) は `.debug` が通る。
+--   - generic record debug と root pretty-print の `.debug` 統合はまだ残り。
+--   - 代替として `.show` を試すと、compose 型では引き続き落ちる:
 --
 --     ☆ infer 段 type error (element / payload 型が concrete に固まる場合):
 --
@@ -44,7 +45,7 @@
 --   - `.debug` (`Debug`) は「デバッグ用 = 見せられないけどデバッグする型」
 --     の表示。compose 型 (record / tuple / list / opt / result) はこちら。
 --   - つまり `[1, 2, 3].show` が動かないのは bug ではなく **設計通り**。
---     `Debug` role が未実装で、compose 型のデバッグ表示の公式手段が無い
+--     `Debug` role と compose 型のデバッグ表示の公式手段が不足していた
 --     ことが正味の不足。
 --
 -- 動く primitive (参考 / VM 側):
@@ -62,9 +63,8 @@
 --     `result_methods_undocumented_missing.yu` は「reference に書かれて
 --     いるが registry に無い」家系。こちらは少し違って「reference の
 --     `.show` 例が誤り」かつ「`.debug` という別 surface が必要」。
---   - reference の `web/docs/reference/strings.md` の
---     `[1, 2, 3].show → "[1, 2, 3]" (when an impl for the element exists)`
---     の記述は、`.debug` 導入後に `.debug` 側へ移すべき。
+--   - reference の `web/docs/reference/strings.md` / ja 版の旧
+--     `[1, 2, 3].show` 記述は、2026-05-16 に `.debug` 側へ移動済み。
 --
 -- 影響:
 --   - 現状、compose 型をデバッグ印刷する公式手段が無い。`println` での
@@ -73,5 +73,5 @@
 --     interpolation `"%{...}"` には使えないので、library code から構造的
 --     な値をデバッグ出力するのが困難。
 
--- 個別の確認用 (`.debug` が無いので `.show` で試した型エラー)
-[1, 2, 3].show
+-- 個別の確認用
+[1, 2, 3].debug

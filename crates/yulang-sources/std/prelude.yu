@@ -67,6 +67,9 @@ pub role Len 'a:
 pub role Display 'a:
     our a.show: str
 
+pub role Debug 'a:
+    our a.debug: str
+
 pub role Cast 'from:
     type to
     our from.cast: to
@@ -101,6 +104,9 @@ impl Ord int:
 impl Display int:
     our x.show = std::int::to_string x
 
+impl Debug int:
+    our x.debug = x.show
+
 impl LowerHex int:
     our x.lower_hex = std::int::to_hex x
 
@@ -131,11 +137,28 @@ impl Ord float:
 impl Display float:
     our x.show = std::float::to_string x
 
+impl Debug float:
+    our x.debug = x.show
+
 impl Eq bool:
     our x.eq y = std::bool::eq x y
 
+impl Eq str:
+    our x.eq y = std::str::eq x y
+
+impl Eq (list int):
+    our xs.eq ys = case (std::list::view_raw xs, std::list::view_raw ys):
+        (std::list::list_view::empty, std::list::list_view::empty) -> true
+        (std::list::list_view::leaf x, std::list::list_view::leaf y) -> std::int::eq x y
+        (std::list::list_view::node(xl, xr), std::list::list_view::node(yl, yr)) ->
+            xl.eq yl and xr.eq yr
+        _ -> false
+
 impl Display bool:
     our x.show = std::bool::to_string x
+
+impl Debug bool:
+    our x.debug = x.show
 
 impl Add str:
     our x.add y = std::str::concat x y
@@ -145,6 +168,69 @@ impl Add (list 'a):
 
 impl Display str:
     our x.show = x
+
+impl Debug str:
+    our x.debug = "\"" + x + "\""
+
+impl Debug unit:
+    our x.debug = "()"
+
+my debug_list_items(xs: list 'a): str =
+    where 'a: Debug
+    case std::list::uncons xs:
+        std::opt::opt::nil -> ""
+        std::opt::opt::just (head, tail) ->
+            if std::list::is_empty tail:
+                head.debug
+            else:
+                head.debug + ", " + debug_list_items tail
+
+impl Debug (list 'a):
+    where 'a: Debug
+    our xs.debug = "[" + debug_list_items xs + "]"
+
+impl Debug (opt 'a):
+    where 'a: Debug
+    our value.debug = case value:
+        std::opt::opt::nil -> "nil"
+        std::opt::opt::just inner -> "just " + inner.debug
+
+impl Debug (result 'ok 'err):
+    where 'ok: Debug
+    where 'err: Debug
+    our value.debug = case value:
+        std::result::result::ok inner -> "ok " + inner.debug
+        std::result::result::err inner -> "err " + inner.debug
+
+impl Debug ('a, 'b):
+    where 'a: Debug
+    where 'b: Debug
+    our value.debug = case value:
+        (a, b) -> "(" + a.debug + ", " + b.debug + ")"
+
+impl Debug ('a, 'b, 'c):
+    where 'a: Debug
+    where 'b: Debug
+    where 'c: Debug
+    our value.debug = case value:
+        (a, b, c) -> "(" + a.debug + ", " + b.debug + ", " + c.debug + ")"
+
+impl Debug ('a, 'b, 'c, 'd):
+    where 'a: Debug
+    where 'b: Debug
+    where 'c: Debug
+    where 'd: Debug
+    our value.debug = case value:
+        (a, b, c, d) -> "(" + a.debug + ", " + b.debug + ", " + c.debug + ", " + d.debug + ")"
+
+impl Debug ('a, 'b, 'c, 'd, 'e):
+    where 'a: Debug
+    where 'b: Debug
+    where 'c: Debug
+    where 'd: Debug
+    where 'e: Debug
+    our value.debug = case value:
+        (a, b, c, d, e) -> "(" + a.debug + ", " + b.debug + ", " + c.debug + ", " + d.debug + ", " + e.debug + ")"
 
 impl Len str:
     our s.len = std::str::len s

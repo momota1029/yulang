@@ -127,38 +127,16 @@ use std::undet::*
   — compose 型 (list / opt / result / tuple / record) のデバッグ表示の
   手段が無い。設計判断 (2026-05-15) では `.show` は「見せられる型」、
   `.debug` は「見せられないけどデバッグする型」で、compose 型は `.debug`
-  側。しかし `Debug` role / `.debug` operation が stdlib にまだ存在せず、
-  代替として `.show` を試すと infer エラー (`Display<list<int>>` 等) か
-  runtime blocked。reference の strings.md の `[1, 2, 3].show` 例も `.debug`
-  側へ移すべき。VM / native 同症。
+  側。2026-05-16 に stdlib へ `Debug` role と primitive / list / opt /
+  result / tuple(2..5) の `.debug` を追加済み。2026-05-16 に native
+  effects の root pretty-print も `.debug` 投影へ寄せ、record / long
+  tuple は host-side debug fallback で表示できる。reference の strings.md の
+  `[1, 2, 3].show` 例は `.debug` 側へ移動済み。
 
 ## 現在の未解決（2026-05-15 round-6 / `yulang run --native` との差分）
 
 VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 食い違うものを集める。既存の `native_*.yu` snippet と並べる。
-
-### 表示 / 値の repr 系
-
-- [`native_value_repr_in_tuple.yu`](native_value_repr_in_tuple.yu) —
-  bool / unit / string が tuple / list / record の中で正しく表示されない。
-  `(true, 1, "s", ())` が VM `(true, 1, "s", ())` / native `(1, 1, s, 0)`。
-  variant も `:just hello` のように tag に `:` が付き、payload string が
-  unquoted。format-only か repr 潰しか境界が曖昧。本質的には root pretty-print
-  が `.show` でも `.debug` でもない第三の経路になっていることに由来し、
-  `Debug` role 導入で自然に解消する見込み (→
-  `debug_role_missing_for_composite_types.yu`)。
-- [`native_float_collapses_to_zero.yu`](native_float_collapses_to_zero.yu)
-  — float 値が native でほぼ常に `0` に潰れる。`3.14` が `0`、`1.0 + 2.0`
-  が `0`、`[1.0, 2.0, 3.0]` が `[0, 0, 0]`。`1.5 < 2.5` は `true` (bool 表示
-  崩れで `1` になるが値は正しい) なので演算は走っており、display 直前で
-  float lane が抜け落ちている疑い。`native_value_repr_in_tuple.yu` の
-  bool / unit / string は format だけ崩れて値は残るのに対し、float は値
-  そのものが消える。
-- [`native_handler_result_value_collapse.yu`](native_handler_result_value_collapse.yu)
-  — handler を関数化して list / tuple を返すと、native 側で値が `0` /
-  空 tuple に潰れる。`["a"]` が `0`、`((), "hi\n")` が `(0, )`。VM では
-  普通に出る。`native_effect_handler_tuple_result_prints_pointer.yu`
-  （既存）と同じ家系。
 
 ### CPS lowering 未対応 / 値違い
 
@@ -166,13 +144,26 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   — handler arm の `if` guard と labelled `for` の bare effect operation
   (`#loop_label:outer##with0::...`) が CPS lowering 未対応で
   `failed to compile native effects object` で止まる。VM では通る。
-- [`native_serial_var_double_count.yu`](native_serial_var_double_count.yu)
-  — `examples/02_refs.yu` がそのまま native で `(11, 21)` ではなく
-  `(22, 22)` を返す。`my $x; my $y; &x = ...; &y = ...; ($x, $y)` の var
-  serial 経路で、tuple element が両方とも同じ slot を引いてさらに二重に
-  進んでいるような値。
 
 ## 解決済み（2026-05-14 時点で再現せず）
+
+- [`native_handler_result_value_collapse.yu`](native_handler_result_value_collapse.yu)
+  — 2026-05-16 WIP で native effects の blocked-effect boundary dispatch を
+  inactive marker で peel できるようにし、`ResumeWithHandler` sibling env を
+  inner-to-outer 順で読むようにした。`collect_logs: log::put "a"` は
+  native `--print-roots` で VM と同じ `["a"]`。
+- [`native_value_repr_in_tuple.yu`](native_value_repr_in_tuple.yu)
+  — 2026-05-16 WIP で native effects の root pretty-print を `.debug`
+  投影へ寄せ、tuple 内 literal bool / unit も boxed value として構造値へ
+  入れるようにした。`(true, 1, "s", ())` は native `--print-roots` で
+  `(true, 1, "s", ())`。
+- [`native_float_collapses_to_zero.yu`](native_float_collapses_to_zero.yu)
+  — 2026-05-16 WIP で native float lane を runtime value container へ
+  入れる時に boxed float へ変換し、float primitive 側へ戻す時に unbox
+  するようにした。`3.14` と `[2.0]` が native で値を保つ。
+- [`native_serial_var_double_count.yu`](native_serial_var_double_count.yu)
+  — 2026-05-16 WIP 時点で再現せず。`notes/bugs/native_serial_var_double_count.yu`
+  は native `--print-roots` で `(11, 21)`。
 
 - [`handler_arm_tuple_payload_pattern.yu`](handler_arm_tuple_payload_pattern.yu)
   — act operation の payload が tuple のとき、handler arm で `op (s, n), k
