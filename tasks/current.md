@@ -184,7 +184,8 @@ CPS repr Cranelift の source 回帰を広げる。
   の入口はできた。
 - CPS-level thunk pointer を list に保存し、`ListIndex` で取り出してから複数回
   `ForceThunk` する Cranelift regression を追加した。`ListIndex` の `Unknown`
-  lane からでも force 側で thunk pointer として扱える。
+  lane からでも force 側で thunk pointer として扱える。indexed thunk が string
+  heap value を返す path も固定した。
 - boundary 付き thunk pointer を list に保存し、`ListIndex` 後に force しても
   active boundary が handler selection に残る Cranelift regression を追加した。
   hidden callback effect が blocked inner handler を越える native 側の衛生性を

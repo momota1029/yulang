@@ -126,6 +126,7 @@ CPS repr ABI lane は、少なくとも次を明示的に扱う。
         Cranelift regression を入れる。
   - [x] CPS-level thunk pointer を list に保存し、index してから複数回 force する
         Cranelift regression を入れる。
+  - [x] indexed thunk が string heap value を返す Cranelift regression を入れる。
   - [ ] source-level first-class thunk を素直に取り出す表層型 / lowering 経路を作る。
         lazy operator で値だけを返す形は表層で thunk として残らず、注釈しても
         `int <: () -> int` になってしまう。

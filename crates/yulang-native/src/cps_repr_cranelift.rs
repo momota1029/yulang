@@ -8019,6 +8019,68 @@ mod tests {
     }
 
     #[test]
+    fn jit_forces_string_thunk_indexed_from_list() {
+        let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
+            functions: Vec::new(),
+            roots: vec![CpsFunction {
+                name: "root".to_string(),
+                params: Vec::new(),
+                entry: CpsContinuationId(0),
+                handlers: Vec::new(),
+                continuations: vec![
+                    CpsContinuation {
+                        id: CpsContinuationId(0),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![
+                            CpsStmt::MakeThunk {
+                                dest: CpsValueId(0),
+                                entry: CpsContinuationId(1),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(1),
+                                op: typed_ir::PrimitiveOp::ListSingleton,
+                                args: vec![CpsValueId(0)],
+                            },
+                            CpsStmt::Literal {
+                                dest: CpsValueId(2),
+                                literal: CpsLiteral::Int("0".to_string()),
+                            },
+                            CpsStmt::Primitive {
+                                dest: CpsValueId(3),
+                                op: typed_ir::PrimitiveOp::ListIndex,
+                                args: vec![CpsValueId(1), CpsValueId(2)],
+                            },
+                            CpsStmt::ForceThunk {
+                                dest: CpsValueId(4),
+                                thunk: CpsValueId(3),
+                            },
+                        ],
+                        terminator: CpsTerminator::Return(CpsValueId(4)),
+                    },
+                    CpsContinuation {
+                        id: CpsContinuationId(1),
+                        params: Vec::new(),
+                        captures: Vec::new(),
+                        shot_kind: CpsShotKind::OneShot,
+                        stmts: vec![CpsStmt::Literal {
+                            dest: CpsValueId(5),
+                            literal: CpsLiteral::String("thunked".to_string()),
+                        }],
+                        terminator: CpsTerminator::Return(CpsValueId(5)),
+                    },
+                ],
+            }],
+        }));
+        let mut jit = compile_cps_repr_abi_module(&abi).expect("compiled");
+        let roots = jit.run_roots_i64().expect("ran");
+
+        assert_eq!(roots.len(), 1);
+        assert_eq!(describe_native_i64_value(roots[0]), "thunked");
+    }
+
+    #[test]
     fn jit_calls_closure_indexed_from_list() {
         let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
             functions: Vec::new(),
