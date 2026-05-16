@@ -40,14 +40,27 @@
   doc comment に TODO（実装するなら #7 / #11 でこの一箇所だけ手を入れる）
   を残した。14 call sites も追従。
 
+**Pattern refresh の再帰（#5）— DONE**
+
+- `refresh_pattern_value_local_types` の Variant / List / Or arm が
+  外側の `value_ty` を内側 bind に伝えていなかった。
+  - Variant: value_ty が `Type::Variant` のとき該当 tag の payloads[0]
+    を取り出して payload pattern に再帰
+  - List: value_ty が `Named { args: [Type(item)] }` のとき item を
+    prefix / suffix に渡す、spread は list 全体型で再帰
+  - Or: left / right 両方に value_ty で再帰
+- 同根の `push_pattern_bindings` の list arm も prefix/spread/suffix に
+  `None` を渡していた → `list_expected_item` helper で expected の
+  element 型を取り出して prefix/suffix に伝播、spread は list 全体を維持。
+- 全テスト 0 failed。
+
 **未着手**
 
-- #6 effect hole を `Empty` に潰さない方向
+- #6 effect hole を `Empty` に潰さない方向（保留：影響範囲計測から）
 - #11 `pass_through_associated_type_signature` の本実装
 - #4 global `Var` 型 refresh
-- #5 pattern refresh の再帰修正
 - #8 fallback-to-old-`expr.ty` の失敗扱い化
-- #12 `DemandEffect::Hole` を `Empty` に束縛しない方向
+- #12 `DemandEffect::Hole` を `Empty` に束縛しない方向（#6 と同根）
 
 ---
 
