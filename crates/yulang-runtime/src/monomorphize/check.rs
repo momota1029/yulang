@@ -81,13 +81,13 @@ impl<'a> DemandChecker<'a> {
             ),
             &consumed_effects,
         );
-        let solved = close_known_associated_type_signature_with_semantics(
+        let solved = pass_through_associated_type_signature(
             &self.semantics,
             &demand.target,
             solved,
         );
         let solved = close_default_effect_holes(solved);
-        let solved = close_known_associated_type_signature_with_semantics(
+        let solved = pass_through_associated_type_signature(
             &self.semantics,
             &demand.target,
             solved,
@@ -1534,14 +1534,14 @@ impl<'a> ExprChecker<'a> {
         let provisional_args = strengthen_container_callback_param_signatures(provisional_args);
         let ret =
             self.lift_higher_order_call_return_to_enclosing_effect(target, &provisional_args, ret);
-        let closed = close_known_associated_type_signature_with_semantics(
+        let closed = pass_through_associated_type_signature(
             self.semantics,
             target,
             curried_signatures(&provisional_args, ret.clone()),
         );
         let closed = close_default_effect_holes(closed);
         let closed =
-            close_known_associated_type_signature_with_semantics(self.semantics, target, closed);
+            pass_through_associated_type_signature(self.semantics, target, closed);
         let (closed_args, closed_ret) = uncurried_checker_signatures(closed);
         debug_closed_call_param_hints(target, args.len(), &closed_args, &closed_ret);
         if closed_args.len() == args.len() {
@@ -2478,9 +2478,9 @@ fn normalize_check_demand_signature(
     signature: DemandSignature,
 ) -> DemandSignature {
     let signature =
-        close_known_associated_type_signature_with_semantics(semantics, target, signature);
+        pass_through_associated_type_signature(semantics, target, signature);
     let signature = close_default_effect_holes(signature);
-    close_known_associated_type_signature_with_semantics(semantics, target, signature)
+    pass_through_associated_type_signature(semantics, target, signature)
 }
 
 fn strengthen_handler_arg_signatures(

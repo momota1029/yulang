@@ -70,7 +70,7 @@ impl Demand {
         let key = DemandKey::new(target.clone(), &expected);
         let key = DemandKey::from_signature(
             target.clone(),
-            close_known_associated_type_signature_with_semantics(semantics, &target, key.signature),
+            pass_through_associated_type_signature(semantics, &target, key.signature),
         );
         Self {
             target,
@@ -94,7 +94,7 @@ impl Demand {
         signature: DemandSignature,
     ) -> Self {
         let signature =
-            close_known_associated_type_signature_with_semantics(semantics, &target, signature);
+            pass_through_associated_type_signature(semantics, &target, signature);
         let key = DemandKey::from_signature(target.clone(), signature);
         Self {
             target,

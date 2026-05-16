@@ -659,13 +659,13 @@ fn closed_collect_call_signature(
     ret: DemandSignature,
     arity: usize,
 ) -> (Vec<DemandSignature>, DemandSignature) {
-    let closed = close_known_associated_type_signature_with_semantics(
+    let closed = pass_through_associated_type_signature(
         semantics,
         target,
         curried_signatures(&args, ret.clone()),
     );
     let closed = close_default_effect_holes(closed);
-    let closed = close_known_associated_type_signature_with_semantics(semantics, target, closed);
+    let closed = pass_through_associated_type_signature(semantics, target, closed);
     let (closed_args, closed_ret) = uncurried_collect_signatures(closed);
     if closed_args.len() == arity {
         return (closed_args, closed_ret);

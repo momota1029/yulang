@@ -1,6 +1,15 @@
 use super::*;
 
-pub(super) fn close_known_associated_type_signature_with_semantics(
+/// **No-op placeholder.** The name implies that this closes any
+/// associated-type slots inside `signature` using `semantics` /
+/// `target`, but the body just returns `signature` untouched. It is
+/// retained at every call site so the eventual real implementation
+/// only has to fill in this one function. Until that happens, callers
+/// must not rely on associated types being resolved here.
+///
+/// TODO(type-monomorphize.md #7 / #11): implement, or fold the
+/// remaining identity call sites and delete this function.
+pub(super) fn pass_through_associated_type_signature(
     _semantics: &DemandSemantics,
     _target: &typed_ir::Path,
     signature: DemandSignature,

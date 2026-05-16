@@ -967,13 +967,13 @@ impl<'a> BodyEmitter<'a> {
         } else {
             ret
         };
-        let signature = close_known_associated_type_signature_with_semantics(
+        let signature = pass_through_associated_type_signature(
             self.semantics,
             &demand_target,
             curried_signatures(&arg_signatures, ret),
         );
         let signature = close_default_effect_holes(signature);
-        let signature = close_known_associated_type_signature_with_semantics(
+        let signature = pass_through_associated_type_signature(
             self.semantics,
             &demand_target,
             signature,
@@ -1143,14 +1143,14 @@ impl<'a> BodyEmitter<'a> {
             .collect::<Vec<_>>();
         let ret =
             self.lift_higher_order_call_return_to_enclosing_effect(target, &provisional_args, ret);
-        let closed = close_known_associated_type_signature_with_semantics(
+        let closed = pass_through_associated_type_signature(
             self.semantics,
             target,
             curried_signatures(&provisional_args, ret.clone()),
         );
         let closed = close_default_effect_holes(closed);
         let closed =
-            close_known_associated_type_signature_with_semantics(self.semantics, target, closed);
+            pass_through_associated_type_signature(self.semantics, target, closed);
         let (closed_args, closed_ret) = uncurried_emit_signatures(closed);
         if closed_args.len() == args.len() {
             return (closed_args.into_iter().map(Some).collect(), closed_ret);
