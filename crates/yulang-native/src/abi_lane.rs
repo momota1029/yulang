@@ -385,7 +385,8 @@ fn primitive_result_repr(
         | PrimitiveOp::FloatLe
         | PrimitiveOp::FloatGt
         | PrimitiveOp::FloatGe
-        | PrimitiveOp::StringEq => NativeAbiRepr::Bool,
+        | PrimitiveOp::StringEq
+        | PrimitiveOp::BytesEq => NativeAbiRepr::Bool,
         PrimitiveOp::IntAdd | PrimitiveOp::IntSub | PrimitiveOp::IntMul | PrimitiveOp::IntDiv => {
             NativeAbiRepr::Int
         }
@@ -393,8 +394,7 @@ fn primitive_result_repr(
         | PrimitiveOp::FloatSub
         | PrimitiveOp::FloatMul
         | PrimitiveOp::FloatDiv => NativeAbiRepr::Float,
-        PrimitiveOp::ListLen => NativeAbiRepr::Int,
-        PrimitiveOp::StringLen => NativeAbiRepr::Int,
+        PrimitiveOp::ListLen | PrimitiveOp::StringLen | PrimitiveOp::BytesLen => NativeAbiRepr::Int,
         PrimitiveOp::ListEmpty => NativeAbiRepr::List(Box::new(NativeAbiRepr::Unknown)),
         PrimitiveOp::ListSingleton => NativeAbiRepr::List(Box::new(arg_repr(args, values, 0))),
         PrimitiveOp::ListMerge => list_with_merged_element_repr(args, values),
@@ -431,6 +431,15 @@ fn primitive_result_repr(
         | PrimitiveOp::IntToUpperHex
         | PrimitiveOp::FloatToString
         | PrimitiveOp::BoolToString => NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::String),
+        PrimitiveOp::StringToBytes
+        | PrimitiveOp::BytesConcat
+        | PrimitiveOp::BytesIndexRange
+        | PrimitiveOp::BytesToUtf8Raw
+        | PrimitiveOp::BytesToPath
+        | PrimitiveOp::PathToBytes => {
+            NativeAbiRepr::RuntimeValuePtr(NativeRuntimePtrKind::RuntimeValue)
+        }
+        PrimitiveOp::BytesIndex => NativeAbiRepr::Int,
     }
 }
 

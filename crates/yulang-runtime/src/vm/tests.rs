@@ -14,6 +14,8 @@ mod tests {
         Int(String),
         Float(String),
         String(String),
+        Bytes(usize),
+        Path(String),
         Bool(bool),
         Unit,
         List(Vec<TestValue>),
@@ -297,10 +299,32 @@ my xs = [
     }
 
     #[test]
+    fn vm_runs_if_without_else_with_non_unit_body() {
+        let results = eval_source("if true: 1\n");
+
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
+    fn vm_runs_nested_for_return_from_sub() {
+        let results = eval_source_with_std(
+            r#"sub:
+    for x in 0..2:
+        for y in 0..2:
+            if y == 1: return (x + y)
+            else: ()
+    99
+"#,
+        );
+
+        assert_eq!(results, vec![TestValue::Int("1".to_string())]);
+    }
+
+    #[test]
     fn vm_runs_for_loop_with_console_body() {
         let (results, stdout) = eval_source_with_std_host(
             r#"for i in [1, 2, 3]:
-    println (i).show
+    say i
 "#,
         );
 
@@ -312,7 +336,7 @@ my xs = [
     fn vm_runs_lambda_param_string_interpolation() {
         let (results, stdout) = eval_source_with_std_host(
             r#"my f = \x -> {
-    println "x is %{x}"
+    say "x is %{x}"
     x + 1
 }
 
@@ -326,13 +350,33 @@ f 5
 
     #[test]
     fn vm_host_handles_console_output_requests() {
-        let (results, stdout) = eval_source_with_std_host("println \"hello\"\n1 + 2\n");
+        let (results, stdout) = eval_source_with_std_host(
+            r#"say "hello"
+"hello".say
+print "hello"
+"hello".print
+println "hello"
+"hello".println
+1 + 2
+"#,
+        );
 
         assert_eq!(
             results,
-            vec![TestValue::Unit, TestValue::Int("3".to_string())]
+            vec![
+                TestValue::Unit,
+                TestValue::Unit,
+                TestValue::Unit,
+                TestValue::Unit,
+                TestValue::Unit,
+                TestValue::Unit,
+                TestValue::Int("3".to_string())
+            ]
         );
-        assert_eq!(stdout, "hello\n");
+        assert_eq!(
+            stdout,
+            "hello\nhello\n\"hello\"\"hello\"\"hello\"\n\"hello\"\n"
+        );
     }
 
     #[test]
@@ -340,15 +384,17 @@ f 5
         let path = temp_test_path("yulang-fs-text");
         let source_path = yulang_string_literal(&path.to_string_lossy());
         let source = format!(
-            r#"my path = {source_path}
+            r#"my path: path = std::path::of_bytes (std::str::to_bytes {source_path})
 my before = exists path
-my wrote = write_text (path, "hello")
+my wrote = case write_text path "hello":
+    result::ok _ -> true
+    result::err _ -> false
 my after = exists path
 my file = is_file path
 my dir = is_dir path
 my text = case read_text path:
-    std::opt::opt::nil -> "missing"
-    std::opt::opt::just text -> text
+    result::ok text -> text
+    result::err _ -> "missing"
 (before, wrote, after, file, dir, text)
 "#
         );
@@ -433,35 +479,31 @@ act fs_err:
     fn vm_handles_std_fs_err_throw_role() {
         let results = eval_source_with_std(
             r#"{
-    my err: fs_err = fs_err::not_found "data.txt"
+    my path: path = std::path::of_bytes (std::str::to_bytes "data.txt")
+    my err: fs_err = fs_err::not_found path
     catch err.throw:
-        fs_err::not_found path, _ -> "missing:" + path
-        fs_err::denied path, _ -> "denied:" + path
-        fs_err::invalid_path text, _ -> "invalid:" + text
+        fs_err::not_found _, _ -> "missing"
+        fs_err::denied _, _ -> "denied"
+        fs_err::invalid_path _, _ -> "invalid"
 }
 "#,
         );
 
-        assert_eq!(
-            results,
-            vec![TestValue::String("missing:data.txt".to_string())]
-        );
+        assert_eq!(results, vec![TestValue::String("missing".to_string())]);
     }
 
     #[test]
     fn vm_handles_std_fs_err_fail_prefix() {
         let results = eval_source_with_std(
-            r#"catch fail fs_err::invalid_path "bad/path":
-    fs_err::not_found path, _ -> "missing:" + path
-    fs_err::denied path, _ -> "denied:" + path
-    fs_err::invalid_path text, _ -> "invalid:" + text
+            r#"my path: path = std::path::of_bytes (std::str::to_bytes "bad/path")
+catch fail fs_err::invalid_path path:
+    fs_err::not_found _, _ -> "missing"
+    fs_err::denied _, _ -> "denied"
+    fs_err::invalid_path _, _ -> "invalid"
 "#,
         );
 
-        assert_eq!(
-            results,
-            vec![TestValue::String("invalid:bad/path".to_string())]
-        );
+        assert_eq!(results, vec![TestValue::String("invalid".to_string())]);
     }
 
     #[test]
@@ -469,30 +511,28 @@ act fs_err:
         let path = temp_test_path("yulang-missing-text");
         let source_path = yulang_string_literal(&path.to_string_lossy());
         let source = format!(
-            r#"catch read_text_or_throw {source_path}:
-    fs_err::not_found path, _ -> "missing:" + path
-    fs_err::denied path, _ -> "denied:" + path
-    fs_err::invalid_path text, _ -> "invalid:" + text
+            r#"my path: path = std::path::of_bytes (std::str::to_bytes {source_path})
+catch read_text_or_throw path:
+    fs_err::not_found _, _ -> "missing"
+    fs_err::denied _, _ -> "denied"
+    fs_err::invalid_path _, _ -> "invalid"
 "#
         );
 
         let (results, stdout) = eval_source_with_std_host(&source);
 
         assert!(stdout.is_empty());
-        assert_eq!(
-            results,
-            vec![TestValue::String(format!(
-                "missing:{}",
-                path.to_string_lossy()
-            ))]
-        );
+        assert_eq!(results, vec![TestValue::String("missing".to_string())]);
     }
 
     #[test]
     fn vm_wraps_std_fs_error_as_result() {
         let path = temp_test_path("yulang-wrap-missing-text");
         let source_path = yulang_string_literal(&path.to_string_lossy());
-        let source = format!("fs_err::wrap (read_text_or_throw {source_path})\n");
+        let source = format!(
+            "my path: path = std::path::of_bytes (std::str::to_bytes {source_path})\n\
+             read_text path\n"
+        );
 
         let (results, stdout) = eval_source_with_std_host(&source);
 
@@ -503,9 +543,7 @@ act fs_err:
                 tag: "err".to_string(),
                 value: Some(Box::new(TestValue::Variant {
                     tag: "not_found".to_string(),
-                    value: Some(Box::new(TestValue::String(
-                        path.to_string_lossy().to_string()
-                    ))),
+                    value: Some(Box::new(TestValue::Path(path.display().to_string()))),
                 })),
             }]
         );
@@ -609,6 +647,37 @@ err_value.debug
                 TestValue::String("[[1], [2, 3]]".to_string()),
                 TestValue::String("(1, 2, 3, 4, 5, 6)".to_string()),
                 TestValue::String("{a: 1, b: \"x\", c: [true, false]}".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn vm_runs_std_show_role_for_composites() {
+        let (results, output) = eval_source_with_std_host(
+            r#"my ok_value: result int str = result::ok 1
+my err_value: result int str = result::err "bad"
+
+[1, 2, 3].show
+["a", "b"].show
+(just "x").show
+ok_value.show
+err_value.show
+(true, 1, "s", ()).show
+[[1], [2, 3]].show
+"#,
+        );
+
+        assert!(output.is_empty());
+        assert_eq!(
+            results,
+            vec![
+                TestValue::String("[1, 2, 3]".to_string()),
+                TestValue::String("[a, b]".to_string()),
+                TestValue::String("just x".to_string()),
+                TestValue::String("ok 1".to_string()),
+                TestValue::String("err bad".to_string()),
+                TestValue::String("(true, 1, s, ())".to_string()),
+                TestValue::String("[[1], [2, 3]]".to_string()),
             ]
         );
     }
@@ -1741,7 +1810,7 @@ our g h = sub:
 
 sub:
     my b = g f
-    println b.show
+    say b
     2
 "#,
         );
@@ -1758,7 +1827,7 @@ our g h = sub:
 
 sub:
     my b = g f
-    println b.show
+    say b
     2
 "#,
         );
@@ -2562,6 +2631,26 @@ run_into_strings: {
             ),
             Ok(VmValue::String(StringTree::from_str("abcz")))
         );
+        assert_eq!(
+            apply_primitive(
+                typed_ir::PrimitiveOp::BytesToUtf8Raw,
+                &[VmValue::Bytes(BytesTree::from_bytes("hello".as_bytes()))],
+            ),
+            Ok(VmValue::Tuple(vec![
+                VmValue::String(StringTree::from_str("hello")),
+                VmValue::Int("5".to_string()),
+            ]))
+        );
+        assert_eq!(
+            apply_primitive(
+                typed_ir::PrimitiveOp::BytesToUtf8Raw,
+                &[VmValue::Bytes(BytesTree::from_bytes(&[b'o', b'k', 0xff]))],
+            ),
+            Ok(VmValue::Tuple(vec![
+                VmValue::String(StringTree::from_str("ok")),
+                VmValue::Int("2".to_string()),
+            ]))
+        );
     }
 
     fn empty_module() -> Module {
@@ -2885,6 +2974,8 @@ run_into_strings: {
             VmValue::Int(value) => TestValue::Int(value),
             VmValue::Float(value) => TestValue::Float(value),
             VmValue::String(value) => TestValue::String(value.to_flat_string()),
+            VmValue::Bytes(value) => TestValue::Bytes(value.len()),
+            VmValue::Path(value) => TestValue::Path(value.display().to_string()),
             VmValue::Bool(value) => TestValue::Bool(value),
             VmValue::Unit => TestValue::Unit,
             VmValue::List(items) => TestValue::List(

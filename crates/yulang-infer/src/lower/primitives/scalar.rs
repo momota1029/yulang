@@ -248,6 +248,146 @@ pub(super) fn install_to_string_primitive(
     install_unary_primitive(state, module, name, op, param_name, "str");
 }
 
+pub(super) fn install_string_to_bytes_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_unary_primitive(state, module, name, op, "str", "bytes");
+}
+
+pub(super) fn install_bytes_len_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_unary_primitive(state, module, name, op, "bytes", "int");
+}
+
+pub(super) fn install_bytes_binary_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_binary_primitive(state, module, name, op, "bytes");
+}
+
+pub(super) fn install_bytes_binary_predicate_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_binary_predicate_primitive(state, module, name, op, "bytes");
+}
+
+pub(super) fn install_bytes_index_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_binary_mixed_primitive(state, module, name, op, "bytes", "int", "int");
+}
+
+pub(super) fn install_bytes_index_range_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_binary_mixed_primitive(state, module, name, op, "bytes", "range", "bytes");
+}
+
+pub(super) fn install_bytes_to_utf8_raw_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    let name = Name(name.to_string());
+    if state.ctx.modules.node(module).values.contains_key(&name) {
+        return;
+    }
+
+    let def = state.fresh_def();
+    let tv = state.fresh_tv();
+    state.register_def_tv(def, tv);
+    state.register_def_name(def, name.clone());
+    state.insert_value(module, name, def);
+
+    let bytes_path = named_path("bytes");
+    let str_path = named_path("str");
+    let int_path = named_path("int");
+    let pos_arg_eff = state.fresh_exact_pure_eff_tv();
+    let pos_ret_eff = state.fresh_exact_pure_eff_tv();
+    let pos_sig = state.pos_fun(
+        state.neg_con(bytes_path.clone(), vec![]),
+        Neg::Var(pos_arg_eff),
+        Pos::Var(pos_ret_eff),
+        state.pos_tuple(vec![
+            state.pos_con(str_path.clone(), vec![]),
+            state.pos_con(int_path.clone(), vec![]),
+        ]),
+    );
+    let neg_arg_eff = state.fresh_exact_pure_eff_tv();
+    let neg_ret_eff = state.fresh_exact_pure_eff_tv();
+    let neg_sig = state.neg_fun(
+        state.pos_con(bytes_path, vec![]),
+        Pos::Var(neg_arg_eff),
+        Neg::Var(neg_ret_eff),
+        Neg::Tuple(vec![
+            state.infer.alloc_neg(state.neg_con(str_path, vec![])),
+            state.infer.alloc_neg(state.neg_con(int_path, vec![])),
+        ]),
+    );
+    state.infer.constrain(pos_sig, Neg::Var(tv));
+    state.infer.constrain(Pos::Var(tv), neg_sig);
+
+    let body = TypedExpr {
+        tv,
+        eff: state.fresh_exact_pure_eff_tv(),
+        kind: crate::ast::expr::ExprKind::PrimitiveOp(op),
+    };
+    state.insert_principal_body(def, body);
+    state.runtime_export_schemes.insert(
+        def,
+        typed_ir::Scheme {
+            requirements: Vec::new(),
+            body: typed_ir::Type::Fun {
+                param: Box::new(named_runtime_type("bytes")),
+                param_effect: Box::new(typed_ir::Type::Any),
+                ret_effect: Box::new(typed_ir::Type::Any),
+                ret: Box::new(typed_ir::Type::Tuple(vec![
+                    named_runtime_type("str"),
+                    named_runtime_type("int"),
+                ])),
+            },
+        },
+    );
+}
+
+pub(super) fn install_bytes_to_path_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_unary_primitive(state, module, name, op, "bytes", "path");
+}
+
+pub(super) fn install_path_to_bytes_primitive(
+    state: &mut LowerState,
+    module: ModuleId,
+    name: &str,
+    op: typed_ir::PrimitiveOp,
+) {
+    install_unary_primitive(state, module, name, op, "path", "bytes");
+}
+
 pub(super) fn install_int_binary_predicate_primitive(
     state: &mut LowerState,
     module: ModuleId,
@@ -586,19 +726,20 @@ fn binary_scheme_body(name: &str) -> typed_ir::Type {
 }
 
 fn unary_scheme_body(param_name: &str, ret_name: &str) -> typed_ir::Type {
-    let param = typed_ir::Type::Named {
-        path: named_runtime_path(param_name),
-        args: vec![],
-    };
-    let ret = typed_ir::Type::Named {
-        path: named_runtime_path(ret_name),
-        args: vec![],
-    };
+    let param = named_runtime_type(param_name);
+    let ret = named_runtime_type(ret_name);
     typed_ir::Type::Fun {
         param: Box::new(param),
         param_effect: Box::new(typed_ir::Type::Any),
         ret_effect: Box::new(typed_ir::Type::Any),
         ret: Box::new(ret),
+    }
+}
+
+fn named_runtime_type(name: &str) -> typed_ir::Type {
+    typed_ir::Type::Named {
+        path: named_runtime_path(name),
+        args: vec![],
     }
 }
 

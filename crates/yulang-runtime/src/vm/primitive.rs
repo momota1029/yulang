@@ -8,6 +8,11 @@ pub(super) fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | typed_ir::PrimitiveOp::ListLen
         | typed_ir::PrimitiveOp::ListViewRaw
         | typed_ir::PrimitiveOp::StringLen
+        | typed_ir::PrimitiveOp::StringToBytes
+        | typed_ir::PrimitiveOp::BytesLen
+        | typed_ir::PrimitiveOp::BytesToUtf8Raw
+        | typed_ir::PrimitiveOp::BytesToPath
+        | typed_ir::PrimitiveOp::PathToBytes
         | typed_ir::PrimitiveOp::IntToString
         | typed_ir::PrimitiveOp::IntToHex
         | typed_ir::PrimitiveOp::IntToUpperHex
@@ -38,7 +43,11 @@ pub(super) fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | typed_ir::PrimitiveOp::FloatGt
         | typed_ir::PrimitiveOp::FloatGe
         | typed_ir::PrimitiveOp::StringEq
-        | typed_ir::PrimitiveOp::StringConcat => 2,
+        | typed_ir::PrimitiveOp::StringConcat
+        | typed_ir::PrimitiveOp::BytesEq
+        | typed_ir::PrimitiveOp::BytesConcat
+        | typed_ir::PrimitiveOp::BytesIndex
+        | typed_ir::PrimitiveOp::BytesIndexRange => 2,
         typed_ir::PrimitiveOp::ListSplice
         | typed_ir::PrimitiveOp::ListIndexRangeRaw
         | typed_ir::PrimitiveOp::StringSplice
@@ -232,6 +241,59 @@ pub fn apply_primitive(op: typed_ir::PrimitiveOp, args: &[VmValue]) -> Result<Vm
             string_value(&args[0])?.clone(),
             string_value(&args[1])?.clone(),
         ))),
+        typed_ir::PrimitiveOp::StringToBytes => Ok(VmValue::Bytes(BytesTree::from_bytes(
+            string_value(&args[0])?.to_flat_string().as_bytes(),
+        ))),
+        typed_ir::PrimitiveOp::BytesLen => {
+            Ok(VmValue::Int(bytes_value(&args[0])?.len().to_string()))
+        }
+        typed_ir::PrimitiveOp::BytesEq => Ok(VmValue::Bool(
+            bytes_value(&args[0])?.to_flat_vec() == bytes_value(&args[1])?.to_flat_vec(),
+        )),
+        typed_ir::PrimitiveOp::BytesConcat => Ok(VmValue::Bytes(BytesTree::concat(
+            bytes_value(&args[0])?.clone(),
+            bytes_value(&args[1])?.clone(),
+        ))),
+        typed_ir::PrimitiveOp::BytesIndex => {
+            let value = bytes_value(&args[0])?;
+            let index = usize::try_from(int_value(&args[1])?)
+                .map_err(|_| VmError::ExpectedInt(args[1].clone()))?;
+            value
+                .index(index)
+                .map(|byte| VmValue::Int((byte as i64).to_string()))
+                .ok_or(VmError::ExpectedBytes(args[0].clone()))
+        }
+        typed_ir::PrimitiveOp::BytesIndexRange => {
+            let value = bytes_value(&args[0])?;
+            let (start, end) = normalized_int_range_value(&args[1], value.len())?;
+            value
+                .index_range(start, end)
+                .map(VmValue::Bytes)
+                .ok_or(VmError::ExpectedBytes(args[0].clone()))
+        }
+        typed_ir::PrimitiveOp::BytesToUtf8Raw => {
+            let bytes = bytes_value(&args[0])?.to_flat_vec();
+            let valid = match std::str::from_utf8(&bytes) {
+                Ok(text) => {
+                    return Ok(VmValue::Tuple(vec![
+                        VmValue::String(StringTree::from(text.to_string())),
+                        VmValue::Int(bytes.len().to_string()),
+                    ]));
+                }
+                Err(error) => error.valid_up_to(),
+            };
+            let text = std::str::from_utf8(&bytes[..valid]).unwrap_or("");
+            Ok(VmValue::Tuple(vec![
+                VmValue::String(StringTree::from(text.to_string())),
+                VmValue::Int(valid.to_string()),
+            ]))
+        }
+        typed_ir::PrimitiveOp::BytesToPath => Ok(VmValue::Path(Rc::new(path_buf_from_bytes(
+            &bytes_value(&args[0])?.to_flat_vec(),
+        )))),
+        typed_ir::PrimitiveOp::PathToBytes => Ok(VmValue::Bytes(BytesTree::from_bytes(
+            &path_buf_bytes(path_value(&args[0])?.as_ref()),
+        ))),
         typed_ir::PrimitiveOp::IntToString => Ok(VmValue::String(StringTree::from(
             int_value(&args[0])?.to_string(),
         ))),
@@ -250,4 +312,29 @@ pub fn apply_primitive(op: typed_ir::PrimitiveOp, args: &[VmValue]) -> Result<Vm
             bool_value(&args[0])?.to_string(),
         ))),
     }
+}
+
+#[cfg(unix)]
+fn path_buf_from_bytes(bytes: &[u8]) -> PathBuf {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    PathBuf::from(OsString::from_vec(bytes.to_vec()))
+}
+
+#[cfg(not(unix))]
+fn path_buf_from_bytes(bytes: &[u8]) -> PathBuf {
+    PathBuf::from(String::from_utf8_lossy(bytes).into_owned())
+}
+
+#[cfg(unix)]
+fn path_buf_bytes(path: &PathBuf) -> Vec<u8> {
+    use std::os::unix::ffi::OsStrExt;
+
+    path.as_os_str().as_bytes().to_vec()
+}
+
+#[cfg(not(unix))]
+fn path_buf_bytes(path: &PathBuf) -> Vec<u8> {
+    path.to_string_lossy().as_bytes().to_vec()
 }

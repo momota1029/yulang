@@ -11,6 +11,8 @@ pub enum VmValue {
     Int(String),
     Float(String),
     String(StringTree),
+    Bytes(BytesTree),
+    Path(Rc<PathBuf>),
     Bool(bool),
     Unit,
     List(ListTree<Rc<VmValue>>),

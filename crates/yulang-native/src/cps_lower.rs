@@ -1872,12 +1872,11 @@ impl<'a> FunctionLowerer<'a> {
         });
         let closure = forced;
         let arg = self.lower_expr_as_call_arg(callee_ty, arg)?;
-        // Higher-order helpers must apply closures through a continuation
-        // boundary when the result is effectful.
-        if self.force_effectful_apply_depth > 0
-            || (self.sync_apply_for_immediate_force_depth == 0
-                && (one_step_apply_may_perform(callee_ty)
-                    || (self.higher_order_helper && matches!(expr.ty, runtime::Type::Thunk { .. }))))
+        // First-class calls need a continuation boundary by default. Even if
+        // the visible result type looks plain, the callee can perform before
+        // returning that value; a stmt-level ApplyClosure would not capture the
+        // caller's rest in the resumption.
+        if self.force_effectful_apply_depth > 0 || self.sync_apply_for_immediate_force_depth == 0
         {
             let post_cont = self.fresh_continuation();
             let result = self.fresh_value();
@@ -4880,8 +4879,7 @@ impl<'a> FunctionLowerer<'a> {
             let callee_ty = callable_type_after_force(&callee.ty);
             let arg = self.lower_expr_as_call_arg(callee_ty, arg)?;
             if self.force_effectful_apply_depth > 0
-                || (self.sync_apply_for_immediate_force_depth == 0
-                    && (one_step_apply_may_perform(callee_ty) || self.higher_order_helper))
+                || self.sync_apply_for_immediate_force_depth == 0
             {
                 let post_cont = self.fresh_continuation();
                 let result = self.fresh_value();
@@ -6199,6 +6197,11 @@ fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | PrimitiveOp::ListLen
         | PrimitiveOp::ListViewRaw
         | PrimitiveOp::StringLen
+        | PrimitiveOp::StringToBytes
+        | PrimitiveOp::BytesLen
+        | PrimitiveOp::BytesToUtf8Raw
+        | PrimitiveOp::BytesToPath
+        | PrimitiveOp::PathToBytes
         | PrimitiveOp::IntToString
         | PrimitiveOp::IntToHex
         | PrimitiveOp::IntToUpperHex
@@ -6229,7 +6232,11 @@ fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | PrimitiveOp::FloatGt
         | PrimitiveOp::FloatGe
         | PrimitiveOp::StringEq
-        | PrimitiveOp::StringConcat => 2,
+        | PrimitiveOp::StringConcat
+        | PrimitiveOp::BytesEq
+        | PrimitiveOp::BytesConcat
+        | PrimitiveOp::BytesIndex
+        | PrimitiveOp::BytesIndexRange => 2,
         PrimitiveOp::ListSplice
         | PrimitiveOp::ListIndexRangeRaw
         | PrimitiveOp::StringSplice

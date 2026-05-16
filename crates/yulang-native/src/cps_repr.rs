@@ -1047,13 +1047,16 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | PrimitiveOp::IntMul
         | PrimitiveOp::IntDiv
         | PrimitiveOp::ListLen
-        | PrimitiveOp::StringLen => CpsReprAbiLane::ScalarI64,
+        | PrimitiveOp::StringLen
+        | PrimitiveOp::BytesLen
+        | PrimitiveOp::BytesIndex => CpsReprAbiLane::ScalarI64,
         PrimitiveOp::FloatEq
         | PrimitiveOp::FloatLt
         | PrimitiveOp::FloatLe
         | PrimitiveOp::FloatGt
         | PrimitiveOp::FloatGe
-        | PrimitiveOp::StringEq => CpsReprAbiLane::ScalarI64,
+        | PrimitiveOp::StringEq
+        | PrimitiveOp::BytesEq => CpsReprAbiLane::ScalarI64,
         PrimitiveOp::FloatAdd
         | PrimitiveOp::FloatSub
         | PrimitiveOp::FloatMul
@@ -1072,6 +1075,12 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | PrimitiveOp::StringIndexRangeRaw
         | PrimitiveOp::StringSpliceRaw
         | PrimitiveOp::StringConcat
+        | PrimitiveOp::StringToBytes
+        | PrimitiveOp::BytesConcat
+        | PrimitiveOp::BytesIndexRange
+        | PrimitiveOp::BytesToUtf8Raw
+        | PrimitiveOp::BytesToPath
+        | PrimitiveOp::PathToBytes
         | PrimitiveOp::IntToString
         | PrimitiveOp::IntToHex
         | PrimitiveOp::IntToUpperHex
@@ -1190,20 +1199,24 @@ fn handler_arm_for_effect<'a>(
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HostConsoleEffect {
-    Print,
-    Println,
+    OutWrite,
+    ErrWrite,
+    WarnWrite,
+    DieDie,
 }
 
 fn host_console_effect_kind(effect: &typed_ir::Path) -> Option<HostConsoleEffect> {
-    let [std, console_module, console_act, operation] = effect.segments.as_slice() else {
+    let [std, module_seg, act_seg, operation] = effect.segments.as_slice() else {
         return None;
     };
-    if std.0 != "std" || console_module.0 != "console" || console_act.0 != "console" {
+    if std.0 != "std" || module_seg.0 != "out" {
         return None;
     }
-    match operation.0.as_str() {
-        "print" => Some(HostConsoleEffect::Print),
-        "println" => Some(HostConsoleEffect::Println),
+    match (act_seg.0.as_str(), operation.0.as_str()) {
+        ("out", "write") => Some(HostConsoleEffect::OutWrite),
+        ("err", "write") => Some(HostConsoleEffect::ErrWrite),
+        ("warn", "warn") => Some(HostConsoleEffect::WarnWrite),
+        ("die", "die") => Some(HostConsoleEffect::DieDie),
         _ => None,
     }
 }

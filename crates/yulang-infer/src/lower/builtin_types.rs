@@ -10,6 +10,8 @@ pub(crate) enum PrimitiveTypeFamily {
     ListView,
     Str,
     Range,
+    Bytes,
+    Path,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -33,6 +35,8 @@ impl PrimitivePathTable {
             PrimitiveTypeFamily::ListView,
             PrimitiveTypeFamily::Str,
             PrimitiveTypeFamily::Range,
+            PrimitiveTypeFamily::Bytes,
+            PrimitiveTypeFamily::Path,
         ] {
             source_types.insert(family, standard_source_type_path(family));
         }
@@ -43,6 +47,8 @@ impl PrimitivePathTable {
         source_type_aliases.insert("str".to_string(), PrimitiveTypeFamily::Str);
         source_type_aliases.insert("string".to_string(), PrimitiveTypeFamily::Str);
         source_type_aliases.insert("range".to_string(), PrimitiveTypeFamily::Range);
+        source_type_aliases.insert("bytes".to_string(), PrimitiveTypeFamily::Bytes);
+        source_type_aliases.insert("path".to_string(), PrimitiveTypeFamily::Path);
 
         let mut runtime_values = HashMap::new();
         for family in [
@@ -122,6 +128,14 @@ impl PrimitivePathTable {
                 PrimitiveTypeFamily::Range,
                 typed_ir::PrimitiveTypeFamily::Range,
             ),
+            self.core_type_node(
+                PrimitiveTypeFamily::Bytes,
+                typed_ir::PrimitiveTypeFamily::Bytes,
+            ),
+            self.core_type_node(
+                PrimitiveTypeFamily::Path,
+                typed_ir::PrimitiveTypeFamily::Path,
+            ),
         ]);
         nodes
     }
@@ -198,6 +212,8 @@ fn primitive_std_type_segments(family: PrimitiveTypeFamily) -> (&'static str, &'
         PrimitiveTypeFamily::ListView => ("list", "list_view"),
         PrimitiveTypeFamily::Str => ("str", "str"),
         PrimitiveTypeFamily::Range => ("range", "range"),
+        PrimitiveTypeFamily::Bytes => ("bytes", "bytes"),
+        PrimitiveTypeFamily::Path => ("path", "path"),
     }
 }
 

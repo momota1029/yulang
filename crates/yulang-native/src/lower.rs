@@ -1781,6 +1781,11 @@ fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | PrimitiveOp::ListLen
         | PrimitiveOp::ListViewRaw
         | PrimitiveOp::StringLen
+        | PrimitiveOp::StringToBytes
+        | PrimitiveOp::BytesLen
+        | PrimitiveOp::BytesToUtf8Raw
+        | PrimitiveOp::BytesToPath
+        | PrimitiveOp::PathToBytes
         | PrimitiveOp::IntToString
         | PrimitiveOp::IntToHex
         | PrimitiveOp::IntToUpperHex
@@ -1811,7 +1816,11 @@ fn primitive_arity(op: typed_ir::PrimitiveOp) -> usize {
         | PrimitiveOp::FloatGt
         | PrimitiveOp::FloatGe
         | PrimitiveOp::StringEq
-        | PrimitiveOp::StringConcat => 2,
+        | PrimitiveOp::StringConcat
+        | PrimitiveOp::BytesEq
+        | PrimitiveOp::BytesConcat
+        | PrimitiveOp::BytesIndex
+        | PrimitiveOp::BytesIndexRange => 2,
         PrimitiveOp::ListSplice
         | PrimitiveOp::ListIndexRangeRaw
         | PrimitiveOp::StringSplice

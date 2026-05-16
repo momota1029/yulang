@@ -1,2 +1,2 @@
-println "hello from Yulang"
+say "Hello, World"
 1 + 2

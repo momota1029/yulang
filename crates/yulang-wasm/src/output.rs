@@ -127,6 +127,12 @@ fn format_vm_value_into(out: &mut String, value: &runtime::VmValue) {
         runtime::VmValue::String(value) => {
             let _ = write!(out, "{:?}", value.to_flat_string());
         }
+        runtime::VmValue::Bytes(value) => {
+            let _ = write!(out, "<bytes len={}>", value.len());
+        }
+        runtime::VmValue::Path(value) => {
+            let _ = write!(out, "{:?}", value.display().to_string());
+        }
         runtime::VmValue::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
         runtime::VmValue::Unit => out.push_str("()"),
         runtime::VmValue::List(items) => format_vm_list_into(out, items),

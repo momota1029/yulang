@@ -9,13 +9,16 @@ use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataDescription, FuncId, Linkage, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule};
 use yulang_runtime as runtime;
+use yulang_runtime::runtime::bytes_tree::BytesTree;
 use yulang_typed_ir as typed_ir;
 
 use crate::cps_ir::{
     CpsContinuationId, CpsHandlerId, CpsLiteral, CpsRecordField, CpsStmt, CpsTerminator, CpsValueId,
 };
 use crate::cps_lower::{CpsLowerError, lower_cps_module};
-use crate::cps_optimize::{CpsOptimizationProfile, optimize_cps_repr_abi_module};
+use crate::cps_optimize::{
+    CpsOptimizationOutput, CpsOptimizationProfile, optimize_cps_repr_abi_module,
+};
 use crate::cps_repr::CpsReprAbiLane;
 use crate::cps_repr_abi::{
     CpsReprAbiContinuation, CpsReprAbiFunction, CpsReprAbiModule, CpsReprAbiValue,
@@ -231,7 +234,14 @@ impl CpsReprObjectModule {
 pub fn compile_cps_repr_abi_module(
     module: &CpsReprAbiModule,
 ) -> CpsReprCraneliftResult<CpsReprJitModule> {
-    let optimized = optimize_cps_repr_abi_module(module);
+    let optimized = if std::env::var_os("YULANG_CPS_JIT_DISABLE_OPT").is_some() {
+        CpsOptimizationOutput {
+            module: module.clone(),
+            profile: CpsOptimizationProfile::default(),
+        }
+    } else {
+        optimize_cps_repr_abi_module(module)
+    };
     let module = &optimized.module;
     validate_scalar_subset(module)?;
 
@@ -274,7 +284,14 @@ pub fn compile_cps_repr_abi_module(
 pub fn compile_cps_repr_abi_module_to_object(
     module: &CpsReprAbiModule,
 ) -> CpsReprCraneliftResult<CpsReprObjectModule> {
-    let optimized = optimize_cps_repr_abi_module(module);
+    let optimized = if std::env::var_os("YULANG_CPS_JIT_DISABLE_OPT").is_some() {
+        CpsOptimizationOutput {
+            module: module.clone(),
+            profile: CpsOptimizationProfile::default(),
+        }
+    } else {
+        optimize_cps_repr_abi_module(module)
+    };
     let module = &optimized.module;
     validate_scalar_subset(module)?;
 
@@ -451,6 +468,7 @@ struct HandlerCandidate {
     handler: CpsHandlerId,
     function: String,
     entry: CpsContinuationId,
+    continues_to_installed_escape: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -479,6 +497,10 @@ impl HandlerRegistry {
                                 handler: handler.id,
                                 function: function.name.clone(),
                                 entry: arm.entry,
+                                continues_to_installed_escape:
+                                    handler_arm_continues_to_installed_escape(
+                                        function, handler.id, arm.entry,
+                                    ) || handler_arm_uses_resume_with_handler(function, arm.entry),
                             },
                         )
                     })
@@ -1557,12 +1579,20 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             handler,
             envs,
         } => {
+            let updates_existing_handler_env = envs.iter().any(|env| !env.targets.is_empty());
             capture_handler_envs(module_backend, builder, function, *handler, envs)?;
             let helper = declare_import(
                 module_backend,
                 builder,
                 "yulang_cps_resume_with_handler_i64",
-                &[types::I64, types::I64, types::I64, types::I64, types::I64],
+                &[
+                    types::I64,
+                    types::I64,
+                    types::I64,
+                    types::I64,
+                    types::I64,
+                    types::I64,
+                ],
                 types::I64,
             )?;
             let resumption = read_value(builder, function, *resumption)?;
@@ -1576,18 +1606,28 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let owner_function = builder
                 .ins()
                 .iconst(types::I64, function_runtime_id(function, functions)? as i64);
+            let updates_existing_handler_env = builder
+                .ins()
+                .iconst(types::I64, i64::from(updates_existing_handler_env));
             // write27-d d5: fresh eval context for the sync resume-with-handler.
             let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
             let call = builder.ins().call(
                 helper,
-                &[resumption, arg, handler, consumes_mask, owner_function],
+                &[
+                    resumption,
+                    arg,
+                    handler,
+                    consumes_mask,
+                    owner_function,
+                    updates_existing_handler_env,
+                ],
             );
             let results = builder.inst_results(call);
             let result = results[0];
             restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
             let result = abort_result_or_return(module_backend, builder, result)?;
             let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
-            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
+            return_if_scope_return_active_without_routing(module_backend, builder, scope_fallback)?;
             builder.def_var(variable(*dest), result);
         }
         CpsStmt::InstallHandler {
@@ -2066,6 +2106,36 @@ fn lower_effectful_force_tail<M: Module>(
 ) -> CpsReprCraneliftResult<()> {
     let resume_cont = lookup_continuation(function, resume)?;
     check_resume_continuation_shape(function, resume_cont)?;
+    let thunk_value = read_value(builder, function, thunk)?;
+    let is_thunk = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_is_thunk_i64",
+        &[thunk_value],
+    )?;
+    let is_thunk = builder
+        .ins()
+        .icmp_imm(ir::condcodes::IntCC::NotEqual, is_thunk, 0);
+    let force_block = builder.create_block();
+    let value_block = builder.create_block();
+    builder
+        .ins()
+        .brif(is_thunk, force_block, &[], value_block, &[]);
+
+    builder.switch_to_block(value_block);
+    builder.seal_block(value_block);
+    let value = call_continuation_with_values(
+        module_backend,
+        builder,
+        function,
+        resume,
+        &[thunk_value],
+        functions,
+    )?;
+    builder.ins().return_(&[value]);
+
+    builder.switch_to_block(force_block);
+    builder.seal_block(force_block);
     let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
     let pre_push_count = call_i64_helper(
         module_backend,
@@ -2081,7 +2151,6 @@ fn lower_effectful_force_tail<M: Module>(
         immediate_force,
         functions,
     )?;
-    let thunk_value = read_value(builder, function, thunk)?;
     switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
     let result = call_i64_helper(
         module_backend,
@@ -2115,21 +2184,10 @@ fn handler_arm_continues_to_installed_escape(
     handler: CpsHandlerId,
     entry: CpsContinuationId,
 ) -> bool {
-    let Some(arm_entry) = function
-        .continuations
-        .iter()
-        .find(|continuation| continuation.id == entry)
-    else {
+    let Some(escape) = handler_arm_continue_chain_escape(function, handler, entry) else {
         return false;
     };
-    let arm_uninstalls_handler = arm_entry
-        .stmts
-        .iter()
-        .any(|stmt| matches!(stmt, CpsStmt::UninstallHandler { handler: id } if *id == handler));
-    let CpsTerminator::Continue { target: escape, .. } = &arm_entry.terminator else {
-        return false;
-    };
-    let escape_is_installed_for_handler = function.continuations.iter().any(|continuation| {
+    function.continuations.iter().any(|continuation| {
         continuation.stmts.iter().any(|stmt| {
             matches!(
                 stmt,
@@ -2137,11 +2195,79 @@ fn handler_arm_continues_to_installed_escape(
                     handler: id,
                     escape: installed_escape,
                     ..
-                } if *id == handler && installed_escape == escape
+                } if *id == handler && *installed_escape == escape
             )
         })
-    });
-    arm_uninstalls_handler && escape_is_installed_for_handler
+    })
+}
+
+fn handler_arm_continue_chain_escape(
+    function: &CpsReprAbiFunction,
+    handler: CpsHandlerId,
+    entry: CpsContinuationId,
+) -> Option<CpsContinuationId> {
+    let mut current = entry;
+    let mut saw_uninstall = false;
+    let mut visited = HashSet::new();
+    while visited.insert(current) {
+        let continuation = function
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == current)?;
+        saw_uninstall |= continuation.stmts.iter().any(
+            |stmt| matches!(stmt, CpsStmt::UninstallHandler { handler: id } if *id == handler),
+        );
+        let CpsTerminator::Continue { target, .. } = &continuation.terminator else {
+            return saw_uninstall.then_some(current);
+        };
+        if saw_uninstall
+            && function.continuations.iter().any(|candidate| {
+                candidate.stmts.iter().any(|stmt| {
+                    matches!(
+                        stmt,
+                        CpsStmt::InstallHandler {
+                            handler: id,
+                            escape,
+                            ..
+                        } if *id == handler && escape == target
+                    )
+                })
+            })
+        {
+            return Some(*target);
+        }
+        current = *target;
+    }
+    None
+}
+
+fn handler_arm_uses_resume_with_handler(
+    function: &CpsReprAbiFunction,
+    entry: CpsContinuationId,
+) -> bool {
+    let mut current = entry;
+    let mut visited = HashSet::new();
+    while visited.insert(current) {
+        let Some(continuation) = function
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == current)
+        else {
+            return false;
+        };
+        if continuation
+            .stmts
+            .iter()
+            .any(|stmt| matches!(stmt, CpsStmt::ResumeWithHandler { .. }))
+        {
+            return true;
+        }
+        let CpsTerminator::Continue { target, .. } = &continuation.terminator else {
+            return false;
+        };
+        current = *target;
+    }
+    false
 }
 
 /// write27-b: mirror of `return_frame_immediately_forces_param` in
@@ -2385,7 +2511,7 @@ fn lower_selected_handler_return<M: Module>(
             "yulang_cps_exit_handler_arm_i64",
             &[],
         )?;
-        if handler_arm_continues_to_installed_escape(function, candidate.handler, candidate.entry) {
+        if candidate.continues_to_installed_escape {
             let value = call_i64_helper(
                 module_backend,
                 builder,
@@ -2442,15 +2568,18 @@ fn lower_host_console_perform<M: Module>(
     functions: &DeclaredFunctions,
 ) -> CpsReprCraneliftResult<()> {
     let helper = match kind {
-        HostConsoleEffect::Print => "yulang_cps_console_print_i64",
-        HostConsoleEffect::Println => "yulang_cps_console_println_i64",
         HostConsoleEffect::Debug => "yulang_cps_debug_i64",
+        HostConsoleEffect::OutWrite => "yulang_cps_out_write_i64",
+        HostConsoleEffect::ErrWrite => "yulang_cps_err_write_i64",
+        HostConsoleEffect::WarnWrite => "yulang_cps_warn_write_i64",
+        HostConsoleEffect::DieDie => "yulang_cps_die_i64",
     };
     let result = call_i64_helper(module_backend, builder, helper, &[payload])?;
     let resume_value = match kind {
-        HostConsoleEffect::Print | HostConsoleEffect::Println => {
-            builder.ins().iconst(types::I64, 0)
-        }
+        HostConsoleEffect::OutWrite
+        | HostConsoleEffect::ErrWrite
+        | HostConsoleEffect::WarnWrite
+        | HostConsoleEffect::DieDie => builder.ins().iconst(types::I64, 0),
         HostConsoleEffect::Debug => result,
     };
     let value = call_continuation_with_values(
@@ -2913,6 +3042,32 @@ fn return_if_scope_return_active<M: Module>(
         &[fallback],
     )?;
     builder.ins().return_(&[routed]);
+
+    builder.switch_to_block(cont_block);
+    builder.seal_block(cont_block);
+    Ok(())
+}
+
+fn return_if_scope_return_active_without_routing<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    fallback: ir::Value,
+) -> CpsReprCraneliftResult<()> {
+    let active = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_scope_return_active_i64",
+        &[],
+    )?;
+    let return_block = builder.create_block();
+    let cont_block = builder.create_block();
+    builder
+        .ins()
+        .brif(active, return_block, &[], cont_block, &[]);
+
+    builder.switch_to_block(return_block);
+    builder.seal_block(return_block);
+    builder.ins().return_(&[fallback]);
 
     builder.switch_to_block(cont_block);
     builder.seal_block(cont_block);
@@ -3791,22 +3946,15 @@ fn effect_segment_matches_allowed(allowed: &typed_ir::Name, effect: &typed_ir::N
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HostConsoleEffect {
-    Print,
-    Println,
     Debug,
+    OutWrite,
+    ErrWrite,
+    WarnWrite,
+    DieDie,
 }
 
 fn host_console_effect_kind(effect: &typed_ir::Path) -> Option<HostConsoleEffect> {
     match effect.segments.as_slice() {
-        [std, console_module, console_act, operation]
-            if std.0 == "std" && console_module.0 == "console" && console_act.0 == "console" =>
-        {
-            match operation.0.as_str() {
-                "print" => Some(HostConsoleEffect::Print),
-                "println" => Some(HostConsoleEffect::Println),
-                _ => None,
-            }
-        }
         [std, prelude, role, method]
             if std.0 == "std"
                 && prelude.0 == "prelude"
@@ -3814,6 +3962,15 @@ fn host_console_effect_kind(effect: &typed_ir::Path) -> Option<HostConsoleEffect
                 && method.0 == "debug" =>
         {
             Some(HostConsoleEffect::Debug)
+        }
+        [std, module_seg, act_seg, operation] if std.0 == "std" && module_seg.0 == "out" => {
+            match (act_seg.0.as_str(), operation.0.as_str()) {
+                ("out", "write") => Some(HostConsoleEffect::OutWrite),
+                ("err", "write") => Some(HostConsoleEffect::ErrWrite),
+                ("warn", "warn") => Some(HostConsoleEffect::WarnWrite),
+                ("die", "die") => Some(HostConsoleEffect::DieDie),
+                _ => None,
+            }
         }
         _ => None,
     }
@@ -4053,6 +4210,60 @@ fn lower_primitive<M: Module>(
             builder,
             "yulang_cps_string_splice_i64",
             &[args[0], args[1], args[2]],
+        )?,
+        typed_ir::PrimitiveOp::StringToBytes => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_string_to_bytes_i64",
+            &[args[0]],
+        )?,
+        typed_ir::PrimitiveOp::BytesLen => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_bytes_len_i64",
+            &[args[0]],
+        )?,
+        typed_ir::PrimitiveOp::BytesEq => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_bytes_eq_i64",
+            &[args[0], args[1]],
+        )?,
+        typed_ir::PrimitiveOp::BytesConcat => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_bytes_concat_i64",
+            &[args[0], args[1]],
+        )?,
+        typed_ir::PrimitiveOp::BytesIndex => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_bytes_index_i64",
+            &[args[0], args[1]],
+        )?,
+        typed_ir::PrimitiveOp::BytesIndexRange => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_bytes_index_range_i64",
+            &[args[0], args[1]],
+        )?,
+        typed_ir::PrimitiveOp::BytesToUtf8Raw => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_bytes_to_utf8_raw_i64",
+            &[args[0]],
+        )?,
+        typed_ir::PrimitiveOp::BytesToPath => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_bytes_to_path_i64",
+            &[args[0]],
+        )?,
+        typed_ir::PrimitiveOp::PathToBytes => call_i64_helper(
+            module_backend,
+            builder,
+            "yulang_cps_path_to_bytes_i64",
+            &[args[0]],
         )?,
     };
     Ok(value)
@@ -4296,7 +4507,16 @@ fn validate_primitive(
         | typed_ir::PrimitiveOp::StringIndexRangeRaw
         | typed_ir::PrimitiveOp::StringIndexRange
         | typed_ir::PrimitiveOp::StringSpliceRaw
-        | typed_ir::PrimitiveOp::StringSplice => Ok(()),
+        | typed_ir::PrimitiveOp::StringSplice
+        | typed_ir::PrimitiveOp::StringToBytes
+        | typed_ir::PrimitiveOp::BytesLen
+        | typed_ir::PrimitiveOp::BytesEq
+        | typed_ir::PrimitiveOp::BytesConcat
+        | typed_ir::PrimitiveOp::BytesIndex
+        | typed_ir::PrimitiveOp::BytesIndexRange
+        | typed_ir::PrimitiveOp::BytesToUtf8Raw
+        | typed_ir::PrimitiveOp::BytesToPath
+        | typed_ir::PrimitiveOp::PathToBytes => Ok(()),
     }
 }
 
@@ -4809,12 +5029,15 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | typed_ir::PrimitiveOp::IntDiv
         | typed_ir::PrimitiveOp::ListLen
         | typed_ir::PrimitiveOp::StringLen
+        | typed_ir::PrimitiveOp::BytesLen
+        | typed_ir::PrimitiveOp::BytesIndex
         | typed_ir::PrimitiveOp::FloatEq
         | typed_ir::PrimitiveOp::FloatLt
         | typed_ir::PrimitiveOp::FloatLe
         | typed_ir::PrimitiveOp::FloatGt
         | typed_ir::PrimitiveOp::FloatGe
-        | typed_ir::PrimitiveOp::StringEq => CpsReprAbiLane::ScalarI64,
+        | typed_ir::PrimitiveOp::StringEq
+        | typed_ir::PrimitiveOp::BytesEq => CpsReprAbiLane::ScalarI64,
         typed_ir::PrimitiveOp::FloatAdd
         | typed_ir::PrimitiveOp::FloatSub
         | typed_ir::PrimitiveOp::FloatMul
@@ -4833,6 +5056,12 @@ fn primitive_result_lane(op: typed_ir::PrimitiveOp) -> CpsReprAbiLane {
         | typed_ir::PrimitiveOp::StringIndexRangeRaw
         | typed_ir::PrimitiveOp::StringSpliceRaw
         | typed_ir::PrimitiveOp::StringConcat
+        | typed_ir::PrimitiveOp::StringToBytes
+        | typed_ir::PrimitiveOp::BytesConcat
+        | typed_ir::PrimitiveOp::BytesIndexRange
+        | typed_ir::PrimitiveOp::BytesToUtf8Raw
+        | typed_ir::PrimitiveOp::BytesToPath
+        | typed_ir::PrimitiveOp::PathToBytes
         | typed_ir::PrimitiveOp::IntToString
         | typed_ir::PrimitiveOp::IntToHex
         | typed_ir::PrimitiveOp::IntToUpperHex
@@ -4924,6 +5153,8 @@ enum NativeCpsI64HeapValue {
     Unit,
     Float(f64),
     String(Box<str>),
+    Bytes(BytesTree),
+    Path(std::path::PathBuf),
 }
 
 /// write27-d d1: tag where a `NativeCpsI64HandlerFrame` came from so
@@ -5765,6 +5996,8 @@ fn describe_native_i64_value_with_depth(value: i64, depth: usize) -> String {
         NativeCpsI64HeapValue::Unit => "()".to_string(),
         NativeCpsI64HeapValue::Float(value) => native_cps_format_float(*value),
         NativeCpsI64HeapValue::String(text) => text.to_string(),
+        NativeCpsI64HeapValue::Bytes(value) => format!("<bytes len={}>", value.len()),
+        NativeCpsI64HeapValue::Path(value) => value.display().to_string(),
     }
 }
 
@@ -5823,6 +6056,8 @@ fn describe_native_i64_debug_value_with_depth(value: i64, depth: usize) -> Strin
         NativeCpsI64HeapValue::Unit => "()".to_string(),
         NativeCpsI64HeapValue::Float(value) => native_cps_format_float(*value),
         NativeCpsI64HeapValue::String(text) => format!("{text:?}"),
+        NativeCpsI64HeapValue::Bytes(value) => format!("<bytes len={}>", value.len()),
+        NativeCpsI64HeapValue::Path(value) => format!("{:?}", value.display().to_string()),
     }
 }
 
@@ -6297,7 +6532,7 @@ extern "C" fn yulang_cps_debug_i64(value: i64) -> i64 {
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn yulang_cps_console_print_i64(value: i64) -> i64 {
+extern "C" fn yulang_cps_out_write_i64(value: i64) -> i64 {
     print!("{}", describe_native_i64_value(value));
     let mut stdout = std::io::stdout();
     let _ = std::io::Write::flush(&mut stdout);
@@ -6305,9 +6540,23 @@ extern "C" fn yulang_cps_console_print_i64(value: i64) -> i64 {
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn yulang_cps_console_println_i64(value: i64) -> i64 {
-    println!("{}", describe_native_i64_value(value));
+extern "C" fn yulang_cps_err_write_i64(value: i64) -> i64 {
+    eprint!("{}", describe_native_i64_value(value));
+    let mut stderr = std::io::stderr();
+    let _ = std::io::Write::flush(&mut stderr);
     0
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_warn_write_i64(value: i64) -> i64 {
+    eprintln!("warning: {}", describe_native_i64_value(value));
+    0
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_die_i64(value: i64) -> i64 {
+    eprintln!("die: {}", describe_native_i64_value(value));
+    std::process::exit(1);
 }
 
 #[unsafe(no_mangle)]
@@ -6696,6 +6945,117 @@ extern "C" fn yulang_cps_string_splice_i64(value: i64, range: i64, insert: i64) 
     native_cps_i64_heap(NativeCpsI64HeapValue::String(result.into_boxed_str()))
 }
 
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_string_to_bytes_i64(value: i64) -> i64 {
+    let Some(text) = native_cps_i64_string_text(value) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::empty()));
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::from_bytes(
+        text.as_bytes(),
+    )))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_bytes_len_i64(value: i64) -> i64 {
+    native_cps_i64_bytes_value(value)
+        .map(|value| value.len() as i64)
+        .unwrap_or(0)
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_bytes_eq_i64(left: i64, right: i64) -> i64 {
+    let Some(left) = native_cps_i64_bytes_value(left) else {
+        return 0;
+    };
+    let Some(right) = native_cps_i64_bytes_value(right) else {
+        return 0;
+    };
+    i64::from(left.to_flat_vec() == right.to_flat_vec())
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_bytes_concat_i64(left: i64, right: i64) -> i64 {
+    let Some(left) = native_cps_i64_bytes_value(left) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::empty()));
+    };
+    let Some(right) = native_cps_i64_bytes_value(right) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::empty()));
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::concat(
+        left.clone(),
+        right.clone(),
+    )))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_bytes_index_i64(value: i64, index: i64) -> i64 {
+    let Some(value) = native_cps_i64_bytes_value(value) else {
+        return 0;
+    };
+    let Ok(index) = usize::try_from(index) else {
+        return 0;
+    };
+    value.index(index).map(i64::from).unwrap_or(0)
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_bytes_index_range_i64(value: i64, range: i64) -> i64 {
+    let Some(value) = native_cps_i64_bytes_value(value) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::empty()));
+    };
+    let Some((start, end)) = native_cps_i64_normalized_int_range(range, value.len()) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::empty()));
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(
+        value
+            .index_range(start, end)
+            .unwrap_or_else(BytesTree::empty),
+    ))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_bytes_to_utf8_raw_i64(value: i64) -> i64 {
+    let Some(value) = native_cps_i64_bytes_value(value) else {
+        return native_cps_i64_utf8_raw_result("", 0);
+    };
+    let bytes = value.to_flat_vec();
+    match std::str::from_utf8(&bytes) {
+        Ok(text) => native_cps_i64_utf8_raw_result(text, bytes.len()),
+        Err(error) => {
+            let valid = error.valid_up_to();
+            let text = std::str::from_utf8(&bytes[..valid]).unwrap_or("");
+            native_cps_i64_utf8_raw_result(text, valid)
+        }
+    }
+}
+
+fn native_cps_i64_utf8_raw_result(text: &str, valid: usize) -> i64 {
+    native_cps_i64_heap(NativeCpsI64HeapValue::Tuple(Box::new([
+        native_cps_i64_heap(NativeCpsI64HeapValue::String(text.into())),
+        valid as i64,
+    ])))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_bytes_to_path_i64(value: i64) -> i64 {
+    let Some(value) = native_cps_i64_bytes_value(value) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::Path(path_buf_from_bytes(&[])));
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::Path(path_buf_from_bytes(
+        &value.to_flat_vec(),
+    )))
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_path_to_bytes_i64(value: i64) -> i64 {
+    let Some(value) = native_cps_i64_path_value(value) else {
+        return native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::empty()));
+    };
+    native_cps_i64_heap(NativeCpsI64HeapValue::Bytes(BytesTree::from_bytes(
+        &path_buf_bytes(value),
+    )))
+}
+
 fn native_cps_i64_string_from_bytes(ptr: *const u8, len: i64) -> Option<String> {
     if ptr.is_null() || len < 0 {
         return None;
@@ -6715,6 +7075,55 @@ fn native_cps_i64_string_text(value: i64) -> Option<&'static str> {
         NativeCpsI64HeapValue::String(text) => Some(text.as_ref()),
         _ => None,
     }
+}
+
+fn native_cps_i64_bytes_value(value: i64) -> Option<&'static BytesTree> {
+    let is_heap = NATIVE_CPS_I64_HEAP_VALUES.with(|values| values.borrow().contains(&value));
+    if !is_heap {
+        return None;
+    }
+    let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
+    match value {
+        NativeCpsI64HeapValue::Bytes(value) => Some(value),
+        _ => None,
+    }
+}
+
+fn native_cps_i64_path_value(value: i64) -> Option<&'static std::path::PathBuf> {
+    let is_heap = NATIVE_CPS_I64_HEAP_VALUES.with(|values| values.borrow().contains(&value));
+    if !is_heap {
+        return None;
+    }
+    let value = unsafe { &*(value as *const NativeCpsI64HeapValue) };
+    match value {
+        NativeCpsI64HeapValue::Path(value) => Some(value),
+        _ => None,
+    }
+}
+
+#[cfg(unix)]
+fn path_buf_from_bytes(bytes: &[u8]) -> std::path::PathBuf {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    std::path::PathBuf::from(OsString::from_vec(bytes.to_vec()))
+}
+
+#[cfg(not(unix))]
+fn path_buf_from_bytes(bytes: &[u8]) -> std::path::PathBuf {
+    std::path::PathBuf::from(String::from_utf8_lossy(bytes).into_owned())
+}
+
+#[cfg(unix)]
+fn path_buf_bytes(path: &std::path::PathBuf) -> Vec<u8> {
+    use std::os::unix::ffi::OsStrExt;
+
+    path.as_os_str().as_bytes().to_vec()
+}
+
+#[cfg(not(unix))]
+fn path_buf_bytes(path: &std::path::PathBuf) -> Vec<u8> {
+    path.to_string_lossy().as_bytes().to_vec()
 }
 
 fn native_cps_i64_string_slice(text: &str, start: i64, end: i64) -> Option<&str> {
@@ -6861,15 +7270,25 @@ extern "C" fn yulang_cps_resume_with_handler_i64(
     handler: i64,
     consumes_mask: i64,
     owner_function: i64,
+    updates_existing_handler_env: i64,
 ) -> i64 {
     let resumption = unsafe { &*resumption };
     let prompt = yulang_cps_fresh_prompt_i64() as u64;
     let install_eval_id = yulang_cps_current_eval_id_i64() as u64;
     let return_frame_threshold = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
+    let rebases_existing_handler = resumption
+        .handlers
+        .iter()
+        .any(|frame| frame.handler == handler);
+    let guard_stack = if updates_existing_handler_env != 0 || rebases_existing_handler {
+        Box::new([])
+    } else {
+        current_native_i64_guard_stack().into_boxed_slice()
+    };
     let outer_handler = NativeCpsI64HandlerFrame {
         handler,
         consumes_mask,
-        guard_stack: current_native_i64_guard_stack().into_boxed_slice(),
+        guard_stack,
         envs: take_pending_native_i64_handler_envs(handler),
         prompt,
         install_eval_id,
@@ -6932,10 +7351,9 @@ extern "C" fn yulang_cps_resume_with_handler_i64(
             },
         )
     });
-    let mut result = (resumption.code)(resumption.env.as_ptr(), arg);
-    if yulang_cps_scope_return_active_i64() != 0 {
-        result = yulang_cps_route_scope_return_i64(result);
-    }
+    let result = (resumption.code)(resumption.env.as_ptr(), arg);
+    let scope_return_active = NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().active);
+    let abort_active = NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().is_active());
     append_resume_handler_to_frames(&mut saved_frames, &outer_handler);
     append_resume_handler_to_handler_prefixes(&mut previous_handlers, &outer_handler);
     NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
@@ -6944,7 +7362,11 @@ extern "C" fn yulang_cps_resume_with_handler_i64(
         *stack.borrow_mut() = outer;
     });
     NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = previous_guards);
-    restore_native_i64_return_frames_after_resume(saved_frames, &resumption.return_frames);
+    if abort_active && !scope_return_active {
+        restore_native_i64_return_frames_after_resume(saved_frames, &resumption.return_frames);
+    } else {
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| *frames.borrow_mut() = saved_frames);
+    }
     NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow_mut() = saved_eval_ctx);
     result
 }
@@ -7781,25 +8203,33 @@ extern "C" fn yulang_cps_perform_finish_i64(value: i64) -> i64 {
 
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_perform_finish_escaped_i64(value: i64) -> i64 {
-    let selected_needs_scope_route = NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| {
-        let meta = meta.borrow();
-        let Some(meta) = meta.last() else {
-            return false;
-        };
-        let current_eval = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().current_eval_id);
-        !meta.synthetic && meta.install_eval_id != current_eval
-    });
-    if selected_needs_scope_route {
-        return yulang_cps_perform_finish_i64(value);
-    }
     NATIVE_CPS_I64_OUTER_HANDLER_SNAPSHOTS.with(|snaps| {
         if let Some(snap) = snaps.borrow_mut().pop() {
             NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = snap);
         }
     });
     let meta = NATIVE_CPS_I64_SELECTED_HANDLER_META_STACK.with(|meta| meta.borrow_mut().pop());
+    if NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().active) {
+        return yulang_cps_route_scope_return_i64(value);
+    }
     let mut abort_outer_eval = false;
     if let Some(meta) = meta {
+        if meta.synthetic || meta.escape_continuation == 0 {
+            return value;
+        }
+        let current_eval = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().current_eval_id);
+        if meta.install_eval_id != current_eval {
+            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::None);
+            NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
+                *slot.borrow_mut() = NativeCpsI64ScopeReturn {
+                    active: true,
+                    prompt: meta.prompt,
+                    target: meta.escape_continuation as i64,
+                    value,
+                };
+            });
+            return yulang_cps_route_scope_return_i64(value);
+        }
         abort_outer_eval = meta.return_frame_threshold == 0;
         NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
             let mut frames = frames.borrow_mut();
@@ -9124,6 +9554,14 @@ extern "C" fn yulang_cps_make_thunk_i64_many(code: usize, ptr: *const i64, len: 
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn yulang_cps_is_thunk_i64(value: i64) -> i64 {
+    usize::try_from(value)
+        .ok()
+        .is_some_and(|value| NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&value)))
+        .into()
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
     let mut value = value;
     loop {
@@ -9480,7 +9918,7 @@ mod tests {
     }
 
     #[test]
-    fn jit_runs_unhandled_host_console_print_and_resumes() {
+    fn jit_runs_unhandled_host_out_write_and_resumes() {
         let abi = lower_cps_repr_abi_module(&lower_cps_repr_module(&CpsModule {
             functions: Vec::new(),
             roots: vec![CpsFunction {
@@ -9506,7 +9944,7 @@ mod tests {
                             },
                         ],
                         terminator: CpsTerminator::Perform {
-                            effect: console_effect_path("print"),
+                            effect: out_effect_path("out", "write"),
                             payload: CpsValueId(1),
                             resume: CpsContinuationId(1),
                             handler: crate::cps_ir::CpsHandlerId(0),
@@ -10236,6 +10674,97 @@ mod tests {
     }
 
     #[test]
+    fn jit_runs_bytes_primitives_runtime_value_roots() {
+        let hello_bytes = primitive_call(
+            typed_ir::PrimitiveOp::StringToBytes,
+            vec![unknown_lit(typed_ir::Lit::String("hello".to_string()))],
+        );
+        let cases = vec![
+            (
+                primitive_call(typed_ir::PrimitiveOp::BytesLen, vec![hello_bytes.clone()]),
+                "5",
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesIndex,
+                    vec![
+                        hello_bytes.clone(),
+                        unknown_lit(typed_ir::Lit::Int("1".to_string())),
+                    ],
+                ),
+                "101",
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::BytesConcat,
+                        vec![hello_bytes.clone(), hello_bytes.clone()],
+                    )],
+                ),
+                "10",
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesEq,
+                    vec![
+                        hello_bytes.clone(),
+                        primitive_call(
+                            typed_ir::PrimitiveOp::StringToBytes,
+                            vec![unknown_lit(typed_ir::Lit::String("hello".to_string()))],
+                        ),
+                    ],
+                ),
+                "1",
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::BytesIndexRange,
+                        vec![hello_bytes, range_expr(1, 4)],
+                    )],
+                ),
+                "3",
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesLen,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::PathToBytes,
+                        vec![primitive_call(
+                            typed_ir::PrimitiveOp::BytesToPath,
+                            vec![primitive_call(
+                                typed_ir::PrimitiveOp::StringToBytes,
+                                vec![unknown_lit(typed_ir::Lit::String("/tmp".to_string()))],
+                            )],
+                        )],
+                    )],
+                ),
+                "4",
+            ),
+            (
+                primitive_call(
+                    typed_ir::PrimitiveOp::BytesToUtf8Raw,
+                    vec![primitive_call(
+                        typed_ir::PrimitiveOp::StringToBytes,
+                        vec![unknown_lit(typed_ir::Lit::String("hello".to_string()))],
+                    )],
+                ),
+                "(hello, 5)",
+            ),
+        ];
+
+        for (expr, expected) in cases {
+            let mut jit = compile_runtime_module_to_cps_repr_jit(&module_with_root(expr))
+                .expect("compiled runtime module");
+            let roots = jit.run_roots_i64().expect("ran");
+            assert_eq!(roots.len(), 1);
+            assert_eq!(describe_native_i64_value(roots[0]), expected);
+        }
+    }
+
+    #[test]
     fn jit_runs_list_range_primitives_runtime_value_roots() {
         let sliced = apply(
             apply(
@@ -10308,12 +10837,12 @@ mod tests {
         assert_eq!(describe_native_i64_value(roots[0]), "2.0");
     }
 
-    fn console_effect_path(operation: &str) -> typed_ir::Path {
+    fn out_effect_path(act: &str, operation: &str) -> typed_ir::Path {
         typed_ir::Path {
             segments: vec![
                 typed_ir::Name("std".to_string()),
-                typed_ir::Name("console".to_string()),
-                typed_ir::Name("console".to_string()),
+                typed_ir::Name("out".to_string()),
+                typed_ir::Name(act.to_string()),
                 typed_ir::Name(operation.to_string()),
             ],
         }

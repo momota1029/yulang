@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use yulang_typed_ir as typed_ir;
@@ -10,6 +11,7 @@ use crate::ir::{
     Binding, EffectIdRef, EffectIdVar, Expr, ExprKind, HandleArm, MatchArm, Module, Pattern,
     RecordExprField, RecordSpreadExpr, Stmt, Type,
 };
+use crate::runtime::bytes_tree::BytesTree;
 use crate::runtime::list_tree::{ListTree, ListView};
 use crate::runtime::string_tree::StringTree;
 use crate::types::effect_is_empty;
@@ -88,6 +90,8 @@ pub enum VmError {
     ExpectedInt(VmValue),
     ExpectedFloat(VmValue),
     ExpectedString(VmValue),
+    ExpectedBytes(VmValue),
+    ExpectedPath(VmValue),
     ExpectedList(VmValue),
     ExpectedRecord(VmValue),
     ExpectedVariant(VmValue),

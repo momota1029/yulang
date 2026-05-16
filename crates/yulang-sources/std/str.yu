@@ -4,6 +4,10 @@ use std::range::*
 type str with:
     our s.splice r insert = std::str::splice s r insert
     our s.len = std::str::len s
+    our s.print = std::out::print s
+    our s.println = std::out::println s
+    our s.eprint = std::out::eprint s
+    our s.eprintln = std::out::eprintln s
 
 impl Index str int:
     type value = str

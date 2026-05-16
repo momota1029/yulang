@@ -820,6 +820,15 @@ fn eval_primitive(
                 "false"
             }))
         }
+        PrimitiveOp::StringToBytes
+        | PrimitiveOp::BytesLen
+        | PrimitiveOp::BytesEq
+        | PrimitiveOp::BytesConcat
+        | PrimitiveOp::BytesIndex
+        | PrimitiveOp::BytesIndexRange
+        | PrimitiveOp::BytesToUtf8Raw
+        | PrimitiveOp::BytesToPath
+        | PrimitiveOp::PathToBytes => Err(NativeEvalError::UnsupportedPrimitive { op }),
     }
 }
 

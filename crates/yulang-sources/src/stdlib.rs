@@ -86,8 +86,8 @@ struct EmbeddedStdFile {
 
 const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[
     EmbeddedStdFile {
-        name: "console.yu",
-        source: include_str!("../std/console.yu"),
+        name: "bytes.yu",
+        source: include_str!("../std/bytes.yu"),
     },
     EmbeddedStdFile {
         name: "error.yu",
@@ -124,6 +124,14 @@ const EMBEDDED_STD_FILES: &[EmbeddedStdFile] = &[
     EmbeddedStdFile {
         name: "opt.yu",
         source: include_str!("../std/opt.yu"),
+    },
+    EmbeddedStdFile {
+        name: "out.yu",
+        source: include_str!("../std/out.yu"),
+    },
+    EmbeddedStdFile {
+        name: "path.yu",
+        source: include_str!("../std/path.yu"),
     },
     EmbeddedStdFile {
         name: "prelude.yu",

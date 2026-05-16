@@ -1,0 +1,19 @@
+use std::index::*
+use std::range::*
+
+type bytes with:
+    our b.len = std::bytes::len b
+    our b.concat other = std::bytes::concat b other
+    our b.to_utf8_raw = std::bytes::to_utf8_raw b
+    our b.to_utf8_lossy = std::bytes::to_utf8_lossy b
+
+pub to_utf8_lossy(b: bytes): str = case std::bytes::to_utf8_raw b:
+    (text, _) -> text
+
+impl Index bytes int:
+    type value = int
+    our b.index i = std::bytes::index_raw b i
+
+impl Index bytes range:
+    type value = bytes
+    our b.index r = std::bytes::index_range b r

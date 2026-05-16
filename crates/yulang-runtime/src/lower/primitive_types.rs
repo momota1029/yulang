@@ -20,6 +20,8 @@ impl RuntimePrimitivePathTable {
             PrimitiveTypeFamily::List,
             PrimitiveTypeFamily::ListView,
             PrimitiveTypeFamily::Range,
+            PrimitiveTypeFamily::Bytes,
+            PrimitiveTypeFamily::Path,
         ] {
             types.insert(family, standard_primitive_type_path(family));
         }
@@ -98,6 +100,8 @@ fn standard_primitive_type_path(family: PrimitiveTypeFamily) -> typed_ir::Path {
         PrimitiveTypeFamily::List => std_path("list", "list"),
         PrimitiveTypeFamily::ListView => std_path("list", "list_view"),
         PrimitiveTypeFamily::Range => std_path("range", "range"),
+        PrimitiveTypeFamily::Bytes => std_path("bytes", "bytes"),
+        PrimitiveTypeFamily::Path => std_path("path", "path"),
     }
 }
 

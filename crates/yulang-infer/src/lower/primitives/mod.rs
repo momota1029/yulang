@@ -15,13 +15,17 @@ use list::{
 };
 use scalar::{
     install_bool_binary_predicate_primitive, install_bool_unary_primitive,
-    install_float_binary_predicate_primitive, install_float_binary_primitive,
-    install_int_binary_predicate_primitive, install_int_binary_primitive,
+    install_bytes_binary_predicate_primitive, install_bytes_binary_primitive,
+    install_bytes_index_primitive, install_bytes_index_range_primitive,
+    install_bytes_len_primitive, install_bytes_to_path_primitive,
+    install_bytes_to_utf8_raw_primitive, install_float_binary_predicate_primitive,
+    install_float_binary_primitive, install_int_binary_predicate_primitive,
+    install_int_binary_primitive, install_path_to_bytes_primitive,
     install_string_binary_predicate_primitive, install_string_binary_primitive,
     install_string_index_primitive, install_string_index_range_primitive,
     install_string_index_range_raw_primitive, install_string_len_primitive,
     install_string_splice_primitive, install_string_splice_raw_primitive,
-    install_to_string_primitive,
+    install_string_to_bytes_primitive, install_to_string_primitive,
 };
 use support::{ensure_builtin_type, ensure_child_module};
 
@@ -32,8 +36,12 @@ pub fn install_builtin_primitives(state: &mut LowerState) {
     let int_module = ensure_child_module(state, std_module, "int");
     let float_module = ensure_child_module(state, std_module, "float");
     let str_module = ensure_child_module(state, std_module, "str");
+    let bytes_module = ensure_child_module(state, std_module, "bytes");
+    let path_module = ensure_child_module(state, std_module, "path");
     ensure_builtin_type(state, list_module, "list");
     ensure_builtin_type(state, str_module, "str");
+    ensure_builtin_type(state, bytes_module, "bytes");
+    ensure_builtin_type(state, path_module, "path");
 
     install_bool_unary_primitive(state, bool_module, "not", typed_ir::PrimitiveOp::BoolNot);
     install_bool_binary_predicate_primitive(
@@ -220,5 +228,55 @@ pub fn install_builtin_primitives(state: &mut LowerState) {
         "to_string",
         typed_ir::PrimitiveOp::BoolToString,
         "bool",
+    );
+
+    install_string_to_bytes_primitive(
+        state,
+        str_module,
+        "to_bytes",
+        typed_ir::PrimitiveOp::StringToBytes,
+    );
+    install_bytes_len_primitive(state, bytes_module, "len", typed_ir::PrimitiveOp::BytesLen);
+    install_bytes_binary_predicate_primitive(
+        state,
+        bytes_module,
+        "eq",
+        typed_ir::PrimitiveOp::BytesEq,
+    );
+    install_bytes_binary_primitive(
+        state,
+        bytes_module,
+        "concat",
+        typed_ir::PrimitiveOp::BytesConcat,
+    );
+    install_bytes_index_primitive(
+        state,
+        bytes_module,
+        "index_raw",
+        typed_ir::PrimitiveOp::BytesIndex,
+    );
+    install_bytes_index_range_primitive(
+        state,
+        bytes_module,
+        "index_range",
+        typed_ir::PrimitiveOp::BytesIndexRange,
+    );
+    install_bytes_to_utf8_raw_primitive(
+        state,
+        bytes_module,
+        "to_utf8_raw",
+        typed_ir::PrimitiveOp::BytesToUtf8Raw,
+    );
+    install_bytes_to_path_primitive(
+        state,
+        path_module,
+        "of_bytes_raw",
+        typed_ir::PrimitiveOp::BytesToPath,
+    );
+    install_path_to_bytes_primitive(
+        state,
+        path_module,
+        "to_bytes",
+        typed_ir::PrimitiveOp::PathToBytes,
     );
 }

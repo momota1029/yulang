@@ -237,6 +237,20 @@ pub(super) fn string_value(value: &VmValue) -> Result<&StringTree, VmError> {
     }
 }
 
+pub(super) fn bytes_value(value: &VmValue) -> Result<&BytesTree, VmError> {
+    match value {
+        VmValue::Bytes(value) => Ok(value),
+        other => Err(VmError::ExpectedBytes(other.clone())),
+    }
+}
+
+pub(super) fn path_value(value: &VmValue) -> Result<Rc<PathBuf>, VmError> {
+    match value {
+        VmValue::Path(value) => Ok(value.clone()),
+        other => Err(VmError::ExpectedPath(other.clone())),
+    }
+}
+
 pub(super) fn normalized_int_range_value(
     value: &VmValue,
     len: usize,

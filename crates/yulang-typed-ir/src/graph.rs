@@ -50,6 +50,8 @@ pub enum PrimitiveTypeFamily {
     List,
     ListView,
     Range,
+    Bytes,
+    Path,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
