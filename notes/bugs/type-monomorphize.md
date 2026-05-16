@@ -9,26 +9,29 @@
   `param_function_allowed_effects` は値が `Name` / `Path` だけで `Type` を
   持たないので detector 対象外（メモ #1 の前提誤り）。
 
-**Apply / If / Match / Handle の evidence（#3）— 保留**
+**Apply / If / Match / Handle の evidence（#3）— DONE**
 
-- 同じ detector で evidence も拾うようにすると、`my $xs = [2, 3, 4]`
-  みたいな簡単な mutable list 例の `#xs` binding で
-  `ResidualPolymorphicBinding { vars: [TypeVar("t11448")] }` が立つ。
-  field probe で原因絞ると、`Apply.evidence` の `callee` /
-  `arg` / `result` TypeBounds 全てに t11448 が残ったまま。
-- `substitute_apply_evidence` 自体は callee/arg/result の bounds を
-  ちゃんと `substitute_bounds` 経由で書き換えている。問題はその上流：
-  `#xs` の binding scheme には type_params がそもそも無いので、
-  monomorphize substitute pass が空の substitutions で呼び出される。
-  ボディの Apply の evidence は inference 段階の中間変数（t11448）を
-  抱えたまま、ここで触られない。
-- 真っ当に直すなら「scheme の quantified に無い inference vars でも、
-  body 全体を見て pinned concrete type に置き換える evidence refresh
-  pass」が必要。runtime 側の影響評価が要るので別タスクとして切り出し。
-- ヘルパー `collect_apply_evidence_type_vars` /
-  `collect_type_bounds_type_vars` / `collect_type_instantiation_type_vars` /
-  `collect_join_evidence_type_vars` は `#[allow(dead_code)]` で残してあって、
-  evidence refresh が入ったら即 detector を一行で起こせる状態。
+- 原因確定：`#xs` の binding scheme に type_params が無いため、
+  monomorphize substitute pass は空の `substitutions` で動き、
+  ボディの Apply evidence に残った inference 中間変数（例 `t11448`）が
+  そのまま落ちる。`substitute_apply_evidence` 自体は bounds を
+  ちゃんと書き換えているが、上流から渡される置換マップが空なら
+  何も起きない。
+- 解決策：`monomorphize/pipeline/refresh.rs` を新設して
+  pipeline 出口に `refresh_monomorphic_evidence` を 1 pass 足した。
+  全 binding body と root expr を回って、
+  - `Apply.evidence.callee` / `.arg` / `.result` →
+    `TypeBounds::exact(runtime_core_type(子 / 自身の .ty))`
+  - `Apply.evidence.expected_*` / `principal_callee` /
+    `substitutions` / `substitution_candidates` /
+    `principal_elaboration` → drop（validate は `.result` しか読まず、
+    runtime は何も触らない）
+  - `Apply.instantiation.args.ty` → 解決済み arg 型に書き換え
+  - `If.evidence.result` / `Match.evidence.result` /
+    `Handle.evidence.result` → 周囲 `Expr.ty` の core projection
+- これに伴い `collect_expr_type_vars` の evidence detector を strict
+  に戻し、ヘルパー群の `#[allow(dead_code)]` を剥がした。
+- 全テスト 0 failed で着地。
 
 **#7 `close_known_associated_type_signature_with_semantics` — DONE**
 
