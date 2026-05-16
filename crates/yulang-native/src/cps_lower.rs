@@ -2790,6 +2790,7 @@ impl<'a> FunctionLowerer<'a> {
         self.current.stmts.push(CpsStmt::InstallHandler {
             handler,
             envs: Vec::new(),
+            value: value_cont,
             // ScopeReturn (i.e. arm body's non-local return) lands at the
             // merge continuation, NOT the value-arm continuation. Arm bodies
             // already terminate with `Continue merge_cont [arm_value]` in
@@ -2797,7 +2798,7 @@ impl<'a> FunctionLowerer<'a> {
             // completes without firing an arm.
             escape: merge_cont,
         });
-        self.lower_handled_body(body, &effects, handler, Some(value_cont))?;
+        self.lower_handled_body(body, &effects, handler, None)?;
         self.handler_value_conts
             .truncate(saved_handler_value_conts_len);
         self.active_handler = saved_active_handler.clone();

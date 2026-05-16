@@ -75,6 +75,8 @@ pub(super) fn register_cps_runtime_symbols(builder: &mut JITBuilder) {
         yulang_cps_push_return_frame_i64_3,
         yulang_cps_push_return_frame_i64_4,
         yulang_cps_push_return_frame_i64_many,
+        yulang_cps_push_prompt_exit_frame_i64_0,
+        yulang_cps_push_prompt_exit_frame_i64_many,
         yulang_cps_continue_return_frame_i64,
         yulang_cps_top_return_frame_pre_force_i64,
         yulang_cps_pre_force_top_frame_i64,

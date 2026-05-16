@@ -1,4 +1,4 @@
-# notes/bugs index (2026-05-15 更新)
+# notes/bugs index (2026-05-16 更新)
 
 「素直に書いたら動きそうなのに、実装上詰まった」snippet の履歴。
 
@@ -100,7 +100,8 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   の `if` guard は 2026-05-16 に native CPS lowering へ追加済み。
   `#loop_label` 側は bare effect operation を closure 化するだけでは足りない。
   `for` callback 内の var handler 更新が native で潰れる問題は 2026-05-16 に
-  `runs_var_update_in_for_loop_through_cps_repr` で regression 化して解消済み。
+  `runs_var_update_in_for_loop_through_cps_repr` で regression 化して一度解消済み。
+  ただし下の prompt-exit WIP では JIT 側だけ再発し、期待 `4` に対して `0` になる。
 
 - `std::undet` の native CPS 回帰は 2026-05-16 時点で二系統残っている。
   `(branch()).list` は native CPS eval まで進むが `[[1], [0]]` になり、value arm
@@ -110,6 +111,33 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   抜く実験では `for` callback var handler が壊れ、handler 境界 frame を切る実験では
   `guard` 後続または fold 後続が落ちるため、return-frame segment と handler value arm
   境界を分けて扱う必要がある。
+
+  2026-05-16 の再整理: これは「handler frame を stack から消す」問題ではなく、
+  handler prompt の内側の subcontinuation だけを捕まえる問題。shallow handler の
+  resumption は `k = λx. E[x]` であり、`λx. value_arm_P(E[x])` ではない。
+  現在の CPS eval / repr は ordinary return frame、handler lookup frame、
+  handler value arm / escape target を `return_frame_threshold` と
+  `active_handlers` snapshot で間接的に表しているため、runtime 側だけで
+  suffix を切ったり handler を filter したりすると、`.once` の二重 value arm は残るか、
+  `for` / var handler 更新の install scope を壊す。次の修正は明示的な
+  `PromptBoundary(P)` / `PromptExit(P)` / `EscapeTarget(P)` 相当の frame model を
+  CPS eval と CPS repr に入れ、`capture(P)` が P より内側の ordinary segment だけを
+  保存する形に寄せる。
+
+  2026-05-16 WIP: `PromptExit(P)` 相当を `CpsStmt::InstallHandler { value, escape }`
+  と return frame の `prompt_exit` metadata として入れると、次は通る。
+
+  ```bash
+  cargo test -q -p yulang-compile runs_simple_undet_list_through_cps_repr -- --nocapture
+  cargo test -q -p yulang-compile runs_undet_once_open_range_guard_through_cps_repr -- --nocapture
+  ```
+
+  ただし同じ WIP で `runs_var_update_in_for_loop_through_cps_repr` の JIT 部分が
+  `["0"]` になって落ちる。CPS eval / repr eval までは通っていて、JIT の
+  `route_scope_return_i64` が prompt 1 の frame-walk で外側の var/for handler
+  escape へ飛び、`Global` abort として caller chain を止めている。次は
+  `ScopeReturn` の frame-walk 後に JIT が eval/repr と同じ「一段ずつ戻る」
+  非局所 return を表せているか、`ResumeWithHandler` の env overlay と合わせて見る。
 
 - `(each [1, 2, 3]).list` / `.logic` / nested `.once` などは native の前に
   runtime lowering で `branch result type mismatch: expected unit, got std::bytes::bytes`

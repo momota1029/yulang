@@ -1615,7 +1615,13 @@ fn collect_stmt_reference_counts(
         | CpsStmt::MakeRecursiveClosure { entry, .. } => {
             count_reference(*entry, references, false);
         }
-        CpsStmt::InstallHandler { escape, envs, .. } => {
+        CpsStmt::InstallHandler {
+            value,
+            escape,
+            envs,
+            ..
+        } => {
+            count_reference(*value, references, false);
             count_reference(*escape, references, false);
             for env in envs {
                 count_reference(env.entry, references, false);
@@ -1685,7 +1691,13 @@ fn collect_protected_stmt_continuations(
         | CpsStmt::MakeRecursiveClosure { entry, .. } => {
             protected.insert(*entry);
         }
-        CpsStmt::InstallHandler { escape, envs, .. } => {
+        CpsStmt::InstallHandler {
+            value,
+            escape,
+            envs,
+            ..
+        } => {
+            protected.insert(*value);
             protected.insert(*escape);
             for env in envs {
                 protected.insert(env.entry);
@@ -1927,7 +1939,13 @@ fn collect_stmt_continuations(
         | CpsStmt::MakeRecursiveClosure { entry, .. } => {
             push_reachable(*entry, reachable, work);
         }
-        CpsStmt::InstallHandler { escape, envs, .. } => {
+        CpsStmt::InstallHandler {
+            value,
+            escape,
+            envs,
+            ..
+        } => {
+            push_reachable(*value, reachable, work);
             push_reachable(*escape, reachable, work);
             for env in envs {
                 push_reachable(env.entry, reachable, work);
@@ -2265,10 +2283,12 @@ fn substitute_stmt_values(
         CpsStmt::InstallHandler {
             handler,
             envs,
+            value,
             escape,
         } => CpsStmt::InstallHandler {
             handler,
             envs: subst_handler_envs(envs, substitution),
+            value,
             escape,
         },
         CpsStmt::UninstallHandler { handler } => CpsStmt::UninstallHandler { handler },

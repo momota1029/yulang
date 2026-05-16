@@ -1633,6 +1633,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
         CpsStmt::InstallHandler {
             handler,
             envs,
+            value,
             escape,
         } => {
             capture_handler_envs(module_backend, builder, function, *handler, envs)?;
@@ -1704,6 +1705,54 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                     _ => unreachable!("guarded by environment.len() <= 4"),
                 };
                 let _ = call_i64_helper(module_backend, builder, helper_name, &args)?;
+                let value_cont = lookup_continuation(function, *value)?;
+                let value_ref =
+                    continuation_func_ref(module_backend, builder, function, *value, functions)?;
+                let value_ptr = builder.ins().func_addr(types::I64, value_ref);
+                let value_continuation_id = builder.ins().iconst(types::I64, value.0 as i64);
+                let immediately_forces = builder.ins().iconst(
+                    types::I64,
+                    i64::from(resume_continuation_immediately_forces_param(value_cont)),
+                );
+                let mut value_env = Vec::with_capacity(value_cont.environment.len());
+                for slot in &value_cont.environment {
+                    validate_environment_lane(function, slot.value, slot.lane)?;
+                    value_env.push(read_value(builder, function, slot.value)?);
+                }
+                if value_env.is_empty() {
+                    let _ = call_i64_helper(
+                        module_backend,
+                        builder,
+                        "yulang_cps_push_prompt_exit_frame_i64_0",
+                        &[
+                            prompt,
+                            value_ptr,
+                            value_continuation_id,
+                            threshold,
+                            install_eval,
+                            owner_function,
+                            immediately_forces,
+                        ],
+                    )?;
+                } else {
+                    let (env_ptr, env_len) = stack_i64_slice(builder, &value_env)?;
+                    let _ = call_i64_helper(
+                        module_backend,
+                        builder,
+                        "yulang_cps_push_prompt_exit_frame_i64_many",
+                        &[
+                            prompt,
+                            value_ptr,
+                            value_continuation_id,
+                            threshold,
+                            install_eval,
+                            owner_function,
+                            immediately_forces,
+                            env_ptr,
+                            env_len,
+                        ],
+                    )?;
+                }
             } else {
                 let handler_id = builder.ins().iconst(types::I64, handler.0 as i64);
                 let consumes_mask = builder.ins().iconst(
@@ -5283,6 +5332,7 @@ impl NativeCpsI64Abort {
 /// pointer continuation instead of a `CpsContinuationId`.
 #[derive(Clone)]
 struct NativeCpsI64ReturnFrame {
+    prompt_exit: Option<NativeCpsI64PromptExitFrame>,
     debug_id: u64,
     /// JIT continuation function pointer
     /// (`extern "C" fn(env: *const i64, arg: i64) -> i64`, matching
@@ -5313,6 +5363,11 @@ struct NativeCpsI64ReturnFrame {
     /// Computed at codegen time and stored here so the JIT Return path
     /// can fire pre-force v2 without crossing back into Cranelift IR.
     immediately_forces_param: bool,
+}
+
+#[derive(Clone)]
+struct NativeCpsI64PromptExitFrame {
+    prompt: u64,
 }
 
 #[derive(Default)]
@@ -5736,11 +5791,18 @@ extern "C" fn yulang_cps_set_resumption_anchor_from_selected_i64(
                     prompt: meta.prompt,
                     install_eval_id: meta.install_eval_id,
                 });
+                (*resumption).return_frames = capture_native_i64_return_frames_inside_prompt(
+                    &(*resumption).return_frames,
+                    meta.prompt,
+                    meta.return_frame_threshold,
+                );
             }
             if jit_trace_enabled() {
                 eprintln!(
-                    "[JIT-CPS] resumption_anchor: prompt={} install_eval={}",
-                    meta.prompt, meta.install_eval_id
+                    "[JIT-CPS] resumption_anchor: prompt={} install_eval={} frames={}",
+                    meta.prompt,
+                    meta.install_eval_id,
+                    unsafe { format_return_frames(&(*resumption).return_frames) }
                 );
             }
         }
@@ -7442,6 +7504,7 @@ fn merge_extras_into_frames_native(
         .map(|frame| {
             let merged = merge_resumption_handlers_native(&frame.handlers, current, anchor);
             NativeCpsI64ReturnFrame {
+                prompt_exit: frame.prompt_exit.clone(),
                 debug_id: frame.debug_id,
                 continuation: frame.continuation,
                 continuation_id: frame.continuation_id,
@@ -7455,6 +7518,45 @@ fn merge_extras_into_frames_native(
             }
         })
         .collect()
+}
+
+fn capture_native_i64_return_frames_inside_prompt(
+    frames: &[NativeCpsI64ReturnFrame],
+    prompt: u64,
+    fallback_threshold: usize,
+) -> Box<[NativeCpsI64ReturnFrame]> {
+    let start = frames
+        .iter()
+        .rposition(|frame| {
+            frame
+                .prompt_exit
+                .as_ref()
+                .is_some_and(|exit| exit.prompt == prompt)
+        })
+        .map(|index| index + 1)
+        .unwrap_or(fallback_threshold)
+        .min(frames.len());
+    frames[start..]
+        .iter()
+        .cloned()
+        .map(|frame| rebase_native_i64_captured_return_frame(frame, start))
+        .collect::<Vec<_>>()
+        .into_boxed_slice()
+}
+
+fn rebase_native_i64_captured_return_frame(
+    mut frame: NativeCpsI64ReturnFrame,
+    dropped_frames: usize,
+) -> NativeCpsI64ReturnFrame {
+    frame.owner_initial_frame_count = frame
+        .owner_initial_frame_count
+        .saturating_sub(dropped_frames);
+    for handler in &mut frame.handlers {
+        handler.return_frame_threshold = handler
+            .return_frame_threshold
+            .saturating_sub(dropped_frames);
+    }
+    frame
 }
 
 fn append_resume_handler_to_frames(
@@ -7607,14 +7709,20 @@ fn format_return_frames(frames: &[NativeCpsI64ReturnFrame]) -> String {
         if i > 0 {
             s.push_str(", ");
         }
+        let prompt_exit = frame
+            .prompt_exit
+            .as_ref()
+            .map(|exit| format!(",prompt_exit={}", exit.prompt))
+            .unwrap_or_default();
         s.push_str(&format!(
-            "F#{}/id{}:k{}(owner_eval={},owner_fn={},init={},handlers={})",
+            "F#{}/id{}:k{}(owner_eval={},owner_fn={},init={}{} ,handlers={})",
             i,
             frame.debug_id,
             frame.continuation_id,
             frame.owner_eval_id,
             frame.owner_function_id,
             frame.owner_initial_frame_count,
+            prompt_exit,
             format_handler_stack(&frame.handlers),
         ));
         wrote += 1;
@@ -7769,6 +7877,7 @@ fn effectful_apply_resumption_native(
     }
     // 1. Build F_post.
     let f_post = NativeCpsI64ReturnFrame {
+        prompt_exit: None,
         debug_id: next_native_i64_return_frame_debug_id(),
         continuation: post_cont as usize,
         continuation_id: 0,
@@ -9104,6 +9213,7 @@ extern "C" fn yulang_cps_exit_handler_arm_i64() -> i64 {
 }
 
 fn push_native_i64_return_frame_with_env(
+    prompt_exit: Option<NativeCpsI64PromptExitFrame>,
     continuation: i64,
     continuation_id: i64,
     env: Vec<i64>,
@@ -9119,6 +9229,7 @@ fn push_native_i64_return_frame_with_env(
     let debug_id = next_native_i64_return_frame_debug_id();
     NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
         frames.borrow_mut().push(NativeCpsI64ReturnFrame {
+            prompt_exit,
             debug_id,
             continuation: continuation as usize,
             continuation_id: continuation_id.max(0) as u32,
@@ -9158,6 +9269,7 @@ extern "C" fn yulang_cps_push_return_frame_i64_0(
     immediately_forces: i64,
 ) -> i64 {
     push_native_i64_return_frame_with_env(
+        None,
         continuation,
         continuation_id,
         Vec::new(),
@@ -9180,6 +9292,7 @@ extern "C" fn yulang_cps_push_return_frame_i64_1(
     a: i64,
 ) -> i64 {
     push_native_i64_return_frame_with_env(
+        None,
         continuation,
         continuation_id,
         vec![a],
@@ -9203,6 +9316,7 @@ extern "C" fn yulang_cps_push_return_frame_i64_2(
     b: i64,
 ) -> i64 {
     push_native_i64_return_frame_with_env(
+        None,
         continuation,
         continuation_id,
         vec![a, b],
@@ -9227,6 +9341,7 @@ extern "C" fn yulang_cps_push_return_frame_i64_3(
     c: i64,
 ) -> i64 {
     push_native_i64_return_frame_with_env(
+        None,
         continuation,
         continuation_id,
         vec![a, b, c],
@@ -9252,6 +9367,7 @@ extern "C" fn yulang_cps_push_return_frame_i64_4(
     d: i64,
 ) -> i64 {
     push_native_i64_return_frame_with_env(
+        None,
         continuation,
         continuation_id,
         vec![a, b, c, d],
@@ -9275,6 +9391,79 @@ extern "C" fn yulang_cps_push_return_frame_i64_many(
     len: i64,
 ) -> i64 {
     push_native_i64_return_frame_with_env(
+        None,
+        continuation,
+        continuation_id,
+        unsafe { native_i64_slice(ptr, len) },
+        owner_initial,
+        owner_eval,
+        owner_function,
+        immediately_forces,
+    );
+    0
+}
+
+fn push_native_i64_prompt_exit_frame_with_env(
+    prompt: i64,
+    continuation: i64,
+    continuation_id: i64,
+    env: Vec<i64>,
+    owner_initial_frame_count: i64,
+    owner_eval_id: i64,
+    owner_function_id: i64,
+    immediately_forces_param: i64,
+) {
+    push_native_i64_return_frame_with_env(
+        Some(NativeCpsI64PromptExitFrame {
+            prompt: prompt as u64,
+        }),
+        continuation,
+        continuation_id,
+        env,
+        owner_initial_frame_count,
+        owner_eval_id,
+        owner_function_id,
+        immediately_forces_param,
+    );
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_push_prompt_exit_frame_i64_0(
+    prompt: i64,
+    continuation: i64,
+    continuation_id: i64,
+    owner_initial: i64,
+    owner_eval: i64,
+    owner_function: i64,
+    immediately_forces: i64,
+) -> i64 {
+    push_native_i64_prompt_exit_frame_with_env(
+        prompt,
+        continuation,
+        continuation_id,
+        Vec::new(),
+        owner_initial,
+        owner_eval,
+        owner_function,
+        immediately_forces,
+    );
+    0
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_push_prompt_exit_frame_i64_many(
+    prompt: i64,
+    continuation: i64,
+    continuation_id: i64,
+    owner_initial: i64,
+    owner_eval: i64,
+    owner_function: i64,
+    immediately_forces: i64,
+    ptr: *const i64,
+    len: i64,
+) -> i64 {
+    push_native_i64_prompt_exit_frame_with_env(
+        prompt,
         continuation,
         continuation_id,
         unsafe { native_i64_slice(ptr, len) },
@@ -11362,6 +11551,7 @@ mod tests {
             CpsStmt::InstallHandler {
                 handler: crate::cps_ir::CpsHandlerId(0),
                 envs: Vec::new(),
+                value: CpsContinuationId(5),
                 escape: CpsContinuationId(5),
             },
             CpsStmt::FreshGuard {
@@ -11438,6 +11628,7 @@ mod tests {
             CpsStmt::InstallHandler {
                 handler: crate::cps_ir::CpsHandlerId(1),
                 envs: Vec::new(),
+                value: CpsContinuationId(6),
                 escape: CpsContinuationId(6),
             },
             CpsStmt::ForceThunk {

@@ -1224,6 +1224,7 @@ fn resume_continuation(
                 CpsStmt::InstallHandler {
                     handler,
                     envs,
+                    value,
                     escape,
                 } => {
                     let envs = capture_handler_envs(function, &values, envs)?;
@@ -1240,15 +1241,29 @@ fn resume_continuation(
                         return_frame_threshold: threshold,
                         install_eval_id: current_eval_id,
                     });
+                    return_frames.push(CpsReturnFrame {
+                        prompt_exit: Some(CpsPromptExitFrame {
+                            prompt: pushed_prompt,
+                        }),
+                        owner_function: function.name.clone(),
+                        continuation: *value,
+                        values: Rc::new(values.clone()),
+                        active_handlers: active_handlers.clone(),
+                        guard_stack: guard_stack.clone(),
+                        active_blocked: active_blocked.clone(),
+                        owner_initial_frame_count: threshold,
+                        owner_eval_id: current_eval_id,
+                    });
                     trace_cps(
                         "InstallHandler",
                         format!(
-                            "fn={} eval={} cont={:?} handler={:?} prompt={} escape={:?} threshold={} handlers.now={}",
+                            "fn={} eval={} cont={:?} handler={:?} prompt={} value={:?} escape={:?} threshold={} handlers.now={}",
                             function.name,
                             current_eval_id.0,
                             current,
                             handler,
                             pushed_prompt.0,
+                            value,
                             escape,
                             threshold,
                             active_handlers.len(),
@@ -1568,6 +1583,11 @@ fn resume_continuation(
                         ),
                     );
                 }
+                let resumption_return_frames = if frame_in_active {
+                    capture_return_frames_inside_prompt(&return_frames, frame)
+                } else {
+                    return_frames.clone()
+                };
                 let resumption = CpsRuntimeValue::Resumption(Rc::new(CpsResumption {
                     owner_function: function.name.clone(),
                     target: *resume,
@@ -1575,7 +1595,7 @@ fn resume_continuation(
                     handlers: Rc::new(handler_stack.clone()),
                     guard_stack: Rc::new(guard_stack.clone()),
                     active_blocked: Rc::new(active_blocked.clone()),
-                    return_frames: Rc::new(return_frames.clone()),
+                    return_frames: Rc::new(resumption_return_frames),
                     handled_anchor,
                 }));
                 // Detect whether the chosen handler frame is in our local
@@ -1695,6 +1715,7 @@ fn resume_continuation(
                     .collect::<CpsEvalResult<Vec<_>>>()?;
                 let pre_push_count = return_frames.len();
                 let frame = CpsReturnFrame {
+                    prompt_exit: None,
                     owner_function: function.name.clone(),
                     continuation: *resume,
                     values: Rc::new(values.clone()),
@@ -1726,6 +1747,7 @@ fn resume_continuation(
                     CpsRuntimeValue::Thunk(thunk_rc) => {
                         let pre_push_count = return_frames.len();
                         let frame = CpsReturnFrame {
+                            prompt_exit: None,
                             owner_function: function.name.clone(),
                             continuation: *resume,
                             values: Rc::new(values.clone()),
@@ -1799,6 +1821,7 @@ fn resume_continuation(
                 );
                 let pre_push_count = return_frames.len();
                 let frame = CpsReturnFrame {
+                    prompt_exit: None,
                     owner_function: function.name.clone(),
                     continuation: *resume,
                     values: Rc::new(values.clone()),
@@ -2007,6 +2030,53 @@ fn summarize_handler_stack(stack: &[CpsHandlerFrame]) -> String {
 /// Are two handler frames the "same" handler — i.e. same install instance?
 fn same_handler_frame(a: &CpsHandlerFrame, b: &CpsHandlerFrame) -> bool {
     a.prompt == b.prompt && a.install_eval_id == b.install_eval_id
+}
+
+fn capture_return_frames_inside_prompt(
+    return_frames: &[CpsReturnFrame],
+    handled: &CpsHandlerFrame,
+) -> Vec<CpsReturnFrame> {
+    let start = return_frames
+        .iter()
+        .rposition(|frame| {
+            frame
+                .prompt_exit
+                .as_ref()
+                .is_some_and(|exit| exit.prompt == handled.prompt)
+        })
+        .map(|index| index + 1)
+        .unwrap_or(handled.return_frame_threshold)
+        .min(return_frames.len());
+    return_frames[start..]
+        .iter()
+        .cloned()
+        .map(|frame| rebase_captured_return_frame(frame, start))
+        .collect()
+}
+
+fn rebase_captured_return_frame(
+    mut frame: CpsReturnFrame,
+    dropped_frames: usize,
+) -> CpsReturnFrame {
+    frame.owner_initial_frame_count = frame
+        .owner_initial_frame_count
+        .saturating_sub(dropped_frames);
+    frame.active_handlers = frame
+        .active_handlers
+        .into_iter()
+        .map(|handler| rebase_captured_handler_frame(handler, dropped_frames))
+        .collect();
+    frame
+}
+
+fn rebase_captured_handler_frame(
+    mut handler: CpsHandlerFrame,
+    dropped_frames: usize,
+) -> CpsHandlerFrame {
+    handler.return_frame_threshold = handler
+        .return_frame_threshold
+        .saturating_sub(dropped_frames);
+    handler
 }
 
 /// Merge a captured continuation's handler stack with the resume site's
@@ -3087,6 +3157,7 @@ struct CpsResumption {
 /// caller's computation after the call.
 #[derive(Debug, Clone, PartialEq)]
 struct CpsReturnFrame {
+    prompt_exit: Option<CpsPromptExitFrame>,
     owner_function: String,
     continuation: CpsContinuationId,
     values: Rc<Vec<Option<CpsRuntimeValue>>>,
@@ -3108,6 +3179,11 @@ struct CpsReturnFrame {
     /// the same eval frame that originally installed the matching handler
     /// (write22).
     owner_eval_id: CpsEvalId,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsPromptExitFrame {
+    prompt: CpsPromptId,
 }
 
 #[derive(Debug, Clone, PartialEq)]

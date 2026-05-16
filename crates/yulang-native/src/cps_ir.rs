@@ -154,6 +154,11 @@ pub enum CpsStmt {
     InstallHandler {
         handler: CpsHandlerId,
         envs: Vec<CpsHandlerEnv>,
+        /// Continuation that applies the handler's value arm when the body
+        /// completes naturally. Runtime installs this as a prompt-exit frame
+        /// so shallow resumptions can capture the raw body continuation
+        /// without capturing the value arm.
+        value: CpsContinuationId,
         /// The continuation reached when the handler scope completes —
         /// either because the body returned normally or a non-resuming
         /// arm fell through. ScopeReturn-style abort uses this as the

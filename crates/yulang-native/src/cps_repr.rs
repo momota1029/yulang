@@ -2094,10 +2094,12 @@ fn resume_continuation(
                 CpsStmt::InstallHandler {
                     handler,
                     envs,
+                    value,
                     escape,
                 } => {
                     let envs = capture_handler_envs(function, &values, envs)?;
                     let prompt = fresh_repr_prompt();
+                    let threshold = return_frames.len();
                     active_handlers.push(CpsReprHandlerFrame {
                         prompt,
                         handler: *handler,
@@ -2105,21 +2107,33 @@ fn resume_continuation(
                         envs,
                         escape: *escape,
                         escape_owner_function: function.name.clone(),
-                        return_frame_threshold: return_frames.len(),
+                        return_frame_threshold: threshold,
                         inherited: false,
                         install_eval_id: current_eval_id,
+                    });
+                    return_frames.push(CpsReprReturnFrame {
+                        prompt_exit: Some(CpsReprPromptExitFrame { prompt }),
+                        owner_function: function.name.clone(),
+                        continuation: *value,
+                        values: Rc::new(values.clone()),
+                        active_handlers: active_handlers.clone(),
+                        guard_stack: guard_stack.clone(),
+                        active_blocked: active_blocked.clone(),
+                        owner_initial_frame_count: threshold,
+                        owner_eval_id: current_eval_id,
                     });
                     trace_repr(
                         "InstallHandler",
                         format!(
-                            "fn={} eval={} cont={:?} handler={:?} prompt={} escape={:?} threshold={} handlers.now={}",
+                            "fn={} eval={} cont={:?} handler={:?} prompt={} value={:?} escape={:?} threshold={} handlers.now={}",
                             function.name,
                             current_eval_id.0,
                             continuation.id,
                             handler,
                             prompt.0,
+                            value,
                             escape,
-                            return_frames.len(),
+                            threshold,
                             active_handlers.len()
                         ),
                     );
@@ -2700,6 +2714,11 @@ fn resume_continuation(
                 } else {
                     None
                 };
+                let resumption_return_frames = if frame_in_active {
+                    capture_return_frames_inside_prompt_repr(&return_frames, frame)
+                } else {
+                    return_frames.clone()
+                };
                 let resumption = CpsReprRuntimeValue::Resumption(CpsReprResumption {
                     owner_function: function.name.clone(),
                     target: *resume,
@@ -2707,7 +2726,7 @@ fn resume_continuation(
                     handlers: handler_stack.clone(),
                     guard_stack: guard_stack.clone(),
                     active_blocked: active_blocked.clone(),
-                    return_frames: return_frames.clone(),
+                    return_frames: resumption_return_frames,
                     handled_anchor,
                 });
                 let result = eval_continuations(
@@ -2813,6 +2832,7 @@ fn resume_continuation(
                     .collect::<CpsReprEvalResult<Vec<_>>>()?;
                 let pre_push_count = return_frames.len();
                 let frame = CpsReprReturnFrame {
+                    prompt_exit: None,
                     owner_function: function.name.clone(),
                     continuation: *resume,
                     values: Rc::new(values.clone()),
@@ -2841,6 +2861,7 @@ fn resume_continuation(
                     CpsReprRuntimeValue::Thunk(thunk) => {
                         let pre_push_count = return_frames.len();
                         let frame = CpsReprReturnFrame {
+                            prompt_exit: None,
                             owner_function: function.name.clone(),
                             continuation: *resume,
                             values: Rc::new(values.clone()),
@@ -2891,6 +2912,7 @@ fn resume_continuation(
                 let callable = read_value(function, &values, *closure)?;
                 let pre_push_count = return_frames.len();
                 let frame = CpsReprReturnFrame {
+                    prompt_exit: None,
                     owner_function: function.name.clone(),
                     continuation: *resume,
                     values: Rc::new(values.clone()),
@@ -2969,6 +2991,53 @@ fn resume_continuation(
 /// `cps_eval::same_handler_frame`.
 fn same_handler_frame_repr(a: &CpsReprHandlerFrame, b: &CpsReprHandlerFrame) -> bool {
     a.prompt == b.prompt && a.install_eval_id == b.install_eval_id
+}
+
+fn capture_return_frames_inside_prompt_repr(
+    return_frames: &[CpsReprReturnFrame],
+    handled: &CpsReprHandlerFrame,
+) -> Vec<CpsReprReturnFrame> {
+    let start = return_frames
+        .iter()
+        .rposition(|frame| {
+            frame
+                .prompt_exit
+                .as_ref()
+                .is_some_and(|exit| exit.prompt == handled.prompt)
+        })
+        .map(|index| index + 1)
+        .unwrap_or(handled.return_frame_threshold)
+        .min(return_frames.len());
+    return_frames[start..]
+        .iter()
+        .cloned()
+        .map(|frame| rebase_captured_return_frame_repr(frame, start))
+        .collect()
+}
+
+fn rebase_captured_return_frame_repr(
+    mut frame: CpsReprReturnFrame,
+    dropped_frames: usize,
+) -> CpsReprReturnFrame {
+    frame.owner_initial_frame_count = frame
+        .owner_initial_frame_count
+        .saturating_sub(dropped_frames);
+    frame.active_handlers = frame
+        .active_handlers
+        .into_iter()
+        .map(|handler| rebase_captured_handler_frame_repr(handler, dropped_frames))
+        .collect();
+    frame
+}
+
+fn rebase_captured_handler_frame_repr(
+    mut handler: CpsReprHandlerFrame,
+    dropped_frames: usize,
+) -> CpsReprHandlerFrame {
+    handler.return_frame_threshold = handler
+        .return_frame_threshold
+        .saturating_sub(dropped_frames);
+    handler
 }
 
 /// write26 port of `cps_eval::merge_resumption_handlers`. Place
@@ -3061,9 +3130,7 @@ fn merge_extras_into_frames_repr(
 }
 
 /// Repr port of `cps_eval::own_captured_return_frames`.
-fn own_captured_return_frames_repr(
-    mut frames: Vec<CpsReprReturnFrame>,
-) -> Vec<CpsReprReturnFrame> {
+fn own_captured_return_frames_repr(mut frames: Vec<CpsReprReturnFrame>) -> Vec<CpsReprReturnFrame> {
     for frame in &mut frames {
         frame.owner_initial_frame_count = 0;
     }
@@ -3524,6 +3591,7 @@ struct CpsReprHandlerFrame {
 
 #[derive(Debug, Clone, PartialEq)]
 struct CpsReprReturnFrame {
+    prompt_exit: Option<CpsReprPromptExitFrame>,
     owner_function: String,
     continuation: CpsContinuationId,
     values: Rc<HashMap<CpsValueId, CpsReprRuntimeValue>>,
@@ -3532,6 +3600,11 @@ struct CpsReprReturnFrame {
     active_blocked: Vec<CpsReprBlockedEffect>,
     owner_initial_frame_count: usize,
     owner_eval_id: CpsReprEvalId,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsReprPromptExitFrame {
+    prompt: CpsReprPromptId,
 }
 
 #[derive(Debug, Clone, PartialEq)]
