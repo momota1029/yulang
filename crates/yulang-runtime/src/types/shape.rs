@@ -123,7 +123,19 @@ pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::
     collect_hir_type_vars(&expr.ty, vars);
     match &expr.kind {
         ExprKind::Lambda { body, .. } => collect_expr_type_vars(body, vars),
-        ExprKind::Apply { callee, arg, .. } => {
+        ExprKind::Apply {
+            callee,
+            arg,
+            evidence: _,
+            instantiation: _,
+        } => {
+            // Apply.evidence and Apply.instantiation carry inference
+            // metadata that the monomorphize substitute pass does not
+            // currently refresh on stale type variables (see
+            // notes/bugs/type-monomorphize.md issue #3). Until that path
+            // is fixed, the residual-var check intentionally skips them
+            // so that otherwise-monomorphic bindings keep passing
+            // through; the structural fields below are checked.
             collect_expr_type_vars(callee, vars);
             collect_expr_type_vars(arg, vars);
         }
@@ -131,7 +143,7 @@ pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::
             cond,
             then_branch,
             else_branch,
-            ..
+            evidence: _,
         } => {
             collect_expr_type_vars(cond, vars);
             collect_expr_type_vars(then_branch, vars);
@@ -155,7 +167,9 @@ pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::
         }
         ExprKind::Select { base, .. } => collect_expr_type_vars(base, vars),
         ExprKind::Match {
-            scrutinee, arms, ..
+            scrutinee,
+            arms,
+            evidence: _,
         } => {
             collect_expr_type_vars(scrutinee, vars);
             for arm in arms {
@@ -170,7 +184,12 @@ pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::
                 collect_expr_type_vars(tail, vars);
             }
         }
-        ExprKind::Handle { body, arms, .. } => {
+        ExprKind::Handle {
+            body,
+            arms,
+            evidence: _,
+            handler,
+        } => {
             collect_expr_type_vars(body, vars);
             for arm in arms {
                 collect_pattern_type_vars(&arm.payload, vars);
@@ -182,13 +201,20 @@ pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::
                 }
                 collect_expr_type_vars(&arm.body, vars);
             }
+            // evidence skipped (see Apply comment); handler residual is
+            // an effect-row type that the runtime does consume, so keep
+            // it inside the detector.
+            collect_handle_effect_type_vars(handler, vars);
         }
         ExprKind::BindHere { expr }
         | ExprKind::Thunk { expr, .. }
         | ExprKind::Coerce { expr, .. }
         | ExprKind::Pack { expr, .. } => collect_expr_type_vars(expr, vars),
         ExprKind::LocalPushId { body, .. } => collect_expr_type_vars(body, vars),
-        ExprKind::AddId { thunk, .. } => collect_expr_type_vars(thunk, vars),
+        ExprKind::AddId { allowed, thunk, .. } => {
+            collect_type_vars(allowed, vars);
+            collect_expr_type_vars(thunk, vars);
+        }
         ExprKind::EffectOp(_)
         | ExprKind::PrimitiveOp(_)
         | ExprKind::Lit(_)
@@ -203,6 +229,81 @@ pub(crate) fn collect_expr_type_vars(expr: &Expr, vars: &mut BTreeSet<typed_ir::
     if let ExprKind::Coerce { from, to, .. } = &expr.kind {
         collect_type_vars(from, vars);
         collect_type_vars(to, vars);
+    }
+}
+
+// Available for the future stricter-detector mode; the current visitor
+// intentionally does not call these on Apply / If / Match because the
+// substitute pass leaves residual variables in the evidence metadata
+// (see notes/bugs/type-monomorphize.md issue #3).
+#[allow(dead_code)]
+fn collect_apply_evidence_type_vars(
+    evidence: &typed_ir::ApplyEvidence,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    collect_type_bounds_type_vars(&evidence.callee, vars);
+    if let Some(expected) = &evidence.expected_callee {
+        collect_type_bounds_type_vars(expected, vars);
+    }
+    collect_type_bounds_type_vars(&evidence.arg, vars);
+    if let Some(expected) = &evidence.expected_arg {
+        collect_type_bounds_type_vars(expected, vars);
+    }
+    collect_type_bounds_type_vars(&evidence.result, vars);
+    if let Some(principal) = &evidence.principal_callee {
+        collect_type_vars(principal, vars);
+    }
+    for substitution in &evidence.substitutions {
+        collect_type_vars(&substitution.ty, vars);
+    }
+    if let Some(plan) = &evidence.principal_elaboration {
+        collect_type_vars(&plan.principal_callee, vars);
+        for substitution in &plan.substitutions {
+            collect_type_vars(&substitution.ty, vars);
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn collect_type_bounds_type_vars(
+    bounds: &typed_ir::TypeBounds,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    if let Some(lower) = bounds.lower.as_deref() {
+        collect_type_vars(lower, vars);
+    }
+    if let Some(upper) = bounds.upper.as_deref() {
+        collect_type_vars(upper, vars);
+    }
+}
+
+#[allow(dead_code)]
+fn collect_type_instantiation_type_vars(
+    instantiation: &crate::ir::TypeInstantiation,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    for substitution in &instantiation.args {
+        collect_type_vars(&substitution.ty, vars);
+    }
+}
+
+#[allow(dead_code)]
+fn collect_join_evidence_type_vars(
+    evidence: &JoinEvidence,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    collect_type_vars(&evidence.result, vars);
+}
+
+fn collect_handle_effect_type_vars(
+    handler: &crate::ir::HandleEffect,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    if let Some(residual) = &handler.residual_before {
+        collect_type_vars(residual, vars);
+    }
+    if let Some(residual) = &handler.residual_after {
+        collect_type_vars(residual, vars);
     }
 }
 
