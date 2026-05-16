@@ -648,6 +648,17 @@ const PUSH_RETURN_FRAME_HELPERS: FixedManyHelpers = FixedManyHelpers {
     many: "yulang_cps_push_return_frame_i64_many",
 };
 
+const INSTALL_HANDLER_FULL_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_cps_install_handler_full_i64_0",
+        "yulang_cps_install_handler_full_i64_1",
+        "yulang_cps_install_handler_full_i64_2",
+        "yulang_cps_install_handler_full_i64_3",
+        "yulang_cps_install_handler_full_i64_4",
+    ],
+    many: "yulang_cps_install_handler_full_i64_many",
+};
+
 const EFFECTFUL_APPLY_RESUMPTION_HELPERS: FixedManyHelpers = FixedManyHelpers {
     fixed: [
         "yulang_cps_effectful_apply_resumption_i64_0",
@@ -1463,25 +1474,57 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
     cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
     stmt: &CpsStmt,
 ) -> CpsReprCraneliftResult<()> {
-    lower_effect_stmt_parts(
+    match stmt {
+        CpsStmt::Literal { .. }
+        | CpsStmt::Tuple { .. }
+        | CpsStmt::Record { .. }
+        | CpsStmt::RecordWithoutFields { .. }
+        | CpsStmt::Select { .. }
+        | CpsStmt::SelectWithDefault { .. }
+        | CpsStmt::RecordHasField { .. }
+        | CpsStmt::Variant { .. }
+        | CpsStmt::TupleGet { .. }
+        | CpsStmt::VariantTagEq { .. }
+        | CpsStmt::VariantPayload { .. }
+        | CpsStmt::Primitive { .. } => lower_value_stmt(cx, stmt),
+        CpsStmt::FreshGuard { .. }
+        | CpsStmt::PeekGuard { .. }
+        | CpsStmt::FindGuard { .. }
+        | CpsStmt::MakeThunk { .. }
+        | CpsStmt::AddThunkBoundary { .. }
+        | CpsStmt::MakeClosure { .. }
+        | CpsStmt::MakeRecursiveClosure { .. }
+        | CpsStmt::ForceThunk { .. } => lower_runtime_value_stmt(cx, stmt),
+        CpsStmt::DirectCall { .. }
+        | CpsStmt::ApplyClosure { .. }
+        | CpsStmt::CloneContinuation { .. }
+        | CpsStmt::Resume { .. }
+        | CpsStmt::ResumeWithHandler { .. } => lower_call_stmt_case(cx, stmt),
+        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {
+            lower_handler_stmt_case(cx, stmt)
+        }
+    }
+}
+
+fn lower_value_stmt<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    stmt: &CpsStmt,
+) -> CpsReprCraneliftResult<()> {
+    lower_value_stmt_parts(
         cx.module_backend,
         cx.builder,
         cx.function,
         stmt,
-        cx.functions,
-        cx.handlers,
         cx.literals,
         cx.values,
     )
 }
 
-fn lower_effect_stmt_parts<M: Module, L: CpsLiteralStore>(
+fn lower_value_stmt_parts<M: Module, L: CpsLiteralStore>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
     stmt: &CpsStmt,
-    functions: &DeclaredFunctions,
-    handlers: &HandlerRegistry,
     literals: &mut L,
     values: &mut LocalValueCache,
 ) -> CpsReprCraneliftResult<()> {
@@ -1502,95 +1545,6 @@ fn lower_effect_stmt_parts<M: Module, L: CpsLiteralStore>(
                 return Ok(());
             }
             define_value_as_lane(builder, values, *dest, literal_lane(literal), value);
-        }
-        CpsStmt::FreshGuard { dest, .. } => {
-            let value =
-                call_i64_helper(module_backend, builder, "yulang_cps_fresh_guard_i64", &[])?;
-            builder.def_var(variable(*dest), value);
-        }
-        CpsStmt::PeekGuard { dest } => {
-            let value = call_i64_helper(module_backend, builder, "yulang_cps_peek_guard_i64", &[])?;
-            builder.def_var(variable(*dest), value);
-        }
-        CpsStmt::FindGuard { dest, guard } => {
-            let guard = read_value(builder, function, *guard)?;
-            let value = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_find_guard_i64",
-                &[guard],
-            )?;
-            builder.def_var(variable(*dest), value);
-        }
-        CpsStmt::MakeThunk { dest, entry } => {
-            let value = make_thunk(module_backend, builder, function, *entry, functions)?;
-            builder.def_var(variable(*dest), value);
-        }
-        CpsStmt::AddThunkBoundary {
-            dest,
-            thunk,
-            guard,
-            allowed,
-            active,
-        } => {
-            let value = read_value(builder, function, *thunk)?;
-            let guard = read_value(builder, function, *guard)?;
-            let allowed_mask = handlers.allowed_mask(function, allowed)?;
-            let allowed_mask = builder.ins().iconst(types::I64, allowed_mask);
-            let active = builder.ins().iconst(types::I64, i64::from(*active));
-            let value = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_add_thunk_boundary_i64",
-                &[value, guard, allowed_mask, active],
-            )?;
-            builder.def_var(variable(*dest), value);
-        }
-        CpsStmt::MakeClosure { dest, entry } => {
-            let value = make_closure(module_backend, builder, function, *entry, functions)?;
-            builder.def_var(variable(*dest), value);
-        }
-        CpsStmt::MakeRecursiveClosure { dest, entry } => {
-            let value = make_recursive_closure(
-                module_backend,
-                builder,
-                function,
-                *dest,
-                *entry,
-                functions,
-            )?;
-            builder.def_var(variable(*dest), value);
-        }
-        CpsStmt::ForceThunk { dest, thunk } => {
-            if force_thunk_passes_native_float(function, values, *thunk) {
-                let value = read_value_as_lane(
-                    builder,
-                    function,
-                    values,
-                    *thunk,
-                    CpsReprAbiLane::NativeFloat,
-                )?;
-                define_value_as_lane(builder, values, *dest, CpsReprAbiLane::NativeFloat, value);
-                return Ok(());
-            }
-            let helper = declare_import(
-                module_backend,
-                builder,
-                "yulang_cps_force_thunk_i64",
-                &[types::I64],
-                types::I64,
-            )?;
-            let thunk = read_value(builder, function, *thunk)?;
-            // write27-d d5: fresh eval context for the sync force.
-            let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
-            let call = builder.ins().call(helper, &[thunk]);
-            let results = builder.inst_results(call);
-            let result = results[0];
-            restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
-            let result = abort_result_or_return(module_backend, builder, result)?;
-            let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
-            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
-            builder.def_var(variable(*dest), result);
         }
         CpsStmt::Tuple { dest, items } => {
             let items = read_runtime_values_i64(module_backend, builder, function, values, items)?;
@@ -1718,34 +1672,158 @@ fn lower_effect_stmt_parts<M: Module, L: CpsLiteralStore>(
             let value = lower_primitive(module_backend, builder, function, *op, &args)?;
             define_value_as_lane(builder, values, *dest, primitive_result_lane(*op), value);
         }
-        CpsStmt::DirectCall { .. }
-        | CpsStmt::ApplyClosure { .. }
-        | CpsStmt::CloneContinuation { .. }
-        | CpsStmt::Resume { .. }
-        | CpsStmt::ResumeWithHandler { .. } => {
-            lower_call_stmt(
-                module_backend,
-                builder,
-                function,
-                stmt,
-                functions,
-                handlers,
-                values,
-            )?;
-        }
-        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {
-            lower_handler_stmt(
-                module_backend,
-                builder,
-                function,
-                stmt,
-                functions,
-                handlers,
-                values,
-            )?;
-        }
+        _ => unreachable!("lower_value_stmt called with non-value statement"),
     }
     Ok(())
+}
+
+fn lower_runtime_value_stmt<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    stmt: &CpsStmt,
+) -> CpsReprCraneliftResult<()> {
+    lower_runtime_value_stmt_parts(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        stmt,
+        cx.functions,
+        cx.handlers,
+        cx.values,
+    )
+}
+
+fn lower_runtime_value_stmt_parts<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    stmt: &CpsStmt,
+    functions: &DeclaredFunctions,
+    handlers: &HandlerRegistry,
+    values: &mut LocalValueCache,
+) -> CpsReprCraneliftResult<()> {
+    match stmt {
+        CpsStmt::FreshGuard { dest, .. } => {
+            let value =
+                call_i64_helper(module_backend, builder, "yulang_cps_fresh_guard_i64", &[])?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::PeekGuard { dest } => {
+            let value = call_i64_helper(module_backend, builder, "yulang_cps_peek_guard_i64", &[])?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::FindGuard { dest, guard } => {
+            let guard = read_value(builder, function, *guard)?;
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_find_guard_i64",
+                &[guard],
+            )?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::MakeThunk { dest, entry } => {
+            let value = make_thunk(module_backend, builder, function, *entry, functions)?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::AddThunkBoundary {
+            dest,
+            thunk,
+            guard,
+            allowed,
+            active,
+        } => {
+            let value = read_value(builder, function, *thunk)?;
+            let guard = read_value(builder, function, *guard)?;
+            let allowed_mask = handlers.allowed_mask(function, allowed)?;
+            let allowed_mask = builder.ins().iconst(types::I64, allowed_mask);
+            let active = builder.ins().iconst(types::I64, i64::from(*active));
+            let value = call_i64_helper(
+                module_backend,
+                builder,
+                "yulang_cps_add_thunk_boundary_i64",
+                &[value, guard, allowed_mask, active],
+            )?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::MakeClosure { dest, entry } => {
+            let value = make_closure(module_backend, builder, function, *entry, functions)?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::MakeRecursiveClosure { dest, entry } => {
+            let value = make_recursive_closure(
+                module_backend,
+                builder,
+                function,
+                *dest,
+                *entry,
+                functions,
+            )?;
+            builder.def_var(variable(*dest), value);
+        }
+        CpsStmt::ForceThunk { dest, thunk } => {
+            if force_thunk_passes_native_float(function, values, *thunk) {
+                let value = read_value_as_lane(
+                    builder,
+                    function,
+                    values,
+                    *thunk,
+                    CpsReprAbiLane::NativeFloat,
+                )?;
+                define_value_as_lane(builder, values, *dest, CpsReprAbiLane::NativeFloat, value);
+                return Ok(());
+            }
+            let helper = declare_import(
+                module_backend,
+                builder,
+                "yulang_cps_force_thunk_i64",
+                &[types::I64],
+                types::I64,
+            )?;
+            let thunk = read_value(builder, function, *thunk)?;
+            // write27-d d5: fresh eval context for the sync force.
+            let (saved_eval, saved_initial) = enter_callee_eval_context(module_backend, builder)?;
+            let call = builder.ins().call(helper, &[thunk]);
+            let results = builder.inst_results(call);
+            let result = results[0];
+            restore_caller_eval_context(module_backend, builder, saved_eval, saved_initial)?;
+            let result = abort_result_or_return(module_backend, builder, result)?;
+            let scope_fallback = scope_return_fallback_value(builder, function, *dest, result);
+            return_if_scope_return_active(module_backend, builder, scope_fallback)?;
+            builder.def_var(variable(*dest), result);
+        }
+        _ => unreachable!("lower_runtime_value_stmt called with non-runtime-value statement"),
+    }
+    Ok(())
+}
+
+fn lower_call_stmt_case<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    stmt: &CpsStmt,
+) -> CpsReprCraneliftResult<()> {
+    lower_call_stmt(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        stmt,
+        cx.functions,
+        cx.handlers,
+        cx.values,
+    )
+}
+
+fn lower_handler_stmt_case<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    stmt: &CpsStmt,
+) -> CpsReprCraneliftResult<()> {
+    lower_handler_stmt(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        stmt,
+        cx.functions,
+        cx.handlers,
+        cx.values,
+    )
 }
 
 fn lower_call_stmt<M: Module>(
@@ -1960,14 +2038,7 @@ fn lower_handler_stmt<M: Module>(
                     "yulang_cps_set_pending_escape_env_targets_i64",
                     &[target_ptr, target_len],
                 )?;
-                let helper_name = match escape_cont.environment.len() {
-                    0 => "yulang_cps_install_handler_full_i64_0",
-                    1 => "yulang_cps_install_handler_full_i64_1",
-                    2 => "yulang_cps_install_handler_full_i64_2",
-                    3 => "yulang_cps_install_handler_full_i64_3",
-                    4 => "yulang_cps_install_handler_full_i64_4",
-                    _ => unreachable!("guarded by environment.len() <= 4"),
-                };
+                let helper_name = INSTALL_HANDLER_FULL_HELPERS.fixed(escape_cont.environment.len());
                 let _ = call_i64_helper(module_backend, builder, helper_name, &args)?;
                 let value_cont = lookup_continuation(function, *value)?;
                 let value_ref =
