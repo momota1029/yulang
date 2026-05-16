@@ -1125,6 +1125,7 @@ fn lower_direct_style_continuation_island<M: Module, L: CpsLiteralStore>(
             continuation,
             &continuation.terminator,
             functions,
+            literals,
             &mut values,
             island,
         )?;
@@ -1160,7 +1161,7 @@ fn create_direct_style_island_blocks(
         .collect()
 }
 
-fn lower_direct_style_island_terminator<M: Module>(
+fn lower_direct_style_island_terminator<M: Module, L: CpsLiteralStore>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
@@ -1168,6 +1169,7 @@ fn lower_direct_style_island_terminator<M: Module>(
     continuation: &CpsReprAbiContinuation,
     terminator: &CpsTerminator,
     functions: &DeclaredFunctions,
+    literals: &mut L,
     values: &mut LocalValueCache,
     island: &HashSet<CpsContinuationId>,
 ) -> CpsReprCraneliftResult<()> {
@@ -1193,15 +1195,19 @@ fn lower_direct_style_island_terminator<M: Module>(
             builder.ins().brif(cond, then_cont, &[], else_cont, &[]);
             Ok(())
         }
-        _ => lower_effect_terminator_parts(
-            module_backend,
-            builder,
-            function,
-            continuation,
-            functions,
-            &HandlerRegistry::default(),
-            values,
-        ),
+        _ => {
+            let handlers = HandlerRegistry::default();
+            let mut cx = CpsCraneliftLowerCx {
+                module_backend,
+                builder,
+                function,
+                functions,
+                handlers: &handlers,
+                literals,
+                values,
+            };
+            lower_effect_terminator(&mut cx, continuation)
+        }
     }
 }
 
@@ -2074,61 +2080,19 @@ fn lower_effect_terminator<M: Module, L: CpsLiteralStore>(
     cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
     continuation: &CpsReprAbiContinuation,
 ) -> CpsReprCraneliftResult<()> {
-    lower_effect_terminator_parts(
-        cx.module_backend,
-        cx.builder,
-        cx.function,
-        continuation,
-        cx.functions,
-        cx.handlers,
-        cx.values,
-    )
-}
-
-fn lower_effect_terminator_parts<M: Module>(
-    module_backend: &mut M,
-    builder: &mut FunctionBuilder<'_>,
-    function: &CpsReprAbiFunction,
-    continuation: &CpsReprAbiContinuation,
-    functions: &DeclaredFunctions,
-    handlers: &HandlerRegistry,
-    _values: &mut LocalValueCache,
-) -> CpsReprCraneliftResult<()> {
     match &continuation.terminator {
         CpsTerminator::Return(value) => {
-            // write27-b: route the return value through the JIT-side
-            // `yulang_cps_return_i64` helper so the eval-level Return
-            // semantics (pre-force v2, continue_return_frame on
-            // remaining own-frames) match cps_eval/cps_repr.
-            //
-            // The helper is a no-op when there are no own return frames
-            // (frame_len <= initial_frame_count), so this is safe even
-            // for tests that don't use effectful terminators — the path
-            // simply returns `value` unchanged.
-            let value = read_value(builder, function, *value)?;
-            let routed =
-                call_i64_helper(module_backend, builder, "yulang_cps_return_i64", &[value])?;
-            builder.ins().return_(&[routed]);
+            lower_return_terminator(cx, *value)?;
         }
         CpsTerminator::Continue { target, args } => {
-            let value =
-                call_continuation(module_backend, builder, function, *target, args, functions)?;
-            builder.ins().return_(&[value]);
+            lower_continue_terminator(cx, *target, args)?;
         }
         CpsTerminator::Branch {
             cond,
             then_cont,
             else_cont,
         } => {
-            lower_effect_branch(
-                module_backend,
-                builder,
-                function,
-                *cond,
-                *then_cont,
-                *else_cont,
-                functions,
-            )?;
+            lower_branch_terminator(cx, *cond, *then_cont, *else_cont)?;
         }
         CpsTerminator::Perform {
             effect,
@@ -2137,61 +2101,156 @@ fn lower_effect_terminator_parts<M: Module>(
             handler,
             blocked,
         } => {
-            lower_perform_terminator(
-                module_backend,
-                builder,
-                function,
-                effect,
-                *payload,
-                *resume,
-                *handler,
-                functions,
-                handlers,
-                *blocked,
-            )?;
+            lower_perform_terminator_case(cx, effect, *payload, *resume, *handler, *blocked)?;
         }
         CpsTerminator::EffectfulCall {
             target,
             args,
             resume,
         } => {
-            lower_effectful_call_tail(
-                module_backend,
-                builder,
-                function,
-                target,
-                args,
-                *resume,
-                functions,
-            )?;
+            lower_effectful_call_terminator(cx, target, args, *resume)?;
         }
         CpsTerminator::EffectfulForce { thunk, resume } => {
-            lower_effectful_force_tail(
-                module_backend,
-                builder,
-                function,
-                *thunk,
-                *resume,
-                functions,
-            )?;
+            lower_effectful_force_terminator(cx, *thunk, *resume)?;
         }
         CpsTerminator::EffectfulApply {
             closure,
             arg,
             resume,
         } => {
-            lower_effectful_apply_tail(
-                module_backend,
-                builder,
-                function,
-                *closure,
-                *arg,
-                *resume,
-                functions,
-            )?;
+            lower_effectful_apply_terminator(cx, *closure, *arg, *resume)?;
         }
     }
     Ok(())
+}
+
+fn lower_return_terminator<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    value: CpsValueId,
+) -> CpsReprCraneliftResult<()> {
+    // write27-b: route the return value through the JIT-side
+    // `yulang_cps_return_i64` helper so the eval-level Return semantics
+    // (pre-force v2, continue_return_frame on remaining own-frames) match
+    // cps_eval/cps_repr.
+    //
+    // The helper is a no-op when there are no own return frames
+    // (frame_len <= initial_frame_count), so this is safe even for tests
+    // that don't use effectful terminators; the path simply returns
+    // `value` unchanged.
+    let value = read_value(cx.builder, cx.function, value)?;
+    let routed = call_i64_helper(
+        cx.module_backend,
+        cx.builder,
+        "yulang_cps_return_i64",
+        &[value],
+    )?;
+    cx.builder.ins().return_(&[routed]);
+    Ok(())
+}
+
+fn lower_continue_terminator<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    target: CpsContinuationId,
+    args: &[CpsValueId],
+) -> CpsReprCraneliftResult<()> {
+    let value = call_continuation(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        target,
+        args,
+        cx.functions,
+    )?;
+    cx.builder.ins().return_(&[value]);
+    Ok(())
+}
+
+fn lower_branch_terminator<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    cond: CpsValueId,
+    then_cont: CpsContinuationId,
+    else_cont: CpsContinuationId,
+) -> CpsReprCraneliftResult<()> {
+    lower_effect_branch(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        cond,
+        then_cont,
+        else_cont,
+        cx.functions,
+    )
+}
+
+fn lower_perform_terminator_case<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    effect: &typed_ir::Path,
+    payload: CpsValueId,
+    resume: CpsContinuationId,
+    handler: CpsHandlerId,
+    blocked: Option<CpsValueId>,
+) -> CpsReprCraneliftResult<()> {
+    lower_perform_terminator(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        effect,
+        payload,
+        resume,
+        handler,
+        cx.functions,
+        cx.handlers,
+        blocked,
+    )
+}
+
+fn lower_effectful_call_terminator<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    target: &str,
+    args: &[CpsValueId],
+    resume: CpsContinuationId,
+) -> CpsReprCraneliftResult<()> {
+    lower_effectful_call_tail(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        target,
+        args,
+        resume,
+        cx.functions,
+    )
+}
+
+fn lower_effectful_force_terminator<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    thunk: CpsValueId,
+    resume: CpsContinuationId,
+) -> CpsReprCraneliftResult<()> {
+    lower_effectful_force_tail(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        thunk,
+        resume,
+        cx.functions,
+    )
+}
+
+fn lower_effectful_apply_terminator<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    closure: CpsValueId,
+    arg: CpsValueId,
+    resume: CpsContinuationId,
+) -> CpsReprCraneliftResult<()> {
+    lower_effectful_apply_tail(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        closure,
+        arg,
+        resume,
+        cx.functions,
+    )
 }
 
 fn lower_perform_terminator<M: Module>(
