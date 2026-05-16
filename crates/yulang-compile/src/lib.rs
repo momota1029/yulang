@@ -844,6 +844,30 @@ x + rest.y
     }
 
     #[test]
+    fn runs_undet_list_outer_two_inner_one_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+(each [1, 2] + each [10]).list
+"#,
+            vec!["[11, 12]"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_undet_list_outer_one_inner_two_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+(each [1] + each [10, 20]).list
+"#,
+            vec!["[11, 21]"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_undet_list_nested_each_sum_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::undet::*

@@ -6298,11 +6298,41 @@ extern "C" fn yulang_cps_set_resumption_anchor_from_selected_i64(
                     prompt: meta.prompt,
                     install_eval_id: meta.install_eval_id,
                 });
-                (*resumption).return_frames = capture_native_i64_return_frames_inside_prompt(
+                let start = native_i64_prompt_frame_start(
                     &(*resumption).return_frames,
                     meta.prompt,
                     meta.return_frame_threshold,
                 );
+                (*resumption).return_frames = capture_native_i64_return_frames_from_start(
+                    &(*resumption).return_frames,
+                    start,
+                    meta.install_eval_id,
+                );
+                rebase_native_i64_captured_handlers(
+                    &mut (*resumption).handlers,
+                    start,
+                    meta.install_eval_id,
+                );
+                // Inherited handlers (install_eval < anchor's install_eval) keep
+                // their original absolute threshold after the shared rebase. When
+                // the resumption is replayed inside an unrelated outer eval, the
+                // slice frame layout no longer matches the original install
+                // position, so re-derive the threshold from the prompt-exit
+                // marker actually present in the slice. Apply the same fix to
+                // each frame's handler snapshot.
+                recalibrate_inherited_handler_thresholds(
+                    &mut (*resumption).handlers,
+                    &(*resumption).return_frames,
+                    meta.install_eval_id,
+                );
+                let slice_snapshot = (*resumption).return_frames.clone();
+                for frame in (*resumption).return_frames.iter_mut() {
+                    recalibrate_inherited_handler_thresholds(
+                        &mut frame.handlers,
+                        &slice_snapshot,
+                        meta.install_eval_id,
+                    );
+                }
             }
             if jit_trace_enabled() {
                 eprintln!(
@@ -8046,16 +8076,15 @@ fn merge_extras_into_frames_native(
         .collect()
 }
 
-fn capture_native_i64_return_frames_inside_prompt(
+fn capture_native_i64_return_frames_from_start(
     frames: &[NativeCpsI64ReturnFrame],
-    prompt: u64,
-    fallback_threshold: usize,
+    start: usize,
+    handled_install_eval_id: u64,
 ) -> Box<[NativeCpsI64ReturnFrame]> {
-    let start = native_i64_prompt_frame_start(frames, prompt, fallback_threshold);
     frames[start..]
         .iter()
         .cloned()
-        .map(|frame| rebase_native_i64_captured_return_frame(frame, start))
+        .map(|frame| rebase_native_i64_captured_return_frame(frame, start, handled_install_eval_id))
         .collect::<Vec<_>>()
         .into_boxed_slice()
 }
@@ -8063,7 +8092,7 @@ fn capture_native_i64_return_frames_inside_prompt(
 fn native_i64_prompt_frame_start(
     frames: &[NativeCpsI64ReturnFrame],
     prompt: u64,
-    fallback_threshold: usize,
+    _fallback_threshold: usize,
 ) -> usize {
     frames
         .iter()
@@ -8074,23 +8103,68 @@ fn native_i64_prompt_frame_start(
                 .is_some_and(|exit| exit.prompt == prompt)
         })
         .map(|index| index + 1)
-        .unwrap_or(fallback_threshold)
+        // If the marker is absent, this captured slice is already running
+        // under an inherited prompt. Keep the whole slice; the handler
+        // threshold may point at a replay-time post frame that still belongs
+        // to this continuation.
+        .unwrap_or(0)
         .min(frames.len())
 }
 
 fn rebase_native_i64_captured_return_frame(
     mut frame: NativeCpsI64ReturnFrame,
     dropped_frames: usize,
+    handled_install_eval_id: u64,
 ) -> NativeCpsI64ReturnFrame {
     frame.owner_initial_frame_count = frame
         .owner_initial_frame_count
         .saturating_sub(dropped_frames);
     for handler in &mut frame.handlers {
-        handler.return_frame_threshold = handler
-            .return_frame_threshold
-            .saturating_sub(dropped_frames);
+        if handler.install_eval_id >= handled_install_eval_id {
+            handler.return_frame_threshold = handler
+                .return_frame_threshold
+                .saturating_sub(dropped_frames);
+        }
     }
     frame
+}
+
+fn rebase_native_i64_captured_handlers(
+    handlers: &mut [NativeCpsI64HandlerFrame],
+    dropped_frames: usize,
+    handled_install_eval_id: u64,
+) {
+    for handler in handlers {
+        if handler.install_eval_id >= handled_install_eval_id {
+            handler.return_frame_threshold = handler
+                .return_frame_threshold
+                .saturating_sub(dropped_frames);
+        }
+    }
+}
+
+/// For handlers whose install_eval is below the anchor (inherited from an
+/// outer eval), the captured threshold value is stale once the slice is
+/// reused inside a nested resumption: the slice now contains a different
+/// set of pre-install frames. Re-derive each inherited threshold from the
+/// actual position of its prompt-exit marker inside the slice; if the
+/// marker is not present, the handler was installed strictly before the
+/// slice began, so the slice has no pre-install frames (threshold = 0).
+fn recalibrate_inherited_handler_thresholds(
+    handlers: &mut [NativeCpsI64HandlerFrame],
+    slice: &[NativeCpsI64ReturnFrame],
+    handled_install_eval_id: u64,
+) {
+    for handler in handlers {
+        if handler.install_eval_id >= handled_install_eval_id {
+            continue;
+        }
+        let prompt = handler.prompt;
+        let marker = slice
+            .iter()
+            .position(|frame| frame.prompt_exit.as_ref().is_some_and(|exit| exit.prompt == prompt));
+        handler.return_frame_threshold = marker.unwrap_or(0);
+    }
 }
 
 fn own_native_i64_captured_return_frames(frames: &mut [NativeCpsI64ReturnFrame]) {
