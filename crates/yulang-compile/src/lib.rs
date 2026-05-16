@@ -895,6 +895,62 @@ x + rest.y
     }
 
     #[test]
+    #[ignore = "documents the current CPS eval junction routing leak"]
+    fn runs_junction_condition_once_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+({
+    if all [2] < any [3]:
+        18
+    else:
+        2
+}).once
+"#,
+            vec![":just 18"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    #[ignore = "documents the current CPS eval junction routing leak"]
+    fn runs_junction_condition_without_once_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+if all [2] < any [3]:
+    18
+else:
+    2
+"#,
+            vec!["18"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_undet_once_if_true_branch_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+struct point { x: int, y: int } with:
+    our p.norm2: int = p.x * p.x + p.y * p.y
+
+({
+    my y = if true:
+        each [3, 4, 5]
+    else:
+        2
+
+    point { x: 3, y: y } .norm2
+}).once
+"#,
+            vec![":just 18"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_indexed_ref_update_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"
