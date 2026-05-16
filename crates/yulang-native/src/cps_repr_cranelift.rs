@@ -9031,7 +9031,7 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
             return value;
         }
         let escape_env = refreshed_escape_env(&frame);
-        if current_initial > 0 && post_handlers.is_empty() {
+        if current_initial > 0 && post_handlers.is_empty() && frame.guard_stack.is_empty() {
             let cont: NativeCpsI64Continuation =
                 unsafe { std::mem::transmute(frame.escape_continuation) };
             let result = cont(escape_env.as_ptr(), value);
@@ -9133,7 +9133,7 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
             return value;
         }
         let escape_env = refreshed_escape_env(&handler);
-        if current_initial > 0 && post_handlers.is_empty() {
+        if current_initial > 0 && post_handlers.is_empty() && handler.guard_stack.is_empty() {
             let cont: NativeCpsI64Continuation =
                 unsafe { std::mem::transmute(handler.escape_continuation) };
             let result = cont(escape_env.as_ptr(), value);

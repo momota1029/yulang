@@ -349,6 +349,7 @@ pub fn eval_cps_repr_module(module: &CpsReprModule) -> CpsReprEvalResult<Vec<run
         .map(|root| {
             let value =
                 with_fresh_repr_handler_env_overlay(|| eval_function(module, root, Vec::new()))?;
+            let value = resolve_routed_jump_repr(module, value, &[])?;
             let value = unwrap_aborted_repr(value);
             into_plain_value(root, CpsValueId(usize::MAX), value)
         })
@@ -396,6 +397,7 @@ fn cps_repr_value_to_vm(value: CpsReprRuntimeValue) -> Option<runtime::VmValue> 
     match value {
         CpsReprRuntimeValue::Plain(value) => Some(value),
         CpsReprRuntimeValue::Aborted(inner) => cps_repr_value_to_vm(*inner),
+        CpsReprRuntimeValue::RoutedJump(_) => None,
         CpsReprRuntimeValue::Tuple(items) => Some(runtime::VmValue::Tuple(
             items
                 .into_iter()
@@ -1767,6 +1769,13 @@ fn summarize_cps_repr_value(value: &CpsReprRuntimeValue) -> String {
         CpsReprRuntimeValue::Aborted(value) => {
             format!("Aborted({})", summarize_cps_repr_value(value))
         }
+        CpsReprRuntimeValue::RoutedJump(jump) => format!(
+            "RoutedJump(owner={}, target={:?}, value={}, threshold={})",
+            jump.owner_function,
+            jump.target,
+            summarize_cps_repr_value(&jump.value),
+            jump.return_frame_threshold,
+        ),
         CpsReprRuntimeValue::ScopeReturn {
             prompt,
             target,
@@ -1906,8 +1915,11 @@ fn resume_continuation(
     // write26: dispatch macro mirrors `cps_eval::dispatch_scope_return!`.
     macro_rules! dispatch_scope_return_repr {
         ($cont:lifetime, $result:expr, $dest:expr) => {{
-            let result = $result;
-            if matches!(result, CpsReprRuntimeValue::Aborted(_)) {
+            let result = resolve_routed_jump_repr(module, $result, &return_frames)?;
+            if matches!(
+                result,
+                CpsReprRuntimeValue::Aborted(_) | CpsReprRuntimeValue::RoutedJump(_)
+            ) {
                 return Ok(result);
             }
             match handle_scope_return_repr(
@@ -3185,6 +3197,7 @@ fn continue_return_frames_repr(
     }
     if matches!(value, CpsReprRuntimeValue::ScopeReturn { .. })
         || matches!(value, CpsReprRuntimeValue::Aborted(_))
+        || matches!(value, CpsReprRuntimeValue::RoutedJump(_))
     {
         return Ok(value);
     }
@@ -3310,8 +3323,24 @@ fn try_route_scope_return_through_return_frames_repr(
             rest_frames.truncate(threshold);
         }
         let owner_initial = frame.owner_initial_frame_count.min(rest_frames.len());
+        if frame_index < initial_frame_count && post_handlers.is_empty() {
+            return Ok(Some(CpsReprRuntimeValue::RoutedJump(Box::new(
+                CpsReprRoutedJump {
+                    value: value.clone(),
+                    return_frame_threshold: threshold,
+                    owner_function: frame.owner_function.clone(),
+                    target: matched_handler.escape,
+                    values: frame.values.clone(),
+                    active_handlers: post_handlers,
+                    guard_stack: frame.guard_stack.clone(),
+                    return_frames: rest_frames,
+                    active_blocked: frame.active_blocked.clone(),
+                    initial_frame_count: owner_initial,
+                    eval_id: frame.owner_eval_id,
+                },
+            ))));
+        }
         let owner = function_by_name_repr(module, &frame.owner_function)?;
-        let abort_outer_eval = frame_index < initial_frame_count && post_handlers.is_empty();
         let result = resume_continuation(
             module,
             owner,
@@ -3325,12 +3354,36 @@ fn try_route_scope_return_through_return_frames_repr(
             owner_initial,
             frame.owner_eval_id,
         )?;
-        if abort_outer_eval {
-            return Ok(Some(CpsReprRuntimeValue::Aborted(Box::new(result))));
-        }
         return Ok(Some(result));
     }
     Ok(None)
+}
+
+fn resolve_routed_jump_repr(
+    module: &CpsReprModule,
+    value: CpsReprRuntimeValue,
+    current_return_frames: &[CpsReprReturnFrame],
+) -> CpsReprEvalResult<CpsReprRuntimeValue> {
+    let CpsReprRuntimeValue::RoutedJump(jump) = value else {
+        return Ok(value);
+    };
+    if current_return_frames.len() > jump.return_frame_threshold {
+        return Ok(CpsReprRuntimeValue::RoutedJump(jump));
+    }
+    let owner = function_by_name_repr(module, &jump.owner_function)?;
+    resume_continuation(
+        module,
+        owner,
+        jump.target,
+        vec![*jump.value],
+        jump.values.as_ref().clone(),
+        jump.active_handlers,
+        jump.guard_stack,
+        jump.return_frames,
+        jump.active_blocked,
+        jump.initial_frame_count,
+        jump.eval_id,
+    )
 }
 
 fn continuation_by_id(
@@ -3528,6 +3581,9 @@ enum CpsReprRuntimeValue {
     /// emit and route `ScopeReturn` instead.
     #[allow(dead_code)]
     Aborted(Box<CpsReprRuntimeValue>),
+    /// Frame-walk ScopeReturn escape that belongs to an outer live eval
+    /// frame. Bubbles until that eval frontier, then runs as value flow.
+    RoutedJump(Box<CpsReprRoutedJump>),
     /// write26: prompt-targeted non-local return, mirrors
     /// `CpsRuntimeValue::ScopeReturn` in cps_eval. Generated by a
     /// `Perform`'s arm body completion and routed by
@@ -3537,6 +3593,21 @@ enum CpsReprRuntimeValue {
         target: CpsContinuationId,
         value: Box<CpsReprRuntimeValue>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsReprRoutedJump {
+    value: Box<CpsReprRuntimeValue>,
+    return_frame_threshold: usize,
+    owner_function: String,
+    target: CpsContinuationId,
+    values: Rc<HashMap<CpsValueId, CpsReprRuntimeValue>>,
+    active_handlers: Vec<CpsReprHandlerFrame>,
+    guard_stack: Vec<CpsReprGuardEntry>,
+    return_frames: Vec<CpsReprReturnFrame>,
+    active_blocked: Vec<CpsReprBlockedEffect>,
+    initial_frame_count: usize,
+    eval_id: CpsReprEvalId,
 }
 
 /// Dynamic prompt id, fresh per `InstallHandler` execution. Mirrors

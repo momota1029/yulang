@@ -92,6 +92,13 @@ fn summarize_cps_value(value: &CpsRuntimeValue) -> String {
             target,
             summarize_cps_value(value),
         ),
+        CpsRuntimeValue::RoutedJump(jump) => format!(
+            "RoutedJump(owner={}, target={:?}, value={}, threshold={})",
+            jump.owner_function,
+            jump.target,
+            summarize_cps_value(&jump.value),
+            jump.return_frame_threshold,
+        ),
         CpsRuntimeValue::Aborted(value) => format!("Aborted({})", summarize_cps_value(value)),
     }
 }
@@ -266,6 +273,7 @@ pub fn eval_cps_module(module: &CpsModule) -> CpsEvalResult<Vec<runtime::VmValue
         .iter()
         .map(|root| {
             let value = with_fresh_handler_env_overlay(|| eval_function(module, root, Vec::new()))?;
+            let value = resolve_routed_jump(module, value, &[])?;
             // ScopeReturn must be matched against an InstallHandler frame
             // somewhere on the way up. If one reaches the root, that's a
             // lowering bug — there was no handler to catch it.
@@ -445,6 +453,7 @@ fn cps_value_to_vm(value: CpsRuntimeValue) -> Option<runtime::VmValue> {
     match value {
         CpsRuntimeValue::Plain(value) => Some(value),
         CpsRuntimeValue::Aborted(inner) => cps_value_to_vm(*inner),
+        CpsRuntimeValue::RoutedJump(_) => None,
         // ScopeReturn must never appear here — callers either resolve it via
         // `handle_scope_return` at every internal call boundary, or fail at
         // root with EscapedScopeReturn. Returning None lets `into_plain_value`
@@ -609,8 +618,11 @@ fn resume_continuation(
     // Loop labels are hygienic across macros; pass the label explicitly.
     macro_rules! dispatch_scope_return {
         ($cont:lifetime, $result:expr, $dest:expr) => {{
-            let result = $result;
-            if matches!(result, CpsRuntimeValue::Aborted(_)) {
+            let result = resolve_routed_jump(module, $result, &return_frames)?;
+            if matches!(
+                result,
+                CpsRuntimeValue::Aborted(_) | CpsRuntimeValue::RoutedJump(_)
+            ) {
                 return Ok(result);
             }
             match handle_scope_return(
@@ -2290,6 +2302,7 @@ fn continue_return_frames(
     }
     if matches!(value, CpsRuntimeValue::ScopeReturn { .. })
         || matches!(value, CpsRuntimeValue::Aborted(_))
+        || matches!(value, CpsRuntimeValue::RoutedJump(_))
     {
         // A ScopeReturn from the inner eval should not have additional
         // frame continuations applied — propagate it untouched so the
@@ -2474,8 +2487,22 @@ fn try_route_scope_return_through_return_frames(
             ),
         );
         let owner_initial = frame.owner_initial_frame_count.min(rest_frames.len());
+        if frame_index < initial_frame_count && post_handlers.is_empty() {
+            return Ok(Some(CpsRuntimeValue::RoutedJump(Box::new(CpsRoutedJump {
+                value: value.clone(),
+                return_frame_threshold: threshold,
+                owner_function: frame.owner_function.clone(),
+                target: matched_handler.escape,
+                values: frame.values.clone(),
+                active_handlers: post_handlers,
+                guard_stack: frame.guard_stack.clone(),
+                return_frames: rest_frames,
+                active_blocked: frame.active_blocked.clone(),
+                initial_frame_count: owner_initial,
+                eval_id: frame.owner_eval_id,
+            }))));
+        }
         let owner = function_by_name(module, &frame.owner_function)?;
-        let abort_outer_eval = frame_index < initial_frame_count && post_handlers.is_empty();
         let result = resume_continuation(
             module,
             owner,
@@ -2489,12 +2516,36 @@ fn try_route_scope_return_through_return_frames(
             owner_initial,
             frame.owner_eval_id,
         )?;
-        if abort_outer_eval {
-            return Ok(Some(CpsRuntimeValue::Aborted(Box::new(result))));
-        }
         return Ok(Some(result));
     }
     Ok(None)
+}
+
+fn resolve_routed_jump(
+    module: &CpsModule,
+    value: CpsRuntimeValue,
+    current_return_frames: &[CpsReturnFrame],
+) -> CpsEvalResult<CpsRuntimeValue> {
+    let CpsRuntimeValue::RoutedJump(jump) = value else {
+        return Ok(value);
+    };
+    if current_return_frames.len() > jump.return_frame_threshold {
+        return Ok(CpsRuntimeValue::RoutedJump(jump));
+    }
+    let owner = function_by_name(module, &jump.owner_function)?;
+    resume_continuation(
+        module,
+        owner,
+        jump.target,
+        vec![*jump.value],
+        jump.values.as_ref().clone(),
+        jump.active_handlers,
+        jump.guard_stack,
+        jump.return_frames,
+        jump.active_blocked,
+        jump.initial_frame_count,
+        jump.eval_id,
+    )
 }
 
 fn function_by_name<'a>(module: &'a CpsModule, name: &str) -> CpsEvalResult<&'a CpsFunction> {
@@ -3108,8 +3159,13 @@ enum CpsRuntimeValue {
         tag: typed_ir::Name,
         value: Option<Box<CpsRuntimeValue>>,
     },
+    /// A frame-walk ScopeReturn resolved to a handler escape owned by an
+    /// outer live eval frame. Carry the jump until that eval frontier is
+    /// reached, then execute the escape as ordinary value flow.
+    RoutedJump(Box<CpsRoutedJump>),
     /// A routed non-local result that must keep bubbling through live host
     /// calls without executing their remaining continuation code.
+    #[allow(dead_code)]
     Aborted(Box<CpsRuntimeValue>),
     /// Non-local return carrying a value to a specific handler-installed scope.
     /// Generated when a `Perform`'s arm body completes; propagates through call
@@ -3128,6 +3184,21 @@ enum CpsRuntimeValue {
         target: CpsContinuationId,
         value: Box<CpsRuntimeValue>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsRoutedJump {
+    value: Box<CpsRuntimeValue>,
+    return_frame_threshold: usize,
+    owner_function: String,
+    target: CpsContinuationId,
+    values: Rc<Vec<Option<CpsRuntimeValue>>>,
+    active_handlers: Vec<CpsHandlerFrame>,
+    guard_stack: Vec<CpsGuardEntry>,
+    return_frames: Vec<CpsReturnFrame>,
+    active_blocked: Vec<CpsBlockedEffect>,
+    initial_frame_count: usize,
+    eval_id: CpsEvalId,
 }
 
 /// Sentinel `target` value used by `ResumeWithHandler`-installed handler
