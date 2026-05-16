@@ -16,10 +16,13 @@ cargo run -q -p yulang -- --infer notes/bugs/<file>.yu
 
 ## ファイル一覧
 
-カテゴリ別 index は [`index.md`](index.md) を参照する。
+- [`index.md`](index.md) — 現在の未解決 bug。
+- [`solved/index.md`](solved/index.md) — 解決済み snippet の退避先 (回帰
+  確認のための `.yu` ファイル付き)。
 
-2026-05-13 時点では、`index.md` の項目は未解決 bug 一覧ではなく、
-修正済み挙動や期待 diagnostic の回帰確認メモとして残している。
+2026-05-16 時点では、解決済みを `solved/` 子フォルダに切り出して、本
+ディレクトリ直下には今の build で再現する snippet だけを置く運用にした。
+回帰したら `solved/` から元に戻す。
 
 ## 解決方針
 

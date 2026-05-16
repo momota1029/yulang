@@ -1,4 +1,4 @@
-# notes/bugs index (2026-05-16 更新)
+# notes/bugs index (2026-05-16 round-7 後半 更新)
 
 「素直に書いたら動きそうなのに、実装上詰まった」snippet の履歴。
 
@@ -93,7 +93,7 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 
 ### CPS lowering 未対応 / 値違い
 
-- [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu)
+- [`native_cps_lowering_unsupported.yu`](solved/native_cps_lowering_unsupported.yu)
   — labelled `for` の bare effect operation
   (`#loop_label:outer##with0::...`) が CPS lowering 未対応で
   `failed to compile native effects object` で止まる。VM では通る。handler arm
@@ -167,62 +167,44 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 食い違いが出たものを 11 件記録した。round-6 の CPS lowering / undet 系より
 広い範囲をカバーしている (display, ref, loop, error wrap, junction, for+if 等)。
 
+**2026-05-16 後半の再確認結果**: 11 件中 5 件は今日の Codex セッション内で
+解消した (list.show / sub:-for return / loop with / for-if var / for-range
+console)。残り 6 件と、解消過程で表面が変わったものを下にまとめる。
+
 ### 値違い / 値破損
 
-- [`native_list_show_returns_close_bracket.yu`](native_list_show_returns_close_bracket.yu)
-  — `[1, 2, 3].show` / `[1, 2, 3].debug` が native では `"]"` だけになる。
-  要素型 (int / str / bool) や長さに依らず常に `"]"`。文字列補間
-  `%{[1, 2, 3]}` 経由でも `"vals = ]"`。root pretty-print の素 list 表示は
-  両 backend で OK なので、`Display::show` / `Debug::debug` の組み立て側が
-  落ちている。
-- [`native_sub_for_return_fall_through.yu`](native_sub_for_return_fall_through.yu)
-  — `sub:` 内の `for` body から `return` が発火せず、`for` を最後まで回した
-  あと fallback 式まで評価する。期待 `999` / 実 `-1`。
-  既存解決済み [`native_sub_for_return_int_value_garbled.yu`](native_sub_for_return_int_value_garbled.yu)
-  と同じ shape の **regression**。当時は値破損だったが、今は早期 return
-  自体が消えている (`1 + r` 版も VM `2` / native `100 (= 1 + 99)`)。
 - [`native_handler_self_rewrap_no_accumulate.yu`](native_handler_self_rewrap_no_accumulate.yu)
   — self-recursive shallow handler が 2 つ目以降の op に対して k resume
   しても結果が積まれない。`log::put ("a", 1); log::put ("b", 2)` で
   VM `("ab", 3)` / native `("a", 1)` (最初の put 分だけ)。
 - [`native_undet_once_logic_simple.yu`](native_undet_once_logic_simple.yu)
-  — 有限 list の `(each [1, 2, 3]).once` が native で `just 0`、`.logic` が
-  `[<pointer>]`。`.list` 単独は OK。open range の `(each 1..).once` は
-  native で stack overflow。複数 root を同じファイルに置くと前 root の値が
-  後 root に漏れることもある (`.list; .once` で native は両方 `[1, 2, 3]`)。
+  — 有限 list の `(each [1, 2, 3]).once` が native では `[1, 2, 3]` を返す
+  (期待 `just 1`)。`.logic` も `[1, 2, 3]` (期待 `[1, 2, 3]`、これは合致)
+  だが、`.once` の値が opt ではなく list で返るので、value arm の包み方が
+  単一値拾い側に寄らず `.list` と同じ list 構築側へ流れている疑い。
+  `.list` 単独は OK。複数 root を同じファイルに置くと、`.list; .once` で
+  native は両方 `[1, 2, 3]` になり、root 間の値漏れもまだある。
 - [`native_undet_branch_list_returns_scalar.yu`](native_undet_branch_list_returns_scalar.yu)
-  — `(branch()).list` が native では list ではなく scalar (`0`)。
-  `(if branch(): 1 else: 2).list` も scalar `1`。`each` 経由 + `guard` 入りは
-  通るので、bare `branch` 直呼び限定。round-6 メモの `[[1], [0]]` とは異なり、
-  今の build では value arm が list に積まれず素値で漏れる。
+  — `(branch()).list` が native では scalar `0`。`(if branch(): 1 else: 2).list`
+  は VM `[1, 2]` / native `[1, 0]` (`0` は false 由来? bool lane が int に
+  漏れている)。`each` 経由 + `guard` 入りは通るので、bare `branch` 直呼び
+  限定。round-6 メモの `[[1], [0]]` とは別の表面。
 - [`native_junction_all_short_circuit.yu`](native_junction_all_short_circuit.yu)
-  — `all [1, 2, 3] < 2` が native で真になる (期待 偽: `2 < 2` で全称が壊れる)。
-  `< 5` は両 backend 真、`any [1, 2, 3] > 2` は両 backend 真で OK なので、
-  `all` の false-確定 propagation が `any` 寄りに崩れている。
-- [`native_loop_with_returns_bool_lane.yu`](native_loop_with_returns_bool_lane.yu)
-  — `loop initial with: our loop state = if cond: state else: loop (...)` の
-  戻り値が、native では `state` ではなく cond 由来の `0` / `1` になる。
-  `f 5 → 1`、`f 4 → 0`、`f 3 → 0` (期待 全部 `5`)。`if` 抜きの passthru
-  `our loop state = state` は両 backend で正しく state を返すので、`if`
-  branch join 直後の値 lane だけが native で bool に潰れる。
-- [`native_for_if_var_write_lost.yu`](native_for_if_var_write_lost.yu)
-  — `for x in ...:` body 内の `if` で `&var = ...` を書くと、native では
-  どの分岐に書いても全 iteration ぶん無視されて var が初期値のまま残る。
-  `if` 抜きの `for x: &c = $c + x` は両 backend で正しく集計できるので、
-  `if` branch 経由の var write back path が native で塞がっている。
-  `case` で同じ shape を書くと両 backend 通る。
-- [`native_for_range_console_only_first.yu`](native_for_range_console_only_first.yu)
-  — `for x in 0..<3: say x.show` が native では 1 iteration 目だけ実行して
-  終わる。閉区間 `0..3` / 開区間 `0..<3` どちらでも同じ。同 body を
-  `for x in [10, 20, 30]:` (list iteration) や `&c = ...` (var-write) に
-  すると両 backend で全 iteration 走る。range Fold の continuation が
-  native の console handler frame で閉じてしまう疑い。
+  — **2026-05-16 後半に症状が変化**。以前は `all [1, 2, 3] < 2` が
+  native で真になる値違いだった。今は 3 root とも native が `1` を返す
+  (VM `"all small"` / `"some big"` / `"some big"`)。`if` の branch arm が
+  string lane に進まず int `1` (true 由来?) に潰れている。
+  junction の `all` / `any` lowering と `if` lane select の両方で値型が
+  bool に丸まっている疑い。round-6 の native_routed_junction 修正と同じ
+  area。
 
 ### compile-time reject / runtime crash
 
 - [`native_error_wrap_basic_flow.yu`](native_error_wrap_basic_flow.yu)
   — docs (`reference/errors.md`, `idioms.md`) 推奨の `error E:` + `fail` +
-  `E::wrap` flow が、native の 3 経路全部で塞ぐ:
+  `E::wrap` flow が、native の 3 経路全部で塞ぐ。今日の build でも
+  full 例 (`wrap` 内で `[fs_err]` helper 呼び) は **stack overflow** で
+  abort する。
   - `fail E::variant payload`: native CPS 段で
     `CPS lowering does not support free variable 'std::error::Throw::throw' yet`
     で reject。
@@ -244,161 +226,21 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 - `Ord::lt` / `Eq::eq` が free variable として CPS lowering に届く経路は
   まだあり、native は `"a" < "b"` / `(1, 2) == (1, 2)` を含むファイルを
   そもそも compile できない。VM 側は runtime で blocked になるだけ。
-- 既存解決済みの `native_sub_for_return_int_value_garbled.yu` は今日の
-  build で再現する (上の `native_sub_for_return_fall_through.yu` 参照)。
+- [`native_cps_lowering_unsupported.yu`](solved/native_cps_lowering_unsupported.yu)
+  の guard 最小再現は今日の build で **compile は通るが値違い**。
+  VM `()` / native `0`。handler arm guard が native CPS lowering で組まれた
+  あと、unit lane を int に潰している。同ファイル冒頭で記録した
+  「未対応 reject」とは別の段に進んだことになる。
 
-## 解決済み（2026-05-14 時点で再現せず）
+## 解決済み
 
-- [`native_handler_result_display_silent_abort.yu`](native_handler_result_display_silent_abort.yu)
-  — 2026-05-16 に native CPS JIT の `ScopeReturn` routing を修正した。
-  handler escape continuation が見つかった後の値を `Global` abort にせず、
-  `propagate_at_threshold = false` の scoped abort として caller chain を止める。
-  自己再帰 shallow handler から返った値に `.show` を当てる例は VM / native
-  とも `before show / 99 / after show` を出す。
-- [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu) の
-  handler guard 部分
-  — 2026-05-16 に effect handler arm の guard を native CPS lowering で扱う
-  ようにした。同じ effect の arm を一つの handler entry 内で順に試し、
-  pattern / guard が失敗したら次 arm へ fall through する。`log::put n, k if
-  n > 0` の再現は native で `()`。
-- [`native_sub_for_return_int_value_garbled.yu`](native_sub_for_return_int_value_garbled.yu)
-  — 2026-05-16 に native CPS の `perform_finish_escaped` 経路を修正した。
-  already-escaped handler arm の結果を cross-eval 時にもう一度 `ScopeReturn` へ包むと、
-  `sub:` の戻り値が後続継続まで進んだ値として再配送されていた。`sub` 内の
-  `for` body から `return` し、その値を `1 + r` で使うケースは VM / native とも
-  `2`。
-- [`if_no_else_branch_type_mismatch.yu`](if_no_else_branch_type_mismatch.yu)
-  — 2026-05-16 に `else` なし `if` を statement-like に下げるようにした。
-  then branch は効果のために実行されるが値は捨てられ、式全体は `()` を返す。
-  `if true: 1` は VM で `()` として通る。明示的な `else: ()` は通常の branch
-  join のままなので、非 unit branch との不一致は従来通り型エラー。
-- [`nested_for_return_effect_mismatch.yu`](nested_for_return_effect_mismatch.yu)
-  — 2026-05-16 に runtime lowering / validate 側の thunk effect 検査を調整し、
-  apply evidence 由来の residual effect を過剰に弾かないようにした。
-  `sub:` 内の nested `for` から `return` する形は VM で `[0] 1`。
-- [`role_method_in_for_body_pattern.yu`](role_method_in_for_body_pattern.yu)
-  — 2026-05-16 時点で VM `--print-roots` が `[0] 4` を返し、再現せず。
-- [`handler_fn_missing_join_evidence.yu`](handler_fn_missing_join_evidence.yu)
-  — 2026-05-16 時点で VM `--print-roots` が `[0] ["a"]` を返し、再現せず。
-- [`wrap_does_not_traverse_from_chain.yu`](wrap_does_not_traverse_from_chain.yu)
-  — 2026-05-16 時点で VM `--print-roots` が `[0] "err: not_found"` を返し、
-  再現せず。
-- [`debug_role_missing_for_composite_types.yu`](debug_role_missing_for_composite_types.yu)
-  — 2026-05-16 に stdlib へ `Debug` role と primitive / list / opt /
-  result / tuple / record の `.debug` を追加済み。native effects の root
-  pretty-print も `.debug` 投影へ寄せ、record / long tuple は host-side
-  debug fallback で表示できる。残る小差は record の field separator
-  (VM `{x = 1, y = 2}` / native `{x: 1, y: 2}`) のみ。
-- [`native_handler_result_debug_value_garbled.yu`](native_handler_result_debug_value_garbled.yu)
-  — 2026-05-16 WIP 時点で再現せず。`say` / `println` / `Debug` 整理後に再確認し、
-  VM と native がどちらも `"()"` / `"after"` を出力する。以前は `act console:
-  read + println` の両 operation を持つ handler の戻り値 `r` に対する
-  `r.debug` が native で silent に消えていた。
-- [`native_handler_result_value_collapse.yu`](native_handler_result_value_collapse.yu)
-  — 2026-05-16 WIP で native effects の blocked-effect boundary dispatch を
-  inactive marker で peel できるようにし、`ResumeWithHandler` sibling env を
-  inner-to-outer 順で読むようにした。`collect_logs: log::put "a"` は
-  native `--print-roots` で VM と同じ `["a"]`。
-- [`native_value_repr_in_tuple.yu`](native_value_repr_in_tuple.yu)
-  — 2026-05-16 WIP で native effects の root pretty-print を `.debug`
-  投影へ寄せ、tuple 内 literal bool / unit も boxed value として構造値へ
-  入れるようにした。`(true, 1, "s", ())` は native `--print-roots` で
-  `(true, 1, "s", ())`。
-- [`native_float_collapses_to_zero.yu`](native_float_collapses_to_zero.yu)
-  — 2026-05-16 WIP で native float lane を runtime value container へ
-  入れる時に boxed float へ変換し、float primitive 側へ戻す時に unbox
-  するようにした。`3.14` と `[2.0]` が native で値を保つ。実機 (`yulang run
-  --native --print-roots`) でも VM と同じ `3.14`。
-- [`native_serial_var_double_count.yu`](native_serial_var_double_count.yu)
-  — 2026-05-16 WIP 時点で再現せず。native `--print-roots` で VM と同じ
-  `(11, 21)`。
+[`solved/index.md`](solved/index.md) に退避した。snippet の `.yu` も
+`solved/` フォルダに移動済み。
 
-- [`handler_arm_tuple_payload_pattern.yu`](handler_arm_tuple_payload_pattern.yu)
-  — act operation の payload が tuple のとき、handler arm で `op (s, n), k
-  -> ...` のように個別 bind すると `cannot match a tuple pattern against ?`
-  で落ちていた。現在は payload pattern の構造から runtime payload 型を作り、
-  `s` / `n` を個別 bind できる。
-- [`record_field_value_selection_selector_shape.yu`](record_field_value_selection_selector_shape.yu)
-  — native source regression を足そうとした時、`my r: {ok: bool} = ...; r.ok`
-  が field value selection ではなく `:ok Record(...)` のような
-  selector-shaped な値/適用として出ていた。現在は record field value
-  selection が native CPS repr path でも plain value として返る。
-- [`callback_list_index_raw_type_stuck.yu`](callback_list_index_raw_type_stuck.yu)
-  — `my hs = [h]; ((std::list::index_raw hs) 0)()` のように callback/function
-  value を list に入れて取り出すと、`index_raw` の element type `a` が
-  runtime type として固まらず、型が固まった後も native 側では inner `sub`
-  に捕まっていた。現在は source-shaped forced CPS repr path で VM と同じ
-  `0` を返す。
-- [`var_effect_serial_collision.yu`](var_effect_serial_collision.yu) —
-  同じ scope で `my $a = ...; for ...; my $b = ...; for ...` と var を順に
-  開くケースが、現在は `(3, 3)` を返す。
-- [`typed_effect_handler_inference.yu`](typed_effect_handler_inference.yu)
-  — 型引数を持つ effect (`act state 'a:`) の handler が、`[state int]`
-  から `int` に specialize されて現在は通る。
-- [`var_effect_leak_with_wildcards.yu`](var_effect_leak_with_wildcards.yu) —
-  handler 関数の型注釈に `_` を混ぜると、`my $x = ...` で開いた局所 ref の
-  `&x::get` effect が `catch` の scope を抜けて program 最外まで漏れていた。
-  現在は `((), [])` を正しく返す。
-- [`lambda_pattern_unbound.yu`](lambda_pattern_unbound.yu) — lambda 引数に
-  destructuring pattern (`\(x, y) -> ...`, `\{ name } -> ...`) を書くと、
-  body で名前が unbound になっていた。現在は通る。
-- [`my_destructuring_unbound.yu`](my_destructuring_unbound.yu) —
-  `my (a, b) = (1, 2)` / `my { x, ..rest } = rec` / `my [first, ..rest] = xs`
-  の destructuring binding が、現在は通る。
-- [`list_map_method_unresolved.yu`](list_map_method_unresolved.yu) — list の
-  companion method `.map` が解決できなかった。現在は通る。
-- [`list_filter_method_missing.yu`](list_filter_method_missing.yu) — list の
-  companion method `.filter` が解決できなかった。現在は通る。
-- [`list_methods_undocumented_missing.yu`](list_methods_undocumented_missing.yu)
-  — docs にある `xs.first` / `xs.rev` / `xs.sort` が stdlib companion method
-  として登録されていなかった。現在は通る。
-- [`result_methods_undocumented_missing.yu`](result_methods_undocumented_missing.yu)
-  — result の `.map` / `.and_then` / `.unwrap_or` が companion method として
-  登録されていなかった。現在は通る。
-- [`lazy_operator_thunk_in_tuple.yu`](lazy_operator_thunk_in_tuple.yu) —
-  lazy infix operator の結果を tuple 要素の位置に置いても、現在は force
-  された値が返る。
-- [`pattern_binding_vs_variant.yu`](pattern_binding_vs_variant.yu) —
-  pattern binding 名が in-scope の variant constructor と一致するときも、
-  現在は binding として通る。
-- [`labelled_for_var_effect_collision.yu`](labelled_for_var_effect_collision.yu)
-  — labelled for + var update で外側 loop の `last 'outer` の effect row が
-  壊れていた。現在は通る。
-- [`enum_curried_payload_unresolved.yu`](enum_curried_payload_unresolved.yu)
-  — 複数 payload variant の `tree::node value left right` 分解が現在は通る。
-- [`default_arg_method_recv_unresolved.yu`](default_arg_method_recv_unresolved.yu)
-  — default 持ち record pattern の後続引数で receiver type が固まる。
-- [`branch_merge_cast_missing.yu`](branch_merge_cast_missing.yu) — 分岐合流
-  位置で暗黙 cast boundary が使われる。
-- [`list_fold_method_inference_failure.yu`](list_fold_method_inference_failure.yu)
-  — `xs.fold 0 (\acc x -> acc + x)` の callback が curried 関数として通る。
-- [`record_alias_default_mix.yu`](record_alias_default_mix.yu) —
-  「alias + default」と「default only」を混ぜた record pattern も通る。
-- [`catch_role_method_thunk_invariant.yu`](catch_role_method_thunk_invariant.yu)
-  — role method 経由 effect の catch、handler-in-handler の runtime invariant
-  違反が解消された。
-- [`string_interp_block_invades.yu`](string_interp_block_invades.yu) —
-  `%{...}` 内で `;` や `{` を書いても文字列に侵食しなくなった。
-- [`wrap_inside_for_body_leaks_fail.yu`](wrap_inside_for_body_leaks_fail.yu)
-  — `for` body 内の `E::wrap` が `fail` を正しく捕まえる。
-- [`wrap_does_not_traverse_from_chain.yu`](wrap_does_not_traverse_from_chain.yu)
-  — `E::wrap` が `from` 連鎖の narrower error を直接捕まえる。
-- [`handler_arm_guard_no_fallthrough.yu`](handler_arm_guard_no_fallthrough.yu)
-  — handler arm の `if` guard が偽のとき、次の arm に fall-through する。
-- [`error_display_impl_missing.yu`](error_display_impl_missing.yu) —
-  `error E:` 宣言から `impl Display E` が自動生成され、`e.show` が通る。
-- [`error_display_from_chain_missing.yu`](error_display_from_chain_missing.yu)
-  — `error io_err: fs from fs_err` のような from variant を持つ error 宣言でも
-  `impl Display io_err` が生成され、from payload の `Display` に委譲する。
-- [`handler_recursive_extra_arg_runtime.yu`](handler_recursive_extra_arg_runtime.yu)
-  — handler arm 内で `listen(k (), log + o + "\n")` のように handler を
-  再帰呼び出ししつつ追加引数を渡すケースが、現在は `((), "hi\n")` を返す。
-- [`my_record_spread_rest_inference.yu`](my_record_spread_rest_inference.yu)
-  — `my { x, y, ..rest } = expr` の `rest` が record 全体として bind され、
-  後段の使用や extra field access も通る。
-- [`struct_literal_extra_field_silent.yu`](struct_literal_extra_field_silent.yu)
-  — nominal struct constructor の record literal に宣言外 field を書くと
-  `unknown record field` として弾く。
+回帰確認は `solved/index.md` 冒頭の bash one-liner で全 snippet を VM /
+native に流して、各ファイル冒頭コメントの期待出力と食い違わないか見る。
+再発を見つけたら該当 snippet を本ファイル上の「現在の未解決」へ戻すか、
+`solved/index.md` のエントリに「再発履歴」を付ける。
 
 ## docs に反映済み（2026-05-14）
 
