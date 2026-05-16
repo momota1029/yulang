@@ -2066,13 +2066,13 @@ fn capture_continuation_inside_prompt(
     let return_frames = return_frames[start..]
         .iter()
         .cloned()
-        .map(|frame| rebase_captured_return_frame(frame, start))
+        .map(|frame| rebase_captured_return_frame(frame, start, handled))
         .collect();
     CapturedPromptContinuation {
         handlers: handlers
             .iter()
             .cloned()
-            .map(|handler| rebase_captured_handler_frame(handler, start))
+            .map(|handler| rebase_captured_handler_frame(handler, start, handled))
             .collect(),
         return_frames: own_captured_return_frames(return_frames),
     }
@@ -2091,7 +2091,11 @@ fn captured_prompt_frame_start(
                 .is_some_and(|exit| exit.prompt == handled.prompt)
         })
         .map(|index| index + 1)
-        .unwrap_or(handled.return_frame_threshold)
+        // If the marker is absent, this captured slice is already running
+        // under an inherited prompt. Keep the whole slice; the handler
+        // threshold may point at a replay-time post frame that still belongs
+        // to this continuation.
+        .unwrap_or(0)
         .min(return_frames.len());
     start
 }
@@ -2099,6 +2103,7 @@ fn captured_prompt_frame_start(
 fn rebase_captured_return_frame(
     mut frame: CpsReturnFrame,
     dropped_frames: usize,
+    handled: &CpsHandlerFrame,
 ) -> CpsReturnFrame {
     frame.owner_initial_frame_count = frame
         .owner_initial_frame_count
@@ -2106,7 +2111,7 @@ fn rebase_captured_return_frame(
     frame.active_handlers = frame
         .active_handlers
         .into_iter()
-        .map(|handler| rebase_captured_handler_frame(handler, dropped_frames))
+        .map(|handler| rebase_captured_handler_frame(handler, dropped_frames, handled))
         .collect();
     frame
 }
@@ -2114,10 +2119,13 @@ fn rebase_captured_return_frame(
 fn rebase_captured_handler_frame(
     mut handler: CpsHandlerFrame,
     dropped_frames: usize,
+    handled: &CpsHandlerFrame,
 ) -> CpsHandlerFrame {
-    handler.return_frame_threshold = handler
-        .return_frame_threshold
-        .saturating_sub(dropped_frames);
+    if handler.install_eval_id.0 >= handled.install_eval_id.0 {
+        handler.return_frame_threshold = handler
+            .return_frame_threshold
+            .saturating_sub(dropped_frames);
+    }
     handler
 }
 
