@@ -1,5 +1,7 @@
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::rc::Rc;
 
 use yulang_runtime as runtime;
 use yulang_typed_ir as typed_ir;
@@ -1305,6 +1307,40 @@ struct DirectCallPlan<'expr, 'functions> {
     should_inline: bool,
 }
 
+#[derive(Debug, Clone, Default)]
+struct DepthCounter {
+    value: Rc<Cell<usize>>,
+}
+
+impl DepthCounter {
+    fn is_active(&self) -> bool {
+        self.value.get() > 0
+    }
+
+    fn is_inactive(&self) -> bool {
+        self.value.get() == 0
+    }
+
+    fn enter(&self) -> DepthGuard {
+        self.value.set(self.value.get() + 1);
+        DepthGuard {
+            value: Rc::clone(&self.value),
+        }
+    }
+}
+
+struct DepthGuard {
+    value: Rc<Cell<usize>>,
+}
+
+impl Drop for DepthGuard {
+    fn drop(&mut self) {
+        let current = self.value.get();
+        debug_assert!(current > 0, "depth counter underflow");
+        self.value.set(current.saturating_sub(1));
+    }
+}
+
 enum ExprLowerCase<'expr, 'functions> {
     InlineThunkHandler {
         body: runtime::Expr,
@@ -1357,8 +1393,8 @@ struct FunctionLowerer<'a> {
     active_handler: Option<ActiveHandlerContext>,
     params: Vec<CpsValueId>,
     handler_value_conts: Vec<CpsContinuationId>,
-    force_effectful_apply_depth: usize,
-    sync_apply_for_immediate_force_depth: usize,
+    force_effectful_apply_depth: DepthCounter,
+    sync_apply_for_immediate_force_depth: DepthCounter,
     /// True for helpers whose callback applies / handler bodies may cross
     /// effectful boundaries and therefore need to capture local rest as a
     /// return frame.
@@ -1434,8 +1470,8 @@ impl<'a> FunctionLowerer<'a> {
             active_handler: None,
             params: param_values,
             handler_value_conts: Vec::new(),
-            force_effectful_apply_depth: 0,
-            sync_apply_for_immediate_force_depth: 0,
+            force_effectful_apply_depth: DepthCounter::default(),
+            sync_apply_for_immediate_force_depth: DepthCounter::default(),
             higher_order_helper: traits.higher_order_helper,
         }
     }
@@ -1912,8 +1948,8 @@ impl<'a> FunctionLowerer<'a> {
         // of the queue. Once the apply returns a value, however, it may
         // perform before that value is produced, so the caller rest must be
         // captured in a resumption.
-        if self.force_effectful_apply_depth > 0
-            || (self.sync_apply_for_immediate_force_depth == 0
+        if self.force_effectful_apply_depth.is_active()
+            || (self.sync_apply_for_immediate_force_depth.is_inactive()
                 && self.higher_order_helper
                 && matches!(expr.ty, runtime::Type::Thunk { .. }))
         {
@@ -2071,9 +2107,8 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         lower: impl FnOnce(&mut Self) -> CpsLowerResult<T>,
     ) -> CpsLowerResult<T> {
-        self.force_effectful_apply_depth += 1;
+        let _depth = self.force_effectful_apply_depth.enter();
         let result = lower(self);
-        self.force_effectful_apply_depth -= 1;
         result
     }
 
@@ -2081,9 +2116,8 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         lower: impl FnOnce(&mut Self) -> CpsLowerResult<T>,
     ) -> CpsLowerResult<T> {
-        self.sync_apply_for_immediate_force_depth += 1;
+        let _depth = self.sync_apply_for_immediate_force_depth.enter();
         let result = lower(self);
-        self.sync_apply_for_immediate_force_depth -= 1;
         result
     }
 
@@ -5062,8 +5096,8 @@ impl<'a> FunctionLowerer<'a> {
             });
             let callee_ty = callable_type_after_force(&callee.ty);
             let arg = self.lower_expr_as_call_arg(callee_ty, arg)?;
-            if self.force_effectful_apply_depth > 0
-                || (self.sync_apply_for_immediate_force_depth == 0
+            if self.force_effectful_apply_depth.is_active()
+                || (self.sync_apply_for_immediate_force_depth.is_inactive()
                     && self.higher_order_helper
                     && matches!(expr.ty, runtime::Type::Thunk { .. }))
             {
