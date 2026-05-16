@@ -58,6 +58,10 @@ macro_rules! yulang_std_sources {
                 text: include_str!(concat!($prefix, "range.yu")),
             },
             StdSource {
+                name: "result",
+                text: include_str!(concat!($prefix, "result.yu")),
+            },
+            StdSource {
                 name: "str",
                 text: include_str!(concat!($prefix, "str.yu")),
             },

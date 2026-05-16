@@ -1322,6 +1322,23 @@ first_over 40
     }
 
     #[test]
+    fn runs_result_ok_err_from_user_source() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(|| {
+                let output = run_inner(
+                    r#"pub x = result::ok 1
+pub y = result::err "oops"
+"#,
+                );
+                assert!(output.ok, "{:?}", output.diagnostics);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
     fn reports_unresolved_method_before_runtime_lowering() {
         std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
