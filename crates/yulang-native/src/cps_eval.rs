@@ -1,16 +1,24 @@
-use std::collections::BTreeMap;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 use std::rc::Rc;
 
 use yulang_runtime as runtime;
 use yulang_typed_ir as typed_ir;
 
+use crate::cps_frame_trace::{
+    CpsFrameTraceEvent, CpsFrameTraceLayer, CpsFrameTraceSlot, push_cps_frame_trace_event,
+};
 use crate::cps_ir::{
     CpsContinuation, CpsContinuationId, CpsFunction, CpsHandlerArm, CpsHandlerEnv, CpsHandlerId,
     CpsLiteral, CpsModule, CpsStmt, CpsTerminator, CpsValueId,
 };
 
 pub type CpsEvalResult<T> = Result<T, CpsEvalError>;
+
+thread_local! {
+    static LATEST_HANDLER_ENVS: RefCell<Vec<CpsLatestHandlerEnv>> = const { RefCell::new(Vec::new()) };
+}
 
 fn trace_enabled() -> bool {
     std::env::var_os("YULANG_CPS_TRACE_FRAMES").is_some()
@@ -257,7 +265,7 @@ pub fn eval_cps_module(module: &CpsModule) -> CpsEvalResult<Vec<runtime::VmValue
         .roots
         .iter()
         .map(|root| {
-            let value = eval_function(module, root, Vec::new())?;
+            let value = with_fresh_handler_env_overlay(|| eval_function(module, root, Vec::new()))?;
             // ScopeReturn must be matched against an InstallHandler frame
             // somewhere on the way up. If one reaches the root, that's a
             // lowering bug — there was no handler to catch it.
@@ -271,6 +279,15 @@ pub fn eval_cps_module(module: &CpsModule) -> CpsEvalResult<Vec<runtime::VmValue
             into_plain_value(root, CpsValueId(usize::MAX), unwrap_aborted(value))
         })
         .collect()
+}
+
+fn with_fresh_handler_env_overlay<T>(f: impl FnOnce() -> T) -> T {
+    let previous = LATEST_HANDLER_ENVS.with(|envs| envs.replace(Vec::new()));
+    let result = f();
+    LATEST_HANDLER_ENVS.with(|envs| {
+        envs.replace(previous);
+    });
+    result
 }
 
 fn unwrap_aborted(value: CpsRuntimeValue) -> CpsRuntimeValue {
@@ -1176,6 +1193,7 @@ fn resume_continuation(
                         &active_handlers,
                         anchor,
                     );
+                    let adjusted_frames = own_captured_return_frames(adjusted_frames);
                     trace_cps(
                         "ResumeHandlerMerge",
                         format!(
@@ -1216,7 +1234,7 @@ fn resume_continuation(
                         prompt: pushed_prompt,
                         handler: *handler,
                         guard_stack: guard_stack.clone(),
-                        envs,
+                        envs: envs.clone(),
                         escape: *escape,
                         escape_owner_function: function.name.clone(),
                         inherited: false,
@@ -1255,24 +1273,40 @@ fn resume_continuation(
                 } => {
                     let resumption = read_resumption(function, &values, *resumption)?;
                     let arg = read_plain_value(function, &values, *arg)?;
+                    let updates_existing_handler_env =
+                        envs.iter().any(|env| !env.targets.is_empty());
                     let envs = capture_handler_envs(function, &values, envs)?;
                     let owner = function_by_name(module, &resumption.owner_function)?;
+                    let rebase_existing_handler_env = updates_existing_handler_env
+                        && resumption
+                            .handlers
+                            .iter()
+                            .any(|frame| frame.handler == *handler);
+                    overlay_handler_envs_in_stack(
+                        &function.name,
+                        &mut active_handlers,
+                        *handler,
+                        &envs,
+                        true,
+                    );
                     // Push the RWH-installed frame onto our own active_handlers
                     // (non-inherited, sentinel-target) so a ScopeReturn that
                     // matches the freshly-installed handler resolves at this
                     // very call site rather than escaping the eval frame.
                     let pushed_prompt = fresh_prompt();
-                    active_handlers.push(CpsHandlerFrame {
-                        prompt: pushed_prompt,
-                        handler: *handler,
-                        guard_stack: guard_stack.clone(),
-                        envs,
-                        escape: EXIT_RWH_TARGET,
-                        escape_owner_function: function.name.clone(),
-                        inherited: false,
-                        return_frame_threshold: return_frames.len(),
-                        install_eval_id: current_eval_id,
-                    });
+                    if !rebase_existing_handler_env {
+                        active_handlers.push(CpsHandlerFrame {
+                            prompt: pushed_prompt,
+                            handler: *handler,
+                            guard_stack: guard_stack.clone(),
+                            envs: envs.clone(),
+                            escape: EXIT_RWH_TARGET,
+                            escape_owner_function: function.name.clone(),
+                            inherited: false,
+                            return_frame_threshold: return_frames.len(),
+                            install_eval_id: current_eval_id,
+                        });
+                    }
                     // RWH uses REBASED semantics: the just-installed handler
                     // SHADOWS the captured innermost handler. So inner_handlers
                     // = captured ++ [RWH-pushed], with RWH innermost. This is
@@ -1281,26 +1315,46 @@ fn resume_continuation(
                     // `evaluates_resumption_under_fresh_handler_stack`.
                     let inner_handlers = {
                         let mut stack = resumption.handlers.as_ref().clone();
-                        let mut owned = active_handlers
-                            .last()
-                            .cloned()
-                            .expect("just pushed RWH frame");
-                        owned.inherited = true;
-                        stack.push(owned);
+                        overlay_handler_envs_in_stack(
+                            &function.name,
+                            &mut stack,
+                            *handler,
+                            &envs,
+                            false,
+                        );
+                        if !rebase_existing_handler_env {
+                            let mut owned = active_handlers
+                                .last()
+                                .cloned()
+                                .expect("just pushed RWH frame");
+                            owned.inherited = true;
+                            stack.push(owned);
+                        }
                         stack
                     };
-                    let pushed_extra = active_handlers
-                        .iter()
-                        .filter(|f| f.prompt == pushed_prompt)
-                        .cloned()
-                        .collect::<Vec<_>>();
+                    let pushed_extra = if rebase_existing_handler_env {
+                        Vec::new()
+                    } else {
+                        active_handlers
+                            .iter()
+                            .filter(|f| f.prompt == pushed_prompt)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                    };
                     // Frame continuations use the same rebased stack: append
                     // the RWH frame as the innermost handler for every captured
                     // return frame.
-                    let adjusted_frames = append_resume_with_handler_frames(
-                        resumption.return_frames.as_ref(),
-                        &pushed_extra,
+                    let mut captured_frames = resumption.return_frames.as_ref().clone();
+                    overlay_handler_envs_in_frames(
+                        &function.name,
+                        &mut captured_frames,
+                        *handler,
+                        &envs,
+                        false,
                     );
+                    let adjusted_frames =
+                        append_resume_with_handler_frames(&captured_frames, &pushed_extra);
+                    let adjusted_frames = own_captured_return_frames(adjusted_frames);
                     trace_cps(
                         "ResumeHandlerMerge",
                         format!(
@@ -1468,7 +1522,12 @@ fn resume_continuation(
                     handler_stack_with_static(&active_handlers, *handler, &guard_stack);
                 let (handler_arm, frame, handler_body_stack, handler_owner) =
                     handler_arm_for_stack(module, function, &handler_stack, effect, blocked)?;
-                let handler_values = values_with_handler_env(Vec::new(), frame, handler_arm.entry);
+                let handler_values = values_with_handler_env(
+                    &handler_owner.name,
+                    Vec::new(),
+                    frame,
+                    handler_arm.entry,
+                );
                 let frame_prompt = frame.prompt;
                 let frame_escape = frame.escape;
                 let frame_in_active = active_handlers.iter().any(|f| f.prompt == frame_prompt);
@@ -1541,14 +1600,14 @@ fn resume_continuation(
                     return Ok(result);
                 }
                 let arm_already_reached_escape = handler_arm_continues_to_installed_escape(
-                    function,
+                    handler_owner,
                     frame.handler,
                     handler_arm.entry,
                     frame_escape,
                 );
                 if arm_already_reached_escape
-                    && frame.install_eval_id == current_eval_id
                     && !matches!(result, CpsRuntimeValue::ScopeReturn { .. })
+                    && frame.install_eval_id == current_eval_id
                 {
                     let mut frames = return_frames.clone();
                     if frames.len() > frame.return_frame_threshold {
@@ -1796,6 +1855,7 @@ fn resume_continuation(
                             &active_handlers,
                             anchor,
                         );
+                        let adjusted_res = own_captured_return_frames(adjusted_res);
                         trace_cps(
                             "ResumeHandlerMerge",
                             format!(
@@ -2099,6 +2159,17 @@ fn merge_extras_into_frames(
         .collect()
 }
 
+/// Return frames stored in a resumption are no longer owned by their
+/// original live caller stack. Replaying `k` must consume the whole captured
+/// chain; otherwise a frame restored from inside a library helper can stop at
+/// its old `owner_initial_frame_count` and skip the user's post-loop code.
+fn own_captured_return_frames(mut frames: Vec<CpsReturnFrame>) -> Vec<CpsReturnFrame> {
+    for frame in &mut frames {
+        frame.owner_initial_frame_count = 0;
+    }
+    frames
+}
+
 /// Pop and resume return frames innermost-first. Each frame's continuation
 /// runs with its saved handler/guard state plus `extra_handlers` (handlers
 /// installed in the calling eval AFTER the original Perform that created
@@ -2354,21 +2425,6 @@ fn handler_arm_continues_to_installed_escape(
     entry: CpsContinuationId,
     escape: CpsContinuationId,
 ) -> bool {
-    let Some(arm_entry) = function
-        .continuations
-        .iter()
-        .find(|continuation| continuation.id == entry)
-    else {
-        return false;
-    };
-    let arm_uninstalls_handler = arm_entry
-        .stmts
-        .iter()
-        .any(|stmt| matches!(stmt, CpsStmt::UninstallHandler { handler: id } if *id == handler));
-    let continues_to_escape = matches!(
-        &arm_entry.terminator,
-        CpsTerminator::Continue { target, .. } if *target == escape
-    );
     let escape_is_installed_for_handler = function.continuations.iter().any(|continuation| {
         continuation.stmts.iter().any(|stmt| {
             matches!(
@@ -2381,7 +2437,41 @@ fn handler_arm_continues_to_installed_escape(
             )
         })
     });
-    arm_uninstalls_handler && continues_to_escape && escape_is_installed_for_handler
+    if !escape_is_installed_for_handler {
+        return false;
+    }
+    handler_arm_continue_chain_reaches_escape(function, handler, entry, escape)
+}
+
+fn handler_arm_continue_chain_reaches_escape(
+    function: &CpsFunction,
+    handler: CpsHandlerId,
+    entry: CpsContinuationId,
+    escape: CpsContinuationId,
+) -> bool {
+    let mut current = entry;
+    let mut saw_uninstall = false;
+    let mut visited = HashSet::new();
+    while visited.insert(current) {
+        let Some(continuation) = function
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == current)
+        else {
+            return false;
+        };
+        saw_uninstall |= continuation.stmts.iter().any(
+            |stmt| matches!(stmt, CpsStmt::UninstallHandler { handler: id } if *id == handler),
+        );
+        let CpsTerminator::Continue { target, .. } = &continuation.terminator else {
+            return saw_uninstall && current == escape;
+        };
+        if *target == escape {
+            return saw_uninstall;
+        }
+        current = *target;
+    }
+    false
 }
 
 fn handler_arm_for_stack<'a>(
@@ -2397,8 +2487,16 @@ fn handler_arm_for_stack<'a>(
     &'a CpsFunction,
 )> {
     for (index, frame) in stack.iter().enumerate().rev() {
-        if blocked.is_some_and(|blocked| frame.guard_stack.iter().any(|entry| entry.id == blocked))
+        if let Some(blocked) = blocked
+            && frame.guard_stack.iter().any(|entry| entry.id == blocked)
         {
+            trace_cps(
+                "PerformHandlerSkip",
+                format!(
+                    "fn={} effect={:?} index={} prompt={} blocked={}",
+                    current_function.name, effect, index, frame.prompt.0, blocked
+                ),
+            );
             continue;
         }
         for owner in module.functions.iter().chain(module.roots.iter()) {
@@ -2497,7 +2595,115 @@ fn capture_handler_envs(
         .collect()
 }
 
+fn overlay_handler_envs_in_frames(
+    function: &str,
+    frames: &mut [CpsReturnFrame],
+    handler: CpsHandlerId,
+    updates: &[CpsEvaluatedHandlerEnv],
+    remember_latest: bool,
+) {
+    for frame in frames {
+        overlay_handler_envs_in_stack(
+            function,
+            &mut frame.active_handlers,
+            handler,
+            updates,
+            remember_latest,
+        );
+    }
+}
+
+fn overlay_handler_envs_in_stack(
+    function: &str,
+    stack: &mut [CpsHandlerFrame],
+    handler: CpsHandlerId,
+    updates: &[CpsEvaluatedHandlerEnv],
+    remember_latest: bool,
+) {
+    if updates.is_empty() {
+        return;
+    }
+    for frame in stack.iter_mut().filter(|frame| frame.handler == handler) {
+        overlay_handler_envs(&mut frame.envs, updates);
+    }
+    if remember_latest {
+        remember_latest_handler_envs(handler, updates);
+    }
+    push_cps_frame_trace_event(CpsFrameTraceEvent::HandlerEnvOverlay {
+        layer: CpsFrameTraceLayer::CpsEval,
+        function: function.to_string(),
+        handler: handler.0,
+        entries: updates.iter().map(|env| env.entry.0).collect(),
+        values: trace_cps_handler_env_slots(updates),
+    });
+}
+
+fn overlay_handler_envs(
+    envs: &mut Vec<CpsEvaluatedHandlerEnv>,
+    updates: &[CpsEvaluatedHandlerEnv],
+) {
+    for update in updates {
+        let Some(existing) = envs.iter_mut().find(|env| env.entry == update.entry) else {
+            envs.push(update.clone());
+            continue;
+        };
+        for (target, value) in &update.values {
+            if let Some((_, existing_value)) = existing
+                .values
+                .iter_mut()
+                .find(|(existing_target, _)| existing_target == target)
+            {
+                *existing_value = value.clone();
+            } else {
+                existing.values.push((*target, value.clone()));
+            }
+        }
+    }
+}
+
+fn remember_latest_handler_envs(handler: CpsHandlerId, updates: &[CpsEvaluatedHandlerEnv]) {
+    LATEST_HANDLER_ENVS.with(|latest| {
+        let mut latest = latest.borrow_mut();
+        for update in updates {
+            for (target, value) in &update.values {
+                if let Some(existing) = latest.iter_mut().find(|existing| {
+                    existing.handler == handler
+                        && existing.entry == update.entry
+                        && existing.target == *target
+                }) {
+                    existing.value = value.clone();
+                } else {
+                    latest.push(CpsLatestHandlerEnv {
+                        handler,
+                        entry: update.entry,
+                        target: *target,
+                        value: value.clone(),
+                    });
+                }
+            }
+        }
+    });
+}
+
+fn latest_handler_env_value(
+    handler: CpsHandlerId,
+    entry: CpsContinuationId,
+    target: CpsValueId,
+) -> Option<CpsRuntimeValue> {
+    LATEST_HANDLER_ENVS.with(|latest| {
+        latest
+            .borrow()
+            .iter()
+            .rev()
+            .find(|latest| {
+                latest.handler == handler && latest.entry == entry && latest.target == target
+            })
+            .map(|latest| latest.value.clone())
+    })
+}
+
 fn values_with_handler_env(
+    function: &str,
     mut values: Vec<Option<CpsRuntimeValue>>,
     frame: &CpsHandlerFrame,
     entry: CpsContinuationId,
@@ -2505,10 +2711,51 @@ fn values_with_handler_env(
     let Some(env) = frame.envs.iter().find(|env| env.entry == entry) else {
         return values;
     };
-    for (id, value) in &env.values {
-        write_value(&mut values, *id, value.clone());
+    let effective_values = env
+        .values
+        .iter()
+        .map(|(id, value)| {
+            (
+                *id,
+                latest_handler_env_value(frame.handler, entry, *id)
+                    .unwrap_or_else(|| value.clone()),
+            )
+        })
+        .collect::<Vec<_>>();
+    push_cps_frame_trace_event(CpsFrameTraceEvent::HandlerEnvRead {
+        layer: CpsFrameTraceLayer::CpsEval,
+        function: function.to_string(),
+        handler: frame.handler.0,
+        entry: entry.0,
+        values: trace_cps_handler_env_value_slots(&effective_values),
+    });
+    for (id, value) in effective_values {
+        write_value(&mut values, id, value);
     }
     values
+}
+
+fn trace_cps_handler_env_slots(envs: &[CpsEvaluatedHandlerEnv]) -> Vec<CpsFrameTraceSlot> {
+    envs.iter()
+        .flat_map(|env| {
+            env.values.iter().map(|(target, value)| CpsFrameTraceSlot {
+                target: target.0,
+                value: summarize_cps_value(value),
+            })
+        })
+        .collect()
+}
+
+fn trace_cps_handler_env_value_slots(
+    values: &[(CpsValueId, CpsRuntimeValue)],
+) -> Vec<CpsFrameTraceSlot> {
+    values
+        .iter()
+        .map(|(target, value)| CpsFrameTraceSlot {
+            target: target.0,
+            value: summarize_cps_value(value),
+        })
+        .collect()
 }
 
 fn add_thunk_boundary(
@@ -2929,6 +3176,14 @@ struct CpsHandlerFrame {
 struct CpsEvaluatedHandlerEnv {
     entry: CpsContinuationId,
     values: Vec<(CpsValueId, CpsRuntimeValue)>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CpsLatestHandlerEnv {
+    handler: CpsHandlerId,
+    entry: CpsContinuationId,
+    target: CpsValueId,
+    value: CpsRuntimeValue,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

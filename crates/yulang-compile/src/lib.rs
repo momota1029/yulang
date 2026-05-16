@@ -451,6 +451,42 @@ sub:
     }
 
     #[test]
+    fn runs_for_loop_sub_return_value_in_later_expression_through_cps_repr() {
+        assert_source_cps_repr_jit_display_with_std(
+            r#"use std::flow::*
+
+my r = sub:
+    for x in 0..2:
+        if x == 1: return x
+        else: ()
+    99
+
+1 + r
+"#,
+            vec!["2"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_effect_handler_guard_through_cps_repr() {
+        assert_source_cps_repr_jit_display_with_std(
+            r#"act log:
+    pub put: int -> ()
+
+my run(a: [log] 'r): 'r = catch a:
+    log::put n, k if n > 0 -> run (k ())
+    log::put _, k -> run (k ())
+    v -> v
+
+run: log::put 5
+"#,
+            vec!["()"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_finite_for_loop_last_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::flow::*
@@ -874,6 +910,20 @@ x + rest.y
     }
 
     #[test]
+    fn runs_var_update_in_for_loop_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"
+my $hits = 0
+for x in 0..3:
+    &hits = $hits + 1
+$hits
+"#,
+            vec!["4"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_junction_method_undet_once_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::undet::*
@@ -925,12 +975,17 @@ struct point { x: int, y: int } with:
             .map_err(|error| error.to_string())?;
             let cps_module =
                 yulang_native::lower_cps_module(&module).map_err(|error| error.to_string())?;
-            let cps_values =
-                yulang_native::eval_cps_module(&cps_module).map_err(|error| error.to_string())?;
+            if std::env::var_os("YULANG_TEST_DUMP_CPS").is_some() {
+                eprintln!("{cps_module:#?}");
+            }
+            let (cps_result, cps_trace) =
+                yulang_native::with_cps_frame_trace(|| yulang_native::eval_cps_module(&cps_module));
+            let cps_values = cps_result.map_err(|error| error.to_string())?;
             let cps_actual: Vec<String> = cps_values.iter().map(format_native_i64_value).collect();
             if cps_actual != expected {
+                let trace_tail = cps_trace.iter().rev().take(80).cloned().collect::<Vec<_>>();
                 return Err(format!(
-                    "unexpected CPS eval display result: {cps_actual:?}"
+                    "unexpected CPS eval display result: {cps_actual:?}; trace_tail={trace_tail:?}"
                 ));
             }
             let cps_repr_module = yulang_native::lower_cps_repr_module(&cps_module);

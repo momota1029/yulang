@@ -20,6 +20,7 @@ pub mod cps_closure;
 pub mod cps_compare;
 pub mod cps_env;
 pub mod cps_eval;
+pub mod cps_frame_trace;
 pub mod cps_ir;
 pub mod cps_lower;
 pub mod cps_optimize;
@@ -74,6 +75,9 @@ pub use cps_env::{
     CpsFunctionEnvironmentLayout, layout_cps_environments,
 };
 pub use cps_eval::{CpsEvalError, eval_cps_module};
+pub use cps_frame_trace::{
+    CpsFrameTraceEvent, CpsFrameTraceLayer, CpsFrameTraceSlot, with_cps_frame_trace,
+};
 pub use cps_ir::{
     CpsContinuation, CpsContinuationId, CpsFunction, CpsHandler, CpsHandlerArm,
     CpsHandlerContextId, CpsHandlerId, CpsLiteral, CpsModule, CpsShotKind, CpsStmt, CpsTerminator,
