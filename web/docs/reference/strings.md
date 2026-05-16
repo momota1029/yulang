@@ -29,7 +29,8 @@ my name = "yu"
 ```
 
 Interpolation formats a value through the `Display` role. The standard prelude
-provides `Display` impls for `int`, `float`, `bool`, and `str`.
+provides `Display` impls for primitives, `list`, `opt`, `result`, and common
+tuple arities when their payloads also implement `Display`.
 
 Integer hex formatting is available through the lower- and upper-hex roles:
 
@@ -64,11 +65,17 @@ text.
 1.show              // "1"
 true.show           // "true"
 "text".show         // "text"
+[1, 2, 3].show      // "[1, 2, 3]"
+["a", "b"].show     // "[a, b]"
+(just "x").show     // "just x"
 ```
 
 `.show` is the canonical conversion to `str`. It resolves through the
-`Display` role: primitives and types declared via `error E:` (which gets an
-auto-generated `Display`) have impls available.
+`Display` role. The standard prelude supplies user-facing impls for primitives,
+`unit`, `list`, `opt`, `result`, and common tuple arities. Strings are rendered
+without quotes, so structural values that contain strings are meant for readable
+output rather than lossless inspection. `Display` also provides `.say`, which
+prints `.show` with a newline.
 
 Define `Display` for a user type with the usual role machinery:
 
@@ -93,8 +100,10 @@ string template formats.
 `list`, `opt`, `result`, and common tuple arities when their payloads also
 implement `Debug`. The basic runtime host also renders structural fallbacks for
 records and longer tuples, so `yulang run` and the playground can inspect them
-without adding one impl per shape. Use `.show` for user-facing text and `.debug`
-for structural values while inspecting programs.
+without adding one impl per shape. `Debug` also provides `.print` and
+`.println`, which print `.debug` without or with a newline. Use `.show` /
+`.say` for user-facing text and `.debug` / `.print` / `.println` for structural
+values while inspecting programs.
 
 ## Comments
 

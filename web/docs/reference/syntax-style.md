@@ -195,7 +195,7 @@ case value:
     just x -> x
 
 catch action:
-    console::println text, k -> k ()
+    console::println_native text, k -> k ()
     value -> value
 ```
 

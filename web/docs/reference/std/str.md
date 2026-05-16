@@ -52,11 +52,16 @@ unchanged.
 1.show              // "1"
 true.show           // "true"
 (1.5).show          // "1.5"
+[1, 2, 3].show      // "[1, 2, 3]"
+["a", "b"].show     // "[a, b]"
 ```
 
-`.show` resolves through the `Display` role. Every primitive ships with a
-default `Display` impl; user types gain one through `error E:` (auto-generated)
-or by writing `impl Display T: our v.show = ...`.
+`.show` resolves through the `Display` role. The prelude ships user-facing
+`Display` impls for primitives, `unit`, `list`, `opt`, `result`, and common
+tuple arities when their payloads also implement `Display`; user types gain one
+through `error E:` (auto-generated) or by writing
+`impl Display T: our v.show = ...`. Values that implement `Display` also get
+`.say`, which prints `.show` with a newline.
 
 For structural developer-facing output, use `.debug`:
 
@@ -69,7 +74,8 @@ For structural developer-facing output, use `.debug`:
 primitives, `list`, `opt`, `result`, and common tuple arities when their
 payloads also implement `Debug`. The basic runtime host also renders structural
 fallbacks for records and longer tuples, which is what `yulang run` and the
-playground use for inspection.
+playground use for inspection. Values that implement `Debug` also get `.print`
+and `.println`, which print `.debug` without or with a newline.
 
 ## Quick reference
 
@@ -82,6 +88,9 @@ playground use for inspection.
 | `s.splice r t` | `str -> range -> str -> str` |
 | `value.show` | `Display 'a => 'a -> str` |
 | `value.debug` | `Debug 'a => 'a -> str` |
+| `value.say` | `Display 'a => 'a -> [console] ()` |
+| `value.print` | `Debug 'a => 'a -> [console] ()` |
+| `value.println` | `Debug 'a => 'a -> [console] ()` |
 
 ## See also
 

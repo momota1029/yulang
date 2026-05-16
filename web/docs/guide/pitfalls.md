@@ -98,7 +98,7 @@ of where they were declared.
 
 ```yulang
 my f() =
-    println "hi"   // [console] in the row
+    say "hi"       // [console] in the row
     42
 ```
 

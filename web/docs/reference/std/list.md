@@ -45,7 +45,7 @@ std::list::is_empty xs    // false
 
 ```yulang
 for x in xs:
-    println x.show
+    say x
 
 xs.fold 0 (\acc x -> acc + x)
 ```

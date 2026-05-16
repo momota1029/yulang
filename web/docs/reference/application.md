@@ -212,7 +212,7 @@ case x:
 catch action:
     op a, k -> k a
 for x in xs:
-    println x.show
+    say x
 sub:
     if cond: return value
     fallback

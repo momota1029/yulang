@@ -57,7 +57,7 @@ case value:
 
 ```yulang
 for x in 0..10:        // 11 iterations: 0..10 is inclusive (use 0..<10 for half-open)
-    println x.show
+    say x
 
 for x in xs:
     if pred x: last

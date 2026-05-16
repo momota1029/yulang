@@ -49,11 +49,14 @@ err "bad"
 ## `std::console`
 
 ```yulang
-println "hello"
-print "no newline"
+say "hello"
+42.say
+"debug".print
+"debug".println
+println ["debug", "output"]
 ```
 
-console output は host-handled effect である。`println` は改行を追加する。
+console output は host-handled effect である。`say` / `.say` は `Display.show` の結果に改行を付けて出力する。`print` / `.print` は `Debug.debug` の結果を改行なしで出力し、`println` / `.println` は `Debug.debug` の結果に改行を付けて出力する。host-facing operation は `print_native` / `println_native` で、通常の program は wrapper と role method を使う。
 
 ## `std::fs`
 

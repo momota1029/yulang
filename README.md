@@ -35,8 +35,14 @@ Run a file with the interpreter:
 yulang run examples/06_undet_once.yu
 ```
 
+The smallest complete program prints a user-facing string with `say`:
+
+```yulang
+say "Hello, World"
+```
+
 `run` executes the program and only prints output produced by the program
-itself, such as `print` / `println`. To inspect root expression values while
+itself, such as `say` / `println`. To inspect root expression values while
 experimenting, add `--print-roots`.
 
 Check a file and print inferred public types:
@@ -153,6 +159,8 @@ debugging. The interpreter is still the semantic reference; the native backend
 is catching up feature by feature. See
 [docs/native-backend.md](docs/native-backend.md) for the supported programs,
 CLI details, and known limits.
+The current native effects path covers string/list/bytes/path/range primitives via
+runtime helper symbols.
 
 ## Development
 

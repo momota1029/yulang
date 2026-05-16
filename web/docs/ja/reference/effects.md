@@ -15,7 +15,7 @@ act console:
 ## 呼び出し
 
 ```yulang
-println "hello"
+say "hello"
 my line = console::read()
 ```
 

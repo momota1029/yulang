@@ -15,7 +15,8 @@ else:
 if cond { a } else { b }
 ```
 
-`if` の条件は `bool` である。`else` がない場合、false branch は `()` になる。
+`if` の条件は `bool` である。`else` がない場合は statement-like になり、then
+branch は効果のために評価され、値は捨てられ、式全体は `()` を返す。
 
 ## `case`
 
@@ -42,7 +43,7 @@ operation arm は operation の payload と continuation `k` を受け取る。`
 
 ```yulang
 for x in 0..10:        // 11 回反復: 0..10 は閉区間 (半開は 0..<10)
-    println x.show
+    say x
 ```
 
 `for x in xs:` は `Fold` を実装する値を走査する。body は関数へ lower され、plain な `for` expression は `()` を返す。

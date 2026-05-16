@@ -50,11 +50,11 @@ s[2..]          // "lang"
 1.show              // "1"
 true.show           // "true"
 (1.5).show          // "1.5"
+[1, 2, 3].show      // "[1, 2, 3]"
+["a", "b"].show     // "[a, b]"
 ```
 
-`.show` は `Display` role 経由で解決される。各プリミティブには既定の
-`Display` impl が付いてくる。ユーザ型は `error E:`（自動生成）か
-`impl Display T: our v.show = ...` で `Display` を得る。
+`.show` は `Display` role 経由で解決される。prelude は primitive、`unit`、`list`、`opt`、`result`、よく使う tuple arity にユーザ向けの `Display` impl を提供する。ただし payload も `Display` を持つ必要がある。ユーザ型は `error E:`（自動生成）か `impl Display T: our v.show = ...` で `Display` を得る。`Display` を持つ値には、`.show` を改行付きで出力する `.say` も生える。
 
 構造値の開発者向け表示には `.debug` を使う。
 
@@ -63,7 +63,7 @@ true.show           // "true"
 (just "x").debug     // "just \"x\""
 ```
 
-`.debug` は `Debug` role 経由で解決される。prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。ただし payload も `Debug` を持つ必要がある。basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground での調査にも使える。
+`.debug` は `Debug` role 経由で解決される。prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。ただし payload も `Debug` を持つ必要がある。basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground での調査にも使える。`Debug` を持つ値には、`.debug` を改行なし/改行付きで出力する `.print` / `.println` も生える。
 
 ## 早見表
 
@@ -76,6 +76,9 @@ true.show           // "true"
 | `s.splice r t` | `str -> range -> str -> str` |
 | `value.show` | `Display 'a => 'a -> str` |
 | `value.debug` | `Debug 'a => 'a -> str` |
+| `value.say` | `Display 'a => 'a -> [console] ()` |
+| `value.print` | `Debug 'a => 'a -> [console] ()` |
+| `value.println` | `Debug 'a => 'a -> [console] ()` |
 
 ## 関連ページ
 

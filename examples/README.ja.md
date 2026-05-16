@@ -13,6 +13,7 @@ yulang run examples/showcase.yu
 個別の feature を見るなら、次の example が読みやすいです。
 
 ```bash
+yulang run examples/13_console.yu
 yulang run examples/01_struct_with.yu
 yulang run examples/04_sub_return.yu
 yulang run examples/06_undet_once.yu

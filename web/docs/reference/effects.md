@@ -19,7 +19,7 @@ A companion module is generated with the same name, and operations are reachable
 Effect operations are called like ordinary functions:
 
 ```yulang
-println "hello"
+say "hello"
 my line = console::read()
 ```
 

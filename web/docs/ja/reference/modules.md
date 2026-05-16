@@ -38,7 +38,7 @@ prelude が `just`、`nil`、`ok`、`err` のような標準 variant を reexpor
 `act` の operation も同じ。
 
 ```yulang
-console::println "hi"
+console::println_native "hi"
 ```
 
 ## Dot selection
@@ -50,7 +50,7 @@ console::println "hi"
 - `.add`、`.index`、`.show` のような role method
 - `.list`、`.logic`、`.once` のような effect-row method
 
-anonymous record の場合、`.field` は record field を取り出す。act operation 自体は、通常 `console::println "hi"` のように path で呼ぶ。
+anonymous record の場合、`.field` は record field を取り出す。act operation 自体は、通常 `console::println_native "hi"` のように path で呼ぶ。
 
 ## Standard library modules
 
@@ -68,7 +68,7 @@ anonymous record の場合、`.field` は record field を取り出す。act ope
 | `std::fold` | `Fold` role と default method `.find` / `.contains` |
 | `std::undet` | `each`, `guard`, `.list`, `.once`, `.logic` |
 | `std::junction` | `all`, `any` |
-| `std::console` | `print`, `println` |
+| `std::console` | `say`, `println`, `print`, host-handled `print_native` / `println_native` |
 | `std::fs` | 暫定 filesystem API |
 | `std::error` | `Throw` role |
 | `std::index` | `Index` role |

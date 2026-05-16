@@ -179,7 +179,7 @@ checklist, see *Detailed progress* below.
 | Surface form                                        | Stage                  | Status |
 | --------------------------------------------------- | ---------------------- | :----: |
 | Scalar literals (`int` / `float` / `bool` / `unit` / `str`) | pure-subset backend          |   ✅   |
-| String concatenation                                | pure-subset backend          |   ✅   |
+| String concatenation and bytes/path primitives      | pure-subset backend / effects |   ✅   |
 | List literals, list merge, length, index, raw view  | pure-subset backend          |   ✅   |
 | Tuple, record, variant, record field selection      | pure-subset backend          |   ✅   |
 | Record spread expressions                           | pure-subset backend          |   ✅   |
@@ -204,7 +204,7 @@ checklist, see *Detailed progress* below.
 | `std::junction` effectful boolean conditions        | effects               |   ✅   |
 | Combined `std::junction` + finite nondet + post-result method call | effects | ✅ |
 | Finite-list `for` loops with `last` / `next` control | effects (scalar)      |   ✅   |
-| `sub` / `return` through finite-list and open-range `for` | effects (scalar) | ✅ |
+| `sub` / `return` through finite-list and open-range `for`, including use of the returned value in later scalar expressions | effects (scalar) | ✅ |
 | Open-range `for` with local `last` result value      | effects               |   ✅   |
 
 #### Output
@@ -336,7 +336,7 @@ current backend boundaries visible, but detailed regression history lives in
 - [x] Prototype heap handles cover strings, tuples, lists, records, variants,
       closure pointers, thunk pointers, and resumption pointers in the effects
       path.
-- [x] String/list/range primitives, conversions, and small host console effects
+- [x] String/list/bytes/path/range primitives, conversions, and small host console effects
       are handled through shared runtime helpers or effects helper symbols.
 - [x] First-class lambdas, captured closures, partial applications, and closures
       selected from records/lists can be created and called through the effects
@@ -368,7 +368,8 @@ current backend boundaries visible, but detailed regression history lives in
       executable path.
 - [x] `sub` / `return` can escape through finite-list and open-range `for`
       chains on the effects executable path for the covered return-shaped
-      roots.
+      roots. Already-escaped handler arms also keep their result when the
+      returned value flows into a later scalar expression such as `1 + r`.
 - [x] Open-range `for` with local `last` consumes the loop-control arm at the
       loop boundary and continues with the following expression on the effects
       executable path.

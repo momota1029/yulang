@@ -15,8 +15,9 @@ else:
 if cond { a } else { b }
 ```
 
-`if` expects a `bool` condition. An `if` without `else` uses `()` as the false
-branch.
+`if` expects a `bool` condition. An `if` without `else` is statement-like: the
+then-branch is evaluated for its effects, its value is discarded, and the whole
+expression returns `()`.
 
 ## `case`
 
@@ -44,7 +45,7 @@ An operation arm receives the operation payload and a continuation `k`. Calling
 
 ```yulang
 for x in 0..10:        // 11 iterations: 0..10 is inclusive (0..<10 is half-open)
-    println x.show
+    say x
 ```
 
 `for x in xs:` iterates over a value implementing `Fold`. The body is lowered to

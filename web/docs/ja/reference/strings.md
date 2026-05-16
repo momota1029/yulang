@@ -24,7 +24,7 @@ my name = "yu"
 "ok = %{true}"
 ```
 
-`%{...}` は値を `Display` role で文字列化する。標準 prelude は `int`、`float`、`bool`、`str` の `Display` 実装を提供する。
+`%{...}` は値を `Display` role で文字列化する。標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Display` 実装を提供する。ただし payload も `Display` を持つ必要がある。
 
 整数の hex 表示には lower / upper hex role を使う。
 
@@ -57,9 +57,12 @@ my name = "yu"
 1.show              // "1"
 true.show           // "true"
 "text".show         // "text"
+[1, 2, 3].show      // "[1, 2, 3]"
+["a", "b"].show     // "[a, b]"
+(just "x").show     // "just x"
 ```
 
-`.show` は `str` への正準的な変換である。`Display` role 経由で解決され、プリミティブ型は impl を持っている。
+`.show` は `str` への正準的な変換である。`Display` role 経由で解決される。標準 prelude は primitive、`unit`、`list`、`opt`、`result`、よく使う tuple arity に、ユーザ向けの `Display` impl を提供する。文字列は quote なしで表示するため、文字列を含む構造値の `.show` は lossless な調査ではなく、読みやすい出力向けである。`Display` は `.say` も提供し、`.show` の結果を改行付きで出力する。
 
 ユーザ型に `Display` を定義するのは通常の role 構文を使う。
 
@@ -78,7 +81,7 @@ impl Display point:
 (1, true).debug      // "(1, true)"
 ```
 
-`.debug` は開発者向けの構造表示である。`Debug` role 経由で解決される。標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground では形ごとの impl を増やさずに調査できる。ユーザに見せる文字列には `.show` を使い、構造値を調べるときには `.debug` を使う。
+`.debug` は開発者向けの構造表示である。`Debug` role 経由で解決される。標準 prelude は primitive、`list`、`opt`、`result`、よく使う tuple arity に `Debug` impl を提供する。basic runtime host は record や長い tuple の構造 fallback も表示するため、`yulang run` や playground では形ごとの impl を増やさずに調査できる。`Debug` は `.print` / `.println` も提供し、`.debug` の結果を改行なし/改行付きで出力する。ユーザに見せる文字列には `.show` / `.say` を使い、構造値を調べるときには `.debug` / `.print` / `.println` を使う。
 
 ## コメント
 

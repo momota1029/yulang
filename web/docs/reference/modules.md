@@ -29,7 +29,7 @@ point::norm2 (point { x: 3, y: 4 })
 point { x: 3, y: 4 } .norm2
 ```
 
-For `enum` and `error`, the variants are members of the companion (`opt::just 1`, `fs_err::not_found "p"`). Prelude reexports make common variants such as `just`, `nil`, `ok`, and `err` available without qualification. For `act`, the operations are members (`console::println "hi"`).
+For `enum` and `error`, the variants are members of the companion (`opt::just 1`, `fs_err::not_found "p"`). Prelude reexports make common variants such as `just`, `nil`, `ok`, and `err` available without qualification. For `act`, the operations are members (`console::println_native "hi"` in `std::console`).
 
 ## Dot selection
 
@@ -44,7 +44,7 @@ type, then can resolve role methods and effect-row methods. This works for:
 
 Selection on a record (anonymous, structural) instead pulls the field by name.
 Act operations themselves are normally reached by path, for example
-`console::println "hi"`.
+`console::println_native "hi"`.
 
 ## Standard library modules
 
@@ -62,7 +62,7 @@ Act operations themselves are normally reached by path, for example
 | `std::fold` | `Fold` role with `.fold` plus default `.find` and `.contains` methods |
 | `std::undet` | `each`, `guard`, `list`, `once`, `logic` |
 | `std::junction` | `all`, `any` for effectful comparisons |
-| `std::console` | `print`, `println` (host-handled) |
+| `std::console` | `say`, `println`, `print`, plus host-handled `print_native` / `println_native` |
 | `std::fs` | `read_text`, `write_text`, `exists`, `is_file`, `is_dir`, plus `fs_err` errors |
 | `std::error` | `Throw` role |
 | `std::index` | `Index` role |

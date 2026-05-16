@@ -94,27 +94,28 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 ### CPS lowering 未対応 / 値違い
 
 - [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu)
-  — handler arm の `if` guard と labelled `for` の bare effect operation
+  — labelled `for` の bare effect operation
   (`#loop_label:outer##with0::...`) が CPS lowering 未対応で
-  `failed to compile native effects object` で止まる。VM では通る。
-- [`native_sub_for_return_int_value_garbled.yu`](native_sub_for_return_int_value_garbled.yu)
-  — `sub:` の中で `for` body から `return` すると、native の return path が
-  int 値を破損する。`--print-roots` で `"1"` (quoted) に出るだけでなく、
-  後段の `1 + r` が `974717633` のような garbage を返すので値 lane も壊れて
-  いる。VM は `[0] 1` / `[0] 2`。sub 単独 / for 単独 / return 単独は揃うので、
-  組み合わせ経路の問題。resolved `nested_for_return_effect_mismatch.yu` は
-  infer 側の解消で、runtime 値 lane の整合は別件として残っていた。
-- [`native_handler_result_debug_value_garbled.yu`](native_handler_result_debug_value_garbled.yu)
-  — `act console: read + println` の両 operation を declare し、両 arm を持つ
-  handler の戻り値 `r` に対して `.debug` を呼ぶと、native は壊れた string
-  lane を返す。`println r.debug` の行だけ silent に飲み込まれ、`println
-  "literal"` は同じ scope で動く。`--print-roots` で root として `r` を出すと
-  両方 `()` なので、後段で `r.debug` を string として取り出す経路だけが壊れ
-  ている。`act` 名や operation 名を変えると再現しないので、prelude
-  `println` との overload と handler 戻り値 lane の取り合いに見える。
+  `failed to compile native effects object` で止まる。VM では通る。handler arm
+  の `if` guard は 2026-05-16 に native CPS lowering へ追加済み。
+  `#loop_label` 側は bare effect operation を closure 化するだけでは足りず、
+  `for` callback 内の var handler 更新も native で `0` に潰れるため、値意味論側
+  の修正が先に必要。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 
+- [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu) の
+  handler guard 部分
+  — 2026-05-16 に effect handler arm の guard を native CPS lowering で扱う
+  ようにした。同じ effect の arm を一つの handler entry 内で順に試し、
+  pattern / guard が失敗したら次 arm へ fall through する。`log::put n, k if
+  n > 0` の再現は native で `()`。
+- [`native_sub_for_return_int_value_garbled.yu`](native_sub_for_return_int_value_garbled.yu)
+  — 2026-05-16 に native CPS の `perform_finish_escaped` 経路を修正した。
+  already-escaped handler arm の結果を cross-eval 時にもう一度 `ScopeReturn` へ包むと、
+  `sub:` の戻り値が後続継続まで進んだ値として再配送されていた。`sub` 内の
+  `for` body から `return` し、その値を `1 + r` で使うケースは VM / native とも
+  `2`。
 - [`if_no_else_branch_type_mismatch.yu`](if_no_else_branch_type_mismatch.yu)
   — 2026-05-16 に `else` なし `if` を statement-like に下げるようにした。
   then branch は効果のために実行されるが値は捨てられ、式全体は `()` を返す。
@@ -137,6 +138,11 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   pretty-print も `.debug` 投影へ寄せ、record / long tuple は host-side
   debug fallback で表示できる。残る小差は record の field separator
   (VM `{x = 1, y = 2}` / native `{x: 1, y: 2}`) のみ。
+- [`native_handler_result_debug_value_garbled.yu`](native_handler_result_debug_value_garbled.yu)
+  — 2026-05-16 WIP 時点で再現せず。`say` / `println` / `Debug` 整理後に再確認し、
+  VM と native がどちらも `"()"` / `"after"` を出力する。以前は `act console:
+  read + println` の両 operation を持つ handler の戻り値 `r` に対する
+  `r.debug` が native で silent に消えていた。
 - [`native_handler_result_value_collapse.yu`](native_handler_result_value_collapse.yu)
   — 2026-05-16 WIP で native effects の blocked-effect boundary dispatch を
   inactive marker で peel できるようにし、`ResumeWithHandler` sibling env を

@@ -54,7 +54,7 @@ case value:
 
 ```yulang
 for x in 0..10:        // 11 回反復: 0..10 は閉区間 (半開は 0..<10)
-    println x.show
+    say x
 
 for x in xs:
     if pred x: last

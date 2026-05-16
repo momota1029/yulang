@@ -56,11 +56,18 @@ currently do not use it as their primary surface.
 ## `std::console`
 
 ```yulang
-println "hello"
-print "no newline"
+say "hello"
+42.say
+"debug".print
+"debug".println
+println ["debug", "output"]
 ```
 
-Console output is a host-handled effect. `println` appends a newline.
+Console output is a host-handled effect. `say` and `.say` print `Display.show`
+output with a newline. `print` and `.print` print `Debug.debug` output without a
+newline, while `println` and `.println` print `Debug.debug` output with a newline. The
+host-facing operations are `print_native` and `println_native`; most programs
+use the wrappers and role methods.
 
 ## `std::fs`
 

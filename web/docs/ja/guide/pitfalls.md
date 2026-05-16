@@ -77,7 +77,7 @@ my f() = &count = $count + 1
 
 ```yulang
 my f() =
-    println "hi"   // 行に [console] が乗る
+    say "hi"       // 行に [console] が乗る
     42
 ```
 
