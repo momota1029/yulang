@@ -178,6 +178,10 @@ type ColorizeOutput = {
 
 type Lang = "ja" | "en";
 
+type ThemeChoice = "system" | "light" | "dark";
+
+type ResolvedTheme = "light" | "dark";
+
 type Example = {
     label: Record<Lang, string>;
     source: string;
@@ -193,7 +197,10 @@ type MessageKey =
     | "noOutput"
     | "noExportedTypes"
     | "notRunYet"
-    | "resultLine";
+    | "resultLine"
+    | "themeSystem"
+    | "themeLight"
+    | "themeDark";
 
 type DocLinkKey = "guide" | "reference";
 
@@ -209,6 +216,9 @@ const messages: Record<Lang, Record<MessageKey, string>> = {
         noExportedTypes: "(公開された型なし)",
         notRunYet: "実行すると結果がここに表示されます。",
         resultLine: "結果",
+        themeSystem: "自動",
+        themeLight: "ライト",
+        themeDark: "ダーク",
     },
     en: {
         run: "Run",
@@ -221,6 +231,9 @@ const messages: Record<Lang, Record<MessageKey, string>> = {
         noExportedTypes: "(no exported types)",
         notRunYet: "Run the program to show results here.",
         resultLine: "Result",
+        themeSystem: "Auto",
+        themeLight: "Light",
+        themeDark: "Dark",
     },
 };
 
@@ -462,6 +475,13 @@ const editorHighlightContent = requireElement<HTMLElement>(
 const languageButtons = document.querySelectorAll<HTMLButtonElement>(
     "[data-language-choice]",
 );
+const themeButtons = document.querySelectorAll<HTMLButtonElement>(
+    "[data-theme-choice]",
+);
+const themeMediaQuery =
+    typeof window.matchMedia === "function"
+        ? window.matchMedia("(prefers-color-scheme: dark)")
+        : undefined;
 const translatableNodes = document.querySelectorAll<HTMLElement>("[data-i18n]");
 const translatableAriaNodes =
     document.querySelectorAll<HTMLElement>("[data-i18n-aria]");
@@ -471,6 +491,7 @@ const docLinkNodes =
 let pendingRenderColor = 0;
 let activeExampleIndex = 0;
 let activeLang = resolveInitialLang();
+let activeTheme: ThemeChoice = resolveInitialTheme();
 let latestRunOutput: RunOutput | undefined;
 let runGeneration = 0;
 let isRunning = false;
@@ -479,6 +500,7 @@ const pendingWorkerRequests = new Map<number, PendingWorkerRequest>();
 let runWorker: Worker | undefined = createRunWorker();
 
 setupI18n();
+setupTheme();
 
 await init();
 logEmbeddedStdArtifacts();
@@ -521,6 +543,85 @@ function setupI18n(): void {
         });
     });
     applyLanguage();
+}
+
+function setupTheme(): void {
+    themeButtons.forEach((button) => {
+        const choice = button.dataset.themeChoice;
+        if (!isThemeChoice(choice)) {
+            return;
+        }
+        button.addEventListener("click", () => {
+            setTheme(choice);
+        });
+    });
+    applyTheme();
+    if (themeMediaQuery) {
+        const onChange = () => {
+            if (activeTheme === "system") {
+                applyTheme();
+            }
+        };
+        if (typeof themeMediaQuery.addEventListener === "function") {
+            themeMediaQuery.addEventListener("change", onChange);
+        } else if (
+            typeof (
+                themeMediaQuery as MediaQueryList & {
+                    addListener?: (handler: () => void) => void;
+                }
+            ).addListener === "function"
+        ) {
+            (
+                themeMediaQuery as MediaQueryList & {
+                    addListener: (handler: () => void) => void;
+                }
+            ).addListener(onChange);
+        }
+    }
+}
+
+function setTheme(choice: ThemeChoice): void {
+    if (activeTheme === choice) {
+        return;
+    }
+    activeTheme = choice;
+    try {
+        localStorage.setItem("yulang-playground-theme", choice);
+    } catch (error) {
+        console.warn("Yulang theme persistence failed", error);
+    }
+    applyTheme();
+}
+
+function applyTheme(): void {
+    const resolved = resolveTheme(activeTheme);
+    document.documentElement.dataset.theme = activeTheme;
+    document.documentElement.dataset.resolvedTheme = resolved;
+    themeButtons.forEach((button) => {
+        const choice = button.dataset.themeChoice;
+        const isActive = choice === activeTheme;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+    });
+}
+
+function resolveTheme(choice: ThemeChoice): ResolvedTheme {
+    if (choice === "system") {
+        return themeMediaQuery?.matches ? "dark" : "light";
+    }
+    return choice;
+}
+
+function resolveInitialTheme(): ThemeChoice {
+    const stored =
+        typeof localStorage !== "undefined"
+            ? localStorage.getItem("yulang-playground-theme")
+            : null;
+    return isThemeChoice(stored) ? stored : "system";
+}
+
+function isThemeChoice(value: unknown): value is ThemeChoice {
+    return value === "system" || value === "light" || value === "dark";
 }
 
 function setLanguage(lang: Lang): void {

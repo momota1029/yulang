@@ -8,17 +8,34 @@
       name="description"
       content="Yulang playground and documentation."
     />
+    <script>
+      (function () {
+        var stored = null;
+        try {
+          stored = localStorage.getItem("yulang-playground-theme");
+        } catch (e) {}
+        var choice =
+          stored === "light" || stored === "dark" || stored === "system"
+            ? stored
+            : "system";
+        var prefersDark =
+          typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var resolved =
+          choice === "system" ? (prefersDark ? "dark" : "light") : choice;
+        document.documentElement.dataset.theme = choice;
+        document.documentElement.dataset.resolvedTheme = resolved;
+      })();
+    </script>
   </head>
   <body>
     <main class="app">
       <header class="site-intro" aria-labelledby="site-title">
         <div class="site-copy i18n-block lang-ja">
-          <p class="site-kicker">Playground + Docs</p>
           <h1 id="site-title">Yulang</h1>
           <p>Algebraic Effects を備えた関数型の核に、LL らしい軽い構文を。</p>
         </div>
         <div class="site-copy i18n-block lang-en" lang="en">
-          <p class="site-kicker">Playground + Docs</p>
           <h1>Yulang</h1>
           <p>A functional core with algebraic effects, shaped by lightweight scripting syntax.</p>
         </div>
@@ -37,19 +54,34 @@
       <section class="workspace" aria-label="Yulang playground">
         <div class="editor-pane">
           <div class="pane-head">
-            <div class="pane-title">
-              <h2>Playground</h2>
-              <p class="runtime-note i18n-block lang-ja">
-                この playground は VM インタプリタで実行します。native backend は CLI
-                で確認できます。
-              </p>
-              <p class="runtime-note i18n-block lang-en" lang="en">
-                This playground runs the VM interpreter. Native backend selection is
-                available from the CLI.
-              </p>
-            </div>
             <div class="pane-actions">
-              <div class="language-switch" aria-label="Language">
+              <div class="theme-switch" role="group" aria-label="Theme">
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-choice="system"
+                  data-i18n="themeSystem"
+                >
+                  Auto
+                </button>
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-choice="light"
+                  data-i18n="themeLight"
+                >
+                  Light
+                </button>
+                <button
+                  class="theme-button"
+                  type="button"
+                  data-theme-choice="dark"
+                  data-i18n="themeDark"
+                >
+                  Dark
+                </button>
+              </div>
+              <div class="language-switch" role="group" aria-label="Language">
                 <button
                   class="language-button"
                   type="button"
@@ -70,12 +102,7 @@
               <button id="run-button" type="button" data-i18n="run">Run</button>
             </div>
           </div>
-          <section class="examples-panel" aria-labelledby="examples-title">
-            <div class="examples-head">
-              <h2 id="examples-title" data-i18n="examples">Examples</h2>
-            </div>
-            <div id="example-buttons" class="example-buttons"></div>
-          </section>
+          <div id="example-buttons" class="example-buttons"></div>
           <div class="editor-surface">
             <pre id="editor-highlight" aria-hidden="true"><code id="editor-highlight-content"></code></pre>
             <textarea
