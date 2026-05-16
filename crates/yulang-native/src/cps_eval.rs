@@ -1193,7 +1193,6 @@ fn resume_continuation(
                         &active_handlers,
                         anchor,
                     );
-                    let adjusted_frames = own_captured_return_frames(adjusted_frames);
                     trace_cps(
                         "ResumeHandlerMerge",
                         format!(
@@ -1354,7 +1353,11 @@ fn resume_continuation(
                     );
                     let adjusted_frames =
                         append_resume_with_handler_frames(&captured_frames, &pushed_extra);
-                    let adjusted_frames = own_captured_return_frames(adjusted_frames);
+                    let adjusted_frames = if rebase_existing_handler_env {
+                        own_captured_return_frames(adjusted_frames)
+                    } else {
+                        adjusted_frames
+                    };
                     trace_cps(
                         "ResumeHandlerMerge",
                         format!(
@@ -1855,7 +1858,6 @@ fn resume_continuation(
                             &active_handlers,
                             anchor,
                         );
-                        let adjusted_res = own_captured_return_frames(adjusted_res);
                         trace_cps(
                             "ResumeHandlerMerge",
                             format!(

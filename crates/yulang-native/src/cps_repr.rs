@@ -2386,8 +2386,6 @@ fn resume_continuation(
                                 &active_handlers,
                                 anchor,
                             );
-                            let adjusted_frames =
-                                own_captured_return_frames_repr(adjusted_frames);
                             eval_continuations(
                                 module,
                                 owner,
@@ -2436,7 +2434,6 @@ fn resume_continuation(
                         &active_handlers,
                         anchor,
                     );
-                    let adjusted_frames = own_captured_return_frames_repr(adjusted_frames);
                     let result = eval_continuations(
                         module,
                         owner,
@@ -2535,7 +2532,11 @@ fn resume_continuation(
                     );
                     let adjusted_frames =
                         append_resume_with_handler_frames_repr(&captured_frames, &pushed_extra);
-                    let adjusted_frames = own_captured_return_frames_repr(adjusted_frames);
+                    let adjusted_frames = if rebase_existing_handler_env {
+                        own_captured_return_frames_repr(adjusted_frames)
+                    } else {
+                        adjusted_frames
+                    };
                     trace_repr(
                         "ResumeHandlerMerge",
                         format!(
@@ -2937,7 +2938,6 @@ fn resume_continuation(
                             &active_handlers,
                             anchor,
                         );
-                        let adjusted_res = own_captured_return_frames_repr(adjusted_res);
                         let mut combined_frames = new_frames;
                         combined_frames.extend(adjusted_res);
                         return eval_continuations(

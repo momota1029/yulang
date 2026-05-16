@@ -1487,7 +1487,14 @@ impl<'a> FunctionLowerer<'a> {
                         };
                         Ok(this.force_if_non_thunk_demand(lowered, &expected))
                     };
-                    if force_handler_reentry_args && self.expr_contains_resume_apply(arg) {
+                    let force_effectful_arg = target_may_perform
+                        && expr_contains_indirect_apply(arg, self.functions)
+                        && !type_is_callable_after_force(&arg.ty)
+                        && !matches!(expected, runtime::Type::Thunk { .. })
+                        && !matches!(arg.ty, runtime::Type::Thunk { .. });
+                    if (force_handler_reentry_args && self.expr_contains_resume_apply(arg))
+                        || force_effectful_arg
+                    {
                         self.force_effectful_apply_depth += 1;
                         let result = lowerer(self);
                         self.force_effectful_apply_depth -= 1;
@@ -1872,11 +1879,16 @@ impl<'a> FunctionLowerer<'a> {
         });
         let closure = forced;
         let arg = self.lower_expr_as_call_arg(callee_ty, arg)?;
-        // First-class calls need a continuation boundary by default. Even if
-        // the visible result type looks plain, the callee can perform before
-        // returning that value; a stmt-level ApplyClosure would not capture the
-        // caller's rest in the resumption.
-        if self.force_effectful_apply_depth > 0 || self.sync_apply_for_immediate_force_depth == 0
+        // Final first-class calls need a continuation boundary. Partial
+        // application that merely returns another function stays synchronous;
+        // otherwise multi-shot search code such as `once` can replay too much
+        // of the queue. Once the apply returns a value, however, it may
+        // perform before that value is produced, so the caller rest must be
+        // captured in a resumption.
+        if self.force_effectful_apply_depth > 0
+            || (self.sync_apply_for_immediate_force_depth == 0
+                && self.higher_order_helper
+                && matches!(expr.ty, runtime::Type::Thunk { .. }))
         {
             let post_cont = self.fresh_continuation();
             let result = self.fresh_value();
@@ -1894,10 +1906,6 @@ impl<'a> FunctionLowerer<'a> {
         self.current
             .stmts
             .push(CpsStmt::ApplyClosure { dest, closure, arg });
-        // Apply expression that demands a non-thunk static type forces the
-        // closure's result so a Thunk that escaped through curried
-        // ApplyClosure (e.g. once_mono1's MakeThunk + Return) does not leak
-        // into a consumer that needs a plain value (`(each ...).once`).
         Ok(self.force_if_non_thunk_demand(dest, &expr.ty))
     }
 
@@ -4879,7 +4887,9 @@ impl<'a> FunctionLowerer<'a> {
             let callee_ty = callable_type_after_force(&callee.ty);
             let arg = self.lower_expr_as_call_arg(callee_ty, arg)?;
             if self.force_effectful_apply_depth > 0
-                || self.sync_apply_for_immediate_force_depth == 0
+                || (self.sync_apply_for_immediate_force_depth == 0
+                    && self.higher_order_helper
+                    && matches!(expr.ty, runtime::Type::Thunk { .. }))
             {
                 let post_cont = self.fresh_continuation();
                 let result = self.fresh_value();
@@ -6094,15 +6104,8 @@ fn callee_type_may_perform(ty: &runtime::Type) -> bool {
     }
 }
 
-fn one_step_apply_may_perform(ty: &runtime::Type) -> bool {
-    match ty {
-        runtime::Type::Fun { ret, .. } => matches!(
-            ret.as_ref(),
-            runtime::Type::Thunk { .. } | runtime::Type::Unknown
-        ),
-        runtime::Type::Thunk { .. } | runtime::Type::Unknown => true,
-        runtime::Type::Core(_) => false,
-    }
+fn type_is_callable_after_force(ty: &runtime::Type) -> bool {
+    matches!(callable_type_after_force(ty), runtime::Type::Fun { .. })
 }
 
 fn callable_type_after_force(ty: &runtime::Type) -> &runtime::Type {

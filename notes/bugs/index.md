@@ -98,9 +98,25 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   (`#loop_label:outer##with0::...`) が CPS lowering 未対応で
   `failed to compile native effects object` で止まる。VM では通る。handler arm
   の `if` guard は 2026-05-16 に native CPS lowering へ追加済み。
-  `#loop_label` 側は bare effect operation を closure 化するだけでは足りず、
-  `for` callback 内の var handler 更新も native で `0` に潰れるため、値意味論側
-  の修正が先に必要。
+  `#loop_label` 側は bare effect operation を closure 化するだけでは足りない。
+  `for` callback 内の var handler 更新が native で潰れる問題は 2026-05-16 に
+  `runs_var_update_in_for_loop_through_cps_repr` で regression 化して解消済み。
+
+- `std::undet` の native CPS 回帰は 2026-05-16 時点で二系統残っている。
+  `(branch()).list` は native CPS eval まで進むが `[[1], [0]]` になり、value arm
+  の扱いが list で一段多い。open range + `guard` の `.once` は
+  `:just :just 3` になり、queued resumption 成功時に recursive `once` の value arm
+  と元の `once` の value arm が両方走る。handler snapshot から捕捉 handler だけを
+  抜く実験では `for` callback var handler が壊れ、handler 境界 frame を切る実験では
+  `guard` 後続または fold 後続が落ちるため、return-frame segment と handler value arm
+  境界を分けて扱う必要がある。
+
+- `(each [1, 2, 3]).list` / `.logic` / nested `.once` などは native の前に
+  runtime lowering で `branch result type mismatch: expected unit, got std::bytes::bytes`
+  になる。`check` は通るので、型推論ではなく principal core から runtime IR へ
+  落とす段階の join evidence / effectful branch result の問題。`std::undet.each`
+  内の `if branch() { sub::return x } else ()` が `join[unit]` として出ている一方、
+  runtime lowering が true branch の actual を concrete な `std::bytes::bytes` と見ている。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 
