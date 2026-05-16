@@ -54,11 +54,26 @@
   element 型を取り出して prefix/suffix に伝播、spread は list 全体を維持。
 - 全テスト 0 failed。
 
+**Global `Var` 型 refresh（#4）— DONE（保守版）**
+
+- `principal_unify::rewrite_expr` の `Var` arm が、`local_value_type` と
+  `known_binding_runtime_type` のみで refresh していた。`emitted_by_path`
+  に出てこない普通の monomorphic binding（specialization fan-out が無いやつ）
+  への参照は pre-monomorphize `Expr.ty` のままで、scheme で touch されない
+  TypeVar slot が残る経路があった。
+- `monomorphic_binding_type` を 3 番目のフォールバックに追加。ただし
+  scheme body は plain core type なので、call site が持つ runtime-layer
+  情報（thunk shape、function arrow）を素直に上書きすると handler 関連の
+  effect が落ちる（`vm_runs_handler_function_without_join_evidence` で
+  即座に再現）。
+- そこで `hir_type_has_vars(&ty)` ガードで「現 `ty` が stale（TypeVar 残）
+  のときだけ上書き」に絞った。concrete だけど形が違う（thunk-wrapped 等）
+  ケースはそのまま温存。
+
 **未着手**
 
 - #6 effect hole を `Empty` に潰さない方向（保留：影響範囲計測から）
 - #11 `pass_through_associated_type_signature` の本実装
-- #4 global `Var` 型 refresh
 - #8 fallback-to-old-`expr.ty` の失敗扱い化
 - #12 `DemandEffect::Hole` を `Empty` に束縛しない方向（#6 と同根）
 
