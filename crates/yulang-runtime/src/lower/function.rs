@@ -222,6 +222,10 @@ pub(super) fn require_same_hir_type(
             if !effect_compatible(expected_effect, actual_effect)
                 && !effect_compatible(actual_effect, expected_effect)
             {
+                if apply_evidence_allows_residual_thunk_effect(source, expected_value, actual_value)
+                {
+                    return Ok(());
+                }
                 return Err(RuntimeError::TypeMismatch {
                     expected: expected_effect.clone(),
                     actual: actual_effect.clone(),
@@ -268,6 +272,10 @@ pub(super) fn require_apply_arg_compatible(
             if !effect_compatible(expected_effect, actual_effect)
                 && !effect_compatible(actual_effect, expected_effect)
             {
+                if apply_evidence_allows_residual_thunk_effect(source, expected_value, actual_value)
+                {
+                    return Ok(());
+                }
                 return Err(RuntimeError::TypeMismatch {
                     expected: expected_effect.clone(),
                     actual: actual_effect.clone(),
@@ -279,4 +287,17 @@ pub(super) fn require_apply_arg_compatible(
         }
         _ => require_same_hir_type(expected, actual, source),
     }
+}
+
+fn apply_evidence_allows_residual_thunk_effect(
+    source: TypeSource,
+    expected_value: &RuntimeType,
+    actual_value: &RuntimeType,
+) -> bool {
+    matches!(
+        source,
+        TypeSource::ApplyEvidence
+            | TypeSource::ApplyArgumentEvidence
+            | TypeSource::ApplyArgumentSourceEdge
+    ) && hir_type_compatible(expected_value, actual_value)
 }

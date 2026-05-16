@@ -50,6 +50,10 @@ pub(super) fn require_same_hir_type(
             if !effect_compatible(expected_effect, actual_effect)
                 && !effect_compatible(actual_effect, expected_effect)
             {
+                if apply_evidence_allows_residual_thunk_effect(source, expected_value, actual_value)
+                {
+                    return Ok(());
+                }
                 if std::env::var_os("YULANG_DEBUG_RUNTIME_TYPE").is_some() {
                     eprintln!(
                         "validate same hir thunk {source:?}: {expected_effect:?} / {actual_effect:?}"
@@ -84,6 +88,62 @@ pub(super) fn require_same_hir_type(
                 context: None,
             })
         }
+    }
+}
+
+fn apply_evidence_allows_residual_thunk_effect(
+    source: TypeSource,
+    expected_value: &RuntimeType,
+    actual_value: &RuntimeType,
+) -> bool {
+    matches!(
+        source,
+        TypeSource::ApplyEvidence
+            | TypeSource::ApplyArgumentEvidence
+            | TypeSource::ApplyArgumentSourceEdge
+    ) && hir_type_compatible(expected_value, actual_value)
+}
+
+fn hir_type_compatible(expected: &RuntimeType, actual: &RuntimeType) -> bool {
+    match (expected, actual) {
+        (RuntimeType::Core(expected), RuntimeType::Core(actual)) => {
+            core_types_compatible(expected, actual)
+        }
+        (RuntimeType::Core(expected), actual @ RuntimeType::Fun { .. })
+        | (actual @ RuntimeType::Fun { .. }, RuntimeType::Core(expected)) => {
+            core_types_compatible(expected, &diagnostic_core_type(actual))
+        }
+        (RuntimeType::Core(expected), RuntimeType::Thunk { value, .. }) => {
+            core_types_compatible(expected, &diagnostic_core_type(value))
+        }
+        (
+            RuntimeType::Fun {
+                param: expected_param,
+                ret: expected_ret,
+            },
+            RuntimeType::Fun {
+                param: actual_param,
+                ret: actual_ret,
+            },
+        ) => {
+            hir_type_compatible(expected_param, actual_param)
+                && hir_type_compatible(expected_ret, actual_ret)
+        }
+        (
+            RuntimeType::Thunk {
+                effect: expected_effect,
+                value: expected_value,
+            },
+            RuntimeType::Thunk {
+                effect: actual_effect,
+                value: actual_value,
+            },
+        ) => {
+            effect_compatible(expected_effect, actual_effect)
+                && hir_type_compatible(expected_value, actual_value)
+        }
+        (RuntimeType::Thunk { value, .. }, actual) => hir_type_compatible(value, actual),
+        _ => false,
     }
 }
 
