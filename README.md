@@ -166,7 +166,10 @@ if results, `for` body `if` var writes, and range iteration with console effects
 match the interpreter in the covered regression cases. Captured resumptions also
 rebase handler return-frame thresholds, covering indexed ref update continuations
 in CPS repr native. Unit-typed scalar roots display as `()` in the JIT display
-helper even though the scalar ABI carries them as `0`.
+helper even though the scalar ABI carries them as `0`. Effectful thunk forcing in
+the JIT also preserves the pushed post-continuation frame while the thunk body is
+evaluated, so recursive handler/resumption flows can return heap values such as
+tuples without leaking visible thunk handles.
 
 ## Development
 

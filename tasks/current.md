@@ -104,10 +104,9 @@ Cranelift backend を作る。
   差し替えた inherited arm の plain result は古い prompt へ包み直さず normal
   value として返す。JIT では selected handler env が RWH sibling 由来の場合だけ
   inherited escaped finish を normal value として扱う。`runs_indexed_ref_update_through_cps_repr`
-  で regression 化済み。`runs_junction_condition_without_once_through_cps_repr`、
-  nested undet 系、`runs_recursive_effect_handler_tuple_result_through_cps_repr` は
-  HEAD でも同じ失敗を再現するため、今回の回帰ではなく既存の native CPS routing
-  未解決として扱う。
+  で regression 化済み。`runs_junction_condition_without_once_through_cps_repr` と
+  nested undet 系は HEAD でも同じ失敗を再現するため、今回の回帰ではなく既存の
+  native CPS routing 未解決として扱う。
 - 2026-05-16 round-8 で `runs_effect_handler_guard_through_cps_repr` の JIT
   root display を修正した。CPS repr ABI の scalar lane は `int` / `bool` /
   `unit` を同じ `i64` に載せるため、root の静的 runtime type が `unit` のときだけ
@@ -116,6 +115,14 @@ Cranelift backend を作る。
   CPS eval 層でも `last` が open range fold を止められず memory exhaustion まで
   再帰するため、通常 `cargo test -p yulang-compile` からは `#[ignore]` で外した。
   未解決 bug としては残す。
+- 2026-05-16 round-9 で `runs_recursive_effect_handler_tuple_result_through_cps_repr`
+  の JIT 経路を修正した。`EffectfulForce` terminator は resume frame を push した後、
+  thunk 本体だけを `initial = return_frames.len()` の fresh eval で force し、force
+  が値を返した後に `initial = pre_push_count` へ戻して post continuation を消費する。
+  これで handler 内の `Perform` は post frame を capture できるが、thunk 本体の plain
+  `Return(Thunk)` は outer frame を先に消費しない。さらに force loop は abort /
+  ScopeReturn active で payload thunk を通常 thunk として剥き続けず、root abort
+  payload は残った prompt-exit frame を捨ててから必要なら force する。
 - effectful continuation function 内から pure callee function を `DirectCall` する
   場合は、eval context 切替 / abort-result routing / scope-return check を挟まず
   普通の Cranelift call として lower する。

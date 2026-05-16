@@ -2676,13 +2676,29 @@ fn lower_effectful_force_tail<M: Module>(
         immediate_force,
         functions,
     )?;
-    switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
+    // Force the thunk body with the just-pushed post frame inherited, not
+    // consumable. Effects inside the body can still capture it, and the
+    // EffectfulForce terminator consumes it only after forcing reaches a value.
+    let force_initial = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_return_frame_len_i64",
+        &[],
+    )?;
+    let force_eval = call_i64_helper(module_backend, builder, "yulang_cps_fresh_eval_id_i64", &[])?;
+    let _ = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_set_eval_context_i64",
+        &[force_eval, force_initial],
+    )?;
     let result = call_i64_helper(
         module_backend,
         builder,
         "yulang_cps_force_thunk_i64",
         &[thunk_value],
     )?;
+    switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
     let routed = call_i64_helper(module_backend, builder, "yulang_cps_return_i64", &[result])?;
     builder.ins().return_(&[routed]);
     Ok(())
@@ -6060,7 +6076,22 @@ fn take_native_i64_root_result(value: i64) -> i64 {
         value
     };
     let _ = yulang_cps_clear_scope_return_i64();
-    abort
+    // The root boundary owns abort extraction. Leftover prompt-exit frames came
+    // from skipped native callers and would re-apply handler value arms if a
+    // thunk payload had to be forced for display.
+    NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow_mut().clear());
+    force_native_i64_root_result(abort)
+}
+
+fn force_native_i64_root_result(value: i64) -> i64 {
+    let is_thunk = usize::try_from(value)
+        .ok()
+        .is_some_and(|value| NATIVE_CPS_I64_THUNKS.with(|thunks| thunks.borrow().contains(&value)));
+    if is_thunk {
+        yulang_cps_force_thunk_i64(value as usize)
+    } else {
+        value
+    }
 }
 
 fn native_i64_abort_is_routed_jump() -> bool {
@@ -10544,6 +10575,11 @@ extern "C" fn yulang_cps_force_thunk_i64(value: usize) -> i64 {
                 slot.value = result;
             }
         });
+        // Non-local flow payloads are not ordinary nested thunk results. Let
+        // the surrounding routing boundary consume or propagate them.
+        if yulang_cps_abort_active_i64() != 0 || yulang_cps_scope_return_active_i64() != 0 {
+            return result;
+        }
         value = result as usize;
     }
 }
