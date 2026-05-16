@@ -680,6 +680,31 @@ struct CpsCraneliftLowerCx<'a, 'builder, M: Module, L: CpsLiteralStore> {
     values: &'a mut LocalValueCache,
 }
 
+struct PerformTerminatorCase<'a> {
+    effect: &'a typed_ir::Path,
+    payload: CpsValueId,
+    resume: CpsContinuationId,
+    handler: CpsHandlerId,
+    blocked: Option<CpsValueId>,
+}
+
+struct EffectfulCallTerminatorCase<'a> {
+    target: &'a str,
+    args: &'a [CpsValueId],
+    resume: CpsContinuationId,
+}
+
+struct EffectfulForceTerminatorCase {
+    thunk: CpsValueId,
+    resume: CpsContinuationId,
+}
+
+struct EffectfulApplyTerminatorCase {
+    closure: CpsValueId,
+    arg: CpsValueId,
+    resume: CpsContinuationId,
+}
+
 impl HandlerRegistry {
     fn new(module: &CpsReprAbiModule) -> Self {
         let candidates = module
@@ -2166,24 +2191,53 @@ fn lower_effect_terminator<M: Module, L: CpsLiteralStore>(
             handler,
             blocked,
         } => {
-            lower_perform_terminator_case(cx, effect, *payload, *resume, *handler, *blocked)?;
+            lower_perform_terminator_case(
+                cx,
+                PerformTerminatorCase {
+                    effect,
+                    payload: *payload,
+                    resume: *resume,
+                    handler: *handler,
+                    blocked: *blocked,
+                },
+            )?;
         }
         CpsTerminator::EffectfulCall {
             target,
             args,
             resume,
         } => {
-            lower_effectful_call_terminator(cx, target, args, *resume)?;
+            lower_effectful_call_terminator(
+                cx,
+                EffectfulCallTerminatorCase {
+                    target,
+                    args,
+                    resume: *resume,
+                },
+            )?;
         }
         CpsTerminator::EffectfulForce { thunk, resume } => {
-            lower_effectful_force_terminator(cx, *thunk, *resume)?;
+            lower_effectful_force_terminator(
+                cx,
+                EffectfulForceTerminatorCase {
+                    thunk: *thunk,
+                    resume: *resume,
+                },
+            )?;
         }
         CpsTerminator::EffectfulApply {
             closure,
             arg,
             resume,
         } => {
-            lower_effectful_apply_terminator(cx, *closure, *arg, *resume)?;
+            lower_effectful_apply_terminator(
+                cx,
+                EffectfulApplyTerminatorCase {
+                    closure: *closure,
+                    arg: *arg,
+                    resume: *resume,
+                },
+            )?;
         }
     }
     Ok(())
@@ -2249,71 +2303,62 @@ fn lower_branch_terminator<M: Module, L: CpsLiteralStore>(
 
 fn lower_perform_terminator_case<M: Module, L: CpsLiteralStore>(
     cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
-    effect: &typed_ir::Path,
-    payload: CpsValueId,
-    resume: CpsContinuationId,
-    handler: CpsHandlerId,
-    blocked: Option<CpsValueId>,
+    case: PerformTerminatorCase<'_>,
 ) -> CpsReprCraneliftResult<()> {
     lower_perform_terminator(
         cx.module_backend,
         cx.builder,
         cx.function,
-        effect,
-        payload,
-        resume,
-        handler,
+        case.effect,
+        case.payload,
+        case.resume,
+        case.handler,
         cx.functions,
         cx.handlers,
-        blocked,
+        case.blocked,
     )
 }
 
 fn lower_effectful_call_terminator<M: Module, L: CpsLiteralStore>(
     cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
-    target: &str,
-    args: &[CpsValueId],
-    resume: CpsContinuationId,
+    case: EffectfulCallTerminatorCase<'_>,
 ) -> CpsReprCraneliftResult<()> {
     lower_effectful_call_tail(
         cx.module_backend,
         cx.builder,
         cx.function,
-        target,
-        args,
-        resume,
+        case.target,
+        case.args,
+        case.resume,
         cx.functions,
     )
 }
 
 fn lower_effectful_force_terminator<M: Module, L: CpsLiteralStore>(
     cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
-    thunk: CpsValueId,
-    resume: CpsContinuationId,
+    case: EffectfulForceTerminatorCase,
 ) -> CpsReprCraneliftResult<()> {
     lower_effectful_force_tail(
         cx.module_backend,
         cx.builder,
         cx.function,
-        thunk,
-        resume,
+        case.thunk,
+        case.resume,
         cx.functions,
     )
 }
 
 fn lower_effectful_apply_terminator<M: Module, L: CpsLiteralStore>(
     cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
-    closure: CpsValueId,
-    arg: CpsValueId,
-    resume: CpsContinuationId,
+    case: EffectfulApplyTerminatorCase,
 ) -> CpsReprCraneliftResult<()> {
     lower_effectful_apply_tail(
         cx.module_backend,
         cx.builder,
         cx.function,
-        closure,
-        arg,
-        resume,
+        case.closure,
+        case.arg,
+        case.resume,
         cx.functions,
     )
 }
