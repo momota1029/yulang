@@ -1,3 +1,58 @@
+## 進捗メモ（2026-05-16）
+
+**Priority #1（record_spreads visitor 漏れ）— DONE**
+
+- `compact_pos_type`、`compact_neg_type`（best-effort: Neg は spread variant が
+  無いので fields のみ Neg::Record 化、tail は drop して注記）、
+  `collect_compact_type_free_vars`、`root_non_fun_parts_empty`、
+  `single_compact_var`（freeze / compact_var 両方）、`compact_type_is_empty`、
+  `compact_type_preserves_through`、`compact_pos_parts_with_subst`、
+  `lower_levels_compact_type`、`absorb_upper_vars_from_row_lower`、
+  `normalize_rewritten_compact_type_in_place`、
+  `rewrite_compact_type_vars_in_place`、
+  `collect_effect_atom_interval_pairs` まで通した。
+- regression `freezes_pub_record_tail_spread_through_compact` を追加（`pub make_full v = { x: 1, ..v }`）。
+
+**Priority #3（root 関数 body 構築と free-var 収集の差分）— DONE**
+
+- `collect_compact_root_body_free_vars` を `compact_root_fun_pos_body` と
+  同じ slice 取り方（arg/arg_eff は common、ret/ret_eff は merge）に揃えた。
+  これで upper 側だけに出る変数が body に混ざりつつ quantified から
+  漏れる経路が閉じた。
+- 既存テスト全 0 failed。
+
+**Priority #2（frozen body vs compact lower 経路の統一）— 保留**
+
+- `propagate_upper_to_lowers` の `constrain_compact_instance_to_neg` を
+  `constrain_frozen_instance_to_neg` に差し替えると、`hover_resolves_method_selection`
+  の signature 表示が変わって test が落ちる。frozen body は
+  `compact_root_fun_pos_body` で lower/upper を merge した形なので、
+  upper info を逆向きに lower 側 chain に流すことで意図しない narrowing
+  が起きる可能性があり、結局やめた。
+- 正攻法はおそらく「frozen body の構築自体を lower 一本に統一して、
+  signature 表示も同じ値を使う」方向か、もしくは
+  `propagate_upper_to_lowers` から流すのは body ではなく
+  lower の方を materialize したものに揃える方向だが、いずれも
+  hover / signature display との接点を一緒に直さないと既存
+  semantics を崩す。次セッションで切り出してやる方が安全。
+
+**Priority #4（typed effect handler の型引数伝播）— 未着手**
+
+- `typed_effect_handler_inference.yu` の症状で挙がっている、`act state 'a`
+  に `[state int]` を渡しても handler 内で `'a` が int に固まらない件は
+  これとは別の handler 特化経路（role / dispatch / scheme 凍結を絡む）。
+  今回は触っていない。
+
+**残っている類似バグ（destructure 側の record_spread）**
+
+- `pub get_rest({x, ..rest}) = rest` を check すると `{x: α} -> {x: α}` に
+  落ちる症状は Neg 側に spread variant が無いという architectural な
+  制約に起因していて、Visitor patch だけでは届かない。Neg::RecordTailSpread /
+  Neg::RecordHeadSpread を新設するか、pattern lowering で spread の demand
+  を別経路に逃がすかの設計判断が要る。
+
+---
+
 うん、ぶっちゃけ **あると思うよ〜**。
 しかも「型推論後の単一化がちょっと弱い」だけじゃなくて、**凍結した scheme と compact 化した型の表現がズレて、後段で型情報が落ちる**タイプのバグが見える。
 
