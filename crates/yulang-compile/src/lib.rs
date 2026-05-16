@@ -504,6 +504,28 @@ run: log::put 5
     }
 
     #[test]
+    #[ignore = "JIT does not actually break on `last`; loop runs to range exhaustion (also slow per-iter)"]
+    fn runs_finite_range_for_loop_last_breaks_in_jit() {
+        // If `last` truly breaks at x == 5, this finishes after a
+        // handful of iterations regardless of the upper bound; if it
+        // does not, the loop has to scan all 10000 values and the
+        // per-iteration JIT cost makes it look like a hang.
+        assert_source_cps_repr_jit_display_with_std(
+            r#"use std::flow::*
+
+{
+    for x in 0..<10000:
+        if x == 5: last
+        else: ()
+    5
+}
+"#,
+            vec!["5"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     #[ignore = "native CPS open range + last currently recurses until memory exhaustion"]
     fn runs_open_range_for_loop_last_through_cps_repr() {
         assert_source_cps_repr_jit_display_with_std(
