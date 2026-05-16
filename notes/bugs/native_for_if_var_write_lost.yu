@@ -1,0 +1,43 @@
+-- bug (native): `for x in ...:` body の中に `if` がいて、その分岐の
+-- どちらかで `&var = ...` を書くと、書き戻しが反映されず var が初期値
+-- のまま残る。VM は普通に集計できる。
+--
+-- 2026-05-16 観測。
+--
+-- 期待 (web/docs/reference/control-flow.md と idioms.md):
+--   my $c = 0
+--   for x in 0..<10:
+--       if x < 5:
+--           &c = $c + x
+--       else: ()
+--   $c                  // 0+1+2+3+4 = 10
+--
+-- 実際 (上記スクリプト):
+--   VM     `10`
+--   native `0`            (`if` 入り branch の `&c = ...` が全て無視される)
+--
+-- 切り分け:
+--   ☆ `for` + var write のみ (if 抜き)
+--     my $c = 0; for x in 0..<10: &c = $c + x; $c
+--     → 両方とも `45` (OK)
+--
+--   ☆ `for` + `if` (どちらの分岐に書いても) + var write
+--     if x < 5: &c = ... else: ()        → VM 10 / native 0
+--     if x == 5: () else: &c = ...       → VM 40 / native 0
+--     if x == 5: last else: &c = $c + 1  → VM 5  / native 0
+--     if x == 5: next else: &c = $c + x  → VM 40 / native 0
+--
+--   ☆ `last` / `next` 単独が原因ではない (上の if x < 5 ケースは control op なし)。
+--      `if` の branch 経由で var lane へ戻る path が native では失敗している。
+--
+-- 影響:
+--   - 「for で要素ごとに条件を見て集計する」は最も基本的な loop。
+--     docs / idioms にも普通に出てくる構造で、その大半が native では
+--     全 iteration 無視されて初期値に潰れる。
+
+my $c = 0
+for x in 0..<10:
+    if x < 5:
+        &c = $c + x
+    else: ()
+$c

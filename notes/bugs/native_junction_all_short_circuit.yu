@@ -1,0 +1,38 @@
+-- bug (native): `all xs < c` の `all` が、`xs` の中に `c >= 要素` を
+-- 満たす要素があっても native では `true` 側を選んでしまう。VM は正しく
+-- `all` 全称量化として動く。
+--
+-- 2026-05-16 観測。
+--
+-- 期待 (web/docs/reference/idioms.md / std/undet.md の "Junctions" 節):
+--   `all xs < c` は ∀x ∈ xs. x < c。
+--   よって [1, 2, 3] と c = 2 では、2 < 2 が偽なので全体は偽。
+--   if all [1, 2, 3] < 2: "all small" else: "some big"
+--   → "some big"
+--
+-- 実際:
+--   VM      `"some big"`     (期待通り)
+--   native  `"all small"`    (`all` が間違って真になる)
+--
+-- 切り分け:
+--   if all [1, 2, 3] < 5:  → 両方 "all small" (全要素 < 5 で真、OK)
+--   if all [1, 2, 3] < 2:  → 食い違い (上記、native は誤って真)
+--   if any [1, 2, 3] > 2:  → 両方 "some big" (any は OK)
+--
+-- = `any` 側は通る。`all` の short-circuit / false 確定の伝播が native で
+--   ずれている。最初の要素 1 < 2 が真なので `any` を見ているような挙動。
+
+if all [1, 2, 3] < 5:
+    "all small"
+else:
+    "some big"
+
+if all [1, 2, 3] < 2:
+    "all small"
+else:
+    "some big"
+
+if any [1, 2, 3] > 2:
+    "some big"
+else:
+    "all small"

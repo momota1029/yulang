@@ -1,0 +1,33 @@
+-- bug (native): `sub:` 内の `for` body から `return` しても、native は
+-- early return しないで `for` を最後まで回し、後続の fallback 式まで
+-- 評価してしまう。
+--
+-- 2026-05-16 観測。同日付の `index.md` 解決済みリストにある
+-- `native_sub_for_return_int_value_garbled.yu` と同じ shape だが、
+-- 失敗 mode が「値破損」ではなく「return が発火せず fall-through」に
+-- なっている点が違う。WIP の修正で値 lane は治ったが、scope-return の
+-- 経路自体が今は塞がってる感じに見える。
+--
+-- 期待 (web/docs/reference/control-flow.md の `sub` / `return` 節):
+--   sub:
+--       for x in 0..3:
+--           if x == 1: return 999
+--           else: ()
+--       -1
+--   → 999 (x = 1 で return が発火、fallback には到達しない)
+--
+-- 実際:
+--   yulang run --interpreter --print-roots → 999  (期待通り)
+--   yulang run --native      --print-roots → -1   (fall-through、fallback の値)
+--
+-- 切り分け:
+--   sub: return 1; 0                    → 両方とも 1 (OK)
+--   sub: for x in 0..3: ... -1          → 食い違い (上記)
+--   既存 `native_sub_for_return_int_value_garbled.yu` の `1 + r` 版も
+--   今は VM `2`、native `100` (= 1 + 99、fallback)。やはり return 不発火。
+
+sub:
+    for x in 0..3:
+        if x == 1: return 999
+        else: ()
+    -1

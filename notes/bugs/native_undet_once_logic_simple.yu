@@ -1,0 +1,45 @@
+-- bug (native): `std::undet` の simple な `.once` / `.logic` が VM と
+-- 値も形もズレる。
+--
+-- 2026-05-16 観測。
+--
+-- 期待 (web/docs/reference/std/undet.md より):
+--   use std::undet::*
+--   (each [1, 2, 3]).list   → [1, 2, 3]                (list 'a)
+--   (each [1, 2, 3]).once   → just 1                   (opt 'a, 最初の解)
+--   (each [1, 2, 3]).logic  → [1, 2, 3]                (list 'a, BFS 全解)
+--
+-- 実際:
+--   .list  → 両方とも `[1, 2, 3]`  (OK)
+--   .once  → VM `just 1`        / native `just 0`              (値違い)
+--   .logic → VM `[1, 2, 3]`     / native `[475301744]`         (形・値破損)
+--
+-- かつ、複数 root を同じファイルに置くと native 側で前の値が後ろの root に
+-- 漏れることもある。たとえば
+--
+--   (each [1, 2, 3]).list
+--   (each [1, 2, 3]).once
+--
+-- は native だと両方とも `[1, 2, 3]` として出る (VM は `[1, 2, 3]` /
+-- `just 1`)。各 root 単独だとそうならないので、`--print-roots` 経路の
+-- 値受け渡しが root 間で混線している。
+--
+-- 補足:
+--   - 既存の index.md (round-6) は guard + open range + `.once` の二系統の
+--     ズレを記録しているが、今回はそれと違って effect free の有限 list
+--     からの `.once` / `.logic` でも崩れる。
+--   - 大きい pythagorean shape の `.list` (guard 入り) は通る:
+--       ({ my a = each 1..10; my b = each a..10; my c = each b..10;
+--          guard: a*a + b*b == c*c; (a, b, c) }).list
+--     は VM / native 両方とも `[(3, 4, 5), (6, 8, 10)]`。
+--   - 補足の補足: `(each 1..).once` のような open range 上の `.once` は
+--     native では stack overflow して落ちる
+--     (`thread 'main' has overflowed its stack`)。VM は `just 1`。
+--     `.once` は 1 つ目で打ち切るはずだが、native では prompt 内の
+--     resumption が無限に積まれる。
+
+use std::undet::*
+
+(each [1, 2, 3]).list
+(each [1, 2, 3]).once
+(each [1, 2, 3]).logic

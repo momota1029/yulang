@@ -1,0 +1,39 @@
+-- bug (native): `loop initial with: our loop state = if cond: state else:
+-- loop (...)` の戻り値が、native では条件の bool が値 lane に漏れたかの
+-- ように 0 / 1 になる。state の値が int であっても無視される。
+--
+-- 2026-05-16 観測。
+--
+-- 期待 (web/docs/reference/idioms.md "with: blocks" / `std::flow::loop`):
+--   `loop n with: our loop state = if state == 5: state else: loop (state + 1)`
+--   は `n` を 5 まで進めて 5 を返す関数。
+--
+-- 実際:
+--   f 5  → VM 5 / native 1        (即 base case、条件 true、native は 1)
+--   f 4  → VM 5 / native 0        (1 step、最後の base case、native は 0)
+--   f 3  → VM 5 / native 0
+--
+-- 切り分け:
+--   loop start with: our loop state = state       (passthru、if なし)
+--     passthru 0 / 7 / 42 / -3 → 両方とも一致 (OK)
+--
+--   loop なしの素直な recursion
+--     my f s = if s == 5: s else: f (s + 1)
+--     f 5 / 4 / 3 → 両方とも `5` (OK)
+--
+--   = `loop with:` の `if` 含む body だけ native で壊れる。
+--     base case `state` を return する分岐の値が、bool branch の lane
+--     から来る `1`/`0` に置き換わる。
+
+use std::flow::loop
+
+my f(start: int): int = loop start with:
+    our loop state =
+        if state == 5:
+            state
+        else:
+            loop (state + 1)
+
+f 5
+f 4
+f 3

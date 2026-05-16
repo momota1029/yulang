@@ -1,0 +1,24 @@
+-- `list.show` / `list.debug` が native だけ `"]"` を返す。
+-- 2026-05-16 確認。
+--
+-- 期待 (web/docs/reference/strings.md より):
+--   [1, 2, 3].show  // "[1, 2, 3]"
+--   ["a", "b"].show // "[a, b]"
+--   [1, 2, 3].debug // "[1, 2, 3]"
+--
+-- 観測:
+--   yulang run --interpreter --print-roots → "[1, 2, 3]" / "[a, b]" / "[1, 2, 3]" (OK)
+--   yulang run --native      --print-roots → "]" / "]" / "]" (NG)
+--
+-- root 表示（`.show` を付けない `[1, 2, 3]` 単体）は native でも
+-- `[1, 2, 3]` と出るので、native の `list.show` / `list.debug` の
+-- 結果文字列を組み立てる経路で末尾 `]` だけが残る何かが起きていそう。
+-- bool list, str list, int list で全部 `"]"` になるので要素型には依らない。
+--
+-- 文字列補間 (`%{...}`) 経由でも同じ問題が出る:
+--   "vals = %{[1, 2, 3]}"  → native `"vals = ]"`、VM `"vals = [1, 2, 3]"`
+
+[1, 2, 3].show
+["a", "b"].show
+[1, 2, 3].debug
+["a", "b"].debug

@@ -1,0 +1,60 @@
+-- bug (native): `error E:` 宣言 + `fail` + `E::wrap` の基本 flow が
+-- native では塞がっている。docs (reference/errors.md, reference/idioms.md)
+-- 推奨の書き方そのまま。
+--
+-- 2026-05-16 観測。
+--
+-- 期待 (web/docs/reference/errors.md より):
+--   error fs_err:
+--       not_found str
+--
+--   my read_or_throw(p: str): [fs_err] str =
+--       if p == "ok": "<content>"
+--       else: fail fs_err::not_found p
+--
+--   fs_err::wrap: read_or_throw "missing"
+--   → err (fs_err::not_found "missing")
+--
+-- 観測:
+--
+--   ☆ 経路 1: `fail` 使用 → native は CPS 段で reject
+--      `fs_err::wrap: my _ = fail fs_err::not_found "x"; 0`
+--      → VM      `err not_found "x"`
+--      → native  failed to compile native effects object:
+--                CPS lowering does not support free variable
+--                `std::error::Throw::throw` yet
+--
+--   ☆ 経路 2: `fail` 抜きで effect op を直呼び → native は runtime garbage
+--      `fs_err::wrap: fs_err::not_found "x"; 0`
+--      → VM      `err not_found "x"`
+--      → native  `663089232` (boxed pointer の low bits 風 garbage)
+--
+--   ☆ 経路 3: `wrap` 内で `[fs_err]` を持つ helper を呼ぶフル例
+--      → VM      期待通りに `ok` / `err` を返す
+--      → native  stack overflow:
+--                `thread '<unknown>' has overflowed its stack`
+--                `fatal runtime error: stack overflow, aborting`
+--
+-- 影響:
+--   - `error E:` は reference/idioms.md でも「`enum` を手書きするより
+--     これを使え」と推奨されている第一級の機能。
+--   - その第一級の機能が、`fail` でも、直呼びでも、helper 経由でも、
+--     どこかしらで native だけ落ちる。
+--   - 経路 2 で値が garbage 化するのは、result lane に `err` を載せる
+--     箇所で payload (`str`) の box / unbox が崩れている可能性。
+--   - 経路 3 の stack overflow は、recursive shallow handler `wrap` の
+--     self-rewrap が native 側で末尾呼び出し最適化されずに無限積まれる
+--     疑いがある (VM では入念に scope 管理されている)。
+
+error fs_err:
+    not_found str
+
+my read_or_throw(p: str): [fs_err] str =
+    if p == "ok": "<content>"
+    else: fail fs_err::not_found p
+
+my safe_read(p: str): result str fs_err = fs_err::wrap:
+    read_or_throw p
+
+(safe_read "ok")
+(safe_read "missing")

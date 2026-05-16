@@ -1,0 +1,40 @@
+-- bug (native): `my $xs = ...; &xs[i] = v` と `&xs.push v` が
+-- native では正しく動かない。前者は読み戻し時に garbage、後者は
+-- そもそも push が反映されない。
+--
+-- 2026-05-16 観測。
+--
+-- 期待 (web/docs/reference/std/list.md "Mutable list references"):
+--   my $xs = [1, 2, 3]
+--   &xs[1] = 99
+--   $xs                  // [1, 99, 3]
+--   &xs.push 4
+--   $xs                  // [1, 99, 3, 4]
+--
+-- 実際:
+--   ☆ index-assign:
+--     my $xs = [1, 2, 3]; &xs[1] = 99; $xs
+--     → VM     `[1, 99, 3]`
+--     → native `0`               (list 自体が壊れて int scalar 0 化)
+--
+--   ☆ push:
+--     my $xs = [1, 2, 3]; &xs.push 4; $xs
+--     → VM     `[1, 2, 3, 4]`
+--     → native `[1, 2, 3]`       (push 操作が反映されない)
+--
+-- 比較対象 (int の `&x =` は両方とも OK):
+--   my $x = 10; &x = $x + 5; $x
+--   → VM / native とも `15`
+--
+-- = scalar `&x =` は通る。list ref の `&xs[i] =` と `&xs.push` だけ崩れる。
+--   `Index ref _ (list _)` impl 経由の write back と、`.push` 経由の
+--   list ref mutation が native の effect / cell 書き戻し path に
+--   繋がっていない疑い。
+
+my $xs = [1, 2, 3]
+&xs[1] = 99
+$xs
+
+my $ys = [1, 2, 3]
+&ys.push 4
+$ys

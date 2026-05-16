@@ -160,6 +160,93 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   へ漏れる native CPS eval routing bug と見る。通常 test suite を壊さないため、
   現時点では該当 regression は `#[ignore]` として追加している。
 
+## 現在の未解決（2026-05-16 round-7 / 仕様 docs 順守の素朴な書き方からの収集）
+
+`web/docs/reference/` を順に読みながら docs 通りに書いた snippet を
+`yulang run --interpreter` と `yulang run --native` で比較し、
+食い違いが出たものを 11 件記録した。round-6 の CPS lowering / undet 系より
+広い範囲をカバーしている (display, ref, loop, error wrap, junction, for+if 等)。
+
+### 値違い / 値破損
+
+- [`native_list_show_returns_close_bracket.yu`](native_list_show_returns_close_bracket.yu)
+  — `[1, 2, 3].show` / `[1, 2, 3].debug` が native では `"]"` だけになる。
+  要素型 (int / str / bool) や長さに依らず常に `"]"`。文字列補間
+  `%{[1, 2, 3]}` 経由でも `"vals = ]"`。root pretty-print の素 list 表示は
+  両 backend で OK なので、`Display::show` / `Debug::debug` の組み立て側が
+  落ちている。
+- [`native_sub_for_return_fall_through.yu`](native_sub_for_return_fall_through.yu)
+  — `sub:` 内の `for` body から `return` が発火せず、`for` を最後まで回した
+  あと fallback 式まで評価する。期待 `999` / 実 `-1`。
+  既存解決済み [`native_sub_for_return_int_value_garbled.yu`](native_sub_for_return_int_value_garbled.yu)
+  と同じ shape の **regression**。当時は値破損だったが、今は早期 return
+  自体が消えている (`1 + r` 版も VM `2` / native `100 (= 1 + 99)`)。
+- [`native_handler_self_rewrap_no_accumulate.yu`](native_handler_self_rewrap_no_accumulate.yu)
+  — self-recursive shallow handler が 2 つ目以降の op に対して k resume
+  しても結果が積まれない。`log::put ("a", 1); log::put ("b", 2)` で
+  VM `("ab", 3)` / native `("a", 1)` (最初の put 分だけ)。
+- [`native_undet_once_logic_simple.yu`](native_undet_once_logic_simple.yu)
+  — 有限 list の `(each [1, 2, 3]).once` が native で `just 0`、`.logic` が
+  `[<pointer>]`。`.list` 単独は OK。open range の `(each 1..).once` は
+  native で stack overflow。複数 root を同じファイルに置くと前 root の値が
+  後 root に漏れることもある (`.list; .once` で native は両方 `[1, 2, 3]`)。
+- [`native_undet_branch_list_returns_scalar.yu`](native_undet_branch_list_returns_scalar.yu)
+  — `(branch()).list` が native では list ではなく scalar (`0`)。
+  `(if branch(): 1 else: 2).list` も scalar `1`。`each` 経由 + `guard` 入りは
+  通るので、bare `branch` 直呼び限定。round-6 メモの `[[1], [0]]` とは異なり、
+  今の build では value arm が list に積まれず素値で漏れる。
+- [`native_junction_all_short_circuit.yu`](native_junction_all_short_circuit.yu)
+  — `all [1, 2, 3] < 2` が native で真になる (期待 偽: `2 < 2` で全称が壊れる)。
+  `< 5` は両 backend 真、`any [1, 2, 3] > 2` は両 backend 真で OK なので、
+  `all` の false-確定 propagation が `any` 寄りに崩れている。
+- [`native_loop_with_returns_bool_lane.yu`](native_loop_with_returns_bool_lane.yu)
+  — `loop initial with: our loop state = if cond: state else: loop (...)` の
+  戻り値が、native では `state` ではなく cond 由来の `0` / `1` になる。
+  `f 5 → 1`、`f 4 → 0`、`f 3 → 0` (期待 全部 `5`)。`if` 抜きの passthru
+  `our loop state = state` は両 backend で正しく state を返すので、`if`
+  branch join 直後の値 lane だけが native で bool に潰れる。
+- [`native_for_if_var_write_lost.yu`](native_for_if_var_write_lost.yu)
+  — `for x in ...:` body 内の `if` で `&var = ...` を書くと、native では
+  どの分岐に書いても全 iteration ぶん無視されて var が初期値のまま残る。
+  `if` 抜きの `for x: &c = $c + x` は両 backend で正しく集計できるので、
+  `if` branch 経由の var write back path が native で塞がっている。
+  `case` で同じ shape を書くと両 backend 通る。
+- [`native_for_range_console_only_first.yu`](native_for_range_console_only_first.yu)
+  — `for x in 0..<3: say x.show` が native では 1 iteration 目だけ実行して
+  終わる。閉区間 `0..3` / 開区間 `0..<3` どちらでも同じ。同 body を
+  `for x in [10, 20, 30]:` (list iteration) や `&c = ...` (var-write) に
+  すると両 backend で全 iteration 走る。range Fold の continuation が
+  native の console handler frame で閉じてしまう疑い。
+
+### compile-time reject / runtime crash
+
+- [`native_error_wrap_basic_flow.yu`](native_error_wrap_basic_flow.yu)
+  — docs (`reference/errors.md`, `idioms.md`) 推奨の `error E:` + `fail` +
+  `E::wrap` flow が、native の 3 経路全部で塞ぐ:
+  - `fail E::variant payload`: native CPS 段で
+    `CPS lowering does not support free variable 'std::error::Throw::throw' yet`
+    で reject。
+  - `E::variant payload` (直呼び、`fail` 抜き): native は runtime で boxed
+    pointer 風の garbage 値 (`663089232`) を返す。
+  - `wrap` 内で `[E]` を持つ helper 経由: native で stack overflow
+    (`thread '<unknown>' has overflowed its stack`)。
+- [`native_ref_list_mut_lost.yu`](native_ref_list_mut_lost.yu)
+  — `std/list.md` Mutable list references 節の docs 通りの書き方が崩れる。
+  `&xs[i] = v` で読み戻し `$xs` が scalar `0` 化、`&xs.push v` で push が
+  反映されない (`$xs` は元の `[1, 2, 3]` のまま)。scalar `&x = ...` は OK。
+  `Index ref _ (list _)` impl と `.push` 経由の write back が native の
+  effect / cell lane に届いていない。
+
+### 既存 round-6 への補足観察
+
+- round-6 で「`(branch()).list` は `[[1], [0]]`」とあるが、今の build では
+  scalar `0` に潰れる (#native_undet_branch_list_returns_scalar 参照)。
+- `Ord::lt` / `Eq::eq` が free variable として CPS lowering に届く経路は
+  まだあり、native は `"a" < "b"` / `(1, 2) == (1, 2)` を含むファイルを
+  そもそも compile できない。VM 側は runtime で blocked になるだけ。
+- 既存解決済みの `native_sub_for_return_int_value_garbled.yu` は今日の
+  build で再現する (上の `native_sub_for_return_fall_through.yu` 参照)。
+
 ## 解決済み（2026-05-14 時点で再現せず）
 
 - [`native_handler_result_display_silent_abort.yu`](native_handler_result_display_silent_abort.yu)

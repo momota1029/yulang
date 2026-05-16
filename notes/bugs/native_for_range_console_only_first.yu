@@ -1,0 +1,40 @@
+-- bug (native): `for x in range: console-effect` の組み合わせで、native
+-- は 1 iteration 目だけ実行して終わる。同じ body を list iteration や
+-- var-write に変えると全 iteration 走る。
+--
+-- 2026-05-16 観測。
+--
+-- 期待 (web/docs/reference/control-flow.md):
+--   for x in 0..<3:
+--       say x.show
+--   → 0, 1, 2 を 3 行出力 (改行は `say` 由来)
+--
+-- 実際:
+--   ☆ range + say (両端問わず)
+--     for x in 0..<3: say x.show  → VM `0/1/2/()`  native `0/()`
+--     for x in 0..3:  say x.show  → VM `0/1/2/3/()` native `0/()`
+--     for x in 0..<3: say "iter"  → VM `iter*3/()`  native `iter/()`
+--
+--   ☆ list + say (OK)
+--     for x in [10, 20, 30]: say x.show
+--     → 両方とも 10/20/30 を 3 回 print
+--
+--   ☆ range + var-write (OK)
+--     my $c = 0; for x in 0..<10: &c = $c + x; $c
+--     → 両方とも 45
+--
+-- 切り分け:
+--   - body が console effect (say / print / println / println_native) で
+--     かつ iteration 元が range のときだけ、native の `for` 展開が 1 回で
+--     終わる。
+--   - body が `&var = ...` (var effect) や effectful でない値計算なら、
+--     range 上の `for` も問題なく回る。
+--   - list 上の `for` は body の effect の種類によらず回る。
+--
+-- 推測:
+--   `std::range` 経由の Fold で console effect が propagate する時、
+--   native の CPS では handler-frame の continuation が range の `next`
+--   を呼び戻さないまま閉じてしまう。list の Fold は別の経路を通る。
+
+for x in 0..<3:
+    say x.show

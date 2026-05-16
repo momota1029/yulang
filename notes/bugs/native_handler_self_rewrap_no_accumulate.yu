@@ -1,0 +1,44 @@
+-- bug (native): self-recursive shallow handler (`run h: ... = catch action:
+-- op p, k -> run h (k ())`) が native では「最初の operation 1 つ」しか
+-- 処理せず、後続の op で k を resume したあとの値が積み上がらない。
+--
+-- 2026-05-16 観測。
+--
+-- 期待 (web/docs/reference/effects.md の "Handlers are shallow" 節):
+--   shallow handler を再帰で巻き直すと、computation が同じ effect を何度
+--   発火しても全て拾える。
+--
+-- 期待結果:
+--   run_log: log::put ("a", 1); log::put ("b", 2); ("", 0)
+--   → ("ab", 3)   (= "a" + "b" + "", 1 + 2 + 0)
+--
+-- 実際:
+--   VM      `("ab", 3)`   (期待通り)
+--   native  `("a", 1)`    (最初の log::put 分しか反映されない)
+--
+-- 切り分け:
+--   - payload が tuple `(s, n)` でも単一値でも、self-rewrap で k を再帰
+--     handler に通している部分が native では 2 回目以降効かない感じ。
+--   - 同じ shape の単一 op の handler (08_handler.yu の greet::ask / hello)
+--     は両 backend 通る — そこは k を resume してから即 v -> v に落ちる
+--     形だから、self-rewrap の自己呼び出し回数が 1 で済む。
+--
+-- 関連:
+--   index.md 解決済みリストの `native_handler_recursive_extra_arg_runtime.yu`
+--   と近い構造だが、こちらは payload を `+` 連結 / `+` 加算で集約するだけで
+--   再現する。
+
+act log:
+    our put: (str, int) -> ()
+
+my run_log(action: [log] (str, int)): (str, int) = catch action:
+    log::put (s, n), k ->
+        my rest = run_log (k ())
+        my (rs, rn) = rest
+        (s + rs, n + rn)
+    v -> ("", 0)
+
+run_log:
+    log::put ("a", 1)
+    log::put ("b", 2)
+    ("", 0)

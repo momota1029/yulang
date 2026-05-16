@@ -1,0 +1,36 @@
+-- bug (native): `(branch()).list` および `(if branch(): a else: b).list`
+-- が native では list ではなく単一値を返す。VM は正しく
+-- 両方の分岐結果を集めた list を返す。
+--
+-- 2026-05-16 観測。
+--
+-- 期待 (web/docs/reference/std/undet.md と effects.md より):
+--   use std::undet::*
+--   (branch()).list                 → [true, false]    (list bool)
+--   (if branch(): 1 else: 2).list   → [1, 2]           (list int)
+--
+-- 実際:
+--   (branch()).list:
+--     VM      `[true, false]`
+--     native  `0`                  (scalar int 0、list ですらない)
+--
+--   (if branch(): 1 else: 2).list:
+--     VM      `[1, 2]`
+--     native  `1`                  (最初の分岐の値だけが scalar で返る)
+--
+-- 比較対象 (guard 入りはこのテストでは通る):
+--   ({ my x = each [1, 2, 3]; guard: x > 1; x }).list
+--   → VM / native とも `[2, 3]`
+--
+-- = `branch` を `each` ではなく直接呼んだ場合の `.list` のみ崩れる。
+--   `each` で wrap した list 反復は OK。
+--
+-- 関連:
+--   index.md round-6 WIP では `(branch()).list` が native CPS eval で
+--   `[[1], [0]]` になると記録されているが、今は scalar `0` が出る。
+--   value arm が list に積まれず素値で漏れている。
+
+use std::undet::*
+
+(branch()).list
+((if branch(): 1 else: 2)).list
