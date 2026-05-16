@@ -2022,15 +2022,12 @@ fn lower_handler_stmt<M: Module>(
                     owner_function,
                     inherited,
                 ];
-                for slot in &escape_cont.environment {
-                    validate_environment_lane(function, slot.value, slot.lane)?;
-                    args.push(read_value(builder, function, slot.value)?);
-                }
-                let escape_targets = escape_cont
-                    .environment
-                    .iter()
-                    .map(|slot| builder.ins().iconst(types::I64, slot.value.0 as i64))
-                    .collect::<Vec<_>>();
+                args.extend(read_continuation_environment_values(
+                    builder,
+                    function,
+                    escape_cont,
+                )?);
+                let escape_targets = continuation_environment_targets(builder, escape_cont);
                 let (target_ptr, target_len) = stack_i64_slice(builder, &escape_targets)?;
                 let _ = call_i64_helper(
                     module_backend,
@@ -2049,11 +2046,8 @@ fn lower_handler_stmt<M: Module>(
                     types::I64,
                     i64::from(resume_continuation_immediately_forces_param(value_cont)),
                 );
-                let mut value_env = Vec::with_capacity(value_cont.environment.len());
-                for slot in &value_cont.environment {
-                    validate_environment_lane(function, slot.value, slot.lane)?;
-                    value_env.push(read_value(builder, function, slot.value)?);
-                }
+                let value_env =
+                    read_continuation_environment_values(builder, function, value_cont)?;
                 if value_env.is_empty() {
                     let _ = call_i64_helper(
                         module_backend,
@@ -2517,11 +2511,7 @@ fn lower_effectful_apply_tail<M: Module>(
         .ins()
         .iconst(types::I64, function_runtime_id(function, functions)? as i64);
     let immediate_force_value = builder.ins().iconst(types::I64, i64::from(immediate_force));
-    let mut env_args = Vec::with_capacity(resume_cont.environment.len());
-    for slot in &resume_cont.environment {
-        validate_environment_lane(function, slot.value, slot.lane)?;
-        env_args.push(read_value(builder, function, slot.value)?);
-    }
+    let env_args = read_continuation_environment_values(builder, function, resume_cont)?;
 
     let is_resumption = call_i64_helper(
         module_backend,
@@ -2667,6 +2657,30 @@ fn check_resume_continuation_shape(
         });
     }
     Ok(())
+}
+
+fn read_continuation_environment_values(
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    continuation: &CpsReprAbiContinuation,
+) -> CpsReprCraneliftResult<Vec<ir::Value>> {
+    let mut values = Vec::with_capacity(continuation.environment.len());
+    for slot in &continuation.environment {
+        validate_environment_lane(function, slot.value, slot.lane)?;
+        values.push(read_value(builder, function, slot.value)?);
+    }
+    Ok(values)
+}
+
+fn continuation_environment_targets(
+    builder: &mut FunctionBuilder<'_>,
+    continuation: &CpsReprAbiContinuation,
+) -> Vec<ir::Value> {
+    continuation
+        .environment
+        .iter()
+        .map(|slot| builder.ins().iconst(types::I64, slot.value.0 as i64))
+        .collect()
 }
 
 fn handler_arm_continues_to_installed_escape(
