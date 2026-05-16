@@ -2503,6 +2503,12 @@ impl Lowerer<'_> {
         actual: &typed_ir::Type,
         expected: &typed_ir::Type,
     ) -> Option<typed_ir::Path> {
+        if implicit_cast_endpoint_is_open(actual) || implicit_cast_endpoint_is_open(expected) {
+            return None;
+        }
+        if core_types_compatible(actual, expected) && core_types_compatible(expected, actual) {
+            return None;
+        }
         self.graph
             .role_impls
             .iter()
@@ -2537,6 +2543,14 @@ impl Lowerer<'_> {
                     .map(|member| member.value.clone())
             })
     }
+}
+
+fn implicit_cast_endpoint_is_open(ty: &typed_ir::Type) -> bool {
+    // An open endpoint is not enough evidence for a semantic Cast. After
+    // substitution it may normalize to identity, as in generic branch joins.
+    core_type_is_imprecise_runtime_slot(ty)
+        || core_type_has_vars(ty)
+        || core_type_contains_unknown(ty)
 }
 
 fn has_added_wildcard_thunk(expected: &RuntimeType, actual: &RuntimeType) -> bool {

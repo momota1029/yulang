@@ -183,8 +183,11 @@ pub(super) fn prepare_expr_for_expected_with_adapter_source_profiled(
                 ))
             }
         },
+        // A join is a semantic value boundary: even an open result slot must
+        // force effectful branch arms here. Render/discard sinks wrap outside it.
         RuntimeType::Core(typed_ir::Type::Any | typed_ir::Type::Var(_))
-            if matches!(expr.ty, RuntimeType::Thunk { .. }) =>
+            if source != TypeSource::JoinEvidence
+                && matches!(expr.ty, RuntimeType::Thunk { .. }) =>
         {
             Ok(expr)
         }

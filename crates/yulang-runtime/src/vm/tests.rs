@@ -822,6 +822,13 @@ case tree::node 1 tree::leaf tree::leaf: tree::node value left right -> value\n"
     }
 
     #[test]
+    fn vm_keeps_open_identity_join_from_using_unrelated_cast() {
+        let results = eval_source_with_std("my choose x = if true: x else: x\nchoose ()\n");
+
+        assert_eq!(results, vec![TestValue::Unit]);
+    }
+
+    #[test]
     fn vm_selects_cast_by_annotation_target() {
         let results = eval_source_with_std(
             "struct user_id { raw: int }\n\

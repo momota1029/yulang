@@ -139,12 +139,16 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   `ScopeReturn` の frame-walk 後に JIT が eval/repr と同じ「一段ずつ戻る」
   非局所 return を表せているか、`ResumeWithHandler` の env overlay と合わせて見る。
 
-- `(each [1, 2, 3]).list` / `.logic` / nested `.once` などは native の前に
-  runtime lowering で `branch result type mismatch: expected unit, got std::bytes::bytes`
-  になる。`check` は通るので、型推論ではなく principal core から runtime IR へ
-  落とす段階の join evidence / effectful branch result の問題。`std::undet.each`
-  内の `if branch() { sub::return x } else ()` が `join[unit]` として出ている一方、
-  runtime lowering が true branch の actual を concrete な `std::bytes::bytes` と見ている。
+- `(each [1, 2, 3]).list` / `.logic` / nested `.once` の
+  `branch result type mismatch: expected unit, got std::bytes::bytes` は
+  2026-05-16 WIP で runtime lowering 側を修正し、小さい再現
+  `my choose x = if true: x else: x; choose ()` は VM regression に追加した。
+  open な actual / expected に対して `Cast path -> bytes` を即時 runtime cast
+  として選ばない。`JoinEvidence` は semantic value boundary なので、open result
+  でも thunk branch arm は force する。残りは render-sink leak ではなく、
+  `junction` と `undet` を重ねた native CPS の値違いとして追う。
+  `runs_junction_method_undet_once_through_cps_repr` は runtime validation を抜けた後、
+  CPS eval が期待 `:just 18` に対して `1` を返す。
 
 ## 解決済み（2026-05-14 時点で再現せず）
 
