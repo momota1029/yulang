@@ -70,12 +70,26 @@
   のときだけ上書き」に絞った。concrete だけど形が違う（thunk-wrapped 等）
   ケースはそのまま温存。
 
+**Effect hole の `Empty` 潰し計測 + opt-in 厳格化（#6 / #12）— 計測 DONE / fix 保留**
+
+- `monomorphize::effect_hole_metrics` に 3 経路の counter（`close_default`、
+  `unifier_expected`、`unifier_actual`）を仕掛けた。
+- `YULANG_REPORT_EFFECT_HOLE_COLLAPSES=1` で `monomorphize_module` 呼び毎に
+  集計を吐く。workspace test 全体（205 回 monomorphize）で **total=0 / 0 / 0**。
+- 結論：principal-elaborate（default）経路は Hole→Empty masking を
+  まったく経由していない。`close_default_effect_holes` は legacy
+  demand fixpoint からしか呼ばれないので、std テスト含めて発火しない。
+- `YULANG_STRICT_EFFECT_HOLE_COLLAPSE=1` で同じ 3 経路を即 error / panic に
+  変換するオプトインを追加。strict mode で workspace を回しても落ちるのは
+  「lenient 挙動を直接検証している既存テスト 2 件」だけで、それ以外は
+  すべて green。
+- 残作業：legacy 経路を畳むか、strict をデフォルト ON にするかの判断。
+  どちらも測定上 production 影響なし。先送り可。
+
 **未着手**
 
-- #6 effect hole を `Empty` に潰さない方向（保留：影響範囲計測から）
 - #11 `pass_through_associated_type_signature` の本実装
 - #8 fallback-to-old-`expr.ty` の失敗扱い化
-- #12 `DemandEffect::Hole` を `Empty` に束縛しない方向（#6 と同根）
 
 ---
 
