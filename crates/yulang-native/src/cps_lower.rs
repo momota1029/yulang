@@ -1327,7 +1327,6 @@ struct EffectHandlerArmChain<'a> {
     effect: &'a typed_ir::Path,
     payload: CpsValueId,
     resume: CpsValueId,
-    merge_cont: CpsContinuationId,
     handler: CpsHandlerId,
     saved_locals: &'a HashMap<typed_ir::Path, CpsValueId>,
     saved_local_exprs: &'a HashMap<typed_ir::Path, runtime::Expr>,
@@ -2791,11 +2790,10 @@ impl<'a> FunctionLowerer<'a> {
             handler,
             envs: Vec::new(),
             value: value_cont,
-            // ScopeReturn (i.e. arm body's non-local return) lands at the
-            // merge continuation, NOT the value-arm continuation. Arm bodies
-            // already terminate with `Continue merge_cont [arm_value]` in
-            // their own lowering; the value arm only applies when the body
-            // completes without firing an arm.
+            // ScopeReturn lands at the merge continuation, NOT the
+            // value-arm continuation. Effect arm bodies return an arm
+            // answer to the Perform dispatcher; only the dispatcher may
+            // route that answer into this handler scope's escape target.
             escape: merge_cont,
         });
         self.lower_handled_body(body, &effects, handler, None)?;
@@ -2874,7 +2872,6 @@ impl<'a> FunctionLowerer<'a> {
                     effect: &effect,
                     payload: handler_payload,
                     resume: handler_resume,
-                    merge_cont,
                     handler,
                     saved_locals: &saved_locals,
                     saved_local_exprs: &saved_local_exprs,
@@ -2908,10 +2905,7 @@ impl<'a> FunctionLowerer<'a> {
                 dest: unit,
                 literal: CpsLiteral::Unit,
             });
-            self.terminate(CpsTerminator::Continue {
-                target: ctx.merge_cont,
-                args: vec![unit],
-            });
+            self.terminate(CpsTerminator::Return(unit));
             self.finish_current();
             return Ok(());
         };
@@ -2973,10 +2967,7 @@ impl<'a> FunctionLowerer<'a> {
         self.resumptions = ctx.saved_resumptions.clone();
         self.bind_effect_handler_arm_locals(arm, ctx.payload, ctx.resume)?;
         let handled = self.lower_handler_body_expr(&arm.body, Some(ctx.handler))?;
-        self.terminate(CpsTerminator::Continue {
-            target: ctx.merge_cont,
-            args: vec![handled],
-        });
+        self.terminate(CpsTerminator::Return(handled));
         self.finish_current();
 
         self.current = ContinuationBuilder::new(next_cont, Vec::new());

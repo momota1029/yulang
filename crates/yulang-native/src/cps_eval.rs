@@ -2048,11 +2048,12 @@ fn capture_return_frames_inside_prompt(
         .map(|index| index + 1)
         .unwrap_or(handled.return_frame_threshold)
         .min(return_frames.len());
-    return_frames[start..]
+    let frames = return_frames[start..]
         .iter()
         .cloned()
         .map(|frame| rebase_captured_return_frame(frame, start))
-        .collect()
+        .collect();
+    own_captured_return_frames(frames)
 }
 
 fn rebase_captured_return_frame(
@@ -2446,8 +2447,7 @@ fn try_route_scope_return_through_return_frames(
         );
         let owner_initial = frame.owner_initial_frame_count.min(rest_frames.len());
         let owner = function_by_name(module, &frame.owner_function)?;
-        let abort_outer_eval =
-            frame_index < initial_frame_count && threshold > 0 && post_handlers.is_empty();
+        let abort_outer_eval = frame_index < initial_frame_count && post_handlers.is_empty();
         let result = resume_continuation(
             module,
             owner,

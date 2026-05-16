@@ -8518,9 +8518,21 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
             );
         }
         if frame.escape_continuation == 0 {
+            if current_initial > 0 && post_handlers.is_empty() {
+                NATIVE_CPS_I64_ABORT
+                    .with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(value));
+            }
             return value;
         }
         let escape_env = refreshed_escape_env(&frame);
+        if current_initial > 0 && post_handlers.is_empty() {
+            let cont: NativeCpsI64Continuation =
+                unsafe { std::mem::transmute(frame.escape_continuation) };
+            let result = cont(escape_env.as_ptr(), value);
+            NATIVE_CPS_I64_ABORT
+                .with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(result));
+            return result;
+        }
         // A current-stack match can still jump out of an inner eval frame
         // when the dynamic handler was restored from a captured return frame.
         // Keep the same short-circuit signal used by the frame-walk path so
@@ -8608,9 +8620,21 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
             );
         }
         if handler.escape_continuation == 0 {
+            if current_initial > 0 && post_handlers.is_empty() {
+                NATIVE_CPS_I64_ABORT
+                    .with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(value));
+            }
             return value;
         }
         let escape_env = refreshed_escape_env(&handler);
+        if current_initial > 0 && post_handlers.is_empty() {
+            let cont: NativeCpsI64Continuation =
+                unsafe { std::mem::transmute(handler.escape_continuation) };
+            let result = cont(escape_env.as_ptr(), value);
+            NATIVE_CPS_I64_ABORT
+                .with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::Global(result));
+            return result;
+        }
         // A frame-walk match jumps across an older eval frame. The native
         // call stack still needs a short-circuit signal until the next real
         // handler boundary re-wraps the value.
