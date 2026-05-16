@@ -1029,6 +1029,22 @@ impl PrincipalUnifier {
                     ty = binding_ty;
                     false
                 } else {
+                    // Plain monomorphic bindings never go through
+                    // `emitted_by_path`, so a Var pointing at one used
+                    // to keep its pre-monomorphize `Expr.ty`. If that
+                    // type still carries TypeVar slots after
+                    // substitution, fall back to the binding's own
+                    // scheme body so the residual walker sees no var.
+                    // Skip the fallback when the existing `ty` is
+                    // already concrete because the scheme body is a
+                    // plain core type and would strip any runtime-layer
+                    // info (thunk shape, function arrow) the call site
+                    // carries.
+                    if hir_type_has_vars(&ty)
+                        && let Some(binding_ty) = self.monomorphic_binding_type(&path)
+                    {
+                        ty = binding_ty;
+                    }
                     false
                 };
                 self.record_local_var_context(&path, result_context.as_ref());
