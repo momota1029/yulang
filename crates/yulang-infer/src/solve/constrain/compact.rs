@@ -4,8 +4,8 @@ use crate::ids::{NegId, TypeVar};
 use crate::scheme::{OwnedSchemeInstance, compact_pos_type};
 use crate::simplify::compact::{
     CompactBounds, CompactType, single_substituted_compact_var, subst_compact_con,
-    subst_compact_fun, subst_compact_record, subst_compact_row, subst_compact_type,
-    subst_compact_variant, subst_lookup_small,
+    subst_compact_fun, subst_compact_record, subst_compact_record_spread, subst_compact_row,
+    subst_compact_type, subst_compact_variant, subst_lookup_small,
 };
 use crate::types::Pos;
 
@@ -123,6 +123,18 @@ fn compact_pos_parts_with_subst(
             false,
         ));
     }
+    for spread in &ty.record_spreads {
+        let mut fragment = CompactType::default();
+        fragment
+            .record_spreads
+            .push(subst_compact_record_spread(spread, subst));
+        parts.push(compact_pos_type(
+            &infer.arena,
+            &fragment,
+            &dummy_compact_scheme(),
+            false,
+        ));
+    }
     for variant in &ty.variants {
         let mut fragment = CompactType::default();
         fragment
@@ -178,6 +190,7 @@ fn compact_type_preserves_through(
         && ty.cons.is_empty()
         && ty.funs.is_empty()
         && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && ty.vars.is_empty()
@@ -229,6 +242,12 @@ fn lower_levels_compact_type(
             lower_levels_compact_type(infer, &field.value, subst, target_lvl);
         }
     }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            lower_levels_compact_type(infer, &field.value, subst, target_lvl);
+        }
+        lower_levels_compact_type(infer, &spread.tail, subst, target_lvl);
+    }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
@@ -259,6 +278,7 @@ fn compact_type_is_empty(ty: &CompactType) -> bool {
         && ty.cons.is_empty()
         && ty.funs.is_empty()
         && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty()

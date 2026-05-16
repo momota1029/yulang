@@ -785,6 +785,7 @@ fn root_non_fun_parts_empty(ty: &CompactType, ignorable_root_vars: &HashSet<Type
         && ty.prims.is_empty()
         && ty.cons.is_empty()
         && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty()
@@ -945,6 +946,12 @@ fn collect_compact_type_free_vars(ty: &CompactType, out: &mut Vec<TypeVar>) {
             collect_compact_type_free_vars(&field.value, out);
         }
     }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_compact_type_free_vars(&field.value, out);
+        }
+        collect_compact_type_free_vars(&spread.tail, out);
+    }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
             for payload in payloads {
@@ -971,6 +978,7 @@ fn single_compact_var(ty: &CompactType) -> Option<TypeVar> {
         && ty.cons.is_empty()
         && ty.funs.is_empty()
         && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty())
@@ -1047,6 +1055,24 @@ pub(crate) fn compact_pos_type(
                     .collect(),
             )),
         );
+    }
+    for spread in &ty.record_spreads {
+        let fields = spread
+            .fields
+            .iter()
+            .map(|field| RecordField {
+                name: field.name.clone(),
+                value: compact_pos_type(arena, &field.value, scheme, false),
+                optional: field.optional,
+            })
+            .collect();
+        let tail = compact_pos_type(arena, &spread.tail, scheme, false);
+        let pos = if spread.tail_wins {
+            Pos::RecordTailSpread { fields, tail }
+        } else {
+            Pos::RecordHeadSpread { tail, fields }
+        };
+        parts.push(arena.alloc_pos(pos));
     }
     for CompactVariant { items } in &ty.variants {
         parts.push(
@@ -1151,6 +1177,25 @@ pub(crate) fn compact_neg_type(
         parts.push(
             arena.alloc_neg(Neg::Record(
                 fields
+                    .iter()
+                    .map(|field| RecordField {
+                        name: field.name.clone(),
+                        value: compact_neg_type(arena, &field.value, scheme, false),
+                        optional: field.optional,
+                    })
+                    .collect(),
+            )),
+        );
+    }
+    for spread in &ty.record_spreads {
+        // Neg has no RecordTailSpread / RecordHeadSpread variant. Emit the
+        // explicit fields as a Neg::Record so downstream constraint
+        // propagation still sees the known shape; the tail demand cannot
+        // be represented on the negative side and is dropped here.
+        parts.push(
+            arena.alloc_neg(Neg::Record(
+                spread
+                    .fields
                     .iter()
                     .map(|field| RecordField {
                         name: field.name.clone(),

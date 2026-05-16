@@ -14,6 +14,7 @@ pub(super) fn single_compact_var(ty: &CompactType) -> Option<TypeVar> {
         && ty.cons.is_empty()
         && ty.funs.is_empty()
         && ty.records.is_empty()
+        && ty.record_spreads.is_empty()
         && ty.variants.is_empty()
         && ty.tuples.is_empty()
         && ty.rows.is_empty()

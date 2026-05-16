@@ -33,6 +33,12 @@ fn normalize_rewritten_compact_type_in_place(ty: &mut CompactType, positive: boo
             normalize_rewritten_compact_type_in_place(&mut field.value, positive);
         }
     }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            normalize_rewritten_compact_type_in_place(&mut field.value, positive);
+        }
+        normalize_rewritten_compact_type_in_place(&mut spread.tail, positive);
+    }
     for variant in &mut ty.variants {
         for (_, payloads) in &mut variant.items {
             for payload in payloads {
@@ -93,6 +99,7 @@ fn absorb_upper_vars_from_row_lower(bounds: &mut CompactBounds) {
         || !bounds.lower.cons.is_empty()
         || !bounds.lower.funs.is_empty()
         || !bounds.lower.records.is_empty()
+        || !bounds.lower.record_spreads.is_empty()
         || !bounds.lower.variants.is_empty()
         || !bounds.lower.tuples.is_empty()
         || !upper.is_subset(&bounds.lower.vars)
@@ -190,6 +197,12 @@ fn collect_effect_atom_interval_pairs(
         for field in &record.fields {
             collect_effect_atom_interval_pairs(&field.value, pairs, equal_sets);
         }
+    }
+    for spread in &ty.record_spreads {
+        for field in &spread.fields {
+            collect_effect_atom_interval_pairs(&field.value, pairs, equal_sets);
+        }
+        collect_effect_atom_interval_pairs(&spread.tail, pairs, equal_sets);
     }
     for variant in &ty.variants {
         for (_, payloads) in &variant.items {
@@ -299,6 +312,12 @@ fn rewrite_compact_type_vars_in_place(ty: &mut CompactType, subst: &HashMap<Type
         for field in &mut record.fields {
             rewrite_compact_type_vars_in_place(&mut field.value, subst);
         }
+    }
+    for spread in &mut ty.record_spreads {
+        for field in &mut spread.fields {
+            rewrite_compact_type_vars_in_place(&mut field.value, subst);
+        }
+        rewrite_compact_type_vars_in_place(&mut spread.tail, subst);
     }
     for variant in &mut ty.variants {
         for (_, payloads) in &mut variant.items {

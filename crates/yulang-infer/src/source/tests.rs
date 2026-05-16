@@ -2795,6 +2795,44 @@ fn lowers_record_head_spread_literal() {
 }
 
 #[test]
+fn freezes_pub_record_tail_spread_through_compact() {
+    // Regression: `compact_pos_type` used to silently drop a CompactType's
+    // record_spreads when reconstructing the Pos body of a frozen scheme.
+    // For a `pub` binding, the body goes through compact -> freeze, so the
+    // spread would disappear and the result type would lose every field
+    // not written explicitly inline.
+    run_with_large_stack(|| {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let std_root = repo_root.join("lib/std");
+        let mut lowered = lower_virtual_source_with_options(
+            "pub make_full v = { x: 1, ..v }\n",
+            Some(repo_root),
+            SourceOptions {
+                std_root: Some(std_root),
+                implicit_prelude: true,
+                search_paths: Vec::new(),
+            },
+        )
+        .unwrap();
+        let rendered = render_compact_results(&mut lowered.state);
+        let ty = &rendered
+            .iter()
+            .find(|(name, _)| name == "make_full")
+            .expect("make_full should be rendered")
+            .1;
+
+        assert!(
+            ty.contains(".."),
+            "frozen pub spread should keep tail form: {ty}"
+        );
+        assert!(
+            ty.contains("x:"),
+            "frozen pub spread should retain explicit fields: {ty}"
+        );
+    });
+}
+
+#[test]
 fn lowers_record_tail_spread_literal() {
     run_with_large_stack(|| {
         let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
