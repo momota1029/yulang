@@ -40,6 +40,7 @@ mod paths;
 mod principal_elaborate;
 mod principal_unify;
 mod reachability;
+mod refresh;
 mod shape;
 mod substitute;
 
@@ -52,6 +53,7 @@ use paths::*;
 use principal_elaborate::*;
 use principal_unify::*;
 use reachability::*;
+use refresh::*;
 use shape::*;
 use substitute::*;
 
@@ -86,6 +88,7 @@ impl Default for MonomorphizeMode {
 
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
     let lowered = run_mono_pipeline_unprofiled(module)?;
+    let lowered = refresh_monomorphic_evidence(lowered);
     ensure_monomorphic_bindings(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
     validate_module(&lowered)?;
@@ -96,6 +99,7 @@ pub fn monomorphize_module_profiled(
     module: Module,
 ) -> RuntimeResult<(Module, MonomorphizeProfile)> {
     let (lowered, profile) = run_mono_pipeline(module)?;
+    let lowered = refresh_monomorphic_evidence(lowered);
     ensure_monomorphic_bindings(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
     validate_module(&lowered)?;
