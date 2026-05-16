@@ -87,22 +87,26 @@ impl Default for MonomorphizeMode {
 }
 
 pub fn monomorphize_module(module: Module) -> RuntimeResult<Module> {
+    crate::monomorphize::effect_hole_metrics::reset();
     let lowered = run_mono_pipeline_unprofiled(module)?;
     let lowered = refresh_monomorphic_evidence(lowered);
     ensure_monomorphic_bindings(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
     validate_module(&lowered)?;
+    crate::monomorphize::effect_hole_metrics::report_if_requested("monomorphize_module");
     Ok(lowered)
 }
 
 pub fn monomorphize_module_profiled(
     module: Module,
 ) -> RuntimeResult<(Module, MonomorphizeProfile)> {
+    crate::monomorphize::effect_hole_metrics::reset();
     let (lowered, profile) = run_mono_pipeline(module)?;
     let lowered = refresh_monomorphic_evidence(lowered);
     ensure_monomorphic_bindings(&lowered)?;
     check_runtime_invariants(&lowered, RuntimeStage::Monomorphized)?;
     validate_module(&lowered)?;
+    crate::monomorphize::effect_hole_metrics::report_if_requested("monomorphize_module_profiled");
     Ok((lowered, profile))
 }
 

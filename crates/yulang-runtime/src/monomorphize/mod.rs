@@ -21,6 +21,7 @@ mod check;
 mod collect;
 mod demand_profile;
 mod demand_queue;
+pub(crate) mod effect_hole_metrics;
 mod emit;
 mod engine;
 mod pipeline;

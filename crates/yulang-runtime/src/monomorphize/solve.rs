@@ -442,9 +442,23 @@ impl DemandUnifier {
         }
 
         for hole in expected_holes {
+            crate::monomorphize::effect_hole_metrics::record_unifier_expected_collapse();
+            if crate::monomorphize::effect_hole_metrics::strict_collapse_enabled() {
+                return Err(DemandUnifyError::EffectMismatch {
+                    expected: DemandEffect::Hole(hole),
+                    actual: DemandEffect::Empty,
+                });
+            }
             self.bind_effect(hole, DemandEffect::Empty)?;
         }
         for hole in actual_holes {
+            crate::monomorphize::effect_hole_metrics::record_unifier_actual_collapse();
+            if crate::monomorphize::effect_hole_metrics::strict_collapse_enabled() {
+                return Err(DemandUnifyError::EffectMismatch {
+                    expected: DemandEffect::Empty,
+                    actual: DemandEffect::Hole(hole),
+                });
+            }
             self.bind_effect(hole, DemandEffect::Empty)?;
         }
         Ok(())

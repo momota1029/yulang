@@ -115,7 +115,20 @@ fn close_default_type_arg_effects(arg: DemandTypeArg) -> DemandTypeArg {
 
 fn close_default_effect(effect: DemandEffect) -> DemandEffect {
     match effect {
-        DemandEffect::Hole(_) => DemandEffect::Empty,
+        DemandEffect::Hole(_) => {
+            crate::monomorphize::effect_hole_metrics::record_close_default_collapse();
+            if crate::monomorphize::effect_hole_metrics::strict_collapse_enabled() {
+                // Strict mode panics so callers in the legacy demand
+                // path (collect.rs / emit.rs) surface the leak instead
+                // of silently producing a pure signature. This branch
+                // is opt-in via YULANG_STRICT_EFFECT_HOLE_COLLAPSE.
+                panic!(
+                    "effect-hole strict mode: close_default_effect refused to bind a residual \
+                     DemandEffect::Hole to Empty"
+                );
+            }
+            DemandEffect::Empty
+        }
         DemandEffect::Atom(ty) => DemandEffect::Atom(close_default_core_effect_holes(ty)),
         DemandEffect::Row(items) => normalize_effect_row(
             items
