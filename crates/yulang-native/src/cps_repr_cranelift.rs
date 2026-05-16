@@ -553,6 +553,122 @@ struct LocalValueCache {
     native_float: HashMap<CpsValueId, ir::Value>,
 }
 
+struct FixedManyHelpers {
+    fixed: [&'static str; 5],
+    many: &'static str,
+}
+
+impl FixedManyHelpers {
+    fn fixed(&self, len: usize) -> &'static str {
+        self.fixed
+            .get(len)
+            .copied()
+            .expect("fixed helper arity must be 0..=4")
+    }
+
+    fn select(&self, len: usize) -> &'static str {
+        self.fixed.get(len).copied().unwrap_or(self.many)
+    }
+}
+
+const MAKE_RESUMPTION_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_cps_make_resumption_i64_0",
+        "yulang_cps_make_resumption_i64_1",
+        "yulang_cps_make_resumption_i64_2",
+        "yulang_cps_make_resumption_i64_3",
+        "yulang_cps_make_resumption_i64_4",
+    ],
+    many: "yulang_cps_make_resumption_i64_many",
+};
+
+const MAKE_THUNK_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_cps_make_thunk_i64_0",
+        "yulang_cps_make_thunk_i64_1",
+        "yulang_cps_make_thunk_i64_2",
+        "yulang_cps_make_thunk_i64_3",
+        "yulang_cps_make_thunk_i64_4",
+    ],
+    many: "yulang_cps_make_thunk_i64_many",
+};
+
+const MAKE_CLOSURE_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_cps_make_closure_i64_0",
+        "yulang_cps_make_closure_i64_1",
+        "yulang_cps_make_closure_i64_2",
+        "yulang_cps_make_closure_i64_3",
+        "yulang_cps_make_closure_i64_4",
+    ],
+    many: "yulang_cps_make_closure_i64_many",
+};
+
+const MAKE_RECURSIVE_CLOSURE_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_cps_make_recursive_closure_i64_0",
+        "yulang_cps_make_recursive_closure_i64_1",
+        "yulang_cps_make_recursive_closure_i64_2",
+        "yulang_cps_make_recursive_closure_i64_3",
+        "yulang_cps_make_recursive_closure_i64_4",
+    ],
+    many: "yulang_cps_make_recursive_closure_i64_many",
+};
+
+const MAKE_ENV_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_cps_make_env_i64_0",
+        "yulang_cps_make_env_i64_1",
+        "yulang_cps_make_env_i64_2",
+        "yulang_cps_make_env_i64_3",
+        "yulang_cps_make_env_i64_4",
+    ],
+    many: "yulang_cps_make_env_i64_many",
+};
+
+const TUPLE_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_cps_tuple_i64_0",
+        "yulang_cps_tuple_i64_1",
+        "yulang_cps_tuple_i64_2",
+        "yulang_cps_tuple_i64_3",
+        "yulang_cps_tuple_i64_4",
+    ],
+    many: "yulang_cps_tuple_i64_many",
+};
+
+const PUSH_RETURN_FRAME_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_cps_push_return_frame_i64_0",
+        "yulang_cps_push_return_frame_i64_1",
+        "yulang_cps_push_return_frame_i64_2",
+        "yulang_cps_push_return_frame_i64_3",
+        "yulang_cps_push_return_frame_i64_4",
+    ],
+    many: "yulang_cps_push_return_frame_i64_many",
+};
+
+const EFFECTFUL_APPLY_RESUMPTION_HELPERS: FixedManyHelpers = FixedManyHelpers {
+    fixed: [
+        "yulang_cps_effectful_apply_resumption_i64_0",
+        "yulang_cps_effectful_apply_resumption_i64_1",
+        "yulang_cps_effectful_apply_resumption_i64_2",
+        "yulang_cps_effectful_apply_resumption_i64_3",
+        "yulang_cps_effectful_apply_resumption_i64_4",
+    ],
+    many: "yulang_cps_effectful_apply_resumption_i64_many",
+};
+
+struct CpsCraneliftLowerCx<'a, 'builder, M: Module, L: CpsLiteralStore> {
+    module_backend: &'a mut M,
+    builder: &'a mut FunctionBuilder<'builder>,
+    function: &'a CpsReprAbiFunction,
+    functions: &'a DeclaredFunctions,
+    handlers: &'a HandlerRegistry,
+    literals: &'a mut L,
+    values: &'a mut LocalValueCache,
+}
+
 impl HandlerRegistry {
     fn new(module: &CpsReprAbiModule) -> Self {
         let candidates = module
@@ -914,44 +1030,38 @@ fn lower_continuation_function<M: Module, L: CpsLiteralStore>(
         );
     }
 
-    let mut defined_values = continuation
-        .environment
-        .iter()
-        .map(|slot| slot.value)
-        .chain(continuation.params.iter().map(|param| param.value))
-        .collect::<HashSet<_>>();
-    for stmt in &continuation.stmts {
-        capture_handler_envs_for_stmt(
+    {
+        let mut defined_values = continuation
+            .environment
+            .iter()
+            .map(|slot| slot.value)
+            .chain(continuation.params.iter().map(|param| param.value))
+            .collect::<HashSet<_>>();
+        let mut lower_cx = CpsCraneliftLowerCx {
             module_backend,
-            &mut builder,
+            builder: &mut builder,
             function,
-            stmt,
-            &defined_values,
-        )?;
-        lower_effect_stmt(
-            module_backend,
-            &mut builder,
-            function,
-            stmt,
             functions,
             handlers,
             literals,
-            &mut values,
-        )?;
-        if let Some(dest) = stmt_dest(stmt) {
-            defined_values.insert(dest);
+            values: &mut values,
+        };
+        for stmt in &continuation.stmts {
+            capture_handler_envs_for_stmt(
+                lower_cx.module_backend,
+                lower_cx.builder,
+                function,
+                stmt,
+                &defined_values,
+            )?;
+            lower_effect_stmt(&mut lower_cx, stmt)?;
+            if let Some(dest) = stmt_dest(stmt) {
+                defined_values.insert(dest);
+            }
         }
+        lower_effect_terminator(&mut lower_cx, continuation)?;
+        lower_cx.builder.seal_all_blocks();
     }
-    lower_effect_terminator(
-        module_backend,
-        &mut builder,
-        function,
-        continuation,
-        functions,
-        handlers,
-        &mut values,
-    )?;
-    builder.seal_all_blocks();
     builder.finalize();
     Ok(())
 }
@@ -1083,7 +1193,7 @@ fn lower_direct_style_island_terminator<M: Module>(
             builder.ins().brif(cond, then_cont, &[], else_cont, &[]);
             Ok(())
         }
-        _ => lower_effect_terminator(
+        _ => lower_effect_terminator_parts(
             module_backend,
             builder,
             function,
@@ -1344,6 +1454,22 @@ fn capture_handler_env<M: Module>(
 }
 
 fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    stmt: &CpsStmt,
+) -> CpsReprCraneliftResult<()> {
+    lower_effect_stmt_parts(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        stmt,
+        cx.functions,
+        cx.handlers,
+        cx.literals,
+        cx.values,
+    )
+}
+
+fn lower_effect_stmt_parts<M: Module, L: CpsLiteralStore>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
@@ -1586,6 +1712,46 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             let value = lower_primitive(module_backend, builder, function, *op, &args)?;
             define_value_as_lane(builder, values, *dest, primitive_result_lane(*op), value);
         }
+        CpsStmt::DirectCall { .. }
+        | CpsStmt::ApplyClosure { .. }
+        | CpsStmt::CloneContinuation { .. }
+        | CpsStmt::Resume { .. }
+        | CpsStmt::ResumeWithHandler { .. } => {
+            lower_call_stmt(
+                module_backend,
+                builder,
+                function,
+                stmt,
+                functions,
+                handlers,
+                values,
+            )?;
+        }
+        CpsStmt::InstallHandler { .. } | CpsStmt::UninstallHandler { .. } => {
+            lower_handler_stmt(
+                module_backend,
+                builder,
+                function,
+                stmt,
+                functions,
+                handlers,
+                values,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn lower_call_stmt<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    stmt: &CpsStmt,
+    functions: &DeclaredFunctions,
+    handlers: &HandlerRegistry,
+    values: &mut LocalValueCache,
+) -> CpsReprCraneliftResult<()> {
+    match stmt {
         CpsStmt::DirectCall { dest, target, args } => {
             lower_direct_call_stmt(
                 module_backend,
@@ -1701,6 +1867,21 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
             return_if_scope_return_active_without_routing(module_backend, builder, scope_fallback)?;
             builder.def_var(variable(*dest), result);
         }
+        _ => unreachable!("lower_call_stmt called with non-call statement"),
+    }
+    Ok(())
+}
+
+fn lower_handler_stmt<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    stmt: &CpsStmt,
+    functions: &DeclaredFunctions,
+    handlers: &HandlerRegistry,
+    _values: &mut LocalValueCache,
+) -> CpsReprCraneliftResult<()> {
+    match stmt {
         CpsStmt::InstallHandler {
             handler,
             envs,
@@ -1853,6 +2034,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                 &[handler],
             )?;
         }
+        _ => unreachable!("lower_handler_stmt called with non-handler statement"),
     }
     Ok(())
 }
@@ -1888,7 +2070,22 @@ fn stmt_dest(stmt: &CpsStmt) -> Option<CpsValueId> {
     }
 }
 
-fn lower_effect_terminator<M: Module>(
+fn lower_effect_terminator<M: Module, L: CpsLiteralStore>(
+    cx: &mut CpsCraneliftLowerCx<'_, '_, M, L>,
+    continuation: &CpsReprAbiContinuation,
+) -> CpsReprCraneliftResult<()> {
+    lower_effect_terminator_parts(
+        cx.module_backend,
+        cx.builder,
+        cx.function,
+        continuation,
+        cx.functions,
+        cx.handlers,
+        cx.values,
+    )
+}
+
+fn lower_effect_terminator_parts<M: Module>(
     module_backend: &mut M,
     builder: &mut FunctionBuilder<'_>,
     function: &CpsReprAbiFunction,
@@ -1940,149 +2137,33 @@ fn lower_effect_terminator<M: Module>(
             handler,
             blocked,
         } => {
-            let host_fallback = host_console_effect_kind(effect);
-            let candidates = handlers.candidates_for_effect(effect);
-            if candidates.is_empty() {
-                let Some(kind) = host_fallback else {
-                    return Err(CpsReprCraneliftError::UnsupportedTerminator {
-                        function: function.name.clone(),
-                        kind: "perform without handler entry",
-                    });
-                };
-                let payload = read_value(builder, function, *payload)?;
-                lower_host_console_perform(
-                    module_backend,
-                    builder,
-                    function,
-                    kind,
-                    payload,
-                    *resume,
-                    functions,
-                )?;
-                return Ok(());
-            }
-            let resumption = make_resumption(
+            lower_perform_terminator(
                 module_backend,
                 builder,
                 function,
+                effect,
+                *payload,
                 *resume,
                 *handler,
                 functions,
-            )?;
-            let payload = read_value(builder, function, *payload)?;
-            let fallback_handler = if handler.0 == usize::MAX {
-                -1
-            } else {
-                handler.0 as i64
-            };
-            let fallback = builder.ins().iconst(types::I64, fallback_handler);
-            let static_blocked = blocked
-                .map(|blocked| read_value(builder, function, blocked))
-                .transpose()?
-                .unwrap_or_else(|| builder.ins().iconst(types::I64, -1));
-            let effect_mask = handlers.effect_mask(function, effect)?;
-            let effect_mask = builder.ins().iconst(types::I64, effect_mask);
-            let active_blocked = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_active_blocked_guard_i64",
-                &[effect_mask],
-            )?;
-            let no_static_block =
-                builder
-                    .ins()
-                    .icmp_imm(ir::condcodes::IntCC::Equal, static_blocked, -1);
-            let blocked = builder
-                .ins()
-                .select(no_static_block, active_blocked, static_blocked);
-            let selected = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_select_handler_i64",
-                &[fallback, effect_mask, blocked],
-            )?;
-            // write27-d d2: now that select_handler has recorded the
-            // matched real handler's meta, write it back into the
-            // resumption as `handled_anchor`. apply_resumption uses
-            // this to drop redundant inherited frames during the
-            // anchor merge.
-            let _ = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_set_resumption_anchor_from_selected_i64",
-                &[resumption],
-            )?;
-            lower_selected_handler_return(
-                module_backend,
-                builder,
-                function,
-                &candidates,
-                selected,
-                payload,
-                resumption,
-                host_fallback.map(|kind| (kind, *resume)),
-                functions,
+                handlers,
+                *blocked,
             )?;
         }
-        // write27-b: EffectfulCall / EffectfulForce / EffectfulApply
-        // codegen. Push a return frame for the resume continuation,
-        // set a fresh eval context, and tail-call the target. The
-        // target's Return helper (write27-b/yulang_cps_return_i64)
-        // consumes the frame and invokes the resume continuation when
-        // it finally bottoms out.
-        //
-        // EffectfulApply Resumption is left unsupported in this commit
-        // (needs anchor-merge + combined_frames Rust helper); only
-        // Closure callables are handled here.
         CpsTerminator::EffectfulCall {
             target,
             args,
             resume,
         } => {
-            let resume_cont = lookup_continuation(function, *resume)?;
-            check_resume_continuation_shape(function, resume_cont)?;
-            let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
-            // c0: read pre_push_count BEFORE pushing F_post so the
-            // callee's initial_frame_count points at F_post itself
-            // (matches Layer 1/2 semantics).
-            let pre_push_count = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_return_frame_len_i64",
-                &[],
-            )?;
-            // Push F_post(resume_cont, env, current_initial, current_eval, immediate_force).
-            push_return_frame_for_resume(
+            lower_effectful_call_tail(
                 module_backend,
                 builder,
                 function,
-                resume_cont,
-                immediate_force,
+                target,
+                args,
+                *resume,
                 functions,
             )?;
-            // Read target args BEFORE switching eval context (so we
-            // see the caller's value table state).
-            let arg_values = read_values(builder, function, args)?;
-            // Set callee eval context: fresh eval id + initial =
-            // pre_push_count (F_post is consumable, frames below are not).
-            switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
-            // Direct call to target function.
-            let id = functions.functions.get(target).copied().ok_or_else(|| {
-                CpsReprCraneliftError::MissingFunction {
-                    name: target.clone(),
-                }
-            })?;
-            let callee = module_backend.declare_func_in_func(id, builder.func);
-            let call = builder.ins().call(callee, &arg_values);
-            let results = builder.inst_results(call);
-            if results.len() != 1 {
-                return Err(CpsReprCraneliftError::InvalidReturnArity {
-                    function: target.clone(),
-                    arity: results.len(),
-                });
-            }
-            let result = results[0];
-            builder.ins().return_(&[result]);
         }
         CpsTerminator::EffectfulForce { thunk, resume } => {
             lower_effectful_force_tail(
@@ -2099,126 +2180,279 @@ fn lower_effect_terminator<M: Module>(
             arg,
             resume,
         } => {
-            // write27-d d4: EffectfulApply now dispatches at runtime
-            // between Closure and Resumption based on
-            // `yulang_cps_is_resumption_i64`. The Closure path matches
-            // write27-b/c (push F_post, switch eval context, call
-            // apply_closure_i64). The Resumption path delegates the
-            // anchor-merge + combined-frames logic to
-            // `yulang_cps_effectful_apply_resumption_i64_N`.
-            let resume_cont = lookup_continuation(function, *resume)?;
-            check_resume_continuation_shape(function, resume_cont)?;
-            let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
-            let closure_value = read_value(builder, function, *closure)?;
-            let arg_value = read_value(builder, function, *arg)?;
-            // Compute info shared by both branches (resume cont func
-            // pointer + env slots + caller's current eval context +
-            // immediate_force flag) before the branch.
-            let func_ref = continuation_func_ref(
+            lower_effectful_apply_tail(
                 module_backend,
                 builder,
                 function,
-                resume_cont.id,
+                *closure,
+                *arg,
+                *resume,
                 functions,
             )?;
-            let post_cont_ptr = builder.ins().func_addr(types::I64, func_ref);
-            let current_eval = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_current_eval_id_i64",
-                &[],
-            )?;
-            let current_initial = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_current_initial_frame_count_i64",
-                &[],
-            )?;
-            let owner_function = builder
-                .ins()
-                .iconst(types::I64, function_runtime_id(function, functions)? as i64);
-            let immediate_force_value =
-                builder.ins().iconst(types::I64, i64::from(immediate_force));
-            let mut env_args: Vec<ir::Value> = Vec::with_capacity(resume_cont.environment.len());
-            for slot in &resume_cont.environment {
-                validate_environment_lane(function, slot.value, slot.lane)?;
-                env_args.push(read_value(builder, function, slot.value)?);
-            }
-            let is_resumption = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_is_resumption_i64",
-                &[closure_value],
-            )?;
-            let resumption_block = builder.create_block();
-            let closure_block = builder.create_block();
-            builder
-                .ins()
-                .brif(is_resumption, resumption_block, &[], closure_block, &[]);
-
-            // Closure branch: same as before — push F_post + switch
-            // context, then call apply_closure_i64.
-            builder.switch_to_block(closure_block);
-            builder.seal_block(closure_block);
-            let pre_push_count = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_return_frame_len_i64",
-                &[],
-            )?;
-            push_return_frame_for_resume(
-                module_backend,
-                builder,
-                function,
-                resume_cont,
-                immediate_force,
-                functions,
-            )?;
-            switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
-            let closure_result = call_i64_helper(
-                module_backend,
-                builder,
-                "yulang_cps_apply_closure_i64",
-                &[closure_value, arg_value],
-            )?;
-            builder.ins().return_(&[closure_result]);
-
-            // Resumption branch: defer everything to the helper. It
-            // builds F_post, anchor-merges captured handlers and
-            // return-frames, swaps thread-local state, and calls
-            // resumption.code.
-            builder.switch_to_block(resumption_block);
-            builder.seal_block(resumption_block);
-            let mut resumption_args = vec![
-                closure_value,
-                arg_value,
-                post_cont_ptr,
-                current_initial,
-                current_eval,
-                owner_function,
-                immediate_force_value,
-            ];
-            let resumption_helper = if env_args.len() > 4 {
-                let (env_ptr, env_len) = stack_i64_slice(builder, &env_args)?;
-                resumption_args.push(env_ptr);
-                resumption_args.push(env_len);
-                "yulang_cps_effectful_apply_resumption_i64_many"
-            } else {
-                resumption_args.extend_from_slice(&env_args);
-                match resume_cont.environment.len() {
-                    0 => "yulang_cps_effectful_apply_resumption_i64_0",
-                    1 => "yulang_cps_effectful_apply_resumption_i64_1",
-                    2 => "yulang_cps_effectful_apply_resumption_i64_2",
-                    3 => "yulang_cps_effectful_apply_resumption_i64_3",
-                    4 => "yulang_cps_effectful_apply_resumption_i64_4",
-                    _ => unreachable!("large environment handled above"),
-                }
-            };
-            let resumption_result =
-                call_i64_helper(module_backend, builder, resumption_helper, &resumption_args)?;
-            builder.ins().return_(&[resumption_result]);
         }
     }
+    Ok(())
+}
+
+fn lower_perform_terminator<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    effect: &typed_ir::Path,
+    payload: CpsValueId,
+    resume: CpsContinuationId,
+    handler: CpsHandlerId,
+    functions: &DeclaredFunctions,
+    handlers: &HandlerRegistry,
+    blocked: Option<CpsValueId>,
+) -> CpsReprCraneliftResult<()> {
+    let host_fallback = host_console_effect_kind(effect);
+    let candidates = handlers.candidates_for_effect(effect);
+    if candidates.is_empty() {
+        let Some(kind) = host_fallback else {
+            return Err(CpsReprCraneliftError::UnsupportedTerminator {
+                function: function.name.clone(),
+                kind: "perform without handler entry",
+            });
+        };
+        let payload = read_value(builder, function, payload)?;
+        lower_host_console_perform(
+            module_backend,
+            builder,
+            function,
+            kind,
+            payload,
+            resume,
+            functions,
+        )?;
+        return Ok(());
+    }
+    let resumption = make_resumption(
+        module_backend,
+        builder,
+        function,
+        resume,
+        handler,
+        functions,
+    )?;
+    let payload = read_value(builder, function, payload)?;
+    let fallback_handler = if handler.0 == usize::MAX {
+        -1
+    } else {
+        handler.0 as i64
+    };
+    let fallback = builder.ins().iconst(types::I64, fallback_handler);
+    let static_blocked = blocked
+        .map(|blocked| read_value(builder, function, blocked))
+        .transpose()?
+        .unwrap_or_else(|| builder.ins().iconst(types::I64, -1));
+    let effect_mask = handlers.effect_mask(function, effect)?;
+    let effect_mask = builder.ins().iconst(types::I64, effect_mask);
+    let active_blocked = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_active_blocked_guard_i64",
+        &[effect_mask],
+    )?;
+    let no_static_block = builder
+        .ins()
+        .icmp_imm(ir::condcodes::IntCC::Equal, static_blocked, -1);
+    let blocked = builder
+        .ins()
+        .select(no_static_block, active_blocked, static_blocked);
+    let selected = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_select_handler_i64",
+        &[fallback, effect_mask, blocked],
+    )?;
+    // write27-d d2: now that select_handler has recorded the
+    // matched real handler's meta, write it back into the
+    // resumption as `handled_anchor`. apply_resumption uses
+    // this to drop redundant inherited frames during the
+    // anchor merge.
+    let _ = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_set_resumption_anchor_from_selected_i64",
+        &[resumption],
+    )?;
+    lower_selected_handler_return(
+        module_backend,
+        builder,
+        function,
+        &candidates,
+        selected,
+        payload,
+        resumption,
+        host_fallback.map(|kind| (kind, resume)),
+        functions,
+    )
+}
+
+fn lower_effectful_call_tail<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    target: &str,
+    args: &[CpsValueId],
+    resume: CpsContinuationId,
+    functions: &DeclaredFunctions,
+) -> CpsReprCraneliftResult<()> {
+    // write27-b: EffectfulCall codegen. Push a return frame for the
+    // resume continuation, set a fresh eval context, and tail-call the
+    // target. The target's Return helper (write27-b/yulang_cps_return_i64)
+    // consumes the frame and invokes the resume continuation when it
+    // finally bottoms out.
+    let resume_cont = lookup_continuation(function, resume)?;
+    check_resume_continuation_shape(function, resume_cont)?;
+    let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
+    // c0: read pre_push_count BEFORE pushing F_post so the callee's
+    // initial_frame_count points at F_post itself (matches Layer 1/2
+    // semantics).
+    let pre_push_count = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_return_frame_len_i64",
+        &[],
+    )?;
+    // Push F_post(resume_cont, env, current_initial, current_eval, immediate_force).
+    push_return_frame_for_resume(
+        module_backend,
+        builder,
+        function,
+        resume_cont,
+        immediate_force,
+        functions,
+    )?;
+    // Read target args BEFORE switching eval context (so we see the caller's value table state).
+    let arg_values = read_values(builder, function, args)?;
+    // Set callee eval context: fresh eval id + initial = pre_push_count
+    // (F_post is consumable, frames below are not).
+    switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
+    let id = functions.functions.get(target).copied().ok_or_else(|| {
+        CpsReprCraneliftError::MissingFunction {
+            name: target.to_string(),
+        }
+    })?;
+    let callee = module_backend.declare_func_in_func(id, builder.func);
+    let call = builder.ins().call(callee, &arg_values);
+    let results = builder.inst_results(call);
+    if results.len() != 1 {
+        return Err(CpsReprCraneliftError::InvalidReturnArity {
+            function: target.to_string(),
+            arity: results.len(),
+        });
+    }
+    let result = results[0];
+    builder.ins().return_(&[result]);
+    Ok(())
+}
+
+fn lower_effectful_apply_tail<M: Module>(
+    module_backend: &mut M,
+    builder: &mut FunctionBuilder<'_>,
+    function: &CpsReprAbiFunction,
+    closure: CpsValueId,
+    arg: CpsValueId,
+    resume: CpsContinuationId,
+    functions: &DeclaredFunctions,
+) -> CpsReprCraneliftResult<()> {
+    // write27-d d4: EffectfulApply dispatches at runtime between Closure
+    // and Resumption based on `yulang_cps_is_resumption_i64`. The Closure
+    // path pushes F_post and calls apply_closure_i64. The Resumption path
+    // delegates anchor-merge + combined-frames logic to a Rust helper.
+    let resume_cont = lookup_continuation(function, resume)?;
+    check_resume_continuation_shape(function, resume_cont)?;
+    let immediate_force = resume_continuation_immediately_forces_param(resume_cont);
+    let closure_value = read_value(builder, function, closure)?;
+    let arg_value = read_value(builder, function, arg)?;
+
+    let func_ref =
+        continuation_func_ref(module_backend, builder, function, resume_cont.id, functions)?;
+    let post_cont_ptr = builder.ins().func_addr(types::I64, func_ref);
+    let current_eval = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_current_eval_id_i64",
+        &[],
+    )?;
+    let current_initial = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_current_initial_frame_count_i64",
+        &[],
+    )?;
+    let owner_function = builder
+        .ins()
+        .iconst(types::I64, function_runtime_id(function, functions)? as i64);
+    let immediate_force_value = builder.ins().iconst(types::I64, i64::from(immediate_force));
+    let mut env_args = Vec::with_capacity(resume_cont.environment.len());
+    for slot in &resume_cont.environment {
+        validate_environment_lane(function, slot.value, slot.lane)?;
+        env_args.push(read_value(builder, function, slot.value)?);
+    }
+
+    let is_resumption = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_is_resumption_i64",
+        &[closure_value],
+    )?;
+    let resumption_block = builder.create_block();
+    let closure_block = builder.create_block();
+    builder
+        .ins()
+        .brif(is_resumption, resumption_block, &[], closure_block, &[]);
+
+    builder.switch_to_block(closure_block);
+    builder.seal_block(closure_block);
+    let pre_push_count = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_return_frame_len_i64",
+        &[],
+    )?;
+    push_return_frame_for_resume(
+        module_backend,
+        builder,
+        function,
+        resume_cont,
+        immediate_force,
+        functions,
+    )?;
+    switch_eval_context_for_callee(module_backend, builder, pre_push_count)?;
+    let closure_result = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_apply_closure_i64",
+        &[closure_value, arg_value],
+    )?;
+    builder.ins().return_(&[closure_result]);
+
+    builder.switch_to_block(resumption_block);
+    builder.seal_block(resumption_block);
+    let mut resumption_args = vec![
+        closure_value,
+        arg_value,
+        post_cont_ptr,
+        current_initial,
+        current_eval,
+        owner_function,
+        immediate_force_value,
+    ];
+    let resumption_helper = if env_args.len() > 4 {
+        let (env_ptr, env_len) = stack_i64_slice(builder, &env_args)?;
+        resumption_args.push(env_ptr);
+        resumption_args.push(env_len);
+        EFFECTFUL_APPLY_RESUMPTION_HELPERS.many
+    } else {
+        resumption_args.extend_from_slice(&env_args);
+        EFFECTFUL_APPLY_RESUMPTION_HELPERS.fixed(resume_cont.environment.len())
+    };
+    let resumption_result =
+        call_i64_helper(module_backend, builder, resumption_helper, &resumption_args)?;
+    builder.ins().return_(&[resumption_result]);
     Ok(())
 }
 
@@ -2464,7 +2698,7 @@ fn push_return_frame_for_resume<M: Module>(
         let _ = call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_push_return_frame_i64_many",
+            PUSH_RETURN_FRAME_HELPERS.many,
             &args,
         )?;
         return Ok(());
@@ -2478,14 +2712,7 @@ fn push_return_frame_for_resume<M: Module>(
         immediate_force_value,
     ];
     args.extend(env_values);
-    let helper_name = match resume_cont.environment.len() {
-        0 => "yulang_cps_push_return_frame_i64_0",
-        1 => "yulang_cps_push_return_frame_i64_1",
-        2 => "yulang_cps_push_return_frame_i64_2",
-        3 => "yulang_cps_push_return_frame_i64_3",
-        4 => "yulang_cps_push_return_frame_i64_4",
-        _ => unreachable!("large environment returned above"),
-    };
+    let helper_name = PUSH_RETURN_FRAME_HELPERS.fixed(resume_cont.environment.len());
     let _ = call_i64_helper(module_backend, builder, helper_name, &args)?;
     Ok(())
 }
@@ -2827,20 +3054,13 @@ fn make_resumption<M: Module>(
         return call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_make_resumption_i64_many",
+            MAKE_RESUMPTION_HELPERS.many,
             &[code, handler, env_ptr, env_len],
         );
     }
     let mut args = vec![code, handler];
     args.extend(env_values);
-    let helper_name = match resume_continuation.environment.len() {
-        0 => "yulang_cps_make_resumption_i64_0",
-        1 => "yulang_cps_make_resumption_i64_1",
-        2 => "yulang_cps_make_resumption_i64_2",
-        3 => "yulang_cps_make_resumption_i64_3",
-        4 => "yulang_cps_make_resumption_i64_4",
-        _ => unreachable!("large environment returned above"),
-    };
+    let helper_name = MAKE_RESUMPTION_HELPERS.fixed(resume_continuation.environment.len());
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
     let call = builder.ins().call(helper, &args);
@@ -2875,18 +3095,11 @@ fn make_thunk<M: Module>(
         return call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_make_thunk_i64_many",
+            MAKE_THUNK_HELPERS.many,
             &[code, env_ptr, env_len],
         );
     }
-    let helper_name = match thunk_continuation.environment.len() {
-        0 => "yulang_cps_make_thunk_i64_0",
-        1 => "yulang_cps_make_thunk_i64_1",
-        2 => "yulang_cps_make_thunk_i64_2",
-        3 => "yulang_cps_make_thunk_i64_3",
-        4 => "yulang_cps_make_thunk_i64_4",
-        _ => unreachable!("large environment returned above"),
-    };
+    let helper_name = MAKE_THUNK_HELPERS.fixed(thunk_continuation.environment.len());
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
     let call = builder.ins().call(helper, &args);
@@ -2920,18 +3133,11 @@ fn make_closure<M: Module>(
         return call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_make_closure_i64_many",
+            MAKE_CLOSURE_HELPERS.many,
             &[code, env_ptr, env_len],
         );
     }
-    let helper_name = match closure_continuation.environment.len() {
-        0 => "yulang_cps_make_closure_i64_0",
-        1 => "yulang_cps_make_closure_i64_1",
-        2 => "yulang_cps_make_closure_i64_2",
-        3 => "yulang_cps_make_closure_i64_3",
-        4 => "yulang_cps_make_closure_i64_4",
-        _ => unreachable!("large environment returned above"),
-    };
+    let helper_name = MAKE_CLOSURE_HELPERS.fixed(closure_continuation.environment.len());
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
     let call = builder.ins().call(helper, &args);
@@ -2976,20 +3182,13 @@ fn make_recursive_closure<M: Module>(
         return call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_make_recursive_closure_i64_many",
+            MAKE_RECURSIVE_CLOSURE_HELPERS.many,
             &[code, self_slot_value, env_ptr, env_len],
         );
     }
     let self_slot = builder.ins().iconst(types::I64, self_slot as i64);
     args.insert(1, self_slot);
-    let helper_name = match closure_continuation.environment.len() {
-        0 => "yulang_cps_make_recursive_closure_i64_0",
-        1 => "yulang_cps_make_recursive_closure_i64_1",
-        2 => "yulang_cps_make_recursive_closure_i64_2",
-        3 => "yulang_cps_make_recursive_closure_i64_3",
-        4 => "yulang_cps_make_recursive_closure_i64_4",
-        _ => unreachable!("large environment returned above"),
-    };
+    let helper_name = MAKE_RECURSIVE_CLOSURE_HELPERS.fixed(closure_continuation.environment.len());
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
     let call = builder.ins().call(helper, &args);
@@ -3233,18 +3432,11 @@ fn make_env<M: Module>(
         return call_i64_helper(
             module_backend,
             builder,
-            "yulang_cps_make_env_i64_many",
+            MAKE_ENV_HELPERS.many,
             &[env_ptr, env_len],
         );
     }
-    let helper_name = match args.len() {
-        0 => "yulang_cps_make_env_i64_0",
-        1 => "yulang_cps_make_env_i64_1",
-        2 => "yulang_cps_make_env_i64_2",
-        3 => "yulang_cps_make_env_i64_3",
-        4 => "yulang_cps_make_env_i64_4",
-        _ => unreachable!("large environment returned above"),
-    };
+    let helper_name = MAKE_ENV_HELPERS.fixed(args.len());
     let params = vec![types::I64; args.len()];
     let helper = declare_import(module_backend, builder, helper_name, &params, types::I64)?;
     let call = builder.ins().call(helper, args);
@@ -3257,14 +3449,7 @@ fn make_tuple_value<M: Module>(
     builder: &mut FunctionBuilder<'_>,
     args: &[ir::Value],
 ) -> CpsReprCraneliftResult<ir::Value> {
-    let helper_name = match args.len() {
-        0 => "yulang_cps_tuple_i64_0",
-        1 => "yulang_cps_tuple_i64_1",
-        2 => "yulang_cps_tuple_i64_2",
-        3 => "yulang_cps_tuple_i64_3",
-        4 => "yulang_cps_tuple_i64_4",
-        _ => "yulang_cps_tuple_i64_many",
-    };
+    let helper_name = TUPLE_HELPERS.select(args.len());
     if args.len() > 4 {
         return Err(CpsReprCraneliftError::UnsupportedStmt {
             function: "<tuple>".to_string(),

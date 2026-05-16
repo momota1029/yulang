@@ -1286,6 +1286,56 @@ impl FunctionLoweringTraits {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DirectCallMode {
+    SyncDirect,
+    EffectfulWithResume,
+}
+
+#[derive(Debug)]
+struct DirectCallPlan<'expr, 'functions> {
+    expr: &'expr runtime::Expr,
+    target: String,
+    info: &'functions FunctionInfo,
+    args: Vec<&'expr runtime::Expr>,
+    mode: DirectCallMode,
+    target_may_perform: bool,
+    info_returns_thunk: bool,
+    force_handler_reentry_args: bool,
+    should_inline: bool,
+}
+
+enum ExprLowerCase<'expr, 'functions> {
+    InlineThunkHandler {
+        body: runtime::Expr,
+        arms: Vec<runtime::HandleArm>,
+        consumes: Vec<typed_ir::Path>,
+    },
+    EffectRequest(CpsEffectApply<'expr>),
+    BindHere {
+        expr: &'expr runtime::Expr,
+    },
+    Primitive {
+        op: typed_ir::PrimitiveOp,
+        args: Vec<&'expr runtime::Expr>,
+    },
+    PartialDirectApply {
+        target_path: &'expr typed_ir::Path,
+        info: &'functions FunctionInfo,
+        args: Vec<&'expr runtime::Expr>,
+    },
+    DirectApply {
+        target_path: &'expr typed_ir::Path,
+        info: &'functions FunctionInfo,
+        args: Vec<&'expr runtime::Expr>,
+    },
+    ResumeApply {
+        resumption: CpsValueId,
+        arg: &'expr runtime::Expr,
+    },
+    PlainExprKind,
+}
+
 struct FunctionLowerer<'a> {
     name: String,
     functions: &'a HashMap<typed_ir::Path, FunctionInfo>,
@@ -1410,154 +1460,69 @@ impl<'a> FunctionLowerer<'a> {
     }
 
     fn lower_expr(&mut self, expr: &runtime::Expr) -> CpsLowerResult<CpsValueId> {
-        if let Some((body, arms, consumes)) =
-            inline_thunk_handler_apply(expr, self.functions, self.bindings)
+        let lower_case = self.classify_expr(expr)?;
+        if let ExprLowerCase::InlineThunkHandler {
+            body,
+            arms,
+            consumes,
+        } = lower_case
         {
             return self.lower_handle(&body, &arms, &consumes);
         }
+
         if let Some(value) = self.lower_local_expr_apply(expr)? {
             return Ok(value);
         }
 
-        if let Some(request) = effect_apply_body_request(expr) {
-            let (expected_effects, handler) =
-                self.effect_context_for_request(&request, &[], dynamic_handler_id());
-            let (_, value) =
-                self.begin_resume_after_perform(request, &expected_effects, handler)?;
-            return Ok(value);
-        }
+        self.lower_classified_expr(expr, lower_case)
+    }
 
-        if let runtime::ExprKind::BindHere { expr } = &expr.kind {
-            return self.lower_bind_here(expr);
-        }
-
-        if let Some((op, args)) = primitive_apply(expr) {
-            let expected = primitive_arity(op);
-            if args.len() != expected {
-                return Err(CpsLowerError::PrimitiveArityMismatch {
-                    op,
-                    expected,
-                    actual: args.len(),
+    fn lower_classified_expr(
+        &mut self,
+        expr: &runtime::Expr,
+        lower_case: ExprLowerCase<'_, '_>,
+    ) -> CpsLowerResult<CpsValueId> {
+        match lower_case {
+            ExprLowerCase::InlineThunkHandler { .. } => {
+                unreachable!("inline handler case is handled before local expr apply")
+            }
+            ExprLowerCase::EffectRequest(request) => {
+                let (expected_effects, handler) =
+                    self.effect_context_for_request(&request, &[], dynamic_handler_id());
+                let (_, value) =
+                    self.begin_resume_after_perform(request, &expected_effects, handler)?;
+                Ok(value)
+            }
+            ExprLowerCase::BindHere { expr } => self.lower_bind_here(expr),
+            ExprLowerCase::Primitive { op, args } => self.lower_primitive_apply_case(op, args),
+            ExprLowerCase::PartialDirectApply {
+                target_path,
+                info,
+                args,
+            } => self.lower_partial_direct_apply(target_path, info, args),
+            ExprLowerCase::DirectApply {
+                target_path,
+                info,
+                args,
+            } => {
+                let plan = self.plan_direct_call(expr, target_path, info, args);
+                self.lower_direct_call_plan(plan)
+            }
+            ExprLowerCase::ResumeApply { resumption, arg } => {
+                let arg = self.lower_expr(arg)?;
+                let dest = self.fresh_value();
+                self.current.stmts.push(CpsStmt::Resume {
+                    dest,
+                    resumption,
+                    arg,
                 });
+                Ok(dest)
             }
-            let args = args
-                .into_iter()
-                .map(|arg| self.lower_expr(arg))
-                .collect::<CpsLowerResult<Vec<_>>>()?;
-            let dest = self.fresh_value();
-            self.current
-                .stmts
-                .push(CpsStmt::Primitive { dest, op, args });
-            return Ok(dest);
+            ExprLowerCase::PlainExprKind => self.lower_expr_kind(expr),
         }
+    }
 
-        if let Some((target_path, info, args)) = partial_direct_apply_path(expr, self.functions)? {
-            return self.lower_partial_direct_apply(target_path, info, args);
-        }
-
-        if let Some((target_path, info, args)) = direct_apply_path(expr, self.functions)? {
-            let target = info.name.clone();
-            let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
-            let target_may_perform = self.target_may_perform_when_called(target_path);
-            let force_handler_reentry_args =
-                self.direct_call_has_handler_reentry_arg(target_path, &args);
-            let should_inline_direct = (!matches!(expr.ty, runtime::Type::Thunk { .. })
-                && args.iter().any(|arg| is_inline_argument(arg)))
-                || (self.active_handler.is_some() && info_returns_thunk && target_may_perform);
-            if should_inline_direct {
-                if let Some(value) = self.lower_inline_direct_apply(expr)? {
-                    return Ok(self.force_if_non_thunk_demand(value, &expr.ty));
-                }
-            }
-            let info_params = info.params.clone();
-            let args = args
-                .into_iter()
-                .enumerate()
-                .map(|(idx, arg)| {
-                    let expected = info_params
-                        .get(idx)
-                        .cloned()
-                        .unwrap_or_else(runtime::Type::unknown);
-                    let lowerer = |this: &mut Self| {
-                        let lowered = if matches!(expected, runtime::Type::Thunk { .. }) {
-                            this.lower_expr_as_thunk_value(arg)?
-                        } else {
-                            this.lower_expr(arg)?
-                        };
-                        Ok(this.force_if_non_thunk_demand(lowered, &expected))
-                    };
-                    let force_effectful_arg = target_may_perform
-                        && expr_contains_indirect_apply(arg, self.functions)
-                        && !type_is_callable_after_force(&arg.ty)
-                        && !matches!(expected, runtime::Type::Thunk { .. })
-                        && !matches!(arg.ty, runtime::Type::Thunk { .. });
-                    if (force_handler_reentry_args && self.expr_contains_resume_apply(arg))
-                        || force_effectful_arg
-                    {
-                        self.force_effectful_apply_depth += 1;
-                        let result = lowerer(self);
-                        self.force_effectful_apply_depth -= 1;
-                        result
-                    } else {
-                        lowerer(self)
-                    }
-                })
-                .collect::<CpsLowerResult<Vec<_>>>()?;
-            // Effectful helpers must cross a continuation boundary even when
-            // their surface result is plain: wrapper functions often force an
-            // inner thunk before returning, so `info.ret` alone can hide that
-            // the call performs under the caller's active handler.
-            if (self.higher_order_helper && info_returns_thunk) || target_may_perform {
-                self.mark_active_handlers_external_call();
-                let post_cont = self.fresh_continuation();
-                let result = self.fresh_value();
-                self.terminate(CpsTerminator::EffectfulCall {
-                    target,
-                    args,
-                    resume: post_cont,
-                });
-                self.finish_current();
-                self.current = ContinuationBuilder::new(post_cont, vec![result]);
-                // write18: mirror the sync DirectCall path's demand-side
-                // forcing. fold_impl/each/once return Thunks via MakeThunk +
-                // Return, so the post-call cont receives a Thunk. If the
-                // call site's static type is non-Thunk, force the result
-                // here so downstream uses see the unwrapped value. Without
-                // this, fold_impl's left recursive call returns a Thunk that
-                // is silently used as z for the right call without ever
-                // running the left iteration — skipping leaves and giving
-                // the rightmost element instead of the proper fold.
-                return Ok(self.force_if_non_thunk_demand(result, &expr.ty));
-            }
-            let dest = self.fresh_value();
-            self.current
-                .stmts
-                .push(CpsStmt::DirectCall { dest, target, args });
-            if info_returns_thunk || target_may_perform {
-                self.mark_active_handlers_external_call();
-            }
-            // Result demand forcing. Many effectful helpers (`each`, `once`,
-            // ...) lower as `MakeThunk` + `Return` so that direct callers
-            // that need them as a thunk (`once_mono1` expects each as a
-            // thunk arg) receive a thunk handle. But callers that bind the
-            // result to a non-thunk static type (`(each ...).once` returns
-            // `opt int`) must force it. ForceThunk is a no-op on non-thunk
-            // values, so it's safe to insert whenever the consumer's
-            // expected type is non-Thunk.
-            return Ok(self.force_if_non_thunk_demand(dest, &expr.ty));
-        }
-
-        if let Some((resumption, arg)) = self.resume_apply(expr) {
-            let arg = self.lower_expr(arg)?;
-            let dest = self.fresh_value();
-            self.current.stmts.push(CpsStmt::Resume {
-                dest,
-                resumption,
-                arg,
-            });
-            return Ok(dest);
-        }
-
+    fn lower_expr_kind(&mut self, expr: &runtime::Expr) -> CpsLowerResult<CpsValueId> {
         match &expr.kind {
             runtime::ExprKind::Lit(lit) => {
                 let dest = self.fresh_value();
@@ -1671,6 +1636,72 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
+    fn classify_expr<'expr>(
+        &self,
+        expr: &'expr runtime::Expr,
+    ) -> CpsLowerResult<ExprLowerCase<'expr, 'a>> {
+        if let Some((body, arms, consumes)) =
+            inline_thunk_handler_apply(expr, self.functions, self.bindings)
+        {
+            return Ok(ExprLowerCase::InlineThunkHandler {
+                body,
+                arms,
+                consumes,
+            });
+        }
+        if let Some(request) = effect_apply_body_request(expr) {
+            return Ok(ExprLowerCase::EffectRequest(request));
+        }
+        if let runtime::ExprKind::BindHere { expr } = &expr.kind {
+            return Ok(ExprLowerCase::BindHere { expr });
+        }
+        if let Some((op, args)) = primitive_apply(expr) {
+            return Ok(ExprLowerCase::Primitive { op, args });
+        }
+        if let Some((target_path, info, args)) = partial_direct_apply_path(expr, self.functions)? {
+            return Ok(ExprLowerCase::PartialDirectApply {
+                target_path,
+                info,
+                args,
+            });
+        }
+        if let Some((target_path, info, args)) = direct_apply_path(expr, self.functions)? {
+            return Ok(ExprLowerCase::DirectApply {
+                target_path,
+                info,
+                args,
+            });
+        }
+        if let Some((resumption, arg)) = self.resume_apply(expr) {
+            return Ok(ExprLowerCase::ResumeApply { resumption, arg });
+        }
+        Ok(ExprLowerCase::PlainExprKind)
+    }
+
+    fn lower_primitive_apply_case(
+        &mut self,
+        op: typed_ir::PrimitiveOp,
+        args: Vec<&runtime::Expr>,
+    ) -> CpsLowerResult<CpsValueId> {
+        let expected = primitive_arity(op);
+        if args.len() != expected {
+            return Err(CpsLowerError::PrimitiveArityMismatch {
+                op,
+                expected,
+                actual: args.len(),
+            });
+        }
+        let args = args
+            .into_iter()
+            .map(|arg| self.lower_expr(arg))
+            .collect::<CpsLowerResult<Vec<_>>>()?;
+        let dest = self.fresh_value();
+        self.current
+            .stmts
+            .push(CpsStmt::Primitive { dest, op, args });
+        Ok(dest)
+    }
+
     fn lower_effect_id_ref(&mut self, id: runtime::EffectIdRef) -> CpsLowerResult<CpsValueId> {
         match id {
             runtime::EffectIdRef::Peek => {
@@ -1690,10 +1721,7 @@ impl<'a> FunctionLowerer<'a> {
     }
 
     fn lower_bind_here(&mut self, expr: &runtime::Expr) -> CpsLowerResult<CpsValueId> {
-        self.sync_apply_for_immediate_force_depth += 1;
-        let thunk = self.lower_expr(expr);
-        self.sync_apply_for_immediate_force_depth -= 1;
-        let thunk = thunk?;
+        let thunk = self.with_sync_apply_for_immediate_force_depth(|this| this.lower_expr(expr))?;
         let dest = self.fresh_value();
         self.current.stmts.push(CpsStmt::ForceThunk { dest, thunk });
         Ok(dest)
@@ -2036,9 +2064,26 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         lower: impl FnOnce(&mut Self) -> CpsLowerResult<T>,
     ) -> CpsLowerResult<T> {
+        self.with_force_effectful_apply_depth(lower)
+    }
+
+    fn with_force_effectful_apply_depth<T>(
+        &mut self,
+        lower: impl FnOnce(&mut Self) -> CpsLowerResult<T>,
+    ) -> CpsLowerResult<T> {
         self.force_effectful_apply_depth += 1;
         let result = lower(self);
         self.force_effectful_apply_depth -= 1;
+        result
+    }
+
+    fn with_sync_apply_for_immediate_force_depth<T>(
+        &mut self,
+        lower: impl FnOnce(&mut Self) -> CpsLowerResult<T>,
+    ) -> CpsLowerResult<T> {
+        self.sync_apply_for_immediate_force_depth += 1;
+        let result = lower(self);
+        self.sync_apply_for_immediate_force_depth -= 1;
         result
     }
 
@@ -4804,6 +4849,145 @@ impl<'a> FunctionLowerer<'a> {
             &mut visiting,
             &mut memo,
         )
+    }
+
+    fn plan_direct_call<'expr, 'functions>(
+        &self,
+        expr: &'expr runtime::Expr,
+        target_path: &'expr typed_ir::Path,
+        info: &'functions FunctionInfo,
+        args: Vec<&'expr runtime::Expr>,
+    ) -> DirectCallPlan<'expr, 'functions> {
+        let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
+        let target_may_perform = self.target_may_perform_when_called(target_path);
+        let force_handler_reentry_args =
+            self.direct_call_has_handler_reentry_arg(target_path, &args);
+        let should_inline = (!matches!(expr.ty, runtime::Type::Thunk { .. })
+            && args.iter().any(|arg| is_inline_argument(arg)))
+            || (self.active_handler.is_some() && info_returns_thunk && target_may_perform);
+        let mode = if (self.higher_order_helper && info_returns_thunk) || target_may_perform {
+            DirectCallMode::EffectfulWithResume
+        } else {
+            DirectCallMode::SyncDirect
+        };
+
+        DirectCallPlan {
+            expr,
+            target: info.name.clone(),
+            info,
+            args,
+            mode,
+            target_may_perform,
+            info_returns_thunk,
+            force_handler_reentry_args,
+            should_inline,
+        }
+    }
+
+    fn lower_direct_call_plan(
+        &mut self,
+        plan: DirectCallPlan<'_, '_>,
+    ) -> CpsLowerResult<CpsValueId> {
+        if plan.should_inline
+            && let Some(value) = self.lower_inline_direct_apply(plan.expr)?
+        {
+            return Ok(self.force_if_non_thunk_demand(value, &plan.expr.ty));
+        }
+
+        let args = self.lower_direct_call_args(&plan)?;
+        match plan.mode {
+            DirectCallMode::EffectfulWithResume => {
+                // Effectful helpers must cross a continuation boundary even when
+                // their surface result is plain: wrapper functions often force an
+                // inner thunk before returning, so `info.ret` alone can hide that
+                // the call performs under the caller's active handler.
+                self.mark_active_handlers_external_call();
+                let post_cont = self.fresh_continuation();
+                let result = self.fresh_value();
+                self.terminate(CpsTerminator::EffectfulCall {
+                    target: plan.target,
+                    args,
+                    resume: post_cont,
+                });
+                self.finish_current();
+                self.current = ContinuationBuilder::new(post_cont, vec![result]);
+                // write18: mirror the sync DirectCall path's demand-side
+                // forcing. fold_impl/each/once return Thunks via MakeThunk +
+                // Return, so the post-call cont receives a Thunk. If the
+                // call site's static type is non-Thunk, force the result
+                // here so downstream uses see the unwrapped value. Without
+                // this, fold_impl's left recursive call returns a Thunk that
+                // is silently used as z for the right call without ever
+                // running the left iteration — skipping leaves and giving
+                // the rightmost element instead of the proper fold.
+                Ok(self.force_if_non_thunk_demand(result, &plan.expr.ty))
+            }
+            DirectCallMode::SyncDirect => {
+                let dest = self.fresh_value();
+                self.current.stmts.push(CpsStmt::DirectCall {
+                    dest,
+                    target: plan.target,
+                    args,
+                });
+                if plan.info_returns_thunk || plan.target_may_perform {
+                    self.mark_active_handlers_external_call();
+                }
+                // Result demand forcing. Many effectful helpers (`each`, `once`,
+                // ...) lower as `MakeThunk` + `Return` so that direct callers
+                // that need them as a thunk (`once_mono1` expects each as a
+                // thunk arg) receive a thunk handle. But callers that bind the
+                // result to a non-thunk static type (`(each ...).once` returns
+                // `opt int`) must force it. ForceThunk is a no-op on non-thunk
+                // values, so it's safe to insert whenever the consumer's
+                // expected type is non-Thunk.
+                Ok(self.force_if_non_thunk_demand(dest, &plan.expr.ty))
+            }
+        }
+    }
+
+    fn lower_direct_call_args(
+        &mut self,
+        plan: &DirectCallPlan<'_, '_>,
+    ) -> CpsLowerResult<Vec<CpsValueId>> {
+        let info_params = plan.info.params.clone();
+        plan.args
+            .iter()
+            .enumerate()
+            .map(|(idx, arg)| {
+                let expected = info_params
+                    .get(idx)
+                    .cloned()
+                    .unwrap_or_else(runtime::Type::unknown);
+                let force_effectful_arg = plan.target_may_perform
+                    && expr_contains_indirect_apply(arg, self.functions)
+                    && !type_is_callable_after_force(&arg.ty)
+                    && !matches!(expected, runtime::Type::Thunk { .. })
+                    && !matches!(arg.ty, runtime::Type::Thunk { .. });
+                let needs_forced_effectful_depth = (plan.force_handler_reentry_args
+                    && self.expr_contains_resume_apply(arg))
+                    || force_effectful_arg;
+                if needs_forced_effectful_depth {
+                    self.with_force_effectful_apply_depth(|this| {
+                        this.lower_direct_call_arg(arg, &expected)
+                    })
+                } else {
+                    self.lower_direct_call_arg(arg, &expected)
+                }
+            })
+            .collect()
+    }
+
+    fn lower_direct_call_arg(
+        &mut self,
+        arg: &runtime::Expr,
+        expected: &runtime::Type,
+    ) -> CpsLowerResult<CpsValueId> {
+        let lowered = if matches!(expected, runtime::Type::Thunk { .. }) {
+            self.lower_expr_as_thunk_value(arg)?
+        } else {
+            self.lower_expr(arg)?
+        };
+        Ok(self.force_if_non_thunk_demand(lowered, expected))
     }
 
     fn lower_inline_direct_apply(
