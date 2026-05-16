@@ -26,6 +26,7 @@ use crate::cps_repr_abi::{
 };
 use crate::cps_validate::{CpsValidateError, validate_cps_module};
 
+mod helper_arity;
 mod runtime_symbols;
 
 pub type CpsReprCraneliftResult<T> = Result<T, CpsReprCraneliftError>;
@@ -553,121 +554,10 @@ struct LocalValueCache {
     native_float: HashMap<CpsValueId, ir::Value>,
 }
 
-struct FixedManyHelpers {
-    fixed: [&'static str; 5],
-    many: &'static str,
-}
-
-impl FixedManyHelpers {
-    fn fixed(&self, len: usize) -> &'static str {
-        self.fixed
-            .get(len)
-            .copied()
-            .expect("fixed helper arity must be 0..=4")
-    }
-
-    fn select(&self, len: usize) -> &'static str {
-        self.fixed.get(len).copied().unwrap_or(self.many)
-    }
-}
-
-const MAKE_RESUMPTION_HELPERS: FixedManyHelpers = FixedManyHelpers {
-    fixed: [
-        "yulang_cps_make_resumption_i64_0",
-        "yulang_cps_make_resumption_i64_1",
-        "yulang_cps_make_resumption_i64_2",
-        "yulang_cps_make_resumption_i64_3",
-        "yulang_cps_make_resumption_i64_4",
-    ],
-    many: "yulang_cps_make_resumption_i64_many",
-};
-
-const MAKE_THUNK_HELPERS: FixedManyHelpers = FixedManyHelpers {
-    fixed: [
-        "yulang_cps_make_thunk_i64_0",
-        "yulang_cps_make_thunk_i64_1",
-        "yulang_cps_make_thunk_i64_2",
-        "yulang_cps_make_thunk_i64_3",
-        "yulang_cps_make_thunk_i64_4",
-    ],
-    many: "yulang_cps_make_thunk_i64_many",
-};
-
-const MAKE_CLOSURE_HELPERS: FixedManyHelpers = FixedManyHelpers {
-    fixed: [
-        "yulang_cps_make_closure_i64_0",
-        "yulang_cps_make_closure_i64_1",
-        "yulang_cps_make_closure_i64_2",
-        "yulang_cps_make_closure_i64_3",
-        "yulang_cps_make_closure_i64_4",
-    ],
-    many: "yulang_cps_make_closure_i64_many",
-};
-
-const MAKE_RECURSIVE_CLOSURE_HELPERS: FixedManyHelpers = FixedManyHelpers {
-    fixed: [
-        "yulang_cps_make_recursive_closure_i64_0",
-        "yulang_cps_make_recursive_closure_i64_1",
-        "yulang_cps_make_recursive_closure_i64_2",
-        "yulang_cps_make_recursive_closure_i64_3",
-        "yulang_cps_make_recursive_closure_i64_4",
-    ],
-    many: "yulang_cps_make_recursive_closure_i64_many",
-};
-
-const MAKE_ENV_HELPERS: FixedManyHelpers = FixedManyHelpers {
-    fixed: [
-        "yulang_cps_make_env_i64_0",
-        "yulang_cps_make_env_i64_1",
-        "yulang_cps_make_env_i64_2",
-        "yulang_cps_make_env_i64_3",
-        "yulang_cps_make_env_i64_4",
-    ],
-    many: "yulang_cps_make_env_i64_many",
-};
-
-const TUPLE_HELPERS: FixedManyHelpers = FixedManyHelpers {
-    fixed: [
-        "yulang_cps_tuple_i64_0",
-        "yulang_cps_tuple_i64_1",
-        "yulang_cps_tuple_i64_2",
-        "yulang_cps_tuple_i64_3",
-        "yulang_cps_tuple_i64_4",
-    ],
-    many: "yulang_cps_tuple_i64_many",
-};
-
-const PUSH_RETURN_FRAME_HELPERS: FixedManyHelpers = FixedManyHelpers {
-    fixed: [
-        "yulang_cps_push_return_frame_i64_0",
-        "yulang_cps_push_return_frame_i64_1",
-        "yulang_cps_push_return_frame_i64_2",
-        "yulang_cps_push_return_frame_i64_3",
-        "yulang_cps_push_return_frame_i64_4",
-    ],
-    many: "yulang_cps_push_return_frame_i64_many",
-};
-
-const INSTALL_HANDLER_FULL_HELPERS: FixedManyHelpers = FixedManyHelpers {
-    fixed: [
-        "yulang_cps_install_handler_full_i64_0",
-        "yulang_cps_install_handler_full_i64_1",
-        "yulang_cps_install_handler_full_i64_2",
-        "yulang_cps_install_handler_full_i64_3",
-        "yulang_cps_install_handler_full_i64_4",
-    ],
-    many: "yulang_cps_install_handler_full_i64_many",
-};
-
-const EFFECTFUL_APPLY_RESUMPTION_HELPERS: FixedManyHelpers = FixedManyHelpers {
-    fixed: [
-        "yulang_cps_effectful_apply_resumption_i64_0",
-        "yulang_cps_effectful_apply_resumption_i64_1",
-        "yulang_cps_effectful_apply_resumption_i64_2",
-        "yulang_cps_effectful_apply_resumption_i64_3",
-        "yulang_cps_effectful_apply_resumption_i64_4",
-    ],
-    many: "yulang_cps_effectful_apply_resumption_i64_many",
+use self::helper_arity::{
+    EFFECTFUL_APPLY_RESUMPTION_HELPERS, INSTALL_HANDLER_FULL_HELPERS, MAKE_CLOSURE_HELPERS,
+    MAKE_ENV_HELPERS, MAKE_RECURSIVE_CLOSURE_HELPERS, MAKE_RESUMPTION_HELPERS, MAKE_THUNK_HELPERS,
+    PUSH_RETURN_FRAME_HELPERS, TUPLE_HELPERS,
 };
 
 struct CpsCraneliftLowerCx<'a, 'builder, M: Module, L: CpsLiteralStore> {
