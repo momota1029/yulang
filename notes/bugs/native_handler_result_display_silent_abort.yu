@@ -1,0 +1,71 @@
+-- regression (fixed 2026-05-16): 自己再帰 shallow handler から返ってきた値を
+--      `Display` 経由で出力すると native だけ silent abort していた。値そのものや
+--      算術や length は正しかったので、handler logic ではなく scope-return routing
+--      が handler-resumed 値を final abort として扱っていた。
+--
+-- 期待:
+--   `reference/effects.md` の shallow handler 例どおりに self-recursive で
+--   書いた handler (`log::put s, k -> let (r, rest) = self(k ()) in
+--   (r, cons(s, rest))`) は、VM でも native でも同じ tuple / list を返す。
+--   返ってきた int / string / list を `.show` や `%{...}` interpolation で
+--   出力できる。
+--
+-- 観測 (3 put / list 集約版):
+--   yulang run --interpreter --print-roots → [0] (99, ["a", "b", "c"])
+--   yulang run --native      --print-roots → (99, [c])
+--   yulang run --native      で list の length を計算: 3 (正しい)
+--   yulang run --native      で handler 戻り int に `+ 1` して比較: 100 (正しい)
+--   yulang run --native      で handler 戻り int に `.show` を当てる: silent abort
+--   yulang run --native      で `say "%{r}"` interpolation: silent abort
+--
+--   plain な `my x = 42; say "%{x}"` は native でも 42 と出る。abort は
+--   handler 経由で得た値に対する Display 経路でのみ起きる。
+--
+-- 切り分け:
+--   - 非再帰の handler (`log::put s, k -> (k (), s)`) では native も期待値を
+--     返す。`--print-roots` の出力は `"(42, \"alpha\")"` のように string で
+--     くるまれた形になるが値そのものは一致する (= 別の表示系の話)。
+--   - 算術 (`r + 1`)、destructure (`my (r, s) = ...`)、`std::list::len xs`、
+--     `if n == 3:` の分岐は handler 戻り値でも native で通る。
+--   - Display を当てた瞬間 (`.show`、interpolation、`--print-roots`) だけが
+--     silent abort する。
+--   - `--print-roots` の `(99, [c])` は、list の中身を innermost frame の値
+--     だけに削ったわけではなく、3 要素入った list を Display が途中で諦めて
+--     既に buffer に入っていた innermost 要素だけが出力された結果と見える。
+--
+-- 仮説:
+--   handler arm から resumption を経由して返ってきた値が、runtime 上で
+--   正しい型タグを持っていない。算術や length など型タグを参照しない
+--   primitive 経路は通るが、Display role selection は型タグから dispatch
+--   table を引くため abort する。直前のコミット
+--   `native: track CPS handler env overlays across resumption` で env tracking
+--   が整った副作用として、resumption から戻る値の boxing / unbox が
+--   半端な状態で frame を抜けている可能性。
+--
+-- 影響:
+--   - reference/effects.md の self-recursive handler 例を素直に書くと、
+--     戻り値を print できなかった (silent abort)。VM では問題なかった。
+--   - `collect_logs` 系の cookbook パターンが、native 単体では結果を確認
+--     できない。型は通り、length など部分計算は通るので、デバッグが
+--     難しい類の沈黙バグ。
+
+act log:
+    pub put: str -> ()
+
+our concat_logs(comp: [log] _) = catch comp:
+    log::put s, k ->
+        my (r, rest) = concat_logs(k ())
+        (r, s + rest)
+    v -> (v, "")
+
+my (r, s) = concat_logs {
+    log::put "a"
+    log::put "b"
+    log::put "c"
+    99
+}
+say "before show"
+say r.show
+say "after show"
+-- VM:     before show / 99 / after show
+-- native: before show / 99 / after show

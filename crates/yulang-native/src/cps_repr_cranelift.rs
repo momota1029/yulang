@@ -5253,7 +5253,6 @@ struct NativeCpsI64HandlerFrame {
     /// reaching `return_frame_threshold` means "resume the caller frame" or
     /// "keep escaping inside the same owner".
     threshold_owner_function_id: u64,
-    threshold_owner_is_root: bool,
     /// write27-c c2: whether this frame was inherited from a captured
     /// resumption's handler stack (i.e., not freshly installed by an
     /// `InstallHandler` stmt in the current eval).
@@ -5574,10 +5573,6 @@ fn set_native_i64_root_function_ids(ids: &[u64]) {
     });
 }
 
-fn native_i64_is_root_function_id(id: u64) -> bool {
-    NATIVE_CPS_I64_ROOT_FUNCTION_IDS.with(|ids| ids.borrow().contains(&id))
-}
-
 fn take_native_i64_root_result(value: i64) -> i64 {
     let mode = yulang_cps_abort_mode_i64();
     if mode == 0 {
@@ -5609,7 +5604,6 @@ fn current_native_i64_handler_stack_with_fallback(
                 install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
                 escape_owner_function_id: 0,
                 threshold_owner_function_id: 0,
-                threshold_owner_is_root: false,
                 inherited: false,
                 escape_continuation: 0,
                 escape_env: Box::new([]),
@@ -5641,7 +5635,6 @@ fn take_pending_native_i64_handler_frames() -> Vec<NativeCpsI64HandlerFrame> {
                 install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
                 escape_owner_function_id: 0,
                 threshold_owner_function_id: 0,
-                threshold_owner_is_root: false,
                 inherited: false,
                 escape_continuation: 0,
                 escape_env: Box::new([]),
@@ -7358,7 +7351,6 @@ extern "C" fn yulang_cps_resume_with_handler_i64(
         install_eval_id,
         escape_owner_function_id: owner_function.max(0) as u64,
         threshold_owner_function_id: owner_function.max(0) as u64,
-        threshold_owner_is_root: native_i64_is_root_function_id(owner_function.max(0) as u64),
         inherited: false,
         escape_continuation: 0,
         escape_env: Box::new([]),
@@ -8507,17 +8499,13 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         // Keep the same short-circuit signal used by the frame-walk path so
         // skipped native callers do not continue with their normal fallback.
         if current_initial > 0 {
-            let abort = if frame.return_frame_threshold == 0 {
-                NativeCpsI64Abort::Global(result)
-            } else {
-                NativeCpsI64Abort::Scoped {
-                    value: result,
-                    return_frame_threshold: frame.return_frame_threshold,
-                    propagate_at_threshold: !frame.threshold_owner_is_root,
-                    restore_frames: frame.return_frame_prefix.clone(),
-                }
-            };
-            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = abort);
+            NATIVE_CPS_I64_ABORT.with(|slot| {
+                *slot.borrow_mut() = routed_scope_return_abort(
+                    result,
+                    frame.return_frame_threshold,
+                    frame.return_frame_prefix.clone(),
+                );
+            });
         }
         return result;
     }
@@ -8593,17 +8581,13 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         // call stack still needs a short-circuit signal until the next real
         // handler boundary re-wraps the value.
         if current_initial > 0 {
-            let abort = if handler.return_frame_threshold == 0 {
-                NativeCpsI64Abort::Global(result)
-            } else {
-                NativeCpsI64Abort::Scoped {
-                    value: result,
-                    return_frame_threshold: handler.return_frame_threshold,
-                    propagate_at_threshold: !handler.threshold_owner_is_root,
-                    restore_frames: handler.return_frame_prefix.clone(),
-                }
-            };
-            NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = abort);
+            NATIVE_CPS_I64_ABORT.with(|slot| {
+                *slot.borrow_mut() = routed_scope_return_abort(
+                    result,
+                    handler.return_frame_threshold,
+                    handler.return_frame_prefix.clone(),
+                );
+            });
         }
         return result;
     }
@@ -8618,6 +8602,19 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         );
     }
     fallback_value
+}
+
+fn routed_scope_return_abort(
+    value: i64,
+    return_frame_threshold: usize,
+    restore_frames: Box<[NativeCpsI64ReturnFrame]>,
+) -> NativeCpsI64Abort {
+    NativeCpsI64Abort::Scoped {
+        value,
+        return_frame_threshold,
+        propagate_at_threshold: false,
+        restore_frames,
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -8681,7 +8678,6 @@ extern "C" fn yulang_cps_install_handler_i64(handler: i64, consumes_mask: i64) -
         install_eval_id: NATIVE_CPS_I64_SYNTHETIC_EVAL_ID,
         escape_owner_function_id: 0,
         threshold_owner_function_id: 0,
-        threshold_owner_is_root: false,
         inherited: false,
         escape_continuation: 0,
         escape_env: Box::new([]),
@@ -8773,7 +8769,6 @@ fn install_native_i64_handler_full(
         install_eval_id: install_eval_id as u64,
         escape_owner_function_id: escape_owner,
         threshold_owner_function_id,
-        threshold_owner_is_root: native_i64_is_root_function_id(threshold_owner_function_id),
         inherited: inherited != 0,
         escape_continuation: escape_continuation as usize,
         escape_env: escape_env.into_boxed_slice(),

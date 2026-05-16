@@ -148,6 +148,12 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 
 ## 解決済み（2026-05-14 時点で再現せず）
 
+- [`native_handler_result_display_silent_abort.yu`](native_handler_result_display_silent_abort.yu)
+  — 2026-05-16 に native CPS JIT の `ScopeReturn` routing を修正した。
+  handler escape continuation が見つかった後の値を `Global` abort にせず、
+  `propagate_at_threshold = false` の scoped abort として caller chain を止める。
+  自己再帰 shallow handler から返った値に `.show` を当てる例は VM / native
+  とも `before show / 99 / after show` を出す。
 - [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu) の
   handler guard 部分
   — 2026-05-16 に effect handler arm の guard を native CPS lowering で扱う
