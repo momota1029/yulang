@@ -7338,11 +7338,13 @@ extern "C" fn yulang_cps_resume_with_handler_i64(
     let prompt = yulang_cps_fresh_prompt_i64() as u64;
     let install_eval_id = yulang_cps_current_eval_id_i64() as u64;
     let return_frame_threshold = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
-    let rebases_existing_handler = resumption
-        .handlers
-        .iter()
-        .any(|frame| frame.handler == handler);
-    let guard_stack = if updates_existing_handler_env != 0 || rebases_existing_handler {
+    let updates_existing_handler_env = updates_existing_handler_env != 0;
+    let rebases_existing_handler = updates_existing_handler_env
+        && resumption
+            .handlers
+            .iter()
+            .any(|frame| frame.handler == handler);
+    let guard_stack = if updates_existing_handler_env || rebases_existing_handler {
         Box::new([])
     } else {
         current_native_i64_guard_stack().into_boxed_slice()
@@ -7369,25 +7371,32 @@ extern "C" fn yulang_cps_resume_with_handler_i64(
     inherited_handler.inherited = true;
     push_resume_with_handler_sibling(outer_handler.clone());
     let mut handlers = resumption.handlers.to_vec();
-    handlers.push(inherited_handler.clone());
+    if !rebases_existing_handler {
+        handlers.push(inherited_handler.clone());
+    }
     if jit_trace_enabled() {
         eprintln!(
-            "[JIT-CPS] resume_with_handler: rid={} handler={} envs={} captured_frames={} handlers={}",
+            "[JIT-CPS] resume_with_handler: rid={} handler={} rebased={} envs={} captured_frames={} handlers={}",
             resumption.debug_id,
             handler,
+            rebases_existing_handler,
             format_handler_envs(&outer_handler.envs),
             format_return_frames(&resumption.return_frames),
             format_handler_stack(&handlers),
         );
     }
     let mut resumed_frames = resumption.return_frames.to_vec();
-    for frame in &mut resumed_frames {
-        if !frame
-            .handlers
-            .iter()
-            .any(|existing| same_handler_frame_native(existing, &inherited_handler))
-        {
-            frame.handlers.push(inherited_handler.clone());
+    if rebases_existing_handler {
+        own_native_i64_captured_return_frames(&mut resumed_frames);
+    } else {
+        for frame in &mut resumed_frames {
+            if !frame
+                .handlers
+                .iter()
+                .any(|existing| same_handler_frame_native(existing, &inherited_handler))
+            {
+                frame.handlers.push(inherited_handler.clone());
+            }
         }
     }
     let mut saved_frames = NATIVE_CPS_I64_RETURN_FRAMES
@@ -7416,11 +7425,15 @@ extern "C" fn yulang_cps_resume_with_handler_i64(
     let result = (resumption.code)(resumption.env.as_ptr(), arg);
     let scope_return_active = NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| slot.borrow().active);
     let abort_active = NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().is_active());
-    append_resume_handler_to_frames(&mut saved_frames, &outer_handler);
-    append_resume_handler_to_handler_prefixes(&mut previous_handlers, &outer_handler);
+    if !rebases_existing_handler {
+        append_resume_handler_to_frames(&mut saved_frames, &outer_handler);
+        append_resume_handler_to_handler_prefixes(&mut previous_handlers, &outer_handler);
+    }
     NATIVE_CPS_I64_HANDLER_STACK.with(|stack| {
         let mut outer = previous_handlers;
-        outer.push(outer_handler);
+        if !rebases_existing_handler {
+            outer.push(outer_handler);
+        }
         *stack.borrow_mut() = outer;
     });
     NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = previous_guards);
@@ -7557,6 +7570,12 @@ fn rebase_native_i64_captured_return_frame(
             .saturating_sub(dropped_frames);
     }
     frame
+}
+
+fn own_native_i64_captured_return_frames(frames: &mut [NativeCpsI64ReturnFrame]) {
+    for frame in frames {
+        frame.owner_initial_frame_count = 0;
+    }
 }
 
 fn append_resume_handler_to_frames(
