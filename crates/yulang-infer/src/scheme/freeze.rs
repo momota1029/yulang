@@ -898,20 +898,47 @@ fn collect_compact_root_body_free_vars(scheme: &CompactTypeScheme) -> Vec<TypeVa
         if root_non_fun_parts_empty(&scheme.cty.lower, &ignorable_root_vars)
             && root_non_fun_parts_empty(&scheme.cty.upper, &ignorable_root_vars)
         {
-            let arg = match scheme.cty.upper.funs.as_slice().first_chunk::<1>() {
-                Some([upper_fun]) => common_compact_type(&lower_fun.arg, &upper_fun.arg)
-                    .filter(|ty| !is_empty_compact_type(ty))
-                    .unwrap_or_else(|| lower_fun.arg.clone()),
-                None if scheme.cty.upper.funs.is_empty() => lower_fun.arg.clone(),
-                _ => {
-                    collect_compact_type_free_vars(&scheme.cty.lower, &mut out);
-                    return out;
-                }
-            };
+            // Match `compact_root_fun_pos_body` exactly: arg / arg_eff use
+            // the common (intersection) of lower and upper, while ret_eff
+            // and ret merge lower with upper. Any variable that ends up in
+            // the body but not collected here will stay as a live TypeVar
+            // after instantiation, so the two functions have to agree on
+            // *which slices* of the bounds feed the body.
+            let (arg, arg_eff, ret_eff, ret) =
+                match scheme.cty.upper.funs.as_slice().first_chunk::<1>() {
+                    Some([upper_fun]) => (
+                        common_compact_type(&lower_fun.arg, &upper_fun.arg)
+                            .filter(|ty| !is_empty_compact_type(ty))
+                            .unwrap_or_else(|| lower_fun.arg.clone()),
+                        common_compact_type(&lower_fun.arg_eff, &upper_fun.arg_eff)
+                            .filter(|ty| !is_empty_compact_type(ty))
+                            .unwrap_or_else(|| lower_fun.arg_eff.clone()),
+                        merge_compact_types(
+                            true,
+                            lower_fun.ret_eff.clone(),
+                            upper_fun.ret_eff.clone(),
+                        ),
+                        merge_compact_types(
+                            true,
+                            lower_fun.ret.clone(),
+                            upper_fun.ret.clone(),
+                        ),
+                    ),
+                    None if scheme.cty.upper.funs.is_empty() => (
+                        lower_fun.arg.clone(),
+                        lower_fun.arg_eff.clone(),
+                        lower_fun.ret_eff.clone(),
+                        lower_fun.ret.clone(),
+                    ),
+                    _ => {
+                        collect_compact_type_free_vars(&scheme.cty.lower, &mut out);
+                        return out;
+                    }
+                };
             collect_compact_type_free_vars(&arg, &mut out);
-            collect_compact_type_free_vars(&lower_fun.arg_eff, &mut out);
-            collect_compact_type_free_vars(&lower_fun.ret_eff, &mut out);
-            collect_compact_type_free_vars(&lower_fun.ret, &mut out);
+            collect_compact_type_free_vars(&arg_eff, &mut out);
+            collect_compact_type_free_vars(&ret_eff, &mut out);
+            collect_compact_type_free_vars(&ret, &mut out);
             return out;
         }
     }
