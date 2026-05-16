@@ -1792,14 +1792,18 @@ impl<'a> ExprChecker<'a> {
                 suffix,
                 ..
             } => {
+                let expected_item = expected.and_then(list_expected_item);
                 for item in prefix {
-                    self.push_pattern_bindings(item, None, inserted);
+                    self.push_pattern_bindings(item, expected_item.as_ref(), inserted);
                 }
                 if let Some(spread) = spread {
-                    self.push_pattern_bindings(spread, None, inserted);
+                    // The spread captures the remaining list, so it
+                    // receives the whole list signature rather than the
+                    // item type.
+                    self.push_pattern_bindings(spread, expected, inserted);
                 }
                 for item in suffix {
-                    self.push_pattern_bindings(item, None, inserted);
+                    self.push_pattern_bindings(item, expected_item.as_ref(), inserted);
                 }
             }
             Pattern::Wildcard { .. } | Pattern::Lit { .. } => {}
@@ -2279,6 +2283,25 @@ fn demand_variant_case_payload_value(payloads: &[DemandCoreType]) -> Option<Dema
         [] => None,
         [payload] => Some(payload.clone()),
         payloads => Some(DemandCoreType::Tuple(payloads.to_vec())),
+    }
+}
+
+/// Extract the element-type signature of a list-shaped expected
+/// `DemandSignature`. The list constructor is rendered as
+/// `Named { path: [..., "list"], args: [Type(item)] }`, so we look at
+/// the first type-argument slot and unwrap either the `Type` or the
+/// bounded form.
+fn list_expected_item(expected: &DemandSignature) -> Option<DemandSignature> {
+    let DemandSignature::Core(DemandCoreType::Named { args, .. }) = expected else {
+        return None;
+    };
+    let arg = args.first()?;
+    match arg {
+        DemandTypeArg::Type(ty) => Some(DemandSignature::Core(ty.clone())),
+        DemandTypeArg::Bounds { lower, upper } => lower
+            .clone()
+            .or_else(|| upper.clone())
+            .map(DemandSignature::Core),
     }
 }
 

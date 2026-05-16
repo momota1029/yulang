@@ -680,31 +680,90 @@ fn refresh_pattern_value_local_types(pattern: Pattern, value_ty: &RuntimeType) -
                 ty: value_ty.clone(),
             },
         },
-        Pattern::Variant { tag, value, .. } => Pattern::Variant {
-            tag,
-            value,
-            ty: value_ty.clone(),
-        },
+        Pattern::Variant { tag, value, .. } => {
+            let payload_ty = variant_payload_runtime_type(value_ty, &tag);
+            Pattern::Variant {
+                tag,
+                value: value.map(|inner| match payload_ty {
+                    Some(ty) => Box::new(refresh_pattern_value_local_types(*inner, &ty)),
+                    None => inner,
+                }),
+                ty: value_ty.clone(),
+            }
+        }
         Pattern::List {
             prefix,
             spread,
             suffix,
             ..
-        } => Pattern::List {
-            prefix,
-            spread,
-            suffix,
-            ty: value_ty.clone(),
-        },
+        } => {
+            let item_ty = list_item_runtime_type(value_ty);
+            Pattern::List {
+                prefix: prefix
+                    .into_iter()
+                    .map(|item| match &item_ty {
+                        Some(ty) => refresh_pattern_value_local_types(item, ty),
+                        None => item,
+                    })
+                    .collect(),
+                spread: spread.map(|inner| {
+                    Box::new(refresh_pattern_value_local_types(*inner, value_ty))
+                }),
+                suffix: suffix
+                    .into_iter()
+                    .map(|item| match &item_ty {
+                        Some(ty) => refresh_pattern_value_local_types(item, ty),
+                        None => item,
+                    })
+                    .collect(),
+                ty: value_ty.clone(),
+            }
+        }
         Pattern::Lit { lit, .. } => Pattern::Lit {
             lit,
             ty: value_ty.clone(),
         },
         Pattern::Or { left, right, .. } => Pattern::Or {
-            left,
-            right,
+            left: Box::new(refresh_pattern_value_local_types(*left, value_ty)),
+            right: Box::new(refresh_pattern_value_local_types(*right, value_ty)),
             ty: value_ty.clone(),
         },
+    }
+}
+
+/// Extract the payload type that `tag` carries inside `value_ty`. Returns
+/// `None` when `value_ty` is not a variant or no case matches `tag`, so
+/// callers can fall back to leaving the inner pattern's type untouched.
+fn variant_payload_runtime_type(
+    value_ty: &RuntimeType,
+    tag: &typed_ir::Name,
+) -> Option<RuntimeType> {
+    let RuntimeType::Core(typed_ir::Type::Variant(variant)) = value_ty else {
+        return None;
+    };
+    let case = variant.cases.iter().find(|case| &case.name == tag)?;
+    // Pattern::Variant carries `Option<Box<Pattern>>`, so we only look at
+    // the first payload slot; multi-payload variants are not representable
+    // here.
+    case.payloads
+        .first()
+        .map(|ty| RuntimeType::core(ty.clone()))
+}
+
+/// Extract the element type from a `std::list::list<T>`-shaped runtime
+/// type. Used when refreshing list pattern items.
+fn list_item_runtime_type(value_ty: &RuntimeType) -> Option<RuntimeType> {
+    let RuntimeType::Core(typed_ir::Type::Named { args, .. }) = value_ty else {
+        return None;
+    };
+    let arg = args.first()?;
+    match arg {
+        typed_ir::TypeArg::Type(ty) => Some(RuntimeType::core(ty.clone())),
+        typed_ir::TypeArg::Bounds(bounds) => bounds
+            .lower
+            .as_deref()
+            .or(bounds.upper.as_deref())
+            .map(|ty| RuntimeType::core(ty.clone())),
     }
 }
 
