@@ -375,7 +375,7 @@ println "hello"
         );
         assert_eq!(
             stdout,
-            "hello\nhello\n\"hello\"\"hello\"\"hello\"\n\"hello\"\n"
+            "hello\nhellohellohellohello\nhello\n"
         );
     }
 
