@@ -814,6 +814,17 @@ my pick (b: bool) =\n    if b: id\n    else: 0\n",
 }
 
 #[test]
+fn if_without_else_discards_branch_value() {
+    let mut state = parse_and_lower("if true: 1\n");
+    state.finalize_compact_results();
+    let errors = state.infer.type_errors();
+    assert!(
+        errors.is_empty(),
+        "if without else should allow a non-unit body by discarding the branch value, got {errors:?}",
+    );
+}
+
+#[test]
 fn catch_records_handler_adapter_edges() {
     let mut state = parse_and_lower(
         "pub act out:\n  pub say: str -> ()\n\ncatch out::say \"hi\":\n    out::say msg, k -> k ()\n",

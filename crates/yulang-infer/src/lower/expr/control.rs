@@ -5,7 +5,7 @@ use super::{
     neg_id_is_pure_row, neg_prim_type, pos_id_is_empty_row, prim_type, resolve_bound_def_expr,
     unit_expr,
 };
-use crate::ast::expr::{ExprKind, TypedExpr};
+use crate::ast::expr::{ExprKind, TypedBlock, TypedExpr, TypedStmt};
 use crate::diagnostic::{ConstraintCause, ConstraintReason, ExpectedEdgeKind};
 use crate::ids::TypeVar;
 use crate::lower::stmt::{bind_pattern_locals, connect_pat_shape_and_locals};
@@ -122,7 +122,10 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
 
     let mut scrutinee = None;
     let mut arms = Vec::new();
-    let mut has_else = false;
+    let has_else = node.children().any(|c| c.kind() == SyntaxKind::ElseArm);
+    if !has_else {
+        state.infer.constrain(prim_type("unit"), Neg::Var(tv));
+    }
 
     for arm in node.children().filter(|c| c.kind() == SyntaxKind::IfArm) {
         let cond = arm
@@ -149,6 +152,9 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
             .0;
 
         let mut body = lower_if_arm_body(state, &arm);
+        if !has_else {
+            body = discard_if_branch_value(state, body);
+        }
         let branch_cause = ConstraintCause {
             span: Some(arm.text_range()),
             reason: ConstraintReason::IfBranch,
@@ -184,7 +190,6 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
     }
 
     for arm in node.children().filter(|c| c.kind() == SyntaxKind::ElseArm) {
-        has_else = true;
         let mut body = lower_if_arm_body(state, &arm);
         let branch_cause = ConstraintCause {
             span: Some(arm.text_range()),
@@ -255,6 +260,26 @@ pub(super) fn lower_if(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
         tv,
         eff,
         kind: ExprKind::Match(Box::new(scrutinee), arms),
+    }
+}
+
+fn discard_if_branch_value(state: &mut LowerState, expr: TypedExpr) -> TypedExpr {
+    let tv = state.fresh_tv();
+    let eff = state.fresh_tv();
+    let unit = unit_expr(state);
+    state.infer.constrain(Pos::Var(expr.eff), Neg::Var(eff));
+    state.infer.constrain(Pos::Var(unit.tv), Neg::Var(tv));
+    state.infer.constrain(Pos::Var(unit.eff), Neg::Var(eff));
+
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::Block(TypedBlock {
+            tv,
+            eff,
+            stmts: vec![TypedStmt::Expr(expr)],
+            tail: Some(Box::new(unit)),
+        }),
     }
 }
 
