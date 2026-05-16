@@ -94,6 +94,28 @@ Cranelift backend を作る。
   continuation を同じ Cranelift 関数内の block として吸う最初の direct-style island
   codegen を入れた。`Continue` / `Branch` は block jump に戻し、island exit の
   `Return` は従来の `yulang_cps_return_i64` routing を保つ。
+- 2026-05-16 round-7 prompt-1 で、handler install の prompt-exit return frame が
+  effectful call の post frame を継承 frame 扱いしていた経路を修正した。
+  `list.show/debug`、`for` body 内の `if` からの var write、`loop with` の
+  `if` result、range `for` body の console effect は手元 regression / CLI で確認済み。
+  続けて indexed ref update の `ScopeReturn` / resumption 経路も修正した。
+  resumption に保存する handler stack の return-frame threshold を captured
+  frame slice に合わせて rebase し、`ResumeWithHandler` で handler env を
+  差し替えた inherited arm の plain result は古い prompt へ包み直さず normal
+  value として返す。JIT では selected handler env が RWH sibling 由来の場合だけ
+  inherited escaped finish を normal value として扱う。`runs_indexed_ref_update_through_cps_repr`
+  で regression 化済み。`runs_junction_condition_without_once_through_cps_repr`、
+  nested undet 系、`runs_recursive_effect_handler_tuple_result_through_cps_repr` は
+  HEAD でも同じ失敗を再現するため、今回の回帰ではなく既存の native CPS routing
+  未解決として扱う。
+- 2026-05-16 round-8 で `runs_effect_handler_guard_through_cps_repr` の JIT
+  root display を修正した。CPS repr ABI の scalar lane は `int` / `bool` /
+  `unit` を同じ `i64` に載せるため、root の静的 runtime type が `unit` のときだけ
+  display hint で `0` を `()` として表示する。これは実行値の routing ではなく
+  root 表示境界の問題。あわせて `runs_open_range_for_loop_last_through_cps_repr` は
+  CPS eval 層でも `last` が open range fold を止められず memory exhaustion まで
+  再帰するため、通常 `cargo test -p yulang-compile` からは `#[ignore]` で外した。
+  未解決 bug としては残す。
 - effectful continuation function 内から pure callee function を `DirectCall` する
   場合は、eval context 切替 / abort-result routing / scope-return check を挟まず
   普通の Cranelift call として lower する。

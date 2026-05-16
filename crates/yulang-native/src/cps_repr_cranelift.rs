@@ -163,6 +163,7 @@ impl From<CpsValidateError> for CpsReprCraneliftError {
 pub struct CpsReprJitModule {
     module: JITModule,
     roots: Vec<FuncId>,
+    root_display_hints: Vec<CpsRootDisplayHint>,
     root_function_ids: Vec<u64>,
     cranelift_ir: Vec<String>,
     optimization_profile: CpsOptimizationProfile,
@@ -179,8 +180,21 @@ impl CpsReprJitModule {
     }
 
     pub fn run_roots_display(&mut self) -> CpsReprCraneliftResult<Vec<String>> {
-        self.run_roots_i64()
-            .map(|roots| roots.into_iter().map(describe_cps_repr_i64_value).collect())
+        self.module
+            .finalize_definitions()
+            .map_err(cranelift_error)?;
+        self.roots
+            .iter()
+            .zip(self.root_display_hints.iter().copied())
+            .map(|(root, hint)| {
+                reset_native_i64_cps_state();
+                set_native_i64_root_function_ids(&self.root_function_ids);
+                let ptr = self.module.get_finalized_function(*root);
+                let call = unsafe { std::mem::transmute::<_, extern "C" fn() -> i64>(ptr) };
+                let value = take_native_i64_root_result(call());
+                Ok(describe_cps_repr_i64_value_with_hint(value, hint))
+            })
+            .collect()
     }
 
     pub fn run_roots_i64(&mut self) -> CpsReprCraneliftResult<Vec<i64>> {
@@ -199,6 +213,12 @@ impl CpsReprJitModule {
             })
             .collect()
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CpsRootDisplayHint {
+    Plain,
+    Unit,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -234,6 +254,13 @@ impl CpsReprObjectModule {
 pub fn compile_cps_repr_abi_module(
     module: &CpsReprAbiModule,
 ) -> CpsReprCraneliftResult<CpsReprJitModule> {
+    compile_cps_repr_abi_module_with_root_hints(module, Vec::new())
+}
+
+fn compile_cps_repr_abi_module_with_root_hints(
+    module: &CpsReprAbiModule,
+    root_display_hints: Vec<CpsRootDisplayHint>,
+) -> CpsReprCraneliftResult<CpsReprJitModule> {
     let optimized = if std::env::var_os("YULANG_CPS_JIT_DISABLE_OPT").is_some() {
         CpsOptimizationOutput {
             module: module.clone(),
@@ -266,6 +293,7 @@ pub fn compile_cps_repr_abi_module(
             })
         })
         .collect::<CpsReprCraneliftResult<Vec<_>>>()?;
+    let root_display_hints = root_display_hints_for_len(root_display_hints, roots.len());
     let root_function_ids = module
         .roots
         .iter()
@@ -274,6 +302,7 @@ pub fn compile_cps_repr_abi_module(
     Ok(CpsReprJitModule {
         module: jit,
         roots,
+        root_display_hints,
         root_function_ids,
         cranelift_ir,
         optimization_profile: optimized.profile,
@@ -337,11 +366,12 @@ pub fn compile_cps_repr_abi_module_to_object(
 pub fn compile_runtime_module_to_cps_repr_jit(
     module: &runtime::Module,
 ) -> CpsReprCraneliftResult<CpsReprJitModule> {
+    let root_display_hints = runtime_root_display_hints(module);
     let cps = lower_cps_module(module)?;
     validate_cps_module(&cps)?;
     let repr = crate::cps_repr::lower_cps_repr_module(&cps);
     let abi = lower_cps_repr_abi_module(&repr);
-    compile_cps_repr_abi_module(&abi)
+    compile_cps_repr_abi_module_with_root_hints(&abi, root_display_hints)
 }
 
 pub fn compile_runtime_module_to_cps_repr_object(
@@ -406,6 +436,47 @@ fn declare_functions<M: Module>(
         function_params,
         function_effect_flow,
     })
+}
+
+fn root_display_hints_for_len(
+    mut hints: Vec<CpsRootDisplayHint>,
+    root_len: usize,
+) -> Vec<CpsRootDisplayHint> {
+    hints.resize(root_len, CpsRootDisplayHint::Plain);
+    hints.truncate(root_len);
+    hints
+}
+
+fn runtime_root_display_hints(module: &runtime::Module) -> Vec<CpsRootDisplayHint> {
+    module
+        .roots
+        .iter()
+        .map(|root| match root {
+            runtime::Root::Expr(index) => module
+                .root_exprs
+                .get(*index)
+                .map(|expr| root_display_hint_for_runtime_type(&expr.ty))
+                .unwrap_or(CpsRootDisplayHint::Plain),
+            runtime::Root::Binding(_) => CpsRootDisplayHint::Plain,
+        })
+        .collect()
+}
+
+fn root_display_hint_for_runtime_type(ty: &runtime::Type) -> CpsRootDisplayHint {
+    match ty {
+        runtime::Type::Core(core) if core_type_is_unit(core) => CpsRootDisplayHint::Unit,
+        _ => CpsRootDisplayHint::Plain,
+    }
+}
+
+fn core_type_is_unit(ty: &typed_ir::Type) -> bool {
+    matches!(
+        ty,
+        typed_ir::Type::Named { path, args }
+            if args.is_empty()
+                && path.segments.len() == 1
+                && path.segments[0].0 == "unit"
+    )
 }
 
 fn define_functions<M: Module, L: CpsLiteralStore>(
@@ -1653,6 +1724,12 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                     "yulang_cps_handler_return_frame_threshold_i64",
                     &[],
                 )?;
+                let current_initial = call_i64_helper(
+                    module_backend,
+                    builder,
+                    "yulang_cps_current_initial_frame_count_i64",
+                    &[],
+                )?;
                 let prompt =
                     call_i64_helper(module_backend, builder, "yulang_cps_fresh_prompt_i64", &[])?;
                 let install_eval = call_i64_helper(
@@ -1728,7 +1805,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                             prompt,
                             value_ptr,
                             value_continuation_id,
-                            threshold,
+                            current_initial,
                             install_eval,
                             owner_function,
                             immediately_forces,
@@ -1744,7 +1821,7 @@ fn lower_effect_stmt<M: Module, L: CpsLiteralStore>(
                             prompt,
                             value_ptr,
                             value_continuation_id,
-                            threshold,
+                            current_initial,
                             install_eval,
                             owner_function,
                             immediately_forces,
@@ -2994,7 +3071,8 @@ fn abort_result_or_return<M: Module>(
 
     builder.switch_to_block(consume_block);
     builder.seal_block(consume_block);
-    let abort_value = call_i64_helper(module_backend, builder, "yulang_cps_consume_abort_i64", &[])?;
+    let abort_value =
+        call_i64_helper(module_backend, builder, "yulang_cps_consume_abort_i64", &[])?;
     builder
         .ins()
         .jump(no_abort, &[ir::BlockArg::Value(abort_value)]);
@@ -5472,6 +5550,7 @@ thread_local! {
     static NATIVE_CPS_I64_PENDING_ESCAPE_ENV_TARGETS: RefCell<Vec<i64>> = const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_SELECTED_HANDLER_ENVS: RefCell<Vec<NativeCpsI64HandlerEnv>> = const { RefCell::new(Vec::new()) };
     static NATIVE_CPS_I64_SELECTED_HANDLER_ID: RefCell<i64> = const { RefCell::new(-1) };
+    static NATIVE_CPS_I64_SELECTED_HANDLER_USED_RWH_ENV: RefCell<bool> = const { RefCell::new(false) };
     // Layer 2 keeps ResumeWithHandler siblings in the local active handler
     // stack until the surrounding scope-return dispatch decides whether the
     // flow is local or non-local. The JIT rebuilds that stack from snapshots,
@@ -5567,6 +5646,7 @@ fn reset_native_i64_cps_state() {
     NATIVE_CPS_I64_PENDING_ESCAPE_ENV_TARGETS.with(|targets| targets.borrow_mut().clear());
     NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
     NATIVE_CPS_I64_SELECTED_HANDLER_ID.with(|handler| *handler.borrow_mut() = -1);
+    NATIVE_CPS_I64_SELECTED_HANDLER_USED_RWH_ENV.with(|used| *used.borrow_mut() = false);
     NATIVE_CPS_I64_RESUME_WITH_HANDLER_SIBLINGS.with(|handlers| handlers.borrow_mut().clear());
     NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::None);
     NATIVE_CPS_I64_HANDLER_THRESHOLD_OFFSET.with(|slot| *slot.borrow_mut() = 0);
@@ -5992,6 +6072,13 @@ fn native_cps_i64_string_from_raw(ptr: *const u8, len: i64) -> Option<String> {
 
 pub fn describe_cps_repr_i64_value(value: i64) -> String {
     describe_native_i64_value(value)
+}
+
+fn describe_cps_repr_i64_value_with_hint(value: i64, hint: CpsRootDisplayHint) -> String {
+    match hint {
+        CpsRootDisplayHint::Unit if value == 0 => "()".to_string(),
+        _ => describe_cps_repr_i64_value(value),
+    }
 }
 
 fn describe_native_i64_value(value: i64) -> String {
@@ -7559,7 +7646,21 @@ fn capture_native_i64_return_frames_inside_prompt(
     prompt: u64,
     fallback_threshold: usize,
 ) -> Box<[NativeCpsI64ReturnFrame]> {
-    let start = frames
+    let start = native_i64_prompt_frame_start(frames, prompt, fallback_threshold);
+    frames[start..]
+        .iter()
+        .cloned()
+        .map(|frame| rebase_native_i64_captured_return_frame(frame, start))
+        .collect::<Vec<_>>()
+        .into_boxed_slice()
+}
+
+fn native_i64_prompt_frame_start(
+    frames: &[NativeCpsI64ReturnFrame],
+    prompt: u64,
+    fallback_threshold: usize,
+) -> usize {
+    frames
         .iter()
         .rposition(|frame| {
             frame
@@ -7569,13 +7670,7 @@ fn capture_native_i64_return_frames_inside_prompt(
         })
         .map(|index| index + 1)
         .unwrap_or(fallback_threshold)
-        .min(frames.len());
-    frames[start..]
-        .iter()
-        .cloned()
-        .map(|frame| rebase_native_i64_captured_return_frame(frame, start))
-        .collect::<Vec<_>>()
-        .into_boxed_slice()
+        .min(frames.len())
 }
 
 fn rebase_native_i64_captured_return_frame(
@@ -8205,6 +8300,7 @@ extern "C" fn yulang_cps_select_handler_i64(
             *envs.borrow_mut() = frame.envs.to_vec();
         });
         NATIVE_CPS_I64_SELECTED_HANDLER_ID.with(|handler| *handler.borrow_mut() = frame.handler);
+        NATIVE_CPS_I64_SELECTED_HANDLER_USED_RWH_ENV.with(|used| *used.borrow_mut() = false);
         if jit_trace_enabled() {
             eprintln!(
                 "[JIT-CPS] perform_select: handler={} prompt={} install_eval={} synthetic={} threshold={} idx={} origin={:?} envs={}",
@@ -8222,6 +8318,7 @@ extern "C" fn yulang_cps_select_handler_i64(
     }
     NATIVE_CPS_I64_SELECTED_HANDLER_ENVS.with(|envs| envs.borrow_mut().clear());
     NATIVE_CPS_I64_SELECTED_HANDLER_ID.with(|handler| *handler.borrow_mut() = -1);
+    NATIVE_CPS_I64_SELECTED_HANDLER_USED_RWH_ENV.with(|used| *used.borrow_mut() = false);
     -1
 }
 
@@ -8367,6 +8464,10 @@ extern "C" fn yulang_cps_perform_finish_escaped_i64(value: i64) -> i64 {
             return value;
         }
         let current_eval = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().current_eval_id);
+        let used_rwh_env = NATIVE_CPS_I64_SELECTED_HANDLER_USED_RWH_ENV.with(|used| *used.borrow());
+        if meta.install_eval_id != current_eval && used_rwh_env {
+            return value;
+        }
         if meta.install_eval_id != current_eval {
             NATIVE_CPS_I64_ABORT.with(|slot| *slot.borrow_mut() = NativeCpsI64Abort::None);
             NATIVE_CPS_I64_SCOPE_RETURN.with(|slot| {
@@ -9073,8 +9174,7 @@ extern "C" fn yulang_cps_abort_mode_i64() -> i64 {
                 return_frame_threshold,
                 ..
             } => {
-                if frame_len > return_frame_threshold
-                {
+                if frame_len > return_frame_threshold {
                     1
                 } else {
                     2
@@ -9887,6 +9987,7 @@ extern "C" fn yulang_cps_selected_handler_env_or_i64(entry: i64, fallback: i64) 
             .find(|env| env.entry == entry)
             .map(|env| env.env)
     }) {
+        NATIVE_CPS_I64_SELECTED_HANDLER_USED_RWH_ENV.with(|used| *used.borrow_mut() = true);
         if jit_trace_enabled() {
             eprintln!(
                 "[JIT-CPS] selected_handler_env: entry={} fallback={} value={} source=rwh_sibling",

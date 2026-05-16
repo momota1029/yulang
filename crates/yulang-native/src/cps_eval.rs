@@ -1252,7 +1252,7 @@ fn resume_continuation(
                         active_handlers: active_handlers.clone(),
                         guard_stack: guard_stack.clone(),
                         active_blocked: active_blocked.clone(),
-                        owner_initial_frame_count: threshold,
+                        owner_initial_frame_count: initial_frame_count,
                         owner_eval_id: current_eval_id,
                     });
                     trace_cps(
@@ -1584,16 +1584,18 @@ fn resume_continuation(
                         ),
                     );
                 }
-                let resumption_return_frames = if frame_in_active {
-                    capture_return_frames_inside_prompt(&return_frames, frame)
+                let (resumption_handlers, resumption_return_frames) = if frame_in_active {
+                    let captured =
+                        capture_continuation_inside_prompt(&handler_stack, &return_frames, frame);
+                    (captured.handlers, captured.return_frames)
                 } else {
-                    return_frames.clone()
+                    (handler_stack.clone(), return_frames.clone())
                 };
                 let resumption = CpsRuntimeValue::Resumption(Rc::new(CpsResumption {
                     owner_function: function.name.clone(),
                     target: *resume,
                     values: Rc::new(values.clone()),
-                    handlers: Rc::new(handler_stack.clone()),
+                    handlers: Rc::new(resumption_handlers),
                     guard_stack: Rc::new(guard_stack.clone()),
                     active_blocked: Rc::new(active_blocked.clone()),
                     return_frames: Rc::new(resumption_return_frames),
@@ -1638,6 +1640,16 @@ fn resume_continuation(
                         frames.truncate(frame.return_frame_threshold);
                     }
                     return continue_return_frames(module, result, &frames, &[]);
+                }
+                if !matches!(result, CpsRuntimeValue::ScopeReturn { .. })
+                    && frame.install_eval_id != current_eval_id
+                    && handler_arm_uses_resume_with_handler(
+                        handler_owner,
+                        frame.handler,
+                        handler_arm.entry,
+                    )
+                {
+                    return Ok(result);
                 }
                 // The arm body's natural Return becomes a non-local jump to
                 // the matching handler scope. Don't re-wrap if the arm itself
@@ -2033,10 +2045,31 @@ fn same_handler_frame(a: &CpsHandlerFrame, b: &CpsHandlerFrame) -> bool {
     a.prompt == b.prompt && a.install_eval_id == b.install_eval_id
 }
 
-fn capture_return_frames_inside_prompt(
+fn capture_continuation_inside_prompt(
+    handlers: &[CpsHandlerFrame],
     return_frames: &[CpsReturnFrame],
     handled: &CpsHandlerFrame,
-) -> Vec<CpsReturnFrame> {
+) -> CapturedPromptContinuation {
+    let start = captured_prompt_frame_start(return_frames, handled);
+    let return_frames = return_frames[start..]
+        .iter()
+        .cloned()
+        .map(|frame| rebase_captured_return_frame(frame, start))
+        .collect();
+    CapturedPromptContinuation {
+        handlers: handlers
+            .iter()
+            .cloned()
+            .map(|handler| rebase_captured_handler_frame(handler, start))
+            .collect(),
+        return_frames: own_captured_return_frames(return_frames),
+    }
+}
+
+fn captured_prompt_frame_start(
+    return_frames: &[CpsReturnFrame],
+    handled: &CpsHandlerFrame,
+) -> usize {
     let start = return_frames
         .iter()
         .rposition(|frame| {
@@ -2048,12 +2081,7 @@ fn capture_return_frames_inside_prompt(
         .map(|index| index + 1)
         .unwrap_or(handled.return_frame_threshold)
         .min(return_frames.len());
-    let frames = return_frames[start..]
-        .iter()
-        .cloned()
-        .map(|frame| rebase_captured_return_frame(frame, start))
-        .collect();
-    own_captured_return_frames(frames)
+    start
 }
 
 fn rebase_captured_return_frame(
@@ -2544,6 +2572,34 @@ fn handler_arm_continue_chain_reaches_escape(
         if *target == escape {
             return saw_uninstall;
         }
+        current = *target;
+    }
+    false
+}
+
+fn handler_arm_uses_resume_with_handler(
+    function: &CpsFunction,
+    handler: CpsHandlerId,
+    entry: CpsContinuationId,
+) -> bool {
+    let mut current = entry;
+    let mut visited = HashSet::new();
+    while visited.insert(current) {
+        let Some(continuation) = function
+            .continuations
+            .iter()
+            .find(|continuation| continuation.id == current)
+        else {
+            return false;
+        };
+        if continuation.stmts.iter().any(
+            |stmt| matches!(stmt, CpsStmt::ResumeWithHandler { handler: id, .. } if *id == handler),
+        ) {
+            return true;
+        }
+        let CpsTerminator::Continue { target, .. } = &continuation.terminator else {
+            return false;
+        };
         current = *target;
     }
     false
@@ -3151,6 +3207,11 @@ struct CpsResumption {
     /// `merge_resumption_handlers` to place resume-site siblings at the
     /// correct stack depth.
     handled_anchor: Option<CpsHandlerAnchor>,
+}
+
+struct CapturedPromptContinuation {
+    handlers: Vec<CpsHandlerFrame>,
+    return_frames: Vec<CpsReturnFrame>,
 }
 
 /// A suspended caller continuation. Pushed by effectful terminators

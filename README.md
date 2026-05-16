@@ -160,7 +160,13 @@ is catching up feature by feature. See
 [docs/native-backend.md](docs/native-backend.md) for the supported programs,
 CLI details, and known limits.
 The current native effects path covers string/list/bytes/path/range primitives via
-runtime helper symbols.
+runtime helper symbols. CPS repr native also preserves handler prompt exits across
+effectful call return frames, so `Display`/`Debug` list construction, `loop with`
+if results, `for` body `if` var writes, and range iteration with console effects
+match the interpreter in the covered regression cases. Captured resumptions also
+rebase handler return-frame thresholds, covering indexed ref update continuations
+in CPS repr native. Unit-typed scalar roots display as `()` in the JIT display
+helper even though the scalar ABI carries them as `0`.
 
 ## Development
 
