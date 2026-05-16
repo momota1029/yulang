@@ -507,15 +507,16 @@ catch fail fs_err::invalid_path path:
     }
 
     #[test]
-    fn vm_handles_std_read_text_or_throw_not_found() {
+    fn vm_handles_std_read_text_not_found_via_result() {
         let path = temp_test_path("yulang-missing-text");
         let source_path = yulang_string_literal(&path.to_string_lossy());
         let source = format!(
             r#"my path: path = std::path::of_bytes (std::str::to_bytes {source_path})
-catch read_text_or_throw path:
-    fs_err::not_found _, _ -> "missing"
-    fs_err::denied _, _ -> "denied"
-    fs_err::invalid_path _, _ -> "invalid"
+case read_text path:
+    result::ok _ -> "ok"
+    result::err (fs_err::not_found _) -> "missing"
+    result::err (fs_err::denied _) -> "denied"
+    result::err (fs_err::invalid_path _) -> "invalid"
 "#
         );
 
