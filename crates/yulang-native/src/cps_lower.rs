@@ -5434,6 +5434,7 @@ impl<'a> FunctionLowerer<'a> {
                 unreachable!("force_index points at a ForceThunk statement")
             };
             let resume = self.fresh_continuation();
+            let raw_forced = self.fresh_value();
             self.continuations.push(CpsContinuation {
                 id,
                 params,
@@ -5442,7 +5443,22 @@ impl<'a> FunctionLowerer<'a> {
                 stmts,
                 terminator: CpsTerminator::EffectfulForce { thunk, resume },
             });
-            self.finish_continuation(resume, vec![dest], Vec::new(), rest, terminator);
+            // `EffectfulForce` establishes the continuation boundary, then the
+            // resumed `ForceThunk` preserves the original statement's deep
+            // forcing semantics under the restored handler/frame context.
+            let mut resumed_stmts = Vec::with_capacity(rest.len() + 1);
+            resumed_stmts.push(CpsStmt::ForceThunk {
+                dest,
+                thunk: raw_forced,
+            });
+            resumed_stmts.extend(rest);
+            self.finish_continuation(
+                resume,
+                vec![raw_forced],
+                Vec::new(),
+                resumed_stmts,
+                terminator,
+            );
             return;
         }
         self.continuations.push(CpsContinuation {
