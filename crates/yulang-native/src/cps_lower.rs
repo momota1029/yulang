@@ -1347,6 +1347,10 @@ enum ExprLowerCase<'expr, 'functions> {
         arms: Vec<runtime::HandleArm>,
         consumes: Vec<typed_ir::Path>,
     },
+    LocalExprApply {
+        callee: runtime::Expr,
+        arg: &'expr runtime::Expr,
+    },
     EffectRequest(CpsEffectApply<'expr>),
     BindHere {
         expr: &'expr runtime::Expr,
@@ -1497,19 +1501,6 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_expr(&mut self, expr: &runtime::Expr) -> CpsLowerResult<CpsValueId> {
         let lower_case = self.classify_expr(expr)?;
-        if let ExprLowerCase::InlineThunkHandler {
-            body,
-            arms,
-            consumes,
-        } = lower_case
-        {
-            return self.lower_handle(&body, &arms, &consumes);
-        }
-
-        if let Some(value) = self.lower_local_expr_apply(expr)? {
-            return Ok(value);
-        }
-
         self.lower_classified_expr(expr, lower_case)
     }
 
@@ -1519,8 +1510,13 @@ impl<'a> FunctionLowerer<'a> {
         lower_case: ExprLowerCase<'_, '_>,
     ) -> CpsLowerResult<CpsValueId> {
         match lower_case {
-            ExprLowerCase::InlineThunkHandler { .. } => {
-                unreachable!("inline handler case is handled before local expr apply")
+            ExprLowerCase::InlineThunkHandler {
+                body,
+                arms,
+                consumes,
+            } => self.lower_handle(&body, &arms, &consumes),
+            ExprLowerCase::LocalExprApply { callee, arg } => {
+                self.lower_local_expr_apply_case(&callee, arg, &expr.ty)
             }
             ExprLowerCase::EffectRequest(request) => {
                 let (expected_effects, handler) =
@@ -1684,6 +1680,9 @@ impl<'a> FunctionLowerer<'a> {
                 arms,
                 consumes,
             });
+        }
+        if let Some((callee, arg)) = self.local_expr_apply_case(expr) {
+            return Ok(ExprLowerCase::LocalExprApply { callee, arg });
         }
         if let Some(request) = effect_apply_body_request(expr) {
             return Ok(ExprLowerCase::EffectRequest(request));
@@ -5073,20 +5072,32 @@ impl<'a> FunctionLowerer<'a> {
         value.map(Some)
     }
 
-    fn lower_local_expr_apply(
-        &mut self,
-        expr: &runtime::Expr,
-    ) -> CpsLowerResult<Option<CpsValueId>> {
+    fn local_expr_apply_case<'expr>(
+        &self,
+        expr: &'expr runtime::Expr,
+    ) -> Option<(runtime::Expr, &'expr runtime::Expr)> {
         let runtime::ExprKind::Apply { callee, arg, .. } = &expr.kind else {
-            return Ok(None);
+            return None;
         };
         let callee = transparent_effect_expr(callee);
         let runtime::ExprKind::Var(path) = &callee.kind else {
-            return Ok(None);
+            return None;
         };
-        let Some(callee) = self.local_exprs.get(path).cloned() else {
-            return Ok(None);
-        };
+        let callee = self.local_exprs.get(path).cloned()?;
+        if callable_expr_is_thunk_wrapped(&callee) {
+            return Some((callee, arg));
+        }
+        let inline_callee = inline_callable_expr(&callee);
+        let (params, _) = collect_lambda_params(&inline_callee);
+        (params.len() == 1).then_some((callee, arg))
+    }
+
+    fn lower_local_expr_apply_case(
+        &mut self,
+        callee: &runtime::Expr,
+        arg: &runtime::Expr,
+        result_ty: &runtime::Type,
+    ) -> CpsLowerResult<CpsValueId> {
         if callable_expr_is_thunk_wrapped(&callee) {
             let closure = self.lower_expr(&callee)?;
             let forced = self.fresh_value();
@@ -5099,7 +5110,7 @@ impl<'a> FunctionLowerer<'a> {
             if self.force_effectful_apply_depth.is_active()
                 || (self.sync_apply_for_immediate_force_depth.is_inactive()
                     && self.higher_order_helper
-                    && matches!(expr.ty, runtime::Type::Thunk { .. }))
+                    && matches!(result_ty, runtime::Type::Thunk { .. }))
             {
                 let post_cont = self.fresh_continuation();
                 let result = self.fresh_value();
@@ -5111,7 +5122,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.finish_current();
                 self.mark_active_handlers_external_call();
                 self.current = ContinuationBuilder::new(post_cont, vec![result]);
-                return Ok(Some(self.force_if_non_thunk_demand(result, &expr.ty)));
+                return Ok(self.force_if_non_thunk_demand(result, result_ty));
             }
             let dest = self.fresh_value();
             self.current.stmts.push(CpsStmt::ApplyClosure {
@@ -5119,19 +5130,19 @@ impl<'a> FunctionLowerer<'a> {
                 closure: forced,
                 arg,
             });
-            return Ok(Some(self.force_if_non_thunk_demand(dest, &expr.ty)));
+            return Ok(self.force_if_non_thunk_demand(dest, result_ty));
         }
         let callee = inline_callable_expr(&callee);
         let (params, body) = collect_lambda_params(&callee);
         if params.len() != 1 {
-            return Ok(None);
+            unreachable!("local expr apply classifier only selects unary local callables")
         }
         let saved_locals = self.locals.clone();
         let saved_local_exprs = self.local_exprs.clone();
         let saved_resumptions = self.resumptions.clone();
         let path = typed_ir::Path::from_name(params[0].clone());
         if is_inline_argument(arg) || matches!(arg.ty, runtime::Type::Thunk { .. }) {
-            self.local_exprs.insert(path, arg.as_ref().clone());
+            self.local_exprs.insert(path, arg.clone());
         } else {
             let value = self.lower_expr(arg)?;
             self.locals.insert(path, value);
@@ -5140,7 +5151,7 @@ impl<'a> FunctionLowerer<'a> {
         self.locals = saved_locals;
         self.local_exprs = saved_local_exprs;
         self.resumptions = saved_resumptions;
-        value.map(Some)
+        value
     }
 
     fn handler_reentry_apply(
