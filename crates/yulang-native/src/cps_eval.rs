@@ -609,11 +609,12 @@ fn resume_continuation(
     // Loop labels are hygienic across macros; pass the label explicitly.
     macro_rules! dispatch_scope_return {
         ($cont:lifetime, $result:expr, $dest:expr) => {{
-            if matches!($result, CpsRuntimeValue::Aborted(_)) {
-                return Ok($result);
+            let result = $result;
+            if matches!(result, CpsRuntimeValue::Aborted(_)) {
+                return Ok(result);
             }
             match handle_scope_return(
-                $result,
+                result,
                 &mut active_handlers,
                 &function.name,
                 current_eval_id,
@@ -2443,8 +2444,10 @@ fn try_route_scope_return_through_return_frames(
                 rest_after,
             ),
         );
-        let owner = function_by_name(module, &frame.owner_function)?;
         let owner_initial = frame.owner_initial_frame_count.min(rest_frames.len());
+        let owner = function_by_name(module, &frame.owner_function)?;
+        let abort_outer_eval =
+            frame_index < initial_frame_count && threshold > 0 && post_handlers.is_empty();
         let result = resume_continuation(
             module,
             owner,
@@ -2458,7 +2461,7 @@ fn try_route_scope_return_through_return_frames(
             owner_initial,
             frame.owner_eval_id,
         )?;
-        if frame_index < initial_frame_count {
+        if abort_outer_eval {
             return Ok(Some(CpsRuntimeValue::Aborted(Box::new(result))));
         }
         return Ok(Some(result));

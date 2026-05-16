@@ -2980,7 +2980,6 @@ fn abort_result_or_return<M: Module>(
 
     builder.switch_to_block(abort);
     builder.seal_block(abort);
-    let abort_value = call_i64_helper(module_backend, builder, "yulang_cps_abort_value_i64", &[])?;
     let consume = builder.ins().icmp_imm(ir::condcodes::IntCC::Equal, mode, 2);
     let consume_block = builder.create_block();
     let return_block = builder.create_block();
@@ -2990,11 +2989,12 @@ fn abort_result_or_return<M: Module>(
 
     builder.switch_to_block(return_block);
     builder.seal_block(return_block);
+    let abort_value = call_i64_helper(module_backend, builder, "yulang_cps_abort_value_i64", &[])?;
     builder.ins().return_(&[abort_value]);
 
     builder.switch_to_block(consume_block);
     builder.seal_block(consume_block);
-    let _ = call_i64_helper(module_backend, builder, "yulang_cps_clear_abort_i64", &[])?;
+    let abort_value = call_i64_helper(module_backend, builder, "yulang_cps_consume_abort_i64", &[])?;
     builder
         .ins()
         .jump(no_abort, &[ir::BlockArg::Value(abort_value)]);
@@ -5303,11 +5303,22 @@ enum NativeCpsI64Abort {
     #[default]
     None,
     Global(i64),
+    #[allow(dead_code)]
     Scoped {
         value: i64,
         return_frame_threshold: usize,
         propagate_at_threshold: bool,
         restore_frames: Box<[NativeCpsI64ReturnFrame]>,
+    },
+    RoutedJump {
+        value: i64,
+        return_frame_threshold: usize,
+        continuation: usize,
+        env: Box<[i64]>,
+        handlers: Vec<NativeCpsI64HandlerFrame>,
+        guards: Vec<i64>,
+        return_frames: Box<[NativeCpsI64ReturnFrame]>,
+        eval_context: NativeCpsI64EvalContext,
     },
 }
 
@@ -5321,6 +5332,7 @@ impl NativeCpsI64Abort {
             NativeCpsI64Abort::None => 0,
             NativeCpsI64Abort::Global(value) => *value,
             NativeCpsI64Abort::Scoped { value, .. } => *value,
+            NativeCpsI64Abort::RoutedJump { value, .. } => *value,
         }
     }
 }
@@ -5381,6 +5393,12 @@ struct NativeCpsI64HandlerArmReturnFrameSnapshot {
 struct NativeCpsI64EvalContext {
     current_eval_id: u64,
     initial_frame_count: usize,
+}
+
+#[derive(Clone, Default)]
+struct NativeCpsI64PendingRoutedReturnFrames {
+    skip_initial_frame_count: usize,
+    frames: Vec<NativeCpsI64ReturnFrame>,
 }
 
 /// write27-a: synthetic eval-id sentinel (matches
@@ -5479,6 +5497,8 @@ thread_local! {
     // continue_return_frames helper.
     static NATIVE_CPS_I64_RETURN_FRAMES: RefCell<Vec<NativeCpsI64ReturnFrame>> =
         const { RefCell::new(Vec::new()) };
+    static NATIVE_CPS_I64_PENDING_ROUTED_RETURN_FRAMES: RefCell<Option<NativeCpsI64PendingRoutedReturnFrames>> =
+        const { RefCell::new(None) };
     static NATIVE_CPS_I64_RETURN_FRAMES_ROUTED: RefCell<bool> = const { RefCell::new(false) };
     static NATIVE_CPS_I64_CONSUMED_RETURN_FRAME_IDS: RefCell<Vec<u64>> =
         const { RefCell::new(Vec::new()) };
@@ -5578,10 +5598,19 @@ fn take_native_i64_root_result(value: i64) -> i64 {
     if mode == 0 {
         return value;
     }
-    let abort = yulang_cps_abort_value_i64();
-    let _ = yulang_cps_clear_abort_i64();
+    let abort = if mode == 2 {
+        yulang_cps_consume_abort_i64()
+    } else {
+        let value = yulang_cps_abort_value_i64();
+        let _ = yulang_cps_clear_abort_i64();
+        value
+    };
     let _ = yulang_cps_clear_scope_return_i64();
     abort
+}
+
+fn native_i64_abort_is_routed_jump() -> bool {
+    NATIVE_CPS_I64_ABORT.with(|slot| matches!(*slot.borrow(), NativeCpsI64Abort::RoutedJump { .. }))
 }
 
 fn current_native_i64_guard_stack() -> Vec<i64> {
@@ -8468,13 +8497,14 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         })
     };
     if let Some((idx, frame)) = cur_match {
-        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow_mut().truncate(idx));
-        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
-            let mut frames = frames.borrow_mut();
-            if frames.len() > frame.return_frame_threshold {
-                frames.truncate(frame.return_frame_threshold);
-            }
-        });
+        let mut post_handlers = NATIVE_CPS_I64_HANDLER_STACK.with(|stack| stack.borrow().clone());
+        post_handlers.truncate(idx);
+        let mut post_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
+        if post_frames.len() > frame.return_frame_threshold {
+            post_frames.truncate(frame.return_frame_threshold);
+        }
+        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = post_handlers.clone());
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| *frames.borrow_mut() = post_frames.clone());
         NATIVE_CPS_I64_SCOPE_RETURN
             .with(|slot| *slot.borrow_mut() = NativeCpsI64ScopeReturn::default());
         NATIVE_CPS_I64_RETURN_FRAMES_ROUTED.with(|routed| *routed.borrow_mut() = true);
@@ -8490,23 +8520,32 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         if frame.escape_continuation == 0 {
             return value;
         }
-        let cont: NativeCpsI64Continuation =
-            unsafe { std::mem::transmute(frame.escape_continuation) };
         let escape_env = refreshed_escape_env(&frame);
-        let result = cont(escape_env.as_ptr(), value);
         // A current-stack match can still jump out of an inner eval frame
         // when the dynamic handler was restored from a captured return frame.
         // Keep the same short-circuit signal used by the frame-walk path so
         // skipped native callers do not continue with their normal fallback.
         if current_initial > 0 {
             NATIVE_CPS_I64_ABORT.with(|slot| {
-                *slot.borrow_mut() = routed_scope_return_abort(
-                    result,
+                *slot.borrow_mut() = routed_jump_abort(
+                    value,
                     frame.return_frame_threshold,
-                    frame.return_frame_prefix.clone(),
+                    frame.escape_continuation,
+                    escape_env,
+                    post_handlers,
+                    frame.guard_stack.to_vec(),
+                    post_frames,
+                    NativeCpsI64EvalContext {
+                        current_eval_id: frame.install_eval_id,
+                        initial_frame_count: frame.return_frame_threshold,
+                    },
                 );
             });
+            return value;
         }
+        let cont: NativeCpsI64Continuation =
+            unsafe { std::mem::transmute(frame.escape_continuation) };
+        let result = cont(escape_env.as_ptr(), value);
         return result;
     }
 
@@ -8538,24 +8577,22 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         // Restore handler stack to frame.handlers[..hi].
         let mut post_handlers = frame.handlers.clone();
         post_handlers.truncate(hi);
-        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = post_handlers);
+        NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = post_handlers.clone());
         NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = frame.guards.clone());
-        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
-            let mut frames = frames.borrow_mut();
-            frames.truncate(fi);
-            if frames.len() > handler.return_frame_threshold {
-                frames.truncate(handler.return_frame_threshold);
-            }
-        });
+        let mut post_frames = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().clone());
+        post_frames.truncate(fi);
+        if post_frames.len() > handler.return_frame_threshold {
+            post_frames.truncate(handler.return_frame_threshold);
+        }
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| *frames.borrow_mut() = post_frames.clone());
         // Set eval context to frame's owner (capped to current frames).
-        let rest_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
+        let rest_len = post_frames.len();
         let owner_initial = frame.owner_initial_frame_count.min(rest_len);
-        NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| {
-            *ctx.borrow_mut() = NativeCpsI64EvalContext {
-                current_eval_id: frame.owner_eval_id,
-                initial_frame_count: owner_initial,
-            };
-        });
+        let post_eval_context = NativeCpsI64EvalContext {
+            current_eval_id: frame.owner_eval_id,
+            initial_frame_count: owner_initial,
+        };
+        NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow_mut() = post_eval_context);
         NATIVE_CPS_I64_SCOPE_RETURN
             .with(|slot| *slot.borrow_mut() = NativeCpsI64ScopeReturn::default());
         NATIVE_CPS_I64_RETURN_FRAMES_ROUTED.with(|routed| *routed.borrow_mut() = true);
@@ -8573,22 +8610,28 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
         if handler.escape_continuation == 0 {
             return value;
         }
-        let cont: NativeCpsI64Continuation =
-            unsafe { std::mem::transmute(handler.escape_continuation) };
         let escape_env = refreshed_escape_env(&handler);
-        let result = cont(escape_env.as_ptr(), value);
         // A frame-walk match jumps across an older eval frame. The native
         // call stack still needs a short-circuit signal until the next real
         // handler boundary re-wraps the value.
         if current_initial > 0 {
             NATIVE_CPS_I64_ABORT.with(|slot| {
-                *slot.borrow_mut() = routed_scope_return_abort(
-                    result,
+                *slot.borrow_mut() = routed_jump_abort(
+                    value,
                     handler.return_frame_threshold,
-                    handler.return_frame_prefix.clone(),
+                    handler.escape_continuation,
+                    escape_env,
+                    post_handlers,
+                    frame.guards.clone(),
+                    post_frames,
+                    post_eval_context,
                 );
             });
+            return value;
         }
+        let cont: NativeCpsI64Continuation =
+            unsafe { std::mem::transmute(handler.escape_continuation) };
+        let result = cont(escape_env.as_ptr(), value);
         return result;
     }
 
@@ -8604,6 +8647,7 @@ extern "C" fn yulang_cps_route_scope_return_i64(fallback_value: i64) -> i64 {
     fallback_value
 }
 
+#[allow(dead_code)]
 fn routed_scope_return_abort(
     value: i64,
     return_frame_threshold: usize,
@@ -8614,6 +8658,28 @@ fn routed_scope_return_abort(
         return_frame_threshold,
         propagate_at_threshold: false,
         restore_frames,
+    }
+}
+
+fn routed_jump_abort(
+    value: i64,
+    return_frame_threshold: usize,
+    continuation: usize,
+    env: Box<[i64]>,
+    handlers: Vec<NativeCpsI64HandlerFrame>,
+    guards: Vec<i64>,
+    return_frames: Vec<NativeCpsI64ReturnFrame>,
+    eval_context: NativeCpsI64EvalContext,
+) -> NativeCpsI64Abort {
+    NativeCpsI64Abort::RoutedJump {
+        value,
+        return_frame_threshold,
+        continuation,
+        env,
+        handlers,
+        guards,
+        return_frames: return_frames.into_boxed_slice(),
+        eval_context,
     }
 }
 
@@ -8979,6 +9045,17 @@ extern "C" fn yulang_cps_abort_mode_i64() -> i64 {
                     2
                 }
             }
+            NativeCpsI64Abort::RoutedJump {
+                return_frame_threshold,
+                ..
+            } => {
+                if frame_len > return_frame_threshold
+                {
+                    1
+                } else {
+                    2
+                }
+            }
         };
         if jit_trace_enabled() && mode != 0 {
             eprintln!(
@@ -8995,6 +9072,88 @@ extern "C" fn yulang_cps_abort_mode_i64() -> i64 {
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_abort_value_i64() -> i64 {
     NATIVE_CPS_I64_ABORT.with(|slot| slot.borrow().value_or_zero())
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_consume_abort_i64() -> i64 {
+    consume_native_i64_abort()
+}
+
+fn consume_native_i64_abort() -> i64 {
+    let cleared_abort = NATIVE_CPS_I64_ABORT.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        let cleared_abort = std::mem::take(&mut *slot);
+        *slot = NativeCpsI64Abort::None;
+        cleared_abort
+    });
+    match cleared_abort {
+        NativeCpsI64Abort::None => 0,
+        NativeCpsI64Abort::Global(value) => value,
+        NativeCpsI64Abort::Scoped {
+            value,
+            return_frame_threshold,
+            restore_frames,
+            propagate_at_threshold: false,
+        } => {
+            restore_native_i64_return_frame_prefix(&restore_frames);
+            let frame_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
+            let offset = return_frame_threshold.saturating_sub(frame_len);
+            if offset > 0 {
+                NATIVE_CPS_I64_HANDLER_THRESHOLD_OFFSET.with(|slot| {
+                    let mut slot = slot.borrow_mut();
+                    *slot = (*slot).max(offset);
+                });
+            }
+            value
+        }
+        NativeCpsI64Abort::Scoped { value, .. } => value,
+        NativeCpsI64Abort::RoutedJump {
+            value,
+            continuation,
+            env,
+            handlers,
+            guards,
+            return_frames,
+            eval_context,
+            ..
+        } => {
+            let return_frames = return_frames.into_vec();
+            NATIVE_CPS_I64_HANDLER_STACK.with(|stack| *stack.borrow_mut() = handlers);
+            NATIVE_CPS_I64_GUARD_STACK.with(|stack| *stack.borrow_mut() = guards);
+            NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow_mut().clear());
+            NATIVE_CPS_I64_PENDING_ROUTED_RETURN_FRAMES.with(|pending| {
+                *pending.borrow_mut() = Some(NativeCpsI64PendingRoutedReturnFrames {
+                    skip_initial_frame_count: eval_context.initial_frame_count,
+                    frames: return_frames.clone(),
+                });
+            });
+            NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| *ctx.borrow_mut() = eval_context);
+            let cont: NativeCpsI64Continuation = unsafe { std::mem::transmute(continuation) };
+            let result = cont(env.as_ptr(), value);
+            result
+        }
+    }
+}
+
+fn restore_pending_routed_return_frames_for_normal_return(initial: usize) {
+    let pending = NATIVE_CPS_I64_PENDING_ROUTED_RETURN_FRAMES.with(|pending| {
+        let mut pending = pending.borrow_mut();
+        let Some(pending_frames) = pending.as_ref() else {
+            return None;
+        };
+        if pending_frames.skip_initial_frame_count == initial {
+            return None;
+        }
+        pending.take()
+    });
+    if let Some(pending) = pending {
+        NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| {
+            let mut frames = frames.borrow_mut();
+            if frames.is_empty() {
+                *frames = pending.frames;
+            }
+        });
+    }
 }
 
 fn clear_native_i64_abort() {
@@ -9598,9 +9757,10 @@ extern "C" fn yulang_cps_pre_force_top_frame_i64(value: i64) -> i64 {
             return yulang_cps_abort_value_i64();
         }
         2 => {
-            let value = yulang_cps_abort_value_i64();
-            yulang_cps_clear_abort_i64();
-            return value;
+            if native_i64_abort_is_routed_jump() {
+                return yulang_cps_abort_value_i64();
+            }
+            return yulang_cps_consume_abort_i64();
         }
         _ => {}
     }
@@ -9631,13 +9791,19 @@ extern "C" fn yulang_cps_return_i64(value: i64) -> i64 {
             return yulang_cps_abort_value_i64();
         }
         2 => {
-            value = yulang_cps_abort_value_i64();
-            let _ = yulang_cps_clear_abort_i64();
+            if native_i64_abort_is_routed_jump() {
+                return yulang_cps_abort_value_i64();
+            }
+            value = yulang_cps_consume_abort_i64();
         }
         _ => {}
     }
     let frame_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
     let initial = NATIVE_CPS_I64_EVAL_CONTEXT.with(|ctx| ctx.borrow().initial_frame_count);
+    if frame_len == 0 {
+        restore_pending_routed_return_frames_for_normal_return(initial);
+    }
+    let frame_len = NATIVE_CPS_I64_RETURN_FRAMES.with(|frames| frames.borrow().len());
     if frame_len <= initial {
         if jit_trace_enabled() {
             eprintln!(

@@ -895,7 +895,6 @@ x + rest.y
     }
 
     #[test]
-    #[ignore = "documents the current CPS eval junction routing leak"]
     fn runs_junction_condition_once_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::undet::*
@@ -913,7 +912,6 @@ x + rest.y
     }
 
     #[test]
-    #[ignore = "documents the current CPS eval junction routing leak"]
     fn runs_junction_condition_without_once_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::undet::*
