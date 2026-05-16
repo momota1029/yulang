@@ -1322,6 +1322,18 @@ struct ActiveHandlerContext {
     parent: Option<Box<ActiveHandlerContext>>,
 }
 
+#[derive(Clone, Copy)]
+struct EffectHandlerArmChain<'a> {
+    effect: &'a typed_ir::Path,
+    payload: CpsValueId,
+    resume: CpsValueId,
+    merge_cont: CpsContinuationId,
+    handler: CpsHandlerId,
+    saved_locals: &'a HashMap<typed_ir::Path, CpsValueId>,
+    saved_local_exprs: &'a HashMap<typed_ir::Path, runtime::Expr>,
+    saved_resumptions: &'a HashSet<typed_ir::Path>,
+}
+
 impl<'a> FunctionLowerer<'a> {
     fn mark_active_handlers_external_call(&mut self) {
         let mut current = self.active_handler.clone();
@@ -1864,8 +1876,8 @@ impl<'a> FunctionLowerer<'a> {
         // boundary when the result is effectful.
         if self.force_effectful_apply_depth > 0
             || (self.sync_apply_for_immediate_force_depth == 0
-                && self.higher_order_helper
-                && matches!(expr.ty, runtime::Type::Thunk { .. }))
+                && (one_step_apply_may_perform(callee_ty)
+                    || (self.higher_order_helper && matches!(expr.ty, runtime::Type::Thunk { .. }))))
         {
             let post_cont = self.fresh_continuation();
             let result = self.fresh_value();
@@ -1875,8 +1887,9 @@ impl<'a> FunctionLowerer<'a> {
                 resume: post_cont,
             });
             self.finish_current();
+            self.mark_active_handlers_external_call();
             self.current = ContinuationBuilder::new(post_cont, vec![result]);
-            return Ok(result);
+            return Ok(self.force_if_non_thunk_demand(result, &expr.ty));
         }
         let dest = self.fresh_value();
         self.current
@@ -2745,11 +2758,6 @@ impl<'a> FunctionLowerer<'a> {
                 kind: "handler without resume",
             });
         }
-        if effect_arms.iter().any(|arm| arm.guard.is_some()) {
-            return Err(CpsLowerError::UnsupportedExpr {
-                kind: "handler guard",
-            });
-        }
         let saved_locals = self.locals.clone();
         let saved_local_exprs = self.local_exprs.clone();
         let saved_resumptions = self.resumptions.clone();
@@ -2788,7 +2796,8 @@ impl<'a> FunctionLowerer<'a> {
         self.active_handler = saved_active_handler.clone();
         let used_effects = self.performed_effects_for_handler(handler);
         let body_made_external_call = self.handlers_with_external_calls.contains(&handler);
-        let mut handler_entries = Vec::with_capacity(effect_arms.len());
+        let mut handler_entries: Vec<(typed_ir::Path, CpsContinuationId, Vec<usize>)> =
+            Vec::with_capacity(effect_arms.len());
         for (arm_index, arm) in effect_arms.iter().enumerate() {
             for effect in scoped_handler_effects(consumes, &arm.effect) {
                 let directly_used = used_effects
@@ -2799,7 +2808,14 @@ impl<'a> FunctionLowerer<'a> {
                 // the callee performs effects with handler = dynamic_handler_id() so
                 // performed_effects_for_handler cannot see them statically.
                 if directly_used || body_made_external_call {
-                    handler_entries.push((effect, self.fresh_continuation(), arm_index));
+                    if let Some((_, _, arm_indices)) = handler_entries
+                        .iter_mut()
+                        .find(|(existing, _, _)| existing == &effect)
+                    {
+                        arm_indices.push(arm_index);
+                    } else {
+                        handler_entries.push((effect, self.fresh_continuation(), vec![arm_index]));
+                    }
                 }
             }
         }
@@ -2831,13 +2847,7 @@ impl<'a> FunctionLowerer<'a> {
         });
         self.finish_current();
 
-        for (_effect, handler_cont, arm_index) in handler_entries {
-            let arm = effect_arms[arm_index];
-            let Some(resume) = &arm.resume else {
-                return Err(CpsLowerError::UnsupportedExpr {
-                    kind: "handler without resume",
-                });
-            };
+        for (effect, handler_cont, arm_indices) in handler_entries {
             let handler_payload = self.fresh_value();
             let handler_resume = self.fresh_value();
             self.current =
@@ -2848,16 +2858,21 @@ impl<'a> FunctionLowerer<'a> {
             self.locals = saved_locals.clone();
             self.local_exprs = saved_local_exprs.clone();
             self.resumptions = saved_resumptions.clone();
-            self.bind_pattern(&arm.payload, handler_payload)?;
-            let resume_path = typed_ir::Path::from_name(resume.name.clone());
-            self.locals.insert(resume_path.clone(), handler_resume);
-            self.resumptions.insert(resume_path);
-            let handled = self.lower_handler_body_expr(&arm.body, Some(handler))?;
-            self.terminate(CpsTerminator::Continue {
-                target: merge_cont,
-                args: vec![handled],
-            });
-            self.finish_current();
+            self.lower_effect_handler_arm_chain(
+                effect_arms.as_slice(),
+                &arm_indices,
+                0,
+                EffectHandlerArmChain {
+                    effect: &effect,
+                    payload: handler_payload,
+                    resume: handler_resume,
+                    merge_cont,
+                    handler,
+                    saved_locals: &saved_locals,
+                    saved_local_exprs: &saved_local_exprs,
+                    saved_resumptions: &saved_resumptions,
+                },
+            )?;
         }
 
         self.current = ContinuationBuilder::new(merge_cont, vec![result]);
@@ -2870,6 +2885,115 @@ impl<'a> FunctionLowerer<'a> {
         self.handler_value_conts
             .truncate(saved_handler_value_conts_len);
         Ok(result)
+    }
+
+    fn lower_effect_handler_arm_chain(
+        &mut self,
+        effect_arms: &[&runtime::HandleArm],
+        arm_indices: &[usize],
+        index: usize,
+        ctx: EffectHandlerArmChain<'_>,
+    ) -> CpsLowerResult<()> {
+        let Some(arm_index) = arm_indices.get(index).copied() else {
+            let unit = self.fresh_value();
+            self.current.stmts.push(CpsStmt::Literal {
+                dest: unit,
+                literal: CpsLiteral::Unit,
+            });
+            self.terminate(CpsTerminator::Continue {
+                target: ctx.merge_cont,
+                args: vec![unit],
+            });
+            self.finish_current();
+            return Ok(());
+        };
+        let arm = effect_arms[arm_index];
+        let next_cont = self.fresh_continuation();
+        let body_cont = self.fresh_continuation();
+        let success_cont = if arm.guard.is_some() {
+            self.fresh_continuation()
+        } else {
+            body_cont
+        };
+
+        if self.lower_pattern_test(ctx.payload, &arm.payload, success_cont, next_cont)? {
+            self.finish_current();
+        }
+
+        if let Some(guard) = &arm.guard {
+            self.current = ContinuationBuilder::new(success_cont, Vec::new());
+            self.locals = ctx.saved_locals.clone();
+            self.local_exprs = ctx.saved_local_exprs.clone();
+            self.resumptions = ctx.saved_resumptions.clone();
+            self.bind_effect_handler_arm_locals(arm, ctx.payload, ctx.resume)?;
+            if !collect_expr_performed_effects(guard).is_empty()
+                || self.expr_may_perform_when_evaluated(guard)
+            {
+                let guard_value_cont = self.fresh_continuation();
+                let guard_value = self.fresh_value();
+                self.lower_handled_body(
+                    guard,
+                    std::slice::from_ref(ctx.effect),
+                    ctx.handler,
+                    Some(guard_value_cont),
+                )?;
+                self.current = ContinuationBuilder::new(guard_value_cont, vec![guard_value]);
+                self.locals = ctx.saved_locals.clone();
+                self.local_exprs = ctx.saved_local_exprs.clone();
+                self.resumptions = ctx.saved_resumptions.clone();
+                self.bind_effect_handler_arm_locals(arm, ctx.payload, ctx.resume)?;
+                self.terminate(CpsTerminator::Branch {
+                    cond: guard_value,
+                    then_cont: body_cont,
+                    else_cont: next_cont,
+                });
+                self.finish_current();
+            } else {
+                let guard_value = self.lower_expr(guard)?;
+                self.terminate(CpsTerminator::Branch {
+                    cond: guard_value,
+                    then_cont: body_cont,
+                    else_cont: next_cont,
+                });
+                self.finish_current();
+            }
+        }
+
+        self.current = ContinuationBuilder::new(body_cont, Vec::new());
+        self.locals = ctx.saved_locals.clone();
+        self.local_exprs = ctx.saved_local_exprs.clone();
+        self.resumptions = ctx.saved_resumptions.clone();
+        self.bind_effect_handler_arm_locals(arm, ctx.payload, ctx.resume)?;
+        let handled = self.lower_handler_body_expr(&arm.body, Some(ctx.handler))?;
+        self.terminate(CpsTerminator::Continue {
+            target: ctx.merge_cont,
+            args: vec![handled],
+        });
+        self.finish_current();
+
+        self.current = ContinuationBuilder::new(next_cont, Vec::new());
+        self.locals = ctx.saved_locals.clone();
+        self.local_exprs = ctx.saved_local_exprs.clone();
+        self.resumptions = ctx.saved_resumptions.clone();
+        self.lower_effect_handler_arm_chain(effect_arms, arm_indices, index + 1, ctx)
+    }
+
+    fn bind_effect_handler_arm_locals(
+        &mut self,
+        arm: &runtime::HandleArm,
+        payload: CpsValueId,
+        resume: CpsValueId,
+    ) -> CpsLowerResult<()> {
+        let Some(resume_binding) = &arm.resume else {
+            return Err(CpsLowerError::UnsupportedExpr {
+                kind: "handler without resume",
+            });
+        };
+        self.bind_pattern(&arm.payload, payload)?;
+        let resume_path = typed_ir::Path::from_name(resume_binding.name.clone());
+        self.locals.insert(resume_path.clone(), resume);
+        self.resumptions.insert(resume_path);
+        Ok(())
     }
 
     fn lower_handle_value(
@@ -4753,7 +4877,24 @@ impl<'a> FunctionLowerer<'a> {
                 dest: forced,
                 thunk: closure,
             });
-            let arg = self.lower_expr_as_call_arg(callable_type_after_force(&callee.ty), arg)?;
+            let callee_ty = callable_type_after_force(&callee.ty);
+            let arg = self.lower_expr_as_call_arg(callee_ty, arg)?;
+            if self.force_effectful_apply_depth > 0
+                || (self.sync_apply_for_immediate_force_depth == 0
+                    && (one_step_apply_may_perform(callee_ty) || self.higher_order_helper))
+            {
+                let post_cont = self.fresh_continuation();
+                let result = self.fresh_value();
+                self.terminate(CpsTerminator::EffectfulApply {
+                    closure: forced,
+                    arg,
+                    resume: post_cont,
+                });
+                self.finish_current();
+                self.mark_active_handlers_external_call();
+                self.current = ContinuationBuilder::new(post_cont, vec![result]);
+                return Ok(Some(self.force_if_non_thunk_demand(result, &expr.ty)));
+            }
             let dest = self.fresh_value();
             self.current.stmts.push(CpsStmt::ApplyClosure {
                 dest,
@@ -5645,9 +5786,7 @@ fn first_known_thunk_force_with_rest(stmts: &[CpsStmt]) -> Option<usize> {
                     known_thunks.insert(*dest);
                 }
             }
-            CpsStmt::ForceThunk { thunk, .. }
-                if index + 1 < stmts.len() && known_thunks.contains(thunk) =>
-            {
+            CpsStmt::ForceThunk { thunk, .. } if known_thunks.contains(thunk) => {
                 return Some(index);
             }
             _ => {}
@@ -5953,6 +6092,17 @@ fn callee_type_may_perform(ty: &runtime::Type) -> bool {
         }
         runtime::Type::Thunk { .. } => true,
         runtime::Type::Unknown => true,
+        runtime::Type::Core(_) => false,
+    }
+}
+
+fn one_step_apply_may_perform(ty: &runtime::Type) -> bool {
+    match ty {
+        runtime::Type::Fun { ret, .. } => matches!(
+            ret.as_ref(),
+            runtime::Type::Thunk { .. } | runtime::Type::Unknown
+        ),
+        runtime::Type::Thunk { .. } | runtime::Type::Unknown => true,
         runtime::Type::Core(_) => false,
     }
 }
