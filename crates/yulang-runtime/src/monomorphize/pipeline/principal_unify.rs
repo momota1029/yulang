@@ -3344,6 +3344,17 @@ impl PrincipalUnifier {
         binding.body = project_runtime_expr_types(binding.body);
         binding.scheme.body =
             project_runtime_type_with_vars(&runtime_core_type(&binding.body.ty), &BTreeSet::new());
+        if let Some(contextual_scheme) = contextual_specialization_scheme(
+            &binding.scheme.body,
+            input_shapes.as_deref(),
+            output_shape.as_ref(),
+        ) {
+            binding.scheme.body = contextual_scheme.clone();
+            binding.body = retag_runtime_expr_spine_type(
+                binding.body,
+                normalize_hir_function_type(RuntimeType::core(contextual_scheme)),
+            );
+        }
         self.finish_profile_timer("intern-final-refresh-project", started);
         self.record_target_phase_timing(&original_name, "intern-final-refresh-project", started);
         self.emitted_by_path.insert(path.clone(), binding.clone());
@@ -5889,6 +5900,79 @@ fn core_fun_spine_with_output_shape(
         ret_effect: ret_effect.clone(),
         ret: Box::new(ret),
     })
+}
+
+fn contextual_specialization_scheme(
+    ty: &typed_ir::Type,
+    input_shapes: Option<&[typed_ir::Type]>,
+    output_shape: Option<&typed_ir::Type>,
+) -> Option<typed_ir::Type> {
+    let with_inputs = input_shapes
+        .and_then(|input_shapes| core_fun_spine_with_input_shapes(ty, input_shapes))
+        .unwrap_or_else(|| ty.clone());
+    output_shape
+        .and_then(|output_shape| {
+            core_fun_spine_with_output_shape(
+                &with_inputs,
+                input_shapes.map_or(0, <[typed_ir::Type]>::len),
+                output_shape,
+            )
+        })
+        .or_else(|| input_shapes.map(|_| with_inputs))
+}
+
+fn retag_runtime_expr_spine_type(expr: Expr, ty: RuntimeType) -> Expr {
+    match expr {
+        Expr {
+            kind: ExprKind::Block { stmts, tail },
+            ..
+        } => {
+            let tail = tail.map(|tail| Box::new(retag_runtime_expr_spine_type(*tail, ty)));
+            let ty = tail
+                .as_ref()
+                .map(|tail| tail.ty.clone())
+                .unwrap_or(RuntimeType::Core(typed_ir::Type::Never));
+            Expr::typed(ExprKind::Block { stmts, tail }, ty)
+        }
+        Expr {
+            kind:
+                ExprKind::Lambda {
+                    param,
+                    param_effect_annotation,
+                    param_function_allowed_effects,
+                    body,
+                },
+            ..
+        } => {
+            let RuntimeType::Fun {
+                param: param_ty,
+                ret,
+            } = ty
+            else {
+                return Expr::typed(
+                    ExprKind::Lambda {
+                        param,
+                        param_effect_annotation,
+                        param_function_allowed_effects,
+                        body,
+                    },
+                    ty,
+                );
+            };
+            let body = retag_runtime_expr_spine_type(*body, *ret);
+            let ty = RuntimeType::fun(*param_ty, body.ty.clone());
+            Expr::typed(
+                ExprKind::Lambda {
+                    param,
+                    param_effect_annotation,
+                    param_function_allowed_effects,
+                    body: Box::new(body),
+                },
+                ty,
+            )
+        }
+        Expr { kind, .. } => Expr::typed(kind, ty),
+    }
 }
 
 fn input_shape_context_param(
