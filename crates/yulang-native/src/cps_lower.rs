@@ -4538,6 +4538,9 @@ impl<'a> FunctionLowerer<'a> {
             if let Some((effect_index, inner_request)) = args
                 .iter()
                 .enumerate()
+                .filter(|(index, _)| {
+                    !matches!(info.params.get(*index), Some(runtime::Type::Thunk { .. }))
+                })
                 .find_map(|(index, arg)| effect_apply_nested(arg).map(|effect| (index, effect)))
             {
                 let (_, resumed_value) =

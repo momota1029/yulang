@@ -177,10 +177,11 @@ VM と native で一致したため `solved/` へ移した。残りは bare `bra
 ### 値違い / 値破損
 
 - [`native_undet_branch_list_returns_scalar.yu`](native_undet_branch_list_returns_scalar.yu)
-  — `(branch()).list` が native では scalar `0`。`(if branch(): 1 else: 2).list`
-  は VM `[1, 2]` / native `1` (true branch 由来? bool lane が int に
-  漏れている)。`each` 経由 + `guard` 入りは通るので、bare `branch` 直呼び
-  限定。round-6 メモの `[[1], [0]]` とは別の表面。
+  — 2026-05-17 の部分修正で `(branch()).list` は native でも scalar `0`
+  ではなく list に戻った。ただし native の低レベル debug は bool list を
+  `[1, 0]` と出す。`(if branch(): 1 else: 2).list` はまだ VM `[1, 2]` /
+  native `1` で、`junction` condition continuation から root display へ値が
+  漏れる既存 round-6 系の routing bug と見る。
 
 ### compile-time reject / runtime crash
 
@@ -204,11 +205,8 @@ VM と native で一致したため `solved/` へ移した。残りは bare `bra
 - `Ord::lt` / `Eq::eq` が free variable として CPS lowering に届く経路は
   まだあり、native は `"a" < "b"` / `(1, 2) == (1, 2)` を含むファイルを
   そもそも compile できない。VM 側は runtime で blocked になるだけ。
-- [`native_cps_lowering_unsupported.yu`](native_cps_lowering_unsupported.yu)
-  の guard 最小再現は今日の build で **compile は通るが値違い**。
-  VM `()` / native `0`。handler arm guard が native CPS lowering で組まれた
-  あと、unit lane を int に潰している。同ファイル冒頭で記録した
-  「未対応 reject」とは別の段に進んだことになる。
+- `native_cps_lowering_unsupported.yu` の guard 最小再現は 2026-05-17 に
+  `solved/` へ移した。
 
 ## 解決済み
 

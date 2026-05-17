@@ -860,6 +860,18 @@ x + rest.y
     }
 
     #[test]
+    fn runs_undet_branch_list_debug_through_cps_repr() {
+        assert_source_cps_repr_jit_display_with_std(
+            r#"use std::undet::*
+
+(branch()).list.debug
+"#,
+            vec!["[true, false]"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_undet_logic_each_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::undet::*
