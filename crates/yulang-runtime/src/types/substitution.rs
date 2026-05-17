@@ -78,19 +78,38 @@ pub(crate) fn substitute_type(
     ty: &typed_ir::Type,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
 ) -> typed_ir::Type {
+    substitute_type_inner(ty, substitutions, &mut BTreeSet::new(), &BTreeSet::new())
+}
+
+fn substitute_type_inner(
+    ty: &typed_ir::Type,
+    substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    active: &mut BTreeSet<typed_ir::TypeVar>,
+    bound: &BTreeSet<typed_ir::TypeVar>,
+) -> typed_ir::Type {
     match ty {
         typed_ir::Type::Unknown => typed_ir::Type::Unknown,
         typed_ir::Type::Never => typed_ir::Type::Never,
         typed_ir::Type::Any => typed_ir::Type::Any,
-        typed_ir::Type::Var(var) => substitutions
-            .get(var)
-            .cloned()
-            .unwrap_or_else(|| typed_ir::Type::Var(var.clone())),
+        typed_ir::Type::Var(var) => {
+            if bound.contains(var) {
+                return typed_ir::Type::Var(var.clone());
+            }
+            let Some(replacement) = substitutions.get(var) else {
+                return typed_ir::Type::Var(var.clone());
+            };
+            if !active.insert(var.clone()) {
+                return typed_ir::Type::Var(var.clone());
+            }
+            let substituted = substitute_type_inner(replacement, substitutions, active, bound);
+            active.remove(var);
+            substituted
+        }
         typed_ir::Type::Named { path, args } => typed_ir::Type::Named {
             path: path.clone(),
             args: args
                 .iter()
-                .map(|arg| substitute_type_arg(arg, substitutions))
+                .map(|arg| substitute_type_arg(arg, substitutions, active, bound))
                 .collect(),
         },
         typed_ir::Type::Fun {
@@ -99,15 +118,25 @@ pub(crate) fn substitute_type(
             ret_effect,
             ret,
         } => typed_ir::Type::Fun {
-            param: Box::new(substitute_type(param, substitutions)),
-            param_effect: Box::new(substitute_type(param_effect, substitutions)),
-            ret_effect: Box::new(substitute_type(ret_effect, substitutions)),
-            ret: Box::new(substitute_type(ret, substitutions)),
+            param: Box::new(substitute_type_inner(param, substitutions, active, bound)),
+            param_effect: Box::new(substitute_type_inner(
+                param_effect,
+                substitutions,
+                active,
+                bound,
+            )),
+            ret_effect: Box::new(substitute_type_inner(
+                ret_effect,
+                substitutions,
+                active,
+                bound,
+            )),
+            ret: Box::new(substitute_type_inner(ret, substitutions, active, bound)),
         },
         typed_ir::Type::Tuple(items) => typed_ir::Type::Tuple(
             items
                 .iter()
-                .map(|item| substitute_type(item, substitutions))
+                .map(|item| substitute_type_inner(item, substitutions, active, bound))
                 .collect(),
         ),
         typed_ir::Type::Record(record) => typed_ir::Type::Record(typed_ir::RecordType {
@@ -116,17 +145,17 @@ pub(crate) fn substitute_type(
                 .iter()
                 .map(|field| typed_ir::RecordField {
                     name: field.name.clone(),
-                    value: substitute_type(&field.value, substitutions),
+                    value: substitute_type_inner(&field.value, substitutions, active, bound),
                     optional: field.optional,
                 })
                 .collect(),
             spread: record.spread.as_ref().map(|spread| match spread {
-                typed_ir::RecordSpread::Head(ty) => {
-                    typed_ir::RecordSpread::Head(Box::new(substitute_type(ty, substitutions)))
-                }
-                typed_ir::RecordSpread::Tail(ty) => {
-                    typed_ir::RecordSpread::Tail(Box::new(substitute_type(ty, substitutions)))
-                }
+                typed_ir::RecordSpread::Head(ty) => typed_ir::RecordSpread::Head(Box::new(
+                    substitute_type_inner(ty, substitutions, active, bound),
+                )),
+                typed_ir::RecordSpread::Tail(ty) => typed_ir::RecordSpread::Tail(Box::new(
+                    substitute_type_inner(ty, substitutions, active, bound),
+                )),
             }),
         }),
         typed_ir::Type::Variant(variant) => typed_ir::Type::Variant(typed_ir::VariantType {
@@ -138,40 +167,45 @@ pub(crate) fn substitute_type(
                     payloads: case
                         .payloads
                         .iter()
-                        .map(|payload| substitute_type(payload, substitutions))
+                        .map(|payload| substitute_type_inner(payload, substitutions, active, bound))
                         .collect(),
                 })
                 .collect(),
             tail: variant
                 .tail
                 .as_ref()
-                .map(|tail| Box::new(substitute_type(tail, substitutions))),
+                .map(|tail| Box::new(substitute_type_inner(tail, substitutions, active, bound))),
         }),
         typed_ir::Type::Row { items, tail } => typed_ir::Type::Row {
             items: items
                 .iter()
-                .map(|item| substitute_type(item, substitutions))
+                .map(|item| substitute_type_inner(item, substitutions, active, bound))
                 .collect(),
-            tail: Box::new(substitute_type(tail, substitutions)),
+            tail: Box::new(substitute_type_inner(tail, substitutions, active, bound)),
         },
         typed_ir::Type::Union(items) => typed_ir::Type::Union(
             items
                 .iter()
-                .map(|item| substitute_type(item, substitutions))
+                .map(|item| substitute_type_inner(item, substitutions, active, bound))
                 .collect(),
         ),
         typed_ir::Type::Inter(items) => typed_ir::Type::Inter(
             items
                 .iter()
-                .map(|item| substitute_type(item, substitutions))
+                .map(|item| substitute_type_inner(item, substitutions, active, bound))
                 .collect(),
         ),
         typed_ir::Type::Recursive { var, body } => {
-            let mut substitutions = substitutions.clone();
-            substitutions.remove(var);
+            let mut scoped_bound = bound.clone();
+            scoped_bound.insert(var.clone());
             typed_ir::Type::Recursive {
                 var: var.clone(),
-                body: Box::new(substitute_type(body, &substitutions)),
+                body: Box::new(substitute_type_inner(
+                    body,
+                    substitutions,
+                    active,
+                    &scoped_bound,
+                )),
             }
         }
     }
@@ -2131,7 +2165,7 @@ fn project_closed_effect_row_substitutions(
             typed_ir::Type::Var(var) if params.contains(var) => row_vars.push(var.clone()),
             _ => {
                 for (index, actual) in actual_items.iter().enumerate() {
-                    if matched_actual[index] || !same_effect_head(template, actual) {
+                    if matched_actual[index] || !same_effect_item(template, actual) {
                         continue;
                     }
                     project_closed_substitutions_from_type(
@@ -2807,7 +2841,7 @@ pub(super) fn infer_effect_row_substitutions(
             }
             _ => {
                 for (index, actual) in actual_items.iter().enumerate() {
-                    if matched_actual[index] || !same_effect_head(template, actual) {
+                    if matched_actual[index] || !same_effect_item(template, actual) {
                         continue;
                     }
                     infer_type_substitutions_inner(
@@ -2863,6 +2897,25 @@ pub(crate) fn same_effect_head(left: &typed_ir::Type, right: &typed_ir::Type) ->
                 path: actual_path, ..
             },
         ) => effect_paths_match(path, actual_path),
+        _ => false,
+    }
+}
+
+fn same_effect_item(left: &typed_ir::Type, right: &typed_ir::Type) -> bool {
+    match (left, right) {
+        (
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+        ) => {
+            effect_paths_match(path, actual_path)
+                && args.len() == actual_args.len()
+                && args.iter().zip(actual_args).all(|(left, right)| {
+                    type_arg_compatible(left, right, 128) && type_arg_compatible(right, left, 128)
+                })
+        }
         _ => false,
     }
 }
@@ -3036,21 +3089,25 @@ pub(super) fn tir_evidence_bound(bounds: &typed_ir::TypeBounds) -> Option<typed_
     choose_bounds_type(bounds, BoundsChoice::TirEvidence)
 }
 
-pub(super) fn substitute_type_arg(
+fn substitute_type_arg(
     arg: &typed_ir::TypeArg,
     substitutions: &BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    active: &mut BTreeSet<typed_ir::TypeVar>,
+    bound: &BTreeSet<typed_ir::TypeVar>,
 ) -> typed_ir::TypeArg {
     match arg {
-        typed_ir::TypeArg::Type(ty) => typed_ir::TypeArg::Type(substitute_type(ty, substitutions)),
+        typed_ir::TypeArg::Type(ty) => {
+            typed_ir::TypeArg::Type(substitute_type_inner(ty, substitutions, active, bound))
+        }
         typed_ir::TypeArg::Bounds(bounds) => typed_ir::TypeArg::Bounds(typed_ir::TypeBounds {
             lower: bounds
                 .lower
                 .as_ref()
-                .map(|ty| Box::new(substitute_type(ty, substitutions))),
+                .map(|ty| Box::new(substitute_type_inner(ty, substitutions, active, bound))),
             upper: bounds
                 .upper
                 .as_ref()
-                .map(|ty| Box::new(substitute_type(ty, substitutions))),
+                .map(|ty| Box::new(substitute_type_inner(ty, substitutions, active, bound))),
         }),
     }
 }
@@ -3058,6 +3115,53 @@ pub(super) fn substitute_type_arg(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn substitute_type_follows_transitive_aliases() {
+        let a = tv("a");
+        let b = tv("b");
+        let mut substitutions = BTreeMap::new();
+        substitutions.insert(a, typed_ir::Type::Var(b.clone()));
+        substitutions.insert(b, named("int"));
+
+        assert_eq!(
+            substitute_type(&typed_ir::Type::Var(tv("a")), &substitutions),
+            named("int")
+        );
+    }
+
+    #[test]
+    fn substitute_type_stops_at_alias_cycles() {
+        let a = tv("a");
+        let b = tv("b");
+        let mut substitutions = BTreeMap::new();
+        substitutions.insert(a, typed_ir::Type::Var(b.clone()));
+        substitutions.insert(b, typed_ir::Type::Var(tv("a")));
+
+        assert_eq!(
+            substitute_type(&typed_ir::Type::Var(tv("a")), &substitutions),
+            typed_ir::Type::Var(tv("a"))
+        );
+    }
+
+    #[test]
+    fn substitute_type_does_not_replace_recursive_binder() {
+        let a = tv("a");
+        let mut substitutions = BTreeMap::new();
+        substitutions.insert(a.clone(), named("int"));
+        let ty = typed_ir::Type::Recursive {
+            var: a.clone(),
+            body: Box::new(typed_ir::Type::Var(a.clone())),
+        };
+
+        assert_eq!(
+            substitute_type(&ty, &substitutions),
+            typed_ir::Type::Recursive {
+                var: a.clone(),
+                body: Box::new(typed_ir::Type::Var(a)),
+            }
+        );
+    }
 
     #[test]
     fn plan_normalization_closes_child_var_after_parent_substitution() {
@@ -3476,6 +3580,62 @@ mod tests {
 
         assert!(conflicts.is_empty(), "{conflicts:?}");
         assert_eq!(substitutions.get(&residual), Some(&named("state")));
+    }
+
+    #[test]
+    fn closed_projection_keeps_effect_with_incompatible_payload_in_residual() {
+        let residual = tv("residual");
+        let template = typed_ir::Type::Row {
+            items: vec![named_with_args(
+                "sub",
+                vec![typed_ir::TypeArg::Type(named("int"))],
+            )],
+            tail: Box::new(typed_ir::Type::Var(residual.clone())),
+        };
+        let actual_effect = named_with_args("sub", vec![typed_ir::TypeArg::Type(named("bool"))]);
+        let actual = typed_ir::Type::Row {
+            items: vec![actual_effect.clone()],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let params = BTreeSet::from([residual.clone()]);
+        let mut substitutions = BTreeMap::new();
+        let mut conflicts = BTreeSet::new();
+
+        project_closed_substitutions_from_type(
+            &template,
+            &actual,
+            &params,
+            &mut substitutions,
+            &mut conflicts,
+            true,
+            64,
+        );
+
+        assert!(conflicts.is_empty(), "{conflicts:?}");
+        assert_eq!(substitutions.get(&residual), Some(&actual_effect));
+    }
+
+    #[test]
+    fn inference_keeps_effect_with_incompatible_payload_in_residual() {
+        let residual = tv("residual");
+        let template = typed_ir::Type::Row {
+            items: vec![named_with_args(
+                "sub",
+                vec![typed_ir::TypeArg::Type(named("int"))],
+            )],
+            tail: Box::new(typed_ir::Type::Var(residual.clone())),
+        };
+        let actual_effect = named_with_args("sub", vec![typed_ir::TypeArg::Type(named("bool"))]);
+        let actual = typed_ir::Type::Row {
+            items: vec![actual_effect.clone()],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let params = BTreeSet::from([residual.clone()]);
+        let mut substitutions = BTreeMap::new();
+
+        infer_type_substitutions(&template, &actual, &params, &mut substitutions);
+
+        assert_eq!(substitutions.get(&residual), Some(&actual_effect));
     }
 
     #[test]

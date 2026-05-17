@@ -298,6 +298,37 @@ mod tests {
         assert!(!needs_runtime_coercion(&named("int"), &named("float")));
     }
 
+    #[test]
+    fn collect_type_vars_ignores_recursive_binder() {
+        let var = typed_ir::TypeVar("a".to_string());
+        let ty = typed_ir::Type::Recursive {
+            var: var.clone(),
+            body: Box::new(typed_ir::Type::Var(var)),
+        };
+        let mut vars = BTreeSet::new();
+
+        collect_type_vars(&ty, &mut vars);
+
+        assert!(vars.is_empty());
+    }
+
+    #[test]
+    fn collect_type_vars_preserves_same_named_free_var_outside_recursive_scope() {
+        let var = typed_ir::TypeVar("a".to_string());
+        let ty = typed_ir::Type::Tuple(vec![
+            typed_ir::Type::Var(var.clone()),
+            typed_ir::Type::Recursive {
+                var: var.clone(),
+                body: Box::new(typed_ir::Type::Var(var.clone())),
+            },
+        ]);
+        let mut vars = BTreeSet::new();
+
+        collect_type_vars(&ty, &mut vars);
+
+        assert_eq!(vars, BTreeSet::from([var]));
+    }
+
     fn named(path: &str) -> typed_ir::Type {
         typed_ir::Type::Named {
             path: typed_ir::Path::new(

@@ -20,21 +20,31 @@ pub(crate) fn contains_non_runtime_type_with_vars(
 }
 
 pub(crate) fn collect_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_ir::TypeVar>) {
+    collect_type_vars_inner(ty, vars, &BTreeSet::new());
+}
+
+fn collect_type_vars_inner(
+    ty: &typed_ir::Type,
+    vars: &mut BTreeSet<typed_ir::TypeVar>,
+    bound: &BTreeSet<typed_ir::TypeVar>,
+) {
     match ty {
         typed_ir::Type::Unknown => {}
         typed_ir::Type::Var(var) => {
-            vars.insert(var.clone());
+            if !bound.contains(var) {
+                vars.insert(var.clone());
+            }
         }
         typed_ir::Type::Named { args, .. } => {
             for arg in args {
                 match arg {
-                    typed_ir::TypeArg::Type(ty) => collect_type_vars(ty, vars),
+                    typed_ir::TypeArg::Type(ty) => collect_type_vars_inner(ty, vars, bound),
                     typed_ir::TypeArg::Bounds(bounds) => {
                         if let Some(lower) = bounds.lower.as_deref() {
-                            collect_type_vars(lower, vars);
+                            collect_type_vars_inner(lower, vars, bound);
                         }
                         if let Some(upper) = bounds.upper.as_deref() {
-                            collect_type_vars(upper, vars);
+                            collect_type_vars_inner(upper, vars, bound);
                         }
                     }
                 }
@@ -46,26 +56,26 @@ pub(crate) fn collect_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_i
             ret_effect,
             ret,
         } => {
-            collect_type_vars(param, vars);
-            collect_type_vars(param_effect, vars);
-            collect_type_vars(ret_effect, vars);
-            collect_type_vars(ret, vars);
+            collect_type_vars_inner(param, vars, bound);
+            collect_type_vars_inner(param_effect, vars, bound);
+            collect_type_vars_inner(ret_effect, vars, bound);
+            collect_type_vars_inner(ret, vars, bound);
         }
         typed_ir::Type::Tuple(items)
         | typed_ir::Type::Union(items)
         | typed_ir::Type::Inter(items) => {
             for item in items {
-                collect_type_vars(item, vars);
+                collect_type_vars_inner(item, vars, bound);
             }
         }
         typed_ir::Type::Record(record) => {
             for field in &record.fields {
-                collect_type_vars(&field.value, vars);
+                collect_type_vars_inner(&field.value, vars, bound);
             }
             if let Some(spread) = &record.spread {
                 match spread {
                     typed_ir::RecordSpread::Head(ty) | typed_ir::RecordSpread::Tail(ty) => {
-                        collect_type_vars(ty, vars);
+                        collect_type_vars_inner(ty, vars, bound);
                     }
                 }
             }
@@ -73,20 +83,24 @@ pub(crate) fn collect_type_vars(ty: &typed_ir::Type, vars: &mut BTreeSet<typed_i
         typed_ir::Type::Variant(variant) => {
             for case in &variant.cases {
                 for payload in &case.payloads {
-                    collect_type_vars(payload, vars);
+                    collect_type_vars_inner(payload, vars, bound);
                 }
             }
             if let Some(tail) = variant.tail.as_deref() {
-                collect_type_vars(tail, vars);
+                collect_type_vars_inner(tail, vars, bound);
             }
         }
         typed_ir::Type::Row { items, tail } => {
             for item in items {
-                collect_type_vars(item, vars);
+                collect_type_vars_inner(item, vars, bound);
             }
-            collect_type_vars(tail, vars);
+            collect_type_vars_inner(tail, vars, bound);
         }
-        typed_ir::Type::Recursive { body, .. } => collect_type_vars(body, vars),
+        typed_ir::Type::Recursive { var, body } => {
+            let mut scoped_bound = bound.clone();
+            scoped_bound.insert(var.clone());
+            collect_type_vars_inner(body, vars, &scoped_bound);
+        }
         typed_ir::Type::Never | typed_ir::Type::Any => {}
     }
 }
