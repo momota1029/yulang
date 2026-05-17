@@ -2744,6 +2744,9 @@ pub(super) fn infer_type_substitutions_inner(
         }
         (typed_ir::Type::Union(items) | typed_ir::Type::Inter(items), actual) => {
             for item in items {
+                if !inference_choice_item_matches_actual(item, actual) {
+                    continue;
+                }
                 infer_type_substitutions_inner(
                     item,
                     actual,
@@ -2840,6 +2843,39 @@ pub(super) fn infer_type_substitutions_inner(
             );
         }
         _ => {}
+    }
+}
+
+fn inference_choice_item_matches_actual(
+    template: &typed_ir::Type,
+    actual: &typed_ir::Type,
+) -> bool {
+    match (template, actual) {
+        (typed_ir::Type::Var(_), _) => false,
+        (typed_ir::Type::Unknown | typed_ir::Type::Any, _) => false,
+        (_, typed_ir::Type::Unknown | typed_ir::Type::Any) => false,
+        (_, typed_ir::Type::Never) | (typed_ir::Type::Never, _) => false,
+        (
+            typed_ir::Type::Named { path, args },
+            typed_ir::Type::Named {
+                path: actual_path,
+                args: actual_args,
+            },
+        ) => path == actual_path && args.len() == actual_args.len(),
+        (typed_ir::Type::Fun { .. }, typed_ir::Type::Fun { .. }) => true,
+        (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items)) => {
+            items.len() == actual_items.len()
+        }
+        (typed_ir::Type::Record(_), typed_ir::Type::Record(_)) => true,
+        (typed_ir::Type::Variant(_), typed_ir::Type::Variant(_)) => true,
+        (typed_ir::Type::Row { .. }, typed_ir::Type::Row { .. }) => true,
+        (typed_ir::Type::Recursive { body, .. }, actual) => {
+            inference_choice_item_matches_actual(body, actual)
+        }
+        (template, typed_ir::Type::Recursive { body, .. }) => {
+            inference_choice_item_matches_actual(template, body)
+        }
+        (template, actual) => template == actual,
     }
 }
 
@@ -3683,6 +3719,38 @@ mod tests {
 
         assert!(!substitutions.contains_key(&left));
         assert!(!substitutions.contains_key(&right));
+    }
+
+    #[test]
+    fn inference_does_not_solve_bare_var_choice_branch() {
+        let item = tv("item");
+        let template = typed_ir::Type::Union(vec![typed_ir::Type::Var(item.clone()), named("int")]);
+        let params = BTreeSet::from([item.clone()]);
+        let mut substitutions = BTreeMap::new();
+
+        infer_type_substitutions(&template, &named("bool"), &params, &mut substitutions);
+
+        assert!(!substitutions.contains_key(&item));
+    }
+
+    #[test]
+    fn inference_solves_matching_structured_choice_branch() {
+        let item = tv("item");
+        let template = typed_ir::Type::Union(vec![
+            list_of(typed_ir::Type::Var(item.clone())),
+            named("int"),
+        ]);
+        let params = BTreeSet::from([item.clone()]);
+        let mut substitutions = BTreeMap::new();
+
+        infer_type_substitutions(
+            &template,
+            &list_of(named("bool")),
+            &params,
+            &mut substitutions,
+        );
+
+        assert_eq!(substitutions.get(&item), Some(&named("bool")));
     }
 
     #[test]
