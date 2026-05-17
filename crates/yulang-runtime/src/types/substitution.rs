@@ -471,25 +471,25 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
             substitution.ty.clone(),
         );
     }
-    for _ in 0..4 {
-        let before = (substitutions.len(), conflicts.len());
-        project_substitutions_from_candidates(
-            substitution_candidates,
-            &required_vars,
-            &mut substitutions,
-            &mut conflicts,
-        );
-        project_substitutions_from_role_requirements(
-            requirements,
-            role_impls,
-            &required_vars,
-            &mut substitutions,
-            &mut conflicts,
-        );
-        if before == (substitutions.len(), conflicts.len()) {
-            break;
-        }
-    }
+    project_principal_substitutions_until_stable(
+        &mut substitutions,
+        &mut conflicts,
+        |substitutions, conflicts| {
+            project_substitutions_from_candidates(
+                substitution_candidates,
+                &required_vars,
+                substitutions,
+                conflicts,
+            );
+            project_substitutions_from_role_requirements(
+                requirements,
+                role_impls,
+                &required_vars,
+                substitutions,
+                conflicts,
+            );
+        },
+    );
 
     let substituted_principal = substitute_type(&plan.principal_callee, &substitutions);
     for arg in &plan.args {
@@ -561,6 +561,23 @@ pub(crate) fn normalize_principal_elaboration_plan_with_role_impls(
         conflicts,
         substitution_candidates,
     )
+}
+
+fn project_principal_substitutions_until_stable<F>(
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+    mut project: F,
+) where
+    F: FnMut(&mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>, &mut BTreeSet<typed_ir::TypeVar>),
+{
+    loop {
+        let before_substitutions = substitutions.clone();
+        let before_conflicts = conflicts.clone();
+        project(substitutions, conflicts);
+        if before_substitutions == *substitutions && before_conflicts == *conflicts {
+            break;
+        }
+    }
 }
 
 fn projected_unit_substitution_is_only_open_default(
@@ -1649,44 +1666,44 @@ fn project_substitutions_from_role_requirements(
     substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
     conflicts: &mut BTreeSet<typed_ir::TypeVar>,
 ) {
-    for _ in 0..4 {
-        let before = (substitutions.len(), conflicts.len());
-        for requirement in requirements {
-            let inputs = requirement
-                .args
-                .iter()
-                .filter_map(|arg| match arg {
-                    typed_ir::RoleRequirementArg::Input(bounds) => {
-                        let bounds = substitute_bounds(bounds.clone(), substitutions);
-                        principal_plan_bounds_slot_type(Some(&bounds), false)
+    project_principal_substitutions_until_stable(
+        substitutions,
+        conflicts,
+        |substitutions, conflicts| {
+            for requirement in requirements {
+                let inputs = requirement
+                    .args
+                    .iter()
+                    .filter_map(|arg| match arg {
+                        typed_ir::RoleRequirementArg::Input(bounds) => {
+                            let bounds = substitute_bounds(bounds.clone(), substitutions);
+                            principal_plan_bounds_slot_type(Some(&bounds), false)
+                        }
+                        typed_ir::RoleRequirementArg::Associated { .. } => None,
+                    })
+                    .collect::<Vec<_>>();
+                if inputs.is_empty() {
+                    continue;
+                }
+                for associated in requirement.args.iter().filter_map(requirement_associated) {
+                    if let Some(resolved) = resolve_associated_requirement_from_impls(
+                        requirement,
+                        associated.0,
+                        &inputs,
+                        role_impls,
+                    ) {
+                        project_associated_substitution(
+                            associated,
+                            &resolved,
+                            params,
+                            substitutions,
+                            conflicts,
+                        );
                     }
-                    typed_ir::RoleRequirementArg::Associated { .. } => None,
-                })
-                .collect::<Vec<_>>();
-            if inputs.is_empty() {
-                continue;
-            }
-            for associated in requirement.args.iter().filter_map(requirement_associated) {
-                if let Some(resolved) = resolve_associated_requirement_from_impls(
-                    requirement,
-                    associated.0,
-                    &inputs,
-                    role_impls,
-                ) {
-                    project_associated_substitution(
-                        associated,
-                        &resolved,
-                        params,
-                        substitutions,
-                        conflicts,
-                    );
                 }
             }
-        }
-        if before == (substitutions.len(), conflicts.len()) {
-            break;
-        }
-    }
+        },
+    );
 }
 
 fn project_associated_substitution(
@@ -3469,6 +3486,58 @@ mod tests {
                     ty: named("int"),
                 })
         );
+    }
+
+    #[test]
+    fn role_requirement_projection_closes_deep_associated_chain() {
+        let chain_len = 6;
+        let vars = (0..=chain_len)
+            .map(|index| tv(&format!("v{index}")))
+            .collect::<Vec<_>>();
+        let mut requirements = Vec::new();
+        let mut role_impls = Vec::new();
+        for index in (0..chain_len).rev() {
+            let role = typed_ir::Path::from_name(typed_ir::Name(format!("Role{index}")));
+            let next = typed_ir::Name("next".to_string());
+            requirements.push(typed_ir::RoleRequirement {
+                role: role.clone(),
+                args: vec![
+                    typed_ir::RoleRequirementArg::Input(typed_ir::TypeBounds::exact(
+                        typed_ir::Type::Var(vars[index].clone()),
+                    )),
+                    typed_ir::RoleRequirementArg::Associated {
+                        name: next.clone(),
+                        bounds: typed_ir::TypeBounds::exact(typed_ir::Type::Var(
+                            vars[index + 1].clone(),
+                        )),
+                    },
+                ],
+            });
+            role_impls.push(typed_ir::RoleImplGraphNode {
+                role,
+                inputs: vec![typed_ir::TypeBounds::exact(named(&format!("t{index}")))],
+                associated_types: vec![typed_ir::RecordField {
+                    name: next,
+                    value: typed_ir::TypeBounds::exact(named(&format!("t{}", index + 1))),
+                    optional: false,
+                }],
+                members: Vec::new(),
+            });
+        }
+        let params = vars.iter().cloned().collect::<BTreeSet<_>>();
+        let mut substitutions = BTreeMap::from([(vars[0].clone(), named("t0"))]);
+        let mut conflicts = BTreeSet::new();
+
+        project_substitutions_from_role_requirements(
+            &requirements,
+            &role_impls,
+            &params,
+            &mut substitutions,
+            &mut conflicts,
+        );
+
+        assert!(conflicts.is_empty(), "{conflicts:?}");
+        assert_eq!(substitutions.get(&vars[chain_len]), Some(&named("t6")));
     }
 
     #[test]
