@@ -148,19 +148,18 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   として選ばない。`JoinEvidence` は semantic value boundary なので、open result
   でも thunk branch arm は force する。残りは render-sink leak ではなく、
   `junction` と `undet` を重ねた native CPS の値違いとして追う。
-  2026-05-17 の `RoutedJump` 経路修正で
-  `runs_junction_condition_once_through_cps_repr` と
-  `runs_junction_condition_without_once_through_cps_repr` は通過する。
-  `runs_junction_method_undet_once_through_cps_repr` は CPS eval / repr eval までは
-  期待 `:just 18` を返すが、JIT が `:just 3` を返す状態で残っている。
-  `std::undet.once` の外側 handler へ戻る `ScopeReturn(prompt=1)` が
-  JIT の routed-jump 後に install eval の frame を見つけられず、method 後続の
-  continuation が飛ばされている可能性が高い。
+  `runs_junction_method_undet_once_through_cps_repr` は runtime validation を抜けた後、
+  CPS eval が期待 `:just 18` に対して `1` を返す。
   追加相談は
   [`render-sink-semantic-type-leak/answer-2.md`](render-sink-semantic-type-leak/answer-2.md)
   /
   [`render-sink-semantic-type-leak/question-3.md`](render-sink-semantic-type-leak/question-3.md)
-  に分離した。
+  に分離した。`.once` を外した
+  `runs_junction_condition_without_once_through_cps_repr` でも期待 `18` に対して
+  `["1"]` になるため、残りは `std::undet` の finalization ではなく
+  `junction` handler result が `if` condition continuation へ戻らず root display
+  へ漏れる native CPS eval routing bug と見る。通常 test suite を壊さないため、
+  現時点では該当 regression は `#[ignore]` として追加している。
 
 ## 現在の未解決（2026-05-16 round-7 / 仕様 docs 順守の素朴な書き方からの収集）
 
