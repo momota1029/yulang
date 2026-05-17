@@ -230,7 +230,7 @@ pub(super) fn pratt_tail_bp<I: EventInput, S: EventSink>(
             };
             let mut j = i.rb();
             j.env.ml_arg = true;
-            match parse_expr_from_nud(min_bp, j, nud)? {
+            match parse_expr_from_nud(None, j, nud)? {
                 Ok(Either::Left(next_info)) => {
                     i.env.state.sink.finish();
                     parse_tail_bp(min_bp, next_info, i)

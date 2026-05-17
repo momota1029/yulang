@@ -83,17 +83,15 @@ use std::undet::*
 
 ## 現在の未解決（2026-05-17 / 非 native regression）
 
-- [`undet_range_nested_each_list_silent.yu`](undet_range_nested_each_list_silent.yu)
-  — `(each 1..2 + each 1..2).list.say` が `yulang run` では stdout なし /
-  exit 0 で静かに終わる。`--print-roots` では
-  `request std::fold::Fold::fold 1 blocked=None` が残る。list 版
-  `(each [1, 2] + each [1, 2]).list.say` と単独 range
+- [`undet_range_nested_each_list_runtime_type.yu`](undet_range_nested_each_list_runtime_type.yu)
+  — `(each 1..2 + each 1..2).list.say` が runtime type inference で
+  `cannot infer all runtime types needed for std::flow::sub::sub` になる。
+  list 版 `(each [1, 2] + each [1, 2]).list.say` と単独 range
   `(each (1..2)).list.say` は動くため、有限 range の nested `each` と
   `Fold` callback / runtime type inference の合成バグとして追う。
-  期待値は `[2, 3, 3, 4]`。なお元の無括弧形は `..` の parse precedence
-  trap も含むため、原因調査では parenthesized form
-  `(each (1..2) + each (1..2)).list.say` の
-  `std::flow::sub::sub` runtime type inference failure も合わせて見る。
+  期待値は `[2, 3, 3, 4]`。2026-05-17 に `ml_arg` parser bug は修正済み。
+  修正前は無括弧形が `each (1..2) + ((each 1)..2)` に崩れ、
+  `--print-roots` で `request std::fold::Fold::fold 1 blocked=None` が残っていた。
 
 ## 現在の未解決（2026-05-15 round-5）
 

@@ -1118,6 +1118,45 @@ fn expr_apply_colon_after_ml_arg() {
 }
 
 #[test]
+fn expr_ml_arg_keeps_no_space_infix_tail_under_outer_infix() {
+    let got = parse_expression("each 1..2 + each 1..2");
+    let expected = vec![
+        "(Expr",
+        "  Ident \"each\"",
+        "  (ApplyML",
+        "    (Expr",
+        "      Number \"1\"",
+        "      (InfixNode",
+        "        Infix \"..\"",
+        "        (Expr",
+        "          Number \"2\"",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        "  (InfixNode",
+        "    Infix \"+\"",
+        "    (Expr",
+        "      Ident \"each\"",
+        "      (ApplyML",
+        "        (Expr",
+        "          Number \"1\"",
+        "          (InfixNode",
+        "            Infix \"..\"",
+        "            (Expr",
+        "              Number \"2\"",
+        "            )",
+        "          )",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_apply_colon_indent_block() {
     let got = parse_expression("f:\n  x\n  y");
     let expected = vec![

@@ -1,0 +1,25 @@
+-- bug (VM / non-native): nested `each` over finite ranges is rejected during
+-- runtime type inference.
+--
+-- Reproduce:
+--   cargo run -q -p yulang -- run notes/bugs/undet_range_nested_each_list_runtime_type.yu
+--
+-- Observed:
+--   error: cannot infer all runtime types needed for `std::flow::sub::sub`.
+--   Add a type annotation that fixes the remaining type variables: 'a, 'a, 'a.
+--   Source: binding type parameters.
+--
+-- Expected:
+--   [2, 3, 3, 4]
+--
+-- Notes:
+-- - `(each [1, 2] + each [1, 2]).list.say` works.
+-- - `(each (1..2)).list.say` works.
+-- - 2026-05-17 parser fix: `ml_arg` now keeps no-space infix tails under outer
+--   infix expressions, so `each 1..2 + each 1..2` parses as
+--   `each (1..2) + each (1..2)`. Before that fix, this surface form silently
+--   ended with an unhandled `std::fold::Fold::fold 1` root request.
+
+use std::undet::*
+
+(each 1..2 + each 1..2).list.say
