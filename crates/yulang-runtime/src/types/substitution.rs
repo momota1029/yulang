@@ -1296,11 +1296,13 @@ fn merge_projected_type_precision(
     if existing == incoming {
         return Some(existing.clone());
     }
+    if core_type_is_unknown(existing) || core_type_is_top(existing) {
+        return Some(incoming.clone());
+    }
+    if core_type_is_unknown(incoming) || core_type_is_top(incoming) {
+        return Some(existing.clone());
+    }
     match (existing, incoming) {
-        (typed_ir::Type::Unknown, incoming) => Some(incoming.clone()),
-        (existing, typed_ir::Type::Unknown) => Some(existing.clone()),
-        (typed_ir::Type::Any, incoming) => Some(incoming.clone()),
-        (existing, typed_ir::Type::Any) => Some(existing.clone()),
         (
             typed_ir::Type::Named {
                 path: existing_path,
@@ -1396,8 +1398,8 @@ fn merge_projected_effect_precision(
     incoming: &typed_ir::Type,
 ) -> Option<typed_ir::Type> {
     match (existing, incoming) {
-        (typed_ir::Type::Never, incoming) => Some(incoming.clone()),
-        (existing, typed_ir::Type::Never) => Some(existing.clone()),
+        (existing, incoming) if core_type_is_never(existing) => Some(incoming.clone()),
+        (existing, incoming) if core_type_is_never(incoming) => Some(existing.clone()),
         _ => merge_projected_effect_rows(existing, incoming)
             .or_else(|| merge_projected_type_precision(existing, incoming)),
     }

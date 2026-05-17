@@ -23,8 +23,8 @@ pub(super) fn type_compatible_inner(
         return true;
     }
     match (expected, actual) {
-        (typed_ir::Type::Any, _) | (_, typed_ir::Type::Any) => true,
-        (typed_ir::Type::Var(_), _) | (_, typed_ir::Type::Var(_)) => true,
+        (expected, _) if core_type_is_top(expected) || core_type_is_inference_var(expected) => true,
+        (_, actual) if core_type_is_top(actual) || core_type_is_inference_var(actual) => true,
         (
             typed_ir::Type::Named { path, args },
             typed_ir::Type::Named {
