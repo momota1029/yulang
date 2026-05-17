@@ -1207,6 +1207,29 @@ fn expr_lambda_inline() {
 }
 
 #[test]
+fn expr_method_lambda() {
+    let got = parse_expression("\\.foo(1)");
+    let expected = vec![
+        "(Expr",
+        "  (MethodLambdaExpr",
+        "    Backslash \"\\\\\"",
+        "    (Field",
+        "      DotField \".foo\"",
+        "    )",
+        "    (ApplyC",
+        "      ParenL \"(\"",
+        "      (Expr",
+        "        Number \"1\"",
+        "      )",
+        "      ParenR \")\"",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_lambda_multiple_params() {
     let got = parse_expression("\\() x -> x");
     let expected = vec![

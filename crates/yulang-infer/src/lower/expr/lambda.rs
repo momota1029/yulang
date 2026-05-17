@@ -1,9 +1,12 @@
 use yulang_parser::lex::SyntaxKind;
 
+use crate::ast::expr::ExprKind;
 use crate::ast::expr::TypedExpr;
 use crate::lower::{LowerState, SyntaxNode};
+use crate::symbols::Name;
+use crate::types::{Neg, Pos};
 
-use super::{lower_expr, unit_expr};
+use super::{apply_suffix, lower_expr, resolve_bound_def_expr, unit_expr};
 
 pub(super) fn lower_lambda(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
     let pat_nodes: Vec<_> = node
@@ -50,6 +53,51 @@ pub(super) fn lower_lambda(state: &mut LowerState, node: &SyntaxNode) -> TypedEx
         .unwrap_or_else(|| unit_expr(state));
     state.ctx.pop_local();
     super::super::stmt::wrap_header_lambdas(state, raw_body, arg_pats)
+}
+
+pub(super) fn lower_method_lambda(state: &mut LowerState, node: &SyntaxNode) -> TypedExpr {
+    let receiver_def = state.fresh_def();
+    let receiver_tv = state.fresh_tv();
+    state.register_def_tv(receiver_def, receiver_tv);
+    state.register_def_name(receiver_def, Name("#method-receiver".to_string()));
+    if let Some(owner) = state.current_owner {
+        state.register_def_owner(receiver_def, owner);
+    }
+
+    let mut body = resolve_bound_def_expr(state, receiver_def);
+    for suffix in node.children().filter(|child| {
+        matches!(
+            child.kind(),
+            SyntaxKind::Field
+                | SyntaxKind::ApplyML
+                | SyntaxKind::ApplyC
+                | SyntaxKind::ApplyColon
+                | SyntaxKind::Index
+                | SyntaxKind::InfixNode
+                | SyntaxKind::SuffixNode
+                | SyntaxKind::PrefixNode
+        )
+    }) {
+        body = apply_suffix(state, body, &suffix);
+    }
+
+    let tv = state.fresh_tv();
+    let arg_eff_tv = state.fresh_exact_pure_eff_tv();
+    state.infer.constrain(
+        state.pos_fun(
+            Neg::Var(receiver_tv),
+            Neg::Var(arg_eff_tv),
+            Pos::Var(body.eff),
+            Pos::Var(body.tv),
+        ),
+        Neg::Var(tv),
+    );
+    let eff = super::super::stmt::lambda_expr_eff_tv(state, &body, &[receiver_def]);
+    TypedExpr {
+        tv,
+        eff,
+        kind: ExprKind::Lam(receiver_def, Box::new(body)),
+    }
 }
 
 fn lambda_arg_pats(

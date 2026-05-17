@@ -156,6 +156,13 @@ sub:
     }
 
     #[test]
+    fn vm_runs_method_lambda_field_selection() {
+        let results = eval_source_with_std("my get_x = \\.x\nget_x { x: 41 }\n");
+
+        assert_eq!(results, vec![TestValue::Int("41".to_string())]);
+    }
+
+    #[test]
     fn vm_preserves_large_integer_literal_text() {
         let results = eval_source_with_std("99999999999999999999999\n");
 

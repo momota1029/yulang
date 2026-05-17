@@ -8,11 +8,13 @@ use crate::lex::{Lex, SyntaxKind, Token, TriviaInfo};
 use crate::parse::{IndentListMachine, emit_invalid};
 use crate::pat::parse::{parse_pattern, parse_pattern_from_nud};
 use crate::pat::scan::scan_pat_nud;
+use crate::scan::scan_dot_field;
 use crate::sink::EventSink;
 
 use super::core::{parse_expr_bp, parse_expr_from_nud};
 use super::group::delimited;
 use super::parse_expr;
+use super::tail::pratt_tail_bp;
 use crate::stmt::{parse_indent_stmt_block, peek_stmt_lex};
 
 pub(super) fn parse_inline_or_indent<I: EventInput, S: EventSink>(
@@ -34,6 +36,15 @@ pub(super) fn parse_lambda_expr<I: EventInput, S: EventSink>(
     mut i: In<I, S>,
     backslash: Lex,
 ) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
+    if i.lookahead(scan_dot_field).is_some() {
+        let led = scan_expr_led(backslash.trailing_trivia_info(), i.rb())?;
+        i.env.state.sink.start(SyntaxKind::MethodLambdaExpr);
+        i.env.state.sink.lex(&backslash);
+        let result = pratt_tail_bp(None, led, i.rb())?;
+        i.env.state.sink.finish();
+        return Some(result);
+    }
+
     i.env.state.sink.start(SyntaxKind::LambdaExpr);
     i.env.state.sink.lex(&backslash);
     let mut leading = backslash.trailing_trivia_info();

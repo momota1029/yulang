@@ -1,6 +1,8 @@
-# `\.method(...)`
+# `\.method(...)` (2026-05-17 実装済み)
 - `\x -> x.method(...)`の略記
 - `_.method`より安心安全
+- parser / lowering / VM regression 追加済み。`\.x` は `\recv -> recv.x`
+  相当として既存の suffix lowering に乗せる。
 
 # `\'label x ->`
 - 再帰関数の略記。普通に`'label x`で起動できると嬉しいね
@@ -25,4 +27,3 @@
 # `rule`と`~""`
 - 構文としてはあるんだけどdesugerがないのでちゃんと決める
 - ただのパーサコンビネータなので`parse::choice()`と`parse::read()`/`parse::cut()`、あと変数代入とレコードや配列に脱糖されるだけ。
-
