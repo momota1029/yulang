@@ -761,6 +761,7 @@ impl PrincipalUnifier {
                 let expr = self
                     .rewrite_apply_from_principal_plan(&expr, result_context.as_ref())
                     .unwrap_or(expr);
+                let expr = refine_apply_expr_callee_input(expr);
                 return adapt_apply_result_from_evidence(expr, result_context.as_ref());
             }
             ExprKind::Lambda {
@@ -994,7 +995,8 @@ impl PrincipalUnifier {
                 {
                     ty = RuntimeType::core(context);
                 }
-                let expr = self.rewrite_expr(*expr, result_context);
+                let expr = self.rewrite_expr(*expr, result_context.clone());
+                let expr = refine_bind_here_inner_thunk_value_from_context(expr, result_context);
                 if !matches!(expr.ty, RuntimeType::Thunk { .. }) {
                     return expr;
                 }
@@ -5569,6 +5571,7 @@ fn rebuild_apply_call_with_final_arg_effect(
             .filter(|_| index + 1 == args.len() && matches!(arg.ty, RuntimeType::Thunk { .. }))
             .unwrap_or(&param_effect);
         let arg = principal_arg_adapter(arg, &param, param_effect)?;
+        call = refine_apply_callee_input_from_arg(call, &arg);
         let specialized_ret = runtime_type_from_core_value_and_effect(next.clone(), ret_effect);
         let ty = if index + 1 == args.len() {
             closed_rebuilt_apply_type(final_ty, &specialized_ret)
@@ -5620,6 +5623,7 @@ fn rebuild_apply_call_owned_with_final_arg_effect(
             .filter(|_| index + 1 == arity && matches!(arg.ty, RuntimeType::Thunk { .. }))
             .unwrap_or(&param_effect);
         let arg = principal_arg_adapter(&arg, &param, &param_effect)?;
+        call = refine_apply_callee_input_from_arg(call, &arg);
         let specialized_ret = runtime_type_from_core_value_and_effect(next.clone(), ret_effect);
         let ty = if index + 1 == arity {
             closed_rebuilt_apply_type(final_ty, &specialized_ret)
@@ -6158,6 +6162,43 @@ fn force_expr_to_runtime_value(mut expr: Expr, expected: &RuntimeType) -> Option
         );
     }
     None
+}
+
+fn refine_bind_here_inner_thunk_value_from_context(
+    expr: Expr,
+    result_context: Option<typed_ir::TypeBounds>,
+) -> Expr {
+    let Some(expected) = closed_type_from_bounds(result_context.as_ref()) else {
+        return expr;
+    };
+    if !closed_slot_type_usable(&expected, false) {
+        return expr;
+    }
+    let RuntimeType::Thunk { effect, value } = &expr.ty else {
+        return expr;
+    };
+    let actual = runtime_core_type(value);
+    if !runtime_type_contains_unknown(value) {
+        return expr;
+    }
+    if !core_type_contains_unknown(&actual)
+        && actual != expected
+        && !type_compatible(&expected, &actual)
+    {
+        return expr;
+    }
+    let value = RuntimeType::core(expected);
+    let effect = effect.clone();
+    let ty = RuntimeType::thunk(effect.clone(), value.clone());
+    let kind = match expr.kind {
+        ExprKind::Thunk { expr, .. } => ExprKind::Thunk {
+            effect,
+            value,
+            expr,
+        },
+        kind => kind,
+    };
+    Expr { ty, kind }
 }
 
 fn principal_param_effect_requires_thunk(effect: &typed_ir::Type) -> bool {
@@ -6708,6 +6749,7 @@ fn adapt_apply_argument_from_callee(expr: Expr) -> Expr {
             ty,
         );
     };
+    let callee = Box::new(refine_apply_callee_input_from_arg(*callee, &arg));
     Expr::typed(
         ExprKind::Apply {
             callee,
@@ -6717,6 +6759,93 @@ fn adapt_apply_argument_from_callee(expr: Expr) -> Expr {
         },
         ty,
     )
+}
+
+fn refine_apply_expr_callee_input(expr: Expr) -> Expr {
+    let Expr { ty, kind } = expr;
+    let ExprKind::Apply {
+        callee,
+        arg,
+        evidence,
+        instantiation,
+    } = kind
+    else {
+        return Expr::typed(kind, ty);
+    };
+    let callee = Box::new(refine_apply_callee_input_from_arg(*callee, &arg));
+    Expr::typed(
+        ExprKind::Apply {
+            callee,
+            arg,
+            evidence,
+            instantiation,
+        },
+        ty,
+    )
+}
+
+fn refine_apply_callee_input_from_arg(mut callee: Expr, arg: &Expr) -> Expr {
+    let Some(ty) = refine_apply_function_input_from_arg(callee.ty.clone(), arg) else {
+        return callee;
+    };
+    callee.ty = ty;
+    callee
+}
+
+fn refine_apply_function_input_from_arg(ty: RuntimeType, arg: &Expr) -> Option<RuntimeType> {
+    let (arg_value, arg_effect) = runtime_value_and_effect(&arg.ty);
+    if core_type_contains_unknown(&arg_value) || core_type_contains_unknown(&arg_effect) {
+        return None;
+    }
+    if !closed_slot_type_usable(&arg_value, false) && !function_runtime_slot_usable(&arg_value) {
+        return None;
+    }
+    let arg_runtime =
+        runtime_type_from_core_value_and_effect(arg_value.clone(), arg_effect.clone());
+    match ty {
+        RuntimeType::Fun { param, ret } => {
+            if !runtime_type_contains_unknown(&param) && !runtime_type_has_vars(&param) {
+                return None;
+            }
+            Some(RuntimeType::fun(arg_runtime, *ret))
+        }
+        RuntimeType::Core(typed_ir::Type::Fun {
+            param,
+            param_effect,
+            ret_effect,
+            ret,
+        }) => {
+            if !core_type_contains_unknown(&param)
+                && !core_type_has_vars(&param)
+                && !core_type_contains_unknown(&param_effect)
+                && !core_type_has_vars(&param_effect)
+            {
+                return None;
+            }
+            let param = if core_type_contains_unknown(&param) || core_type_has_vars(&param) {
+                Box::new(arg_value)
+            } else {
+                param
+            };
+            let param_effect =
+                if core_type_contains_unknown(&param_effect) || core_type_has_vars(&param_effect) {
+                    Box::new(arg_effect)
+                } else {
+                    param_effect
+                };
+            Some(normalize_hir_function_type(RuntimeType::core(
+                typed_ir::Type::Fun {
+                    param,
+                    param_effect,
+                    ret_effect,
+                    ret,
+                },
+            )))
+        }
+        RuntimeType::Thunk { effect, value } => refine_apply_function_input_from_arg(*value, arg)
+            .map(|value| RuntimeType::thunk(effect, value)),
+        RuntimeType::Unknown | RuntimeType::Core(_) => None,
+    }
 }
 
 fn lambda_param_runtime_type(ty: &RuntimeType) -> Option<RuntimeType> {
@@ -9758,6 +9887,71 @@ mod tests {
         let adapted = principal_arg_adapter(&arg, &bool_ty, &effect).expect("adapter");
 
         assert!(matches!(adapted.kind, ExprKind::Apply { .. }));
+    }
+
+    #[test]
+    fn bind_here_context_refines_inner_unknown_thunk_value() {
+        let int_ty = named("int");
+        let effect = named("std::flow::sub");
+        let expr = Expr::typed(
+            ExprKind::Var(path(&["return_call"])),
+            RuntimeType::thunk(effect.clone(), RuntimeType::Unknown),
+        );
+
+        let refined = refine_bind_here_inner_thunk_value_from_context(
+            expr,
+            Some(typed_ir::TypeBounds::exact(int_ty.clone())),
+        );
+
+        assert_eq!(
+            refined.ty,
+            RuntimeType::thunk(effect, RuntimeType::core(int_ty))
+        );
+    }
+
+    #[test]
+    fn apply_argument_refines_unknown_callee_input() {
+        let int_ty = named("int");
+        let bool_ty = named("bool");
+        let callee = Expr::typed(
+            ExprKind::Var(path(&["predicate"])),
+            RuntimeType::fun(RuntimeType::Unknown, RuntimeType::core(bool_ty.clone())),
+        );
+        let arg = Expr::typed(
+            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
+            RuntimeType::core(int_ty.clone()),
+        );
+
+        let refined = refine_apply_callee_input_from_arg(callee, &arg);
+
+        assert_eq!(
+            refined.ty,
+            RuntimeType::fun(RuntimeType::core(int_ty), RuntimeType::core(bool_ty))
+        );
+    }
+
+    #[test]
+    fn apply_argument_refines_typevar_callee_input() {
+        let int_ty = named("int");
+        let bool_ty = named("bool");
+        let callee = Expr::typed(
+            ExprKind::Var(path(&["predicate"])),
+            RuntimeType::fun(
+                RuntimeType::core(typed_ir::Type::Var(typed_ir::TypeVar("a".to_string()))),
+                RuntimeType::core(bool_ty.clone()),
+            ),
+        );
+        let arg = Expr::typed(
+            ExprKind::Lit(typed_ir::Lit::Int("1".to_string())),
+            RuntimeType::core(int_ty.clone()),
+        );
+
+        let refined = refine_apply_callee_input_from_arg(callee, &arg);
+
+        assert_eq!(
+            refined.ty,
+            RuntimeType::fun(RuntimeType::core(int_ty), RuntimeType::core(bool_ty))
+        );
     }
 
     fn fun(param: typed_ir::Type, ret: typed_ir::Type) -> typed_ir::Type {
