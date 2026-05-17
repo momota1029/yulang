@@ -156,3 +156,48 @@ Layer 2 (`cps_repr.rs`) は eval ごとに local state を作るので同じ lea
 - `runs_finite_range_for_loop_last_breaks_in_jit`（新規）：
   `for x in 0..<10000: if x==5: last else: ()` で `last` が実際に break
   していれば数 iter で終わるテスト。
+
+## 2026-05-17 再調査
+
+`notes/bugs/solved/native_open_range_for_last_returns_payload.yu` は現在の build で
+30 秒 timeout になったため、solved から未解決へ戻した。
+
+追加で、有限 list/range に出力を入れると native は `last` 後も iteration を続ける。
+
+```yulang
+use std::flow::*
+
+{
+    for x in 0..<8:
+        if x == 5: last
+        else: say x.show
+    5
+}
+```
+
+native は `0 1 2 3 4 6 7 5` を出す。つまり小さい `for ... last` test は、
+最終 root が偶然 `5` になるだけで、break の検証にはなっていない。
+
+今回の trace で分かったこと:
+
+- `loop::last` の `perform_select` は成功する。
+- handler arm 内の `last::break` も `perform_select` される。
+- `route_scope_return` は frame-walk で外側 `last::sub` の prompt を見つける。
+- その後の `RoutedJump` が native call chain を eval/repr と同じ「jump」として
+  表せず、handler arm の `0` が普通値として fold/range continuation に戻る。
+
+試したが未採用にしたこと:
+
+- `RoutedJump` を mode 2 で単に consume するだけでは、escape 継続の結果が
+  さらに通常 return-frame に流れて iteration が続く。
+- routed jump consume 後に pending return frames を即時復元しても、同じく
+  fold continuation に戻る。
+- `PeekGuard` の空 stack sentinel を `0` から `-1` にする案は、`say` 入りの
+  再現で junction blocker と guard id 0 の衝突を避ける方向には見えるが、
+  open-range `last` の主因ではないので未採用。
+
+次に見る場所は `consume_native_i64_abort` の `RoutedJump` 分岐と
+`restore_pending_routed_return_frames_for_normal_return`。ここは「escape
+continuation を Rust 関数として呼んで戻る」ではなく、Layer 2 の
+`resolve_routed_jump_repr` と同じ eval-loop jump として、復元した
+return-frame prefix の continuation だけを再開する必要がある。

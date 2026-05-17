@@ -169,9 +169,6 @@ done
 - [`native_for_loop_escape_keeps_running.yu`](native_for_loop_escape_keeps_running.yu)
   — outer handler が `return` を捕まえた後も inner fold/for continuation
   が走り、root 値を fallback で上書きしていた。VM / native とも `2`。
-- [`native_open_range_for_last_returns_payload.yu`](native_open_range_for_last_returns_payload.yu)
-  — open-range `for` + local `last` で native CPS repr が無限ループ。
-  VM / native とも `5`。
 - [`native_top_level_destructure_binding_recurses.yu`](native_top_level_destructure_binding_recurses.yu)
   — 最上位 destructuring が per-name binding に下がる際 arm body が
   source name を再使用していた。VM / native とも `42`。
