@@ -373,7 +373,7 @@ println "hello"
                 TestValue::Int("3".to_string())
             ]
         );
-        assert_eq!(stdout, "hello\nhellohellohellohello\nhello\n");
+        assert_eq!(stdout, "hello\nhello\nhellohellohello\nhello\n");
     }
 
     #[test]
