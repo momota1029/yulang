@@ -202,6 +202,13 @@ VM と native で一致したため `solved/` へ移した。残りは bare `bra
     pointer 風の garbage 値 (`663089232`) を返す。
   - `wrap` 内で `[E]` を持つ helper 経由: native で stack overflow
     (`thread '<unknown>' has overflowed its stack`)。
+  - 2026-05-17 追記: runtime principal unify では、`wrap` 文脈付きの
+    full 例について `fail` の erased effect 引数から `fs_err` receiver を復元し、
+    `std::error::Throw::throw` は合成 impl (`&throw#...::throw`) へ rewrite
+    されるようになった。ただし native 実行はまだ stack overflow のまま。
+    小さい `fail fs_err::not_found "missing"` 単体は文脈不足で free role method
+    reject が残るため、次は `fail` 単体の context propagation と native CPS の
+    `throw` thunk shape を分けて見る。
 
 ### 既存 round-6 への補足観察
 

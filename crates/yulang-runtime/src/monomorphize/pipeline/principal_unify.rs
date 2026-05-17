@@ -800,6 +800,7 @@ impl PrincipalUnifier {
                     .unwrap_or_default();
                 if let Some(param_context) = local_use_contexts.get(&param)
                     && let Some(param_ty) = closed_type_from_bounds(Some(param_context))
+                    && closed_slot_type_usable(&param_ty, false)
                     && let Some(updated_ty) = runtime_function_type_with_param(ty.clone(), param_ty)
                     && updated_ty != ty
                 {
@@ -1853,7 +1854,7 @@ impl PrincipalUnifier {
                 )
             })
             .unwrap_or_else(|| callee_ty.clone());
-        let specialization_inputs = specialization_input_shapes(&rewritten_args);
+        let specialization_inputs = specialization_input_shapes(&rewritten_args, &params);
         let specialization_output =
             result_context.and_then(|bounds| closed_type_from_bounds(Some(bounds)));
         let path = self.intern_specialization(
@@ -2242,7 +2243,7 @@ impl PrincipalUnifier {
         );
         let role_result_ty = result_context
             .and_then(|bounds| closed_type_from_bounds(Some(bounds)))
-            .map(RuntimeType::core)
+            .map(|value| runtime_type_with_context_value_and_actual_effect(&expr.ty, value))
             .unwrap_or_else(|| expr.ty.clone());
         let mut matches = candidates
             .iter()
@@ -2731,6 +2732,12 @@ impl PrincipalUnifier {
         required_vars.extend(extra_required_vars.iter().cloned());
         let effect_only_vars = binding_effect_only_vars(original);
         substitutions.retain(|var, _| !effect_only_vars.contains(var));
+        remove_effectful_erased_arg_value_substitutions(
+            &original.scheme.body,
+            args,
+            &required_vars,
+            &mut substitutions,
+        );
         if let Some((_, _, original_ret_effect)) =
             core_fun_spine_parts_exact(&original.scheme.body, args.len())
         {
@@ -2793,6 +2800,8 @@ impl PrincipalUnifier {
         substitutions.retain(|var, _| !ret_effect_vars.contains(var));
         for (index, (arg, (param, param_effect))) in args.iter().zip(&params).enumerate() {
             let (actual, actual_effect) = runtime_value_and_effect(&arg.ty);
+            let wait_for_role_completion =
+                effectful_erased_arg_should_wait_for_role_completion(&actual, &actual_effect);
             debug_principal_unify_runtime_projection(
                 "arg",
                 plan.target.as_ref(),
@@ -2801,13 +2810,17 @@ impl PrincipalUnifier {
                 param_effect,
                 &actual_effect,
             );
-            project_unary_container_item_from_param_actual(
-                param,
-                &actual,
-                &required_vars,
-                &mut substitutions,
-            );
-            if let Some(plan_arg) = plan.args.iter().find(|plan_arg| plan_arg.index == index) {
+            if !wait_for_role_completion {
+                project_unary_container_item_from_param_actual(
+                    param,
+                    &actual,
+                    &required_vars,
+                    &mut substitutions,
+                );
+            }
+            if !wait_for_role_completion
+                && let Some(plan_arg) = plan.args.iter().find(|plan_arg| plan_arg.index == index)
+            {
                 project_principal_arg_slot_substitutions(
                     param,
                     plan_arg,
@@ -2816,7 +2829,8 @@ impl PrincipalUnifier {
                     &mut conflicts,
                 );
             }
-            if let Some(evidence) = evidences.get(index).copied().flatten()
+            if !wait_for_role_completion
+                && let Some(evidence) = evidences.get(index).copied().flatten()
                 && let Some(expected_arg) = evidence.expected_arg.as_ref()
             {
                 let retained_ret_effect_substitutions = ret_effect_vars
@@ -2835,15 +2849,26 @@ impl PrincipalUnifier {
                 substitutions.retain(|var, _| !ret_effect_vars.contains(var));
                 substitutions.extend(retained_ret_effect_substitutions);
             }
-            project_closed_substitutions_from_type(
-                param,
-                &actual,
-                &required_vars,
-                &mut substitutions,
-                &mut conflicts,
-                false,
-                64,
-            );
+            if !wait_for_role_completion {
+                project_closed_substitutions_from_type(
+                    param,
+                    &actual,
+                    &required_vars,
+                    &mut substitutions,
+                    &mut conflicts,
+                    false,
+                    64,
+                );
+            } else {
+                project_effectful_erased_role_arg_value_from_effect(
+                    param,
+                    &actual_effect,
+                    requirements,
+                    &required_vars,
+                    &mut substitutions,
+                    &mut conflicts,
+                );
+            }
             project_closed_substitutions_from_type(
                 param_effect,
                 &actual_effect,
@@ -2853,7 +2878,8 @@ impl PrincipalUnifier {
                 true,
                 64,
             );
-            if let Some(plan_arg) = plan.args.iter().find(|plan_arg| plan_arg.index == index)
+            if !wait_for_role_completion
+                && let Some(plan_arg) = plan.args.iter().find(|plan_arg| plan_arg.index == index)
                 && let Some(contextual_actual) =
                     principal_plan_arg_closed_type(plan_arg, &substitutions)
             {
@@ -6115,6 +6141,14 @@ fn runtime_type_from_core_value_and_effect(
     }
 }
 
+fn runtime_type_with_context_value_and_actual_effect(
+    actual: &RuntimeType,
+    value: typed_ir::Type,
+) -> RuntimeType {
+    let (_actual_value, actual_effect) = runtime_value_and_effect(actual);
+    runtime_type_from_core_value_and_effect(value, actual_effect)
+}
+
 fn principal_arg_adapter(
     arg: &Expr,
     param: &typed_ir::Type,
@@ -6209,8 +6243,22 @@ fn variant_row_accepts_actual(param: &typed_ir::Type, actual: &typed_ir::Type) -
     }
 }
 
-fn specialization_input_shapes(args: &[Expr]) -> Vec<typed_ir::Type> {
-    args.iter().map(|arg| runtime_core_type(&arg.ty)).collect()
+fn specialization_input_shapes(
+    args: &[Expr],
+    params: &[(typed_ir::Type, typed_ir::Type)],
+) -> Vec<typed_ir::Type> {
+    args.iter()
+        .zip(params)
+        .map(|(arg, (param, _param_effect))| {
+            let (actual, actual_effect) = runtime_value_and_effect(&arg.ty);
+            if effectful_erased_arg_should_wait_for_role_completion(&actual, &actual_effect)
+                && closed_slot_type_usable(param, false)
+            {
+                return param.clone();
+            }
+            actual
+        })
+        .collect()
 }
 
 fn retag_nested_imprecise_thunk_effect(
@@ -8005,7 +8053,10 @@ fn project_direct_runtime_arg_substitutions(
         return projected;
     };
     for (arg, (param, _param_effect)) in args.iter().zip(params) {
-        let (actual, _actual_effect) = runtime_value_and_effect(&arg.ty);
+        let (actual, actual_effect) = runtime_value_and_effect(&arg.ty);
+        if effectful_erased_arg_should_wait_for_role_completion(&actual, &actual_effect) {
+            continue;
+        }
         project_direct_runtime_arg_value_substitution(
             &param,
             &actual,
@@ -8016,6 +8067,102 @@ fn project_direct_runtime_arg_substitutions(
         );
     }
     projected
+}
+
+fn effectful_erased_arg_should_wait_for_role_completion(
+    actual: &typed_ir::Type,
+    actual_effect: &typed_ir::Type,
+) -> bool {
+    !effect_is_empty(actual_effect)
+        && (matches!(actual, typed_ir::Type::Never)
+            || matches!(actual, typed_ir::Type::Tuple(items) if items.is_empty()))
+}
+
+fn project_effectful_erased_role_arg_value_from_effect(
+    param: &typed_ir::Type,
+    actual_effect: &typed_ir::Type,
+    requirements: &[typed_ir::RoleRequirement],
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+    conflicts: &mut BTreeSet<typed_ir::TypeVar>,
+) {
+    let typed_ir::Type::Var(var) = param else {
+        return;
+    };
+    if !required_vars.contains(var) || !role_requirements_use_input_var(requirements, var) {
+        return;
+    }
+    let Some(actual) = effect_marker_value_projection_type(actual_effect) else {
+        return;
+    };
+    project_closed_substitutions_from_type(
+        param,
+        &actual,
+        required_vars,
+        substitutions,
+        conflicts,
+        false,
+        64,
+    );
+}
+
+fn role_requirements_use_input_var(
+    requirements: &[typed_ir::RoleRequirement],
+    var: &typed_ir::TypeVar,
+) -> bool {
+    requirements.iter().any(|requirement| {
+        requirement.args.iter().any(|arg| {
+            let typed_ir::RoleRequirementArg::Input(bounds) = arg else {
+                return false;
+            };
+            type_bounds_contain_specific_type_var(bounds, var)
+        })
+    })
+}
+
+fn type_bounds_contain_specific_type_var(
+    bounds: &typed_ir::TypeBounds,
+    var: &typed_ir::TypeVar,
+) -> bool {
+    let mut vars = BTreeSet::new();
+    if let Some(lower) = bounds.lower.as_deref() {
+        collect_core_type_vars(lower, &mut vars);
+    }
+    if let Some(upper) = bounds.upper.as_deref() {
+        collect_core_type_vars(upper, &mut vars);
+    }
+    vars.contains(var)
+}
+
+fn effect_marker_value_projection_type(effect: &typed_ir::Type) -> Option<typed_ir::Type> {
+    role_impl_effect_projection_types(effect)
+        .into_iter()
+        .rev()
+        .find(|ty| closed_slot_type_usable(ty, false))
+}
+
+fn remove_effectful_erased_arg_value_substitutions(
+    principal: &typed_ir::Type,
+    args: &[&Expr],
+    required_vars: &BTreeSet<typed_ir::TypeVar>,
+    substitutions: &mut BTreeMap<typed_ir::TypeVar, typed_ir::Type>,
+) {
+    let Some((params, _ret, _ret_effect)) = core_fun_spine_parts_exact(principal, args.len())
+    else {
+        return;
+    };
+    for (arg, (param, _param_effect)) in args.iter().zip(params) {
+        let typed_ir::Type::Var(var) = param else {
+            continue;
+        };
+        if !required_vars.contains(&var) {
+            continue;
+        }
+        let (actual, actual_effect) = runtime_value_and_effect(&arg.ty);
+        if effectful_erased_arg_should_wait_for_role_completion(&actual, &actual_effect) {
+            substitutions.remove(&var);
+        }
+    }
 }
 
 fn project_direct_runtime_arg_value_substitution(
@@ -8481,11 +8628,16 @@ fn role_impl_closed_substitutions(
         return None;
     };
     let first_evidence = spine.evidences.first().copied().flatten();
-    let receiver_types =
+    let (_actual_ret, actual_ret_effect) = runtime_value_and_effect(result_ty);
+    let actual_ret_effect = ambient_substitutions
+        .map(|substitutions| substitute_type(&actual_ret_effect, substitutions))
+        .unwrap_or(actual_ret_effect);
+    let mut receiver_types =
         role_impl_arg_projection_types(first_arg, first_evidence, ambient_substitutions);
+    push_never_value_effect_receiver_types(&mut receiver_types, result_ty, ambient_substitutions);
     let receiver_ty = receiver_types
         .iter()
-        .find(|ty| !matches!(ty, typed_ir::Type::Unknown | typed_ir::Type::Any))
+        .find(|ty| closed_slot_type_usable(ty, false))
         .cloned()
         .unwrap_or_else(|| {
             ambient_substitutions
@@ -8545,10 +8697,6 @@ fn role_impl_closed_substitutions(
             64,
         );
     }
-    let (_actual_ret, actual_ret_effect) = runtime_value_and_effect(result_ty);
-    let actual_ret_effect = ambient_substitutions
-        .map(|substitutions| substitute_type(&actual_ret_effect, substitutions))
-        .unwrap_or(actual_ret_effect);
     project_closed_substitutions_from_type(
         &ret_effect,
         &actual_ret_effect,
@@ -8580,7 +8728,12 @@ fn role_impl_closed_substitutions(
     let receiver_ty = if receiver_is_imprecise {
         substituted_receiver.clone()
     } else {
-        receiver_ty
+        receiver_types
+            .iter()
+            .filter(|candidate| closed_slot_type_usable(candidate, false))
+            .find(|candidate| receiver_type_matches_impl(&substituted_receiver, candidate))
+            .cloned()
+            .unwrap_or(receiver_ty)
     };
     if receiver_is_imprecise
         && (!role_spine_has_local_imprecise_receiver(spine)
@@ -8732,7 +8885,10 @@ fn role_impl_closed_slots_match(
 ) -> bool {
     for (index, (arg, (param, _param_effect))) in spine.args.iter().zip(params).enumerate() {
         let evidence = spine.evidences.get(index).copied().flatten();
-        let actuals = role_impl_arg_projection_types(arg, evidence, ambient_substitutions);
+        let mut actuals = role_impl_arg_projection_types(arg, evidence, ambient_substitutions);
+        if index == 0 {
+            push_never_value_effect_receiver_types(&mut actuals, result_ty, ambient_substitutions);
+        }
         if actuals
             .iter()
             .all(|actual| matches!(actual, typed_ir::Type::Unknown | typed_ir::Type::Any))
@@ -8740,16 +8896,24 @@ fn role_impl_closed_slots_match(
             continue;
         }
         let param = substitute_type(param, substitutions);
-        if actuals
+        if index == 0 {
+            let precise_actuals = actuals
+                .iter()
+                .filter(|actual| closed_slot_type_usable(actual, false))
+                .collect::<Vec<_>>();
+            if precise_actuals.is_empty() {
+                continue;
+            }
+            if !precise_actuals
+                .iter()
+                .any(|actual| receiver_type_matches_impl(&param, actual))
+            {
+                return false;
+            }
+        } else if actuals
             .iter()
             .filter(|actual| !matches!(actual, typed_ir::Type::Unknown | typed_ir::Type::Any))
-            .any(|actual| {
-                if index == 0 {
-                    !receiver_type_matches_impl(&param, actual)
-                } else {
-                    !type_compatible(&param, actual)
-                }
-            })
+            .any(|actual| !type_compatible(&param, actual))
         {
             return false;
         }
@@ -8890,6 +9054,75 @@ fn push_role_impl_expr_projection_types_for_substitution(
             push_role_impl_expr_projection_types_for_substitution(out, expr, ambient_substitutions);
         }
         _ => {}
+    }
+}
+
+fn push_role_impl_effect_projection_types(
+    out: &mut Vec<typed_ir::Type>,
+    effect: &typed_ir::Type,
+    ambient_substitutions: Option<&BTreeMap<typed_ir::TypeVar, typed_ir::Type>>,
+) {
+    for ty in role_impl_effect_projection_types(effect) {
+        push_role_impl_projection_type(out, ty, ambient_substitutions);
+    }
+}
+
+fn role_impl_effect_projection_types(effect: &typed_ir::Type) -> Vec<typed_ir::Type> {
+    let mut out = Vec::new();
+    collect_role_impl_effect_projection_types(effect, &mut out);
+    out
+}
+
+fn push_never_value_effect_receiver_types(
+    out: &mut Vec<typed_ir::Type>,
+    result_ty: &RuntimeType,
+    ambient_substitutions: Option<&BTreeMap<typed_ir::TypeVar, typed_ir::Type>>,
+) {
+    if out.iter().any(|ty| closed_slot_type_usable(ty, false)) {
+        return;
+    }
+    let (actual_ret, actual_ret_effect) = runtime_value_and_effect(result_ty);
+    let actual_ret = ambient_substitutions
+        .map(|substitutions| substitute_type(&actual_ret, substitutions))
+        .unwrap_or(actual_ret);
+    if !matches!(actual_ret, typed_ir::Type::Never) {
+        return;
+    }
+    push_role_impl_effect_projection_types(out, &actual_ret_effect, ambient_substitutions);
+}
+
+fn collect_role_impl_effect_projection_types(
+    effect: &typed_ir::Type,
+    out: &mut Vec<typed_ir::Type>,
+) {
+    match effect {
+        typed_ir::Type::Named { .. } => {
+            if !out.iter().any(|existing| existing == effect) {
+                out.push(effect.clone());
+            }
+        }
+        typed_ir::Type::Row { items, tail } => {
+            for item in items {
+                collect_role_impl_effect_projection_types(item, out);
+            }
+            collect_role_impl_effect_projection_types(tail, out);
+        }
+        typed_ir::Type::Union(items) | typed_ir::Type::Inter(items) => {
+            for item in items {
+                collect_role_impl_effect_projection_types(item, out);
+            }
+        }
+        typed_ir::Type::Recursive { body, .. } => {
+            collect_role_impl_effect_projection_types(body, out);
+        }
+        typed_ir::Type::Unknown
+        | typed_ir::Type::Var(_)
+        | typed_ir::Type::Never
+        | typed_ir::Type::Any
+        | typed_ir::Type::Fun { .. }
+        | typed_ir::Type::Tuple(_)
+        | typed_ir::Type::Record { .. }
+        | typed_ir::Type::Variant(_) => {}
     }
 }
 
