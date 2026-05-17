@@ -1,5 +1,5 @@
--- bug (native): `error E:` 宣言 + `fail` + `E::wrap` の基本 flow が
--- native では塞がっている。docs (reference/errors.md, reference/idioms.md)
+-- solved (native): `error E:` 宣言 + `fail` + `E::wrap` の基本 flow が
+-- native では塞がっていた。docs (reference/errors.md, reference/idioms.md)
 -- 推奨の書き方そのまま。
 --
 -- 2026-05-16 観測。
@@ -15,7 +15,7 @@
 --   fs_err::wrap: read_or_throw "missing"
 --   → err (fs_err::not_found "missing")
 --
--- 観測:
+-- 修正前:
 --
 --   ☆ 経路 1: `fail` 使用 → native は CPS 段で reject
 --      `fs_err::wrap: my _ = fail fs_err::not_found "x"; 0`
@@ -34,6 +34,29 @@
 --      → native  stack overflow:
 --                `thread '<unknown>' has overflowed its stack`
 --                `fatal runtime error: stack overflow, aborting`
+--
+-- 2026-05-17 修正後:
+--   ☆ 経路 1: `fail fs_err::not_found "x"` を `wrap` 内に置く形
+--      → VM / native とも `err not_found "x"`
+--   ☆ 経路 2: `fs_err::not_found "x"` 直呼び
+--      → VM / native とも `err not_found "x"`
+--   ☆ 経路 3: `[fs_err]` helper 経由の full flow
+--      → VM / native とも `ok "<content>"` / `err not_found "missing"`
+--
+-- = native CPS lowering の direct call reachability が handler arm 内の direct
+--   call を body の静的 performed-effect だけで削っていたため、`wrap` の err
+--   arm が必要とする constructor が落ちる経路があった。
+-- = inline direct apply で parameter と同名の thunk 引数を `local_exprs` alias
+--   に入れると、`p = thunk p` の自己参照になり lowering が再帰して stack
+--   overflow していた。自分自身を参照する inline 引数は値として lower する。
+-- = `fail` の generated helper は `Throw::throw e` へ転送するだけなので、
+--   `fail fs_err::not_found "x"` のように引数側が effect request に下りている
+--   call site では helper 本体を native 関数として要求せず、引数の perform を
+--   その場で下ろす。
+-- = `yulang run --native --print-roots` の effects executable harness は、JIT と
+--   同じく root abort/result slot を回収してから表示する。runtime IR に
+--   `Debug.debug(root)` を後付けすると monomorphize 済みの role 解決を飛ばし、
+--   thunk / variant の生値を表示してしまうため。
 --
 -- 影響:
 --   - `error E:` は reference/idioms.md でも「`enum` を手書きするより

@@ -227,6 +227,7 @@ pub struct CpsReprObjectModule {
     bytes: Vec<u8>,
     roots: Vec<String>,
     root_lanes: Vec<CpsReprAbiLane>,
+    root_function_ids: Vec<u64>,
     optimization_profile: CpsOptimizationProfile,
 }
 
@@ -241,6 +242,10 @@ impl CpsReprObjectModule {
 
     pub fn root_lanes(&self) -> &[CpsReprAbiLane] {
         &self.root_lanes
+    }
+
+    pub fn root_function_ids(&self) -> &[u64] {
+        &self.root_function_ids
     }
 
     pub fn optimization_profile(&self) -> CpsOptimizationProfile {
@@ -354,12 +359,18 @@ pub fn compile_cps_repr_abi_module_to_object(
                 .unwrap_or(CpsReprAbiLane::Unknown)
         })
         .collect::<Vec<_>>();
+    let root_function_ids = module
+        .roots
+        .iter()
+        .filter_map(|root| functions.function_ids.get(&root.name).copied())
+        .collect::<Vec<_>>();
     let product = object.finish();
     let bytes = product.emit().map_err(cranelift_error)?;
     Ok(CpsReprObjectModule {
         bytes,
         roots,
         root_lanes,
+        root_function_ids,
         optimization_profile: optimized.profile,
     })
 }
@@ -5994,6 +6005,28 @@ fn set_native_i64_root_function_ids(ids: &[u64]) {
     });
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_cps_reset_i64() {
+    reset_native_i64_cps_state();
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_cps_set_root_function_ids_i64(ids: *const u64, len: usize) {
+    if ids.is_null() {
+        if len == 0 {
+            set_native_i64_root_function_ids(&[]);
+        }
+        return;
+    }
+    let ids = unsafe { std::slice::from_raw_parts(ids, len) };
+    set_native_i64_root_function_ids(ids);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn yulang_cps_take_root_result_i64(value: i64) -> i64 {
+    take_native_i64_root_result(value)
+}
+
 fn take_native_i64_root_result(value: i64) -> i64 {
     let mode = yulang_cps_abort_mode_i64();
     if mode == 0 {
@@ -7065,6 +7098,13 @@ extern "C" fn yulang_cps_register_tag_i64(tag: i64, ptr: *const u8, len: i64) ->
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_print_i64(value: i64) {
     print!("{}", describe_native_i64_value(value));
+    let mut stdout = std::io::stdout();
+    let _ = std::io::Write::flush(&mut stdout);
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_print_debug_i64(value: i64) {
+    print!("{}", describe_native_i64_debug_value(value));
     let mut stdout = std::io::stdout();
     let _ = std::io::Write::flush(&mut stdout);
 }

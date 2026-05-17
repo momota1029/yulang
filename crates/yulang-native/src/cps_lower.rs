@@ -255,20 +255,9 @@ fn collect_expr_direct_calls_inner(
     {
         out.push(target.clone());
     }
-    if let Some((body, arms, consumes)) = inline_thunk_handler_apply(expr, functions, bindings) {
+    if let Some((body, arms, _consumes)) = inline_thunk_handler_apply(expr, functions, bindings) {
         collect_expr_direct_calls_inner(&body, functions, bindings, out, visiting_values);
-        let used_effects = collect_expr_performed_effects(&body);
         for arm in &arms {
-            let scoped_effects = scoped_handler_effects(&consumes, &arm.effect);
-            if !is_value_handler_arm(arm)
-                && !used_effects.iter().any(|effect| {
-                    scoped_effects
-                        .iter()
-                        .any(|scoped| effect_matches(scoped, effect))
-                })
-            {
-                continue;
-            }
             collect_pattern_direct_calls(&arm.payload, functions, bindings, out, visiting_values);
             if let Some(guard) = &arm.guard {
                 collect_expr_direct_calls_inner(guard, functions, bindings, out, visiting_values);
@@ -278,6 +267,16 @@ fn collect_expr_direct_calls_inner(
         return;
     }
     if let Ok(Some((target, _info, args))) = direct_apply_path(expr, functions) {
+        if fail_prefix_path(target)
+            || bindings
+                .get(target)
+                .is_some_and(|binding| binding_is_throw_forwarder(binding))
+        {
+            for arg in args {
+                collect_expr_direct_calls_inner(arg, functions, bindings, out, visiting_values);
+            }
+            return;
+        }
         if !matches!(expr.ty, runtime::Type::Thunk { .. })
             && args.iter().any(|arg| is_inline_argument(arg))
         {
@@ -504,10 +503,6 @@ fn collect_expr_direct_calls_inner(
         | runtime::ExprKind::PeekId
         | runtime::ExprKind::FindId { .. } => {}
     }
-}
-
-fn is_value_handler_arm(arm: &runtime::HandleArm) -> bool {
-    arm.resume.is_none() && arm.effect.segments.is_empty()
 }
 
 fn binding_has_self_direct_call(
@@ -1178,6 +1173,7 @@ fn binding_function_info(binding: &runtime::Binding) -> Option<(typed_ir::Path, 
         return Some((
             binding.name.clone(),
             FunctionInfo {
+                path: binding.name.clone(),
                 name: path_name(&binding.name),
                 arity,
                 params: vec![runtime::Type::unknown(); arity],
@@ -1193,6 +1189,7 @@ fn binding_function_info(binding: &runtime::Binding) -> Option<(typed_ir::Path, 
     Some((
         binding.name.clone(),
         FunctionInfo {
+            path: binding.name.clone(),
             name: path_name(&binding.name),
             arity: params.len(),
             params: param_types,
@@ -1209,6 +1206,26 @@ fn binding_value_body(binding: &runtime::Binding) -> Option<&runtime::Expr> {
         .0
         .is_empty()
         .then_some(&binding.body)
+}
+
+fn binding_is_throw_forwarder(binding: &runtime::Binding) -> bool {
+    let (params, body) = collect_callable_params(&binding.body);
+    let [param] = params.as_slice() else {
+        return false;
+    };
+    let body = transparent_effect_expr(&body);
+    let runtime::ExprKind::Apply { callee, arg, .. } = &body.kind else {
+        return false;
+    };
+    let callee = transparent_effect_expr(callee);
+    let runtime::ExprKind::Var(callee) = &callee.kind else {
+        return false;
+    };
+    if !throw_role_method_path(callee) {
+        return false;
+    }
+    let arg = transparent_effect_expr(arg);
+    matches!(&arg.kind, runtime::ExprKind::Var(path) if path == &typed_ir::Path::from_name(param.clone()))
 }
 
 /// Walk the binding body's nested `Lambda { param, body }` chain, collecting
@@ -1272,6 +1289,7 @@ fn lower_primitive_binding(path: &typed_ir::Path, op: typed_ir::PrimitiveOp) -> 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FunctionInfo {
+    path: typed_ir::Path,
     name: String,
     arity: usize,
     /// Static types of the formal parameters in declaration order. Used at
@@ -3664,6 +3682,12 @@ impl<'a> FunctionLowerer<'a> {
                     lowered_args.push(self.lower_expr(arg)?);
                 }
             }
+            if fail_prefix_path(&info.path)
+                && let [value] = lowered_args.as_slice()
+            {
+                self.finish_resumed_handled_value(*value, value_cont);
+                return Ok(effect);
+            }
             let dest = self.fresh_value();
             let should_force_direct = direct_call_result_needs_force(body, info);
             self.current.stmts.push(CpsStmt::DirectCall {
@@ -4261,6 +4285,12 @@ impl<'a> FunctionLowerer<'a> {
                 Ok(self.force_if_non_thunk_demand(lowered, &expected))
             })
             .collect::<CpsLowerResult<Vec<_>>>()?;
+        if fail_prefix_path(&info.path)
+            && let [value] = lowered_args.as_slice()
+        {
+            self.finish_handled_value(*value, value_cont);
+            return Ok(());
+        }
         let post_cont = self.fresh_continuation();
         let result_id = self.fresh_value();
         self.terminate(CpsTerminator::EffectfulCall {
@@ -4333,6 +4363,12 @@ impl<'a> FunctionLowerer<'a> {
                 Ok(self.force_if_non_thunk_demand(lowered, &expected))
             })
             .collect::<CpsLowerResult<Vec<_>>>()?;
+        if fail_prefix_path(&info.path)
+            && let [value] = lowered_args.as_slice()
+        {
+            self.bind_pattern(pattern, *value)?;
+            return self.lower_handled_block(rest, tail, expected_effects, handler, value_cont);
+        }
 
         let post_cont = self.fresh_continuation();
         let result_id = self.fresh_value();
@@ -5011,6 +5047,22 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         plan: DirectCallPlan<'_, '_>,
     ) -> CpsLowerResult<CpsValueId> {
+        if (fail_prefix_path(&plan.info.path)
+            || self
+                .bindings
+                .get(&plan.info.path)
+                .is_some_and(|binding| binding_is_throw_forwarder(binding)))
+            && let [arg] = plan.args.as_slice()
+        {
+            let expected = plan
+                .info
+                .params
+                .first()
+                .cloned()
+                .unwrap_or_else(runtime::Type::unknown);
+            let value = self.lower_direct_call_arg(arg, &expected)?;
+            return Ok(self.force_if_non_thunk_demand(value, &plan.expr.ty));
+        }
         if plan.should_inline
             && let Some(value) = self.lower_inline_direct_apply(plan.expr)?
         {
@@ -5143,14 +5195,16 @@ impl<'a> FunctionLowerer<'a> {
         let saved_resumptions = self.resumptions.clone();
         for (idx, (param, arg)) in params.into_iter().zip(args).enumerate() {
             let path = typed_ir::Path::from_name(param);
-            let param_is_thunk = matches!(info_params.get(idx), Some(runtime::Type::Thunk { .. }));
-            if is_inline_argument(arg) || matches!(arg.ty, runtime::Type::Thunk { .. }) {
+            let expected = info_params
+                .get(idx)
+                .cloned()
+                .unwrap_or_else(runtime::Type::unknown);
+            if (is_inline_argument(arg) || matches!(arg.ty, runtime::Type::Thunk { .. }))
+                && !expr_uses_path(arg, &path)
+            {
                 self.local_exprs.insert(path, arg.clone());
-            } else if param_is_thunk {
-                let value = self.lower_expr_as_thunk_value(arg)?;
-                self.locals.insert(path, value);
             } else {
-                let value = self.lower_expr(arg)?;
+                let value = self.lower_direct_call_arg(arg, &expected)?;
                 self.locals.insert(path, value);
             }
         }
@@ -5231,7 +5285,9 @@ impl<'a> FunctionLowerer<'a> {
         let saved_local_exprs = self.local_exprs.clone();
         let saved_resumptions = self.resumptions.clone();
         let path = typed_ir::Path::from_name(params[0].clone());
-        if is_inline_argument(arg) || matches!(arg.ty, runtime::Type::Thunk { .. }) {
+        if (is_inline_argument(arg) || matches!(arg.ty, runtime::Type::Thunk { .. }))
+            && !expr_uses_path(arg, &path)
+        {
             self.local_exprs.insert(path, arg.clone());
         } else {
             let value = self.lower_expr(arg)?;
@@ -6639,6 +6695,20 @@ fn debug_role_method_path(path: &typed_ir::Path) -> bool {
         return false;
     };
     std.0 == "std" && prelude.0 == "prelude" && role.0 == "Debug" && method.0 == "debug"
+}
+
+fn throw_role_method_path(path: &typed_ir::Path) -> bool {
+    let [std, module, role, method] = path.segments.as_slice() else {
+        return false;
+    };
+    std.0 == "std" && module.0 == "error" && role.0 == "Throw" && method.0 == "throw"
+}
+
+fn fail_prefix_path(path: &typed_ir::Path) -> bool {
+    let [std, prelude, op] = path.segments.as_slice() else {
+        return false;
+    };
+    std.0 == "std" && prelude.0 == "prelude" && op.0.starts_with("#op:prefix:fail")
 }
 
 #[cfg(test)]

@@ -173,33 +173,16 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 食い違いが出たものを 11 件記録した。round-6 の CPS lowering / undet 系より
 広い範囲をカバーしている (display, ref, loop, error wrap, junction, for+if 等)。
 
-**2026-05-17 再確認結果**: 11 件中 10 件は再現しない。2026-05-16 後半の
+**2026-05-17 再確認結果**: 11 件中 11 件は再現しない。2026-05-16 後半の
 5 件 (list.show / sub:-for return / loop with / for-if var / for-range console) に加え、
 self-rewrap handler / finite undet once+logic / junction all / mutable list ref も
-VM と native で一致したため `solved/` へ移した。残りは `error E:` + `wrap`
-の native stack overflow。
+VM と native で一致したため `solved/` へ移した。最後に残っていた
+`error E:` + `wrap` の native stack overflow / free `Throw::throw` / garbage
+表示も 2026-05-17 に `solved/` へ移した。
 
 ### compile-time reject / runtime crash
 
-- [`native_error_wrap_basic_flow.yu`](native_error_wrap_basic_flow.yu)
-  — docs (`reference/errors.md`, `idioms.md`) 推奨の `error E:` + `fail` +
-  `E::wrap` flow が、native の 3 経路全部で塞ぐ。今日の build でも
-  full 例 (`wrap` 内で `[fs_err]` helper 呼び) は **stack overflow** で
-  abort する。
-  - `fail E::variant payload`: native CPS 段で
-    `CPS lowering does not support free variable 'std::error::Throw::throw' yet`
-    で reject。
-  - `E::variant payload` (直呼び、`fail` 抜き): native は runtime で boxed
-    pointer 風の garbage 値 (`663089232`) を返す。
-  - `wrap` 内で `[E]` を持つ helper 経由: native で stack overflow
-    (`thread '<unknown>' has overflowed its stack`)。
-  - 2026-05-17 追記: runtime principal unify では、`wrap` 文脈付きの
-    full 例について `fail` の erased effect 引数から `fs_err` receiver を復元し、
-    `std::error::Throw::throw` は合成 impl (`&throw#...::throw`) へ rewrite
-    されるようになった。ただし native 実行はまだ stack overflow のまま。
-    小さい `fail fs_err::not_found "missing"` 単体は文脈不足で free role method
-    reject が残るため、次は `fail` 単体の context propagation と native CPS の
-    `throw` thunk shape を分けて見る。
+現時点では round-7 収集分に再現中のものはない。
 
 ### 既存 round-6 への補足観察
 

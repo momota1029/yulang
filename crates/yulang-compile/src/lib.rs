@@ -1187,6 +1187,57 @@ struct point { x: int, y: int } with:
         .expect("CPS repr native display");
     }
 
+    #[test]
+    fn runs_error_wrap_direct_throw_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"error fs_err:
+    not_found str
+
+fs_err::wrap:
+    fs_err::not_found "x"
+    0
+"#,
+            vec![":err :not_found x"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_error_wrap_fail_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"error fs_err:
+    not_found str
+
+fs_err::wrap:
+    my _ = fail fs_err::not_found "x"
+    0
+"#,
+            vec![":err :not_found x"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
+    fn runs_error_wrap_helper_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"error fs_err:
+    not_found str
+
+my read_or_throw(p: str): [fs_err] str =
+    if p == "ok": "<content>"
+    else: fail fs_err::not_found p
+
+my safe_read(p: str): result str fs_err = fs_err::wrap:
+    read_or_throw p
+
+(safe_read "ok")
+(safe_read "missing")
+"#,
+            vec![":ok <content>", ":err :not_found missing"],
+        )
+        .expect("CPS repr native display");
+    }
+
     fn compare_source_cps_repr_with_std(source: &str) -> Result<(), String> {
         let source = source.to_string();
         run_with_large_stack(move || {

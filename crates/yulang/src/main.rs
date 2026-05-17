@@ -1442,13 +1442,7 @@ fn write_native_cps_repr_executable(
     label: &str,
     print_roots: bool,
 ) -> Result<(), String> {
-    let display_module;
-    let compile_module = if print_roots {
-        display_module = native_root_display_module(module);
-        &display_module
-    } else {
-        module
-    };
+    let compile_module = module;
     let object = compile_native_cps_repr_object(compile_module)?;
     let support_library = build_native_runtime_staticlib_or_exit();
     ensure_parent_dir_or_exit(path, "native effects executable");
@@ -1479,6 +1473,7 @@ fn write_native_cps_repr_executable(
         .enumerate()
         .map(|(index, name)| NativeRootHarnessEntry {
             name: name.clone(),
+            function_id: object.root_function_ids().get(index).copied(),
             print: native_root_print_kind_from_cps_lane_and_runtime_type(
                 object
                     .root_lanes()
@@ -1778,6 +1773,7 @@ fn compile_native_object_or_exit(
         .iter()
         .map(|root| NativeRootHarnessEntry {
             name: root.name.clone(),
+            function_id: None,
             print: reprs
                 .function_repr(&root.name)
                 .map(native_root_print_kind_from_abi_repr)
@@ -1958,8 +1954,12 @@ fn native_cps_repr_executable_harness(
     print_roots: bool,
 ) -> String {
     let mut source = String::from("unsafe extern \"C\" {\n");
+    source.push_str("    fn yulang_cps_reset_i64();\n");
+    source.push_str("    fn yulang_cps_set_root_function_ids_i64(ids: *const u64, len: usize);\n");
+    source.push_str("    fn yulang_cps_take_root_result_i64(value: i64) -> i64;\n");
     if print_roots {
         source.push_str("    fn yulang_cps_print_i64(value: i64);\n");
+        source.push_str("    fn yulang_cps_print_debug_i64(value: i64);\n");
         if roots
             .iter()
             .any(|root| root.print == NativeRootPrintKind::Float)
@@ -1979,16 +1979,30 @@ fn native_cps_repr_executable_harness(
         source.push_str(root.print.rust_abi_return_type());
         source.push_str(";\n");
     }
-    source.push_str("}\n\nfn main() {\n");
+    source.push_str("}\n\n");
+    source.push_str("static YULANG_CPS_ROOT_FUNCTION_IDS: [u64; ");
+    source.push_str(&roots.len().to_string());
+    source.push_str("] = [");
+    for (index, root) in roots.iter().enumerate() {
+        if index > 0 {
+            source.push_str(", ");
+        }
+        source.push_str(&root.function_id.unwrap_or(0).to_string());
+    }
+    source.push_str("];\n\nfn main() {\n");
     for root in roots {
         let name = &root.name;
+        source.push_str("    unsafe {\n");
+        source.push_str("        yulang_cps_reset_i64();\n");
+        source.push_str(
+            "        yulang_cps_set_root_function_ids_i64(YULANG_CPS_ROOT_FUNCTION_IDS.as_ptr(), YULANG_CPS_ROOT_FUNCTION_IDS.len());\n",
+        );
         if print_roots {
             root.print.push_rust_print_call(&mut source, name);
         } else {
-            source.push_str("    unsafe { let _ = ");
-            source.push_str(name);
-            source.push_str("(); }\n");
+            root.print.push_rust_discard_call(&mut source, name);
         }
+        source.push_str("    }\n");
     }
     source.push_str("}\n");
     source
@@ -1997,6 +2011,7 @@ fn native_cps_repr_executable_harness(
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct NativeRootHarnessEntry {
     name: String,
+    function_id: Option<u64>,
     print: NativeRootPrintKind,
 }
 
@@ -2058,29 +2073,49 @@ impl NativeRootPrintKind {
     fn push_rust_print_call(self, source: &mut String, name: &str) {
         match self {
             NativeRootPrintKind::I64 => {
-                source.push_str("    unsafe { println!(\"{}\", ");
+                source.push_str("        let value = yulang_cps_take_root_result_i64(");
                 source.push_str(name);
-                source.push_str("()); }\n");
+                source.push_str("());\n        println!(\"{}\", value);\n");
             }
             NativeRootPrintKind::Bool => {
-                source.push_str("    unsafe { println!(\"{}\", ");
+                source.push_str("        let value = yulang_cps_take_root_result_i64(");
                 source.push_str(name);
-                source.push_str("() != 0); }\n");
+                source.push_str("());\n        println!(\"{}\", value != 0);\n");
             }
             NativeRootPrintKind::Unit => {
-                source.push_str("    unsafe { let _ = ");
+                source.push_str("        let _ = yulang_cps_take_root_result_i64(");
                 source.push_str(name);
-                source.push_str("(); }\n    println!(\"()\");\n");
+                source.push_str("());\n        println!(\"()\");\n");
             }
             NativeRootPrintKind::Float => {
-                source.push_str("    unsafe { let text = yulang_cps_float_to_string_f64(");
+                source.push_str("        let text = yulang_cps_float_to_string_f64(");
                 source.push_str(name);
-                source.push_str("()); yulang_cps_print_i64(text); }\n    println!();\n");
+                source.push_str("());\n        yulang_cps_print_i64(text);\n        println!();\n");
             }
             NativeRootPrintKind::RuntimeValueI64 => {
-                source.push_str("    unsafe { yulang_cps_print_i64(");
+                source.push_str("        let value = yulang_cps_take_root_result_i64(");
                 source.push_str(name);
-                source.push_str("()); }\n    println!();\n");
+                source.push_str(
+                    "());\n        yulang_cps_print_debug_i64(value);\n        println!();\n",
+                );
+            }
+        }
+    }
+
+    fn push_rust_discard_call(self, source: &mut String, name: &str) {
+        match self {
+            NativeRootPrintKind::Float => {
+                source.push_str("        let _ = ");
+                source.push_str(name);
+                source.push_str("();\n");
+            }
+            NativeRootPrintKind::I64
+            | NativeRootPrintKind::Bool
+            | NativeRootPrintKind::Unit
+            | NativeRootPrintKind::RuntimeValueI64 => {
+                source.push_str("        let _ = yulang_cps_take_root_result_i64(");
+                source.push_str(name);
+                source.push_str("());\n");
             }
         }
     }
@@ -2105,13 +2140,29 @@ fn native_root_print_kind_from_abi_repr(
 }
 
 fn native_root_print_entries_from_runtime(module: &runtime::Module) -> Vec<NativeRootHarnessEntry> {
+    let bindings = module
+        .bindings
+        .iter()
+        .map(|binding| (&binding.name, &binding.body))
+        .collect::<std::collections::HashMap<_, _>>();
     module
-        .root_exprs
+        .roots
         .iter()
         .enumerate()
-        .map(|(index, expr)| NativeRootHarnessEntry {
-            name: format!("root_{index}"),
-            print: native_root_print_kind_from_runtime_type(&expr.ty),
+        .map(|(index, root)| {
+            let ty = match root {
+                runtime::Root::Expr(expr_index) => {
+                    module.root_exprs.get(*expr_index).map(|expr| &expr.ty)
+                }
+                runtime::Root::Binding(path) => bindings.get(path).map(|expr| &expr.ty),
+            };
+            NativeRootHarnessEntry {
+                name: format!("root_{index}"),
+                function_id: None,
+                print: ty
+                    .map(native_root_print_kind_from_runtime_type)
+                    .unwrap_or(NativeRootPrintKind::RuntimeValueI64),
+            }
         })
         .collect()
 }
@@ -2129,6 +2180,9 @@ fn native_root_print_kind_from_cps_lane_and_runtime_type(
     lane: yulang_native::CpsReprAbiLane,
     runtime_kind: NativeRootPrintKind,
 ) -> NativeRootPrintKind {
+    if runtime_kind == NativeRootPrintKind::Unit {
+        return NativeRootPrintKind::Unit;
+    }
     match lane {
         yulang_native::CpsReprAbiLane::NativeFloat => NativeRootPrintKind::Float,
         yulang_native::CpsReprAbiLane::ScalarI64 => match runtime_kind {
@@ -2162,101 +2216,6 @@ fn native_root_print_kind_from_core_type(ty: &typed_ir::Type) -> NativeRootPrint
         Some("unit") => NativeRootPrintKind::Unit,
         Some("float") => NativeRootPrintKind::Float,
         _ => NativeRootPrintKind::RuntimeValueI64,
-    }
-}
-
-fn native_root_display_module(module: &runtime::Module) -> runtime::Module {
-    let mut display = module.clone();
-    display.root_exprs = display
-        .root_exprs
-        .into_iter()
-        .map(native_root_display_expr)
-        .collect();
-    display
-}
-
-fn native_root_display_expr(expr: runtime::Expr) -> runtime::Expr {
-    match native_root_print_kind_from_runtime_type(&expr.ty) {
-        NativeRootPrintKind::I64 => native_apply_unary_display_primitive(
-            typed_ir::PrimitiveOp::IntToString,
-            expr,
-            native_string_type(),
-        ),
-        NativeRootPrintKind::Bool => native_apply_unary_display_primitive(
-            typed_ir::PrimitiveOp::BoolToString,
-            expr,
-            native_string_type(),
-        ),
-        NativeRootPrintKind::Float => native_apply_unary_display_primitive(
-            typed_ir::PrimitiveOp::FloatToString,
-            expr,
-            native_string_type(),
-        ),
-        NativeRootPrintKind::Unit => runtime::Expr::typed(
-            runtime::ExprKind::Block {
-                stmts: vec![runtime::Stmt::Expr(expr)],
-                tail: Some(Box::new(runtime::Expr::typed(
-                    runtime::ExprKind::Lit(typed_ir::Lit::String("()".to_string())),
-                    runtime::Type::core(native_string_type()),
-                ))),
-            },
-            runtime::Type::core(native_string_type()),
-        ),
-        NativeRootPrintKind::RuntimeValueI64 => native_apply_debug_role(expr),
-    }
-}
-
-fn native_apply_debug_role(arg: runtime::Expr) -> runtime::Expr {
-    runtime::Expr::typed(
-        runtime::ExprKind::Apply {
-            callee: Box::new(runtime::Expr::typed(
-                runtime::ExprKind::Var(typed_ir::Path {
-                    segments: vec![
-                        typed_ir::Name("std".to_string()),
-                        typed_ir::Name("prelude".to_string()),
-                        typed_ir::Name("Debug".to_string()),
-                        typed_ir::Name("debug".to_string()),
-                    ],
-                }),
-                runtime::Type::unknown(),
-            )),
-            arg: Box::new(arg),
-            evidence: None,
-            instantiation: None,
-        },
-        runtime::Type::core(native_string_type()),
-    )
-}
-
-fn native_apply_unary_display_primitive(
-    op: typed_ir::PrimitiveOp,
-    arg: runtime::Expr,
-    ret: typed_ir::Type,
-) -> runtime::Expr {
-    runtime::Expr::typed(
-        runtime::ExprKind::Apply {
-            callee: Box::new(runtime::Expr::typed(
-                runtime::ExprKind::PrimitiveOp(op),
-                runtime::Type::unknown(),
-            )),
-            arg: Box::new(arg),
-            evidence: None,
-            instantiation: None,
-        },
-        runtime::Type::core(ret),
-    )
-}
-
-fn native_string_type() -> typed_ir::Type {
-    typed_ir::Type::Named {
-        path: typed_ir::Path {
-            segments: vec![
-                typed_ir::Name("std".to_string()),
-                typed_ir::Name("str".to_string()),
-                typed_ir::Name("str".to_string()),
-            ],
-        },
-        args: Vec::new(),
     }
 }
 
@@ -5912,6 +5871,7 @@ mod tests {
     fn native_harnesses_discard_roots_by_default() {
         let roots = vec![NativeRootHarnessEntry {
             name: "root_0".to_string(),
+            function_id: Some(7),
             print: NativeRootPrintKind::I64,
         }];
 
@@ -5925,7 +5885,9 @@ mod tests {
         assert!(!value_harness.contains("yulang_native_print_value(root_0(context));"));
 
         let cps_harness = native_cps_repr_executable_harness(&roots, false);
-        assert!(cps_harness.contains("let _ = root_0();"));
+        assert!(cps_harness.contains("yulang_cps_reset_i64();"));
+        assert!(cps_harness.contains("YULANG_CPS_ROOT_FUNCTION_IDS: [u64; 1] = [7];"));
+        assert!(cps_harness.contains("let _ = yulang_cps_take_root_result_i64(root_0());"));
         assert!(!cps_harness.contains("yulang_cps_print_i64"));
     }
 
@@ -5933,6 +5895,7 @@ mod tests {
     fn native_harnesses_print_roots_when_requested() {
         let roots = vec![NativeRootHarnessEntry {
             name: "root_0".to_string(),
+            function_id: Some(7),
             print: NativeRootPrintKind::I64,
         }];
 
@@ -5944,7 +5907,8 @@ mod tests {
         assert!(value_harness.contains("yulang_native_print_value(root_0(context));"));
 
         let cps_harness = native_cps_repr_executable_harness(&roots, true);
-        assert!(cps_harness.contains("println!(\"{}\", root_0());"));
+        assert!(cps_harness.contains("let value = yulang_cps_take_root_result_i64(root_0());"));
+        assert!(cps_harness.contains("println!(\"{}\", value);"));
     }
 
     #[test]
@@ -5952,14 +5916,17 @@ mod tests {
         let roots = vec![
             NativeRootHarnessEntry {
                 name: "root_0".to_string(),
+                function_id: Some(7),
                 print: NativeRootPrintKind::Float,
             },
             NativeRootHarnessEntry {
                 name: "root_1".to_string(),
+                function_id: Some(8),
                 print: NativeRootPrintKind::Unit,
             },
             NativeRootHarnessEntry {
                 name: "root_2".to_string(),
+                function_id: Some(9),
                 print: NativeRootPrintKind::Bool,
             },
         ];
@@ -5967,9 +5934,9 @@ mod tests {
         let harness = native_cps_repr_executable_harness(&roots, true);
         assert!(harness.contains("fn root_0() -> f64;"));
         assert!(harness.contains("yulang_cps_float_to_string_f64(root_0())"));
-        assert!(harness.contains("let _ = root_1();"));
+        assert!(harness.contains("let _ = yulang_cps_take_root_result_i64(root_1());"));
         assert!(harness.contains("println!(\"()\");"));
-        assert!(harness.contains("println!(\"{}\", root_2() != 0);"));
+        assert!(harness.contains("println!(\"{}\", value != 0);"));
     }
 
     #[test]

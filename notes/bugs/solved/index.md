@@ -29,6 +29,13 @@ done
 
 ### 2026-05-17 追加修正
 
+- [`native_error_wrap_basic_flow.yu`](native_error_wrap_basic_flow.yu)
+  — `error E:` + `fail` + `E::wrap` の native 基本 flow が、`fail` 単体では
+  free `std::error::Throw::throw` reject、effect op 直呼びでは garbage 表示、
+  helper 経由では stack overflow になっていた件。handler arm 内の direct call
+  reachability、inline direct apply の自己参照 alias、`fail` 転送 helper の
+  call-site lowering、effects executable harness の root result 回収を揃え、
+  VM / native とも `ok "<content>"` / `err not_found "missing"`。
 - [`native_undet_branch_list_returns_scalar.yu`](native_undet_branch_list_returns_scalar.yu)
   — `(if branch(): 1 else: 2).list` が native で scalar `1` に潰れていた件。
   handler wrapper (`junction`) が消費しない `undet::branch` を thunk 引数から
