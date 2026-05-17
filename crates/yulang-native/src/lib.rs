@@ -18,6 +18,7 @@ pub mod control_ir;
 pub mod cps_capture;
 pub mod cps_closure;
 pub mod cps_compare;
+pub mod cps_effectful_calls;
 pub mod cps_env;
 pub mod cps_eval;
 pub mod cps_frame_trace;
@@ -70,6 +71,7 @@ pub use cps_compare::{
     CpsCompareError, CpsReprI64CompareReport, CpsReprI64RootCompare, compare_cps_module,
     compare_cps_repr_cranelift_i64, compare_cps_repr_cranelift_i64_report,
 };
+pub use cps_effectful_calls::reify_effectful_direct_calls;
 pub use cps_env::{
     CpsContinuationEnvironmentLayout, CpsEnvironmentLayout, CpsEnvironmentSlot,
     CpsFunctionEnvironmentLayout, layout_cps_environments,

@@ -3,7 +3,7 @@ use cranelift_jit::JITBuilder;
 pub(super) fn register_cps_runtime_symbols(builder: &mut JITBuilder) {
     macro_rules! symbols {
         ($($symbol:ident),+ $(,)?) => {
-            $(builder.symbol(stringify!($symbol), super::$symbol as *const u8);)+
+            $(builder.symbol(stringify!($symbol), super::runtime_i64::$symbol as *const u8);)+
         };
     }
 

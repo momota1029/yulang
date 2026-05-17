@@ -17,7 +17,36 @@ force_thunk は非 thunk に対して idempotent なので安全。
   これは display 側の Show role dispatch の問題で、memory unsafety とは別系統。
 - 兄弟ファイル `native_recursive_handler_for_last_tail_skips_value_arm.yu`
   および最小化版 `native_recursive_handler_block_tail_escapes.yu` の
-  「block tail が listen の戻り値を貫通する」問題は **未解決**（root cause は別）。
+  「block tail が listen の戻り値を貫通する」問題は **2026-05-18 に解消**。
+  root cause は memory unsafety とは別で、effectful direct call statement の後続
+  continuation が return-frame protocol に乗っていなかったこと。
+
+2026-05-18 追記:
+`crates/yulang-native/src/cps_repr_cranelift.rs` の JIT runtime helper 群を
+`cps_repr_cranelift/runtime_i64.rs` へ切り出した後に再調査。
+`route_scope_return` は prompt 1 の frame-walk で外側 `listen` handler を見つけ、
+handler value arm の tuple `(0, "0\n")` までは作れている。
+ただし、`RoutedJump` を普通値に落とす箇所だけを止めると最終結果は
+`(0, "0\n")` になり、期待値 `(5, "0\n")` には届かない。
+つまり `5` が tuple を貫通するだけでなく、そもそも `k()` の resumption が
+block tail `5` までを返せていない。
+
+root cause は、effectful な `DirectCall` statement の後続 continuation が
+return-frame protocol に乗っていないこと。`for_in` の戻りを
+受けて block tail `5` へ進む continuation が、native の通常 call stack 側に残り、
+resumption capture / `RoutedJump` の対象から外れている。局所的に
+`abort_result_or_return` の routed jump consume を変えるだけでは不十分。
+
+同日修正:
+`cps_effectful_calls::reify_effectful_direct_calls` を追加し、CPS lowering の
+capture 推論前に、effectful callee への `DirectCall` statement を
+`EffectfulCall` terminator + 明示的な resume continuation へ正規化するようにした。
+これで call site の後続 continuation が return-frame protocol に乗る。
+`native_recursive_handler_block_tail_escapes.yu` は native でも `(5, "0\n")`、
+`native_recursive_handler_for_last_tail_skips_value_arm.yu` は
+`(5, "0\n1\n2\n3\n4\n")` になる。
+`native_recursive_tuple_handler_memory_unsafe.yu` は native で `(0, "x")` のままなので、
+残りは既知の unit 表示 `0` 問題だけ。
 
 既存の `native_recursive_handler_for_last_tail_skips_value_arm.yu` と同根だが、
 `for` / `last` が無くても、**handler arm から再帰呼び出しして tuple を返す形**

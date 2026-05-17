@@ -7,6 +7,7 @@ use yulang_runtime as runtime;
 use yulang_typed_ir as typed_ir;
 
 use crate::cps_capture::infer_cps_captures;
+use crate::cps_effectful_calls::reify_effectful_direct_calls;
 use crate::cps_ir::{
     CpsContinuation, CpsContinuationId, CpsFunction, CpsHandler, CpsHandlerArm, CpsHandlerEnv,
     CpsHandlerId, CpsLiteral, CpsModule, CpsRecordField, CpsShotKind, CpsStmt, CpsTerminator,
@@ -153,6 +154,7 @@ pub fn lower_cps_module(module: &runtime::Module) -> CpsLowerResult<CpsModule> {
         }
     }
     let mut module = CpsModule { functions, roots };
+    reify_effectful_direct_calls(&mut module);
     infer_cps_captures(&mut module);
     make_handler_ids_global(&mut module);
     if std::env::var_os("YULANG_DUMP_CPS").is_some() {
