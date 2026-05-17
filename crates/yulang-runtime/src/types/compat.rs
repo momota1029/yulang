@@ -113,10 +113,7 @@ pub(super) fn type_compatible_inner(
                 tail: actual_tail,
             },
         ) if items.len() == actual_items.len() => {
-            items
-                .iter()
-                .zip(actual_items)
-                .all(|(left, right)| type_compatible_inner(left, right, depth - 1))
+            row_items_compatible_unordered(items, actual_items, depth - 1)
                 && type_compatible_inner(tail, actual_tail, depth - 1)
         }
         (
@@ -128,6 +125,38 @@ pub(super) fn type_compatible_inner(
         ) if var == actual_var => type_compatible_inner(body, actual_body, depth - 1),
         _ => false,
     }
+}
+
+fn row_items_compatible_unordered(
+    expected: &[typed_ir::Type],
+    actual: &[typed_ir::Type],
+    depth: usize,
+) -> bool {
+    if expected.len() != actual.len() {
+        return false;
+    }
+    let mut matched_expected = vec![false; expected.len()];
+    for actual_item in actual {
+        let Some(index) = expected
+            .iter()
+            .enumerate()
+            .find_map(|(index, expected_item)| {
+                (!matched_expected[index] && row_item_compatible(expected_item, actual_item, depth))
+                    .then_some(index)
+            })
+        else {
+            return false;
+        };
+        matched_expected[index] = true;
+    }
+    true
+}
+
+fn row_item_compatible(expected: &typed_ir::Type, actual: &typed_ir::Type, depth: usize) -> bool {
+    type_compatible_inner(expected, actual, depth)
+        || effect_path(expected).is_some()
+            && effect_path(actual).is_some()
+            && effect_compatible(expected, actual)
 }
 
 fn variant_payloads_compatible(

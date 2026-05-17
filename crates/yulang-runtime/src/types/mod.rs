@@ -321,6 +321,36 @@ mod tests {
     }
 
     #[test]
+    fn row_type_compatibility_does_not_depend_on_effect_order() {
+        let left = typed_ir::Type::Row {
+            items: vec![named("io"), named("state")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let right = typed_ir::Type::Row {
+            items: vec![named("state"), named("io")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+
+        assert!(type_compatible(&left, &right));
+        assert!(type_compatible(&right, &left));
+    }
+
+    #[test]
+    fn row_type_compatibility_uses_effect_path_matching_for_items() {
+        let parent = typed_ir::Type::Row {
+            items: vec![named("std::flow::loop")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+        let child = typed_ir::Type::Row {
+            items: vec![named("std::flow::loop::last")],
+            tail: Box::new(typed_ir::Type::Never),
+        };
+
+        assert!(type_compatible(&parent, &child));
+        assert!(type_compatible(&child, &parent));
+    }
+
+    #[test]
     fn collect_type_vars_ignores_recursive_binder() {
         let var = typed_ir::TypeVar("a".to_string());
         let ty = typed_ir::Type::Recursive {
