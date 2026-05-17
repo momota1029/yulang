@@ -299,6 +299,28 @@ mod tests {
     }
 
     #[test]
+    fn function_type_compatibility_checks_effect_slots() {
+        let with_ret_effect = |effect| typed_ir::Type::Fun {
+            param: Box::new(named("unit")),
+            param_effect: Box::new(typed_ir::Type::Never),
+            ret_effect: Box::new(effect),
+            ret: Box::new(named("int")),
+        };
+
+        assert!(!type_compatible(
+            &with_ret_effect(named("io")),
+            &with_ret_effect(named("state")),
+        ));
+        assert!(type_compatible(
+            &with_ret_effect(typed_ir::Type::Row {
+                items: vec![named("io"), named("state")],
+                tail: Box::new(typed_ir::Type::Never),
+            }),
+            &with_ret_effect(named("io")),
+        ));
+    }
+
+    #[test]
     fn collect_type_vars_ignores_recursive_binder() {
         let var = typed_ir::TypeVar("a".to_string());
         let ty = typed_ir::Type::Recursive {

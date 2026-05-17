@@ -45,14 +45,22 @@ pub(super) fn type_compatible_inner(
             typed_ir::can_widen_named_paths(actual_path, path)
         }
         (
-            typed_ir::Type::Fun { param, ret, .. },
+            typed_ir::Type::Fun {
+                param,
+                param_effect,
+                ret_effect,
+                ret,
+            },
             typed_ir::Type::Fun {
                 param: actual_param,
+                param_effect: actual_param_effect,
+                ret_effect: actual_ret_effect,
                 ret: actual_ret,
-                ..
             },
         ) => {
             type_compatible_inner(param, actual_param, depth - 1)
+                && effect_compatible(param_effect, actual_param_effect)
+                && effect_compatible(ret_effect, actual_ret_effect)
                 && type_compatible_inner(ret, actual_ret, depth - 1)
         }
         (typed_ir::Type::Tuple(items), typed_ir::Type::Tuple(actual_items))
