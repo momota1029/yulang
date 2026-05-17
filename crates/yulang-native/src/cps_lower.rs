@@ -155,6 +155,9 @@ pub fn lower_cps_module(module: &runtime::Module) -> CpsLowerResult<CpsModule> {
     let mut module = CpsModule { functions, roots };
     infer_cps_captures(&mut module);
     make_handler_ids_global(&mut module);
+    if std::env::var_os("YULANG_DUMP_CPS").is_some() {
+        eprintln!("{module:#?}");
+    }
     Ok(module)
 }
 

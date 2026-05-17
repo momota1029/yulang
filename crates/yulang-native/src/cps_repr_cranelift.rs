@@ -526,11 +526,11 @@ fn define_functions<M: Module, L: CpsLiteralStore>(
         } else {
             lower_function(module_backend, &mut ctx, function, functions, literals)?;
         }
-        cranelift_ir.push(format!(
-            ";; cps-repr function {}\n{}",
-            function.name,
-            ctx.func.display()
-        ));
+        let ir_dump = format!(";; cps-repr function {}\n{}", function.name, ctx.func.display());
+        if std::env::var_os("YULANG_DUMP_CRANELIFT_IR").is_some() {
+            eprintln!("{ir_dump}");
+        }
+        cranelift_ir.push(ir_dump);
         module_backend
             .define_function(id, &mut ctx)
             .map_err(cranelift_error)?;
@@ -804,12 +804,16 @@ fn define_effectful_function<M: Module, L: CpsLiteralStore>(
             handlers,
             literals,
         )?;
-        cranelift_ir.push(format!(
+        let ir_dump = format!(
             ";; cps-repr continuation {}::{:?}\n{}",
             function.name,
             continuation.id,
             ctx.func.display()
-        ));
+        );
+        if std::env::var_os("YULANG_DUMP_CRANELIFT_IR").is_some() {
+            eprintln!("{ir_dump}");
+        }
+        cranelift_ir.push(ir_dump);
         module_backend
             .define_function(id, &mut ctx)
             .map_err(cranelift_error)?;
