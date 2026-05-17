@@ -63,13 +63,10 @@ pub(super) use binding::preregister_binding_as_module_value;
 pub(crate) use binding::{
     ArgPatInfo, HeaderArg, apply_binding_type_annotation_cast, binding_sig_var_names,
     collect_header_args, connect_binding_type_annotation, connect_pattern_sig_annotation,
-    lower_binding_body, lower_binding_with_type_scope, make_arg_pat_info, preregister_binding,
-    wrap_header_lambdas,
+    lower_binding_body, lower_binding_with_type_scope, make_arg_pat_info,
+    preconstrain_recursive_binding_header_shape, preregister_binding, wrap_header_lambdas,
 };
-use binding::{
-    direct_binding_name, extract_binding_lhs, lower_binding,
-    preconstrain_recursive_binding_header_shape,
-};
+use binding::{direct_binding_name, extract_binding_lhs, lower_binding};
 pub(super) use control::collect_block_items;
 pub use control::lower_block;
 pub(crate) use control::{lower_block_expr_from_items, lower_scoped_with_block_expr_with_tail};
@@ -82,10 +79,11 @@ use decl::{
     lower_where_clause,
 };
 pub use patterns::lower_pat;
+use patterns::pattern_binding_name;
 pub(crate) use patterns::{
-    bind_pattern_locals, connect_pat_shape_and_locals, resolve_pattern_constructor_ref,
+    bind_pattern_locals, connect_let_pattern, connect_pat_shape_and_locals,
+    resolve_pattern_constructor_ref,
 };
-use patterns::{connect_let_pattern, pattern_binding_name};
 use structs::{
     export_runtime_struct_method_type, export_runtime_struct_receiver_type, invariant_args,
     lower_struct_decl, lower_struct_decl_with_scope, lower_struct_field_type,

@@ -163,6 +163,14 @@ sub:
     }
 
     #[test]
+    fn vm_runs_recursive_lambda_label_self_call() {
+        let results =
+            eval_source_with_std("my sum = \\'go n -> if n == 0: 0 else: n + 'go (n - 1)\nsum 4\n");
+
+        assert_eq!(results, vec![TestValue::Int("10".to_string())]);
+    }
+
+    #[test]
     fn vm_preserves_large_integer_literal_text() {
         let results = eval_source_with_std("99999999999999999999999\n");
 

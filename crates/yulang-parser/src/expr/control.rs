@@ -15,7 +15,7 @@ use super::core::{parse_expr_bp, parse_expr_from_nud};
 use super::group::delimited;
 use super::parse_expr;
 use super::tail::pratt_tail_bp;
-use crate::stmt::{parse_indent_stmt_block, peek_stmt_lex};
+use crate::stmt::{parse_indent_stmt_block, peek_stmt_lex, scan_stmt_lex};
 
 pub(super) fn parse_inline_or_indent<I: EventInput, S: EventSink>(
     i: In<I, S>,
@@ -45,9 +45,36 @@ pub(super) fn parse_lambda_expr<I: EventInput, S: EventSink>(
         return Some(result);
     }
 
+    if let Some(label) = parse_recursive_lambda_label(i.rb(), &backslash) {
+        i.env.state.sink.start(SyntaxKind::RecursiveLambdaExpr);
+        i.env.state.sink.lex(&backslash);
+        i.env.state.sink.lex(&label);
+        return parse_lambda_after_intro(i.rb(), label.trailing_trivia_info());
+    }
+
     i.env.state.sink.start(SyntaxKind::LambdaExpr);
     i.env.state.sink.lex(&backslash);
-    let mut leading = backslash.trailing_trivia_info();
+    parse_lambda_after_intro(i, backslash.trailing_trivia_info())
+}
+
+fn parse_recursive_lambda_label<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    backslash: &Lex,
+) -> Option<Lex> {
+    if backslash.trailing_trivia_info() != TriviaInfo::None {
+        return None;
+    }
+    let label = peek_stmt_lex(TriviaInfo::None, i.rb())?;
+    if label.kind != SyntaxKind::SigilIdent || !label.text.starts_with('\'') {
+        return None;
+    }
+    scan_stmt_lex(TriviaInfo::None, i)
+}
+
+fn parse_lambda_after_intro<I: EventInput, S: EventSink>(
+    mut i: In<I, S>,
+    mut leading: TriviaInfo,
+) -> Option<Result<Either<TriviaInfo, Lex>, Token<ExprLedTag>>> {
     loop {
         let old_stop = i.env.stop.clone();
         i.env.stop.insert(SyntaxKind::Arrow);

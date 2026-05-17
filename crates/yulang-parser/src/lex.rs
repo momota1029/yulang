@@ -365,6 +365,7 @@ pub enum SyntaxKind {
     DocCommentDecl = 621,
     CastDecl = 633,
     MethodLambdaExpr = 635,
+    RecursiveLambdaExpr = 636,
     PatSpread = 624,
 
     // effect row in type argument position: '[ ... ]

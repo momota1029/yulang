@@ -8,8 +8,8 @@ use crate::lower::{LowerState, SyntaxNode};
 
 use super::{
     lower_case, lower_catch, lower_expr, lower_if, lower_lambda, lower_list_expr,
-    lower_method_lambda, lower_number_token, lower_record_literal, lower_string_lit,
-    lower_tuple_expr, make_app, prefix_op_ref, unit_expr,
+    lower_method_lambda, lower_number_token, lower_record_literal, lower_recursive_lambda,
+    lower_string_lit, lower_tuple_expr, make_app, prefix_op_ref, unit_expr,
 };
 
 // ── atom lowering ─────────────────────────────────────────────────────────────
@@ -31,6 +31,12 @@ pub(super) fn lower_expr_atom(state: &mut LowerState, node: &SyntaxNode) -> Type
             SyntaxKind::MethodLambdaExpr => {
                 let atom_start = Instant::now();
                 let lowered = lower_method_lambda(state, node);
+                state.lower_detail.lower_expr_atom_lambda += atom_start.elapsed();
+                return lowered;
+            }
+            SyntaxKind::RecursiveLambdaExpr => {
+                let atom_start = Instant::now();
+                let lowered = lower_recursive_lambda(state, node);
                 state.lower_detail.lower_expr_atom_lambda += atom_start.elapsed();
                 return lowered;
             }

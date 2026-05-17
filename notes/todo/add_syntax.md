@@ -4,8 +4,10 @@
 - parser / lowering / VM regression 追加済み。`\.x` は `\recv -> recv.x`
   相当として既存の suffix lowering に乗せる。
 
-# `\'label x ->`
+# `\'label x ->` (2026-05-17 実装済み)
 - 再帰関数の略記。普通に`'label x`で起動できると嬉しいね
+- parser / lowering / VM regression 追加済み。空白なしの `\'label` だけを
+  recursive lambda label とし、`\ 'label` は従来通り引数 pattern として扱う。
 
 # `\catch: ...`, `\case: ...`
 - `my anon(x: [_] _) = catch x: ...; anon`の略記

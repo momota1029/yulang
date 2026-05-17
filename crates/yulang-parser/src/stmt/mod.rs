@@ -33,7 +33,7 @@ mod where_clause;
 pub(crate) use block::{
     parse_brace_stmt_block, parse_indent_stmt_block, parse_virtual_brace_stmt_block_until_close,
 };
-pub(crate) use common::peek_stmt_lex;
+pub(crate) use common::{peek_stmt_lex, scan_stmt_lex};
 
 pub fn parse_statement<I: EventInput, S: EventSink>(
     leading_info: TriviaInfo,

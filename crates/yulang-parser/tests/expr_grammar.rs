@@ -1230,6 +1230,32 @@ fn expr_method_lambda() {
 }
 
 #[test]
+fn expr_recursive_lambda() {
+    let got = parse_expression("\\'self x -> 'self x");
+    let expected = vec![
+        "(Expr",
+        "  (RecursiveLambdaExpr",
+        "    Backslash \"\\\\\"",
+        "    SigilIdent \"'self\"",
+        "    (Pattern",
+        "      Ident \"x\"",
+        "    )",
+        "    Arrow \"->\"",
+        "    (Expr",
+        "      SigilIdent \"'self\"",
+        "      (ApplyML",
+        "        (Expr",
+        "          Ident \"x\"",
+        "        )",
+        "      )",
+        "    )",
+        "  )",
+        ")",
+    ];
+    assert_eq!(got, expected);
+}
+
+#[test]
 fn expr_lambda_multiple_params() {
     let got = parse_expression("\\() x -> x");
     let expected = vec![
