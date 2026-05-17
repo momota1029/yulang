@@ -83,6 +83,7 @@ pub(super) fn register_cps_runtime_symbols(builder: &mut JITBuilder) {
         yulang_cps_pre_force_top_frame_i64,
         yulang_cps_return_i64,
         yulang_cps_selected_handler_env_or_i64,
+        yulang_cps_selected_handler_owner_function_i64,
         yulang_cps_make_thunk_i64_0,
         yulang_cps_make_thunk_i64_1,
         yulang_cps_make_thunk_i64_2,
