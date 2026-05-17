@@ -331,6 +331,7 @@ enum ScopeReturnAction {
 fn handle_scope_return(
     result: CpsRuntimeValue,
     active_handlers: &mut Vec<CpsHandlerFrame>,
+    return_frames: &[CpsReturnFrame],
     current_function: &str,
     current_eval_id: CpsEvalId,
 ) -> ScopeReturnAction {
@@ -361,6 +362,23 @@ fn handle_scope_return(
                 let frame_owner = frame.escape_owner_function.clone();
                 let frame_install_eval = frame.install_eval_id;
                 let threshold = frame.return_frame_threshold;
+                // Phase 2.1: compute truncate point from the PromptExit
+                // marker on the return-frame stack, not from the
+                // handler's cached threshold. See
+                // notes/design/prompt-boundary-frame-model.md.
+                let truncate_at = return_frames
+                    .iter()
+                    .rposition(|f| {
+                        f.prompt_exit
+                            .as_ref()
+                            .is_some_and(|exit| exit.prompt == prompt)
+                    })
+                    .unwrap_or(0);
+                debug_assert_eq!(
+                    truncate_at, threshold,
+                    "prompt_exit marker disagrees with return_frame_threshold: prompt={} marker={} threshold={}",
+                    prompt.0, truncate_at, threshold,
+                );
                 if !frame_owner_match {
                     trace_cps(
                         "ScopeReturnDispatch",
@@ -383,13 +401,14 @@ fn handle_scope_return(
                 trace_cps(
                     "ScopeReturnDispatch",
                     format!(
-                        "fn={} eval={} prompt={} target={:?} matched=yes install_eval={} owner={} owner_match=yes threshold={} action=JumpOrExit",
+                        "fn={} eval={} prompt={} target={:?} matched=yes install_eval={} owner={} owner_match=yes truncate_at={} threshold={} action=JumpOrExit",
                         current_function,
                         current_eval_id.0,
                         prompt.0,
                         target,
                         frame_install_eval.0,
                         frame_owner,
+                        truncate_at,
                         threshold,
                     ),
                 );
@@ -397,7 +416,7 @@ fn handle_scope_return(
                 ScopeReturnAction::JumpOrExit {
                     target,
                     value: *value,
-                    return_frame_threshold: threshold,
+                    return_frame_threshold: truncate_at,
                 }
             } else {
                 trace_cps(
@@ -628,6 +647,7 @@ fn resume_continuation(
             match handle_scope_return(
                 result,
                 &mut active_handlers,
+                &return_frames,
                 &function.name,
                 current_eval_id,
             ) {
@@ -1683,6 +1703,7 @@ fn resume_continuation(
                 match handle_scope_return(
                     scope_return,
                     &mut active_handlers,
+                    &return_frames,
                     &function.name,
                     current_eval_id,
                 ) {
@@ -2474,15 +2495,31 @@ fn try_route_scope_return_through_return_frames(
         // scope is discarded).
         let mut rest_frames: Vec<CpsReturnFrame> = return_frames[..frame_index].to_vec();
         let threshold = matched_handler.return_frame_threshold;
+        // Phase 2.1: compute truncate point from the PromptExit marker on
+        // the rest-frame slice rather than the matched handler's cached
+        // threshold. See notes/design/prompt-boundary-frame-model.md.
+        let truncate_at = rest_frames
+            .iter()
+            .rposition(|f| {
+                f.prompt_exit
+                    .as_ref()
+                    .is_some_and(|exit| exit.prompt == matched_handler.prompt)
+            })
+            .unwrap_or(0);
+        debug_assert_eq!(
+            truncate_at, threshold,
+            "prompt_exit marker disagrees with return_frame_threshold (frame walk): prompt={} marker={} threshold={}",
+            matched_handler.prompt.0, truncate_at, threshold,
+        );
         let rest_before = rest_frames.len();
-        if rest_frames.len() > threshold {
-            rest_frames.truncate(threshold);
+        if rest_frames.len() > truncate_at {
+            rest_frames.truncate(truncate_at);
         }
         let rest_after = rest_frames.len();
         trace_cps(
             "FrameWalkMatch",
             format!(
-                "frame_owner={} frame_owner_eval={} handler_prompt={} handler_install_eval={} handlers_before={} handlers_after={} rest_before={} threshold={} rest_after={}",
+                "frame_owner={} frame_owner_eval={} handler_prompt={} handler_install_eval={} handlers_before={} handlers_after={} rest_before={} truncate_at={} threshold={} rest_after={}",
                 frame.owner_function,
                 frame.owner_eval_id.0,
                 matched_handler.prompt.0,
@@ -2490,6 +2527,7 @@ fn try_route_scope_return_through_return_frames(
                 summarize_handler_stack(&frame.active_handlers),
                 summarize_handler_stack(&post_handlers),
                 rest_before,
+                truncate_at,
                 threshold,
                 rest_after,
             ),
@@ -2497,7 +2535,7 @@ fn try_route_scope_return_through_return_frames(
         let owner_initial = frame.owner_initial_frame_count.min(rest_frames.len());
         let routed_jump = CpsRoutedJump {
             value: value.clone(),
-            return_frame_threshold: threshold,
+            return_frame_threshold: truncate_at,
             owner_function: frame.owner_function.clone(),
             target: matched_handler.escape,
             values: frame.values.clone(),
