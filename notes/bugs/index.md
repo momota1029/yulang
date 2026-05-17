@@ -173,20 +173,11 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
 食い違いが出たものを 11 件記録した。round-6 の CPS lowering / undet 系より
 広い範囲をカバーしている (display, ref, loop, error wrap, junction, for+if 等)。
 
-**2026-05-17 再確認結果**: 11 件中 9 件は再現しない。2026-05-16 後半の
+**2026-05-17 再確認結果**: 11 件中 10 件は再現しない。2026-05-16 後半の
 5 件 (list.show / sub:-for return / loop with / for-if var / for-range console) に加え、
 self-rewrap handler / finite undet once+logic / junction all / mutable list ref も
-VM と native で一致したため `solved/` へ移した。残りは bare `branch().list`
-の値破損と `error E:` + `wrap` の native stack overflow。
-
-### 値違い / 値破損
-
-- [`native_undet_branch_list_returns_scalar.yu`](native_undet_branch_list_returns_scalar.yu)
-  — 2026-05-17 の部分修正で `(branch()).list` は native でも scalar `0`
-  ではなく list に戻った。ただし native の低レベル debug は bool list を
-  `[1, 0]` と出す。`(if branch(): 1 else: 2).list` はまだ VM `[1, 2]` /
-  native `1` で、`junction` condition continuation から root display へ値が
-  漏れる既存 round-6 系の routing bug と見る。
+VM と native で一致したため `solved/` へ移した。残りは `error E:` + `wrap`
+の native stack overflow。
 
 ### compile-time reject / runtime crash
 
@@ -212,8 +203,9 @@ VM と native で一致したため `solved/` へ移した。残りは bare `bra
 
 ### 既存 round-6 への補足観察
 
-- round-6 で「`(branch()).list` は `[[1], [0]]`」とあるが、今の build では
-  scalar `0` に潰れる (#native_undet_branch_list_returns_scalar 参照)。
+- round-6 で「`(branch()).list` は `[[1], [0]]`」とあるが、2026-05-17 の
+  `native_undet_branch_list_returns_scalar.yu` 修正後は
+  `(if branch(): 1 else: 2).list` も VM / native とも `[1, 2]`。
 - `Ord::lt` / `Eq::eq` が free variable として CPS lowering に届く経路は
   まだあり、native は `"a" < "b"` / `(1, 2) == (1, 2)` を含むファイルを
   そもそも compile できない。VM 側は runtime で blocked になるだけ。

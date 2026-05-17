@@ -872,6 +872,18 @@ x + rest.y
     }
 
     #[test]
+    fn runs_undet_if_branch_list_through_cps_repr() {
+        assert_source_cps_repr_display_with_std(
+            r#"use std::undet::*
+
+(if branch(): 1 else: 2).list
+"#,
+            vec!["[1, 2]"],
+        )
+        .expect("CPS repr native display");
+    }
+
+    #[test]
     fn runs_undet_logic_each_through_cps_repr() {
         assert_source_cps_repr_display_with_std(
             r#"use std::undet::*

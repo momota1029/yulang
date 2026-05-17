@@ -29,6 +29,12 @@ done
 
 ### 2026-05-17 追加修正
 
+- [`native_undet_branch_list_returns_scalar.yu`](native_undet_branch_list_returns_scalar.yu)
+  — `(if branch(): 1 else: 2).list` が native で scalar `1` に潰れていた件。
+  handler wrapper (`junction`) が消費しない `undet::branch` を thunk 引数から
+  外へ投げる場合は direct call 後の continuation も capture する必要があるため、
+  CPS lowering でその wrapper 呼び出しを `EffectfulCall` 境界に乗せた。
+  VM / native とも `[1, 2]`。
 - [`undet_range_nested_each_list_runtime_type.yu`](undet_range_nested_each_list_runtime_type.yu)
   — `(each 1..2 + each 1..2).list.say` が parser 修正後も
   `std::flow::sub::sub` の runtime type inference で落ちていた件。

@@ -249,6 +249,12 @@ fn collect_expr_direct_calls_inner(
     out: &mut Vec<typed_ir::Path>,
     visiting_values: &mut HashSet<typed_ir::Path>,
 ) {
+    if runtime_type_is_bool_value(&expr.ty)
+        && let Ok(Some((target, _info, args))) = direct_apply_path(expr, functions)
+        && handler_wrapper_args_have_unconsumed_effects(target, &args, bindings)
+    {
+        out.push(target.clone());
+    }
     if let Some((body, arms, consumes)) = inline_thunk_handler_apply(expr, functions, bindings) {
         collect_expr_direct_calls_inner(&body, functions, bindings, out, visiting_values);
         let used_effects = collect_expr_performed_effects(&body);
@@ -284,7 +290,9 @@ fn collect_expr_direct_calls_inner(
                     bindings,
                     &mut visiting,
                     &mut memo,
-                ) {
+                ) || (runtime_type_is_bool_value(&expr.ty)
+                    && handler_wrapper_args_have_unconsumed_effects(&target, &args, bindings))
+                {
                     out.push(target.clone());
                 }
                 if binding_has_self_direct_call(&target, &binding.body, functions) {
@@ -3628,12 +3636,14 @@ impl<'a> FunctionLowerer<'a> {
                 .find_map(|(index, arg)| effect_apply_nested(arg).map(|effect| (index, effect)));
             let Some((effect_index, request)) = effect_arg else {
                 let call_may_perform = self.target_may_perform_when_called(target_path);
-                if call_may_perform {
+                let needs_handler_wrapper_boundary =
+                    self.direct_call_needs_handler_wrapper_boundary(target_path, &args, &body.ty);
+                if call_may_perform || needs_handler_wrapper_boundary {
                     self.lower_handled_effectful_call_value(
                         info,
                         args,
                         &body.ty,
-                        call_may_perform,
+                        call_may_perform || needs_handler_wrapper_boundary,
                         value_cont,
                     )?;
                 } else {
@@ -4081,7 +4091,14 @@ impl<'a> FunctionLowerer<'a> {
                     {
                         let target = info.name.clone();
                         let call_may_perform = self.target_may_perform_when_called(target_path);
+                        let needs_handler_wrapper_boundary = self
+                            .direct_call_needs_handler_wrapper_boundary(
+                                target_path,
+                                &args,
+                                &value.ty,
+                            );
                         if call_may_perform
+                            || needs_handler_wrapper_boundary
                             || (self.active_handler.is_some()
                                 && matches!(info.ret, runtime::Type::Thunk { .. }))
                         {
@@ -4091,7 +4108,7 @@ impl<'a> FunctionLowerer<'a> {
                                 info,
                                 args,
                                 &value.ty,
-                                call_may_perform,
+                                call_may_perform || needs_handler_wrapper_boundary,
                                 &stmts[index + 1..],
                                 tail,
                                 expected_effects,
@@ -4915,6 +4932,27 @@ impl<'a> FunctionLowerer<'a> {
         args.iter().any(|arg| self.expr_contains_resume_apply(arg))
     }
 
+    fn direct_call_needs_handler_wrapper_boundary(
+        &self,
+        target: &typed_ir::Path,
+        args: &[&runtime::Expr],
+        result_ty: &runtime::Type,
+    ) -> bool {
+        if !runtime_type_is_bool_value(result_ty) {
+            return false;
+        }
+        if path_name(target) == self.name {
+            return false;
+        }
+        let Some(binding) = self.bindings.get(target) else {
+            return false;
+        };
+        let Some(wrapper) = handler_wrapper_info(binding) else {
+            return false;
+        };
+        handler_wrapper_args_have_unconsumed_effects_for_wrapper(args, &wrapper)
+    }
+
     fn expr_may_perform_when_evaluated(&self, expr: &runtime::Expr) -> bool {
         let mut visiting = HashSet::new();
         let mut memo = HashMap::new();
@@ -4936,6 +4974,8 @@ impl<'a> FunctionLowerer<'a> {
     ) -> DirectCallPlan<'expr, 'functions> {
         let info_returns_thunk = matches!(info.ret, runtime::Type::Thunk { .. });
         let target_may_perform = self.target_may_perform_when_called(target_path);
+        let needs_handler_wrapper_boundary =
+            self.direct_call_needs_handler_wrapper_boundary(target_path, &args, &expr.ty);
         let force_handler_reentry_args =
             self.direct_call_has_handler_reentry_arg(target_path, &args);
         let should_inline = (!matches!(expr.ty, runtime::Type::Thunk { .. })
@@ -4945,14 +4985,15 @@ impl<'a> FunctionLowerer<'a> {
             self.sync_direct_call_for_ignored_force_depth.is_active() && info_returns_thunk;
         let ignored_unit_immediate_force =
             ignored_immediate_force && runtime_type_is_unit_value(&expr.ty);
-        let mode =
-            if (self.higher_order_helper && info_returns_thunk && !ignored_unit_immediate_force)
-                || (!ignored_immediate_force && target_may_perform)
-            {
-                DirectCallMode::EffectfulWithResume
-            } else {
-                DirectCallMode::SyncDirect
-            };
+        let mode = if (self.higher_order_helper
+            && info_returns_thunk
+            && !ignored_unit_immediate_force)
+            || (!ignored_immediate_force && (target_may_perform || needs_handler_wrapper_boundary))
+        {
+            DirectCallMode::EffectfulWithResume
+        } else {
+            DirectCallMode::SyncDirect
+        };
         DirectCallPlan {
             expr,
             target: info.name.clone(),
@@ -5686,6 +5727,37 @@ fn handler_wrapper_handle(
     }
 }
 
+fn handler_wrapper_args_have_unconsumed_effects(
+    target: &typed_ir::Path,
+    args: &[&runtime::Expr],
+    bindings: &HashMap<typed_ir::Path, &runtime::Binding>,
+) -> bool {
+    let Some(binding) = bindings.get(target) else {
+        return false;
+    };
+    let Some(wrapper) = handler_wrapper_info(binding) else {
+        return false;
+    };
+    handler_wrapper_args_have_unconsumed_effects_for_wrapper(args, &wrapper)
+}
+
+fn handler_wrapper_args_have_unconsumed_effects_for_wrapper(
+    args: &[&runtime::Expr],
+    wrapper: &HandlerWrapperInfo,
+) -> bool {
+    // A wrapper can safely run effects it consumes itself. Effects left for
+    // an outer handler need the caller's post-call continuation in the
+    // captured resumption.
+    args.iter().any(|arg| {
+        collect_expr_performed_effects(arg).iter().any(|effect| {
+            !wrapper
+                .consumes
+                .iter()
+                .any(|consume| effect_matches(consume, effect))
+        })
+    })
+}
+
 fn binding_may_perform_when_called(
     target: &typed_ir::Path,
     functions: &HashMap<typed_ir::Path, FunctionInfo>,
@@ -6402,6 +6474,16 @@ fn runtime_type_is_unit_value(ty: &runtime::Type) -> bool {
                 && path.segments.len() == 1
                 && path.segments[0].0 == "unit"
     )
+}
+
+fn runtime_type_is_bool_value(ty: &runtime::Type) -> bool {
+    match ty {
+        runtime::Type::Thunk { value, .. } => runtime_type_is_bool_value(value),
+        runtime::Type::Core(typed_ir::Type::Named { path, args }) => {
+            args.is_empty() && path.segments.len() == 1 && path.segments[0].0 == "bool"
+        }
+        runtime::Type::Unknown | runtime::Type::Core(_) | runtime::Type::Fun { .. } => false,
+    }
 }
 
 fn callable_type_after_force(ty: &runtime::Type) -> &runtime::Type {

@@ -1,5 +1,5 @@
--- bug (native): `(if branch(): a else: b).list` が native では list ではなく
--- 単一値を返す。VM は正しく両方の分岐結果を集めた list を返す。
+-- solved (native): `(if branch(): a else: b).list` が native では list ではなく
+-- 単一値を返していた。VM は正しく両方の分岐結果を集めた list を返していた。
 --
 -- 2026-05-17 部分再確認。
 --
@@ -7,10 +7,13 @@
 --   use std::undet::*
 --   (if branch(): 1 else: 2).list   → [1, 2]           (list int)
 --
--- 実際:
+-- 修正前:
 --   (if branch(): 1 else: 2).list:
 --     VM      `[1, 2]`
 --     native  `1`                  (最初の分岐の値だけが scalar で返る)
+--
+-- 2026-05-17 修正後:
+--   VM / native とも `[1, 2]`
 --
 -- 部分修正済み:
 --   (branch()).list は native でも list へ戻った。ただし native の低レベル
@@ -21,8 +24,8 @@
 --   ({ my x = each [1, 2, 3]; guard: x > 1; x }).list
 --   → VM / native とも `[2, 3]`
 --
--- = `if` condition に入った `branch` + `junction` の continuation が崩れる。
---   `each` で wrap した list 反復は OK。
+-- = `junction` wrapper が消費しない `undet::branch` を thunk 引数から外へ
+--   投げる時に、caller 側の post-call continuation が capture されていなかった。
 --
 -- 関連:
 --   index.md round-6 WIP では `(branch()).list` が native CPS eval で
