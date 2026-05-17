@@ -1,0 +1,20 @@
+-- bug: 関数化した `catch` value arm が VM 実行時に空名の unbound variable で落ちる
+--
+-- 発見日: 2026-05-17
+--
+-- 再現:
+--   yulang check notes/bugs/catch_value_arm_function_runtime_unbound.yu
+--     pass : α -> α
+--     y : int
+--
+--   yulang run --print-roots notes/bugs/catch_value_arm_function_runtime_unbound.yu
+--     error: unbound variable
+--
+-- 観測:
+-- - `my id = \x -> x; id 1` は `--print-roots` で `[0] 1`。
+-- - 通常の `catch x:` を関数化した value arm / handler body lowering
+--   または runtime binding 側の問題に見える。
+
+my pass(x) = catch x: v -> v
+my y = pass 1
+y

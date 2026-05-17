@@ -81,6 +81,15 @@ use std::undet::*
 - 次は round-5 snippet の regression test を戻して、同じ principal
   elaboration 経路で壊れないか確認する。
 
+## 現在の未解決（2026-05-17 / 非 native regression）
+
+- [`catch_value_arm_function_runtime_unbound.yu`](catch_value_arm_function_runtime_unbound.yu)
+  — `my pass(x) = catch x: v -> v; my y = pass 1; y` は `check` で
+  `pass : α -> α`, `y : int` まで通るが、`yulang run --print-roots` では
+  `error: unbound variable ` (名前が空) で落ちる。`my id = \x -> x; id 1`
+  は実行できるため、単純な lambda call ではなく `catch` value arm を関数化した
+  経路が怪しい。既存の `catch x:` runtime lowering / binding 側の bug と見る。
+
 ## 現在の未解決（2026-05-15 round-5）
 
 round-5 の非 native snippet は 2026-05-16 時点で全て再現しない。新しい
