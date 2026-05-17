@@ -3263,7 +3263,12 @@ impl<'a> FunctionLowerer<'a> {
         let cond_value = self.fresh_value();
         let (expected_effects, condition_handler) = self.handler_body_effect_context(cond, handler);
 
-        self.lower_handled_body(cond, &expected_effects, condition_handler, Some(cond_cont))?;
+        self.lower_effectful_condition_to_continuation(
+            cond,
+            &expected_effects,
+            condition_handler,
+            cond_cont,
+        )?;
 
         self.current = ContinuationBuilder::new(cond_cont, vec![cond_value]);
         self.locals = saved_locals.clone();
@@ -3303,6 +3308,16 @@ impl<'a> FunctionLowerer<'a> {
         self.local_exprs = saved_local_exprs;
         self.resumptions = saved_resumptions;
         Ok(result)
+    }
+
+    fn lower_effectful_condition_to_continuation(
+        &mut self,
+        cond: &runtime::Expr,
+        expected_effects: &[typed_ir::Path],
+        handler: CpsHandlerId,
+        cond_cont: CpsContinuationId,
+    ) -> CpsLowerResult<typed_ir::Path> {
+        self.lower_handled_body(cond, expected_effects, handler, Some(cond_cont))
     }
 
     fn lower_handler_body_match(
@@ -3822,8 +3837,12 @@ impl<'a> FunctionLowerer<'a> {
         let else_cont = self.fresh_continuation();
         let cond_value = self.fresh_value();
 
-        let cond_effect =
-            self.lower_handled_body(cond, expected_effects, handler, Some(cond_cont))?;
+        let cond_effect = self.lower_effectful_condition_to_continuation(
+            cond,
+            expected_effects,
+            handler,
+            cond_cont,
+        )?;
 
         self.current = ContinuationBuilder::new(cond_cont, vec![cond_value]);
         self.locals = saved_locals.clone();
