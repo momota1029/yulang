@@ -1,0 +1,20 @@
+-- fixed: 関数化した `catch` value arm が VM 実行時に空名の unbound variable で落ちていた
+--
+-- 発見日: 2026-05-17
+--
+-- 再現:
+--   yulang check notes/bugs/solved/catch_value_arm_function_runtime_unbound.yu
+--     pass : α -> α
+--     y : int
+--
+--   yulang run --print-roots notes/bugs/solved/catch_value_arm_function_runtime_unbound.yu
+--     [0] 1
+--
+-- 観測:
+-- - `my id = \x -> x; id 1` は `--print-roots` で `[0] 1`。
+-- - value arm の `<root>` sentinel を handler binding detection が
+--   消費 effect として拾うと、principal elaboration 後に空 path handler が残る。
+
+my pass(x) = catch x: v -> v
+my y = pass 1
+y

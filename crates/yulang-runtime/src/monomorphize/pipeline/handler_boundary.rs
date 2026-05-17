@@ -1364,6 +1364,9 @@ fn handle_arm_parent_effects(arms: &[HandleArm]) -> Vec<typed_ir::Path> {
             .into_iter()
             .flatten()
         {
+            if path.segments.is_empty() {
+                continue;
+            }
             if !out
                 .iter()
                 .any(|existing| effect_paths_match(existing, &path))
@@ -1484,6 +1487,57 @@ mod tests {
         assert!(!info.residual_before_known);
         assert!(!info.residual_after_known);
         assert!(!info.pure);
+    }
+
+    #[test]
+    fn handler_binding_detection_ignores_value_arm_sentinel() {
+        let mut binding = test_binding(fun(named("int"), named("int")));
+        binding.name = path("pass");
+        binding.body = Expr::typed(
+            ExprKind::Lambda {
+                param: typed_ir::Name("x".to_string()),
+                param_effect_annotation: None,
+                param_function_allowed_effects: None,
+                body: Box::new(Expr::typed(
+                    ExprKind::Handle {
+                        body: Box::new(Expr::typed(
+                            ExprKind::Var(path("x")),
+                            RuntimeType::core(named("int")),
+                        )),
+                        arms: vec![HandleArm {
+                            effect: typed_ir::Path::default(),
+                            payload: Pattern::Bind {
+                                name: typed_ir::Name("v".to_string()),
+                                ty: RuntimeType::core(named("int")),
+                            },
+                            resume: None,
+                            guard: None,
+                            body: Expr::typed(
+                                ExprKind::Var(path("v")),
+                                RuntimeType::core(named("int")),
+                            ),
+                        }],
+                        evidence: crate::ir::JoinEvidence {
+                            result: named("int"),
+                        },
+                        handler: crate::ir::HandleEffect {
+                            consumes: Vec::new(),
+                            residual_before: Some(typed_ir::Type::Never),
+                            residual_after: Some(typed_ir::Type::Never),
+                        },
+                    },
+                    RuntimeType::core(named("int")),
+                )),
+            },
+            RuntimeType::fun(
+                RuntimeType::core(named("int")),
+                RuntimeType::core(named("int")),
+            ),
+        );
+
+        let info = handler_binding_info(&binding).expect("handler info");
+        assert!(info.consumes.is_empty());
+        assert!(info.pure);
     }
 
     #[test]

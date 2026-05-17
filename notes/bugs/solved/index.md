@@ -29,6 +29,11 @@ done
 
 ### 2026-05-17 再確認
 
+- [`catch_value_arm_function_runtime_unbound.yu`](catch_value_arm_function_runtime_unbound.yu)
+  — `my pass(x) = catch x: v -> v; pass 1` 系で、`catch` value arm の
+  `<root>` sentinel が principal elaboration の handler binding detection に
+  消費 effect として拾われ、空 path handler が残っていた件。value arm sentinel
+  を effect として扱わないようにし、VM `--print-roots` は `[0] 1`。
 - [`list.say.md`](list.say.md)
   — `Display::say` default method が list receiver で specialize されず、
   generic `Display::say<'a>` が VM erase まで残っていた件。`[1, 2, 3].say` /
