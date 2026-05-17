@@ -29,6 +29,13 @@ done
 
 ### 2026-05-17 追加修正
 
+- [`native_open_range_for_last_returns_payload.yu`](native_open_range_for_last_returns_payload.yu)
+  — `for x in 0..: if x == 5: last` が native で timeout し、有限 range でも
+  `last` 後の iteration が続いていた件。`RoutedJump` の mode 2 consume を
+  local scoped abort と分け、保存済み return-frame prefix へ戻る必要がある
+  routed jump だけ current native activation から返すようにした。
+  `runs_open_range_for_loop_last_through_cps_repr` は通常テストへ戻し、VM / native
+  とも `5`。
 - [`native_error_wrap_basic_flow.yu`](native_error_wrap_basic_flow.yu)
   — `error E:` + `fail` + `E::wrap` の native 基本 flow が、`fail` 単体では
   free `std::error::Throw::throw` reject、effect op 直呼びでは garbage 表示、

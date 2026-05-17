@@ -3473,6 +3473,30 @@ fn abort_result_or_return<M: Module>(
 
     builder.switch_to_block(consume_block);
     builder.seal_block(consume_block);
+    let should_return_routed_jump = call_i64_helper(
+        module_backend,
+        builder,
+        "yulang_cps_routed_jump_should_return_i64",
+        &[],
+    )?;
+    let routed_jump_block = builder.create_block();
+    let scoped_abort_block = builder.create_block();
+    builder.ins().brif(
+        should_return_routed_jump,
+        routed_jump_block,
+        &[],
+        scoped_abort_block,
+        &[],
+    );
+
+    builder.switch_to_block(routed_jump_block);
+    builder.seal_block(routed_jump_block);
+    let abort_value =
+        call_i64_helper(module_backend, builder, "yulang_cps_consume_abort_i64", &[])?;
+    builder.ins().return_(&[abort_value]);
+
+    builder.switch_to_block(scoped_abort_block);
+    builder.seal_block(scoped_abort_block);
     let abort_value =
         call_i64_helper(module_backend, builder, "yulang_cps_consume_abort_i64", &[])?;
     builder
@@ -5885,14 +5909,25 @@ impl NativeCpsI64Abort {
         }
     }
 
-    fn is_routed_jump(&self) -> bool {
-        matches!(self, NativeCpsI64Abort::RoutedJump { .. })
-    }
-
     fn is_unguarded_routed_jump(&self) -> bool {
         matches!(
             self,
             NativeCpsI64Abort::RoutedJump { guards, .. } if guards.is_empty()
+        )
+    }
+
+    fn is_routed_jump(&self) -> bool {
+        matches!(self, NativeCpsI64Abort::RoutedJump { .. })
+    }
+
+    fn routed_jump_should_return(&self) -> bool {
+        matches!(
+            self,
+            NativeCpsI64Abort::RoutedJump {
+                return_frame_threshold,
+                return_frames,
+                ..
+            } if *return_frame_threshold > 0 && !return_frames.is_empty()
         )
     }
 }
@@ -9798,6 +9833,11 @@ extern "C" fn yulang_cps_abort_active_i64() -> i64 {
 #[unsafe(no_mangle)]
 extern "C" fn yulang_cps_abort_should_return_i64() -> i64 {
     i64::from(yulang_cps_abort_mode_i64() == 1)
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn yulang_cps_routed_jump_should_return_i64() -> i64 {
+    NATIVE_CPS_I64_ABORT.with(|slot| i64::from(slot.borrow().routed_jump_should_return()))
 }
 
 #[unsafe(no_mangle)]

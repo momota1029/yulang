@@ -135,15 +135,14 @@ VM (`yulang run --interpreter`) と native (`yulang run --native`) で結果が
   `ScopeReturn` の frame-walk 後に JIT が eval/repr と同じ「一段ずつ戻る」
   非局所 return を表せているか、`ResumeWithHandler` の env overlay と合わせて見る。
 
-- [`native_open_range_for_last_returns_payload.yu`](native_open_range_for_last_returns_payload.yu)
-  — 2026-05-17 再確認で solved から戻した。`for x in 0..: if x == 5: last`
-  は native で 30 秒 timeout。有限 range/list に `say x.show` を入れると
-  `0..4` の後に `6`, `7` も出るため、`last` は実際には fold を止めていない。
-  trace では `loop::last` と `last::break` の handler selection までは成功し、
-  `route_scope_return` も frame-walk で prompt を見つける。ただし routed jump
-  を consume しても escape 後の return-frame prefix が正しく eval-loop jump
-  として再開されず、handler arm の `0` が普通値として range/fold に戻る。
-  `native-scary/prompt-7.md` の 2026-05-17 追記を続きとして見る。
+- [`native_recursive_handler_for_last_tail_skips_value_arm.yu`](native_recursive_handler_for_last_tail_skips_value_arm.yu)
+  — self-recursive shallow handler の resumption 内で `for ... last` を踏み、
+  その後に block tail `5` があると、VM は `(5, "0\n1\n2\n3\n4\n")` だが
+  native は `5` を返す。`last` / `last::break` の handler selection と
+  `route_scope_return` の frame-walk は成功している。`RoutedJump` を root-level
+  `Global` abort として残す実験では `(0, "4\n")` で止まるため、単純な abort
+  propagation ではなく、`for` 後続 continuation と外側 handler value arm の
+  再開順序が CPS eval/repr とずれている。
 
 - `(each [1, 2, 3]).list` / `.logic` / nested `.once` の
   `branch result type mismatch: expected unit, got std::bytes::bytes` は

@@ -169,7 +169,11 @@ in CPS repr native. Unit-typed scalar roots display as `()` in the JIT display
 helper even though the scalar ABI carries them as `0`. Effectful thunk forcing in
 the JIT also preserves the pushed post-continuation frame while the thunk body is
 evaluated, so recursive handler/resumption flows can return heap values such as
-tuples without leaking visible thunk handles.
+tuples without leaking visible thunk handles. Scoped routed jumps only leave the
+current native activation when they need to restore an outer return-frame prefix,
+which keeps open-range `for`/`last` exits from continuing recursive folds while
+still allowing root value arms and nondeterministic list collection to run their
+local continuations.
 
 ## Development
 

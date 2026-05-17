@@ -1,0 +1,32 @@
+// bug (native): recursive shallow handler + for/last + tail skips value arm.
+//
+// VM:
+//   yulang run --interpreter --print-roots notes/bugs/native_recursive_handler_for_last_tail_skips_value_arm.yu
+//   => [0] (5, "0\n1\n2\n3\n4\n")
+//
+// Native on 2026-05-17:
+//   yulang run --native --print-roots notes/bugs/native_recursive_handler_for_last_tail_skips_value_arm.yu
+//   => 5
+//
+// The `last` handler is found, but after the routed jump the recursive `listen`
+// value arm is not applied to the block tail `5`. Experiments that leave a
+// root-level routed jump as `Global` abort stop too early at `(0, "4\n")`, so
+// the missing piece is not just abort propagation: the ordinary continuation
+// after the `for` and the outer handler value arm need to be resumed in the
+// same order as CPS eval/repr.
+
+use std::flow::*
+
+pub act out:
+    pub say: str -> ()
+
+our listen(x: [_] _, log: str): (_, str) = catch x:
+    out::say o, k -> listen(k (), log + o + "\n")
+    v -> (v, log)
+
+listen {
+    for x in [0, 1, 2, 3, 4, 5, 6, 7]:
+        if x == 5: last
+        else: out::say x.show
+    5
+} ""

@@ -111,10 +111,7 @@ Cranelift backend を作る。
   root display を修正した。CPS repr ABI の scalar lane は `int` / `bool` /
   `unit` を同じ `i64` に載せるため、root の静的 runtime type が `unit` のときだけ
   display hint で `0` を `()` として表示する。これは実行値の routing ではなく
-  root 表示境界の問題。あわせて `runs_open_range_for_loop_last_through_cps_repr` は
-  CPS eval 層でも `last` が open range fold を止められず memory exhaustion まで
-  再帰するため、通常 `cargo test -p yulang-compile` からは `#[ignore]` で外した。
-  未解決 bug としては残す。
+  root 表示境界の問題。
 - 2026-05-16 round-9 で `runs_recursive_effect_handler_tuple_result_through_cps_repr`
   の JIT 経路を修正した。`EffectfulForce` terminator は resume frame を push した後、
   thunk 本体だけを `initial = return_frames.len()` の fresh eval で force し、force
@@ -146,10 +143,11 @@ Cranelift backend を作る。
   handler を過捕捉して結果が一段余分に包まれる。current stack は
   `(prompt, current eval)`、return-frame walk は `(prompt, owner eval)` の
   ままにする。
-- finite list `for` / `last` が native JIT で `0` に落ちる件は未解決。
-  `ScopeReturn` slot が root まで伝播して fallback value として残るので、
-  handler stack の探索条件ではなく、selected handler meta / loop-control
-  escape の対応を追う必要がある。
+- finite/open range `for` / `last` は native JIT でも後続 continuation へ戻れる。
+  routed jump の consume は、保存済み return-frame prefix へ戻る必要がある場合だけ
+  current native activation から返し、root/value-arm 境界の threshold 0 では通常値として
+  後続へ渡す。これで open range の memory exhaustion と、guard block tail /
+  finite undet list の値落ちを同時に避ける。
 
 近い形:
 

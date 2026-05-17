@@ -1,11 +1,11 @@
 // Native CPS repr used to loop forever on open-range `for` with local `last`.
 //
 // VM:
-//   yulang run notes/bugs/native_open_range_for_last_returns_payload.yu
+//   yulang run --interpreter --print-roots notes/bugs/solved/native_open_range_for_last_returns_payload.yu
 //   => [0] 5
 //
-// Native CPS repr, fixed on 2026-05-15:
-//   yulang native --kind run-cps-repr-exe notes/bugs/native_open_range_for_last_returns_payload.yu
+// Native CPS repr, fixed again on 2026-05-17:
+//   yulang run --native --print-roots notes/bugs/solved/native_open_range_for_last_returns_payload.yu
 //   => 5
 //
 // The local `last` handler needs to stop the loop body without turning into a

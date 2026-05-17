@@ -561,7 +561,6 @@ my run(a: [log] 'r): 'r = catch a:
     }
 
     #[test]
-    #[ignore = "native CPS open range + last currently recurses until memory exhaustion"]
     fn runs_open_range_for_loop_last_through_cps_repr() {
         assert_source_cps_repr_jit_display_with_std(
             r#"use std::flow::*
