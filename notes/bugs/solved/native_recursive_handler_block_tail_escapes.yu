@@ -1,5 +1,5 @@
-// bug (native): 最小再現. recursive shallow handler + block tail で
-// `(v, log)` tuple が作られず block tail が listen の戻り値を貫通する。
+// solved (native): recursive shallow handler + block tail で
+// `(v, log)` tuple が作られず block tail が listen の戻り値を貫通していた。
 //
 // `for + last` 系の superset である
 // `native_recursive_handler_for_last_tail_skips_value_arm.yu` から
@@ -11,6 +11,15 @@
 //
 // Native on 2026-05-17:
 //   => 5
+//
+// Fixed on 2026-05-18:
+//   yulang run --native --print-roots <this file>
+//   => (5, "0\n")
+//
+// Root cause: effectful DirectCall statement の後続 continuation が
+// native return-frame protocol に乗っていなかった。CPS lowering で
+// effectful callee への DirectCall を EffectfulCall + explicit resume
+// continuation に正規化して解消。
 //
 // 必要な要素:
 //   - 関数化された `our listen(x, log)`（引数 2 つ以上）

@@ -1,4 +1,4 @@
-// bug (native): recursive shallow handler + block tail value escapes to root.
+// solved (native): recursive shallow handler + block tail value used to escape to root.
 //
 // 2026-05-17 再整理: 元のタイトルは「for/last + tail skips value arm」だが、
 // `last` も `if` も本質ではない。**`for + 1要素 + 1 say + block tail` +
@@ -10,6 +10,15 @@
 //
 // Native on 2026-05-17 (post Phase 2 routing unification + tuple memory-unsafety fix):
 //   => 5
+//
+// Fixed on 2026-05-18:
+//   yulang run --native --print-roots <this file>
+//   => (5, "0\n1\n2\n3\n4\n")
+//
+// Root cause: effectful DirectCall statement の後続 continuation が
+// native return-frame protocol に乗っていなかった。CPS lowering で
+// effectful callee への DirectCall を EffectfulCall + explicit resume
+// continuation に正規化して解消。
 //
 // 切り分けまとめ (2026-05-17):
 //   - inline catch（関数化なし）では起きない。`our listen` + 引数 2 つ以上が必要。
@@ -35,7 +44,7 @@
 //     apply_closure trace の間で closure pointer → 所有 function name の reverse
 //     mapping を追加する必要がある。
 //
-// 関連: notes/bugs/native_recursive_tuple_handler_memory_unsafe.{md,yu} の
+// 関連: notes/bugs/solved/native_recursive_tuple_handler_memory_unsafe.{md,yu} の
 // memory-unsafety 系統は 2026-05-17 の commit 3bad594 で解消済み
 // (apply_closure 経由で force_thunk を call)。
 

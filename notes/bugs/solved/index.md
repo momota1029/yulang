@@ -27,6 +27,24 @@ done
 
 ## 解決済み一覧（時系列で新しいものが上）
 
+### 2026-05-18 native recursive handler / display 整理
+
+- [`native_recursive_tuple_handler_memory_unsafe.yu`](native_recursive_tuple_handler_memory_unsafe.yu)
+  / [`native_recursive_tuple_handler_memory_unsafe.md`](native_recursive_tuple_handler_memory_unsafe.md)
+  — recursive tuple-returning handler が native で pointer 形整数を漏らしていた件。
+  memory-unsafety 自体は 2026-05-17 commit `3bad594` の closure result thunk force で
+  解消済み。2026-05-18 に unit literal を `NativeCpsI64HeapValue::Unit` として
+  保持するようにし、VM / native とも `((), "x")`。
+- [`native_recursive_handler_block_tail_escapes.yu`](native_recursive_handler_block_tail_escapes.yu)
+  — recursive shallow handler の arm から再帰呼び出しして tuple を返す時、
+  body の block tail `5` が handler value arm の `(v, log)` を貫通して
+  native root に出ていた最小ケース。effectful `DirectCall` statement の後続
+  continuation を `EffectfulCall` + explicit resume continuation へ正規化し、
+  VM / native とも `(5, "0\n")`。
+- [`native_recursive_handler_for_last_tail_skips_value_arm.yu`](native_recursive_handler_for_last_tail_skips_value_arm.yu)
+  — 上記 block-tail bug の `for ... last` を含む superset。VM / native とも
+  `(5, "0\n1\n2\n3\n4\n")`。
+
 ### 2026-05-17 追加修正
 
 - [`native_open_range_for_last_returns_payload.yu`](native_open_range_for_last_returns_payload.yu)
