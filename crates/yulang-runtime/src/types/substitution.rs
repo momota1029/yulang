@@ -1858,6 +1858,7 @@ pub(crate) fn project_closed_substitutions_from_type(
     depth: usize,
 ) {
     if depth == 0 {
+        debug_assert!(false, "type substitution inference depth exhausted");
         return;
     }
     match (template, actual) {
